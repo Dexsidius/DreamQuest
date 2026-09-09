@@ -1,0 +1,648 @@
+#include "world.h"
+#include "../input.h"
+#include "../systems/loot.h"
+#include "../systems/quest.h"
+#include "../systems/dialogue.h"
+
+static constexpr float FADE_SPEED     = 3.2f;
+// Generous enough to reach anything the player can stand next to: a wide prop
+// such as the mission board keeps them ~45px from its centre, so a tighter
+// radius would leave them unable to use something they are leaning on.
+static constexpr float INTERACT_RANGE = 58.0f;
+static constexpr float PICKUP_RANGE   = 18.0f;
+static constexpr float PICKUP_ARM     = 0.35f;   // no instant re-collect
+
+// -----------------------------------------------------------------------------
+//  Map loading and transitions
+// -----------------------------------------------------------------------------
+
+bool World::LoadMap(const string& id, const string& spawn, const GameContext& ctx) {
+    const string path = "maps/" + id + ".mx";
+    if (!map.Load(path)) return false;
+
+    map_id = id;
+    enemies.clear();
+    npcs.clear();
+    pickups.clear();
+    texts.clear();
+    gather_index = -1;
+
+    SpawnEntitiesFromMap(ctx);
+
+    SDL_FPoint p;
+    if (spawn.empty() || !map.Spawn(spawn, p)) p = map.DefaultSpawn();
+    player.x = p.x;
+    player.y = p.y;
+    player.knock_x = player.knock_y = 0.0f;
+
+    camera.SetBounds(map.Width(), map.Height());
+    camera.SnapTo(player.x, player.y);
+    return true;
+}
+
+void World::SpawnEntitiesFromMap(const GameContext& ctx) {
+    for (const auto& def : map.Enemies()) {
+        // A monster already killed this session stays dead until its timer
+        // brings it back; flags cover the permanent ones.
+        const EnemyDef* stats = ctx.enemies ? ctx.enemies->Get(def.type) : nullptr;
+        if (!stats) {
+            SDL_Log("World: unknown enemy type '%s'", def.type.c_str());
+            continue;
+        }
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        enemies.push_back(std::move(e));
+    }
+
+    for (const auto& def : map.Npcs()) {
+        auto n = std::make_unique<Npc>();
+        n->Init(def, ctx);
+        npcs.push_back(std::move(n));
+    }
+}
+
+void World::RequestTransition(const string& id, const string& spawn) {
+    if (transition_pending) return;
+    transition_pending = true;
+    next_map   = id;
+    next_spawn = spawn;
+    fade_dir   = 1;
+}
+
+void World::ApplyTransition(const GameContext& ctx) {
+    if (!LoadMap(next_map, next_spawn, ctx))
+        SDL_Log("World: failed to enter map '%s'", next_map.c_str());
+    transition_pending = false;
+    fade_dir = -1;
+}
+
+// -----------------------------------------------------------------------------
+//  Frame update
+// -----------------------------------------------------------------------------
+
+void World::Update(float dt, const GameContext& ctx) {
+    // --- screen wipe ---------------------------------------------------------
+    if (fade_dir != 0) {
+        fade += fade_dir * FADE_SPEED * dt;
+        if (fade_dir > 0 && fade >= 1.0f) {
+            fade = 1.0f;
+            if (transition_pending) ApplyTransition(ctx);
+        } else if (fade_dir < 0 && fade <= 0.0f) {
+            fade = 0.0f;
+            fade_dir = 0;
+        }
+    }
+    // Movement stays frozen while the screen is covered, but only for as long
+    // as it is covered: Game owns input_locked for open panels, so borrow it
+    // and hand it back rather than latching it on.
+    const bool frozen = (fade_dir > 0 && transition_pending);
+    const bool locked_by_game = player.input_locked;
+    player.input_locked = locked_by_game || frozen;
+
+    player.Update(dt, *this, ctx);
+
+    player.input_locked = locked_by_game;
+
+    if (!player.IsDead()) {
+        ApplyPlayerAttack(ctx);
+        ResolveInteractTarget(ctx);
+        UpdateGathering(dt, ctx);
+
+        // Step-through portals fire without a button press.
+        if (!transition_pending) {
+            if (const Portal* p = map.PortalAt(player.Bounds()))
+                if (!p->requires_interact && p->locked_by.empty())
+                    RequestTransition(p->target_map, p->target_spawn);
+        }
+    } else {
+        player.interact = {};
+        gather_index = -1;
+    }
+
+    for (auto& e : enemies) {
+        if (e->CurrentState() == Enemy::State::Dead) {
+            e->TickRespawn(dt);
+            if (e->ReadyToRespawn()) e->Revive();
+            else                     e->Update(dt, *this, ctx);
+            continue;
+        }
+        e->Update(dt, *this, ctx);
+    }
+
+    for (auto& n : npcs) n->Update(dt, *this, ctx);
+
+    UpdatePickups(dt, ctx);
+    UpdateTexts(dt);
+
+    camera.Follow(player.x, player.y, dt);
+}
+
+// -----------------------------------------------------------------------------
+//  Combat resolution
+// -----------------------------------------------------------------------------
+
+void World::ApplyPlayerAttack(const GameContext& ctx) {
+    // One swing lands once, on every enemy inside the arc.
+    if (!player.AttackPending()) return;
+    player.MarkAttackConsumed();
+    const AttackState& atk = player.Attack();
+
+    const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing,
+                                       atk.profile, atk.reach_scale);
+    bool connected = false;
+
+    for (auto& e : enemies) {
+        if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+        if (!RectsOverlap(hit, e->BodyBox())) continue;
+
+        DamageResult r = RollMelee(player.Profile(), e->Profile(),
+                                   atk.damage_mult, *ctx.rng);
+        connected = true;
+
+        if (!r.hit) {
+            AddText("miss", e->x, e->y - 46.0f, {150, 150, 168, 235});
+            continue;
+        }
+        if (r.damage <= 0) {
+            AddText("0", e->x, e->y - 46.0f, {120, 160, 220, 255});
+            continue;
+        }
+
+        e->Damage(r.damage);
+        player.AwardCombatXp(r.damage, atk.type);
+
+        const SDL_Color color = r.max_hit ? SDL_Color{255, 220, 90, 255}
+                                          : SDL_Color{255, 245, 235, 255};
+        AddText(std::to_string(r.damage), e->x, e->y - 46.0f, color);
+
+        // Knock the target away from the player, scaled by the swing.
+        const float dx = e->x - player.x, dy = e->y - player.y;
+        const float len = std::max(1.0f, Length(dx, dy));
+        e->knock_x += (dx / len) * atk.profile.knockback;
+        e->knock_y += (dy / len) * atk.profile.knockback;
+    }
+
+    if (!connected && atk.type == AttackType::Charged)
+        AddText("whiff", player.x, player.y - 52.0f, {150, 150, 160, 200});
+}
+
+// -----------------------------------------------------------------------------
+//  Interaction
+// -----------------------------------------------------------------------------
+
+void World::ResolveInteractTarget(const GameContext& ctx) {
+    (void)ctx;
+    InteractTarget best;
+
+    auto consider = [&](InteractTarget::Kind kind, int index,
+                        const string& label, float tx, float ty) {
+        const float d = Length(tx - player.x, ty - player.y);
+        if (d > INTERACT_RANGE || d >= best.distance) return;
+        best.kind = kind;
+        best.index = index;
+        best.label = label;
+        best.distance = d;
+    };
+
+    for (size_t i = 0; i < npcs.size(); ++i)
+        consider(InteractTarget::Npc, static_cast<int>(i),
+                 "Talk to " + npcs[i]->Name(), npcs[i]->x, npcs[i]->y);
+
+    const auto& objects = map.Objects();
+    for (size_t i = 0; i < objects.size(); ++i) {
+        const MapObject& o = objects[i];
+        string label;
+
+        if (o.type == "chest") {
+            label = Flagged(o.id) ? "" : "Open chest";
+        } else if (o.type == "note") {
+            label = "Read note";
+        } else if (o.type == "board") {
+            label = o.title.empty() ? "Read mission board" : ("Read " + o.title);
+        } else if (o.type == "sign") {
+            label = "Read sign";
+        } else if (o.type == "range") {
+            label = "Cook at the " + (o.title.empty() ? string("fire") : o.title);
+        } else if (o.type == "workbench") {
+            label = "Use the " + (o.title.empty() ? string("workbench") : o.title);
+        } else if (!o.skill.empty()) {
+            const int s = SkillFromName(o.skill);
+            if (s >= 0 && player.skills.Level(s) < o.skill_level)
+                label = "Needs " + std::to_string(o.skill_level) + " " + o.skill;
+            else
+                label = (o.skill == "Mining" ? "Mine " : "Chop ") +
+                        (o.title.empty() ? string("node") : o.title);
+        }
+
+        if (!label.empty())
+            consider(InteractTarget::Object, static_cast<int>(i), label, o.x, o.y);
+    }
+
+    // Doors are only offered when nothing closer wants the button.
+    if (const Portal* p = map.PortalAt(player.BodyBox()))
+        if (p->requires_interact) {
+            const float cx = p->rect.x + p->rect.w / 2.0f;
+            const float cy = p->rect.y + p->rect.h / 2.0f;
+            consider(InteractTarget::PortalDoor, 0, p->label, cx, cy);
+        }
+
+    player.interact = best;
+}
+
+void World::TryInteract(const GameContext& ctx) {
+    if (player.IsDead() || transition_pending) return;
+
+    // Interrupting a gather is what the button does while one is running.
+    if (gather_index >= 0) { gather_index = -1; return; }
+
+    const InteractTarget& t = player.interact;
+
+    switch (t.kind) {
+        case InteractTarget::Npc: {
+            if (t.index < 0 || t.index >= static_cast<int>(npcs.size())) break;
+            Npc& npc = *npcs[t.index];
+            npc.FaceToward(player.x, player.y);
+
+            if (npc.DialogueRoot().empty()) {
+                AddText("...", npc.x, npc.y - 48.0f, {200, 200, 210, 255});
+                break;
+            }
+            WorldRequest r;
+            r.type  = WorldRequest::Type::Dialogue;
+            r.id    = npc.Id();
+            r.title = npc.Name();
+            r.text  = npc.DialogueRoot();
+            requests.push_back(r);
+            break;
+        }
+
+        case InteractTarget::Object: {
+            const auto& objects = map.Objects();
+            if (t.index < 0 || t.index >= static_cast<int>(objects.size())) break;
+            const MapObject& o = objects[t.index];
+
+            if (o.type == "chest") {
+                if (Flagged(o.id)) break;
+                SetFlag(o.id);
+                if (!o.loot_table.empty()) SpawnLoot(o.loot_table, o.x, o.y + 10.0f, ctx);
+                AddText("Opened!", o.x, o.y - 34.0f, {255, 225, 120, 255});
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
+            } else if (o.type == "range") {
+                CookOne(o, ctx);
+            } else if (o.type == "workbench") {
+                WorldRequest r;
+                r.type  = WorldRequest::Type::Craft;
+                r.id    = o.id;
+                r.title = o.title.empty() ? "Workbench" : o.title;
+                requests.push_back(r);
+            } else if (o.type == "note" || o.type == "sign") {
+                // A note can also leave something behind, but only once.
+                if (!o.loot_table.empty() && !Flagged(o.id))
+                    SpawnLoot(o.loot_table, o.x, o.y + 8.0f, ctx);
+
+                WorldRequest r;
+                r.type  = WorldRequest::Type::Note;
+                r.id    = o.id;
+                r.title = o.title.empty() ? (o.type == "sign" ? "Sign" : "A scrawled note") : o.title;
+                r.text  = o.text;
+                r.list  = o.starts_quest.empty() ? vector<string>{}
+                                                 : vector<string>{o.starts_quest};
+                requests.push_back(r);
+                SetFlag(o.id);
+            } else if (o.type == "board") {
+                WorldRequest r;
+                r.type  = WorldRequest::Type::Board;
+                r.id    = o.id;
+                r.title = o.title.empty() ? "Mission Board" : o.title;
+                r.list  = o.quests;
+                requests.push_back(r);
+            } else if (!o.skill.empty()) {
+                const int s = SkillFromName(o.skill);
+                if (s < 0) break;
+                if (player.skills.Level(s) < o.skill_level) {
+                    AddText("Level too low", o.x, o.y - 34.0f, {255, 140, 140, 255});
+                    break;
+                }
+                gather_index  = t.index;
+                gather_timer  = 0.0f;
+                // Higher levels work faster, down to a floor.
+                const float speed = 1.0f + 0.02f * player.skills.Level(s);
+                gather_needed = std::max(0.9f, o.gather_time / speed);
+            }
+            break;
+        }
+
+        case InteractTarget::PortalDoor: {
+            const Portal* p = map.PortalAt(player.BodyBox());
+            if (!p) break;
+            if (!p->locked_by.empty() && !player.inventory.Has(p->locked_by)) {
+                AddText("It is locked.", player.x, player.y - 52.0f, {255, 150, 150, 255});
+                break;
+            }
+            RequestTransition(p->target_map, p->target_spawn);
+            break;
+        }
+
+        default: break;
+    }
+}
+
+// Cooking works the way the rest of the skills do: stand at a fire, press the
+// button, turn one raw thing into one cooked thing. Burning is possible until
+// the level is comfortably above the recipe.
+void World::CookOne(const MapObject& range, const GameContext& ctx) {
+    if (!ctx.items) return;
+
+    const int level = player.skills.Level(SKILL_COOKING);
+
+    for (int slot = 0; slot < player.inventory.SlotCount(); ++slot) {
+        const ItemStack& stack = player.inventory.Slot(slot);
+        if (stack.Empty()) continue;
+
+        const ItemDef* def = ctx.items->Get(stack.id);
+        if (!def || def->cook_result.empty()) continue;
+
+        if (level < def->cook_level) {
+            AddText("Cooking " + std::to_string(def->cook_level) + " needed",
+                    range.x, range.y - 34.0f, {255, 150, 150, 255});
+            return;
+        }
+
+        player.inventory.RemoveSlot(slot, 1);
+
+        // Chance to burn falls away as the level climbs past the requirement.
+        const int margin = level - def->cook_level;
+        std::uniform_real_distribution<float> roll(0.0f, 1.0f);
+        const float burn_chance = std::max(0.0f, 0.34f - margin * 0.03f);
+
+        if (ctx.rng && roll(*ctx.rng) < burn_chance) {
+            AddText("Burnt!", player.x, player.y - 54.0f, {200, 110, 90, 255});
+            player.GrantXp(SKILL_COOKING, std::max(1, def->cook_xp / 8));
+            return;
+        }
+
+        player.inventory.Add(def->cook_result, 1);
+        player.GrantXp(SKILL_COOKING, def->cook_xp);
+
+        const ItemDef* cooked = ctx.items->Get(def->cook_result);
+        AddText("+ " + (cooked ? cooked->name : def->cook_result),
+                player.x, player.y - 54.0f, {200, 255, 200, 255});
+        if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+        return;
+    }
+
+    AddText("Nothing raw to cook", range.x, range.y - 34.0f, {200, 200, 210, 255});
+}
+
+void World::UpdateGathering(float dt, const GameContext& ctx) {
+    if (gather_index < 0) return;
+
+    const auto& objects = map.Objects();
+    if (gather_index >= static_cast<int>(objects.size())) { gather_index = -1; return; }
+    const MapObject& o = objects[gather_index];
+
+    // Walking away cancels it.
+    if (Length(o.x - player.x, o.y - player.y) > INTERACT_RANGE + 12.0f) {
+        gather_index = -1;
+        return;
+    }
+
+    gather_timer += dt;
+    if (gather_timer < gather_needed) return;
+
+    const int skill = SkillFromName(o.skill);
+    if (skill >= 0 && o.yield_xp > 0) player.GrantXp(skill, o.yield_xp);
+
+    if (!o.yield.empty()) {
+        if (player.inventory.Add(o.yield, 1) > 0) {
+            const ItemDef* d = ctx.items ? ctx.items->Get(o.yield) : nullptr;
+            AddText("+ " + (d ? d->name : o.yield), player.x, player.y - 54.0f,
+                    {200, 255, 200, 255});
+            if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+        } else {
+            AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
+            gather_index = -1;
+            return;
+        }
+    }
+
+    // Keep going until the player moves or presses the button again.
+    gather_timer = 0.0f;
+}
+
+float World::GatherProgress() const {
+    if (gather_index < 0 || gather_needed <= 0.0f) return 0.0f;
+    return std::clamp(gather_timer / gather_needed, 0.0f, 1.0f);
+}
+
+// -----------------------------------------------------------------------------
+//  Loot and floating text
+// -----------------------------------------------------------------------------
+
+void World::SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx) {
+    if (!ctx.loot) return;
+    vector<LootDrop> drops = ctx.loot->Roll(table_id);
+
+    int index = 0;
+    for (const auto& d : drops) {
+        // Fan the pile out so overlapping drops stay clickable.
+        const float angle = 1.9f * index;
+        const float radius = drops.size() > 1 ? 9.0f + 3.0f * index : 0.0f;
+        DropItem(d.item, d.qty, x + cosf(angle) * radius, y + sinf(angle) * radius * 0.6f, ctx);
+        ++index;
+    }
+}
+
+void World::DropItem(const string& item_id, int qty, float x, float y,
+                     const GameContext& ctx) {
+    if (item_id.empty() || qty <= 0) return;
+    Pickup p;
+    p.item_id = item_id;
+    p.qty     = qty;
+    p.x = x;
+    p.y = y;
+    if (const ItemDef* d = ctx.items ? ctx.items->Get(item_id) : nullptr) p.icon = d->icon;
+    pickups.push_back(p);
+}
+
+void World::UpdatePickups(float dt, const GameContext& ctx) {
+    for (auto& p : pickups) {
+        p.life += dt;
+        p.bob  += dt * 3.4f;
+
+        if (p.collected || p.life < PICKUP_ARM) continue;
+        if (player.IsDead()) continue;
+        if (Length(p.x - player.x, p.y - player.y) > PICKUP_RANGE) continue;
+
+        const int added = player.inventory.Add(p.item_id, p.qty);
+        if (added <= 0) {
+            // Say so once every couple of seconds rather than every frame.
+            if (fmodf(p.life, 2.0f) < dt)
+                AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
+            continue;
+        }
+
+        const ItemDef* d = ctx.items ? ctx.items->Get(p.item_id) : nullptr;
+        const string name = d ? d->name : p.item_id;
+        AddText("+" + std::to_string(added) + " " + name, player.x, player.y - 50.0f,
+                {230, 230, 255, 255});
+
+        p.collected = true;
+        if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+    }
+
+    pickups.erase(std::remove_if(pickups.begin(), pickups.end(),
+                                 [](const Pickup& p) { return p.collected; }),
+                  pickups.end());
+}
+
+void World::AddText(const string& text, float x, float y, SDL_Color color, float life) {
+    FloatingText t;
+    t.text = text;
+    t.x = x;
+    t.y = y;
+    t.life = t.max_life = life;
+    t.color = color;
+    texts.push_back(t);
+}
+
+void World::UpdateTexts(float dt) {
+    for (auto& t : texts) t.life -= dt;
+    texts.erase(std::remove_if(texts.begin(), texts.end(),
+                               [](const FloatingText& t) { return t.life <= 0.0f; }),
+                texts.end());
+}
+
+vector<WorldRequest> World::TakeRequests() {
+    vector<WorldRequest> out;
+    out.swap(requests);
+    return out;
+}
+
+// -----------------------------------------------------------------------------
+//  Rendering
+// -----------------------------------------------------------------------------
+
+void World::Render(SDL_Renderer* r, TextureCache& cache) const {
+    const SDL_Color bg = map.BackgroundColor();
+    SDL_SetRenderDrawColor(r, bg.r, bg.g, bg.b, 255);
+    SDL_RenderClear(r);
+
+    map.RenderLayer(r, cache, camera, LAYER_GROUND);
+
+    // Everything at ground level draws in baseline order, so the player walks
+    // behind a tree trunk and in front of the grass at its foot.
+    struct Item { float sort_y; int kind; const void* ptr; };
+    vector<Item> queue;
+
+    vector<const TileInstance*> decor;
+    map.CollectDecor(camera, decor);
+    queue.reserve(decor.size() + enemies.size() + npcs.size() + pickups.size() + 8);
+    for (const TileInstance* t : decor) queue.push_back({t->sort_y, 0, t});
+
+    const SDL_FRect view = camera.VisibleWorldRect(96.0f);
+
+    for (const auto& o : map.Objects()) {
+        if (o.sprite.empty()) continue;
+        if (o.x < view.x || o.x > view.x + view.w ||
+            o.y < view.y || o.y > view.y + view.h) continue;
+        queue.push_back({o.y, 3, &o});
+    }
+    for (const auto& p : pickups) {
+        if (!RectsOverlap(p.Bounds(), view)) continue;
+        queue.push_back({p.y, 2, &p});
+    }
+    for (const auto& e : enemies) {
+        if (!RectsOverlap(e->BodyBox(), view)) continue;
+        queue.push_back({e->SortY(), 1, e.get()});
+    }
+    for (const auto& n : npcs) {
+        if (!RectsOverlap(n->BodyBox(), view)) continue;
+        queue.push_back({n->SortY(), 1, n.get()});
+    }
+    if (!player.IsDead() || player.DeathTimer() > 0.0f)
+        queue.push_back({player.SortY(), 1, &player});
+
+    std::stable_sort(queue.begin(), queue.end(),
+                     [](const Item& a, const Item& b) { return a.sort_y < b.sort_y; });
+
+    // Everything a piece of scenery must not be allowed to hide.
+    struct Combatant { SDL_FRect box; float sort_y; };
+    vector<Combatant> combatants;
+    combatants.push_back({player.sprite.WorldBounds(player.x, player.y), player.SortY()});
+    for (const auto& e : enemies) {
+        if (e->CurrentState() == Enemy::State::Dead) continue;
+        if (!RectsOverlap(e->BodyBox(), view)) continue;
+        combatants.push_back({e->sprite.WorldBounds(e->x, e->y), e->SortY()});
+    }
+
+    // True when this scenery is tall enough to swallow someone and is drawn
+    // over one of them.
+    auto covers_someone = [&](const SDL_FRect& art, float sort_y) {
+        if (art.h <= 48.0f) return false;
+        for (const Combatant& c : combatants)
+            if (sort_y > c.sort_y && RectsOverlap(art, c.box)) return true;
+        return false;
+    };
+
+    for (const Item& it : queue) {
+        switch (it.kind) {
+            case 0: {
+                const TileInstance* t = static_cast<const TileInstance*>(it.ptr);
+                // Decor tiles share the map texture list, so draw through the
+                // map to keep that indirection in one place.
+                map.RenderTile(r, cache, camera, *t,
+                               covers_someone(t->rect, t->sort_y) ? 110 : 255);
+                break;
+            }
+            case 1: {
+                const Entity* e = static_cast<const Entity*>(it.ptr);
+                e->Render(r, cache, camera);
+                break;
+            }
+            case 2: {
+                const Pickup* p = static_cast<const Pickup*>(it.ptr);
+                const float bob = sinf(p->bob) * 2.0f;
+                SDL_Texture* tex = p->icon.empty() ? nullptr : cache.Get(p->icon);
+                SDL_FRect world = {p->x - 8.0f, p->y - 14.0f + bob, 16.0f, 16.0f};
+                SDL_FRect dst = camera.ToScreenRect(world);
+                if (tex) {
+                    SDL_RenderTexture(r, tex, nullptr, &dst);
+                } else {
+                    SDL_SetRenderDrawColor(r, 240, 205, 90, 235);
+                    SDL_RenderFillRect(r, &dst);
+                    SDL_SetRenderDrawColor(r, 90, 70, 20, 255);
+                    SDL_RenderRect(r, &dst);
+                }
+                break;
+            }
+            case 3: {
+                const MapObject* o = static_cast<const MapObject*>(it.ptr);
+                const bool used = Flagged(o->id) && !o->sprite_open.empty();
+                SDL_Texture* tex = cache.Get(used ? o->sprite_open : o->sprite);
+                if (!tex) break;
+                float tw = 0, th = 0;
+                SDL_GetTextureSize(tex, &tw, &th);
+                // Objects stand on their position, like characters do.
+                const SDL_FRect world = {o->x - tw / 2.0f, o->y - th, tw, th};
+                const SDL_FRect dst = camera.ToScreenRect(world);
+
+                // Tall scenery drawn in front of someone goes translucent
+                // while it overlaps them, so nobody fights behind a bush.
+                const Uint8 alpha = covers_someone(world, o->y) ? 110 : 255;
+
+                SDL_SetTextureAlphaMod(tex, alpha);
+                SDL_RenderTexture(r, tex, nullptr, &dst);
+                SDL_SetTextureAlphaMod(tex, 255);
+                break;
+            }
+        }
+    }
+
+    map.RenderLayer(r, cache, camera, LAYER_OVERHEAD);
+}
