@@ -1,0 +1,127 @@
+#pragma once
+#include "../headers.h"
+
+// -----------------------------------------------------------------------------
+//  Items, inventory and equipment.
+//
+//  Item definitions are data (data/items.json) so drops, shops, quest rewards
+//  and cooking recipes all refer to items by id and nothing is hard-coded.
+// -----------------------------------------------------------------------------
+
+enum EquipSlot {
+    SLOT_NONE = -1,
+    SLOT_WEAPON = 0, SLOT_SHIELD, SLOT_HEAD, SLOT_BODY, SLOT_LEGS,
+    SLOT_AMULET, SLOT_RING,
+    SLOT_COUNT
+};
+
+const char* EquipSlotName(int slot);
+int  EquipSlotFromName(const string& name);
+
+struct ItemDef {
+    string id, name, description;
+    bool   stackable = false;
+    int    value = 1;                 // shop / alch value in coins
+    EquipSlot slot = SLOT_NONE;
+
+    // Equipment bonuses, applied on top of skill levels in combat maths.
+    int attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
+    int ranged_bonus = 0, magic_bonus = 0;
+    float attack_speed = 1.0f;        // multiplier on swing time; <1 is faster
+
+    map<int, int> requirements;       // SkillId -> level needed to equip
+
+    // Consumables.
+    bool consumable = false;
+    int  heal = 0;
+
+    // Cooking: raw -> cooked.
+    string cook_result;
+    int    cook_xp = 0, cook_level = 1;
+
+    // Crafting: what this turns into at a workbench.
+    string craft_result;
+    int    craft_qty = 1, craft_xp = 0, craft_level = 1;
+    map<string, int> craft_inputs;    // item id -> quantity
+
+    string icon;                      // image path, optional
+};
+
+class ItemDatabase {
+public:
+    bool Load(const string& path);
+    const ItemDef* Get(const string& id) const;
+    bool Has(const string& id) const { return defs.count(id) > 0; }
+    const map<string, ItemDef>& All() const { return defs; }
+    // Everything craftable, for the crafting panel.
+    vector<const ItemDef*> Recipes() const;
+
+private:
+    map<string, ItemDef> defs;
+};
+
+struct ItemStack {
+    string id;
+    int    qty = 0;
+    bool Empty() const { return id.empty() || qty <= 0; }
+    void Clear() { id.clear(); qty = 0; }
+};
+
+static constexpr int INVENTORY_SLOTS = 28;
+
+class Inventory {
+public:
+    explicit Inventory(const ItemDatabase* db = nullptr) : items(INVENTORY_SLOTS), db(db) {}
+    void SetDatabase(const ItemDatabase* d) { db = d; }
+
+    // Returns how many were actually added (0 when full).
+    int  Add(const string& id, int qty = 1);
+    bool Remove(const string& id, int qty = 1);
+    bool RemoveSlot(int slot, int qty = 1);
+    int  Count(const string& id) const;
+    bool Has(const string& id, int qty = 1) const { return Count(id) >= qty; }
+    bool Full() const;
+    int  FreeSlots() const;
+
+    const ItemStack& Slot(int i) const { return items[i]; }
+    ItemStack& Slot(int i) { return items[i]; }
+    int SlotCount() const { return static_cast<int>(items.size()); }
+    void Clear();
+
+    int  Coins() const { return Count("coins"); }
+    bool SpendCoins(int amount) { return Remove("coins", amount); }
+    void AddCoins(int amount) { Add("coins", amount); }
+
+    json ToJson() const;
+    void FromJson(const json& j);
+
+private:
+    vector<ItemStack> items;
+    const ItemDatabase* db;
+};
+
+class Equipment {
+public:
+    explicit Equipment(const ItemDatabase* db = nullptr) : db(db) {}
+    void SetDatabase(const ItemDatabase* d) { db = d; }
+
+    const string& InSlot(int slot) const;
+    // Swaps whatever was there out; returns the displaced item id (may be empty).
+    string Equip(int slot, const string& item_id);
+    string Unequip(int slot);
+    void Clear();
+
+    // Summed bonuses across every worn piece.
+    int AttackBonus() const, StrengthBonus() const, DefenceBonus() const;
+    int RangedBonus() const, MagicBonus() const;
+    float AttackSpeed() const;
+
+    json ToJson() const;
+    void FromJson(const json& j);
+
+private:
+    int SumBonus(int ItemDef::* field) const;
+
+    string slots[SLOT_COUNT];
+    const ItemDatabase* db;
+};
