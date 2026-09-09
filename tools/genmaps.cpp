@@ -1,0 +1,1019 @@
+// -----------------------------------------------------------------------------
+//  genmaps - builds the DreamQuest world into maps/*.mx
+//
+//  Output is the LevelEdit-Plus export format: a dictionary of tile name ->
+//  image + centre-anchored placements. Everything the game needs on top of
+//  that (draw layers, collision, portals, spawns, enemies, NPCs, objects) goes
+//  under a separate "dreamquest" key, which the editor ignores. That means a
+//  map generated here can be opened in LevelEdit-Plus, edited by hand, saved,
+//  and still run.
+//
+//  The generator is deterministic: the same seed always produces the same
+//  world, so a map can be regenerated after tweaking the layout without
+//  invalidating anything else.
+//
+//  Build:   see build.ps1 -Tools, or compile.sh
+//  Run:     ./genmaps            (writes into maps/ relative to the cwd)
+// -----------------------------------------------------------------------------
+
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+#include <string>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <fstream>
+#include <filesystem>
+#include <random>
+
+#include "../src/json.hpp"
+
+using json = nlohmann::json;
+using std::string;
+using std::vector;
+
+namespace fs = std::filesystem;
+
+// --- deterministic noise -----------------------------------------------------
+
+static float Hash2(int x, int y, int seed) {
+    unsigned int h = static_cast<unsigned int>(x) * 374761393u +
+                     static_cast<unsigned int>(y) * 668265263u +
+                     static_cast<unsigned int>(seed) * 2246822519u;
+    h = (h ^ (h >> 13)) * 1274126177u;
+    h ^= h >> 16;
+    return static_cast<float>(h & 0xFFFFFF) / static_cast<float>(0xFFFFFF);
+}
+
+static float Smooth(float t) { return t * t * (3.0f - 2.0f * t); }
+
+// Value noise: smooth, cheap, and good enough to keep biome edges from looking
+// ruled with a straight edge.
+static float Noise(float x, float y, int seed) {
+    const int xi = static_cast<int>(floorf(x)), yi = static_cast<int>(floorf(y));
+    const float xf = Smooth(x - xi), yf = Smooth(y - yi);
+    const float a = Hash2(xi,     yi,     seed);
+    const float b = Hash2(xi + 1, yi,     seed);
+    const float c = Hash2(xi,     yi + 1, seed);
+    const float d = Hash2(xi + 1, yi + 1, seed);
+    return (a * (1 - xf) + b * xf) * (1 - yf) + (c * (1 - xf) + d * xf) * yf;
+}
+
+static float Fbm(float x, float y, int seed, int octaves = 3) {
+    float sum = 0, amp = 0.5f, freq = 1.0f, norm = 0;
+    for (int i = 0; i < octaves; ++i) {
+        sum  += Noise(x * freq, y * freq, seed + i * 77) * amp;
+        norm += amp;
+        amp  *= 0.5f;
+        freq *= 2.0f;
+    }
+    return sum / norm;
+}
+
+// --- asset manifest ----------------------------------------------------------
+//
+// tools/make_manifest.ps1 records the pixel size of every imported image and
+// sorts the loose ground decals by colour family. Reading it here means art is
+// placed at the size it was drawn at, and a decal only ever lands on terrain
+// whose palette it belongs to.
+
+struct Manifest {
+    std::map<string, std::pair<int, int>> size;      // "decor/patch_00" -> w,h
+    std::map<string, vector<string>> families;       // "grass" -> decal names
+
+    bool Load(const string& path) {
+        std::ifstream in(path);
+        if (!in) {
+            std::printf("genmaps: no %s - run tools/make_manifest.ps1\n", path.c_str());
+            return false;
+        }
+        json root;
+        try {
+            in >> root;
+        } catch (const std::exception& e) {
+            std::printf("genmaps: bad manifest: %s\n", e.what());
+            return false;
+        }
+
+        if (root.contains("assets"))
+            for (auto it = root["assets"].begin(); it != root["assets"].end(); ++it)
+                size[it.key()] = {it.value().value("w", 32), it.value().value("h", 32)};
+
+        if (root.contains("families"))
+            for (auto it = root["families"].begin(); it != root["families"].end(); ++it) {
+                vector<string> names;
+                if (it.value().is_array())
+                    for (const auto& n : it.value()) names.push_back(n.get<string>());
+                families[it.key()] = names;
+            }
+        return true;
+    }
+
+    std::pair<int, int> Size(const string& key, int fallback = 32) const {
+        auto it = size.find(key);
+        if (it == size.end()) return {fallback, fallback};
+        return it->second;
+    }
+
+    const vector<string>& Family(const string& name) const {
+        static const vector<string> empty;
+        auto it = families.find(name);
+        return it == families.end() ? empty : it->second;
+    }
+};
+
+static Manifest g_manifest;
+
+// --- map builder -------------------------------------------------------------
+
+struct TileGroup {
+    string filepath;
+    int    layer = 0;
+    vector<std::array<int, 4>> locations;   // cx, cy, w, h
+};
+
+class MapBuilder {
+public:
+    MapBuilder(const string& id, const string& display, int w, int h)
+        : id(id), display(display), width(w), height(h) {
+        dq["version"]   = 1;
+        dq["tile_size"] = 16;
+        dq["bounds"]    = json::array({w, h});
+        dq["layers"]    = json::object();
+        dq["solid"]     = json::array();
+        dq["collision"] = json::array();
+        dq["portals"]   = json::array();
+        dq["spawns"]    = json::object();
+        dq["enemies"]   = json::array();
+        dq["npcs"]      = json::array();
+        dq["objects"]   = json::array();
+    }
+
+    // Places art by top-left corner; the file stores centres, as the editor does.
+    void Place(const string& name, const string& path, int layer,
+               int x, int y, int w, int h) {
+        TileGroup& g = groups[name];
+        if (g.filepath.empty()) {
+            g.filepath = path;
+            g.layer = layer;
+            dq["layers"][name] = layer;
+        }
+        g.locations.push_back({x + w / 2, y + h / 2, w, h});
+    }
+
+    // True for tiles whose art has visible detail rather than being one colour.
+    static bool Textured(const string& name) {
+        return name == "road" || name == "dungeon_wall" ||
+               name == "marsh_stone" || name == "marsh_dark";
+    }
+
+    // Lays the base layer over a cell. Flat fills cover the whole cell with a
+    // single quad; textured tiles are tiled at their authored 16px so their
+    // detail stays the same scale as the sprites standing on them.
+    void Ground(const string& name, int x, int y, int size) {
+        const string path = "assets/tiles/" + name + ".png";
+        if (!Textured(name)) {
+            Place(name, path, 0, x, y, size, size);
+            return;
+        }
+        for (int oy = 0; oy < size; oy += 16)
+            for (int ox = 0; ox < size; ox += 16)
+                Place(name, path, 0, x + ox, y + oy, 16, 16);
+    }
+
+    void Decor(const string& file, int x, int y, int w, int h, int layer = 1) {
+        // Decorations hang above their footprint, so anchor them by the base.
+        Place(fs::path(file).stem().string(), file, layer, x - w / 2, y - h, w, h);
+    }
+
+    // Standing scenery at the size it was drawn, anchored on its base so it
+    // sorts against the player correctly.
+    void Prop(const string& group, const string& name, int x, int y, int layer = 1) {
+        const auto wh = g_manifest.Size(group + "/" + name);
+        const string path = "assets/" + group + "/" + name + ".png";
+        Place(name, path, layer, x - wh.first / 2, y - wh.second, wh.first, wh.second);
+    }
+
+    // A decal lying flat on the ground: centred, and on the base layer so
+    // nothing sorts against it.
+    void Flat(const string& group, const string& name, int x, int y) {
+        const auto wh = g_manifest.Size(group + "/" + name);
+        const string path = "assets/" + group + "/" + name + ".png";
+        Place(name, path, 0, x - wh.first / 2, y - wh.second / 2, wh.first, wh.second);
+    }
+
+    void Collision(int x, int y, int w, int h) {
+        dq["collision"].push_back(json::array({x, y, w, h}));
+    }
+
+    void Spawn(const string& name, int x, int y) {
+        dq["spawns"][name] = json::array({x, y});
+    }
+
+    void Portal(int x, int y, int w, int h, const string& target,
+                const string& spawn, const string& label,
+                bool interact = true, const string& locked_by = "") {
+        json p;
+        p["rect"]     = json::array({x, y, w, h});
+        p["target"]   = target;
+        p["spawn"]    = spawn;
+        p["label"]    = label;
+        p["interact"] = interact;
+        if (!locked_by.empty()) p["locked_by"] = locked_by;
+        dq["portals"].push_back(p);
+    }
+
+    void Enemy(const string& type, int x, int y, int level,
+               float respawn = 28.0f, float leash = 260.0f) {
+        json e;
+        e["type"]    = type;
+        e["x"]       = x;
+        e["y"]       = y;
+        e["level"]   = level;
+        e["respawn"] = respawn;
+        e["leash"]   = leash;
+        dq["enemies"].push_back(e);
+    }
+
+    void Npc(const string& npc_id, const string& name, const string& sprite,
+             int x, int y, const string& dialogue, int facing = 0,
+             bool wanders = false) {
+        json n;
+        n["id"]       = npc_id;
+        n["name"]     = name;
+        n["sprite"]   = sprite;
+        n["x"]        = x;
+        n["y"]        = y;
+        n["dialogue"] = dialogue;
+        n["facing"]   = facing;
+        n["wanders"]  = wanders;
+        dq["npcs"].push_back(n);
+    }
+
+    json& Object(const string& obj_id, const string& type, int x, int y) {
+        json o;
+        o["id"]   = obj_id;
+        o["type"] = type;
+        o["x"]    = x;
+        o["y"]    = y;
+        dq["objects"].push_back(o);
+        return dq["objects"].back();
+    }
+
+    void Interior(bool v) { dq["interior"] = v; }
+    void Ambient(const string& v) { dq["ambient"] = v; }
+    void Background(int r, int g, int b) {
+        dq["background"] = json::array({r, g, b, 255});
+    }
+
+    void Write(const string& dir) const {
+        json root;
+        root["name"] = display;
+
+        json tiles = json::object();
+        for (const auto& kv : groups) {
+            json entry;
+            entry["filepath"] = kv.second.filepath;
+            json locs = json::array();
+            for (const auto& l : kv.second.locations)
+                locs.push_back(json::array({l[0], l[1], l[2], l[3]}));
+            entry["locations"] = locs;
+            tiles[kv.first] = entry;
+        }
+        root["tiles"] = tiles;
+        root["dreamquest"] = dq;
+
+        fs::create_directories(dir);
+        const string path = dir + "/" + id + ".mx";
+        std::ofstream out(path, std::ios::trunc);
+        // Compact: these are generated files, and the base layer alone runs to
+        // thousands of placements.
+        out << root.dump();
+
+        size_t placements = 0;
+        for (const auto& kv : groups) placements += kv.second.locations.size();
+        std::printf("  %-24s %6zu placements  %5zu enemies  %3zu objects  %dx%d\n",
+                    (id + ".mx").c_str(), placements,
+                    dq["enemies"].size(), dq["objects"].size(), width, height);
+    }
+
+    int Width() const { return width; }
+    int Height() const { return height; }
+
+    json dq;
+
+private:
+    string id, display;
+    int width, height;
+    std::map<string, TileGroup> groups;
+};
+
+// --- shared helpers ----------------------------------------------------------
+
+static const char* kTrees[] = {
+    "tree_00", "tree_01", "tree_02", "tree_03", "tree_04",
+    "tree_05", "tree_06", "tree_07", "tree_08", "tree_09"
+};
+static const char* kSmallTrees[] = {
+    "treesmall_00", "treesmall_02", "treesmall_04", "treesmall_06", "treesmall_08"
+};
+static const char* kRocks[] = {
+    "rock_00", "rock_01", "rock_02", "rock_03", "rock_04",
+    "rock_05", "rock_06", "rock_07"
+};
+static const char* kSmallRocks[] = {
+    "rocksmall_00", "rocksmall_02", "rocksmall_04", "rocksmall_06"
+};
+static const char* kBushes[] = {
+    "bush_00", "bush_01", "bush_02", "bush_03", "bush_04",
+    "bush_05", "bush_06", "bush_07"
+};
+static const char* kSmallBushes[] = {
+    "bushsmall_00", "bushsmall_02", "bushsmall_04", "bushsmall_06"
+};
+static const char* kFungus[] = {
+    "mushroom_00", "mushroom_02", "mushroom_04", "fungus_00", "fungus_02"
+};
+
+template <size_t N>
+static const char* Pick(const char* (&arr)[N], std::mt19937& rng) {
+    return arr[rng() % N];
+}
+
+static string ObjPath(const string& name) { return "assets/objects/" + name + ".png"; }
+
+// A tree the player can chop. Its collision is only the trunk, so the canopy
+// overlaps the player instead of blocking them.
+static void PlaceTree(MapBuilder& m, std::mt19937& rng, int index,
+                      int x, int y, bool big, int level, const string& yield) {
+    const string art = big ? Pick(kTrees, rng) : Pick(kSmallTrees, rng);
+
+    json& o = m.Object("tree_" + std::to_string(index), "tree", x, y);
+    o["sprite"]      = ObjPath(art);
+    o["skill"]       = "Woodcutting";
+    o["skill_level"] = level;
+    o["yield"]       = yield;
+    o["yield_xp"]    = big ? 65 : 25;
+    o["gather_time"] = big ? 3.0f : 2.2f;
+    o["title"]       = big ? "oak" : "sapling";
+
+    m.Collision(x - 9, y - 9, 18, 9);
+}
+
+static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
+                      int x, int y, bool big, int level, const string& yield) {
+    const string art = big ? Pick(kRocks, rng) : Pick(kSmallRocks, rng);
+
+    json& o = m.Object("rock_" + std::to_string(index), "rock", x, y);
+    o["sprite"]      = ObjPath(art);
+    o["skill"]       = "Mining";
+    o["skill_level"] = level;
+    o["yield"]       = yield;
+    o["yield_xp"]    = big ? 60 : 24;
+    o["gather_time"] = big ? 3.2f : 2.4f;
+    o["title"]       = big ? "seam" : "outcrop";
+
+    m.Collision(x - 14, y - 12, 28, 12);
+}
+
+static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
+                       const string& table) {
+    json& o = m.Object(chest_id, "chest", x, y);
+    o["sprite"]      = ObjPath("chest");
+    o["sprite_open"] = ObjPath("chest_open");
+    o["loot"]        = table;
+    m.Collision(x - 14, y - 10, 28, 10);
+}
+
+// Buildings are drawn bottom-centre. Collision runs along the lower wall but
+// leaves the doorway open, and a portal sits in the gap.
+static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
+                          int w, int h, const string& target,
+                          const string& spawn, const string& label) {
+    m.Prop("objects", art, x, y);
+
+    const int wall_h = 30;
+    const int door_w = 30;
+    const int half = w / 2;
+
+    m.Collision(x - half + 4, y - wall_h, half - door_w / 2 - 4, wall_h);
+    m.Collision(x + door_w / 2, y - wall_h, half - door_w / 2 - 4, wall_h);
+    // Keep the upper storey solid too, so you cannot walk through the roof.
+    m.Collision(x - half + 4, y - h + 6, w - 8, h - wall_h - 6);
+
+    m.Portal(x - door_w / 2, y - wall_h + 8, door_w, wall_h, target, spawn, label);
+}
+
+// --- overworld ---------------------------------------------------------------
+
+enum Biome { MEADOW, GREENWOOD, FOOTHILLS, MIRE, CURSED, WATER, ROAD };
+
+static const int OW_CELL = 32;
+static const int OW_W = 128, OW_H = 96;                 // cells
+static const int OW_PX_W = OW_W * OW_CELL;              // 4096
+static const int OW_PX_H = OW_H * OW_CELL;              // 3072
+
+// The road runs south to north; this is its centre line at a given row.
+static float RoadX(int cy) {
+    return 62.0f + sinf(cy * 0.075f) * 7.0f;
+}
+
+static Biome BiomeAt(int cx, int cy) {
+    const float n = Fbm(cx * 0.045f, cy * 0.045f, 1337);
+
+    // The river cuts across the south-west before feeding the mire.
+    const float river = fabsf((cy - 66.0f) - sinf(cx * 0.09f) * 5.0f);
+    if (cx < 44 && river < 2.2f + n * 1.4f) return WATER;
+
+    if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 12 && cy < 88) return ROAD;
+
+    if (cx > 96 && cy < 34 && n > 0.42f) return CURSED;
+    if (cy < 20 + n * 8.0f) return FOOTHILLS;
+    if (cx < 24 + n * 10.0f) return MIRE;
+    if (cx > 86 - n * 10.0f) return GREENWOOD;
+    return MEADOW;
+}
+
+static void BuildOverworld() {
+    MapBuilder m("overworld", "The Hollowmarch", OW_PX_W, OW_PX_H);
+    m.Ambient("overworld");
+    m.Background(38, 52, 40);
+    std::mt19937 rng(20260909u);
+
+    // --- ground ---------------------------------------------------------------
+    for (int cy = 0; cy < OW_H; ++cy) {
+        for (int cx = 0; cx < OW_W; ++cx) {
+            const Biome b = BiomeAt(cx, cy);
+            // Low frequency: broad drifts of colour rather than noise per cell.
+            const float v = Fbm(cx * 0.085f, cy * 0.085f, 909);
+
+            string tile;
+            switch (b) {
+                case WATER:     tile = "water"; break;
+                case ROAD:      tile = "road"; break;
+                case FOOTHILLS: tile = (v > 0.62f) ? "dirt_dark" : (v > 0.34f ? "dirt" : "sand"); break;
+                case MIRE:      tile = (v > 0.6f) ? "marsh_dark" : (v > 0.32f ? "marsh_ground" : "marsh_stone"); break;
+                case CURSED:    tile = (v > 0.5f) ? "cursed_ground" : "cursed_sand"; break;
+                case GREENWOOD: tile = (v > 0.55f) ? "grass_dark" : (v > 0.28f ? "grass" : "moss"); break;
+                default:        tile = (v > 0.58f) ? "grass_olive" : (v > 0.3f ? "grass" : "grass_dark"); break;
+            }
+            m.Ground(tile, cx * OW_CELL, cy * OW_CELL, OW_CELL);
+        }
+    }
+
+    // Water is impassable; walling it off per cell is cheap and exact.
+    for (int cy = 0; cy < OW_H; ++cy)
+        for (int cx = 0; cx < OW_W; ++cx)
+            if (BiomeAt(cx, cy) == WATER)
+                m.Collision(cx * OW_CELL, cy * OW_CELL, OW_CELL, OW_CELL);
+
+    // --- ground decals --------------------------------------------------------
+    // The CraftPix ground set ships its variation as loose patches meant to be
+    // dropped over a flat fill; scattering them is what stops the base layer
+    // looking like coloured squares.
+    for (int cy = 1; cy < OW_H - 1; ++cy) {
+        for (int cx = 1; cx < OW_W - 1; ++cx) {
+            const Biome b = BiomeAt(cx, cy);
+            if (b == WATER || b == ROAD) continue;
+
+            const float r = Hash2(cx, cy, 5150);
+            if (r > 0.12f) continue;
+
+            // Match the decal to the terrain it is lying on.
+            const char* family = "grass";
+            if (b == FOOTHILLS || b == CURSED) family = "dirt";
+            else if (b == MIRE)                family = "dirt";
+
+            const vector<string>& pool = g_manifest.Family(family);
+            if (pool.empty()) continue;
+
+            const size_t pick = static_cast<size_t>(Hash2(cx, cy, 6161) * 1000.0f) % pool.size();
+            m.Flat("decor", pool[pick], cx * OW_CELL + 16, cy * OW_CELL + 16);
+        }
+    }
+
+    // --- scenery and gathering nodes -----------------------------------------
+    int tree_index = 0, rock_index = 0;
+
+    for (int cy = 2; cy < OW_H - 2; ++cy) {
+        for (int cx = 2; cx < OW_W - 2; ++cx) {
+            const Biome b = BiomeAt(cx, cy);
+            if (b == WATER || b == ROAD) continue;
+            // Keep a clear verge either side of the road.
+            if (fabsf(cx - RoadX(cy)) < 3.2f) continue;
+
+            const float r = Hash2(cx, cy, 4242);
+            const int x = cx * OW_CELL + OW_CELL / 2;
+            const int y = cy * OW_CELL + OW_CELL / 2;
+
+            if (b == GREENWOOD) {
+                if (r < 0.055f)      PlaceTree(m, rng, tree_index++, x, y, true, 1, "logs");
+                else if (r < 0.085f) PlaceTree(m, rng, tree_index++, x, y, false, 1, "logs");
+                else if (r < 0.115f) m.Prop("objects", Pick(kBushes, rng), x, y);
+                else if (r < 0.135f) m.Prop("objects", Pick(kFungus, rng), x, y);
+            } else if (b == MEADOW) {
+                if (r < 0.016f)      PlaceTree(m, rng, tree_index++, x, y, true, 1, "logs");
+                else if (r < 0.036f) m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+                else if (r < 0.05f)  m.Prop("objects", Pick(kSmallRocks, rng), x, y);
+            } else if (b == FOOTHILLS) {
+                if (r < 0.03f)       PlaceRock(m, rng, rock_index++, x, y, true, 1, "copper_ore");
+                else if (r < 0.05f)  PlaceRock(m, rng, rock_index++, x, y, false, 1, "copper_ore");
+                else if (r < 0.062f) m.Prop("objects", Pick(kSmallRocks, rng), x, y);
+            } else if (b == MIRE) {
+                if (r < 0.028f)      m.Prop("objects", Pick(kSmallTrees, rng), x, y);
+                else if (r < 0.05f)  m.Prop("objects", Pick(kFungus, rng), x, y);
+                else if (r < 0.062f) PlaceRock(m, rng, rock_index++, x, y, false, 5, "iron_ore");
+            } else if (b == CURSED) {
+                if (r < 0.04f)       m.Prop("objects", Pick(kSmallRocks, rng), x, y);
+                else if (r < 0.055f) PlaceRock(m, rng, rock_index++, x, y, true, 10, "iron_ore");
+            }
+        }
+    }
+
+    // --- wildlife and orcs ----------------------------------------------------
+    int spawned = 0;
+    for (int cy = 4; cy < OW_H - 4; cy += 3) {
+        for (int cx = 4; cx < OW_W - 4; cx += 3) {
+            const Biome b = BiomeAt(cx, cy);
+            if (b == WATER) continue;
+
+            const float r = Hash2(cx, cy, 8888);
+            const int x = cx * OW_CELL + 16;
+            const int y = cy * OW_CELL + 16;
+            const float road_gap = fabsf(cx - RoadX(cy));
+
+            if (b == MEADOW) {
+                // Small game first: the meadow is where a new character learns
+                // to fight, so it is mostly hares and deer with the occasional
+                // boar rather than a field of them.
+                if (r < 0.026f)      { m.Enemy("boar", x, y, 1); ++spawned; }
+                else if (r < 0.085f) { m.Enemy("hare", x, y, 1); ++spawned; }
+                else if (r < 0.115f) { m.Enemy("deer", x, y, 1); ++spawned; }
+            } else if (b == GREENWOOD) {
+                if (r < 0.045f)      { m.Enemy("deer", x, y, 2); ++spawned; }
+                else if (r < 0.075f) { m.Enemy("fox", x, y, 2); ++spawned; }
+                else if (r < 0.10f)  { m.Enemy("boar", x, y, 3); ++spawned; }
+            } else if (b == FOOTHILLS) {
+                if (r < 0.06f)       { m.Enemy("orc1", x, y, 2); ++spawned; }
+                else if (r < 0.08f)  { m.Enemy("orc2", x, y, 4); ++spawned; }
+            } else if (b == MIRE) {
+                if (r < 0.05f)       { m.Enemy("orc1", x, y, 5); ++spawned; }
+                else if (r < 0.07f)  { m.Enemy("fox", x, y, 4); ++spawned; }
+            } else if (b == CURSED) {
+                if (r < 0.09f)       { m.Enemy("orc2", x, y, 8); ++spawned; }
+            }
+
+            // The Sunken Road is where the orc contract is actually filled.
+            if (b != WATER && road_gap > 2.0f && road_gap < 6.0f && cy > 24 && cy < 74) {
+                if (r > 0.90f) { m.Enemy("orc1", x, y, 3, 24.0f, 200.0f); ++spawned; }
+            }
+        }
+    }
+    (void)spawned;
+
+    // --- landmarks ------------------------------------------------------------
+    const int gate_x = static_cast<int>(RoadX(86)) * OW_CELL + 16;
+    const int gate_y = 88 * OW_CELL;
+    m.Spawn("start", gate_x, gate_y - 40);
+    m.Spawn("from_town", gate_x, gate_y - 40);
+    m.Portal(gate_x - 48, gate_y, 96, 48, "town_havenbrook", "from_field",
+             "Enter Havenbrook", false);
+
+    {
+        json& o = m.Object("sign_gate", "sign", gate_x + 56, gate_y - 8);
+        o["sprite"] = ObjPath("sign_guild");
+        o["title"]  = "Waymarker";
+        o["text"]   = "HAVENBROOK, south.\nEMBERFELL MINE, north along the Sunken Road.\n\nBelow, scratched later and deeper:\nthe road is not safe after the second milestone.";
+        m.Collision(gate_x + 40, gate_y - 16, 32, 12);
+    }
+
+    // Mine entrance in the northern foothills.
+    const int mine_x = static_cast<int>(RoadX(10)) * OW_CELL + 16;
+    const int mine_y = 9 * OW_CELL;
+    m.Spawn("from_mine", mine_x, mine_y + 56);
+    m.Prop("objects", "door", mine_x, mine_y + 24);
+    m.Portal(mine_x - 28, mine_y - 16, 56, 40, "dungeon_emberfell_1", "entrance",
+             "Enter the Emberfell mine");
+    m.Collision(mine_x - 48, mine_y - 20, 40, 28);
+    m.Collision(mine_x + 28, mine_y - 20, 40, 28);
+
+    // Barrow entrance, out in the mire.
+    const int barrow_x = 12 * OW_CELL + 16;
+    const int barrow_y = 44 * OW_CELL;
+    m.Spawn("from_barrow", barrow_x, barrow_y + 56);
+    m.Prop("objects", "door", barrow_x, barrow_y + 24);
+    m.Portal(barrow_x - 28, barrow_y - 16, 56, 40, "dungeon_barrow", "entrance",
+             "Enter the barrow");
+    m.Collision(barrow_x - 48, barrow_y - 20, 40, 28);
+    m.Collision(barrow_x + 28, barrow_y - 20, 40, 28);
+
+    // The note that starts the barrow quest, left where someone turned back.
+    {
+        json& o = m.Object("note_mire", "note", barrow_x + 72, barrow_y + 96);
+        o["title"]        = "A water-stained note";
+        o["text"]         = "If you are reading this I did not come back out, and you should not go in.\n\nI am going anyway. There is a seal down there with my grandmother's name pressed into it, and the guild has known about it for forty years.\n\nIf you find the seal, do not give it to Orlend. Ask him why he never told anyone first.";
+        o["starts_quest"] = "q_barrow_seal";
+        o["sprite"]       = ObjPath("rocksmall_00");
+    }
+
+    // The surveyor's page, halfway up the Sunken Road.
+    {
+        const int px = static_cast<int>(RoadX(48)) * OW_CELL + 76;
+        const int py = 48 * OW_CELL + 16;
+        json& o = m.Object("note_surveyor", "note", px, py);
+        o["title"]  = "Torn survey page";
+        o["text"]   = "Third day on the road. Counted twelve of them at the second milestone. Counted thirty at the third.\n\nThey are not raiding. They are walking north, in order, and they are all walking to the same place.\n\nI have drawn it below as best I can from the ridge. It is a mine adit. It is the Emberfell adit.";
+        o["loot"]   = "page_surveyor";
+        o["sprite"] = ObjPath("rocksmall_02");
+    }
+
+    // A couple of chests off the road for the curious.
+    PlaceChest(m, "chest_meadow_01", 96 * OW_CELL, 78 * OW_CELL, "chest_common");
+    PlaceChest(m, "chest_wood_01",  114 * OW_CELL, 52 * OW_CELL, "chest_common");
+    PlaceChest(m, "chest_mire_01",   10 * OW_CELL, 60 * OW_CELL, "chest_common");
+
+    m.Write("maps");
+}
+
+// --- town --------------------------------------------------------------------
+
+static void BuildTown() {
+    const int CELL = 32, W = 56, H = 44;
+    MapBuilder m("town_havenbrook", "Havenbrook", W * CELL, H * CELL);
+    m.Ambient("town");
+    m.Background(44, 58, 44);
+    std::mt19937 rng(4242u);
+
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float v = Fbm(cx * 0.25f, cy * 0.25f, 77);
+            // A crossroads through the middle of the village.
+            const bool on_road = (abs(cy - 22) <= 1) || (abs(cx - 28) <= 1);
+            string tile = on_road ? "road"
+                        : (v > 0.6f ? "grass_light" : (v > 0.3f ? "grass" : "grass_olive"));
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+        }
+
+    // Fence the village in, leaving the south gate open.
+    for (int cx = 0; cx < W; ++cx) {
+        if (abs(cx - 28) > 2) m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+        m.Collision(cx * CELL, 0, CELL, CELL);
+    }
+    for (int cy = 0; cy < H; ++cy) {
+        m.Collision(0, cy * CELL, CELL, CELL);
+        m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    m.Spawn("from_field", 28 * CELL + 16, (H - 3) * CELL);
+    m.Spawn("respawn",    28 * CELL + 16, 26 * CELL);
+    m.Spawn("default",    28 * CELL + 16, 26 * CELL);
+    m.Portal(26 * CELL, (H - 1) * CELL - 8, 5 * CELL, 40,
+             "overworld", "from_town", "Leave Havenbrook", false);
+
+    // Buildings, each with a door that leads somewhere.
+    PlaceBuilding(m, "building_guild",   28 * CELL + 16, 14 * CELL, 144, 111,
+                  "guild_hall", "entrance", "Enter the guild hall");
+    PlaceBuilding(m, "building_house_a", 13 * CELL,      18 * CELL, 136, 149,
+                  "house_elder", "entrance", "Enter Maren's house");
+    PlaceBuilding(m, "building_house_b", 44 * CELL,      18 * CELL, 133, 184,
+                  "house_inn", "entrance", "Enter the inn");
+    PlaceBuilding(m, "building_shop",    14 * CELL,      33 * CELL, 110, 72,
+                  "house_smith", "entrance", "Enter the forge");
+
+    // The mission board, right where you walk in.
+    {
+        json& o = m.Object("board_havenbrook", "board", 33 * CELL, 24 * CELL);
+        o["sprite"] = ObjPath("sign_guild");
+        o["title"]  = "Havenbrook Mission Board";
+        o["quests"] = json::array({"q_thin_the_herd", "q_firewood",
+                                   "q_ore_for_the_forge", "q_orc_trouble"});
+        m.Collision(33 * CELL - 36, 24 * CELL - 12, 72, 12);
+    }
+
+    // A cooking fire anyone may use.
+    {
+        json& o = m.Object("range_town", "range", 40 * CELL, 30 * CELL);
+        o["sprite"] = ObjPath("campfire");
+        o["title"]  = "Cooking fire";
+        m.Collision(40 * CELL - 16, 30 * CELL - 12, 32, 12);
+    }
+
+    // A workbench by the forge.
+    {
+        json& o = m.Object("bench_town", "workbench", 20 * CELL, 34 * CELL);
+        o["sprite"] = ObjPath("rock_00");
+        o["title"]  = "Workbench";
+        m.Collision(20 * CELL - 20, 34 * CELL - 12, 40, 12);
+    }
+
+    m.Npc("npc_guard",  "Watchman Corrin", "fighter2", 30 * CELL, 39 * CELL, "guard_root", 3);
+    m.Npc("npc_hunter", "Hunter Ivo",      "citizen2", 46 * CELL, 30 * CELL, "hunter_root", 0, true);
+
+    // Greenery so the village is not a bare field.
+    for (int i = 0; i < 26; ++i) {
+        const int x = 2 * CELL + static_cast<int>(rng() % ((W - 4) * CELL));
+        const int y = 3 * CELL + static_cast<int>(rng() % ((H - 6) * CELL));
+        if (abs(y - 22 * CELL) < 80 || abs(x - 28 * CELL) < 80) continue;
+        if (rng() % 3 == 0) m.Prop("objects", Pick(kSmallTrees, rng), x, y);
+        else                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+    }
+
+    m.Write("maps");
+}
+
+// --- interiors ---------------------------------------------------------------
+
+static void BuildInteriors() {
+    // Elder Maren's house.
+    {
+        const int CELL = 32, cols = 18, rows = 13;
+        MapBuilder m("house_elder", "Maren's House", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(22, 18, 16);
+        for (int cy = 0; cy < rows; ++cy)
+            for (int cx = 0; cx < cols; ++cx) {
+                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
+                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
+                m.Ground(wall ? "dirt_dark" : "sand", cx * CELL, cy * CELL, CELL);
+                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+                 "Step outside", false);
+        m.Npc("npc_maren", "Elder Maren", "citizen1", 5 * CELL, 4 * CELL, "maren_root", 0);
+        {
+            json& o = m.Object("range_maren", "range", 13 * CELL, 4 * CELL);
+            o["sprite"] = ObjPath("campfire");
+            o["title"]  = "Hearth";
+            m.Collision(13 * CELL - 16, 4 * CELL - 12, 32, 12);
+        }
+        m.Write("maps");
+    }
+
+    // The guild hall.
+    {
+        const int CELL = 32, cols = 22, rows = 15;
+        MapBuilder m("guild_hall", "Havenbrook Guild Hall", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(18, 18, 24);
+        for (int cy = 0; cy < rows; ++cy)
+            for (int cx = 0; cx < cols; ++cx) {
+                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
+                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
+                m.Ground(wall ? "dungeon_wall" : "dungeon_floor", cx * CELL, cy * CELL, CELL);
+                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+                 "Step outside", false);
+        m.Npc("npc_guildmaster", "Guild Master Orlend", "fighter2",
+              11 * CELL, 4 * CELL, "guildmaster_root", 0);
+        {
+            json& o = m.Object("bench_guild", "workbench", 17 * CELL, 6 * CELL);
+            o["sprite"] = ObjPath("rock_02");
+            o["title"]  = "Guild workbench";
+            m.Collision(17 * CELL - 20, 6 * CELL - 12, 40, 12);
+        }
+        m.Write("maps");
+    }
+
+    // The inn.
+    {
+        const int CELL = 32, cols = 20, rows = 14;
+        MapBuilder m("house_inn", "The Barley and Bell", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(26, 20, 16);
+        for (int cy = 0; cy < rows; ++cy)
+            for (int cx = 0; cx < cols; ++cx) {
+                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
+                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
+                m.Ground(wall ? "dirt_dark" : "sand", cx * CELL, cy * CELL, CELL);
+                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+                 "Step outside", false);
+        m.Npc("npc_cook", "Innkeeper Bess", "citizen1", 6 * CELL, 4 * CELL, "cook_root", 0);
+        {
+            json& o = m.Object("range_inn", "range", 10 * CELL, 3 * CELL);
+            o["sprite"] = ObjPath("campfire");
+            o["title"]  = "Kitchen range";
+            m.Collision(10 * CELL - 16, 3 * CELL - 12, 32, 12);
+        }
+        m.Write("maps");
+    }
+
+    // The forge.
+    {
+        const int CELL = 32, cols = 16, rows = 12;
+        MapBuilder m("house_smith", "Halda's Forge", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(26, 18, 14);
+        for (int cy = 0; cy < rows; ++cy)
+            for (int cx = 0; cx < cols; ++cx) {
+                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
+                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
+                m.Ground(wall ? "dirt_dark" : "dungeon_floor_dark", cx * CELL, cy * CELL, CELL);
+                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+                 "Step outside", false);
+        m.Npc("npc_smith", "Smith Halda", "citizen2", 5 * CELL, 4 * CELL, "smith_root", 0);
+        {
+            json& o = m.Object("bench_forge", "workbench", 11 * CELL, 4 * CELL);
+            o["sprite"] = ObjPath("rock_01");
+            o["title"]  = "Forge bench";
+            m.Collision(11 * CELL - 20, 4 * CELL - 12, 40, 12);
+        }
+        {
+            json& o = m.Object("range_forge", "range", 8 * CELL, 3 * CELL);
+            o["sprite"] = ObjPath("campfire");
+            o["title"]  = "Forge fire";
+            m.Collision(8 * CELL - 16, 3 * CELL - 12, 32, 12);
+        }
+        m.Write("maps");
+    }
+}
+
+// --- dungeons ----------------------------------------------------------------
+
+struct Room { int x, y, w, h; };   // in cells
+
+// Carves rooms joined by L-shaped corridors, then walls in everything that was
+// not carved. Simple, readable, and it always produces a connected floor.
+static void BuildDungeon(const string& id, const string& display,
+                         unsigned seed, int cols, int rows, int room_count,
+                         const string& floor_tile, const string& wall_tile,
+                         const string& exit_map, const string& exit_spawn,
+                         const vector<std::pair<string, int>>& monsters,
+                         const string& chest_table, int chest_count,
+                         const string& special_id, const string& special_table,
+                         const string& deeper_map, const string& deeper_lock,
+                         const string& boss_type = "", int boss_level = 1) {
+    const int CELL = 32;
+    MapBuilder m(id, display, cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Ambient("dungeon");
+    m.Background(12, 12, 18);
+    std::mt19937 rng(seed);
+
+    vector<vector<bool>> floor(rows, vector<bool>(cols, false));
+    vector<Room> rooms;
+
+    for (int attempt = 0; attempt < room_count * 12 &&
+                          static_cast<int>(rooms.size()) < room_count; ++attempt) {
+        Room r;
+        r.w = 5 + static_cast<int>(rng() % 7);
+        r.h = 4 + static_cast<int>(rng() % 6);
+        r.x = 2 + static_cast<int>(rng() % std::max(1, cols - r.w - 4));
+        r.y = 2 + static_cast<int>(rng() % std::max(1, rows - r.h - 4));
+
+        bool clash = false;
+        for (const Room& o : rooms)
+            if (r.x < o.x + o.w + 2 && o.x < r.x + r.w + 2 &&
+                r.y < o.y + o.h + 2 && o.y < r.y + r.h + 2) { clash = true; break; }
+        if (clash) continue;
+
+        for (int y = r.y; y < r.y + r.h; ++y)
+            for (int x = r.x; x < r.x + r.w; ++x) floor[y][x] = true;
+        rooms.push_back(r);
+    }
+
+    for (size_t i = 1; i < rooms.size(); ++i) {
+        const int ax = rooms[i - 1].x + rooms[i - 1].w / 2;
+        const int ay = rooms[i - 1].y + rooms[i - 1].h / 2;
+        const int bx = rooms[i].x + rooms[i].w / 2;
+        const int by = rooms[i].y + rooms[i].h / 2;
+        for (int x = std::min(ax, bx); x <= std::max(ax, bx); ++x) {
+            floor[ay][x] = true;
+            floor[std::min(rows - 1, ay + 1)][x] = true;
+        }
+        for (int y = std::min(ay, by); y <= std::max(ay, by); ++y) {
+            floor[y][bx] = true;
+            floor[y][std::min(cols - 1, bx + 1)] = true;
+        }
+    }
+
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            if (floor[cy][cx]) {
+                const float v = Fbm(cx * 0.3f, cy * 0.3f, static_cast<int>(seed));
+                m.Ground(v > 0.55f ? floor_tile : (floor_tile + "_dark"),
+                         cx * CELL, cy * CELL, CELL);
+            } else {
+                m.Ground(wall_tile, cx * CELL, cy * CELL, CELL);
+                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        }
+
+    if (rooms.empty()) { m.Write("maps"); return; }
+
+    // Entrance sits in the first room, the stairs down in the last.
+    const Room& first = rooms.front();
+    const int ex = (first.x + first.w / 2) * CELL + 16;
+    const int ey = (first.y + first.h / 2) * CELL + 16;
+    m.Spawn("entrance", ex, ey);
+    m.Spawn("default",  ex, ey);
+    m.Prop("objects", "door_open", ex, ey - 8);
+    m.Portal(ex - 24, ey + 4, 48, 32, exit_map, exit_spawn, "Leave", true);
+
+    if (!deeper_map.empty() && rooms.size() > 1) {
+        const Room& last = rooms.back();
+        const int dx = (last.x + last.w / 2) * CELL + 16;
+        const int dy = (last.y + last.h / 2) * CELL + 16;
+        m.Prop("objects", "door", dx, dy + 8);
+        m.Portal(dx - 24, dy - 24, 48, 40, deeper_map, "entrance",
+                 "Descend", true, deeper_lock);
+    }
+
+    // Monsters everywhere but the room you walk in through.
+    int placed = 0;
+    for (size_t i = 1; i < rooms.size(); ++i) {
+        const Room& r = rooms[i];
+        const int count = 1 + static_cast<int>(rng() % 3);
+        for (int k = 0; k < count && !monsters.empty(); ++k) {
+            const auto& mon = monsters[rng() % monsters.size()];
+            const int x = (r.x + 1 + static_cast<int>(rng() % std::max(1, r.w - 2))) * CELL + 16;
+            const int y = (r.y + 1 + static_cast<int>(rng() % std::max(1, r.h - 2))) * CELL + 16;
+            m.Enemy(mon.first, x, y, mon.second, 40.0f, 320.0f);
+            ++placed;
+        }
+    }
+    (void)placed;
+
+    for (int i = 0; i < chest_count && rooms.size() > 1; ++i) {
+        const Room& r = rooms[1 + (rng() % (rooms.size() - 1))];
+        const int x = (r.x + 1 + static_cast<int>(rng() % std::max(1, r.w - 2))) * CELL + 16;
+        const int y = (r.y + 1 + static_cast<int>(rng() % std::max(1, r.h - 2))) * CELL + 16;
+        PlaceChest(m, id + "_chest_" + std::to_string(i), x, y, chest_table);
+    }
+
+    // The boss holds the last room on its own.
+    if (!boss_type.empty()) {
+        const Room& r = rooms.back();
+        m.Enemy(boss_type, (r.x + r.w / 2) * CELL + 16,
+                (r.y + r.h / 2) * CELL + 16, boss_level, 0.0f, 900.0f);
+    }
+
+    // The quest chest goes in the furthest room from the entrance.
+    if (!special_id.empty()) {
+        const Room& r = rooms.back();
+        const int x = (r.x + r.w / 2) * CELL + 16;
+        const int y = (r.y + r.h / 2) * CELL + 48;
+        PlaceChest(m, special_id, x, y, special_table);
+    }
+
+    m.Write("maps");
+}
+
+// --- main --------------------------------------------------------------------
+
+int main() {
+    std::printf("genmaps: building the Hollowmarch\n");
+    g_manifest.Load("data/asset_manifest.json");
+
+    BuildOverworld();
+    BuildTown();
+    BuildInteriors();
+
+    BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",
+                 1001u, 60, 46, 9,
+                 "dungeon_floor", "dungeon_wall",
+                 "overworld", "from_mine",
+                 {{"orc1", 3}, {"orc1", 4}, {"orc2", 5}},
+                 "chest_dungeon", 3,
+                 "chest_emberfell_key", "key_emberfell",
+                 "dungeon_emberfell_2", "rusted_key");
+
+    BuildDungeon("dungeon_emberfell_2", "Emberfell Mine, Lower Workings",
+                 1002u, 54, 42, 8,
+                 "dungeon_floor", "dungeon_wall",
+                 "dungeon_emberfell_1", "entrance",
+                 {{"orc2", 7}, {"orc2", 9}, {"orc1", 6}},
+                 "chest_dungeon", 3,
+                 "", "",
+                 "", "",
+                 "orc3", 12);
+
+    BuildDungeon("dungeon_barrow", "The Barrow Beneath the Mire",
+                 2001u, 52, 40, 8,
+                 "dungeon_floor", "dungeon_wall",
+                 "overworld", "from_barrow",
+                 {{"orc1", 6}, {"orc2", 8}},
+                 "chest_barrow", 3,
+                 "chest_barrow_seal", "seal_barrow",
+                 "", "");
+
+    std::printf("genmaps: done\n");
+    return 0;
+}

@@ -1,0 +1,163 @@
+{
+  "q_thin_the_herd": {
+    "name": "Thin the Herd",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 1,
+    "summary": "Boar have come down out of the greenwood and into the barley. Havenbrook wants them gone before the harvest is.",
+    "stages": [
+      { "desc": "Hunt wild boar in the meadow", "type": "kill", "target": "boar", "count": 6 }
+    ],
+    "rewards": {
+      "xp": { "Strength": 320, "Hitpoints": 140 },
+      "coins": 120,
+      "items": [{ "id": "cooked_meat", "qty": 4 }]
+    },
+    "completion": "The barley is safe for another season."
+  },
+
+  "q_firewood": {
+    "name": "Cold Hearths",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 1,
+    "summary": "The inn burned through its winter store early. Bring logs and nobody has to sleep cold.",
+    "stages": [
+      { "desc": "Gather logs from the meadow trees", "type": "collect", "target": "logs", "count": 12 }
+    ],
+    "rewards": {
+      "xp": { "Woodcutting": 420, "Crafting": 80 },
+      "coins": 95
+    },
+    "completion": "The inn will be warm tonight."
+  },
+
+  "q_ore_for_the_forge": {
+    "name": "Ore for the Forge",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 4,
+    "summary": "The smith has orders she cannot fill and a cold forge to fill them with. Copper will do to start.",
+    "stages": [
+      { "desc": "Mine copper ore from the foothills", "type": "collect", "target": "copper_ore", "count": 8 }
+    ],
+    "rewards": {
+      "xp": { "Mining": 560, "Crafting": 160 },
+      "coins": 180,
+      "items": [{ "id": "copper_ring", "qty": 1 }]
+    },
+    "completion": "The forge is lit again."
+  },
+
+  "q_orc_trouble": {
+    "name": "Trouble on the Road",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 8,
+    "summary": "Orcs have been working the Sunken Road, and the carters have stopped coming through. Make the road boring again.",
+    "prereq": ["q_thin_the_herd"],
+    "stages": [
+      { "desc": "Drive the orcs off the Sunken Road", "type": "kill", "target": "orc", "count": 10 }
+    ],
+    "rewards": {
+      "xp": { "Attack": 900, "Strength": 700, "Defence": 500, "Hitpoints": 400 },
+      "coins": 340,
+      "items": [{ "id": "iron_sword", "qty": 1 }]
+    },
+    "completion": "The carters will risk the road again."
+  },
+
+  "q_marens_letter": {
+    "name": "Maren's Letter",
+    "source": "npc",
+    "giver": "npc_maren",
+    "level": 1,
+    "summary": "Elder Maren has written to the guild and will not say what about. She only asks that it reach them today.",
+    "stages": [
+      { "desc": "Take Maren's letter to the guild hall", "type": "talk", "target": "npc_guildmaster" },
+      { "desc": "Return to Elder Maren", "type": "talk", "target": "npc_maren" }
+    ],
+    "rewards": {
+      "xp": { "Defence": 180, "Hitpoints": 120 },
+      "coins": 60,
+      "items": [{ "id": "herbal_tonic", "qty": 2 }]
+    },
+    "completion": "Maren reads your face more carefully than the reply."
+  },
+
+  "q_the_sunken_road": {
+    "name": "The Sunken Road",
+    "source": "npc",
+    "giver": "npc_maren",
+    "level": 6,
+    "summary": "A surveyor went out to the Sunken Road with a satchel of paper and came back with none of it. Maren wants to know what he saw.",
+    "prereq": ["q_marens_letter"],
+    "stages": [
+      { "desc": "Search the Sunken Road for the surveyor's papers", "type": "collect", "target": "torn_page", "count": 1 },
+      { "desc": "Bring the page back to Elder Maren", "type": "talk", "target": "npc_maren" }
+    ],
+    "rewards": {
+      "xp": { "Attack": 400, "Defence": 400, "Hitpoints": 260 },
+      "coins": 210
+    },
+    "completion": "Maren folds the page twice and does not put it down."
+  },
+
+  "q_emberfell_depths": {
+    "name": "The Emberfell Depths",
+    "source": "npc",
+    "giver": "npc_maren",
+    "level": 14,
+    "summary": "Whatever is gathering the orcs is doing it under Emberfell. Maren has stopped calling it a rumour.",
+    "prereq": ["q_the_sunken_road"],
+    "stages": [
+      { "desc": "Find the rusted key in the Emberfell mine", "type": "collect", "target": "rusted_key", "count": 1 },
+      { "desc": "Descend into the lower workings", "type": "reach", "target": "dungeon_emberfell_2" },
+      { "desc": "Put down the Orc Warchief", "type": "kill", "target": "orc_warchief", "count": 1 },
+      { "desc": "Carry the totem back to Elder Maren", "type": "talk", "target": "npc_maren" }
+    ],
+    "rewards": {
+      "xp": { "Attack": 2600, "Strength": 2600, "Defence": 1800, "Hitpoints": 1400 },
+      "coins": 1200,
+      "items": [{ "id": "ember_blade", "qty": 1 }]
+    },
+    "completion": "Maren turns the totem over once and puts it in the fire."
+  },
+
+  "q_barrow_seal": {
+    "name": "What the Mire Keeps",
+    "source": "note",
+    "giver": "note_mire",
+    "level": 10,
+    "summary": "A water-stained note left at the edge of the Mire. Someone went into the barrow on purpose, and wrote down why.",
+    "stages": [
+      { "desc": "Enter the barrow beneath the Mire", "type": "reach", "target": "dungeon_barrow" },
+      { "desc": "Recover the barrow seal", "type": "collect", "target": "barrow_seal", "count": 1 },
+      { "desc": "Take the seal to the guild master", "type": "talk", "target": "npc_guildmaster" }
+    ],
+    "rewards": {
+      "xp": { "Magic": 900, "Crafting": 400, "Hitpoints": 500 },
+      "coins": 460,
+      "items": [{ "id": "bone_amulet", "qty": 1 }]
+    },
+    "completion": "The guild master puts the seal in a drawer he then locks."
+  },
+
+  "q_a_decent_meal": {
+    "name": "A Decent Meal",
+    "source": "npc",
+    "giver": "npc_cook",
+    "level": 2,
+    "summary": "The innkeeper can cook. What she cannot do is leave the inn long enough to find anything worth cooking.",
+    "stages": [
+      { "desc": "Bring the innkeeper 5 cooked meat", "type": "collect", "target": "cooked_meat", "count": 5 },
+      { "desc": "Hand the food to the innkeeper", "type": "talk", "target": "npc_cook" }
+    ],
+    "rewards": {
+      "xp": { "Cooking": 480, "Hitpoints": 200 },
+      "coins": 130,
+      "items": [{ "id": "herbal_tonic", "qty": 1 }]
+    },
+    "completion": "She feeds you first, which is how you know it went well."
+  }
+}

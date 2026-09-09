@@ -1,0 +1,514 @@
+{
+  "orc_grunt": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "coins",
+        "qty": [
+          8,
+          34
+        ],
+        "weight": 44
+      },
+      {
+        "item": "nothing",
+        "weight": 26
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 12
+      },
+      {
+        "item": "bronze_sword",
+        "weight": 6
+      },
+      {
+        "item": "wooden_shield",
+        "weight": 5
+      },
+      {
+        "item": "thread",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 5
+      },
+      {
+        "table": "rare_drops",
+        "weight": 2
+      }
+    ]
+  },
+  "orc_raider": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "coins",
+        "qty": [
+          25,
+          95
+        ],
+        "weight": 40
+      },
+      {
+        "item": "nothing",
+        "weight": 20
+      },
+      {
+        "item": "iron_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 12
+      },
+      {
+        "item": "iron_sword",
+        "weight": 7
+      },
+      {
+        "item": "iron_helm",
+        "weight": 6
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 8
+      },
+      {
+        "table": "rare_drops",
+        "weight": 7
+      }
+    ]
+  },
+  "orc_warchief": {
+    "always": [
+      {
+        "item": "warchief_totem"
+      },
+      {
+        "item": "coins",
+        "qty": [
+          420,
+          780
+        ]
+      },
+      {
+        "item": "bones",
+        "qty": [
+          2,
+          3
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "ember_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 26
+      },
+      {
+        "item": "steel_longsword",
+        "weight": 18
+      },
+      {
+        "item": "iron_body",
+        "weight": 16
+      },
+      {
+        "item": "iron_shield",
+        "weight": 14
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 14
+      },
+      {
+        "table": "rare_drops",
+        "weight": 12
+      }
+    ]
+  },
+  "boar": {
+    "always": [
+      {
+        "item": "raw_boar"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 55
+      },
+      {
+        "item": "nothing",
+        "weight": 25
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      }
+    ]
+  },
+  "deer": {
+    "always": [
+      {
+        "item": "raw_meat",
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 60
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      },
+      {
+        "item": "thread",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      }
+    ]
+  },
+  "fox": {
+    "rolls": 1,
+    "table": [
+      {
+        "item": "hide",
+        "weight": 45
+      },
+      {
+        "item": "raw_meat",
+        "weight": 30
+      },
+      {
+        "item": "nothing",
+        "weight": 25
+      }
+    ]
+  },
+  "hare": {
+    "rolls": 1,
+    "table": [
+      {
+        "item": "raw_meat",
+        "weight": 60
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      },
+      {
+        "item": "hide",
+        "weight": 10
+      }
+    ]
+  },
+  "rare_drops": {
+    "rolls": 1,
+    "table": [
+      {
+        "item": "ruby",
+        "weight": 4
+      },
+      {
+        "item": "bone_amulet",
+        "weight": 10
+      },
+      {
+        "item": "copper_ring",
+        "weight": 14
+      },
+      {
+        "item": "coins",
+        "qty": [
+          180,
+          420
+        ],
+        "weight": 30
+      },
+      {
+        "item": "ember_shard",
+        "weight": 8
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 20
+      },
+      {
+        "item": "nothing",
+        "weight": 14
+      }
+    ]
+  },
+  "chest_common": {
+    "rolls": 2,
+    "table": [
+      {
+        "item": "coins",
+        "qty": [
+          40,
+          140
+        ],
+        "weight": 40
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 18
+      },
+      {
+        "item": "thread",
+        "qty": [
+          2,
+          5
+        ],
+        "weight": 12
+      },
+      {
+        "item": "copper_ore",
+        "qty": [
+          2,
+          5
+        ],
+        "weight": 12
+      },
+      {
+        "item": "wooden_shield",
+        "weight": 8
+      },
+      {
+        "table": "rare_drops",
+        "weight": 10
+      }
+    ]
+  },
+  "chest_dungeon": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          90,
+          260
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "iron_ore",
+        "qty": [
+          2,
+          6
+        ],
+        "weight": 26
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 20
+      },
+      {
+        "item": "iron_sword",
+        "weight": 12
+      },
+      {
+        "item": "iron_helm",
+        "weight": 10
+      },
+      {
+        "item": "leather_body",
+        "weight": 10
+      },
+      {
+        "item": "ember_shard",
+        "weight": 8
+      },
+      {
+        "table": "rare_drops",
+        "weight": 14
+      }
+    ]
+  },
+  "chest_barrow": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          150,
+          340
+        ]
+      },
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "bone_amulet",
+        "weight": 22
+      },
+      {
+        "item": "ember_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "apprentice_staff",
+        "weight": 16
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          2,
+          3
+        ],
+        "weight": 18
+      },
+      {
+        "table": "rare_drops",
+        "weight": 24
+      }
+    ]
+  },
+  "key_emberfell": {
+    "always": [
+      {
+        "item": "rusted_key"
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          140
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 50
+      },
+      {
+        "item": "iron_ore",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 50
+      }
+    ]
+  },
+  "seal_barrow": {
+    "always": [
+      {
+        "item": "barrow_seal"
+      },
+      {
+        "item": "coins",
+        "qty": [
+          120,
+          260
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "bone_amulet",
+        "weight": 40
+      },
+      {
+        "item": "ember_shard",
+        "weight": 30
+      },
+      {
+        "item": "herbal_tonic",
+        "qty": [
+          2,
+          3
+        ],
+        "weight": 30
+      }
+    ]
+  },
+  "page_surveyor": {
+    "always": [
+      {
+        "item": "torn_page"
+      }
+    ]
+  }
+}

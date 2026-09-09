@@ -1,0 +1,206 @@
+{
+  "orc1": {
+    "name": "Orc Grunt",
+    "sprite": "orc1",
+    "hp": 14,
+    "attack": 4,
+    "strength": 5,
+    "defence": 3,
+    "attack_bonus": 4,
+    "strength_bonus": 5,
+    "defence_bonus": 5,
+    "speed": 44,
+    "aggro": 140,
+    "attack_range": 30,
+    "attack_cooldown": 1.7,
+    "loot": "orc_grunt",
+    "kill_target": "orc",
+    "foot_box": [
+      -9,
+      -12,
+      18,
+      12
+    ],
+    "body_box": [
+      -14,
+      -42,
+      28,
+      42
+    ]
+  },
+  "orc2": {
+    "name": "Orc Raider",
+    "sprite": "orc2",
+    "hp": 30,
+    "attack": 12,
+    "strength": 13,
+    "defence": 10,
+    "attack_bonus": 14,
+    "strength_bonus": 14,
+    "defence_bonus": 16,
+    "speed": 52,
+    "aggro": 180,
+    "attack_range": 32,
+    "attack_cooldown": 1.5,
+    "loot": "orc_raider",
+    "kill_target": "orc",
+    "foot_box": [
+      -9,
+      -12,
+      18,
+      12
+    ],
+    "body_box": [
+      -14,
+      -42,
+      28,
+      42
+    ]
+  },
+  "orc3": {
+    "name": "Orc Warchief",
+    "sprite": "orc3",
+    "hp": 95,
+    "attack": 30,
+    "strength": 30,
+    "defence": 26,
+    "attack_bonus": 40,
+    "strength_bonus": 32,
+    "defence_bonus": 34,
+    "speed": 50,
+    "aggro": 300,
+    "attack_range": 36,
+    "attack_cooldown": 1.3,
+    "loot": "orc_warchief",
+    "kill_target": "orc_warchief",
+    "boss": true,
+    "foot_box": [
+      -10,
+      -13,
+      20,
+      13
+    ],
+    "body_box": [
+      -16,
+      -46,
+      32,
+      46
+    ]
+  },
+  "boar": {
+    "name": "Wild Boar",
+    "sprite": "boar",
+    "hp": 10,
+    "attack": 3,
+    "strength": 3,
+    "defence": 3,
+    "attack_bonus": 1,
+    "strength_bonus": 1,
+    "defence_bonus": 4,
+    "speed": 54,
+    "aggro": 82,
+    "attack_range": 26,
+    "attack_cooldown": 2.4,
+    "loot": "boar",
+    "kill_target": "boar",
+    "foot_box": [
+      -8,
+      -8,
+      16,
+      8
+    ],
+    "body_box": [
+      -12,
+      -24,
+      24,
+      24
+    ]
+  },
+  "deer": {
+    "name": "Red Deer",
+    "sprite": "deer",
+    "hp": 9,
+    "attack": 1,
+    "strength": 2,
+    "defence": 2,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 3,
+    "speed": 78,
+    "aggro": 0,
+    "attack_range": 24,
+    "attack_cooldown": 3.0,
+    "loot": "deer",
+    "kill_target": "deer",
+    "foot_box": [
+      -8,
+      -8,
+      16,
+      8
+    ],
+    "body_box": [
+      -12,
+      -26,
+      24,
+      26
+    ]
+  },
+  "fox": {
+    "name": "Red Fox",
+    "sprite": "fox",
+    "hp": 6,
+    "attack": 3,
+    "strength": 3,
+    "defence": 1,
+    "attack_bonus": 2,
+    "strength_bonus": 2,
+    "defence_bonus": 1,
+    "speed": 74,
+    "aggro": 70,
+    "attack_range": 22,
+    "attack_cooldown": 1.6,
+    "loot": "fox",
+    "kill_target": "fox",
+    "foot_box": [
+      -7,
+      -7,
+      14,
+      7
+    ],
+    "body_box": [
+      -10,
+      -20,
+      20,
+      20
+    ]
+  },
+  "hare": {
+    "name": "Hare",
+    "sprite": "hare",
+    "hp": 3,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 0,
+    "speed": 82,
+    "aggro": 0,
+    "attack_range": 18,
+    "attack_cooldown": 3.0,
+    "loot": "hare",
+    "kill_target": "hare",
+    "foot_box": [
+      -6,
+      -6,
+      12,
+      6
+    ],
+    "body_box": [
+      -9,
+      -16,
+      18,
+      16
+    ]
+  }
+}

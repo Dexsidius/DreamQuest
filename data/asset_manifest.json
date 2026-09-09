@@ -1,0 +1,930 @@
+{
+    "assets":  {
+                   "tiles/cursed_ground":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/cursed_sand":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/dirt":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/dirt_dark":  {
+                                           "w":  16,
+                                           "h":  16
+                                       },
+                   "tiles/dungeon_floor":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/dungeon_floor_dark":  {
+                                                    "w":  16,
+                                                    "h":  16
+                                                },
+                   "tiles/dungeon_void":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/dungeon_wall":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/grass":  {
+                                       "w":  16,
+                                       "h":  16
+                                   },
+                   "tiles/grass_dark":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/grass_light":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/grass_olive":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/marsh_dark":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/marsh_ground":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/marsh_stone":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/moss":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/road":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/sand":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/snow":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/water":  {
+                                       "w":  16,
+                                       "h":  16
+                                   },
+                   "decor/patch_00":  {
+                                          "w":  43,
+                                          "h":  43,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      160,
+                                                      179,
+                                                      90
+                                                  ]
+                                      },
+                   "decor/patch_01":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      160,
+                                                      179,
+                                                      90
+                                                  ]
+                                      },
+                   "decor/patch_02":  {
+                                          "w":  29,
+                                          "h":  29,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      180,
+                                                      124,
+                                                      67
+                                                  ]
+                                      },
+                   "decor/patch_03":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      180,
+                                                      124,
+                                                      67
+                                                  ]
+                                      },
+                   "decor/patch_04":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      160,
+                                                      179,
+                                                      90
+                                                  ]
+                                      },
+                   "decor/patch_05":  {
+                                          "w":  32,
+                                          "h":  30,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      160,
+                                                      179,
+                                                      90
+                                                  ]
+                                      },
+                   "decor/patch_06":  {
+                                          "w":  32,
+                                          "h":  20,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      180,
+                                                      124,
+                                                      67
+                                                  ]
+                                      },
+                   "decor/patch_07":  {
+                                          "w":  32,
+                                          "h":  16,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      180,
+                                                      124,
+                                                      67
+                                                  ]
+                                      },
+                   "decor/patch_08":  {
+                                          "w":  43,
+                                          "h":  43,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      122,
+                                                      173,
+                                                      85
+                                                  ]
+                                      },
+                   "decor/patch_09":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      122,
+                                                      173,
+                                                      85
+                                                  ]
+                                      },
+                   "decor/patch_10":  {
+                                          "w":  29,
+                                          "h":  29,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      150,
+                                                      126,
+                                                      93
+                                                  ]
+                                      },
+                   "decor/patch_11":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      150,
+                                                      126,
+                                                      93
+                                                  ]
+                                      },
+                   "decor/patch_12":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      122,
+                                                      173,
+                                                      85
+                                                  ]
+                                      },
+                   "decor/patch_13":  {
+                                          "w":  32,
+                                          "h":  30,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      122,
+                                                      173,
+                                                      85
+                                                  ]
+                                      },
+                   "decor/patch_14":  {
+                                          "w":  32,
+                                          "h":  20,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      150,
+                                                      126,
+                                                      93
+                                                  ]
+                                      },
+                   "decor/patch_15":  {
+                                          "w":  32,
+                                          "h":  16,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      150,
+                                                      126,
+                                                      93
+                                                  ]
+                                      },
+                   "decor/patch_16":  {
+                                          "w":  43,
+                                          "h":  43,
+                                          "family":  "other",
+                                          "rgb":  [
+                                                      96,
+                                                      170,
+                                                      162
+                                                  ]
+                                      },
+                   "decor/patch_17":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "other",
+                                          "rgb":  [
+                                                      96,
+                                                      170,
+                                                      162
+                                                  ]
+                                      },
+                   "decor/patch_18":  {
+                                          "w":  29,
+                                          "h":  29,
+                                          "family":  "snow",
+                                          "rgb":  [
+                                                      236,
+                                                      236,
+                                                      219
+                                                  ]
+                                      },
+                   "decor/patch_19":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "snow",
+                                          "rgb":  [
+                                                      236,
+                                                      236,
+                                                      219
+                                                  ]
+                                      },
+                   "decor/patch_20":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "other",
+                                          "rgb":  [
+                                                      96,
+                                                      170,
+                                                      162
+                                                  ]
+                                      },
+                   "decor/patch_21":  {
+                                          "w":  32,
+                                          "h":  30,
+                                          "family":  "other",
+                                          "rgb":  [
+                                                      96,
+                                                      170,
+                                                      162
+                                                  ]
+                                      },
+                   "decor/patch_22":  {
+                                          "w":  32,
+                                          "h":  20,
+                                          "family":  "snow",
+                                          "rgb":  [
+                                                      236,
+                                                      236,
+                                                      219
+                                                  ]
+                                      },
+                   "decor/patch_23":  {
+                                          "w":  32,
+                                          "h":  16,
+                                          "family":  "snow",
+                                          "rgb":  [
+                                                      236,
+                                                      236,
+                                                      219
+                                                  ]
+                                      },
+                   "decor/patch_24":  {
+                                          "w":  43,
+                                          "h":  43,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      72,
+                                                      148,
+                                                      97
+                                                  ]
+                                      },
+                   "decor/patch_25":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      72,
+                                                      148,
+                                                      97
+                                                  ]
+                                      },
+                   "decor/patch_26":  {
+                                          "w":  29,
+                                          "h":  29,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      197,
+                                                      185,
+                                                      151
+                                                  ]
+                                      },
+                   "decor/patch_27":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      197,
+                                                      185,
+                                                      151
+                                                  ]
+                                      },
+                   "decor/patch_28":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      72,
+                                                      148,
+                                                      97
+                                                  ]
+                                      },
+                   "decor/patch_29":  {
+                                          "w":  32,
+                                          "h":  30,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      72,
+                                                      148,
+                                                      97
+                                                  ]
+                                      },
+                   "decor/patch_30":  {
+                                          "w":  32,
+                                          "h":  20,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      197,
+                                                      185,
+                                                      151
+                                                  ]
+                                      },
+                   "decor/patch_31":  {
+                                          "w":  32,
+                                          "h":  16,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      197,
+                                                      185,
+                                                      151
+                                                  ]
+                                      },
+                   "decor/patch_32":  {
+                                          "w":  43,
+                                          "h":  43,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      144,
+                                                      163,
+                                                      71
+                                                  ]
+                                      },
+                   "decor/patch_33":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      144,
+                                                      163,
+                                                      71
+                                                  ]
+                                      },
+                   "decor/patch_34":  {
+                                          "w":  29,
+                                          "h":  29,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      124,
+                                                      117,
+                                                      56
+                                                  ]
+                                      },
+                   "decor/patch_35":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      124,
+                                                      117,
+                                                      56
+                                                  ]
+                                      },
+                   "decor/patch_36":  {
+                                          "w":  32,
+                                          "h":  32,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      144,
+                                                      163,
+                                                      71
+                                                  ]
+                                      },
+                   "decor/patch_37":  {
+                                          "w":  32,
+                                          "h":  30,
+                                          "family":  "grass",
+                                          "rgb":  [
+                                                      144,
+                                                      163,
+                                                      71
+                                                  ]
+                                      },
+                   "decor/patch_38":  {
+                                          "w":  32,
+                                          "h":  20,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      124,
+                                                      117,
+                                                      56
+                                                  ]
+                                      },
+                   "decor/patch_39":  {
+                                          "w":  32,
+                                          "h":  16,
+                                          "family":  "dirt",
+                                          "rgb":  [
+                                                      124,
+                                                      117,
+                                                      56
+                                                  ]
+                                      },
+                   "decor/roadpiece1_00":  {
+                                               "w":  55,
+                                               "h":  59,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           106,
+                                                           144,
+                                                           154
+                                                       ]
+                                           },
+                   "decor/roadpiece1_01":  {
+                                               "w":  57,
+                                               "h":  62,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           106,
+                                                           144,
+                                                           153
+                                                       ]
+                                           },
+                   "decor/roadpiece1_02":  {
+                                               "w":  54,
+                                               "h":  60,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           106,
+                                                           145,
+                                                           154
+                                                       ]
+                                           },
+                   "decor/roadpiece1_03":  {
+                                               "w":  216,
+                                               "h":  318,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           106,
+                                                           144,
+                                                           153
+                                                       ]
+                                           },
+                   "decor/roadpiece3_00":  {
+                                               "w":  54,
+                                               "h":  54,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           123,
+                                                           140,
+                                                           161
+                                                       ]
+                                           },
+                   "decor/roadpiece3_01":  {
+                                               "w":  54,
+                                               "h":  54,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           123,
+                                                           140,
+                                                           162
+                                                       ]
+                                           },
+                   "decor/roadpiece3_02":  {
+                                               "w":  53,
+                                               "h":  54,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           123,
+                                                           140,
+                                                           162
+                                                       ]
+                                           },
+                   "decor/roadpiece3_03":  {
+                                               "w":  214,
+                                               "h":  341,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           124,
+                                                           139,
+                                                           162
+                                                       ]
+                                           },
+                   "decor/roadpiece3_04":  {
+                                               "w":  66,
+                                               "h":  32,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           122,
+                                                           142,
+                                                           163
+                                                       ]
+                                           },
+                   "decor/roadpiece3_05":  {
+                                               "w":  131,
+                                               "h":  32,
+                                               "family":  "water",
+                                               "rgb":  [
+                                                           122,
+                                                           139,
+                                                           161
+                                                       ]
+                                           },
+                   "objects/building_guild":  {
+                                                  "w":  144,
+                                                  "h":  111
+                                              },
+                   "objects/building_house_a":  {
+                                                    "w":  136,
+                                                    "h":  149
+                                                },
+                   "objects/building_house_b":  {
+                                                    "w":  133,
+                                                    "h":  184
+                                                },
+                   "objects/building_shop":  {
+                                                 "w":  110,
+                                                 "h":  72
+                                             },
+                   "objects/bush_00":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/bush_01":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/bush_02":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/bush_03":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/bush_04":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/bush_05":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
+                   "objects/bush_06":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
+                   "objects/bush_07":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/bushsmall_00":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_01":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_02":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_03":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_04":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_05":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_06":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/bushsmall_07":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/campfire":  {
+                                            "w":  48,
+                                            "h":  48
+                                        },
+                   "objects/chest":  {
+                                         "w":  32,
+                                         "h":  32
+                                     },
+                   "objects/chest_open":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "objects/door":  {
+                                        "w":  32,
+                                        "h":  32
+                                    },
+                   "objects/door_open":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "objects/fungus_00":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "objects/fungus_01":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "objects/fungus_02":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "objects/mushroom_00":  {
+                                               "w":  128,
+                                               "h":  128
+                                           },
+                   "objects/mushroom_01":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
+                   "objects/mushroom_02":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "objects/mushroom_03":  {
+                                               "w":  128,
+                                               "h":  128
+                                           },
+                   "objects/mushroom_04":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
+                   "objects/mushroom_05":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
+                   "objects/rock_00":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_01":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_02":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_03":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_04":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_05":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_06":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rock_07":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "objects/rocksmall_00":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_01":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_02":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_03":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_04":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_05":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_06":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/rocksmall_07":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/sign_guild":  {
+                                              "w":  72,
+                                              "h":  26
+                                          },
+                   "objects/tree_00":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_01":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
+                   "objects/tree_02":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_03":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_04":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_05":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_06":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_07":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_08":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/tree_09":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
+                   "objects/treesmall_00":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/treesmall_01":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "objects/treesmall_02":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/treesmall_03":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/treesmall_04":  {
+                                                "w":  128,
+                                                "h":  128
+                                            },
+                   "objects/treesmall_05":  {
+                                                "w":  128,
+                                                "h":  128
+                                            },
+                   "objects/treesmall_06":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/treesmall_07":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/treesmall_08":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/treesmall_09":  {
+                                                "w":  64,
+                                                "h":  64
+                                            }
+               },
+    "families":  {
+                     "grass":  [
+                                   "patch_00",
+                                   "patch_01",
+                                   "patch_04",
+                                   "patch_05",
+                                   "patch_08",
+                                   "patch_09",
+                                   "patch_12",
+                                   "patch_13",
+                                   "patch_24",
+                                   "patch_25",
+                                   "patch_28",
+                                   "patch_29",
+                                   "patch_32",
+                                   "patch_33",
+                                   "patch_36",
+                                   "patch_37"
+                               ],
+                     "dirt":  [
+                                  "patch_02",
+                                  "patch_03",
+                                  "patch_06",
+                                  "patch_07",
+                                  "patch_10",
+                                  "patch_11",
+                                  "patch_14",
+                                  "patch_15",
+                                  "patch_26",
+                                  "patch_27",
+                                  "patch_30",
+                                  "patch_31",
+                                  "patch_34",
+                                  "patch_35",
+                                  "patch_38",
+                                  "patch_39"
+                              ],
+                     "other":  [
+                                   "patch_16",
+                                   "patch_17",
+                                   "patch_20",
+                                   "patch_21"
+                               ],
+                     "snow":  [
+                                  "patch_18",
+                                  "patch_19",
+                                  "patch_22",
+                                  "patch_23"
+                              ],
+                     "water":  [
+                                   "roadpiece1_00",
+                                   "roadpiece1_01",
+                                   "roadpiece1_02",
+                                   "roadpiece1_03",
+                                   "roadpiece3_00",
+                                   "roadpiece3_01",
+                                   "roadpiece3_02",
+                                   "roadpiece3_03",
+                                   "roadpiece3_04",
+                                   "roadpiece3_05"
+                               ]
+                 }
+}

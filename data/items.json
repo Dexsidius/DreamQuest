@@ -1,0 +1,385 @@
+{
+  "coins": {
+    "name": "Coins",
+    "desc": "Stamped copper pieces. Every trader in the Hollowmarch takes them.",
+    "stack": true,
+    "value": 1,
+    "icon": "assets/icons/coin.png"
+  },
+  "bones": {
+    "name": "Bones",
+    "desc": "Picked clean. Some in Havenbrook still bury what they find.",
+    "stack": true,
+    "value": 2,
+    "icon": "assets/icons/skull.png"
+  },
+  "bronze_sword": {
+    "name": "Bronze Sword",
+    "desc": "Soft metal, honest edge. It will see you through the meadow.",
+    "slot": "weapon",
+    "value": 40,
+    "speed": 1.0,
+    "bonus": {
+      "attack": 10,
+      "strength": 16
+    },
+    "icon": "assets/icons/sword.png"
+  },
+  "iron_sword": {
+    "name": "Iron Sword",
+    "desc": "Heavier in the hand, and it bites far deeper than bronze.",
+    "slot": "weapon",
+    "value": 180,
+    "speed": 1.05,
+    "bonus": {
+      "attack": 22,
+      "strength": 28
+    },
+    "req": {
+      "Attack": 10
+    },
+    "icon": "assets/icons/sword_big.png"
+  },
+  "steel_longsword": {
+    "name": "Steel Longsword",
+    "desc": "Guild-forged. The kind of blade that ends an argument early.",
+    "slot": "weapon",
+    "value": 620,
+    "speed": 1.1,
+    "bonus": {
+      "attack": 38,
+      "strength": 46
+    },
+    "req": {
+      "Attack": 20
+    },
+    "icon": "assets/icons/sword_rune.png"
+  },
+  "ember_blade": {
+    "name": "Ember Blade",
+    "desc": "Warm to the touch, even in the cold under the mountain.",
+    "slot": "weapon",
+    "value": 1800,
+    "speed": 1.0,
+    "bonus": {
+      "attack": 58,
+      "strength": 68,
+      "magic": 10
+    },
+    "req": {
+      "Attack": 30
+    },
+    "icon": "assets/icons/spark.png"
+  },
+  "oak_shortbow": {
+    "name": "Oak Shortbow",
+    "desc": "Cut and strung by a Havenbrook hand. Light, quick, forgiving.",
+    "slot": "weapon",
+    "value": 150,
+    "speed": 0.85,
+    "bonus": {
+      "ranged": 26,
+      "attack": 6
+    },
+    "req": {
+      "Ranged": 5
+    },
+    "icon": "assets/icons/bow.png"
+  },
+  "apprentice_staff": {
+    "name": "Apprentice Staff",
+    "desc": "The runes have mostly worn off. Enough of them are left.",
+    "slot": "weapon",
+    "value": 190,
+    "speed": 0.95,
+    "bonus": {
+      "magic": 28,
+      "attack": 6
+    },
+    "req": {
+      "Magic": 5
+    },
+    "icon": "assets/icons/rune.png"
+  },
+  "wooden_shield": {
+    "name": "Wooden Shield",
+    "desc": "Banded oak. It has stopped worse than it looks like it could.",
+    "slot": "shield",
+    "value": 35,
+    "bonus": {
+      "defence": 18
+    },
+    "icon": "assets/icons/shield.png"
+  },
+  "iron_shield": {
+    "name": "Iron Shield",
+    "desc": "Dented across the boss where something large tested it.",
+    "slot": "shield",
+    "value": 260,
+    "bonus": {
+      "defence": 26
+    },
+    "req": {
+      "Defence": 10
+    },
+    "icon": "assets/icons/shield_big.png"
+  },
+  "leather_body": {
+    "name": "Leather Jerkin",
+    "desc": "Boar hide, boiled and cut. Quiet, and warmer than it looks.",
+    "slot": "body",
+    "value": 90,
+    "bonus": {
+      "defence": 14
+    },
+    "icon": "assets/icons/leather.png"
+  },
+  "leather_legs": {
+    "name": "Leather Chaps",
+    "desc": "Stitched from the same hide as the jerkin.",
+    "slot": "legs",
+    "value": 60,
+    "bonus": {
+      "defence": 9
+    },
+    "icon": "assets/icons/armour.png"
+  },
+  "iron_helm": {
+    "name": "Iron Helm",
+    "desc": "Narrow eye slit. You get used to it.",
+    "slot": "head",
+    "value": 140,
+    "bonus": {
+      "defence": 16
+    },
+    "req": {
+      "Defence": 10
+    },
+    "icon": "assets/icons/helm_big.png"
+  },
+  "iron_body": {
+    "name": "Iron Cuirass",
+    "desc": "Heavy plate over a padded backing. Nothing subtle about it.",
+    "slot": "body",
+    "value": 380,
+    "bonus": {
+      "defence": 32
+    },
+    "req": {
+      "Defence": 10
+    },
+    "icon": "assets/icons/armour_blue.png"
+  },
+  "bone_amulet": {
+    "name": "Bone Amulet",
+    "desc": "Carved from something that walked out of the Mire once.",
+    "slot": "amulet",
+    "value": 220,
+    "bonus": {
+      "strength": 9,
+      "magic": 8
+    },
+    "icon": "assets/icons/amulet.png"
+  },
+  "copper_ring": {
+    "name": "Copper Ring",
+    "desc": "Plain, warm, faintly lucky.",
+    "slot": "ring",
+    "value": 80,
+    "bonus": {
+      "attack": 6
+    },
+    "icon": "assets/icons/ring.png"
+  },
+  "raw_meat": {
+    "name": "Raw Meat",
+    "desc": "Needs a fire before it needs a plate.",
+    "stack": true,
+    "value": 6,
+    "cook": {
+      "result": "cooked_meat",
+      "xp": 30,
+      "level": 1
+    },
+    "icon": "assets/icons/meat_red.png"
+  },
+  "raw_boar": {
+    "name": "Raw Boar Haunch",
+    "desc": "A heavy cut. Worth the trouble of carrying it back.",
+    "stack": true,
+    "value": 14,
+    "cook": {
+      "result": "cooked_boar",
+      "xp": 85,
+      "level": 12
+    },
+    "icon": "assets/icons/meat_raw.png"
+  },
+  "cooked_meat": {
+    "name": "Cooked Meat",
+    "desc": "Restores 6 hitpoints.",
+    "stack": true,
+    "value": 12,
+    "consume": true,
+    "heal": 6,
+    "icon": "assets/icons/meat_cooked.png"
+  },
+  "cooked_boar": {
+    "name": "Roast Boar",
+    "desc": "Restores 16 hitpoints. Worth saving for a hard fight.",
+    "stack": true,
+    "value": 30,
+    "consume": true,
+    "heal": 16,
+    "icon": "assets/icons/meat_raw2.png"
+  },
+  "herbal_tonic": {
+    "name": "Herbal Tonic",
+    "desc": "Bitter, green, and it works. Restores 22 hitpoints.",
+    "stack": true,
+    "value": 65,
+    "consume": true,
+    "heal": 22,
+    "icon": "assets/icons/potion_red.png"
+  },
+  "logs": {
+    "name": "Logs",
+    "desc": "Split pine. The guild always wants more of it.",
+    "stack": true,
+    "value": 5,
+    "craft": {
+      "result": "wooden_shield",
+      "qty": 1,
+      "xp": 45,
+      "level": 1,
+      "inputs": {
+        "logs": 3,
+        "hide": 1
+      }
+    },
+    "icon": "assets/icons/bar_copper.png"
+  },
+  "oak_logs": {
+    "name": "Oak Logs",
+    "desc": "Dense and slow to season. Bowyers pay well for it.",
+    "stack": true,
+    "value": 18,
+    "craft": {
+      "result": "oak_shortbow",
+      "qty": 1,
+      "xp": 130,
+      "level": 12,
+      "inputs": {
+        "oak_logs": 4,
+        "thread": 2
+      }
+    },
+    "icon": "assets/icons/bar_gold.png"
+  },
+  "hide": {
+    "name": "Raw Hide",
+    "desc": "Still needs curing, but it is worth carrying home.",
+    "stack": true,
+    "value": 9,
+    "craft": {
+      "result": "leather_body",
+      "qty": 1,
+      "xp": 90,
+      "level": 8,
+      "inputs": {
+        "hide": 3,
+        "thread": 1
+      }
+    },
+    "icon": "assets/icons/leather.png"
+  },
+  "thread": {
+    "name": "Waxed Thread",
+    "desc": "A spool of it. Sold by the yard in Havenbrook.",
+    "stack": true,
+    "value": 7,
+    "icon": "assets/icons/scissors.png"
+  },
+  "copper_ore": {
+    "name": "Copper Ore",
+    "desc": "Green-streaked rock. Heavier than it has any right to be.",
+    "stack": true,
+    "value": 11,
+    "craft": {
+      "result": "copper_ring",
+      "qty": 1,
+      "xp": 70,
+      "level": 6,
+      "inputs": {
+        "copper_ore": 3
+      }
+    },
+    "icon": "assets/icons/bar_grey.png"
+  },
+  "iron_ore": {
+    "name": "Iron Ore",
+    "desc": "Dull red and dense. The forge will know what to do with it.",
+    "stack": true,
+    "value": 26,
+    "craft": {
+      "result": "iron_shield",
+      "qty": 1,
+      "xp": 210,
+      "level": 18,
+      "inputs": {
+        "iron_ore": 5,
+        "logs": 2
+      }
+    },
+    "icon": "assets/icons/bar_silver.png"
+  },
+  "ruby": {
+    "name": "Uncut Ruby",
+    "desc": "Deep red, badly chipped, and still worth a month of work.",
+    "stack": true,
+    "value": 900,
+    "icon": "assets/icons/gem_red.png"
+  },
+  "elder_letter": {
+    "name": "Maren's Letter",
+    "desc": "Folded twice, sealed with grey wax. Addressed to the guild.",
+    "stack": false,
+    "value": 0,
+    "icon": "assets/icons/scroll.png"
+  },
+  "rusted_key": {
+    "name": "Rusted Key",
+    "desc": "Long teeth, orange with age. It opens something in Emberfell.",
+    "stack": false,
+    "value": 0,
+    "icon": "assets/icons/key.png"
+  },
+  "warchief_totem": {
+    "name": "Warchief's Totem",
+    "desc": "Bound bone and red cord. Taken from the thing that carried it.",
+    "stack": false,
+    "value": 0,
+    "icon": "assets/icons/star.png"
+  },
+  "ember_shard": {
+    "name": "Ember Shard",
+    "desc": "A splinter of something still burning, a long way underground.",
+    "stack": true,
+    "value": 240,
+    "icon": "assets/icons/gem_blue.png"
+  },
+  "barrow_seal": {
+    "name": "Barrow Seal",
+    "desc": "A clay disc pressed with a name nobody in town will read aloud.",
+    "stack": false,
+    "value": 0,
+    "icon": "assets/icons/seal.png"
+  },
+  "torn_page": {
+    "name": "Torn Page",
+    "desc": "Half a survey of the Sunken Road, in a careful, frightened hand.",
+    "stack": false,
+    "value": 0,
+    "icon": "assets/icons/page.png"
+  }
+}
