@@ -1,0 +1,29 @@
+# --- build output ------------------------------------------------------------
+bin/
+obj/
+*.o
+*.exe
+*.x86_64
+DreamQuest.x86_64
+
+# --- art ---------------------------------------------------------------------
+# The art is CraftPix free content. Its licence covers using the assets in a
+# game but not redistributing the files themselves, so the packs are not in the
+# repository. Rebuild assets/ from your own downloads with:
+#
+#     .\tools\import_assets.ps1 -GameAssets "path\to\the\craftpix\zips"
+#
+assets/
+
+# --- local state -------------------------------------------------------------
+saves/
+settings.json
+imgui.ini
+
+# --- editors and OS ----------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
