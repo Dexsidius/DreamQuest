@@ -10,6 +10,8 @@ Built on [SDL3-Project-Template](https://github.com/Dexsidius/SDL3-Project-Templ
 and the maps are authored in the format exported by
 [LevelEdit-Plus](https://github.com/TheSardonicals/LevelEdit-Plus).
 
+![DreamQuest](docs/screenshots.png)
+
 ---
 
 ## Building
