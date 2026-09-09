@@ -1,0 +1,86 @@
+#pragma once
+#include "../headers.h"
+#include "../sprite.h"
+#include "../texturecache.h"
+#include "../camera.h"
+
+class World;
+class Input;
+class SpriteLibrary;
+class ItemDatabase;
+class LootSystem;
+class QuestLog;
+class DialogueDatabase;
+class EnemyDatabase;
+
+// Everything shared that entities need to reach. Owned by Game, borrowed here,
+// so no entity has to know how the game is assembled.
+struct GameContext {
+    SDL_Renderer*     renderer  = nullptr;
+    TextureCache*     textures  = nullptr;
+    SpriteLibrary*    sprites   = nullptr;
+    ItemDatabase*     items     = nullptr;
+    LootSystem*       loot      = nullptr;
+    QuestLog*         quests    = nullptr;
+    DialogueDatabase* dialogue  = nullptr;
+    EnemyDatabase*    enemies   = nullptr;
+    Input*            input     = nullptr;
+    std::mt19937*     rng       = nullptr;
+};
+
+// Base for anything that lives in the world and sorts against the decor layer.
+class Entity {
+public:
+    virtual ~Entity() = default;
+
+    virtual void Update(float dt, World& world, const GameContext& ctx) = 0;
+    virtual void Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const;
+
+    // Collision footprint, world space. Deliberately small and at the feet so
+    // characters can overlap scenery above the waist.
+    virtual SDL_FRect Bounds() const;
+    // Larger box used for weapon hits and interaction range.
+    virtual SDL_FRect BodyBox() const;
+
+    float SortY() const { return y; }
+    bool  Dead() const { return hp <= 0; }
+
+    void  Damage(int amount);
+    void  Heal(int amount);
+
+    float x = 0, y = 0;                 // feet position
+    float vx = 0, vy = 0;
+    Facing facing = FACE_DOWN;
+    Sprite sprite;
+
+    int hp = 1, max_hp = 1;
+    bool remove = false;                // world drops it next frame
+
+    float hurt_flash = 0.0f;            // seconds of red tint remaining
+    float knock_x = 0, knock_y = 0;     // decaying knockback velocity
+
+    SDL_FRect foot_box{-8.0f, -11.0f, 16.0f, 11.0f};   // relative to feet
+    SDL_FRect body_box{-12.0f, -40.0f, 24.0f, 40.0f};  // relative to feet
+};
+
+// A dropped item lying on the ground, from a kill or a chest.
+struct Pickup {
+    string item_id;
+    int    qty = 1;
+    float  x = 0, y = 0;
+    float  bob = 0.0f;        // animation phase
+    float  life = 0.0f;       // seconds since it landed
+    bool   collected = false;
+    string icon;              // resolved image path, may be empty
+
+    SDL_FRect Bounds() const { return {x - 8.0f, y - 8.0f, 16.0f, 16.0f}; }
+};
+
+// Damage numbers, XP drops and pickup notices that float up and fade.
+struct FloatingText {
+    string    text;
+    float     x = 0, y = 0;
+    float     life = 0.0f, max_life = 1.0f;
+    SDL_Color color{255, 255, 255, 255};
+    float     rise = 26.0f;
+};
