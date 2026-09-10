@@ -117,6 +117,77 @@ foreach ($who in @(
     }
 }
 
+# The player is the only character who equips anything, so only the player
+# sheets are imported as separate layers. The packs ship them already split and
+# frame-aligned -- shadow, sword behind the body, body, head, sword in front --
+# with a number in each filename giving the draw order. Keeping that order is
+# what makes a paperdoll possible: the weapon layers can be hidden or recoloured
+# independently of the body, and the body and head can be tinted for armour.
+function Copy-Layers($destName, $partsDir, $clipMap) {
+    if (-not (Test-Path $partsDir)) { Write-Warning "  ! missing $partsDir"; return }
+    $dest = Join-Path $assets "characters\$destName\layers"
+    New-Dir $dest
+
+    $copied = 0
+    foreach ($clip in $clipMap.Keys) {
+        $prefix = $clipMap[$clip]
+        # e.g. Sword_Idle3_body.png -> order 3, slot "body"
+        $parts = Get-ChildItem $partsDir -Filter "$prefix*.png" -File |
+                 ForEach-Object {
+                     if ($_.BaseName -match "^$([regex]::Escape($prefix))(\d+)_(.+)$") {
+                         [pscustomobject]@{
+                             order = [int]$Matches[1]
+                             slot  = $Matches[2].ToLower()
+                             file  = $_
+                         }
+                     }
+                 } | Sort-Object order
+
+        foreach ($part in $parts) {
+            # The red overlay is a hit flash the engine does with a colour mod.
+            if ($part.slot -eq 'red') { continue }
+            $name = "{0}_{1}_{2}.png" -f $clip, $part.order, $part.slot
+            Copy-Item $part.file.FullName (Join-Path $dest $name) -Force
+            $copied++
+        }
+    }
+    Write-Host ("  {0,-16} {1} layer files" -f "$destName/layers", $copied)
+}
+
+foreach ($who in @(
+    @{ id = "player_male";   pack = "base-4-direction-male-character-pixel-art" },
+    @{ id = "player_female"; pack = "base-4-direction-female-character-pixel-art" }
+)) {
+    Copy-Layers $who.id (Join-Path (Pack $who.pack) "PNG\Sword\Parts") @{
+        idle   = "Sword_Idle"
+        walk   = "Sword_Walk"
+        run    = "Sword_Run"
+        attack = "Sword_attack"
+        hurt   = "Sword_Hurt"
+        death  = "Sword_Death"
+    }
+}
+
+# The female pack ships no shadow layer. Both characters use the same rig with
+# identical frame counts and poses, so the male shadow lines up exactly; without
+# this one character would cast a shadow and the other would not.
+$maleLayers   = Join-Path $assets "characters\player_male\layers"
+$femaleLayers = Join-Path $assets "characters\player_female\layers"
+if ((Test-Path $maleLayers) -and (Test-Path $femaleLayers)) {
+    $borrowed = 0
+    foreach ($shadow in (Get-ChildItem $maleLayers -Filter "*_shadow.png" -File)) {
+        $target = Join-Path $femaleLayers $shadow.Name
+        if (-not (Test-Path $target)) {
+            Copy-Item $shadow.FullName $target -Force
+            $borrowed++
+        }
+    }
+    if ($borrowed -gt 0) {
+        Write-Host ("  {0,-16} {1} shadow layers borrowed from player_male" -f
+                    "player_female", $borrowed)
+    }
+}
+
 $orcPack = Pack "top-down-orc-game-character-pixel-art"
 foreach ($n in 1, 2, 3) {
     Copy-Sheets "orc$n" (Join-Path $orcPack "PNG\Orc$n\With_shadow") @{
@@ -245,6 +316,13 @@ if (Test-Path $chestSheet) {
         "0,32,32,32,door" `
         "64,96,32,32,door_open" `
         --out $objects | Out-Null
+}
+
+# A single arrow, drawn pointing down in the source. The projectile renderer
+# rotates it, so one sprite covers every direction.
+$arrowSheet = Join-Path (Pack "pixel-dungeon-props-and-objects-asset-pack") "PNG\Arrow.png"
+if (Test-Path $arrowSheet) {
+    & $tilecut $arrowSheet --region "52,0,7,25,arrow" --out $objects | Out-Null
 }
 
 # One frame of the fire loop makes a serviceable cooking range.

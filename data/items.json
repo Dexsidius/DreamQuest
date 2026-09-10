@@ -23,7 +23,12 @@
       "attack": 10,
       "strength": 16
     },
-    "icon": "assets/icons/sword.png"
+    "icon": "assets/icons/sword.png",
+    "tint": [
+      214,
+      158,
+      92
+    ]
   },
   "iron_sword": {
     "name": "Iron Sword",
@@ -38,7 +43,12 @@
     "req": {
       "Attack": 10
     },
-    "icon": "assets/icons/sword_big.png"
+    "icon": "assets/icons/sword_big.png",
+    "tint": [
+      196,
+      202,
+      214
+    ]
   },
   "steel_longsword": {
     "name": "Steel Longsword",
@@ -53,7 +63,12 @@
     "req": {
       "Attack": 20
     },
-    "icon": "assets/icons/sword_rune.png"
+    "icon": "assets/icons/sword_rune.png",
+    "tint": [
+      226,
+      232,
+      244
+    ]
   },
   "ember_blade": {
     "name": "Ember Blade",
@@ -69,7 +84,12 @@
     "req": {
       "Attack": 30
     },
-    "icon": "assets/icons/spark.png"
+    "icon": "assets/icons/spark.png",
+    "tint": [
+      255,
+      156,
+      88
+    ]
   },
   "oak_shortbow": {
     "name": "Oak Shortbow",
@@ -84,7 +104,13 @@
     "req": {
       "Ranged": 5
     },
-    "icon": "assets/icons/bow.png"
+    "icon": "assets/icons/bow.png",
+    "kind": "bow",
+    "tint": [
+      188,
+      146,
+      94
+    ]
   },
   "apprentice_staff": {
     "name": "Apprentice Staff",
@@ -99,7 +125,13 @@
     "req": {
       "Magic": 5
     },
-    "icon": "assets/icons/rune.png"
+    "icon": "assets/icons/rune.png",
+    "kind": "staff",
+    "tint": [
+      168,
+      150,
+      226
+    ]
   },
   "wooden_shield": {
     "name": "Wooden Shield",
@@ -109,7 +141,12 @@
     "bonus": {
       "defence": 18
     },
-    "icon": "assets/icons/shield.png"
+    "icon": "assets/icons/shield.png",
+    "tint": [
+      176,
+      138,
+      92
+    ]
   },
   "iron_shield": {
     "name": "Iron Shield",
@@ -122,7 +159,12 @@
     "req": {
       "Defence": 10
     },
-    "icon": "assets/icons/shield_big.png"
+    "icon": "assets/icons/shield_big.png",
+    "tint": [
+      176,
+      184,
+      198
+    ]
   },
   "leather_body": {
     "name": "Leather Jerkin",
@@ -132,7 +174,12 @@
     "bonus": {
       "defence": 14
     },
-    "icon": "assets/icons/leather.png"
+    "icon": "assets/icons/leather.png",
+    "tint": [
+      162,
+      118,
+      78
+    ]
   },
   "leather_legs": {
     "name": "Leather Chaps",
@@ -142,7 +189,12 @@
     "bonus": {
       "defence": 9
     },
-    "icon": "assets/icons/armour.png"
+    "icon": "assets/icons/armour.png",
+    "tint": [
+      162,
+      118,
+      78
+    ]
   },
   "iron_helm": {
     "name": "Iron Helm",
@@ -155,7 +207,12 @@
     "req": {
       "Defence": 10
     },
-    "icon": "assets/icons/helm_big.png"
+    "icon": "assets/icons/helm_big.png",
+    "tint": [
+      178,
+      186,
+      200
+    ]
   },
   "iron_body": {
     "name": "Iron Cuirass",
@@ -168,7 +225,12 @@
     "req": {
       "Defence": 10
     },
-    "icon": "assets/icons/armour_blue.png"
+    "icon": "assets/icons/armour_blue.png",
+    "tint": [
+      168,
+      178,
+      196
+    ]
   },
   "bone_amulet": {
     "name": "Bone Amulet",
@@ -381,5 +443,39 @@
     "stack": false,
     "value": 0,
     "icon": "assets/icons/page.png"
+  },
+  "training_bow": {
+    "name": "Training Bow",
+    "desc": "Guild issue, half the draw weight, and it never misses the butts.",
+    "slot": "weapon",
+    "kind": "bow",
+    "value": 30,
+    "speed": 0.9,
+    "bonus": {
+      "ranged": 12
+    },
+    "tint": [
+      186,
+      152,
+      104
+    ],
+    "icon": "assets/icons/bow.png"
+  },
+  "novice_staff": {
+    "name": "Novice Staff",
+    "desc": "A stick with one working rune on it. That is one more than none.",
+    "slot": "weapon",
+    "kind": "staff",
+    "value": 35,
+    "speed": 0.95,
+    "bonus": {
+      "magic": 14
+    },
+    "tint": [
+      158,
+      142,
+      208
+    ],
+    "icon": "assets/icons/rune.png"
   }
 }

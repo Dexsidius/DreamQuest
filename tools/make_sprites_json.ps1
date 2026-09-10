@@ -4,8 +4,14 @@
 #  Every CraftPix character sheet in this project is laid out the same way: a
 #  square frame, four rows (down, left, right, up), one column per frame. So
 #  the frame size is the sheet height over four, and the frame count is the
-#  width over that. Deriving it here means the animation data can never drift
-#  out of step with the imported art.
+#  width over that.
+#
+#  Except the rows are not always the same length. Several sheets are padded to
+#  the width of their longest row: the player's idle has twelve frames facing
+#  down, left and right, but only four facing up, and the remaining eight cells
+#  of that row are empty. Playing all twelve makes the character vanish for two
+#  thirds of the loop. So this also measures how many leading frames of each
+#  row actually contain pixels and records that per row.
 #
 #  Run by tools/import_assets.ps1; safe to run on its own afterwards.
 # =============================================================================
@@ -16,17 +22,49 @@ $ErrorActionPreference = "Stop"
 if ($Root -eq "") { $Root = Join-Path $PSScriptRoot ".." }
 Set-Location $Root
 
+Add-Type -AssemblyName System.Drawing
+
 $charDir = "assets\characters"
 if (-not (Test-Path $charDir)) { throw "No $charDir - run tools/import_assets.ps1 first." }
 
-function Get-PngSize($path) {
-    $fs = [IO.File]::OpenRead($path)
+# Frame size, column count, and the number of non-empty leading frames per row.
+function Get-SheetLayout($path) {
+    $bmp = [System.Drawing.Bitmap]::FromFile($path)
     try {
-        $b = New-Object byte[] 24
-        [void]$fs.Read($b, 0, 24)
-        # PNG IHDR stores width and height big-endian at bytes 16..23.
-        return @([BitConverter]::ToInt32($b[19..16], 0), [BitConverter]::ToInt32($b[23..20], 0))
-    } finally { $fs.Close() }
+        $frame = [int]($bmp.Height / 4)
+        if ($frame -le 0) { return $null }
+        $cols = [int]($bmp.Width / $frame)
+        if ($cols -le 0) { return $null }
+
+        $data = $bmp.LockBits(
+            (New-Object System.Drawing.Rectangle 0, 0, $bmp.Width, $bmp.Height),
+            [System.Drawing.Imaging.ImageLockMode]::ReadOnly,
+            [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+        try {
+            $bytes = New-Object byte[] ($data.Stride * $bmp.Height)
+            [Runtime.InteropServices.Marshal]::Copy($data.Scan0, $bytes, 0, $bytes.Length)
+
+            $rowFrames = @()
+            for ($r = 0; $r -lt 4; $r++) {
+                $last = -1
+                for ($c = 0; $c -lt $cols; $c++) {
+                    $any = $false
+                    # Every other pixel is plenty to tell a drawn frame from an
+                    # empty one, and it keeps this quick over ~70 sheets.
+                    for ($y = $r * $frame; $y -lt ($r + 1) * $frame -and -not $any; $y += 2) {
+                        $rowBase = $y * $data.Stride
+                        for ($x = $c * $frame; $x -lt ($c + 1) * $frame; $x += 2) {
+                            if ($bytes[$rowBase + $x * 4 + 3] -gt 16) { $any = $true; break }
+                        }
+                    }
+                    if ($any) { $last = $c }
+                }
+                # A row with nothing in it still needs one frame to draw.
+                $rowFrames += [math]::Max(1, $last + 1)
+            }
+            return @{ frame = $frame; cols = $cols; rowFrames = $rowFrames }
+        } finally { $bmp.UnlockBits($data) }
+    } finally { $bmp.Dispose() }
 }
 
 # Playback speed and whether a clip repeats. Anything not listed loops at 10fps.
@@ -39,7 +77,21 @@ $clipRules = @{
     death  = @{ fps =  9; loop = $false }
 }
 
+# Filename slot -> the slot the engine knows about. The engine decides what to
+# tint or hide by slot, so a weapon layer can be recoloured or dropped without
+# touching the body.
+$slotNames = @{
+    'shadow'      = 'shadow'
+    'sword_back'  = 'weapon_back'
+    'body'        = 'body'
+    'head'        = 'head'
+    'sword_front' = 'weapon_front'
+    'swing'       = 'effect'
+}
+
 $out = [ordered]@{}
+$ragged = 0
+$layered = 0
 
 foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
     $sheets = Get-ChildItem $dir.FullName -Filter *.png | Sort-Object Name
@@ -49,22 +101,55 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
     $frameSize = 0
 
     foreach ($sheet in $sheets) {
-        $size = Get-PngSize $sheet.FullName
-        $fh = [int]($size[1] / 4)
-        if ($fh -le 0) { continue }
-        $frames = [int]($size[0] / $fh)
-        if ($frames -le 0) { continue }
-        $frameSize = $fh
+        $layout = Get-SheetLayout $sheet.FullName
+        if ($null -eq $layout) { continue }
+        $frameSize = $layout.frame
 
         $rule = $clipRules[$sheet.BaseName]
         if ($null -eq $rule) { $rule = @{ fps = 10; loop = $true } }
 
-        $clips[$sheet.BaseName] = [ordered]@{
+        $clip = [ordered]@{
             sheet  = "$($sheet.Name)"
-            frames = $frames
+            frames = $layout.cols
             fps    = $rule.fps
             loop   = $rule.loop
         }
+
+        # Only record per-row counts when a row is actually short, so the data
+        # stays readable and the common case carries no extra noise.
+        if (($layout.rowFrames | Where-Object { $_ -ne $layout.cols }).Count -gt 0) {
+            $clip["row_frames"] = $layout.rowFrames
+            $ragged++
+            Write-Host ("  {0}/{1}: rows {2} of {3}" -f
+                        $dir.Name, $sheet.BaseName,
+                        ($layout.rowFrames -join ','), $layout.cols) -ForegroundColor DarkYellow
+        }
+
+        # If this character was imported as separate layers, list them in draw
+        # order. The combined sheet stays on the clip as a fallback and for the
+        # menu previews, which do not need a paperdoll.
+        $layerDir = Join-Path $dir.FullName "layers"
+        if (Test-Path $layerDir) {
+            $parts = Get-ChildItem $layerDir -Filter "$($sheet.BaseName)_*.png" -File |
+                     ForEach-Object {
+                         if ($_.BaseName -match "^$([regex]::Escape($sheet.BaseName))_(\d+)_(.+)$") {
+                             [pscustomobject]@{ order = [int]$Matches[1]; slot = $Matches[2]; name = $_.Name }
+                         }
+                     } | Sort-Object order
+
+            if ($parts) {
+                $stack = @()
+                foreach ($part in $parts) {
+                    $slot = $slotNames[$part.slot]
+                    if (-not $slot) { $slot = $part.slot }
+                    $stack += [ordered]@{ slot = $slot; sheet = "layers/$($part.name)" }
+                }
+                $clip["layers"] = $stack
+                $layered++
+            }
+        }
+
+        $clips[$sheet.BaseName] = $clip
     }
     if ($clips.Count -eq 0) { continue }
 
@@ -81,7 +166,8 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
 }
 
 New-Item -ItemType Directory -Force -Path "data" | Out-Null
-$json = $out | ConvertTo-Json -Depth 6
-[IO.File]::WriteAllText((Join-Path (Get-Location) "data\sprites.json"), $json + "`n")
+[IO.File]::WriteAllText((Join-Path (Get-Location) "data\sprites.json"),
+                        ($out | ConvertTo-Json -Depth 6) + "`n")
 
-Write-Host "data/sprites.json: $($out.Count) sprite definitions" -ForegroundColor Green
+Write-Host ("data/sprites.json: {0} sprite definitions, {1} clip(s) with short rows, {2} layered" -f
+            $out.Count, $ragged, $layered) -ForegroundColor Green

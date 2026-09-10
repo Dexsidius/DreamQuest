@@ -53,7 +53,13 @@
                                                 "sheet":  "idle.png",
                                                 "frames":  12,
                                                 "fps":  8,
-                                                "loop":  true
+                                                "loop":  true,
+                                                "row_frames":  [
+                                                                   12,
+                                                                   12,
+                                                                   12,
+                                                                   6
+                                                               ]
                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
@@ -73,7 +79,13 @@
                                                 "sheet":  "idle.png",
                                                 "frames":  12,
                                                 "fps":  8,
-                                                "loop":  true
+                                                "loop":  true,
+                                                "row_frames":  [
+                                                                   12,
+                                                                   12,
+                                                                   12,
+                                                                   6
+                                                               ]
                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
@@ -131,7 +143,13 @@
                                                 "sheet":  "idle.png",
                                                 "frames":  12,
                                                 "fps":  8,
-                                                "loop":  true
+                                                "loop":  true,
+                                                "row_frames":  [
+                                                                   12,
+                                                                   12,
+                                                                   12,
+                                                                   6
+                                                               ]
                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
@@ -359,37 +377,179 @@
                                                        "sheet":  "attack.png",
                                                        "frames":  8,
                                                        "fps":  16,
-                                                       "loop":  false
+                                                       "loop":  false,
+                                                       "layers":  [
+                                                                      {
+                                                                          "slot":  "shadow",
+                                                                          "sheet":  "layers/attack_1_shadow.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_back",
+                                                                          "sheet":  "layers/attack_2_sword_back.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "body",
+                                                                          "sheet":  "layers/attack_3_body.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_front",
+                                                                          "sheet":  "layers/attack_4_sword_front.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "head",
+                                                                          "sheet":  "layers/attack_5_head.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "effect",
+                                                                          "sheet":  "layers/attack_6_swing.png"
+                                                                      }
+                                                                  ]
                                                    },
                                         "death":  {
                                                       "sheet":  "death.png",
                                                       "frames":  7,
                                                       "fps":  9,
-                                                      "loop":  false
+                                                      "loop":  false,
+                                                      "layers":  [
+                                                                     {
+                                                                         "slot":  "shadow",
+                                                                         "sheet":  "layers/death_1_shadow.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_back",
+                                                                         "sheet":  "layers/death_2_sword_back.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "body",
+                                                                         "sheet":  "layers/death_3_body.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_front",
+                                                                         "sheet":  "layers/death_4_sword_front.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "head",
+                                                                         "sheet":  "layers/death_5_head.png"
+                                                                     }
+                                                                 ]
                                                   },
                                         "hurt":  {
                                                      "sheet":  "hurt.png",
                                                      "frames":  5,
                                                      "fps":  12,
-                                                     "loop":  false
+                                                     "loop":  false,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/hurt_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_back",
+                                                                        "sheet":  "layers/hurt_2_sword_back.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/hurt_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/hurt_4_sword_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/hurt_5_head.png"
+                                                                    }
+                                                                ]
                                                  },
                                         "idle":  {
                                                      "sheet":  "idle.png",
                                                      "frames":  12,
                                                      "fps":  8,
-                                                     "loop":  true
+                                                     "loop":  true,
+                                                     "row_frames":  [
+                                                                        12,
+                                                                        12,
+                                                                        12,
+                                                                        4
+                                                                    ],
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/idle_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_back",
+                                                                        "sheet":  "layers/idle_2_sword_back.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/idle_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/idle_4_sword_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/idle_5_head.png"
+                                                                    }
+                                                                ]
                                                  },
                                         "run":  {
                                                     "sheet":  "run.png",
                                                     "frames":  8,
                                                     "fps":  13,
-                                                    "loop":  true
+                                                    "loop":  true,
+                                                    "layers":  [
+                                                                   {
+                                                                       "slot":  "shadow",
+                                                                       "sheet":  "layers/run_1_shadow.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_back",
+                                                                       "sheet":  "layers/run_2_sword_back.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "body",
+                                                                       "sheet":  "layers/run_3_body.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "head",
+                                                                       "sheet":  "layers/run_4_head.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_front",
+                                                                       "sheet":  "layers/run_5_sword_front.png"
+                                                                   }
+                                                               ]
                                                 },
                                         "walk":  {
                                                      "sheet":  "walk.png",
                                                      "frames":  6,
                                                      "fps":  10,
-                                                     "loop":  true
+                                                     "loop":  true,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/walk_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_back",
+                                                                        "sheet":  "layers/walk_2_sword_back.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/walk_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/walk_4_sword_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/walk_5_head.png"
+                                                                    }
+                                                                ]
                                                  }
                                     }
                       },
@@ -403,37 +563,179 @@
                                                      "sheet":  "attack.png",
                                                      "frames":  8,
                                                      "fps":  16,
-                                                     "loop":  false
+                                                     "loop":  false,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/attack_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_back",
+                                                                        "sheet":  "layers/attack_2_sword_back.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/attack_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/attack_4_sword_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/attack_5_head.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "effect",
+                                                                        "sheet":  "layers/attack_6_swing.png"
+                                                                    }
+                                                                ]
                                                  },
                                       "death":  {
                                                     "sheet":  "death.png",
                                                     "frames":  7,
                                                     "fps":  9,
-                                                    "loop":  false
+                                                    "loop":  false,
+                                                    "layers":  [
+                                                                   {
+                                                                       "slot":  "shadow",
+                                                                       "sheet":  "layers/death_1_shadow.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_back",
+                                                                       "sheet":  "layers/death_2_sword_back.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "body",
+                                                                       "sheet":  "layers/death_3_body.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_front",
+                                                                       "sheet":  "layers/death_4_sword_front.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "head",
+                                                                       "sheet":  "layers/death_5_head.png"
+                                                                   }
+                                                               ]
                                                 },
                                       "hurt":  {
                                                    "sheet":  "hurt.png",
                                                    "frames":  5,
                                                    "fps":  12,
-                                                   "loop":  false
+                                                   "loop":  false,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/hurt_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_back",
+                                                                      "sheet":  "layers/hurt_2_sword_back.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/hurt_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/hurt_4_sword_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/hurt_5_head.png"
+                                                                  }
+                                                              ]
                                                },
                                       "idle":  {
                                                    "sheet":  "idle.png",
                                                    "frames":  12,
                                                    "fps":  8,
-                                                   "loop":  true
+                                                   "loop":  true,
+                                                   "row_frames":  [
+                                                                      12,
+                                                                      12,
+                                                                      12,
+                                                                      4
+                                                                  ],
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/idle_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_back",
+                                                                      "sheet":  "layers/idle_2_sword_back.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/idle_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/idle_4_sword_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/idle_5_head.png"
+                                                                  }
+                                                              ]
                                                },
                                       "run":  {
                                                   "sheet":  "run.png",
                                                   "frames":  8,
                                                   "fps":  13,
-                                                  "loop":  true
+                                                  "loop":  true,
+                                                  "layers":  [
+                                                                 {
+                                                                     "slot":  "shadow",
+                                                                     "sheet":  "layers/run_1_shadow.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_back",
+                                                                     "sheet":  "layers/run_2_sword_back.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "body",
+                                                                     "sheet":  "layers/run_3_body.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "head",
+                                                                     "sheet":  "layers/run_4_head.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_front",
+                                                                     "sheet":  "layers/run_5_sword_front.png"
+                                                                 }
+                                                             ]
                                               },
                                       "walk":  {
                                                    "sheet":  "walk.png",
                                                    "frames":  6,
                                                    "fps":  10,
-                                                   "loop":  true
+                                                   "loop":  true,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/walk_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_back",
+                                                                      "sheet":  "layers/walk_2_sword_back.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/walk_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/walk_4_sword_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/walk_5_head.png"
+                                                                  }
+                                                              ]
                                                }
                                   }
                     }

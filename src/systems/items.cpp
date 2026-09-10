@@ -11,6 +11,12 @@ const char* EquipSlotName(int slot) {
     return kSlotNames[slot];
 }
 
+WeaponKind WeaponKindFromName(const string& name) {
+    if (name == "bow")   return WeaponKind::Bow;
+    if (name == "staff") return WeaponKind::Staff;
+    return WeaponKind::Melee;
+}
+
 int EquipSlotFromName(const string& name) {
     for (int i = 0; i < SLOT_COUNT; ++i)
         if (name == kSlotNames[i]) return i;
@@ -45,6 +51,15 @@ bool ItemDatabase::Load(const string& path) {
         d.heal        = o.value("heal", 0);
         d.icon        = o.value("icon", string(""));
         d.attack_speed = o.value("speed", 1.0f);
+        d.kind        = WeaponKindFromName(o.value("kind", string("melee")));
+
+        if (o.contains("tint")) {
+            const json& t = o["tint"];
+            if (t.is_array() && t.size() >= 3)
+                d.tint = {static_cast<Uint8>(t[0].get<int>()),
+                          static_cast<Uint8>(t[1].get<int>()),
+                          static_cast<Uint8>(t[2].get<int>()), 255};
+        }
 
         if (o.contains("bonus")) {
             const json& b = o["bonus"];
@@ -238,6 +253,45 @@ float Equipment::AttackSpeed() const {
     if (!db) return 1.0f;
     if (const ItemDef* w = db->Get(slots[SLOT_WEAPON])) return w->attack_speed;
     return 1.0f;
+}
+
+WeaponKind Equipment::Kind() const {
+    if (!db) return WeaponKind::Melee;
+    if (const ItemDef* w = db->Get(slots[SLOT_WEAPON])) return w->kind;
+    return WeaponKind::Melee;
+}
+
+SDL_Color Equipment::WeaponTint() const {
+    if (!db) return {255, 255, 255, 255};
+    if (const ItemDef* w = db->Get(slots[SLOT_WEAPON])) return w->tint;
+    return {255, 255, 255, 255};
+}
+
+// Armour has no art of its own in these packs, so what is worn shows as a
+// tint over the body and head layers. Heavier pieces pull the colour further,
+// which is enough to tell bronze from iron from steel at a glance.
+SDL_Color Equipment::ArmourTint() const {
+    if (!db) return {255, 255, 255, 255};
+
+    float r = 0, g = 0, b = 0, weight = 0;
+    for (int slot : {SLOT_HEAD, SLOT_BODY, SLOT_LEGS, SLOT_SHIELD}) {
+        const ItemDef* d = db->Get(slots[slot]);
+        if (!d) continue;
+        // Bigger pieces dominate the look.
+        const float w = 1.0f + d->defence_bonus * 0.05f;
+        r += d->tint.r * w;
+        g += d->tint.g * w;
+        b += d->tint.b * w;
+        weight += w;
+    }
+    if (weight <= 0.0f) return {255, 255, 255, 255};
+
+    // Blend toward the armour colour rather than replacing the skin outright.
+    const float mix = std::min(0.80f, 0.34f + weight * 0.13f);
+    const float br = r / weight, bg = g / weight, bb = b / weight;
+    return {static_cast<Uint8>(255 + (br - 255) * mix),
+            static_cast<Uint8>(255 + (bg - 255) * mix),
+            static_cast<Uint8>(255 + (bb - 255) * mix), 255};
 }
 
 json Equipment::ToJson() const {

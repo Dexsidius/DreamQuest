@@ -18,6 +18,11 @@ enum EquipSlot {
 const char* EquipSlotName(int slot);
 int  EquipSlotFromName(const string& name);
 
+// What a weapon does when you attack with it. The attack buttons are the same
+// either way; the weapon decides whether the swing is a swing, a shot or a cast.
+enum class WeaponKind { Melee, Bow, Staff };
+WeaponKind WeaponKindFromName(const string& name);
+
 struct ItemDef {
     string id, name, description;
     bool   stackable = false;
@@ -28,6 +33,10 @@ struct ItemDef {
     int attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
     int ranged_bonus = 0, magic_bonus = 0;
     float attack_speed = 1.0f;        // multiplier on swing time; <1 is faster
+    WeaponKind kind = WeaponKind::Melee;
+    // Colour the worn weapon layers take, so a bronze sword and a steel one
+    // read differently on the character.
+    SDL_Color tint{255, 255, 255, 255};
 
     map<int, int> requirements;       // SkillId -> level needed to equip
 
@@ -115,6 +124,11 @@ public:
     int AttackBonus() const, StrengthBonus() const, DefenceBonus() const;
     int RangedBonus() const, MagicBonus() const;
     float AttackSpeed() const;
+    // What the equipped weapon is; Melee when nothing is held.
+    WeaponKind Kind() const;
+    // Colour for the worn weapon layers, and for the body when armour is worn.
+    SDL_Color WeaponTint() const;
+    SDL_Color ArmourTint() const;
 
     json ToJson() const;
     void FromJson(const json& j);
