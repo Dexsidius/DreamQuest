@@ -582,7 +582,7 @@ static void BuildOverworld() {
 
     {
         json& o = m.Object("sign_gate", "sign", gate_x + 56, gate_y - 8);
-        o["sprite"] = ObjPath("sign_guild");
+        o["sprite"] = "assets/props/signpost.png";
         o["title"]  = "Waymarker";
         o["text"]   = "HAVENBROOK, south.\nEMBERFELL MINE, north along the Sunken Road.\n\nBelow, scratched later and deeper:\nthe road is not safe after the second milestone.";
         m.Collision(gate_x + 40, gate_y - 16, 32, 12);
@@ -681,10 +681,25 @@ static void BuildTown() {
     PlaceBuilding(m, "building_shop",    14 * CELL,      33 * CELL, 110, 72,
                   "house_smith", "entrance", "Enter the forge");
 
+    // The guild hall's plaque, over its own door. This art is the only thing
+    // in the project that says GUILD HALL on it, so it belongs on the guild
+    // hall and nowhere else.
+    {
+        // Beside the door rather than over it: an object drawn above the
+        // doorway would sort behind the building and be invisible, and one in
+        // the doorway would block the way in.
+        json& o = m.Object("sign_guild_hall", "sign", 28 * CELL + 16 + 96, 14 * CELL);
+        o["sprite"] = ObjPath("sign_guild");
+        o["title"]  = "Havenbrook Guild Hall";
+        o["text"]   = "THE ADVENTURERS' GUILD OF HAVENBROOK\n\n"
+                      "Contracts posted within. Dues payable within. "
+                      "Complaints, also within, and briefly.";
+    }
+
     // The mission board, right where you walk in.
     {
         json& o = m.Object("board_havenbrook", "board", 33 * CELL, 24 * CELL);
-        o["sprite"] = ObjPath("sign_guild");
+        o["sprite"] = ObjPath("guild_noticeboard");
         o["title"]  = "Havenbrook Mission Board";
         o["quests"] = json::array({"q_thin_the_herd", "q_firewood",
                                    "q_ore_for_the_forge", "q_orc_trouble"});
@@ -754,31 +769,106 @@ static void BuildInteriors() {
     }
 
     // The guild hall.
+    //
+    // This was a bare stone box: dungeon floor, dungeon walls and a rock
+    // standing in for a workbench. It is the building the game is named around
+    // and the first interior most players will walk into, so it is furnished
+    // properly -- plank floor, plastered walls, and the guild pack's own
+    // interior set arranged into a room somebody could work in.
+    //
+    // The layout is deliberate rather than scattered. Walking in from the
+    // south you face the guild master across the hall with the banners behind
+    // him; the long tables run down the middle where members eat and argue;
+    // the working walls -- weapons east, records west -- are to either side.
     {
-        const int CELL = 32, cols = 22, rows = 15;
+        const int CELL = 32, cols = 24, rows = 17;
         MapBuilder m("guild_hall", "Havenbrook Guild Hall", cols * CELL, rows * CELL);
         m.Interior(true);
-        m.Background(18, 18, 24);
+        m.Background(22, 18, 16);
+
         for (int cy = 0; cy < rows; ++cy)
             for (int cx = 0; cx < cols; ++cx) {
                 const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
                 const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
-                m.Ground(wall ? "dungeon_wall" : "dungeon_floor", cx * CELL, cy * CELL, CELL);
+                m.Ground(wall ? "guild_wall" : "guild_floor", cx * CELL, cy * CELL, CELL);
                 if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
             }
+
         const int dx = (cols / 2) * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
         m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
                  "Step outside", false);
+
+        // Furniture is drawn standing on its position and blocks a band along
+        // its base rather than its whole footprint, so you can walk behind a
+        // bookshelf's upper half the way you can walk behind a tree's canopy.
+        auto furnish = [&](const string& id, const string& art,
+                           int x, int y, int cw, int ch) {
+            m.Prop("objects", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+            return id;
+        };
+
+        // --- the north wall: the guild master, his desk and the banners -----
+        m.Prop("objects", "guild_banner", 8 * CELL, 2 * CELL);
+        m.Prop("objects", "guild_banner", 16 * CELL, 2 * CELL);
+        furnish("desk", "guild_desk", dx, 3 * CELL, 52, 14);
         m.Npc("npc_guildmaster", "Guild Master Orlend", "fighter2",
-              11 * CELL, 4 * CELL, "guildmaster_root", 0);
-        {
-            json& o = m.Object("bench_guild", "workbench", 17 * CELL, 6 * CELL);
-            o["sprite"] = ObjPath("rock_02");
-            o["title"]  = "Guild workbench";
-            m.Collision(17 * CELL - 20, 6 * CELL - 12, 40, 12);
+              dx, 2 * CELL - 8, "guildmaster_root", 0);
+
+        // The rug sits under him rather than in the middle of the room: it
+        // marks where the hall expects you to stand and be spoken to.
+        m.Flat("objects", "guild_rug", dx, 5 * CELL);
+
+        // --- the west wall: records ------------------------------------------
+        furnish("shelf_a", "guild_bookshelf",   2 * CELL + 16, 2 * CELL, 44, 14);
+        furnish("shelf_b", "guild_bookshelf_b", 4 * CELL + 16, 2 * CELL, 44, 14);
+        furnish("cabinet",  "guild_cabinet",    2 * CELL + 16, 6 * CELL, 44, 14);
+        furnish("plant_w",  "guild_plant",      2 * CELL,      9 * CELL, 14, 8);
+
+        // --- the east wall: arms ---------------------------------------------
+        furnish("rack_a", "guild_weapon_rack", 21 * CELL, 3 * CELL, 44, 14);
+        furnish("rack_b", "guild_armour_rack", 21 * CELL, 6 * CELL, 44, 14);
+        furnish("rack_c", "guild_rack",        21 * CELL, 9 * CELL, 42, 14);
+        furnish("plant_e", "guild_plant",      21 * CELL, 11 * CELL, 14, 8);
+
+        // --- the middle: two long tables with benches either side ------------
+        for (int i = 0; i < 2; ++i) {
+            const int tx = (i == 0 ? 9 : 15) * CELL;
+            furnish("table_" + std::to_string(i), "guild_table", tx, 9 * CELL, 52, 16);
+            furnish("bench_" + std::to_string(i * 2),     "guild_bench", tx, 8 * CELL - 6, 44, 10);
+            furnish("bench_" + std::to_string(i * 2 + 1), "guild_bench", tx, 11 * CELL, 44, 10);
         }
+
+        // --- the south end: where people wait --------------------------------
+        furnish("settle", "guild_settle", 6 * CELL, 13 * CELL, 44, 12);
+        furnish("couch",  "guild_couch",  18 * CELL, 13 * CELL, 48, 14);
+        furnish("chair_a", "guild_chair", 8 * CELL, 13 * CELL, 12, 8);
+        furnish("chair_b", "guild_chair", 16 * CELL, 13 * CELL, 12, 8);
+
+        // --- things you can actually use -------------------------------------
+        {
+            json& o = m.Object("board_guild", "sign", 4 * CELL, 12 * CELL);
+            o["sprite"] = ObjPath("guild_noticeboard");
+            o["title"]  = "Guild notices";
+            o["text"]   = "DUES are payable at the turn of the season. The Guild "
+                          "does not accept ore in lieu of coin. It has been asked.\n\n"
+                          "THE SUNKEN ROAD is walked at your own risk past the second "
+                          "milestone. Two parties have not come back. Neither filed a "
+                          "route with the desk, which is the point of the desk.\n\n"
+                          "THE BARROW is closed. By order of the Guild Master. "
+                          "Enquiries to the Guild Master.";
+            m.Collision(4 * CELL - 20, 12 * CELL - 10, 40, 10);
+        }
+        PlaceChest(m, "chest_guild", 20 * CELL, 13 * CELL, "chest_common");
+        {
+            json& o = m.Object("range_guild", "range", 3 * CELL, 4 * CELL);
+            o["sprite"] = ObjPath("campfire");
+            o["title"]  = "Guild hearth";
+            m.Collision(3 * CELL - 16, 4 * CELL - 12, 32, 12);
+        }
+
         m.Write("maps");
     }
 

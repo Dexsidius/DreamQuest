@@ -15,7 +15,7 @@ packs on your own machine.
 | Base 4-Direction Female Character | The female player character |
 | Top-Down Orc Game Character | Orc Grunt, Orc Raider, Orc Warchief |
 | Top-Down Hunt Animals Sprite Pack | Boar, deer, fox, hare |
-| Top-Down Pixel Art Guild Hall | The guild hall, its sign, and the town NPCs |
+| Top-Down Pixel Art Guild Hall | The guild hall inside and out, its sign, and the town NPCs |
 | Glassblower's Workshop Top-Down | The houses, the inn and the forge |
 | Path and Road Top-Down Tileset | Ground palette fills, roads, ground decals |
 | 2D Top-Down Pixel Dungeon | Dungeon floors and walls, chests, doors, fire |
@@ -72,6 +72,15 @@ The packs ship their icons numbered, not named, so the mapping lives in the
 
 These are 512×512 painted inventory icons, not sprite layers. See the note in
 the README about what that means for wearing them.
+
+## Rendered props
+
+`tools/blender_props.py` and `tools/make_props.ps1` produce `assets/props/`
+from Blender, for things no pack contains. Currently that is the crossroads
+signpost: the overworld waymarker had been borrowing the guild hall’s own
+plaque, so a new player’s first sight of the world was a sign reading GUILD
+HALL standing in an empty field. See the README for what this pipeline is and
+is not good for.
 
 ## How the import works
 

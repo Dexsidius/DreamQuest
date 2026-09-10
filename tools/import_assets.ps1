@@ -308,6 +308,61 @@ foreach ($k in $buildingMap.Keys) {
 Remove-Item $buildings -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ("  {0} buildings" -f (Get-ChildItem $objects -Filter "building_*.png").Count)
 
+# --- the guild hall's insides -------------------------------------------------
+# The guild pack ships an interior set that matches the exteriors: a plank
+# floor, a plastered wall with a blue stone course, and the furniture to put in
+# front of it. The floor and wall come out as exact rectangles because they
+# have to tile; the furniture is traced, because each piece is a separate
+# drawing with space around it.
+$wallsSheet = Join-Path $guild "Walls_interior.png"
+if (Test-Path $wallsSheet) {
+    & $tilecut $wallsSheet --region `
+        "288,96,32,32,guild_floor" `
+        "160,96,32,32,guild_wall" `
+        --out $tiles | Out-Null
+    & $tilecut $wallsSheet --region `
+        "224,96,32,32,guild_door" `
+        --out $objects | Out-Null
+}
+
+$interior = Join-Path $assets "_cut_interior"
+New-Dir $interior
+Cut-Sprites (Join-Path $guild "Interior_objects.png") $interior "i" 3 10 | Out-Null
+
+# Traced pieces come out numbered top-to-bottom then left-to-right, which is
+# stable for this file. The names are what maps/*.mx and genmaps.cpp refer to.
+$interiorMap = @{
+    "i_02" = "guild_cabinet"      # potions and ledgers
+    "i_04" = "guild_bookshelf"
+    "i_05" = "guild_bookshelf_b"
+    "i_07" = "guild_noticeboard"  # the mission board
+    "i_11" = "guild_rack"
+    "i_12" = "guild_armour_rack"
+    "i_13" = "guild_rug"
+    "i_15" = "guild_bench"
+    "i_16" = "guild_desk"
+    "i_22" = "guild_table"
+    "i_23" = "guild_weapon_rack"
+    "i_24" = "guild_settle"       # bench with a back
+    "i_25" = "guild_couch"
+    "i_26" = "guild_banner"
+    "i_27" = "guild_plant"
+    "i_33" = "guild_chair"
+    "i_44" = "guild_chest"
+}
+$interiorCount = 0
+foreach ($k in $interiorMap.Keys) {
+    $src = Join-Path $interior "$k.png"
+    if (Test-Path $src) {
+        Copy-Item $src (Join-Path $objects "$($interiorMap[$k]).png") -Force
+        $interiorCount++
+    } else {
+        Write-Warning "  ! interior piece $k not found"
+    }
+}
+Remove-Item $interior -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "  $interiorCount guild interior pieces"
+
 # Chests and doors come off one animation strip, so take the exact frames
 # rather than letting the sprite finder merge a chest with the lever beside it.
 $chestSheet = Join-Path (Pack "2d-top-down-pixel-dungeon-asset-pack") "PNG\doors_lever_chest_animation.png"

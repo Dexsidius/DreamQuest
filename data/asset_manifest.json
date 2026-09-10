@@ -48,6 +48,14 @@
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/guild_floor":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/guild_wall":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
                    "tiles/marsh_dark":  {
                                             "w":  16,
                                             "h":  16
@@ -696,6 +704,78 @@
                                              "w":  32,
                                              "h":  32
                                          },
+                   "objects/guild_armour_rack":  {
+                                                     "w":  47,
+                                                     "h":  51
+                                                 },
+                   "objects/guild_banner":  {
+                                                "w":  45,
+                                                "h":  42
+                                            },
+                   "objects/guild_bench":  {
+                                               "w":  47,
+                                               "h":  23
+                                           },
+                   "objects/guild_bookshelf":  {
+                                                   "w":  46,
+                                                   "h":  58
+                                               },
+                   "objects/guild_bookshelf_b":  {
+                                                     "w":  46,
+                                                     "h":  58
+                                                 },
+                   "objects/guild_cabinet":  {
+                                                 "w":  47,
+                                                 "h":  58
+                                             },
+                   "objects/guild_chair":  {
+                                               "w":  12,
+                                               "h":  22
+                                           },
+                   "objects/guild_chest":  {
+                                               "w":  23,
+                                               "h":  20
+                                           },
+                   "objects/guild_couch":  {
+                                               "w":  52,
+                                               "h":  41
+                                           },
+                   "objects/guild_desk":  {
+                                              "w":  56,
+                                              "h":  33
+                                          },
+                   "objects/guild_door":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "objects/guild_noticeboard":  {
+                                                     "w":  41,
+                                                     "h":  49
+                                                 },
+                   "objects/guild_plant":  {
+                                               "w":  18,
+                                               "h":  33
+                                           },
+                   "objects/guild_rack":  {
+                                              "w":  45,
+                                              "h":  45
+                                          },
+                   "objects/guild_rug":  {
+                                             "w":  65,
+                                             "h":  69
+                                         },
+                   "objects/guild_settle":  {
+                                                "w":  47,
+                                                "h":  25
+                                            },
+                   "objects/guild_table":  {
+                                               "w":  56,
+                                               "h":  28
+                                           },
+                   "objects/guild_weapon_rack":  {
+                                                     "w":  48,
+                                                     "h":  42
+                                                 },
                    "objects/mushroom_00":  {
                                                "w":  128,
                                                "h":  128
@@ -868,204 +948,332 @@
                                                 "w":  64,
                                                 "h":  64
                                             },
-                   "icons/armour/boot_00":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            120,
-                                                            128,
-                                                            174
-                                                        ]
-                                            },
-                   "icons/armour/boot_01":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            128,
-                                                            134,
-                                                            175
-                                                        ]
-                                            },
-                   "icons/armour/boot_02":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            130,
-                                                            133,
-                                                            167
-                                                        ]
-                                            },
-                   "icons/armour/boot_03":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            136,
-                                                            136,
-                                                            164
-                                                        ]
-                                            },
-                   "icons/armour/boot_04":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            140,
-                                                            138,
-                                                            160
-                                                        ]
-                                            },
-                   "icons/armour/boot_05":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            144,
-                                                            139,
-                                                            155
-                                                        ]
-                                            },
-                   "icons/armour/boot_06":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            148,
-                                                            140,
-                                                            150
-                                                        ]
-                                            },
-                   "icons/armour/boot_07":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            157,
-                                                            146,
-                                                            150
-                                                        ]
-                                            },
-                   "icons/armour/boot_08":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            157,
-                                                            144,
-                                                            142
-                                                        ]
-                                            },
-                   "icons/armour/boot_09":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            162,
-                                                            146,
-                                                            139
-                                                        ]
-                                            },
-                   "icons/armour/boot_10":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            160,
-                                                            142,
-                                                            129
-                                                        ]
-                                            },
-                   "icons/armour/boot_11":  {
-                                                "w":  64,
-                                                "h":  64,
-                                                "rgb":  [
-                                                            169,
-                                                            148,
-                                                            129
-                                                        ]
-                                            },
-                   "icons/armour/knight_00":  {
+                   "props/banner":  {
+                                        "w":  72,
+                                        "h":  72
+                                    },
+                   "props/barrel":  {
+                                        "w":  40,
+                                        "h":  40
+                                    },
+                   "props/bench":  {
+                                       "w":  72,
+                                       "h":  72
+                                   },
+                   "props/bookshelf":  {
+                                           "w":  72,
+                                           "h":  72
+                                       },
+                   "props/candlestand":  {
+                                             "w":  64,
+                                             "h":  64
+                                         },
+                   "props/chair":  {
+                                       "w":  40,
+                                       "h":  40
+                                   },
+                   "props/hearth":  {
+                                        "w":  80,
+                                        "h":  80
+                                    },
+                   "props/lectern":  {
+                                         "w":  56,
+                                         "h":  56
+                                     },
+                   "props/rug":  {
+                                     "w":  88,
+                                     "h":  88
+                                 },
+                   "props/signpost":  {
+                                          "w":  56,
+                                          "h":  56
+                                      },
+                   "props/strongbox":  {
+                                           "w":  44,
+                                           "h":  44
+                                       },
+                   "props/table_long":  {
+                                            "w":  96,
+                                            "h":  96
+                                        },
+                   "props/table_round":  {
+                                             "w":  64,
+                                             "h":  64
+                                         },
+                   "props/weapon_rack":  {
+                                             "w":  72,
+                                             "h":  72
+                                         },
+                   "icons/armour/acolyte_robe":  {
+                                                     "w":  64,
+                                                     "h":  64,
+                                                     "rgb":  [
+                                                                 149,
+                                                                 62,
+                                                                 9
+                                                             ]
+                                                 },
+                   "icons/armour/besom_stave":  {
+                                                    "w":  64,
+                                                    "h":  64,
+                                                    "rgb":  [
+                                                                59,
+                                                                38,
+                                                                14
+                                                            ]
+                                                },
+                   "icons/armour/bonecaller_staff":  {
+                                                         "w":  64,
+                                                         "h":  64,
+                                                         "rgb":  [
+                                                                     110,
+                                                                     116,
+                                                                     103
+                                                                 ]
+                                                     },
+                   "icons/armour/buckled_boots":  {
+                                                      "w":  64,
+                                                      "h":  64,
+                                                      "rgb":  [
+                                                                  96,
+                                                                  67,
+                                                                  55
+                                                              ]
+                                                  },
+                   "icons/armour/champion_cuirass":  {
+                                                         "w":  64,
+                                                         "h":  64,
+                                                         "rgb":  [
+                                                                     128,
+                                                                     104,
+                                                                     79
+                                                                 ]
+                                                     },
+                   "icons/armour/curved_dagger":  {
+                                                      "w":  64,
+                                                      "h":  64,
+                                                      "rgb":  [
+                                                                  102,
+                                                                  126,
+                                                                  125
+                                                              ]
+                                                  },
+                   "icons/armour/emberfang":  {
                                                   "w":  64,
                                                   "h":  64,
                                                   "rgb":  [
-                                                              137,
-                                                              146,
-                                                              191
+                                                              139,
+                                                              53,
+                                                              9
                                                           ]
                                               },
-                   "icons/armour/knight_01":  {
+                   "icons/armour/emberwood_staff":  {
+                                                        "w":  64,
+                                                        "h":  64,
+                                                        "rgb":  [
+                                                                    132,
+                                                                    66,
+                                                                    20
+                                                                ]
+                                                    },
+                   "icons/armour/gilded_gauntlets":  {
+                                                         "w":  64,
+                                                         "h":  64,
+                                                         "rgb":  [
+                                                                     124,
+                                                                     124,
+                                                                     115
+                                                                 ]
+                                                     },
+                   "icons/armour/gilded_greaves":  {
+                                                       "w":  64,
+                                                       "h":  64,
+                                                       "rgb":  [
+                                                                   106,
+                                                                   107,
+                                                                   102
+                                                               ]
+                                                   },
+                   "icons/armour/gilded_sabatons":  {
+                                                        "w":  64,
+                                                        "h":  64,
+                                                        "rgb":  [
+                                                                    97,
+                                                                    68,
+                                                                    34
+                                                                ]
+                                                    },
+                   "icons/armour/iron_dirk":  {
                                                   "w":  64,
                                                   "h":  64,
                                                   "rgb":  [
-                                                              144,
-                                                              150,
-                                                              190
+                                                              112,
+                                                              112,
+                                                              103
                                                           ]
                                               },
-                   "icons/armour/knight_02":  {
+                   "icons/armour/lich_shroud":  {
+                                                    "w":  64,
+                                                    "h":  64,
+                                                    "rgb":  [
+                                                                62,
+                                                                66,
+                                                                63
+                                                            ]
+                                                },
+                   "icons/armour/mail_coif":  {
                                                   "w":  64,
                                                   "h":  64,
                                                   "rgb":  [
-                                                              144,
-                                                              146,
-                                                              181
+                                                              66,
+                                                              71,
+                                                              77
                                                           ]
                                               },
-                   "icons/armour/knight_03":  {
+                   "icons/armour/nightbound_robe":  {
+                                                        "w":  64,
+                                                        "h":  64,
+                                                        "rgb":  [
+                                                                    35,
+                                                                    27,
+                                                                    27
+                                                                ]
+                                                    },
+                   "icons/armour/plated_boots":  {
+                                                     "w":  64,
+                                                     "h":  64,
+                                                     "rgb":  [
+                                                                 113,
+                                                                 86,
+                                                                 79
+                                                             ]
+                                                 },
+                   "icons/armour/plumed_helm":  {
+                                                    "w":  64,
+                                                    "h":  64,
+                                                    "rgb":  [
+                                                                101,
+                                                                83,
+                                                                57
+                                                            ]
+                                                },
+                   "icons/armour/riftblade":  {
                                                   "w":  64,
                                                   "h":  64,
                                                   "rgb":  [
-                                                              149,
-                                                              148,
-                                                              178
+                                                              63,
+                                                              87,
+                                                              98
                                                           ]
                                               },
-                   "icons/armour/knight_04":  {
-                                                  "w":  64,
-                                                  "h":  64,
-                                                  "rgb":  [
-                                                              147,
-                                                              144,
-                                                              167
-                                                          ]
-                                              },
-                   "icons/armour/knight_05":  {
-                                                  "w":  64,
-                                                  "h":  64,
-                                                  "rgb":  [
-                                                              152,
-                                                              145,
-                                                              163
-                                                          ]
-                                              },
-                   "icons/armour/knight_06":  {
-                                                  "w":  64,
-                                                  "h":  64,
-                                                  "rgb":  [
-                                                              156,
-                                                              146,
-                                                              158
-                                                          ]
-                                              },
-                   "icons/armour/knight_07":  {
-                                                  "w":  64,
-                                                  "h":  64,
-                                                  "rgb":  [
-                                                              164,
-                                                              151,
-                                                              157
-                                                          ]
-                                              },
-                   "icons/armour/knight_08":  {
-                                                  "w":  64,
-                                                  "h":  64,
-                                                  "rgb":  [
-                                                              165,
-                                                              150,
-                                                              151
-                                                          ]
-                                              },
-                   "icons/armour/knight_09":  {
-                                                  "w":  64,
-                                                  "h":  64,
-                                                  "rgb":  [
-                                                              170,
-                                                              152,
-                                                              147
-                                                          ]
-                                              }
+                   "icons/armour/shaman_wrap":  {
+                                                    "w":  64,
+                                                    "h":  64,
+                                                    "rgb":  [
+                                                                89,
+                                                                56,
+                                                                25
+                                                            ]
+                                                },
+                   "icons/armour/steel_bracers":  {
+                                                      "w":  64,
+                                                      "h":  64,
+                                                      "rgb":  [
+                                                                  101,
+                                                                  100,
+                                                                  96
+                                                              ]
+                                                  },
+                   "icons/armour/steel_breastplate":  {
+                                                          "w":  64,
+                                                          "h":  64,
+                                                          "rgb":  [
+                                                                      108,
+                                                                      114,
+                                                                      120
+                                                                  ]
+                                                      },
+                   "icons/armour/steel_cuisses":  {
+                                                      "w":  64,
+                                                      "h":  64,
+                                                      "rgb":  [
+                                                                  98,
+                                                                  103,
+                                                                  109
+                                                              ]
+                                                  },
+                   "icons/armour/steel_greaves":  {
+                                                      "w":  64,
+                                                      "h":  64,
+                                                      "rgb":  [
+                                                                  121,
+                                                                  128,
+                                                                  135
+                                                              ]
+                                                  },
+                   "icons/armour/steel_sabatons":  {
+                                                       "w":  64,
+                                                       "h":  64,
+                                                       "rgb":  [
+                                                                   119,
+                                                                   108,
+                                                                   116
+                                                               ]
+                                                   },
+                   "icons/armour/tasseted_skirt":  {
+                                                       "w":  64,
+                                                       "h":  64,
+                                                       "rgb":  [
+                                                                   135,
+                                                                   85,
+                                                                   58
+                                                               ]
+                                                   },
+                   "icons/armour/thornwood_staff":  {
+                                                        "w":  64,
+                                                        "h":  64,
+                                                        "rgb":  [
+                                                                    117,
+                                                                    157,
+                                                                    84
+                                                                ]
+                                                    },
+                   "icons/armour/tidecaller_robe":  {
+                                                        "w":  64,
+                                                        "h":  64,
+                                                        "rgb":  [
+                                                                    131,
+                                                                    175,
+                                                                    104
+                                                                ]
+                                                    },
+                   "icons/armour/verdant_kris":  {
+                                                     "w":  64,
+                                                     "h":  64,
+                                                     "rgb":  [
+                                                                 113,
+                                                                 127,
+                                                                 82
+                                                             ]
+                                                 },
+                   "icons/armour/wildflower_stave":  {
+                                                         "w":  64,
+                                                         "h":  64,
+                                                         "rgb":  [
+                                                                     116,
+                                                                     83,
+                                                                     71
+                                                                 ]
+                                                     },
+                   "icons/armour/worn_boots":  {
+                                                   "w":  64,
+                                                   "h":  64,
+                                                   "rgb":  [
+                                                               114,
+                                                               68,
+                                                               50
+                                                           ]
+                                               }
                },
     "families":  {
                      "grass":  [

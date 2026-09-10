@@ -270,6 +270,73 @@ into the same slots with no code change.
 
 ---
 
+## Projectiles and walls
+
+An arrow or a bolt is stepped in slices no longer than half its own radius, so
+nothing passes through a wall between frames. When a step would end inside
+geometry, `Map::SweepPoint` answers two questions instead of one:
+
+- **Where it actually stopped** — the last position that was clear, so an
+  impact is drawn on the surface and a fire patch burns in front of a wall
+  rather than half inside it.
+- **Which way that wall faces** — worked out by trying each axis on its own,
+  the same way `MoveWithCollision` decides which axis to stop a walking
+  character on. If moving in X alone is still clear, it was the Y movement that
+  hit something, so the surface is horizontal. Both axes blocked means a
+  corner.
+
+The normal is what makes a response possible. Air bolts ricochet — twice for
+`gust`, three times for `galewind` — each bounce reflecting about the surface
+and costing some speed, so a shot rattling down a corridor settles rather than
+pinging forever. Air is the element that gets this because it is the one with
+no ground effect: glancing off a wall is what makes it read as air rather than
+as a weaker fire bolt.
+
+Everything else stops, and leaves a mark: a flash in the element's colour and
+three shards thrown back off the face. Those shards are fixed rather than
+random — a spray that reshuffles every frame reads as noise. Without any of
+it, a bolt that hit a wall and one that ran out of range looked identical.
+
+A projectile spawned inside geometry, which happens if you fire with your back
+against a wall, reports a zero normal rather than an invented one and simply
+stops.
+
+---
+
+## Original assets
+
+Every pack in this project is someone else’s art, and the packs do not cover
+everything. `tools/blender_props.py` builds props from primitives in code and
+renders them headlessly:
+
+```powershell
+.\tools\make_props.ps1                    # render, then convert
+.\tools\make_props.ps1 -SkipRender        # convert existing renders
+.\tools\make_props.ps1 -Only signpost     # one prop
+```
+
+Blender renders each prop eight times larger than needed; `make_props.ps1` then
+box-downsamples it, flattens the palette, adds a dark rim around the
+silhouette, and draws a contact shadow from the prop’s own base. The outline is
+the single biggest thing separating a render from the hand-drawn art it sits
+beside.
+
+Three things were learned the hard way and are worth knowing before adding a
+prop:
+
+- **The camera angle is measured, not chosen.** The CraftPix interior tables
+  show their front edge, their legs, and only a sliver of the top — a little
+  over thirty degrees above the floor. Rendering at fifty-five hid every table
+  leg behind its own top.
+- **Model everything far thicker than life.** At fifty-six pixels across a
+  two-metre frame, a realistic signpost is two pixels wide and vanishes under
+  the outline pass.
+- **This does not beat hand-drawn art at these sizes.** Simple, chunky shapes
+  — a signpost, a barrel, a strongbox — come out well. A bookshelf full of
+  books does not. Use it for what the packs genuinely lack.
+
+---
+
 ## Quests
 
 Quests reach you three ways, all of them live:
@@ -354,7 +421,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2622 checks** covering:
+and checks all of it — currently **2659 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -366,7 +433,10 @@ and checks all of it — currently **2622 checks** covering:
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest
   sends them into
-- every projectile has art on disk and actually moves
+- every projectile has art on disk, actually moves, and is slow enough that
+  its sub-steps cannot carry it through a wall
+- a sweep into a wall stops clear of it and reports a normal that sends a
+  bounce back the way it came, while open floor reports no contact at all
 - every spell fires a projectile of its own element, all four elements are
   castable, and a level 1 character has the mana to cast one
 - the elemental cycle closes and the multipliers point the right way

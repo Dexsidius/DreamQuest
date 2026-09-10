@@ -70,7 +70,7 @@ function Get-ColourFamily($c) {
 $manifest = [ordered]@{}
 $families = [ordered]@{}
 
-foreach ($group in @("tiles", "decor", "objects", "icons/armour")) {
+foreach ($group in @("tiles", "decor", "objects", "props", "icons/armour")) {
     $dir = Join-Path "assets" ($group -replace '/', '\')
     if (-not (Test-Path $dir)) { continue }
 
