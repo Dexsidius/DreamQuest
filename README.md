@@ -50,6 +50,25 @@ Install SDL3, SDL3_image and SDL3_ttf, then:
 `./compile.sh test`, `./compile.sh maps` and `./compile.sh tools` do the same on
 Linux.
 
+### Running it outside MSYS2
+
+`bin\DreamQuest.exe` can be double-clicked. Two things make that work, and both
+had to be dealt with explicitly:
+
+- **The runtime libraries travel with the exe.** Nothing is on the PATH outside
+  an MSYS2 shell, so the build walks the DLL dependency tree with `objdump` and
+  copies everything that resolves inside MSYS2 next to the executable — 18
+  libraries, because SDL3_ttf pulls in FreeType and HarfBuzz, which between them
+  pull in libpng, zlib, bzip2, Brotli, GLib, PCRE2 and Graphite. A hand-written
+  list of these was wrong, and the symptom is Windows refusing to start the
+  program with no message at all.
+- **The game finds its own data.** `data/` and `assets/` are opened by relative
+  path, so started from Explorer the working directory is `bin\` and every file
+  fails to open. On startup it locates the directory holding `data/sprites.json`
+  — beside the exe, then one above it — and moves there, so saves and settings
+  land in the project root wherever it was launched from. If it genuinely cannot
+  find them it says so in a message box rather than closing silently.
+
 ---
 
 ## Assets

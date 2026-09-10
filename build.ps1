@@ -119,17 +119,49 @@ Write-Host "  LD  bin/DreamQuest.exe"
 & g++ $objects -o bin\DreamQuest.exe @libs
 if ($LASTEXITCODE -ne 0) { throw "Link failed." }
 
-# The exe needs SDL and the GCC runtime beside it to run outside an MSYS2 shell.
-$runtime = @(
-    'SDL3.dll', 'SDL3_image.dll', 'SDL3_ttf.dll',
-    'libgcc_s_seh-1.dll', 'libstdc++-6.dll', 'libwinpthread-1.dll'
-)
-foreach ($dll in $runtime) {
-    $from = Join-Path "$Msys\bin" $dll
-    if ((Test-Path $from) -and -not (Test-Path (Join-Path 'bin' $dll))) {
-        Copy-Item $from bin\ -Force
+# --- runtime DLLs -------------------------------------------------------------
+# Outside an MSYS2 shell nothing is on the PATH, so every non-system library has
+# to sit beside the exe. A fixed list of these was wrong: SDL3_ttf pulls in
+# FreeType, which pulls in libpng, bzip2, Brotli and zlib, and SDL3 pulls in
+# libiconv -- miss one and Windows refuses to start the program with no useful
+# message. So the tree is walked instead of listed.
+#
+# Anything that does not resolve inside the MSYS2 bin directory is a Windows
+# system DLL (kernel32, the api-ms-win-crt-* UCRT stubs, and so on) and is left
+# where it is.
+function Get-DllDependencies($binary, $searchDir, $seen) {
+    $found = & objdump -p $binary 2>$null |
+             Select-String -Pattern '^\s*DLL Name:\s*(.+)$' |
+             ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() }
+
+    foreach ($name in $found) {
+        $key = $name.ToLowerInvariant()
+        if ($seen.ContainsKey($key)) { continue }
+
+        $path = Join-Path $searchDir $name
+        if (-not (Test-Path $path)) { continue }   # a system DLL; not ours to ship
+
+        $seen[$key] = $path
+        Get-DllDependencies $path $searchDir $seen
     }
 }
+
+$needed = @{}
+Get-DllDependencies 'bin\DreamQuest.exe' "$Msys\bin" $needed
+
+$copied = 0
+foreach ($src in $needed.Values) {
+    $dest = Join-Path 'bin' (Split-Path $src -Leaf)
+    # Copy when it is missing or older, so an MSYS2 update is picked up rather
+    # than leaving a stale library beside a freshly built exe.
+    if ((-not (Test-Path $dest)) -or
+        ((Get-Item $src).LastWriteTimeUtc -gt (Get-Item $dest).LastWriteTimeUtc)) {
+        Copy-Item $src $dest -Force
+        $copied++
+    }
+}
+Write-Host ("  DLL {0} runtime libraries beside the exe{1}" -f
+            $needed.Count, $(if ($copied) { ", $copied copied" } else { "" }))
 
 Write-Host "Built bin\DreamQuest.exe" -ForegroundColor Green
 if ($Run) { & .\bin\DreamQuest.exe }
