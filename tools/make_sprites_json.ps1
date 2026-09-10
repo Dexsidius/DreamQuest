@@ -75,6 +75,7 @@ $clipRules = @{
     attack = @{ fps = 16; loop = $false }
     hurt   = @{ fps = 12; loop = $false }
     death  = @{ fps =  9; loop = $false }
+    jump   = @{ fps = 12; loop = $false }
 }
 
 # Filename slot -> the slot the engine knows about. The engine decides what to

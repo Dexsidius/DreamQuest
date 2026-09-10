@@ -123,15 +123,25 @@ void Game::DrawMainMenu() {
 //  Character select
 // =============================================================================
 
-void Game::UpdateCharacterSelect() {
-    static const char* kIds[2] = {"player_male", "player_female"};
+// The choices, and the order they appear in. player_hero is this project's own
+// character -- modelled and animated in tools/blender_character.py rather than
+// taken from a pack -- so it leads.
+const char* Game::kCharacterIds[kCharacterCount] = {
+    "player_hero", "player_male", "player_female"
+};
+const char* Game::kCharacterLabels[kCharacterCount] = {
+    "Hollow-born", "Wanderer", "Wayfarer"
+};
 
-    if (input.MenuLeft())  cursor = (cursor + 1) % 2;
-    if (input.MenuRight()) cursor = (cursor + 1) % 2;
-    MoveCursor(cursor, 2);
+void Game::UpdateCharacterSelect() {
+    // Left actually goes left. The old version advanced the cursor for both
+    // directions, which was survivable with two choices and is not with three.
+    if (input.MenuLeft())  cursor = (cursor + kCharacterCount - 1) % kCharacterCount;
+    if (input.MenuRight()) cursor = (cursor + 1) % kCharacterCount;
+    MoveCursor(cursor, kCharacterCount);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-        pending_character = kIds[std::clamp(cursor, 0, 1)];
+        pending_character = kCharacterIds[std::clamp(cursor, 0, kCharacterCount - 1)];
         slot_purpose = 0;
         SetState(GameState::SlotSelect);
     }
@@ -144,20 +154,18 @@ void Game::DrawCharacterSelect() {
     ui.Text("Choose your adventurer", cx, ui.ViewHeight() * 0.16f, TextSize::Large,
             Palette::Text, Align::Center);
 
-    static const char* kIds[2]    = {"player_male", "player_female"};
-    static const char* kLabels[2] = {"Wanderer", "Wayfarer"};
+    const float card_w = 200.0f, card_h = 280.0f, gap = 28.0f;
+    const float total = card_w * kCharacterCount + gap * (kCharacterCount - 1);
+    const float start_x = cx - total / 2.0f;
 
-    const float card_w = 220.0f, card_h = 280.0f, gap = 40.0f;
-    const float start_x = cx - card_w - gap / 2.0f;
-
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < kCharacterCount; ++i) {
         const SDL_FRect card = {start_x + i * (card_w + gap), ui.ViewHeight() * 0.3f,
                                 card_w, card_h};
         ui.Panel(card, i == cursor);
         if (i == cursor) ui.Outline(card, Palette::Highlight, 2.0f);
 
         // Live idle animation as the preview.
-        if (const SpriteDef* def = sprites.Get(kIds[i])) {
+        if (const SpriteDef* def = sprites.Get(kCharacterIds[i])) {
             Sprite preview;
             preview.SetDef(def);
             preview.facing = FACE_DOWN;
@@ -167,7 +175,7 @@ void Game::DrawCharacterSelect() {
             preview.DrawAt(renderer, *textures, dst);
         }
 
-        ui.Text(kLabels[i], card.x + card.w / 2.0f, card.y + card.h - 58.0f,
+        ui.Text(kCharacterLabels[i], card.x + card.w / 2.0f, card.y + card.h - 58.0f,
                 TextSize::Body, i == cursor ? Palette::Highlight : Palette::Text,
                 Align::Center);
     }

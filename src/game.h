@@ -150,7 +150,13 @@ private:
     int  craft_cursor = 0;
     int  slot_purpose = 0;       // 0 = start new game, 1 = save
 
-    string pending_character = "player_male";
+    string pending_character = "player_hero";
+
+    // The playable characters, shared between the select screen's update and
+    // its draw so the two can never disagree about what is on offer.
+    static constexpr int kCharacterCount = 3;
+    static const char* kCharacterIds[kCharacterCount];
+    static const char* kCharacterLabels[kCharacterCount];
     int    active_slot = 1;
 
     // Board / note payloads handed over by the world.
