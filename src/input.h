@@ -8,6 +8,7 @@ enum class Action {
     MoveUp, MoveDown, MoveLeft, MoveRight,
     LightAttack, StrongAttack, Interact,
     Inventory, QuestLog, Skills, Pause,
+    SelectFire, SelectWater, SelectEarth, SelectAir, CycleSpell,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
     COUNT
 };

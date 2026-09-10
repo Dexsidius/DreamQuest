@@ -3,8 +3,9 @@
 A top-down adventure RPG in C++ and SDL3, in the Dragon Quest Monsters mould:
 a scrolling overworld with several biomes, a village you can walk into and out
 of, houses and a guild hall you can enter, mountain mines and a barrow to raid,
-Old School RuneScape-style skills, weighted loot tables, and a three-attack
-melee system built around a hold-to-charge heavy swing.
+Old School RuneScape-style skills, weighted loot tables, three melee attacks
+built around a hold-to-charge heavy swing, bows that fire real arrows, and a
+four-element spell system with an effectiveness triangle.
 
 Built on [SDL3-Project-Template](https://github.com/Dexsidius/SDL3-Project-Template),
 and the maps are authored in the format exported by
@@ -85,7 +86,15 @@ last touched. Options → Input Device pins it to one if you would rather.
 | Inventory | `I` or tab | LB |
 | Skills | `K` | RB |
 | Quest journal | `Q` | Back |
+| Select element | `1` `2` `3` `4` | — |
+| Cycle element | `R` | Right stick click |
 | Pause / back | `Esc` | Start / B |
+
+### What the attack buttons do
+
+The buttons never change; the weapon in your hand decides what comes out of
+them. A sword swings, a bow shoots, a staff casts. All three run through the
+same attack state machine, so the charge mechanic works for every style.
 
 ### The three attacks
 
@@ -96,6 +105,55 @@ last touched. Options → Input Device pins it to one if you would rather.
   swing starts charging and a meter appears under your feet; it turns bright
   when it is full. Release to fire. A full charge is worth roughly three times
   a normal strong hit and reaches further, but it roots you while it winds up.
+
+With a mouse, shots and spells fly toward the cursor. On a controller they
+follow the way you are facing.
+
+---
+
+## Projectiles and magic
+
+Arrows and spells are the same system. Everything that separates a bowshot
+from a firebolt — speed, reach, how many bodies it passes through, what it
+leaves on the ground — is data in `data/projectiles.json`, and the art is one
+sprite drawn turned along its direction of travel, so a single arrow image
+covers every angle.
+
+### The four elements
+
+You select an **element**, not a spell. Your Magic level decides which tier of
+that element actually comes out, so training Magic upgrades what the same
+button does instead of adding another thing to remember.
+
+| Element | Signature behaviour | Feel |
+| --- | --- | --- |
+| **Fire** | Leaves the ground burning where it lands, ticking damage on anything standing in it | Area denial |
+| **Water** | Runs straight through a line of bodies | Piercing |
+| **Earth** | Lands heavy and bursts a moment later, after a visible wind-up | Slow, high commitment |
+| **Air** | Very fast, long range, and it carries what it hits backwards | Kiting |
+
+### The effectiveness cycle
+
+```
+Water  →  Fire  →  Earth  →  Air  →  Water
+```
+
+Each element beats the next: water douses fire, fire scorches earth, earth
+smothers air, air disperses water. Hitting a creature with the element that
+beats it does **1.6×** damage and the damage number comes up in that element's
+colour with an exclamation mark; being on the wrong end of the cycle does
+**0.6×** and reads grey. An element resists itself at **0.75×**, and anything
+untyped — most wildlife — takes normal damage from everything, so the matchup
+is a reward for paying attention rather than a tax for not.
+
+Monsters are aligned in `data/enemies.json`: orcs and boar are earth, foxes
+are air, the Warchief is fire.
+
+### Mana
+
+Casting costs mana, which comes from the Magic level (`12 + level × 2`) and
+refills on its own. The bar only appears once you have some, so a pure melee
+character is never told about a resource they do not spend.
 
 ---
 
@@ -115,15 +173,39 @@ values.
 | Mining | Working ore seams in the foothills and the Mire |
 | Cooking | Using a fire with something raw in your pack |
 | Crafting | Workbenches in the forge and the guild hall |
-| Ranged | Equipment bonuses and quest rewards |
-| Magic | Equipment bonuses and quest rewards |
+| Ranged | Landing arrows with a bow equipped |
+| Magic | Casting spells with a staff equipped |
 
 Combat level uses the OSRS formula across the melee/ranged/magic triangle.
 
-> **Honest scope note:** Ranged and Magic are implemented as far as levels,
-> XP, equipment bonuses and combat level go, and bows and staves carry real
-> bonuses — but there is no projectile or spell system yet, so all *combat* is
-> melee. Everything else in this table is played, not just tracked.
+Ranged and Magic read their own level and their own equipment bonus for both
+accuracy and damage, exactly as OSRS does, so a bow does nothing for a
+character who never trained Ranged and Strength does nothing for a bow. The
+self-test checks that.
+
+---
+
+## Worn equipment
+
+The CraftPix character packs ship their frames already split into layers —
+shadow, the weapon behind the body, the body, the head, the weapon in front —
+all frame-aligned, with a number in each filename giving the draw order. The
+importer keeps that split, so the player is drawn as a paperdoll rather than a
+flattened sheet.
+
+- **Weapons are real layers.** What you are holding is drawn from its own
+  layers and coloured to match the item, so a bronze sword, a steel longsword,
+  a bow and a staff all look different in your hand. An empty hand hides the
+  weapon layers entirely.
+- **Armour is a tint.** None of the packs contain armour or clothing art, so
+  worn armour colours the body and head layers instead, weighted by how heavy
+  each piece is. Bronze reads warm, iron reads grey, steel reads bright. It is
+  honest about what it is: a colour shift, not a drawn breastplate.
+
+The slots are already there for real armour art. A layered paperdoll pack
+drops into `assets/characters/<id>/layers/` with `head`/`body`/`legs` slots and
+the renderer will draw it without any code change — see
+[docs/ASSETS.md](docs/ASSETS.md).
 
 ---
 
@@ -211,7 +293,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2177 checks** covering:
+and checks all of it — currently **2393 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -223,6 +305,13 @@ and checks all of it — currently **2177 checks** covering:
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest
   sends them into
+- every projectile has art on disk and actually moves
+- every spell fires a projectile of its own element, all four elements are
+  castable, and a level 1 character has the mana to cast one
+- the elemental cycle closes and the multipliers point the right way
+- Ranged and Magic read their own levels rather than Strength
+- ragged animation rows declare a frame count for all four facings, and every
+  paperdoll layer is on disk
 - inventory, equipment, skills and quest progress survive a save round-trip
 
 It exits with the number of failures, so CI can use it directly.
@@ -242,7 +331,8 @@ src/
     map.cpp/h           .mx loader, chunked render, collision, portals
     world.cpp/h         entities, combat resolution, interaction, loot
   entity/               player, enemies, NPCs
-  systems/              skills, items, loot, combat, quests, dialogue, saves
+  systems/              skills, items, loot, combat, quests, dialogue, saves,
+                        projectiles and elements, spells
   ui/                   drawing helpers and every screen
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips
@@ -250,11 +340,12 @@ tools/
   genmaps.cpp           builds the world into maps/*.mx
   selftest.cpp          content and systems validation
   make_sprites_json.ps1 / make_manifest.ps1
-data/                   items, enemies, loot tables, quests, dialogue, sprites
+data/                   items, enemies, loot tables, quests, dialogue, sprites,
+                        projectiles, spells
 maps/                   generated .mx maps, editable in LevelEdit-Plus
 ```
 
-About 7,400 lines of C++, excluding the vendored `nlohmann/json`.
+About 8,600 lines of C++, excluding the vendored `nlohmann/json`.
 
 ---
 

@@ -50,6 +50,49 @@ int MaxHit(const CombatProfile& p, float damage_mult) {
     return std::max(1, static_cast<int>(base * damage_mult));
 }
 
+int MaxHitFor(const CombatProfile& p, AttackStyle style, float damage_mult) {
+    int level = p.strength_level, bonus = p.strength_bonus;
+    if (style == AttackStyle::Ranged) { level = p.ranged_level; bonus = p.ranged_bonus; }
+    else if (style == AttackStyle::Magic) { level = p.magic_level; bonus = p.magic_bonus; }
+
+    const float effective = static_cast<float>(Effective(level));
+    const int base = static_cast<int>(
+        floorf(0.5f + effective * (bonus + 64) / MAX_HIT_DIVISOR));
+    return std::max(1, static_cast<int>(base * damage_mult));
+}
+
+float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
+                   AttackStyle style) {
+    int level = attacker.attack_level, bonus = attacker.attack_bonus;
+    if (style == AttackStyle::Ranged) { level = attacker.ranged_level; bonus = attacker.ranged_bonus; }
+    else if (style == AttackStyle::Magic) { level = attacker.magic_level; bonus = attacker.magic_bonus; }
+
+    const float att = Effective(level) * (bonus + 64.0f);
+    const float def = Effective(defender.defence_level) * (defender.defence_bonus + 64.0f);
+
+    if (att > def) return 1.0f - (def + 2.0f) / (2.0f * (att + 1.0f));
+    return att / (2.0f * (def + 1.0f));
+}
+
+DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defender,
+                        AttackStyle style, float damage_mult, std::mt19937& rng) {
+    DamageResult r;
+
+    std::uniform_real_distribution<float> chance(0.0f, 1.0f);
+    if (chance(rng) > HitChanceFor(attacker, defender, style)) return r;
+
+    const int max_hit = MaxHitFor(attacker, style, damage_mult);
+    std::uniform_int_distribution<int> roll(0, max_hit);
+    r.damage  = roll(rng);
+    r.hit     = true;
+    r.max_hit = (r.damage == max_hit && max_hit > 1);
+
+    // A committed shot or cast that rolls nothing still chips, the same way a
+    // charged melee swing does.
+    if (r.damage == 0 && damage_mult >= CHARGE_MIN_MULT) r.damage = 1;
+    return r;
+}
+
 float HitChance(const CombatProfile& attacker, const CombatProfile& defender) {
     const float att = Effective(attacker.attack_level) * (attacker.attack_bonus + 64.0f);
     const float def = Effective(defender.defence_level) * (defender.defence_bonus + 64.0f);

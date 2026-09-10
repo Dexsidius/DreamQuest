@@ -4,6 +4,8 @@
 #include "../systems/skills.h"
 #include "../systems/items.h"
 #include "../systems/combat.h"
+#include "../systems/projectile.h"
+#include "../systems/spell.h"
 
 // What the player is currently standing next to and could press Interact on.
 struct InteractTarget {
@@ -23,6 +25,10 @@ public:
 
     // --- combat ---------------------------------------------------------------
     CombatProfile Profile() const;
+    // Melee, Ranged or Magic, decided by what is in the player's hand.
+    AttackStyle Style() const;
+    // Layer colours for the paperdoll, from what is currently worn.
+    LayerStyle BuildLayerStyle(const ItemDatabase* db) const;
     // Called by the world when a swing connects, so the player banks XP for it.
     void AwardCombatXp(int damage, AttackType type);
     void SyncHitpoints();               // keep hp in step with the Hitpoints skill
@@ -35,6 +41,19 @@ public:
     // 0..1 while the strong button is held past the threshold; 0 otherwise.
     float ChargeProgress() const;
     bool  IsCharging() const { return charging; }
+
+    // --- magic ----------------------------------------------------------------
+    // Mana comes from the Magic level and refills over time, so a caster gets
+    // more casts as well as bigger ones.
+    void  SyncMana();
+    int   Mana() const { return mana; }
+    int   MaxMana() const { return max_mana; }
+    bool  SpendMana(int cost);
+    void  RestoreMana() { mana = max_mana; }
+
+    Element SelectedElement() const { return selected_element; }
+    void    SelectElement(Element e) { selected_element = e; }
+    void    CycleElement(int delta);
 
     // --- progression ----------------------------------------------------------
     Skills    skills;
@@ -85,6 +104,10 @@ private:
 
     bool  dead = false;
     float death_timer = 0.0f;
+
+    int   mana = 0, max_mana = 0;
+    float mana_fraction = 0.0f;      // regen accrues in fractions of a point
+    Element selected_element = Element::Fire;
 
     const ItemDatabase* item_db = nullptr;
 

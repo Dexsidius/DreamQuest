@@ -20,6 +20,49 @@ void Player::Init(const GameContext& ctx, const string& id) {
     sprite.Play("idle");
     SyncHitpoints();
     hp = max_hp;
+    SyncMana();
+    mana = max_mana;
+}
+
+void Player::SyncMana() {
+    max_mana = SpellBook::MaxMana(skills.Level(SKILL_MAGIC));
+    mana = std::clamp(mana, 0, max_mana);
+}
+
+bool Player::SpendMana(int cost) {
+    if (cost <= 0) return true;
+    if (mana < cost) return false;
+    mana -= cost;
+    return true;
+}
+
+void Player::CycleElement(int delta) {
+    // Elements run Fire, Water, Earth, Air; None is not selectable.
+    const int count = static_cast<int>(Element::COUNT) - 1;
+    int index = static_cast<int>(selected_element) - 1;
+    index = ((index + delta) % count + count) % count;
+    selected_element = static_cast<Element>(index + 1);
+}
+
+AttackStyle Player::Style() const {
+    switch (equipment.Kind()) {
+        case WeaponKind::Bow:   return AttackStyle::Ranged;
+        case WeaponKind::Staff: return AttackStyle::Magic;
+        default:                return AttackStyle::Melee;
+    }
+}
+
+LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
+    (void)db;
+    LayerStyle s;
+    const SDL_Color armour = equipment.ArmourTint();
+    s.body = armour;
+    // The head only takes the tint when something is actually worn on it, so a
+    // bare-headed character keeps their own colouring.
+    s.head = equipment.InSlot(SLOT_HEAD).empty() ? SDL_Color{255, 255, 255, 255} : armour;
+    s.weapon = equipment.WeaponTint();
+    s.show_weapon = !equipment.InSlot(SLOT_WEAPON).empty();
+    return s;
 }
 
 void Player::SyncHitpoints() {
@@ -32,9 +75,13 @@ CombatProfile Player::Profile() const {
     p.attack_level   = skills.Current(SKILL_ATTACK);
     p.strength_level = skills.Current(SKILL_STRENGTH);
     p.defence_level  = skills.Current(SKILL_DEFENCE);
+    p.ranged_level   = skills.Current(SKILL_RANGED);
+    p.magic_level    = skills.Current(SKILL_MAGIC);
     p.attack_bonus   = equipment.AttackBonus();
     p.strength_bonus = equipment.StrengthBonus();
     p.defence_bonus  = equipment.DefenceBonus();
+    p.ranged_bonus   = equipment.RangedBonus();
+    p.magic_bonus    = equipment.MagicBonus();
     return p;
 }
 
@@ -64,12 +111,25 @@ void Player::AwardCombatXp(int damage, AttackType type) {
     };
 
     const float d = static_cast<float>(damage);
-    switch (type) {
-        case AttackType::Light:   bank(SKILL_ATTACK, d * 4.0f); break;
-        case AttackType::Strong:  bank(SKILL_STRENGTH, d * 4.0f); break;
-        case AttackType::Charged: bank(SKILL_ATTACK, d * 2.0f);
-                                  bank(SKILL_STRENGTH, d * 2.0f); break;
-        default: break;
+
+    // A bow trains Ranged and a staff trains Magic whichever button fired it;
+    // only melee splits its XP by how heavy the swing was.
+    switch (Style()) {
+        case AttackStyle::Ranged:
+            bank(SKILL_RANGED, d * 4.0f);
+            break;
+        case AttackStyle::Magic:
+            bank(SKILL_MAGIC, d * 4.0f);
+            break;
+        default:
+            switch (type) {
+                case AttackType::Light:   bank(SKILL_ATTACK, d * 4.0f); break;
+                case AttackType::Strong:  bank(SKILL_STRENGTH, d * 4.0f); break;
+                case AttackType::Charged: bank(SKILL_ATTACK, d * 2.0f);
+                                          bank(SKILL_STRENGTH, d * 2.0f); break;
+                default: break;
+            }
+            break;
     }
     bank(SKILL_HITPOINTS, d * 1.33f);
 }
@@ -233,7 +293,21 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     x = resolved.x - foot_box.x;
     y = resolved.y - foot_box.y;
 
+    // --- mana ----------------------------------------------------------------
+    SyncMana();
+    if (mana < max_mana) {
+        mana_fraction += SpellBook::RegenPerSecond(skills.Level(SKILL_MAGIC)) * dt;
+        const int whole = static_cast<int>(mana_fraction);
+        if (whole > 0) {
+            mana_fraction -= whole;
+            mana = std::min(max_mana, mana + whole);
+        }
+    } else {
+        mana_fraction = 0.0f;
+    }
+
     UpdateAnimation(move);
+    sprite.style = BuildLayerStyle(item_db);
     sprite.Update(dt);
     skills.SetCurrent(SKILL_HITPOINTS, hp);
 }
@@ -262,6 +336,8 @@ void Player::Respawn(float sx, float sy) {
     skills.ResetCurrent();
     SyncHitpoints();
     hp = max_hp;
+    SyncMana();
+    RestoreMana();
     sprite.Play("idle", true);
 }
 
@@ -324,6 +400,8 @@ json Player::ToJson() const {
         {"y",         y},
         {"facing",    static_cast<int>(facing)},
         {"hp",        hp},
+        {"mana",      mana},
+        {"element",   ElementName(selected_element)},
         {"skills",    skills.ToJson()},
         {"inventory", inventory.ToJson()},
         {"equipment", equipment.ToJson()},
@@ -347,6 +425,10 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
 
     SyncHitpoints();
     hp = std::clamp(j.value("hp", max_hp), 1, max_hp);
+    SyncMana();
+    mana = std::clamp(j.value("mana", max_mana), 0, max_mana);
+    selected_element = ElementFromName(j.value("element", string("fire")));
+    if (selected_element == Element::None) selected_element = Element::Fire;
     dead = false;
     death_timer = 0.0f;
     sprite.facing = facing;

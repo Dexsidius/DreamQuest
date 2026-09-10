@@ -25,6 +25,8 @@ namespace Palette {
     inline constexpr SDL_Color HealthBack {58,  26,  24,  255};
     inline constexpr SDL_Color Charge     {236, 168, 52,  255};
     inline constexpr SDL_Color Xp         {126, 196, 122, 255};
+    inline constexpr SDL_Color Mana       {84,  132, 214, 255};
+    inline constexpr SDL_Color ManaBack   {22,  30,  52,  255};
     inline constexpr SDL_Color Shadow     {0,   0,   0,   160};
 }
 

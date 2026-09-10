@@ -8,6 +8,8 @@
 #include "systems/loot.h"
 #include "systems/quest.h"
 #include "systems/dialogue.h"
+#include "systems/projectile.h"
+#include "systems/spell.h"
 #include "systems/save.h"
 #include "ui/ui.h"
 
@@ -126,6 +128,8 @@ private:
     LootSystem       loot;
     QuestLog         quests;
     DialogueDatabase dialogue_db;
+    ProjectileDatabase projectile_db;
+    SpellBook        spells;
     DialogueRunner   dialogue;
     std::mt19937     rng;
     GameContext      ctx;

@@ -20,6 +20,12 @@ Input::Input() {
         {SDLK_K, Action::Skills},
         {SDLK_ESCAPE, Action::Pause},
 
+        {SDLK_1, Action::SelectFire},
+        {SDLK_2, Action::SelectWater},
+        {SDLK_3, Action::SelectEarth},
+        {SDLK_4, Action::SelectAir},
+        {SDLK_R, Action::CycleSpell},
+
         {SDLK_RETURN, Action::Confirm},
         {SDLK_BACKSPACE, Action::Back},
     };
@@ -37,6 +43,9 @@ Input::Input() {
         {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, Action::Skills},
         {SDL_GAMEPAD_BUTTON_BACK, Action::QuestLog},
         {SDL_GAMEPAD_BUTTON_START, Action::Pause},
+        // Clicking the right stick steps through the elements; the d-pad and
+        // both sticks are already spoken for.
+        {SDL_GAMEPAD_BUTTON_RIGHT_STICK, Action::CycleSpell},
     };
 
     OpenGamepad();
@@ -233,6 +242,7 @@ string Input::PromptFor(Action a) const {
             case Action::Skills:       return "RB";
             case Action::QuestLog:     return "Back";
             case Action::Pause:        return "Start";
+            case Action::CycleSpell:   return "RS";
             default:                   return "";
         }
     }
@@ -246,6 +256,7 @@ string Input::PromptFor(Action a) const {
         case Action::Skills:       return "K";
         case Action::QuestLog:     return "Q";
         case Action::Pause:        return "Esc";
+        case Action::CycleSpell:   return "R";
         default:                   return "";
     }
 }

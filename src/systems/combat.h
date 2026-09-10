@@ -47,11 +47,18 @@ float ChargeRatio(float held_time);
 // Damage multiplier for a charged release at that ratio.
 float ChargeMultiplier(float ratio);
 
-// The numbers a combatant brings to a swing.
+// The numbers a combatant brings to a swing, a shot or a cast.
 struct CombatProfile {
     int attack_level = 1, strength_level = 1, defence_level = 1;
     int attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
+    int ranged_level = 1, magic_level = 1;
+    int ranged_bonus = 0, magic_bonus = 0;
 };
+
+// Which of the three styles an attack is resolved as. Ranged and magic use
+// their own level and bonus for both accuracy and damage, the way OSRS does,
+// so a bow does nothing for a character who never trained Ranged.
+enum class AttackStyle { Melee, Ranged, Magic };
 
 struct DamageResult {
     bool hit = false;
@@ -63,8 +70,17 @@ struct DamageResult {
 DamageResult RollMelee(const CombatProfile& attacker, const CombatProfile& defender,
                        float damage_mult, std::mt19937& rng);
 
+// Rolls an attack of any style. Melee is identical to RollMelee.
+DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defender,
+                        AttackStyle style, float damage_mult, std::mt19937& rng);
+
 int MaxHit(const CombatProfile& p, float damage_mult);
 float HitChance(const CombatProfile& attacker, const CombatProfile& defender);
+
+// Style-aware versions. Melee defers to the two above.
+int   MaxHitFor(const CombatProfile& p, AttackStyle style, float damage_mult);
+float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
+                   AttackStyle style);
 
 // The rectangle a swing sweeps, in front of the attacker.
 SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,

@@ -1,6 +1,7 @@
 #pragma once
 #include "entity.h"
 #include "../systems/combat.h"
+#include "../systems/projectile.h"
 #include "../world/map.h"
 
 // Stat block for one kind of monster, from data/enemies.json.
@@ -20,6 +21,9 @@ struct EnemyDef {
     SDL_FRect body_box{-14.0f, -42.0f, 28.0f, 42.0f};
     float scale = 1.0f;
     bool  is_boss = false;
+    // What the creature is aligned to, for the elemental matchup. Untyped
+    // monsters take normal damage from everything.
+    Element element = Element::None;
 };
 
 class EnemyDatabase {
@@ -52,6 +56,7 @@ public:
     void  Revive();
 
     const EnemyDef* Def() const { return def; }
+    Element ElementOf() const { return def ? def->element : Element::None; }
     const string& TypeId() const { return type_id; }
     State CurrentState() const { return state; }
     // Set while the player is engaged, so the HUD can show a target bar.

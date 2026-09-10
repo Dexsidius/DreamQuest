@@ -1,0 +1,93 @@
+{
+  "ember": {
+    "name": "Ember",
+    "desc": "A thrown coal that sticks. Leaves the ground burning for a few seconds.",
+    "element": "fire",
+    "tier": 1,
+    "level": 1,
+    "mana": 4,
+    "damage": 1.0,
+    "xp": 12,
+    "projectile": "bolt_fire"
+  },
+  "pyre": {
+    "name": "Pyre",
+    "desc": "The same idea, with far less restraint. A wider, longer fire.",
+    "element": "fire",
+    "tier": 2,
+    "level": 20,
+    "mana": 9,
+    "damage": 1.7,
+    "xp": 34,
+    "projectile": "bolt_fire_greater"
+  },
+
+  "spray": {
+    "name": "Spray",
+    "desc": "A lance of water that runs straight through a line of bodies.",
+    "element": "water",
+    "tier": 1,
+    "level": 1,
+    "mana": 5,
+    "damage": 0.9,
+    "xp": 13,
+    "projectile": "bolt_water"
+  },
+  "torrent": {
+    "name": "Torrent",
+    "desc": "Enough water, moving fast enough, to knock a rank over.",
+    "element": "water",
+    "tier": 2,
+    "level": 22,
+    "mana": 11,
+    "damage": 1.5,
+    "xp": 36,
+    "projectile": "bolt_water_greater"
+  },
+
+  "shardshot": {
+    "name": "Shardshot",
+    "desc": "A stone thrown low and hard. It bursts a moment after it lands.",
+    "element": "earth",
+    "tier": 1,
+    "level": 4,
+    "mana": 6,
+    "damage": 1.2,
+    "xp": 16,
+    "projectile": "bolt_earth"
+  },
+  "upheaval": {
+    "name": "Upheaval",
+    "desc": "The ground opens where it stops. Slow, and worth the wait.",
+    "element": "earth",
+    "tier": 2,
+    "level": 26,
+    "mana": 13,
+    "damage": 2.0,
+    "xp": 42,
+    "projectile": "bolt_earth_greater"
+  },
+
+  "gust": {
+    "name": "Gust",
+    "desc": "Fast, light, and it carries whatever it hits backwards with it.",
+    "element": "air",
+    "tier": 1,
+    "level": 8,
+    "mana": 5,
+    "damage": 0.8,
+    "xp": 18,
+    "projectile": "bolt_air"
+  },
+  "galewind": {
+    "name": "Galewind",
+    "desc": "A line of moving air with an edge on it.",
+    "element": "air",
+    "tier": 2,
+    "level": 30,
+    "mana": 10,
+    "damage": 1.4,
+    "xp": 48,
+    "projectile": "bolt_air_greater"
+  }
+}

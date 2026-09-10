@@ -26,7 +26,8 @@
       -42,
       28,
       42
-    ]
+    ],
+    "element": "earth"
   },
   "orc2": {
     "name": "Orc Raider",
@@ -55,7 +56,8 @@
       -42,
       28,
       42
-    ]
+    ],
+    "element": "earth"
   },
   "orc3": {
     "name": "Orc Warchief",
@@ -85,7 +87,8 @@
       -46,
       32,
       46
-    ]
+    ],
+    "element": "fire"
   },
   "boar": {
     "name": "Wild Boar",
@@ -114,7 +117,8 @@
       -24,
       24,
       24
-    ]
+    ],
+    "element": "earth"
   },
   "deer": {
     "name": "Red Deer",
@@ -143,7 +147,8 @@
       -26,
       24,
       26
-    ]
+    ],
+    "element": "none"
   },
   "fox": {
     "name": "Red Fox",
@@ -172,7 +177,8 @@
       -20,
       20,
       20
-    ]
+    ],
+    "element": "air"
   },
   "hare": {
     "name": "Hare",
@@ -201,6 +207,7 @@
       -16,
       18,
       16
-    ]
+    ],
+    "element": "none"
   }
 }

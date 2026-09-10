@@ -52,6 +52,7 @@ bool EnemyDatabase::Load(const string& path) {
         d.kill_target     = o.value("kill_target", d.id);
         d.scale           = o.value("scale", 1.0f);
         d.is_boss         = o.value("boss", false);
+        d.element         = ElementFromName(o.value("element", string("none")));
 
         d.foot_box = BoxFromJson(o.contains("foot_box") ? o["foot_box"] : json(), d.foot_box);
         d.body_box = BoxFromJson(o.contains("body_box") ? o["body_box"] : json(), d.body_box);

@@ -6,6 +6,7 @@
 #include "../entity/player.h"
 #include "../entity/enemy.h"
 #include "../entity/npc.h"
+#include "../systems/projectile.h"
 
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
@@ -32,6 +33,15 @@ public:
 
     // Called by Game when the player presses Interact.
     void TryInteract(const GameContext& ctx);
+
+    // Fires a projectile from a point along a direction. The direction does not
+    // need normalising.
+    void SpawnProjectile(const string& def_id, float x, float y,
+                         float dir_x, float dir_y,
+                         const CombatProfile& owner, AttackStyle style,
+                         float damage_mult, bool from_player,
+                         const GameContext& ctx);
+    void AddGroundEffect(const GroundEffect& effect);
 
     void SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx);
     void DropItem(const string& item_id, int qty, float x, float y, const GameContext& ctx);
@@ -60,12 +70,23 @@ public:
     vector<std::unique_ptr<Npc>>   npcs;
     vector<Pickup>      pickups;
     vector<FloatingText> texts;
+    vector<Projectile>   projectiles;
+    vector<GroundEffect> ground_effects;
 
 private:
     void SpawnEntitiesFromMap(const GameContext& ctx);
     void ApplyPlayerAttack(const GameContext& ctx);
     void ResolveInteractTarget(const GameContext& ctx);
     void UpdatePickups(float dt, const GameContext& ctx);
+    void UpdateProjectiles(float dt, const GameContext& ctx);
+    void UpdateGroundEffects(float dt, const GameContext& ctx);
+    void FirePlayerProjectile(const GameContext& ctx);
+    // Aim at the cursor on mouse and keyboard, and along the facing otherwise.
+    Vec2 PlayerAim(const GameContext& ctx) const;
+    // Applies a hit from a projectile or a ground effect to one enemy.
+    void HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
+                  Element element, float damage_mult, float knockback,
+                  float from_x, float from_y, const GameContext& ctx);
     void UpdateTexts(float dt);
     void UpdateGathering(float dt, const GameContext& ctx);
     void CookOne(const struct MapObject& range, const GameContext& ctx);

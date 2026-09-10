@@ -3,6 +3,7 @@
 #include "../systems/loot.h"
 #include "../systems/quest.h"
 #include "../systems/dialogue.h"
+#include "../systems/spell.h"
 
 static constexpr float FADE_SPEED     = 3.2f;
 // Generous enough to reach anything the player can stand next to: a wide prop
@@ -25,6 +26,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     npcs.clear();
     pickups.clear();
     texts.clear();
+    projectiles.clear();
+    ground_effects.clear();
     gather_index = -1;
 
     SpawnEntitiesFromMap(ctx);
@@ -131,6 +134,8 @@ void World::Update(float dt, const GameContext& ctx) {
 
     for (auto& n : npcs) n->Update(dt, *this, ctx);
 
+    UpdateProjectiles(dt, ctx);
+    UpdateGroundEffects(dt, ctx);
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
 
@@ -141,11 +146,74 @@ void World::Update(float dt, const GameContext& ctx) {
 //  Combat resolution
 // -----------------------------------------------------------------------------
 
+// Where a shot or a cast is aimed. With a mouse the cursor is the natural
+// answer; on a controller the character shoots the way they are facing.
+Vec2 World::PlayerAim(const GameContext& ctx) const {
+    if (ctx.input && ctx.input->ActiveDevice() == InputMode::KeyboardMouse) {
+        const SDL_FPoint m = ctx.input->MousePos();
+        const SDL_FPoint w = camera.ToWorld(m.x, m.y);
+        const float dx = w.x - player.x;
+        const float dy = w.y - (player.y - 16.0f);
+        const float len = Length(dx, dy);
+        if (len > 4.0f) return {dx / len, dy / len};
+    }
+    switch (player.facing) {
+        case FACE_UP:    return {0.0f, -1.0f};
+        case FACE_DOWN:  return {0.0f,  1.0f};
+        case FACE_LEFT:  return {-1.0f, 0.0f};
+        default:         return {1.0f,  0.0f};
+    }
+}
+
+// A bow or a staff turns the same attack button into a shot or a cast. The
+// swing animation and its timing are unchanged; only what leaves the character
+// at the active frame is different.
+void World::FirePlayerProjectile(const GameContext& ctx) {
+    const AttackState& atk = player.Attack();
+    const AttackStyle style = player.Style();
+    const Vec2 aim = PlayerAim(ctx);
+
+    string projectile_id;
+    float damage_mult = atk.damage_mult;
+
+    if (style == AttackStyle::Ranged) {
+        projectile_id = "arrow";
+    } else {
+        const SpellDef* spell = ctx.spells
+            ? ctx.spells->BestFor(player.SelectedElement(),
+                                  player.skills.Level(SKILL_MAGIC))
+            : nullptr;
+        if (!spell) {
+            AddText("No spell known", player.x, player.y - 54.0f, {200, 200, 210, 255});
+            return;
+        }
+        if (!player.SpendMana(spell->mana)) {
+            AddText("Out of mana", player.x, player.y - 54.0f, {150, 180, 235, 255});
+            return;
+        }
+        projectile_id = spell->projectile;
+        damage_mult *= spell->damage_mult;
+        // Casting trains Magic whether or not the bolt finds anything.
+        player.GrantXp(SKILL_MAGIC, spell->xp);
+    }
+
+    // Leave from chest height, slightly ahead so it clears the caster.
+    SpawnProjectile(projectile_id,
+                    player.x + aim.x * 12.0f, player.y - 16.0f + aim.y * 12.0f,
+                    aim.x, aim.y, player.Profile(), style,
+                    damage_mult, true, ctx);
+}
+
 void World::ApplyPlayerAttack(const GameContext& ctx) {
     // One swing lands once, on every enemy inside the arc.
     if (!player.AttackPending()) return;
     player.MarkAttackConsumed();
     const AttackState& atk = player.Attack();
+
+    if (player.Style() != AttackStyle::Melee) {
+        FirePlayerProjectile(ctx);
+        return;
+    }
 
     const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing,
                                        atk.profile, atk.reach_scale);
@@ -155,31 +223,10 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
         if (!RectsOverlap(hit, e->BodyBox())) continue;
 
-        DamageResult r = RollMelee(player.Profile(), e->Profile(),
-                                   atk.damage_mult, *ctx.rng);
         connected = true;
-
-        if (!r.hit) {
-            AddText("miss", e->x, e->y - 46.0f, {150, 150, 168, 235});
-            continue;
-        }
-        if (r.damage <= 0) {
-            AddText("0", e->x, e->y - 46.0f, {120, 160, 220, 255});
-            continue;
-        }
-
-        e->Damage(r.damage);
-        player.AwardCombatXp(r.damage, atk.type);
-
-        const SDL_Color color = r.max_hit ? SDL_Color{255, 220, 90, 255}
-                                          : SDL_Color{255, 245, 235, 255};
-        AddText(std::to_string(r.damage), e->x, e->y - 46.0f, color);
-
-        // Knock the target away from the player, scaled by the swing.
-        const float dx = e->x - player.x, dy = e->y - player.y;
-        const float len = std::max(1.0f, Length(dx, dy));
-        e->knock_x += (dx / len) * atk.profile.knockback;
-        e->knock_y += (dy / len) * atk.profile.knockback;
+        HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None,
+                 atk.damage_mult, atk.profile.knockback,
+                 player.x, player.y, ctx);
     }
 
     if (!connected && atk.type == AttackType::Charged)
@@ -444,6 +491,228 @@ float World::GatherProgress() const {
 //  Loot and floating text
 // -----------------------------------------------------------------------------
 
+// One place where a hit lands, whether it came from a sword, an arrow or a
+// bolt of fire, so the element matchup and the XP are applied consistently.
+void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
+                     Element element, float damage_mult, float knockback,
+                     float from_x, float from_y, const GameContext& ctx) {
+    DamageResult r = RollAttack(owner, e.Profile(), style, damage_mult, *ctx.rng);
+
+    if (!r.hit) {
+        AddText("miss", e.x, e.y - 46.0f, {150, 150, 168, 235});
+        return;
+    }
+
+    // Elements only matter when both sides have one.
+    const float matchup = ElementMultiplier(element, e.ElementOf());
+    int damage = static_cast<int>(roundf(r.damage * matchup));
+    if (r.damage > 0 && damage <= 0) damage = 1;
+
+    if (damage <= 0) {
+        AddText("0", e.x, e.y - 46.0f, {120, 160, 220, 255});
+        return;
+    }
+
+    e.Damage(damage);
+    player.AwardCombatXp(damage, AttackType::Light);
+
+    SDL_Color color = r.max_hit ? SDL_Color{255, 220, 90, 255}
+                                : SDL_Color{255, 245, 235, 255};
+    string label = std::to_string(damage);
+    if (matchup > 1.05f) {
+        color = ElementColor(element);
+        label += "!";                      // strong against this creature
+    } else if (matchup < 0.95f) {
+        color = {150, 150, 170, 255};      // resisted
+    }
+    AddText(label, e.x, e.y - 46.0f, color);
+
+    const float dx = e.x - from_x, dy = e.y - from_y;
+    const float len = std::max(1.0f, Length(dx, dy));
+    e.knock_x += (dx / len) * knockback;
+    e.knock_y += (dy / len) * knockback;
+}
+
+void World::SpawnProjectile(const string& def_id, float x, float y,
+                            float dir_x, float dir_y,
+                            const CombatProfile& owner, AttackStyle style,
+                            float damage_mult, bool from_player,
+                            const GameContext& ctx) {
+    const ProjectileDef* def = ctx.projectiles ? ctx.projectiles->Get(def_id) : nullptr;
+    if (!def) {
+        SDL_Log("World: unknown projectile '%s'", def_id.c_str());
+        return;
+    }
+
+    const float len = Length(dir_x, dir_y);
+    if (len < 0.001f) return;
+
+    Projectile p;
+    p.def = def;
+    p.x = x;
+    p.y = y;
+    p.vx = (dir_x / len) * def->speed;
+    p.vy = (dir_y / len) * def->speed;
+    p.angle = atan2f(p.vy, p.vx);
+    p.life = def->life;
+    p.owner = owner;
+    p.style = style;
+    p.element = def->element;
+    p.damage_mult = damage_mult;
+    p.from_player = from_player;
+    p.pierce_left = def->pierce;
+    projectiles.push_back(p);
+}
+
+void World::AddGroundEffect(const GroundEffect& effect) {
+    ground_effects.push_back(effect);
+}
+
+void World::UpdateProjectiles(float dt, const GameContext& ctx) {
+    for (Projectile& p : projectiles) {
+        if (p.finished || !p.def) continue;
+
+        p.life -= dt;
+        if (p.life <= 0.0f) { p.finished = true; }
+
+        // Step in a few slices so a fast arrow cannot tunnel through a wall or
+        // a thin target between frames.
+        const int steps = std::max(1, static_cast<int>(Length(p.vx, p.vy) * dt / 6.0f));
+        const float step_dt = dt / steps;
+
+        for (int i = 0; i < steps && !p.finished; ++i) {
+            p.x += p.vx * step_dt;
+            p.y += p.vy * step_dt;
+            if (p.def->spin) p.spin_angle += 14.0f * step_dt;
+
+            // Walls stop everything.
+            const SDL_FRect box = {p.x - p.def->radius, p.y - p.def->radius,
+                                   p.def->radius * 2, p.def->radius * 2};
+            if (map.Blocked(box)) { p.finished = true; break; }
+
+            if (p.from_player) {
+                for (auto& e : enemies) {
+                    if (p.finished) break;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+                    if (!RectsOverlap(box, e->BodyBox())) continue;
+
+                    const void* key = e.get();
+                    if (std::find(p.already_hit.begin(), p.already_hit.end(), key) !=
+                        p.already_hit.end())
+                        continue;
+                    p.already_hit.push_back(key);
+
+                    HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
+                             p.def->knockback, p.x - p.vx, p.y - p.vy, ctx);
+
+                    if (p.pierce_left > 0) --p.pierce_left;
+                    else                    p.finished = true;
+                }
+            } else if (!player.IsDead() &&
+                       RectsOverlap(box, player.BodyBox())) {
+                DamageResult r = RollAttack(p.owner, player.Profile(), p.style,
+                                            p.damage_mult, *ctx.rng);
+                if (r.hit && r.damage > 0) {
+                    player.Damage(r.damage);
+                    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+                    player.GrantXp(SKILL_DEFENCE, std::max(1, r.damage));
+                    AddText(std::to_string(r.damage), player.x, player.y - 44.0f,
+                            {235, 70, 70, 255});
+                } else {
+                    AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
+                }
+                p.finished = true;
+            }
+        }
+
+        // What it leaves behind when it stops.
+        if (p.finished) {
+            if (p.def->patch_time > 0.0f) {
+                GroundEffect g;
+                g.x = p.x;
+                g.y = p.y;
+                g.radius = p.def->patch_radius;
+                g.life = g.max_life = p.def->patch_time;
+                g.tick_interval = p.def->patch_tick;
+                g.tick_timer = 0.0f;
+                g.damage = p.def->patch_damage;
+                g.element = p.def->element;
+                g.owner = p.owner;
+                g.from_player = p.from_player;
+                AddGroundEffect(g);
+            }
+            if (p.def->erupts) {
+                GroundEffect g;
+                g.x = p.x;
+                g.y = p.y;
+                g.radius = p.def->erupt_radius;
+                g.delay = p.def->erupt_delay;
+                g.life = g.max_life = p.def->erupt_delay + 0.28f;
+                g.damage = p.def->erupt_damage;
+                g.element = p.def->element;
+                g.owner = p.owner;
+                g.from_player = p.from_player;
+                g.burst = true;
+                AddGroundEffect(g);
+            }
+        }
+    }
+
+    projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(),
+                                     [](const Projectile& p) { return p.finished; }),
+                      projectiles.end());
+}
+
+void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
+    for (GroundEffect& g : ground_effects) {
+        if (g.finished) continue;
+
+        if (g.delay > 0.0f) {
+            g.delay -= dt;
+            if (g.delay > 0.0f) continue;
+        }
+
+        g.life -= dt;
+        if (g.life <= 0.0f) g.finished = true;
+
+        bool apply = false;
+        if (g.burst) {
+            // An eruption hits once, the moment it goes off.
+            apply = true;
+            g.burst = false;
+            g.finished = false;
+        } else {
+            g.tick_timer -= dt;
+            if (g.tick_timer <= 0.0f) {
+                g.tick_timer += g.tick_interval;
+                apply = true;
+            }
+        }
+        if (!apply) continue;
+
+        const SDL_FRect area = {g.x - g.radius, g.y - g.radius,
+                                g.radius * 2, g.radius * 2};
+
+        if (g.from_player) {
+            for (auto& e : enemies) {
+                if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+                if (!RectsOverlap(area, e->BodyBox())) continue;
+                HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
+                         static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
+            }
+        } else if (!player.IsDead() && RectsOverlap(area, player.BodyBox())) {
+            player.Damage(std::max(1, g.damage));
+            player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+            AddText(std::to_string(g.damage), player.x, player.y - 44.0f,
+                    {235, 90, 70, 255});
+        }
+    }
+
+    ground_effects.erase(std::remove_if(ground_effects.begin(), ground_effects.end(),
+                                        [](const GroundEffect& g) { return g.finished; }),
+                         ground_effects.end());
+}
+
 void World::SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx) {
     if (!ctx.loot) return;
     vector<LootDrop> drops = ctx.loot->Roll(table_id);
@@ -535,6 +804,43 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
 
     map.RenderLayer(r, cache, camera, LAYER_GROUND);
 
+    // Burning ground and pending eruptions lie on the floor, under everyone.
+    // Drawn as a squashed disc rather than a rectangle: a hard-edged box reads
+    // as a UI element, and this is meant to look like something on the grass.
+    auto fill_disc = [&](float cx, float cy, float rx, float ry, SDL_Color c) {
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+        const int rows = std::max(3, static_cast<int>(ry * 2));
+        for (int i = 0; i < rows; ++i) {
+            // Half-width of the disc at this height.
+            const float t = (i + 0.5f) / rows * 2.0f - 1.0f;
+            const float half = rx * sqrtf(std::max(0.0f, 1.0f - t * t));
+            const SDL_FRect span = {cx - half, cy + t * ry, half * 2.0f, ry * 2.0f / rows + 1.0f};
+            SDL_RenderFillRect(r, &span);
+        }
+    };
+
+    for (const GroundEffect& g : ground_effects) {
+        const SDL_FPoint centre = camera.ToScreen(g.x, g.y);
+        const float rx = g.radius * camera.zoom;
+        const float ry = g.radius * 0.55f * camera.zoom;
+        const SDL_Color c = ElementColor(g.element);
+
+        if (g.delay > 0.0f) {
+            // Telegraph the eruption: an outline that tightens as it arms.
+            const float t = 1.0f - std::clamp(g.delay / 0.5f, 0.0f, 1.0f);
+            fill_disc(centre.x, centre.y, rx * (0.55f + 0.45f * t), ry * (0.55f + 0.45f * t),
+                      {c.r, c.g, c.b, static_cast<Uint8>(40 + 90 * t)});
+        } else {
+            const float t = std::clamp(g.life / std::max(0.01f, g.max_life), 0.0f, 1.0f);
+            // A brighter core inside a wider glow.
+            fill_disc(centre.x, centre.y, rx, ry,
+                      {c.r, c.g, c.b, static_cast<Uint8>(70 * t)});
+            fill_disc(centre.x, centre.y, rx * 0.6f, ry * 0.6f,
+                      {c.r, c.g, c.b, static_cast<Uint8>(120 * t)});
+        }
+    }
+
     // Everything at ground level draws in baseline order, so the player walks
     // behind a tree trunk and in front of the grass at its foot.
     struct Item { float sort_y; int kind; const void* ptr; };
@@ -556,6 +862,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     for (const auto& p : pickups) {
         if (!RectsOverlap(p.Bounds(), view)) continue;
         queue.push_back({p.y, 2, &p});
+    }
+    for (const auto& p : projectiles) {
+        if (!RectsOverlap(p.Bounds(), view)) continue;
+        queue.push_back({p.y, 4, &p});
     }
     for (const auto& e : enemies) {
         if (!RectsOverlap(e->BodyBox(), view)) continue;
@@ -618,6 +928,42 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                     SDL_RenderFillRect(r, &dst);
                     SDL_SetRenderDrawColor(r, 90, 70, 20, 255);
                     SDL_RenderRect(r, &dst);
+                }
+                break;
+            }
+            case 4: {
+                const Projectile* p = static_cast<const Projectile*>(it.ptr);
+                if (!p->def) break;
+                SDL_Texture* tex = cache.Get(p->def->sprite);
+
+                // Draw at the art's own proportions. An arrow is long and thin;
+                // forcing it into a square makes it look like a thrown brick.
+                float aw = 16.0f, ah = 16.0f;
+                if (tex) {
+                    float tw = 0, th = 0;
+                    SDL_GetTextureSize(tex, &tw, &th);
+                    if (tw > 0 && th > 0) { aw = tw; ah = th; }
+                }
+                aw *= p->def->scale;
+                ah *= p->def->scale;
+
+                const SDL_FRect world = {p->x - aw / 2.0f, p->y - ah / 2.0f, aw, ah};
+                const SDL_FRect dst = camera.ToScreenRect(world);
+
+                if (tex) {
+                    // One sprite covers every direction: it is drawn turned to
+                    // face the way it is travelling.
+                    const double deg = p->def->spin
+                        ? p->spin_angle * 57.2957795
+                        : p->angle * 57.2957795 + p->def->sprite_angle;
+                    SDL_SetTextureColorMod(tex, p->def->tint.r, p->def->tint.g, p->def->tint.b);
+                    SDL_RenderTextureRotated(r, tex, nullptr, &dst, deg, nullptr, SDL_FLIP_NONE);
+                    SDL_SetTextureColorMod(tex, 255, 255, 255);
+                } else {
+                    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+                    SDL_SetRenderDrawColor(r, p->def->tint.r, p->def->tint.g,
+                                           p->def->tint.b, 235);
+                    SDL_RenderFillRect(r, &dst);
                 }
                 break;
             }

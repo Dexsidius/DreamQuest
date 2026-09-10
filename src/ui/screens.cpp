@@ -432,15 +432,85 @@ void Game::DrawHud() {
     ui.TextShadowed(hp_text, hp_bar.x + hp_bar.w / 2.0f, hp_bar.y + 1.0f,
                     TextSize::Small, Palette::Text, Align::Center);
 
+    // --- mana ----------------------------------------------------------------
+    // Only shown once the player has any, so a pure melee character is not
+    // told about a resource they never spend.
+    float meta_y = hp_bar.y + hp_bar.h + 8.0f;
+    if (p.MaxMana() > 0) {
+        const SDL_FRect mana_bar = {hp_bar.x, hp_bar.y + hp_bar.h + 4.0f, 232.0f, 12.0f};
+        ui.Bar(mana_bar, static_cast<float>(p.Mana()) / p.MaxMana(),
+               Palette::Mana, Palette::ManaBack);
+        char mana_text[32];
+        SDL_snprintf(mana_text, sizeof(mana_text), "%d / %d", p.Mana(), p.MaxMana());
+        ui.TextShadowed(mana_text, mana_bar.x + mana_bar.w / 2.0f, mana_bar.y - 2.0f,
+                        TextSize::Small, Palette::Text, Align::Center);
+        meta_y = mana_bar.y + mana_bar.h + 6.0f;
+    }
+
     char meta[96];
     SDL_snprintf(meta, sizeof(meta), "Combat %d    %d coins",
                  p.skills.CombatLevel(), p.inventory.Coins());
-    ui.TextShadowed(meta, hp_bar.x, hp_bar.y + hp_bar.h + 8.0f, TextSize::Small,
-                    Palette::TextDim);
+    ui.TextShadowed(meta, hp_bar.x, meta_y, TextSize::Small, Palette::TextDim);
 
     // Meters and prompts describe what the button does right now, so they are
     // only meaningful while the player actually has control.
     const bool live = (state == GameState::Play);
+
+    // --- what the attack button will do ---------------------------------------
+    // A staff shows the four elements with the selected one lit, and names the
+    // spell that Magic level actually casts. A bow just says so.
+    if (live) {
+        const AttackStyle style = p.Style();
+        if (style == AttackStyle::Magic) {
+            static const Element kOrder[4] = {Element::Fire, Element::Water,
+                                              Element::Earth, Element::Air};
+            const float box = 30.0f, gap = 5.0f;
+            const float total = box * 4 + gap * 3;
+            const float x0 = ui.ViewWidth() / 2.0f - total / 2.0f;
+            const float y0 = ui.ViewHeight() - 62.0f;
+
+            for (int i = 0; i < 4; ++i) {
+                const bool on = (kOrder[i] == p.SelectedElement());
+                const SDL_FRect r = {x0 + i * (box + gap), y0, box, box};
+                const SDL_Color c = ElementColor(kOrder[i]);
+                const SpellDef* known = spells.BestFor(kOrder[i],
+                                                       p.skills.Level(SKILL_MAGIC));
+
+                ui.Fill(r, {static_cast<Uint8>(c.r / (on ? 2 : 5)),
+                            static_cast<Uint8>(c.g / (on ? 2 : 5)),
+                            static_cast<Uint8>(c.b / (on ? 2 : 5)),
+                            on ? static_cast<Uint8>(235) : static_cast<Uint8>(180)});
+                ui.Outline(r, on ? c : Palette::BorderDim, on ? 2.0f : 1.0f);
+
+                // Number key that selects it.
+                ui.Text(std::to_string(i + 1), r.x + r.w / 2.0f, r.y + 6.0f,
+                        TextSize::Small,
+                        known ? (on ? Palette::Text : Palette::TextDim)
+                              : SDL_Color{110, 100, 96, 255},
+                        Align::Center);
+            }
+
+            const SpellDef* current = spells.BestFor(p.SelectedElement(),
+                                                     p.skills.Level(SKILL_MAGIC));
+            string line;
+            if (current) {
+                line = current->name + "   " + std::to_string(current->mana) + " mana";
+            } else {
+                const SpellDef* next = spells.NextFor(p.SelectedElement(),
+                                                      p.skills.Level(SKILL_MAGIC));
+                line = next ? ("Magic " + std::to_string(next->level) + " for " + next->name)
+                            : "Nothing known";
+            }
+            ui.TextShadowed(line, ui.ViewWidth() / 2.0f, y0 + box + 4.0f,
+                            TextSize::Small,
+                            current ? ElementColor(p.SelectedElement()) : Palette::TextDim,
+                            Align::Center);
+        } else if (style == AttackStyle::Ranged) {
+            ui.TextShadowed("Bow drawn", ui.ViewWidth() / 2.0f,
+                            ui.ViewHeight() - 46.0f, TextSize::Small,
+                            Palette::TextDim, Align::Center);
+        }
+    }
 
     // --- charge meter --------------------------------------------------------
     if (live && p.IsCharging()) {
@@ -497,7 +567,13 @@ void Game::DrawHud() {
 
     // --- controls hint -------------------------------------------------------
     if (!live) return;
-    const string hint = input.PromptFor(Action::Inventory) + " bag    " +
+    string spell_hint;
+    if (p.Style() == AttackStyle::Magic)
+        spell_hint = (input.ActiveDevice() == InputMode::Controller
+                          ? string("RS element    ")
+                          : string("1-4 element    "));
+
+    const string hint = spell_hint + input.PromptFor(Action::Inventory) + " bag    " +
                         input.PromptFor(Action::Skills) + " skills    " +
                         input.PromptFor(Action::QuestLog) + " quests    " +
                         input.PromptFor(Action::Pause) + " menu";

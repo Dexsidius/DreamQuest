@@ -58,6 +58,8 @@ int Game::Start(int argc, char** argv) {
     ctx.quests   = &quests;
     ctx.dialogue = &dialogue_db;
     ctx.enemies  = &enemy_db;
+    ctx.projectiles = &projectile_db;
+    ctx.spells   = &spells;
     ctx.input    = &input;
     ctx.rng      = &rng;
 
@@ -75,6 +77,8 @@ bool Game::LoadContent() {
     ok &= loot.Load("data/loot_tables.json");
     ok &= quests.LoadDefinitions("data/quests.json");
     ok &= dialogue_db.Load("data/dialogue.json");
+    ok &= projectile_db.Load("data/projectiles.json");
+    ok &= spells.Load("data/spells.json");
 
     if (!ok) {
         SDL_Log("DreamQuest: one or more data files failed to load. "
@@ -106,6 +110,10 @@ void Game::NewGame(const string& character, int slot) {
     world.player.inventory.Add("bronze_sword", 1);
     world.player.inventory.Add("wooden_shield", 1);
     world.player.inventory.Add("cooked_meat", 4);
+    // A starter bow and staff, so both other styles can be tried out from the
+    // first minute rather than waiting on a drop.
+    world.player.inventory.Add("training_bow", 1);
+    world.player.inventory.Add("novice_staff", 1);
 
     string why;
     for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot) {
@@ -325,6 +333,15 @@ void Game::UpdatePlay(float dt) {
 
     if (world.player.IsDead() && world.player.DeathTimer() <= 0.0f)
         SetState(GameState::Death);
+
+    // --- spell selection -----------------------------------------------------
+    // The element is chosen, not the spell: Magic level decides which tier of
+    // that element actually comes out.
+    if (input.Pressed(Action::SelectFire))  world.player.SelectElement(Element::Fire);
+    if (input.Pressed(Action::SelectWater)) world.player.SelectElement(Element::Water);
+    if (input.Pressed(Action::SelectEarth)) world.player.SelectElement(Element::Earth);
+    if (input.Pressed(Action::SelectAir))   world.player.SelectElement(Element::Air);
+    if (input.Pressed(Action::CycleSpell))  world.player.CycleElement(1);
 
     // --- panel hotkeys -------------------------------------------------------
     if (input.Pressed(Action::Interact))   world.TryInteract(ctx);

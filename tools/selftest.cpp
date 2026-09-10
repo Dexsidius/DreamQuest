@@ -22,6 +22,8 @@
 #include "../src/systems/skills.h"
 #include "../src/systems/combat.h"
 #include "../src/systems/save.h"
+#include "../src/systems/projectile.h"
+#include "../src/systems/spell.h"
 
 #include <fstream>
 #include <filesystem>
@@ -60,6 +62,8 @@ int main() {
     LootSystem       loot;
     QuestLog         quests;
     DialogueDatabase dialogue;
+    ProjectileDatabase projectiles;
+    SpellBook        spells;
 
     Check(sprites.Load("data/sprites.json"),        "data/sprites.json loads");
     Check(items.Load("data/items.json"),            "data/items.json loads");
@@ -67,6 +71,8 @@ int main() {
     Check(loot.Load("data/loot_tables.json"),       "data/loot_tables.json loads");
     Check(quests.LoadDefinitions("data/quests.json"), "data/quests.json loads");
     Check(dialogue.Load("data/dialogue.json"),      "data/dialogue.json loads");
+    Check(projectiles.Load("data/projectiles.json"), "data/projectiles.json loads");
+    Check(spells.Load("data/spells.json"),         "data/spells.json loads");
 
     // --- sprite art -----------------------------------------------------------
     Section("sprite sheets exist on disk");
@@ -79,6 +85,27 @@ int main() {
             for (auto c = it.value()["clips"].begin(); c != it.value()["clips"].end(); ++c) {
                 const string path = dir + c.value().value("sheet", string(""));
                 Check(fs::exists(path), it.key() + "/" + c.key() + " -> " + path);
+
+                // Ragged sheets must declare a count for every direction row,
+                // or the short row plays into empty frames and the character
+                // disappears for part of the loop.
+                if (c.value().contains("row_frames")) {
+                    const auto& rows = c.value()["row_frames"];
+                    Check(rows.size() == 4,
+                          it.key() + "/" + c.key() + " row_frames covers all four facings");
+                    for (const auto& n : rows)
+                        Check(n.get<int>() >= 1,
+                              it.key() + "/" + c.key() + " has a non-empty row");
+                }
+
+                // Every layer of a paperdoll has to be on disk, or the
+                // character loses a body part.
+                if (c.value().contains("layers"))
+                    for (const auto& l : c.value()["layers"]) {
+                        const string lp = dir + l.value("sheet", string(""));
+                        Check(fs::exists(lp),
+                              it.key() + "/" + c.key() + " layer -> " + lp);
+                    }
             }
         }
     }
@@ -267,6 +294,121 @@ int main() {
     for (const auto& kv : quests.Definitions())
         Check(quest_givers.count(kv.second.giver) > 0,
               kv.first + " giver '" + kv.second.giver + "' is not in any map");
+
+    // --- projectiles ----------------------------------------------------------
+    Section("projectiles");
+    for (const auto& kv : projectiles.All()) {
+        const ProjectileDef& d = kv.second;
+        Check(!d.sprite.empty(), kv.first + " has a sprite");
+        Check(fs::exists(d.sprite), kv.first + " art missing: " + d.sprite);
+        Check(d.speed > 0.0f, kv.first + " moves");
+        Check(d.life > 0.0f, kv.first + " expires");
+        Check(d.radius > 0.0f, kv.first + " can hit something");
+    }
+
+    // --- spells ---------------------------------------------------------------
+    Section("spells");
+    {
+        int per_element[static_cast<int>(Element::COUNT)] = {0};
+        for (const auto& kv : spells.All()) {
+            const SpellDef& sp = kv.second;
+            Check(projectiles.Has(sp.projectile),
+                  kv.first + " fires unknown projectile '" + sp.projectile + "'");
+            Check(sp.mana > 0, kv.first + " costs mana");
+            Check(sp.level >= 1 && sp.level <= MAX_SKILL_LEVEL,
+                  kv.first + " has a sane level requirement");
+            Check(sp.element != Element::None, kv.first + " has an element");
+            Check(!sp.name.empty() && !sp.description.empty(),
+                  kv.first + " is described");
+
+            // A spell should fire something of its own element, or the
+            // matchup the player is being asked to think about is a lie.
+            if (const ProjectileDef* pd = projectiles.Get(sp.projectile))
+                Check(pd->element == sp.element,
+                      kv.first + " element does not match its projectile");
+
+            if (sp.element != Element::None)
+                per_element[static_cast<int>(sp.element)]++;
+        }
+
+        // Every element must be castable, or one of the four buttons is dead.
+        for (int i = 1; i < static_cast<int>(Element::COUNT); ++i)
+            Check(per_element[i] > 0,
+                  string("element '") + ElementName(static_cast<Element>(i)) +
+                  "' has no spell");
+
+        // A fresh character must be able to cast something at all.
+        Check(spells.BestFor(Element::Fire, 1) != nullptr,
+              "a level 1 character knows a fire spell");
+        Check(SpellBook::MaxMana(1) >= spells.BestFor(Element::Fire, 1)->mana,
+              "a level 1 character has the mana to cast it");
+
+        // And each element must eventually open up.
+        for (int i = 1; i < static_cast<int>(Element::COUNT); ++i) {
+            const Element e = static_cast<Element>(i);
+            Check(spells.BestFor(e, MAX_SKILL_LEVEL) != nullptr,
+                  string("element '") + ElementName(e) + "' is castable at 99");
+        }
+    }
+
+    // --- elemental matchups ----------------------------------------------------
+    Section("elemental matchups");
+    {
+        // The cycle must close: every element beats exactly one other, and
+        // following it four times comes back to where it started.
+        for (int i = 1; i < static_cast<int>(Element::COUNT); ++i) {
+            Element e = static_cast<Element>(i);
+            Element walk = e;
+            for (int step = 0; step < 4; ++step) walk = ElementBeats(walk);
+            Check(walk == e, string("the ") + ElementName(e) + " cycle closes");
+            Check(ElementBeats(e) != e && ElementBeats(e) != Element::None,
+                  string(ElementName(e)) + " beats something else");
+        }
+
+        Check(ElementMultiplier(Element::Water, Element::Fire) > 1.2f,
+              "water is strong against fire");
+        Check(ElementMultiplier(Element::Fire, Element::Water) < 0.8f,
+              "fire is weak against water");
+        Check(ElementMultiplier(Element::Fire, Element::Fire) < 1.0f,
+              "an element resists itself");
+        Check(ElementMultiplier(Element::None, Element::Fire) == 1.0f,
+              "untyped damage is unmodified");
+        Check(ElementMultiplier(Element::Fire, Element::None) == 1.0f,
+              "damage to an untyped creature is unmodified");
+    }
+
+    // --- ranged and magic combat ----------------------------------------------
+    Section("ranged and magic maths");
+    {
+        CombatProfile archer;
+        archer.ranged_level = 1;
+        archer.ranged_bonus = 12;      // training bow
+        CombatProfile caster;
+        caster.magic_level = 1;
+        caster.magic_bonus = 14;       // novice staff
+
+        Check(MaxHitFor(archer, AttackStyle::Ranged, 1.0f) >= 2,
+              "a starting bow can roll more than 1");
+        Check(MaxHitFor(caster, AttackStyle::Magic, 1.0f) >= 2,
+              "a starting staff can roll more than 1");
+
+        // Ranged and magic must read their own levels, not Strength.
+        CombatProfile weak_arms = archer;
+        weak_arms.strength_level = 1;
+        weak_arms.strength_bonus = 0;
+        CombatProfile strong_arms = archer;
+        strong_arms.strength_level = 99;
+        strong_arms.strength_bonus = 200;
+        Check(MaxHitFor(weak_arms, AttackStyle::Ranged, 1.0f) ==
+              MaxHitFor(strong_arms, AttackStyle::Ranged, 1.0f),
+              "Strength does not affect a bow");
+
+        CombatProfile trained = archer;
+        trained.ranged_level = 60;
+        Check(MaxHitFor(trained, AttackStyle::Ranged, 1.0f) >
+              MaxHitFor(archer, AttackStyle::Ranged, 1.0f),
+              "training Ranged makes a bow hit harder");
+    }
 
     // --- skills ---------------------------------------------------------------
     Section("skill curve");
