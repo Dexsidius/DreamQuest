@@ -173,14 +173,24 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
             // Map the frame-pixel rectangle into the on-screen frame.
             const float sx = dst.w / static_cast<float>(FrameSize());
             const float sy = dst.h / static_cast<float>(FrameSize());
-            const SDL_FRect box = {dst.x + a.rect.x * sx, dst.y + a.rect.y * sy,
+            // Mirroring reflects the rectangle across the middle of the frame
+            // as well as the art, so the piece swaps sides rather than turning
+            // over where it stands.
+            const bool mirror = a.mirror_facing_right && facing_index == 2;
+            const float rx = mirror ? FrameSize() - (a.rect.x + a.rect.w) : a.rect.x;
+            const SDL_FRect box = {dst.x + rx * sx, dst.y + a.rect.y * sy,
                                    a.rect.w * sx, a.rect.h * sy};
 
             SDL_SetTextureColorMod(tex, a.tint.r * tint.r / 255,
                                         a.tint.g * tint.g / 255,
                                         a.tint.b * tint.b / 255);
             SDL_SetTextureAlphaMod(tex, a.tint.a * tint.a / 255);
-            SDL_RenderTexture(r, tex, nullptr, &box);
+            if (mirror) {
+                SDL_RenderTextureRotated(r, tex, nullptr, &box, 0.0, nullptr,
+                                         SDL_FLIP_HORIZONTAL);
+            } else {
+                SDL_RenderTexture(r, tex, nullptr, &box);
+            }
             SDL_SetTextureColorMod(tex, 255, 255, 255);
             SDL_SetTextureAlphaMod(tex, 255);
         }

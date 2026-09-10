@@ -99,7 +99,13 @@ if ($Test -or $Tools) {
 
 if ($Test) {
     Write-Host "`nRunning self-test ..." -ForegroundColor Cyan
-    & .\bin\selftest.exe
+    # The self-test writes its progress to stderr. Windows PowerShell turns each
+    # stderr line from a native program into an error record, which "Stop" then
+    # treats as fatal, so a passing run reported itself as a failure. Only the
+    # exit code decides here.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & .\bin\selftest.exe } finally { $ErrorActionPreference = $prev }
     $code = $LASTEXITCODE
     if ($code -ne 0) { throw "$code self-test failure(s)." }
     Write-Host "Self-test passed." -ForegroundColor Green

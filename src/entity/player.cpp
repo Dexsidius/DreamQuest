@@ -53,7 +53,6 @@ AttackStyle Player::Style() const {
 }
 
 LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
-    (void)db;
     LayerStyle s;
     const SDL_Color armour = equipment.ArmourTint();
     s.body = armour;
@@ -63,6 +62,14 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
     s.weapon = equipment.WeaponTint();
     s.show_weapon = !equipment.InSlot(SLOT_WEAPON).empty();
     s.attachments = equipment.Attachments();
+
+    // The rig's own weapon layers draw a sword. When the equipped weapon
+    // carries its own art, hide them and let that stand in instead, or the
+    // character ends up holding a staff and a sword at once.
+    if (db) {
+        const ItemDef* w = db->Get(equipment.InSlot(SLOT_WEAPON));
+        if (w && w->worn && !w->worn_sprite.empty()) s.show_weapon = false;
+    }
     return s;
 }
 

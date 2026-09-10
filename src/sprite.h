@@ -28,6 +28,10 @@ struct AnimLayer {
 // lands correctly whatever the camera zoom is. Art that only has one view can
 // be limited to the facings it actually reads in.
 struct Attachment {
+    // Held art is drawn on the character's left, which is right for three of
+    // the four facings. Facing right it would be held backwards, so a weapon
+    // asks to be mirrored across the character for that one.
+    bool      mirror_facing_right = false;
     string    sprite;
     LayerSlot after = LayerSlot::Head;    // drawn immediately after this layer
     SDL_FRect rect{24, 17, 16, 16};       // in frame pixels

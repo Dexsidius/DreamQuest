@@ -152,6 +152,10 @@
       {
         "table": "rare_drops",
         "weight": 12
+      },
+      {
+        "table": "armour_cache",
+        "weight": 14
       }
     ]
   },
@@ -386,6 +390,10 @@
       {
         "table": "rare_drops",
         "weight": 14
+      },
+      {
+        "table": "armour_cache",
+        "weight": 16
       }
     ]
   },
@@ -435,6 +443,10 @@
       {
         "table": "rare_drops",
         "weight": 24
+      },
+      {
+        "table": "armour_cache",
+        "weight": 18
       }
     ]
   },
@@ -510,5 +522,9 @@
         "item": "torn_page"
       }
     ]
+  },
+  "armour_cache": {
+    "rolls": 0,
+    "table": []
   }
 }

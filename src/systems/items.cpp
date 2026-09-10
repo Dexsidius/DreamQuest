@@ -3,7 +3,7 @@
 #include <fstream>
 
 static const char* kSlotNames[SLOT_COUNT] = {
-    "weapon", "shield", "head", "body", "legs", "amulet", "ring"
+    "weapon", "shield", "head", "body", "hands", "legs", "feet", "amulet", "ring"
 };
 
 const char* EquipSlotName(int slot) {
@@ -293,9 +293,14 @@ SDL_Color Equipment::ArmourTint() const {
     if (!db) return {255, 255, 255, 255};
 
     float r = 0, g = 0, b = 0, weight = 0;
-    for (int slot : {SLOT_HEAD, SLOT_BODY, SLOT_LEGS, SLOT_SHIELD}) {
+    for (int slot : {SLOT_HEAD, SLOT_BODY, SLOT_HANDS,
+                     SLOT_LEGS, SLOT_FEET, SLOT_SHIELD}) {
         const ItemDef* d = db->Get(slots[slot]);
         if (!d) continue;
+        // Recolouring stands in for armour we have no art for. A piece that
+        // brings its own overlay is already visible, and tinting the body
+        // underneath it as well would wash the whole character in its colour.
+        if (d->worn && !d->worn_sprite.empty()) continue;
         // Bigger pieces dominate the look.
         const float w = 1.0f + d->defence_bonus * 0.05f;
         r += d->tint.r * w;
@@ -317,14 +322,19 @@ vector<Attachment> Equipment::Attachments() const {
     vector<Attachment> out;
     if (!db) return out;
 
-    // Legs, then body, then head: a helmet should sit over a gorget.
-    for (int slot : {SLOT_LEGS, SLOT_BODY, SLOT_HEAD}) {
+    // Feet upward, so a helmet ends up over a gorget and a gauntlet over a
+    // sleeve rather than the other way round.
+    for (int slot : {SLOT_FEET, SLOT_LEGS, SLOT_BODY, SLOT_HANDS,
+                     SLOT_HEAD, SLOT_WEAPON}) {
         const ItemDef* d = db->Get(slots[slot]);
         if (!d || !d->worn || d->worn_sprite.empty()) continue;
 
         Attachment a;
         a.sprite = d->worn_sprite;
         a.after  = d->worn_after;
+        // Only a held weapon swaps sides with the character; armour is worn
+        // facing the same way whichever direction they walk.
+        a.mirror_facing_right = (slot == SLOT_WEAPON);
         a.rect   = d->worn_rect;
         for (int i = 0; i < 4; ++i) a.facings[i] = d->worn_facings[i];
         out.push_back(a);

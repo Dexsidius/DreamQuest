@@ -42,7 +42,9 @@ struct LootDrop {
 class LootSystem {
 public:
     LootSystem();
-    bool Load(const string& path);
+    // A later file overrides tables of the same name, so optional content can
+    // be layered on top. Set required to false for a file that may not exist.
+    bool Load(const string& path, bool required = true);
 
     // Rolls a table into concrete drops. Unknown tables roll nothing.
     vector<LootDrop> Roll(const string& table_id);

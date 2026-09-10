@@ -22,11 +22,11 @@ static LootEntry ParseEntry(const json& o) {
     return e;
 }
 
-bool LootSystem::Load(const string& path) {
+bool LootSystem::Load(const string& path, bool required) {
     std::ifstream in(path);
     if (!in) {
-        SDL_Log("LootSystem: cannot open '%s'", path.c_str());
-        return false;
+        if (required) SDL_Log("LootSystem: cannot open '%s'", path.c_str());
+        return !required;
     }
 
     json root;

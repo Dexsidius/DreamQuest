@@ -70,6 +70,7 @@ int main() {
     items.Load("data/items_armour.json", false);   // optional armour pack
     Check(enemy_db.Load("data/enemies.json"),       "data/enemies.json loads");
     Check(loot.Load("data/loot_tables.json"),       "data/loot_tables.json loads");
+    loot.Load("data/loot_tables_armour.json", false);  // optional armour drops
     Check(quests.LoadDefinitions("data/quests.json"), "data/quests.json loads");
     Check(dialogue.Load("data/dialogue.json"),      "data/dialogue.json loads");
     Check(projectiles.Load("data/projectiles.json"), "data/projectiles.json loads");
@@ -135,6 +136,23 @@ int main() {
         Check(d.worn_facings[0] || d.worn_facings[1] ||
               d.worn_facings[2] || d.worn_facings[3],
               kv.first + " worn overlay is visible from at least one side");
+
+        // Inside the frame is not enough: the character only occupies part of
+        // it. In an idle frame the rig runs x19..39 and y21..48, so a rectangle
+        // that clears the frame check can still float in empty space beside the
+        // sprite -- which is exactly what an early pass at these got wrong.
+        Check(d.worn_rect.x + d.worn_rect.w > 19.0f && d.worn_rect.x < 39.0f &&
+              d.worn_rect.y + d.worn_rect.h > 21.0f && d.worn_rect.y < 48.0f,
+              kv.first + " worn rect overlaps the character, not empty frame");
+
+        // Armour is placed against the part of the body it covers, so a helmet
+        // that has slipped down to the knees shows up here rather than in a
+        // screenshot.
+        const float mid_y = d.worn_rect.y + d.worn_rect.h * 0.5f;
+        if (d.slot == SLOT_HEAD)
+            Check(mid_y < 36.0f, kv.first + " sits on the head, not the body");
+        else if (d.slot == SLOT_FEET)
+            Check(mid_y > 38.0f, kv.first + " sits at the feet, not the chest");
     }
 
     // --- loot tables only drop real items -------------------------------------

@@ -650,7 +650,7 @@ void Game::DrawInventory() {
     ui.Dim(0.5f);
     Player& p = world.player;
 
-    const SDL_FRect panel = CenteredPanel(ui, 700.0f, 440.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 700.0f, 470.0f);
     ui.Panel(panel);
     ui.Text("Inventory", panel.x + 24.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight);
 
@@ -696,23 +696,29 @@ void Game::DrawInventory() {
     ui.Text("Worn", eq_x, panel.y + 62.0f, TextSize::Body, Palette::Text);
 
     for (int i = 0; i < SLOT_COUNT; ++i) {
-        const SDL_FRect r = {eq_x, panel.y + 92.0f + i * 34.0f, 236.0f, 30.0f};
+        const SDL_FRect r = {eq_x, panel.y + 92.0f + i * 30.0f, 236.0f, 26.0f};
         const bool selected = (inventory_on_equipment && i == equipment_cursor);
         ui.Fill(r, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
         ui.Outline(r, selected ? Palette::Highlight : Palette::BorderDim, 1.0f);
 
         const string& worn = p.equipment.InSlot(i);
         const ItemDef* def = worn.empty() ? nullptr : items.Get(worn);
-        ui.Text(EquipSlotName(i), r.x + 8.0f, r.y + 6.0f, TextSize::Small, Palette::TextDim);
-        ui.Text(def ? def->name : "-", r.x + r.w - 8.0f, r.y + 6.0f, TextSize::Small,
+        ui.Text(EquipSlotName(i), r.x + 8.0f, r.y + 4.0f, TextSize::Small, Palette::TextDim);
+        ui.Text(def ? def->name : "-", r.x + r.w - 8.0f, r.y + 4.0f, TextSize::Small,
                 def ? Palette::Text : Palette::TextDim, Align::Right);
     }
 
     // --- bonuses -------------------------------------------------------------
+    // Two lines rather than one: robes and staves carry magic, and a bow
+    // carries ranged, so leaving those off understated half the equipment.
     char bonus[128];
     SDL_snprintf(bonus, sizeof(bonus), "Attack +%d    Strength +%d    Defence +%d",
                  p.equipment.AttackBonus(), p.equipment.StrengthBonus(),
                  p.equipment.DefenceBonus());
+    ui.Text(bonus, eq_x, panel.y + panel.h - 74.0f, TextSize::Small, Palette::Xp);
+
+    SDL_snprintf(bonus, sizeof(bonus), "Ranged +%d    Magic +%d",
+                 p.equipment.RangedBonus(), p.equipment.MagicBonus());
     ui.Text(bonus, eq_x, panel.y + panel.h - 58.0f, TextSize::Small, Palette::Xp);
 
     // --- selected item detail ------------------------------------------------

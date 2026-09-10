@@ -78,6 +78,7 @@ bool Game::LoadContent() {
     items.Load("data/items_armour.json", false);
     ok &= enemy_db.Load("data/enemies.json");
     ok &= loot.Load("data/loot_tables.json");
+    loot.Load("data/loot_tables_armour.json", false);   // optional armour drops
     ok &= quests.LoadDefinitions("data/quests.json");
     ok &= dialogue_db.Load("data/dialogue.json");
     ok &= projectile_db.Load("data/projectiles.json");

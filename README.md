@@ -197,43 +197,57 @@ flattened sheet.
   layers and coloured to match the item, so a bronze sword, a steel longsword,
   a bow and a staff all look different in your hand. An empty hand hides the
   weapon layers entirely.
-- **Armour tints, and can also draw.** Every worn piece colours the body and
-  head layers, weighted by how heavy it is. A piece can *also* carry a `worn`
-  overlay: art drawn on top of the character, positioned by a rectangle given
-  in **frame pixels** so it lands on the rig correctly at any camera zoom.
+- **Armour draws, and can also tint.** A worn piece carries a `worn` overlay:
+  art drawn on top of the character, positioned by a rectangle given in **frame
+  pixels** so it lands on the rig correctly at any camera zoom. A piece with no
+  overlay art falls back to colouring the body and head layers instead, so
+  plain items still read as armour.
 
 ```json
-"iron_helm": {
+"plumed_helm": {
   "worn": {
-    "sprite": "assets/icons/helm_big.png",
+    "sprite": "assets/icons/armour/worn/plumed_helm.png",
     "after": "head",
-    "rect": [24, 19, 15, 15],
-    "facings": [true, false, false, true]
+    "rect": [26.2, 21.5, 10.5, 13.0],
+    "facings": [true, true, true, true]
   }
 }
 ```
 
-The head sits at (25,22) and is 13×13 inside the 64px frame, so a 15×15 helmet
-two pixels higher sits on it exactly. `facings` exists because most icon art
-has a single view: a front-on helmet is right facing down and away, and wrong
-from the side, so those facings are simply left off.
+There are nine slots — weapon, shield, head, body, hands, legs, feet, amulet,
+ring — drawn from the feet up, so a helmet ends up over a gorget and a gauntlet
+over a sleeve. A weapon that brings its own overlay hides the rig’s built-in
+sword layers, and is mirrored when the character faces right so it is not held
+backwards.
 
 ### On using icon packs as armour
 
-CraftPix icon packs (the fantasy-knight armour and RPG boot sets) are 512×512
-painted inventory art. Two things follow, and they are different problems:
+CraftPix icon packs (fantasy knight armour, RPG boots, mage outfits, daggers)
+are 512×512 painted inventory art. Three things follow, and they are different
+problems:
 
-- **Proportion is solved.** The frame-pixel rectangle puts a helmet on the head
-  at exactly the right size. That part works.
-- **Style is not.** A smooth, anti-aliased 512px icon shrunk to 24px reads as a
-  soft blob against 16px-grid pixel art. The importer hardens the worn copy —
-  alpha cut to on-or-off, colours stepped to eight levels per channel — which
-  gives it a defined edge and a flatter palette, and helps a great deal. It
-  still will not pass for hand-drawn pixel armour.
+- **Proportion is solved, by measurement.** The rig was measured rather than
+  guessed: in an idle frame the head layer covers x25..38 y22..35, the torso
+  x25..38 y32..44, the shadow under the feet y40..47. Each slot gets a box in
+  those coordinates, every icon is trimmed to its drawn pixels at import, and
+  the art is fitted inside its box the way a picture fits a frame. Sizing by
+  height alone would make a broad pair of gauntlets narrower than an arm;
+  sizing by width alone would run a tall tasseted skirt up to the chin.
+- **Facing is solved, by testing it.** A single painted view means that in
+  profile the character wears a front-on breastplate. Restricting armour to the
+  facings it "really" reads in was the obvious answer and the wrong one: at
+  twenty-odd pixels tall the front-on view does not read as wrong, whereas a
+  character who strips naked the moment they walk sideways very much does. So
+  everything is worn from every angle.
+- **Style is not solved.** A smooth, anti-aliased 512px icon shrunk to 24px
+  reads as a soft blob against 16px-grid pixel art. The importer hardens the
+  worn copy — alpha cut to on-or-off, colours stepped to eight levels per
+  channel — which gives it a defined edge and a flatter palette, and helps a
+  great deal. It still will not pass for hand-drawn pixel armour.
 
 So icons are used where they are strongest: full size in the inventory, and as
-an optional worn overlay you can judge for yourself. Proper pixel-art armour
-layers drop into the same slots with no code change.
+a worn overlay you can judge for yourself. Proper pixel-art armour layers drop
+into the same slots with no code change.
 
 ---
 
@@ -321,7 +335,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2393 checks** covering:
+and checks all of it — currently **2622 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -340,6 +354,9 @@ and checks all of it — currently **2393 checks** covering:
 - Ranged and Magic read their own levels rather than Strength
 - ragged animation rows declare a frame count for all four facings, and every
   paperdoll layer is on disk
+- every worn overlay has art on disk and a rectangle that lands on the
+  character rather than in empty frame, with helmets on the head and boots at
+  the feet
 - inventory, equipment, skills and quest progress survive a save round-trip
 
 It exits with the number of failures, so CI can use it directly.
