@@ -337,6 +337,94 @@ prop:
 
 ---
 
+## Elevation
+
+The ground has height. A map may carry a coarse grid under its `dreamquest`
+key, one level per cell:
+
+```json
+"elevation": {
+  "cell": 64, "cols": 64, "rows": 48,
+  "levels": [ 0, 0, 1, 2, ... ],
+  "ramps":  [ [x, y, w, h], ... ],
+  "face":   "assets/tiles/dirt_dark.png"
+}
+```
+
+Level 0 is the ground everything used to sit on, so a map with no elevation
+block behaves exactly as it did before. Each level lifts what stands on it by
+`ELEVATION_RISE` pixels; `Map::LevelAt` and `HeightAt` answer for any world
+point, and the world tells every entity its lift once a frame rather than
+looking it up inside each draw call.
+
+**Movement.** Stepping between cells of different level is blocked — that is
+what makes a cliff a cliff. `ramps` are rectangles where the rule is suspended,
+and the overworld puts one along the full length of the road and a clearing
+around every place you can enter, because a raised map without them is a set of
+islands. The self-test checks exactly that: every portal and the starting spawn
+sit on flat ground, and every row of the map has a crossing somewhere on it.
+
+**Drawing.** Ground and scenery are lifted by the terrain under them — scenery
+by the ground under its base, not its middle, so a tree at the lip of a bank
+belongs to the ground its trunk is on. Then the exposed banks are drawn:
+soil texture down the face, grass rolling over the lip, a shadow thrown on the
+ground below, and a dark line down the east and west edges so a plateau has an
+outline all the way round rather than on one side only.
+
+Four things were got wrong first, and all four are the same mistake — assuming
+something would read that did not:
+
+- **A face on its own is a brown bar.** Flat-filled faces looked like a stripe
+  painted across the grass, because every other surface in view had grain and
+  that one did not. They are textured now.
+- **Higher ground has to look higher.** With the same grass above and below,
+  the face is just a line between two identical fields. `LevelShade` darkens
+  the ground floor slightly and gives it back a level at a time, so the top
+  terrace is the texture as drawn. Colour modulation cannot brighten past the
+  source, so it has to work in that direction.
+- **The grid has to be coarser than the tiles.** At one level per 32px tile the
+  terraces came out small and their edges fragmented into two- and three-tile
+  bars. At 64 the plateaus are broad and their edges run far enough to read.
+- **Height from smooth noise is a staircase.** A clean function of latitude
+  terraces the whole map into straight bands from edge to edge. The slope is
+  broken up with noise stretched along the east-west axis so each contour
+  wanders.
+
+Still to do: the faces are drawn procedurally, and dedicated cliff-edge art
+would look considerably better than a textured rectangle with a lip on it.
+
+---
+
+## Ground tiles
+
+`tools/make_ground.ps1` generates them:
+
+```powershell
+.\tools\make_ground.ps1
+```
+
+They used to be one flat colour each, which was not an accident — they are cut
+from CraftPix tilesets by looking for cells that are fully opaque with zero
+variance, because those are the palette swatches a tileset is designed to be
+laid over. It works, and it is why the overworld read as coloured paper: a
+screen of grass was one RGB value repeated four thousand times.
+
+The generated ones carry speckle, blades and grit. Every mark is placed with
+wrapped coordinates, which is what makes them seamless — a blade running off
+the right edge continues at the left, so there is no seam to line up. Several
+variants per family, because one perfect tile repeated across a 4096-pixel map
+is still a visible grid; `genmaps.cpp` picks between them with a hash of the
+cell coordinates, and asks the asset manifest how many exist rather than being
+told.
+
+The other half of the coloured-paper problem was the biome boundaries. The
+colour drift is smooth noise, and thresholding smooth noise draws a clean
+contour — which on a 32px grid is a staircase of squares. The threshold is
+jittered per cell now, which dissolves that edge into a scatter of cells from
+both families.
+
+---
+
 ## Quests
 
 Quests reach you three ways, all of them live:
@@ -421,7 +509,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2659 checks** covering:
+and checks all of it — currently **2709 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -437,6 +525,8 @@ and checks all of it — currently **2659 checks** covering:
   its sub-steps cannot carry it through a wall
 - a sweep into a wall stops clear of it and reports a normal that sends a
   bounce back the way it came, while open floor reports no contact at all
+- no portal or spawn sits on a cliff edge, and every row of the overworld has
+  a walkable crossing somewhere on it
 - every spell fires a projectile of its own element, all four elements are
   castable, and a level 1 character has the mana to cast one
 - the elemental cycle closes and the multipliers point the right way

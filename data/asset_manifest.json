@@ -4,6 +4,10 @@
                                                "w":  16,
                                                "h":  16
                                            },
+                   "tiles/cursed_ground_1":  {
+                                                 "w":  16,
+                                                 "h":  16
+                                             },
                    "tiles/cursed_sand":  {
                                              "w":  16,
                                              "h":  16
@@ -12,10 +16,22 @@
                                       "w":  16,
                                       "h":  16
                                   },
+                   "tiles/dirt_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
+                   "tiles/dirt_2":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
                    "tiles/dirt_dark":  {
                                            "w":  16,
                                            "h":  16
                                        },
+                   "tiles/dirt_dark_1":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
                    "tiles/dungeon_floor":  {
                                                "w":  16,
                                                "h":  16
@@ -36,18 +52,54 @@
                                        "w":  16,
                                        "h":  16
                                    },
+                   "tiles/grass_1":  {
+                                         "w":  16,
+                                         "h":  16
+                                     },
+                   "tiles/grass_2":  {
+                                         "w":  16,
+                                         "h":  16
+                                     },
+                   "tiles/grass_3":  {
+                                         "w":  16,
+                                         "h":  16
+                                     },
                    "tiles/grass_dark":  {
                                             "w":  16,
                                             "h":  16
                                         },
+                   "tiles/grass_dark_1":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/grass_dark_2":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
                    "tiles/grass_light":  {
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/grass_light_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/grass_light_2":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
                    "tiles/grass_olive":  {
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/grass_olive_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/grass_olive_2":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
                    "tiles/guild_floor":  {
                                              "w":  32,
                                              "h":  32
@@ -64,6 +116,10 @@
                                               "w":  16,
                                               "h":  16
                                           },
+                   "tiles/marsh_ground_1":  {
+                                                "w":  16,
+                                                "h":  16
+                                            },
                    "tiles/marsh_stone":  {
                                              "w":  16,
                                              "h":  16
@@ -72,6 +128,10 @@
                                       "w":  16,
                                       "h":  16
                                   },
+                   "tiles/moss_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
                    "tiles/road":  {
                                       "w":  16,
                                       "h":  16
@@ -80,10 +140,22 @@
                                       "w":  16,
                                       "h":  16
                                   },
+                   "tiles/sand_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
+                   "tiles/sand_2":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
                    "tiles/snow":  {
                                       "w":  16,
                                       "h":  16
                                   },
+                   "tiles/snow_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
                    "tiles/water":  {
                                        "w":  16,
                                        "h":  16

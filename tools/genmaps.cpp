@@ -78,6 +78,10 @@ static float Fbm(float x, float y, int seed, int octaves = 3) {
 // placed at the size it was drawn at, and a decal only ever lands on terrain
 // whose palette it belongs to.
 
+// genmaps links no SDL, so it carries its own four floats rather than
+// borrowing SDL_FRect from the game.
+struct Rect4 { float x, y, w, h; };
+
 struct Manifest {
     std::map<string, std::pair<int, int>> size;      // "decor/patch_00" -> w,h
     std::map<string, vector<string>> families;       // "grass" -> decal names
@@ -109,6 +113,8 @@ struct Manifest {
             }
         return true;
     }
+
+    bool Has(const string& key) const { return size.count(key) > 0; }
 
     std::pair<int, int> Size(const string& key, int fallback = 32) const {
         auto it = size.find(key);
@@ -259,6 +265,24 @@ public:
         o["y"]    = y;
         dq["objects"].push_back(o);
         return dq["objects"].back();
+    }
+
+    // The height grid, written under "dreamquest" so LevelEdit-Plus keeps
+    // ignoring it. levels is row-major, one small integer per cell; ramps are
+    // rectangles where walking between levels is allowed, which is the only
+    // thing that stops a raised map becoming a set of islands.
+    void Elevation(int cell, int cols, int rows,
+                   const vector<int>& levels, const vector<Rect4>& ramps) {
+        json e;
+        e["cell"] = cell;
+        e["cols"] = cols;
+        e["rows"] = rows;
+        e["levels"] = levels;
+        json rr = json::array();
+        for (const Rect4& r : ramps)
+            rr.push_back(json::array({r.x, r.y, r.w, r.h}));
+        e["ramps"] = rr;
+        dq["elevation"] = e;
     }
 
     void Interior(bool v) { dq["interior"] = v; }
@@ -414,6 +438,29 @@ static const int OW_W = 128, OW_H = 96;                 // cells
 static const int OW_PX_W = OW_W * OW_CELL;              // 4096
 static const int OW_PX_H = OW_H * OW_CELL;              // 3072
 
+// Which variant of a ground family a cell gets.
+//
+// tools/make_ground.ps1 writes "grass", "grass_1", "grass_2" and so on. Rather
+// than hard-code how many exist, this asks the asset manifest, so adding a
+// variant to the generator is enough to start seeing it on the map.
+//
+// The choice is a hash of the coordinates rather than the drift noise used for
+// the family: the family should move in broad bands, the variant should not
+// move in bands at all, and reusing the same noise for both would line the
+// variants up with the colour drifts and make the seams worse, not better.
+static string VariantOf(const string& family, int cx, int cy) {
+    int count = 1;
+    while (count < 8 && g_manifest.Has("tiles/" + family + "_" + std::to_string(count)))
+        ++count;
+    if (count <= 1) return family;
+
+    unsigned h = static_cast<unsigned>(cx) * 73856093u
+               ^ static_cast<unsigned>(cy) * 19349663u;
+    h ^= h >> 13;
+    const int pick = static_cast<int>(h % static_cast<unsigned>(count));
+    return pick == 0 ? family : family + "_" + std::to_string(pick);
+}
+
 // The road runs south to north; this is its centre line at a given row.
 static float RoadX(int cy) {
     return 62.0f + sinf(cy * 0.075f) * 7.0f;
@@ -435,6 +482,47 @@ static Biome BiomeAt(int cx, int cy) {
     return MEADOW;
 }
 
+// How high the ground stands, in levels, at a given cell.
+//
+// The shape is deliberate rather than pure noise: the land climbs steadily
+// toward the northern foothills, and a couple of broad shelves lift out of the
+// greenwood in the east. Noise alone gives a rash of one-cell buttes, which
+// reads as damage rather than as terrain.
+static int ElevationAt(int cx, int cy) {
+    if (BiomeAt(cx, cy) == WATER) return 0;
+
+    // The march tilts up toward the north. Nothing in the southern half rises
+    // at all, so the approach to Havenbrook stays open ground.
+    //
+    // The slope is broken up by noise stretched along the east-west axis. A
+    // clean function of cy alone terraces the whole map into straight bands
+    // from edge to edge, which reads as a flight of stairs rather than as
+    // rising ground; the noise lets each contour wander a dozen cells either
+    // side of where it would otherwise sit.
+    float h = 0.0f;
+    if (cy < 44) {
+        const float ridge = Fbm(cx * 0.026f, cy * 0.055f, 7717);
+        h += (44 - cy) / 15.0f + (ridge - 0.5f) * 2.4f;
+    }
+
+    // Two shelves in the greenwood, from low-frequency noise so their edges
+    // wander instead of following the grid.
+    const float shelf = Fbm(cx * 0.035f, cy * 0.035f, 5150);
+    if (cx > 78 && shelf > 0.58f) h += 2.6f;
+    if (cx > 96 && shelf > 0.70f) h += 2.2f;
+
+    // A dip where the mire lies, so the west reads as low, wet ground.
+    if (cx < 26) h -= 0.6f;
+
+    // Rounded to whole levels with a wide flat top to each band, so the map
+    // is a handful of broad terraces rather than a continuous ramp. A smooth
+    // height field steps down one level at a time and every face is a single
+    // ten-pixel bar, which reads as a stripe painted on the grass; plateaus
+    // with two- and three-level edges read as ground.
+    const int level = static_cast<int>(std::floor(h * 0.62f + 0.2f));
+    return std::clamp(level, 0, 3);
+}
+
 static void BuildOverworld() {
     MapBuilder m("overworld", "The Hollowmarch", OW_PX_W, OW_PX_H);
     m.Ambient("overworld");
@@ -446,7 +534,19 @@ static void BuildOverworld() {
         for (int cx = 0; cx < OW_W; ++cx) {
             const Biome b = BiomeAt(cx, cy);
             // Low frequency: broad drifts of colour rather than noise per cell.
-            const float v = Fbm(cx * 0.085f, cy * 0.085f, 909);
+            //
+            // Plus a small per-cell jitter. The drift is smooth, so thresholding
+            // it draws a clean contour -- and a clean contour on a 32px grid is
+            // a staircase of squares, which is exactly what made the old map
+            // look like coloured paper. Jittering the value by a fraction of
+            // the gap between thresholds dissolves that edge into a scatter of
+            // cells from both families, which is how the transition should
+            // read anyway.
+            unsigned hj = static_cast<unsigned>(cx) * 2654435761u
+                        ^ static_cast<unsigned>(cy) * 40503u;
+            hj ^= hj >> 15;
+            const float jitter = (hj % 1000u) / 1000.0f - 0.5f;
+            const float v = Fbm(cx * 0.085f, cy * 0.085f, 909) + jitter * 0.13f;
 
             string tile;
             switch (b) {
@@ -458,8 +558,57 @@ static void BuildOverworld() {
                 case GREENWOOD: tile = (v > 0.55f) ? "grass_dark" : (v > 0.28f ? "grass" : "moss"); break;
                 default:        tile = (v > 0.58f) ? "grass_olive" : (v > 0.3f ? "grass" : "grass_dark"); break;
             }
+            // tools/make_ground.ps1 writes several variants of each family.
+            // One tile repeated over four thousand pixels is a visible grid
+            // however good the tile is, so which variant a cell gets comes
+            // from a high-frequency hash -- neighbouring cells differ, and the
+            // result is stable between runs.
+            tile = VariantOf(tile, cx, cy);
             m.Ground(tile, cx * OW_CELL, cy * OW_CELL, OW_CELL);
         }
+    }
+
+    // --- elevation ------------------------------------------------------------
+    {
+        // The height grid is coarser than the tile grid on purpose. At one
+        // level per 32px tile the terraces come out small and their edges
+        // fragment into two- and three-tile bars, which reads as damage rather
+        // than as landscape. At 64 the plateaus are broad and their edges run
+        // far enough to be read as the edge of something.
+        const int EL = 64;
+        const int ecols = OW_PX_W / EL, erows = OW_PX_H / EL;
+        const int per = EL / OW_CELL;          // tile cells per height cell
+
+        vector<int> levels(static_cast<size_t>(ecols) * erows, 0);
+        for (int ey = 0; ey < erows; ++ey)
+            for (int ex = 0; ex < ecols; ++ex)
+                levels[static_cast<size_t>(ey) * ecols + ex] =
+                    ElevationAt(ex * per + per / 2, ey * per + per / 2);
+
+        // Ramps. Without these a raised map is a set of islands, so the rule
+        // is simple and generous: the road is walkable end to end whatever it
+        // climbs over, and so is a clearing around every place you can enter.
+        vector<Rect4> ramps;
+        for (int cy = 0; cy < OW_H; ++cy) {
+            const float rx = RoadX(cy);
+            const float x0 = (rx - 3.0f) * OW_CELL;
+            ramps.push_back({x0, static_cast<float>(cy * OW_CELL),
+                             6.0f * OW_CELL, static_cast<float>(OW_CELL)});
+        }
+        auto clearing = [&](int cx, int cy, int r) {
+            ramps.push_back({static_cast<float>((cx - r) * OW_CELL),
+                             static_cast<float>((cy - r) * OW_CELL),
+                             static_cast<float>((2 * r + 1) * OW_CELL),
+                             static_cast<float>((2 * r + 1) * OW_CELL)});
+        };
+        clearing(static_cast<int>(RoadX(88)), 88, 4);   // the town gate
+        clearing(static_cast<int>(RoadX(10)), 9,  4);   // the mine
+        clearing(12, 44, 4);                            // the barrow
+        clearing(96, 78, 3);                            // meadow chest
+        clearing(114, 52, 3);                           // wood chest
+        clearing(10, 60, 3);                            // mire chest
+
+        m.Elevation(EL, ecols, erows, levels, ramps);
     }
 
     // Water is impassable; walling it off per cell is cheap and exact.

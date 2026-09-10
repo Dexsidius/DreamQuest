@@ -23,5 +23,5 @@ void Entity::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) con
     // Flash red on the frames right after taking a hit.
     SDL_Color tint{255, 255, 255, 255};
     if (hurt_flash > 0.0f) tint = {255, 110, 110, 255};
-    sprite.Draw(r, cache, cam, x, y, tint);
+    sprite.Draw(r, cache, cam, x, y - draw_lift, tint);
 }

@@ -23,6 +23,31 @@
 
 enum TileLayer { LAYER_GROUND = 0, LAYER_DECOR = 1, LAYER_OVERHEAD = 2 };
 
+// -----------------------------------------------------------------------------
+//  Elevation
+//
+//  A coarse height grid laid over the map, one level per cell, stored under the
+//  "dreamquest" key as:
+//
+//      "elevation": { "cell": 32, "cols": 128, "rows": 96,
+//                     "levels": [ ... cols*rows small ints, row major ... ],
+//                     "ramps":  [ [x, y, w, h], ... ] }
+//
+//  Level 0 is the ground everything used to sit on, so a map with no elevation
+//  block behaves exactly as it did before.
+//
+//  Each level lifts what stands on it by ELEVATION_RISE pixels on screen. It is
+//  a lift, not a projection: this is a top-down game, and a cell at level two is
+//  drawn where a cell at level two would be if you were looking down at a
+//  terrace from a shallow angle. What sells it is the face -- the wall of earth
+//  exposed on the downhill side -- which is drawn separately.
+//
+//  Movement between cells of different levels is blocked, which is what makes a
+//  cliff a cliff. Ramps are rectangles where that rule is suspended.
+// -----------------------------------------------------------------------------
+constexpr float ELEVATION_RISE = 14.0f;   // screen pixels per level
+constexpr int   ELEVATION_MAX  = 6;
+
 struct TileInstance {
     SDL_FRect rect;          // world-space, top-left anchored (already un-centred)
     int   tex = -1;          // index into Map::textures
@@ -118,6 +143,25 @@ public:
     };
     Contact SweepPoint(float x, float y, float dx, float dy, float radius) const;
 
+    // --- elevation -----------------------------------------------------------
+    bool  HasElevation() const { return elev_cols > 0 && elev_rows > 0; }
+    float ElevationCell() const { return elev_cell; }
+    // Terrain level under a world point. Off the map, the nearest edge cell's
+    // level, so something walking out of bounds does not fall off a cliff that
+    // is not there.
+    int   LevelAt(float x, float y) const;
+    // What that level is worth on screen, in pixels of lift.
+    float HeightAt(float x, float y) const { return LevelAt(x, y) * ELEVATION_RISE; }
+    // True when a ramp covers this point, so a level change here is walkable.
+    bool  RampAt(float x, float y) const;
+    // True when stepping from one point to the other crosses a level change
+    // that no ramp covers -- which is what makes a cliff impassable.
+    bool  LevelChangeBlocked(float from_x, float from_y,
+                             float to_x, float to_y) const;
+    // Draws the exposed faces of every raised cell the camera can see. Called
+    // between the ground and everything that stands on it.
+    void  RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const;
+
     // --- lookups -------------------------------------------------------------
     const Portal* PortalAt(const SDL_FRect& box) const;
     bool  Spawn(const string& name, SDL_FPoint& out) const;
@@ -152,6 +196,16 @@ private:
     vector<NpcDef>        npcs;
     vector<MapObject>     objects;
     map<string, SDL_FPoint> spawns;
+
+    // Height grid. Empty on a map that does not use elevation.
+    vector<uint8_t>   elev;
+    string cliff_texture;         // what an exposed bank is made of
+    vector<SDL_FRect> ramps;
+    int   elev_cols = 0, elev_rows = 0;
+    float elev_cell = 32.0f;
+    int   LevelCell(int cx, int cy) const;
+    // Colour multiplier for ground standing this many levels up.
+    static Uint8 LevelShade(int level);
 
     float bounds_w = 0, bounds_h = 0;
     int   chunk_cols = 0, chunk_rows = 0;

@@ -360,6 +360,63 @@ int main() {
               kv.first + " is slow enough that its sub-steps cannot tunnel");
     }
 
+    // --- elevation ------------------------------------------------------------
+    // Elevation can strand a player: raise a plateau across the only route
+    // north and the game is still perfectly playable right up until nobody can
+    // reach the mine. These check the two things that cause that.
+    Section("elevation");
+    {
+        Map ow;
+        Check(ow.Load("maps/overworld.mx"), "the overworld loads");
+        Check(ow.HasElevation(), "the overworld has a height grid");
+
+        if (ow.HasElevation()) {
+            // Every portal and spawn has to be somewhere you can walk to, so
+            // the ground around each one must be one level, not a cliff edge.
+            const float cell = ow.ElevationCell();
+            auto flat_around = [&](float x, float y) {
+                const int mid = ow.LevelAt(x, y);
+                for (int dy = -1; dy <= 1; ++dy)
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        const float px = x + dx * cell, py = y + dy * cell;
+                        if (ow.LevelAt(px, py) == mid) continue;
+                        if (ow.RampAt(px, py) || ow.RampAt(x, y)) continue;
+                        return false;
+                    }
+                return true;
+            };
+
+            const SDL_FPoint start = ow.DefaultSpawn();
+            Check(flat_around(start.x, start.y),
+                  "the starting spawn is not on a cliff edge");
+
+            for (const Portal& p : ow.Portals()) {
+                const float px = p.rect.x + p.rect.w * 0.5f;
+                const float py = p.rect.y + p.rect.h * 0.5f;
+                Check(flat_around(px, py),
+                      "portal '" + p.label + "' is reachable, not on a cliff edge");
+            }
+
+            // And the road has to run the length of the map, whatever it
+            // climbs over: it is the only route from the town to the mine.
+            int blocked_rows = 0;
+            for (float y = cell; y < ow.Height() - cell; y += cell) {
+                bool any_ramp = false;
+                for (float x = 0.0f; x < ow.Width(); x += cell)
+                    if (ow.RampAt(x, y)) { any_ramp = true; break; }
+                if (!any_ramp) ++blocked_rows;
+            }
+            Check(blocked_rows == 0,
+                  "every row of the map has a walkable crossing somewhere on it");
+
+            // A ramp that leads nowhere is worse than no ramp: it looks like a
+            // way up and is not one.
+            Check(!ow.LevelChangeBlocked(start.x, start.y, start.x, start.y - cell) ||
+                  ow.LevelAt(start.x, start.y) == ow.LevelAt(start.x, start.y - cell),
+                  "the player can walk north out of the starting spawn");
+        }
+    }
+
     // --- wall collision -------------------------------------------------------
     // The interesting part of a projectile hitting a wall is not that it stops,
     // it is where it stops and which way the wall faces: get the normal wrong

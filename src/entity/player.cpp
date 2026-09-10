@@ -330,7 +330,7 @@ void Player::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) con
                 static_cast<Uint8>(255 - 90 * t),
                 static_cast<Uint8>(255 - 150 * t), 255};
     }
-    sprite.Draw(r, cache, cam, x, y, tint);
+    sprite.Draw(r, cache, cam, x, y - draw_lift, tint);
 }
 
 void Player::Respawn(float sx, float sy) {

@@ -82,6 +82,8 @@ private:
     void UpdateProjectiles(float dt, const GameContext& ctx);
     void UpdateGroundEffects(float dt, const GameContext& ctx);
     void UpdateImpacts(float dt);
+    // Tells every entity how far the terrain under it lifts it on screen.
+    void UpdateElevation();
     // Marks a wall where a projectile struck it, facing back along the normal.
     void AddImpact(const Projectile& p, float nx, float ny);
     void FirePlayerProjectile(const GameContext& ctx);

@@ -47,6 +47,13 @@ public:
     virtual SDL_FRect BodyBox() const;
 
     float SortY() const { return y; }
+
+    // How far the terrain under this entity lifts it on screen, in pixels.
+    // Set once a frame by the world, because an entity has no idea what map it
+    // is standing on. Drawing uses it; sorting deliberately does not -- who is
+    // in front of whom is decided by where their feet are on the ground, not
+    // by how high that ground happens to be.
+    float draw_lift = 0.0f;
     bool  Dead() const { return hp <= 0; }
 
     void  Damage(int amount);

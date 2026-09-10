@@ -115,6 +115,32 @@ bool Map::Load(const string& path) {
         }
     }
 
+    // ---- elevation -----------------------------------------------------------
+    if (dq.contains("elevation")) {
+        const json& e = dq["elevation"];
+        // Which tile an exposed bank is made of. A map in a cave would want
+        // stone; the overworld wants soil.
+        cliff_texture = ResolveAsset(e.value("face", string("assets/tiles/dirt_dark.png")));
+        elev_cell = e.value("cell", 32.0f);
+        elev_cols = e.value("cols", 0);
+        elev_rows = e.value("rows", 0);
+        if (elev_cols > 0 && elev_rows > 0 && e.contains("levels")) {
+            const json& lv = e["levels"];
+            elev.assign(static_cast<size_t>(elev_cols) * elev_rows, 0);
+            const size_t n = std::min(elev.size(), lv.size());
+            for (size_t i = 0; i < n; ++i)
+                elev[i] = static_cast<uint8_t>(
+                    std::clamp(lv[i].get<int>(), 0, ELEVATION_MAX));
+        } else {
+            elev_cols = elev_rows = 0;
+        }
+        if (e.contains("ramps"))
+            for (const auto& rr : e["ramps"])
+                if (rr.is_array() && rr.size() >= 4)
+                    ramps.push_back({rr[0].get<float>(), rr[1].get<float>(),
+                                     rr[2].get<float>(), rr[3].get<float>()});
+    }
+
     // ---- explicit collision boxes -------------------------------------------
     if (dq.contains("collision"))
         for (const auto& c : dq["collision"])
@@ -289,6 +315,158 @@ void Map::ForEachChunkInRect(const SDL_FRect& r,
             fn(chunks[static_cast<size_t>(y) * chunk_cols + x]);
 }
 
+// -----------------------------------------------------------------------------
+//  Elevation
+// -----------------------------------------------------------------------------
+
+// How much brighter a terrace is than the ground floor.
+//
+// Colour modulation cannot brighten past what the texture already is, so this
+// works the other way round: the ground floor is darkened a little and each
+// level up gives some of that back, until the highest terrace is the texture
+// as drawn. Seven percent is small enough that the low ground does not read as
+// being in shadow, and enough that two terraces meeting are clearly two.
+Uint8 Map::LevelShade(int level) {
+    return static_cast<Uint8>(std::min(255, 236 + level * 7));
+}
+
+int Map::LevelCell(int cx, int cy) const {
+    if (elev.empty()) return 0;
+    // Clamped rather than wrapped or zeroed: a point just off the north edge
+    // belongs to the terrain at the edge, so walking out of bounds does not
+    // step off a cliff that only exists because the array ran out.
+    cx = std::clamp(cx, 0, elev_cols - 1);
+    cy = std::clamp(cy, 0, elev_rows - 1);
+    return elev[static_cast<size_t>(cy) * elev_cols + cx];
+}
+
+int Map::LevelAt(float x, float y) const {
+    if (elev.empty()) return 0;
+    return LevelCell(static_cast<int>(std::floor(x / elev_cell)),
+                     static_cast<int>(std::floor(y / elev_cell)));
+}
+
+bool Map::RampAt(float x, float y) const {
+    for (const SDL_FRect& r : ramps)
+        if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return true;
+    return false;
+}
+
+void Map::RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
+    if (elev.empty()) return;
+
+    const SDL_FRect view = cam.VisibleWorldRect(96.0f);
+    const int x0 = std::max(0, static_cast<int>(std::floor(view.x / elev_cell)) - 1);
+    const int y0 = std::max(0, static_cast<int>(std::floor(view.y / elev_cell)) - 1);
+    const int x1 = std::min(elev_cols - 1,
+                            static_cast<int>((view.x + view.w) / elev_cell) + 1);
+    const int y1 = std::min(elev_rows - 1,
+                            static_cast<int>((view.y + view.h) / elev_cell) + 2);
+
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+
+    // Only the south side of a raised cell shows a face. The other three edges
+    // are hidden by the terrace above them, exactly as they would be looking
+    // down at a real bank of earth -- and drawing all four gives every plateau
+    // an outline that reads as a box floating over the map rather than as
+    // ground that is higher over there.
+    for (int cy = y0; cy <= y1; ++cy) {
+        for (int cx = x0; cx <= x1; ++cx) {
+            const int here = LevelCell(cx, cy);
+            const int below = LevelCell(cx, cy + 1);
+            if (here <= below) continue;
+
+            const float drop = (here - below) * ELEVATION_RISE;
+            const SDL_FRect world = {
+                cx * elev_cell,
+                (cy + 1) * elev_cell - here * ELEVATION_RISE,
+                elev_cell,
+                drop
+            };
+            const SDL_FRect dst = cam.ToScreenRect(world);
+
+            // Earth, not a coloured bar. Flat fills were tried first and the
+            // result reads as a brown stripe lying on the grass rather than as
+            // a bank of soil, because every other surface in view has grain
+            // and this one did not. The dirt tile is drawn down the face,
+            // repeated as many times as the drop needs.
+            if (SDL_Texture* soil = cache.Get(cliff_texture)) {
+                float tw = 0, th = 0;
+                SDL_GetTextureSize(soil, &tw, &th);
+                if (tw > 0 && th > 0) {
+                    const float step = th * cam.zoom;
+                    for (float oy = 0.0f; oy < dst.h; oy += step) {
+                        SDL_FRect band = {dst.x, dst.y + oy, dst.w,
+                                          std::min(step, dst.h - oy)};
+                        // Only the top part of the tile when the last band is
+                        // short, so the grain is never squashed.
+                        SDL_FRect src = {0.0f, 0.0f, tw, th * (band.h / step)};
+                        SDL_RenderTexture(r, soil, &src, &band);
+                    }
+                    // Shade it, so a vertical face reads as turned away from
+                    // the light while the ground on top stays lit.
+                    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+                    SDL_SetRenderDrawColor(r, 24, 18, 12, 90);
+                    SDL_RenderFillRect(r, &dst);
+                }
+            } else {
+                SDL_SetRenderDrawColor(r, 92, 71, 48, 255);
+                SDL_RenderFillRect(r, &dst);
+            }
+
+            // The grass rolling over the lip, and a dark line where the face
+            // meets the ground below. Between them these are what make the
+            // terrace look like it is sitting on something.
+            SDL_FRect lip = dst;
+            lip.h = std::max(1.0f, 2.0f * cam.zoom);
+            SDL_SetRenderDrawColor(r, 108, 138, 74, 255);
+            SDL_RenderFillRect(r, &lip);
+
+            // The shadow the bank throws on the ground below it. More than
+            // anything else, this is what stops the face looking like a strip
+            // of brown laid on top of the grass.
+            SDL_FRect foot = dst;
+            foot.y += dst.h;
+            foot.h = std::max(1.0f, 4.0f * cam.zoom);
+            SDL_SetRenderDrawColor(r, 34, 40, 28, 96);
+            SDL_RenderFillRect(r, &foot);
+
+            SDL_FRect lineFoot = dst;
+            lineFoot.y += dst.h - std::max(1.0f, cam.zoom);
+            lineFoot.h = std::max(1.0f, cam.zoom);
+            SDL_SetRenderDrawColor(r, 48, 38, 26, 210);
+            SDL_RenderFillRect(r, &lineFoot);
+        }
+    }
+
+    // The east and west edges of a terrace, as a dark line rather than a face.
+    // Looking almost straight down, those sides are barely turned toward the
+    // camera, so there is no wall to see -- but without an edge there the
+    // plateau has an outline on one side only and reads as a bar rather than
+    // as a shape.
+    const float edge = std::max(1.0f, 2.0f * cam.zoom);
+    SDL_SetRenderDrawColor(r, 58, 46, 32, 190);
+    for (int cy = y0; cy <= y1; ++cy) {
+        for (int cx = x0; cx <= x1; ++cx) {
+            const int here = LevelCell(cx, cy);
+            if (here <= 0) continue;
+            const float top = cy * elev_cell - here * ELEVATION_RISE;
+
+            for (int side = 0; side < 2; ++side) {
+                const int nx = side == 0 ? cx - 1 : cx + 1;
+                if (LevelCell(nx, cy) >= here) continue;
+                const SDL_FRect world = {
+                    side == 0 ? cx * elev_cell : (cx + 1) * elev_cell - 2.0f,
+                    top, 2.0f, elev_cell
+                };
+                SDL_FRect line = cam.ToScreenRect(world);
+                line.w = edge;
+                SDL_RenderFillRect(r, &line);
+            }
+        }
+    }
+}
+
 void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
                       const Camera& cam, int layer) const {
     if (!loaded || layer < 0 || layer > 2) return;
@@ -310,8 +488,20 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
 
             SDL_Texture* tex = cache.Get(textures[t.tex]);
             if (!tex) continue;
-            const SDL_FRect dst = cam.ToScreenRect(t.rect);
-            SDL_RenderTexture(r, tex, nullptr, &dst);
+            SDL_FRect world = t.rect;
+            const int level = LevelAt(world.x + world.w * 0.5f,
+                                      world.y + world.h * 0.5f);
+            world.y -= level * ELEVATION_RISE;
+            const SDL_FRect dst = cam.ToScreenRect(world);
+
+            if (HasElevation()) {
+                const Uint8 lit = LevelShade(level);
+                SDL_SetTextureColorMod(tex, lit, lit, lit);
+                SDL_RenderTexture(r, tex, nullptr, &dst);
+                SDL_SetTextureColorMod(tex, 255, 255, 255);
+            } else {
+                SDL_RenderTexture(r, tex, nullptr, &dst);
+            }
         }
     });
 }
@@ -321,7 +511,11 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     if (t.tex < 0 || t.tex >= static_cast<int>(textures.size())) return;
     SDL_Texture* tex = cache.Get(textures[t.tex]);
     if (!tex) return;
-    const SDL_FRect dst = cam.ToScreenRect(t.rect);
+    // Scenery is lifted by the terrain under its base, not its middle: a tree
+    // standing at the lip of a bank belongs to the ground its trunk is on.
+    SDL_FRect world = t.rect;
+    world.y -= HeightAt(world.x + world.w * 0.5f, world.y + world.h);
+    const SDL_FRect dst = cam.ToScreenRect(world);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, alpha);
     SDL_RenderTexture(r, tex, nullptr, &dst);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, 255);
@@ -344,6 +538,18 @@ void Map::CollectDecor(const Camera& cam, vector<const TileInstance*>& out) cons
             if (RectsOverlap(t.rect, view)) out.push_back(&t);
         }
     });
+}
+
+// A step that changes terrain level is only allowed on a ramp. Checked
+// separately from Blocked() because it is a property of the movement, not of
+// the destination: standing on a ledge is fine, walking off it is not.
+bool Map::LevelChangeBlocked(float from_x, float from_y,
+                             float to_x, float to_y) const {
+    if (elev.empty()) return false;
+    const int a = LevelAt(from_x, from_y);
+    const int b = LevelAt(to_x, to_y);
+    if (a == b) return false;
+    return !(RampAt(from_x, from_y) || RampAt(to_x, to_y));
 }
 
 bool Map::Blocked(const SDL_FRect& box) const {
@@ -417,10 +623,16 @@ Map::Contact Map::SweepPoint(float x, float y, float dx, float dy,
 SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy) const {
     SDL_FRect b = box;
 
+    auto step_ok = [&](const SDL_FRect& from, const SDL_FRect& to) {
+        if (Blocked(to)) return false;
+        return !LevelChangeBlocked(from.x + from.w * 0.5f, from.y + from.h * 0.5f,
+                                   to.x + to.w * 0.5f, to.y + to.h * 0.5f);
+    };
+
     if (dx != 0.0f) {
         SDL_FRect test = b;
         test.x += dx;
-        if (!Blocked(test)) {
+        if (step_ok(b, test)) {
             b.x = test.x;
         } else {
             // Creep up to the obstacle so the player sits flush against it.
@@ -428,7 +640,7 @@ SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy) cons
             for (float moved = 0; fabsf(moved) < fabsf(dx); moved += step) {
                 SDL_FRect probe = b;
                 probe.x += step;
-                if (Blocked(probe)) break;
+                if (!step_ok(b, probe)) break;
                 b.x = probe.x;
             }
         }
@@ -437,14 +649,14 @@ SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy) cons
     if (dy != 0.0f) {
         SDL_FRect test = b;
         test.y += dy;
-        if (!Blocked(test)) {
+        if (step_ok(b, test)) {
             b.y = test.y;
         } else {
             const float step = (dy > 0) ? 1.0f : -1.0f;
             for (float moved = 0; fabsf(moved) < fabsf(dy); moved += step) {
                 SDL_FRect probe = b;
                 probe.y += step;
-                if (Blocked(probe)) break;
+                if (!step_ok(b, probe)) break;
                 b.y = probe.y;
             }
         }

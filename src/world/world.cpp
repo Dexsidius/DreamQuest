@@ -138,6 +138,7 @@ void World::Update(float dt, const GameContext& ctx) {
     UpdateProjectiles(dt, ctx);
     UpdateGroundEffects(dt, ctx);
     UpdateImpacts(dt);
+    UpdateElevation();
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
 
@@ -723,6 +724,21 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                       projectiles.end());
 }
 
+void World::UpdateElevation() {
+    // One pass a frame rather than a lookup inside every draw call: the height
+    // grid is a hash and a clamp, but Render is called from a sorted queue that
+    // may visit the same entity's bounds several times.
+    if (!map.HasElevation()) {
+        player.draw_lift = 0.0f;
+        for (auto& e : enemies) e->draw_lift = 0.0f;
+        for (auto& n : npcs)    n->draw_lift = 0.0f;
+        return;
+    }
+    player.draw_lift = map.HeightAt(player.x, player.y);
+    for (auto& e : enemies) e->draw_lift = map.HeightAt(e->x, e->y);
+    for (auto& n : npcs)    n->draw_lift = map.HeightAt(n->x, n->y);
+}
+
 void World::AddImpact(const Projectile& p, float nx, float ny) {
     if (!p.def || p.def->impact_size <= 0.0f) return;
 
@@ -890,6 +906,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     SDL_RenderClear(r);
 
     map.RenderLayer(r, cache, camera, LAYER_GROUND);
+    // The exposed earth on the downhill side of every raised cell, drawn over
+    // the ground and under everything that stands on it.
+    map.RenderCliffs(r, cache, camera);
 
     // Burning ground and pending eruptions lie on the floor, under everyone.
     // Drawn as a squashed disc rather than a rectangle: a hard-edged box reads
