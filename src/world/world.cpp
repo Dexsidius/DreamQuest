@@ -28,6 +28,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     texts.clear();
     projectiles.clear();
     ground_effects.clear();
+    impacts.clear();
     gather_index = -1;
 
     SpawnEntitiesFromMap(ctx);
@@ -136,6 +137,7 @@ void World::Update(float dt, const GameContext& ctx) {
 
     UpdateProjectiles(dt, ctx);
     UpdateGroundEffects(dt, ctx);
+    UpdateImpacts(dt);
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
 
@@ -560,7 +562,8 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
     p.element = def->element;
     p.damage_mult = damage_mult;
     p.from_player = from_player;
-    p.pierce_left = def->pierce;
+    p.pierce_left  = def->pierce;
+    p.bounces_left = def->bounces;
     projectiles.push_back(p);
 }
 
@@ -575,20 +578,64 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
         p.life -= dt;
         if (p.life <= 0.0f) { p.finished = true; }
 
-        // Step in a few slices so a fast arrow cannot tunnel through a wall or
-        // a thin target between frames.
-        const int steps = std::max(1, static_cast<int>(Length(p.vx, p.vy) * dt / 6.0f));
+        // Step in slices no longer than half the projectile's own radius, so a
+        // fast arrow cannot pass through a wall or a thin target between one
+        // frame and the next. Radius rather than a fixed distance: a small
+        // fast bolt needs finer steps than a large slow one.
+        const float travel = Length(p.vx, p.vy) * dt;
+        const float max_step = std::max(2.0f, p.def->radius * 0.5f);
+        const int steps = std::clamp(static_cast<int>(travel / max_step) + 1, 1, 32);
         const float step_dt = dt / steps;
 
         for (int i = 0; i < steps && !p.finished; ++i) {
-            p.x += p.vx * step_dt;
-            p.y += p.vy * step_dt;
+            const float dx = p.vx * step_dt;
+            const float dy = p.vy * step_dt;
+
+            // Walls: resolve to the surface rather than stopping wherever the
+            // step happened to land, so an impact is drawn on the wall and a
+            // fire patch burns in front of it instead of inside it.
+            const Map::Contact c = map.SweepPoint(p.x, p.y, dx, dy, p.def->radius);
+            if (c.hit) {
+                p.x = c.x;
+                p.y = c.y;
+
+                const bool can_bounce = p.bounces_left > 0 &&
+                                        (c.nx != 0.0f || c.ny != 0.0f);
+                AddImpact(p, c.nx, c.ny);
+
+                if (!can_bounce) {
+                    p.hit_wall = true;
+                    p.finished = true;
+                    break;
+                }
+
+                --p.bounces_left;
+                // Reflect about the surface: v' = v - 2(v.n)n.
+                const float vn = p.vx * c.nx + p.vy * c.ny;
+                p.vx -= 2.0f * vn * c.nx;
+                p.vy -= 2.0f * vn * c.ny;
+
+                const float keep = 1.0f - std::clamp(p.def->bounce_damping, 0.0f, 1.0f);
+                p.vx *= keep;
+                p.vy *= keep;
+                p.angle = atan2f(p.vy, p.vx);
+
+                // Ease off the surface so the next step does not immediately
+                // find the same wall it just left.
+                p.x += c.nx * (p.def->radius * 0.5f + 0.5f);
+                p.y += c.ny * (p.def->radius * 0.5f + 0.5f);
+
+                // A bounce that has lost almost all its speed is spent.
+                if (Length(p.vx, p.vy) < 40.0f) { p.finished = true; break; }
+                continue;
+            }
+
+            p.x += dx;
+            p.y += dy;
             if (p.def->spin) p.spin_angle += 14.0f * step_dt;
 
-            // Walls stop everything.
             const SDL_FRect box = {p.x - p.def->radius, p.y - p.def->radius,
                                    p.def->radius * 2, p.def->radius * 2};
-            if (map.Blocked(box)) { p.finished = true; break; }
 
             if (p.from_player) {
                 for (auto& e : enemies) {
@@ -625,12 +672,25 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             }
         }
 
-        // What it leaves behind when it stops.
+        // What it leaves behind when it stops. Against a wall the contact
+        // point is flush with the surface, so nudge the effect back along the
+        // direction of travel -- burning ground should lie in front of the
+        // wall where someone can be standing in it, not half inside it.
         if (p.finished) {
+            float ex = p.x, ey = p.y;
+            if (p.hit_wall) {
+                const float len = Length(p.vx, p.vy);
+                if (len > 0.0f) {
+                    const float back = std::max(p.def->patch_radius,
+                                                p.def->erupt_radius) * 0.5f + 2.0f;
+                    ex -= p.vx / len * back;
+                    ey -= p.vy / len * back;
+                }
+            }
             if (p.def->patch_time > 0.0f) {
                 GroundEffect g;
-                g.x = p.x;
-                g.y = p.y;
+                g.x = ex;
+                g.y = ey;
                 g.radius = p.def->patch_radius;
                 g.life = g.max_life = p.def->patch_time;
                 g.tick_interval = p.def->patch_tick;
@@ -643,8 +703,8 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             }
             if (p.def->erupts) {
                 GroundEffect g;
-                g.x = p.x;
-                g.y = p.y;
+                g.x = ex;
+                g.y = ey;
                 g.radius = p.def->erupt_radius;
                 g.delay = p.def->erupt_delay;
                 g.life = g.max_life = p.def->erupt_delay + 0.28f;
@@ -661,6 +721,33 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
     projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(),
                                      [](const Projectile& p) { return p.finished; }),
                       projectiles.end());
+}
+
+void World::AddImpact(const Projectile& p, float nx, float ny) {
+    if (!p.def || p.def->impact_size <= 0.0f) return;
+
+    Impact im;
+    im.x = p.x;
+    im.y = p.y;
+    im.nx = nx;
+    im.ny = ny;
+    im.radius = p.def->impact_size;
+    im.life = im.max_life = 0.22f;
+    // An elemental bolt splashes in its own colour; an untyped arrow throws
+    // dust, so it takes the tint of the projectile art instead.
+    im.color = (p.element != Element::None) ? ElementColor(p.element)
+                                            : SDL_Color{214, 200, 176, 255};
+    impacts.push_back(im);
+}
+
+void World::UpdateImpacts(float dt) {
+    for (Impact& im : impacts) {
+        im.life -= dt;
+        if (im.life <= 0.0f) im.finished = true;
+    }
+    impacts.erase(std::remove_if(impacts.begin(), impacts.end(),
+                                 [](const Impact& i) { return i.finished; }),
+                  impacts.end());
 }
 
 void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
@@ -986,6 +1073,37 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 SDL_RenderTexture(r, tex, nullptr, &dst);
                 SDL_SetTextureAlphaMod(tex, 255);
                 break;
+            }
+        }
+    }
+
+    // Impact marks last a fifth of a second and are drawn over everything at
+    // ground level, because the point of them is to be noticed: without one, a
+    // bolt that hits a wall simply stops existing and it is not obvious whether
+    // it was blocked or ran out of range.
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    for (const Impact& im : impacts) {
+        const float t = std::clamp(im.life / std::max(0.01f, im.max_life), 0.0f, 1.0f);
+        const SDL_FPoint centre = camera.ToScreen(im.x, im.y);
+
+        // A flash that opens outwards as it fades.
+        const float rad = im.radius * camera.zoom * (1.0f + (1.0f - t) * 1.4f);
+        fill_disc(centre.x, centre.y, rad, rad * 0.75f,
+                  {im.color.r, im.color.g, im.color.b,
+                   static_cast<Uint8>(190 * t)});
+
+        // Three shards thrown back off the face it struck. Fixed rather than
+        // random: a spray that reshuffles every frame reads as noise.
+        if (im.nx != 0.0f || im.ny != 0.0f) {
+            const float px = -im.ny, py = im.nx;      // along the surface
+            const float reach = im.radius * (2.0f + (1.0f - t) * 3.0f) * camera.zoom;
+            SDL_SetRenderDrawColor(r, im.color.r, im.color.g, im.color.b,
+                                   static_cast<Uint8>(220 * t));
+            for (float spread : {-0.6f, 0.0f, 0.6f}) {
+                const float dx = im.nx + px * spread;
+                const float dy = im.ny + py * spread;
+                SDL_RenderLine(r, centre.x, centre.y,
+                               centre.x + dx * reach, centre.y + dy * reach);
             }
         }
     }

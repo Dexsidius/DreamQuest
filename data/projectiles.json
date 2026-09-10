@@ -9,9 +9,13 @@
     "pierce": 0,
     "knockback": 26,
     "element": "none",
-    "tint": [255, 255, 255]
+    "tint": [
+      255,
+      255,
+      255
+    ],
+    "impact_size": 4
   },
-
   "arrow_heavy": {
     "sprite": "assets/objects/arrow.png",
     "speed": 470,
@@ -22,9 +26,13 @@
     "pierce": 1,
     "knockback": 60,
     "element": "none",
-    "tint": [255, 232, 190]
+    "tint": [
+      255,
+      232,
+      190
+    ],
+    "impact_size": 5
   },
-
   "bolt_fire": {
     "sprite": "assets/icons/spark.png",
     "speed": 300,
@@ -34,9 +42,14 @@
     "spin": true,
     "knockback": 22,
     "element": "fire",
-    "patch": { "time": 2.4, "radius": 22, "damage": 2, "tick": 0.55 }
+    "patch": {
+      "time": 2.4,
+      "radius": 22,
+      "damage": 2,
+      "tick": 0.55
+    },
+    "impact_size": 9
   },
-
   "bolt_fire_greater": {
     "sprite": "assets/icons/spark.png",
     "speed": 330,
@@ -46,9 +59,14 @@
     "spin": true,
     "knockback": 34,
     "element": "fire",
-    "patch": { "time": 3.6, "radius": 30, "damage": 3, "tick": 0.5 }
+    "patch": {
+      "time": 3.6,
+      "radius": 30,
+      "damage": 3,
+      "tick": 0.5
+    },
+    "impact_size": 12
   },
-
   "bolt_water": {
     "sprite": "assets/icons/gem_blue.png",
     "speed": 340,
@@ -57,9 +75,9 @@
     "scale": 1.1,
     "pierce": 2,
     "knockback": 18,
-    "element": "water"
+    "element": "water",
+    "impact_size": 9
   },
-
   "bolt_water_greater": {
     "sprite": "assets/icons/gem_blue.png",
     "speed": 360,
@@ -68,9 +86,9 @@
     "scale": 1.5,
     "pierce": 4,
     "knockback": 26,
-    "element": "water"
+    "element": "water",
+    "impact_size": 12
   },
-
   "bolt_earth": {
     "sprite": "assets/objects/rocksmall_00.png",
     "speed": 210,
@@ -80,9 +98,13 @@
     "spin": true,
     "knockback": 70,
     "element": "earth",
-    "erupt": { "radius": 34, "delay": 0.32, "damage": 3 }
+    "erupt": {
+      "radius": 34,
+      "delay": 0.32,
+      "damage": 3
+    },
+    "impact_size": 8
   },
-
   "bolt_earth_greater": {
     "sprite": "assets/objects/rocksmall_00.png",
     "speed": 230,
@@ -92,9 +114,13 @@
     "spin": true,
     "knockback": 96,
     "element": "earth",
-    "erupt": { "radius": 48, "delay": 0.38, "damage": 5 }
+    "erupt": {
+      "radius": 48,
+      "delay": 0.38,
+      "damage": 5
+    },
+    "impact_size": 11
   },
-
   "bolt_air": {
     "sprite": "assets/icons/rune.png",
     "speed": 560,
@@ -103,9 +129,11 @@
     "scale": 0.9,
     "pierce": 1,
     "knockback": 110,
-    "element": "air"
+    "element": "air",
+    "bounces": 2,
+    "bounce_damping": 0.18,
+    "impact_size": 8
   },
-
   "bolt_air_greater": {
     "sprite": "assets/icons/rune.png",
     "speed": 620,
@@ -114,6 +142,9 @@
     "scale": 1.2,
     "pierce": 2,
     "knockback": 150,
-    "element": "air"
+    "element": "air",
+    "bounces": 3,
+    "bounce_damping": 0.14,
+    "impact_size": 11
   }
 }

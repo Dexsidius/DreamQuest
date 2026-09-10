@@ -72,6 +72,7 @@ public:
     vector<FloatingText> texts;
     vector<Projectile>   projectiles;
     vector<GroundEffect> ground_effects;
+    vector<Impact>       impacts;
 
 private:
     void SpawnEntitiesFromMap(const GameContext& ctx);
@@ -80,6 +81,9 @@ private:
     void UpdatePickups(float dt, const GameContext& ctx);
     void UpdateProjectiles(float dt, const GameContext& ctx);
     void UpdateGroundEffects(float dt, const GameContext& ctx);
+    void UpdateImpacts(float dt);
+    // Marks a wall where a projectile struck it, facing back along the normal.
+    void AddImpact(const Projectile& p, float nx, float ny);
     void FirePlayerProjectile(const GameContext& ctx);
     // Aim at the cursor on mouse and keyboard, and along the facing otherwise.
     Vec2 PlayerAim(const GameContext& ctx) const;

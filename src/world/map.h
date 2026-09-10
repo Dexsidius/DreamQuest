@@ -103,6 +103,21 @@ public:
     // Axis-separated slide; returns the resolved position for the box.
     SDL_FPoint MoveWithCollision(const SDL_FRect& box, float dx, float dy) const;
 
+    // Where a moving box first meets a wall, and which way that wall faces.
+    //
+    // Walking wants to slide along an obstacle, which is what MoveWithCollision
+    // does. Anything that hits a wall and reacts to it -- a bolt that stops, an
+    // arrow that ricochets -- needs to know two more things: the last position
+    // that was actually clear, so the impact is drawn on the surface rather
+    // than inside it, and the normal of the face it struck, so a bounce leaves
+    // in a plausible direction.
+    struct Contact {
+        bool  hit = false;
+        float x = 0.0f, y = 0.0f;     // last clear position of the box's centre
+        float nx = 0.0f, ny = 0.0f;   // unit normal, pointing back out of the wall
+    };
+    Contact SweepPoint(float x, float y, float dx, float dy, float radius) const;
+
     // --- lookups -------------------------------------------------------------
     const Portal* PortalAt(const SDL_FRect& box) const;
     bool  Spawn(const string& name, SDL_FPoint& out) const;

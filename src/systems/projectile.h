@@ -47,6 +47,16 @@ struct ProjectileDef {
 
     int   pierce    = 0;        // extra targets it passes through
     float knockback = 40.0f;
+
+    // --- what it does when it meets a wall -----------------------------------
+    // Most things stop. A few ricochet: bounces is how many times, and each one
+    // costs bounce_damping of the remaining speed, so a shot that rattles down
+    // a corridor eventually settles instead of pinging forever.
+    int   bounces        = 0;
+    float bounce_damping = 0.25f;
+    // Radius of the mark left where it struck, in world pixels. Zero draws
+    // nothing, which is right for something that is only ever cast in the open.
+    float impact_size    = 5.0f;
     Element element = Element::None;
     SDL_Color tint{255, 255, 255, 255};
 
@@ -89,7 +99,12 @@ struct Projectile {
     Element element = Element::None;
     bool  from_player = true;
     int   pierce_left = 0;
+    int   bounces_left = 0;
     bool  finished = false;
+    // Set when a wall stopped it, so the caller can put the impact -- and
+    // anything the projectile leaves behind -- on the surface rather than
+    // wherever the last movement step happened to land.
+    bool  hit_wall = false;
     // Entities already struck, so one shot cannot hit the same target twice.
     vector<const void*> already_hit;
 
@@ -97,6 +112,18 @@ struct Projectile {
         return {x - def_radius(), y - def_radius(), def_radius() * 2, def_radius() * 2};
     }
     float def_radius() const { return def ? def->radius : 6.0f; }
+};
+
+// A short-lived mark where something struck a wall. Purely visual: without it
+// a bolt simply stops existing at a surface, and it is genuinely unclear
+// whether it was blocked or fizzled out of range.
+struct Impact {
+    float x = 0, y = 0;
+    float nx = 0, ny = 0;        // face it struck, so the spray points outwards
+    float radius = 5.0f;
+    float life = 0.0f, max_life = 0.22f;
+    SDL_Color color{255, 255, 255, 255};
+    bool  finished = false;
 };
 
 // Burning ground, an earth eruption waiting to go off: anything that damages

@@ -84,6 +84,9 @@ bool ProjectileDatabase::Load(const string& path) {
         d.sprite_angle = o.value("sprite_angle", 0.0f);
         d.spin   = o.value("spin", false);
         d.pierce = o.value("pierce", 0);
+        d.bounces        = o.value("bounces", 0);
+        d.bounce_damping = o.value("bounce_damping", 0.25f);
+        d.impact_size    = o.value("impact_size", 5.0f);
         d.knockback = o.value("knockback", 40.0f);
         d.element = ElementFromName(o.value("element", string("none")));
         d.tint = ColorFromJson(o.contains("tint") ? o["tint"] : json(),

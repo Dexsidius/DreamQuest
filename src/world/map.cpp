@@ -365,6 +365,53 @@ bool Map::Blocked(const SDL_FRect& box) const {
     return hit;
 }
 
+// Which face was struck is worked out the way the slide below works out which
+// axis to stop: by trying each axis on its own. If moving in X alone is clear,
+// then it was the Y movement that hit something, so the wall is a floor or a
+// ceiling and its normal points back along Y. If neither axis is clear on its
+// own the box went into a corner, and both components are taken.
+Map::Contact Map::SweepPoint(float x, float y, float dx, float dy,
+                             float radius) const {
+    auto box_at = [radius](float cx, float cy) {
+        return SDL_FRect{cx - radius, cy - radius, radius * 2, radius * 2};
+    };
+
+    Contact c;
+    c.x = x;
+    c.y = y;
+    if (!Blocked(box_at(x + dx, y + dy))) return c;
+
+    c.hit = true;
+    const bool x_clear = (dx != 0.0f) && !Blocked(box_at(x + dx, y));
+    const bool y_clear = (dy != 0.0f) && !Blocked(box_at(x, y + dy));
+
+    if (x_clear && !y_clear) {
+        // Slid along in X, stopped in Y: a horizontal surface.
+        c.x = x + dx;
+        c.ny = (dy > 0.0f) ? -1.0f : 1.0f;
+    } else if (y_clear && !x_clear) {
+        c.y = y + dy;
+        c.nx = (dx > 0.0f) ? -1.0f : 1.0f;
+    } else {
+        // A corner, or a head-on hit along a single axis. Push back along
+        // whichever components were actually moving.
+        c.nx = (dx > 0.0f) ? -1.0f : (dx < 0.0f ? 1.0f : 0.0f);
+        c.ny = (dy > 0.0f) ? -1.0f : (dy < 0.0f ? 1.0f : 0.0f);
+        const float len = Length(c.nx, c.ny);
+        if (len > 0.0f) { c.nx /= len; c.ny /= len; }
+    }
+
+    // A projectile spawned inside geometry -- fired with your back to a wall,
+    // say -- has no clear position to report. Say so with a zero normal rather
+    // than inventing one, and let the caller simply stop it.
+    if (Blocked(box_at(c.x, c.y))) {
+        c.x = x;
+        c.y = y;
+        if (Blocked(box_at(x, y))) { c.nx = 0.0f; c.ny = 0.0f; }
+    }
+    return c;
+}
+
 // Move each axis on its own so running into a wall diagonally slides along it
 // instead of stopping dead.
 SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy) const {

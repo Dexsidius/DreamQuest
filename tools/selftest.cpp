@@ -343,6 +343,66 @@ int main() {
         Check(d.speed > 0.0f, kv.first + " moves");
         Check(d.life > 0.0f, kv.first + " expires");
         Check(d.radius > 0.0f, kv.first + " can hit something");
+
+        // A ricochet that keeps all its speed never settles, and one that
+        // keeps none stops dead on the first wall and is not a ricochet.
+        Check(d.bounces >= 0, kv.first + " has a sane bounce count");
+        if (d.bounces > 0)
+            Check(d.bounce_damping > 0.0f && d.bounce_damping < 1.0f,
+                  kv.first + " loses some, but not all, speed on a bounce");
+
+        // Sub-stepping in UpdateProjectiles keeps each slice to half a radius,
+        // capped at 32 slices. Past that cap a projectile moves further than
+        // its own body in one slice and can pass through a wall.
+        const float travel = d.speed / 30.0f;              // a slow frame
+        const float slice  = std::max(2.0f, d.radius * 0.5f);
+        Check(travel / slice <= 32.0f,
+              kv.first + " is slow enough that its sub-steps cannot tunnel");
+    }
+
+    // --- wall collision -------------------------------------------------------
+    // The interesting part of a projectile hitting a wall is not that it stops,
+    // it is where it stops and which way the wall faces: get the normal wrong
+    // and a ricochet leaves through the wall it just struck.
+    Section("projectiles resolve against walls");
+    {
+        Map m;
+        Check(m.Load("maps/guild_hall.mx"), "a walled map loads for collision tests");
+
+        // Walk outwards from the middle of the room until a wall is found,
+        // rather than assuming where one is.
+        const SDL_FPoint start = m.DefaultSpawn();
+        float wall_x = start.x;
+        bool found = false;
+        for (float x = start.x; x < start.x + 512.0f && !found; x += 2.0f) {
+            if (m.Blocked({x - 4.0f, start.y - 4.0f, 8.0f, 8.0f})) {
+                wall_x = x;
+                found = true;
+            }
+        }
+        Check(found, "found a wall to the east of the spawn");
+
+        if (found) {
+            const float from = wall_x - 40.0f;
+            const Map::Contact c = m.SweepPoint(from, start.y, 80.0f, 0.0f, 4.0f);
+            Check(c.hit, "a sweep into the wall reports a hit");
+            // Stopped short of the wall, and not sent backwards.
+            Check(c.x < wall_x && c.x >= from,
+                  "the contact point is clear of the wall, not inside it");
+            Check(!m.Blocked({c.x - 4.0f, c.y - 4.0f, 8.0f, 8.0f}),
+                  "the contact point itself is not blocked");
+            // Travelling east into a wall must give a normal pointing west.
+            Check(c.nx < 0.0f, "the normal points back out of the wall");
+
+            // Reflecting eastward travel about that normal must send it west.
+            const float vx = 300.0f, vy = 0.0f;
+            const float vn = vx * c.nx + vy * c.ny;
+            Check(vx - 2.0f * vn * c.nx < 0.0f, "a bounce leaves the way it came");
+
+            // Open floor must not report a contact, or nothing would ever move.
+            const Map::Contact clear = m.SweepPoint(start.x, start.y, 4.0f, 0.0f, 4.0f);
+            Check(!clear.hit, "a sweep across open floor reports no hit");
+        }
     }
 
     // --- spells ---------------------------------------------------------------
