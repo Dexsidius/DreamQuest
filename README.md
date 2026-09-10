@@ -425,6 +425,38 @@ both families.
 
 ---
 
+## Attack speed and cooldown
+
+Weapons declare a `speed`, a multiplier on swing time, so **lower is faster**:
+a dagger is 0.70, a bronze sword 1.00, a steel longsword 1.30. It scales every
+phase of the swing and the cooldown after it, so a weapon’s whole rhythm moves
+together rather than just the part you can see — and the animation is played at
+a matching rate, or the character is still following through when the hitbox
+has gone. Reach, width and knockback are deliberately left alone: those are
+properties of the weapon’s shape, not of how fast it moves.
+
+The property had been in `data/items.json` since the beginning and nothing ever
+read it. `Equipment::AttackSpeed()` existed and was never called.
+
+**Cooldown** is separate from recovery. Recovery is part of the swing and you
+are committed during it; the cooldown is the gap *after* it, and it is what
+stops the attack button being something you hold down. Mid-chain light attacks
+have almost none, which is what makes continuing a combo quicker than starting
+one; the finisher, the strong attack and the charged attack each cost more.
+Bare-handed that works out at a sustained 2.2 hits a second, which the
+self-test measures rather than assumes.
+
+It is shown, because a gate the player cannot see is just an unresponsive
+button: a thin bar under the feet that drains, gone inside a fifth of a second
+between light attacks. The inventory states the speed as a rate — "1.14x
+(fast)" — rather than as the raw multiplier, because a stat where smaller is
+better needs explaining every time it is read.
+
+Ranged and magic go through the same state machine, so a bow’s speed is its
+rate of fire and a stave’s is its cast rate, with no extra code.
+
+---
+
 ## Quests
 
 Quests reach you three ways, all of them live:
@@ -509,7 +541,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2709 checks** covering:
+and checks all of it — currently **2749 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -521,8 +553,12 @@ and checks all of it — currently **2709 checks** covering:
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest
   sends them into
-- every projectile has art on disk, actually moves, and is slow enough that
-  its sub-steps cannot carry it through a wall
+- every projectile has art on disk, actually moves, is slow enough that its
+  sub-steps cannot carry it through a wall, and is not drawn larger than the
+  character firing it
+- attack speed orders swings correctly, a zero speed is clamped rather than
+  swinging instantly, every attack leaves a gap, and a bare-handed chain is
+  neither a machine gun nor so slow that combat drags
 - a sweep into a wall stops clear of it and reports a normal that sends a
   bounce back the way it came, while open floor reports no contact at all
 - no portal or spawn sits on a cliff edge, and every row of the overworld has

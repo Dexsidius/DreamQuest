@@ -161,23 +161,27 @@ vector<pair<int,int>> Player::TakeXpDrops() {
 void Player::HandleAttackInput(const Input& in, float dt) {
     // A swing already under way locks out new input until it recovers, except
     // for buffering the next link of a light chain.
-    if (in.Pressed(Action::LightAttack) && !attack.Active()) {
+    const float speed = WeaponSpeed();
+
+    if (in.Pressed(Action::LightAttack) && CanAttack()) {
         const int index = (combo_window > 0.0f) ? std::min(combo + 1, 2) : 0;
         combo = index;
         attack.type        = AttackType::Light;
-        attack.profile     = ProfileFor(AttackType::Light, index);
+        attack.profile     = ScaleForSpeed(ProfileFor(AttackType::Light, index), speed);
+        attack.rate        = speed;
         attack.damage_mult = attack.profile.damage_mult;
         attack.reach_scale = 1.0f;
         attack.combo       = index;
         attack.timer       = 0.0f;
         attack.consumed    = false;
+        sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
         sprite.Play("attack", true);
         combo_window = 0.0f;
     }
 
     // Strong and charged share a button: press starts the hold, release
     // decides which one actually comes out.
-    if (in.Pressed(Action::StrongAttack) && !attack.Active()) {
+    if (in.Pressed(Action::StrongAttack) && CanAttack()) {
         strong_armed = true;
         charge_held  = 0.0f;
         charging     = false;
@@ -193,7 +197,8 @@ void Player::HandleAttackInput(const Input& in, float dt) {
         const float ratio = ChargeRatio(charge_held);
 
         attack.type    = was_charged ? AttackType::Charged : AttackType::Strong;
-        attack.profile = ProfileFor(attack.type);
+        attack.profile = ScaleForSpeed(ProfileFor(attack.type), speed);
+        attack.rate    = speed;
         attack.damage_mult = was_charged ? ChargeMultiplier(ratio)
                                          : attack.profile.damage_mult;
         // A fuller charge also swings wider.
@@ -201,6 +206,7 @@ void Player::HandleAttackInput(const Input& in, float dt) {
         attack.combo    = 0;
         attack.timer    = 0.0f;
         attack.consumed = false;
+        sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
         sprite.Play("attack", true);
 
         strong_armed = false;
@@ -219,14 +225,36 @@ void Player::HandleAttackInput(const Input& in, float dt) {
 }
 
 void Player::UpdateAttack(float dt) {
-    if (!attack.Active()) return;
+    if (!attack.Active()) {
+        if (attack_cooldown > 0.0f) {
+            attack_cooldown -= dt;
+            if (attack_cooldown <= 0.0f) {
+                attack_cooldown = 0.0f;
+                // The swing is fully over, so hand the frame rate back to the
+                // walk and idle clips.
+                sprite.speed_scale = 1.0f;
+            }
+        }
+        return;
+    }
     attack.timer += dt;
     if (attack.Finished()) {
         // Only light attacks leave a window open to continue the chain.
         combo_window = (attack.type == AttackType::Light) ? COMBO_WINDOW : 0.0f;
         if (attack.type != AttackType::Light) combo = 0;
+        attack_cooldown = attack.profile.cooldown;
+        cooldown_total  = std::max(0.0001f, attack.profile.cooldown);
         attack.Clear();
     }
+}
+
+float Player::CooldownProgress() const {
+    if (attack_cooldown <= 0.0f) return 0.0f;
+    return std::clamp(attack_cooldown / cooldown_total, 0.0f, 1.0f);
+}
+
+float Player::WeaponSpeed() const {
+    return item_db ? equipment.AttackSpeed() : 1.0f;
 }
 
 void Player::UpdateAnimation(const Vec2& move) {
@@ -251,6 +279,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         dead = true;
         death_timer = DEATH_DURATION;
         attack.Clear();
+        attack_cooldown = 0.0f;
+        sprite.speed_scale = 1.0f;
         charging = strong_armed = false;
         sprite.Play("death", true);
     }
@@ -340,6 +370,8 @@ void Player::Respawn(float sx, float sy) {
     y = sy;
     knock_x = knock_y = 0.0f;
     attack.Clear();
+    attack_cooldown = 0.0f;
+    sprite.speed_scale = 1.0f;
     charging = strong_armed = false;
     skills.ResetCurrent();
     SyncHitpoints();

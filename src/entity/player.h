@@ -40,6 +40,13 @@ public:
 
     // 0..1 while the strong button is held past the threshold; 0 otherwise.
     float ChargeProgress() const;
+
+    // True when a new swing may begin: nothing in flight and no cooldown left.
+    bool  CanAttack() const { return !attack.Active() && attack_cooldown <= 0.0f; }
+    // 0..1 how much of the current cooldown is left, for the HUD.
+    float CooldownProgress() const;
+    // How fast the equipped weapon swings; 1.0 is the bare-handed baseline.
+    float WeaponSpeed() const;
     bool  IsCharging() const { return charging; }
 
     // --- magic ----------------------------------------------------------------
@@ -96,6 +103,11 @@ private:
     void UpdateAnimation(const Vec2& move);
 
     AttackState attack;
+    // Counts down after a swing finishes. Nothing can start while it is
+    // running, which is the whole point: without it the attack button is
+    // something you hold rather than something you time.
+    float attack_cooldown = 0.0f;
+    float cooldown_total = 1.0f;      // what it started at, so the HUD can scale it
     int   combo = 0;
     float combo_window = 0.0f;    // time left to continue the light chain
     bool  charging = false;

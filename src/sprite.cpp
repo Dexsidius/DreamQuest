@@ -105,7 +105,7 @@ void Sprite::Update(float dt) {
     if (frame >= count) frame = clip->loop ? 0 : count - 1;
     if (count <= 1) return;
 
-    const float frame_time = 1.0f / clip->fps;
+    const float frame_time = 1.0f / (clip->fps * std::max(0.05f, speed_scale));
     timer += dt;
     while (timer >= frame_time) {
         timer -= frame_time;

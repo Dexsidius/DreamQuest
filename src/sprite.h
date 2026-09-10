@@ -135,6 +135,11 @@ public:
     // character as authored rather than wearing anything.
     bool use_layers = true;
 
+    // Multiplier on playback speed. A dagger swings in two thirds the time a
+    // sword does, and the animation has to agree with that or the character is
+    // still following through when the hitbox has already gone.
+    float speed_scale = 1.0f;
+
 private:
     // Returns false when this clip has no layer stack to draw.
     bool DrawLayers(SDL_Renderer* r, TextureCache& cache,

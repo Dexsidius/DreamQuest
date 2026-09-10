@@ -360,6 +360,81 @@ int main() {
               kv.first + " is slow enough that its sub-steps cannot tunnel");
     }
 
+    // --- attack speed and cooldown --------------------------------------------
+    // "You cannot spam it" is a claim about time, so it is measured rather
+    // than eyeballed: how many swings a weapon actually gets in ten seconds.
+    Section("attack speed and cooldown");
+    {
+        // One full cycle of a swing: every phase of it, plus the gap after.
+        auto cycle = [](AttackType type, int combo_index, float speed) {
+            const AttackProfile p = ScaleForSpeed(ProfileFor(type, combo_index), speed);
+            return p.Total() + p.cooldown;
+        };
+
+        Check(cycle(AttackType::Light, 0, 1.0f) > 0.0f, "a swing takes time");
+
+        // A faster weapon has to actually swing faster, and a slower one
+        // slower. This is the property that was declared in data and never
+        // used until now, so it is worth checking it is wired up at all.
+        const float fast = cycle(AttackType::Light, 0, 0.70f);
+        const float even = cycle(AttackType::Light, 0, 1.00f);
+        const float slow = cycle(AttackType::Light, 0, 1.30f);
+        Check(fast < even && even < slow, "attack speed orders swings correctly");
+        Check(fabsf(fast / even - 0.70f) < 0.01f,
+              "a 0.70 speed weapon takes 70% as long, cooldown included");
+
+        // Nonsense in the data must not turn into an attack every frame.
+        Check(ScaleForSpeed(ProfileFor(AttackType::Light, 0), 0.0f).Total() > 0.02f,
+              "a zero attack speed is clamped rather than swinging instantly");
+
+        // Every attack must leave a gap. Without one the button is something
+        // you hold down, which is the thing this exists to prevent.
+        for (int i = 0; i < 3; ++i)
+            Check(ProfileFor(AttackType::Light, i).cooldown > 0.0f,
+                  "light " + std::to_string(i) + " has a cooldown");
+        Check(ProfileFor(AttackType::Strong).cooldown >
+              ProfileFor(AttackType::Light, 0).cooldown,
+              "a strong attack costs more downtime than a light one");
+        Check(ProfileFor(AttackType::Charged).cooldown >
+              ProfileFor(AttackType::Strong).cooldown,
+              "a charged attack costs the most downtime");
+
+        // Continuing a chain has to be quicker than starting a fresh one, or
+        // the combo is a damage bonus with no reason to reach for it.
+        Check(ProfileFor(AttackType::Light, 0).cooldown <
+              ProfileFor(AttackType::Light, 2).cooldown,
+              "mid-chain links flow, and the finisher does not");
+
+        // And the rate a player can actually achieve, which is the number that
+        // matters. A full light chain plus its finisher gap.
+        const float chain = cycle(AttackType::Light, 0, 1.0f) +
+                            cycle(AttackType::Light, 1, 1.0f) +
+                            cycle(AttackType::Light, 2, 1.0f);
+        printf("     light chain: %.2fs for 3 hits (%.1f hits/sec sustained)\n",
+               chain, 3.0f / chain);
+        Check(3.0f / chain < 6.0f, "a bare-handed chain is not a machine gun");
+        Check(3.0f / chain > 1.5f, "and is not so slow that combat drags");
+
+        // Weapons declare a speed the game can use.
+        for (const auto& kv : items.All()) {
+            const ItemDef& d = kv.second;
+            if (d.slot != SLOT_WEAPON) continue;
+            Check(d.attack_speed >= 0.35f && d.attack_speed <= 3.0f,
+                  kv.first + " has a sane attack speed");
+        }
+    }
+
+    // --- projectiles are the right size next to a character --------------------
+    // Arrows were once longer than the player firing them. The rig is about
+    // 14 wide and 28 tall, so nothing thrown by it should approach that.
+    Section("projectile scale");
+    for (const auto& kv : projectiles.All()) {
+        const ProjectileDef& d = kv.second;
+        // Sprite dimensions come from the file, so this catches a change to
+        // either the art or the scale.
+        Check(d.scale > 0.0f && d.scale <= 2.0f, kv.first + " has a sane scale");
+    }
+
     // --- elevation ------------------------------------------------------------
     // Elevation can strand a player: raise a plateau across the only route
     // north and the game is still perfectly playable right up until nobody can

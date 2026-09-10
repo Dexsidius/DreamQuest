@@ -3,14 +3,16 @@
 // Light attacks form a three-hit chain: each link is slightly slower but hits
 // harder and reaches a little further, so finishing the combo is worth it.
 static const AttackProfile kLight[3] = {
-    // windup active recover  mult  reach width  knock  move
-    {  0.05f, 0.10f, 0.10f,   0.72f, 30.0f, 34.0f, 22.0f, 0.40f },
-    {  0.05f, 0.10f, 0.11f,   0.82f, 31.0f, 36.0f, 26.0f, 0.40f },
-    {  0.08f, 0.12f, 0.22f,   1.10f, 34.0f, 40.0f, 48.0f, 0.22f },
+    // windup active recover  mult  reach width  knock  move  cooldown
+    {  0.05f, 0.10f, 0.10f,   0.72f, 30.0f, 34.0f, 22.0f, 0.40f, 0.05f },
+    {  0.05f, 0.10f, 0.11f,   0.82f, 31.0f, 36.0f, 26.0f, 0.40f, 0.05f },
+    // The chain ends here, so this one is followed by a real gap: a finisher
+    // you can immediately open a new chain from is not a finisher.
+    {  0.08f, 0.12f, 0.22f,   1.10f, 34.0f, 40.0f, 48.0f, 0.22f, 0.34f },
 };
 
-static const AttackProfile kStrong  = { 0.16f, 0.13f, 0.30f, 1.45f, 36.0f, 44.0f, 52.0f, 0.14f };
-static const AttackProfile kCharged = { 0.14f, 0.17f, 0.38f, 1.00f, 46.0f, 58.0f, 105.0f, 0.08f };
+static const AttackProfile kStrong  = { 0.16f, 0.13f, 0.30f, 1.45f, 36.0f, 44.0f, 52.0f, 0.14f, 0.40f };
+static const AttackProfile kCharged = { 0.14f, 0.17f, 0.38f, 1.00f, 46.0f, 58.0f, 105.0f, 0.08f, 0.55f };
 static const AttackProfile kNone;
 
 const AttackProfile& ProfileFor(AttackType type, int combo_index) {
@@ -20,6 +22,18 @@ const AttackProfile& ProfileFor(AttackType type, int combo_index) {
         case AttackType::Charged: return kCharged;
         default:                  return kNone;
     }
+}
+
+AttackProfile ScaleForSpeed(const AttackProfile& p, float speed) {
+    // Clamped because this comes from data. A weapon claiming a speed of zero
+    // would otherwise swing in no time at all and hit every frame.
+    const float s = std::clamp(speed, 0.35f, 3.0f);
+    AttackProfile out = p;
+    out.windup   *= s;
+    out.active   *= s;
+    out.recover  *= s;
+    out.cooldown *= s;
+    return out;
 }
 
 float ChargeRatio(float held_time) {

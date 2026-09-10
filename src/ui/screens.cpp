@@ -533,6 +533,19 @@ void Game::DrawHud() {
                             TextSize::Small, fill, Align::Center);
     }
 
+    // --- attack cooldown -----------------------------------------------------
+    // A gate the player cannot see is just an unresponsive button. This is
+    // deliberately small and quiet -- it drains rather than fills, sits under
+    // the feet, and is gone inside a fifth of a second between light attacks --
+    // because the point is to make the rhythm legible, not to put a cooldown
+    // bar in the middle of a fight.
+    if (live && !p.IsCharging() && p.CooldownProgress() > 0.0f) {
+        const float t = p.CooldownProgress();
+        const SDL_FPoint anchor = world.camera.ToScreen(p.x, p.y + 10.0f);
+        const SDL_FRect bar = {anchor.x - 20.0f, anchor.y + 9.0f, 40.0f, 3.0f};
+        ui.Bar(bar, t, SDL_Color{188, 170, 140, 190}, {26, 22, 18, 150});
+    }
+
     // --- gathering -----------------------------------------------------------
     if (live && world.Gathering()) {
         const SDL_FPoint anchor = world.camera.ToScreen(p.x, p.y + 10.0f);
@@ -728,6 +741,22 @@ void Game::DrawInventory() {
     SDL_snprintf(bonus, sizeof(bonus), "Ranged +%d    Magic +%d",
                  p.equipment.RangedBonus(), p.equipment.MagicBonus());
     ui.Text(bonus, eq_x, panel.y + panel.h - 58.0f, TextSize::Small, Palette::Xp);
+
+    // Attack speed is stated as a rate rather than as the raw multiplier: the
+    // underlying number is a multiplier on swing time, so lower is faster,
+    // and a stat where smaller is better wants explaining every time it is
+    // read. "Swings 1.25x" does not.
+    {
+        const float sp = p.WeaponSpeed();
+        // Bands chosen against the actual spread in data/items.json: bows sit
+        // at 0.80-0.88 and daggers at 0.70-0.80, so a threshold of 0.85 called
+        // a shortbow "even". Anything a tenth either side of the baseline is
+        // worth naming.
+        const char* word = sp < 0.92f ? "fast" : (sp > 1.08f ? "slow" : "even");
+        SDL_snprintf(bonus, sizeof(bonus), "Attack speed  %.2fx  (%s)", 1.0f / sp, word);
+        ui.Text(bonus, eq_x, panel.y + panel.h - 42.0f, TextSize::Small,
+                Palette::TextDim);
+    }
 
     // --- selected item detail ------------------------------------------------
     const string sel_id = inventory_on_equipment

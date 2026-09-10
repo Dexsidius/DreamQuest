@@ -30,6 +30,12 @@ struct AttackProfile {
     float width    = 30.0f;
     float knockback = 40.0f;
     float move_scale = 0.25f; // how much the attacker can still walk
+    // Dead time after the swing has fully played out, before another can
+    // start. Recovery is part of the swing and you are still committed during
+    // it; this is the gap after it, and it is what stops the attack button
+    // being a thing you hold down. Mid-combo links have almost none, which is
+    // what makes continuing a chain quicker than starting a new one.
+    float cooldown = 0.14f;
 
     float Total() const { return windup + active + recover; }
 };
@@ -86,10 +92,20 @@ float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
 SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,
                        float reach_scale = 1.0f);
 
+// Applies a weapon's attack speed to a swing's timings. A speed below one is a
+// faster weapon: every phase, and the cooldown after it, is shortened by the
+// same factor, so a dagger's whole rhythm scales rather than just the part of
+// it you can see. Reach, width and knockback are deliberately untouched --
+// they are properties of the weapon's shape, not of how quickly it moves.
+AttackProfile ScaleForSpeed(const AttackProfile& p, float speed);
+
 // One in-flight swing, owned by whoever is attacking.
 struct AttackState {
     AttackType type = AttackType::None;
     float      timer = 0.0f;
+    // What the weapon did to the timings, kept so the animation can be played
+    // at a matching rate and so the HUD can say how fast this weapon is.
+    float      rate = 1.0f;
     float      damage_mult = 1.0f;
     float      reach_scale = 1.0f;
     int        combo = 0;
