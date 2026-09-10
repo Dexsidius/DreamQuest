@@ -1,5 +1,6 @@
 #pragma once
 #include "../headers.h"
+#include "../sprite.h"
 
 // -----------------------------------------------------------------------------
 //  Items, inventory and equipment.
@@ -54,11 +55,23 @@ struct ItemDef {
     map<string, int> craft_inputs;    // item id -> quantity
 
     string icon;                      // image path, optional
+
+    // Optional art drawn on the character while this is worn. Left empty for
+    // items that only tint, which is everything until layered armour art
+    // exists for this rig.
+    bool      worn = false;
+    string    worn_sprite;
+    LayerSlot worn_after = LayerSlot::Head;
+    SDL_FRect worn_rect{24, 17, 16, 16};   // frame pixels
+    bool      worn_facings[4] = {true, true, true, true};
 };
 
 class ItemDatabase {
 public:
-    bool Load(const string& path);
+    // Loads a file of item definitions. Later files merge over earlier ones,
+    // which is how the optional armour pack adds itself without the base file
+    // ever referring to art that may not be installed.
+    bool Load(const string& path, bool required = true);
     const ItemDef* Get(const string& id) const;
     bool Has(const string& id) const { return defs.count(id) > 0; }
     const map<string, ItemDef>& All() const { return defs; }
@@ -129,6 +142,8 @@ public:
     // Colour for the worn weapon layers, and for the body when armour is worn.
     SDL_Color WeaponTint() const;
     SDL_Color ArmourTint() const;
+    // Worn overlays for everything currently equipped, in draw order.
+    vector<Attachment> Attachments() const;
 
     json ToJson() const;
     void FromJson(const json& j);

@@ -67,6 +67,7 @@ int main() {
 
     Check(sprites.Load("data/sprites.json"),        "data/sprites.json loads");
     Check(items.Load("data/items.json"),            "data/items.json loads");
+    items.Load("data/items_armour.json", false);   // optional armour pack
     Check(enemy_db.Load("data/enemies.json"),       "data/enemies.json loads");
     Check(loot.Load("data/loot_tables.json"),       "data/loot_tables.json loads");
     Check(quests.LoadDefinitions("data/quests.json"), "data/quests.json loads");
@@ -115,6 +116,26 @@ int main() {
     for (const auto& kv : items.All())
         if (!kv.second.icon.empty())
             Check(fs::exists(kv.second.icon), kv.first + " icon " + kv.second.icon);
+
+    Section("worn equipment overlays");
+    for (const auto& kv : items.All()) {
+        const ItemDef& d = kv.second;
+        if (!d.worn) continue;
+        Check(!d.worn_sprite.empty(), kv.first + " worn overlay names a sprite");
+        Check(fs::exists(d.worn_sprite),
+              kv.first + " worn art missing: " + d.worn_sprite);
+        // The rectangle is in frame pixels, so it has to land inside the frame.
+        Check(d.worn_rect.w > 0 && d.worn_rect.h > 0,
+              kv.first + " worn rect has a size");
+        Check(d.worn_rect.x >= 0 && d.worn_rect.y >= 0 &&
+              d.worn_rect.x + d.worn_rect.w <= 64 &&
+              d.worn_rect.y + d.worn_rect.h <= 64,
+              kv.first + " worn rect sits inside the 64px frame");
+        // Something has to be visible, or the overlay is dead weight.
+        Check(d.worn_facings[0] || d.worn_facings[1] ||
+              d.worn_facings[2] || d.worn_facings[3],
+              kv.first + " worn overlay is visible from at least one side");
+    }
 
     // --- loot tables only drop real items -------------------------------------
     Section("loot tables reference real items");

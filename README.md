@@ -197,15 +197,43 @@ flattened sheet.
   layers and coloured to match the item, so a bronze sword, a steel longsword,
   a bow and a staff all look different in your hand. An empty hand hides the
   weapon layers entirely.
-- **Armour is a tint.** None of the packs contain armour or clothing art, so
-  worn armour colours the body and head layers instead, weighted by how heavy
-  each piece is. Bronze reads warm, iron reads grey, steel reads bright. It is
-  honest about what it is: a colour shift, not a drawn breastplate.
+- **Armour tints, and can also draw.** Every worn piece colours the body and
+  head layers, weighted by how heavy it is. A piece can *also* carry a `worn`
+  overlay: art drawn on top of the character, positioned by a rectangle given
+  in **frame pixels** so it lands on the rig correctly at any camera zoom.
 
-The slots are already there for real armour art. A layered paperdoll pack
-drops into `assets/characters/<id>/layers/` with `head`/`body`/`legs` slots and
-the renderer will draw it without any code change — see
-[docs/ASSETS.md](docs/ASSETS.md).
+```json
+"iron_helm": {
+  "worn": {
+    "sprite": "assets/icons/helm_big.png",
+    "after": "head",
+    "rect": [24, 19, 15, 15],
+    "facings": [true, false, false, true]
+  }
+}
+```
+
+The head sits at (25,22) and is 13×13 inside the 64px frame, so a 15×15 helmet
+two pixels higher sits on it exactly. `facings` exists because most icon art
+has a single view: a front-on helmet is right facing down and away, and wrong
+from the side, so those facings are simply left off.
+
+### On using icon packs as armour
+
+CraftPix icon packs (the fantasy-knight armour and RPG boot sets) are 512×512
+painted inventory art. Two things follow, and they are different problems:
+
+- **Proportion is solved.** The frame-pixel rectangle puts a helmet on the head
+  at exactly the right size. That part works.
+- **Style is not.** A smooth, anti-aliased 512px icon shrunk to 24px reads as a
+  soft blob against 16px-grid pixel art. The importer hardens the worn copy —
+  alpha cut to on-or-off, colours stepped to eight levels per channel — which
+  gives it a defined edge and a flatter palette, and helps a great deal. It
+  still will not pass for hand-drawn pixel armour.
+
+So icons are used where they are strongest: full size in the inventory, and as
+an optional worn overlay you can judge for yourself. Proper pixel-art armour
+layers drop into the same slots with no code change.
 
 ---
 

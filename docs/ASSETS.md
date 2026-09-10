@@ -31,6 +31,25 @@ Three more packs (bridges, dungeon props, dungeon objects) are unpacked by the
 importer and are available to build on, but nothing in the current maps uses
 them yet.
 
+## Optional: armour icon packs
+
+Two further CraftPix freebies are supported but not required:
+
+| Pack | Used for |
+| --- | --- |
+| [Fantasy Knight Armor Pack 11](https://craftpix.net/freebies/free-game-icons-of-fantasy-knight-armor-pack-11/) | Helmets, cuirasses and greaves |
+| [RPG Boot Icons](https://craftpix.net/freebies/free-rpg-boot-icons/) | Boots and sabatons |
+
+Both need a free CraftPix account to download — the direct link returns the
+sign-in page otherwise. Drop the `.zip` files in with the rest and re-run
+`tools/import_assets.ps1`; it will unpack them, produce a 64px inventory icon
+and a hardened 24px worn overlay for each piece, and write
+`data/items_armour.json` with the matching item definitions. Without them the
+importer says so and the game runs exactly as before.
+
+These are 512×512 painted inventory icons, not sprite layers. See the note in
+the README about what that means for wearing them.
+
 ## How the import works
 
 The CraftPix tilesets are packed autotile sheets, and LevelEdit-Plus works with
@@ -61,6 +80,7 @@ assets/
   objects/     buildings, trees, rocks, bushes, chests, doors, campfire
   icons/       item icons
   ui/          the RPG UI sheets
+  icons/armour/  optional armour icons, 64px, with 24px worn/ copies
   fonts/       dreamquest.ttf
   _raw/        the unpacked archives; safe to delete after importing
 ```

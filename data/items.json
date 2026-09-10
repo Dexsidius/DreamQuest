@@ -212,7 +212,23 @@
       178,
       186,
       200
-    ]
+    ],
+    "worn": {
+      "sprite": "assets/icons/helm_big.png",
+      "after": "head",
+      "rect": [
+        24,
+        19,
+        15,
+        15
+      ],
+      "facings": [
+        true,
+        false,
+        false,
+        true
+      ]
+    }
   },
   "iron_body": {
     "name": "Iron Cuirass",

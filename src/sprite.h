@@ -21,6 +21,20 @@ struct AnimLayer {
     string    sheet;           // full path, resolved at load time
 };
 
+// A piece of worn kit drawn on top of the character's own layers.
+//
+// The rectangle is given in frame pixels -- coordinates inside the 64x64 (or
+// 32x32) animation frame -- so a helmet is authored once against the rig and
+// lands correctly whatever the camera zoom is. Art that only has one view can
+// be limited to the facings it actually reads in.
+struct Attachment {
+    string    sprite;
+    LayerSlot after = LayerSlot::Head;    // drawn immediately after this layer
+    SDL_FRect rect{24, 17, 16, 16};       // in frame pixels
+    bool      facings[4] = {true, true, true, true};   // down, left, right, up
+    SDL_Color tint{255, 255, 255, 255};
+};
+
 // How a character's layers should be drawn right now: armour tints the body
 // and head, the weapon layers take the colour of what is held, and an empty
 // hand hides them entirely.
@@ -29,6 +43,8 @@ struct LayerStyle {
     SDL_Color head{255, 255, 255, 255};
     SDL_Color weapon{255, 255, 255, 255};
     bool show_weapon = true;
+    // Worn pieces, in the order they should be drawn.
+    vector<Attachment> attachments;
 };
 
 struct AnimClip {
@@ -93,6 +109,8 @@ public:
     float Progress() const;
     // Frames available for the direction currently being faced.
     int FrameCount() const;
+    // Side of one animation frame, in source pixels.
+    int FrameSize() const;
 
     void Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
               float world_x, float world_y, SDL_Color tint = {255, 255, 255, 255}) const;

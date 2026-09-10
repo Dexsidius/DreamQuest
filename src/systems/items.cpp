@@ -23,11 +23,11 @@ int EquipSlotFromName(const string& name) {
     return SLOT_NONE;
 }
 
-bool ItemDatabase::Load(const string& path) {
+bool ItemDatabase::Load(const string& path, bool required) {
     std::ifstream in(path);
     if (!in) {
-        SDL_Log("ItemDatabase: cannot open '%s'", path.c_str());
-        return false;
+        if (required) SDL_Log("ItemDatabase: cannot open '%s'", path.c_str());
+        return !required;
     }
 
     json root;
@@ -59,6 +59,24 @@ bool ItemDatabase::Load(const string& path) {
                 d.tint = {static_cast<Uint8>(t[0].get<int>()),
                           static_cast<Uint8>(t[1].get<int>()),
                           static_cast<Uint8>(t[2].get<int>()), 255};
+        }
+
+        if (o.contains("worn")) {
+            const json& w = o["worn"];
+            d.worn        = true;
+            d.worn_sprite = w.value("sprite", d.icon);
+            d.worn_after  = LayerSlotFromName(w.value("after", string("head")));
+            if (w.contains("rect")) {
+                const json& rr = w["rect"];
+                if (rr.is_array() && rr.size() >= 4)
+                    d.worn_rect = {rr[0].get<float>(), rr[1].get<float>(),
+                                   rr[2].get<float>(), rr[3].get<float>()};
+            }
+            if (w.contains("facings")) {
+                const json& f = w["facings"];
+                for (size_t i = 0; i < 4 && i < f.size(); ++i)
+                    d.worn_facings[i] = f[i].get<bool>();
+            }
         }
 
         if (o.contains("bonus")) {
@@ -100,7 +118,8 @@ bool ItemDatabase::Load(const string& path) {
         defs[d.id] = d;
     }
 
-    SDL_Log("ItemDatabase: loaded %d items", static_cast<int>(defs.size()));
+    SDL_Log("ItemDatabase: loaded %d items (%s)",
+            static_cast<int>(defs.size()), path.c_str());
     return true;
 }
 
@@ -292,6 +311,25 @@ SDL_Color Equipment::ArmourTint() const {
     return {static_cast<Uint8>(255 + (br - 255) * mix),
             static_cast<Uint8>(255 + (bg - 255) * mix),
             static_cast<Uint8>(255 + (bb - 255) * mix), 255};
+}
+
+vector<Attachment> Equipment::Attachments() const {
+    vector<Attachment> out;
+    if (!db) return out;
+
+    // Legs, then body, then head: a helmet should sit over a gorget.
+    for (int slot : {SLOT_LEGS, SLOT_BODY, SLOT_HEAD}) {
+        const ItemDef* d = db->Get(slots[slot]);
+        if (!d || !d->worn || d->worn_sprite.empty()) continue;
+
+        Attachment a;
+        a.sprite = d->worn_sprite;
+        a.after  = d->worn_after;
+        a.rect   = d->worn_rect;
+        for (int i = 0; i < 4; ++i) a.facings[i] = d->worn_facings[i];
+        out.push_back(a);
+    }
+    return out;
 }
 
 json Equipment::ToJson() const {

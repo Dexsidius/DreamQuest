@@ -62,6 +62,7 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
     s.head = equipment.InSlot(SLOT_HEAD).empty() ? SDL_Color{255, 255, 255, 255} : armour;
     s.weapon = equipment.WeaponTint();
     s.show_weapon = !equipment.InSlot(SLOT_WEAPON).empty();
+    s.attachments = equipment.Attachments();
     return s;
 }
 

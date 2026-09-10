@@ -73,6 +73,9 @@ bool Game::LoadContent() {
     bool ok = true;
     ok &= sprites.Load("data/sprites.json");
     ok &= items.Load("data/items.json");
+    // Written by tools/import_assets.ps1 when the armour icon packs are
+    // present. Absent is normal, not an error.
+    items.Load("data/items_armour.json", false);
     ok &= enemy_db.Load("data/enemies.json");
     ok &= loot.Load("data/loot_tables.json");
     ok &= quests.LoadDefinitions("data/quests.json");

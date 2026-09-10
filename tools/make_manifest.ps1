@@ -70,14 +70,20 @@ function Get-ColourFamily($c) {
 $manifest = [ordered]@{}
 $families = [ordered]@{}
 
-foreach ($group in @("tiles", "decor", "objects")) {
-    $dir = Join-Path "assets" $group
+foreach ($group in @("tiles", "decor", "objects", "icons/armour")) {
+    $dir = Join-Path "assets" ($group -replace '/', '\')
     if (-not (Test-Path $dir)) { continue }
 
     foreach ($f in (Get-ChildItem $dir -Filter *.png -File | Sort-Object Name)) {
         $key = "$group/$($f.BaseName)"
         $size = Get-PngSize $f.FullName
         $entry = [ordered]@{ w = $size[0]; h = $size[1] }
+
+        # Armour icons carry their own colour so the worn tint matches the art.
+        if ($group -eq "icons/armour") {
+            $avg = Get-AverageColour $f.FullName
+            if ($avg) { $entry["rgb"] = @($avg[0], $avg[1], $avg[2]) }
+        }
 
         # Only the loose decals need classifying; everything else is placed
         # explicitly by name.

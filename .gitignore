@@ -15,6 +15,10 @@ DreamQuest.x86_64
 #
 assets/
 
+# Written by the importer when the optional armour icon packs are present, so
+# data/items.json never refers to art that may not be installed.
+data/items_armour.json
+
 # --- local state -------------------------------------------------------------
 saves/
 settings.json

@@ -28,6 +28,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Drawing
 Set-Location $PSScriptRoot\..
 $root = (Get-Location).Path
 
@@ -409,6 +410,165 @@ if (Test-Path $iconSheet) {
         --out $icons | Out-Null
 }
 Write-Host ("  {0} item icons" -f (Get-ChildItem $icons -Filter *.png -EA SilentlyContinue).Count)
+
+# --- 6c. armour icons ---------------------------------------------------------
+# The fantasy-knight and RPG-boot packs are 512x512 inventory icons, not sprite
+# layers. Two sizes come out of each: one for the inventory panel, and a much
+# smaller one for wearing on the character. Pre-scaling the worn version here
+# matters -- a 512 to 16 reduction done properly at import looks far better
+# than letting the renderer do it every frame.
+Write-Host "`nCutting armour icons ..." -ForegroundColor Cyan
+$armourDir = Join-Path $assets "icons\armour"
+$wornDir   = Join-Path $armourDir "worn"
+New-Dir $armourDir
+New-Dir $wornDir
+
+# $pixelate hardens the result for art that will sit next to pixel art. The
+# packs are painted, anti-aliased icons; shrunk to character size with a smooth
+# filter they read as a soft blob against a 16px-grid sprite. Cutting the alpha
+# to on-or-off and stepping the colours back gives them a defined edge and a
+# flatter palette, which reads far better on the character. The inventory
+# version is left smooth, because at 64px the original art looks best as drawn.
+function Resize-Icon($src, $dest, $size, $pixelate = $false) {
+    $img = [System.Drawing.Bitmap]::FromFile($src)
+    try {
+        $out = New-Object System.Drawing.Bitmap $size, $size
+        $g = [System.Drawing.Graphics]::FromImage($out)
+        try {
+            $g.InterpolationMode  = 'HighQualityBicubic'
+            $g.PixelOffsetMode    = 'HighQuality'
+            $g.CompositingQuality = 'HighQuality'
+            $g.Clear([System.Drawing.Color]::Transparent)
+            # Fit inside the square, keeping the icon's proportions.
+            $scale = [math]::Min($size / $img.Width, $size / $img.Height)
+            $w = [int]($img.Width * $scale)
+            $h = [int]($img.Height * $scale)
+            $g.DrawImage($img, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
+        } finally { $g.Dispose() }
+
+        if ($pixelate) {
+            $data = $out.LockBits(
+                (New-Object System.Drawing.Rectangle 0, 0, $size, $size),
+                [System.Drawing.Imaging.ImageLockMode]::ReadWrite,
+                [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+            try {
+                $bytes = New-Object byte[] ($data.Stride * $size)
+                [Runtime.InteropServices.Marshal]::Copy($data.Scan0, $bytes, 0, $bytes.Length)
+                for ($i = 0; $i -lt $bytes.Length; $i += 4) {
+                    if ($bytes[$i + 3] -lt 110) {
+                        # Below the threshold it is background, not a soft edge.
+                        $bytes[$i] = 0; $bytes[$i + 1] = 0; $bytes[$i + 2] = 0; $bytes[$i + 3] = 0
+                    } else {
+                        $bytes[$i + 3] = 255
+                        # Step each channel to one of eight levels.
+                        for ($c = 0; $c -lt 3; $c++) {
+                            $v = [int]$bytes[$i + $c]
+                            $bytes[$i + $c] = [byte]([math]::Min(255, [int]([math]::Round($v / 32.0) * 32)))
+                        }
+                    }
+                }
+                [Runtime.InteropServices.Marshal]::Copy($bytes, 0, $data.Scan0, $bytes.Length)
+            } finally { $out.UnlockBits($data) }
+        }
+
+        $out.Save($dest, [System.Drawing.Imaging.ImageFormat]::Png)
+        $out.Dispose()
+    } finally { $img.Dispose() }
+}
+
+function Import-ArmourPack($packName, $prefix, $limit) {
+    $dir = Pack $packName
+    if (-not (Test-Path $dir)) {
+        Write-Host "  - $packName not downloaded yet" -ForegroundColor DarkGray
+        return 0
+    }
+    $files = Get-ChildItem $dir -Recurse -File -Filter *.png |
+             Where-Object { $_.FullName -notmatch '__MACOSX|COUPON|preview|Preview' } |
+             Sort-Object Name | Select-Object -First $limit
+
+    $i = 0
+    foreach ($f in $files) {
+        $name = "{0}_{1:d2}" -f $prefix, $i
+        Resize-Icon $f.FullName (Join-Path $armourDir "$name.png") 64
+        Resize-Icon $f.FullName (Join-Path $wornDir  "$name.png") 24 $true
+        $i++
+    }
+    Write-Host ("  {0,-14} {1} icons" -f $prefix, $i)
+    return $i
+}
+
+$armourCount  = Import-ArmourPack "game-icons-of-fantasy-knight-armor-pack-11" "knight" 10
+$armourCount += Import-ArmourPack "rpg-boot-icons" "boot" 12
+
+if ($armourCount -eq 0) {
+    Write-Host "  (no armour icon packs found - see docs/ASSETS.md)" -ForegroundColor DarkGray
+    # Nothing to add, and the game treats a missing file as normal.
+    Remove-Item (Join-Path $root "data\items_armour.json") -Force -ErrorAction SilentlyContinue
+} else {
+    # Write the armour items that use these icons. This lives in its own file
+    # so data/items.json never refers to art that may not be installed.
+    #
+    # The worn rectangles are in frame pixels, measured against the rig: the
+    # head sits at (25,22) and is 13x13 inside the 64px frame, the torso runs
+    # from about y=34 to y=48, and the legs below that. A single painted icon
+    # only reads from the front and back, so the side facings are left off.
+    Write-Host "  writing data/items_armour.json" -ForegroundColor Cyan
+
+    function Icon($name) {
+        if (Test-Path (Join-Path $armourDir "$name.png")) { return "assets/icons/armour/$name.png" }
+        return $null
+    }
+    function Worn($name) {
+        if (Test-Path (Join-Path $wornDir "$name.png")) { return "assets/icons/armour/worn/$name.png" }
+        return $null
+    }
+
+    # The knight pack ships in a fixed order: helmets, then body armour, then
+    # greaves, then boots, each as a simple and an improved version.
+    $pieces = @(
+        @{ id='knight_helm';        name='Knight Helm';         icon='knight_00'; slot='head';  def=20; value=320;  req=10; rect=@(24,19,15,15); facings=@($true,$false,$false,$true) },
+        @{ id='knight_helm_fine';   name='Fine Knight Helm';    icon='knight_01'; slot='head';  def=30; value=760;  req=20; rect=@(24,18,16,16); facings=@($true,$false,$false,$true) },
+        @{ id='knight_cuirass';     name='Knight Cuirass';      icon='knight_02'; slot='body';  def=34; value=560;  req=15; rect=@(24,33,16,16); facings=@($true,$false,$false,$true) },
+        @{ id='knight_cuirass_fine';name='Fine Knight Cuirass'; icon='knight_03'; slot='body';  def=46; value=1180; req=25; rect=@(23,32,18,18); facings=@($true,$false,$false,$true) },
+        @{ id='knight_greaves';     name='Knight Greaves';      icon='knight_04'; slot='legs';  def=22; value=380;  req=15; rect=@(25,42,14,14); facings=@($true,$false,$false,$true) },
+        @{ id='knight_greaves_fine';name='Fine Knight Greaves'; icon='knight_05'; slot='legs';  def=30; value=820;  req=25; rect=@(24,41,16,16); facings=@($true,$false,$false,$true) }
+    )
+    $bootPieces = @(
+        @{ id='leather_boots'; name='Leather Boots'; icon='boot_00'; slot='legs'; def=8;  value=70;  req=1;  rect=@(25,47,14,12); facings=@($true,$false,$false,$true) },
+        @{ id='mail_sabatons'; name='Mail Sabatons'; icon='boot_01'; slot='legs'; def=16; value=240; req=10; rect=@(25,47,14,12); facings=@($true,$false,$false,$true) }
+    )
+
+    $armourItems = [ordered]@{}
+    foreach ($piece in ($pieces + $bootPieces)) {
+        $iconPath = Icon $piece.icon
+        if (-not $iconPath) { continue }
+
+        $entry = [ordered]@{
+            name  = $piece.name
+            desc  = "Plate from the guild armoury. Heavy, and worth the weight."
+            slot  = $piece.slot
+            value = $piece.value
+            bonus = @{ defence = $piece.def }
+            icon  = $iconPath
+        }
+        if ($piece.req -gt 1) { $entry["req"] = @{ Defence = $piece.req } }
+
+        $wornPath = Worn $piece.icon
+        if ($wornPath) {
+            $entry["worn"] = [ordered]@{
+                sprite  = $wornPath
+                after   = $(if ($piece.slot -eq 'head') { 'head' } else { 'body' })
+                rect    = $piece.rect
+                facings = $piece.facings
+            }
+        }
+        $armourItems[$piece.id] = $entry
+    }
+
+    [IO.File]::WriteAllText((Join-Path $root "data\items_armour.json"),
+                            ($armourItems | ConvertTo-Json -Depth 6) + "`n")
+    Write-Host ("  {0} armour items" -f $armourItems.Count)
+}
 
 # --- 7. font ------------------------------------------------------------------
 # The game falls back to a system font, but a bundled one keeps it identical

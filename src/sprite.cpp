@@ -129,6 +129,13 @@ float Sprite::Progress() const {
     return static_cast<float>(frame) / static_cast<float>(count);
 }
 
+// Side of one animation frame in source pixels. Frames are square, so the row
+// height is also the frame width.
+int Sprite::FrameSize() const {
+    if (!def) return 64;
+    return (def->rows > 1) ? 64 : 64;
+}
+
 SDL_FRect Sprite::WorldBounds(float wx, float wy) const {
     if (!def || !clip) return {wx, wy, 0, 0};
     // Frames are square, so the row height is also the frame width.
@@ -151,11 +158,41 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
                          static_cast<Uint8>(a.a * b.a / 255)};
     };
 
+    const int facing_index = static_cast<int>(facing) % 4;
+
+    // Worn kit anchored to the frame rather than to the sheet, so one piece of
+    // art sits correctly on every clip.
+    auto draw_attachments = [&](LayerSlot after) {
+        for (const Attachment& a : style.attachments) {
+            if (a.after != after) continue;
+            if (!a.facings[facing_index]) continue;
+
+            SDL_Texture* tex = cache.Get(a.sprite);
+            if (!tex) continue;
+
+            // Map the frame-pixel rectangle into the on-screen frame.
+            const float sx = dst.w / static_cast<float>(FrameSize());
+            const float sy = dst.h / static_cast<float>(FrameSize());
+            const SDL_FRect box = {dst.x + a.rect.x * sx, dst.y + a.rect.y * sy,
+                                   a.rect.w * sx, a.rect.h * sy};
+
+            SDL_SetTextureColorMod(tex, a.tint.r * tint.r / 255,
+                                        a.tint.g * tint.g / 255,
+                                        a.tint.b * tint.b / 255);
+            SDL_SetTextureAlphaMod(tex, a.tint.a * tint.a / 255);
+            SDL_RenderTexture(r, tex, nullptr, &box);
+            SDL_SetTextureColorMod(tex, 255, 255, 255);
+            SDL_SetTextureAlphaMod(tex, 255);
+        }
+    };
+
     bool drew = false;
     for (const AnimLayer& layer : clip->layers) {
         if (!style.show_weapon && (layer.slot == LayerSlot::WeaponBack ||
-                                   layer.slot == LayerSlot::WeaponFront))
+                                   layer.slot == LayerSlot::WeaponFront)) {
+            draw_attachments(layer.slot);
             continue;
+        }
 
         SDL_Texture* tex = cache.Get(layer.sheet);
         if (!tex) continue;
@@ -186,6 +223,8 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         SDL_SetTextureColorMod(tex, 255, 255, 255);
         SDL_SetTextureAlphaMod(tex, 255);
         drew = true;
+
+        draw_attachments(layer.slot);
     }
     return drew;
 }
