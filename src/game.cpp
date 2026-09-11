@@ -170,8 +170,16 @@ bool Game::SaveGame(int slot) {
 // -----------------------------------------------------------------------------
 
 void Game::SetState(GameState s) {
+    // Backing out of a screen the main menu opened lands on the row that
+    // opened it. Resetting to the top meant leaving Options put the cursor
+    // on Continue, one Enter away from loading a game.
+    if (state == GameState::MainMenu) main_menu_cursor = cursor;
+    const bool back_to_menu = (s == GameState::MainMenu) &&
+        (state == GameState::Options || state == GameState::LoadMenu ||
+         state == GameState::CharacterSelect);
+
     state = s;
-    cursor = 0;
+    cursor = back_to_menu ? main_menu_cursor : 0;
     // The player only steers during actual gameplay.
     world.player.input_locked = (s != GameState::Play);
 }

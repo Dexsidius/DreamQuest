@@ -392,7 +392,8 @@ void Game::DrawOptions() {
 
     ui.Text("Controller: " + pad_note, panel.x + panel.w / 2.0f,
             panel.y + panel.h - 52.0f, TextSize::Small, Palette::TextDim, Align::Center);
-    ui.Text("Left / Right to change", panel.x + panel.w / 2.0f,
+    ui.Text("Left / Right to change     " + input.PromptFor(Action::Back) + " back",
+            panel.x + panel.w / 2.0f,
             panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
 }
 

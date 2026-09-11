@@ -142,6 +142,7 @@ private:
     bool has_session = false;                   // a game is actually in progress
 
     int  cursor = 0;             // selection in the current list screen
+    int  main_menu_cursor = 0;   // restored when a sub-screen backs out to the menu
     int  inventory_cursor = 0;
     int  equipment_cursor = 0;
     bool inventory_on_equipment = false;
