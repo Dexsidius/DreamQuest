@@ -289,4 +289,22 @@ foreach ($t in @(@{ name = "plaster_wall"; plaster = @(222, 208, 176); beam = @(
     $made++
 }
 
+# --- dungeon flagstones -----------------------------------------------------------
+# The floors cut from the dungeon pack are flat swatches, and at thirty-two
+# pixels a cell they made the mines a floor of pale blue squares that looked
+# unfinished beside the textured walls. The same cool grey family as the walls,
+# a step lighter so a room still reads as open.
+#
+# Last, and on a seed of their own: everything above draws from one shared
+# random sequence, so slotting these in earlier would have quietly redrawn
+# every floorboard and plaster wall after them.
+$script:seed = 20260911
+foreach ($t in @(@{ name = "dungeon_floor";      rgb = @(106, 108, 124); mortar = @(58, 58, 72) },
+                 @{ name = "dungeon_floor_dark"; rgb = @(86, 88, 104);   mortar = @(48, 48, 60) })) {
+    $bmp = New-Masonry 32 $t.rgb $t.mortar 16 16 0.20 $true "half"
+    $bmp.Save((Join-Path $tiles "$($t.name).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

@@ -462,6 +462,28 @@ both families.
 
 ---
 
+## Item icons
+
+Most inventory icons are cut from the CraftPix RPG UI icon sheet, but that
+sheet has no log, bow, staff, hide, ore or roast, and those items had been
+given the nearest cell in spirit. Playing the game showed how far off that was:
+the Training Bow was a blue sword, Raw Hide and the Leather Jerkin were a boot,
+both staves were an eye on a green tile, Roast Boar was a blue lump, and logs
+and ore were metal ingots.
+
+Those thirteen are drawn by hand instead, as text in `tools/icons.txt` — one
+character per pixel, with a small palette per icon — and painted by:
+
+```powershell
+.\tools\make_icons.ps1
+```
+
+Text rather than image files so they can be read, diffed and touched up without
+an image editor. `import_assets.ps1` runs this and `make_ground.ps1` at the end
+of an import, because both overwrite or add to what the import cuts.
+
+---
+
 ## Attack speed and cooldown
 
 Weapons declare a `speed`, a multiplier on swing time, so **lower is faster**:
@@ -643,6 +665,8 @@ tools/
   tilecut.cpp           cuts atlases into individual tiles and sprites
   genmaps.cpp           builds the world into maps/*.mx
   selftest.cpp          content and systems validation
+  make_ground.ps1       generated ground and interior tiles
+  make_icons.ps1        paints the hand-drawn item icons in icons.txt
   make_sprites_json.ps1 / make_manifest.ps1
 data/                   items, enemies, loot tables, quests, dialogue, sprites,
                         projectiles, spells

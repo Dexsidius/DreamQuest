@@ -104,7 +104,7 @@
     "req": {
       "Ranged": 5
     },
-    "icon": "assets/icons/bow.png",
+    "icon": "assets/icons/shortbow.png",
     "kind": "bow",
     "tint": [
       188,
@@ -125,7 +125,7 @@
     "req": {
       "Magic": 5
     },
-    "icon": "assets/icons/rune.png",
+    "icon": "assets/icons/apprentice_staff.png",
     "kind": "staff",
     "tint": [
       168,
@@ -174,7 +174,7 @@
     "bonus": {
       "defence": 14
     },
-    "icon": "assets/icons/leather.png",
+    "icon": "assets/icons/leather_jerkin.png",
     "tint": [
       162,
       118,
@@ -189,7 +189,7 @@
     "bonus": {
       "defence": 9
     },
-    "icon": "assets/icons/armour.png",
+    "icon": "assets/icons/leather_chaps.png",
     "tint": [
       162,
       118,
@@ -291,7 +291,7 @@
       "xp": 85,
       "level": 12
     },
-    "icon": "assets/icons/meat_raw.png"
+    "icon": "assets/icons/raw_haunch.png"
   },
   "cooked_meat": {
     "name": "Cooked Meat",
@@ -309,7 +309,7 @@
     "value": 30,
     "consume": true,
     "heal": 16,
-    "icon": "assets/icons/meat_raw2.png"
+    "icon": "assets/icons/roast_haunch.png"
   },
   "herbal_tonic": {
     "name": "Herbal Tonic",
@@ -335,7 +335,7 @@
         "hide": 1
       }
     },
-    "icon": "assets/icons/bar_copper.png"
+    "icon": "assets/icons/logs.png"
   },
   "oak_logs": {
     "name": "Oak Logs",
@@ -352,7 +352,7 @@
         "thread": 2
       }
     },
-    "icon": "assets/icons/bar_gold.png"
+    "icon": "assets/icons/oak_logs.png"
   },
   "hide": {
     "name": "Raw Hide",
@@ -369,7 +369,7 @@
         "thread": 1
       }
     },
-    "icon": "assets/icons/leather.png"
+    "icon": "assets/icons/hide.png"
   },
   "thread": {
     "name": "Waxed Thread",
@@ -392,7 +392,7 @@
         "copper_ore": 3
       }
     },
-    "icon": "assets/icons/bar_grey.png"
+    "icon": "assets/icons/copper_ore.png"
   },
   "iron_ore": {
     "name": "Iron Ore",
@@ -409,7 +409,7 @@
         "logs": 2
       }
     },
-    "icon": "assets/icons/bar_silver.png"
+    "icon": "assets/icons/iron_ore.png"
   },
   "ruby": {
     "name": "Uncut Ruby",
@@ -458,7 +458,7 @@
     "desc": "Half a survey of the Sunken Road, in a careful, frightened hand.",
     "stack": false,
     "value": 0,
-    "icon": "assets/icons/page.png"
+    "icon": "assets/icons/torn_page.png"
   },
   "training_bow": {
     "name": "Training Bow",
@@ -475,7 +475,7 @@
       152,
       104
     ],
-    "icon": "assets/icons/bow.png"
+    "icon": "assets/icons/shortbow.png"
   },
   "novice_staff": {
     "name": "Novice Staff",
@@ -492,6 +492,6 @@
       142,
       208
     ],
-    "icon": "assets/icons/rune.png"
+    "icon": "assets/icons/novice_staff.png"
   }
 }

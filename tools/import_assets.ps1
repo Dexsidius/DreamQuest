@@ -787,6 +787,17 @@ if (-not (Test-Path (Join-Path $fonts "dreamquest.ttf"))) {
     }
 }
 
+# --- 8. generated art -----------------------------------------------------------
+# Some of assets/ is not cut from any pack but generated. The ground tiles
+# replace the flat swatches cut in step 3 above, and the icons fill the gaps in
+# the CraftPix icon sheet, so both have to run after the cutting or a fresh
+# import brings back flat grass and a bow drawn as a sword. Neither needs
+# anything installed. The Blender props and the player character do, and are
+# rebuilt separately with make_props.ps1 and make_character.ps1.
+Write-Host "`nGenerating ground tiles and item icons ..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "make_ground.ps1")
+& (Join-Path $PSScriptRoot "make_icons.ps1")
+
 # --- done ---------------------------------------------------------------------
 $total = (Get-ChildItem $assets -Recurse -File -Filter *.png |
           Where-Object { $_.FullName -notlike "*\_raw\*" }).Count
