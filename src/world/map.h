@@ -125,6 +125,11 @@ public:
     // with entities without needing to know about the texture list.
     void RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
                     const TileInstance& t, Uint8 alpha = 255) const;
+    // The image a tile draws, or an empty string.
+    const string& TexturePath(const TileInstance& t) const {
+        static const string none;
+        return (t.tex >= 0 && t.tex < static_cast<int>(textures.size())) ? textures[t.tex] : none;
+    }
 
     // --- collision -----------------------------------------------------------
     bool  Blocked(const SDL_FRect& box) const;

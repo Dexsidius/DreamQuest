@@ -14,10 +14,17 @@ public:
     // Width/height of a cached texture; {0,0} when it failed to load.
     SDL_Point Size(const string& path);
 
+    // The part of the image that is actually drawn, as fractions of its full
+    // size ({0,0,1,1} when unknown). Scenery art sits on a generous transparent
+    // canvas, so anything that asks "is this in front of that" wants this
+    // rather than the canvas. Worked out once per image from its pixels.
+    SDL_FRect OpaqueBounds(const string& path);
+
     void Clear();
 
 private:
     SDL_Renderer* renderer;
     unordered_map<string, SDL_Texture*> textures;
+    unordered_map<string, SDL_FRect> opaque;
     unordered_map<string, bool> warned;
 };

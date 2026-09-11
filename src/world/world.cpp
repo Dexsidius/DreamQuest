@@ -1033,17 +1033,32 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     // Everything a piece of scenery must not be allowed to hide.
     struct Combatant { SDL_FRect box; float sort_y; };
     vector<Combatant> combatants;
-    combatants.push_back({player.sprite.WorldBounds(player.x, player.y), player.SortY()});
+    // Body boxes, not sprite frames: a 64px frame is mostly empty around a
+    // figure twenty pixels wide.
+    combatants.push_back({player.BodyBox(), player.SortY()});
     for (const auto& e : enemies) {
         if (e->CurrentState() == Enemy::State::Dead) continue;
         if (!RectsOverlap(e->BodyBox(), view)) continue;
-        combatants.push_back({e->sprite.WorldBounds(e->x, e->y), e->SortY()});
+        // Only what the player is actually fighting, or is about to. Every
+        // grazing deer and hare used to count, so trees all over the
+        // greenwood went see-through and back as the animals wandered behind
+        // them, which read as a rendering fault rather than as help.
+        const bool close = Length(e->x - player.x, e->y - player.y) < 140.0f;
+        if (!e->Engaged() && !close) continue;
+        combatants.push_back({e->BodyBox(), e->SortY()});
     }
 
     // True when this scenery is tall enough to swallow someone and is drawn
-    // over one of them.
-    auto covers_someone = [&](const SDL_FRect& art, float sort_y) {
-        if (art.h <= 48.0f) return false;
+    // over one of them. Measured against the pixels the art actually draws:
+    // tree images sit on canvases several times wider than the tree, and
+    // testing the canvas faded a tree whenever the player walked past a
+    // hundred pixels to one side of it.
+    auto covers_someone = [&](const SDL_FRect& canvas, float sort_y, const string& path) {
+        if (canvas.h <= 48.0f) return false;
+        const SDL_FRect f = path.empty() ? SDL_FRect{0.0f, 0.0f, 1.0f, 1.0f}
+                                         : cache.OpaqueBounds(path);
+        const SDL_FRect art = {canvas.x + f.x * canvas.w, canvas.y + f.y * canvas.h,
+                               f.w * canvas.w, f.h * canvas.h};
         for (const Combatant& c : combatants)
             if (sort_y > c.sort_y && RectsOverlap(art, c.box)) return true;
         return false;
@@ -1056,7 +1071,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 // Decor tiles share the map texture list, so draw through the
                 // map to keep that indirection in one place.
                 map.RenderTile(r, cache, camera, *t,
-                               covers_someone(t->rect, t->sort_y) ? 110 : 255);
+                               covers_someone(t->rect, t->sort_y, map.TexturePath(*t)) ? 110 : 255);
                 break;
             }
             case 1: {
@@ -1129,7 +1144,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
 
                 // Tall scenery drawn in front of someone goes translucent
                 // while it overlaps them, so nobody fights behind a bush.
-                const Uint8 alpha = covers_someone(world, o->y) ? 110 : 255;
+                const Uint8 alpha = covers_someone(world, o->y, used ? o->sprite_open : o->sprite)
+                                        ? 110 : 255;
 
                 SDL_SetTextureAlphaMod(tex, alpha);
                 SDL_RenderTexture(r, tex, nullptr, &dst);
