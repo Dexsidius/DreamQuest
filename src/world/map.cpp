@@ -265,6 +265,18 @@ void Map::Unload() {
     bounds_w = bounds_h = 0;
     chunk_cols = chunk_rows = 0;
     id.clear(); display_name.clear(); source_dir.clear();
+
+    // The height grid has to go with everything else. It was left out when
+    // elevation was added, and because the parser only ever writes it when a
+    // map has an "elevation" block, a map without one never overwrote it: walk
+    // from the overworld into any building and the building inherited the
+    // overworld's hills. The guild hall's doorway sat on one of them, which is
+    // why it could not be entered -- the cliff there was a field outside.
+    elev.clear();
+    ramps.clear();
+    elev_cols = elev_rows = 0;
+    elev_cell = 32.0f;
+    cliff_texture.clear();
 }
 
 void Map::AddCollider(const SDL_FRect& r) {
@@ -384,6 +396,34 @@ void Map::RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) 
                 drop
             };
             const SDL_FRect dst = cam.ToScreenRect(world);
+
+            // A ramp crossing this edge is drawn as stairs, not as a cliff.
+            // Before this a ramp was an invisible rectangle: you could walk up
+            // it, but it looked exactly like the cliff either side of it, so
+            // nobody would ever try.
+            const float mid_x = world.x + world.w * 0.5f;
+            if (RampAt(mid_x, world.y + world.h - 1.0f) ||
+                RampAt(mid_x, world.y + world.h + 2.0f)) {
+                const float step_h = std::max(3.0f * cam.zoom, dst.h / std::max(1, here - below) / 2.0f);
+                int n = 0;
+                for (float oy = 0.0f; oy < dst.h; oy += step_h, ++n) {
+                    const SDL_FRect tread = {dst.x, dst.y + oy, dst.w,
+                                             std::min(step_h, dst.h - oy)};
+                    // Alternate tread and riser: the tread catches the light,
+                    // the riser is in its own shadow.
+                    if (n % 2 == 0) SDL_SetRenderDrawColor(r, 168, 148, 112, 255);
+                    else            SDL_SetRenderDrawColor(r, 122, 104, 76, 255);
+                    SDL_RenderFillRect(r, &tread);
+                }
+                // Stone cheeks either side, so the flight reads as built.
+                const float cheek = std::max(2.0f, 3.0f * cam.zoom);
+                SDL_SetRenderDrawColor(r, 96, 88, 78, 255);
+                SDL_FRect lc = {dst.x, dst.y, cheek, dst.h};
+                SDL_FRect rc = {dst.x + dst.w - cheek, dst.y, cheek, dst.h};
+                SDL_RenderFillRect(r, &lc);
+                SDL_RenderFillRect(r, &rc);
+                continue;
+            }
 
             // Earth, not a coloured bar. Flat fills were tried first and the
             // result reads as a brown stripe lying on the grass rather than as

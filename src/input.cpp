@@ -13,7 +13,8 @@ Input::Input() {
 
         {SDLK_Z, Action::LightAttack},
         {SDLK_X, Action::StrongAttack},
-        {SDLK_E, Action::Interact},   {SDLK_SPACE, Action::Interact},
+        {SDLK_E, Action::Interact},
+        {SDLK_SPACE, Action::Jump},
 
         {SDLK_I, Action::Inventory},  {SDLK_TAB, Action::Inventory},
         {SDLK_Q, Action::QuestLog},
@@ -46,6 +47,10 @@ Input::Input() {
         // Clicking the right stick steps through the elements; the d-pad and
         // both sticks are already spoken for.
         {SDL_GAMEPAD_BUTTON_RIGHT_STICK, Action::CycleSpell},
+        // Left stick click, because every face button is already an attack,
+        // interact or back, and a jump you have to take a thumb off the stick
+        // for is one you cannot steer.
+        {SDL_GAMEPAD_BUTTON_LEFT_STICK, Action::Jump},
     };
 
     OpenGamepad();
@@ -243,6 +248,7 @@ string Input::PromptFor(Action a) const {
             case Action::QuestLog:     return "Back";
             case Action::Pause:        return "Start";
             case Action::CycleSpell:   return "RS";
+            case Action::Jump:         return "LS";
             default:                   return "";
         }
     }
@@ -257,6 +263,7 @@ string Input::PromptFor(Action a) const {
         case Action::QuestLog:     return "Q";
         case Action::Pause:        return "Esc";
         case Action::CycleSpell:   return "R";
+        case Action::Jump:         return "Space";
         default:                   return "";
     }
 }

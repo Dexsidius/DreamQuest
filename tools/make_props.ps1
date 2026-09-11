@@ -41,6 +41,10 @@ $sizes = @{
     bookshelf   = 72; hearth      = 80; barrel    = 40; strongbox   = 44
     weapon_rack = 72; rug         = 88; banner    = 72; candlestand = 64
     lectern     = 56; signpost    = 56
+    # The forge.
+    forge        = 96; anvil        = 48; bellows      = 56; quench_trough = 56
+    grindstone   = 48; tool_rack    = 64; coal_bin     = 44; ingot_crate   = 44
+    armour_stand = 64; weapon_barrel = 48; shop_counter = 96
 }
 
 if (-not $SkipRender) {
@@ -226,6 +230,39 @@ function Add-ContactShadow($buf, $depth = 3, $alpha = 92) {
     }
 }
 
+# --- 5. sit it on the floor --------------------------------------------------
+# Props are placed by the bottom edge of their image: that line is where the
+# object meets the ground, and it is what the renderer sorts against the player.
+# A render framed with empty space under the object puts that line in mid-air --
+# the forge stood twenty-three pixels above where it was placed, and a player
+# could walk "behind" it while visibly in front. So the drawn pixels (shadow
+# included) are moved down until they touch the bottom, keeping the square.
+function Set-OnFloor($buf, $name) {
+    $top = -1; $bottom = -1
+    for ($y = 0; $y -lt $buf.h -and $top -lt 0; $y++) {
+        for ($x = 0; $x -lt $buf.w; $x++) {
+            if ($buf.bytes[$y * $buf.stride + $x * 4 + 3] -gt 0) { $top = $y; break }
+        }
+    }
+    for ($y = $buf.h - 1; $y -ge 0 -and $bottom -lt 0; $y--) {
+        for ($x = 0; $x -lt $buf.w; $x++) {
+            if ($buf.bytes[$y * $buf.stride + $x * 4 + 3] -gt 0) { $bottom = $y; break }
+        }
+    }
+    if ($top -lt 0) { return }
+    if ($top -eq 0) {
+        Write-Warning "  ! $name touches the top of its frame and may be cut off"
+    }
+    $shift = ($buf.h - 1) - $bottom
+    if ($shift -le 0) { return }
+
+    $moved = New-Object byte[] $buf.bytes.Length
+    for ($y = $buf.h - 1; $y -ge $shift; $y--) {
+        [Array]::Copy($buf.bytes, ($y - $shift) * $buf.stride, $moved, $y * $buf.stride, $buf.w * 4)
+    }
+    $buf.bytes = $moved
+}
+
 # --- run ---------------------------------------------------------------------
 $done = 0
 foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContinue)) {
@@ -251,6 +288,7 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
     Add-Outline $buf
     # After the outline, so the shadow is not itself outlined.
     Add-ContactShadow $buf
+    Set-OnFloor $buf $name
     Write-Pixels $buf (Join-Path $outDir "$name.png")
     Write-Host ("  {0,-14} {1}x{1}" -f $name, $size)
     $done++

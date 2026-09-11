@@ -6,7 +6,7 @@
 // interchangeable and the options menu can switch between them.
 enum class Action {
     MoveUp, MoveDown, MoveLeft, MoveRight,
-    LightAttack, StrongAttack, Interact,
+    LightAttack, StrongAttack, Interact, Jump,
     Inventory, QuestLog, Skills, Pause,
     SelectFire, SelectWater, SelectEarth, SelectAir, CycleSpell,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,

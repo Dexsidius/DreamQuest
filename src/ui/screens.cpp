@@ -546,6 +546,19 @@ void Game::DrawHud() {
         ui.Bar(bar, t, SDL_Color{188, 170, 140, 190}, {26, 22, 18, 150});
     }
 
+    // --- ledge prompt --------------------------------------------------------
+    // A climbable ledge is otherwise indistinguishable from a wall you cannot
+    // pass: you walk into it and stop either way. Pushing against one says what
+    // the jump button will do there, which is the only way anyone would guess.
+    if (live && !p.ClimbHint().empty() && p.interact.kind == InteractTarget::None) {
+        const string prompt = "[" + input.PromptFor(Action::Jump) + "]  " + p.ClimbHint();
+        const SDL_FPoint size = ui.Measure(prompt, TextSize::Body);
+        const SDL_FRect box = {ui.ViewWidth() / 2.0f - size.x / 2.0f - 14.0f,
+                               ui.ViewHeight() - 92.0f, size.x + 28.0f, size.y + 12.0f};
+        ui.Panel(box);
+        ui.Text(prompt, box.x + 14.0f, box.y + 6.0f, TextSize::Body, Palette::Highlight);
+    }
+
     // --- gathering -----------------------------------------------------------
     if (live && world.Gathering()) {
         const SDL_FPoint anchor = world.camera.ToScreen(p.x, p.y + 10.0f);

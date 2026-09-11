@@ -393,6 +393,43 @@ something would read that did not:
 Still to do: the faces are drawn procedurally, and dedicated cliff-edge art
 would look considerably better than a textured rectangle with a lip on it.
 
+### Getting up and down
+
+**Jump** (`Space`, or left-stick click) is a hop in the direction you are
+steering, or facing if you are not. Into a ledge up to `Player::CLIMB_LEVELS`
+(two) high it carries you up onto it; off one it drops you down; on flat ground
+it is a short hop. It plans the whole jump before leaving the ground -- every
+sample along the path must be clear of walls and within two levels of where you
+started, so it never passes through a tree or over a sheer cliff to land on the
+far side -- and then owns the player until it lands: no steering, no attacks,
+no knockback. Airborne, the draw lift is blended between the two terrain
+heights plus an arc, so a climb rises smoothly instead of snapping up at the
+edge.
+
+A climbable ledge is otherwise indistinguishable from a wall you cannot pass --
+you walk into either and stop -- so pushing against one puts **Climb up** or
+**Drop down** on screen.
+
+**Stairs.** Where a ramp crosses a level change the face is drawn as a flight
+of stairs with stone cheeks, not as a cliff. Ramps used to be invisible
+rectangles: walkable, but indistinguishable from the cliff either side.
+
+Without jumping, **923 of the overworld's 3,072 height cells -- 30% of the
+map -- could not be reached from the spawn.** The self-test now floods the
+height grid from the spawn, allowing walking, ramps and jumps of up to two
+levels, and fails if anything is left over.
+
+### A bug worth remembering
+
+The guild hall could not be entered, and it looked like the doorway was on a
+cliff. It was: the overworld's. `Map::Unload()` cleared everything except the
+height grid, and the parser only ever writes that grid when a map has one, so
+a building never overwrote it -- walk from the overworld into any interior and
+the interior inherited the hills outside. Every other self-test loads each map
+into a fresh `Map`, which can never see that; the new check loads the overworld
+and each building into the *same* one, the way the game does, and fails with
+the fix reverted.
+
 ---
 
 ## Ground tiles
@@ -541,7 +578,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2749 checks** covering:
+and checks all of it — currently **2778 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -561,8 +598,12 @@ and checks all of it — currently **2749 checks** covering:
   neither a machine gun nor so slow that combat drags
 - a sweep into a wall stops clear of it and reports a normal that sends a
   bounce back the way it came, while open floor reports no contact at all
-- no portal or spawn sits on a cliff edge, and every row of the overworld has
-  a walkable crossing somewhere on it
+- no portal or spawn sits on a cliff edge, every row of the overworld has a
+  walkable crossing, and no raised ground is sealed off from the spawn once
+  ramps and two-level jumps are counted
+- no building inherits the overworld's height grid when loaded after it
+- every NPC and usable object in every building can be walked up to from the
+  door
 - every spell fires a projectile of its own element, all four elements are
   castable, and a level 1 character has the mana to cast one
 - the elemental cycle closes and the multipliers point the right way

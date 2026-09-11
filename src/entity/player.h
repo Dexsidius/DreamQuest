@@ -41,8 +41,33 @@ public:
     // 0..1 while the strong button is held past the threshold; 0 otherwise.
     float ChargeProgress() const;
 
-    // True when a new swing may begin: nothing in flight and no cooldown left.
-    bool  CanAttack() const { return !attack.Active() && attack_cooldown <= 0.0f; }
+    // True when a new swing may begin: nothing in flight, no cooldown left,
+    // and both feet on the ground.
+    bool  CanAttack() const {
+        return !attack.Active() && attack_cooldown <= 0.0f && !jumping;
+    }
+
+    // --- jumping ---------------------------------------------------------------
+    // A hop in the direction you are steering, or facing if you are not. On
+    // flat ground it is a short hop; into a ledge up to CLIMB_LEVELS high it
+    // carries you up onto it, and off one it drops you down. That is what makes
+    // every rise in the terrain that is not a sheer cliff something you can
+    // cross, rather than something you have to find a ramp around.
+    static constexpr int   CLIMB_LEVELS  = 2;
+    static constexpr float JUMP_DURATION = 0.42f;
+    static constexpr float JUMP_HEIGHT   = 14.0f;   // screen pixels at the top of the arc
+
+    bool  IsJumping() const { return jumping; }
+    // Screen lift while airborne: the terrain height blended from where the
+    // jump started to where it lands, plus the arc. The world uses this in
+    // place of the ground height so a climb rises smoothly instead of snapping
+    // up at the edge.
+    float JumpLift() const;
+
+    // What pressing jump would do right now, for the on-screen prompt. Empty
+    // when there is nothing worth saying -- a hop on flat ground does not need
+    // announcing, a ledge does.
+    const string& ClimbHint() const { return climb_hint; }
     // 0..1 how much of the current cooldown is left, for the HUD.
     float CooldownProgress() const;
     // How fast the equipped weapon swings; 1.0 is the bare-handed baseline.
@@ -107,6 +132,17 @@ private:
     // running, which is the whole point: without it the attack button is
     // something you hold rather than something you time.
     float attack_cooldown = 0.0f;
+
+    bool  jumping = false;
+    float jump_timer = 0.0f;
+    float jump_from_x = 0, jump_from_y = 0, jump_to_x = 0, jump_to_y = 0;
+    float jump_lift_from = 0, jump_lift_to = 0;
+    string climb_hint;
+
+    // Where a jump from here along (dx, dy) would land, and whether it can.
+    struct JumpPlan { bool ok = false; float x = 0, y = 0; int levels = 0; };
+    JumpPlan PlanJump(const class Map& map, float dir_x, float dir_y) const;
+    void     UpdateJump(float dt, const class Map& map);
     float cooldown_total = 1.0f;      // what it started at, so the HUD can scale it
     int   combo = 0;
     float combo_window = 0.0f;    // time left to continue the light chain

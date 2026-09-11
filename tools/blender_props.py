@@ -45,6 +45,14 @@ PALETTE = {
     "paper":      (0.886, 0.839, 0.706),
     "ember":      (1.000, 0.561, 0.176),
     "leaf":       (0.298, 0.494, 0.267),
+    # The forge.
+    "coal":       (0.160, 0.150, 0.150),
+    "coal_hot":   (0.420, 0.160, 0.080),
+    "leather":    (0.459, 0.302, 0.192),
+    "water":      (0.290, 0.478, 0.604),
+    "brick":      (0.588, 0.365, 0.278),
+    "brick_dark": (0.420, 0.259, 0.208),
+    "soot":       (0.227, 0.212, 0.216),
 }
 
 def to_linear(rgb):
@@ -192,7 +200,12 @@ def setup_camera(span):
 
     elev = math.radians(CAMERA_ELEVATION)
     dist = span * 3.0
-    target = Vector((0.0, 0.0, span * 0.22))
+    # Aimed a third of the way up the frame rather than a fifth. At a fifth,
+    # anything taller than it is wide -- a forge with its chimney, an armour
+    # stand -- was cut off at the top while a quarter of the frame stood empty
+    # under it. make_props.ps1 sits every prop on the bottom of its image
+    # afterwards anyway, so aiming high costs nothing.
+    target = Vector((0.0, 0.0, span * 0.34))
     cam.location = target + Vector((0.0,
                                     -math.cos(elev) * dist,
                                     math.sin(elev) * dist))
@@ -427,6 +440,294 @@ def prop_signpost():
     return 1.95
 
 
+# -----------------------------------------------------------------------------
+#  The forge
+#
+#  Built with blk() rather than box(). box() scales a unit cube by half the
+#  size it is given, so everything above is modelled at half its written
+#  dimensions -- which is why those props sit small in their frames. Changing
+#  box() would resize the signpost already placed on the overworld, so the
+#  forge set gets a helper that means what it says instead.
+#
+#  Everything here is chunky on purpose. At forty pixels a pair of tongs is two
+#  pixels wide, and a two-pixel feature is all outline once make_props.ps1 has
+#  been over it; the tools on the rack are thicker than any real tool would be
+#  for exactly that reason.
+# -----------------------------------------------------------------------------
+
+def blk(name, size, loc, colour, rot=(0, 0, 0), rough=0.8, metal=0.0, emit=0.0,
+        bev=0.015):
+    bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.scale = size
+    ob.rotation_euler = rot
+    ob.data.materials.append(material(name, colour, rough, metal, emit))
+    if bev > 0:
+        bevel(ob, bev)
+    return ob
+
+
+def turn_all(degrees):
+    """Rotates everything built so far about the vertical axis through the
+    origin. Parenting to a rotated empty keeps each part's own transform
+    untouched, so props are still modelled square-on and turned at the end."""
+    pivot = bpy.data.objects.new("pivot", None)
+    bpy.context.collection.objects.link(pivot)
+    for ob in list(bpy.context.scene.objects):
+        if ob is pivot or ob.type not in {"MESH"} or ob.parent is not None:
+            continue
+        ob.parent = pivot
+    pivot.rotation_euler = (0.0, 0.0, math.radians(degrees))
+
+
+def prop_forge():
+    """The centrepiece: a brick hearth with a bed of coals, a hood over it to
+    carry the smoke, and a chimney. The coals glow, and are the only emissive
+    thing in the set, so the eye finds the forge first."""
+    # The hearth body.
+    blk("hearth_body", (1.90, 1.10, 0.78), (0, 0.10, 0.39), "brick")
+    blk("hearth_band", (1.96, 1.16, 0.10), (0, 0.10, 0.06), "brick_dark")
+    blk("hearth_lip", (1.96, 1.16, 0.10), (0, 0.10, 0.80), "stone_pale")
+    # The fire bed, sunk into the top.
+    blk("bed_rim", (1.50, 0.80, 0.10), (0, 0.02, 0.88), "stone")
+    blk("coals", (1.30, 0.62, 0.06), (0, 0.02, 0.92), "coal_hot", emit=1.4, bev=0)
+    for i, (x, y) in enumerate(((-0.42, -0.10), (-0.14, 0.12), (0.18, -0.06),
+                                (0.44, 0.10), (-0.28, 0.18), (0.30, 0.20))):
+        blk("coal_%d" % i, (0.16, 0.14, 0.10), (x, y, 0.96), "coal", bev=0.02)
+    sphere("glow_a", 0.15, (-0.10, 0.00, 0.97), "ember", emit=1.5)
+    sphere("glow_b", 0.10, (0.26, 0.04, 0.97), "ember", emit=1.3)
+    # An iron bar across the front, and a mouth where the heat is let out.
+    blk("fire_bar", (1.52, 0.07, 0.07), (0, -0.40, 0.98), "iron", metal=0.7, rough=0.5)
+    blk("mouth", (0.62, 0.05, 0.30), (0, -0.46, 0.44), "coal", bev=0.01)
+    blk("mouth_glow", (0.44, 0.04, 0.16), (0, -0.48, 0.40), "ember", emit=1.0, bev=0)
+    # The hood and chimney, set back so the fire is not hidden behind them.
+    blk("hood", (1.70, 0.62, 0.52), (0, 0.46, 1.52), "brick_dark")
+    blk("hood_lip", (1.76, 0.68, 0.08), (0, 0.44, 1.26), "stone")
+    blk("chimney", (0.70, 0.52, 0.78), (0, 0.52, 2.16), "brick")
+    blk("chimney_cap", (0.80, 0.60, 0.08), (0, 0.52, 2.58), "stone_pale")
+    blk("soot_mark", (0.56, 0.03, 0.40), (0, 0.19, 1.58), "soot", bev=0)
+    return 3.7
+
+
+def prop_anvil():
+    """On a stump, with its horn pointing off to one side so the silhouette is
+    unmistakably an anvil and not a block of iron."""
+    cyl("stump", 0.30, 0.46, (0, 0, 0.23), "oak")
+    cyl("stump_top", 0.28, 0.02, (0, 0, 0.465), "oak_pale")
+    blk("waist", (0.26, 0.22, 0.14), (0, 0, 0.53), "iron", metal=0.75, rough=0.5)
+    blk("foot", (0.42, 0.30, 0.06), (0, 0, 0.49), "iron", metal=0.75, rough=0.5)
+    blk("face", (0.58, 0.28, 0.14), (0.02, 0, 0.66), "iron_light", metal=0.85, rough=0.35)
+    # The horn: a block tapering to a point, done as two steps.
+    blk("horn_a", (0.20, 0.20, 0.11), (0.38, 0, 0.665), "iron_light", metal=0.85, rough=0.35)
+    blk("horn_b", (0.14, 0.12, 0.07), (0.53, 0, 0.67), "iron_light", metal=0.85, rough=0.35)
+    blk("heel", (0.12, 0.24, 0.12), (-0.33, 0, 0.66), "iron_light", metal=0.85, rough=0.35)
+    # A hammer left on it mid-job.
+    blk("hammer_handle", (0.44, 0.06, 0.06), (-0.02, -0.02, 0.76), "oak_pale",
+        rot=(0, 0, math.radians(18)))
+    blk("hammer_head", (0.10, 0.18, 0.12), (0.18, 0.06, 0.78), "iron", metal=0.7,
+        rot=(0, 0, math.radians(18)))
+    return 1.35
+
+
+def prop_bellows():
+    """Leather bellows on a frame, pointed at where the forge will be. Two
+    boards with a fat leather body between them reads better than any attempt
+    at the pleats."""
+    blk("frame_l", (0.08, 0.08, 0.40), (-0.38, 0, 0.20), "oak")
+    blk("frame_r", (0.08, 0.08, 0.40), (0.38, 0, 0.20), "oak")
+    blk("frame_bar", (0.84, 0.08, 0.08), (0, 0, 0.38), "oak")
+    blk("board_low", (1.00, 0.52, 0.05), (0, 0, 0.46), "oak_light")
+    blk("leather", (0.94, 0.56, 0.30), (0.02, 0, 0.62), "cloth_red", rough=0.95, bev=0.09)
+    blk("leather_fold", (0.96, 0.58, 0.05), (0.02, 0, 0.62), "leather", rough=0.95, bev=0.02)
+    blk("board_top", (1.00, 0.52, 0.05), (0.02, 0, 0.80), "oak_light",
+        rot=(0, math.radians(-8), 0))
+    blk("handle", (0.30, 0.08, 0.08), (-0.60, 0, 0.78), "oak",
+        rot=(0, math.radians(-8), 0))
+    cyl("nozzle", 0.06, 0.34, (0.66, 0, 0.56), "iron", rot=(0, math.radians(90), 0),
+        metal=0.7, rough=0.5)
+    return 1.6
+
+
+def prop_quench_trough():
+    """A trough of water the work is plunged into. The water is the only blue
+    in the room, which is what lets it read at all at this size."""
+    # Built as a floor and four walls rather than one solid block, with the
+    # front wall lowest. From this angle the water is otherwise hidden behind
+    # the trough's own front edge, and a trough with no visible water is a box.
+    blk("trough_floor", (1.30, 0.66, 0.10), (0, 0, 0.05), "oak")
+    blk("wall_back", (1.30, 0.08, 0.46), (0, 0.29, 0.23), "oak")
+    blk("wall_front", (1.30, 0.08, 0.26), (0, -0.29, 0.13), "oak_light")
+    blk("wall_l", (0.08, 0.66, 0.40), (-0.61, 0, 0.20), "oak")
+    blk("wall_r", (0.08, 0.66, 0.40), (0.61, 0, 0.20), "oak")
+    blk("water", (1.16, 0.52, 0.04), (0, 0, 0.24), "water", rough=0.15, bev=0)
+    blk("water_shine", (0.40, 0.10, 0.045), (-0.20, 0.06, 0.245), "paper", rough=0.1, bev=0)
+    for x in (-0.44, 0.44):
+        blk("band", (0.06, 0.70, 0.30), (x, 0, 0.15), "iron", metal=0.7, rough=0.5)
+    # Tongs propped in the water, handles out.
+    blk("tong_a", (0.05, 0.05, 0.62), (0.34, -0.06, 0.40), "iron", metal=0.7,
+        rot=(math.radians(30), math.radians(-20), 0))
+    blk("tong_b", (0.05, 0.05, 0.62), (0.42, -0.02, 0.40), "iron", metal=0.7,
+        rot=(math.radians(30), math.radians(-6), 0))
+    return 1.6
+
+
+def prop_grindstone():
+    """A stone wheel on a wooden frame, with a crank. The wheel is turned edge
+    on to the camera, which is the one angle a wheel is recognisable from."""
+    blk("base", (0.90, 0.40, 0.10), (0, 0, 0.05), "oak")
+    blk("post_l", (0.10, 0.12, 0.62), (-0.30, 0, 0.36), "oak")
+    blk("post_r", (0.10, 0.12, 0.62), (0.30, 0, 0.36), "oak")
+    cyl("wheel", 0.36, 0.16, (0, 0, 0.62), "stone_pale", rot=(0, math.radians(90), 0),
+        rough=0.95)
+    cyl("wheel_face", 0.28, 0.17, (0, 0, 0.62), "stone", rot=(0, math.radians(90), 0),
+        rough=0.95)
+    cyl("axle", 0.04, 0.78, (0, 0, 0.62), "iron", rot=(0, math.radians(90), 0),
+        metal=0.7)
+    blk("crank", (0.06, 0.06, 0.26), (0.42, 0, 0.54), "iron", metal=0.7)
+    blk("crank_grip", (0.14, 0.07, 0.07), (0.46, 0, 0.42), "oak_pale")
+    # A water pot hung under the wheel, as grindstones had.
+    cyl("pot", 0.12, 0.14, (0, -0.10, 0.20), "iron", metal=0.5)
+    # Square-on, the wheel is its rim: a grey bar between two posts. Turned
+    # most of the way round, it is a disc, which is what a grindstone is.
+    turn_all(58)
+    return 1.35
+
+
+def prop_tool_rack():
+    """A board of pegs with hammers and tongs hung on it. Stands against a
+    wall, so it is built facing the camera like a shelf."""
+    blk("board", (1.30, 0.08, 0.96), (0, 0.10, 0.62), "oak")
+    blk("board_top", (1.36, 0.14, 0.08), (0, 0.10, 1.12), "oak_light")
+    blk("leg_l", (0.08, 0.10, 0.60), (-0.60, 0.10, 0.30), "oak")
+    blk("leg_r", (0.08, 0.10, 0.60), (0.60, 0.10, 0.30), "oak")
+    # Hammers, hanging head up.
+    for i, x in enumerate((-0.42, -0.14)):
+        blk("h_handle_%d" % i, (0.06, 0.06, 0.46), (x, 0.02, 0.70), "oak_pale")
+        blk("h_head_%d" % i, (0.24, 0.12, 0.12), (x, 0.02, 0.96), "iron", metal=0.7)
+    # Tongs: two long bars splayed at the jaws.
+    for i, (x, tilt) in enumerate(((0.18, 6), (0.30, -6))):
+        blk("tong_%d" % i, (0.05, 0.05, 0.64), (x, 0.02, 0.68), "iron", metal=0.7,
+            rot=(0, math.radians(tilt), 0))
+    # A horseshoe, as a squared-off U, because a torus at this size is a dot.
+    blk("shoe_l", (0.05, 0.05, 0.22), (0.44, 0.02, 0.62), "iron_light", metal=0.8)
+    blk("shoe_r", (0.05, 0.05, 0.22), (0.56, 0.02, 0.62), "iron_light", metal=0.8)
+    blk("shoe_b", (0.17, 0.05, 0.05), (0.50, 0.02, 0.52), "iron_light", metal=0.8)
+    return 1.7
+
+
+def prop_coal_bin():
+    """An open crate heaped with coal and a shovel stuck in it."""
+    blk("bin_front", (0.80, 0.06, 0.36), (0, -0.30, 0.18), "oak")
+    blk("bin_back", (0.80, 0.06, 0.46), (0, 0.30, 0.23), "oak")
+    blk("bin_l", (0.06, 0.60, 0.40), (-0.37, 0, 0.20), "oak")
+    blk("bin_r", (0.06, 0.60, 0.40), (0.37, 0, 0.20), "oak")
+    for i in range(9):
+        x = -0.24 + (i % 3) * 0.24
+        y = -0.14 + (i // 3) * 0.14
+        sphere("lump_%d" % i, 0.11, (x, y, 0.34 + 0.03 * ((i * 5) % 3)), "coal",
+               rough=0.9)
+    blk("shovel_handle", (0.05, 0.05, 0.62), (0.18, 0.06, 0.62), "oak_pale",
+        rot=(math.radians(-14), math.radians(18), 0))
+    blk("shovel_blade", (0.20, 0.04, 0.22), (0.10, 0.12, 0.36), "iron", metal=0.7,
+        rot=(math.radians(-14), math.radians(18), 0))
+    return 1.15
+
+
+def prop_ingot_crate():
+    """A shallow crate of iron bars, stacked the way bars are stacked, with a
+    couple of lumps of ore beside them for what the bars were."""
+    blk("crate", (0.80, 0.56, 0.24), (0, 0, 0.12), "oak_light")
+    blk("crate_band", (0.84, 0.60, 0.05), (0, 0, 0.22), "oak")
+    for layer in range(2):
+        for i in range(3 - layer):
+            x = -0.20 + i * 0.20 + layer * 0.10
+            blk("bar_%d_%d" % (layer, i), (0.16, 0.40, 0.08),
+                (x, 0, 0.28 + layer * 0.08), "iron_light", metal=0.85, rough=0.35)
+    sphere("ore_a", 0.11, (0.52, -0.16, 0.10), "stone", rough=0.9)
+    sphere("ore_b", 0.08, (0.54, 0.06, 0.08), "brick_dark", rough=0.9)
+    return 1.25
+
+
+def prop_armour_stand():
+    """A cross of timber wearing a breastplate and a helm -- the smith's work on
+    show, which is the thing that makes a room a shop rather than a workshop."""
+    blk("base", (0.52, 0.40, 0.06), (0, 0, 0.03), "oak")
+    blk("post", (0.08, 0.08, 1.20), (0, 0, 0.62), "oak")
+    blk("arms", (0.72, 0.08, 0.08), (0, 0, 1.04), "oak")
+    blk("breastplate", (0.46, 0.26, 0.52), (0, -0.04, 0.84), "iron_light",
+        metal=0.85, rough=0.3, bev=0.08)
+    blk("plackart", (0.38, 0.22, 0.14), (0, -0.06, 0.54), "iron", metal=0.8, rough=0.35,
+        bev=0.04)
+    for x in (-0.30, 0.30):
+        sphere("pauldron", 0.13, (x, -0.02, 1.06), "iron_light")
+    sphere("helm", 0.18, (0, -0.02, 1.36), "iron_light")
+    blk("visor", (0.26, 0.05, 0.05), (0, -0.19, 1.34), "coal", bev=0)
+    blk("crest", (0.05, 0.28, 0.08), (0, 0, 1.54), "cloth_red")
+    return 2.05
+
+
+def prop_weapon_barrel():
+    """The oldest shop display there is: a barrel of blades, hilts up."""
+    slices = 12
+    for i in range(slices):
+        t = (i + 0.5) / slices
+        r = 0.25 + 0.06 * math.sin(t * math.pi)
+        cyl("stave", r, 0.056, (0, 0, 0.03 + t * 0.62), "oak")
+    for z in (0.14, 0.52):
+        cyl("hoop", 0.31, 0.05, (0, 0, z), "iron", metal=0.7, rough=0.5)
+    cyl("mouth", 0.23, 0.02, (0, 0, 0.66), "coal")
+    # Three swords and an axe, at slightly different leans.
+    for i, (x, y, lean_x, lean_y) in enumerate(((-0.11, 0.02, -9, 4),
+                                                (0.05, -0.06, 5, -7),
+                                                (0.14, 0.10, 12, 6))):
+        rot = (math.radians(lean_y), math.radians(lean_x), 0)
+        blk("blade_%d" % i, (0.13, 0.05, 0.64), (x, y, 0.94), "iron_light", rot=rot,
+            metal=0.6, rough=0.35, bev=0.01)
+        blk("guard_%d" % i, (0.22, 0.07, 0.06), (x, y, 1.24), "brass", rot=rot, metal=0.8)
+        blk("grip_%d" % i, (0.06, 0.06, 0.18), (x, y, 1.35), "leather", rot=rot)
+    blk("axe_haft", (0.06, 0.06, 0.80), (-0.02, 0.14, 0.98), "oak_pale",
+        rot=(math.radians(-8), math.radians(-16), 0))
+    blk("axe_head", (0.24, 0.05, 0.20), (-0.14, 0.18, 1.30), "iron", metal=0.8,
+        rot=(math.radians(-8), math.radians(-16), 0))
+    return 1.75
+
+
+def prop_shop_counter():
+    """Where business is done. A heavy plank counter with the day's stock on
+    it: a finished blade, a couple of bars and the ledger."""
+    blk("counter_body", (2.10, 0.60, 0.84), (0, 0.04, 0.42), "oak")
+    blk("counter_panel_l", (0.90, 0.03, 0.56), (-0.52, -0.27, 0.42), "oak_light", bev=0.01)
+    blk("counter_panel_r", (0.90, 0.03, 0.56), (0.52, -0.27, 0.42), "oak_light", bev=0.01)
+    blk("counter_top", (2.24, 0.72, 0.08), (0, 0.04, 0.88), "oak_pale")
+    # On the counter.
+    blk("ledger", (0.36, 0.28, 0.06), (-0.66, 0.10, 0.95), "cloth_red")
+    blk("ledger_pages", (0.32, 0.26, 0.03), (-0.66, 0.10, 0.99), "paper", bev=0)
+    blk("sword_blade", (0.80, 0.07, 0.03), (0.10, -0.02, 0.94), "iron_light",
+        metal=0.9, rough=0.3, bev=0.005)
+    blk("sword_guard", (0.05, 0.24, 0.05), (-0.32, -0.02, 0.95), "brass", metal=0.8)
+    blk("sword_grip", (0.18, 0.06, 0.06), (-0.44, -0.02, 0.95), "leather")
+    for i in range(2):
+        blk("stock_bar_%d" % i, (0.34, 0.12, 0.07), (0.72, 0.06 + i * 0.14, 0.96),
+            "iron_light", metal=0.85, rough=0.35)
+    return 2.7
+
+
+FORGE_PROPS = {
+    "forge":          (prop_forge,          96),
+    "anvil":          (prop_anvil,          48),
+    "bellows":        (prop_bellows,        56),
+    "quench_trough":  (prop_quench_trough,  56),
+    "grindstone":     (prop_grindstone,     48),
+    "tool_rack":      (prop_tool_rack,      64),
+    "coal_bin":       (prop_coal_bin,       44),
+    "ingot_crate":    (prop_ingot_crate,    44),
+    "armour_stand":   (prop_armour_stand,   64),
+    "weapon_barrel":  (prop_weapon_barrel,  48),
+    "shop_counter":   (prop_shop_counter,   96),
+}
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),
@@ -443,6 +744,7 @@ PROPS = {
     "candlestand": (prop_candlestand, 64),
     "lectern":     (prop_lectern,     56),
 }
+PROPS.update(FORGE_PROPS)
 
 
 def main():

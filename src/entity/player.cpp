@@ -1,4 +1,5 @@
 #include "player.h"
+#include "../world/map.h"
 #include "../world/world.h"
 
 static constexpr float COMBO_WINDOW   = 0.42f;
@@ -248,6 +249,85 @@ void Player::UpdateAttack(float dt) {
     }
 }
 
+Player::JumpPlan Player::PlanJump(const Map& map, float dir_x, float dir_y) const {
+    JumpPlan plan;
+    const float len = Length(dir_x, dir_y);
+    if (len < 0.01f) return plan;
+    const float ux = dir_x / len, uy = dir_y / len;
+
+    const SDL_FRect here = Bounds();
+    const int from_level = map.LevelAt(x, y);
+
+    auto box_at = [&](float px, float py) {
+        return SDL_FRect{here.x + (px - x), here.y + (py - y), here.w, here.h};
+    };
+
+    // Walk outward looking for the edge. Every sample on the way has to be
+    // clear of walls and within reach of the starting level, so a jump never
+    // passes through a tree or over the top of a sheer three-level cliff to
+    // land on the far side of it.
+    constexpr float STEP = 4.0f, REACH = 64.0f;
+    for (float d = STEP; d <= REACH; d += STEP) {
+        const float px = x + ux * d, py = y + uy * d;
+        if (map.Blocked(box_at(px, py))) break;
+
+        const int level = map.LevelAt(px, py);
+        const int diff = level - from_level;
+        if (std::abs(diff) > CLIMB_LEVELS) break;
+
+        if (diff != 0) {
+            // Found the ledge. Carry on a little past the edge so the whole
+            // body lands on the new level rather than teetering on its lip.
+            const float land = d + 14.0f;
+            const float lx = x + ux * land, ly = y + uy * land;
+            if (map.Blocked(box_at(lx, ly)) || map.LevelAt(lx, ly) != level)
+                break;
+            plan.ok = true;
+            plan.x = lx;
+            plan.y = ly;
+            plan.levels = diff;
+            return plan;
+        }
+    }
+
+    // No ledge within reach: a short hop along flat ground, if there is room.
+    constexpr float HOP = 22.0f;
+    const float hx = x + ux * HOP, hy = y + uy * HOP;
+    if (!map.Blocked(box_at(hx, hy)) && map.LevelAt(hx, hy) == from_level &&
+        !map.LevelChangeBlocked(x, y, hx, hy)) {
+        plan.ok = true;
+        plan.x = hx;
+        plan.y = hy;
+        plan.levels = 0;
+    }
+    return plan;
+}
+
+void Player::UpdateJump(float dt, const Map& map) {
+    (void)map;
+    jump_timer += dt;
+    const float t = std::clamp(jump_timer / JUMP_DURATION, 0.0f, 1.0f);
+    // Eased, so the take-off and landing read as effort rather than as a
+    // constant-speed slide between two points.
+    const float e = t * t * (3.0f - 2.0f * t);
+    x = jump_from_x + (jump_to_x - jump_from_x) * e;
+    y = jump_from_y + (jump_to_y - jump_from_y) * e;
+
+    if (t >= 1.0f) {
+        jumping = false;
+        x = jump_to_x;
+        y = jump_to_y;
+    }
+}
+
+float Player::JumpLift() const {
+    if (!jumping) return 0.0f;
+    const float t = std::clamp(jump_timer / JUMP_DURATION, 0.0f, 1.0f);
+    const float e = t * t * (3.0f - 2.0f * t);
+    const float ground = jump_lift_from + (jump_lift_to - jump_lift_from) * e;
+    return ground + sinf(t * 3.14159265f) * JUMP_HEIGHT;
+}
+
 float Player::CooldownProgress() const {
     if (attack_cooldown <= 0.0f) return 0.0f;
     return std::clamp(attack_cooldown / cooldown_total, 0.0f, 1.0f);
@@ -282,10 +362,23 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         attack_cooldown = 0.0f;
         sprite.speed_scale = 1.0f;
         charging = strong_armed = false;
+        jumping = false;
         sprite.Play("death", true);
     }
     if (dead) {
         death_timer = std::max(0.0f, death_timer - dt);
+        sprite.Update(dt);
+        return;
+    }
+
+    // --- airborne ------------------------------------------------------------
+    // A jump owns the player for its whole length: no steering, no attacks,
+    // no knockback. It was validated when it started, so nothing mid-air can
+    // make it land somewhere it should not.
+    if (jumping) {
+        UpdateJump(dt, world.map);
+        climb_hint.clear();
+        sprite.style = BuildLayerStyle(item_db);
         sprite.Update(dt);
         return;
     }
@@ -295,7 +388,44 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (!input_locked && ctx.input) {
         move = ctx.input->MoveAxis();
         HandleAttackInput(*ctx.input, dt);
+
+        // Which way a jump would go: where you are steering, or failing that
+        // where you are facing.
+        float jx = move.x, jy = move.y;
+        if (Length(jx, jy) < 0.3f) {
+            jx = (facing == FACE_LEFT) ? -1.0f : (facing == FACE_RIGHT ? 1.0f : 0.0f);
+            jy = (facing == FACE_UP)   ? -1.0f : (facing == FACE_DOWN  ? 1.0f : 0.0f);
+        }
+
+        const JumpPlan plan = PlanJump(world.map, jx, jy);
+
+        // Only a ledge earns a prompt, and only while you are pushing at it --
+        // standing near an edge you have no intention of climbing is not
+        // something the screen needs to keep pointing out.
+        climb_hint.clear();
+        if (plan.ok && plan.levels != 0 && Length(move.x, move.y) > 0.3f)
+            climb_hint = plan.levels > 0 ? "Climb up" : "Drop down";
+
+        if (ctx.input->Pressed(Action::Jump) && !attack.Active() && !charging) {
+            jumping      = true;
+            jump_timer   = 0.0f;
+            jump_from_x  = x;  jump_from_y = y;
+            // A jump nothing can land from is still a jump: a hop in place,
+            // so the button always answers.
+            jump_to_x    = plan.ok ? plan.x : x;
+            jump_to_y    = plan.ok ? plan.y : y;
+            jump_lift_from = world.map.HeightAt(x, y);
+            jump_lift_to   = world.map.HeightAt(jump_to_x, jump_to_y);
+            knock_x = knock_y = 0.0f;
+            sprite.speed_scale = 1.0f;
+            sprite.Play("jump", true);
+            climb_hint.clear();
+            sprite.style = BuildLayerStyle(item_db);
+            sprite.Update(dt);
+            return;
+        }
     } else {
+        climb_hint.clear();
         // Dropping input mid-charge should not leave a swing armed.
         strong_armed = false;
         charging = false;
@@ -373,6 +503,8 @@ void Player::Respawn(float sx, float sy) {
     attack_cooldown = 0.0f;
     sprite.speed_scale = 1.0f;
     charging = strong_armed = false;
+    jumping = false;
+    climb_hint.clear();
     skills.ResetCurrent();
     SyncHitpoints();
     hp = max_hp;

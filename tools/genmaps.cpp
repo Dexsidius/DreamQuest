@@ -1050,36 +1050,98 @@ static void BuildInteriors() {
     }
 
     // The forge.
+    //
+    // Two halves, the way a working smithy that also sells is laid out: the hot
+    // end at the back, where the forge stands against the chimney wall with its
+    // bellows, anvil and quenching trough around it; and the shop at the front,
+    // where the counter faces the door and the finished work is on show. The
+    // smith stands between them, behind the counter.
+    //
+    // Every prop here is original, modelled in tools/blender_props.py and
+    // reduced by tools/make_props.ps1.
     {
-        const int CELL = 32, cols = 16, rows = 12;
+        const int CELL = 32, cols = 18, rows = 12;
         MapBuilder m("house_smith", "Halda's Forge", cols * CELL, rows * CELL);
         m.Interior(true);
-        m.Background(26, 18, 14);
+        m.Background(22, 16, 12);
+
+        const int door_l = cols / 2 - 1, door_r = cols / 2;
         for (int cy = 0; cy < rows; ++cy)
             for (int cx = 0; cx < cols; ++cx) {
-                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
-                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
-                m.Ground(wall ? "dirt_dark" : "dungeon_floor_dark", cx * CELL, cy * CELL, CELL);
-                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+                // The back wall is two courses tall, so it reads as a wall seen
+                // from inside the room rather than as a strip along the edge.
+                const bool back   = (cy <= 1);
+                const bool side   = (cx == 0 || cx == cols - 1);
+                const bool front  = (cy == rows - 1);
+                const bool door   = front && cx >= door_l && cx <= door_r;
+                // The chimney breast behind the forge is brick.
+                const bool breast = back && cx >= 3 && cx <= 7;
+
+                string tile;
+                if (door)                         tile = "forge_floor";
+                else if (breast)                  tile = "forge_brick";
+                else if (back || side || front)   tile = "forge_wall";
+                else tile = ((cx * 7 + cy * 13) % 3 == 0) ? "forge_floor_1"
+                          : ((cx * 5 + cy * 3) % 4 == 0) ? "forge_floor_2" : "forge_floor";
+                m.Ground(tile, cx * CELL, cy * CELL, CELL);
+
+                if ((back || side || front) && !door)
+                    m.Collision(cx * CELL, cy * CELL, CELL, CELL);
             }
-        const int dx = (cols / 2) * CELL;
+
+        const int dx = cols / 2 * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
         m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
                  "Step outside", false);
-        m.Npc("npc_smith", "Smith Halda", "citizen2", 5 * CELL, 4 * CELL, "smith_root", 0);
+
+        // A prop stands on its position and blocks a band along its base, so
+        // the upper part of a tall piece overlaps the player the way a tree's
+        // canopy does rather than walling off the space in front of it.
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+
+        // --- the hot end ----------------------------------------------------
+        // The forge itself is also the smelting range, so it is an object
+        // rather than scenery; its sprite comes from the same prop art.
         {
-            json& o = m.Object("bench_forge", "workbench", 11 * CELL, 4 * CELL);
-            o["sprite"] = ObjPath("rock_01");
-            o["title"]  = "Forge bench";
-            m.Collision(11 * CELL - 20, 4 * CELL - 12, 40, 12);
+            const int fx = 5 * CELL, fy = 5 * CELL - 4;
+            json& o = m.Object("range_forge", "range", fx, fy);
+            o["sprite"] = "assets/props/forge.png";
+            o["title"]  = "Forge";
+            m.Collision(fx - 30, fy - 26, 60, 26);
         }
+        // Bellows on the left, nozzle toward the fire -- the prop is modelled
+        // blowing to its right, and the first layout put it on the forge's
+        // right, blowing air at the wall.
+        piece("bellows",       2 * CELL + 10, 4 * CELL + 26, 44, 12);
+        piece("coal_bin",      8 * CELL - 2, 4 * CELL + 30, 28, 12);
+        piece("tool_rack",    11 * CELL,     2 * CELL + 30, 48, 10);
+        piece("grindstone",   14 * CELL + 4, 4 * CELL + 28, 26, 12);
+        piece("quench_trough", 2 * CELL + 14, 7 * CELL + 24, 42, 14);
+        piece("ingot_crate",   8 * CELL + 6, 7 * CELL + 24, 34, 12);
+
+        // The anvil is where things are made, so it is the crafting bench.
         {
-            json& o = m.Object("range_forge", "range", 8 * CELL, 3 * CELL);
-            o["sprite"] = ObjPath("campfire");
-            o["title"]  = "Forge fire";
-            m.Collision(8 * CELL - 16, 3 * CELL - 12, 32, 12);
+            const int ax = 5 * CELL + 10, ay = 7 * CELL + 20;
+            json& o = m.Object("bench_forge", "workbench", ax, ay);
+            o["sprite"] = "assets/props/anvil.png";
+            o["title"]  = "Anvil";
+            m.Collision(ax - 14, ay - 12, 28, 12);
         }
+
+        // --- the shop -------------------------------------------------------
+        piece("shop_counter", 13 * CELL + 8, 8 * CELL + 8, 76, 16);
+        m.Npc("npc_smith", "Smith Halda", "citizen2", 13 * CELL + 8, 6 * CELL + 28,
+              "smith_root", 0);
+        piece("armour_stand",  16 * CELL + 8, 4 * CELL + 30, 24, 10);
+        piece("weapon_barrel", 16 * CELL + 10, 7 * CELL + 10, 18, 10);
+        // Kept clear of the doorway, which runs up the middle of the room.
+        piece("weapon_barrel",  4 * CELL,     10 * CELL + 12, 18, 10);
+        piece("ingot_crate",   15 * CELL + 20, 10 * CELL + 18, 34, 12);
+
         m.Write("maps");
     }
 }

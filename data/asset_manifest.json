@@ -48,6 +48,30 @@
                                               "w":  16,
                                               "h":  16
                                           },
+                   "tiles/forge_brick":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/forge_floor":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/forge_floor_1":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/forge_floor_2":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/forge_wall":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
+                   "tiles/forge_wall_1":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
                    "tiles/grass":  {
                                        "w":  16,
                                        "h":  16
@@ -1020,6 +1044,14 @@
                                                 "w":  64,
                                                 "h":  64
                                             },
+                   "props/anvil":  {
+                                       "w":  48,
+                                       "h":  48
+                                   },
+                   "props/armour_stand":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "props/banner":  {
                                         "w":  72,
                                         "h":  72
@@ -1028,6 +1060,10 @@
                                         "w":  40,
                                         "h":  40
                                     },
+                   "props/bellows":  {
+                                         "w":  56,
+                                         "h":  56
+                                     },
                    "props/bench":  {
                                        "w":  72,
                                        "h":  72
@@ -1044,18 +1080,42 @@
                                        "w":  40,
                                        "h":  40
                                    },
+                   "props/coal_bin":  {
+                                          "w":  44,
+                                          "h":  44
+                                      },
+                   "props/forge":  {
+                                       "w":  96,
+                                       "h":  96
+                                   },
+                   "props/grindstone":  {
+                                            "w":  48,
+                                            "h":  48
+                                        },
                    "props/hearth":  {
                                         "w":  80,
                                         "h":  80
                                     },
+                   "props/ingot_crate":  {
+                                             "w":  44,
+                                             "h":  44
+                                         },
                    "props/lectern":  {
                                          "w":  56,
                                          "h":  56
                                      },
+                   "props/quench_trough":  {
+                                               "w":  56,
+                                               "h":  56
+                                           },
                    "props/rug":  {
                                      "w":  88,
                                      "h":  88
                                  },
+                   "props/shop_counter":  {
+                                              "w":  96,
+                                              "h":  96
+                                          },
                    "props/signpost":  {
                                           "w":  56,
                                           "h":  56
@@ -1072,6 +1132,14 @@
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/tool_rack":  {
+                                           "w":  64,
+                                           "h":  64
+                                       },
+                   "props/weapon_barrel":  {
+                                               "w":  48,
+                                               "h":  48
+                                           },
                    "props/weapon_rack":  {
                                              "w":  72,
                                              "h":  72

@@ -24,6 +24,7 @@
 #include "../src/systems/save.h"
 #include "../src/systems/projectile.h"
 #include "../src/systems/spell.h"
+#include "../src/entity/player.h"
 
 #include <fstream>
 #include <filesystem>
@@ -358,6 +359,145 @@ int main() {
         const float slice  = std::max(2.0f, d.radius * 0.5f);
         Check(travel / slice <= 32.0f,
               kv.first + " is slow enough that its sub-steps cannot tunnel");
+    }
+
+    // --- you can reach what is in a room ---------------------------------------
+    // Furniture is easy to place so that it blocks the way to the one thing in
+    // the room that matters -- a counter across the smith, a bench between the
+    // door and the hearth. Flood the floor from where you arrive, at the size of
+    // the player's feet, and check every NPC and usable object is within reach
+    // of somewhere the flood got to.
+    Section("everything in a building can be reached");
+    for (const char* id : {"house_smith", "guild_hall", "house_elder", "house_inn"}) {
+        Map room;
+        if (!room.Load(string("maps/") + id + ".mx")) continue;
+
+        constexpr float STEP = 8.0f;
+        constexpr float REACH = 58.0f;             // World's INTERACT_RANGE
+        const int cols = static_cast<int>(room.Width() / STEP);
+        const int rows = static_cast<int>(room.Height() / STEP);
+        auto feet = [](float x, float y) { return SDL_FRect{x - 8.0f, y - 10.0f, 16.0f, 10.0f}; };
+
+        vector<char> seen(static_cast<size_t>(cols) * rows, 0);
+        vector<pair<int,int>> todo;
+        const SDL_FPoint sp = room.DefaultSpawn();
+        const int sx = static_cast<int>(sp.x / STEP), sy = static_cast<int>(sp.y / STEP);
+        if (sx >= 0 && sy >= 0 && sx < cols && sy < rows) {
+            seen[static_cast<size_t>(sy) * cols + sx] = 1;
+            todo.push_back({sx, sy});
+        }
+        while (!todo.empty()) {
+            const auto [cx, cy] = todo.back();
+            todo.pop_back();
+            static const int kDir[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
+            for (const auto& d : kDir) {
+                const int nx = cx + d[0], ny = cy + d[1];
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                char& f = seen[static_cast<size_t>(ny) * cols + nx];
+                if (f) continue;
+                if (room.Blocked(feet(nx * STEP, ny * STEP))) continue;
+                f = 1;
+                todo.push_back({nx, ny});
+            }
+        }
+
+        auto reachable = [&](float x, float y) {
+            for (int cy = 0; cy < rows; ++cy)
+                for (int cx = 0; cx < cols; ++cx)
+                    if (seen[static_cast<size_t>(cy) * cols + cx] &&
+                        Length(cx * STEP - x, cy * STEP - y) <= REACH)
+                        return true;
+            return false;
+        };
+
+        for (const NpcDef& n : room.Npcs())
+            Check(reachable(n.x, n.y), string(id) + ": " + n.name + " can be walked up to");
+        for (const MapObject& o : room.Objects())
+            Check(reachable(o.x, o.y), string(id) + ": " + o.id + " can be walked up to");
+    }
+
+    // --- every rise is climbable ----------------------------------------------
+    // The rule is that no piece of raised ground may be sealed off: each has to
+    // be reachable by walking, by a ramp, or by a jump of up to CLIMB_LEVELS.
+    // Checked by flooding outward from the spawn over the height grid and
+    // counting what the flood never reaches -- a three-level shelf with no
+    // stairs shows up here instead of as a player stuck at the foot of it.
+    Section("every rise can be climbed");
+    {
+        Map ow;
+        ow.Load("maps/overworld.mx");
+        if (ow.HasElevation()) {
+            const float cell = ow.ElevationCell();
+            const int cols = static_cast<int>(ow.Width() / cell);
+            const int rows = static_cast<int>(ow.Height() / cell);
+            auto centre = [&](int cx, int cy) {
+                return SDL_FPoint{(cx + 0.5f) * cell, (cy + 0.5f) * cell};
+            };
+
+            vector<char> seen(static_cast<size_t>(cols) * rows, 0);
+            vector<pair<int,int>> todo;
+            const SDL_FPoint sp = ow.DefaultSpawn();
+            const int sx = std::clamp(static_cast<int>(sp.x / cell), 0, cols - 1);
+            const int sy = std::clamp(static_cast<int>(sp.y / cell), 0, rows - 1);
+            todo.push_back({sx, sy});
+            seen[static_cast<size_t>(sy) * cols + sx] = 1;
+
+            while (!todo.empty()) {
+                const auto [cx, cy] = todo.back();
+                todo.pop_back();
+                const SDL_FPoint a = centre(cx, cy);
+                const int la = ow.LevelAt(a.x, a.y);
+                static const int kDir[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
+                for (const auto& d : kDir) {
+                    const int nx = cx + d[0], ny = cy + d[1];
+                    if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                    char& flag = seen[static_cast<size_t>(ny) * cols + nx];
+                    if (flag) continue;
+                    const SDL_FPoint b = centre(nx, ny);
+                    const int lb = ow.LevelAt(b.x, b.y);
+                    const bool walk  = (la == lb);
+                    const bool ramp  = ow.RampAt(a.x, a.y) || ow.RampAt(b.x, b.y);
+                    const bool jump  = std::abs(la - lb) <= Player::CLIMB_LEVELS;
+                    if (walk || ramp || jump) {
+                        flag = 1;
+                        todo.push_back({nx, ny});
+                    }
+                }
+            }
+
+            int sealed = 0;
+            for (char c : seen) if (!c) ++sealed;
+            if (sealed) printf("     %d height cells cannot be reached\n", sealed);
+            Check(sealed == 0, "no raised ground is sealed off from the spawn");
+        }
+    }
+
+    // --- state does not leak between maps -------------------------------------
+    // The game reuses one Map object for every map it ever loads. Loading each
+    // map into a fresh object -- which every other check here does -- can never
+    // see state left behind by the previous one, and that is exactly how the
+    // overworld's height grid survived into every building: the guild hall
+    // doorway sat on a hill that was really a field outside.
+    Section("map state does not leak between loads");
+    {
+        Map shared;
+        Check(shared.Load("maps/overworld.mx"), "overworld loads into a shared map");
+        Check(shared.HasElevation(), "the overworld has a height grid");
+
+        for (const char* inside : {"guild_hall", "house_smith", "house_elder", "house_inn",
+                                   "town_havenbrook"}) {
+            Check(shared.Load(string("maps/") + inside + ".mx"),
+                  string(inside) + " loads after the overworld");
+            Check(!shared.HasElevation(),
+                  string(inside) + " does not inherit the overworld's height grid");
+            const SDL_FPoint sp = shared.DefaultSpawn();
+            Check(shared.LevelAt(sp.x, sp.y) == 0,
+                  string(inside) + " is flat where you arrive");
+
+            // Reload the overworld between each, so every building is checked
+            // straight after the map most likely to have polluted it.
+            shared.Load("maps/overworld.mx");
+        }
     }
 
     // --- attack speed and cooldown --------------------------------------------

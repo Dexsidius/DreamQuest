@@ -729,12 +729,14 @@ void World::UpdateElevation() {
     // grid is a hash and a clamp, but Render is called from a sorted queue that
     // may visit the same entity's bounds several times.
     if (!map.HasElevation()) {
-        player.draw_lift = 0.0f;
+        // A hop on flat ground still leaves the ground.
+        player.draw_lift = player.IsJumping() ? player.JumpLift() : 0.0f;
         for (auto& e : enemies) e->draw_lift = 0.0f;
         for (auto& n : npcs)    n->draw_lift = 0.0f;
         return;
     }
-    player.draw_lift = map.HeightAt(player.x, player.y);
+    player.draw_lift = player.IsJumping() ? player.JumpLift()
+                                          : map.HeightAt(player.x, player.y);
     for (auto& e : enemies) e->draw_lift = map.HeightAt(e->x, e->y);
     for (auto& n : npcs)    n->draw_lift = map.HeightAt(n->x, n->y);
 }

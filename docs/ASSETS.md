@@ -125,3 +125,32 @@ the frame size is the sheet height over four, and the frame count is the width
 over that. `tools/make_sprites_json.ps1` derives `data/sprites.json` from the
 files themselves rather than from a hand-written table, which is why the
 animation data can never drift out of step with the imported art.
+
+## Original props
+
+Some art in this project is not from a pack. `tools/blender_props.py` models
+props from primitives in code and renders them headless;
+`tools/make_props.ps1` reduces the renders to pixel art (box downsample, a
+flattened palette, a dark outline, a contact shadow drawn from the prop's own
+silhouette) and sits each one on the bottom of its image, because that bottom
+edge is where the game anchors and sorts it.
+
+```powershell
+.\tools\make_props.ps1                          # render everything, then convert
+.\tools\make_props.ps1 -Only forge,anvil        # a couple
+.\tools\make_props.ps1 -SkipRender              # convert existing renders only
+```
+
+**Halda's Forge** is furnished entirely from these: forge, anvil, bellows,
+quenching trough, grindstone, tool rack, coal bin, ingot crate, armour stand,
+weapon barrel and shop counter. Its flagstone floor, stone walls and brick
+chimney breast come from `tools/make_ground.ps1`.
+
+Two things to know before adding to the set:
+
+- `box()` scales a unit cube by *half* the size it is given, so the older props
+  are modelled at half their written dimensions. The forge set uses `blk()`,
+  which means what it says. `box()` was left alone because changing it would
+  resize the signpost already placed on the overworld.
+- Make everything chunkier than life. At forty pixels a pair of tongs is two
+  pixels wide, and a two-pixel feature is all outline once it has been reduced.

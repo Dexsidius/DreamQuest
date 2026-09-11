@@ -149,4 +149,81 @@ foreach ($f in $families) {
     }
 }
 
+# --- interior masonry ------------------------------------------------------------
+# Thirty-two pixels rather than sixteen, because a flagstone is a large flat
+# thing and at sixteen pixels a floor of them is a checkerboard. Both patterns
+# are built from courses whose joints sit at fixed positions modulo the tile
+# size, which is the same seamlessness trick as the grass: a stone that runs off
+# one edge is the same stone at the other.
+function New-Masonry($size, $rgb, $mortarRgb, $courseH, $unitW, $jitter, $bevel) {
+    $bmp = New-Object System.Drawing.Bitmap -ArgumentList $size, $size,
+           ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $base   = [System.Drawing.Color]::FromArgb(255, $rgb[0], $rgb[1], $rgb[2])
+    $mortar = [System.Drawing.Color]::FromArgb(255, $mortarRgb[0], $mortarRgb[1], $mortarRgb[2])
+
+    $courses = [int]($size / $courseH)
+    for ($c = 0; $c -lt $courses; $c++) {
+        $y0 = $c * $courseH
+        # Alternate courses are offset by half a unit: running bond.
+        $offset = if ($c % 2 -eq 1) { [int]($unitW / 2) } else { 0 }
+        $units = [int]($size / $unitW)
+        for ($u = 0; $u -lt $units; $u++) {
+            # Every stone is a little lighter or darker than the next. Without
+            # this a floor of identical slabs reads as a grid, not as stone.
+            $tone = ((Rand) - 0.5) * $jitter
+            $face = Shade $base $tone
+            $x0 = $u * $unitW + $offset
+            for ($yy = 0; $yy -lt $courseH; $yy++) {
+                for ($xx = 0; $xx -lt $unitW; $xx++) {
+                    $px = $x0 + $xx; $py = $y0 + $yy
+                    $isJoint = ($yy -eq $courseH - 1) -or ($xx -eq $unitW - 1)
+                    if ($isJoint) {
+                        Set-Wrapped $bmp $px $py $mortar
+                    } elseif ($bevel -and ($yy -eq 0 -or $xx -eq 0)) {
+                        # Lit top and left edge on each stone, so the courses
+                        # have relief rather than being drawn lines.
+                        Set-Wrapped $bmp $px $py (Shade $face 0.12)
+                    } elseif ($bevel -and ($yy -eq $courseH - 2)) {
+                        Set-Wrapped $bmp $px $py (Shade $face (-0.10))
+                    } else {
+                        Set-Wrapped $bmp $px $py $face
+                    }
+                }
+            }
+            # A few pits in each stone.
+            for ($k = 0; $k -lt 3; $k++) {
+                $sx = $x0 + 1 + (RandInt ([math]::Max(1, $unitW - 3)))
+                $sy = $y0 + 1 + (RandInt ([math]::Max(1, $courseH - 3)))
+                Set-Wrapped $bmp $sx $sy (Shade $face (-0.14))
+            }
+        }
+    }
+    return $bmp
+}
+
+$interiors = @(
+    # Worn flagstones: big units, low contrast joints, a warm soot-stained grey.
+    @{ name = "forge_floor"; rgb = @(112, 104, 96);  mortar = @(70, 62, 56);
+       course = 16; unit = 16; jitter = 0.16; bevel = $true; variants = 3 },
+    # Coursed rubble for the walls: smaller, darker, more relief.
+    @{ name = "forge_wall";  rgb = @(96, 88, 84);   mortar = @(46, 40, 38);
+       course = 8;  unit = 16; jitter = 0.22; bevel = $true; variants = 2 },
+    # Brick for the chimney breast and trim.
+    @{ name = "forge_brick"; rgb = @(150, 92, 70);  mortar = @(78, 58, 48);
+       course = 8;  unit = 16; jitter = 0.14; bevel = $true; variants = 1 }
+)
+# Set-Wrapped wraps at $Size, and the outdoor tiles above are all done, so the
+# size moves up for the masonry. Leaving it at sixteen tiles each stone four
+# times over inside one thirty-two pixel image.
+$Size = 32
+foreach ($t in $interiors) {
+    for ($v = 0; $v -lt $t.variants; $v++) {
+        $bmp = New-Masonry 32 $t.rgb $t.mortar $t.course $t.unit $t.jitter $t.bevel
+        $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green
