@@ -600,7 +600,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2840 checks** covering:
+and checks all of it — currently **2871 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -629,6 +629,12 @@ and checks all of it — currently **2840 checks** covering:
 - every portal arrives at a spawn that exists, not inside a wall, and not on a
   step-through portal that sends the player straight back -- which is what a
   flight of stairs between two floors would otherwise do
+- every way back through a portal arrives beside the way in, so leaving a
+  building puts you on its doorstep rather than in the middle of town
+- real fights, run frame by frame through the world update with the buttons
+  pressed through the game's own input: a new character fighting back beats a
+  fox and a boar, and the monster never stands on top of the player
+- a collect objective counts what the player is carrying
 - every spell fires a projectile of its own element, all four elements are
   castable, and a level 1 character has the mana to cast one
 - the elemental cycle closes and the multipliers point the right way

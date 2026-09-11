@@ -795,7 +795,8 @@ static void BuildOverworld() {
         o["title"]        = "A water-stained note";
         o["text"]         = "If you are reading this I did not come back out, and you should not go in.\n\nI am going anyway. There is a seal down there with my grandmother's name pressed into it, and the guild has known about it for forty years.\n\nIf you find the seal, do not give it to Orlend. Ask him why he never told anyone first.";
         o["starts_quest"] = "q_barrow_seal";
-        o["sprite"]       = ObjPath("rocksmall_00");
+        // A page on the ground, drawn in tools/icons.txt; it used to be a rock.
+        o["sprite"]       = "assets/icons/note_ground.png";
     }
 
     // The surveyor's page, halfway up the Sunken Road.
@@ -806,7 +807,7 @@ static void BuildOverworld() {
         o["title"]  = "Torn survey page";
         o["text"]   = "Third day on the road. Counted twelve of them at the second milestone. Counted thirty at the third.\n\nThey are not raiding. They are walking north, in order, and they are all walking to the same place.\n\nI have drawn it below as best I can from the ridge. It is a mine adit. It is the Emberfell adit.";
         o["loot"]   = "page_surveyor";
-        o["sprite"] = ObjPath("rocksmall_02");
+        o["sprite"] = "assets/icons/note_ground.png";
     }
 
     // A couple of chests off the road for the curious.
