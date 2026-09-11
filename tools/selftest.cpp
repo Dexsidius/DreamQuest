@@ -936,6 +936,123 @@ int main() {
         Check(inv.Count("coins") == 0, "stack is gone");
     }
 
+    // --- a real fight ---------------------------------------------------------
+    // The combat maths above is expected values. This runs the actual world --
+    // AI, swing timings, hitboxes, knockback -- frame by frame, with the
+    // player's buttons pressed through the same Input the game reads.
+    Section("a fight, frame by frame");
+    {
+        Input input;
+        std::mt19937 rng(20260911);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;       ctx.rng = &rng;
+
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        struct Outcome { float seconds = 0; int hp_lost = 0; bool enemy_dead = false;
+                         bool player_dead = false; int swings = 0; int enemy_hp_left = 0;
+                         int frames = 0; int on_top = 0; };
+
+        const auto fight = [&](const string& type, int level, bool fight_back, float limit) {
+            Outcome out;
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.player.inventory.Add("bronze_sword", 1);
+            w.player.inventory.Add("wooden_shield", 1);
+            string why;
+            for (int s = 0; s < w.player.inventory.SlotCount(); ++s) {
+                const string id = w.player.inventory.Slot(s).id;
+                if (id == "bronze_sword" || id == "wooden_shield") w.player.EquipFromInventory(s, why);
+            }
+            // The mine's first room: open floor, no height, nothing in the way.
+            if (!w.LoadMap("dungeon_emberfell_1", "entrance", ctx)) return out;
+            w.enemies.clear();
+            w.player.y += 48.0f;   // off the exit portal
+
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return out;
+            EnemySpawnDef def;
+            def.type = type; def.level = level;
+            def.x = w.player.x + 44.0f; def.y = w.player.y;
+            def.leash = 400.0f; def.respawn = 0.0f;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            Enemy* enemy = e.get();
+            w.enemies.push_back(std::move(e));
+
+            const int start_hp = w.player.hp;
+            const float dt = 1.0f / 60.0f;
+            int frame = 0;
+            SDL_Keycode held = 0;
+            for (float t = 0; t < limit; t += dt, ++frame) {
+                input.Update(dt);
+                if (held) { key(held, false); held = 0; }
+
+                if (fight_back && !w.player.IsDead()) {
+                    // Turn to face it, one tap, then swing whenever allowed.
+                    const float dx = enemy->x - w.player.x, dy = enemy->y - w.player.y;
+                    const Facing want = fabsf(dx) > fabsf(dy) ? (dx > 0 ? FACE_RIGHT : FACE_LEFT)
+                                                              : (dy > 0 ? FACE_DOWN : FACE_UP);
+                    if (w.player.facing != want) {
+                        held = want == FACE_RIGHT ? SDLK_D : want == FACE_LEFT ? SDLK_A
+                             : want == FACE_DOWN ? SDLK_S : SDLK_W;
+                        key(held, true);
+                    } else if (w.player.CanAttack() && frame % 2 == 0) {
+                        held = SDLK_Z;
+                        key(held, true);
+                        ++out.swings;
+                    }
+                }
+
+                w.Update(dt, ctx);
+                out.seconds = t;
+                // Standing inside the player: drawn after them, it hides them.
+                ++out.frames;
+                if (Length(enemy->x - w.player.x, enemy->y - w.player.y) < 8.0f) ++out.on_top;
+                if (enemy->CurrentState() == Enemy::State::Dead) { out.enemy_dead = true; break; }
+                if (w.player.IsDead()) { out.player_dead = true; break; }
+            }
+            out.hp_lost = start_hp - w.player.hp;
+            out.enemy_hp_left = enemy->hp;
+            return out;
+        };
+
+        for (const char* type : {"fox", "boar"}) {
+            for (bool back : {false, true}) {
+                int deaths = 0, kills = 0, lost = 0, frames = 0, on_top = 0;
+                float time = 0;
+                for (int run = 0; run < 20; ++run) {
+                    const Outcome o = fight(type, 1, back, back ? 60.0f : 30.0f);
+                    deaths += o.player_dead; kills += o.enemy_dead; lost += o.hp_lost; time += o.seconds;
+                    frames += o.frames; on_top += o.on_top;
+                }
+                printf("     %-4s %-13s  player died %2d/20  killed it %2d/20  hp lost %.1f  over %.1fs"
+                       "  on top of the player %.0f%% of the time\n",
+                       type, back ? "fighting back" : "standing still",
+                       deaths, kills, lost / 20.0f, time / 20.0f,
+                       100.0f * on_top / std::max(1, frames));
+
+                const string who = string("a ") + type + (back ? " fought" : " left alone");
+                // It used to walk right onto the player between swings and
+                // stay there. Found in a playtest where the boar hid the
+                // character completely.
+                Check(on_top <= frames / 50, who + " does not stand on top of the player");
+                if (back) {
+                    Check(kills >= 18, who + " by a new character is usually killed");
+                    Check(deaths <= 1, who + " by a new character rarely kills them");
+                }
+            }
+        }
+    }
+
     // --- save round trip ------------------------------------------------------
     Section("save round trip");
     {

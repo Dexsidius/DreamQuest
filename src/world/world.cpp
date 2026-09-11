@@ -309,7 +309,8 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         } else if (!o.skill.empty()) {
             const int s = SkillFromName(o.skill);
             if (s >= 0 && player.skills.Level(s) < o.skill_level)
-                label = "Needs " + std::to_string(o.skill_level) + " " + o.skill;
+                label = "Needs " + o.skill + " " + std::to_string(o.skill_level) +
+                        (o.title.empty() ? string("") : " for the " + o.title);
             else
                 label = (o.skill == "Mining" ? "Mine " : "Chop ") +
                         (o.title.empty() ? string("node") : o.title);

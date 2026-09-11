@@ -418,7 +418,11 @@ static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
     o["yield"]       = yield;
     o["yield_xp"]    = big ? 60 : 24;
     o["gather_time"] = big ? 3.2f : 2.4f;
-    o["title"]       = big ? "seam" : "outcrop";
+    // Named for the ore, because copper and iron use the same rock art: a
+    // plain "outcrop" left a new miner walking up to iron they could not
+    // touch with nothing to say which of the rocks around it was copper.
+    const string ore = (yield == "iron_ore") ? "iron " : "copper ";
+    o["title"]       = ore + (big ? "seam" : "outcrop");
 
     m.Collision(x - 14, y - 12, 28, 12);
 }
