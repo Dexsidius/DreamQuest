@@ -209,6 +209,18 @@ public:
         Place(name, path, 0, x - wh.first / 2, y - wh.second / 2, wh.first, wh.second);
     }
 
+    // Something that lies flat on the floor over the floor tiles -- a rug.
+    // The ground layer is drawn in the order its tiles appear in the file, and
+    // the file groups tiles by name, alphabetically, so "inn_rug" would be
+    // written ahead of "plank_floor" and then painted over by it. The key is
+    // prefixed with '~', which sorts after every lower-case letter, so an
+    // overlay always lands on top of the floor it is laid on.
+    void Overlay(const string& group, const string& name, int x, int y) {
+        const auto wh = g_manifest.Size(group + "/" + name);
+        const string path = "assets/" + group + "/" + name + ".png";
+        Place("~" + name, path, 0, x - wh.first / 2, y - wh.second / 2, wh.first, wh.second);
+    }
+
     void Collision(int x, int y, int w, int h) {
         dq["collision"].push_back(json::array({x, y, w, h}));
     }
@@ -414,8 +426,9 @@ static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
 // leaves the doorway open, and a portal sits in the gap.
 static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
                           int w, int h, const string& target,
-                          const string& spawn, const string& label) {
-    m.Prop("objects", art, x, y);
+                          const string& spawn, const string& label,
+                          const string& group = "objects") {
+    m.Prop(group, art, x, y);
 
     const int wall_h = 30;
     const int door_w = 30;
@@ -825,8 +838,11 @@ static void BuildTown() {
                   "guild_hall", "entrance", "Enter the guild hall");
     PlaceBuilding(m, "building_house_a", 13 * CELL,      18 * CELL, 136, 149,
                   "house_elder", "entrance", "Enter Maren's house");
-    PlaceBuilding(m, "building_house_b", 44 * CELL,      18 * CELL, 133, 184,
-                  "house_inn", "entrance", "Enter the inn");
+    // The inn has its own building rather than another cottage: modelled in
+    // tools/blender_props.py (prop_inn_building). The door is at the centre of
+    // the image, which is where PlaceBuilding cuts the doorway.
+    PlaceBuilding(m, "inn_building",     44 * CELL,      18 * CELL, 176, 160,
+                  "house_inn", "entrance", "Enter the inn", "props");
     PlaceBuilding(m, "building_shop",    14 * CELL,      33 * CELL, 110, 72,
                   "house_smith", "entrance", "Enter the forge");
 
@@ -866,9 +882,9 @@ static void BuildTown() {
     // A workbench by the forge.
     {
         json& o = m.Object("bench_town", "workbench", 20 * CELL, 34 * CELL);
-        o["sprite"] = ObjPath("rock_00");
+        o["sprite"] = "assets/props/workbench.png";
         o["title"]  = "Workbench";
-        m.Collision(20 * CELL - 20, 34 * CELL - 12, 40, 12);
+        m.Collision(20 * CELL - 34, 34 * CELL - 18, 67, 18);
     }
 
     m.Npc("npc_guard",  "Watchman Corrin", "fighter2", 30 * CELL, 39 * CELL, "guard_root", 3);
@@ -888,32 +904,80 @@ static void BuildTown() {
 
 // --- interiors ---------------------------------------------------------------
 
+// The walls and floor of a room. The back wall is two courses tall so it reads
+// as a wall seen from inside rather than a strip along the top; the sides and
+// front are one. `door_l`..`door_r` are the front-wall columns left open, or
+// -1 for a room with no way out through the front (an upstairs floor).
+static void RoomShell(MapBuilder& m, int cols, int rows, int CELL,
+                      const string& floor, const string& wall,
+                      int door_l = -1, int door_r = -1) {
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            const bool back  = (cy <= 1);
+            const bool side  = (cx == 0 || cx == cols - 1);
+            const bool front = (cy == rows - 1);
+            const bool door  = front && door_l >= 0 && cx >= door_l && cx <= door_r;
+            const bool solid = (back || side || front) && !door;
+            m.Ground(solid ? wall : VariantOf(floor, cx, cy), cx * CELL, cy * CELL, CELL);
+            if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+}
+
 static void BuildInteriors() {
     // Elder Maren's house.
+    //
+    // A cottage that someone has lived in for a long time: a bed in the corner,
+    // a hearth with a kettle on it, a table laid for one with a second chair for
+    // visitors, and -- because she is the village elder and the one who knows
+    // things -- a full bookshelf, a desk of scrolls, and a spinning wheel.
     {
         const int CELL = 32, cols = 18, rows = 13;
         MapBuilder m("house_elder", "Maren's House", cols * CELL, rows * CELL);
         m.Interior(true);
         m.Background(22, 18, 16);
-        for (int cy = 0; cy < rows; ++cy)
-            for (int cx = 0; cx < cols; ++cx) {
-                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
-                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
-                m.Ground(wall ? "dirt_dark" : "sand", cx * CELL, cy * CELL, CELL);
-                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
-            }
+        RoomShell(m, cols, rows, CELL, "plank_floor_dark", "plaster_wall_warm",
+                  cols / 2 - 1, cols / 2);
+
         const int dx = (cols / 2) * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
         m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
                  "Step outside", false);
-        m.Npc("npc_maren", "Elder Maren", "citizen1", 5 * CELL, 4 * CELL, "maren_root", 0);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+
+        m.Overlay("props", "inn_rug", 288, 272);
+
+        // The hearth is her cooking range.
         {
-            json& o = m.Object("range_maren", "range", 13 * CELL, 4 * CELL);
-            o["sprite"] = ObjPath("campfire");
+            json& o = m.Object("range_maren", "range", 13 * CELL, 100);
+            o["sprite"] = "assets/props/cottage_hearth.png";
             o["title"]  = "Hearth";
-            m.Collision(13 * CELL - 16, 4 * CELL - 12, 32, 12);
+            m.Collision(13 * CELL - 32, 74, 64, 26);
         }
+
+        // Sleeping corner.
+        piece("bed_single",   70, 150, 30, 36);
+        piece("nightstand",  104, 112, 18, 8);
+        piece("travel_chest", 80, 370, 28, 12);
+
+        // Where she works.
+        piece("cottage_bookshelf", 176, 104, 40, 14);
+        piece("writing_desk",      180, 202, 48, 16);
+        m.Npc("npc_maren", "Elder Maren", "citizen1", 236, 184, "maren_root", 0);
+        piece("spinning_wheel",    112, 300, 32, 12);
+
+        // Where she eats.
+        piece("dining_table", 400, 250, 46, 14);
+        piece("tavern_chair", 362, 252, 16, 8);
+        piece("tavern_chair", 438, 252, 16, 8);
+
+        piece("wardrobe",  520, 120, 34, 14);
+        piece("herb_pots", 520, 250, 30, 10);
+
         m.Write("maps");
     }
 
@@ -1022,30 +1086,167 @@ static void BuildInteriors() {
     }
 
     // The inn.
+    //
+    // The Barley and Bell is two floors joined by a flight of stairs up the
+    // left-hand wall, the way a coaching inn is built: the taproom downstairs,
+    // guest rooms upstairs. Each floor is its own map. Walking up the stairs
+    // steps onto a portal at the top of the flight and arrives at the top of
+    // the stairwell upstairs; walking back into the stairwell comes back down
+    // to the foot of the flight. The two sets of stairs sit in the same place
+    // on both floors, so the building stays one building in your head.
+    //
+    // Both flights are floor overlays rather than standing props. A standing
+    // prop sorts by its base, and a player climbing a flight is north of that
+    // base for the whole climb -- so they would be drawn behind the stairs they
+    // are walking up.
     {
-        const int CELL = 32, cols = 20, rows = 14;
+        const int CELL = 32, cols = 22, rows = 14;
         MapBuilder m("house_inn", "The Barley and Bell", cols * CELL, rows * CELL);
         m.Interior(true);
         m.Background(26, 20, 16);
-        for (int cy = 0; cy < rows; ++cy)
-            for (int cx = 0; cx < cols; ++cx) {
-                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
-                const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
-                m.Ground(wall ? "dirt_dark" : "sand", cx * CELL, cy * CELL, CELL);
-                if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
-            }
+        RoomShell(m, cols, rows, CELL, "plank_floor", "plaster_wall",
+                  cols / 2 - 1, cols / 2);
+
         const int dx = (cols / 2) * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
         m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
                  "Step outside", false);
-        m.Npc("npc_cook", "Innkeeper Bess", "citizen1", 6 * CELL, 4 * CELL, "cook_root", 0);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+
+        // --- the stairs up, against the left wall -----------------------------
+        // The flight's art is 33px wide inside an 88px image and fills it top to
+        // bottom, so centring the image at (47, 164) puts the flight in the
+        // column x 32..65 running from y 120 at the top to 208 at the foot.
+        m.Overlay("props", "stairs_up", 47, 164);
+        m.Portal(34, 116, 30, 16, "house_inn_upper", "from_downstairs", "Go upstairs", false);
+        m.Spawn("from_upstairs", 48, 236);
+        // The banister, so the flight is climbed from its foot and not stepped
+        // onto from the side halfway up; and the dead pocket above its head.
+        m.Collision(64, 118, 6, 70);
+        m.Collision(32, 64, 34, 50);
+
+        // --- the hearth ----------------------------------------------------------
+        m.Overlay("props", "inn_rug", 224, 109);
         {
-            json& o = m.Object("range_inn", "range", 10 * CELL, 3 * CELL);
-            o["sprite"] = ObjPath("campfire");
-            o["title"]  = "Kitchen range";
-            m.Collision(10 * CELL - 16, 3 * CELL - 12, 32, 12);
+            json& o = m.Object("range_inn", "range", 7 * CELL, 100);
+            o["sprite"] = "assets/props/inn_fireplace.png";
+            o["title"]  = "Kitchen fire";
+            m.Collision(7 * CELL - 46, 70, 92, 30);
         }
+
+        // --- the bar -------------------------------------------------------------
+        piece("bottle_shelf", 470, 100, 60, 14);
+        piece("keg_rack",     580, 110, 62, 16);
+        piece("crates_sacks", 650, 108, 35, 14);
+        m.Npc("npc_cook", "Innkeeper Bess", "citizen1", 512, 168, "cook_root", 0);
+        piece("bar_counter",  512, 230, 108, 30);
+        for (int i = 0; i < 3; ++i)
+            piece("bar_stool", 478 + i * 34, 264, 14, 8);
+
+        // --- the taproom -----------------------------------------------------------
+        auto table_for_two = [&](int x, int y) {
+            piece("tavern_table", x, y, 36, 12);
+            piece("tavern_chair", x - 40, y + 2, 16, 8);
+            piece("tavern_chair", x + 40, y + 2, 16, 8);
+        };
+        table_for_two(160, 272);
+        table_for_two(270, 342);
+        table_for_two(448, 344);
+        piece("tavern_bench", 140, 404, 46, 12);
+        piece("chalk_board",  404, 402, 22, 8);
+        // A long table for a party, benches either side, in the far corner.
+        piece("tavern_bench", 600, 320, 46, 12);
+        piece("dining_table", 600, 352, 46, 14);
+        piece("tavern_bench", 600, 398, 46, 12);
+        piece("crates_sacks", 640, 250, 35, 14);
+
+        m.Write("maps");
+    }
+
+    // The inn, upstairs.
+    //
+    // A corridor along the back of the building and three guest rooms off it,
+    // each behind its own door: a single room either end and the good room with
+    // the double bed in the middle. The stairwell is in the same corner as the
+    // stairs below it.
+    {
+        const int CELL = 32, cols = 22, rows = 14;
+        MapBuilder m("house_inn_upper", "The Barley and Bell, upstairs",
+                     cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(26, 20, 16);
+        RoomShell(m, cols, rows, CELL, "plank_floor", "plaster_wall");
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+
+        // --- the stairwell --------------------------------------------------------
+        // Its art spans x 24..64 and y 25..88 of an 88px image; centred at
+        // (52, 129) the railing encloses x 32..72, y 110..173, open to the north.
+        m.Overlay("props", "stairwell_down", 52, 129);
+        m.Portal(36, 108, 26, 18, "house_inn", "from_upstairs", "Go downstairs", false);
+        m.Spawn("from_downstairs", 48, 96);
+        m.Spawn("default", 48, 96);
+        m.Collision(32, 128, 34, 46);           // the well below the top step
+        m.Collision(66, 110, 8, 64);            // the railing on its open side
+
+        // --- the rooms -------------------------------------------------------------
+        // A partition along row 5 with a doorway into each room, and two walls
+        // between the rooms. The doorways sit in the middle column of each.
+        const int part_row = 5;
+        const int room_cols[3][2] = {{4, 8}, {10, 14}, {16, 20}};
+        const int doors[3] = {6, 12, 18};
+        for (int cx = 4; cx < cols - 1; ++cx) {
+            const bool doorway = (cx == doors[0] || cx == doors[1] || cx == doors[2]);
+            if (doorway) continue;
+            m.Ground("plaster_wall", cx * CELL, part_row * CELL, CELL);
+            m.Collision(cx * CELL, part_row * CELL, CELL, CELL);
+        }
+        for (int wx : {9, 15})
+            for (int cy = part_row + 1; cy < rows - 1; ++cy) {
+                m.Ground("plaster_wall", wx * CELL, cy * CELL, CELL);
+                m.Collision(wx * CELL, cy * CELL, CELL, CELL);
+            }
+        for (int d : doors)
+            m.Prop("props", "room_door", d * CELL + CELL / 2, (part_row + 1) * CELL);
+        (void)room_cols;
+
+        // Room one: a single, with a wardrobe.
+        piece("bed_single",   150, 250, 30, 36);
+        piece("nightstand",   178, 214, 18, 8);
+        piece("wardrobe",     258, 246, 34, 14);
+        piece("washstand",    258, 330, 22, 8);
+        piece("travel_chest", 150, 292, 28, 12);
+
+        // Room two: the good room.
+        m.Overlay("props", "inn_rug", 400, 326);
+        piece("bed_double",   356, 258, 48, 36);
+        piece("nightstand",   448, 214, 18, 8);
+        piece("washstand",    452, 322, 22, 8);
+        piece("travel_chest", 356, 300, 28, 12);
+
+        // Room three: another single.
+        piece("bed_single",   556, 250, 30, 36);
+        piece("nightstand",   522, 214, 18, 8);
+        piece("wardrobe",     650, 246, 34, 14);
+        piece("washstand",    650, 330, 22, 8);
+        piece("travel_chest", 556, 292, 28, 12);
+
+        // --- the corridor ---------------------------------------------------------
+        m.Overlay("props", "inn_rug", 400, 92);
+        piece("herb_pots",    650, 96, 30, 10);
+        piece("nightstand",   300, 90, 18, 8);
+        // A linen corner under the stairwell.
+        piece("crates_sacks",  80, 392, 35, 14);
+        piece("travel_chest",  80, 300, 28, 12);
+
         m.Write("maps");
     }
 

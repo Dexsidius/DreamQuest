@@ -103,6 +103,7 @@ bool Map::Load(const string& path) {
                 t.tex   = tex_index;
                 t.layer = std::clamp(layer, 0, 2);
                 t.sort_y = t.rect.y + t.rect.h;
+                t.overlay = !tile_name.empty() && tile_name[0] == '~';
                 tiles.push_back(t);
 
                 if (has_box) {
@@ -518,12 +519,25 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
     if (seen_stamp.size() != tiles.size()) seen_stamp.assign(tiles.size(), 0);
     const int stamp = ++stamp_counter;
 
+    // Two passes over the ground: the floor, then anything lying on it.
+    //
+    // Tiles are drawn chunk by chunk, so the file order that puts a rug after
+    // the floor only holds inside one chunk. A rug straddling a chunk border is
+    // drawn with the first chunk, and the second chunk's floor tiles are then
+    // painted straight over the rest of it -- which is how a rug in front of
+    // the inn's fireplace came out with its right third missing.
+    for (int pass = 0; pass < 2; ++pass) {
+    const bool want_overlay = (pass == 1);
+    // The first pass only marks the tiles it draws, so overlays are still
+    // unmarked when the second pass reaches them; no reset needed.
+    if (pass == 1 && layer != LAYER_GROUND) break;
     ForEachChunkInRect(view, [&](const Chunk& c) {
         for (int idx : c.layers[layer]) {
             if (seen_stamp[idx] == stamp) continue;
-            seen_stamp[idx] = stamp;
 
             const TileInstance& t = tiles[idx];
+            if (layer == LAYER_GROUND && t.overlay != want_overlay) continue;
+            seen_stamp[idx] = stamp;
             if (!RectsOverlap(t.rect, view)) continue;
 
             SDL_Texture* tex = cache.Get(textures[t.tex]);
@@ -544,6 +558,7 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             }
         }
     });
+    }
 }
 
 void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,

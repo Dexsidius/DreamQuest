@@ -53,6 +53,9 @@ struct TileInstance {
     int   tex = -1;          // index into Map::textures
     int   layer = LAYER_GROUND;
     float sort_y = 0.0f;     // baseline used when interleaving with entities
+    // Lies on the floor over the other ground tiles -- a rug, a flight of
+    // stairs. Named with a leading '~' in the .mx file.
+    bool  overlay = false;
 };
 
 struct Portal {

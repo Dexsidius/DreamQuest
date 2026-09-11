@@ -155,7 +155,7 @@ foreach ($f in $families) {
 # are built from courses whose joints sit at fixed positions modulo the tile
 # size, which is the same seamlessness trick as the grass: a stone that runs off
 # one edge is the same stone at the other.
-function New-Masonry($size, $rgb, $mortarRgb, $courseH, $unitW, $jitter, $bevel) {
+function New-Masonry($size, $rgb, $mortarRgb, $courseH, $unitW, $jitter, $bevel, $stagger = "half") {
     $bmp = New-Object System.Drawing.Bitmap -ArgumentList $size, $size,
            ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $base   = [System.Drawing.Color]::FromArgb(255, $rgb[0], $rgb[1], $rgb[2])
@@ -164,22 +164,29 @@ function New-Masonry($size, $rgb, $mortarRgb, $courseH, $unitW, $jitter, $bevel)
     $courses = [int]($size / $courseH)
     for ($c = 0; $c -lt $courses; $c++) {
         $y0 = $c * $courseH
-        # Alternate courses are offset by half a unit: running bond.
-        $offset = if ($c % 2 -eq 1) { [int]($unitW / 2) } else { 0 }
+        # Masonry offsets alternate courses by half a unit: running bond.
+        # Floorboards do not -- laid in a regular half-offset they read as
+        # brick -- so their joints land at scattered positions along each run.
+        $offset = if ($stagger -eq "scatter") { ($c * 13 + 5) % $unitW }
+                  elseif ($c % 2 -eq 1) { [int]($unitW / 2) } else { 0 }
         $units = [int]($size / $unitW)
         for ($u = 0; $u -lt $units; $u++) {
             # Every stone is a little lighter or darker than the next. Without
             # this a floor of identical slabs reads as a grid, not as stone.
             $tone = ((Rand) - 0.5) * $jitter
+            # A board usually runs on past the edge of the tile. Only about a
+            # third of courses end inside any one tile, and since each floor
+            # variant rolls its own, the ends fall at random across a room.
+            $endJoint = ($stagger -ne "scatter") -or ((Rand) -lt 0.34)
             $face = Shade $base $tone
             $x0 = $u * $unitW + $offset
             for ($yy = 0; $yy -lt $courseH; $yy++) {
                 for ($xx = 0; $xx -lt $unitW; $xx++) {
                     $px = $x0 + $xx; $py = $y0 + $yy
-                    $isJoint = ($yy -eq $courseH - 1) -or ($xx -eq $unitW - 1)
+                    $isJoint = ($yy -eq $courseH - 1) -or (($xx -eq $unitW - 1) -and $endJoint)
                     if ($isJoint) {
                         Set-Wrapped $bmp $px $py $mortar
-                    } elseif ($bevel -and ($yy -eq 0 -or $xx -eq 0)) {
+                    } elseif ($bevel -and ($yy -eq 0 -or ($xx -eq 0 -and $stagger -ne "scatter"))) {
                         # Lit top and left edge on each stone, so the courses
                         # have relief rather than being drawn lines.
                         Set-Wrapped $bmp $px $py (Shade $face 0.12)
@@ -216,14 +223,70 @@ $interiors = @(
 # size moves up for the masonry. Leaving it at sixteen tiles each stone four
 # times over inside one thirty-two pixel image.
 $Size = 32
+# Floorboards are masonry with long units and dark gaps: the same running bond,
+# one board per course, joints staggered.
+$interiors += @(
+    @{ name = "plank_floor";      rgb = @(152, 106, 66); mortar = @(88, 58, 36);
+       course = 8;  unit = 32; jitter = 0.05; bevel = $true; variants = 3; stagger = "scatter" },
+    @{ name = "plank_floor_dark"; rgb = @(118, 84, 56);  mortar = @(66, 46, 30);
+       course = 8;  unit = 32; jitter = 0.05; bevel = $true; variants = 2; stagger = "scatter" }
+)
 foreach ($t in $interiors) {
     for ($v = 0; $v -lt $t.variants; $v++) {
-        $bmp = New-Masonry 32 $t.rgb $t.mortar $t.course $t.unit $t.jitter $t.bevel
+        $stagger = if ($t.ContainsKey("stagger")) { $t.stagger } else { "half" }
+        $bmp = New-Masonry 32 $t.rgb $t.mortar $t.course $t.unit $t.jitter $t.bevel $stagger
         $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
         $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
         $bmp.Dispose()
         $made++
     }
+}
+
+# --- timber and plaster ----------------------------------------------------------
+# The inn's and the cottage's walls: limewashed plaster between dark oak. A
+# beam along the foot of every tile and a post on its left edge, so a wall
+# built from them shows a continuous sill and a post every tile across.
+function New-Plaster($size, $plasterRgb, $beamRgb) {
+    $bmp = New-Object System.Drawing.Bitmap -ArgumentList $size, $size,
+           ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $plaster = [System.Drawing.Color]::FromArgb(255, $plasterRgb[0], $plasterRgb[1], $plasterRgb[2])
+    $beam    = [System.Drawing.Color]::FromArgb(255, $beamRgb[0], $beamRgb[1], $beamRgb[2])
+    for ($y = 0; $y -lt $size; $y++) {
+        for ($x = 0; $x -lt $size; $x++) { $bmp.SetPixel($x, $y, $plaster) }
+    }
+    # Uneven limewash.
+    for ($i = 0; $i -lt 70; $i++) {
+        $c = if ((Rand) -lt 0.5) { Shade $plaster 0.05 } else { Shade $plaster (-0.06) }
+        Set-Wrapped $bmp (RandInt $size) (RandInt $size) $c
+    }
+    # Sill beam along the foot, lit on its top edge.
+    for ($x = 0; $x -lt $size; $x++) {
+        for ($y = $size - 7; $y -lt $size; $y++) {
+            $c = if ($y -eq $size - 7) { Shade $beam 0.18 } elseif ($y -eq $size - 1) { Shade $beam (-0.25) } else { $beam }
+            Set-Wrapped $bmp $x $y $c
+        }
+    }
+    # A post on the left edge, lit on its left side.
+    for ($y = 0; $y -lt $size - 7; $y++) {
+        for ($x = 0; $x -lt 5; $x++) {
+            $c = if ($x -eq 0) { Shade $beam 0.14 } elseif ($x -eq 4) { Shade $beam (-0.22) } else { $beam }
+            Set-Wrapped $bmp $x $y $c
+        }
+    }
+    # Grain in the timber.
+    for ($i = 0; $i -lt 10; $i++) {
+        Set-Wrapped $bmp (1 + (RandInt 3)) (RandInt ($size - 8)) (Shade $beam (-0.14))
+        Set-Wrapped $bmp (RandInt $size) ($size - 3 - (RandInt 3)) (Shade $beam (-0.14))
+    }
+    return $bmp
+}
+
+foreach ($t in @(@{ name = "plaster_wall"; plaster = @(222, 208, 176); beam = @(92, 62, 40) },
+                 @{ name = "plaster_wall_warm"; plaster = @(214, 190, 150); beam = @(84, 56, 36) })) {
+    $bmp = New-Plaster 32 $t.plaster $t.beam
+    $bmp.Save((Join-Path $tiles "$($t.name).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
 }
 
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

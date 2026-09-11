@@ -141,10 +141,34 @@ edge is where the game anchors and sorts it.
 .\tools\make_props.ps1 -SkipRender              # convert existing renders only
 ```
 
+**The Barley and Bell** is two floors of these. Downstairs is the taproom: a
+panelled bar with a brass foot rail and stools, a keg rack, a bottle shelf, a
+stone fireplace that doubles as the kitchen, round tables for two, benches, a
+long table for a party, a chalk board and a flight of stairs up the left-hand
+wall. Upstairs is a corridor and three guest rooms behind their own doors, with
+single and double beds, nightstands, wardrobes, washstands and travelling
+chests. The building outside is its own model too -- a stone taproom under a
+jettied timber-framed storey, a dark shingle roof with a dormer, and a sign --
+and deliberately unlike the red-tiled cottages around it.
+
+**Maren's house** is a cottage furnished for the village elder: a bed in the
+corner, a hearth with a kettle, a table laid for one, a full bookshelf, a desk
+of scrolls and a spinning wheel.
+
+**The workbench** in Havenbrook is a carpenter's bench with a vise and a tool
+board. It was a rock.
+
+The inn and cottage floors are generated floorboards and timber-and-plaster
+walls from `tools/make_ground.ps1`.
+
 **Halda's Forge** is furnished entirely from these: forge, anvil, bellows,
 quenching trough, grindstone, tool rack, coal bin, ingot crate, armour stand,
 weapon barrel and shop counter. Its flagstone floor, stone walls and brick
 chimney breast come from `tools/make_ground.ps1`.
+
+The workflow -- modelling, rendering, animating, judging and placing -- is
+written up as a Claude Code skill in `.claude/skills/blender-pixel-assets/`,
+with the failures seen along the way and the fix for each.
 
 Two things to know before adding to the set:
 

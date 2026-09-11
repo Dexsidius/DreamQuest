@@ -156,6 +156,34 @@
                                         "w":  16,
                                         "h":  16
                                     },
+                   "tiles/plank_floor":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/plank_floor_1":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/plank_floor_2":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/plank_floor_dark":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "tiles/plank_floor_dark_1":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
+                   "tiles/plaster_wall":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/plaster_wall_warm":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
                    "tiles/road":  {
                                       "w":  16,
                                       "h":  16
@@ -1056,10 +1084,26 @@
                                         "w":  72,
                                         "h":  72
                                     },
+                   "props/bar_counter":  {
+                                             "w":  112,
+                                             "h":  112
+                                         },
+                   "props/bar_stool":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
                    "props/barrel":  {
                                         "w":  40,
                                         "h":  40
                                     },
+                   "props/bed_double":  {
+                                            "w":  72,
+                                            "h":  72
+                                        },
+                   "props/bed_single":  {
+                                            "w":  64,
+                                            "h":  64
+                                        },
                    "props/bellows":  {
                                          "w":  56,
                                          "h":  56
@@ -1072,6 +1116,10 @@
                                            "w":  72,
                                            "h":  72
                                        },
+                   "props/bottle_shelf":  {
+                                              "w":  72,
+                                              "h":  72
+                                          },
                    "props/candlestand":  {
                                              "w":  64,
                                              "h":  64
@@ -1080,10 +1128,30 @@
                                        "w":  40,
                                        "h":  40
                                    },
+                   "props/chalk_board":  {
+                                             "w":  44,
+                                             "h":  44
+                                         },
                    "props/coal_bin":  {
                                           "w":  44,
                                           "h":  44
                                       },
+                   "props/cottage_bookshelf":  {
+                                                   "w":  64,
+                                                   "h":  64
+                                               },
+                   "props/cottage_hearth":  {
+                                                "w":  80,
+                                                "h":  80
+                                            },
+                   "props/crates_sacks":  {
+                                              "w":  48,
+                                              "h":  48
+                                          },
+                   "props/dining_table":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
                    "props/forge":  {
                                        "w":  96,
                                        "h":  96
@@ -1096,18 +1164,46 @@
                                         "w":  80,
                                         "h":  80
                                     },
+                   "props/herb_pots":  {
+                                           "w":  36,
+                                           "h":  36
+                                       },
                    "props/ingot_crate":  {
                                              "w":  44,
                                              "h":  44
                                          },
+                   "props/inn_building":  {
+                                              "w":  192,
+                                              "h":  192
+                                          },
+                   "props/inn_fireplace":  {
+                                               "w":  104,
+                                               "h":  104
+                                           },
+                   "props/inn_rug":  {
+                                         "w":  88,
+                                         "h":  88
+                                     },
+                   "props/keg_rack":  {
+                                          "w":  72,
+                                          "h":  72
+                                      },
                    "props/lectern":  {
                                          "w":  56,
                                          "h":  56
                                      },
+                   "props/nightstand":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
                    "props/quench_trough":  {
                                                "w":  56,
                                                "h":  56
                                            },
+                   "props/room_door":  {
+                                           "w":  56,
+                                           "h":  56
+                                       },
                    "props/rug":  {
                                      "w":  88,
                                      "h":  88
@@ -1120,6 +1216,18 @@
                                           "w":  56,
                                           "h":  56
                                       },
+                   "props/spinning_wheel":  {
+                                                "w":  56,
+                                                "h":  56
+                                            },
+                   "props/stairs_up":  {
+                                           "w":  88,
+                                           "h":  88
+                                       },
+                   "props/stairwell_down":  {
+                                                "w":  88,
+                                                "h":  88
+                                            },
                    "props/strongbox":  {
                                            "w":  44,
                                            "h":  44
@@ -1132,9 +1240,33 @@
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/tavern_bench":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
+                   "props/tavern_chair":  {
+                                              "w":  40,
+                                              "h":  40
+                                          },
+                   "props/tavern_table":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
                    "props/tool_rack":  {
                                            "w":  64,
                                            "h":  64
+                                       },
+                   "props/travel_chest":  {
+                                              "w":  40,
+                                              "h":  40
+                                          },
+                   "props/wardrobe":  {
+                                          "w":  64,
+                                          "h":  64
+                                      },
+                   "props/washstand":  {
+                                           "w":  40,
+                                           "h":  40
                                        },
                    "props/weapon_barrel":  {
                                                "w":  48,
@@ -1144,6 +1276,14 @@
                                              "w":  72,
                                              "h":  72
                                          },
+                   "props/workbench":  {
+                                           "w":  80,
+                                           "h":  80
+                                       },
+                   "props/writing_desk":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "icons/armour/acolyte_robe":  {
                                                      "w":  64,
                                                      "h":  64,

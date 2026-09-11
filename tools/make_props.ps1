@@ -45,6 +45,18 @@ $sizes = @{
     forge        = 96; anvil        = 48; bellows      = 56; quench_trough = 56
     grindstone   = 48; tool_rack    = 64; coal_bin     = 44; ingot_crate   = 44
     armour_stand = 64; weapon_barrel = 48; shop_counter = 96
+    # The inn, downstairs.
+    bar_counter  = 112; bar_stool   = 32; keg_rack    = 72; bottle_shelf = 72
+    tavern_table = 56;  tavern_bench = 56; tavern_chair = 40; inn_fireplace = 104
+    stairs_up    = 88;  crates_sacks = 48; chalk_board = 44; workbench   = 80
+    inn_rug      = 88
+    # The inn upstairs, and Maren's cottage.
+    bed_single = 64; bed_double = 72; wardrobe = 64; nightstand = 32
+    washstand = 40; travel_chest = 40; stairwell_down = 88; room_door = 56
+    cottage_hearth = 80; spinning_wheel = 56; writing_desk = 64
+    cottage_bookshelf = 64; dining_table = 56; herb_pots = 36
+    # Buildings.
+    inn_building = 192
 }
 
 if (-not $SkipRender) {

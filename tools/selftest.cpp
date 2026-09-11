@@ -48,7 +48,7 @@ static void Section(const char* name) {
 
 static const char* kMaps[] = {
     "overworld", "town_havenbrook", "guild_hall",
-    "house_elder", "house_inn", "house_smith",
+    "house_elder", "house_inn", "house_inn_upper", "house_smith",
     "dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow",
 };
 
@@ -283,6 +283,28 @@ int main() {
         for (const auto& p : map.Portals()) {
             Check(fs::exists("maps/" + p.target_map + ".mx"),
                   string(id) + " portal to missing map '" + p.target_map + "'");
+
+            // The spawn it names has to exist, and must not stand inside a
+            // step-through portal on the far side. A flight of stairs is two
+            // step-through portals facing each other; arriving on top of the
+            // one that leads back bounces the player between the floors.
+            Map there;
+            if (there.Load("maps/" + p.target_map + ".mx")) {
+                SDL_FPoint arrive{};
+                const bool has = there.Spawn(p.target_spawn, arrive);
+                Check(has, string(id) + " portal '" + p.label + "' arrives at a spawn that exists ('"
+                           + p.target_map + "/" + p.target_spawn + "')");
+                if (has) {
+                    const SDL_FRect feet = {arrive.x - 8.0f, arrive.y - 10.0f, 16.0f, 10.0f};
+                    bool inside = false;
+                    for (const Portal& back : there.Portals())
+                        if (!back.requires_interact && RectsOverlap(feet, back.rect)) inside = true;
+                    Check(!inside, string(id) + " portal '" + p.label
+                                   + "' does not drop you onto a portal that sends you back");
+                    Check(!there.Blocked(feet), string(id) + " portal '" + p.label
+                                   + "' does not arrive inside a wall");
+                }
+            }
             if (!p.locked_by.empty())
                 Check(items.Has(p.locked_by),
                       string(id) + " portal locked by unknown item '" + p.locked_by + "'");
@@ -368,7 +390,8 @@ int main() {
     // the player's feet, and check every NPC and usable object is within reach
     // of somewhere the flood got to.
     Section("everything in a building can be reached");
-    for (const char* id : {"house_smith", "guild_hall", "house_elder", "house_inn"}) {
+    for (const char* id : {"house_smith", "guild_hall", "house_elder", "house_inn",
+                           "house_inn_upper"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -485,7 +508,7 @@ int main() {
         Check(shared.HasElevation(), "the overworld has a height grid");
 
         for (const char* inside : {"guild_hall", "house_smith", "house_elder", "house_inn",
-                                   "town_havenbrook"}) {
+                                   "house_inn_upper", "town_havenbrook"}) {
             Check(shared.Load(string("maps/") + inside + ".mx"),
                   string(inside) + " loads after the overworld");
             Check(!shared.HasElevation(),
