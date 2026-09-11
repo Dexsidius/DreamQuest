@@ -194,13 +194,27 @@ void QuestLog::RefreshCollectObjectives(const Inventory& inv) {
     for (const auto& kv : progress)
         if (kv.second.status == QuestStatus::Active) active.push_back(kv.first);
 
+    // A collect stage is judged by what the player is carrying, not by a
+    // running count, but the tracker prints the counter -- which nothing used
+    // to write, so it read (0/12) with eight logs in the bag right up until
+    // the quest suddenly completed. Mirror the carried amount into it.
+    const auto sync = [&](QuestProgress& p, const QuestDef& d) {
+        if (p.status != QuestStatus::Active) return;
+        if (p.stage >= static_cast<int>(d.stages.size())) return;
+        const QuestStage& st = d.stages[p.stage];
+        if (st.type == ObjectiveType::Collect)
+            p.counter = std::min(inv.Count(st.target), st.count);
+    };
+
     for (const auto& id : active) {
         const QuestDef* d = Definition(id);
         if (!d) continue;
-        const QuestProgress& p = progress[id];
+        QuestProgress& p = progress[id];
         if (p.stage >= static_cast<int>(d->stages.size())) continue;
-        if (d->stages[p.stage].type == ObjectiveType::Collect)
-            AdvanceStage(id, inv);
+        if (d->stages[p.stage].type != ObjectiveType::Collect) continue;
+        sync(p, *d);
+        AdvanceStage(id, inv);
+        sync(p, *d);    // the stage it moved on to may be a collect stage too
     }
 }
 

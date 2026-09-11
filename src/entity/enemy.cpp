@@ -226,9 +226,20 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 swing_timer = 0.0f;
                 break;
             }
-            if (dist > 1.0f) {
+            // Close to striking distance and hold there while the attack
+            // cools down. This used to keep walking until it was within a
+            // pixel, so between swings a boar stood exactly where the player
+            // was and, drawn after them, hid the character completely.
+            const float standoff = def->attack_range * 0.75f;
+            const float too_close = def->attack_range * 0.4f;
+            if (dist > standoff) {
                 move_x = (dx / dist) * def->speed;
                 move_y = (dy / dist) * def->speed;
+            } else if (dist > 0.5f && dist < too_close) {
+                // And if the player walks into it, give ground rather than
+                // sharing a tile with them.
+                move_x = -(dx / dist) * def->speed * 0.5f;
+                move_y = -(dy / dist) * def->speed * 0.5f;
             }
             break;
         }
@@ -281,8 +292,13 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     }
 
     if (move_x != 0.0f || move_y != 0.0f) {
-        if (fabsf(move_x) > fabsf(move_y)) facing = (move_x > 0) ? FACE_RIGHT : FACE_LEFT;
-        else                               facing = (move_y > 0) ? FACE_DOWN  : FACE_UP;
+        // Something giving ground while it fights keeps its eyes on the player;
+        // otherwise its next swing would go the way it was stepping.
+        const bool squaring_up = (state == State::Chase && dist <= def->attack_range);
+        const float fx = squaring_up ? dx : move_x;
+        const float fy = squaring_up ? dy : move_y;
+        if (fabsf(fx) > fabsf(fy)) facing = (fx > 0) ? FACE_RIGHT : FACE_LEFT;
+        else                       facing = (fy > 0) ? FACE_DOWN  : FACE_UP;
 
         const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), move_x * dt, move_y * dt);
         x = p.x - foot_box.x;

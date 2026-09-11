@@ -229,6 +229,16 @@ public:
         dq["spawns"][name] = json::array({x, y});
     }
 
+    // True when a player standing with their feet at (x, y) touches none of
+    // the collision placed so far. The foot box matches the self-test's.
+    bool Clear(int x, int y) const {
+        for (const auto& c : dq["collision"]) {
+            const int cx = c[0], cy = c[1], cw = c[2], ch = c[3];
+            if (x - 8 < cx + cw && cx < x + 8 && y - 10 < cy + ch && cy < y) return false;
+        }
+        return true;
+    }
+
     void Portal(int x, int y, int w, int h, const string& target,
                 const string& spawn, const string& label,
                 bool interact = true, const string& locked_by = "") {
@@ -423,10 +433,12 @@ static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
 }
 
 // Buildings are drawn bottom-centre. Collision runs along the lower wall but
-// leaves the doorway open, and a portal sits in the gap.
+// leaves the doorway open, and a portal sits in the gap. exit_spawn names the
+// spot on the doorstep that the interior's way out should arrive at.
 static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
                           int w, int h, const string& target,
                           const string& spawn, const string& label,
+                          const string& exit_spawn,
                           const string& group = "objects") {
     m.Prop(group, art, x, y);
 
@@ -440,6 +452,9 @@ static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
     m.Collision(x - half + 4, y - h + 6, w - 8, h - wall_h - 6);
 
     m.Portal(x - door_w / 2, y - wall_h + 8, door_w, wall_h, target, spawn, label);
+
+    // On the step outside, clear of the door, facing the street.
+    m.Spawn(exit_spawn, x, y + 22);
 }
 
 // --- overworld ---------------------------------------------------------------
@@ -834,17 +849,21 @@ static void BuildTown() {
              "overworld", "from_town", "Leave Havenbrook", false);
 
     // Buildings, each with a door that leads somewhere.
+    //
+    // Each one also gets its own doorstep to come back out onto. The interiors
+    // all used to leave to the town's default spawn, which is the crossroads,
+    // so stepping out of any building put you in the middle of the square.
     PlaceBuilding(m, "building_guild",   28 * CELL + 16, 14 * CELL, 144, 111,
-                  "guild_hall", "entrance", "Enter the guild hall");
+                  "guild_hall", "entrance", "Enter the guild hall", "from_guild_hall");
     PlaceBuilding(m, "building_house_a", 13 * CELL,      18 * CELL, 136, 149,
-                  "house_elder", "entrance", "Enter Maren's house");
+                  "house_elder", "entrance", "Enter Maren's house", "from_house_elder");
     // The inn has its own building rather than another cottage: modelled in
     // tools/blender_props.py (prop_inn_building). The door is at the centre of
     // the image, which is where PlaceBuilding cuts the doorway.
     PlaceBuilding(m, "inn_building",     44 * CELL,      18 * CELL, 176, 160,
-                  "house_inn", "entrance", "Enter the inn", "props");
+                  "house_inn", "entrance", "Enter the inn", "from_house_inn", "props");
     PlaceBuilding(m, "building_shop",    14 * CELL,      33 * CELL, 110, 72,
-                  "house_smith", "entrance", "Enter the forge");
+                  "house_smith", "entrance", "Enter the forge", "from_house_smith");
 
     // The guild hall's plaque, over its own door. This art is the only thing
     // in the project that says GUILD HALL on it, so it belongs on the guild
@@ -941,7 +960,7 @@ static void BuildInteriors() {
         const int dx = (cols / 2) * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
-        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "from_house_elder",
                  "Step outside", false);
 
         auto piece = [&](const string& art, int x, int y, int cw, int ch) {
@@ -1010,7 +1029,7 @@ static void BuildInteriors() {
         const int dx = (cols / 2) * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
-        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "from_guild_hall",
                  "Step outside", false);
 
         // Furniture is drawn standing on its position and blocks a band along
@@ -1110,7 +1129,7 @@ static void BuildInteriors() {
         const int dx = (cols / 2) * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
-        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "from_house_inn",
                  "Step outside", false);
 
         auto piece = [&](const string& art, int x, int y, int cw, int ch) {
@@ -1293,7 +1312,7 @@ static void BuildInteriors() {
         const int dx = cols / 2 * CELL;
         m.Spawn("entrance", dx, (rows - 2) * CELL);
         m.Spawn("default",  dx, (rows - 2) * CELL);
-        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "default",
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "from_house_smith",
                  "Step outside", false);
 
         // A prop stands on its position and blocks a band along its base, so
@@ -1475,6 +1494,22 @@ static void BuildDungeon(const string& id, const string& display,
         PlaceChest(m, special_id, x, y, special_table);
     }
 
+    // Where climbing back up from the level below comes out: beside these
+    // stairs, not back at this level's own entrance a map away. Chosen last,
+    // once everything solid in the room is down -- the quest chest sits right
+    // in front of the stairs, so a fixed offset landed inside it.
+    if (!deeper_map.empty() && rooms.size() > 1) {
+        const Room& last = rooms.back();
+        const int dx = (last.x + last.w / 2) * CELL + 16;
+        const int dy = (last.y + last.h / 2) * CELL + 16;
+        static const int kTry[][2] = {{0, 40}, {-40, 32}, {40, 32}, {-44, 0}, {44, 0},
+                                      {0, 72}, {-72, 40}, {72, 40}, {-40, -32}, {40, -32}};
+        int sx = dx, sy = dy + 40;
+        for (const auto& t : kTry)
+            if (m.Clear(dx + t[0], dy + t[1])) { sx = dx + t[0]; sy = dy + t[1]; break; }
+        m.Spawn("from_below", sx, sy);
+    }
+
     m.Write("maps");
 }
 
@@ -1500,7 +1535,7 @@ int main() {
     BuildDungeon("dungeon_emberfell_2", "Emberfell Mine, Lower Workings",
                  1002u, 54, 42, 8,
                  "dungeon_floor", "dungeon_wall",
-                 "dungeon_emberfell_1", "entrance",
+                 "dungeon_emberfell_1", "from_below",
                  {{"orc2", 7}, {"orc2", 9}, {"orc1", 6}},
                  "chest_dungeon", 3,
                  "", "",

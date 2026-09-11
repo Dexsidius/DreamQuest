@@ -149,6 +149,7 @@ private:
     int  board_cursor = 0;
     int  craft_cursor = 0;
     int  slot_purpose = 0;       // 0 = start new game, 1 = save
+    int  overwrite_slot = -1;    // occupied slot a new game is waiting to replace
 
     string pending_character = "player_hero";
 

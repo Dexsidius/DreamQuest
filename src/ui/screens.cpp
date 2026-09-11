@@ -171,7 +171,9 @@ void Game::DrawCharacterSelect() {
             preview.facing = FACE_DOWN;
             preview.Play("idle");
             preview.Update(static_cast<float>(SDL_GetTicks()) / 1000.0f);
-            const SDL_FRect dst = {card.x + card.w / 2.0f - 64.0f, card.y + 40.0f, 128.0f, 128.0f};
+            // 64px frames with a figure about twenty pixels wide in the middle,
+            // so this needs to be large for the three to be told apart.
+            const SDL_FRect dst = {card.x + card.w / 2.0f - 96.0f, card.y + 16.0f, 192.0f, 192.0f};
             preview.DrawAt(renderer, *textures, dst);
         }
 
@@ -190,12 +192,28 @@ void Game::DrawCharacterSelect() {
 // =============================================================================
 
 void Game::UpdateSlotSelect() {
+    // Starting a new game on top of a save throws that save away, and the
+    // slot list's cursor starts on slot 1 -- which is where the first game
+    // always went. One Enter too many used to be enough to lose it.
+    if (overwrite_slot >= 0) {
+        if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+            const int slot = overwrite_slot;
+            overwrite_slot = -1;
+            NewGame(pending_character, slot);
+        } else if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+            overwrite_slot = -1;
+        }
+        return;
+    }
+
     MoveCursor(cursor, SAVE_SLOTS);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         const int slot = cursor + 1;
-        if (slot_purpose == 0) NewGame(pending_character, slot);
-        else {
+        if (slot_purpose == 0) {
+            if (SaveSystem::Exists(slot)) overwrite_slot = slot;
+            else                          NewGame(pending_character, slot);
+        } else {
             SaveGame(slot);
             SetState(GameState::Play);
         }
@@ -249,6 +267,20 @@ void Game::DrawSlotSelect() {
             input.PromptFor(Action::Back) + " back",
             ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
+
+    if (overwrite_slot >= 0) {
+        ui.Dim(0.6f);
+        const SDL_FRect box = CenteredPanel(ui, 440.0f, 150.0f);
+        ui.Panel(box);
+        const float cx = box.x + box.w / 2.0f;
+        ui.Text("Slot " + std::to_string(overwrite_slot) + " already holds a saved game.",
+                cx, box.y + 24.0f, TextSize::Body, Palette::Highlight, Align::Center);
+        ui.Text("Starting over here will erase it.", cx, box.y + 56.0f, TextSize::Small,
+                Palette::Text, Align::Center);
+        ui.Text(input.PromptFor(Action::Confirm) + " erase and start     " +
+                input.PromptFor(Action::Back) + " keep it",
+                cx, box.y + box.h - 36.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    }
 }
 
 // =============================================================================
@@ -584,11 +616,29 @@ void Game::DrawHud() {
         const float right = ui.ViewWidth() - 18.0f;
         // Sits below however many toasts are currently stacked.
         float y = 74.0f + toasts.size() * 20.0f;
+        const size_t shown = std::min<size_t>(active.size(), 3);
+
+        // A dark backing sized to the text. The dim objective lines were
+        // unreadable over the pale olive grass and the road, shadow or not.
+        {
+            float widest = ui.Measure("QUESTS", TextSize::Small).x;
+            for (size_t i = 0; i < shown; ++i) {
+                if (const QuestDef* d = quests.Definition(active[i])) {
+                    widest = std::max(widest, ui.Measure(d->name, TextSize::Small).x);
+                    widest = std::max(widest, ui.Measure(quests.CurrentObjectiveText(active[i]),
+                                                         TextSize::Small).x);
+                }
+            }
+            const SDL_FRect back = {right - widest - 10.0f, y - 6.0f, widest + 20.0f,
+                                    22.0f + shown * 42.0f + 2.0f};
+            ui.Fill(back, {14, 11, 9, 150});
+        }
+
         ui.TextShadowed("QUESTS", right, y, TextSize::Small, Palette::Highlight, Align::Right);
         y += 22.0f;
 
         // Show at most three so the tracker never crowds the view.
-        for (size_t i = 0; i < active.size() && i < 3; ++i) {
+        for (size_t i = 0; i < shown; ++i) {
             const QuestDef* d = quests.Definition(active[i]);
             if (!d) continue;
             ui.TextShadowed(d->name, right, y, TextSize::Small, Palette::Text, Align::Right);
@@ -745,15 +795,24 @@ void Game::DrawInventory() {
     // --- bonuses -------------------------------------------------------------
     // Two lines rather than one: robes and staves carry magic, and a bow
     // carries ranged, so leaving those off understated half the equipment.
-    char bonus[128];
-    SDL_snprintf(bonus, sizeof(bonus), "Attack +%d    Strength +%d    Defence +%d",
-                 p.equipment.AttackBonus(), p.equipment.StrengthBonus(),
-                 p.equipment.DefenceBonus());
-    ui.Text(bonus, eq_x, panel.y + panel.h - 74.0f, TextSize::Small, Palette::Xp);
+    //
+    // Laid out as two columns under the worn list. All three melee bonuses on
+    // one line ran past the right edge of the panel once any of them reached
+    // two digits, which the starting sword and shield already do.
+    const float bonus_y = panel.y + 92.0f + static_cast<float>(SLOT_COUNT) * 30.0f + 2.0f;
+    const float col2_x  = eq_x + 118.0f;
+    const auto bonus_cell = [&](const char* label, int value, float x, float y) {
+        char buf[48];
+        SDL_snprintf(buf, sizeof(buf), "%s +%d", label, value);
+        ui.Text(buf, x, y, TextSize::Small, Palette::Xp);
+    };
+    bonus_cell("Attack",   p.equipment.AttackBonus(),   eq_x,   bonus_y);
+    bonus_cell("Strength", p.equipment.StrengthBonus(), col2_x, bonus_y);
+    bonus_cell("Defence",  p.equipment.DefenceBonus(),  eq_x,   bonus_y + 16.0f);
+    bonus_cell("Ranged",   p.equipment.RangedBonus(),   col2_x, bonus_y + 16.0f);
+    bonus_cell("Magic",    p.equipment.MagicBonus(),    eq_x,   bonus_y + 32.0f);
 
-    SDL_snprintf(bonus, sizeof(bonus), "Ranged +%d    Magic +%d",
-                 p.equipment.RangedBonus(), p.equipment.MagicBonus());
-    ui.Text(bonus, eq_x, panel.y + panel.h - 58.0f, TextSize::Small, Palette::Xp);
+    char bonus[128];
 
     // Attack speed is stated as a rate rather than as the raw multiplier: the
     // underlying number is a multiplier on swing time, so lower is faster,
@@ -767,8 +826,7 @@ void Game::DrawInventory() {
         // worth naming.
         const char* word = sp < 0.92f ? "fast" : (sp > 1.08f ? "slow" : "even");
         SDL_snprintf(bonus, sizeof(bonus), "Attack speed  %.2fx  (%s)", 1.0f / sp, word);
-        ui.Text(bonus, eq_x, panel.y + panel.h - 42.0f, TextSize::Small,
-                Palette::TextDim);
+        ui.Text(bonus, eq_x, bonus_y + 50.0f, TextSize::Small, Palette::TextDim);
     }
 
     // --- selected item detail ------------------------------------------------

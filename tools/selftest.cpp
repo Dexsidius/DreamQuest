@@ -304,6 +304,25 @@ int main() {
                     Check(!there.Blocked(feet), string(id) + " portal '" + p.label
                                    + "' does not arrive inside a wall");
                 }
+
+                // And the way back has to bring you out where you went in.
+                // Every building's exit used to arrive at the town's default
+                // spawn -- the crossroads -- so leaving the forge put you in
+                // the middle of the square. Of the portals on the far side
+                // that lead here, the nearest arrival must be by this one.
+                float nearest = -1.0f;
+                for (const Portal& back : there.Portals()) {
+                    if (back.target_map != id) continue;
+                    SDL_FPoint home{};
+                    if (!map.Spawn(back.target_spawn, home)) continue;
+                    const float d = Length(home.x - (p.rect.x + p.rect.w / 2.0f),
+                                           home.y - (p.rect.y + p.rect.h / 2.0f));
+                    if (nearest < 0.0f || d < nearest) nearest = d;
+                }
+                if (nearest >= 0.0f)
+                    Check(nearest < 128.0f, string(id) + " portal '" + p.label
+                              + "': the way back arrives by it (" + std::to_string(int(nearest))
+                              + "px away)");
             }
             if (!p.locked_by.empty())
                 Check(items.Has(p.locked_by),
@@ -958,6 +977,33 @@ int main() {
         log2.LoadDefinitions("data/quests.json");
         log2.FromJson(log.ToJson());
         Check(log2.IsActive("q_thin_the_herd"), "quest progress survives a save");
+    }
+
+    // --- collect objectives --------------------------------------------------
+    // Found in a playtest: eight logs in the bag, and the tracker still read
+    // "(0/12)", because a collect stage completes on the carried count but
+    // the tracker prints a counter that nothing wrote.
+    {
+        Inventory inv(&items);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        log.Start("q_firewood");
+
+        inv.Add("logs", 8);
+        log.RefreshCollectObjectives(inv);
+        Check(log.Counter("q_firewood") == 8, "collect objective counts what is carried");
+        Check(log.CurrentObjectiveText("q_firewood").find("(8/12)") != string::npos,
+              "collect objective prints the carried count");
+        Check(log.IsActive("q_firewood"), "collect objective is not complete short of its count");
+
+        inv.Remove("logs", 3);
+        log.RefreshCollectObjectives(inv);
+        Check(log.Counter("q_firewood") == 5, "collect objective falls when items leave the bag");
+
+        inv.Add("logs", 20);
+        log.RefreshCollectObjectives(inv);
+        Check(log.Status("q_firewood") == QuestStatus::Complete,
+              "collect objective completes once enough is carried");
     }
 
     // --- summary --------------------------------------------------------------

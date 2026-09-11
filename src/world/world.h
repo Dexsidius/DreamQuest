@@ -105,6 +105,11 @@ private:
     string next_map, next_spawn;
     float  fade = 0.0f;
     int    fade_dir = 0;          // -1 fading in, +1 fading out, 0 idle
+    // Step-through portals on a freshly entered map stay inert until movement
+    // input has been let go and the player is standing clear of every portal.
+    // See World::Update.
+    bool   portals_armed = true;
+    bool   arrival_released = true;
 
     std::set<string> flags;
     vector<WorldRequest> requests;

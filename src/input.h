@@ -40,7 +40,12 @@ public:
     void SetMode(InputMode m);
     InputMode Mode() const { return mode; }
     // What the player is actually using right now (never Auto).
-    InputMode ActiveDevice() const { return active; }
+    // The device prompts should be drawn for. Controller mode with no
+    // controller connected reports the keyboard, because that is what the
+    // player is actually using.
+    InputMode ActiveDevice() const {
+        return (active == InputMode::Controller && !pad) ? InputMode::KeyboardMouse : active;
+    }
     bool HasGamepad() const { return pad != nullptr; }
     const char* GamepadName() const;
 

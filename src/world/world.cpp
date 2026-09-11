@@ -38,6 +38,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     player.x = p.x;
     player.y = p.y;
     player.knock_x = player.knock_y = 0.0f;
+    portals_armed = false;
+    arrival_released = false;
 
     camera.SetBounds(map.Width(), map.Height());
     camera.SnapTo(player.x, player.y);
@@ -113,7 +115,24 @@ void World::Update(float dt, const GameContext& ctx) {
         UpdateGathering(dt, ctx);
 
         // Step-through portals fire without a button press.
-        if (!transition_pending) {
+        //
+        // But not for a walk that began on the previous map. Arrival spawns
+        // sit a pace or two from the way back -- forty pixels on the field
+        // outside Havenbrook -- so holding a direction through the fade used
+        // to carry the player straight into the return portal and bounce them
+        // back where they came from, over and over for as long as the key was
+        // down. So the portals wait until the key has been let go -- and until
+        // the player is standing clear of them, because letting go a step
+        // too late leaves you on top of the way back, and arming it there
+        // bounced you just the same.
+        if (!portals_armed) {
+            if (!ctx.input || Length(ctx.input->MoveAxis().x, ctx.input->MoveAxis().y) < 0.01f)
+                arrival_released = true;
+            if (arrival_released && !map.PortalAt(player.Bounds()))
+                portals_armed = true;
+        }
+
+        if (!transition_pending && portals_armed) {
             if (const Portal* p = map.PortalAt(player.Bounds()))
                 if (!p->requires_interact && p->locked_by.empty())
                     RequestTransition(p->target_map, p->target_spawn);
@@ -126,7 +145,16 @@ void World::Update(float dt, const GameContext& ctx) {
     for (auto& e : enemies) {
         if (e->CurrentState() == Enemy::State::Dead) {
             e->TickRespawn(dt);
-            if (e->ReadyToRespawn()) e->Revive();
+            // Not while the player is standing on its spawn point. A boar
+            // killed where it grazed came back in the same spot a minute later,
+            // already inside its aggro range, and a player who had stopped to
+            // open their bag was dead before they closed it. Wait until they
+            // are clear of where it would start chasing them.
+            const float clearance = e->Def() ? std::max(192.0f, e->Def()->aggro_range + 64.0f)
+                                             : 192.0f;
+            const bool player_near = !player.IsDead() &&
+                Length(e->home_x - player.x, e->home_y - player.y) < clearance;
+            if (e->ReadyToRespawn() && !player_near) e->Revive();
             else                     e->Update(dt, *this, ctx);
             continue;
         }
@@ -271,10 +299,13 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             label = o.title.empty() ? "Read mission board" : ("Read " + o.title);
         } else if (o.type == "sign") {
             label = "Read sign";
-        } else if (o.type == "range") {
-            label = "Cook at the " + (o.title.empty() ? string("fire") : o.title);
-        } else if (o.type == "workbench") {
-            label = "Use the " + (o.title.empty() ? string("workbench") : o.title);
+        } else if (o.type == "range" || o.type == "workbench") {
+            // Map titles are written as names ("Kitchen fire", "Anvil"), but
+            // here they follow "the" mid-sentence.
+            string noun = o.title.empty() ? string(o.type == "range" ? "fire" : "workbench")
+                                          : o.title;
+            noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
+            label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
         } else if (!o.skill.empty()) {
             const int s = SkillFromName(o.skill);
             if (s >= 0 && player.skills.Level(s) < o.skill_level)
@@ -409,6 +440,9 @@ void World::CookOne(const MapObject& range, const GameContext& ctx) {
     if (!ctx.items) return;
 
     const int level = player.skills.Level(SKILL_COOKING);
+    // The lowest requirement among raw things the player cannot cook yet, so
+    // the refusal can name the level that would actually help.
+    int needed = 0;
 
     for (int slot = 0; slot < player.inventory.SlotCount(); ++slot) {
         const ItemStack& stack = player.inventory.Slot(slot);
@@ -417,10 +451,13 @@ void World::CookOne(const MapObject& range, const GameContext& ctx) {
         const ItemDef* def = ctx.items->Get(stack.id);
         if (!def || def->cook_result.empty()) continue;
 
+        // Skip what is beyond the player rather than stopping at it. This used
+        // to give up at the first raw item in the bag, so a boar haunch
+        // (Cooking 12) sitting ahead of plain raw meat (Cooking 1) meant a new
+        // character could cook nothing at all.
         if (level < def->cook_level) {
-            AddText("Cooking " + std::to_string(def->cook_level) + " needed",
-                    range.x, range.y - 34.0f, {255, 150, 150, 255});
-            return;
+            needed = (needed == 0) ? def->cook_level : std::min(needed, def->cook_level);
+            continue;
         }
 
         player.inventory.RemoveSlot(slot, 1);
@@ -446,7 +483,11 @@ void World::CookOne(const MapObject& range, const GameContext& ctx) {
         return;
     }
 
-    AddText("Nothing raw to cook", range.x, range.y - 34.0f, {200, 200, 210, 255});
+    if (needed > 0)
+        AddText("Cooking " + std::to_string(needed) + " needed",
+                range.x, range.y - 34.0f, {255, 150, 150, 255});
+    else
+        AddText("Nothing raw to cook", range.x, range.y - 34.0f, {200, 200, 210, 255});
 }
 
 void World::UpdateGathering(float dt, const GameContext& ctx) {

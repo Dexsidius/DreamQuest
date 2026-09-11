@@ -97,7 +97,13 @@ void Input::Set(Action a, bool value, bool from_pad) {
 
     // A device the player has switched away from stops driving actions, so a
     // stuck key or a resting stick cannot leak into the other scheme.
-    const bool allow_kb  = (mode != InputMode::Controller);
+    //
+    // Except the keyboard is never shut out when there is no controller to use
+    // instead. Input Device is the first row of the options screen, one press
+    // of Enter selects Controller, and the setting is saved -- so with no pad
+    // plugged in, that one press used to leave nothing that responded, not
+    // even the menu to change it back, on every launch after.
+    const bool allow_kb  = (mode != InputMode::Controller) || !pad;
     const bool allow_pad = (mode != InputMode::KeyboardMouse);
     const bool now = (s.kb && allow_kb) || (s.padbtn && allow_pad);
 
@@ -223,7 +229,7 @@ Vec2 Input::MoveAxis() const {
         }
     }
 
-    if (mode != InputMode::Controller && Length(v.x, v.y) < 0.01f) {
+    if ((mode != InputMode::Controller || !pad) && Length(v.x, v.y) < 0.01f) {
         if (Down(Action::MoveLeft))  v.x -= 1.0f;
         if (Down(Action::MoveRight)) v.x += 1.0f;
         if (Down(Action::MoveUp))    v.y -= 1.0f;

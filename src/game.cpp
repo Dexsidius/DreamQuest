@@ -321,6 +321,12 @@ void Game::UpdatePlay(float dt) {
     world.Update(dt, ctx);
     HandleWorldRequests();
 
+    // Collect objectives follow the bag, and the bag changes in more places
+    // than are worth chasing individually -- eating, delivering, accepting a
+    // quest for something already carried. Only a handful of quests are ever
+    // active, so settling them every frame costs nothing.
+    quests.RefreshCollectObjectives(world.player.inventory);
+
     // Progression feedback raised by the player during the update.
     for (const LevelUp& up : world.player.TakeLevelUps())
         PushToast(string(SkillName(up.skill)) + " level " + std::to_string(up.level) + "!",
