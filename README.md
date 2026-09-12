@@ -600,7 +600,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2871 checks** covering:
+and checks all of it — currently **2892 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -634,6 +634,11 @@ and checks all of it — currently **2871 checks** covering:
 - real fights, run frame by frame through the world update with the buttons
   pressed through the game's own input: a new character fighting back beats a
   fox and a boar, and the monster never stands on top of the player
+- a monster's health bar stays hidden until it is attacked, shows for as long
+  as it is hurt, and never shows more than it has; its fill is within a pixel
+  of hp / max_hp, never empty while alive and never full while wounded
+- every corpse despawns within three seconds of death, and a revived monster
+  comes back whole with its bar hidden
 - a collect objective counts what the player is carrying
 - every spell fires a projectile of its own element, all four elements are
   castable, and a level 1 character has the mana to cast one

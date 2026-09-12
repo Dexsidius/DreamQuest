@@ -543,6 +543,11 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                      float from_x, float from_y, const GameContext& ctx) {
     DamageResult r = RollAttack(owner, e.Profile(), style, damage_mult, *ctx.rng);
 
+    // Every way the player can hurt something -- swing, arrow, bolt, burning
+    // ground -- comes through here, so this is where the bar first appears.
+    // Before the miss check: a swing that misses has still started the fight.
+    e.RevealHealthBar();
+
     if (!r.hit) {
         AddText("miss", e.x, e.y - 46.0f, {150, 150, 168, 235});
         return;
@@ -1018,6 +1023,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         queue.push_back({p.y, 4, &p});
     }
     for (const auto& e : enemies) {
+        if (e->CorpseGone()) continue;      // despawned, waiting to respawn
         if (!RectsOverlap(e->BodyBox(), view)) continue;
         queue.push_back({e->SortY(), 1, e.get()});
     }
@@ -1188,4 +1194,51 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     }
 
     map.RenderLayer(r, cache, camera, LAYER_OVERHEAD);
+
+    // Health bars over anything the player has attacked. Last, above canopy
+    // and roofs, because a bar hidden behind a tree is no use.
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    for (const auto& e : enemies) {
+        if (!e->HealthBarVisible()) continue;
+        const SDL_FRect body = e->BodyBox();
+        if (!RectsOverlap(body, view)) continue;
+
+        // Sized to the creature and hung just over its body box -- a hare's
+        // bar sits low and narrow, an orc's high and wide -- and lifted with
+        // the ground it stands on, like the sprite.
+        const float w = std::max(20.0f, body.w + 4.0f);
+        const SDL_FRect s = camera.ToScreenRect({e->x - w / 2.0f, body.y - e->draw_lift - 5.0f,
+                                                 w, 3.0f});
+
+        // Whole screen pixels, so the proportions drawn are the true ones and
+        // not whatever sub-pixel scaling makes of them.
+        const float bx = roundf(s.x), by = roundf(s.y);
+        const int   bw = std::max(8, static_cast<int>(roundf(s.w)));
+        const int   bh = std::max(5, static_cast<int>(roundf(s.h)));
+        const int   inner = bw - 2;
+
+        const int fill  = HealthBarFillPixels(e->hp, e->max_hp, inner);
+        const int trail = std::clamp(static_cast<int>(std::lround(inner * e->HealthTrail())),
+                                     fill, inner);
+
+        SDL_SetRenderDrawColor(r, 14, 10, 8, 230);
+        const SDL_FRect back = {bx, by, static_cast<float>(bw), static_cast<float>(bh)};
+        SDL_RenderFillRect(r, &back);
+
+        if (trail > fill) {
+            SDL_SetRenderDrawColor(r, 240, 214, 160, 240);
+            const SDL_FRect band = {bx + 1.0f + fill, by + 1.0f,
+                                    static_cast<float>(trail - fill), bh - 2.0f};
+            SDL_RenderFillRect(r, &band);
+        }
+        if (fill > 0) {
+            SDL_SetRenderDrawColor(r, 196, 44, 40, 255);
+            const SDL_FRect red = {bx + 1.0f, by + 1.0f, static_cast<float>(fill), bh - 2.0f};
+            SDL_RenderFillRect(r, &red);
+            // A lighter top row so it reads as a bar rather than a smear.
+            SDL_SetRenderDrawColor(r, 236, 96, 84, 255);
+            const SDL_FRect shine = {bx + 1.0f, by + 1.0f, static_cast<float>(fill), 1.0f};
+            SDL_RenderFillRect(r, &shine);
+        }
+    }
 }

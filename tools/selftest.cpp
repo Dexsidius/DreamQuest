@@ -957,9 +957,36 @@ int main() {
             input.HandleEvent(e);
         };
 
+        // The health bar's pixels: exact to a pixel, never empty while alive,
+        // never full while hurt, and only ever shrinking as damage lands.
+        {
+            bool exact = true, alive_shows = true, hurt_shows = true, shrinks = true, ends = true;
+            for (int max_hp : {3, 6, 10, 14, 34, 95, 100}) {
+                for (int inner : {18, 26, 68}) {
+                    int prev = inner + 1;
+                    for (int hp = max_hp; hp >= 0; --hp) {
+                        const int fill = HealthBarFillPixels(hp, max_hp, inner);
+                        if (fabsf(fill - static_cast<float>(inner) * hp / max_hp) > 1.0f) exact = false;
+                        if (hp > 0 && fill < 1) alive_shows = false;
+                        if (hp > 0 && hp < max_hp && fill >= inner) hurt_shows = false;
+                        if (fill > prev) shrinks = false;
+                        if ((hp == max_hp && fill != inner) || (hp == 0 && fill != 0)) ends = false;
+                        prev = fill;
+                    }
+                }
+            }
+            Check(exact,       "health bar fill is within a pixel of hp / max_hp");
+            Check(alive_shows, "a living monster's health bar is never empty");
+            Check(hurt_shows,  "a wounded monster's health bar is never full");
+            Check(shrinks,     "health bar fill only shrinks as hp falls");
+            Check(ends,        "health bar is full at full hp and empty at none");
+        }
+
         struct Outcome { float seconds = 0; int hp_lost = 0; bool enemy_dead = false;
                          bool player_dead = false; int swings = 0; int enemy_hp_left = 0;
-                         int frames = 0; int on_top = 0; };
+                         int frames = 0; int on_top = 0;
+                         bool bar_before_attack = false, bar_missing = false, bar_wrong = false;
+                         float corpse_gone_after = -1.0f; bool revive_clean = false; };
 
         const auto fight = [&](const string& type, int level, bool fight_back, float limit) {
             Outcome out;
@@ -992,11 +1019,15 @@ int main() {
             const float dt = 1.0f / 60.0f;
             int frame = 0;
             SDL_Keycode held = 0;
-            for (float t = 0; t < limit; t += dt, ++frame) {
+            float died_at = 0.0f;
+            // A few seconds past the limit, so a late kill can still be
+            // watched until its corpse goes.
+            for (float t = 0; t < limit + 5.0f; t += dt, ++frame) {
+                if (!out.enemy_dead && t >= limit) break;
                 input.Update(dt);
                 if (held) { key(held, false); held = 0; }
 
-                if (fight_back && !w.player.IsDead()) {
+                if (fight_back && !w.player.IsDead() && !out.enemy_dead) {
                     // Turn to face it, one tap, then swing whenever allowed.
                     const float dx = enemy->x - w.player.x, dy = enemy->y - w.player.y;
                     const Facing want = fabsf(dx) > fabsf(dy) ? (dx > 0 ? FACE_RIGHT : FACE_LEFT)
@@ -1013,11 +1044,34 @@ int main() {
                 }
 
                 w.Update(dt, ctx);
+
+                // The health bar: nowhere until the first swing, there for as
+                // long as the monster is hurt and alive, and never claiming
+                // more health than it has.
+                if (out.swings == 0 && enemy->HealthBarVisible()) out.bar_before_attack = true;
+                if (enemy->CurrentState() != Enemy::State::Dead && enemy->hp < enemy->max_hp &&
+                    !enemy->HealthBarVisible()) out.bar_missing = true;
+                if (enemy->hp > enemy->max_hp ||
+                    enemy->HealthTrail() + 1e-4f < enemy->HealthFraction()) out.bar_wrong = true;
+
+                if (enemy->CurrentState() == Enemy::State::Dead) {
+                    // Watch the corpse until it goes, then bring it back.
+                    if (!out.enemy_dead) { out.enemy_dead = true; died_at = t; }
+                    if (enemy->CorpseGone()) {
+                        out.corpse_gone_after = t - died_at;
+                        enemy->Revive();
+                        out.revive_clean = !enemy->HealthBarVisible() && !enemy->CorpseGone() &&
+                                           enemy->HealthFraction() == 1.0f &&
+                                           enemy->HealthTrail() == 1.0f;
+                        break;
+                    }
+                    continue;
+                }
+
                 out.seconds = t;
                 // Standing inside the player: drawn after them, it hides them.
                 ++out.frames;
                 if (Length(enemy->x - w.player.x, enemy->y - w.player.y) < 8.0f) ++out.on_top;
-                if (enemy->CurrentState() == Enemy::State::Dead) { out.enemy_dead = true; break; }
                 if (w.player.IsDead()) { out.player_dead = true; break; }
             }
             out.hp_lost = start_hp - w.player.hp;
@@ -1028,11 +1082,18 @@ int main() {
         for (const char* type : {"fox", "boar"}) {
             for (bool back : {false, true}) {
                 int deaths = 0, kills = 0, lost = 0, frames = 0, on_top = 0;
-                float time = 0;
+                int bar_early = 0, bar_missing = 0, bar_wrong = 0, corpses_gone = 0, revived = 0;
+                float time = 0, slowest_corpse = 0;
                 for (int run = 0; run < 20; ++run) {
                     const Outcome o = fight(type, 1, back, back ? 60.0f : 30.0f);
                     deaths += o.player_dead; kills += o.enemy_dead; lost += o.hp_lost; time += o.seconds;
                     frames += o.frames; on_top += o.on_top;
+                    bar_early += o.bar_before_attack; bar_missing += o.bar_missing;
+                    bar_wrong += o.bar_wrong; revived += o.revive_clean;
+                    if (o.corpse_gone_after >= 0.0f) {
+                        ++corpses_gone;
+                        slowest_corpse = std::max(slowest_corpse, o.corpse_gone_after);
+                    }
                 }
                 printf("     %-4s %-13s  player died %2d/20  killed it %2d/20  hp lost %.1f  over %.1fs"
                        "  on top of the player %.0f%% of the time\n",
@@ -1045,7 +1106,14 @@ int main() {
                 // stay there. Found in a playtest where the boar hid the
                 // character completely.
                 Check(on_top <= frames / 50, who + " does not stand on top of the player");
+                Check(bar_early == 0, who + " shows no health bar before it is attacked");
+                Check(bar_wrong == 0, who + " never shows more health than it has");
                 if (back) {
+                    Check(bar_missing == 0, who + " shows its health bar once it is hurt");
+                    Check(corpses_gone == kills, who + ": every corpse despawns");
+                    Check(slowest_corpse < 3.0f, who + ": its corpse is gone within three seconds (" +
+                              std::to_string(slowest_corpse).substr(0, 4) + "s)");
+                    Check(revived == kills, who + " comes back with its bar hidden and full health");
                     Check(kills >= 18, who + " by a new character is usually killed");
                     Check(deaths <= 1, who + " by a new character rarely kills them");
                 }

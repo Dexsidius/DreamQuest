@@ -5,7 +5,11 @@
 #include <fstream>
 
 static constexpr float HURT_STAGGER = 0.22f;
-static constexpr float DEATH_LINGER = 1.1f;
+static constexpr float DEATH_LINGER = 1.1f;   // longest wait for a death clip to finish
+static constexpr float CORPSE_HOLD  = 0.35f;  // body lies still after the clip
+static constexpr float CORPSE_FADE  = 0.6f;   // then fades out over this
+static constexpr float TRAIL_HOLD   = 0.3f;   // damage band holds after a hit
+static constexpr float TRAIL_DRAIN  = 1.2f;   // then drains, in bar-widths a second
 static constexpr float SWING_WINDUP = 0.32f;
 
 static SDL_FRect BoxFromJson(const json& j, SDL_FRect fallback) {
@@ -88,6 +92,10 @@ void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContex
         if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(def->sprite));
     }
     hp = max_hp;
+    last_hp = hp;
+    bar_trail = 1.0f;
+    bar_revealed = false;
+    corpse_timer = 0.0f;
     sprite.Play("idle", true);
     SetState(State::Idle);
 }
@@ -135,6 +143,12 @@ void Enemy::Revive() {
     attack_timer = 0.0f;
     respawn_at = 0.0f;
     remove = false;
+    // A fresh monster: no bar until it is attacked again, and a body to draw.
+    last_hp = hp;
+    bar_trail = 1.0f;
+    bar_trail_hold = 0.0f;
+    bar_revealed = false;
+    corpse_timer = 0.0f;
     SetState(State::Idle);
     sprite.Play("idle", true);
 }
@@ -160,6 +174,21 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     state_timer += dt;
     if (attack_timer > 0.0f) attack_timer -= dt;
 
+    // --- health bar trail ---------------------------------------------------------
+    // The fill is always exactly hp / max_hp; this only moves the lighter band
+    // that shows how much the last hit took, so the loss is readable.
+    if (hp < last_hp) bar_trail_hold = TRAIL_HOLD;
+    last_hp = hp;
+    {
+        const float frac = HealthFraction();
+        if (bar_trail < frac) {
+            bar_trail = frac;
+        } else if (bar_trail > frac) {
+            if (bar_trail_hold > 0.0f) bar_trail_hold -= dt;
+            else bar_trail = std::max(frac, bar_trail - TRAIL_DRAIN * dt);
+        }
+    }
+
     // --- death ----------------------------------------------------------------
     if (hp <= 0 && state != State::Dead) {
         SetState(State::Dead);
@@ -168,6 +197,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     }
     if (state == State::Dead) {
         sprite.Update(dt);
+        // The body used to lie there, dimmed, for the whole respawn delay --
+        // and forever for anything that does not respawn. Now it plays its
+        // death animation, holds, fades and is gone. A monster missing its
+        // death clip falls back to a looping idle that never finishes, so
+        // time caps the wait.
+        if (sprite.Finished() || state_timer >= DEATH_LINGER) corpse_timer += dt;
         return;
     }
 
@@ -318,14 +353,22 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     sprite.Update(dt);
 }
 
+bool Enemy::CorpseGone() const {
+    return state == State::Dead && corpse_timer >= CORPSE_HOLD + CORPSE_FADE;
+}
+
+Uint8 Enemy::CorpseAlpha() const {
+    if (state != State::Dead || corpse_timer <= CORPSE_HOLD) return 255;
+    const float t = std::clamp((corpse_timer - CORPSE_HOLD) / CORPSE_FADE, 0.0f, 1.0f);
+    return static_cast<Uint8>(255.0f * (1.0f - t));
+}
+
 void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
-    // Fade the corpse out over its linger time rather than popping it away.
-    SDL_Color tint{255, 255, 255, 255};
-    if (state == State::Dead) {
-        const float t = std::clamp(respawn_at <= 0.0f ? 1.0f : 0.0f, 0.0f, 1.0f);
-        (void)t;
-        tint.a = 210;
-    }
+    if (CorpseGone()) return;
+    SDL_Color tint{255, 255, 255, CorpseAlpha()};
     if (hurt_flash > 0.0f) tint = {255, 110, 110, tint.a};
-    sprite.Draw(r, cache, cam, x, y, tint);
+    // Lifted by the ground under it, as the player and NPCs are. This drew at
+    // the raw feet position, so a monster up on a ledge sank into the cliff --
+    // and a health bar placed from the terrain height would have floated off it.
+    sprite.Draw(r, cache, cam, x, y - draw_lift, tint);
 }

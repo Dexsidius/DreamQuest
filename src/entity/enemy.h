@@ -62,6 +62,28 @@ public:
     // Set while the player is engaged, so the HUD can show a target bar.
     bool  Engaged() const { return state == State::Chase || state == State::Attack; }
 
+    // --- health bar -------------------------------------------------------------
+    // Hidden until the player first attacks this monster -- a hit, a miss or a
+    // hit for nothing all count -- then drawn over its head until the corpse
+    // goes. A revived monster starts hidden again.
+    void  RevealHealthBar() { bar_revealed = true; }
+    bool  HealthBarVisible() const {
+        return bar_revealed && !(state == State::Dead && corpse_timer > 0.0f);
+    }
+    // Exactly hp / max_hp. The bar's fill is this; nothing smooths it.
+    float HealthFraction() const {
+        return max_hp > 0 ? std::clamp(static_cast<float>(hp) / max_hp, 0.0f, 1.0f) : 0.0f;
+    }
+    // A lighter band marking damage just taken, never below HealthFraction();
+    // it holds for a moment after a hit and then drains down to meet the fill.
+    float HealthTrail() const { return std::max(bar_trail, HealthFraction()); }
+
+    // --- corpse -----------------------------------------------------------------
+    // After its death animation the body holds briefly, fades, and is gone. The
+    // entity stays in the world's list, invisible, to count down its respawn.
+    bool  CorpseGone() const;
+    Uint8 CorpseAlpha() const;
+
     int   level = 1;
     float home_x = 0, home_y = 0;
 
@@ -83,4 +105,21 @@ private:
     bool  swing_landed = false;   // one hit per swing
     float swing_timer = 0.0f;
     bool  swinging = false;
+
+    bool  bar_revealed = false;
+    float bar_trail = 1.0f;
+    float bar_trail_hold = 0.0f;  // pause before the trail starts draining
+    int   last_hp = 0;            // to notice a hit landing between updates
+    float corpse_timer = 0.0f;    // time since the death animation finished
 };
+
+// Screen pixels of fill for a health bar `inner` pixels wide. Exact to the
+// nearest pixel, except that a living monster always shows some red and a
+// wounded one never shows a full bar: plain rounding would draw a boar on 1 hp
+// of 100 as already dead, and one scratched for 1 of 95 as untouched.
+inline int HealthBarFillPixels(int hp, int max_hp, int inner) {
+    if (inner <= 0 || max_hp <= 0 || hp <= 0) return 0;
+    if (hp >= max_hp) return inner;
+    const int fill = static_cast<int>(std::lround(static_cast<double>(inner) * hp / max_hp));
+    return std::clamp(fill, 1, std::max(1, inner - 1));
+}
