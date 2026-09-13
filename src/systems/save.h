@@ -54,6 +54,9 @@ struct Settings {
     bool  show_fps = false;
     bool  damage_numbers = true;
     float ui_scale = 1.0f;
+    float master_volume   = 0.8f;
+    float sfx_volume      = 1.0f;
+    float ambience_volume = 0.7f;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

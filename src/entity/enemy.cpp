@@ -1,4 +1,5 @@
 #include "enemy.h"
+#include "../systems/audio.h"
 #include "../world/world.h"
 #include "../systems/loot.h"
 #include "../systems/quest.h"
@@ -192,6 +193,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- death ----------------------------------------------------------------
     if (hp <= 0 && state != State::Dead) {
+        Audio::PlayAt(Sfx::EnemyDie, x, y);
         SetState(State::Dead);
         respawn_at = respawn_delay;
         OnKilled(world, ctx);
@@ -257,6 +259,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
 
             if (dist <= def->attack_range && attack_timer <= 0.0f) {
                 SetState(State::Attack);
+                Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.8f);
                 swinging = true;
                 swing_landed = false;
                 swing_timer = 0.0f;

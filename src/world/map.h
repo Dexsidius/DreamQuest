@@ -65,6 +65,7 @@ struct Portal {
     string label;            // shown on the interact prompt
     bool   requires_interact = true;   // false = step-through
     string locked_by;        // item id needed to pass, empty when open
+    int    danger_level = 0; // Combat level advised beyond it; 0 when safe
 };
 
 struct EnemySpawnDef {

@@ -163,6 +163,7 @@ bool Map::Load(const string& path) {
             portal.label            = p.value("label", string("Enter"));
             portal.requires_interact= p.value("interact", true);
             portal.locked_by        = p.value("locked_by", string(""));
+            portal.danger_level     = p.value("level", 0);
             portals.push_back(portal);
         }
 

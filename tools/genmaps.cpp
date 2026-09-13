@@ -170,7 +170,7 @@ public:
 
     // True for tiles whose art has visible detail rather than being one colour.
     static bool Textured(const string& name) {
-        return name == "road" || name == "dungeon_wall" ||
+        return name == "dungeon_wall" ||
                name == "marsh_stone" || name == "marsh_dark";
     }
 
@@ -251,6 +251,10 @@ public:
         if (!locked_by.empty()) p["locked_by"] = locked_by;
         dq["portals"].push_back(p);
     }
+
+    // Marks the last portal as leading somewhere a new character should not
+    // wander into unwarned.
+    void Danger(int combat_level) { dq["portals"].back()["level"] = combat_level; }
 
     void Enemy(const string& type, int x, int y, int level,
                float respawn = 28.0f, float leash = 260.0f) {
@@ -597,7 +601,7 @@ static void BuildOverworld() {
             string tile;
             switch (b) {
                 case WATER:     tile = "water"; break;
-                case ROAD:      tile = "road"; break;
+                case ROAD:      tile = VariantOf("road", cx, cy); break;
                 case TRAIL:     tile = (v > 0.55f) ? "dirt_dark" : "dirt"; break;
                 case FOOTHILLS: tile = (v > 0.62f) ? "dirt_dark" : (v > 0.34f ? "dirt" : "sand"); break;
                 case MIRE:      tile = (v > 0.6f) ? "marsh_dark" : (v > 0.32f ? "marsh_ground" : "marsh_stone"); break;
@@ -801,6 +805,7 @@ static void BuildOverworld() {
     m.Prop("objects", "door", mine_x, mine_y + 24);
     m.Portal(mine_x - 28, mine_y - 16, 56, 40, "dungeon_emberfell_1", "entrance",
              "Enter the Emberfell mine");
+    m.Danger(6);
     m.Collision(mine_x - 48, mine_y - 20, 40, 28);
     m.Collision(mine_x + 28, mine_y - 20, 40, 28);
 
@@ -811,6 +816,7 @@ static void BuildOverworld() {
     m.Prop("objects", "door", barrow_x, barrow_y + 24);
     m.Portal(barrow_x - 28, barrow_y - 16, 56, 40, "dungeon_barrow", "entrance",
              "Enter the barrow");
+    m.Danger(10);
     m.Collision(barrow_x - 48, barrow_y - 20, 40, 28);
     m.Collision(barrow_x + 28, barrow_y - 20, 40, 28);
 
@@ -884,7 +890,7 @@ static void BuildTown() {
             const float v = Fbm(cx * 0.25f, cy * 0.25f, 77);
             // A crossroads through the middle of the village.
             const bool on_road = (abs(cy - 22) <= 1) || (abs(cx - 28) <= 1);
-            string tile = on_road ? "road"
+            string tile = on_road ? VariantOf("road", cx, cy)
                         : (v > 0.6f ? "grass_light" : (v > 0.3f ? "grass" : "grass_olive"));
             m.Ground(tile, cx * CELL, cy * CELL, CELL);
         }

@@ -1,5 +1,6 @@
 #pragma once
 #include "headers.h"
+#include "systems/audio.h"
 #include "input.h"
 #include "texturecache.h"
 #include "sprite.h"

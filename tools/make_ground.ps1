@@ -307,4 +307,24 @@ foreach ($t in @(@{ name = "dungeon_floor";      rgb = @(106, 108, 124); mortar 
     $made++
 }
 
+
+# --- the road ---------------------------------------------------------------------
+# The road was cut from the path-and-road pack, and that pack's cobbles are a
+# cool blue-grey. Laid three tiles wide through green grass, the Sunken Road and
+# Havenbrook's street read as a river -- a playtest walked around the first
+# stretch of it looking for a bridge. Warm grey setts instead: small dressed
+# stones in running bond, the colour of the dirt around them rather than of the
+# water. A full cell of thirty-two pixels holding sixteen setts, in three
+# variants: at sixteen pixels there were only four stones to vary, and the road
+# was a visible two-by-two check.
+$script:seed = 20260913
+$Size = 32
+for ($v = 0; $v -lt 3; $v++) {
+    $bmp = New-Masonry 32 @(138, 124, 106) @(86, 74, 62) 8 8 0.28 $true "half"
+    $name = if ($v -eq 0) { "road" } else { "road_$v" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

@@ -192,6 +192,9 @@ bool Settings::Load(const string& path) {
     show_fps       = j.value("show_fps", show_fps);
     damage_numbers = j.value("damage_numbers", damage_numbers);
     ui_scale       = std::clamp(j.value("ui_scale", ui_scale), 0.75f, 1.5f);
+    master_volume   = std::clamp(j.value("master_volume", master_volume), 0.0f, 1.0f);
+    sfx_volume      = std::clamp(j.value("sfx_volume", sfx_volume), 0.0f, 1.0f);
+    ambience_volume = std::clamp(j.value("ambience_volume", ambience_volume), 0.0f, 1.0f);
     return true;
 }
 
@@ -207,6 +210,9 @@ bool Settings::Save(const string& path) const {
         {"show_fps", show_fps},
         {"damage_numbers", damage_numbers},
         {"ui_scale", ui_scale},
+        {"master_volume", master_volume},
+        {"sfx_volume", sfx_volume},
+        {"ambience_volume", ambience_volume},
     };
     out << j.dump(2);
     return out.good();

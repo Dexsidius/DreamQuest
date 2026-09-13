@@ -24,6 +24,7 @@
 #include "../src/systems/save.h"
 #include "../src/systems/projectile.h"
 #include "../src/systems/spell.h"
+#include "../src/systems/audio.h"
 #include "../src/entity/player.h"
 #include "../src/ui/minimap.h"
 
@@ -1009,6 +1010,143 @@ int main(int argc, char** argv) {
         Check(inv.Remove("coins", 200) == false, "cannot remove more than you hold");
         Check(inv.Remove("coins", 150), "can remove the whole stack");
         Check(inv.Count("coins") == 0, "stack is gone");
+    }
+
+    // --- two hands -------------------------------------------------------------
+    Section("a bow takes both hands");
+    {
+        GameContext ctx;
+        ctx.sprites = &sprites;  ctx.items = &items;
+        const auto slot_of = [](Player& p, const string& id) {
+            for (int s = 0; s < p.inventory.SlotCount(); ++s)
+                if (p.inventory.Slot(s).id == id) return s;
+            return -1;
+        };
+        Player p;
+        p.Init(ctx, "player_male");
+        p.inventory.Add("bronze_sword", 1);
+        p.inventory.Add("wooden_shield", 1);
+        p.inventory.Add("training_bow", 1);
+        string why;
+        p.EquipFromInventory(slot_of(p, "bronze_sword"), why);
+        p.EquipFromInventory(slot_of(p, "wooden_shield"), why);
+        Check(p.equipment.InSlot(SLOT_SHIELD) == "wooden_shield", "sword and shield go on together");
+
+        Check(p.EquipFromInventory(slot_of(p, "training_bow"), why), "a bow can be equipped over sword and shield");
+        Check(p.equipment.InSlot(SLOT_WEAPON) == "training_bow", "the bow is in hand");
+        Check(p.equipment.InSlot(SLOT_SHIELD).empty(), "the shield comes off for the bow");
+        Check(p.inventory.Has("wooden_shield") && p.inventory.Has("bronze_sword"),
+              "the shield and sword go back in the bag");
+
+        Check(p.EquipFromInventory(slot_of(p, "wooden_shield"), why), "a shield can be taken up again");
+        Check(p.equipment.InSlot(SLOT_WEAPON).empty() && p.inventory.Has("training_bow"),
+              "taking up the shield puts the bow away");
+
+        // No room for what would come off: refuse rather than lose it.
+        p.EquipFromInventory(slot_of(p, "training_bow"), why);    // bow on, shield in bag
+        Player full;
+        full.Init(ctx, "player_male");
+        full.inventory.Add("training_bow", 1);
+        full.inventory.Add("wooden_shield", 1);
+        full.EquipFromInventory(slot_of(full, "wooden_shield"), why);
+        full.inventory.Add("bronze_sword", 1);
+        full.EquipFromInventory(slot_of(full, "bronze_sword"), why);   // sword + shield worn, bow in bag
+        while (!full.inventory.Full()) full.inventory.Add("bronze_sword", 1);
+        const bool refused = !full.EquipFromInventory(slot_of(full, "training_bow"), why);
+        Check(refused && !why.empty(), "a full bag refuses a bow that would unseat the shield");
+        Check(full.equipment.InSlot(SLOT_SHIELD) == "wooden_shield" &&
+              full.equipment.InSlot(SLOT_WEAPON) == "bronze_sword", "and nothing moved");
+
+        // Exactly full, with the shield's own slot the only room there is:
+        // the bow must land in the space the shield leaves, not vanish.
+        Player tight;
+        tight.Init(ctx, "player_male");
+        tight.inventory.Add("training_bow", 1);
+        tight.EquipFromInventory(slot_of(tight, "training_bow"), why);
+        tight.inventory.Add("wooden_shield", 1);
+        while (!tight.inventory.Full()) tight.inventory.Add("bronze_sword", 1);
+        Check(tight.EquipFromInventory(slot_of(tight, "wooden_shield"), why),
+              "a full bag can still swap a bow for the shield it holds");
+        Check(tight.inventory.Has("training_bow") && tight.equipment.InSlot(SLOT_SHIELD) == "wooden_shield",
+              "the bow takes the shield's place in the bag");
+    }
+
+    // --- dangerous doors -----------------------------------------------------------
+    Section("dungeon doors warn a new character");
+    {
+        Map ow;
+        Check(ow.Load("maps/overworld.mx"), "overworld loads for its doors");
+        Skills fresh;
+        for (const char* target : {"dungeon_emberfell_1", "dungeon_barrow"}) {
+            const Portal* door = nullptr;
+            for (const Portal& p : ow.Portals()) if (p.target_map == target) door = &p;
+            Check(door && door->danger_level > fresh.CombatLevel(),
+                  string("the door to ") + target + " is marked beyond a new character");
+        }
+        for (const Portal& p : ow.Portals())
+            if (p.target_map == "town_havenbrook" || p.target_map == "whisperwood_trail")
+                Check(p.danger_level == 0, "the way to " + p.target_map + " carries no warning");
+    }
+
+    // --- sound -------------------------------------------------------------------
+    Section("sound");
+    {
+        Check(!Audio::Enabled(), "sound is off until it is started");
+        Audio::Play(Sfx::Hit);                         // must be harmless
+        Check(Audio::ActiveVoices() == 0, "playing before start does nothing");
+
+        Audio::InitOffline();
+        for (int i = 0; i < static_cast<int>(Sfx::Count); ++i) {
+            const auto& b = Audio::Samples(static_cast<Sfx>(i));
+            float peak = 0.0f;
+            bool finite = true;
+            for (float v : b) { peak = std::max(peak, std::fabs(v)); finite &= std::isfinite(v); }
+            const string name = "sound " + std::to_string(i);
+            Check(b.size() > 400, name + " is long enough to hear");
+            Check(b.size() < 44100u * 3u, name + " is short enough to be an effect");
+            Check(finite, name + " has no NaN or infinity");
+            Check(peak > 0.05f && peak <= 0.7f, name + " is audible and well under clipping");
+        }
+
+        // Each ambience, mixed for a few seconds: never silent outdoors, never
+        // loud, never broken, and quiet again once the ambience is cleared.
+        const auto listen = [&](const string& kind, bool interior, float seconds) {
+            Audio::SetAmbience(kind, interior);
+            Audio::SetVolumes(0.8f, 1.0f, 0.8f);
+            vector<float> out(512 * 2);
+            float peak = 0.0f, energy = 0.0f; bool finite = true; long n = 0;
+            for (int f = 0; f < static_cast<int>(44100 * seconds); f += 512) {
+                Audio::Mix(out.data(), 512);
+                if (f < 44100 * 2) continue;          // let the layers fade in
+                for (float v : out) { peak = std::max(peak, std::fabs(v)); energy += v * v; finite &= std::isfinite(v); ++n; }
+            }
+            return std::tuple<float, float, bool>(peak, n ? std::sqrt(energy / n) : 0.0f, finite);
+        };
+        for (const char* kind : {"forest", "grove", "town", "overworld", "dungeon"}) {
+            auto [peak, rms, finite] = listen(kind, false, 8.0f);
+            Check(finite, string(kind) + " ambience has no NaN");
+            Check(rms > 0.004f, string(kind) + " ambience is audible");
+            Check(peak < 0.6f, string(kind) + " ambience stays in the background");
+        }
+        {
+            auto [peak, rms, finite] = listen("town", true, 8.0f);
+            Check(finite && rms > 0.002f && peak < 0.5f, "a house has a quiet hearth");
+        }
+        {
+            auto [peak, rms, finite] = listen("", false, 10.0f);
+            Check(finite && rms < 0.003f, "clearing the ambience fades it out");
+        }
+
+        // A crowd of effects at once is limited, not clipped.
+        for (int i = 0; i < 40; ++i) Audio::Play(Sfx::HitCrit, 1.0f);
+        Check(Audio::ActiveVoices() <= 32, "voices are capped");
+        vector<float> out(2048 * 2);
+        Audio::Mix(out.data(), 2048);
+        float peak = 0.0f;
+        for (float v : out) peak = std::max(peak, std::fabs(v));
+        Check(peak <= 1.0f, "forty hits at once stay inside full scale");
+        Audio::Shutdown();
+        Check(Audio::ActiveVoices() == 0, "shutting down silences everything");
     }
 
     // --- the HUD --------------------------------------------------------------

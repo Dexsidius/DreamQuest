@@ -4,6 +4,7 @@
 #include "../systems/quest.h"
 #include "../systems/dialogue.h"
 #include "../systems/spell.h"
+#include "../systems/audio.h"
 
 static constexpr float FADE_SPEED     = 3.2f;
 // Generous enough to reach anything the player can stand next to: a wide prop
@@ -53,6 +54,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     camera.SetBounds(map.Width(), map.Height());
     camera.SnapTo(player.x, player.y);
     ambience.SetKind(map.Ambient(), map.IsInterior());
+    Audio::SetAmbience(map.Ambient(), map.IsInterior());
+    Audio::SetListener(player.x, player.y);
     if (ctx.quests) {
         QuestEvent e;
         e.type = ObjectiveType::Reach;
@@ -159,8 +162,10 @@ void World::Update(float dt, const GameContext& ctx) {
 
         if (!transition_pending && portals_armed) {
             if (const Portal* p = map.PortalAt(player.Bounds()))
-                if (!p->requires_interact && p->locked_by.empty())
+                if (!p->requires_interact && p->locked_by.empty()) {
                     RequestTransition(p->target_map, p->target_spawn);
+                    Audio::Play(Sfx::Portal);
+                }
         }
     } else {
         player.interact = {};
@@ -197,6 +202,7 @@ void World::Update(float dt, const GameContext& ctx) {
 
     camera.Follow(player.x, player.y, dt);
     ambience.Update(dt, camera);
+    Audio::SetListener(player.x, player.y);
 }
 
 // -----------------------------------------------------------------------------
@@ -242,16 +248,28 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             : nullptr;
         if (!spell) {
             AddText("No spell known", player.x, player.y - 54.0f, {200, 200, 210, 255});
+            Audio::Play(Sfx::UiError);
             return;
         }
         if (!player.SpendMana(spell->mana)) {
             AddText("Out of mana", player.x, player.y - 54.0f, {150, 180, 235, 255});
+            Audio::Play(Sfx::UiError);
             return;
         }
         projectile_id = spell->projectile;
         damage_mult *= spell->damage_mult;
         // Casting trains Magic whether or not the bolt finds anything.
         player.GrantXp(SKILL_MAGIC, spell->xp);
+    }
+
+    if (style == AttackStyle::Ranged) {
+        Audio::Play(Sfx::BowShot);
+    } else {
+        // Each element is pitched a little differently.
+        const Element el = player.SelectedElement();
+        const float pitch = el == Element::Fire ? 0.9f : el == Element::Water ? 1.1f
+                          : el == Element::Earth ? 0.75f : 1.25f;
+        Audio::Play(Sfx::SpellCast, 1.0f, pitch);
     }
 
     // Leave from chest height, slightly ahead so it clears the caster.
@@ -351,7 +369,12 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         if (p->requires_interact) {
             const float cx = p->rect.x + p->rect.w / 2.0f;
             const float cy = p->rect.y + p->rect.h / 2.0f;
-            consider(InteractTarget::PortalDoor, 0, p->label, cx, cy);
+            // Say so at the door when what is inside outclasses the player; the
+            // mine used to be found out about by dying in its first room.
+            string label = p->label;
+            if (p->danger_level > player.skills.CombatLevel())
+                label += "  -  dangerous: Combat " + std::to_string(p->danger_level) + " advised";
+            consider(InteractTarget::PortalDoor, 0, label, cx, cy);
         }
 
     player.interact = best;
@@ -392,6 +415,7 @@ void World::TryInteract(const GameContext& ctx) {
             if (o.type == "chest") {
                 if (Flagged(o.id)) break;
                 SetFlag(o.id);
+                Audio::Play(Sfx::ChestOpen);
                 if (!o.loot_table.empty()) SpawnLoot(o.loot_table, o.x, o.y + 10.0f, ctx);
                 AddText("Opened!", o.x, o.y - 34.0f, {255, 225, 120, 255});
                 if (ctx.quests) {
@@ -434,6 +458,7 @@ void World::TryInteract(const GameContext& ctx) {
                 if (s < 0) break;
                 if (player.skills.Level(s) < o.skill_level) {
                     AddText("Level too low", o.x, o.y - 34.0f, {255, 140, 140, 255});
+                    Audio::Play(Sfx::UiError);
                     break;
                 }
                 gather_index  = t.index;
@@ -450,9 +475,11 @@ void World::TryInteract(const GameContext& ctx) {
             if (!p) break;
             if (!p->locked_by.empty() && !player.inventory.Has(p->locked_by)) {
                 AddText("It is locked.", player.x, player.y - 52.0f, {255, 150, 150, 255});
+                Audio::Play(Sfx::Locked);
                 break;
             }
             RequestTransition(p->target_map, p->target_spawn);
+            Audio::Play(Sfx::Door);
             break;
         }
 
@@ -496,12 +523,14 @@ void World::CookOne(const MapObject& range, const GameContext& ctx) {
 
         if (ctx.rng && roll(*ctx.rng) < burn_chance) {
             AddText("Burnt!", player.x, player.y - 54.0f, {200, 110, 90, 255});
+            Audio::Play(Sfx::Burn);
             player.GrantXp(SKILL_COOKING, std::max(1, def->cook_xp / 8));
             return;
         }
 
         player.inventory.Add(def->cook_result, 1);
         player.GrantXp(SKILL_COOKING, def->cook_xp);
+        Audio::Play(Sfx::Cook);
 
         const ItemDef* cooked = ctx.items->Get(def->cook_result);
         AddText("+ " + (cooked ? cooked->name : def->cook_result),
@@ -530,7 +559,12 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
         return;
     }
 
+    // A strike every so often while the work goes on, not just at the end.
+    constexpr float STRIKE = 0.62f;
+    const float before = gather_timer;
     gather_timer += dt;
+    if (std::floor(before / STRIKE) != std::floor(gather_timer / STRIKE) || before == 0.0f)
+        Audio::PlayAt(o.skill == "Mining" ? Sfx::Mine : Sfx::Chop, o.x, o.y);
     if (gather_timer < gather_needed) return;
 
     const int skill = SkillFromName(o.skill);
@@ -586,8 +620,12 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
 
     if (damage <= 0) {
         AddText("0", e.x, e.y - 46.0f, {120, 160, 220, 255});
+        Audio::PlayAt(Sfx::Block, e.x, e.y);
         return;
     }
+    // A killing blow is heard as the death, not as a hit on top of it.
+    if (damage < e.hp)
+        Audio::PlayAt(r.max_hit ? Sfx::HitCrit : Sfx::Hit, e.x, e.y);
 
     e.Damage(damage);
     player.AwardCombatXp(damage, AttackType::Light);
@@ -676,6 +714,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 const bool can_bounce = p.bounces_left > 0 &&
                                         (c.nx != 0.0f || c.ny != 0.0f);
                 AddImpact(p, c.nx, c.ny);
+                Audio::PlayAt(Sfx::Impact, p.x, p.y, 0.7f);
 
                 if (!can_bounce) {
                     p.hit_wall = true;
@@ -938,6 +977,7 @@ void World::UpdatePickups(float dt, const GameContext& ctx) {
         const string name = d ? d->name : p.item_id;
         AddText("+" + std::to_string(added) + " " + name, player.x, player.y - 50.0f,
                 {230, 230, 255, 255});
+        Audio::Play(p.item_id == "coins" ? Sfx::Coins : Sfx::Pickup);
 
         p.collected = true;
         if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);

@@ -1,6 +1,7 @@
 #include "player.h"
 #include "../world/map.h"
 #include "../world/world.h"
+#include "../systems/audio.h"
 
 static constexpr float COMBO_WINDOW   = 0.42f;
 static constexpr float RUN_THRESHOLD  = 0.62f;
@@ -178,6 +179,8 @@ void Player::HandleAttackInput(const Input& in, float dt) {
         sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
         sprite.Play("attack", true);
         combo_window = 0.0f;
+        // A bow or a staff makes its own noise when the shot leaves.
+        if (Style() == AttackStyle::Melee) Audio::Play(Sfx::Swing, 1.0f, 1.0f + 0.06f * index);
     }
 
     // Strong and charged share a button: press starts the hold, release
@@ -209,6 +212,8 @@ void Player::HandleAttackInput(const Input& in, float dt) {
         attack.consumed = false;
         sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
         sprite.Play("attack", true);
+        if (Style() == AttackStyle::Melee)
+            Audio::Play(Sfx::SwingHeavy, was_charged ? 1.0f : 0.85f, was_charged ? 0.85f : 1.0f);
 
         strong_armed = false;
         charging     = false;
@@ -317,6 +322,7 @@ void Player::UpdateJump(float dt, const Map& map) {
         jumping = false;
         x = jump_to_x;
         y = jump_to_y;
+        Audio::Play(Sfx::Land, 0.8f);
     }
 }
 
@@ -349,6 +355,9 @@ void Player::UpdateAnimation(const Vec2& move) {
 
 void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
+    // Every source of damage lowers hp; listening for that catches them all.
+    if (heard_hp >= 0 && hp < heard_hp && hp > 0) Audio::Play(Sfx::PlayerHurt);
+    heard_hp = hp;
     if (combo_window > 0.0f) {
         combo_window -= dt;
         if (combo_window <= 0.0f) combo = 0;
@@ -364,6 +373,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         charging = strong_armed = false;
         jumping = false;
         sprite.Play("death", true);
+        Audio::Play(Sfx::PlayerDie);
     }
     if (dead) {
         death_timer = std::max(0.0f, death_timer - dt);
@@ -419,6 +429,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
             knock_x = knock_y = 0.0f;
             sprite.speed_scale = 1.0f;
             sprite.Play("jump", true);
+            Audio::Play(Sfx::Jump);
             climb_hint.clear();
             sprite.style = BuildLayerStyle(item_db);
             sprite.Update(dt);
@@ -458,8 +469,26 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     const SDL_FRect box = Bounds();
     const SDL_FPoint resolved = world.map.MoveWithCollision(box, dx, dy);
+    const float moved = Length(resolved.x - foot_box.x - x, resolved.y - foot_box.y - y);
     x = resolved.x - foot_box.x;
     y = resolved.y - foot_box.y;
+
+    // Footsteps: by distance actually covered, so pushing into a wall is
+    // silent. Plank floors indoors, stone in the mines, earth outside.
+    if (Length(move.x, move.y) > 0.05f && moved > 0.0f) {
+        stride += moved;
+        constexpr float STRIDE = 21.0f;
+        if (stride >= STRIDE) {
+            stride -= STRIDE;
+            const Map& m = world.map;
+            const Sfx step = (m.Ambient() == "dungeon") ? Sfx::FootstepStone
+                           : m.IsInterior()             ? Sfx::FootstepWood
+                                                        : Sfx::Footstep;
+            Audio::Play(step, 0.9f);
+        }
+    } else {
+        stride = 14.0f;     // the first step after standing comes quickly
+    }
 
     // --- mana ----------------------------------------------------------------
     SyncMana();
@@ -548,11 +577,36 @@ bool Player::EquipFromInventory(int slot, string& why_not) {
         }
     }
 
+    // A bow takes both hands. Equipping one takes the shield off, and a
+    // shield takes the bow off -- but only if the bag has room for what comes
+    // off, or the item would be lost.
+    int unseat = SLOT_NONE;
+    if (item_db && (def->slot == SLOT_WEAPON || def->slot == SLOT_SHIELD)) {
+        const ItemDef* worn_weapon = item_db->Get(equipment.InSlot(SLOT_WEAPON));
+        const bool bow_in   = def->slot == SLOT_WEAPON && def->kind == WeaponKind::Bow;
+        const bool shield_in = def->slot == SLOT_SHIELD;
+        const int  clash = (bow_in && !equipment.InSlot(SLOT_SHIELD).empty()) ? SLOT_SHIELD
+                         : (shield_in && worn_weapon && worn_weapon->kind == WeaponKind::Bow)
+                               ? SLOT_WEAPON : SLOT_NONE;
+        if (clash != SLOT_NONE) {
+            const int freed = (stack.qty == 1) ? 1 : 0;
+            const int needed = 1 + (equipment.InSlot(def->slot).empty() ? 0 : 1);
+            if (inventory.FreeSlots() + freed < needed) {
+                why_not = clash == SLOT_SHIELD ? "A bow needs both hands, and your pack has no room for the shield."
+                                               : "A shield needs a free hand, and your pack has no room for the bow.";
+                return false;
+            }
+            unseat = clash;
+        }
+    }
+
     const string item_id = stack.id;
     inventory.RemoveSlot(slot, 1);
     const string displaced = equipment.Equip(def->slot, item_id);
     // The freed slot guarantees room for whatever came off.
     if (!displaced.empty()) inventory.Add(displaced, 1);
+    // After the item has left the bag, so its slot counts toward the room.
+    if (unseat != SLOT_NONE) inventory.Add(equipment.Unequip(unseat), 1);
     return true;
 }
 

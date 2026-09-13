@@ -312,7 +312,7 @@ void Game::DrawLoadMenu() {
 // =============================================================================
 
 void Game::UpdateOptions() {
-    constexpr int ROWS = 7;
+    constexpr int ROWS = 10;
     MoveCursor(cursor, ROWS);
 
     int delta = 0;
@@ -341,7 +341,18 @@ void Game::UpdateOptions() {
                 break;
             case 4: settings.show_fps = !settings.show_fps; break;
             case 5: settings.damage_numbers = !settings.damage_numbers; break;
-            case 6:
+            case 6: case 7: case 8: {
+                float& v = (cursor == 6) ? settings.master_volume
+                         : (cursor == 7) ? settings.sfx_volume : settings.ambience_volume;
+                // Confirm cycles, wrapping back to silent after full.
+                if (delta != 0) v = std::clamp(roundf((v + delta * 0.1f) * 10.0f) / 10.0f, 0.0f, 1.0f);
+                else            v = (v >= 0.95f) ? 0.0f : roundf((v + 0.1f) * 10.0f) / 10.0f;
+                Audio::SetVolumes(settings.master_volume, settings.sfx_volume,
+                                  settings.ambience_volume);
+                Audio::Play(cursor == 8 ? Sfx::Pickup : Sfx::Hit, 0.8f);
+                break;
+            }
+            case 9:
                 if (confirm) {
                     settings.Save();
                     SetState(return_state);
@@ -358,9 +369,14 @@ void Game::UpdateOptions() {
     }
 }
 
+static string VolumeLabel(float v) {
+    const int pct = static_cast<int>(roundf(v * 100.0f));
+    return pct == 0 ? string("Off") : std::to_string(pct) + "%";
+}
+
 void Game::DrawOptions() {
     ui.Dim(0.55f);
-    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 430.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 552.0f);
     ui.Panel(panel);
 
     ui.Text("Options", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
@@ -380,11 +396,14 @@ void Game::DrawOptions() {
         {"VSync",          settings.vsync ? "On" : "Off"},
         {"Show FPS",       settings.show_fps ? "On" : "Off"},
         {"Damage Numbers", settings.damage_numbers ? "On" : "Off"},
+        {"Master Volume",  VolumeLabel(settings.master_volume)},
+        {"Effects Volume", VolumeLabel(settings.sfx_volume)},
+        {"Ambience Volume", VolumeLabel(settings.ambience_volume)},
         {"Back",           ""},
     };
 
-    const float row_h = 44.0f;
-    for (int i = 0; i < 7; ++i) {
+    const float row_h = 42.0f;
+    for (int i = 0; i < 10; ++i) {
         const SDL_FRect row = {panel.x + 16.0f, panel.y + 62.0f + i * row_h,
                                panel.w - 32.0f, row_h - 4.0f};
         ui.MenuItem(row, rows[i].first, i == cursor, true, rows[i].second);
@@ -694,12 +713,35 @@ void Game::DrawHud() {
         const float cx  = ui.ViewWidth() / 2.0f;
         const float y   = 96.0f - (1.0f - in) * 12.0f;
 
+        const float tw = ui.Measure(banner_title, TextSize::Title).x;
+        const float rule_y = roundf(y + ui.LineHeight(TextSize::Title) + 6.0f);
+
+        // A dark band behind the words, feathered at both ends. Gold on the
+        // foothills' sand and on sunlit grass was close to unreadable, and a
+        // shadow alone did not carry a line of text that size.
+        {
+            const float sw = banner_subtitle.empty() ? 0.0f
+                                                     : ui.Measure(banner_subtitle, TextSize::Body).x;
+            const float core = std::max(tw, sw) + 60.0f;
+            const float top = roundf(y - 12.0f);
+            const float bottom = rule_y + (banner_subtitle.empty() ? 14.0f
+                                                                    : 16.0f + ui.LineHeight(TextSize::Body));
+            const Uint8 band = static_cast<Uint8>(130.0f * a);
+            ui.Fill({roundf(cx - core / 2.0f), top, roundf(core), bottom - top}, {12, 10, 8, band});
+            constexpr int FEATHER = 16;
+            constexpr float STEP = 7.0f;
+            for (int i = 0; i < FEATHER; ++i) {
+                const Uint8 fa = static_cast<Uint8>(band * (1.0f - (i + 1.0f) / (FEATHER + 1.0f)));
+                const float off = core / 2.0f + i * STEP;
+                ui.Fill({roundf(cx - off - STEP), top, STEP, bottom - top}, {12, 10, 8, fa});
+                ui.Fill({roundf(cx + off), top, STEP, bottom - top}, {12, 10, 8, fa});
+            }
+        }
+
         SDL_Color title = Palette::Highlight;
         title.a = static_cast<Uint8>(255.0f * a);
         ui.TextShadowed(banner_title, cx, y, TextSize::Title, title, Align::Center);
 
-        const float tw = ui.Measure(banner_title, TextSize::Title).x;
-        const float rule_y = roundf(y + ui.LineHeight(TextSize::Title) + 6.0f);
         const Uint8 ra = static_cast<Uint8>(170.0f * a);
         ui.Fill({roundf(cx - tw / 2.0f - 28.0f), rule_y, tw + 56.0f, 1.0f}, {242, 200, 96, ra});
         ui.Fill({roundf(cx - 5.0f), rule_y - 2.0f, 10.0f, 5.0f}, {242, 200, 96, static_cast<Uint8>(230.0f * a)});
@@ -792,10 +834,11 @@ void Game::UpdateInventory() {
         if (input.MenuLeft()) inventory_on_equipment = false;
 
         if (input.Pressed(Action::Confirm)) {
-            if (p.UnequipSlot(equipment_cursor)) PushToast("Unequipped.", Palette::TextDim);
+            if (p.UnequipSlot(equipment_cursor)) { PushToast("Unequipped.", Palette::TextDim); Audio::Play(Sfx::Equip, 0.7f); }
             else PushToast("Nothing to remove, or your pack is full.", Palette::TextDim);
         }
     } else {
+        const int grid_before = inventory_cursor;
         if (input.MenuRight()) {
             if (inventory_cursor % COLS == COLS - 1) inventory_on_equipment = true;
             else inventory_cursor = std::min(inventory_cursor + 1, slots - 1);
@@ -803,21 +846,29 @@ void Game::UpdateInventory() {
         if (input.MenuLeft())  inventory_cursor = std::max(inventory_cursor - 1, 0);
         if (input.MenuDown())  inventory_cursor = std::min(inventory_cursor + COLS, slots - 1);
         if (input.MenuUp())    inventory_cursor = std::max(inventory_cursor - COLS, 0);
+        if (inventory_cursor != grid_before || inventory_on_equipment) Audio::Play(Sfx::UiMove);
 
         if (input.Pressed(Action::Confirm)) {
             const ItemStack& s = p.inventory.Slot(inventory_cursor);
             if (!s.Empty()) {
                 const ItemDef* def = items.Get(s.id);
                 if (def && def->consumable) {
-                    if (p.Eat(inventory_cursor)) PushToast("You eat the " + def->name + ".", Palette::Xp);
-                    else PushToast("You are already at full health.", Palette::TextDim);
+                    if (p.Eat(inventory_cursor)) {
+                        PushToast("You eat the " + def->name + ".", Palette::Xp);
+                        Audio::Play(Sfx::Eat);
+                    } else {
+                        PushToast("You are already at full health.", Palette::TextDim);
+                    }
                 } else if (def && def->slot != SLOT_NONE) {
                     string why;
-                    if (p.EquipFromInventory(inventory_cursor, why))
+                    if (p.EquipFromInventory(inventory_cursor, why)) {
                         PushToast("Equipped " + def->name + ".", Palette::Xp);
-                    else
+                        Audio::Play(Sfx::Equip);
+                    } else {
                         PushToast(why.empty() ? "You cannot equip that." : why,
                                   {235, 150, 120, 255});
+                        Audio::Play(Sfx::UiError);
+                    }
                 } else {
                     PushToast("Nothing happens.", Palette::TextDim);
                 }

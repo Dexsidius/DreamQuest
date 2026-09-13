@@ -152,6 +152,10 @@ private:
 
     bool  dead = false;
     float death_timer = 0.0f;
+    // Sound bookkeeping: health last frame, to hear a hit however it landed,
+    // and distance walked since the last footstep.
+    int   heard_hp = -1;
+    float stride = 0.0f;
 
     int   mana = 0, max_mana = 0;
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point

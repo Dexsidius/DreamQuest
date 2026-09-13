@@ -8,6 +8,7 @@ Game::Game() : rng(std::random_device{}()) {}
 Game::~Game() {
     // The minimap owns a texture, so it has to let go before the renderer does.
     minimap.Forget();
+    Audio::Shutdown();
     ui.Shutdown();
     delete textures;
     if (renderer) SDL_DestroyRenderer(renderer);
@@ -29,6 +30,8 @@ int Game::Start(int argc, char** argv) {
     }
 
     settings.Load();
+    // Silence is a fine fallback: a machine with no output device still plays.
+    Audio::Init();
 
     const SDL_WindowFlags flags =
         static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
@@ -98,6 +101,7 @@ void Game::ApplySettings() {
     world.camera.SetZoom(settings.zoom);
     SDL_SetWindowFullscreen(window, settings.fullscreen);
     SDL_SetRenderVSync(renderer, settings.vsync ? 1 : 0);
+    Audio::SetVolumes(settings.master_volume, settings.sfx_volume, settings.ambience_volume);
 }
 
 // -----------------------------------------------------------------------------
@@ -184,6 +188,8 @@ void Game::SetState(GameState s) {
     // opened it. Resetting to the top meant leaving Options put the cursor
     // on Continue, one Enter away from loading a game.
     if (state == GameState::MainMenu) main_menu_cursor = cursor;
+    // The title screen has its own quiet wind; a session hands over to the map.
+    if (s == GameState::MainMenu && !has_session) Audio::SetAmbience("menu", false);
     const bool back_to_menu = (s == GameState::MainMenu) &&
         (state == GameState::Options || state == GameState::LoadMenu ||
          state == GameState::CharacterSelect);
@@ -238,8 +244,10 @@ void Game::MoveCursor(int& c, int count, bool wrap) {
     if (input.MenuUp())   --delta;
     if (delta == 0) return;
 
+    const int before = c;
     if (wrap) c = ((c + delta) % count + count) % count;
     else      c = std::clamp(c + delta, 0, count - 1);
+    if (c != before) Audio::Play(Sfx::UiMove);
 }
 
 // -----------------------------------------------------------------------------
@@ -309,6 +317,16 @@ void Game::Update(float dt) {
                                 [](const Toast& t) { return t.life <= 0.0f; }),
                  toasts.end());
 
+    // Menu feedback in one place rather than in every screen's handler: a
+    // confirm or back press on any screen that is not the game itself.
+    const GameState state_before = state;
+    if (state != GameState::Play && state != GameState::Death) {
+        if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact))
+            Audio::Play(Sfx::UiConfirm);
+        else if (input.Pressed(Action::Back))
+            Audio::Play(Sfx::UiBack);
+    }
+
     switch (state) {
         case GameState::MainMenu:        UpdateMainMenu(); break;
         case GameState::CharacterSelect: UpdateCharacterSelect(); break;
@@ -326,6 +344,11 @@ void Game::Update(float dt) {
         case GameState::Crafting:        UpdateCrafting(); break;
         case GameState::Death:           UpdateDeath(dt); break;
     }
+
+    // Opening a panel from the game clicks too.
+    if (state_before == GameState::Play && state != GameState::Play &&
+        state != GameState::Death)
+        Audio::Play(Sfx::UiConfirm, 0.8f);
 
     // Walking into a new zone puts its name on screen, the way DragonFable
     // and AdventureQuest Worlds do when you cross into somewhere new. Houses
@@ -369,15 +392,19 @@ void Game::UpdatePlay(float dt) {
     quests.RefreshCollectObjectives(world.player.inventory);
 
     // Progression feedback raised by the player during the update.
-    for (const LevelUp& up : world.player.TakeLevelUps())
+    const vector<LevelUp> ups = world.player.TakeLevelUps();
+    if (!ups.empty()) Audio::Play(Sfx::LevelUp);
+    for (const LevelUp& up : ups)
         PushToast(string(SkillName(up.skill)) + " level " + std::to_string(up.level) + "!",
                   Palette::Highlight);
     world.player.TakeXpDrops();     // consumed; the HUD shows totals instead
 
     // Quests that finished this frame pay out now.
     for (const string& id : quests.TakeJustStarted())
-        if (const QuestDef* d = quests.Definition(id))
+        if (const QuestDef* d = quests.Definition(id)) {
             PushToast("Quest started: " + d->name, Palette::Xp);
+            Audio::Play(Sfx::QuestStart);
+        }
 
     for (const string& id : quests.TakeJustCompleted())
         GrantQuestRewards(id);
@@ -533,6 +560,7 @@ void Game::GrantQuestRewards(const string& quest_id) {
     }
 
     PushToast("Quest complete: " + d->name, Palette::Highlight);
+    Audio::Play(Sfx::QuestComplete);
     quests.RefreshCollectObjectives(p.inventory);
 }
 
