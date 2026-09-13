@@ -9,6 +9,8 @@
 #include "../systems/projectile.h"
 #include "ambience.h"
 #include "targeting.h"
+#include "lighting.h"
+#include "../systems/clock.h"
 
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
@@ -71,6 +73,58 @@ public:
     Player  player;
     // Who the player is fighting; see targeting.h.
     Targeting targeting;
+    // The time of day; see clock.h.
+    WorldClock clock;
+
+    // --- sleep and dreams --------------------------------------------------------
+    // After dusk, a bed, a campsite or the player's own camp puts them to
+    // sleep, and sleep is a journey: to the dreamworld, for as long as the
+    // night lasts. Dawn brings them back to exactly where they lay down. So
+    // does dying in the dream, which costs the rest of the night and nothing
+    // else, and so does the waking stone, for anyone who has had enough.
+    static constexpr float SLEEP_FADE_SPEED = 0.9f;
+    static constexpr float SLEEP_SAFE_RANGE = 260.0f;   // no sleeping with a monster this close
+    static inline const char* DREAM_MAP = "dreamworld";
+
+    // Where to wake up. Saved, so a dream survives a reload.
+    struct DreamReturn {
+        bool   active = false;
+        string map;
+        float  x = 0.0f, y = 0.0f;
+    };
+    // The camp a bedroll pitches: a tent and a fire, on one outdoor map.
+    struct Camp {
+        bool   pitched = false;
+        string map;
+        float  x = 0.0f, y = 0.0f;
+    };
+    enum class WakeReason { None, Dawn, Nightmare, Stone };
+
+    bool InDream() const { return map.Ambient() == "dream"; }
+    const DreamReturn& Dream() const { return dream; }
+    void SetDream(const DreamReturn& d) { dream = d; }
+    const Camp& PlayerCamp() const { return camp; }
+    // Takes effect on the next map load.
+    void SetCamp(const Camp& c) { camp = c; }
+
+    // Lies down if the night and the neighbourhood allow it; says why not in
+    // the world if they do not. True when the player is falling asleep.
+    bool TrySleep(const GameContext& ctx);
+    // Pitches the bedroll in this inventory slot as a camp in front of the
+    // player. Empty on success, otherwise the reason it could not be done.
+    string PitchCamp(int slot, const GameContext& ctx);
+    // Leaves the dream now.
+    void Wake(WakeReason why);
+    // Why the player last woke, once, for the game to react to.
+    WakeReason TakeWake() { WakeReason w = woke; woke = WakeReason::None; return w; }
+
+    // A line to show over the screen while it is dark for sleeping or waking.
+    const string& FadeCaption() const { return fade_caption; }
+    // The colour of the light right now: white by day, blue at night, violet
+    // in a dream.
+    SDL_Color AmbientLight() const;
+    // Every light that should cut through that, this frame.
+    vector<Light> CollectLights() const;
     vector<std::unique_ptr<Enemy>> enemies;
     vector<std::unique_ptr<Npc>>   npcs;
     vector<Pickup>      pickups;
@@ -109,12 +163,25 @@ private:
     void UpdateGathering(float dt, const GameContext& ctx);
     void CookOne(const struct MapObject& range, const GameContext& ctx);
     void ApplyTransition(const GameContext& ctx);
+    void PlaceCampObjects();
+    void RenderStars(SDL_Renderer* r) const;
     void RenderObjects(SDL_Renderer* r, TextureCache& cache,
                        vector<pair<float, std::function<void()>>>& queue) const;
 
     string map_id;
     bool   transition_pending = false;
     string next_map, next_spawn;
+    // A transition that arrives at a point rather than a named spawn: waking
+    // up where you went to sleep.
+    bool   next_has_point = false;
+    float  next_x = 0.0f, next_y = 0.0f;
+    float  fade_speed = 3.2f;
+    string fade_caption;
+    WakeReason waking = WakeReason::None;   // set while a wake transition runs
+    WakeReason woke = WakeReason::None;
+    DreamReturn dream;
+    Camp camp;
+    mutable Lighting lighting;
     float  fade = 0.0f;
     int    fade_dir = 0;          // -1 fading in, +1 fading out, 0 idle
     // Step-through portals on a freshly entered map stay inert until movement

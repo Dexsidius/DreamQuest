@@ -24,6 +24,9 @@ struct EnemyDef {
     // What the creature is aligned to, for the elemental matchup. Untyped
     // monsters take normal damage from everything.
     Element element = Element::None;
+    // Multiplied over the sprite: the dream's nightmares are the waking
+    // world's orcs and boars, drawn in the colours of a bad night.
+    SDL_Color tint{255, 255, 255, 255};
 };
 
 class EnemyDatabase {

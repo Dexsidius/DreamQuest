@@ -7,6 +7,7 @@ float Range(std::mt19937& rng, float lo, float hi) { return lo + (hi - lo) * Ran
 
 void Ambience::SetKind(const string& ambient, bool interior) {
     if (ambient == "dungeon")     kind = Kind::Dungeon;
+    else if (ambient == "dream")  kind = Kind::Dream;
     else if (interior)            kind = Kind::None;
     else if (ambient == "forest") kind = Kind::Forest;
     else if (ambient == "grove")  kind = Kind::Grove;
@@ -55,6 +56,18 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.speed = Range(rng, 0.3f, 0.8f);
             m.size  = 1.0f;
             break;
+        case WISP: {
+            // Motes of dream rising out of the void: violet, rose and a pale
+            // cyan, glowing and fading as they climb.
+            static const SDL_Color kWisps[] = {
+                {196, 150, 255, 255}, {255, 160, 220, 255}, {150, 230, 255, 255}};
+            m.color = kWisps[rng() % 3];
+            m.vx    = Range(rng, -3.0f, 3.0f);
+            m.vy    = Range(rng, -14.0f, -5.0f);
+            m.speed = Range(rng, 0.7f, 1.5f);
+            m.size  = Range(rng, 1.0f, 2.0f);
+            break;
+        }
     }
     return m;
 }
@@ -67,6 +80,7 @@ void Ambience::Populate(const SDL_FRect& view) {
         case Kind::Field:   pollen = 18; break;
         case Kind::Town:    pollen = 10; break;
         case Kind::Dungeon: dust = 44; break;
+        case Kind::Dream:   break;
         case Kind::None:    break;
     }
     motes.clear();
@@ -74,6 +88,8 @@ void Ambience::Populate(const SDL_FRect& view) {
     for (int i = 0; i < flies; ++i)  motes.push_back(Make(FIREFLY, view));
     for (int i = 0; i < pollen; ++i) motes.push_back(Make(POLLEN, view));
     for (int i = 0; i < dust; ++i)   motes.push_back(Make(DUST, view));
+    if (kind == Kind::Dream)
+        for (int i = 0; i < 60; ++i) motes.push_back(Make(WISP, view));
 }
 
 void Ambience::Update(float dt, const Camera& cam) {
@@ -103,6 +119,10 @@ void Ambience::Update(float dt, const Camera& cam) {
                 break;
             case DUST:
                 m.x += sinf(m.phase) * 3.0f * dt;
+                m.y += m.vy * dt;
+                break;
+            case WISP:
+                m.x += (m.vx + sinf(m.phase) * 6.0f) * dt;
                 m.y += m.vy * dt;
                 break;
         }
@@ -153,6 +173,22 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
                 break;
             }
+            case WISP: {
+                const float glow = 0.55f + 0.45f * sinf(m.phase * 1.7f);
+                SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_ADD);
+                SDL_SetRenderDrawColor(r, m.color.r / 3, m.color.g / 3, m.color.b / 3,
+                                       static_cast<Uint8>(120.0f * glow));
+                const float g = roundf((m.size + 2.0f) * z);
+                const SDL_FRect halo = {roundf(p.x - g / 2.0f), roundf(p.y - g / 2.0f), g, g};
+                SDL_RenderFillRect(r, &halo);
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b,
+                                       static_cast<Uint8>(230.0f * glow));
+                const float c = std::max(1.0f, roundf(m.size * z));
+                const SDL_FRect core = {roundf(p.x - c / 2.0f), roundf(p.y - c / 2.0f), c, c};
+                SDL_RenderFillRect(r, &core);
+                SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+                break;
+            }
             case POLLEN:
             case DUST: {
                 SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
@@ -171,6 +207,7 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
     if (kind == Kind::Forest)       strength = 1.0f;
     else if (kind == Kind::Grove)   strength = 0.4f;
     else if (kind == Kind::Dungeon) { strength = 1.25f; tint = {0, 0, 0, 255}; }
+    else if (kind == Kind::Dream)   { strength = 1.1f;  tint = {26, 8, 46, 255}; }
     if (strength <= 0.0f) return;
 
     int w = 0, h = 0;

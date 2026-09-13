@@ -187,6 +187,14 @@ public:
     const vector<NpcDef>&        Npcs() const { return npcs; }
     const vector<MapObject>&     Objects() const { return objects; }
     const vector<Portal>&        Portals() const { return portals; }
+    // Objects that are not in the file: the player's own camp. They last until
+    // the map is loaded again, so the world puts them back each time.
+    void AddObject(const MapObject& o) { objects.push_back(o); }
+    void RemoveObjects(const string& id_prefix) {
+        objects.erase(std::remove_if(objects.begin(), objects.end(),
+                          [&](const MapObject& o) { return o.id.rfind(id_prefix, 0) == 0; }),
+                      objects.end());
+    }
 
 private:
     void   BuildChunks();

@@ -22,8 +22,8 @@ public:
     void Render(SDL_Renderer* r, const Camera& cam) const;
 
 private:
-    enum class Kind { None, Field, Town, Forest, Grove, Dungeon };
-    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST };
+    enum class Kind { None, Field, Town, Forest, Grove, Dungeon, Dream };
+    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP };
 
     struct Mote {
         float x = 0, y = 0;          // world position

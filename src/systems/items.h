@@ -57,6 +57,10 @@ struct ItemDef {
     string cook_result;
     int    cook_xp = 0, cook_level = 1;
 
+    // What using it from the bag does, beyond eating and wearing: "camp"
+    // pitches a camp where the player stands.
+    string use;
+
     // A material that has to be worked hot, at an anvil.
     bool metal = false;
 

@@ -93,6 +93,14 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
     j["combat_level"] = world.player.skills.CombatLevel();
     j["total_level"]  = world.player.skills.TotalLevel();
 
+    // The time of day, the camp, and -- for a save made in a dream -- where
+    // the sleeper is lying.
+    j["clock"] = world.clock.ToJson();
+    const World::Camp& camp = world.PlayerCamp();
+    if (camp.pitched) j["camp"] = {{"map", camp.map}, {"x", camp.x}, {"y", camp.y}};
+    const World::DreamReturn& dream = world.Dream();
+    if (dream.active) j["dream_return"] = {{"map", dream.map}, {"x", dream.x}, {"y", dream.y}};
+
     j["flags"] = json::array();
     for (const auto& f : world.Flags()) j["flags"].push_back(f);
 
@@ -149,6 +157,25 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
     if (j.contains("flags"))
         for (const auto& f : j["flags"]) flags.insert(f.get<string>());
     world.SetFlags(flags);
+
+    // Saves from before the clock start at nine in the morning of day one.
+    world.clock.FromJson(j.value("clock", json::object()));
+    World::Camp camp;
+    if (j.contains("camp") && j["camp"].is_object()) {
+        camp.pitched = true;
+        camp.map = j["camp"].value("map", string(""));
+        camp.x = j["camp"].value("x", 0.0f);
+        camp.y = j["camp"].value("y", 0.0f);
+    }
+    world.SetCamp(camp);
+    World::DreamReturn dream;
+    if (j.contains("dream_return") && j["dream_return"].is_object()) {
+        dream.active = true;
+        dream.map = j["dream_return"].value("map", string("overworld"));
+        dream.x = j["dream_return"].value("x", 0.0f);
+        dream.y = j["dream_return"].value("y", 0.0f);
+    }
+    world.SetDream(dream);
 
     // Restore the character before the map, so the sprite and stats are in
     // place by the time entities spawn around them.

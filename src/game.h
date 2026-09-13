@@ -181,6 +181,7 @@ private:
     bool   banner_active = false;
     float playtime = 0.0f;
     float state_time = 0.0f;      // seconds since the last state change
+    float audio_night = -1.0f;    // what the sound was last told about the dark
     float fps = 0.0f;
     float autosave_timer = 0.0f;
 };

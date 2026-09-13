@@ -19,7 +19,7 @@ enum class Sfx {
     BowShot, SpellCast, Impact,
     Pickup, Coins, Chop, Mine, Cook, Burn, ChestOpen, Eat, Equip,
     Footstep, FootstepWood, FootstepStone, Jump, Land,
-    Door, Portal, Locked, Winded,
+    Door, Portal, Locked, Winded, Sleep, Wake,
     UiMove, UiConfirm, UiBack, UiError,
     LevelUp, QuestStart, QuestComplete,
     Count
@@ -37,9 +37,12 @@ void Play(Sfx s, float volume = 1.0f, float pitch = 1.0f);
 void PlayAt(Sfx s, float x, float y, float volume = 1.0f, float pitch = 1.0f);
 void SetListener(float x, float y);
 
-// "forest", "grove", "town", "overworld", "dungeon", or "menu"; an interior
-// that is not a dungeon gets a hearth. An empty kind fades to silence.
+// "forest", "grove", "town", "overworld", "dungeon", "dream" or "menu"; an
+// interior that is not a dungeon gets a hearth. An empty kind fades to silence.
 void SetAmbience(const string& kind, bool interior);
+// 0 by day, 1 at night: outdoors the birds fall quiet as it rises and the
+// crickets start.
+void SetNight(float amount);
 void SetVolumes(float master, float sfx, float ambience);
 
 // Offline inspection, used by the self-test.

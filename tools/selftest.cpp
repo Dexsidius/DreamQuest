@@ -54,6 +54,7 @@ static const char* kMaps[] = {
     "dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow",
     "whisperwood_trail", "mossvale", "fernhollow",
     "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage",
+    "dreamworld",
 };
 
 int main(int argc, char** argv) {
@@ -1173,7 +1174,7 @@ int main(int argc, char** argv) {
             }
             return std::tuple<float, float, bool>(peak, n ? std::sqrt(energy / n) : 0.0f, finite);
         };
-        for (const char* kind : {"forest", "grove", "town", "overworld", "dungeon"}) {
+        for (const char* kind : {"forest", "grove", "town", "overworld", "dungeon", "dream"}) {
             auto [peak, rms, finite] = listen(kind, false, 8.0f);
             Check(finite, string(kind) + " ambience has no NaN");
             Check(rms > 0.004f, string(kind) + " ambience is audible");
@@ -1182,6 +1183,14 @@ int main(int argc, char** argv) {
         {
             auto [peak, rms, finite] = listen("town", true, 8.0f);
             Check(finite && rms > 0.002f && peak < 0.5f, "a house has a quiet hearth");
+        }
+        {
+            // Night outdoors: the birds stop and the crickets take over, and
+            // the air is no louder for it.
+            Audio::SetNight(1.0f);
+            auto [peak, rms, finite] = listen("overworld", false, 8.0f);
+            Check(finite && rms > 0.004f && peak < 0.6f, "a night outdoors is audible and stays in the background");
+            Audio::SetNight(0.0f);
         }
         {
             auto [peak, rms, finite] = listen("", false, 10.0f);
@@ -1206,7 +1215,8 @@ int main(int argc, char** argv) {
         for (const char* art : {"assets/ui/minimap_ring.png",
                                 "assets/icons/hud_heart.png",
                                 "assets/icons/hud_drop.png",
-                                "assets/icons/hud_stamina.png"})
+                                "assets/icons/hud_stamina.png",
+                                "assets/icons/hud_sun.png", "assets/icons/hud_moon.png"})
             Check(fs::exists(art), string("hud art on disk: ") + art);
 
         // The minimap draws the world as a stack of rows clipped to the baked
@@ -1900,6 +1910,380 @@ int main(int argc, char** argv) {
     }
 
     // --- save round trip ------------------------------------------------------
+    // --- day, night and dreams ----------------------------------------------------------
+    Section("day, night and dreams");
+    {
+        // --- the clock ---------------------------------------------------------------
+        {
+            WorldClock c;
+            c.Set(1, 12.0f);
+            Check(c.Darkness() == 0.0f && !c.IsNight() && !c.CanSleep() && string(c.Phase()) == "Day",
+                  "noon is light, not night, and no time for bed");
+            c.Set(1, 23.0f);
+            Check(c.Darkness() == 1.0f && c.IsNight() && c.CanSleep() && string(c.Phase()) == "Night",
+                  "eleven at night is dark, and a bed will take you");
+            c.Set(1, 3.0f);
+            Check(c.IsNight() && c.CanSleep(), "three in the morning is still night");
+            c.Set(1, 4.5f);
+            Check(c.IsNight() && !c.CanSleep(), "half an hour before dawn is too late to start a dream");
+            c.Set(1, 19.5f);
+            Check(!c.IsNight() && c.CanSleep(), "dusk is early enough for bed");
+
+            bool rising = true;
+            float last = -1.0f;
+            for (float h = 17.5f; h <= 21.0f; h += 0.1f) {
+                c.Set(1, h);
+                if (c.Darkness() + 1e-4f < last) rising = false;
+                last = c.Darkness();
+            }
+            Check(rising, "the dark only deepens through dusk");
+            c.Set(1, 5.5f);
+            const float dawn = c.Darkness();
+            Check(dawn > 0.0f && dawn < 1.0f && c.Warmth() > 0.5f, "dawn is half light, and warm");
+            c.Set(1, 19.0f);
+            Check(c.Warmth() > 0.9f, "sunset is warm");
+
+            c.Set(1, 23.5f);
+            c.Advance(WorldClock::SECONDS_PER_HOUR);
+            Check(c.Day() == 2 && fabsf(c.Hours() - 0.5f) < 0.01f,
+                  "half a minute is an hour, and midnight starts the next day");
+            Check(c.TimeText() == "00:30", "the clock reads 00:30");
+
+            c.Set(3, 23.0f);
+            Check(fabsf(c.SecondsToDawn() - 6.0f * WorldClock::SECONDS_PER_HOUR) < 0.1f,
+                  "from eleven, dawn is six hours of real half-minutes away");
+            Check(!c.DreamOver(), "a dream at eleven is not over");
+            c.SkipToDawn();
+            Check(c.Day() == 4 && c.Hours() == WorldClock::NIGHT_END && c.DreamOver(),
+                  "skipping to dawn from the evening lands on the next morning");
+            c.Set(3, 2.0f);
+            c.SkipToDawn();
+            Check(c.Day() == 3 && c.Hours() == WorldClock::NIGHT_END,
+                  "and from after midnight, on the same morning");
+
+            WorldClock back;
+            c.Set(7, 21.25f);
+            back.FromJson(c.ToJson());
+            Check(back.Day() == 7 && fabsf(back.Hours() - 21.25f) < 0.001f, "the clock survives a save");
+        }
+
+        // --- what sleep needs --------------------------------------------------------
+        {
+            int beds = 0, campsites = 0;
+            bool dream_ok = false;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const MapObject& o : m.Objects()) {
+                    if (o.type == "bed") {
+                        ++beds;
+                        Check(m.IsInterior(), o.id + " is a bed indoors");
+                        Check(!o.sprite.empty() && fs::exists(o.sprite), o.id + " has bed art on disk");
+                    }
+                    if (o.type == "campsite") {
+                        ++campsites;
+                        Check(!m.IsInterior(), o.id + " is a campsite under the sky");
+                    }
+                }
+                if (string(id) == "dreamworld") {
+                    SDL_FPoint arrival;
+                    int wake = 0, crystals = 0, nightmares = 0;
+                    for (const MapObject& o : m.Objects()) {
+                        if (o.type == "dream_wake") ++wake;
+                        if (o.yield == "dream_shard" && o.skill == "Mining") ++crystals;
+                    }
+                    for (const auto& e : m.Enemies()) {
+                        const EnemyDef* d = enemy_db.Get(e.type);
+                        if (d && d->tint.r != 255) ++nightmares;
+                    }
+                    dream_ok = m.Spawn("arrival", arrival) && m.Ambient() == "dream" && !m.IsInterior();
+                    Check(wake == 1, "the dream has one waking stone");
+                    Check(crystals >= 5, "the dream has dream crystals to mine");
+                    Check(nightmares >= 8, "the dream is full of nightmares in their own colours");
+                    Check(m.Portals().empty(), "there is no walking out of a dream");
+                }
+            }
+            Check(beds >= 6, "there are beds in the houses and the inn");
+            Check(campsites >= 2, "there are campsites on the woodland trails");
+            Check(dream_ok, "the dreamworld has an arrival point and a dream's air");
+
+            const ItemDef* bedroll = items.Get("bedroll");
+            const ItemDef* shard = items.Get("dream_shard");
+            const ItemDef* catcher = items.Get("dreamcatcher");
+            Check(bedroll && bedroll->use == "camp" && fs::exists(bedroll->icon), "a bedroll pitches a camp and has an icon");
+            Check(shard && fs::exists(shard->icon) && catcher && catcher->slot == SLOT_AMULET && fs::exists(catcher->icon),
+                  "dream shards and the dreamcatcher exist, with icons");
+            bool bedroll_recipe = false, catcher_recipe = false;
+            for (const ItemDef* r : items.Recipes(CraftStation::Workbench)) {
+                if (r->craft_result == "bedroll") bedroll_recipe = true;
+                if (r->craft_result == "dreamcatcher") catcher_recipe = true;
+            }
+            Check(bedroll_recipe, "a bedroll is made at a workbench");
+            Check(catcher_recipe, "a dreamcatcher is made at a workbench from dream shards");
+            for (const char* table : {"nightmare_shade", "dread_boar", "nightmare_brute", "chest_dream"})
+                Check(loot.Has(table), string("loot table ") + table + " exists");
+        }
+
+        // --- going to sleep, and waking up ----------------------------------------------
+        Input input;
+        std::mt19937 rng(20260914);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        const auto tap = [&](World& w, SDL_Keycode k) {
+            input.Update(dt); key(k, true);  w.Update(dt, ctx);
+            input.Update(dt); key(k, false); w.Update(dt, ctx);
+        };
+        // Runs frames until the test says stop or the time runs out.
+        const auto until = [&](World& w, float seconds, const std::function<bool()>& done) {
+            for (int f = 0; f < static_cast<int>(seconds * 60.0f); ++f) {
+                if (done()) return true;
+                frames(w, 1);
+            }
+            return done();
+        };
+        // The inn's first guest room, standing at the foot of the bed.
+        const auto at_inn_bed = [&](World& w) -> const MapObject* {
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap("house_inn_upper", "default", ctx)) return nullptr;
+            for (const MapObject& o : w.CurrentMap().Objects())
+                if (o.id == "bed_inn_1") {
+                    w.player.x = o.x;
+                    w.player.y = o.y + 18.0f;
+                    frames(w, 30);        // settle, and let the arrival portals arm
+                    return &o;
+                }
+            return nullptr;
+        };
+
+        {
+            World w;
+            const MapObject* bed = at_inn_bed(w);
+            Check(bed != nullptr, "the inn has a bed to test with");
+            if (bed) {
+                w.clock.Set(1, 12.0f);
+                frames(w, 1);
+                Check(w.player.interact.kind == InteractTarget::Object &&
+                      w.player.interact.label.find("after dusk") != string::npos,
+                      "by day the bed says you can sleep after dusk");
+                w.TryInteract(ctx); frames(w, 1);
+                frames(w, 90);
+                Check(!w.InDream() && !w.TransitionPending(), "and by day it will not let you sleep");
+
+                w.clock.Set(1, 21.0f);
+                w.player.Damage(4);
+                frames(w, 1);
+                Check(w.player.interact.label == "Sleep until dawn", "at night the bed offers sleep");
+                const float bx = w.player.x, by = w.player.y;
+                w.TryInteract(ctx); frames(w, 1);
+                Check(w.TransitionPending() && !w.FadeCaption().empty(), "pressing E at night starts to fall asleep");
+                Check(until(w, 5.0f, [&] { return w.InDream() && !w.TransitionPending(); }),
+                      "and the player arrives in the dreamworld");
+                Check(w.MapId() == "dreamworld" && w.Dream().active && w.Dream().map == "house_inn_upper" &&
+                      fabsf(w.Dream().x - bx) < 0.5f && fabsf(w.Dream().y - by) < 0.5f,
+                      "the dream remembers exactly where the player lay down");
+                Check(w.player.hp == w.player.max_hp, "sleeping restores health");
+                Check(w.AmbientLight().b > w.AmbientLight().g, "the dream's light is violet");
+
+                // The night runs out.
+                w.clock.Set(1, WorldClock::NIGHT_END - 0.01f);
+                Check(until(w, 6.0f, [&] { return !w.InDream() && !w.TransitionPending(); }),
+                      "dawn ends the dream");
+                Check(w.MapId() == "house_inn_upper" && fabsf(w.player.x - bx) < 1.0f &&
+                      fabsf(w.player.y - by) < 1.0f,
+                      "and the player wakes where they went to sleep");
+                Check(!w.Dream().active && w.TakeWake() == World::WakeReason::Dawn,
+                      "waking at dawn is reported as dawn");
+
+                // Dying in a dream is a rude awakening, not a death.
+                w.clock.Set(2, 22.0f);
+                frames(w, 1);
+                w.TryInteract(ctx); frames(w, 1);
+                until(w, 5.0f, [&] { return w.InDream() && !w.TransitionPending(); });
+                const bool dreaming = w.InDream();
+                w.player.Damage(9999);
+                Check(dreaming && until(w, 6.0f, [&] { return !w.InDream() && !w.TransitionPending(); }),
+                      "a nightmare that kills the dreamer throws them awake");
+                Check(!w.player.IsDead() && w.player.hp == w.player.max_hp && w.MapId() == "house_inn_upper",
+                      "alive, whole, and back in bed");
+                // A second or two of fade has passed since, so allow a few minutes.
+                Check(w.clock.Day() == 3 && w.clock.Hours() >= WorldClock::NIGHT_END &&
+                      w.clock.Hours() < WorldClock::NIGHT_END + 0.2f,
+                      "and the rest of the night is gone");
+                Check(w.TakeWake() == World::WakeReason::Nightmare, "waking from it is reported as a nightmare");
+
+                // The waking stone wakes you sooner.
+                w.clock.Set(3, 21.0f);
+                frames(w, 1);
+                w.TryInteract(ctx); frames(w, 1);
+                until(w, 5.0f, [&] { return w.InDream() && !w.TransitionPending(); });
+                for (const MapObject& o : w.CurrentMap().Objects())
+                    if (o.type == "dream_wake") { w.player.x = o.x; w.player.y = o.y + 20.0f; }
+                frames(w, 1);
+                Check(w.player.interact.kind == InteractTarget::Object, "the waking stone can be reached");
+                w.TryInteract(ctx); frames(w, 1);
+                Check(until(w, 6.0f, [&] { return !w.InDream() && !w.TransitionPending(); }) &&
+                      w.clock.IsNight() && w.TakeWake() == World::WakeReason::Stone,
+                      "touching the waking stone wakes the player in the night");
+            }
+        }
+
+        // Nobody sleeps with an orc at the door.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                w.enemies.clear();
+                w.clock.Set(1, 22.0f);
+                const EnemyDef* stats = enemy_db.Get("orc1");
+                if (stats) {
+                    EnemySpawnDef def;
+                    def.type = "orc1"; def.x = w.player.x + 90.0f; def.y = w.player.y;
+                    auto e = std::make_unique<Enemy>();
+                    e->Init(stats, def, ctx);
+                    w.enemies.push_back(std::move(e));
+                }
+                Check(!w.TrySleep(ctx) && !w.TransitionPending(), "you cannot sleep with a monster nearby");
+                w.enemies.clear();
+                Check(w.TrySleep(ctx), "and once it is gone, you can");
+            }
+        }
+
+        // --- the player's own camp -------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                w.enemies.clear();
+                w.clock.Set(1, 12.0f);
+                w.player.y -= 60.0f;
+                w.player.inventory.Add("bedroll", 1);
+                const auto bedroll_slot = [&] {
+                    for (int i = 0; i < w.player.inventory.SlotCount(); ++i)
+                        if (w.player.inventory.Slot(i).id == "bedroll") return i;
+                    return -1;
+                };
+                const auto camp_objects = [&] {
+                    int n = 0;
+                    for (const MapObject& o : w.CurrentMap().Objects())
+                        if (o.id.rfind("player_camp", 0) == 0) ++n;
+                    return n;
+                };
+                const string why = w.PitchCamp(bedroll_slot(), ctx);
+                Check(why.empty(), "a bedroll pitches a camp on open ground" + (why.empty() ? string("") : " (" + why + ")"));
+                Check(w.PlayerCamp().pitched && w.PlayerCamp().map == "overworld" && camp_objects() == 2,
+                      "the camp is a tent and a fire on this map");
+                Check(bedroll_slot() < 0, "the bedroll leaves the bag");
+
+                const World::Camp pitched = w.PlayerCamp();
+                w.LoadMap("town_havenbrook", "", ctx);
+                Check(camp_objects() == 0, "the camp is not in town");
+                w.LoadMap("overworld", "start", ctx);
+                Check(camp_objects() == 2, "and is still there when you come back");
+
+                // By night it is a bed; by day, packed away again.
+                w.enemies.clear();
+                w.player.x = pitched.x;
+                w.player.y = pitched.y + 18.0f;
+                w.clock.Set(1, 21.0f);
+                frames(w, 30);
+                Check(w.player.interact.label == "Sleep at your camp", "at night the camp offers sleep");
+                w.clock.Set(1, 12.0f);
+                frames(w, 1);
+                Check(w.player.interact.label == "Pack up your camp", "by day it offers to be packed up");
+                w.TryInteract(ctx); frames(w, 1);
+                Check(!w.PlayerCamp().pitched && camp_objects() == 0 && bedroll_slot() >= 0,
+                      "packing up returns the bedroll");
+
+                World inside;
+                inside.player.Init(ctx, "player_hero");
+                if (inside.LoadMap("house_inn", "default", ctx)) {
+                    inside.player.inventory.Add("bedroll", 1);
+                    int slot = -1;
+                    for (int i = 0; i < inside.player.inventory.SlotCount(); ++i)
+                        if (inside.player.inventory.Slot(i).id == "bedroll") slot = i;
+                    Check(!inside.PitchCamp(slot, ctx).empty() && !inside.PlayerCamp().pitched,
+                          "there is no pitching a tent indoors");
+                }
+            }
+        }
+
+        // --- the light --------------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                w.clock.Set(1, 12.0f);
+                const SDL_Color noon = w.AmbientLight();
+                w.clock.Set(1, 23.0f);
+                const SDL_Color night = w.AmbientLight();
+                w.clock.Set(1, 19.0f);
+                const SDL_Color dusk = w.AmbientLight();
+                Check(noon.r == 255 && noon.g == 255 && noon.b == 255, "noon is untinted");
+                Check(night.r < 140 && night.b > night.r, "midnight is dark and blue");
+                Check(dusk.r > dusk.b, "sunset is warm");
+                bool player_lit = false;
+                for (const Light& l : w.CollectLights())
+                    if (fabsf(l.x - w.player.x) < 1.0f) player_lit = true;
+                Check(player_lit, "at night the player carries a little light");
+                w.clock.Set(1, 12.0f);
+                Check(w.CollectLights().empty(), "by day nothing needs lighting");
+
+                w.clock.Set(1, 23.0f);
+                w.LoadMap("house_inn", "default", ctx);
+                const SDL_Color indoors = w.AmbientLight();
+                Check(indoors.r > night.r, "indoors at night is not as dark as outside");
+                bool hearth = false;
+                for (const Light& l : w.CollectLights()) if (l.color.g < 200) hearth = true;
+                Check(hearth, "the inn's fire casts light at night");
+                w.LoadMap("dungeon_emberfell_1", "entrance", ctx);
+                const SDL_Color mine = w.AmbientLight();
+                Check(mine.r == 255 && mine.b == 255, "the mine keeps its own dark, whatever the hour");
+            }
+        }
+        input.Update(dt);
+
+        // --- saving a dream -------------------------------------------------------------------
+        // Only into a slot nobody is using, and cleaned up after.
+        if (!SaveSystem::Exists(3)) {
+            World w;
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("dreamworld", "arrival", ctx)) {
+                w.clock.Set(4, 23.5f);
+                w.SetDream({true, "fernhollow", 400.0f, 500.0f});
+                w.SetCamp({true, "whisperwood_trail", 1200.0f, 700.0f});
+                Check(SaveSystem::Save(3, w, log, 12.0f), "a save made in a dream writes");
+                World loaded;
+                QuestLog log2;
+                log2.LoadDefinitions("data/quests.json");
+                float playtime = 0.0f;
+                Check(SaveSystem::Load(3, loaded, log2, ctx, playtime), "and loads");
+                Check(loaded.InDream() && loaded.Dream().active && loaded.Dream().map == "fernhollow" &&
+                      fabsf(loaded.Dream().x - 400.0f) < 0.1f, "still dreaming, with the way back remembered");
+                Check(loaded.clock.Day() == 4 && fabsf(loaded.clock.Hours() - 23.5f) < 0.01f,
+                      "at the same hour of the same night");
+                Check(loaded.PlayerCamp().pitched && loaded.PlayerCamp().map == "whisperwood_trail",
+                      "with the camp where it was pitched");
+                SaveSystem::Delete(3);
+            }
+        }
+    }
+
     Section("save round trip");
     {
         Skills before;

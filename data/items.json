@@ -376,7 +376,17 @@
     "desc": "A spool of it. Sold by the yard in Havenbrook.",
     "stack": true,
     "value": 7,
-    "icon": "assets/icons/scissors.png"
+    "icon": "assets/icons/scissors.png",
+    "craft": {
+      "result": "bedroll",
+      "qty": 1,
+      "xp": 30,
+      "level": 1,
+      "inputs": {
+        "thread": 2,
+        "hide": 2
+      }
+    }
   },
   "copper_ore": {
     "name": "Copper Ore",
@@ -495,5 +505,41 @@
       208
     ],
     "icon": "assets/icons/novice_staff.png"
+  },
+  "bedroll": {
+    "name": "Bedroll",
+    "desc": "Canvas, a blanket and a groundsheet. Use it under open sky to pitch camp, and sleep there after dusk.",
+    "value": 40,
+    "use": "camp",
+    "icon": "assets/icons/bedroll.png"
+  },
+  "dream_shard": {
+    "name": "Dream Shard",
+    "desc": "A sliver of a dream that came back with you. It is warm, and it hums when nobody is listening.",
+    "stack": true,
+    "value": 30,
+    "craft": {
+      "result": "dreamcatcher",
+      "qty": 1,
+      "xp": 160,
+      "level": 5,
+      "inputs": {
+        "dream_shard": 6,
+        "thread": 2
+      }
+    },
+    "icon": "assets/icons/dream_shard.png"
+  },
+  "dreamcatcher": {
+    "name": "Dreamcatcher",
+    "desc": "Thread and shards on a willow hoop. What it catches, it keeps.",
+    "slot": "amulet",
+    "value": 400,
+    "bonus": {
+      "magic": 10,
+      "ranged": 8,
+      "defence": 4
+    },
+    "icon": "assets/icons/dreamcatcher.png"
   }
 }

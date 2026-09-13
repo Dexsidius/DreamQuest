@@ -209,5 +209,110 @@
       16
     ],
     "element": "none"
+  },
+  "nightmare_shade": {
+    "name": "Nightmare Shade",
+    "sprite": "orc1",
+    "tint": [
+      190,
+      90,
+      255
+    ],
+    "hp": 16,
+    "attack": 5,
+    "strength": 5,
+    "defence": 4,
+    "attack_bonus": 4,
+    "strength_bonus": 5,
+    "defence_bonus": 4,
+    "speed": 50,
+    "aggro": 150,
+    "attack_range": 30,
+    "attack_cooldown": 1.6,
+    "loot": "nightmare_shade",
+    "kill_target": "nightmare",
+    "foot_box": [
+      -9,
+      -12,
+      18,
+      12
+    ],
+    "body_box": [
+      -14,
+      -42,
+      28,
+      42
+    ],
+    "element": "air"
+  },
+  "dread_boar": {
+    "name": "Dread Boar",
+    "sprite": "boar",
+    "tint": [
+      190,
+      120,
+      255
+    ],
+    "hp": 14,
+    "attack": 5,
+    "strength": 6,
+    "defence": 3,
+    "attack_bonus": 3,
+    "strength_bonus": 4,
+    "defence_bonus": 4,
+    "speed": 62,
+    "aggro": 120,
+    "attack_range": 26,
+    "attack_cooldown": 1.6,
+    "loot": "dread_boar",
+    "kill_target": "nightmare",
+    "foot_box": [
+      -8,
+      -8,
+      16,
+      8
+    ],
+    "body_box": [
+      -12,
+      -24,
+      24,
+      24
+    ],
+    "element": "water"
+  },
+  "nightmare_brute": {
+    "name": "Nightmare Brute",
+    "sprite": "orc3",
+    "tint": [
+      150,
+      70,
+      220
+    ],
+    "hp": 70,
+    "attack": 14,
+    "strength": 16,
+    "defence": 12,
+    "attack_bonus": 12,
+    "strength_bonus": 14,
+    "defence_bonus": 14,
+    "speed": 46,
+    "aggro": 220,
+    "attack_range": 36,
+    "attack_cooldown": 2.0,
+    "loot": "nightmare_brute",
+    "kill_target": "nightmare_brute",
+    "foot_box": [
+      -10,
+      -13,
+      20,
+      13
+    ],
+    "body_box": [
+      -16,
+      -46,
+      32,
+      46
+    ],
+    "element": "fire"
   }
 }

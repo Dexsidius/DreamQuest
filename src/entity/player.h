@@ -82,6 +82,8 @@ public:
     int   MaxMana() const { return max_mana; }
     bool  SpendMana(int cost);
     void  RestoreMana() { mana = max_mana; }
+    // A night's sleep: health, mana and breath all back to full.
+    void  Rest();
 
     Element SelectedElement() const { return selected_element; }
     void    SelectElement(Element e) { selected_element = e; }

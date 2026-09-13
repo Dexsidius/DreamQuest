@@ -58,6 +58,10 @@ bool EnemyDatabase::Load(const string& path) {
         d.scale           = o.value("scale", 1.0f);
         d.is_boss         = o.value("boss", false);
         d.element         = ElementFromName(o.value("element", string("none")));
+        if (o.contains("tint") && o["tint"].is_array() && o["tint"].size() >= 3)
+            d.tint = {static_cast<Uint8>(o["tint"][0].get<int>()),
+                      static_cast<Uint8>(o["tint"][1].get<int>()),
+                      static_cast<Uint8>(o["tint"][2].get<int>()), 255};
 
         d.foot_box = BoxFromJson(o.contains("foot_box") ? o["foot_box"] : json(), d.foot_box);
         d.body_box = BoxFromJson(o.contains("body_box") ? o["body_box"] : json(), d.body_box);
@@ -370,6 +374,7 @@ Uint8 Enemy::CorpseAlpha() const {
 void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
     if (CorpseGone()) return;
     SDL_Color tint{255, 255, 255, CorpseAlpha()};
+    if (def) tint = {def->tint.r, def->tint.g, def->tint.b, tint.a};
     if (hurt_flash > 0.0f) tint = {255, 110, 110, tint.a};
     // Lifted by the ground under it, as the player and NPCs are. This drew at
     // the raw feet position, so a monster up on a ledge sank into the cliff --

@@ -334,6 +334,30 @@ Buf Make(Sfx s) {
         Hiss(b, 0.42f, 0.50f, 1.0f, 0.06f, 0.18f, 1300.0f, 600.0f, 140.0f, 62);
         Normalize(b, 0.28f);
         break;
+    case Sfx::Sleep: {
+        // Falling asleep: a slow falling arpeggio over a soft low chord.
+        b = Blank(2.6f);
+        const float notes[] = {784.0f, 659.3f, 523.3f, 392.0f};
+        for (int i = 0; i < 4; ++i)
+            Tone(b, i * 0.28f, 1.6f, notes[i], notes[i] * 0.995f, 0.3f, 0.05f, 0.5f, TRI);
+        Tone(b, 0.0f, 2.5f, 196.0f, 196.0f, 0.16f, 0.6f, 1.1f);
+        Tone(b, 0.0f, 2.5f, 293.7f, 293.7f, 0.10f, 0.7f, 1.1f);
+        LowpassAll(b, 2600.0f);
+        Normalize(b, 0.3f);
+        break;
+    }
+    case Sfx::Wake: {
+        // Waking: the same notes rising, brighter, and a bell at the top.
+        b = Blank(2.0f);
+        const float notes[] = {392.0f, 523.3f, 659.3f, 784.0f};
+        for (int i = 0; i < 4; ++i)
+            Tone(b, i * 0.16f, 0.9f, notes[i], notes[i], 0.34f, 0.01f, 0.3f, TRI);
+        Bell(b, 0.62f, 1568.0f, 0.2f, 0.35f);
+        Tone(b, 0.5f, 1.4f, 261.6f, 261.6f, 0.12f, 0.1f, 0.6f);
+        LowpassAll(b, 5000.0f);
+        Normalize(b, 0.32f);
+        break;
+    }
     case Sfx::UiMove:
         b = Blank(0.04f);
         Tone(b, 0.0f, 0.035f, 1500.0f, 1400.0f, 0.6f, 0.001f, 0.01f);
@@ -435,6 +459,37 @@ Buf MakeBird(uint32_t seed) {
     return b;
 }
 
+// A cricket: a train of very short high pulses, repeated two or three times.
+Buf MakeCricket(uint32_t seed) {
+    Noise n(seed);
+    Buf b = Blank(0.9f);
+    const float f = n.Range(4200.0f, 5200.0f);
+    const int trains = 2 + static_cast<int>(n.Unit() * 2.0f);
+    const int pulses = 3 + static_cast<int>(n.Unit() * 3.0f);
+    float t = 0.0f;
+    for (int k = 0; k < trains; ++k) {
+        for (int p = 0; p < pulses; ++p)
+            Tone(b, t + p * 0.022f, 0.014f, f, f * 0.98f, 1.0f, 0.002f, 0.006f);
+        t += pulses * 0.022f + n.Range(0.08f, 0.16f);
+    }
+    Normalize(b, 0.07f);
+    return b;
+}
+
+// A dream chime: a soft bell a long way off, with an echo.
+Buf MakeChime(uint32_t seed) {
+    Noise n(seed);
+    Buf b = Blank(1.8f);
+    static const float kScale[] = {523.3f, 587.3f, 659.3f, 783.99f, 880.0f, 1046.5f};
+    const float f = kScale[static_cast<int>(n.Unit() * 6.0f) % 6];
+    Bell(b, 0.0f, f, 0.5f, 0.4f);
+    if (n.Unit() < 0.5f) Bell(b, 0.18f, f * 1.5f, 0.25f, 0.3f);
+    LowpassAll(b, 4200.0f);
+    Echo(b, n.Range(0.24f, 0.36f), 0.42f, 3);
+    Normalize(b, 0.12f);
+    return b;
+}
+
 Buf MakeDrip(uint32_t seed) {
     Noise n(seed);
     Buf b = Blank(0.2f);
@@ -473,6 +528,9 @@ struct Profile {
     float drip_lo = 0.0f, drip_hi = 0.0f;
     float fire = 0.0f;
     float crackle_lo = 0.0f, crackle_hi = 0.0f;
+    // The dream: a slow shimmering chord, and chimes.
+    float pad = 0.0f;
+    float chime_lo = 0.0f, chime_hi = 0.0f;
 };
 
 struct State {
@@ -481,7 +539,7 @@ struct State {
     bool built = false;
 
     vector<Buf> bank;
-    vector<Buf> birds, drips, crackles;
+    vector<Buf> birds, drips, crackles, crickets, chimes;
 
     static constexpr int VOICES = 32;
     Voice voices[VOICES];
@@ -490,8 +548,11 @@ struct State {
     float master = 0.8f, sfx = 1.0f, amb = 0.8f;
 
     Profile target;
-    float wind_g = 0.0f, drone_g = 0.0f, fire_g = 0.0f, cut_g = 1.0f;
+    float wind_g = 0.0f, drone_g = 0.0f, fire_g = 0.0f, cut_g = 1.0f, pad_g = 0.0f;
     float bird_timer = 2.0f, drip_timer = 3.0f, crackle_timer = 0.5f;
+    float cricket_timer = 1.0f, chime_timer = 1.5f;
+    float night = 0.0f;
+    float pad_a = 0.0f, pad_b = 0.0f, pad_c = 0.0f;
 
     Noise nl{101}, nr{202}, fx{303}, play{404};
     float wl = 0.0f, wr = 0.0f, wl2 = 0.0f, wr2 = 0.0f;
@@ -513,6 +574,8 @@ void Build() {
     for (uint32_t i = 0; i < 10; ++i) g.birds.push_back(MakeBird(1000 + i * 37));
     for (uint32_t i = 0; i < 5; ++i)  g.drips.push_back(MakeDrip(2000 + i * 53));
     for (uint32_t i = 0; i < 8; ++i)  g.crackles.push_back(MakeCrackle(3000 + i * 71));
+    for (uint32_t i = 0; i < 6; ++i)  g.crickets.push_back(MakeCricket(4000 + i * 29));
+    for (uint32_t i = 0; i < 8; ++i)  g.chimes.push_back(MakeChime(5000 + i * 41));
     g.built = true;
 }
 
@@ -635,6 +698,10 @@ void SetAmbience(const string& kind, bool interior) {
         p.wind = 0.11f; p.bird_lo = 2.0f; p.bird_hi = 6.5f;
     } else if (kind == "town") {
         p.wind = 0.08f; p.bird_lo = 3.0f; p.bird_hi = 9.0f;
+    } else if (kind == "dream") {
+        p.wind = 0.035f; p.wind_cut = 0.6f;
+        p.pad = 0.05f;
+        p.chime_lo = 2.0f; p.chime_hi = 6.0f;
     } else if (kind == "menu") {
         p.wind = 0.10f; p.wind_cut = 0.8f; p.bird_lo = 6.0f; p.bird_hi = 14.0f;
     } else if (!kind.empty()) {
@@ -642,6 +709,11 @@ void SetAmbience(const string& kind, bool interior) {
     }
     Lock lock;
     g.target = p;
+}
+
+void SetNight(float amount) {
+    Lock lock;
+    g.night = std::clamp(amount, 0.0f, 1.0f);
 }
 
 void SetVolumes(float master, float sfx, float ambience) {
@@ -679,7 +751,13 @@ void Mix(float* out, int frames) {
               g.fx.Range(-spread, spread), true);
     };
     if (g.built) {
-        schedule(g.bird_timer, t.bird_lo, t.bird_hi, g.birds, 0.25f, 1.0f, 0.9f);
+        // Birds by day and crickets by night, wherever there are birds at all.
+        if (g.night < 0.5f)
+            schedule(g.bird_timer, t.bird_lo, t.bird_hi, g.birds, 0.25f, 1.0f, 0.9f);
+        else
+            schedule(g.cricket_timer, t.bird_hi > 0.0f ? 0.4f : 0.0f,
+                     t.bird_hi > 0.0f ? 1.8f : 0.0f, g.crickets, 0.3f, 1.0f, 0.9f);
+        schedule(g.chime_timer, t.chime_lo, t.chime_hi, g.chimes, 0.4f, 1.0f, 0.8f);
         schedule(g.drip_timer, t.drip_lo, t.drip_hi, g.drips, 0.3f, 1.0f, 0.8f);
         schedule(g.crackle_timer, t.crackle_lo, t.crackle_hi, g.crackles, 0.5f, 1.0f, 0.3f);
     }
@@ -693,6 +771,7 @@ void Mix(float* out, int frames) {
         g.drone_g += (t.drone - g.drone_g) * SMOOTH;
         g.fire_g  += (t.fire - g.fire_g) * SMOOTH;
         g.cut_g   += (t.wind_cut - g.cut_g) * SMOOTH;
+        g.pad_g   += (t.pad - g.pad_g) * SMOOTH;
 
         float l = 0.0f, r = 0.0f;
 
@@ -721,6 +800,20 @@ void Mix(float* out, int frames) {
                              std::sin(g.drone_a * 2.0f * TAU) * 0.12f) * breathe * g.drone_g;
             l += d;
             r += d;
+        }
+
+        // The dream's chord: three soft sines a fifth and an octave apart,
+        // each drifting slightly out of tune with the next, so it shimmers.
+        if (g.pad_g > 0.0005f) {
+            if (g.wind_g <= 0.0005f) g.lfo += 1.0f / RATE;
+            const float drift = std::sin(g.lfo * TAU * 0.05f);
+            g.pad_a += (220.0f + drift * 0.8f) / RATE;  g.pad_a -= std::floor(g.pad_a);
+            g.pad_b += (330.0f - drift * 1.1f) / RATE;  g.pad_b -= std::floor(g.pad_b);
+            g.pad_c += (440.6f + drift * 1.3f) / RATE;  g.pad_c -= std::floor(g.pad_c);
+            const float swell = 0.6f + 0.4f * std::sin(g.lfo * TAU * 0.09f);
+            const float a = std::sin(g.pad_a * TAU), b = std::sin(g.pad_b * TAU), c = std::sin(g.pad_c * TAU);
+            l += (a * 0.5f + b * 0.35f + c * 0.15f) * swell * g.pad_g;
+            r += (a * 0.4f + b * 0.25f + c * 0.35f) * swell * g.pad_g;
         }
 
         // A hearth: a low rumble under the crackles.

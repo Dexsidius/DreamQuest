@@ -115,6 +115,9 @@ void Game::NewGame(const string& character, int slot) {
     banner_seen_map.clear();
     quests.FromJson(json::object());
     world.SetFlags({});
+    world.clock.Set(1, 9.0f);
+    world.SetCamp({});
+    world.SetDream({});
     world.player = Player();
     world.player.Init(ctx, character);
 
@@ -128,6 +131,8 @@ void Game::NewGame(const string& character, int slot) {
     // first minute rather than waiting on a drop.
     world.player.inventory.Add("training_bow", 1);
     world.player.inventory.Add("novice_staff", 1);
+    // And a bedroll, so the first night can be slept through wherever it falls.
+    world.player.inventory.Add("bedroll", 1);
 
     string why;
     for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot) {
@@ -375,6 +380,16 @@ void Game::Update(float dt) {
         if (banner_time > 4.2f) banner_active = false;
     }
 
+    // The birds go quiet as it gets dark, and the crickets start.
+    if (has_session && InGameplayState()) {
+        const float night = (world.InDream() || world.CurrentMap().IsInterior())
+                                ? 0.0f : world.clock.Darkness();
+        if (fabsf(night - audio_night) > 0.02f) {
+            audio_night = night;
+            Audio::SetNight(night);
+        }
+    }
+
     // Panels pause the world but still show it behind them, so keep the
     // camera settled and let floating text finish.
     if (has_session && state != GameState::Play && InGameplayState())
@@ -387,6 +402,19 @@ void Game::UpdatePlay(float dt) {
 
     world.Update(dt, ctx);
     HandleWorldRequests();
+
+    switch (world.TakeWake()) {
+        case World::WakeReason::Dawn:
+            PushToast("You wake at dawn, rested.", Palette::Highlight);
+            break;
+        case World::WakeReason::Nightmare:
+            PushToast("The nightmare jolted you awake. The night is gone.", {220, 170, 240, 255});
+            break;
+        case World::WakeReason::Stone:
+            PushToast("You wake before dawn, rested.", Palette::Highlight);
+            break;
+        default: break;
+    }
 
     // Collect objectives follow the bag, and the bag changes in more places
     // than are worth chasing individually -- eating, delivering, accepting a
@@ -412,7 +440,8 @@ void Game::UpdatePlay(float dt) {
     for (const string& id : quests.TakeJustCompleted())
         GrantQuestRewards(id);
 
-    if (world.player.IsDead() && world.player.DeathTimer() <= 0.0f)
+    // Dying in a dream only wakes you; the world handles that.
+    if (world.player.IsDead() && world.player.DeathTimer() <= 0.0f && !world.InDream())
         SetState(GameState::Death);
 
     // --- spell selection -----------------------------------------------------
@@ -603,8 +632,17 @@ void Game::Render() {
     }
 
     // Map-change wipe sits above the world but below nothing else.
-    if (has_session && world.FadeAmount() > 0.0f)
+    if (has_session && world.FadeAmount() > 0.0f) {
         ui.Dim(world.FadeAmount());
+        // Falling asleep and waking say so while the screen is dark.
+        if (!world.FadeCaption().empty()) {
+            SDL_Color c = {226, 214, 255, 255};
+            c.a = static_cast<Uint8>(255.0f * std::clamp((world.FadeAmount() - 0.35f) / 0.5f, 0.0f, 1.0f));
+            if (c.a > 0)
+                ui.TextShadowed(world.FadeCaption(), ui.ViewWidth() / 2.0f,
+                                ui.ViewHeight() / 2.0f - 12.0f, TextSize::Title, c, Align::Center);
+        }
+    }
 
     DrawToasts();
 

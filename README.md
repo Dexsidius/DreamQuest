@@ -272,7 +272,7 @@ Each recipe is made at one station, decided by its materials. **Anything that
 needs metal is smithed at an anvil**, the one in Halda's forge in Havenbrook:
 the Copper Ring and the Iron Shield. **Everything else is made at a
 workbench**, in Havenbrook or Mossvale: the Wooden Shield, the Leather Jerkin
-and the Oak Shortbow. The two used to share one list, so a village workbench
+the Oak Shortbow, the Bedroll and the Dreamcatcher. The two used to share one list, so a village workbench
 could smith an iron shield.
 
 Nothing declares its station. Materials carry `"metal": true` in
@@ -606,6 +606,75 @@ both families.
 
 ---
 
+## Day and night
+
+A day lasts twelve real minutes: half a minute to the hour. The light starts to
+go at six in the evening, it is fully dark by half past eight, dawn begins at
+five and full daylight is back at seven. The clock only runs while you are
+playing, and it is saved, so a night is still a night after a reload. A new
+game starts at nine in the morning of day one.
+
+Night is drawn as a light map multiplied over the finished scene
+(`src/world/lighting.cpp`): a screen-sized target is cleared to the colour of
+the light -- white at noon, amber at sunset, a cold blue at midnight -- and
+every light is added onto it as a soft glow before it is laid over the world.
+Cooking fires, hearths, the forge and camp fires throw flickering pools of
+firelight, fire and air bolts light their way, burning ground glows, and the
+player carries a faint light of their own so nobody is lost in the dark. Houses
+only dim half as much and are lit by their hearths; the mines keep their own
+darkness at any hour. At noon nothing is drawn at all.
+
+Outdoors the birds fall quiet as it gets dark and the crickets start.
+
+### Sleep and the dreamworld
+
+From **seven in the evening until four in the morning** you can sleep, and
+sleeping is a journey: the screen fades, "You drift off to sleep...", and you
+wake up somewhere else -- **the Reverie**, the dreamworld, for as long as the
+night lasts. Earlier than seven, a bed tells you it is for after dusk. You cannot
+sleep with a hostile monster nearby.
+
+There are three kinds of place to sleep:
+
+- **Beds** -- Elder Maren's, the three guest rooms at the Barley and Bell,
+  Oona's in Mossvale and the ferry cottage's double bed in Fernhollow.
+- **Campsites** -- the tents at Bram's camp on the Whisperwood trail and at the
+  traveller's camp in Fernhollow.
+- **Your own camp.** Every new character starts with a **Bedroll**, and more are
+  made at a workbench from 2 waxed thread and 2 raw hide. Use it from the bag
+  under open sky and it pitches a tent and a fire where you stand. After dusk it
+  offers "Sleep at your camp"; by day, "Pack up your camp" puts the bedroll back
+  in your bag. There is one camp at a time -- pitching another packs the first
+  away -- and it stays where you left it, on its map, across saves. Not indoors,
+  not in the mines, not on uneven ground and not on top of a way out.
+
+Going to sleep restores health, mana and stamina.
+
+**The Reverie** is five cloud islands over a starry void, joined by plank
+bridges to the one you arrive on. It is lit a dream's violet, wisps of light
+drift up out of the void, and the ambience is a slow shimmering chord with
+chimes far off. A voice on the arrival island explains the rules:
+
+- **Dawn ends the dream.** At five in the morning you wake exactly where you lay
+  down, rested. The HUD counts down to it ("Dreaming  dawn in 3:12").
+- **The waking stone** beside where you arrive wakes you straight away, with the
+  night still going, if you would rather.
+- **You cannot die in a dream.** A nightmare that bests you throws you awake, in
+  your bed, whole -- but the rest of the night goes with it.
+
+The islands are where the night's work is. **Nightmare Shades** haunt the grove
+to the north, **Dread Boars** graze the meadow to the west, the field to the east
+has **dream crystals** to mine (Mining 1), and to the south a **Nightmare Brute**
+guards a chest. They are the waking world's orcs and boars in a bad night's
+colours, and what they drop is real: **dream shards** come back with you, and
+six of them with two thread make a **Dreamcatcher** at a workbench, an amulet
+worth +10 Magic, +8 Ranged and +4 Defence.
+
+A save made in a dream remembers where you are sleeping, so loading it carries
+on the same dream and wakes you in the same place.
+
+---
+
 ## The HUD
 
 Health and mana sit in the top left in brass plates: a bevelled frame lit from
@@ -615,6 +684,9 @@ told apart at a glance rather than by colour alone.
 
 Under them, a slimmer amber bar with a lightning bolt is stamina, spent by
 sprinting; it pulses red and reads "winded" when it has been run dry.
+
+Under those, a sun or a moon and the time: "Day 2  21:40  Night". It turns
+blue once it is late enough to sleep, and in a dream it counts down to dawn.
 
 In a fight, a frame at the top centre names the target with its level and
 health, and says LOCKED in a red border while the lock is on. The line along the
@@ -641,7 +713,7 @@ The bezel is generated by `tools/make_ui.ps1` and the glyphs live in
 ## Sound
 
 There are no audio files. `src/systems/audio.cpp` synthesises every effect at
-start-up -- 36 of them, from tones, filtered noise, struck-metal partials and
+start-up -- 38 of them, from tones, filtered noise, struck-metal partials and
 Karplus-Strong plucked strings -- and plays them through one SDL3 audio stream
 with a small mixer.
 
@@ -654,6 +726,8 @@ with a small mixer.
   burning, chests, doors, locked doors, portals, pickups and coins, eating and
   equipping.
 - **Progress:** level-up arpeggio, quest start and quest complete fanfares.
+- **Sleep:** a slow falling arpeggio as you drift off, and a rising one with a
+  bell when you wake.
 - **Menus:** cursor ticks, confirm, back and error, handled once in
   `Game::Update` rather than in every screen.
 
@@ -664,7 +738,9 @@ not sound mechanical.
 **Ambience** is generated live, per map kind, and cross-fades on every map
 change: wind with slow swells and birdsong in the forest, groves and fields;
 a low breathing drone and echoing drips in the mines; a hearth's rumble and
-crackle indoors; a quiet wind on the title screen.
+crackle indoors; a quiet wind on the title screen. At night the birds give way to crickets, and
+the dreamworld has three detuned sines drifting against each other under
+far-off chimes.
 
 Options has Master, Effects and Ambience volume. With no playback device the
 game runs silently rather than failing.
@@ -764,6 +840,7 @@ with the Whisperwood trail leaving from the east.
 | `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge and Oona the herbalist's cottage |
 | `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
+| `dreamworld` | The Reverie, reached only by sleeping: five cloud islands over the void |
 
 ### The Whisperwood
 
@@ -841,7 +918,9 @@ To rebuild the world from scratch: `.\build.ps1 -Maps`.
 Three slots, plus an autosave every two minutes and one on quitting to the main
 menu. A save records the map, your exact position and facing, HP, every skill's
 XP, inventory, worn equipment, quest progress, and the one-shot world flags —
-which chests you have opened and which notes you have read — so loading puts
+which chests you have opened and which notes you have read — plus the day and
+the hour, where your camp is pitched, and, for a save made asleep, where you are
+dreaming from — so loading puts
 you back exactly where you left off. Saves are written to a temporary file and
 renamed, so an interrupted write cannot destroy the previous one.
 
@@ -856,14 +935,14 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **4038 checks** covering:
+and checks all of it — currently **4235 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
 - every quest objective, prerequisite and reward resolves, and every quest has
   a giver somewhere in the world
 - the dialogue graph is fully connected
-- all sixteen maps load; portals point at real maps; every enemy, NPC and object
+- all seventeen maps load; portals point at real maps; every enemy, NPC and object
   resolves
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest
@@ -941,9 +1020,27 @@ and checks all of it — currently **4038 checks** covering:
   the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
-- every one of the 36 sounds is audible, short, finite and under clipping;
-  each ambience is audible, stays in the background and fades out when
-  cleared; forty hits at once are voice-capped and never exceed full scale
+- the clock's dusk only darkens, dawn is half light and warm, half a minute is
+  an hour, midnight turns the day, a bed takes you from 19:00 to 04:00 and a
+  dream is over at 05:00, and skipping to dawn lands on the right morning
+- there are beds indoors and campsites outdoors, the dreamworld has an arrival
+  point, one waking stone, dream crystals, tinted nightmares and no portals, and
+  the bedroll, dream shard and dreamcatcher resolve with icons and recipes
+- by day the inn's bed refuses; at night it puts the player to sleep, the dream
+  remembers exactly where, health is restored, dawn wakes them in that spot,
+  dying in the dream wakes them alive and costs the night, and the waking stone
+  wakes them in the dark; nobody sleeps with an orc nearby
+- a bedroll pitches a tent and a fire, the camp stays on its own map, offers
+  sleep at night and packing up by day, and cannot be pitched indoors
+- noon is untinted, midnight dark and blue, sunset warm; the player carries a
+  light at night and nothing is lit by day; houses are brighter than outside and
+  lit by their hearths, and the mine ignores the hour
+- a save made in a dream loads still dreaming, at the same hour, with the way
+  back and the camp remembered
+- every one of the 38 sounds is audible, short, finite and under clipping;
+  each ambience, the dream's and a night outdoors included, is audible, stays
+  in the background and fades out when cleared; forty hits at once are
+  voice-capped and never exceed full scale
 
 It exits with the number of failures, so CI can use it directly.
 
@@ -962,9 +1059,10 @@ src/
     map.cpp/h           .mx loader, chunked render, collision, portals
     world.cpp/h         entities, combat resolution, interaction, loot
     targeting.cpp/h     who the player is fighting: combat target and lock-on
+    lighting.cpp/h      night as a multiplied light map, with fires cut out of it
   entity/               player, enemies, NPCs
   systems/              skills, items, loot, combat, quests, dialogue, saves,
-                        projectiles and elements, spells
+                        projectiles and elements, spells, the clock
   ui/                   drawing helpers and every screen
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips

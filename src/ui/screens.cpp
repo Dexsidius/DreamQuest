@@ -574,6 +574,28 @@ void Game::DrawHud() {
                  p.skills.CombatLevel(), p.inventory.Coins());
     ui.TextShadowed(meta, hp_bar.x, meta_y, TextSize::Small, Palette::TextDim);
 
+    // --- the time ------------------------------------------------------------
+    // A sun or a moon and the hour, under the vitals. In a dream it counts
+    // down to dawn instead, which is when the dream ends.
+    {
+        const WorldClock& c = world.clock;
+        const float y = meta_y + line_h + 4.0f;
+        const bool moon = world.InDream() || c.IsNight() || string(c.Phase()) == "Dusk";
+        glyph_plate({18.0f, y - 2.0f, glyph, line_h + 4.0f},
+                    moon ? "assets/icons/hud_moon.png" : "assets/icons/hud_sun.png");
+        char line[96];
+        SDL_Color col = Palette::TextDim;
+        if (world.InDream()) {
+            const int s = static_cast<int>(c.SecondsToDawn());
+            SDL_snprintf(line, sizeof(line), "Dreaming    dawn in %d:%02d", s / 60, s % 60);
+            col = {206, 186, 250, 255};
+        } else {
+            SDL_snprintf(line, sizeof(line), "Day %d    %s    %s", c.Day(), c.TimeText().c_str(), c.Phase());
+            if (c.CanSleep()) col = {176, 186, 236, 255};
+        }
+        ui.TextShadowed(line, hp_bar.x, y, TextSize::Small, col);
+    }
+
     // Meters and prompts describe what the button does right now, so they are
     // only meaningful while the player actually has control.
     const bool live = (state == GameState::Play);
@@ -909,6 +931,15 @@ void Game::UpdateInventory() {
                     } else {
                         PushToast("You are already at full health.", Palette::TextDim);
                     }
+                } else if (def && def->use == "camp") {
+                    const string why = world.PitchCamp(inventory_cursor, ctx);
+                    if (why.empty()) {
+                        PushToast("You pitch camp. After dusk you can sleep here.", Palette::Xp);
+                        SetState(GameState::Play);
+                        return;
+                    }
+                    PushToast(why, {235, 150, 120, 255});
+                    Audio::Play(Sfx::UiError);
                 } else if (def && def->slot != SLOT_NONE) {
                     string why;
                     if (p.EquipFromInventory(inventory_cursor, why)) {

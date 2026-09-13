@@ -102,6 +102,7 @@ bool ItemDatabase::Load(const string& path, bool required) {
         }
 
         d.metal = o.value("metal", false);
+        d.use   = o.value("use", string(""));
 
         if (o.contains("craft")) {
             const json& c = o["craft"];

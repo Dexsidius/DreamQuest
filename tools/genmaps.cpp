@@ -442,6 +442,23 @@ static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
+// A bed anyone may sleep in after dusk. Drawn from the same prop art as the
+// rest of the furniture, but placed as an object so it can be used.
+static void PlaceBed(MapBuilder& m, const string& bed_id, const string& art,
+                     int x, int y, int cw, int ch) {
+    json& o = m.Object(bed_id, "bed", x, y);
+    o["sprite"] = "assets/props/" + art + ".png";
+    o["title"]  = (art == "bed_double") ? "Double bed" : "Bed";
+    m.Collision(x - cw / 2, y - ch, cw, ch);
+}
+
+// A tent by a fire that a traveller may bed down in, the same way.
+static void PlaceCampsite(MapBuilder& m, const string& camp_id, int x, int y) {
+    json& o = m.Object(camp_id, "campsite", x, y);
+    o["sprite"] = "assets/props/tent.png";
+    o["title"]  = "Campsite";
+}
+
 // Buildings are drawn bottom-centre. Collision runs along the lower wall but
 // leaves the doorway open, and a portal sits in the gap. exit_spawn names the
 // spot on the doorstep that the interior's way out should arrive at.
@@ -1043,7 +1060,7 @@ static void BuildInteriors() {
         }
 
         // Sleeping corner.
-        piece("bed_single",   70, 150, 30, 36);
+        PlaceBed(m, "bed_maren", "bed_single", 70, 150, 30, 36);
         piece("nightstand",  104, 112, 18, 8);
         piece("travel_chest", 80, 370, 28, 12);
 
@@ -1302,7 +1319,7 @@ static void BuildInteriors() {
         (void)room_cols;
 
         // Room one: a single, with a wardrobe.
-        piece("bed_single",   150, 250, 30, 36);
+        PlaceBed(m, "bed_inn_1", "bed_single", 150, 250, 30, 36);
         piece("nightstand",   178, 214, 18, 8);
         piece("wardrobe",     258, 246, 34, 14);
         piece("washstand",    258, 330, 22, 8);
@@ -1310,13 +1327,13 @@ static void BuildInteriors() {
 
         // Room two: the good room.
         m.Overlay("props", "inn_rug", 400, 326);
-        piece("bed_double",   356, 258, 48, 36);
+        PlaceBed(m, "bed_inn_2", "bed_double", 356, 258, 48, 36);
         piece("nightstand",   448, 214, 18, 8);
         piece("washstand",    452, 322, 22, 8);
         piece("travel_chest", 356, 300, 28, 12);
 
         // Room three: another single.
-        piece("bed_single",   556, 250, 30, 36);
+        PlaceBed(m, "bed_inn_3", "bed_single", 556, 250, 30, 36);
         piece("nightstand",   522, 214, 18, 8);
         piece("wardrobe",     650, 246, 34, 14);
         piece("washstand",    650, 330, 22, 8);
@@ -1711,7 +1728,7 @@ static void BuildWhisperwood() {
     // --- the woodcutter's camp ----------------------------------------------------
     {
         const int cx0 = camp_cx * CELL + 16, cy0 = camp_cy * CELL + 16;
-        m.Prop("props", "tent", cx0 - 72, cy0 - 8);
+        PlaceCampsite(m, "campsite_bram", cx0 - 72, cy0 - 8);
         m.Collision(cx0 - 72 - 30, cy0 - 8 - 16, 60, 16);
         {
             json& o = m.Object("range_bram", "range", cx0 + 4, cy0 + 34);
@@ -2073,7 +2090,7 @@ static void BuildFernhollow() {
     // A traveller's camp by the path.
     {
         const int cx0 = 20 * CELL, cy0 = 26 * CELL;
-        m.Prop("props", "tent", cx0, cy0 - 20);
+        PlaceCampsite(m, "campsite_fernhollow", cx0, cy0 - 20);
         m.Collision(cx0 - 30, cy0 - 36, 60, 16);
         json& o = m.Object("range_fernhollow", "range", cx0 + 60, cy0 + 28);
         o["sprite"] = "assets/props/campfire_ring.png";
@@ -2206,7 +2223,7 @@ static void BuildWoodlandInteriors() {
         piece("lectern",           2 * CELL + 16, 7 * CELL,    28, 10);
         piece("table_round",       7 * CELL,     7 * CELL + 8, 40, 12);
         piece("tavern_chair",      5 * CELL + 16, 7 * CELL + 10, 16, 8);
-        piece("bed_single",        13 * CELL + 8, 8 * CELL,    30, 36);
+        PlaceBed(m, "bed_oona", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
         m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0);
         m.Write("maps");
     }
@@ -2236,7 +2253,7 @@ static void BuildWoodlandInteriors() {
             o["title"]  = "Hearth";
             m.Collision(12 * CELL + 16 - 32, 74, 64, 26);
         }
-        piece("bed_double",   2 * CELL + 16, 5 * CELL,      36, 40);
+        PlaceBed(m, "bed_ferry", "bed_double", 2 * CELL + 16, 5 * CELL, 36, 40);
         piece("wardrobe",     6 * CELL,      3 * CELL + 4,  34, 14);
         piece("dining_table", 8 * CELL + 16, 7 * CELL + 8,  46, 14);
         piece("tavern_chair", 7 * CELL,      7 * CELL + 10, 16, 8);
@@ -2245,6 +2262,197 @@ static void BuildWoodlandInteriors() {
         m.Npc("npc_hesper", "Hesper", "citizen2", 11 * CELL, 5 * CELL + 10, "hesper_root", 0);
         m.Write("maps");
     }
+}
+
+// --- the dreamworld ----------------------------------------------------------
+//
+// Where the player goes when they sleep. Five islands hang over a starry void,
+// joined to the one you arrive on by plank bridges: a grove of shades to the
+// north, dread boars grazing to the west, crystals worth mining to the east,
+// and to the south the brute that the other nightmares keep away from.
+//
+// It is built from the waking world's own art. Snow reads as cloud once the
+// dream's violet light is over it, the scenery is the forest's toadstools and
+// saplings, and the nightmares are orcs and boars in a bad night's colours.
+// The void is not drawn at all: the game paints stars behind where there is
+// no ground, and it is solid, so nobody walks off an edge.
+
+static void BuildDreamworld() {
+    const int CELL = 32, W = 72, H = 56;
+    MapBuilder m("dreamworld", "The Reverie", W * CELL, H * CELL);
+    m.Ambient("dream");
+    m.Subtitle("Where the Hollowmarch goes when it sleeps");
+    m.Background(14, 10, 30);
+    std::mt19937 rng(9191u);
+
+    struct Isle { float cx, cy, rx, ry; };
+    const Isle isles[] = {
+        {36.0f, 28.0f, 7.0f, 6.0f},    // 0: arrival
+        {36.0f,  9.0f, 9.0f, 5.0f},    // 1: the shade grove
+        {60.0f, 28.0f, 8.0f, 7.0f},    // 2: the crystal field
+        {12.0f, 28.0f, 8.0f, 8.0f},    // 3: the boar meadow
+        {36.0f, 47.0f, 9.0f, 6.0f},    // 4: the brute's plateau
+    };
+    const int ISLES = 5;
+
+    // How far inside an island a cell is: below 1 is ground. The rim wobbles,
+    // so no island is a perfect ellipse.
+    auto isle_depth = [&](int i, float cx, float cy) {
+        const float dx = (cx - isles[i].cx) / isles[i].rx;
+        const float dy = (cy - isles[i].cy) / isles[i].ry;
+        const float wobble = (Fbm(cx * 0.35f, cy * 0.35f, 91 + i) - 0.5f) * 0.55f;
+        return (dx * dx + dy * dy) / (1.0f + wobble);
+    };
+    auto which_isle = [&](int cx, int cy) {
+        for (int i = 0; i < ISLES; ++i)
+            if (isle_depth(i, cx + 0.5f, cy + 0.5f) < 1.0f) return i;
+        return -1;
+    };
+    // Distance, in cells, from a cell to the bridge running from the arrival
+    // island to island i.
+    auto bridge_dist = [&](int i, float cx, float cy) {
+        const float ax = isles[0].cx, ay = isles[0].cy, bx = isles[i].cx, by = isles[i].cy;
+        const float vx = bx - ax, vy = by - ay;
+        const float t = std::clamp(((cx - ax) * vx + (cy - ay) * vy) / (vx * vx + vy * vy), 0.0f, 1.0f);
+        const float px = ax + vx * t - cx, py = ay + vy * t - cy;
+        return sqrtf(px * px + py * py);
+    };
+    auto on_bridge = [&](int cx, int cy) {
+        for (int i = 1; i < ISLES; ++i)
+            if (bridge_dist(i, cx + 0.5f, cy + 0.5f) < 1.05f) return true;
+        return false;
+    };
+    auto near_bridge = [&](int cx, int cy, float cells) {
+        for (int i = 1; i < ISLES; ++i)
+            if (bridge_dist(i, cx + 0.5f, cy + 0.5f) < cells) return true;
+        return false;
+    };
+
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const int isle = which_isle(cx, cy);
+            if (isle >= 0) {
+                // All cloud: patches of grass on it read as squares cut out of
+                // the dream rather than as anything growing there.
+                m.Ground(VariantOf("snow", cx, cy), cx * CELL, cy * CELL, CELL);
+            } else if (on_bridge(cx, cy)) {
+                m.Ground(VariantOf("plank_floor", cx, cy), cx * CELL, cy * CELL, CELL);
+            } else {
+                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        }
+
+    auto px = [&](float cells) { return static_cast<int>(cells * CELL); };
+    const int ax = px(isles[0].cx + 0.5f), ay = px(isles[0].cy + 1.0f);
+    m.Spawn("arrival", ax, ay);
+    m.Spawn("default", ax, ay);
+
+    // --- the arrival island: candles, the waking stone, a word of advice ------
+    // Eight, turned so none of them stands on the line of a bridge: a candle
+    // due north of the spawn used to stop anyone walking out that way.
+    for (int i = 0; i < 8; ++i) {
+        const float a = (i + 0.5f) / 8.0f * 6.2831853f;
+        const int cx = ax + static_cast<int>(cosf(a) * 110.0f);
+        const int cy = ay - 10 + static_cast<int>(sinf(a) * 72.0f);
+        m.Prop("props", "candlestand", cx, cy);
+        m.Collision(cx - 5, cy - 5, 10, 5);
+    }
+    {
+        json& o = m.Object("dream_waking_stone", "dream_wake", ax - 64, ay - 56);
+        o["sprite"] = ObjPath("rock_02");
+        o["title"]  = "Waking stone";
+        m.Collision(ax - 64 - 14, ay - 56 - 10, 28, 10);
+    }
+    {
+        json& o = m.Object("dream_voice", "sign", ax + 64, ay - 56);
+        o["sprite"] = ObjPath("rocksmall_02");
+        o["title"]  = "A voice in the dream";
+        o["text"]   = "You are asleep, and this is the Reverie.\n\n"
+                      "It lasts as long as the night does. When dawn comes you will wake "
+                      "where you lay down, rested. If you would rather wake sooner, touch "
+                      "the waking stone.\n\n"
+                      "Nothing that happens here can kill you. A nightmare that bests you "
+                      "only throws you awake -- but it takes the rest of the night with it.\n\n"
+                      "The shards the nightmares leave behind are real. They come back with you.";
+        m.Collision(ax + 64 - 10, ay - 56 - 8, 20, 8);
+    }
+
+    // --- scenery ----------------------------------------------------------------
+    // Toadstools, saplings and bushes on the islands, kept off the bridges, off
+    // the plaza you arrive in, and a cell back from every rim so nothing hangs
+    // over the void.
+    auto deep_inside = [&](int cx, int cy) {
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx)
+                if (which_isle(cx + dx, cy + dy) < 0) return false;
+        return true;
+    };
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            const int isle = which_isle(cx, cy);
+            if (isle < 0 || !deep_inside(cx, cy) || near_bridge(cx, cy, 2.6f)) continue;
+            const float to_centre = std::hypot(cx + 0.5f - isles[isle].cx, cy + 0.5f - isles[isle].cy);
+            if (to_centre < (isle == 0 ? 5.5f : 3.0f)) continue;
+            const float r = Hash2(cx, cy, 313);
+            const int x = cx * CELL + 16, y = cy * CELL + 26;
+            if (r < 0.09f) {
+                m.Prop("objects", Pick(kFungus, rng), x, y);
+                m.Collision(x - 8, y - 6, 16, 6);
+            } else if (r < 0.14f) {
+                m.Prop("objects", Pick(kSmallTrees, rng), x, y);
+                m.Collision(x - 8, y - 8, 16, 8);
+            } else if (r < 0.20f) {
+                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+            }
+        }
+
+    // --- the crystal field: dream shards to mine ---------------------------------
+    {
+        const Isle& e = isles[2];
+        const float spots[][2] = {{-4, -3}, {3, -4}, {5, 1}, {-2, 3}, {2, 4}, {-5, 1}};
+        int n = 0;
+        for (const auto& sp : spots) {
+            const int x = px(e.cx + sp[0]), y = px(e.cy + sp[1]);
+            json& o = m.Object("dream_crystal_" + std::to_string(n++), "rock", x, y);
+            o["sprite"]      = ObjPath(Pick(kRocks, rng));
+            o["skill"]       = "Mining";
+            o["skill_level"] = 1;
+            o["yield"]       = "dream_shard";
+            o["yield_xp"]    = 40;
+            o["gather_time"] = 3.0f;
+            o["title"]       = "dream crystal";
+            m.Collision(x - 14, y - 12, 28, 12);
+        }
+        m.Enemy("nightmare_shade", px(e.cx + 1), px(e.cy - 1), 5, 40.0f, 200.0f);
+        m.Enemy("nightmare_shade", px(e.cx - 1), px(e.cy + 5), 5, 40.0f, 200.0f);
+    }
+
+    // --- the shade grove and the boar meadow -------------------------------------
+    {
+        const Isle& n = isles[1];
+        const float spots[][2] = {{-5, -1}, {-1, -2}, {3, -1}, {6, 1}};
+        int lv = 3;
+        for (const auto& sp : spots)
+            m.Enemy("nightmare_shade", px(n.cx + sp[0]), px(n.cy + sp[1]), lv++, 40.0f, 200.0f);
+    }
+    {
+        const Isle& w = isles[3];
+        const float spots[][2] = {{-4, -4}, {3, -3}, {-3, 4}, {4, 3}};
+        int i = 0;
+        for (const auto& sp : spots)
+            m.Enemy("dread_boar", px(w.cx + sp[0]), px(w.cy + sp[1]), 3 + (i++ % 2), 40.0f, 200.0f);
+    }
+
+    // --- the brute's plateau ---------------------------------------------------------
+    {
+        const Isle& s = isles[4];
+        m.Enemy("nightmare_brute", px(s.cx + 1), px(s.cy + 2), 10, 90.0f, 220.0f);
+        m.Enemy("nightmare_shade", px(s.cx - 5), px(s.cy), 6, 40.0f, 200.0f);
+        m.Enemy("nightmare_shade", px(s.cx + 6), px(s.cy - 1), 6, 40.0f, 200.0f);
+        PlaceChest(m, "chest_dream", px(s.cx + 1), px(s.cy + 4), "chest_dream");
+    }
+
+    m.Write("maps");
 }
 
 // --- main --------------------------------------------------------------------
@@ -2260,6 +2468,7 @@ int main() {
     BuildMossvale();
     BuildFernhollow();
     BuildWoodlandInteriors();
+    BuildDreamworld();
 
     BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",
                  1001u, 60, 46, 9,

@@ -44,6 +44,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     gather_index = -1;
 
     SpawnEntitiesFromMap(ctx);
+    PlaceCampObjects();
 
     SDL_FPoint p;
     if (spawn.empty() || !map.Spawn(spawn, p)) p = map.DefaultSpawn();
@@ -94,11 +95,250 @@ void World::RequestTransition(const string& id, const string& spawn) {
     transition_pending = true;
     next_map   = id;
     next_spawn = spawn;
+    next_has_point = false;
+    fade_speed = FADE_SPEED;
+    fade_caption.clear();
     fade_dir   = 1;
 }
 
+// -----------------------------------------------------------------------------
+//  Sleep, dreams and camps
+// -----------------------------------------------------------------------------
+
+void World::PlaceCampObjects() {
+    map.RemoveObjects("player_camp");
+    if (!camp.pitched || camp.map != map_id) return;
+
+    MapObject tent;
+    tent.id     = "player_camp";
+    tent.type   = "camp";
+    tent.x      = camp.x;
+    tent.y      = camp.y;
+    tent.sprite = "assets/props/tent.png";
+    tent.title  = "Your camp";
+    map.AddObject(tent);
+
+    MapObject fire;
+    fire.id     = "player_camp_fire";
+    fire.type   = "camp_fire";
+    fire.x      = camp.x + 46.0f;
+    fire.y      = camp.y + 22.0f;
+    fire.sprite = "assets/props/campfire_ring.png";
+    map.AddObject(fire);
+}
+
+bool World::TrySleep(const GameContext& ctx) {
+    (void)ctx;
+    if (InDream() || transition_pending || player.IsDead()) return false;
+
+    const auto refuse = [&](const string& why) {
+        AddText(why, player.x, player.y - 54.0f, {210, 200, 240, 255}, 1.8f);
+        Audio::Play(Sfx::UiError);
+        return false;
+    };
+    if (!clock.CanSleep())
+        return refuse("Not tired yet. Sleep comes after dusk.");
+    for (const auto& e : enemies) {
+        if (!Targeting::Targetable(*e) || !e->Def() || e->Def()->aggro_range <= 0.0f) continue;
+        if (Length(e->x - player.x, e->y - player.y) < SLEEP_SAFE_RANGE || e->Engaged())
+            return refuse("You cannot sleep with enemies nearby.");
+    }
+
+    dream.active = true;
+    dream.map = map_id;
+    dream.x = player.x;
+    dream.y = player.y;
+    player.Rest();
+    targeting.Clear();
+
+    RequestTransition(DREAM_MAP, "arrival");
+    fade_speed = SLEEP_FADE_SPEED;
+    fade_caption = "You drift off to sleep...";
+    Audio::Play(Sfx::Sleep);
+    return true;
+}
+
+void World::Wake(WakeReason why) {
+    if (!InDream() || transition_pending || why == WakeReason::None) return;
+    const string where = (dream.active && !dream.map.empty()) ? dream.map : string("overworld");
+    RequestTransition(where, dream.active ? "" : "start");
+    if (dream.active) {
+        next_has_point = true;
+        next_x = dream.x;
+        next_y = dream.y;
+    }
+    fade_speed = SLEEP_FADE_SPEED;
+    fade_caption = why == WakeReason::Nightmare ? "The nightmare throws you awake."
+                 : why == WakeReason::Stone     ? "You wake."
+                                                : "Dawn breaks.";
+    waking = why;
+}
+
+string World::PitchCamp(int slot, const GameContext& ctx) {
+    (void)ctx;
+    if (slot < 0 || slot >= player.inventory.SlotCount() || player.inventory.Slot(slot).Empty())
+        return "There is nothing there to pitch.";
+    if (InDream())
+        return "There is no ground in a dream to pitch a camp on.";
+    if (map.IsInterior() || map.Ambient() == "dungeon")
+        return "A camp needs open sky.";
+    if (transition_pending || player.IsDead() || player.IsJumping())
+        return "Not now.";
+    if (targeting.InCombat())
+        return "Not with enemies about.";
+
+    // The tent goes just behind the player, its fire off to one side, and
+    // both need clear ground away from any way out.
+    const float tx = player.x, ty = player.y - 20.0f;
+    const SDL_FRect tent_base = {tx - 28.0f, ty - 14.0f, 56.0f, 14.0f};
+    const SDL_FRect fire_base = {tx + 46.0f - 14.0f, ty + 22.0f - 10.0f, 28.0f, 10.0f};
+    const SDL_FRect clearing  = {tx - 40.0f, ty - 50.0f, 110.0f, 90.0f};
+    if (map.Blocked(tent_base) || map.Blocked(fire_base))
+        return "There is no room for a tent here.";
+    if (map.PortalAt(clearing))
+        return "Too close to the way through.";
+    if (map.LevelAt(tx, ty) != map.LevelAt(player.x, player.y) ||
+        map.LevelAt(fire_base.x, fire_base.y) != map.LevelAt(player.x, player.y))
+        return "The ground here is too uneven.";
+
+    const bool moved = camp.pitched;
+    player.inventory.RemoveSlot(slot, 1);
+    // One camp at a time: pitching another packs the first away.
+    if (moved) player.inventory.Add("bedroll", 1);
+
+    camp.pitched = true;
+    camp.map = map_id;
+    camp.x = tx;
+    camp.y = ty;
+    PlaceCampObjects();
+    Audio::Play(Sfx::Chop, 0.6f, 1.2f);
+    return "";
+}
+
+SDL_Color World::AmbientLight() const {
+    const SDL_Color white{255, 255, 255, 255};
+    if (!map.Loaded() || map.Ambient() == "dungeon") return white;
+    if (InDream()) return {156, 124, 214, 255};
+
+    float dark = clock.Darkness();
+    float warm = clock.Warmth() * (1.0f - dark * 0.7f);
+    if (map.IsInterior()) { dark *= 0.5f; warm *= 0.3f; }
+    if (dark <= 0.001f && warm <= 0.001f) return white;
+
+    const SDL_Color night{84, 96, 156, 255};
+    const SDL_Color sunset{255, 178, 128, 255};
+    const auto mix = [&](float base, float n, float s) {
+        const float c = base + (n - base) * dark;
+        return static_cast<Uint8>(std::clamp(c * (1.0f + (s / 255.0f - 1.0f) * warm * 0.6f), 0.0f, 255.0f));
+    };
+    return {mix(255.0f, night.r, sunset.r), mix(255.0f, night.g, sunset.g),
+            mix(255.0f, night.b, sunset.b), 255};
+}
+
+vector<Light> World::CollectLights() const {
+    vector<Light> lights;
+    if (!map.Loaded() || map.Ambient() == "dungeon") return lights;
+    const bool dreaming = InDream();
+    float dark = dreaming ? 1.0f : clock.Darkness();
+    if (map.IsInterior()) dark *= 0.8f;
+    if (dark <= 0.01f) return lights;
+
+    const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    // Firelight flickers, each fire on its own rhythm.
+    const auto flicker = [&](const string& id) {
+        unsigned h = 2166136261u;
+        for (char c : id) h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+        const float ph = (h % 1000) / 1000.0f * 6.2831853f;
+        return 0.88f + 0.08f * sinf(t * 7.3f + ph) + 0.04f * sinf(t * 13.1f + ph * 2.0f);
+    };
+
+    for (const MapObject& o : map.Objects()) {
+        const bool fire = o.type == "range" || o.type == "camp_fire";
+        if (fire) {
+            const float f = flicker(o.id);
+            const float radius = (map.IsInterior() ? 150.0f : 130.0f) * (0.96f + 0.04f * f);
+            lights.push_back({o.x, o.y - 10.0f, radius, {255, 172, 96, 255}, dark * f});
+        } else if (o.type == "dream_wake") {
+            lights.push_back({o.x, o.y - 16.0f, 120.0f, {226, 214, 255, 255}, 0.85f});
+        } else if (dreaming && o.yield == "dream_shard" && !o.skill.empty()) {
+            const float pulse = 0.75f + 0.25f * sinf(t * 2.2f + o.x * 0.05f);
+            lights.push_back({o.x, o.y - 10.0f, 84.0f, {130, 220, 255, 255}, 0.8f * pulse});
+        }
+    }
+
+    // A little light of your own, so the player is never lost in the dark: a
+    // warm glow outdoors, a pale one in a dream.
+    if (!player.IsDead() || player.DeathTimer() > 0.0f) {
+        if (dreaming)
+            lights.push_back({player.x, player.y - 16.0f, 120.0f, {236, 226, 255, 255}, 0.75f});
+        else
+            lights.push_back({player.x, player.y - 16.0f, 80.0f, {255, 236, 200, 255}, 0.42f * dark});
+    }
+
+    for (const Projectile& p : projectiles) {
+        if (p.finished || !p.def || p.def->element == Element::None) continue;
+        lights.push_back({p.x, p.y, 48.0f, ElementColor(p.def->element), 0.9f * dark});
+    }
+    for (const GroundEffect& g : ground_effects) {
+        if (g.element != Element::Fire || !g.Active()) continue;
+        lights.push_back({g.x, g.y, g.radius * 2.2f, {255, 150, 70, 255}, 0.8f * dark});
+    }
+    return lights;
+}
+
+void World::RenderStars(SDL_Renderer* r) const {
+    // The void under the dream's islands: stars that drift a little behind the
+    // camera, so the islands read as floating over something far away.
+    int w = 0, h = 0;
+    SDL_GetCurrentRenderOutputSize(r, &w, &h);
+    if (w <= 0 || h <= 0) return;
+    const SDL_FPoint origin = camera.ToScreen(0.0f, 0.0f);
+    const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    for (int i = 0; i < 260; ++i) {
+        unsigned hsh = static_cast<unsigned>(i) * 2654435761u;
+        hsh ^= hsh >> 15; hsh *= 2246822519u; hsh ^= hsh >> 13;
+        const float u = (hsh & 0xFFFF) / 65535.0f;
+        const float v = ((hsh >> 16) & 0xFFFF) / 65535.0f;
+        const float depth = 0.08f + 0.22f * ((hsh % 97) / 96.0f);
+        float sx = fmodf(u * w * 1.5f + origin.x * depth, static_cast<float>(w));
+        float sy = fmodf(v * h * 1.5f + origin.y * depth, static_cast<float>(h));
+        if (sx < 0.0f) sx += w;
+        if (sy < 0.0f) sy += h;
+        const float twinkle = 0.55f + 0.45f * sinf(t * (1.0f + (hsh % 5)) + i);
+        const Uint8 a = static_cast<Uint8>(200.0f * twinkle * (0.4f + depth * 2.0f));
+        const bool warm = (hsh % 7) == 0;
+        SDL_SetRenderDrawColor(r, warm ? 255 : 210, warm ? 214 : 220, 255, a);
+        const float s = (hsh % 11 == 0) ? 3.0f : 2.0f;
+        const SDL_FRect star = {roundf(sx), roundf(sy), s, s};
+        SDL_RenderFillRect(r, &star);
+    }
+}
+
 void World::ApplyTransition(const GameContext& ctx) {
-    if (!LoadMap(next_map, next_spawn, ctx)) {
+    const WakeReason why = waking;
+    waking = WakeReason::None;
+    if (LoadMap(next_map, next_spawn, ctx)) {
+        if (next_has_point) {
+            player.x = next_x;
+            player.y = next_y;
+            camera.SnapTo(player.x, player.y);
+        }
+        if (why != WakeReason::None) {
+            // Back where you lay down, rested -- or, from a nightmare, alive.
+            if (player.IsDead()) player.Respawn(player.x, player.y);
+            player.Rest();
+            if (why == WakeReason::Nightmare) clock.SkipToDawn();
+            dream = {};
+            woke = why;
+            Audio::Play(Sfx::Wake);
+            // The bed is under you; do not step straight off it into a portal.
+            portals_armed = false;
+            arrival_released = false;
+        }
+    }
+    next_has_point = false;
+    if (!map.Loaded() || map_id != next_map) {
         SDL_Log("World: failed to enter map '%s'", next_map.c_str());
         WorldRequest r;
         r.type = WorldRequest::Type::Toast;
@@ -119,13 +359,27 @@ void World::ApplyTransition(const GameContext& ctx) {
 void World::Update(float dt, const GameContext& ctx) {
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
-        fade += fade_dir * FADE_SPEED * dt;
+        fade += fade_dir * fade_speed * dt;
         if (fade_dir > 0 && fade >= 1.0f) {
             fade = 1.0f;
             if (transition_pending) ApplyTransition(ctx);
         } else if (fade_dir < 0 && fade <= 0.0f) {
             fade = 0.0f;
             fade_dir = 0;
+            fade_speed = FADE_SPEED;
+            fade_caption.clear();
+        }
+    }
+
+    // --- the clock -----------------------------------------------------------
+    {
+        const bool was_night = clock.IsNight();
+        clock.Advance(dt);
+        if (!was_night && clock.IsNight() && !InDream()) {
+            WorldRequest r;
+            r.type = WorldRequest::Type::Toast;
+            r.text = "Night falls. A bed or a camp will let you dream.";
+            requests.push_back(r);
         }
     }
     // Movement stays frozen while the screen is covered, but only for as long
@@ -150,6 +404,16 @@ void World::Update(float dt, const GameContext& ctx) {
     player.Update(dt, *this, ctx);
 
     player.input_locked = locked_by_game;
+
+    // A dream lasts as long as the night. Dying in one ends it early, a moment
+    // into the fall, before the game can treat it as a real death.
+    if (InDream() && !transition_pending) {
+        if (player.IsDead()) {
+            if (player.DeathTimer() < 1.6f) Wake(WakeReason::Nightmare);
+        } else if (clock.DreamOver()) {
+            Wake(WakeReason::Dawn);
+        }
+    }
 
     if (!player.IsDead()) {
         ApplyPlayerAttack(ctx);
@@ -362,6 +626,14 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             label = o.title.empty() ? "Read mission board" : ("Read " + o.title);
         } else if (o.type == "sign") {
             label = "Read sign";
+        } else if (o.type == "bed") {
+            label = clock.CanSleep() ? "Sleep until dawn" : "Bed  -  you can sleep after dusk";
+        } else if (o.type == "campsite") {
+            label = clock.CanSleep() ? "Sleep by the fire" : "Campsite  -  you can sleep after dusk";
+        } else if (o.type == "camp") {
+            label = clock.CanSleep() ? "Sleep at your camp" : "Pack up your camp";
+        } else if (o.type == "dream_wake") {
+            label = "Touch the stone and wake";
         } else if (o.type == "range" || o.type == "workbench") {
             // Map titles are written as names ("Kitchen fire", "Anvil"), but
             // here they follow "the" mid-sentence.
@@ -443,6 +715,24 @@ void World::TryInteract(const GameContext& ctx) {
                     e.target = o.id;
                     ctx.quests->Notify(e, player.inventory);
                 }
+            } else if (o.type == "bed" || o.type == "campsite") {
+                TrySleep(ctx);
+            } else if (o.type == "camp") {
+                if (clock.CanSleep()) {
+                    TrySleep(ctx);
+                } else if (player.inventory.Full()) {
+                    AddText("No room in your pack for the bedroll.", player.x, player.y - 54.0f,
+                            {255, 170, 150, 255}, 1.6f);
+                    Audio::Play(Sfx::UiError);
+                } else {
+                    camp = {};
+                    PlaceCampObjects();
+                    player.inventory.Add("bedroll", 1);
+                    AddText("Camp packed away.", player.x, player.y - 54.0f, {220, 220, 200, 255});
+                    Audio::Play(Sfx::Pickup);
+                }
+            } else if (o.type == "dream_wake") {
+                Wake(WakeReason::Stone);
             } else if (o.type == "range") {
                 CookOne(o, ctx);
             } else if (o.type == "workbench") {
@@ -1096,6 +1386,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     const SDL_Color bg = map.BackgroundColor();
     SDL_SetRenderDrawColor(r, bg.r, bg.g, bg.b, 255);
     SDL_RenderClear(r);
+    if (InDream()) RenderStars(r);
 
     map.RenderLayer(r, cache, camera, LAYER_GROUND);
     // The exposed earth on the downhill side of every raised cell, drawn over
@@ -1391,6 +1682,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     }
 
     map.RenderLayer(r, cache, camera, LAYER_OVERHEAD);
+
+    // Night, dusk, and the dream's violet, multiplied over everything above,
+    // with fires and the player's own glow cut out of it.
+    lighting.Render(r, camera, AmbientLight(), CollectLights());
 
     // Leaves, fireflies and dust, and the vignette -- over the world, under
     // the bars and the HUD.

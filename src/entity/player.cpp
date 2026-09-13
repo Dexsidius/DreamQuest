@@ -625,6 +625,19 @@ void Player::Respawn(float sx, float sy) {
     sprite.Play("idle", true);
 }
 
+void Player::Rest() {
+    if (dead) return;
+    SyncHitpoints();
+    hp = max_hp;
+    skills.SetCurrent(SKILL_HITPOINTS, hp);
+    heard_hp = hp;
+    SyncMana();
+    RestoreMana();
+    stamina = MAX_STAMINA;
+    stamina_delay = 0.0f;
+    winded = false;
+}
+
 bool Player::Eat(int slot) {
     if (!item_db || slot < 0 || slot >= inventory.SlotCount()) return false;
     const ItemStack& s = inventory.Slot(slot);
