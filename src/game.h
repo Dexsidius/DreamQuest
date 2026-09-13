@@ -170,6 +170,13 @@ private:
     vector<string> board_quests;
 
     vector<Toast> toasts;
+
+    // The name of a place, put on screen as you walk into it. banner_zone is
+    // the last outdoor zone announced, so stepping into a house and back out
+    // does not announce the town a second time.
+    string banner_title, banner_subtitle, banner_zone, banner_seen_map;
+    float  banner_time = 0.0f;
+    bool   banner_active = false;
     float playtime = 0.0f;
     float fps = 0.0f;
     float autosave_timer = 0.0f;

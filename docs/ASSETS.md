@@ -82,6 +82,16 @@ plaque, so a new player’s first sight of the world was a sign reading GUILD
 HALL standing in an empty field. See the README for what this pipeline is and
 is not good for.
 
+The woodland zones added a set of their own:
+
+- **`mossvale_lodge`** (192) -- the reeve's log lodge, with antlers over the door.
+- **`herbalist_cottage`** (168) -- a thatched cottage. It exists because the
+  pack's `building_house_b` is mis-cut on its sheet and cannot be used; it
+  serves as Oona's cottage and, shut, as the woodcutters' cabin.
+- **`well`**, **`market_stall`**, **`palisade`**, **`log_pile`**, **`tent`**,
+  **`campfire_ring`** -- village and camp furniture. The campfire ring also
+  replaced Havenbrook's cooking-range sprite outdoors.
+
 ## How the import works
 
 The CraftPix tilesets are packed autotile sheets, and LevelEdit-Plus works with

@@ -309,6 +309,8 @@ public:
 
     void Interior(bool v) { dq["interior"] = v; }
     void Ambient(const string& v) { dq["ambient"] = v; }
+    // The line under the zone name on the banner shown when a player walks in.
+    void Subtitle(const string& v) { dq["subtitle"] = v; }
     void Background(int r, int g, int b) {
         dq["background"] = json::array({r, g, b, 255});
     }
@@ -463,7 +465,7 @@ static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
 
 // --- overworld ---------------------------------------------------------------
 
-enum Biome { MEADOW, GREENWOOD, FOOTHILLS, MIRE, CURSED, WATER, ROAD };
+enum Biome { MEADOW, GREENWOOD, FOOTHILLS, MIRE, CURSED, WATER, ROAD, TRAIL };
 
 static const int OW_CELL = 32;
 static const int OW_W = 128, OW_H = 96;                 // cells
@@ -498,6 +500,16 @@ static float RoadX(int cy) {
     return 62.0f + sinf(cy * 0.075f) * 7.0f;
 }
 
+// The Whisperwood Trail leaves the Sunken Road at this row and winds east
+// through the greenwood to the edge of the map, where it becomes its own zone.
+static const int TRAIL_JUNCTION_CY = 60;
+static float TrailY(int cx) {
+    return 60.0f + sinf((cx - 64) * 0.11f) * 3.2f;
+}
+static bool OnTrail(int cx, int cy, float half = 1.2f) {
+    return cx >= RoadX(TRAIL_JUNCTION_CY) + 1.0f && fabsf(cy - TrailY(cx)) < half;
+}
+
 static Biome BiomeAt(int cx, int cy) {
     const float n = Fbm(cx * 0.045f, cy * 0.045f, 1337);
 
@@ -506,6 +518,7 @@ static Biome BiomeAt(int cx, int cy) {
     if (cx < 44 && river < 2.2f + n * 1.4f) return WATER;
 
     if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 12 && cy < 88) return ROAD;
+    if (OnTrail(cx, cy)) return TRAIL;
 
     if (cx > 96 && cy < 34 && n > 0.42f) return CURSED;
     if (cy < 20 + n * 8.0f) return FOOTHILLS;
@@ -558,6 +571,7 @@ static int ElevationAt(int cx, int cy) {
 static void BuildOverworld() {
     MapBuilder m("overworld", "The Hollowmarch", OW_PX_W, OW_PX_H);
     m.Ambient("overworld");
+    m.Subtitle("Open country between the foothills and the mire");
     m.Background(38, 52, 40);
     std::mt19937 rng(20260909u);
 
@@ -584,6 +598,7 @@ static void BuildOverworld() {
             switch (b) {
                 case WATER:     tile = "water"; break;
                 case ROAD:      tile = "road"; break;
+                case TRAIL:     tile = (v > 0.55f) ? "dirt_dark" : "dirt"; break;
                 case FOOTHILLS: tile = (v > 0.62f) ? "dirt_dark" : (v > 0.34f ? "dirt" : "sand"); break;
                 case MIRE:      tile = (v > 0.6f) ? "marsh_dark" : (v > 0.32f ? "marsh_ground" : "marsh_stone"); break;
                 case CURSED:    tile = (v > 0.5f) ? "cursed_ground" : "cursed_sand"; break;
@@ -633,6 +648,13 @@ static void BuildOverworld() {
                              static_cast<float>((2 * r + 1) * OW_CELL),
                              static_cast<float>((2 * r + 1) * OW_CELL)});
         };
+        // The trail climbs over the greenwood shelves on its way east, so it
+        // is walkable end to end in the same way the road is.
+        for (int cx = static_cast<int>(RoadX(TRAIL_JUNCTION_CY)); cx < OW_W; ++cx)
+            ramps.push_back({static_cast<float>(cx * OW_CELL),
+                             (TrailY(cx) - 3.0f) * OW_CELL,
+                             static_cast<float>(OW_CELL), 6.0f * OW_CELL});
+        clearing(OW_W - 3, static_cast<int>(TrailY(OW_W - 3)), 3);   // the trail's end
         clearing(static_cast<int>(RoadX(88)), 88, 4);   // the town gate
         clearing(static_cast<int>(RoadX(10)), 9,  4);   // the mine
         clearing(12, 44, 4);                            // the barrow
@@ -656,7 +678,7 @@ static void BuildOverworld() {
     for (int cy = 1; cy < OW_H - 1; ++cy) {
         for (int cx = 1; cx < OW_W - 1; ++cx) {
             const Biome b = BiomeAt(cx, cy);
-            if (b == WATER || b == ROAD) continue;
+            if (b == WATER || b == ROAD || b == TRAIL) continue;
 
             const float r = Hash2(cx, cy, 5150);
             if (r > 0.12f) continue;
@@ -680,9 +702,12 @@ static void BuildOverworld() {
     for (int cy = 2; cy < OW_H - 2; ++cy) {
         for (int cx = 2; cx < OW_W - 2; ++cx) {
             const Biome b = BiomeAt(cx, cy);
-            if (b == WATER || b == ROAD) continue;
+            if (b == WATER || b == ROAD || b == TRAIL) continue;
             // Keep a clear verge either side of the road.
             if (fabsf(cx - RoadX(cy)) < 3.2f) continue;
+            // And either side of the Whisperwood Trail, so it reads as a path
+            // cut through the trees rather than a stripe of dirt under them.
+            if (OnTrail(cx, cy, 3.4f)) continue;
 
             const float r = Hash2(cx, cy, 4242);
             const int x = cx * OW_CELL + OW_CELL / 2;
@@ -810,6 +835,32 @@ static void BuildOverworld() {
         o["sprite"] = "assets/icons/note_ground.png";
     }
 
+    // The Whisperwood trailhead: a signpost where the trail leaves the road,
+    // a woodpile beside it, and the way east at the edge of the map.
+    {
+        const int sx = static_cast<int>(RoadX(TRAIL_JUNCTION_CY) + 5.0f) * OW_CELL + 16;
+        const int sy = static_cast<int>(TrailY(static_cast<int>(RoadX(TRAIL_JUNCTION_CY) + 5.0f)) - 2.4f)
+                       * OW_CELL + 16;
+        json& o = m.Object("sign_trailhead", "sign", sx, sy);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "Trailhead";
+        o["starts_quest"] = "q_road_beneath_leaves";
+        o["text"]   = "WHISPERWOOD TRAIL, east.\n"
+                      "MOSSVALE, a day's walk under the trees.\n"
+                      "FERNHOLLOW, where the trail forks north.\n\n"
+                      "Carved smaller: keep to the path after dark.\n\n"
+                      "Follow the road east to Mossvale, then return to the fork "
+                      "and take the north path to Fernhollow.";
+        m.Collision(sx - 16, sy - 10, 32, 10);
+        m.Prop("props", "log_pile", sx + 56, sy + 4);
+        m.Collision(sx + 56 - 16, sy - 6, 32, 10);
+
+        const int ey = static_cast<int>(TrailY(OW_W - 1) * OW_CELL) + 16;
+        m.Portal(OW_PX_W - 24, ey - 72, 24, 144, "whisperwood_trail", "from_hollowmarch",
+                 "To the Whisperwood", false);
+        m.Spawn("from_whisperwood", OW_PX_W - 96, static_cast<int>(TrailY(OW_W - 4) * OW_CELL) + 16);
+    }
+
     // A couple of chests off the road for the curious.
     PlaceChest(m, "chest_meadow_01", 96 * OW_CELL, 78 * OW_CELL, "chest_common");
     PlaceChest(m, "chest_wood_01",  114 * OW_CELL, 52 * OW_CELL, "chest_common");
@@ -824,6 +875,7 @@ static void BuildTown() {
     const int CELL = 32, W = 56, H = 44;
     MapBuilder m("town_havenbrook", "Havenbrook", W * CELL, H * CELL);
     m.Ambient("town");
+    m.Subtitle("A market town on the southern road");
     m.Background(44, 58, 44);
     std::mt19937 rng(4242u);
 
@@ -898,7 +950,7 @@ static void BuildTown() {
     // A cooking fire anyone may use.
     {
         json& o = m.Object("range_town", "range", 40 * CELL, 30 * CELL);
-        o["sprite"] = ObjPath("campfire");
+        o["sprite"] = "assets/props/campfire_ring.png";
         o["title"]  = "Cooking fire";
         m.Collision(40 * CELL - 16, 30 * CELL - 12, 32, 12);
     }
@@ -1518,6 +1570,674 @@ static void BuildDungeon(const string& id, const string& display,
     m.Write("maps");
 }
 
+// =============================================================================
+//  The Whisperwood
+//
+//  East out of the Hollowmarch the trail runs under old forest to a fork: east
+//  to Mossvale, a logging village, and north to Fernhollow, a hamlet on a pond.
+//  Each is its own zone joined to the next by walking off the edge along the
+//  path, the way DragonFable and AdventureQuest Worlds string their towns
+//  together, so travelling somewhere is a walk through somewhere.
+// =============================================================================
+
+namespace ww {
+static const int CELL = 32, W = 100, H = 44;
+static const int FORK_CX = 70;
+
+// Where the trail runs, where the branch to Fernhollow runs, and where the
+// stream crosses under the plank bridge.
+static float TrailY(float cx) {
+    return 24.0f + sinf(cx * 0.085f) * 6.0f + sinf(cx * 0.029f + 1.3f) * 3.0f;
+}
+static float BranchX(float cy) { return FORK_CX + sinf(cy * 0.23f) * 2.5f; }
+static float StreamX(float cy) { return 38.0f + sinf(cy * 0.17f) * 2.5f; }
+
+// How far a cell is from the nearest bit of trail, in cells.
+static float TrailGap(int cx, int cy) {
+    float gap = fabsf(cy - TrailY(static_cast<float>(cx)));
+    if (cy <= TrailY(static_cast<float>(FORK_CX)) + 1.0f)
+        gap = std::min(gap, fabsf(cx - BranchX(static_cast<float>(cy))));
+    return gap;
+}
+static bool Stream(int cx, int cy) { return fabsf(cx - StreamX(static_cast<float>(cy))) < 1.4f; }
+}   // namespace ww
+
+// Standing scenery with a trunk to walk into, not a canopy to walk under.
+static void PlaceForestTree(MapBuilder& m, std::mt19937& rng, int x, int y, bool big) {
+    m.Prop("objects", big ? Pick(kTrees, rng) : Pick(kSmallTrees, rng), x, y);
+    if (big) m.Collision(x - 9, y - 9, 18, 9);
+    else     m.Collision(x - 6, y - 6, 12, 6);
+}
+
+static void BuildWhisperwood() {
+    using namespace ww;
+    MapBuilder m("whisperwood_trail", "Whisperwood Trail", W * CELL, H * CELL);
+    m.Ambient("forest");
+    m.Subtitle("The old road east, under the trees");
+    m.Background(22, 34, 24);
+    std::mt19937 rng(7070u);
+
+    // The woodcutter's camp, in a clearing north of the trail with a short
+    // path down to it.
+    const int camp_cx = 54;
+    const int camp_cy = static_cast<int>(TrailY(static_cast<float>(camp_cx))) - 7;
+    auto in_camp = [&](int cx, int cy) {
+        const int dx = cx - camp_cx, dy = cy - camp_cy;
+        return dx * dx + dy * dy * 2 < 30;
+    };
+    auto on_camp_path = [&](int cx, int cy) {
+        return abs(cx - camp_cx) <= 1 && cy >= camp_cy &&
+               cy <= TrailY(static_cast<float>(cx));
+    };
+
+    // --- ground ---------------------------------------------------------------
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float gap = TrailGap(cx, cy);
+            const float v = Fbm(cx * 0.18f, cy * 0.18f, 31);
+            string tile;
+            if (Stream(cx, cy)) {
+                // Planks where the trail crosses, water everywhere else.
+                tile = (gap < 2.2f) ? VariantOf("plank_floor", cx, cy) : "water";
+                if (gap >= 2.2f) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            } else if (gap < 1.3f || on_camp_path(cx, cy)) {
+                tile = VariantOf(v > 0.55f ? "dirt_dark" : "dirt", cx, cy);
+            } else if (gap < 3.5f || in_camp(cx, cy)) {
+                tile = VariantOf(v > 0.5f ? "grass" : "grass_dark", cx, cy);
+            } else {
+                // The forest floor: moss and dark grass under the canopy. Not
+                // dirt -- patches of it read as side paths that go nowhere.
+                tile = VariantOf(v > 0.58f ? "moss" : "grass_dark", cx, cy);
+            }
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+        }
+
+    // The edges are forest, open only where the trail leaves.
+    const int west_row  = static_cast<int>(TrailY(0.0f));
+    const int east_row  = static_cast<int>(TrailY(static_cast<float>(W - 1)));
+    const int north_col = static_cast<int>(BranchX(0.0f));
+    for (int cx = 0; cx < W; ++cx) {
+        if (abs(cx - north_col) > 2) m.Collision(cx * CELL, 0, CELL, CELL);
+        m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+    }
+    for (int cy = 0; cy < H; ++cy) {
+        if (abs(cy - west_row) > 2) m.Collision(0, cy * CELL, CELL, CELL);
+        if (abs(cy - east_row) > 2) m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    // --- the forest -------------------------------------------------------------
+    // Dense enough that the canopies overlap and the trail is the way through.
+    // A share of the big trees can be felled; the rest are scenery.
+    int tree_i = 5000;
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            if (fabsf(cx - StreamX(static_cast<float>(cy))) < 2.6f) continue;
+            if (in_camp(cx, cy) || on_camp_path(cx, cy)) continue;
+            const float gap = TrailGap(cx, cy);
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            const float r = Hash2(cx, cy, 9191);
+
+            if (gap < 3.5f) {
+                // The verge: open, with the odd bush or mushroom at its edge.
+                if (gap > 2.2f) {
+                    if (r < 0.05f)      m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+                    else if (r < 0.08f) m.Prop("objects", Pick(kFungus, rng), x, y);
+                }
+                continue;
+            }
+            const bool edge = (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4);
+            if (r < (edge ? 0.55f : 0.24f)) {
+                if (!edge && Hash2(cx, cy, 1212) < 0.18f)
+                    PlaceTree(m, rng, tree_i++, x, y, true, 1, "logs");
+                else
+                    PlaceForestTree(m, rng, x, y, true);
+            } else if (r < 0.32f) {
+                PlaceForestTree(m, rng, x, y, false);
+            } else if (r < 0.40f) {
+                m.Prop("objects", Pick(kBushes, rng), x, y);
+            } else if (r < 0.45f) {
+                m.Prop("objects", Pick(kFungus, rng), x, y);
+            }
+        }
+
+    // --- the woodcutter's camp ----------------------------------------------------
+    {
+        const int cx0 = camp_cx * CELL + 16, cy0 = camp_cy * CELL + 16;
+        m.Prop("props", "tent", cx0 - 72, cy0 - 8);
+        m.Collision(cx0 - 72 - 30, cy0 - 8 - 16, 60, 16);
+        {
+            json& o = m.Object("range_bram", "range", cx0 + 4, cy0 + 34);
+            o["sprite"] = "assets/props/campfire_ring.png";
+            o["title"]  = "Camp fire";
+            m.Collision(cx0 + 4 - 16, cy0 + 34 - 10, 32, 10);
+        }
+        m.Prop("props", "log_pile", cx0 + 76, cy0 - 6);
+        m.Collision(cx0 + 76 - 16, cy0 - 6 - 10, 32, 10);
+        m.Prop("props", "crates_sacks", cx0 + 70, cy0 + 50);
+        m.Collision(cx0 + 70 - 18, cy0 + 50 - 10, 36, 10);
+        m.Npc("npc_bram", "Bram the Woodcutter", "citizen2", cx0 + 36, cy0 + 14, "bram_root", 0);
+    }
+
+    // A waystone near the start of the trail, with the one piece of advice the
+    // forest is known for.
+    {
+        const int sx = 18 * CELL + 16;
+        const int sy = static_cast<int>(TrailY(18.0f) + 2.8f) * CELL + 16;
+        json& o = m.Object("waystone_whisperwood", "sign", sx, sy);
+        o["sprite"] = ObjPath("rock_05");
+        o["title"]  = "Mossed waystone";
+        o["text"]   = "The carving is almost gone under the moss.\n\n"
+                      "WHISPERWOOD. KEEP TO THE PATH.\n\n"
+                      "Scratched underneath, much later:\n"
+                      "the trees are only trees. It is the foxes.";
+        m.Collision(sx - 14, sy - 10, 28, 10);
+    }
+
+    // The fork.
+    {
+        const int fx = (FORK_CX + 4) * CELL + 16;
+        const int fy = static_cast<int>(TrailY(static_cast<float>(FORK_CX + 4)) + 2.6f) * CELL + 16;
+        json& o = m.Object("sign_whisperwood_fork", "sign", fx, fy);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "Fork in the trail";
+        o["text"]   = "MOSSVALE, east. The lodge fire is always lit.\n"
+                      "FERNHOLLOW, north, to the still water.\n"
+                      "THE HOLLOWMARCH, west, and Havenbrook beyond it.";
+        m.Collision(fx - 16, fy - 10, 32, 10);
+    }
+
+    // Cut timber left at the trailside, where the carts load.
+    for (int lx : {30, 86}) {
+        const int x = lx * CELL + 16;
+        const int y = static_cast<int>(TrailY(static_cast<float>(lx)) - 2.8f) * CELL + 16;
+        m.Prop("props", "log_pile", x, y);
+        m.Collision(x - 16, y - 10, 32, 10);
+    }
+
+    // --- wildlife ---------------------------------------------------------------
+    // On the verges, where the trail brings the player past them.
+    for (int cy = 2; cy < H - 2; cy += 3)
+        for (int cx = 10; cx < W - 6; cx += 4) {
+            const float gap = TrailGap(cx, cy);
+            if (gap < 1.6f || gap > 3.4f || Stream(cx, cy) || in_camp(cx, cy)) continue;
+            const float r = Hash2(cx, cy, 3131);
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (r < 0.22f)      m.Enemy("deer", x, y, 3);
+            else if (r < 0.42f) m.Enemy("fox", x, y, 4);
+            else if (r < 0.58f) m.Enemy("boar", x, y, 4);
+            else if (r < 0.68f) m.Enemy("hare", x, y, 2);
+        }
+
+    // --- the ways out -------------------------------------------------------------
+    const int wy = static_cast<int>(TrailY(0.0f) * CELL) + 16;
+    m.Portal(0, wy - 72, 24, 144, "overworld", "from_whisperwood", "To the Hollowmarch", false);
+    m.Spawn("from_hollowmarch", 88, static_cast<int>(TrailY(2.0f) * CELL) + 16);
+    m.Spawn("default",          88, static_cast<int>(TrailY(2.0f) * CELL) + 16);
+
+    const int ey = static_cast<int>(TrailY(static_cast<float>(W - 1)) * CELL) + 16;
+    m.Portal(W * CELL - 24, ey - 72, 24, 144, "mossvale", "from_trail", "To Mossvale", false);
+    m.Spawn("from_mossvale", W * CELL - 88,
+            static_cast<int>(TrailY(static_cast<float>(W - 3)) * CELL) + 16);
+
+    const int nx = static_cast<int>(BranchX(0.0f) * CELL) + 16;
+    m.Portal(nx - 72, 0, 144, 24, "fernhollow", "from_trail", "To Fernhollow", false);
+    m.Spawn("from_fernhollow", static_cast<int>(BranchX(2.0f) * CELL) + 16, 2 * CELL + 16);
+
+    m.Write("maps");
+}
+
+// --- Mossvale ------------------------------------------------------------------
+
+static void BuildMossvale() {
+    const int CELL = 32, W = 58, H = 46;
+    MapBuilder m("mossvale", "Mossvale", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("A logging village under the Whisperwood");
+    m.Background(30, 44, 30);
+    std::mt19937 rng(5858u);
+
+    const int gate_row = 26;              // the street comes in from the west gate
+    const int sq_cx = 30, sq_cy = 24;     // the square
+
+    auto on_street = [&](int cx, int cy) { return cx <= sq_cx && abs(cy - gate_row) <= 1; };
+    auto in_square = [&](int cx, int cy) {
+        const float dx = (cx - sq_cx) / 8.5f, dy = (cy - sq_cy) / 5.5f;
+        return dx * dx + dy * dy < 1.0f;
+    };
+    auto on_lane = [&](int cx, int cy) {
+        if (abs(cx - sq_cx) <= 1 && cy >= 16 && cy <= sq_cy) return true;        // up to the lodge
+        if (abs(cy - 38) <= 1 && cx >= 11 && cx <= 26) return true;             // to the herbalist
+        if (abs(cx - 26) <= 1 && cy >= sq_cy && cy <= 38) return true;
+        return false;
+    };
+    // Where buildings stand, so the greenery keeps clear of them.
+    auto reserved = [&](int cx, int cy) {
+        if (cx >= 25 && cx <= 35 && cy >= 10 && cy <= 17) return true;   // lodge
+        if (cx >= 8 && cx <= 16 && cy >= 30 && cy <= 38) return true;    // herbalist
+        if (cx >= 42 && cx <= 50 && cy >= 33 && cy <= 39) return true;   // the tanner's
+        return false;
+    };
+
+    // --- ground ---------------------------------------------------------------
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float v = Fbm(cx * 0.22f, cy * 0.22f, 58);
+            string tile;
+            if (on_street(cx, cy) || on_lane(cx, cy) || in_square(cx, cy))
+                tile = VariantOf(v > 0.58f ? "dirt_dark" : "dirt", cx, cy);
+            else
+                tile = VariantOf(v > 0.62f ? "moss" : (v > 0.3f ? "grass" : "grass_dark"), cx, cy);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+        }
+
+    // --- the boundary: palisade north and south, forest east and west ---------
+    for (int cx = 0; cx < W; ++cx) {
+        m.Collision(cx * CELL, 0, CELL, 2 * CELL);
+        m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+    }
+    for (int x = 28; x < W * CELL; x += 54) {
+        m.Prop("props", "palisade", x, 2 * CELL + 8);
+        m.Prop("props", "palisade", x, H * CELL - 2);
+    }
+    for (int cy = 0; cy < H; ++cy) {
+        if (abs(cy - gate_row) > 2) m.Collision(0, cy * CELL, CELL, CELL);
+        m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    // --- buildings ------------------------------------------------------------
+    // Both are Mossvale's own buildings, modelled for it: a log lodge, and a
+    // thatched cottage for the herbalist. The lodge art is 192 square but drawn across 142 by
+    // 132 of it, which is what its collision is cut to.
+    PlaceBuilding(m, "mossvale_lodge", sq_cx * CELL + 16, 16 * CELL, 142, 132,
+                  "mossvale_lodge_hall", "entrance", "Enter the lodge",
+                  "from_mossvale_lodge", "props");
+    PlaceBuilding(m, "herbalist_cottage", 12 * CELL + 16, 37 * CELL, 136, 125,
+                  "mossvale_herbalist", "entrance", "Enter Oona's cottage",
+                  "from_mossvale_herbalist", "props");
+    // The tanner's, shut up for the season: standing, but not somewhere to go.
+    {
+        const int tx = 46 * CELL, ty = 38 * CELL;
+        m.Prop("objects", "building_house_a", tx, ty);
+        m.Collision(tx - 64, ty - 140, 128, 140);
+    }
+
+    // --- the square -------------------------------------------------------------
+    {
+        const int wx = (sq_cx + 4) * CELL, wy = (sq_cy + 1) * CELL;
+        m.Prop("props", "well", wx, wy);
+        m.Collision(wx - 18, wy - 12, 36, 12);
+    }
+    m.Prop("props", "market_stall", 21 * CELL, 30 * CELL);
+    m.Collision(21 * CELL - 32, 30 * CELL - 14, 64, 14);
+    m.Prop("props", "market_stall", 38 * CELL, 30 * CELL);
+    m.Collision(38 * CELL - 32, 30 * CELL - 14, 64, 14);
+    m.Prop("props", "crates_sacks", 41 * CELL + 16, 30 * CELL);
+    m.Collision(41 * CELL, 30 * CELL - 10, 36, 10);
+    m.Prop("props", "barrel", 18 * CELL + 16, 30 * CELL);
+    m.Collision(18 * CELL + 2, 30 * CELL - 10, 28, 10);
+
+    {
+        json& o = m.Object("board_mossvale", "board", (sq_cx - 6) * CELL, 20 * CELL);
+        o["sprite"] = ObjPath("guild_noticeboard");
+        o["title"]  = "Mossvale Notices";
+        o["quests"] = json::array({"q_mossvale_hides", "q_trail_wardens"});
+        m.Collision((sq_cx - 6) * CELL - 36, 20 * CELL - 12, 72, 12);
+    }
+    {
+        json& o = m.Object("range_mossvale", "range", (sq_cx + 10) * CELL, 21 * CELL);
+        o["sprite"] = "assets/props/campfire_ring.png";
+        o["title"]  = "Cooking fire";
+        m.Collision((sq_cx + 10) * CELL - 16, 21 * CELL - 10, 32, 10);
+    }
+    {
+        json& o = m.Object("bench_mossvale", "workbench", 44 * CELL, 26 * CELL);
+        o["sprite"] = "assets/props/workbench.png";
+        o["title"]  = "Workbench";
+        m.Collision(44 * CELL - 34, 26 * CELL - 18, 67, 18);
+    }
+    for (const auto& lp : {std::pair<int, int>{35 * CELL, 17 * CELL}, {24 * CELL, 17 * CELL}}) {
+        m.Prop("props", "log_pile", lp.first, lp.second);
+        m.Collision(lp.first - 16, lp.second - 10, 32, 10);
+    }
+    {
+        const int gx = 3 * CELL, gy = (gate_row - 3) * CELL;
+        json& o = m.Object("sign_mossvale_gate", "sign", gx, gy);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "Mossvale";
+        o["text"]   = "MOSSVALE\nTimber, hides and a warm fire.\n\n"
+                      "Reeve's lodge north of the square. Notices by the well.";
+        m.Collision(gx - 16, gy - 10, 32, 10);
+    }
+
+    // --- people -------------------------------------------------------------------
+    m.Npc("npc_sela",   "Warden Sela",    "player_female", 4 * CELL, (gate_row + 3) * CELL, "sela_root", 1);
+    m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL, 29 * CELL - 6, "pell_root", 0);
+    m.Npc("npc_tamsin", "Tamsin",         "player_male",  45 * CELL, 19 * CELL, "tamsin_root", 0, true);
+
+    // --- village life along the street ------------------------------------------
+    // Without these the walk from the gate to the square is a bare dirt road
+    // through a lawn; a village shows itself before you reach its middle.
+    {
+        // The woodcutters' cabin: the herbalist's model again, but shut.
+        const int hx = 14 * CELL, hy = 22 * CELL;
+        m.Prop("props", "herbalist_cottage", hx, hy);
+        m.Collision(hx - 68, hy - 125, 136, 125);
+        m.Prop("props", "log_pile", 18 * CELL, 23 * CELL + 8);
+        m.Collision(18 * CELL - 16, 23 * CELL - 2, 32, 10);
+        m.Prop("props", "log_pile", 19 * CELL + 12, 23 * CELL + 8);
+        m.Collision(19 * CELL - 4, 23 * CELL - 2, 32, 10);
+        m.Prop("props", "barrel", 10 * CELL, 23 * CELL + 4);
+        m.Collision(10 * CELL - 14, 23 * CELL - 6, 28, 10);
+    }
+    {
+        // A drying rack of hides by the tanner's, under canvas.
+        m.Prop("props", "tent", 41 * CELL, 37 * CELL);
+        m.Collision(41 * CELL - 30, 37 * CELL - 24, 60, 24);
+        m.Prop("props", "crates_sacks", 38 * CELL, 38 * CELL);
+        m.Collision(38 * CELL - 18, 38 * CELL - 10, 36, 10);
+    }
+
+    // --- greenery, keeping clear of streets, square and buildings --------------
+    auto is_path = [&](int cx, int cy) { return on_street(cx, cy) || on_lane(cx, cy) || in_square(cx, cy); };
+    // Trees and tall fungus are drawn up from their base, so one planted on the
+    // tile below a street hangs its canopy across it. Keep those two tiles back.
+    auto near_path = [&](int cx, int cy) {
+        for (int dy = -1; dy <= 3; ++dy)
+            for (int dx = -2; dx <= 2; ++dx)
+                if (is_path(cx + dx, cy - dy)) return true;
+        return false;
+    };
+    auto near_building = [&](int cx, int cy) {
+        if (cx >= 10 && cx <= 20 && cy >= 18 && cy <= 24) return true;   // woodcutters' cabin
+        if (cx >= 37 && cx <= 43 && cy >= 34 && cy <= 39) return true;   // hide tent
+        if (cy >= 28 && cy <= 32 && ((cx >= 17 && cx <= 23) || (cx >= 36 && cx <= 43))) return true;  // stalls
+        return false;
+    };
+    for (int cy = 3; cy < H - 2; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            if (is_path(cx, cy) || reserved(cx, cy) || near_building(cx, cy)) continue;
+            if (abs(cy - gate_row) <= 3 && cx < 8) continue;         // the gate
+            const bool woods = (cx < 5 || cx > W - 6);
+            const bool tall_ok = !near_path(cx, cy);
+            const float r = Hash2(cx, cy, 5151);
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (woods) {
+                if (r < 0.45f && tall_ok) PlaceForestTree(m, rng, x, y, r < 0.28f);
+                else if (r < 0.60f)       m.Prop("objects", Pick(kBushes, rng), x, y);
+            } else if (r < 0.025f && tall_ok) {
+                PlaceForestTree(m, rng, x, y, false);
+            } else if (r < 0.06f) {
+                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+            } else if (r < 0.075f && tall_ok) {
+                m.Prop("objects", Pick(kFungus, rng), x, y);
+            }
+        }
+
+    // --- the way in and out -----------------------------------------------------
+    m.Portal(0, (gate_row - 2) * CELL, 24, 5 * CELL, "whisperwood_trail", "from_mossvale",
+             "To the Whisperwood", false);
+    m.Spawn("from_trail", 80, gate_row * CELL + 16);
+    m.Spawn("default", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
+    m.Spawn("respawn", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
+
+    m.Write("maps");
+}
+
+// --- Fernhollow ------------------------------------------------------------------
+
+static void BuildFernhollow() {
+    const int CELL = 32, W = 46, H = 36;
+    MapBuilder m("fernhollow", "Fernhollow", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("A hamlet on still water, where the trail runs out");
+    m.Background(28, 44, 38);
+    std::mt19937 rng(4646u);
+
+    const int gate_col = 12;
+    auto path_x = [&](float cy) { return gate_col + sinf(cy * 0.21f) * 2.2f; };
+    const float pcx = 32.0f, pcy = 15.0f, prx = 9.0f, pry = 7.0f;
+    auto in_pond = [&](int cx, int cy) {
+        const float dx = (cx - pcx) / prx, dy = (cy - pcy) / pry;
+        return dx * dx + dy * dy < 1.0f;
+    };
+    auto on_jetty = [&](int cx, int cy) { return cy >= 15 && cy <= 16 && cx >= 22 && cx <= 29; };
+    auto on_path = [&](int cx, int cy) {
+        if (cy >= 12 && fabsf(cx - path_x(static_cast<float>(cy))) < 1.2f) return true;   // from the gate
+        if (cy >= 15 && cy <= 16 && cx >= gate_col && cx <= 23) return true;            // to the jetty
+        return false;
+    };
+    auto reserved = [&](int cx, int cy) {
+        if (cx >= 8 && cx <= 16 && cy >= 5 && cy <= 12) return true;     // cottage
+        if (cx >= 3 && cx <= 10 && cy >= 21 && cy <= 28) return true;    // shrine
+        if (cx >= 16 && cx <= 24 && cy >= 23 && cy <= 29) return true;   // camp
+        return false;
+    };
+
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float v = Fbm(cx * 0.24f, cy * 0.24f, 46);
+            string tile;
+            if (on_jetty(cx, cy))              tile = VariantOf("plank_floor", cx, cy);
+            else if (in_pond(cx, cy))          tile = "water";
+            else if (on_path(cx, cy))          tile = VariantOf(v > 0.6f ? "dirt_dark" : "dirt", cx, cy);
+            else tile = VariantOf(v > 0.6f ? "grass_olive" : (v > 0.28f ? "grass" : "moss"), cx, cy);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (in_pond(cx, cy) && !on_jetty(cx, cy)) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+
+    // Edges: forest, open at the south gate.
+    for (int cx = 0; cx < W; ++cx) {
+        m.Collision(cx * CELL, 0, CELL, CELL);
+        if (abs(cx - gate_col) > 2) m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+    }
+    for (int cy = 0; cy < H; ++cy) {
+        m.Collision(0, cy * CELL, CELL, CELL);
+        m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    PlaceBuilding(m, "building_house_a", gate_col * CELL + 16, 11 * CELL, 136, 147,
+                  "fernhollow_cottage", "entrance", "Enter the ferry cottage",
+                  "from_fernhollow_cottage");
+
+    // The shrine: standing stones in a ring round a candle, and the one thing
+    // anyone in Fernhollow will tell you about the pond.
+    {
+        const int sx = 6 * CELL + 16, sy = 24 * CELL + 16;
+        for (int i = 0; i < 6; ++i) {
+            const float a = i / 6.0f * 6.2831853f;
+            const int rx = sx + static_cast<int>(cosf(a) * 46.0f);
+            const int ry = sy + static_cast<int>(sinf(a) * 30.0f);
+            m.Prop("objects", Pick(kSmallRocks, rng), rx, ry);
+            m.Collision(rx - 8, ry - 6, 16, 6);
+        }
+        m.Prop("props", "candlestand", sx, sy);
+        json& o = m.Object("shrine_fernhollow", "sign", sx + 70, sy + 10);
+        o["sprite"] = ObjPath("rock_02");
+        o["title"]  = "Shrine stone";
+        o["text"]   = "Smooth where hands have touched it for longer than the hamlet has stood.\n\n"
+                      "Cut into the stone: THE WATER REMEMBERS.\n\n"
+                      "Fresh flowers at its foot, and a coin.";
+        m.Collision(sx + 70 - 14, sy, 28, 10);
+        m.Npc("npc_mira", "Mira of the Shrine", "citizen1", sx + 20, sy + 64, "mira_root", 0);
+    }
+
+    // A traveller's camp by the path.
+    {
+        const int cx0 = 20 * CELL, cy0 = 26 * CELL;
+        m.Prop("props", "tent", cx0, cy0 - 20);
+        m.Collision(cx0 - 30, cy0 - 36, 60, 16);
+        json& o = m.Object("range_fernhollow", "range", cx0 + 60, cy0 + 28);
+        o["sprite"] = "assets/props/campfire_ring.png";
+        o["title"]  = "Camp fire";
+        m.Collision(cx0 + 60 - 16, cy0 + 18, 32, 10);
+        m.Prop("props", "log_pile", cx0 - 60, cy0 + 24);
+        m.Collision(cx0 - 76, cy0 + 14, 32, 10);
+    }
+
+    m.Npc("npc_wendel", "Old Wendel", "citizen2", 28 * CELL, 16 * CELL + 10, "wendel_root", 0);
+
+    // Reeds round the shore, trees round everything else.
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            if (in_pond(cx, cy) || on_path(cx, cy) || on_jetty(cx, cy) || reserved(cx, cy)) continue;
+            if (abs(cx - gate_col) <= 3 && cy > H - 5) continue;
+            const bool shore = in_pond(cx + 1, cy) || in_pond(cx - 1, cy) ||
+                               in_pond(cx, cy + 1) || in_pond(cx, cy - 1);
+            const bool woods = (cx < 4 || cy < 4 || cx > W - 5 || cy > H - 5);
+            // Tall things hang up over the tiles above them; keep them off the path.
+            bool tall_ok = true;
+            for (int dy = -1; dy <= 3 && tall_ok; ++dy)
+                for (int dx = -2; dx <= 2; ++dx)
+                    if (on_path(cx + dx, cy - dy) || on_jetty(cx + dx, cy - dy)) { tall_ok = false; break; }
+            const float r = Hash2(cx, cy, 4747);
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (shore) {
+                if (r < 0.45f) m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+            } else if (woods) {
+                if (r < 0.50f && tall_ok) PlaceForestTree(m, rng, x, y, r < 0.30f);
+                else if (r < 0.62f)       m.Prop("objects", Pick(kBushes, rng), x, y);
+            } else if (r < 0.03f) {
+                if (tall_ok) PlaceForestTree(m, rng, x, y, false);
+            } else if (r < 0.07f && tall_ok) {
+                m.Prop("objects", Pick(kFungus, rng), x, y);
+            }
+        }
+
+    // A few animals in the meadow south of the pond.
+    m.Enemy("hare", 30 * CELL, 28 * CELL, 2);
+    m.Enemy("deer", 36 * CELL, 27 * CELL, 3);
+    m.Enemy("fox",  40 * CELL, 30 * CELL, 4);
+
+    m.Portal(gate_col * CELL - 64, H * CELL - 24, 160, 24, "whisperwood_trail", "from_fernhollow",
+             "To the Whisperwood", false);
+    m.Spawn("from_trail", gate_col * CELL + 16, (H - 3) * CELL);
+    m.Spawn("default",    gate_col * CELL + 16, 20 * CELL);
+    m.Spawn("respawn",    gate_col * CELL + 16, 20 * CELL);
+
+    m.Write("maps");
+}
+
+// --- the new interiors --------------------------------------------------------------
+
+static void BuildWoodlandInteriors() {
+    // The lodge at Mossvale: where the reeve keeps his table and the hunters
+    // keep their gear. A great hearth, two long tables, racks on the walls.
+    {
+        const int CELL = 32, cols = 22, rows = 14;
+        MapBuilder m("mossvale_lodge_hall", "Mossvale Lodge", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(22, 18, 14);
+        RoomShell(m, cols, rows, CELL, "plank_floor_dark", "plaster_wall_warm",
+                  cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "mossvale", "from_mossvale_lodge",
+                 "Step outside", false);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+
+        m.Overlay("props", "inn_rug", dx, 6 * CELL + 16);
+        {
+            json& o = m.Object("range_lodge", "range", dx, 3 * CELL + 10);
+            o["sprite"] = "assets/props/inn_fireplace.png";
+            o["title"]  = "Great hearth";
+            m.Collision(dx - 50, 3 * CELL + 10 - 24, 100, 24);
+        }
+        piece("weapon_rack",  3 * CELL,          3 * CELL + 6, 60, 12);
+        piece("banner",       6 * CELL + 16,     3 * CELL + 6, 0, 0);
+        piece("armour_stand", (cols - 3) * CELL, 3 * CELL + 6, 34, 12);
+        piece("banner",       (cols - 6) * CELL, 3 * CELL + 6, 0, 0);
+
+        // Two long tables with benches, either side of the middle of the room.
+        for (int side : {-1, 1}) {
+            const int tx = dx + side * 190;
+            piece("tavern_bench", tx, 6 * CELL + 4,  48, 8);
+            piece("table_long",   tx, 8 * CELL + 4,  88, 14);
+            piece("tavern_bench", tx, 9 * CELL + 20, 48, 8);
+        }
+        piece("barrel",    2 * CELL + 8,        (rows - 2) * CELL, 28, 10);
+        piece("strongbox", (cols - 2) * CELL,   (rows - 2) * CELL, 32, 10);
+        piece("bookshelf", (cols - 2) * CELL - 8, 7 * CELL, 56, 12);
+
+        m.Npc("npc_hadley", "Reeve Hadley", "fighter2", dx + 70, 5 * CELL, "hadley_root", 0);
+        m.Write("maps");
+    }
+
+    // Oona's cottage: an herbalist's, all drying herbs and books.
+    {
+        const int CELL = 32, cols = 16, rows = 12;
+        MapBuilder m("mossvale_herbalist", "Oona's Cottage", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(22, 18, 16);
+        RoomShell(m, cols, rows, CELL, "plank_floor", "plaster_wall",
+                  cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "mossvale", "from_mossvale_herbalist",
+                 "Step outside", false);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        {
+            json& o = m.Object("range_oona", "range", 12 * CELL + 16, 100);
+            o["sprite"] = "assets/props/cottage_hearth.png";
+            o["title"]  = "Herb stove";
+            m.Collision(12 * CELL + 16 - 32, 74, 64, 26);
+        }
+        piece("herb_pots",         2 * CELL + 8, 3 * CELL + 4, 30, 10);
+        piece("herb_pots",         5 * CELL,     3 * CELL + 4, 30, 10);
+        piece("cottage_bookshelf", 8 * CELL,     3 * CELL + 4, 40, 14);
+        piece("lectern",           2 * CELL + 16, 7 * CELL,    28, 10);
+        piece("table_round",       7 * CELL,     7 * CELL + 8, 40, 12);
+        piece("tavern_chair",      5 * CELL + 16, 7 * CELL + 10, 16, 8);
+        piece("bed_single",        13 * CELL + 8, 8 * CELL,    30, 36);
+        m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0);
+        m.Write("maps");
+    }
+
+    // The ferry cottage at Fernhollow, where Wendel and Hesper live.
+    {
+        const int CELL = 32, cols = 16, rows = 12;
+        MapBuilder m("fernhollow_cottage", "The Ferry Cottage", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(22, 18, 16);
+        RoomShell(m, cols, rows, CELL, "plank_floor_dark", "plaster_wall_warm",
+                  cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "fernhollow", "from_fernhollow_cottage",
+                 "Step outside", false);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        m.Overlay("props", "rug", dx, 6 * CELL + 16);
+        {
+            json& o = m.Object("range_ferry", "range", 12 * CELL + 16, 100);
+            o["sprite"] = "assets/props/cottage_hearth.png";
+            o["title"]  = "Hearth";
+            m.Collision(12 * CELL + 16 - 32, 74, 64, 26);
+        }
+        piece("bed_double",   2 * CELL + 16, 5 * CELL,      36, 40);
+        piece("wardrobe",     6 * CELL,      3 * CELL + 4,  34, 14);
+        piece("dining_table", 8 * CELL + 16, 7 * CELL + 8,  46, 14);
+        piece("tavern_chair", 7 * CELL,      7 * CELL + 10, 16, 8);
+        piece("tavern_chair", 10 * CELL,     7 * CELL + 10, 16, 8);
+        piece("travel_chest", 13 * CELL + 8, 9 * CELL,      28, 12);
+        m.Npc("npc_hesper", "Hesper", "citizen2", 11 * CELL, 5 * CELL + 10, "hesper_root", 0);
+        m.Write("maps");
+    }
+}
+
 // --- main --------------------------------------------------------------------
 
 int main() {
@@ -1527,6 +2247,10 @@ int main() {
     BuildOverworld();
     BuildTown();
     BuildInteriors();
+    BuildWhisperwood();
+    BuildMossvale();
+    BuildFernhollow();
+    BuildWoodlandInteriors();
 
     BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",
                  1001u, 60, 46, 9,

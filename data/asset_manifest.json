@@ -33,12 +33,12 @@
                                              "h":  16
                                          },
                    "tiles/dungeon_floor":  {
-                                               "w":  16,
-                                               "h":  16
+                                               "w":  32,
+                                               "h":  32
                                            },
                    "tiles/dungeon_floor_dark":  {
-                                                    "w":  16,
-                                                    "h":  16
+                                                    "w":  32,
+                                                    "h":  32
                                                 },
                    "tiles/dungeon_void":  {
                                               "w":  16,
@@ -1120,6 +1120,10 @@
                                               "w":  72,
                                               "h":  72
                                           },
+                   "props/campfire_ring":  {
+                                               "w":  48,
+                                               "h":  48
+                                           },
                    "props/candlestand":  {
                                              "w":  64,
                                              "h":  64
@@ -1168,6 +1172,10 @@
                                            "w":  36,
                                            "h":  36
                                        },
+                   "props/herbalist_cottage":  {
+                                                   "w":  168,
+                                                   "h":  168
+                                               },
                    "props/ingot_crate":  {
                                              "w":  44,
                                              "h":  44
@@ -1192,10 +1200,26 @@
                                          "w":  56,
                                          "h":  56
                                      },
+                   "props/log_pile":  {
+                                          "w":  48,
+                                          "h":  48
+                                      },
+                   "props/market_stall":  {
+                                              "w":  80,
+                                              "h":  80
+                                          },
+                   "props/mossvale_lodge":  {
+                                                "w":  192,
+                                                "h":  192
+                                            },
                    "props/nightstand":  {
                                             "w":  32,
                                             "h":  32
                                         },
+                   "props/palisade":  {
+                                          "w":  64,
+                                          "h":  64
+                                      },
                    "props/quench_trough":  {
                                                "w":  56,
                                                "h":  56
@@ -1252,6 +1276,10 @@
                                               "w":  56,
                                               "h":  56
                                           },
+                   "props/tent":  {
+                                      "w":  72,
+                                      "h":  72
+                                  },
                    "props/tool_rack":  {
                                            "w":  64,
                                            "h":  64
@@ -1276,6 +1304,10 @@
                                              "w":  72,
                                              "h":  72
                                          },
+                   "props/well":  {
+                                      "w":  56,
+                                      "h":  56
+                                  },
                    "props/workbench":  {
                                            "w":  80,
                                            "h":  80

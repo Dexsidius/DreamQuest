@@ -159,5 +159,186 @@
       "items": [{ "id": "herbal_tonic", "qty": 1 }]
     },
     "completion": "She feeds you first, which is how you know it went well."
+  },
+
+  "q_clear_the_trail": {
+    "name": "Clear the Trail",
+    "source": "npc",
+    "giver": "npc_bram",
+    "level": 3,
+    "summary": "Boar have come off the Whisperwood verges and onto the trail, and Bram's carts will not go past them. He wants the trail made dull again.",
+    "stages": [
+      {
+        "desc": "Hunt boar along the Whisperwood Trail",
+        "type": "kill",
+        "target": "boar",
+        "map": "whisperwood_trail",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 320,
+        "Strength": 320,
+        "Hitpoints": 160
+      },
+      "coins": 120
+    },
+    "completion": "Bram's first cart gets through without anyone running."
+  },
+
+  "q_word_to_fernhollow": {
+    "name": "Word to Fernhollow",
+    "source": "npc",
+    "giver": "npc_oona",
+    "level": 2,
+    "summary": "Oona the herbalist has a remedy for Old Wendel's chest, and her knees will not take the north trail any more.",
+    "stages": [
+      {
+        "desc": "Take Oona's remedy to Old Wendel in Fernhollow",
+        "type": "deliver",
+        "target": "herbal_tonic",
+        "to": "npc_wendel"
+      },
+      {
+        "desc": "Return to Oona in Mossvale",
+        "type": "talk",
+        "target": "npc_oona"
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Hitpoints": 220,
+        "Cooking": 140
+      },
+      "coins": 90,
+      "items": [
+        {
+          "id": "herbal_tonic",
+          "qty": 2
+        }
+      ]
+    },
+    "completion": "Oona asks how he looked, and listens to the answer."
+  },
+
+  "q_mossvale_hides": {
+    "name": "Hides for the Tannery",
+    "source": "board",
+    "giver": "board_mossvale",
+    "level": 4,
+    "summary": "The tanner has shut up for the season with half the orders unfilled. Mossvale will pay for raw hides brought to the square.",
+    "stages": [
+      {
+        "desc": "Gather raw hides from the Whisperwood",
+        "type": "collect",
+        "target": "hide",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Crafting": 300,
+        "Hitpoints": 120
+      },
+      "coins": 160
+    },
+    "completion": "The hides go under a tarp by the tannery door until spring."
+  },
+
+  "q_trail_wardens": {
+    "name": "Trail Wardens",
+    "source": "board",
+    "giver": "board_mossvale",
+    "level": 5,
+    "summary": "Warden Sela is short of hands. Foxes are hunting the trail in packs, and something is teaching them to.",
+    "prereq": [
+      "q_clear_the_trail"
+    ],
+    "stages": [
+      {
+        "desc": "Drive the foxes off the Whisperwood Trail",
+        "type": "kill",
+        "target": "fox",
+        "map": "whisperwood_trail",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Ranged": 360,
+        "Attack": 240,
+        "Defence": 200
+      },
+      "coins": 220,
+      "items": [
+        {
+          "id": "oak_shortbow",
+          "qty": 1
+        }
+      ]
+    },
+    "completion": "Sela marks the trail safe on the gate board, in chalk."
+  },
+
+  "q_old_offering": {
+    "name": "The Old Offering",
+    "source": "npc",
+    "giver": "npc_mira",
+    "level": 3,
+    "summary": "Mira keeps the shrine at Fernhollow, and the pond has not had its offering since the hunters stopped coming north.",
+    "stages": [
+      {
+        "desc": "Bring Mira two boar haunches for the shrine",
+        "type": "deliver",
+        "target": "raw_boar",
+        "to": "npc_mira",
+        "count": 2
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Magic": 280,
+        "Hitpoints": 120
+      },
+      "coins": 100,
+      "items": [
+        {
+          "id": "herbal_tonic",
+          "qty": 1
+        }
+      ]
+    },
+    "completion": "Mira lays the offering on the stone and does not say what she is listening for."
+  },
+
+  "q_road_beneath_leaves": {
+    "name": "The Road Beneath the Leaves",
+    "source": "note",
+    "giver": "sign_trailhead",
+    "level": 2,
+    "summary": "A weathered trail sign names two settlements beyond the eastern trees. Follow the old road to Mossvale, then take the north fork to Fernhollow.",
+    "stages": [
+      {
+        "desc": "Follow the eastern forest path into the Whisperwood",
+        "type": "reach",
+        "target": "whisperwood_trail"
+      },
+      {
+        "desc": "Follow the main trail east to Mossvale",
+        "type": "reach",
+        "target": "mossvale"
+      },
+      {
+        "desc": "Return to the trail fork and follow its north path to Fernhollow",
+        "type": "reach",
+        "target": "fernhollow"
+      }
+    ],
+    "rewards": {
+      "xp": { "Hitpoints": 120 },
+      "coins": 80
+    },
+    "completion": "Smoke above the lodge, lamplight on the pond. The names on the sign are places you know now."
   }
 }

@@ -72,6 +72,7 @@ bool Map::Load(const string& path) {
 
     interior   = dq.value("interior", false);
     ambient    = dq.value("ambient", string("overworld"));
+    subtitle   = dq.value("subtitle", string(""));
     background = ColorFromJson(dq.contains("background") ? dq["background"] : json(),
                                interior ? SDL_Color{18, 14, 20, 255}
                                         : SDL_Color{34, 48, 34, 255});
@@ -265,7 +266,7 @@ void Map::Unload() {
     spawns.clear(); chunks.clear();
     bounds_w = bounds_h = 0;
     chunk_cols = chunk_rows = 0;
-    id.clear(); display_name.clear(); source_dir.clear();
+    id.clear(); display_name.clear(); source_dir.clear(); subtitle.clear();
 
     // The height grid has to go with everything else. It was left out when
     // elevation was added, and because the parser only ever writes it when a

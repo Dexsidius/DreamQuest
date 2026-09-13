@@ -165,6 +165,7 @@ void Enemy::OnKilled(World& world, const GameContext& ctx) {
         e.type   = ObjectiveType::Kill;
         e.target = def->kill_target;
         e.amount = 1;
+        e.map_id = world.MapId();
         ctx.quests->Notify(e, world.player.inventory);
     }
 }

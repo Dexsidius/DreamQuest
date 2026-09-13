@@ -51,9 +51,11 @@ static const char* kMaps[] = {
     "overworld", "town_havenbrook", "guild_hall",
     "house_elder", "house_inn", "house_inn_upper", "house_smith",
     "dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow",
+    "whisperwood_trail", "mossvale", "fernhollow",
+    "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage",
 };
 
-int main() {
+int main(int argc, char** argv) {
     printf("DreamQuest self-test\n");
 
     // --- data files -----------------------------------------------------------
@@ -205,6 +207,11 @@ int main() {
                   q.id + " prerequisite '" + p + "' exists");
 
         for (const auto& st : q.stages) {
+            if (!st.map_id.empty()) {
+                Check(st.type == ObjectiveType::Kill, q.id + " location filter is on a kill stage");
+                Check(fs::exists("maps/" + st.map_id + ".mx"),
+                      q.id + " location filter names a real map");
+            }
             switch (st.type) {
                 case ObjectiveType::Collect:
                     Check(items.Has(st.target),
@@ -320,6 +327,7 @@ int main() {
                                            home.y - (p.rect.y + p.rect.h / 2.0f));
                     if (nearest < 0.0f || d < nearest) nearest = d;
                 }
+                Check(nearest >= 0.0f, string(id) + " portal '" + p.label + "' has a way back");
                 if (nearest >= 0.0f)
                     Check(nearest < 128.0f, string(id) + " portal '" + p.label
                               + "': the way back arrives by it (" + std::to_string(int(nearest))
@@ -409,9 +417,11 @@ int main() {
     // door and the hearth. Flood the floor from where you arrive, at the size of
     // the player's feet, and check every NPC and usable object is within reach
     // of somewhere the flood got to.
-    Section("everything in a building can be reached");
-    for (const char* id : {"house_smith", "guild_hall", "house_elder", "house_inn",
-                           "house_inn_upper"}) {
+    Section("world routes and usable locations can be reached");
+    for (const char* id : {"overworld", "town_havenbrook",
+                           "house_smith", "guild_hall", "house_elder", "house_inn",
+                           "house_inn_upper", "mossvale_lodge_hall", "mossvale_herbalist",
+                           "fernhollow_cottage", "mossvale", "fernhollow", "whisperwood_trail"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -419,7 +429,11 @@ int main() {
         constexpr float REACH = 58.0f;             // World's INTERACT_RANGE
         const int cols = static_cast<int>(room.Width() / STEP);
         const int rows = static_cast<int>(room.Height() / STEP);
-        auto feet = [](float x, float y) { return SDL_FRect{x - 8.0f, y - 10.0f, 16.0f, 10.0f}; };
+        const Player walker;
+        auto feet = [&](float x, float y) {
+            return SDL_FRect{x + walker.foot_box.x, y + walker.foot_box.y,
+                             walker.foot_box.w, walker.foot_box.h};
+        };
 
         vector<char> seen(static_cast<size_t>(cols) * rows, 0);
         vector<pair<int,int>> todo;
@@ -439,6 +453,15 @@ int main() {
                 char& f = seen[static_cast<size_t>(ny) * cols + nx];
                 if (f) continue;
                 if (room.Blocked(feet(nx * STEP, ny * STEP))) continue;
+                const SDL_FPoint moved = room.MoveWithCollision(
+                    feet(cx * STEP, cy * STEP), d[0] * STEP, d[1] * STEP);
+                const SDL_FRect goal = feet(nx * STEP, ny * STEP);
+                if (fabsf(moved.x - goal.x) > 0.1f || fabsf(moved.y - goal.y) > 0.1f) continue;
+                // The overworld has climbable banks. A route may use a ramp
+                // or the player's normal jump, but never an unclimbable cliff.
+                if (room.LevelChangeBlocked(cx * STEP, cy * STEP, nx * STEP, ny * STEP) &&
+                    std::abs(room.LevelAt(cx * STEP, cy * STEP) -
+                             room.LevelAt(nx * STEP, ny * STEP)) > Player::CLIMB_LEVELS) continue;
                 f = 1;
                 todo.push_back({nx, ny});
             }
@@ -455,8 +478,59 @@ int main() {
 
         for (const NpcDef& n : room.Npcs())
             Check(reachable(n.x, n.y), string(id) + ": " + n.name + " can be walked up to");
-        for (const MapObject& o : room.Objects())
+        for (const MapObject& o : room.Objects()) {
+            // Preserve the existing gathering layout; this pass adds route
+            // coverage to the old overworld rather than auditing every tree.
+            if (string(id) == "overworld" && o.id != "sign_trailhead") continue;
             Check(reachable(o.x, o.y), string(id) + ": " + o.id + " can be walked up to");
+        }
+
+        // Every way out, too. On an outdoor zone this is what proves the path
+        // is actually a path: a forest dense enough to look right is also dense
+        // enough to seal a trail off with one badly placed trunk.
+        for (const Portal& portal : room.Portals()) {
+            bool crossed = false;
+            const int x0 = std::max(0, static_cast<int>((portal.rect.x - 24) / STEP));
+            const int x1 = std::min(cols - 1, static_cast<int>((portal.rect.x + portal.rect.w + 24) / STEP));
+            const int y0 = std::max(0, static_cast<int>((portal.rect.y - 24) / STEP));
+            const int y1 = std::min(rows - 1, static_cast<int>((portal.rect.y + portal.rect.h + 48) / STEP));
+            for (int y = y0; y <= y1 && !crossed; ++y)
+                for (int x = x0; x <= x1 && !crossed; ++x) {
+                    if (!seen[static_cast<size_t>(y) * cols + x]) continue;
+                    const SDL_FRect box = portal.requires_interact
+                        ? SDL_FRect{x * STEP + walker.body_box.x, y * STEP + walker.body_box.y,
+                                    walker.body_box.w, walker.body_box.h}
+                        : feet(x * STEP, y * STEP);
+                    crossed = RectsOverlap(box, portal.rect) &&
+                        (!portal.requires_interact ||
+                         Length(x * STEP - (portal.rect.x + portal.rect.w / 2),
+                                y * STEP - (portal.rect.y + portal.rect.h / 2)) <= REACH);
+                }
+            Check(crossed, string(id) + ": exit '" + portal.label +
+                           "' can actually be triggered, not merely approached");
+        }
+
+        // Every named arrival must belong to that same connected floor.
+        std::ifstream map_file(string("maps/") + id + ".mx");
+        json authored;
+        map_file >> authored;
+        for (auto it = authored["dreamquest"]["spawns"].begin();
+             it != authored["dreamquest"]["spawns"].end(); ++it) {
+            const float x = it.value()[0].get<float>(), y = it.value()[1].get<float>();
+            bool connected = false;
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx) {
+                    const int cx = static_cast<int>(x / STEP) + dx;
+                    const int cy = static_cast<int>(y / STEP) + dy;
+                    if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) continue;
+                    if (!seen[static_cast<size_t>(cy) * cols + cx]) continue;
+                    const SDL_FPoint moved = room.MoveWithCollision(feet(x, y), cx * STEP - x, cy * STEP - y);
+                    const SDL_FRect goal = feet(cx * STEP, cy * STEP);
+                    if (fabsf(moved.x - goal.x) < 0.1f && fabsf(moved.y - goal.y) < 0.1f) connected = true;
+                }
+            Check(connected && !room.Blocked(feet(x, y)),
+                  string(id) + ": arrival '" + it.key() + "' connects to the route network");
+        }
     }
 
     // --- every rise is climbable ----------------------------------------------
@@ -1227,6 +1301,150 @@ int main() {
         log.RefreshCollectObjectives(inv);
         Check(log.Status("q_firewood") == QuestStatus::Complete,
               "collect objective completes once enough is carried");
+    }
+
+    Section("woodland journeys and delivery quests");
+    {
+        Inventory inv(&items);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        auto event = [&](ObjectiveType type, const string& target,
+                         const string& secondary = "", const string& where = "", int amount = 1) {
+            QuestEvent e;
+            e.type = type; e.target = target; e.secondary = secondary;
+            e.map_id = where; e.amount = amount;
+            log.Notify(e, inv);
+        };
+        log.Start("q_clear_the_trail");
+        log.Start("q_thin_the_herd");
+        event(ObjectiveType::Kill, "boar", "", "overworld", 6);
+        Check(log.Counter("q_clear_the_trail") == 0, "boar outside the Whisperwood do not clear its trail");
+        event(ObjectiveType::Kill, "boar", "", "whisperwood_trail", 6);
+        Check(log.IsComplete("q_clear_the_trail"), "six Whisperwood boar clear the trail");
+        Skills skills;
+        Check(log.CanStart("q_trail_wardens", skills), "clearing the trail unlocks the wardens' notice");
+        log.Start("q_trail_wardens");
+        event(ObjectiveType::Kill, "fox", "", "fernhollow", 8);
+        Check(log.Counter("q_trail_wardens") == 0, "Fernhollow foxes do not count as trail wardens' targets");
+        event(ObjectiveType::Kill, "fox", "", "whisperwood_trail", 8);
+        Check(log.IsComplete("q_trail_wardens"), "the trail wardens' hunt completes in its own area");
+
+        log.Start("q_word_to_fernhollow");
+        event(ObjectiveType::Talk, "npc_wendel");
+        Check(log.Stage("q_word_to_fernhollow") == 0, "talking to Wendel cannot substitute for his remedy");
+        DialogueContext dc;
+        dc.quests = &log; dc.inventory = &inv; dc.skills = &skills;
+        const DialogueOption& remedy = dialogue.Get("wendel_root")->options.front();
+        Check(!EvaluateCondition(remedy.condition, dc), "the remedy option is hidden without a bottle");
+        inv.Add("herbal_tonic", 1);
+        Check(EvaluateCondition(remedy.condition, dc), "carrying the remedy enables the handover");
+        event(ObjectiveType::Deliver, "herbal_tonic", "npc_mira");
+        Check(log.Stage("q_word_to_fernhollow") == 0, "the remedy must go to Wendel, not another NPC");
+        Check(inv.Remove("herbal_tonic", 1), "the remedy is handed over");
+        event(ObjectiveType::Deliver, "herbal_tonic", "npc_wendel");
+        Check(log.Stage("q_word_to_fernhollow") == 1, "handing over the remedy starts the return journey");
+        event(ObjectiveType::Talk, "npc_oona");
+        Check(log.IsComplete("q_word_to_fernhollow"), "returning to Oona completes the errand");
+        bool oona_thanks = false;
+        for (const auto& option : dialogue.Get("oona_root")->options)
+            if (option.next == "oona_done" && EvaluateCondition(option.condition, dc)) oona_thanks = true;
+        Check(oona_thanks, "Oona's closing conversation remains available after the automatic talk event");
+
+        log.Start("q_old_offering");
+        inv.Add("raw_boar", 2);
+        log.RefreshCollectObjectives(inv);
+        Check(log.IsActive("q_old_offering"), "carrying the offering does not hand it to Mira remotely");
+        Check(inv.Remove("raw_boar", 2), "Mira receives both haunches");
+        event(ObjectiveType::Deliver, "raw_boar", "npc_mira", "", 2);
+        Check(log.IsComplete("q_old_offering"), "giving Mira the offering completes her quest");
+
+        World world;
+        GameContext ctx;
+        std::mt19937 rng(42);
+        ctx.sprites = &sprites; ctx.items = &items; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng;
+        world.player.Init(ctx, "player_male");
+        log.Start("q_road_beneath_leaves");
+        Check(world.LoadMap("overworld", "start", ctx), "the journey begins in the Hollowmarch");
+        const size_t tiles = world.CurrentMap().Tiles().size();
+        const size_t enemies = world.enemies.size();
+        const float px = world.player.x, py = world.player.y;
+        Check(!world.LoadMap("__selftest_missing_destination__", "", ctx), "a missing destination is refused");
+        Check(world.MapId() == "overworld" && world.CurrentMap().Loaded() &&
+              world.CurrentMap().Tiles().size() == tiles && world.enemies.size() == enemies &&
+              world.player.x == px && world.player.y == py,
+              "a failed map load preserves the area, entities, and player position");
+        Check(world.LoadMap("whisperwood_trail", "from_hollowmarch", ctx), "enter the forest");
+        Check(log.Stage("q_road_beneath_leaves") == 1, "entering the forest records the first journey stage");
+        Check(world.LoadMap("mossvale", "from_trail", ctx), "reach Mossvale");
+        Check(log.Stage("q_road_beneath_leaves") == 2, "Mossvale advances the itinerary to Fernhollow");
+        QuestLog restored;
+        restored.LoadDefinitions("data/quests.json");
+        restored.FromJson(log.ToJson());
+        Check(restored.Stage("q_road_beneath_leaves") == 2, "the woodland itinerary survives a save");
+        log.TakeJustCompleted();
+        Check(world.LoadMap("whisperwood_trail", "from_mossvale", ctx), "return to the forest fork");
+        Check(world.LoadMap("fernhollow", "from_trail", ctx), "reach Fernhollow");
+        Check(log.IsComplete("q_road_beneath_leaves"), "the whole woodland itinerary completes");
+        Check(log.TakeJustCompleted().size() == 1, "the journey rewards are queued once");
+        Check(world.LoadMap("fernhollow", "default", ctx), "revisit Fernhollow");
+        Check(log.TakeJustCompleted().empty(), "revisiting cannot duplicate the journey reward");
+    }
+
+    // Optional render smoke test. Uses the real world renderer and SDL image
+    // loading without creating a window, reading saves, or opening a game.
+    if (argc > 1 && string(argv[1]) == "--render-previews") {
+        Section("off-screen woodland rendering");
+        const bool initialized = SDL_Init(0);
+        Check(initialized, "SDL initializes for off-screen rendering");
+        SDL_Surface* surface = initialized ? SDL_CreateSurface(1280, 720, SDL_PIXELFORMAT_RGBA32) : nullptr;
+        SDL_Renderer* renderer = surface ? SDL_CreateSoftwareRenderer(surface) : nullptr;
+        Check(renderer != nullptr, "software renderer is available");
+        if (renderer) {
+            {
+                TextureCache cache(renderer);
+                Input input;
+                std::mt19937 rng(42);
+                GameContext ctx;
+                ctx.renderer = renderer; ctx.textures = &cache; ctx.sprites = &sprites;
+                ctx.items = &items; ctx.enemies = &enemy_db; ctx.input = &input; ctx.rng = &rng;
+                fs::create_directories("bin/previews");
+                struct View { const char* map; const char* name; float x, y, zoom; };
+                const View views[] = {
+                    {"whisperwood_trail", "whisperwood_bridge", 1232, 848, 2},
+                    {"whisperwood_trail", "woodcutter_camp", 1744, 460, 2},
+                    {"whisperwood_trail", "forest_fork", 2256, 704, 2},
+                    {"mossvale", "mossvale", 976, 650, 1.5f},
+                    {"fernhollow", "fernhollow", 880, 600, 1.5f},
+                    {"mossvale_lodge_hall", "mossvale_lodge", 352, 250, 1.5f},
+                    {"mossvale_herbalist", "oonas_cottage", 256, 235, 1.5f},
+                    {"fernhollow_cottage", "ferry_cottage", 256, 235, 1.5f},
+                };
+                for (const View& view : views) {
+                    World world;
+                    world.player.Init(ctx, "player_male");
+                    const bool loaded = world.LoadMap(view.map, "", ctx);
+                    Check(loaded, string(view.map) + " loads for rendering");
+                    if (!loaded) continue;
+                    world.player.x = view.x; world.player.y = view.y;
+                    world.camera.SetViewport(1280, 720);
+                    world.camera.SetZoom(view.zoom);
+                    world.camera.SnapTo(view.x, view.y);
+                    world.ambience.Update(1.0f / 60.0f, world.camera);
+                    world.Render(renderer, cache);
+                    SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
+                    Check(pixels != nullptr, string(view.name) + " produces pixels");
+                    if (pixels) {
+                        Check(IMG_SavePNG(pixels, (string("bin/previews/") + view.name + ".png").c_str()),
+                              string(view.name) + " preview saves");
+                        SDL_DestroySurface(pixels);
+                    }
+                }
+            }
+            SDL_DestroyRenderer(renderer);
+        }
+        if (surface) SDL_DestroySurface(surface);
+        if (initialized) SDL_Quit();
     }
 
     // --- summary --------------------------------------------------------------

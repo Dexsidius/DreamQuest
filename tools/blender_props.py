@@ -68,6 +68,20 @@ PALETTE = {
     "clay":       (0.694, 0.408, 0.286),
     "wool_green": (0.365, 0.498, 0.318),
     "chalk":      (0.188, 0.200, 0.192),
+    # Woodland: Mossvale and the Whisperwood. Weathered logs rather than sawn
+    # oak, and moss that is a different green from the leaves around it.
+    "log":        (0.431, 0.306, 0.196),
+    "log_dk":     (0.310, 0.216, 0.141),
+    "log_end":    (0.776, 0.639, 0.443),
+    "moss":       (0.353, 0.463, 0.243),
+    "moss_dk":    (0.247, 0.349, 0.180),
+    "moss_lt":    (0.494, 0.600, 0.310),
+    "antler":     (0.878, 0.812, 0.690),
+    # Thatch: weathered straw, darker than fresh "straw" so a roof of it does
+    # not read as a sheet of yellow.
+    "thatch":     (0.690, 0.545, 0.314),
+    "thatch_dk":  (0.522, 0.396, 0.224),
+    "thatch_lt":  (0.800, 0.682, 0.420),
 }
 
 def to_linear(rgb):
@@ -233,6 +247,14 @@ def setup_render(px):
     scene.render.engine = "CYCLES"
     scene.cycles.samples = 96
     scene.cycles.use_denoising = True
+    # Render in small tiles. A building at 1536 pixels square with denoising
+    # needs a few gigabytes rendered in one piece, and ran out of memory on a
+    # machine with other work open; tiling changes nothing in the image.
+    try:
+        scene.cycles.use_auto_tile = True
+        scene.cycles.tile_size = 256
+    except Exception:
+        pass
     try:
         scene.cycles.device = "CPU"
     except Exception:
@@ -1433,8 +1455,260 @@ def prop_inn_building():
     return (5.6, BUILDING_ELEVATION)
 
 
+def prop_mossvale_lodge():
+    """Mossvale's longhouse: a log cabin under a mossed bark-shingle roof.
+
+    Deliberately unlike anything in Havenbrook. The cottages there are
+    red-tiled and plastered and the inn is stone under timber framing; this is
+    round logs stacked with their ends crossing at the corners, a roof the
+    forest has half reclaimed, a fieldstone chimney, and antlers over the door.
+
+    The first pass read as a lawn on a box: a green roof covering most of the
+    image with dots on it, and the walls a thin strip underneath. So the walls
+    are taller, the logs alternate in tone so the courses read, and the roof is
+    dark shingle with moss lying on it in patches rather than being moss.
+    """
+    import random
+    rng = random.Random(7)
+    W, D = 3.40, 2.00          # footprint
+    H = 1.72                   # wall height to the eaves
+    R = 0.10                   # log radius -- chunky, or the courses vanish at 192px
+    front = -D / 2
+    base = 0.12
+
+    blk("plinth", (W + 0.20, D + 0.20, 0.12), (0, 0, 0.06), "stone_pale")
+    blk("core", (W - 0.06, D - 0.06, H), (0, 0, base + H / 2), "log_dk", bev=0)
+
+    # Courses of logs on every face, with the ends crossing past the corners.
+    courses = int(H / (R * 2))
+    tones = ("log", "oak_light", "log", "log_dk")
+    for k in range(courses):
+        z = base + R + k * R * 2
+        shade = tones[k % len(tones)]
+        for yface in (front, D / 2):
+            if yface == front and z < 1.20:
+                for side in (-1, 1):
+                    length = W / 2 - 0.48 + 0.16
+                    cx = side * (0.48 + length / 2)
+                    cyl("log_f_%d_%d" % (k, side), R, length, (cx, yface, z), shade,
+                        rot=(0, math.radians(90), 0), verts=12)
+            else:
+                cyl("log_%d_%.1f" % (k, yface), R, W + 0.32, (0, yface, z), shade,
+                    rot=(0, math.radians(90), 0), verts=12)
+        for xface in (-W / 2, W / 2):
+            cyl("side_%d_%.1f" % (k, xface), R, D + 0.32, (xface, 0, z + R), shade,
+                rot=(math.radians(90), 0, 0), verts=12)
+        for side in (-1, 1):
+            cyl("end_%d_%d" % (k, side), R * 0.84, 0.03, (side * (W / 2 + 0.17), front, z),
+                "log_end", rot=(0, math.radians(90), 0), verts=12)
+
+    # --- the door ---------------------------------------------------------------
+    blk("door", (0.80, 0.08, 1.06), (0, front - 0.07, base + 0.53), "oak_light")
+    for i in range(4):
+        blk("door_plank_%d" % i, (0.03, 0.02, 1.02), (-0.30 + i * 0.20, front - 0.12, base + 0.53),
+            "oak", bev=0)
+    for side in (-1, 1):
+        blk("door_post_%d" % side, (0.15, 0.15, 1.20), (side * 0.48, front - 0.05, base + 0.60), "log_dk")
+    blk("door_lintel", (1.16, 0.17, 0.17), (0, front - 0.05, base + 1.24), "log_dk")
+    for zz in (0.34, 0.92):
+        blk("hinge_%.2f" % zz, (0.50, 0.02, 0.05), (-0.08, front - 0.13, base + zz), "iron", metal=0.7)
+    blk("latch", (0.06, 0.04, 0.10), (0.27, front - 0.14, base + 0.56), "iron", metal=0.7)
+    blk("step", (1.14, 0.44, 0.10), (0, front - 0.28, 0.05), "stone_pale")
+
+    # Antlers in the wall space between lintel and eaves: the one detail that
+    # says hunters' lodge. Big, pale, and clear of the roof overhang.
+    az = base + 1.46
+    blk("antler_skull", (0.18, 0.07, 0.14), (0, front - 0.15, az), "antler")
+    for side in (-1, 1):
+        blk("antler_beam_%d" % side, (0.06, 0.06, 0.34), (side * 0.17, front - 0.15, az + 0.10),
+            "antler", rot=(0, side * math.radians(-62), 0), bev=0.01)
+        for t, (dx, dz, ang) in enumerate(((0.16, 0.14, 12), (0.28, 0.12, 40))):
+            blk("antler_tine_%d_%d" % (side, t), (0.05, 0.05, 0.16),
+                (side * (0.17 + dx), front - 0.15, az + dz), "antler",
+                rot=(0, side * math.radians(-ang), 0), bev=0.01)
+
+    # --- windows, shuttered, one lit and one dark -------------------------------
+    window("win_l", -1.08, front - 0.09, base + 0.86, w=0.48, h=0.46)
+    window("win_r", 1.08, front - 0.09, base + 0.86, w=0.48, h=0.46, lit=False)
+
+    # --- the roof: bark shingle, mossed over --------------------------------------
+    eave = base + H
+    pitch_deg = 46
+    rise = gable_roof("roof", W + 0.20, D, eave, pitch_deg, "shingle_dk", thick=0.16,
+                      overhang=0.26)
+    pitch = math.radians(pitch_deg)
+    half = D / 2 + 0.26
+    # Course lines across the front slope, so it reads as shingles and as a slope.
+    for k in range(1, 6):
+        t = k / 6.0
+        blk("course_%d" % k, (W + 0.70, 0.05, 0.05),
+            (0, -half * (1 - t) - 0.05, eave + rise * t + 0.08), "log_dk",
+            rot=(pitch, 0, 0), bev=0)
+    # Moss lying on the slope in irregular patches, thickest low down where the
+    # water runs off, with a few fern tufts standing out of it.
+    # Small and many: large patches read as green cards laid on the roof.
+    for i in range(80):
+        t = rng.random() ** 2.2 * 0.80 + 0.03
+        x = (rng.random() - 0.5) * (W + 0.30)
+        y = -half * (1 - t)
+        z = eave + rise * t + 0.10
+        w = 0.08 + rng.random() * 0.18
+        d = 0.07 + rng.random() * 0.12
+        colour = ("moss", "moss_dk", "moss_dk", "moss", "moss_lt")[rng.randrange(5)]
+        blk("moss_%d" % i, (w, d, 0.05), (x, y - 0.02, z), colour,
+            rot=(pitch, 0, math.radians(rng.uniform(-20, 20))), bev=0.02)
+    for i in range(7):
+        t = 0.15 + rng.random() * 0.55
+        x = (rng.random() - 0.5) * (W - 0.20)
+        sphere("fern_%d" % i, 0.07, (x, -half * (1 - t) - 0.04, eave + rise * t + 0.16), "leaf")
+    # Bargeboards: dark log edges down the gable ends, so the roof has an outline.
+    for side in (-1, 1):
+        for face in (-1, 1):
+            blk("barge_%d_%d" % (side, face), (0.11, half / math.cos(pitch) + 0.06, 0.13),
+                (side * (W / 2 + 0.31), face * half / 2, eave + rise / 2 + 0.06),
+                "log_dk", rot=(-face * pitch, 0, 0), bev=0.01)
+
+    # --- a fieldstone chimney, on the front slope so it does not float ----------
+    cx, cy0 = W / 2 - 0.66, -0.30
+    z = eave + rise * 0.22
+    top = eave + rise + 0.44
+    k = 0
+    while z < top:
+        for j in range(2):
+            blk("chim_%d_%d" % (k, j), (0.27 + rng.random() * 0.05, 0.48, 0.15),
+                (cx - 0.14 + j * 0.28, cy0, z), ("stone", "stone_pale")[(k + j) % 2], bev=0.03)
+        z += 0.16
+        k += 1
+    blk("chim_cap", (0.66, 0.58, 0.08), (cx, cy0, top + 0.04), "stone_pale")
+
+    # --- life around it -----------------------------------------------------------
+    for row in range(3):
+        for col in range(4 - row):
+            x = -1.64 + col * 0.21 + row * 0.105
+            cyl("wood_%d_%d" % (row, col), 0.095, 0.44, (x, front - 0.32, 0.10 + row * 0.18),
+                "log", rot=(math.radians(90), 0, 0), verts=10)
+            cyl("wood_end_%d_%d" % (row, col), 0.08, 0.02, (x, front - 0.55, 0.10 + row * 0.18),
+                "log_end", rot=(math.radians(90), 0, 0), verts=10)
+    blk("lantern", (0.15, 0.15, 0.21), (0.66, front - 0.13, base + 1.02), "glass_lit", emit=1.1, bev=0.02)
+    blk("lantern_cap", (0.19, 0.19, 0.05), (0.66, front - 0.13, base + 1.15), "iron", metal=0.7)
+    cyl("stump", 0.22, 0.34, (1.46, front - 0.46, 0.17), "log", verts=16)
+    cyl("stump_top", 0.20, 0.02, (1.46, front - 0.46, 0.35), "log_end", verts=16)
+    blk("axe_haft", (0.05, 0.05, 0.42), (1.42, front - 0.46, 0.54), "oak_light",
+        rot=(0, math.radians(24), 0), bev=0.01)
+    blk("axe_head", (0.18, 0.05, 0.12), (1.49, front - 0.46, 0.40), "iron_light", metal=0.6)
+
+    return (5.6, BUILDING_ELEVATION)
+
+
+def prop_herbalist_cottage():
+    """Oona's cottage in Mossvale: whitewashed cob under a deep thatch.
+
+    Built for the herbalist rather than borrowed. building_house_b, which was
+    the only other cottage in the art, turned out to be a mis-cut piece of a
+    sprite sheet -- an awning, some crates and a roof with no walls. Thatch
+    and whitewash keep it apart from both the log lodge next door and
+    Havenbrook's red tiles, and the herbs are what say who lives there.
+
+    The first thatch was clean bands of bright straw and read as planks; this
+    one is broken into uneven lengths in three tones with a rolled eave.
+    """
+    import random
+    rng = random.Random(19)
+    W, D, H = 2.80, 1.80, 1.45
+    front = -D / 2
+    base = 0.12
+
+    blk("plinth", (W + 0.16, D + 0.16, 0.12), (0, 0, 0.06), "stone")
+    blk("walls", (W, D, H), (0, 0, base + H / 2), "plaster", bev=0.06)
+    for side in (-1, 1):
+        blk("corner_%d" % side, (0.12, 0.12, H), (side * (W / 2 - 0.02), front - 0.02, base + H / 2), "log_dk")
+    blk("sill_beam", (W + 0.04, 0.10, 0.10), (0, front - 0.03, base + 0.05), "log_dk")
+    blk("head_beam", (W + 0.04, 0.10, 0.10), (0, front - 0.03, base + H - 0.06), "log_dk")
+
+    # A green plank door under a lintel.
+    blk("door", (0.66, 0.08, 0.96), (0, front - 0.05, base + 0.48), "leaf")
+    for i in range(3):
+        blk("door_plank_%d" % i, (0.02, 0.02, 0.92), (-0.17 + i * 0.17, front - 0.10, base + 0.48),
+            "moss_dk", bev=0)
+    blk("door_lintel", (0.86, 0.12, 0.12), (0, front - 0.06, base + 1.02), "log_dk")
+    for side in (-1, 1):
+        blk("door_post_%d" % side, (0.09, 0.10, 1.00), (side * 0.38, front - 0.05, base + 0.50), "log_dk")
+    sphere("door_knob", 0.045, (0.20, front - 0.12, base + 0.48), "brass")
+    blk("step", (0.92, 0.36, 0.08), (0, front - 0.24, 0.04), "stone_pale")
+
+    for side in (-1, 1):
+        x = side * 0.92
+        window("win_%d" % side, x, front - 0.05, base + 0.78, w=0.42, h=0.38, lit=(side < 0), shutters=False)
+        blk("box_%d" % side, (0.54, 0.18, 0.12), (x, front - 0.14, base + 0.50), "log")
+        for k in range(4):
+            sphere("flower_%d_%d" % (side, k), 0.065, (x - 0.19 + k * 0.125, front - 0.16, base + 0.60),
+                   ("cloth_red", "cloth_cream", "brass", "cloth_red")[k])
+
+    # --- the thatch ------------------------------------------------------------
+    eave = base + H
+    pitch = math.radians(48)
+    half = D / 2 + 0.34
+    slab = half / math.cos(pitch)
+    rise = half * math.tan(pitch)
+    for side in (-1, 1):
+        blk("thatch_%d" % side, (W + 0.66, slab, 0.24), (0, side * half / 2, eave + rise / 2),
+            "thatch", rot=(-side * pitch, 0, 0), bev=0.08)
+    # Broken courses: each row is several uneven lengths, in three tones.
+    rows = 7
+    for k in range(rows):
+        t = (k + 0.5) / rows
+        y = -half * (1 - t) - 0.11
+        z = eave + rise * t + 0.13
+        x = -W / 2 - 0.34
+        j = 0
+        while x < W / 2 + 0.34:
+            length = min(0.30 + rng.random() * 0.55, W / 2 + 0.34 - x)
+            tone = ("thatch_dk", "thatch_lt", "thatch", "thatch_dk")[rng.randrange(4)]
+            blk("course_%d_%d" % (k, j), (length - 0.03, 0.12, 0.09),
+                (x + length / 2, y + rng.uniform(-0.02, 0.02), z + rng.uniform(-0.02, 0.02)),
+                tone, rot=(pitch, 0, 0), bev=0.03)
+            x += length
+            j += 1
+    # A rolled eave and a rolled ridge, which is what makes thatch look thick.
+    cyl("eave_roll", 0.13, W + 0.70, (0, -half + 0.02, eave - 0.02), "thatch_dk",
+        rot=(0, math.radians(90), 0), verts=16)
+    cyl("ridge", 0.17, W + 0.72, (0, 0, eave + rise + 0.10), "thatch_dk",
+        rot=(0, math.radians(90), 0), verts=16)
+    for i in range(24):
+        x = -W / 2 - 0.30 + i * (W + 0.60) / 23
+        blk("fringe_%d" % i, (0.09, 0.10, 0.09 + rng.random() * 0.07),
+            (x, -half - 0.06, eave - 0.14), ("thatch_dk", "thatch")[i % 2], bev=0.02)
+
+    # Herbs drying in bunches under the eave.
+    for i, x in enumerate((-1.30, -0.62, 0.58, 1.26)):
+        blk("herb_string_%d" % i, (0.02, 0.02, 0.12), (x, front - 0.24, eave - 0.18), "straw", bev=0)
+        sphere("herb_%d" % i, 0.085, (x, front - 0.24, eave - 0.32), ("leaf", "moss_lt", "wool_green", "leaf")[i])
+
+    cx = W / 2 - 0.55
+    cbase = eave + rise * 0.30
+    blk("chimney", (0.34, 0.34, rise * 0.90), (cx, -0.20, cbase + rise * 0.45), "stone")
+    blk("chimney_cap", (0.44, 0.44, 0.08), (cx, -0.20, cbase + rise * 0.90 + 0.04), "stone_pale")
+
+    # The herb garden, and pots by the door.
+    gx = -1.80
+    for k in range(3):
+        for j in range(4):
+            sphere("bed_%d_%d" % (k, j), 0.09, (gx - 0.10 + j * 0.17, front - 0.50 - k * 0.20, 0.10),
+                   ("leaf", "moss_lt", "wool_green")[(j + k) % 3])
+    blk("wattle_front", (0.84, 0.05, 0.14), (gx + 0.15, front - 0.98, 0.07), "log")
+    blk("wattle_side", (0.05, 0.70, 0.14), (gx - 0.28, front - 0.62, 0.07), "log")
+    cyl("pot_a", 0.12, 0.18, (1.15, front - 0.40, 0.09), "clay", verts=12)
+    sphere("pot_a_herb", 0.12, (1.15, front - 0.40, 0.24), "leaf")
+    cyl("pot_b", 0.10, 0.14, (1.42, front - 0.30, 0.07), "clay", verts=12)
+    sphere("pot_b_herb", 0.10, (1.42, front - 0.30, 0.19), "moss_lt")
+
+    return (4.8, BUILDING_ELEVATION)
+
+
 BUILDING_PROPS = {
-    "inn_building": (prop_inn_building, 192),
+    "inn_building":   (prop_inn_building, 192),
+    "mossvale_lodge": (prop_mossvale_lodge, 192),
+    "herbalist_cottage": (prop_herbalist_cottage, 168),
 }
 
 
@@ -1488,6 +1762,202 @@ FORGE_PROPS = {
 }
 
 
+# --- the woodland set: Mossvale, Fernhollow and the Whisperwood ---------------
+
+def cone(name, radius, depth, loc, colour, rot=(0, 0, 0), verts=12, rough=0.8):
+    """A cone along Z, point up. Sharpened stakes and tent poles."""
+    bpy.ops.mesh.primitive_cone_add(radius1=radius, radius2=0.0, depth=depth,
+                                    location=loc, vertices=verts)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.rotation_euler = rot
+    ob.data.materials.append(material(name, colour, rough, 0.0, 0.0))
+    return ob
+
+
+def prop_well():
+    """The village well: a ring of fieldstone, a little shingle roof on two
+    log posts, and a bucket on a rope. The dark water inside is what makes it
+    a well rather than a planter, so the rim is kept low enough to see into."""
+    import random
+    rng = random.Random(3)
+    R = 0.50
+    n = 14
+    for course in range(2):
+        for i in range(n):
+            a = (i + course * 0.5) / n * math.tau
+            x, y = math.cos(a) * R, math.sin(a) * R
+            blk("ring_%d_%d" % (course, i), (0.24, 0.20, 0.22), (x, y, 0.11 + course * 0.22),
+                ("stone", "stone_pale")[(i + course) % 2 if rng.random() > 0.3 else 0],
+                rot=(0, 0, a + math.pi / 2), bev=0.03)
+    cyl("water", R - 0.06, 0.04, (0, 0, 0.36), "water", verts=24, rough=0.2)
+    cyl("water_dark", R - 0.04, 0.30, (0, 0, 0.20), "coal", verts=24)
+    for side in (-1, 1):
+        blk("post_%d" % side, (0.12, 0.12, 1.30), (side * (R + 0.06), 0, 0.65), "log")
+    cyl("crank", 0.04, 1.26, (0, 0, 1.00), "oak", rot=(0, math.radians(90), 0), verts=10)
+    blk("handle", (0.05, 0.05, 0.22), (R + 0.18, -0.08, 0.92), "oak_light", bev=0.01)
+    blk("rope", (0.02, 0.02, 0.40), (0, 0, 0.78), "straw", bev=0)
+    cyl("bucket", 0.10, 0.14, (0, 0, 0.56), "oak_light", verts=12)
+    cyl("bucket_hoop", 0.105, 0.03, (0, 0, 0.60), "iron", verts=12, metal=0.7)
+    gable_roof("roof", 1.22, 0.90, 1.30, 38, "shingle", thick=0.08, overhang=0.12)
+    return 2.3
+
+
+def prop_market_stall():
+    """A market stall: a counter under a striped awning with baskets of
+    produce on it. The stripes are the identifying mark -- without them it is
+    a table with a roof."""
+    W, D = 1.70, 0.80
+    blk("counter", (W, D, 0.10), (0, 0, 0.84), "oak_light")
+    blk("counter_front", (W, 0.06, 0.78), (0, -D / 2 + 0.03, 0.42), "oak")
+    for i in range(4):
+        blk("plank_%d" % i, (0.03, 0.02, 0.74), (-W / 2 + 0.25 + i * 0.40, -D / 2 - 0.01, 0.42),
+            "log_dk", bev=0)
+    for x in (-W / 2 + 0.05, W / 2 - 0.05):
+        for y in (-D / 2 + 0.05, D / 2 - 0.05):
+            blk("post_%.1f_%.1f" % (x, y), (0.08, 0.08, 1.80), (x, y, 0.90), "log")
+    # The awning: stripes tilted down toward the customer.
+    stripes = 7
+    for i in range(stripes):
+        x = -W / 2 - 0.10 + (i + 0.5) * (W + 0.20) / stripes
+        blk("awning_%d" % i, ((W + 0.20) / stripes + 0.005, D + 0.50, 0.05), (x, -0.12, 1.86),
+            ("cloth_red", "cloth_cream")[i % 2], rot=(math.radians(-16), 0, 0), bev=0.005)
+    for i in range(stripes):
+        x = -W / 2 - 0.10 + (i + 0.5) * (W + 0.20) / stripes
+        blk("valance_%d" % i, ((W + 0.20) / stripes + 0.005, 0.03, 0.14), (x, -D / 2 - 0.38, 1.70),
+            ("cloth_red", "cloth_cream")[i % 2], bev=0)
+    # Produce: apples, cabbages and bread, each in its own basket.
+    for k, (x, fill) in enumerate(((-0.52, "cloth_red"), (0.0, "leaf"), (0.52, "straw"))):
+        cyl("basket_%d" % k, 0.20, 0.14, (x, -0.05, 0.96), "straw", verts=14)
+        for j in range(5):
+            a = j / 5 * math.tau
+            sphere("fruit_%d_%d" % (k, j), 0.07, (x + math.cos(a) * 0.09, -0.05 + math.sin(a) * 0.09,
+                                               1.06), fill)
+    blk("crate", (0.40, 0.36, 0.34), (W / 2 + 0.30, -0.10, 0.17), "oak")
+    return 2.9
+
+
+def prop_palisade():
+    """A length of palisade: sharpened stakes lashed to a rail. Laid end to end
+    along the edge of a woodland village, where Havenbrook would have a hedge."""
+    n = 6
+    step = 0.28
+    for i in range(n):
+        x = -step * (n - 1) / 2 + i * step
+        h = 1.20 + (0.10 if i % 2 else 0.0)
+        cyl("stake_%d" % i, 0.13, h, (x, 0, h / 2), ("log", "log_dk")[i % 2], verts=10)
+        cone("tip_%d" % i, 0.13, 0.26, (x, 0, h + 0.13), "log_end", verts=10)
+    for z in (0.40, 0.92):
+        blk("rail_%.2f" % z, (step * n + 0.10, 0.10, 0.10), (0, -0.14, z), "log_dk")
+        for i in range(n):
+            x = -step * (n - 1) / 2 + i * step
+            blk("lash_%d_%.2f" % (i, z), (0.05, 0.16, 0.14), (x, -0.13, z), "straw", bev=0)
+    return 2.0
+
+
+def prop_log_pile():
+    """Split firewood stacked with its end grain toward the path, and an axe
+    leaning on it. Woodcutting country."""
+    rows = (4, 3, 2)
+    for r, count in enumerate(rows):
+        for c in range(count):
+            x = (c - (count - 1) / 2) * 0.26
+            z = 0.12 + r * 0.22
+            cyl("log_%d_%d" % (r, c), 0.12, 0.90, (x, 0, z), ("log", "log_dk")[(r + c) % 2],
+                rot=(math.radians(90), 0, 0), verts=12)
+            cyl("end_%d_%d" % (r, c), 0.10, 0.02, (x, -0.46, z), "log_end",
+                rot=(math.radians(90), 0, 0), verts=12)
+    blk("axe_haft", (0.06, 0.06, 0.80), (0.70, -0.10, 0.38), "oak_light",
+        rot=(0, math.radians(-18), 0), bev=0.01)
+    blk("axe_head", (0.26, 0.06, 0.16), (0.60, -0.10, 0.74), "iron_light", metal=0.6)
+    return 2.0
+
+
+def prop_tent():
+    """A canvas tent with its flap tied back, pegged out on guy ropes. The
+    dark opening is what makes it a tent and not a roof on the ground.
+
+    A rotation about Y by a positive angle swings a slab's top toward +X, so
+    the left side leans right by +lean and the right side by -lean; the first
+    render had that backwards and the two sides flared out like an open book.
+    """
+    W, D, H = 1.70, 1.90, 1.30
+    lean = math.atan2(W / 2, H)            # from vertical
+    slab = math.hypot(W / 2, H)
+    for side in (-1, 1):
+        blk("canvas_%d" % side, (0.05, D, slab), (side * W / 4, 0, H / 2), "cloth_cream",
+            rot=(0, -side * lean, 0), bev=0.01)
+        # A darker seam down the outside, so each side reads as a sheet.
+        blk("seam_%d" % side, (0.06, 0.05, slab), (side * W / 4, -D / 2 + 0.04, H / 2), "straw",
+            rot=(0, -side * lean, 0), bev=0)
+    # The opening: a dark triangle set just inside the front edge, built from
+    # thin strips narrowing to the ridge.
+    strips = 12
+    for k in range(strips):
+        t = (k + 0.5) / strips
+        w = (W - 0.16) * (1 - t)
+        blk("dark_%d" % k, (w, 0.03, H / strips + 0.01), (0, -D / 2 + 0.10, t * H), "coal", bev=0)
+    # The flap, tied back against the right-hand side.
+    blk("flap", (0.42, 0.04, 0.86), (0.44, -D / 2 - 0.03, 0.46), "cloth_cream",
+        rot=(0, -lean * 0.7, 0), bev=0.01)
+    blk("flap_tie", (0.08, 0.05, 0.05), (0.52, -D / 2 - 0.06, 0.62), "cloth_red", bev=0)
+    blk("ridge_pole", (0.07, D + 0.30, 0.07), (0, 0, H + 0.02), "log_dk")
+    for y in (-D / 2 - 0.08, D / 2 + 0.08):
+        blk("pole_%.1f" % y, (0.07, 0.07, H + 0.12), (0, y, (H + 0.12) / 2), "log_dk")
+    # Guy ropes running out and down to pegs; a positive Y rotation drops the
+    # +X end, so the right side takes +angle.
+    for side in (-1, 1):
+        for y in (-D / 3, D / 3):
+            blk("guy_%d_%.1f" % (side, y), (0.66, 0.025, 0.025), (side * (W / 2 + 0.26), y, H * 0.28),
+                "straw", rot=(0, side * math.radians(30), 0), bev=0)
+            blk("peg_%d_%.1f" % (side, y), (0.06, 0.06, 0.14), (side * (W / 2 + 0.55), y, 0.07), "log")
+    blk("bedroll", (0.62, 0.30, 0.16), (-0.66, -D / 2 - 0.42, 0.08), "wool_green")
+    blk("bedroll_strap", (0.05, 0.32, 0.17), (-0.66, -D / 2 - 0.42, 0.08), "leather", bev=0)
+    return 3.0
+
+
+def prop_campfire_ring():
+    """A cooking fire in a ring of stones, logs crossed over the flames.
+
+    The only fire the game had was a CraftPix sprite five pixels wide, which
+    read as a candle standing in the grass. Stones and logs give it a footprint,
+    and the flames stay low and orange (emission under 2) so they read as fire
+    rather than a yellow disc."""
+    import random
+    rng = random.Random(11)
+    n = 11
+    R = 0.40
+    for i in range(n):
+        a = i / n * math.tau
+        blk("stone_%d" % i, (0.20, 0.16, 0.14), (math.cos(a) * R, math.sin(a) * R, 0.07),
+            ("stone", "stone_pale")[i % 2], rot=(0, 0, a + rng.uniform(-0.3, 0.3)), bev=0.04)
+    cyl("ash", R - 0.10, 0.03, (0, 0, 0.02), "soot", verts=20)
+    for k, ang in enumerate((20, 80, 140)):
+        cyl("log_%d" % k, 0.06, 0.62, (0, 0, 0.12 + k * 0.03), ("log", "log_dk", "log")[k],
+            rot=(math.radians(90), 0, math.radians(ang)), verts=10)
+    for k in range(5):
+        a = k / 5 * math.tau
+        cone("flame_%d" % k, 0.09, 0.30 + rng.random() * 0.14,
+             (math.cos(a) * 0.08, math.sin(a) * 0.08, 0.30), "ember", verts=8)
+        bpy.context.active_object.data.materials[0] = material("flame_%d" % k, "ember", 0.6, 0.0, 1.6)
+    cone("flame_core", 0.10, 0.44, (0, 0, 0.36), "glass_lit", verts=8)
+    bpy.context.active_object.data.materials[0] = material("flame_core", "glass_lit", 0.6, 0.0, 1.8)
+    for k in range(4):
+        a = k / 4 * math.tau + 0.4
+        sphere("coal_%d" % k, 0.05, (math.cos(a) * 0.16, math.sin(a) * 0.16, 0.08), "coal_hot", emit=1.2)
+    return 1.6
+
+
+WOODLAND_PROPS = {
+    "well":         (prop_well,         56),
+    "market_stall": (prop_market_stall, 80),
+    "palisade":     (prop_palisade,     64),
+    "log_pile":     (prop_log_pile,     48),
+    "tent":         (prop_tent,         72),
+    "campfire_ring": (prop_campfire_ring, 48),
+}
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),
@@ -1508,6 +1978,7 @@ PROPS.update(FORGE_PROPS)
 PROPS.update(INN_PROPS)
 PROPS.update(ROOM_PROPS)
 PROPS.update(BUILDING_PROPS)
+PROPS.update(WOODLAND_PROPS)
 
 
 def main():

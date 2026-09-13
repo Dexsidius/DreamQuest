@@ -105,6 +105,10 @@ void Game::ApplySettings() {
 // -----------------------------------------------------------------------------
 
 void Game::NewGame(const string& character, int slot) {
+    banner_active = false;
+    banner_time = 0.0f;
+    banner_zone.clear();
+    banner_seen_map.clear();
     quests.FromJson(json::object());
     world.SetFlags({});
     world.player = Player();
@@ -144,6 +148,10 @@ void Game::NewGame(const string& character, int slot) {
 }
 
 bool Game::LoadGame(int slot) {
+    banner_active = false;
+    banner_time = 0.0f;
+    banner_zone.clear();
+    banner_seen_map.clear();
     if (!SaveSystem::Load(slot, world, quests, ctx, playtime)) {
         PushToast("That save could not be loaded.", {235, 120, 120, 255});
         return false;
@@ -319,6 +327,29 @@ void Game::Update(float dt) {
         case GameState::Death:           UpdateDeath(dt); break;
     }
 
+    // Walking into a new zone puts its name on screen, the way DragonFable
+    // and AdventureQuest Worlds do when you cross into somewhere new. Houses
+    // do not announce themselves; dungeon levels, which are their own places,
+    // do.
+    if (has_session && InGameplayState() && world.CurrentMap().Loaded() &&
+        world.MapId() != banner_seen_map) {
+        banner_seen_map = world.MapId();
+        const Map& m = world.CurrentMap();
+        const bool zone = !m.IsInterior() || m.Ambient() == "dungeon";
+        if (!zone) banner_active = false;
+        if (zone && m.Id() != banner_zone) {
+            banner_zone     = m.Id();
+            banner_title    = m.DisplayName();
+            banner_subtitle = m.Subtitle();
+            banner_time     = 0.0f;
+            banner_active   = true;
+        }
+    }
+    if (banner_active) {
+        banner_time += dt;
+        if (banner_time > 4.2f) banner_active = false;
+    }
+
     // Panels pause the world but still show it behind them, so keep the
     // camera settled and let floating text finish.
     if (has_session && state != GameState::Play && InGameplayState())
@@ -438,13 +469,16 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
         }
 
         if (!a.give_item.empty()) {
-            if (p.inventory.Add(a.give_item, a.give_qty) > 0) {
+            const int added = p.inventory.Add(a.give_item, a.give_qty);
+            if (added > 0) {
                 const ItemDef* d = items.Get(a.give_item);
-                PushToast("Received " + std::to_string(a.give_qty) + "x " +
+                PushToast("Received " + std::to_string(added) + "x " +
                           (d ? d->name : a.give_item), Palette::Xp);
                 quests.RefreshCollectObjectives(p.inventory);
-            } else {
-                PushToast("Your pack is full.", {235, 150, 120, 255});
+            }
+            if (added < a.give_qty) {
+                world.DropItem(a.give_item, a.give_qty - added, p.x, p.y + 6.0f, ctx);
+                PushToast("Your pack is full. The item is at your feet.", {235, 150, 120, 255});
             }
         }
 
@@ -491,9 +525,10 @@ void Game::GrantQuestRewards(const string& quest_id) {
     if (d->rewards.coins > 0) p.inventory.AddCoins(d->rewards.coins);
 
     for (const auto& item : d->rewards.items) {
-        if (p.inventory.Add(item.first, item.second) <= 0) {
+        const int added = p.inventory.Add(item.first, item.second);
+        if (added < item.second) {
             // No room: drop it at the player's feet rather than losing it.
-            world.DropItem(item.first, item.second, p.x, p.y + 6.0f, ctx);
+            world.DropItem(item.first, item.second - added, p.x, p.y + 6.0f, ctx);
         }
     }
 

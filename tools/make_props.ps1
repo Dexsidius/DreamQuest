@@ -57,6 +57,10 @@ $sizes = @{
     cottage_bookshelf = 64; dining_table = 56; herb_pots = 36
     # Buildings.
     inn_building = 192
+    # Mossvale and the Whisperwood.
+    mossvale_lodge = 192
+    herbalist_cottage = 168
+    well = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
 }
 
 if (-not $SkipRender) {

@@ -111,6 +111,8 @@ public:
 
     const string& Id() const { return id; }
     const string& DisplayName() const { return display_name; }
+    // The line under the zone name on the banner shown on arrival.
+    const string& Subtitle() const { return subtitle; }
     float Width() const { return bounds_w; }
     float Height() const { return bounds_h; }
     bool  IsInterior() const { return interior; }
@@ -195,7 +197,7 @@ private:
                             const std::function<void(const Chunk&)>& fn) const;
 
     bool   loaded = false;
-    string id, display_name, source_dir, ambient;
+    string id, display_name, source_dir, ambient, subtitle;
     bool   interior = false;
     SDL_Color background{24, 20, 32, 255};
 

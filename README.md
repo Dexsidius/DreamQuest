@@ -331,6 +331,13 @@ prop:
 - **Model everything far thicker than life.** At fifty-six pixels across a
   two-metre frame, a realistic signpost is two pixels wide and vanishes under
   the outline pass.
+- **Buildings need more height than feels right.** The first Mossvale lodge
+  read as a lawn on a box: from above, a roof is most of what you see. Taller
+  walls in alternating log tones and a dark shingle roof with only patches of
+  moss fixed it.
+- **Big renders need Cycles tiling.** Rendering a 192-pixel building at eight
+  times scale ran Blender out of memory until `setup_render` turned on
+  auto-tiling with 256-pixel tiles.
 - **This does not beat hand-drawn art at these sizes.** Simple, chunky shapes
   — a signpost, a barrel, a strongbox — come out well. A bookshelf full of
   books does not. Use it for what the packs genuinely lack.
@@ -550,6 +557,8 @@ Quests reach you three ways, all of them live:
 - **NPC conversations** — Elder Maren runs the main chain (a letter, a missing
   surveyor, and what is gathering the orcs under Emberfell). The innkeeper,
   the smith, the watchman and the hunter have their own.
+- **The woodland villages** -- Mossvale's notice board and the people of
+  Mossvale, Fernhollow and the Whisperwood camp give the woodland chain.
 - **Notes left in the world** — a water-stained note at the edge of the Mire
   starts the barrow chain, and a torn survey page on the Sunken Road advances
   Maren's.
@@ -563,7 +572,8 @@ same NPC says different things before, during and after a quest.
 
 `maps/overworld.mx` is 4096 × 3072 pixels — about eight screens across — and
 the camera scrolls it as a viewport on the player. Biomes: meadow, greenwood,
-northern foothills, the Mire, and the Cursed Reach, joined by the Sunken Road.
+northern foothills, the Mire, and the Cursed Reach, joined by the Sunken Road,
+with the Whisperwood trail leaving from the east.
 
 | Map | What it is |
 | --- | --- |
@@ -572,6 +582,44 @@ northern foothills, the Mire, and the Cursed Reach, joined by the Sunken Road.
 | `guild_hall`, `house_elder`, `house_inn`, `house_smith` | Interiors |
 | `dungeon_emberfell_1` / `_2` | The mine, upper and lower workings; the lower level is locked until you find the rusted key, and the Warchief holds the last room |
 | `dungeon_barrow` | Beneath the Mire |
+| `whisperwood_trail` | The forest path east of the Hollowmarch: a woodcutter's camp, a stream with a plank bridge, and a fork |
+| `mossvale` | A logging village behind a palisade at the trail's east end |
+| `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge and Oona the herbalist's cottage |
+| `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
+| `fernhollow_cottage` | The ferryman's widow's cottage |
+
+### The Whisperwood
+
+A dirt trail leaves the overworld's east edge ("To the Whisperwood") and
+winds through a forest dense enough that the path is the way through. Bram the
+woodcutter camps where it crosses a stream; past him it forks, east to Mossvale
+and north to Fernhollow. The trail is a map of its own rather than more
+overworld because that is what makes it read as *a journey to somewhere* -- you
+leave one place, travel, and arrive in another, the way DragonFable and
+AdventureQuest Worlds stitch their zones together.
+
+Mossvale and Fernhollow each have their own people, dialogue and quests: a
+five-quest woodland chain (clear the trail, carry word to Fernhollow, hides for
+Mossvale, the trail wardens, and an offering at the shrine), with kill stages
+tied to the map they belong on so a wolf in the Mire does not count toward the
+Whisperwood.
+
+### Making zones feel like places
+
+- **Arrival banners.** Entering an outdoor zone or dungeon fades in its name
+  and a one-line subtitle over the screen for a few seconds. Walking in and out
+  of a house does not re-announce the town you were already in.
+- **Ambience.** Each map declares an `ambient` kind and `src/world/ambience.cpp`
+  drifts particles through the world to match: falling leaves and fireflies
+  under a darkened vignette in the forest, fewer of both in the village groves,
+  pollen over the fields, dust in the mines. Particles live in world space and
+  respawn on the far edge of the view, so they scroll with the ground rather
+  than sliding across the screen.
+- **Exit markers.** Near the edge of an outdoor map, each way out is labelled
+  with an arrow and its destination -- "To the Whisperwood >" -- so the edges
+  of a zone are signposted rather than discovered by walking into them.
+- **Clear streets.** Trees and tall fungus are drawn up from their base, so the
+  generator keeps them two tiles back from every road; bushes may still line it.
 
 Maps are big enough to grow: the base layer is bucketed into chunks and culled
 against the camera, so adding another biome costs load time and nothing else.
@@ -625,14 +673,14 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **2897 checks** covering:
+and checks all of it — currently **3750 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
 - every quest objective, prerequisite and reward resolves, and every quest has
   a giver somewhere in the world
 - the dialogue graph is fully connected
-- all nine maps load; portals point at real maps; every enemy, NPC and object
+- all sixteen maps load; portals point at real maps; every enemy, NPC and object
   resolves
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest
@@ -651,6 +699,8 @@ and checks all of it — currently **2897 checks** covering:
 - no building inherits the overworld's height grid when loaded after it
 - every NPC and usable object in every building can be walked up to from the
   door
+- every portal in the woodland zones can be walked to from where you arrive,
+  and the Whisperwood, Mossvale and Fernhollow journey round-trips
 - every portal arrives at a spawn that exists, not inside a wall, and not on a
   step-through portal that sends the player straight back -- which is what a
   flight of stairs between two floors would otherwise do

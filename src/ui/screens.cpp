@@ -650,6 +650,66 @@ void Game::DrawHud() {
                 Palette::Text, Align::Center);
     }
 
+    // --- the ways out ---------------------------------------------------------
+    // An exit at the edge of an outdoor map is a gap in the trees, and easy to
+    // walk straight past. Near one, say where it goes and which way.
+    if (live && !world.CurrentMap().IsInterior()) {
+        const Map& mp = world.CurrentMap();
+        for (const Portal& portal : mp.Portals()) {
+            if (portal.requires_interact) continue;
+            const float px = portal.rect.x + portal.rect.w / 2.0f;
+            const float py = portal.rect.y + portal.rect.h / 2.0f;
+            const float d = Length(px - p.x, py - p.y);
+            if (d > 260.0f) continue;
+            const float fade = std::clamp((260.0f - d) / 100.0f, 0.0f, 1.0f);
+
+            // Which edge the exit is on decides the arrow.
+            const float to_l = px, to_r = mp.Width() - px, to_t = py, to_b = mp.Height() - py;
+            const float nearest = std::min({to_l, to_r, to_t, to_b});
+            string text;
+            float nx = 0.0f, ny = 0.0f;
+            if (nearest == to_l)      { text = "< " + portal.label; nx = -1.0f; }
+            else if (nearest == to_r) { text = portal.label + " >"; nx =  1.0f; }
+            else if (nearest == to_t) { text = "^ " + portal.label; ny = -1.0f; }
+            else                      { text = "v " + portal.label; ny =  1.0f; }
+
+            SDL_FPoint s = world.camera.ToScreen(px, py);
+            const SDL_FPoint size = ui.Measure(text, TextSize::Small);
+            s.x = std::clamp(s.x - nx * 90.0f, size.x / 2.0f + 12.0f, ui.ViewWidth() - size.x / 2.0f - 12.0f);
+            s.y = std::clamp(s.y - ny * 70.0f, 40.0f, ui.ViewHeight() - 60.0f);
+
+            ui.Fill({roundf(s.x - size.x / 2.0f - 8.0f), roundf(s.y - 4.0f), size.x + 16.0f, size.y + 8.0f},
+                    {14, 11, 9, static_cast<Uint8>(170.0f * fade)});
+            SDL_Color c = Palette::Highlight;
+            c.a = static_cast<Uint8>(255.0f * fade);
+            ui.TextShadowed(text, s.x, s.y, TextSize::Small, c, Align::Center);
+        }
+    }
+
+    // --- zone banner -----------------------------------------------------------
+    if (banner_active) {
+        const float in  = std::clamp(banner_time / 0.6f, 0.0f, 1.0f);
+        const float out = std::clamp((4.2f - banner_time) / 1.0f, 0.0f, 1.0f);
+        const float a   = std::min(in, out);
+        const float cx  = ui.ViewWidth() / 2.0f;
+        const float y   = 96.0f - (1.0f - in) * 12.0f;
+
+        SDL_Color title = Palette::Highlight;
+        title.a = static_cast<Uint8>(255.0f * a);
+        ui.TextShadowed(banner_title, cx, y, TextSize::Title, title, Align::Center);
+
+        const float tw = ui.Measure(banner_title, TextSize::Title).x;
+        const float rule_y = roundf(y + ui.LineHeight(TextSize::Title) + 6.0f);
+        const Uint8 ra = static_cast<Uint8>(170.0f * a);
+        ui.Fill({roundf(cx - tw / 2.0f - 28.0f), rule_y, tw + 56.0f, 1.0f}, {242, 200, 96, ra});
+        ui.Fill({roundf(cx - 5.0f), rule_y - 2.0f, 10.0f, 5.0f}, {242, 200, 96, static_cast<Uint8>(230.0f * a)});
+        if (!banner_subtitle.empty()) {
+            SDL_Color sub_c = Palette::Text;
+            sub_c.a = static_cast<Uint8>(235.0f * a);
+            ui.TextShadowed(banner_subtitle, cx, rule_y + 10.0f, TextSize::Body, sub_c, Align::Center);
+        }
+    }
+
     // --- quest tracker -------------------------------------------------------
     const vector<string> active = quests.Active();
     if (!active.empty()) {

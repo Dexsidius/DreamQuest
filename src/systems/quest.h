@@ -26,6 +26,7 @@ struct QuestStage {
     ObjectiveType type = ObjectiveType::Talk;
     string        target;      // npc id / enemy type / item id / map id
     string        deliver_to;  // NPC for Deliver objectives
+    string        map_id;      // optional location restriction for kill events
     int           count = 1;
     bool          hidden = false;   // not listed until it becomes current
 };
@@ -62,6 +63,7 @@ struct QuestEvent {
     string target;
     string secondary;         // NPC for Deliver
     int    amount = 1;
+    string map_id;            // area in which the event happened
 };
 
 class QuestLog {

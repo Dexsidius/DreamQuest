@@ -340,5 +340,547 @@
     "speaker": "Hunter Ivo",
     "text": "Hare if you are hungry. Deer if you are patient. Boar if you are armoured, and not otherwise.\n\nFox will fight you for no reason at all. I respect it and I still shoot it.",
     "options": [{ "text": "Good to know.", "next": "end" }]
+  },
+
+  "bram_root": {
+    "speaker": "Bram the Woodcutter",
+    "text": "Mind the fire. And the axe. And the boar, while you are minding things.",
+    "options": [
+      {
+        "text": "Is something wrong on the trail?",
+        "next": "bram_offer",
+        "if": {
+          "quest": "q_clear_the_trail",
+          "state": "not_started"
+        }
+      },
+      {
+        "text": "I am still hunting them.",
+        "next": "bram_active",
+        "if": {
+          "quest": "q_clear_the_trail",
+          "state": "active"
+        }
+      },
+      {
+        "text": "The trail is clear.",
+        "next": "bram_done",
+        "if": {
+          "quest": "q_clear_the_trail",
+          "state": "complete"
+        }
+      },
+      {
+        "text": "What is this place?",
+        "next": "bram_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "bram_offer": {
+    "speaker": "Bram the Woodcutter",
+    "text": "Boar. Big ones, off the verges and onto the trail, and they do not move for a loaded cart. I lost a wheel last week and nearly a mule.\n\nThin them out. Six should teach the rest.",
+    "options": [
+      {
+        "text": "I will see to it.",
+        "next": "bram_accept",
+        "action": {
+          "start_quest": "q_clear_the_trail"
+        }
+      },
+      {
+        "text": "Not now.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "bram_accept": {
+    "speaker": "Bram the Woodcutter",
+    "text": "Good. They come out where the trail runs close under the trees. You will hear them before you see them.",
+    "options": [
+      {
+        "text": "Understood.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "bram_active": {
+    "speaker": "Bram the Woodcutter",
+    "text": "Still hearing them at night. Keep at it.",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "bram_done": {
+    "speaker": "Bram the Woodcutter",
+    "text": "Carts through twice this week without a scream between them. That is your doing. Mossvale owes you a drink, and I owe you a better one.",
+    "options": [
+      {
+        "text": "I will hold you to it.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "bram_about": {
+    "speaker": "Bram the Woodcutter",
+    "text": "Timber camp. We fell the oaks up here and float them down to Mossvale when the stream is high. The rest of the year we cut, stack, and argue about whose turn it is to cook.\n\nThe fork is east of here. Mossvale straight on, Fernhollow up the north path.",
+    "options": [
+      {
+        "text": "Thanks.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "oona_root": {
+    "speaker": "Oona the Herbalist",
+    "text": "Mind the pots. Everything on that shelf is either a cure or a poison, and the labels fell off in the damp.",
+    "options": [
+      {
+        "text": "Can I help with anything?",
+        "next": "oona_offer",
+        "if": {
+          "quest": "q_word_to_fernhollow",
+          "state": "not_started"
+        }
+      },
+      {
+        "text": "About Wendel's remedy.",
+        "next": "oona_waiting",
+        "if": {
+          "quest": "q_word_to_fernhollow",
+          "state": "active",
+          "stage": 0
+        }
+      },
+      {
+        "text": "Wendel has his remedy.",
+        "next": "oona_done",
+        "if": {
+          "quest": "q_word_to_fernhollow",
+          "state": "complete"
+        }
+      },
+      {
+        "text": "Could you tend my wounds?",
+        "next": "oona_rest",
+        "action": { "heal": true }
+      },
+      {
+        "text": "What do you grow?",
+        "next": "oona_herbs"
+      },
+      {
+        "text": "Goodbye.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "oona_offer": {
+    "speaker": "Oona the Herbalist",
+    "text": "You could, if your legs are younger than mine. Old Wendel in Fernhollow has a chest that rattles like a cart, and this is the only thing that quiets it.\n\nTake the north path at the fork. He will be on the jetty. He is always on the jetty.",
+    "options": [
+      {
+        "text": "I will take it to him.",
+        "next": "oona_accept",
+        "action": {
+          "start_quest": "q_word_to_fernhollow",
+          "give": "herbal_tonic",
+          "give_qty": 1
+        }
+      },
+      {
+        "text": "Another time.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "oona_accept": {
+    "speaker": "Oona the Herbalist",
+    "text": "Tell him it is two spoons, not the bottle. He will not listen, but tell him.",
+    "options": [
+      {
+        "text": "Two spoons.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "oona_waiting": {
+    "speaker": "Oona the Herbalist",
+    "text": "Fernhollow is up the north path at the fork. Two spoons, not the bottle.",
+    "options": [
+      {
+        "text": "I need a replacement bottle.",
+        "next": "oona_accept",
+        "if": { "has_item": "herbal_tonic", "not": true },
+        "action": { "give": "herbal_tonic", "give_qty": 1 }
+      },
+      {
+        "text": "On my way.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "oona_rest": {
+    "speaker": "Oona the Herbalist",
+    "text": "Sit by the stove. The salve stings, which is how you know I have not given you the roof moss by mistake.\n\nThere. Restored, and fit for the trail.",
+    "options": [{ "text": "Thank you, Oona.", "next": "end" }]
+  },
+
+  "oona_done": {
+    "speaker": "Oona the Herbalist",
+    "text": "He took it? And did he say thank you, or did he say it tasted of ditch? The second one is how I know it is working.",
+    "options": [
+      {
+        "text": "It tasted of ditch.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "oona_herbs": {
+    "speaker": "Oona the Herbalist",
+    "text": "Feverfew, comfrey, and a moss that only grows on the north side of the lodge roof. Reeve Hadley complains about me climbing up there. I complain about his roof.",
+    "options": [
+      {
+        "text": "Fair enough.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "wendel_root": {
+    "speaker": "Old Wendel",
+    "text": "Quiet on the jetty. The fish can hear you think.",
+    "options": [
+      {
+        "text": "Oona sent you a remedy.",
+        "next": "wendel_remedy",
+        "if": {
+          "quest": "q_word_to_fernhollow",
+          "state": "active",
+          "stage": 0,
+          "has_item": "herbal_tonic",
+          "qty": 1
+        },
+        "action": {
+          "take": "herbal_tonic",
+          "take_qty": 1
+        }
+      },
+      {
+        "text": "Any fish?",
+        "next": "wendel_fish"
+      },
+      {
+        "text": "What happened to the ferry?",
+        "next": "wendel_ferry"
+      },
+      {
+        "text": "I will leave you to it.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "wendel_remedy": {
+    "speaker": "Old Wendel",
+    "text": "Two spoons, she says. Every time, two spoons.\n\nTell her it tastes of ditch. She likes to hear it.",
+    "options": [
+      {
+        "text": "I will tell her.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "wendel_fish": {
+    "speaker": "Old Wendel",
+    "text": "There are fish. Whether they are for catching is a question the pond has not answered in forty years.",
+    "options": [
+      {
+        "text": "Good luck.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "wendel_ferry": {
+    "speaker": "Old Wendel",
+    "text": "There was a ford south of here, before the stream moved. I ran the ferry. Now I run the jetty, which is the ferry without the going anywhere.",
+    "options": [
+      {
+        "text": "I see.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "hesper_root": {
+    "speaker": "Hesper",
+    "text": "Wipe your boots. Wendel never does, and I have given up on him, but not on visitors.",
+    "options": [
+      {
+        "text": "May I rest a while?",
+        "next": "hesper_rest",
+        "action": { "heal": true }
+      },
+      {
+        "text": "What are the lights on the pond?",
+        "next": "hesper_lights"
+      },
+      {
+        "text": "Goodbye.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "hesper_rest": {
+    "speaker": "Hesper",
+    "text": "The kettle is on. Leave your boots by the door and take the chair by the hearth.\n\nFor a little while, there is only the fire and rain against the shutters.",
+    "options": [{ "text": "I feel ready for the road again.", "next": "end" }]
+  },
+
+  "hesper_lights": {
+    "speaker": "Hesper",
+    "text": "You have seen them too, then. Mira says the water remembers. Wendel says it is marsh gas. I say both of them should come in before dark.",
+    "options": [
+      {
+        "text": "Sound advice.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "mira_root": {
+    "speaker": "Mira of the Shrine",
+    "text": "Speak softly by the stones. Not for their sake. For mine.",
+    "options": [
+      {
+        "text": "Here are the two haunches.",
+        "next": "mira_done",
+        "if": {
+          "quest": "q_old_offering", "state": "active",
+          "has_item": "raw_boar", "qty": 2
+        },
+        "action": { "take": "raw_boar", "take_qty": 2 }
+      },
+      {
+        "text": "Does the shrine need anything?",
+        "next": "mira_offer",
+        "if": {
+          "quest": "q_old_offering",
+          "state": "not_started"
+        }
+      },
+      {
+        "text": "About the offering.",
+        "next": "mira_waiting",
+        "if": {
+          "quest": "q_old_offering",
+          "state": "active"
+        }
+      },
+      {
+        "text": "Tell me about the shrine.",
+        "next": "mira_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "mira_offer": {
+    "speaker": "Mira of the Shrine",
+    "text": "An offering. The hunters used to leave the first of the season here, before they stopped coming north. Two boar haunches, and the pond will stop sulking.\n\nThe boar are along the Whisperwood.",
+    "options": [
+      {
+        "text": "I will bring them.",
+        "next": "mira_accept",
+        "action": {
+          "start_quest": "q_old_offering"
+        }
+      },
+      {
+        "text": "Not today.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "mira_accept": {
+    "speaker": "Mira of the Shrine",
+    "text": "Raw, mind. The water does not care for cooking.",
+    "options": [
+      {
+        "text": "Raw it is.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "mira_waiting": {
+    "speaker": "Mira of the Shrine",
+    "text": "Two haunches. The boar are thickest where the trail runs under the trees.",
+    "options": [
+      {
+        "text": "I know.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "mira_done": {
+    "speaker": "Mira of the Shrine",
+    "text": "Mira lays the offering on the worn stone. For a moment the pond is perfectly still.\n\nThat will do. Whatever it remembers, it knows we have not forgotten.",
+    "options": [{ "text": "I will leave you to it.", "next": "end" }]
+  },
+
+  "mira_about": {
+    "speaker": "Mira of the Shrine",
+    "text": "It was here before the hamlet, and before the trail. The old words on it say the water remembers. Remembers what, nobody wrote down, which I have always thought was either careless or wise.",
+    "options": [
+      {
+        "text": "Or both.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "hadley_root": {
+    "speaker": "Reeve Hadley",
+    "text": "Reeve Hadley. If you are here about the tanner's debts, I am not in. If you are here about work, the notices are by the well.",
+    "options": [
+      {
+        "text": "Tell me about Mossvale.",
+        "next": "hadley_mossvale"
+      },
+      {
+        "text": "What is happening in the Whisperwood?",
+        "next": "hadley_wood"
+      },
+      {
+        "text": "I will look at the notices.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "hadley_mossvale": {
+    "speaker": "Reeve Hadley",
+    "text": "Timber and hides, and a lodge older than anyone's grandfather. We sell oak to Havenbrook and buy back everything else at twice the price, which Pell will tell you is the natural order of things.",
+    "options": [
+      {
+        "text": "I will ask him.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "hadley_wood": {
+    "speaker": "Reeve Hadley",
+    "text": "The animals are wrong this year. Foxes hunting in packs, boar out on the trail in daylight. Sela thinks something is driving them. Bram thinks it is the weather. I would like it to stop before the timber does.",
+    "options": [
+      {
+        "text": "I will keep my eyes open.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "sela_root": {
+    "speaker": "Warden Sela",
+    "text": "Warden Sela. You came up the trail? Then you already know more about it than the reeve does.",
+    "options": [
+      {
+        "text": "What should I watch for?",
+        "next": "sela_warn"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "sela_warn": {
+    "speaker": "Warden Sela",
+    "text": "Foxes in threes now, where there used to be one. They go for the legs. Keep your back to a tree and make them come to you.",
+    "options": [
+      {
+        "text": "Thanks for the warning.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "pell_root": {
+    "speaker": "Pell the Trader",
+    "text": "Pell. Buyer, seller, and very occasional liar. The carts from Havenbrook have stopped, so the stall is half what it should be.",
+    "options": [
+      {
+        "text": "Why have the carts stopped?",
+        "next": "pell_carts"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "pell_carts": {
+    "speaker": "Pell the Trader",
+    "text": "Orcs on the Sunken Road, is what I hear. Nobody wants to haul cloth past that for Mossvale prices. If you are going back that way, tell them we still pay in oak.",
+    "options": [
+      {
+        "text": "I will pass it on.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "tamsin_root": {
+    "speaker": "Tamsin",
+    "text": "Tamsin. I trap for the lodge. Or I did, until the foxes started taking the traps as well as what was in them.",
+    "options": [
+      {
+        "text": "Foxes stealing traps?",
+        "next": "tamsin_traps"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+
+  "tamsin_traps": {
+    "speaker": "Tamsin",
+    "text": "Chewed through the chains. Foxes do not chew through chains. Something is wrong in the wood this year, and I am not the only one who thinks so.",
+    "options": [
+      {
+        "text": "I believe you.",
+        "next": "end"
+      }
+    ]
   }
 }

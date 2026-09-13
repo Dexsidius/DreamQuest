@@ -19,7 +19,16 @@ static constexpr float PICKUP_ARM     = 0.35f;   // no instant re-collect
 
 bool World::LoadMap(const string& id, const string& spawn, const GameContext& ctx) {
     const string path = "maps/" + id + ".mx";
-    if (!map.Load(path)) return false;
+    // Load into a candidate first. A missing or malformed destination must not
+    // unload the area the player is still standing in.
+    Map arriving;
+    try {
+        if (!arriving.Load(path)) return false;
+    } catch (const std::exception& e) {
+        SDL_Log("World: invalid destination '%s': %s", id.c_str(), e.what());
+        return false;
+    }
+    map = std::move(arriving);
 
     map_id = id;
     enemies.clear();
@@ -43,6 +52,14 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
 
     camera.SetBounds(map.Width(), map.Height());
     camera.SnapTo(player.x, player.y);
+    ambience.SetKind(map.Ambient(), map.IsInterior());
+    if (ctx.quests) {
+        QuestEvent e;
+        e.type = ObjectiveType::Reach;
+        e.target = map_id;
+        e.map_id = map_id;
+        ctx.quests->Notify(e, player.inventory);
+    }
     return true;
 }
 
@@ -76,8 +93,16 @@ void World::RequestTransition(const string& id, const string& spawn) {
 }
 
 void World::ApplyTransition(const GameContext& ctx) {
-    if (!LoadMap(next_map, next_spawn, ctx))
+    if (!LoadMap(next_map, next_spawn, ctx)) {
         SDL_Log("World: failed to enter map '%s'", next_map.c_str());
+        WorldRequest r;
+        r.type = WorldRequest::Type::Toast;
+        r.text = "That path could not be opened. Your current area is unchanged.";
+        requests.push_back(r);
+        // Do not retry a broken exit every frame while standing on it.
+        portals_armed = false;
+        arrival_released = false;
+    }
     transition_pending = false;
     fade_dir = -1;
 }
@@ -171,6 +196,7 @@ void World::Update(float dt, const GameContext& ctx) {
     UpdateTexts(dt);
 
     camera.Follow(player.x, player.y, dt);
+    ambience.Update(dt, camera);
 }
 
 // -----------------------------------------------------------------------------
@@ -1194,6 +1220,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     }
 
     map.RenderLayer(r, cache, camera, LAYER_OVERHEAD);
+
+    // Leaves, fireflies and dust, and the vignette -- over the world, under
+    // the bars and the HUD.
+    ambience.Render(r, camera);
 
     // Health bars over anything the player has attacked. Last, above canopy
     // and roofs, because a bar hidden behind a tree is no use.

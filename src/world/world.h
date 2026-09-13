@@ -7,6 +7,7 @@
 #include "../entity/enemy.h"
 #include "../entity/npc.h"
 #include "../systems/projectile.h"
+#include "ambience.h"
 
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
@@ -65,6 +66,7 @@ public:
 
     Map     map;
     Camera  camera{1280.0f, 720.0f};
+    Ambience ambience;
     Player  player;
     vector<std::unique_ptr<Enemy>> enemies;
     vector<std::unique_ptr<Npc>>   npcs;

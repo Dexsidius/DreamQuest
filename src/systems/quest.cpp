@@ -60,6 +60,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
                 st.type        = ObjectiveFromName(s.value("type", string("talk")));
                 st.target      = s.value("target", string(""));
                 st.deliver_to  = s.value("to", string(""));
+                st.map_id      = s.value("map", string(""));
                 st.count       = std::max(1, s.value("count", 1));
                 st.hidden      = s.value("hidden", false);
                 d.stages.push_back(st);
@@ -181,6 +182,7 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
 
         const QuestStage& st = d->stages[p.stage];
         if (st.type != e.type || st.target != e.target) continue;
+        if (!st.map_id.empty() && st.map_id != e.map_id) continue;
         if (st.type == ObjectiveType::Deliver && st.deliver_to != e.secondary) continue;
 
         p.counter = std::min(p.counter + e.amount, st.count);
