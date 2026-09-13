@@ -122,6 +122,21 @@ public:
     static constexpr float SPRINT_MULT     = 1.6f;
     static constexpr float SPRINT_LOCKOUT  = 0.8f;
     bool  Sprinting() const { return sprinting; }
+
+    // --- stamina --------------------------------------------------------------
+    // What a sprint costs. It drains while sprinting and comes back after a
+    // short breather, faster standing still than on the move. Running it dry
+    // leaves the player winded: no sprinting until it has refilled past a
+    // threshold, so an empty bar cannot be feathered into a stuttering sprint.
+    static constexpr float MAX_STAMINA        = 100.0f;
+    static constexpr float STAMINA_DRAIN      = 22.0f;   // per second sprinting
+    static constexpr float STAMINA_REGEN      = 30.0f;   // per second at rest
+    static constexpr float STAMINA_REGEN_MOVE = 0.6f;    // share of that while moving
+    static constexpr float STAMINA_DELAY      = 0.8f;    // breather before regen starts
+    static constexpr float STAMINA_RECOVER    = 0.35f;   // share needed to sprint again
+    float Stamina() const { return stamina; }
+    float MaxStamina() const { return MAX_STAMINA; }
+    bool  Winded() const { return winded; }
     // Where the camera should lead, in world pixels: ahead of a sprint so the
     // player sees what they are running into, and back to centre otherwise.
     Vec2  LookAhead() const { return look_ahead; }
@@ -169,6 +184,9 @@ private:
 
     bool  sprinting = false;
     float sprint_lockout = 0.0f;
+    float stamina = MAX_STAMINA;
+    float stamina_delay = 0.0f;
+    bool  winded = false;
     Vec2  look_ahead{0, 0};
 
     int   mana = 0, max_mana = 0;

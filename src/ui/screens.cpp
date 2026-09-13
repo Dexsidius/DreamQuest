@@ -539,6 +539,29 @@ void Game::DrawHud() {
         meta_y = mana_bar.y + mana_bar.h + 6.0f;
     }
 
+    // --- stamina -------------------------------------------------------------
+    // Under whichever bar is last, and slimmer, since it changes all the time
+    // and wants to be glanced at rather than read. Winded, the bar pulses red
+    // until it has refilled far enough to sprint again.
+    {
+        const float st_h = 14.0f;
+        const float top = meta_y - 2.0f;
+        const SDL_FRect st_bar = {hp_bar.x, top, 232.0f, st_h};
+        glyph_plate({18.0f, st_bar.y, glyph, st_h}, "assets/icons/hud_stamina.png");
+        SDL_Color fill = Palette::Stamina;
+        if (p.Winded()) {
+            const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) * 0.012f);
+            fill = {static_cast<Uint8>(196 + 40 * pulse), static_cast<Uint8>(70 + 30 * pulse),
+                    static_cast<Uint8>(48), 255};
+        }
+        ui.FramedBar(st_bar, p.Stamina() / p.MaxStamina(), fill, Palette::StaminaBack);
+        if (p.Winded())
+            ui.TextShadowed("winded", st_bar.x + st_bar.w / 2.0f,
+                            st_bar.y + (st_bar.h - line_h) / 2.0f,
+                            TextSize::Small, Palette::Text, Align::Center);
+        meta_y = st_bar.y + st_bar.h + 6.0f;
+    }
+
     // --- minimap -------------------------------------------------------------
     // Top right, with the bezel hung on the corner; everything else that used
     // to live in that corner now stacks below it.

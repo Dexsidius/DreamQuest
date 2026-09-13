@@ -27,6 +27,8 @@ namespace Palette {
     inline constexpr SDL_Color Xp         {126, 196, 122, 255};
     inline constexpr SDL_Color Mana       {84,  132, 214, 255};
     inline constexpr SDL_Color ManaBack   {22,  30,  52,  255};
+    inline constexpr SDL_Color Stamina    {214, 176, 56,  255};
+    inline constexpr SDL_Color StaminaBack{50,  40,  18,  255};
     inline constexpr SDL_Color Shadow     {0,   0,   0,   160};
 }
 

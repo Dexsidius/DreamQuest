@@ -19,7 +19,7 @@ enum class Sfx {
     BowShot, SpellCast, Impact,
     Pickup, Coins, Chop, Mine, Cook, Burn, ChestOpen, Eat, Equip,
     Footstep, FootstepWood, FootstepStone, Jump, Land,
-    Door, Portal, Locked,
+    Door, Portal, Locked, Winded,
     UiMove, UiConfirm, UiBack, UiError,
     LevelUp, QuestStart, QuestComplete,
     Count

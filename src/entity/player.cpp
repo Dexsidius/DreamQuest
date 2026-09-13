@@ -470,7 +470,26 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     sprinting = !input_locked && ctx.input && ctx.input->Down(Action::Sprint) &&
                 Length(move.x, move.y) >= RUN_THRESHOLD &&
                 !attack.Active() && !charging && !strong_armed &&
-                sprint_lockout <= 0.0f;
+                sprint_lockout <= 0.0f && !winded && stamina > 0.0f;
+
+    // Stamina: spent by the second while sprinting, back after a breather.
+    if (sprinting) {
+        stamina = std::max(0.0f, stamina - STAMINA_DRAIN * dt);
+        stamina_delay = STAMINA_DELAY;
+        if (stamina <= 0.0f) {
+            // Out of breath. The sprint ends now, not next frame.
+            winded = true;
+            sprinting = false;
+            Audio::Play(Sfx::Winded);
+        }
+    } else if (stamina_delay > 0.0f) {
+        stamina_delay = std::max(0.0f, stamina_delay - dt);
+    } else if (stamina < MAX_STAMINA) {
+        const float rate = STAMINA_REGEN *
+            (Length(move.x, move.y) > 0.05f ? STAMINA_REGEN_MOVE : 1.0f);
+        stamina = std::min(MAX_STAMINA, stamina + rate * dt);
+    }
+    if (winded && stamina >= MAX_STAMINA * STAMINA_RECOVER) winded = false;
     {
         const float lead = sprinting ? 56.0f : 0.0f;
         const float k = std::min(1.0f, dt * (sprinting ? 2.5f : 4.0f));
@@ -569,6 +588,9 @@ void Player::Respawn(float sx, float sy) {
     sprite.speed_scale = 1.0f;
     charging = strong_armed = false;
     jumping = false;
+    sprinting = winded = false;
+    stamina = MAX_STAMINA;
+    stamina_delay = 0.0f;
     climb_hint.clear();
     skills.ResetCurrent();
     SyncHitpoints();

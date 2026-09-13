@@ -1205,7 +1205,8 @@ int main(int argc, char** argv) {
     {
         for (const char* art : {"assets/ui/minimap_ring.png",
                                 "assets/icons/hud_heart.png",
-                                "assets/icons/hud_drop.png"})
+                                "assets/icons/hud_drop.png",
+                                "assets/icons/hud_stamina.png"})
             Check(fs::exists(art), string("hud art on disk: ") + art);
 
         // The minimap draws the world as a stack of rows clipped to the baked
@@ -1371,6 +1372,85 @@ int main(int argc, char** argv) {
         });
         Check(!broken, "taking a hit breaks the sprint");
         Check(resumed, "and it picks up again once the lockout passes");
+
+        // --- stamina --------------------------------------------------------
+        // Sprint flat out until the bar runs dry: that should take about
+        // MAX / DRAIN seconds, end the sprint, and leave the player winded.
+        {
+            float ran_dry_at = -1.0f, sprinted_winded = 0.0f, lowest = 1e9f;
+            bool winded_seen = false;
+            const float expect = Player::MAX_STAMINA / Player::STAMINA_DRAIN;
+            run_for("player_hero", true, expect + 2.0f, [&](World& w, int f) {
+                const Player& p = w.player;
+                lowest = std::min(lowest, p.Stamina());
+                if (p.Winded()) {
+                    winded_seen = true;
+                    if (ran_dry_at < 0.0f) ran_dry_at = f / 60.0f;
+                    if (p.Sprinting()) sprinted_winded += 1.0f / 60.0f;
+                }
+            });
+            Check(lowest <= 0.0f, "holding sprint empties the stamina bar");
+            Check(winded_seen, "running it dry leaves the player winded");
+            Check(ran_dry_at > expect - 0.25f && ran_dry_at < expect + 0.25f,
+                  "a full bar lasts about " + std::to_string(static_cast<int>(expect * 10) / 10.0f).substr(0, 3) + " seconds of sprint");
+            Check(sprinted_winded == 0.0f, "nobody sprints while winded, however hard the key is held");
+        }
+        // Winded clears only past the recovery threshold, then sprinting works again.
+        {
+            bool cleared_early = false, cleared = false, sprinted_after = false;
+            run_for("player_hero", false, 12.0f, [&](World& w, int f) {
+                Player& p = w.player;
+                if (f == 0) {
+                    // Burn the bar down by sprinting in place of the key.
+                    while (p.Stamina() > 0.0f) {
+                        key(SDLK_LSHIFT, true);
+                        input.Update(1.0f / 60.0f);
+                        w.Update(1.0f / 60.0f, ctx);
+                    }
+                    key(SDLK_LSHIFT, false);
+                }
+                // Only until it first clears: sprinting again afterwards
+                // spends the bar back down, which is the point.
+                if (!cleared && !p.Winded() &&
+                    p.Stamina() < Player::MAX_STAMINA * Player::STAMINA_RECOVER - 1.0f)
+                    cleared_early = true;
+                if (f > 5 && !p.Winded()) {
+                    cleared = true;
+                    key(SDLK_LSHIFT, true);
+                }
+                if (cleared && p.Sprinting()) sprinted_after = true;
+            });
+            Check(!cleared_early, "winded lasts until the bar is refilled past the threshold");
+            Check(cleared && sprinted_after, "and the sprint comes back once it clears");
+        }
+        // Regeneration waits for a breather, and is quicker standing still.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                w.enemies.clear();
+                key(SDLK_D, true);
+                key(SDLK_LSHIFT, true);
+                for (int f = 0; f < 60; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                key(SDLK_LSHIFT, false);
+                const float after_sprint = w.player.Stamina();
+                for (int f = 0; f < 20; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                Check(fabsf(w.player.Stamina() - after_sprint) < 0.01f,
+                      "stamina does not come back the instant a sprint ends");
+                for (int f = 0; f < 60; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                const float moving_gain = w.player.Stamina() - after_sprint;
+                key(SDLK_D, false);
+                const float before_rest = w.player.Stamina();
+                for (int f = 0; f < 30; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                const float rest_rate = (w.player.Stamina() - before_rest) * 2.0f;
+                Check(moving_gain > 0.0f, "stamina refills while walking");
+                Check(rest_rate > moving_gain * 1.2f, "and refills faster standing still");
+                w.player.Respawn(w.player.x, w.player.y);
+                Check(w.player.Stamina() == Player::MAX_STAMINA && !w.player.Winded(),
+                      "respawning restores a full bar");
+                input.Update(1.0f / 60.0f);
+            }
+        }
     }
 
     // --- a real fight ---------------------------------------------------------

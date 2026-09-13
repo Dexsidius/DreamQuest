@@ -327,6 +327,13 @@ Buf Make(Sfx s) {
         LowpassAll(b, 3000.0f);
         Normalize(b, 0.38f);
         break;
+    case Sfx::Winded:
+        // Two heavy breaths, in and out, low and airy.
+        b = Blank(0.95f);
+        Hiss(b, 0.00f, 0.38f, 0.8f, 0.14f, 0.12f, 900.0f, 1500.0f, 180.0f, 61);
+        Hiss(b, 0.42f, 0.50f, 1.0f, 0.06f, 0.18f, 1300.0f, 600.0f, 140.0f, 62);
+        Normalize(b, 0.28f);
+        break;
     case Sfx::UiMove:
         b = Blank(0.04f);
         Tone(b, 0.0f, 0.035f, 1500.0f, 1400.0f, 0.6f, 0.001f, 0.01f);
