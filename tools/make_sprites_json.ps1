@@ -72,6 +72,7 @@ $clipRules = @{
     idle   = @{ fps =  8; loop = $true  }
     walk   = @{ fps = 10; loop = $true  }
     run    = @{ fps = 13; loop = $true  }
+    sprint = @{ fps = 16; loop = $true  }
     attack = @{ fps = 16; loop = $false }
     hurt   = @{ fps = 12; loop = $false }
     death  = @{ fps =  9; loop = $false }

@@ -39,6 +39,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     projectiles.clear();
     ground_effects.clear();
     impacts.clear();
+    dust.clear();
     gather_index = -1;
 
     SpawnEntitiesFromMap(ctx);
@@ -196,11 +197,12 @@ void World::Update(float dt, const GameContext& ctx) {
     UpdateProjectiles(dt, ctx);
     UpdateGroundEffects(dt, ctx);
     UpdateImpacts(dt);
+    UpdateDust(dt);
     UpdateElevation();
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
 
-    camera.Follow(player.x, player.y, dt);
+    camera.Follow(player.x + player.LookAhead().x, player.y + player.LookAhead().y, dt);
     ambience.Update(dt, camera);
     Audio::SetListener(player.x, player.y);
 }
@@ -871,6 +873,38 @@ void World::AddImpact(const Projectile& p, float nx, float ny) {
     impacts.push_back(im);
 }
 
+void World::AddDust(float x, float y, float dir_x, float dir_y) {
+    // Two or three puffs at the heel, thrown back against the direction of
+    // travel and spreading as they fade.
+    static std::mt19937 rng(0xD057);
+    std::uniform_real_distribution<float> u(-1.0f, 1.0f);
+    const int n = 2 + static_cast<int>(rng() % 2);
+    for (int i = 0; i < n; ++i) {
+        Dust d;
+        d.x = x - dir_x * 4.0f + u(rng) * 3.0f;
+        d.y = y - 1.0f + u(rng) * 1.5f;
+        d.vx = -dir_x * 16.0f + u(rng) * 10.0f;
+        d.vy = -dir_y * 10.0f - 5.0f + u(rng) * 3.0f;
+        d.life = d.max_life = 0.38f + 0.12f * u(rng);
+        d.size = 2.2f + 0.8f * u(rng);
+        dust.push_back(d);
+    }
+    if (dust.size() > 64) dust.erase(dust.begin(), dust.begin() + (dust.size() - 64));
+}
+
+void World::UpdateDust(float dt) {
+    for (Dust& d : dust) {
+        d.life -= dt;
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        d.vx *= std::max(0.0f, 1.0f - 3.0f * dt);
+        d.vy *= std::max(0.0f, 1.0f - 3.0f * dt);
+    }
+    dust.erase(std::remove_if(dust.begin(), dust.end(),
+                              [](const Dust& d) { return d.life <= 0.0f; }),
+               dust.end());
+}
+
 void World::UpdateImpacts(float dt) {
     for (Impact& im : impacts) {
         im.life -= dt;
@@ -1061,6 +1095,20 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             fill_disc(centre.x, centre.y, rx * 0.6f, ry * 0.6f,
                       {c.r, c.g, c.b, static_cast<Uint8>(120 * t)});
         }
+    }
+
+    // Sprint dust, on the ground under everything that stands on it. Square
+    // puffs, snapped to the art's pixel grid so they sit with the sprites.
+    for (const Dust& d : dust) {
+        const float t = std::clamp(d.life / d.max_life, 0.0f, 1.0f);
+        const float size = roundf(d.size * (1.6f - 0.6f * t)) * camera.zoom;
+        const SDL_FPoint p = camera.ToScreen(d.x, d.y);
+        const float px = roundf(p.x / camera.zoom) * camera.zoom - size / 2.0f;
+        const float py = roundf(p.y / camera.zoom) * camera.zoom - size / 2.0f;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, 214, 196, 160, static_cast<Uint8>(150 * t));
+        const SDL_FRect puff = {px, py, size, size};
+        SDL_RenderFillRect(r, &puff);
     }
 
     // Everything at ground level draws in baseline order, so the player walks

@@ -15,6 +15,7 @@ Input::Input() {
         {SDLK_X, Action::StrongAttack},
         {SDLK_E, Action::Interact},
         {SDLK_SPACE, Action::Jump},
+        {SDLK_LSHIFT, Action::Sprint}, {SDLK_RSHIFT, Action::Sprint},
 
         {SDLK_I, Action::Inventory},  {SDLK_TAB, Action::Inventory},
         {SDLK_Q, Action::QuestLog},
@@ -180,6 +181,15 @@ bool Input::HandleEvent(const SDL_Event& e) {
             const float v = e.gaxis.value / 32767.0f;
             if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) stick.x = v;
             if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY) stick.y = v;
+            // Sprint is held on the left trigger: every button is spoken for,
+            // and a trigger is what a thumb-on-stick player can hold while
+            // steering. Half-way down counts, with a little hysteresis so a
+            // trigger resting on the line does not flicker.
+            if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER) {
+                const bool held = state[Index(Action::Sprint)].padbtn;
+                if (!held && v > 0.5f) Set(Action::Sprint, true, true);
+                if (held && v < 0.35f) Set(Action::Sprint, false, true);
+            }
             if (mode == InputMode::Auto && fabsf(v) > 0.6f) active = InputMode::Controller;
             return true;
         }
@@ -255,6 +265,7 @@ string Input::PromptFor(Action a) const {
             case Action::Pause:        return "Start";
             case Action::CycleSpell:   return "RS";
             case Action::Jump:         return "LS";
+            case Action::Sprint:       return "LT";
             default:                   return "";
         }
     }
@@ -270,6 +281,7 @@ string Input::PromptFor(Action a) const {
         case Action::Pause:        return "Esc";
         case Action::CycleSpell:   return "R";
         case Action::Jump:         return "Space";
+        case Action::Sprint:       return "Shift";
         default:                   return "";
     }
 }

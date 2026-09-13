@@ -102,13 +102,25 @@ last touched. Options → Input Device pins it to one if you would rather.
 | Move | WASD / arrows | Left stick or d-pad |
 | Light attack | `Z` or left mouse | X (west) |
 | Strong / charged attack | `X` or right mouse | Y (north) |
-| Interact | `E` or space | A (south) |
+| Sprint (hold) | `Shift` | Left trigger |
+| Jump / climb | `Space` | Left stick click |
+| Interact | `E` | A (south) |
 | Inventory | `I` or tab | LB |
 | Skills | `K` | RB |
 | Quest journal | `Q` | Back |
 | Select element | `1` `2` `3` `4` | — |
 | Cycle element | `R` | Right stick click |
 | Pause / back | `Esc` | Start / B |
+
+### Sprinting
+
+Hold `Shift` (or the left trigger) while moving to sprint at 1.6 times running
+speed, for crossing the world rather than for fighting: it cannot start during
+a swing or a charge, and taking a hit knocks you out of it for most of a second.
+The camera leads a sprint by a few steps so you can see what you are running
+into, footfalls come further apart, and each one kicks up dust outdoors. The
+hero has a sprint animation of its own; the CraftPix characters, which do not,
+play their run faster instead.
 
 ### What the attack buttons do
 
@@ -364,6 +376,51 @@ prop:
 - **This does not beat hand-drawn art at these sizes.** Simple, chunky shapes
   — a signpost, a barrel, a strongbox — come out well. A bookshelf full of
   books does not. Use it for what the packs genuinely lack.
+
+### The player hero
+
+`tools/blender_character.py` builds the Hollow-born character, poses it and
+renders every clip -- idle, walk, run, sprint, attack, jump, hurt and death, in
+all four facings -- straight into the layered sheets the game reads:
+
+```powershell
+.\tools\make_character.ps1                    # every clip, then data/sprites.json
+.\tools\make_character.ps1 -Only walk,sprint  # a couple of clips
+```
+
+The first version was bevelled boxes and read as boxes -- a crate of a head on
+planks. The second is modelled the way a sprite is drawn rather than the way a
+3D model is built:
+
+- **Rounded forms.** Ellipsoids and tapered capsules only, so the silhouette
+  curves and limbs join without seams: spiky hair with bangs and side locks,
+  big eyes, a flared tunic with a belt and buckle, round-toed boots, and a red
+  scarf whose tail streams out behind at speed.
+- **Proportions matched to the CraftPix rigs**, so worn armour overlays authored
+  against them still land: the head sits in the same band of the frame.
+- **Cel shading.** Diffuse light through a three-step constant ramp, the shadow
+  band shifted cool, from one fixed sun at the upper left so every facing is lit
+  from the same side as the scenery.
+- **Majority reduction, not averaging.** The render is four times game size;
+  each game pixel takes the most common colour of the sixteen under it, so the
+  bands stay flat and a two-pixel eye stays two pixels. Averaging turned the
+  same render to mush.
+- **A selective outline**: one pixel round each layer in a darkened version of
+  the colour it borders, rather than flat black.
+- **Occlusion between layers.** Each layer renders with the always-drawn layers
+  in front of it as holdouts, so the scarf tail is cut away where the body hides
+  it, and the sword is cut where the body stands in front of it -- in all four
+  facings, from one weapon layer. Optional layers never cut others, or an empty
+  hand would leave a hole.
+
+The animation is poses written as functions of time rather than keyframes: a
+shared gait drives walk and run (knees bending most on the passing step, the
+body lowest at footfall, arms against legs, shoulders against hips), and the
+sprint exaggerates it until it reads as a different gear at twenty-five pixels
+-- a hard lean, the trailing leg driven out straight, the leading knee high,
+both feet off the ground between strides, fists pumping. Leaning toward or away
+from a camera above only slides the head down over the body, so the up and down
+rows keep a fraction of the lean that the side rows show in full. Idle blinks.
 
 ---
 
@@ -741,7 +798,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **3954 checks** covering:
+and checks all of it — currently **3992 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -795,6 +852,13 @@ and checks all of it — currently **3954 checks** covering:
   character rather than in empty frame, with helmets on the head and boots at
   the feet
 - inventory, equipment, skills and quest progress survive a save round-trip
+- the hero has every clip including sprint, each split into shadow, body and
+  head with its sheets on disk, and its head and feet sit where the CraftPix
+  rig's do so worn armour lines up
+- a sprint, run through the real world update with Shift held, covers about 1.6
+  times the ground of a run, plays the sprint clip, kicks up dust and leads the
+  camera; a rig without a sprint clip runs faster instead; an attack stops a
+  sprint, and a hit breaks it until the lockout passes
 - a bow and a shield cannot be worn together, the swap works both ways, and a
   full bag refuses a swap rather than losing an item -- including the case where
   the only room is the slot the new item leaves

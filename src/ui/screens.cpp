@@ -799,7 +799,8 @@ void Game::DrawHud() {
                           ? string("RS element    ")
                           : string("1-4 element    "));
 
-    const string hint = spell_hint + input.PromptFor(Action::Inventory) + " bag    " +
+    const string hint = spell_hint + input.PromptFor(Action::Sprint) + " sprint    " +
+                        input.PromptFor(Action::Inventory) + " bag    " +
                         input.PromptFor(Action::Skills) + " skills    " +
                         input.PromptFor(Action::QuestLog) + " quests    " +
                         input.PromptFor(Action::Pause) + " menu";

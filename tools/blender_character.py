@@ -1,56 +1,72 @@
 # =============================================================================
-#  blender_character.py - an original player character, rigged and rendered
-#  straight into the sheet layout the game already reads.
+#  blender_character.py - the original player character, modelled, animated
+#  and rendered straight into the sheet layout the game already reads.
 #
-#  Run headless:
+#  Run headless (tools/make_character.ps1 does this):
 #      blender --background --python tools/blender_character.py -- [clip ...]
+#          [--out DIR]
 #
-#  The output convention is the one every character in this project already
-#  uses: a square frame, four rows in the order down / left / right / up, one
-#  column per frame, and the whole thing split into layers -- shadow, the
-#  weapon behind the body, the body, the weapon in front, the head -- so worn
-#  equipment and armour tinting keep working.
+#  The output convention is the one every character in this project uses: a
+#  64px square frame, four rows in the order down / left / right / up, one
+#  column per frame, split into layers -- shadow, the weapon behind the body,
+#  the body, the weapon in front, the head -- so worn equipment and armour
+#  tinting keep working.
 #
-#  Two things make this fast enough to iterate on.
+#  The first version of this character was bevelled boxes, and at game size it
+#  read as boxes: a crate for a head, planks for limbs. This one is built the
+#  way a pixel artist would draw it rather than the way a modeller would --
 #
-#  First, there is no armature. The character is a tree of empties with meshes
-#  parented to them, and a pose is a dict of Euler angles applied to those
-#  empties. Rigging a humanoid through bpy is a great deal of code to write and
-#  debug for a figure that is twenty-five pixels tall; a joint hierarchy driven
-#  by numbers is the same thing without the ceremony, and it is far easier to
-#  read what a pose actually does.
+#    * Rounded forms. Every part is an ellipsoid or a tapered capsule, so the
+#      silhouette has curves, and the limbs join without seams.
+#    * Chibi proportions matched to the CraftPix characters it stands beside:
+#      a head about half the height, so a face survives at twenty-five pixels.
+#    * Cel shading. A diffuse term run through a three-step ramp gives flat
+#      bands of light, mid and shadow, the shadow hue-shifted cool, instead of
+#      smooth gradients that turn to mush when reduced.
+#    * Reduction by majority, not by averaging. Each game pixel takes the most
+#      common colour among the sixteen rendered pixels under it, so the bands
+#      stay crisp and a two-pixel eye stays two pixels.
+#    * A selective outline: one pixel around each layer in a darkened version
+#      of the colour it borders, which is how hand-drawn sprites separate a
+#      head from a body without a hard black line.
+#    * Occlusion between layers. A layer is rendered with the layers drawn
+#      before it standing in as holdouts, so a scarf tail behind the body is
+#      cut away in the head layer rather than being drawn over the chest.
 #
-#  Second, a whole sheet is one render. The camera is orthographic, so copies
-#  of the character offset along the camera's own right and up vectors land on
-#  an exact screen grid with no perspective error. One clip is therefore four
-#  renders -- one per layer -- rather than one per frame per facing per layer,
-#  which is the difference between a minute and half an hour.
+#  There is no armature. The character is a tree of empties with meshes
+#  parented to them, and a pose is a dict of angles applied to those empties --
+#  far easier to read than a rig for a figure twenty-five pixels tall. And a
+#  whole sheet is one render: the camera is orthographic, so copies of the
+#  character offset along its right and up vectors land on an exact grid.
 # =============================================================================
 
 import math
 import os
+import struct
 import sys
+import zlib
 
+import bmesh
 import bpy
-from mathutils import Vector, Euler
+import numpy as np
+from mathutils import Euler, Vector
 
 # --- output ------------------------------------------------------------------
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(ROOT, "assets", "_render", "character")
+RENDER_DIR = os.path.join(ROOT, "assets", "_render", "character")
+OUT_DIR = os.path.join(ROOT, "assets", "characters", "player_hero")
 
 FRAME_PX = 64          # one animation frame, in game pixels
 SUPERSAMPLE = 4        # rendered pixels per game pixel
-# Measured against the rigs this character stands beside rather than picked.
-# Their bodies read as seen from a little under fifty degrees; their faces are
-# drawn front-on regardless, which is a flat-art cheat. HEAD_PITCH below is how
-# that cheat is done in three dimensions.
+# Measured against the rigs this character stands beside. Their bodies read as
+# seen from a little under fifty degrees; their faces are drawn front-on, a
+# flat-art cheat that HEAD_PITCH reproduces by tipping the head back.
 CAMERA_ELEVATION = 46.0
-HEAD_PITCH = 19.0          # degrees the head leans back, to show its face
-
-# The frame is 64 wide but the character only occupies the middle of it, the
-# same way the CraftPix rigs do -- the spare room is what lets a swing reach
-# outside the body without being clipped.
-FRAME_SPAN = 3.5       # world units across one frame
+HEAD_PITCH = 24.0
+# The head is scaled as a whole. Chibi enough to carry a face, but not so much
+# that it hides the legs and arms that a run and a sprint are told apart by.
+HEAD_SCALE = 0.9
+FRAME_SPAN = 3.5       # world units across one frame (18.3 game px per unit)
 
 
 def to_linear(rgb):
@@ -59,459 +75,630 @@ def to_linear(rgb):
     return tuple(one(c) for c in rgb)
 
 
-# Deliberately light and low-contrast. The game multiplies the body layer by an
-# armour colour, and a base that is already dark leaves nothing for the tint to
-# do -- everything ends up black plate.
+# Light and low in contrast on the body, because the game multiplies the body
+# layer by the colour of whatever armour is worn -- a dark base leaves the tint
+# nothing to do.
 PALETTE = {
-    "skin":     (0.902, 0.729, 0.580),
-    "skin_dark":(0.796, 0.612, 0.478),
-    "hair":     (0.400, 0.239, 0.145),
-    "tunic":    (0.831, 0.784, 0.678),
-    "tunic_alt":(0.612, 0.667, 0.549),
-    "belt":     (0.353, 0.243, 0.169),
-    "trouser":  (0.451, 0.376, 0.298),
-    "boot":     (0.310, 0.216, 0.157),
-    "steel":    (0.678, 0.706, 0.749),
-    "grip":     (0.290, 0.196, 0.141),
-    "eye":      (0.157, 0.192, 0.290),
-    "shadow":   (0.05, 0.05, 0.07),
+    "skin":     (0.97, 0.80, 0.66),
+    "hair":     (0.58, 0.31, 0.17),
+    "tunic":    (0.88, 0.85, 0.76),
+    "trim":     (0.66, 0.74, 0.60),
+    "belt":     (0.44, 0.30, 0.20),
+    "gold":     (0.93, 0.74, 0.32),
+    "trouser":  (0.55, 0.46, 0.37),
+    "boot":     (0.40, 0.28, 0.20),
+    "scarf":    (0.84, 0.24, 0.21),
+    "steel":    (0.80, 0.84, 0.88),
+    "grip":     (0.38, 0.25, 0.17),
+    "eye":      (0.13, 0.11, 0.18),
+    "shadow":   (0.00, 0.00, 0.00),
 }
+
+# The ramp: how bright each band is relative to the base colour, where the
+# bands change over (in N.L, which the sun's strength keeps in 0..1), and the
+# cool tint mixed into the shadow band.
+BAND_SHADE, BAND_MID, BAND_LIGHT = 0.64, 0.86, 1.0
+STEP_MID, STEP_LIGHT = 0.12, 0.52
+SHADE_TINT = (0.36, 0.33, 0.52)
+
+
+def rad(d):
+    return math.radians(d)
 
 
 # --- scene plumbing ----------------------------------------------------------
 
 def clear_scene():
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.object.delete(use_global=False)
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob, do_unlink=True)
     for block in (bpy.data.meshes, bpy.data.materials, bpy.data.cameras,
-                  bpy.data.lights, bpy.data.objects):
+                  bpy.data.lights, bpy.data.images):
         for item in list(block):
             if item.users == 0:
-                try:
-                    block.remove(item)
-                except Exception:
-                    pass
+                block.remove(item)
 
 
-def material(colour, emit=0.0):
-    key = "m_%s_%.1f" % (colour, emit)
-    if key in bpy.data.materials:
-        return bpy.data.materials[key]
-    mat = bpy.data.materials.new(key)
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    rgb = to_linear(PALETTE[colour])
-    bsdf.inputs["Base Color"].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
-    bsdf.inputs["Roughness"].default_value = 0.85
-    if "Specular IOR Level" in bsdf.inputs:
-        bsdf.inputs["Specular IOR Level"].default_value = 0.15
-    if emit:
-        bsdf.inputs["Emission Color"].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
-        bsdf.inputs["Emission Strength"].default_value = emit
+def link(ob, parent=None):
+    bpy.context.scene.collection.objects.link(ob)
+    if parent is not None:
+        ob.parent = parent
+    return ob
+
+
+_materials = {}
+
+
+def material(colour):
+    """Cel shading: diffuse lighting quantised by a constant ramp into three
+    flat bands of the base colour, emitted so nothing else in the scene can
+    add a gradient on top."""
+    if colour in _materials:
+        return _materials[colour]
+    mat = bpy.data.materials.new("toon_" + colour)
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    out = nodes.new("ShaderNodeOutputMaterial")
+    emit = nodes.new("ShaderNodeEmission")
+    emit.inputs["Strength"].default_value = 1.0
+    links.new(emit.outputs["Emission"], out.inputs["Surface"])
+
+    base = PALETTE[colour]
+    if colour in ("eye", "shadow"):
+        rgb = to_linear(base)
+        emit.inputs["Color"].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
+    else:
+        diffuse = nodes.new("ShaderNodeBsdfDiffuse")
+        diffuse.inputs["Color"].default_value = (1, 1, 1, 1)
+        to_rgb = nodes.new("ShaderNodeShaderToRGB")
+        ramp = nodes.new("ShaderNodeValToRGB")
+        ramp.color_ramp.interpolation = "CONSTANT"
+        links.new(diffuse.outputs["BSDF"], to_rgb.inputs["Shader"])
+        links.new(to_rgb.outputs["Color"], ramp.inputs["Fac"])
+        links.new(ramp.outputs["Color"], emit.inputs["Color"])
+
+        def band(k, tint=None, amount=0.0):
+            c = [min(1.0, ch * k) for ch in base]
+            if tint:
+                c = [c[i] * (1 - amount) + tint[i] * k * amount for i in range(3)]
+            lin = to_linear(c)
+            return (lin[0], lin[1], lin[2], 1.0)
+
+        els = ramp.color_ramp.elements
+        els[0].position = 0.0
+        els[0].color = band(BAND_SHADE, SHADE_TINT, 0.22)
+        els[1].position = STEP_MID
+        els[1].color = band(BAND_MID, SHADE_TINT, 0.06)
+        light = els.new(STEP_LIGHT)
+        light.color = band(BAND_LIGHT)
+    _materials[colour] = mat
     return mat
 
 
-def cube(name, size, loc, colour, parent=None, rot=(0, 0, 0),
-         round_amount=0.02):
-    """A box with its edges taken off. round_amount is in world units, so a
-    generous value on the head turns a cube into something that reads as a
-    skull rather than as a crate -- which is most of the difference between
-    this looking like a character and looking like a stack of blocks."""
-    bpy.ops.mesh.primitive_cube_add(size=1)
-    ob = bpy.context.active_object
-    ob.name = name
-    ob.scale = (size[0], size[1], size[2])
+_meshes = {}
+
+
+def mesh_capsule(r_top, r_bot, length, squash_y=1.0, segments=18, rings=12):
+    """A capsule hanging down from its top cap's centre: the top hemisphere
+    has radius r_top at z=0, the bottom one radius r_bot at z=-length, and
+    the side tapers between them. squash_y flattens it front to back."""
+    key = ("cap", r_top, r_bot, length, squash_y)
+    if key in _meshes:
+        return _meshes[key]
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=rings, radius=1.0)
+    for v in bm.verts:
+        x, y, z = v.co
+        if z >= -1e-6:
+            v.co = Vector((x * r_top, y * r_top * squash_y, z * r_top))
+        else:
+            v.co = Vector((x * r_bot, y * r_bot * squash_y, z * r_bot - length))
+    me = bpy.data.meshes.new("capsule")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    _meshes[key] = me
+    return me
+
+
+def mesh_ellipsoid(rx, ry, rz):
+    key = ("ell", rx, ry, rz)
+    if key in _meshes:
+        return _meshes[key]
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=18, v_segments=12, radius=1.0)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * rx, v.co.y * ry, v.co.z * rz))
+    me = bpy.data.meshes.new("ellipsoid")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    _meshes[key] = me
+    return me
+
+
+def mesh_frustum(r_top, r_bot, depth, squash_y=1.0):
+    """An open-bottomed flared skirt: a cone with its top at z=0."""
+    key = ("fru", r_top, r_bot, depth, squash_y)
+    if key in _meshes:
+        return _meshes[key]
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=20, radius1=r_bot,
+                          radius2=r_top, depth=depth)
+    for v in bm.verts:
+        v.co = Vector((v.co.x, v.co.y * squash_y, v.co.z - depth / 2.0))
+    me = bpy.data.meshes.new("frustum")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    _meshes[key] = me
+    return me
+
+
+def mesh_torus(major, minor):
+    key = ("tor", major, minor)
+    if key in _meshes:
+        return _meshes[key]
+    bm = bmesh.new()
+    seg, ring = 20, 8
+    verts = []
+    for i in range(seg):
+        a = i / seg * math.tau
+        row = []
+        for j in range(ring):
+            b = j / ring * math.tau
+            r = major + minor * math.cos(b)
+            row.append(bm.verts.new((r * math.cos(a), r * math.sin(a), minor * math.sin(b))))
+        verts.append(row)
+    for i in range(seg):
+        for j in range(ring):
+            bm.faces.new((verts[i][j], verts[(i + 1) % seg][j],
+                          verts[(i + 1) % seg][(j + 1) % ring], verts[i][(j + 1) % ring]))
+    me = bpy.data.meshes.new("torus")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    _meshes[key] = me
+    return me
+
+
+def part(name, mesh, colour, parent, loc=(0, 0, 0), rot=(0, 0, 0)):
+    ob = bpy.data.objects.new(name, mesh)
+    ob.data.materials.clear() if False else None
+    ob.material_slots  # touch
+    link(ob, parent)
+    if not ob.data.materials:
+        ob.data.materials.append(material(colour))
+    # Meshes are shared between parts of different colours, so the material
+    # goes on the object rather than the mesh.
+    ob.material_slots[0].link = "OBJECT"
+    ob.material_slots[0].material = material(colour)
     ob.location = loc
     ob.rotation_euler = rot
-    ob.data.materials.append(material(colour))
-    m = ob.modifiers.new("bevel", "BEVEL")
-    m.width = round_amount
-    m.segments = 4 if round_amount > 0.05 else 2
-    m.limit_method = "ANGLE"
-    m.angle_limit = math.radians(40)
-    if parent:
-        ob.parent = parent
+    return ob
+
+
+def spike(name, root, tip, r_root, colour, parent, r_tip=0.012):
+    """A tapered lock of hair from root to tip."""
+    root, tip = Vector(root), Vector(tip)
+    d = tip - root
+    length = max(0.001, d.length - r_root * 0.2)
+    ob = part(name, mesh_capsule(r_root, r_tip, length), colour, parent, loc=root)
+    ob.rotation_mode = "QUATERNION"
+    ob.rotation_quaternion = Vector((0, 0, -1)).rotation_difference(d.normalized())
     return ob
 
 
 def empty(name, loc, parent=None):
     e = bpy.data.objects.new(name, None)
     e.location = loc
-    bpy.context.collection.objects.link(e)
-    if parent:
-        e.parent = parent
-    return e
+    return link(e, parent)
 
 
 # --- the character -----------------------------------------------------------
-# Chibi proportions, because that is what reads at this size: a head about a
-# third of the total height, short limbs, and a silhouette wide enough that
-# turning to face a different way actually changes the shape.
-#
-# The character is modelled facing -Y, which is toward the camera, so the
-# "down" row is no rotation at all and the other three fall out of quarter
-# turns. Getting this backwards renders the back of the head for every frame
-# of the down-facing row, which looks exactly like a character with no face.
+# Modelled facing -Y, toward the camera, so "down" is no rotation at all.
+# Units: 1.0 is about eighteen game pixels. Feet on z=0, crown of the hair at
+# about z=1.35, which lands the figure in the same box as the CraftPix rigs.
 
-# How far the arms hang out from the body at rest, in degrees about Y. Poses
-# add their own swing on top of this.
-ARM_FLARE = 11.0
-
-BODY_PARTS = "body"
-HEAD_PARTS = "head"
-WEAPON_PARTS = "weapon"
+BODY, HEAD, WEAPON = "body", "head", "weapon"
 
 
 def build_character():
-    """Returns (joints, groups). joints are the empties a pose rotates;
-    groups maps a layer name to the objects that belong in it."""
-    groups = {BODY_PARTS: [], HEAD_PARTS: [], WEAPON_PARTS: []}
+    """Returns (joints, groups, extras)."""
+    g = {BODY: [], HEAD: [], WEAPON: []}
 
     root = empty("root", (0, 0, 0))
-    hips = empty("hips", (0, 0, 0.34), root)
-    chest = empty("chest", (0, 0, 0.18), hips)
-    neck = empty("neck", (0, 0, 0.24), chest)
-    # The head leans back on its own pivot so its face is presented to the
-    # camera while the body stays at the angle the rest of the game is drawn
-    # at. Without this the only thing visible from above is the top of a hat.
+    move = empty("move", (0, 0, 0), root)          # bob, lean and lunge
+    hips = empty("hips", (0, 0, 0.41), move)
+    chest = empty("chest", (0, 0, 0.03), hips)
+    neck = empty("neck", (0, 0, 0.37), chest)
     head_tilt = empty("head_tilt", (0, 0, 0), neck)
     head_tilt.rotation_euler = Euler((rad(-HEAD_PITCH), 0, 0), "XYZ")
+    head_tilt.scale = (HEAD_SCALE, HEAD_SCALE, HEAD_SCALE)
+    hair = empty("hair", (0, 0.02, 0.30), head_tilt)
+    skirt = empty("skirt", (0, 0, 0.02), hips)
 
-    # Wide enough that an arm is its own shape in silhouette. At a torso
-    # half-width of 0.19 a shoulder at 0.24 leaves one pixel of arm showing,
-    # which is not an arm.
-    shoulder_l = empty("shoulder_l", (-0.27, 0, 0.14), chest)
-    shoulder_r = empty("shoulder_r", (0.27, 0, 0.14), chest)
-    hip_l = empty("hip_l", (-0.11, 0, -0.04), hips)
-    hip_r = empty("hip_r", (0.11, 0, -0.04), hips)
-
-    # A short, wide torso. Almost all of the character's height is head.
-    groups[BODY_PARTS] += [
-        cube("torso", (0.38, 0.27, 0.40), (0, 0, 0.06), "tunic", chest,
-             round_amount=0.05),
-        cube("collar", (0.34, 0.26, 0.08), (0, 0, 0.25), "tunic_alt", chest),
-        cube("belt", (0.40, 0.29, 0.08), (0, 0, -0.13), "belt", chest),
+    # --- torso: a soft tapered barrel, a flared tunic skirt, a belt ---------
+    g[BODY] += [
+        part("torso", mesh_capsule(0.155, 0.14, 0.13, squash_y=0.78), "tunic", chest,
+             loc=(0, 0, 0.20)),
+        part("tunic_skirt", mesh_frustum(0.15, 0.20, 0.15, squash_y=0.82), "tunic", skirt),
+        part("hem", mesh_torus(0.19, 0.018), "trim", skirt, loc=(0, 0, -0.14)),
+        part("belt", mesh_ellipsoid(0.165, 0.13, 0.032), "belt", chest, loc=(0, 0, 0.0)),
+        part("buckle", mesh_ellipsoid(0.034, 0.02, 0.028), "gold", chest,
+             loc=(0, -0.128, 0.0)),
+        part("collar", mesh_torus(0.10, 0.028), "trim", chest, loc=(0, 0, 0.33)),
     ]
 
-    # Arms are held a little away from the body so they exist in silhouette.
-    # Tucked in, they merge with the torso and the character loses its arms.
-    for side, sh, out in (("l", shoulder_l, 1.0), ("r", shoulder_r, -1.0)):
-        elbow = empty("elbow_" + side, (0, 0, -0.17), sh)
-        sh.rotation_euler = Euler((0, 0, 0), "XYZ")
-        groups[BODY_PARTS] += [
-            cube("upper_" + side, (0.13, 0.14, 0.20), (out * 0.02, 0, -0.09),
-                 "tunic", sh),
-            cube("fore_" + side, (0.12, 0.13, 0.18), (0, 0, -0.09), "skin", elbow),
+    # --- arms: hanging from the shoulders, sleeve, bare forearm, mitten -----
+    joints = {}
+    for side, x in (("r", -0.19), ("l", 0.19)):
+        sh = empty("shoulder_" + side, (x, 0, 0.27), chest)
+        el = empty("elbow_" + side, (0, 0, -0.125), sh)
+        ha = empty("hand_" + side, (0, 0, -0.11), el)
+        g[BODY] += [
+            part("sleeve_" + side, mesh_capsule(0.062, 0.056, 0.085), "trim", sh),
+            part("fore_" + side, mesh_capsule(0.05, 0.046, 0.07), "skin", el),
+            part("mitt_" + side, mesh_ellipsoid(0.058, 0.055, 0.06), "skin", ha,
+                 loc=(0, 0, -0.01)),
         ]
-        if side == "l":
-            elbow_l = elbow
-        else:
-            elbow_r = elbow
+        joints["shoulder_" + side] = sh
+        joints["elbow_" + side] = el
+        joints["hand_" + side] = ha
 
-    # Stubby legs. At this size a leg is three pixels of trouser and two of
-    # boot, so there is no point modelling a knee joint's worth of detail --
-    # but there is one, because a walk cycle needs the shin to trail.
-    for side, hp in (("l", hip_l), ("r", hip_r)):
-        knee = empty("knee_" + side, (0, 0, -0.16), hp)
-        groups[BODY_PARTS] += [
-            cube("thigh_" + side, (0.15, 0.16, 0.18), (0, 0, -0.08), "trouser", hp),
-            cube("shin_" + side, (0.14, 0.15, 0.14), (0, 0, -0.07), "trouser", knee),
-            cube("boot_" + side, (0.17, 0.21, 0.10), (0, 0.02, -0.17), "boot", knee),
+    # --- legs: trouser, boot shaft, a round-toed boot ------------------------
+    for side, x in (("r", -0.075), ("l", 0.075)):
+        hp = empty("hip_" + side, (x, 0, -0.05), hips)
+        kn = empty("knee_" + side, (0, 0, -0.145), hp)
+        g[BODY] += [
+            part("thigh_" + side, mesh_capsule(0.068, 0.06, 0.09), "trouser", hp),
+            part("shaft_" + side, mesh_capsule(0.064, 0.062, 0.07), "boot", kn,
+                 loc=(0, 0, -0.035)),
+            part("boot_" + side, mesh_ellipsoid(0.07, 0.105, 0.058), "boot", kn,
+                 loc=(0, -0.035, -0.15)),
         ]
-        if side == "l":
-            knee_l = knee
-        else:
-            knee_r = knee
+        joints["hip_" + side] = hp
+        joints["knee_" + side] = kn
 
-    # The head, which is half the character. Built on the tilted pivot, so
-    # everything here is in face-forward space: -Y is the face.
-    groups[HEAD_PARTS] += [
-        cube("head", (0.44, 0.42, 0.42), (0, 0, 0.24), "skin", head_tilt,
-             round_amount=0.13),
-        # Hair as a shell over the back and top with two tufts down the sides
-        # of the face, which is how the hand-drawn characters frame theirs. A
-        # plain cap on top is invisible from anywhere but directly overhead.
-        cube("hair_cap", (0.47, 0.45, 0.20), (0, 0.02, 0.38), "hair", head_tilt,
-             round_amount=0.09),
-        cube("hair_back", (0.42, 0.13, 0.26), (0, 0.16, 0.26), "hair", head_tilt,
-             round_amount=0.06),
-        # Short tufts at the temples only. Run them down past the jaw and the
-        # head becomes one brown mass in profile with no face left in it.
-        cube("tuft_l", (0.07, 0.15, 0.16), (-0.19, -0.04, 0.27), "hair",
-             head_tilt, round_amount=0.04),
-        cube("tuft_r", (0.07, 0.15, 0.16), (0.19, -0.04, 0.27), "hair",
-             head_tilt, round_amount=0.04),
-        # Two dark blocks. At twenty-five pixels tall these are the whole face,
-        # so they are deliberately large and set well apart.
-        cube("eye_l", (0.09, 0.05, 0.11), (-0.10, -0.21, 0.23), "eye", head_tilt),
-        cube("eye_r", (0.09, 0.05, 0.11), (0.10, -0.21, 0.23), "eye", head_tilt),
+    # --- the head ------------------------------------------------------------
+    # Built on the tilted pivot, so -Y is the face here.
+    head_c = 0.24
+    eyes = [
+        part("eye_r", mesh_ellipsoid(0.052, 0.03, 0.098), "eye", head_tilt,
+             loc=(-0.115, -0.232, head_c - 0.035)),
+        part("eye_l", mesh_ellipsoid(0.052, 0.03, 0.098), "eye", head_tilt,
+             loc=(0.115, -0.232, head_c - 0.035)),
+    ]
+    g[HEAD] += [
+        part("skull", mesh_capsule(0.29, 0.25, 0.03), "skin", head_tilt,
+             loc=(0, 0, head_c + 0.015)),
+        part("ear_r", mesh_ellipsoid(0.04, 0.03, 0.055), "skin", head_tilt,
+             loc=(-0.285, 0.0, head_c - 0.02)),
+        part("ear_l", mesh_ellipsoid(0.04, 0.03, 0.055), "skin", head_tilt,
+             loc=(0.285, 0.0, head_c - 0.02)),
+    ] + eyes
+
+    # Hair: a cap set back so the face shows, then locks. The bangs fall over
+    # the forehead, two long side locks frame the face, the back is a fan of
+    # points, and a single cowlick sticks up so the silhouette is not a dome.
+    g[HEAD] += [
+        part("hair_cap", mesh_ellipsoid(0.318, 0.30, 0.27), "hair", hair,
+             loc=(0, 0.035, 0.05)),
+        spike("bang_1", (-0.16, -0.17, 0.16), (-0.21, -0.30, 0.03), 0.08, "hair", hair),
+        spike("bang_2", (-0.04, -0.21, 0.19), (-0.07, -0.33, 0.05), 0.085, "hair", hair),
+        spike("bang_3", (0.08, -0.20, 0.18), (0.12, -0.32, 0.05), 0.08, "hair", hair),
+        spike("bang_4", (0.19, -0.15, 0.14), (0.24, -0.27, 0.02), 0.07, "hair", hair),
+        spike("lock_r", (-0.25, -0.07, 0.08), (-0.30, -0.14, -0.20), 0.065, "hair", hair),
+        spike("lock_l", (0.25, -0.07, 0.08), (0.30, -0.14, -0.20), 0.065, "hair", hair),
+        spike("back_1", (-0.13, 0.18, 0.08), (-0.18, 0.29, -0.12), 0.085, "hair", hair),
+        spike("back_2", (0.0, 0.21, 0.10), (0.0, 0.32, -0.10), 0.09, "hair", hair),
+        spike("back_3", (0.13, 0.18, 0.08), (0.18, 0.29, -0.12), 0.085, "hair", hair),
+        spike("cowlick", (0.02, 0.02, 0.26), (0.10, 0.12, 0.44), 0.065, "hair", hair),
     ]
 
-    # The sword, held in the right hand.
-    hand_r = empty("hand_r", (0, 0, -0.18), elbow_r)
-    groups[WEAPON_PARTS] += [
-        cube("grip", (0.06, 0.06, 0.13), (0, 0, -0.05), "grip", hand_r),
-        cube("guard", (0.19, 0.08, 0.05), (0, 0, -0.12), "steel", hand_r),
-        cube("blade", (0.09, 0.05, 0.52), (0, 0, -0.40), "steel", hand_r),
+    # The scarf: a wrap at the throat and a two-piece tail down the back,
+    # which trails further the faster the character goes.
+    scarf1 = empty("scarf1", (0.05, 0.12, 0.25), chest)
+    scarf2 = empty("scarf2", (0, 0, -0.125), scarf1)
+    scarf3 = empty("scarf3", (0, 0, -0.12), scarf2)
+    # The wrap belongs to the body layer: drawn in the head layer it sat over
+    # the lower half of the face and read as a red mouth.
+    g[BODY].append(part("scarf_wrap", mesh_torus(0.125, 0.03), "scarf", chest, loc=(0, 0, 0.25)))
+    g[HEAD] += [
+        part("scarf_tail1", mesh_capsule(0.046, 0.042, 0.10, squash_y=0.6), "scarf", scarf1),
+        part("scarf_tail2", mesh_capsule(0.042, 0.038, 0.10, squash_y=0.6), "scarf", scarf2),
+        part("scarf_tail3", mesh_capsule(0.038, 0.024, 0.10, squash_y=0.6), "scarf", scarf3),
     ]
 
-    joints = {
-        "root": root, "hips": hips, "chest": chest, "neck": neck,
-        "shoulder_l": shoulder_l, "shoulder_r": shoulder_r,
-        "elbow_l": elbow_l, "elbow_r": elbow_r,
-        "hip_l": hip_l, "hip_r": hip_r,
-        "knee_l": knee_l, "knee_r": knee_r,
-        "hand_r": hand_r,
-    }
-    return joints, groups
+    # --- the sword, in the right hand: screen left when facing down, where the
+    # CraftPix rigs carry theirs --------------------------------------------
+    grip = empty("grip", (0, -0.01, -0.02), joints["hand_r"])
+    grip.rotation_euler = Euler((rad(10), rad(18), 0), "XYZ")
+    g[WEAPON] += [
+        part("pommel", mesh_ellipsoid(0.028, 0.028, 0.028), "gold", grip, loc=(0, 0, 0.09)),
+        part("hilt", mesh_capsule(0.02, 0.02, 0.1), "grip", grip, loc=(0, 0, 0.06)),
+        part("guard", mesh_ellipsoid(0.085, 0.03, 0.026), "gold", grip, loc=(0, 0, -0.05)),
+        part("blade", mesh_capsule(0.036, 0.012, 0.40, squash_y=0.35), "steel", grip,
+             loc=(0, 0, -0.07)),
+    ]
+
+    joints.update({
+        "root": root, "move": move, "hips": hips, "chest": chest, "neck": neck,
+        "hair": hair, "skirt": skirt, "scarf1": scarf1, "scarf2": scarf2, "scarf3": scarf3,
+        "grip": grip,
+    })
+    return joints, g, {"eyes": eyes}
 
 
 def build_shadow():
-    """A flat disc under the feet. It is its own layer because the game keeps
-    the shadow out of every tint -- a character glowing as they charge an
-    attack should not have a glowing shadow."""
-    bpy.ops.mesh.primitive_cylinder_add(radius=0.30, depth=0.02,
-                                        location=(0, 0, 0.01), vertices=24)
-    ob = bpy.context.active_object
-    ob.name = "shadow"
-    ob.scale = (1.0, 0.62, 1.0)
-    mat = bpy.data.materials.new("m_shadow_flat")
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    rgb = to_linear(PALETTE["shadow"])
-    bsdf.inputs["Base Color"].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
-    bsdf.inputs["Roughness"].default_value = 1.0
-    # Emissive, so it is the same flat grey whatever the lights are doing.
-    bsdf.inputs["Emission Color"].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
-    bsdf.inputs["Emission Strength"].default_value = 1.0
-    ob.data.materials.append(mat)
+    ob = part("shadow", mesh_ellipsoid(0.27, 0.19, 0.004), "shadow", None, loc=(0, 0, 0.004))
     return ob
 
 
 # --- poses -------------------------------------------------------------------
-# A pose is degrees per joint per axis. Only what moves is listed; anything
-# absent stays at rest. `t` runs 0..1 across the clip and wraps for loops, so a
-# cycle is written as a sine rather than as a list of keyframes.
-
-def rad(d):
-    return math.radians(d)
-
+# Angles are in friendly terms and converted in apply_pose:
+#   leg_*      forward swing of the thigh, degrees (+ is toward the facing)
+#   knee_*     flex, degrees (+ folds the foot back)
+#   arm_*      forward swing of the upper arm
+#   flare_*    how far the arm is held out from the side
+#   elbow_*    flex (+ folds the forearm forward)
+#   lean       chest pitch forward; hips_lean likewise for the pelvis
+#   twist      chest yaw, degrees; hips_twist likewise
+#   nod        neck pitch (+ looks down)
+#   bob        root height, units; lunge moves forward; tip pitches everything
+#   scarf, scarf2  how far back the scarf tail streams
+#   hair       how far the hair sways back
+#   skirt      tunic skirt swing
+#   blink      eyes closed 0..1
+#   sword      extra pitch of the grip, degrees
+# `t` runs 0..1 across the clip and wraps for loops, so a cycle is a sine.
 
 def pose_idle(t):
-    breathe = math.sin(t * math.tau)
+    b = math.sin(t * math.tau)
     return {
-        "chest": (rad(2 + breathe * 1.5), 0, 0),
-        "shoulder_l": (rad(6 + breathe * 3), 0, rad(ARM_FLARE)),
-        "shoulder_r": (rad(6 - breathe * 3), 0, rad(-ARM_FLARE)),
-        "elbow_l": (rad(-14), 0, 0),
-        "elbow_r": (rad(-18), 0, 0),
-        "neck": (rad(-1 - breathe * 1.2), 0, 0),
-        "hips": (0, 0, 0),
-        "root_z": 0.006 * breathe,
+        "lean": 2 + b * 1.5, "nod": -1 - b * 1.2, "bob": 0.006 * b,
+        "arm_l": 4 + b * 2, "arm_r": 6 - b * 2, "flare_l": 10, "flare_r": 10,
+        "elbow_l": 16, "elbow_r": 22,
+        "leg_l": -2, "leg_r": 3, "knee_l": 4, "knee_r": 3,
+        "scarf": 14 + b * 4, "scarf2": 8 + b * 5, "hair": b * 1.5,
+        # One blink per loop: a shut frame and a half-shut one either side.
+        "blink": 1.0 if 0.70 <= t < 0.80 else (0.5 if 0.80 <= t < 0.90 else 0.0),
+    }
+
+
+def gait(t, stride, knee_swing, knee_base, arm, elbow, lean, bob, bounce_floor=0.0):
+    """A cycle both legs share half a turn apart. The knee bends most while
+    the leg swings through, the body is lowest at footfall and highest as the
+    legs pass, and the arms swing against the legs."""
+    p = t * math.tau
+    s, c = math.sin(p), math.cos(p)
+    return {
+        "leg_l": stride * s, "leg_r": -stride * s,
+        "knee_l": knee_base + knee_swing * max(0.0, c) ** 1.2,
+        "knee_r": knee_base + knee_swing * max(0.0, -c) ** 1.2,
+        "arm_l": -arm * s, "arm_r": arm * s,
+        "elbow_l": elbow + 10 * max(0.0, -s), "elbow_r": elbow + 10 * max(0.0, s),
+        "flare_l": 8, "flare_r": 8,
+        "lean": lean, "twist": -7 * s, "hips_twist": 6 * s,
+        "bob": bob * math.cos(2 * p) + bounce_floor,
+        "skirt": 5 * math.sin(2 * p),
+        "hair": 2 + 2 * math.cos(2 * p),
     }
 
 
 def pose_walk(t):
-    # Exaggerated well past anatomy. A thigh is four pixels long here, so a
-    # realistic twenty-degree stride moves a foot by less than one pixel and
-    # the character appears to slide along the ground rather than walk.
-    s = math.sin(t * math.tau)
-    c = math.cos(t * math.tau)
-    return {
-        "hip_l": (rad(42 * s), 0, 0),
-        "hip_r": (rad(-42 * s), 0, 0),
-        "knee_l": (rad(-38 * max(0.0, -s)), 0, 0),
-        "knee_r": (rad(-38 * max(0.0, s)), 0, 0),
-        "shoulder_l": (rad(-34 * s), 0, rad(ARM_FLARE)),
-        "shoulder_r": (rad(34 * s), 0, rad(-ARM_FLARE)),
-        "elbow_l": (rad(-20), 0, 0),
-        "elbow_r": (rad(-24), 0, 0),
-        "chest": (rad(3), 0, rad(-4 * s)),
-        "neck": (rad(-3), 0, 0),
-        "root_z": 0.038 * abs(c) - 0.019,
-    }
+    v = gait(t, stride=30, knee_swing=40, knee_base=6, arm=26, elbow=18, lean=4, bob=0.016)
+    p = t * math.tau
+    v.update({"nod": -2, "scarf": 22 + 4 * math.sin(2 * p - 1), "scarf2": 14 + 6 * math.sin(2 * p - 2)})
+    return v
 
 
 def pose_run(t):
-    s = math.sin(t * math.tau)
-    c = math.cos(t * math.tau)
-    return {
-        "hip_l": (rad(46 * s), 0, 0),
-        "hip_r": (rad(-46 * s), 0, 0),
-        "knee_l": (rad(-52 * max(0.0, -s) - 10), 0, 0),
-        "knee_r": (rad(-52 * max(0.0, s) - 10), 0, 0),
-        "shoulder_l": (rad(-52 * s), 0, rad(ARM_FLARE + 4)),
-        "shoulder_r": (rad(52 * s), 0, rad(-ARM_FLARE - 4)),
-        "elbow_l": (rad(-58), 0, 0),
-        "elbow_r": (rad(-54), 0, 0),
-        # Leaning into the run is most of what separates it from a walk at
-        # this size; the legs alone are only a few pixels of difference.
-        "chest": (rad(12), 0, rad(-5 * s)),
-        "neck": (rad(-9), 0, 0),
-        "root_z": 0.055 * abs(c) - 0.02,
+    v = gait(t, stride=44, knee_swing=70, knee_base=14, arm=40, elbow=70, lean=12,
+             bob=0.03, bounce_floor=0.012)
+    p = t * math.tau
+    v.update({"hips_lean": 4, "nod": -8, "scarf": 50 + 6 * math.sin(2 * p - 1),
+              "scarf2": 30 + 10 * math.sin(2 * p - 2), "hair": 6 + 3 * math.cos(2 * p)})
+    return v
+
+
+def pose_sprint(t):
+    # Built for crossing the world, and exaggerated so it reads as a different
+    # gear from the run at twenty-five pixels: a hard lean, the trailing leg
+    # driven out straight behind, the leading knee high, both feet off the
+    # ground between strides, fists pumping with the elbows locked at a right
+    # angle, and the scarf streaming out flat behind.
+    p = t * math.tau
+    s, c = math.sin(p), math.cos(p)
+    v = {
+        "leg_l": 58 * s + 10, "leg_r": -58 * s + 10,
+        # Trailing leg straight, swinging leg folded right up under the body.
+        "knee_l": 10 + 105 * max(0.0, c) ** 1.1,
+        "knee_r": 10 + 105 * max(0.0, -c) ** 1.1,
+        "arm_l": -62 * s, "arm_r": 62 * s,
+        "elbow_l": 92, "elbow_r": 92, "flare_l": 12, "flare_r": 12,
+        "lean": 30, "hips_lean": 12, "nod": -4, "lunge": 0.06,
+        "twist": -10 * s, "hips_twist": 8 * s,
+        # Two flights a cycle, so the body rises twice.
+        "bob": 0.05 * math.cos(2 * p) + 0.04,
+        # Streaming out behind and lifting a little, snapping at the tip.
+        "scarf": 96 + 5 * math.sin(4 * p), "scarf2": 6 + 12 * math.sin(4 * p + 1),
+        "hair": 14 + 4 * math.cos(2 * p),
+        "skirt": -18 + 6 * math.sin(2 * p),
     }
+    return v
 
 
 def pose_attack(t):
-    # Wind up over the first third, swing through the middle, recover. Held a
-    # beat at full extension so the frame that lands is the one you see.
-    if t < 0.34:
-        k = t / 0.34
-        swing = -50 * k
-        twist = -22 * k
-        lean = -8 * k
-    elif t < 0.62:
-        k = (t - 0.34) / 0.28
-        swing = -50 + 132 * k
-        twist = -22 + 52 * k
-        lean = -8 + 22 * k
+    # Anticipation, a fast swing with the body turning into it and a step
+    # forward, a held beat at full extension, and a settle.
+    def ease(k):
+        return k * k * (3 - 2 * k)
+    if t < 0.30:
+        k = ease(t / 0.30)
+        arm, elbow, twist, lean, step, sword = 150 * k, 60 * k, 28 * k, -6 * k, 0.0, 0.0
+    elif t < 0.55:
+        k = ease((t - 0.30) / 0.25)
+        arm = 150 - 175 * k
+        elbow = 60 - 50 * k
+        twist = 28 - 62 * k
+        lean = -6 + 20 * k
+        step = 0.08 * k
+        sword = 20 * k
     else:
-        k = (t - 0.62) / 0.38
-        swing = 82 - 62 * k
-        twist = 30 - 24 * k
-        lean = 14 - 12 * k
+        k = ease((t - 0.55) / 0.45)
+        arm = -25 + 30 * k
+        elbow = 10 + 12 * k
+        twist = -34 + 30 * k
+        lean = 14 - 11 * k
+        step = 0.08 - 0.06 * k
+        sword = 20 - 20 * k
     return {
-        "shoulder_r": (rad(swing), 0, rad(-10)),
-        "elbow_r": (rad(-30 + swing * 0.25), 0, 0),
-        "shoulder_l": (rad(18 - swing * 0.3), 0, rad(ARM_FLARE + 6)),
-        "elbow_l": (rad(-40), 0, 0),
-        "chest": (rad(lean), 0, rad(twist)),
-        "neck": (rad(-lean * 0.5), 0, 0),
-        "hip_l": (rad(-8), 0, 0),
-        "hip_r": (rad(10), 0, 0),
-        "knee_l": (rad(-12), 0, 0),
-        "knee_r": (rad(-6), 0, 0),
+        "arm_r": arm, "elbow_r": elbow, "flare_r": 18,
+        "arm_l": -18 + twist * 0.3, "elbow_l": 40, "flare_l": 14,
+        "twist": twist, "lean": lean, "nod": -lean * 0.4,
+        "leg_l": 16 * (step / 0.08), "leg_r": -12 * (step / 0.08),
+        "knee_l": 14, "knee_r": 10, "lunge": step, "sword": sword,
+        "scarf": 20 + 30 * (step / 0.08), "scarf2": 20, "hair": 4,
     }
 
 
 def pose_jump(t):
-    # Crouch, launch, tuck, reach, land. The height curve is what sells it,
-    # so the root lifts a long way and the legs fold under at the top.
     if t < 0.2:
         k = t / 0.2
-        lift = -0.06 * k
-        tuck = 30 * k
-        arms = -20 * k
+        lift, tuck, arms = -0.06 * k, 30 * k, 20 * k
     elif t < 0.75:
         k = (t - 0.2) / 0.55
-        lift = -0.06 + 0.62 * math.sin(k * math.pi) + 0.06 * k
-        tuck = 30 - 20 * math.sin(k * math.pi)
-        arms = -20 - 90 * math.sin(k * math.pi)
+        arc = math.sin(k * math.pi)
+        lift = -0.06 + 0.60 * arc + 0.06 * k
+        tuck = 30 + 40 * arc
+        arms = 20 + 110 * arc
     else:
         k = (t - 0.75) / 0.25
         lift = 0.02 * (1.0 - k)
-        tuck = 10 + 26 * math.sin(k * math.pi)
-        arms = -110 * (1.0 - k) - 10
+        tuck = 20 + 26 * math.sin(k * math.pi)
+        arms = 60 * (1.0 - k)
     return {
-        "hip_l": (rad(tuck), 0, 0),
-        "hip_r": (rad(tuck * 0.7), 0, 0),
-        "knee_l": (rad(-tuck * 1.6), 0, 0),
-        "knee_r": (rad(-tuck * 1.3), 0, 0),
-        "shoulder_l": (rad(arms), 0, rad(ARM_FLARE + 6)),
-        "shoulder_r": (rad(arms * 0.9), 0, rad(-ARM_FLARE - 6)),
-        "elbow_l": (rad(-24), 0, 0),
-        "elbow_r": (rad(-28), 0, 0),
-        "chest": (rad(6 - tuck * 0.2), 0, 0),
-        "neck": (rad(-4), 0, 0),
-        "root_z": lift,
+        "leg_l": tuck * 0.8, "leg_r": tuck * 0.3, "knee_l": tuck * 1.5, "knee_r": tuck * 1.2,
+        "arm_l": arms, "arm_r": arms * 0.85, "flare_l": 20, "flare_r": 20,
+        "elbow_l": 30, "elbow_r": 34, "lean": 6, "nod": -4, "bob": lift,
+        "scarf": 20 + 60 * max(0.0, lift), "scarf2": 30, "hair": -10 * max(0.0, lift),
+        "skirt": -20 * max(0.0, lift),
     }
 
 
 def pose_hurt(t):
     k = math.sin(min(1.0, t * 1.4) * math.pi)
     return {
-        "chest": (rad(-22 * k), 0, rad(10 * k)),
-        "neck": (rad(16 * k), 0, 0),
-        "shoulder_l": (rad(-30 * k), 0, rad(ARM_FLARE + 14 * k)),
-        "shoulder_r": (rad(-26 * k), 0, rad(-ARM_FLARE - 10 * k)),
-        "elbow_l": (rad(-40), 0, 0),
-        "elbow_r": (rad(-44), 0, 0),
-        "hip_l": (rad(-10 * k), 0, 0),
-        "hip_r": (rad(8 * k), 0, 0),
-        "root_z": -0.04 * k,
+        "lean": -22 * k, "twist": 12 * k, "nod": 14 * k,
+        "arm_l": 30 * k, "arm_r": 26 * k, "flare_l": 10 + 22 * k, "flare_r": 10 + 18 * k,
+        "elbow_l": 40, "elbow_r": 44, "leg_l": 10 * k, "leg_r": -8 * k,
+        "knee_l": 10, "knee_r": 8, "bob": -0.04 * k, "lunge": -0.05 * k,
+        "blink": 1.0 if k > 0.6 else 0.0, "scarf": 40 * k, "scarf2": 20, "hair": 10 * k,
     }
 
 
 def pose_death(t):
-    # Falls backwards and stays down. The last frame is what sits on screen
-    # while the corpse fades, so it has to read as a body, not as a pose.
     k = min(1.0, t * 1.15)
-    e = k * k * (3 - 2 * k)      # smoothstep
+    e = k * k * (3 - 2 * k)
     return {
-        "root_pitch": rad(-84 * e),
-        "root_z": -0.02 * e,
-        "chest": (rad(14 * e), 0, 0),
-        "neck": (rad(-20 * e), 0, 0),
-        "shoulder_l": (rad(-60 * e), 0, rad(ARM_FLARE + 20 * e)),
-        "shoulder_r": (rad(-50 * e), 0, rad(-ARM_FLARE - 16 * e)),
-        "elbow_l": (rad(-20), 0, 0),
-        "elbow_r": (rad(-24), 0, 0),
-        "hip_l": (rad(18 * e), 0, 0),
-        "hip_r": (rad(26 * e), 0, 0),
-        "knee_l": (rad(-30 * e), 0, 0),
-        "knee_r": (rad(-16 * e), 0, 0),
+        # Falls forward, and slides back as it goes so the body lies across
+        # the frame rather than off its bottom edge.
+        "tip": -84 * e, "bob": -0.02 * e, "lunge": -0.5 * e,
+        "lean": 14 * e, "nod": -20 * e,
+        "arm_l": 60 * e, "arm_r": 50 * e, "flare_l": 12 + 30 * e, "flare_r": 12 + 24 * e,
+        "elbow_l": 20, "elbow_r": 24,
+        "leg_l": -18 * e, "leg_r": -26 * e, "knee_l": 30 * e, "knee_r": 16 * e,
+        "blink": 1.0 if e > 0.5 else 0.0, "scarf": 10, "scarf2": 10,
     }
 
 
 # clip -> (pose function, frame count, loops)
 CLIPS = {
-    "idle":   (pose_idle,   6,  True),
-    "walk":   (pose_walk,   6,  True),
+    "idle":   (pose_idle,   8,  True),
+    "walk":   (pose_walk,   8,  True),
     "run":    (pose_run,    8,  True),
+    "sprint": (pose_sprint, 8,  True),
     "attack": (pose_attack, 6,  False),
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
     "death":  (pose_death,  6,  False),
 }
 
-# Rows, in the order every sheet in this project uses. The value is how far the
-# character turns from its modelled facing (+Y, away from the camera).
-# A positive turn about Z takes the face direction -Y toward +X, which is
-# screen right; so right is a quarter turn and left is three.
+# Rows in the order every sheet in this project uses, and how far the
+# character turns from its modelled facing toward the camera.
 FACINGS = [("down", 0.0), ("left", 270.0), ("right", 90.0), ("up", 180.0)]
 
 
-def apply_pose(joints, values):
-    # head_tilt is deliberately not in `joints`, so resetting rotations here
-    # never disturbs the fixed lean that shows the character's face.
+def apply_pose(joints, extras, v):
     for name, joint in joints.items():
+        if name == "grip":
+            continue
         joint.rotation_euler = Euler((0, 0, 0), "XYZ")
-    joints["root"].location = Vector((0, 0, 0))
+    joints["move"].location = Vector((0, 0, 0))
 
-    for key, val in values.items():
-        if key == "root_z":
-            joints["root"].location.z += val
-        elif key == "root_pitch":
-            joints["root"].rotation_euler.x = val
-        elif key in joints:
-            joints[key].rotation_euler = Euler(val, "XYZ")
+    get = lambda k: v.get(k, 0.0)
+    # Legs and arms swing about X; positive X rotation carries a limb that
+    # hangs down toward +Y, which is behind the character, hence the signs.
+    for side in ("l", "r"):
+        out = 1.0 if side == "l" else -1.0
+        joints["hip_" + side].rotation_euler = Euler(
+            (rad(-get("leg_" + side) + get("hips_lean")), 0, 0), "XYZ")
+        joints["knee_" + side].rotation_euler = Euler((rad(get("knee_" + side)), 0, 0), "XYZ")
+        joints["shoulder_" + side].rotation_euler = Euler(
+            (rad(-get("arm_" + side)), rad(-out * get("flare_" + side)), 0), "XYZ")
+        joints["elbow_" + side].rotation_euler = Euler((rad(-get("elbow_" + side)), 0, 0), "XYZ")
+
+    joints["hips"].rotation_euler = Euler((rad(get("hips_lean")), 0, rad(get("hips_twist"))), "XYZ")
+    joints["chest"].rotation_euler = Euler((rad(get("lean")), 0, rad(get("twist"))), "XYZ")
+    joints["neck"].rotation_euler = Euler((rad(get("nod") - get("lean") * 0.35), 0,
+                                           rad(-get("twist") * 0.4)), "XYZ")
+    joints["hair"].rotation_euler = Euler((rad(get("hair")), 0, 0), "XYZ")
+    joints["skirt"].rotation_euler = Euler((rad(get("skirt")), 0, 0), "XYZ")
+    joints["scarf1"].rotation_euler = Euler((rad(get("scarf")), 0, rad(8)), "XYZ")
+    joints["scarf2"].rotation_euler = Euler((rad(get("scarf2")), 0, 0), "XYZ")
+    # The tip lags the middle by the same again, so it whips.
+    joints["scarf3"].rotation_euler = Euler((rad(get("scarf2") * 1.2), 0, 0), "XYZ")
+    # At rest the blade hangs down and a little out, the way the CraftPix rigs
+    # carry theirs; an attack pitches it up into line with the swing.
+    # The elbow's bend is undone at the wrist, or a relaxed arm points the
+    # blade straight ahead -- invisible facing down, a lance facing sideways.
+    joints["grip"].rotation_euler = Euler((rad(get("elbow_r") * 0.8 - 8 - get("sword")), rad(18), 0), "XYZ")
+
+    joints["move"].location = Vector((0, -get("lunge"), get("bob")))
+    joints["move"].rotation_euler = Euler((rad(-get("tip")), 0, 0), "XYZ")
+
+    shut = get("blink")
+    for eye in extras["eyes"]:
+        eye.scale = (1.0, 1.0, max(0.12, 1.0 - shut))
 
 
 # --- rendering ---------------------------------------------------------------
 
 def setup_world():
+    scene = bpy.context.scene
     world = bpy.data.worlds[0] if bpy.data.worlds else bpy.data.worlds.new("w")
-    bpy.context.scene.world = world
-    bg = world.node_tree.nodes["Background"]
-    bg.inputs["Color"].default_value = (0.38, 0.40, 0.46, 1.0)
-    bg.inputs["Strength"].default_value = 1.15
+    scene.world = world
+    world.use_nodes = True
+    bg = world.node_tree.nodes.get("Background")
+    if bg:
+        bg.inputs["Strength"].default_value = 0.0
 
-    key = bpy.data.lights.new("key", "SUN")
-    key.energy = 3.0
-    key.color = (1.0, 0.95, 0.88)
-    ob = bpy.data.objects.new("key", key)
-    bpy.context.collection.objects.link(ob)
-    ob.rotation_euler = (math.radians(52), 0, math.radians(-40))
-
-    fill = bpy.data.lights.new("fill", "SUN")
-    fill.energy = 1.0
-    fill.color = (0.76, 0.84, 1.0)
-    ob2 = bpy.data.objects.new("fill", fill)
-    bpy.context.collection.objects.link(ob2)
-    ob2.rotation_euler = (math.radians(64), 0, math.radians(140))
+    # One sun, from the upper left and a little in front, fixed in the world
+    # so every facing is lit from the same screen side the scenery is.
+    sun = bpy.data.lights.new("key", "SUN")
+    sun.energy = math.pi      # N.L of 1 comes out as 1 through Shader to RGB
+    sun.use_shadow = False    # self-shadow speckles; the bands do the work
+    ob = bpy.data.objects.new("key", sun)
+    link(ob)
+    travel = Vector((0.75, 0.9, -1.3)).normalized()
+    ob.rotation_euler = Vector((0, 0, -1)).rotation_difference(travel).to_euler()
 
 
 def camera_basis():
-    """Right and up vectors of the camera, in world space. Offsetting an
-    instance along these moves it exactly one way on screen and no other."""
     elev = math.radians(CAMERA_ELEVATION)
     right = Vector((1.0, 0.0, 0.0))
     up = Vector((0.0, math.sin(elev), math.cos(elev)))
@@ -523,45 +710,38 @@ def setup_camera(cols, rows):
     cam_data.type = "ORTHO"
     cam_data.ortho_scale = FRAME_SPAN * cols
     cam = bpy.data.objects.new("cam", cam_data)
-    bpy.context.collection.objects.link(cam)
+    link(cam)
     bpy.context.scene.camera = cam
-
     right, up = camera_basis()
-    # Aim at the middle of the grid. Frames are laid out with (0,0) at the
-    # top-left cell, so the centre is half a grid across and down.
     centre = (right * (FRAME_SPAN * (cols - 1) / 2.0)
               - up * (FRAME_SPAN * (rows - 1) / 2.0)
               + Vector((0.0, 0.0, FRAME_SPAN * 0.30)))
-
     elev = math.radians(CAMERA_ELEVATION)
     back = Vector((0.0, -math.cos(elev), math.sin(elev))) * (FRAME_SPAN * cols * 3.0)
     cam.location = centre + back
     cam.rotation_euler = (math.radians(90.0 - CAMERA_ELEVATION), 0.0, 0.0)
+    cam_data.clip_end = FRAME_SPAN * cols * 8.0
 
 
 def setup_render(cols, rows):
     scene = bpy.context.scene
-    # EEVEE rather than Cycles: these are flat-shaded blocks that get reduced
-    # to a few dozen pixels, and a path tracer buys nothing you can see while
-    # costing about forty times as long over a whole sheet.
-    for name in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE"):
+    for name in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT"):
         try:
             scene.render.engine = name
             break
         except TypeError:
             continue
     try:
-        scene.eevee.taa_render_samples = 32
+        scene.eevee.taa_render_samples = 1   # hard edges; the reduction does the rest
     except AttributeError:
         pass
-
     scene.render.resolution_x = FRAME_PX * SUPERSAMPLE * cols
     scene.render.resolution_y = FRAME_PX * SUPERSAMPLE * rows
     scene.render.resolution_percentage = 100
     scene.render.film_transparent = True
+    scene.render.filter_size = 0.0
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
-    scene.render.filter_size = 0.7
     scene.view_settings.view_transform = "Standard"
     scene.view_settings.look = "None"
 
@@ -572,77 +752,165 @@ def render_to(path):
     bpy.ops.render.render(write_still=True)
 
 
-def build_sheet(clip_name):
-    """Builds the whole grid for one clip and renders it once per layer."""
+# --- reduction to game pixels ----------------------------------------------------
+
+def read_png(path):
+    img = bpy.data.images.load(path)
+    w, h = img.size
+    buf = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(buf)
+    bpy.data.images.remove(img)
+    # Blender's rows run bottom-up.
+    return (buf.reshape(h, w, 4)[::-1] * 255.0 + 0.5).astype(np.uint8)
+
+
+def write_png(path, rgba):
+    h, w, _ = rgba.shape
+    raw = b"".join(b"\x00" + rgba[y].tobytes() for y in range(h))
+
+    def chunk(tag, data):
+        c = struct.pack(">I", len(data)) + tag + data
+        return c + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.write(chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)))
+        f.write(chunk(b"IDAT", zlib.compress(raw, 9)))
+        f.write(chunk(b"IEND", b""))
+
+
+def reduce_majority(big, coverage_needed=6):
+    """Each game pixel takes the most common colour among the opaque rendered
+    pixels beneath it, and is opaque when enough of them are."""
+    f = SUPERSAMPLE
+    h, w = big.shape[0] // f, big.shape[1] // f
+    blocks = big[:h * f, :w * f].reshape(h, f, w, f, 4).transpose(0, 2, 1, 3, 4).reshape(h, w, f * f, 4)
+    opaque = blocks[..., 3] > 127
+    rgb = blocks[..., :3].astype(np.int32)
+    key = (rgb[..., 0] // 6) * 4096 + (rgb[..., 1] // 6) * 64 + (rgb[..., 2] // 6)
+    key = np.where(opaque, key, -1)
+    same = (key[..., :, None] == key[..., None, :]) & opaque[..., None, :]
+    votes = np.where(opaque, same.sum(-1), -1)
+    best = votes.argmax(-1)
+    out = np.zeros((h, w, 4), np.uint8)
+    pick = np.take_along_axis(blocks[..., :3], best[..., None, None].repeat(3, -1), axis=2)[:, :, 0]
+    covered = opaque.sum(-1) >= coverage_needed
+    out[..., :3] = np.where(covered[..., None], pick, 0)
+    out[..., 3] = np.where(covered, 255, 0)
+    return out
+
+
+def outline(img, strength=0.42):
+    """One pixel round the silhouette, in a darkened version of whatever it
+    touches -- a selective outline rather than a flat black line."""
+    a = img[..., 3] > 0
+    rgb = img[..., :3].astype(np.float32)
+    acc = np.zeros_like(rgb)
+    cnt = np.zeros(a.shape, np.float32)
+    for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        na = np.roll(a, (dy, dx), axis=(0, 1))
+        nr = np.roll(rgb, (dy, dx), axis=(0, 1))
+        acc += nr * na[..., None]
+        cnt += na
+    edge = (~a) & (cnt > 0)
+    mean = acc / np.maximum(cnt, 1)[..., None]
+    # Darker, and pushed toward a deep purple-brown so it sits with the art.
+    dark = mean * strength + np.array([22, 12, 26], np.float32) * (1 - strength)
+    out = img.copy()
+    out[edge, :3] = np.clip(dark[edge], 0, 255).astype(np.uint8)
+    out[edge, 3] = 255
+    return out
+
+
+def build_sheet(clip_name, out_dir):
     pose_fn, frames, loops = CLIPS[clip_name]
     cols, rows = frames, len(FACINGS)
 
     clear_scene()
+    _materials.clear()
+    _meshes.clear()
     setup_world()
 
     right, up = camera_basis()
-    layers = {"shadow": [], "body": [], "head": [],
-              "weapon_front": [], "weapon_back": []}
+    layers = {"shadow": [], "body": [], "head": [], "weapon_front": []}
 
     for row, (facing, turn) in enumerate(FACINGS):
         for col in range(frames):
-            # A looping clip divides the cycle evenly and never repeats the
-            # first frame at the end; a one-shot runs to full extension.
             t = col / float(frames) if loops else col / float(frames - 1)
-
-            joints, groups = build_character()
-            apply_pose(joints, pose_fn(t))
-
+            joints, groups, extras = build_character()
+            values = pose_fn(t)
+            # Seen from above, leaning toward or away from the camera only
+            # slides the head down over the body until the character is a head
+            # with feet. Side on, the lean is the whole read. So the vertical
+            # rows keep a fraction of it.
+            if facing in ("down", "up"):
+                for k in ("lean", "hips_lean", "lunge"):
+                    if k in values and clip_name in ("run", "sprint"):
+                        values[k] *= 0.4
+            apply_pose(joints, extras, values)
             shadow = build_shadow()
 
             offset = right * (FRAME_SPAN * col) - up * (FRAME_SPAN * row)
             joints["root"].rotation_euler.z = math.radians(turn)
-            joints["root"].location += offset
-            shadow.location += offset
+            joints["root"].location = offset
+            shadow.location = offset + Vector((0, 0, 0.004))
 
             layers["shadow"].append(shadow)
-            layers["body"] += groups[BODY_PARTS]
-            layers["head"] += groups[HEAD_PARTS]
-            # The sword is drawn behind the character when they have their
-            # back to us and in front otherwise, which is the whole reason the
-            # game keeps two weapon layers.
-            target = "weapon_back" if facing == "up" else "weapon_front"
-            layers[target] += groups[WEAPON_PARTS]
+            layers["body"] += groups[BODY]
+            layers["head"] += groups[HEAD]
+            layers["weapon_front"] += groups[WEAPON]
 
     setup_camera(cols, rows)
     setup_render(cols, rows)
 
-    order = ["shadow", "weapon_back", "body", "weapon_front", "head"]
+    # What each layer is cut by: the layers that are always drawn and would
+    # stand in front of it. Never an optional layer -- a weapon cut into the
+    # body would leave a hole whenever the hands are empty.
+    occluders = {"shadow": [], "body": [], "weapon_front": ["body", "head"], "head": ["body"]}
+    order = [("shadow", 1), ("body", 3), ("weapon_front", 4), ("head", 5)]
+
     written = []
-    for i, layer in enumerate(order):
-        objects = layers[layer]
-        if not objects:
-            continue
-        # Hide everything else. Rendering each layer separately is what keeps
-        # the paperdoll working: the game recolours the body, hides the weapon
-        # when your hands are empty, and never tints the shadow.
+    for layer, index in order:
         for name, objs in layers.items():
             for ob in objs:
-                ob.hide_render = (name != layer)
+                ob.hide_render = not (name == layer or name in occluders[layer])
+                ob.is_holdout = name in occluders[layer]
+        raw_path = os.path.join(RENDER_DIR, "%s_%d_%s.png" % (clip_name, index, layer))
+        render_to(raw_path)
 
-        path = os.path.join(OUT_DIR, "%s_%d_%s.png" % (clip_name, i + 1, layer))
-        render_to(path)
-        written.append(path)
+        big = read_png(raw_path)
+        if layer == "shadow":
+            small = reduce_majority(big, coverage_needed=8)
+            small[..., :3] = 0
+            small[..., 3] = np.where(small[..., 3] > 0, 72, 0)
+        else:
+            small = outline(reduce_majority(big))
+        path = os.path.join(out_dir, "layers", "%s_%d_%s.png" % (clip_name, index, layer))
+        write_png(path, small)
+        written.append(small)
 
-    print("sheet %-7s %d frames x %d rows, %d layers"
-          % (clip_name, frames, rows, len(written)))
-    return written
+    # A flattened sheet beside the layers, for the character-select preview.
+    flat = np.zeros_like(written[0])
+    for im in written:
+        a = im[..., 3:4].astype(np.float32) / 255.0
+        flat[..., :3] = (im[..., :3] * a + flat[..., :3] * (1 - a)).astype(np.uint8)
+        flat[..., 3] = np.maximum(flat[..., 3], im[..., 3])
+    write_png(os.path.join(out_dir, "%s.png" % clip_name), flat)
+
+    print("sheet %-7s %d frames x %d rows" % (clip_name, frames, rows))
 
 
 def main():
-    wanted = None
-    if "--" in sys.argv:
-        rest = sys.argv[sys.argv.index("--") + 1:]
-        if rest:
-            wanted = [c for c in rest if c in CLIPS]
-
-    for name in (wanted or list(CLIPS)):
-        build_sheet(name)
+    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    out_dir = OUT_DIR
+    if "--out" in args:
+        i = args.index("--out")
+        out_dir = args[i + 1]
+        del args[i:i + 2]
+    wanted = [c for c in args if c in CLIPS] or list(CLIPS)
+    for name in wanted:
+        build_sheet(name, out_dir)
 
 
 if __name__ == "__main__":

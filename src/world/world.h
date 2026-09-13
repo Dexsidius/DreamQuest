@@ -76,7 +76,14 @@ public:
     vector<GroundEffect> ground_effects;
     vector<Impact>       impacts;
 
+    // A puff kicked up by a sprinting footfall, drifting back the way the
+    // runner came.
+    struct Dust { float x, y, vx, vy, life, max_life, size; };
+    vector<Dust> dust;
+    void AddDust(float x, float y, float dir_x, float dir_y);
+
 private:
+    void UpdateDust(float dt);
     void SpawnEntitiesFromMap(const GameContext& ctx);
     void ApplyPlayerAttack(const GameContext& ctx);
     void ResolveInteractTarget(const GameContext& ctx);

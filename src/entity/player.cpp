@@ -348,16 +348,33 @@ void Player::UpdateAnimation(const Vec2& move) {
     if (attack.Active()) return;                     // attack clip owns the frames
 
     const float mag = Length(move.x, move.y);
-    if (mag < 0.05f)            sprite.Play("idle");
+    // Playback speed belongs to the attack until its cooldown ends.
+    const bool own_speed = attack_cooldown <= 0.0f;
+    if (mag < 0.05f)              sprite.Play("idle");
     else if (mag < RUN_THRESHOLD) sprite.Play("walk");
-    else                        sprite.Play("run");
+    else if (sprinting) {
+        // A rig with its own sprint plays it. One without runs faster, so
+        // its feet still keep up with the ground going by.
+        const bool has_clip = sprite.Def() && sprite.Def()->Find("sprint");
+        sprite.Play(has_clip ? "sprint" : "run");
+        if (own_speed) sprite.speed_scale = has_clip ? 1.0f : SPRINT_MULT * 0.85f;
+        return;
+    }
+    else                          sprite.Play("run");
+    if (own_speed) sprite.speed_scale = 1.0f;
 }
 
 void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
     // Every source of damage lowers hp; listening for that catches them all.
-    if (heard_hp >= 0 && hp < heard_hp && hp > 0) Audio::Play(Sfx::PlayerHurt);
+    if (heard_hp >= 0 && hp < heard_hp && hp > 0) {
+        Audio::Play(Sfx::PlayerHurt);
+        // A hit breaks a sprint and holds it off long enough to matter.
+        sprint_lockout = SPRINT_LOCKOUT;
+        sprinting = false;
+    }
     heard_hp = hp;
+    if (sprint_lockout > 0.0f) sprint_lockout = std::max(0.0f, sprint_lockout - dt);
     if (combo_window > 0.0f) {
         combo_window -= dt;
         if (combo_window <= 0.0f) combo = 0;
@@ -366,6 +383,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // --- death ---------------------------------------------------------------
     if (hp <= 0 && !dead) {
         dead = true;
+        sprinting = false;
+        look_ahead = {0, 0};
         death_timer = DEATH_DURATION;
         attack.Clear();
         attack_cooldown = 0.0f;
@@ -418,6 +437,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
         if (ctx.input->Pressed(Action::Jump) && !attack.Active() && !charging) {
             jumping      = true;
+            sprinting    = false;
             jump_timer   = 0.0f;
             jump_from_x  = x;  jump_from_y = y;
             // A jump nothing can land from is still a jump: a hop in place,
@@ -445,6 +465,19 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     UpdateAttack(dt);
 
+    // Sprinting: the button held, a real push on the stick, and nothing else
+    // going on. A light tilt stays a walk however hard the button is held.
+    sprinting = !input_locked && ctx.input && ctx.input->Down(Action::Sprint) &&
+                Length(move.x, move.y) >= RUN_THRESHOLD &&
+                !attack.Active() && !charging && !strong_armed &&
+                sprint_lockout <= 0.0f;
+    {
+        const float lead = sprinting ? 56.0f : 0.0f;
+        const float k = std::min(1.0f, dt * (sprinting ? 2.5f : 4.0f));
+        look_ahead.x += (move.x * lead - look_ahead.x) * k;
+        look_ahead.y += (move.y * lead - look_ahead.y) * k;
+    }
+
     // Face the way you are moving, but never mid-swing.
     if (!attack.Active() && Length(move.x, move.y) > 0.05f) {
         if (fabsf(move.x) > fabsf(move.y)) facing = (move.x > 0) ? FACE_RIGHT : FACE_LEFT;
@@ -454,6 +487,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- movement ------------------------------------------------------------
     float speed = move_speed;
+    if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk
 
@@ -477,14 +511,16 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // silent. Plank floors indoors, stone in the mines, earth outside.
     if (Length(move.x, move.y) > 0.05f && moved > 0.0f) {
         stride += moved;
-        constexpr float STRIDE = 21.0f;
+        // A sprint covers more ground per step, and each one kicks up dust.
+        const float STRIDE = sprinting ? 30.0f : 21.0f;
         if (stride >= STRIDE) {
             stride -= STRIDE;
+            if (sprinting && !world.map.IsInterior()) world.AddDust(x, y, move.x, move.y);
             const Map& m = world.map;
             const Sfx step = (m.Ambient() == "dungeon") ? Sfx::FootstepStone
                            : m.IsInterior()             ? Sfx::FootstepWood
                                                         : Sfx::Footstep;
-            Audio::Play(step, 0.9f);
+            Audio::Play(step, sprinting ? 1.0f : 0.9f, sprinting ? 1.08f : 1.0f);
         }
     } else {
         stride = 14.0f;     // the first step after standing comes quickly

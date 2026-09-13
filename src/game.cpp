@@ -376,7 +376,8 @@ void Game::Update(float dt) {
     // Panels pause the world but still show it behind them, so keep the
     // camera settled and let floating text finish.
     if (has_session && state != GameState::Play && InGameplayState())
-        world.camera.Follow(world.player.x, world.player.y, dt);
+        world.camera.Follow(world.player.x + world.player.LookAhead().x,
+                            world.player.y + world.player.LookAhead().y, dt);
 }
 
 void Game::UpdatePlay(float dt) {

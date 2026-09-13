@@ -1237,6 +1237,142 @@ int main(int argc, char** argv) {
         Check(nothing_drawn, "minimap never samples outside the baked image");
     }
 
+    // --- the hero's sprite set ---------------------------------------------------
+    Section("the hero is drawn in every gear");
+    {
+        const SpriteDef* hero = sprites.Get("player_hero");
+        Check(hero != nullptr, "player_hero is defined");
+        if (hero) {
+            for (const char* clip : {"idle", "walk", "run", "sprint", "attack", "jump", "hurt", "death"}) {
+                const AnimClip* c = hero->Find(clip);
+                Check(c && c->frames >= 4, string("player_hero has a ") + clip + " clip");
+                if (!c) continue;
+                bool has_body = false, has_head = false, has_shadow = false, on_disk = true;
+                for (const AnimLayer& l : c->layers) {
+                    has_body   |= l.slot == LayerSlot::Body;
+                    has_head   |= l.slot == LayerSlot::Head;
+                    has_shadow |= l.slot == LayerSlot::Shadow;
+                    on_disk    &= fs::exists(l.sheet);
+                }
+                Check(has_body && has_head && has_shadow, string(clip) + " is split into shadow, body and head");
+                Check(on_disk, string(clip) + " layer sheets are on disk");
+            }
+            const AnimClip* run = hero->Find("run");
+            const AnimClip* sprint = hero->Find("sprint");
+            Check(run && sprint && sprint->fps > run->fps, "the sprint cycles faster than the run");
+        }
+
+        // Worn armour is placed against the CraftPix rig's box, so the hero has
+        // to stand in it: the head in the same band, the feet not far below.
+        const auto bounds = [](const string& path, int row) {
+            SDL_Rect box{64, 64, -1, -1};   // x0, y0, x1, y1
+            SDL_Surface* s = IMG_Load(path.c_str());
+            if (!s) return box;
+            SDL_Surface* c = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
+            SDL_DestroySurface(s);
+            if (!c) return box;
+            const Uint8* px = static_cast<const Uint8*>(c->pixels);
+            for (int y = 0; y < 64; ++y)
+                for (int x = 0; x < 64; ++x)
+                    if (px[(row * 64 + y) * c->pitch + x * 4 + 3] > 0) {
+                        box.x = std::min(box.x, x); box.y = std::min(box.y, y);
+                        box.w = std::max(box.w, x); box.h = std::max(box.h, y);
+                    }
+            SDL_DestroySurface(c);
+            return box;
+        };
+        const string dir = "assets/characters/player_hero/layers/";
+        const SDL_Rect head = bounds(dir + "idle_5_head.png", 0);
+        const SDL_Rect body = bounds(dir + "idle_3_body.png", 0);
+        Check(head.y >= 19 && head.y <= 25, "the hero's head starts where the CraftPix head does");
+        Check(head.x >= 22 && head.w <= 42, "the hero's head is as wide as the rig's, give or take");
+        Check(body.h >= 42 && body.h <= 50, "the hero's feet are within a few pixels of the rig's");
+    }
+
+    // --- sprinting ------------------------------------------------------------------
+    Section("sprinting");
+    {
+        Input input;
+        std::mt19937 rng(7);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        // Walks right for a second on open floor and says how far it got.
+        struct Run { float distance = 0; bool sprinted = false; string clip; bool dust = false;
+                     float lead = 0; };
+        const auto run_for = [&](const string& rig, bool shift, float seconds,
+                                 const std::function<void(World&, int)>& each = nullptr) {
+            Run out;
+            World w;
+            w.player.Init(ctx, rig);
+            if (!w.LoadMap("overworld", "start", ctx)) return out;
+            w.enemies.clear();
+            const float x0 = w.player.x;
+            key(SDLK_D, true);
+            if (shift) key(SDLK_LSHIFT, true);
+            const int frames = static_cast<int>(seconds * 60.0f);
+            for (int f = 0; f < frames; ++f) {
+                input.Update(1.0f / 60.0f);
+                if (each) each(w, f);
+                w.Update(1.0f / 60.0f, ctx);
+                out.sprinted |= w.player.Sprinting();
+                out.dust |= !w.dust.empty();
+            }
+            out.distance = w.player.x - x0;
+            out.clip = w.player.sprite.current;
+            out.lead = w.player.LookAhead().x;
+            key(SDLK_D, false);
+            key(SDLK_LSHIFT, false);
+            input.Update(1.0f / 60.0f);
+            return out;
+        };
+
+        const Run jog = run_for("player_hero", false, 1.0f);
+        const Run dash = run_for("player_hero", true, 1.0f);
+        Check(jog.distance > 40.0f, "the hero moves at all without sprinting");
+        Check(!jog.sprinted && jog.clip == "run", "without the button it is a run");
+        Check(dash.sprinted && dash.clip == "sprint", "holding sprint plays the sprint");
+        Check(dash.distance > jog.distance * 1.45f && dash.distance < jog.distance * 1.75f,
+              "a sprint covers about half as much ground again");
+        Check(dash.dust, "a sprint kicks up dust outdoors");
+        Check(dash.lead > 20.0f && fabsf(jog.lead) < 1.0f, "the camera leads a sprint and centres on a run");
+
+        // A rig with no sprint clip still speeds up, and runs rather than
+        // freezing on a missing animation.
+        const Run fallback = run_for("player_male", true, 1.0f);
+        Check(fallback.sprinted && fallback.clip == "run", "a rig without a sprint clip runs faster instead");
+        Check(fallback.distance > jog.distance * 1.45f, "and still covers the ground");
+
+        // Attacking stops a sprint; the swing has its own footwork.
+        bool stopped_for_swing = false;
+        run_for("player_hero", true, 1.0f, [&](World& w, int f) {
+            if (f == 30) key(SDLK_Z, true);
+            if (f == 31) key(SDLK_Z, false);
+            if (f > 32 && f < 40 && !w.player.Sprinting()) stopped_for_swing = true;
+        });
+        Check(stopped_for_swing, "a sprint stops for an attack");
+
+        // A hit knocks the player out of a sprint for a moment, then it resumes.
+        bool broken = false, resumed = false;
+        run_for("player_hero", true, 2.0f, [&](World& w, int f) {
+            if (f == 20) w.player.Damage(1);
+            if (f > 22 && f < 60 && w.player.Sprinting()) broken = true;   // should NOT happen
+            if (f > 20 + static_cast<int>(Player::SPRINT_LOCKOUT * 60.0f) + 6 && w.player.Sprinting())
+                resumed = true;
+        });
+        Check(!broken, "taking a hit breaks the sprint");
+        Check(resumed, "and it picks up again once the lockout passes");
+    }
+
     // --- a real fight ---------------------------------------------------------
     // The combat maths above is expected values. This runs the actual world --
     // AI, swing timings, hitboxes, knockback -- frame by frame, with the

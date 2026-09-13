@@ -116,6 +116,16 @@ public:
     string sprite_id = "player_male";
     float  move_speed = 78.0f;
 
+    // --- sprinting ------------------------------------------------------------
+    // Held to cross the world faster. Not a combat move: it cannot start in a
+    // swing or a charge, and a hit knocks the player out of it for a moment.
+    static constexpr float SPRINT_MULT     = 1.6f;
+    static constexpr float SPRINT_LOCKOUT  = 0.8f;
+    bool  Sprinting() const { return sprinting; }
+    // Where the camera should lead, in world pixels: ahead of a sprint so the
+    // player sees what they are running into, and back to centre otherwise.
+    Vec2  LookAhead() const { return look_ahead; }
+
     // Set by the world when input should not drive the player (dialogue, menus).
     bool input_locked = false;
 
@@ -156,6 +166,10 @@ private:
     // and distance walked since the last footstep.
     int   heard_hp = -1;
     float stride = 0.0f;
+
+    bool  sprinting = false;
+    float sprint_lockout = 0.0f;
+    Vec2  look_ahead{0, 0};
 
     int   mana = 0, max_mana = 0;
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point

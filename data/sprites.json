@@ -570,10 +570,6 @@
                                                                         "sheet":  "layers/attack_1_shadow.png"
                                                                     },
                                                                     {
-                                                                        "slot":  "weapon_back",
-                                                                        "sheet":  "layers/attack_2_weapon_back.png"
-                                                                    },
-                                                                    {
                                                                         "slot":  "body",
                                                                         "sheet":  "layers/attack_3_body.png"
                                                                     },
@@ -596,10 +592,6 @@
                                                                    {
                                                                        "slot":  "shadow",
                                                                        "sheet":  "layers/death_1_shadow.png"
-                                                                   },
-                                                                   {
-                                                                       "slot":  "weapon_back",
-                                                                       "sheet":  "layers/death_2_weapon_back.png"
                                                                    },
                                                                    {
                                                                        "slot":  "body",
@@ -626,10 +618,6 @@
                                                                       "sheet":  "layers/hurt_1_shadow.png"
                                                                   },
                                                                   {
-                                                                      "slot":  "weapon_back",
-                                                                      "sheet":  "layers/hurt_2_weapon_back.png"
-                                                                  },
-                                                                  {
                                                                       "slot":  "body",
                                                                       "sheet":  "layers/hurt_3_body.png"
                                                                   },
@@ -645,17 +633,13 @@
                                                },
                                       "idle":  {
                                                    "sheet":  "idle.png",
-                                                   "frames":  6,
+                                                   "frames":  8,
                                                    "fps":  8,
                                                    "loop":  true,
                                                    "layers":  [
                                                                   {
                                                                       "slot":  "shadow",
                                                                       "sheet":  "layers/idle_1_shadow.png"
-                                                                  },
-                                                                  {
-                                                                      "slot":  "weapon_back",
-                                                                      "sheet":  "layers/idle_2_weapon_back.png"
                                                                   },
                                                                   {
                                                                       "slot":  "body",
@@ -682,10 +666,6 @@
                                                                       "sheet":  "layers/jump_1_shadow.png"
                                                                   },
                                                                   {
-                                                                      "slot":  "weapon_back",
-                                                                      "sheet":  "layers/jump_2_weapon_back.png"
-                                                                  },
-                                                                  {
                                                                       "slot":  "body",
                                                                       "sheet":  "layers/jump_3_body.png"
                                                                   },
@@ -710,10 +690,6 @@
                                                                      "sheet":  "layers/run_1_shadow.png"
                                                                  },
                                                                  {
-                                                                     "slot":  "weapon_back",
-                                                                     "sheet":  "layers/run_2_weapon_back.png"
-                                                                 },
-                                                                 {
                                                                      "slot":  "body",
                                                                      "sheet":  "layers/run_3_body.png"
                                                                  },
@@ -727,19 +703,39 @@
                                                                  }
                                                              ]
                                               },
+                                      "sprint":  {
+                                                     "sheet":  "sprint.png",
+                                                     "frames":  8,
+                                                     "fps":  16,
+                                                     "loop":  true,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/sprint_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/sprint_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/sprint_4_weapon_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/sprint_5_head.png"
+                                                                    }
+                                                                ]
+                                                 },
                                       "walk":  {
                                                    "sheet":  "walk.png",
-                                                   "frames":  6,
+                                                   "frames":  8,
                                                    "fps":  10,
                                                    "loop":  true,
                                                    "layers":  [
                                                                   {
                                                                       "slot":  "shadow",
                                                                       "sheet":  "layers/walk_1_shadow.png"
-                                                                  },
-                                                                  {
-                                                                      "slot":  "weapon_back",
-                                                                      "sheet":  "layers/walk_2_weapon_back.png"
                                                                   },
                                                                   {
                                                                       "slot":  "body",
