@@ -103,6 +103,7 @@ struct MapObject {
     string title;
     string station;          // crafting objects: "workbench" or "anvil"
     vector<string> quests;   // mission boards
+    vector<string> fish;     // fishing spots: what can be caught there
 };
 
 class Map {

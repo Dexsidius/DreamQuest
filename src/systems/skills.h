@@ -18,6 +18,7 @@ enum SkillId {
     SKILL_MINING,
     SKILL_CRAFTING,
     SKILL_COOKING,
+    SKILL_FISHING,
     SKILL_COUNT
 };
 

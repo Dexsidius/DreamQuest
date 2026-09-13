@@ -574,6 +574,114 @@
                                                                         "sheet":  "layers/attack_3_body.png"
                                                                     },
                                                                     {
+                                                                        "slot":  "weapon_staff_wood",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_wood.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_adamantium",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_adamantium.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_azuryte",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_azuryte.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_steel",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_steel.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_diamond",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_diamond.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_iron",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_iron.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_platinum",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_platinum.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_platinum",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_platinum.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_steel",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_steel.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_wood",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_wood.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_iron",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_iron.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_bronze",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_bronze.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_demonrite",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_demonrite.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_diamond",
+                                                                        "sheet":  "layers/attack_4_weapon_sword_diamond.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_diamond",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_diamond.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_iron",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_iron.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_platinum",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_platinum.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_demonrite",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_demonrite.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_adamantium",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_adamantium.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_azuryte",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_azuryte.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_bronze",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_bronze.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_azuryte",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_azuryte.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_bronze",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_bronze.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_demonrite",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_demonrite.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_adamantium",
+                                                                        "sheet":  "layers/attack_4_weapon_staff_adamantium.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_steel",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_steel.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_wood",
+                                                                        "sheet":  "layers/attack_4_weapon_bow_wood.png"
+                                                                    },
+                                                                    {
                                                                         "slot":  "weapon_front",
                                                                         "sheet":  "layers/attack_4_weapon_front.png"
                                                                     },
@@ -583,6 +691,30 @@
                                                                     }
                                                                 ]
                                                  },
+                                      "chop":  {
+                                                   "sheet":  "chop.png",
+                                                   "frames":  8,
+                                                   "fps":  10,
+                                                   "loop":  true,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/chop_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/chop_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/chop_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/chop_5_head.png"
+                                                                  }
+                                                              ]
+                                               },
                                       "death":  {
                                                     "sheet":  "death.png",
                                                     "frames":  6,
@@ -598,6 +730,114 @@
                                                                        "sheet":  "layers/death_3_body.png"
                                                                    },
                                                                    {
+                                                                       "slot":  "weapon_staff_wood",
+                                                                       "sheet":  "layers/death_4_weapon_staff_wood.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_adamantium",
+                                                                       "sheet":  "layers/death_4_weapon_sword_adamantium.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_azuryte",
+                                                                       "sheet":  "layers/death_4_weapon_sword_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_steel",
+                                                                       "sheet":  "layers/death_4_weapon_staff_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_diamond",
+                                                                       "sheet":  "layers/death_4_weapon_staff_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_iron",
+                                                                       "sheet":  "layers/death_4_weapon_staff_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_platinum",
+                                                                       "sheet":  "layers/death_4_weapon_staff_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_platinum",
+                                                                       "sheet":  "layers/death_4_weapon_sword_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_steel",
+                                                                       "sheet":  "layers/death_4_weapon_sword_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_wood",
+                                                                       "sheet":  "layers/death_4_weapon_sword_wood.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_iron",
+                                                                       "sheet":  "layers/death_4_weapon_sword_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_bronze",
+                                                                       "sheet":  "layers/death_4_weapon_sword_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_demonrite",
+                                                                       "sheet":  "layers/death_4_weapon_sword_demonrite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_diamond",
+                                                                       "sheet":  "layers/death_4_weapon_sword_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_diamond",
+                                                                       "sheet":  "layers/death_4_weapon_bow_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_iron",
+                                                                       "sheet":  "layers/death_4_weapon_bow_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_platinum",
+                                                                       "sheet":  "layers/death_4_weapon_bow_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_demonrite",
+                                                                       "sheet":  "layers/death_4_weapon_bow_demonrite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_adamantium",
+                                                                       "sheet":  "layers/death_4_weapon_bow_adamantium.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_azuryte",
+                                                                       "sheet":  "layers/death_4_weapon_bow_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_bronze",
+                                                                       "sheet":  "layers/death_4_weapon_bow_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_azuryte",
+                                                                       "sheet":  "layers/death_4_weapon_staff_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_bronze",
+                                                                       "sheet":  "layers/death_4_weapon_staff_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_demonrite",
+                                                                       "sheet":  "layers/death_4_weapon_staff_demonrite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_adamantium",
+                                                                       "sheet":  "layers/death_4_weapon_staff_adamantium.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_steel",
+                                                                       "sheet":  "layers/death_4_weapon_bow_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_wood",
+                                                                       "sheet":  "layers/death_4_weapon_bow_wood.png"
+                                                                   },
+                                                                   {
                                                                        "slot":  "weapon_front",
                                                                        "sheet":  "layers/death_4_weapon_front.png"
                                                                    },
@@ -607,6 +847,30 @@
                                                                    }
                                                                ]
                                                 },
+                                      "fish":  {
+                                                   "sheet":  "fish.png",
+                                                   "frames":  8,
+                                                   "fps":  6,
+                                                   "loop":  true,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/fish_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/fish_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/fish_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/fish_5_head.png"
+                                                                  }
+                                                              ]
+                                               },
                                       "hurt":  {
                                                    "sheet":  "hurt.png",
                                                    "frames":  4,
@@ -620,6 +884,114 @@
                                                                   {
                                                                       "slot":  "body",
                                                                       "sheet":  "layers/hurt_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_wood",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_adamantium",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_azuryte",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_steel",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_diamond",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_iron",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_platinum",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_platinum",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_steel",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_wood",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_iron",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_bronze",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_demonrite",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_diamond",
+                                                                      "sheet":  "layers/hurt_4_weapon_sword_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_diamond",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_iron",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_platinum",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_demonrite",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_adamantium",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_azuryte",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_bronze",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_azuryte",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_bronze",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_demonrite",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_adamantium",
+                                                                      "sheet":  "layers/hurt_4_weapon_staff_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_steel",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_wood",
+                                                                      "sheet":  "layers/hurt_4_weapon_bow_wood.png"
                                                                   },
                                                                   {
                                                                       "slot":  "weapon_front",
@@ -646,6 +1018,114 @@
                                                                       "sheet":  "layers/idle_3_body.png"
                                                                   },
                                                                   {
+                                                                      "slot":  "weapon_staff_wood",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_adamantium",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_azuryte",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_steel",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_diamond",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_iron",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_platinum",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_platinum",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_steel",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_wood",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_iron",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_bronze",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_demonrite",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_diamond",
+                                                                      "sheet":  "layers/idle_4_weapon_sword_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_diamond",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_iron",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_platinum",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_demonrite",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_adamantium",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_azuryte",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_bronze",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_azuryte",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_bronze",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_demonrite",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_adamantium",
+                                                                      "sheet":  "layers/idle_4_weapon_staff_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_steel",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_wood",
+                                                                      "sheet":  "layers/idle_4_weapon_bow_wood.png"
+                                                                  },
+                                                                  {
                                                                       "slot":  "weapon_front",
                                                                       "sheet":  "layers/idle_4_weapon_front.png"
                                                                   },
@@ -670,12 +1150,144 @@
                                                                       "sheet":  "layers/jump_3_body.png"
                                                                   },
                                                                   {
+                                                                      "slot":  "weapon_staff_wood",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_adamantium",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_azuryte",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_steel",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_diamond",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_iron",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_platinum",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_platinum",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_steel",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_wood",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_iron",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_bronze",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_demonrite",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_diamond",
+                                                                      "sheet":  "layers/jump_4_weapon_sword_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_diamond",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_iron",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_platinum",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_demonrite",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_adamantium",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_azuryte",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_bronze",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_azuryte",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_bronze",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_demonrite",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_adamantium",
+                                                                      "sheet":  "layers/jump_4_weapon_staff_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_steel",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_wood",
+                                                                      "sheet":  "layers/jump_4_weapon_bow_wood.png"
+                                                                  },
+                                                                  {
                                                                       "slot":  "weapon_front",
                                                                       "sheet":  "layers/jump_4_weapon_front.png"
                                                                   },
                                                                   {
                                                                       "slot":  "head",
                                                                       "sheet":  "layers/jump_5_head.png"
+                                                                  }
+                                                              ]
+                                               },
+                                      "mine":  {
+                                                   "sheet":  "mine.png",
+                                                   "frames":  8,
+                                                   "fps":  9,
+                                                   "loop":  true,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/mine_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/mine_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/mine_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/mine_5_head.png"
                                                                   }
                                                               ]
                                                },
@@ -692,6 +1304,114 @@
                                                                  {
                                                                      "slot":  "body",
                                                                      "sheet":  "layers/run_3_body.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_wood",
+                                                                     "sheet":  "layers/run_4_weapon_staff_wood.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_adamantium",
+                                                                     "sheet":  "layers/run_4_weapon_sword_adamantium.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_azuryte",
+                                                                     "sheet":  "layers/run_4_weapon_sword_azuryte.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_steel",
+                                                                     "sheet":  "layers/run_4_weapon_staff_steel.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_diamond",
+                                                                     "sheet":  "layers/run_4_weapon_staff_diamond.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_iron",
+                                                                     "sheet":  "layers/run_4_weapon_staff_iron.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_platinum",
+                                                                     "sheet":  "layers/run_4_weapon_staff_platinum.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_platinum",
+                                                                     "sheet":  "layers/run_4_weapon_sword_platinum.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_steel",
+                                                                     "sheet":  "layers/run_4_weapon_sword_steel.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_wood",
+                                                                     "sheet":  "layers/run_4_weapon_sword_wood.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_iron",
+                                                                     "sheet":  "layers/run_4_weapon_sword_iron.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_bronze",
+                                                                     "sheet":  "layers/run_4_weapon_sword_bronze.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_demonrite",
+                                                                     "sheet":  "layers/run_4_weapon_sword_demonrite.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_sword_diamond",
+                                                                     "sheet":  "layers/run_4_weapon_sword_diamond.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_diamond",
+                                                                     "sheet":  "layers/run_4_weapon_bow_diamond.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_iron",
+                                                                     "sheet":  "layers/run_4_weapon_bow_iron.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_platinum",
+                                                                     "sheet":  "layers/run_4_weapon_bow_platinum.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_demonrite",
+                                                                     "sheet":  "layers/run_4_weapon_bow_demonrite.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_adamantium",
+                                                                     "sheet":  "layers/run_4_weapon_bow_adamantium.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_azuryte",
+                                                                     "sheet":  "layers/run_4_weapon_bow_azuryte.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_bronze",
+                                                                     "sheet":  "layers/run_4_weapon_bow_bronze.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_azuryte",
+                                                                     "sheet":  "layers/run_4_weapon_staff_azuryte.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_bronze",
+                                                                     "sheet":  "layers/run_4_weapon_staff_bronze.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_demonrite",
+                                                                     "sheet":  "layers/run_4_weapon_staff_demonrite.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_staff_adamantium",
+                                                                     "sheet":  "layers/run_4_weapon_staff_adamantium.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_steel",
+                                                                     "sheet":  "layers/run_4_weapon_bow_steel.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_bow_wood",
+                                                                     "sheet":  "layers/run_4_weapon_bow_wood.png"
                                                                  },
                                                                  {
                                                                      "slot":  "weapon_front",
@@ -718,6 +1438,114 @@
                                                                         "sheet":  "layers/sprint_3_body.png"
                                                                     },
                                                                     {
+                                                                        "slot":  "weapon_staff_wood",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_wood.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_adamantium",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_adamantium.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_azuryte",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_azuryte.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_steel",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_steel.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_diamond",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_diamond.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_iron",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_iron.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_platinum",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_platinum.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_platinum",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_platinum.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_steel",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_steel.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_wood",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_wood.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_iron",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_iron.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_bronze",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_bronze.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_demonrite",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_demonrite.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_sword_diamond",
+                                                                        "sheet":  "layers/sprint_4_weapon_sword_diamond.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_diamond",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_diamond.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_iron",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_iron.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_platinum",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_platinum.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_demonrite",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_demonrite.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_adamantium",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_adamantium.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_azuryte",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_azuryte.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_bronze",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_bronze.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_azuryte",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_azuryte.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_bronze",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_bronze.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_demonrite",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_demonrite.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_staff_adamantium",
+                                                                        "sheet":  "layers/sprint_4_weapon_staff_adamantium.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_steel",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_steel.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_bow_wood",
+                                                                        "sheet":  "layers/sprint_4_weapon_bow_wood.png"
+                                                                    },
+                                                                    {
                                                                         "slot":  "weapon_front",
                                                                         "sheet":  "layers/sprint_4_weapon_front.png"
                                                                     },
@@ -740,6 +1568,114 @@
                                                                   {
                                                                       "slot":  "body",
                                                                       "sheet":  "layers/walk_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_wood",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_adamantium",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_azuryte",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_steel",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_diamond",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_iron",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_platinum",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_platinum",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_steel",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_wood",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_iron",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_bronze",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_demonrite",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_diamond",
+                                                                      "sheet":  "layers/walk_4_weapon_sword_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_diamond",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_iron",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_platinum",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_demonrite",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_adamantium",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_azuryte",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_bronze",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_azuryte",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_bronze",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_demonrite",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_staff_adamantium",
+                                                                      "sheet":  "layers/walk_4_weapon_staff_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_steel",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_bow_wood",
+                                                                      "sheet":  "layers/walk_4_weapon_bow_wood.png"
                                                                   },
                                                                   {
                                                                       "slot":  "weapon_front",

@@ -74,6 +74,9 @@ $clipRules = @{
     run    = @{ fps = 13; loop = $true  }
     sprint = @{ fps = 16; loop = $true  }
     attack = @{ fps = 16; loop = $false }
+    chop   = @{ fps = 10; loop = $true  }
+    mine   = @{ fps = 9;  loop = $true  }
+    fish   = @{ fps = 6;  loop = $true  }
     hurt   = @{ fps = 12; loop = $false }
     death  = @{ fps =  9; loop = $false }
     jump   = @{ fps = 12; loop = $false }

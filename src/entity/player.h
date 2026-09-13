@@ -153,6 +153,15 @@ public:
     // player sees what they are running into, and back to centre otherwise.
     Vec2  LookAhead() const { return look_ahead; }
 
+    // --- gathering ------------------------------------------------------------
+    // While chopping, mining or fishing, the player turns to the work, plays
+    // that clip, and holds the tool rather than the weapon.
+    void StartGathering(const string& clip, const string& tool_model, float tx, float ty);
+    void StopGathering();
+    const string& GatherClip() const { return gather_clip; }
+    // True while the stick or keys are pushing the player somewhere.
+    bool Moving() const { return moving; }
+
     // Set by the world when input should not drive the player (dialogue, menus).
     bool input_locked = false;
 
@@ -197,6 +206,9 @@ private:
     // and distance walked since the last footstep.
     int   heard_hp = -1;
     float stride = 0.0f;
+
+    string gather_clip, gather_model;
+    bool  moving = false;
 
     bool  sprinting = false;
     float sprint_lockout = 0.0f;

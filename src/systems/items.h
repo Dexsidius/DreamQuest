@@ -57,6 +57,14 @@ struct ItemDef {
     string cook_result;
     int    cook_xp = 0, cook_level = 1;
 
+    // A gathering tool: "axe", "pickaxe" or "rod", and how much faster than a
+    // basic one it works.
+    string tool;
+    float  tool_speed = 1.0f;
+    // A fish: the Fishing level it bites at and the XP it is worth.
+    int    fish_level = 0;
+    int    fish_xp = 0;
+
     // What using it from the bag does, beyond eating and wearing: "camp"
     // pitches a camp where the player stands.
     string use;

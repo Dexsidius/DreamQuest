@@ -5,6 +5,7 @@
 #include "../systems/dialogue.h"
 #include "../systems/spell.h"
 #include "../systems/audio.h"
+#include "../systems/gathering.h"
 
 static constexpr float FADE_SPEED     = 3.2f;
 // Generous enough to reach anything the player can stand next to: a wide prop
@@ -42,6 +43,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     dust.clear();
     targeting.Clear();
     gather_index = -1;
+    player.StopGathering();
 
     SpawnEntitiesFromMap(ctx);
     PlaceCampObjects();
@@ -419,6 +421,7 @@ void World::Update(float dt, const GameContext& ctx) {
         ApplyPlayerAttack(ctx);
         ResolveInteractTarget(ctx);
         UpdateGathering(dt, ctx);
+        if (gather_index < 0 && !player.GatherClip().empty()) player.StopGathering();
 
         // Step-through portals fire without a button press.
         //
@@ -751,7 +754,6 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
 // -----------------------------------------------------------------------------
 
 void World::ResolveInteractTarget(const GameContext& ctx) {
-    (void)ctx;
     InteractTarget best;
 
     auto consider = [&](InteractTarget::Kind kind, int index,
@@ -798,12 +800,19 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
         } else if (!o.skill.empty()) {
             const int s = SkillFromName(o.skill);
-            if (s >= 0 && player.skills.Level(s) < o.skill_level)
+            const bool fishing = o.skill == "Fishing";
+            if (s >= 0 && player.skills.Level(s) < o.skill_level) {
                 label = "Needs " + o.skill + " " + std::to_string(o.skill_level) +
                         (o.title.empty() ? string("") : " for the " + o.title);
-            else
-                label = (o.skill == "Mining" ? "Mine " : "Chop ") +
-                        (o.title.empty() ? string("node") : o.title);
+            } else {
+                label = (fishing ? "Fish the " : o.skill == "Mining" ? "Mine " : "Chop ") +
+                        (o.title.empty() ? string(fishing ? "water" : "node") : o.title);
+                // Say before the button is pressed that the tool is missing.
+                const string tool = Gathering::ToolFor(o.skill);
+                if (ctx.items && !Gathering::BestTool(player.inventory, player.equipment, *ctx.items,
+                                                      player.skills, tool))
+                    label += string("  -  needs ") + Gathering::ToolNoun(tool);
+            }
         }
 
         if (!label.empty())
@@ -920,17 +929,34 @@ void World::TryInteract(const GameContext& ctx) {
                 requests.push_back(r);
             } else if (!o.skill.empty()) {
                 const int s = SkillFromName(o.skill);
-                if (s < 0) break;
+                if (s < 0 || !ctx.items) break;
                 if (player.skills.Level(s) < o.skill_level) {
                     AddText("Level too low", o.x, o.y - 34.0f, {255, 140, 140, 255});
                     Audio::Play(Sfx::UiError);
                     break;
                 }
+                // No work without the tool for it: the fastest one carried that
+                // the player has the level to use.
+                const string tool_kind = Gathering::ToolFor(o.skill);
+                const ItemDef* locked = nullptr;
+                const ItemDef* tool = Gathering::BestTool(player.inventory, player.equipment, *ctx.items,
+                                                          player.skills, tool_kind, &locked);
+                if (!tool) {
+                    string why = string("You need ") + Gathering::ToolNoun(tool_kind) + ".";
+                    if (locked)
+                        for (const auto& req : locked->requirements)
+                            why = "Your " + locked->name + " needs " + SkillName(req.first) + " " +
+                                  std::to_string(req.second) + ".";
+                    AddText(why, player.x, player.y - 54.0f, {255, 170, 150, 255}, 1.8f);
+                    Audio::Play(Sfx::UiError);
+                    break;
+                }
                 gather_index  = t.index;
                 gather_timer  = 0.0f;
-                // Higher levels work faster, down to a floor.
-                const float speed = 1.0f + 0.02f * player.skills.Level(s);
-                gather_needed = std::max(0.9f, o.gather_time / speed);
+                // The level and the tool together decide the pace, down to a floor.
+                gather_needed = Gathering::WorkTime(o.gather_time, player.skills.Level(s), tool->tool_speed);
+                player.StartGathering(Gathering::ClipFor(o.skill), tool->model, o.x, o.y);
+                if (o.skill == "Fishing") Audio::PlayAt(Sfx::Splash, o.x, o.y);
             }
             break;
         }
@@ -1018,21 +1044,48 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     if (gather_index >= static_cast<int>(objects.size())) { gather_index = -1; return; }
     const MapObject& o = objects[gather_index];
 
-    // Walking away cancels it.
-    if (Length(o.x - player.x, o.y - player.y) > INTERACT_RANGE + 12.0f) {
+    // Walking away cancels it, and so does walking at all: work is done
+    // standing still.
+    if (Length(o.x - player.x, o.y - player.y) > INTERACT_RANGE + 12.0f || player.Moving() ||
+        player.Attacking() || player.IsJumping()) {
         gather_index = -1;
         return;
     }
 
     // A strike every so often while the work goes on, not just at the end.
+    // Fishing is quiet until something bites.
+    const bool fishing = o.skill == "Fishing";
     constexpr float STRIKE = 0.62f;
     const float before = gather_timer;
     gather_timer += dt;
-    if (std::floor(before / STRIKE) != std::floor(gather_timer / STRIKE) || before == 0.0f)
+    if (!fishing && (std::floor(before / STRIKE) != std::floor(gather_timer / STRIKE) || before == 0.0f))
         Audio::PlayAt(o.skill == "Mining" ? Sfx::Mine : Sfx::Chop, o.x, o.y);
     if (gather_timer < gather_needed) return;
 
     const int skill = SkillFromName(o.skill);
+
+    if (fishing && ctx.items && ctx.rng) {
+        const int level = player.skills.Level(SKILL_FISHING);
+        const string fish = Gathering::PickFish(o.fish, level, *ctx.items, *ctx.rng);
+        const ItemDef* d = ctx.items->Get(fish);
+        if (!d) { gather_index = -1; return; }
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        const int count = Gathering::CatchCount(level, unit(*ctx.rng));
+        const int added = player.inventory.Add(fish, count);
+        if (added <= 0) {
+            AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
+            gather_index = -1;
+            return;
+        }
+        player.GrantXp(SKILL_FISHING, d->fish_xp * count);
+        AddText("+ " + (count > 1 ? std::to_string(count) + " " : string("")) + d->name,
+                player.x, player.y - 54.0f, count > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
+        Audio::PlayAt(Sfx::Splash, o.x, o.y, 1.0f, 1.2f);
+        if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+        gather_timer = 0.0f;
+        return;
+    }
+
     if (skill >= 0 && o.yield_xp > 0) player.GrantXp(skill, o.yield_xp);
 
     if (!o.yield.empty()) {
@@ -1606,6 +1659,39 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                       {c.r, c.g, c.b, static_cast<Uint8>(70 * t)});
             fill_disc(centre.x, centre.y, rx * 0.6f, ry * 0.6f,
                       {c.r, c.g, c.b, static_cast<Uint8>(120 * t)});
+        }
+    }
+
+    const SDL_FRect view_min = camera.VisibleWorldRect(32.0f);
+    // Fishing spots: rings spreading on the water and the odd bubble, so a
+    // place worth casting at can be told from the rest of the pond.
+    {
+        const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        const float z = camera.zoom;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        for (const MapObject& o : map.Objects()) {
+            if (o.type != "fishing_spot") continue;
+            if (o.x < view_min.x || o.x > view_min.x + view_min.w || o.y < view_min.y || o.y > view_min.y + view_min.h)
+                continue;
+            for (int ring = 0; ring < 2; ++ring) {
+                const float k = fmodf(t * 0.55f + ring * 0.5f + o.x * 0.013f, 1.0f);
+                const float rx = 4.0f + k * 12.0f, ry = rx * 0.45f;
+                SDL_SetRenderDrawColor(r, 220, 240, 255, static_cast<Uint8>(170.0f * (1.0f - k)));
+                const int steps = 22;
+                for (int i = 0; i < steps; ++i) {
+                    const float a = 6.2831853f * i / steps;
+                    const SDL_FPoint p = camera.ToScreen(o.x + cosf(a) * rx, o.y + sinf(a) * ry);
+                    const SDL_FRect dot = {roundf(p.x / z) * z, roundf(p.y / z) * z, z, z};
+                    SDL_RenderFillRect(r, &dot);
+                }
+            }
+            const float bubble = fmodf(t * 1.3f + o.y * 0.07f, 1.0f);
+            if (bubble < 0.35f) {
+                const SDL_FPoint p = camera.ToScreen(o.x + 3.0f, o.y - 2.0f - bubble * 8.0f);
+                SDL_SetRenderDrawColor(r, 240, 250, 255, 220);
+                const SDL_FRect b = {roundf(p.x / z) * z, roundf(p.y / z) * z, z, z};
+                SDL_RenderFillRect(r, &b);
+            }
         }
     }
 

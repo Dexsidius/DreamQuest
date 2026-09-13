@@ -354,7 +354,158 @@ def build_staff(tier, parent):
 # The wood tier's staff shaft for the metal tiers is dark wood.
 bc.PALETTE["wood_dark"] = PALETTES["wood"]["dark"]
 
-WEAPONS = {"sword": build_sword, "bow": build_bow, "staff": build_staff}
+# --- tools ---------------------------------------------------------------------------------
+# Built in the grip's frame like the sword: the fist at the origin, the haft
+# running down -Z past it to the head. The heads grow a little with each tier
+# and pick up the tier's extras, so a diamond pick carries a crystal and a
+# demonrite axe is barbed.
+
+# In an icon the whole tool has to fit a 32-pixel square, and at its in-hand
+# proportions that is a long stick with a speck on the end: an axe and a pick
+# looked the same. So icons draw a shorter haft and a much bigger head.
+ICON_MODE = {"on": False}
+
+
+def _tool_proportions(tier):
+    i = TIERS.index(tier)
+    size = 1.0 + i * 0.045
+    haft = 0.50
+    if ICON_MODE["on"]:
+        size *= 1.35
+        haft = 0.40
+    return size, haft
+
+
+def _tool_extras(tier, parent, at, size):
+    parts = []
+    if tier in ("platinum", "steel"):
+        parts.append(bc.part("band", bc.mesh_torus(0.028 * size, 0.009), P(tier, "accent"), parent,
+                             loc=(0, 0, at + 0.07 * size)))
+    if tier == "demonrite":
+        for side in (-1, 1):
+            parts.append(bc.spike("barb", (0, 0, at), (side * 0.06 * size, 0, at + 0.10 * size), 0.018,
+                                  P(tier, "light"), parent))
+    return parts
+
+
+def build_axe(tier, parent):
+    size, haft_len = _tool_proportions(tier)
+    parts = []
+    haft = P("wood", "main") if tier in ("wood", "bronze", "iron") else P(tier, "grip")
+    parts.append(bc.part("haft", bc.mesh_capsule(0.02, 0.019, haft_len), haft, parent, loc=(0, 0, 0.07)))
+    head_z = 0.07 - haft_len + 0.07
+    if tier == "diamond":
+        parts.append(bc.part("head", mesh_gem(0.03, 0.13 * size, 0.09 * size, sides=4), P(tier, "main"), parent,
+                             loc=(0, -0.07 * size, head_z)))
+    else:
+        # A wedge: thick at the haft, fanning out to the edge in front.
+        parts.append(bc.part("cheek", bc.mesh_ellipsoid(0.03 * size, 0.06 * size, 0.05 * size), P(tier, "dark"),
+                             parent, loc=(0, 0, head_z)))
+        parts.append(bc.part("blade", bc.mesh_ellipsoid(0.022 * size, 0.09 * size, 0.10 * size), P(tier, "main"),
+                             parent, loc=(0, -0.08 * size, head_z)))
+    parts.append(bc.part("edge", bc.mesh_ellipsoid(0.026 * size, 0.022 * size, 0.10 * size), glow_or(tier, "light"),
+                         parent, loc=(0, -0.16 * size, head_z)))
+    return parts + _tool_extras(tier, parent, head_z, size)
+
+
+def build_pickaxe(tier, parent):
+    size, haft_len = _tool_proportions(tier)
+    haft_len += 0.02
+    parts = []
+    haft = P("wood", "main") if tier in ("wood", "bronze", "iron") else P(tier, "grip")
+    parts.append(bc.part("haft", bc.mesh_capsule(0.02, 0.019, haft_len), haft, parent, loc=(0, 0, 0.07)))
+    head_z = 0.07 - haft_len + 0.05
+    parts.append(bc.part("eye", bc.mesh_ellipsoid(0.035 * size, 0.04 * size, 0.035 * size), P(tier, "dark"), parent,
+                         loc=(0, 0, head_z)))
+    # Two points, curving back toward the hand.
+    for side in (-1, 1):
+        mid = (0, side * 0.10 * size, head_z + 0.02)
+        tip = (0, side * 0.19 * size, head_z + 0.09 * size)
+        colour = glow_or(tier, "light") if side < 0 else P(tier, "main")
+        parts.append(bc.spike("arm", (0, 0, head_z), mid, 0.034 * size, P(tier, "main"), parent, r_tip=0.028 * size))
+        parts.append(bc.spike("point", mid, tip, 0.028 * size, colour, parent))
+    if tier == "diamond":
+        parts.append(bc.part("crystal", mesh_gem(0.04, 0.03, 0.06, sides=4), P(tier, "glow"), parent,
+                             loc=(0, 0, head_z - 0.03)))
+    return parts + _tool_extras(tier, parent, head_z, size)
+
+
+def build_rod(tier, parent):
+    # One rod, not a tier: willow, a leather grip, a reel, and a line with a
+    # red float hanging from the tip.
+    parts = []
+    parts.append(bc.part("grip", bc.mesh_capsule(0.028, 0.024, 0.12), "leather", parent, loc=(0, 0, 0.08)))
+    parts.append(bc.part("reel", bc.mesh_torus(0.03, 0.012), P("steel", "dark"), parent, loc=(0, 0.03, -0.02),
+                         rot=(0, math.radians(90), 0)))
+    parts.append(bc.part("rod", bc.mesh_capsule(0.018, 0.006, 0.95), P("wood", "light"), parent, loc=(0, 0, -0.04)))
+    tip = (0, 0, -1.0)
+    parts.append(bc.spike("line", tip, (0, -0.20, -1.02), 0.005, "string", parent, r_tip=0.005))
+    parts.append(bc.part("float", bc.mesh_ellipsoid(0.03, 0.03, 0.035), "float_red", parent, loc=(0, -0.21, -1.02)))
+    return parts
+
+
+bc.PALETTE["float_red"] = (0.90, 0.22, 0.20)
+
+# --- fish (icons) --------------------------------------------------------------------------------
+FISH = {
+    #          body                belly               marks               length  depth
+    "minnow": ((0.70, 0.74, 0.78), (0.92, 0.94, 0.96), None,               0.24, 0.07),
+    "trout":  ((0.52, 0.56, 0.36), (0.90, 0.80, 0.62), (0.82, 0.30, 0.26), 0.32, 0.10),
+    "pike":   ((0.30, 0.48, 0.30), (0.84, 0.86, 0.62), (0.72, 0.80, 0.50), 0.40, 0.09),
+    "salmon": ((0.66, 0.70, 0.78), (0.96, 0.62, 0.56), (0.40, 0.44, 0.56), 0.38, 0.12),
+    "eel":    ((0.34, 0.28, 0.18), (0.60, 0.52, 0.34), None,               0.46, 0.085),
+}
+for _name, (_body, _belly, _marks, _l, _d) in FISH.items():
+    bc.PALETTE["fish_%s_body" % _name] = _body
+    bc.PALETTE["fish_%s_belly" % _name] = _belly
+    bc.PALETTE["fish_%s_marks" % _name] = _marks or _body
+bc.PALETTE["cooked_body"] = (0.74, 0.46, 0.22)
+bc.PALETTE["cooked_belly"] = (0.90, 0.68, 0.38)
+# Browned, but each still leaning toward its own colour, so a roast pike and a
+# roast salmon can be told apart in the bag.
+for _name, (_body, _belly, _marks, _l, _d) in FISH.items():
+    bc.PALETTE["cooked_%s_body" % _name] = tuple(0.5 * a + 0.5 * b for a, b in zip(_body, (0.74, 0.46, 0.22)))
+    bc.PALETTE["cooked_%s_belly" % _name] = tuple(0.45 * a + 0.55 * b for a, b in zip(_belly, (0.92, 0.70, 0.40)))
+bc.PALETTE["cooked_char"] = (0.34, 0.18, 0.10)
+
+
+def build_fish(name, parent, cooked=False):
+    body_c, belly_c, marks_c, length, depth = FISH[name]
+    body = ("cooked_%s_body" if cooked else "fish_%s_body") % name
+    belly = ("cooked_%s_belly" if cooked else "fish_%s_belly") % name
+    parts = []
+    if name == "eel":
+        # Long and thin, lying along X with a little wave in it.
+        pts = [(-length, 0, 0.0), (-length * 0.4, 0, depth * 1.2), (length * 0.2, 0, -depth), (length, 0, depth * 0.6)]
+        for i in range(3):
+            parts.append(bc.spike("body", pts[i], pts[i + 1], depth * (1.0 - 0.2 * i), body, parent,
+                                  r_tip=depth * (0.8 - 0.2 * i)))
+        eye_at = (-length * 0.95, -depth * 0.8, depth * 0.3)
+    else:
+        parts.append(bc.part("body", bc.mesh_ellipsoid(length, depth * 0.55, depth), body, parent))
+        parts.append(bc.part("belly", bc.mesh_ellipsoid(length * 0.8, depth * 0.5, depth * 0.55), belly, parent,
+                             loc=(0, -0.01, -depth * 0.35)))
+        for side in (-1, 1):
+            parts.append(bc.spike("tail", (length * 0.85, 0, 0), (length * 1.35, 0, side * depth * 0.9),
+                                  depth * 0.45, body, parent))
+        parts.append(bc.spike("fin", (-length * 0.1, 0, depth * 0.8), (length * 0.25, 0, depth * 1.5),
+                              depth * 0.35, body, parent))
+        eye_at = (-length * 0.72, -depth * 0.5, depth * 0.25)
+    if not cooked:
+        parts.append(bc.part("eye", bc.mesh_ellipsoid(0.018, 0.02, 0.018), "eye", parent, loc=eye_at))
+        if marks_c:
+            for k in range(3):
+                parts.append(bc.part("mark", bc.mesh_ellipsoid(0.02, 0.012, 0.02), "fish_%s_marks" % name, parent,
+                                     loc=(-length * 0.3 + k * length * 0.3, -depth * 0.52, depth * 0.3)))
+    else:
+        for k in range(3):
+            parts.append(bc.part("grill", mesh_box(0.018, 0.02, depth * 1.6), "cooked_char", parent,
+                                 loc=(-length * 0.4 + k * length * 0.35, -depth * 0.6, 0)))
+    return parts
+
+
+WEAPONS = {"sword": build_sword, "bow": build_bow, "staff": build_staff,
+           "axe": build_axe, "pickaxe": build_pickaxe, "rod": build_rod}
 
 
 # --- armour, ore and bars (icons only) ----------------------------------------------------
@@ -565,6 +716,7 @@ BARS = {"bronze": "bronze_bar", "iron": "iron_bar", "steel": "steel_bar", "azury
 
 
 def all_icons(only_tiers):
+    ICON_MODE["on"] = True
     count = 0
     for tier in only_tiers:
         #                  file                builder       tilt  spin  fill
@@ -575,12 +727,24 @@ def all_icons(only_tiers):
                 ("helm_" + tier,   build_helm,   0,    20,  0.88),
                 ("body_" + tier,   build_body,   0,    14,  0.9),
                 ("legs_" + tier,   build_legs,   0,    14,  0.88)]
+        # Turned side-on, so the blade and the points are seen in profile.
+        jobs.append(("axe_" + tier,     build_axe,     -135, 90, 1.0))
+        jobs.append(("pickaxe_" + tier, build_pickaxe, -135, 90, 1.0))
         if tier in ORES:
             jobs.append((ORES[tier], build_ore, 0, 18, 0.9))
             jobs.append((BARS[tier], build_bar, 0, 28, 0.9))
         for name, builder, tilt, spin, fill in jobs:
             render_icon(name, builder, tier, tilt, spin, fill)
             count += 1
+    # The rod and the fish belong to no tier; they are drawn once, with the
+    # full set.
+    if len(only_tiers) == len(TIERS):
+        render_icon("fishing_rod", build_rod, "wood", -135, 0, 1.0)
+        count += 1
+        for name in FISH:
+            render_icon("raw_" + name, lambda t, p, n=name: build_fish(n, p), "wood", 0, 0, 0.94)
+            render_icon("cooked_" + name, lambda t, p, n=name: build_fish(n, p, cooked=True), "wood", 0, 0, 0.94)
+            count += 2
     print("icons %d" % count)
 
 
@@ -624,7 +788,7 @@ def weapon_layers(clip_name, models, out_dir):
     bc.setup_render(cols, rows)
 
     for model in models:
-        kind, tier = model.split("_", 1)
+        kind, tier = model.split("_", 1) if "_" in model else (model, "wood")
         made = []
         for grip in grips:
             made += WEAPONS[kind](tier, grip)
@@ -648,7 +812,16 @@ def main():
         return None
     clips = option("--only") or list(bc.CLIPS)
     tiers = option("--tiers") or TIERS
-    models = option("--models") or ["%s_%s" % (k, t) for t in tiers for k in ("sword", "bow", "staff")]
+    chosen = option("--models")
+
+    # Each clip draws what is in hand during it: the work clips their tool,
+    # every other clip the weapons.
+    def models_for(clip):
+        kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",)}.get(clip, ("sword", "bow", "staff"))
+        every = ["rod"] if kinds == ("rod",) else ["%s_%s" % (k, t) for t in tiers for k in kinds]
+        if chosen:
+            return [m for m in chosen if m.split("_", 1)[0] in kinds]
+        return every
     wanted = set(args) or {"icons", "layers"}
 
     os.makedirs(ICON_DIR, exist_ok=True)
@@ -656,7 +829,9 @@ def main():
         all_icons(tiers)
     if "layers" in wanted:
         for clip in clips:
-            weapon_layers(clip, models, bc.OUT_DIR)
+            wanted_models = models_for(clip)
+            if wanted_models:
+                weapon_layers(clip, wanted_models, bc.OUT_DIR)
 
 
 if __name__ == "__main__":

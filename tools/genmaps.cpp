@@ -464,6 +464,19 @@ static void PlaceCampsite(MapBuilder& m, const string& camp_id, int x, int y) {
     o["title"]  = "Campsite";
 }
 
+// A place worth casting a line: an object on the water at the edge of a bank,
+// drawn by the game as rings spreading on the surface. What bites there is the
+// list of fish; the lowest of them sets the level the spot asks for.
+static void PlaceFishingSpot(MapBuilder& m, const string& spot_id, int x, int y,
+                             const string& title, const vector<string>& fish, int level) {
+    json& o = m.Object(spot_id, "fishing_spot", x, y);
+    o["skill"]       = "Fishing";
+    o["skill_level"] = level;
+    o["gather_time"] = 3.6f;
+    o["title"]       = title;
+    o["fish"]        = fish;
+}
+
 // Buildings are drawn bottom-centre. Collision runs along the lower wall but
 // leaves the doorway open, and a portal sits in the gap. exit_spawn names the
 // spot on the doorstep that the interior's way out should arrive at.
@@ -764,6 +777,28 @@ static void BuildOverworld() {
                 if (r < 0.04f)       m.Prop("objects", Pick(kSmallRocks, rng), x, y);
                 else if (r < 0.055f) PlaceRock(m, rng, rock_index++, x, y, true, 10, "iron_ore");
                 else if (r < 0.061f) PlaceRock(m, rng, rock_index++, x, y, true, 20, "coal");
+            }
+        }
+    }
+
+    // --- fishing -------------------------------------------------------------
+    // Along the lake's east shore, a spot every few rows where dry land
+    // meets the water: close enough to the edge to reach from dry land.
+    {
+        int placed = 0, last_cy = -100;
+        for (int cy = 10; cy < OW_H - 10 && placed < 4; ++cy) {
+            if (cy - last_cy < 3) continue;
+            for (int cx = 2; cx < OW_W - 3; ++cx) {
+                if (BiomeAt(cx, cy) != WATER || BiomeAt(cx + 1, cy) == WATER) continue;
+                const Biome bank = BiomeAt(cx + 1, cy);
+                if (bank == ROAD || bank == TRAIL) break;
+                if (ElevationAt(cx + 1, cy) != 0) break;
+                PlaceFishingSpot(m, "fish_lake_" + std::to_string(placed),
+                                 cx * OW_CELL + OW_CELL - 8, cy * OW_CELL + OW_CELL / 2, "lake",
+                                 {"raw_minnow", "raw_pike", "raw_eel"}, 1);
+                ++placed;
+                last_cy = cy;
+                break;
             }
         }
     }
@@ -1832,6 +1867,21 @@ static void BuildWhisperwood() {
     m.Portal(nx - 72, 0, 144, 24, "fernhollow", "from_trail", "To Fernhollow", false);
     m.Spawn("from_fernhollow", static_cast<int>(BranchX(2.0f) * CELL) + 16, 2 * CELL + 16);
 
+    // Fishing: three spots on the stream's east edge, well clear of the bridge.
+    {
+        int n = 0;
+        for (int cy : {7, 15, 34, 39}) {
+            if (fabsf(cy - TrailY(StreamX(static_cast<float>(cy)))) < 5.0f || n >= 3) continue;
+            for (int cx = W - 2; cx > 1; --cx) {
+                if (!Stream(cx, cy)) continue;
+                PlaceFishingSpot(m, "fish_stream_" + std::to_string(n++),
+                                 cx * CELL + CELL - 8, cy * CELL + CELL / 2, "stream",
+                                 {"raw_minnow", "raw_trout", "raw_salmon"}, 1);
+                break;
+            }
+        }
+    }
+
     m.Write("maps");
 }
 
@@ -2090,6 +2140,21 @@ static void BuildFernhollow() {
     for (int cy = 0; cy < H; ++cy) {
         m.Collision(0, cy * CELL, CELL, CELL);
         m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    // Fishing: off the end of the jetty, and at the southern and eastern edges.
+    {
+        int n = 0;
+        const auto spot = [&](int cx, int cy, int ox, int oy) {
+            PlaceFishingSpot(m, "fish_pond_" + std::to_string(n++),
+                             cx * CELL + 16 + ox, cy * CELL + 16 + oy, "pond",
+                             {"raw_minnow", "raw_trout", "raw_pike"}, 1);
+        };
+        spot(30, 15, -4, 10);
+        for (int cy = H - 2; cy > 0; --cy)
+            if (in_pond(32, cy)) { spot(32, cy, 0, 8); break; }
+        for (int cx = W - 2; cx > 0; --cx)
+            if (in_pond(cx, 17)) { spot(cx, 17, 8, 0); break; }
     }
 
     PlaceBuilding(m, "building_house_a", gate_col * CELL + 16, 11 * CELL, 136, 147,

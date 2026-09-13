@@ -224,6 +224,8 @@ bool Map::Load(const string& path) {
             m.gather_time  = o.value("gather_time", 2.6f);
             m.title        = o.value("title", string(""));
             m.station      = o.value("station", string("workbench"));
+            if (o.contains("fish"))
+                for (const auto& f : o["fish"]) m.fish.push_back(f.get<string>());
             if (!m.sprite.empty())      m.sprite      = ResolveAsset(m.sprite);
             if (!m.sprite_open.empty()) m.sprite_open = ResolveAsset(m.sprite_open);
             if (o.contains("quests"))

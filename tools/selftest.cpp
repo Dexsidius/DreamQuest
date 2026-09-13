@@ -11,6 +11,7 @@
 //  Exit code is the number of problems found, so CI can use it directly.
 // -----------------------------------------------------------------------------
 
+#include "../src/systems/gathering.h"
 #include "../src/headers.h"
 #include "../src/sprite.h"
 #include "../src/world/map.h"
@@ -2022,6 +2023,8 @@ int main(int argc, char** argv) {
                 for (const char* kind : {"sword", "bow", "staff"}) {
                     const string model = string(kind) + "_" + t.id;
                     for (const auto& clip : hero ? hero->clips : map<string, AnimClip>{}) {
+                        // The work clips hold a tool, not a weapon.
+                        if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish") continue;
                         const string path = "assets/characters/player_hero/layers/" + clip.first +
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
@@ -2282,6 +2285,268 @@ int main(int argc, char** argv) {
         input.Update(dt);
     }
 
+    // --- gathering tools and fishing ---------------------------------------------------------
+    Section("gathering tools and fishing");
+    {
+        const auto& tiers = items.Tiers();
+        bool speeds_rise = true, tools_ok = true, reqs_ok = true, models_ok = true, stations_ok = true;
+        float last_axe = 0.0f, last_pick = 0.0f;
+        const auto recipe_for = [&](const string& id) -> const ItemDef* {
+            for (const ItemDef* r : items.Recipes()) if (r->craft_result == id) return r;
+            return nullptr;
+        };
+        for (const TierDef& t : tiers) {
+            const ItemDef* axe = items.Get(items.TierPiece(t.id, "axe"));
+            const ItemDef* pick = items.Get(items.TierPiece(t.id, "pickaxe"));
+            if (!axe || !pick || axe->tool != "axe" || pick->tool != "pickaxe" || axe->slot != SLOT_NONE) { tools_ok = false; continue; }
+            if (axe->tool_speed <= last_axe || pick->tool_speed <= last_pick) speeds_rise = false;
+            last_axe = axe->tool_speed;
+            last_pick = pick->tool_speed;
+            if (t.level > 1 && (axe->requirements.count(SKILL_WOODCUTTING) == 0 || axe->requirements.at(SKILL_WOODCUTTING) != t.level ||
+                                pick->requirements.count(SKILL_MINING) == 0 || pick->requirements.at(SKILL_MINING) != t.level))
+                reqs_ok = false;
+            if (axe->model != "axe_" + t.id || pick->model != "pickaxe_" + t.id) models_ok = false;
+            for (const ItemDef* tool : {axe, pick}) {
+                const ItemDef* r = recipe_for(tool->id);
+                if (!r || items.StationFor(*r) != (t.wood ? CraftStation::Workbench : CraftStation::Anvil)) stations_ok = false;
+            }
+        }
+        Check(tools_ok, "every tier makes an axe and a pickaxe, carried rather than worn");
+        Check(speeds_rise, "each tier's axe and pickaxe work faster than the tier below");
+        Check(reqs_ok, "and need the tier's level in Woodcutting or Mining");
+        Check(models_ok, "each tool names its own model");
+        Check(stations_ok, "wooden tools are made at a workbench and metal ones at an anvil");
+        const ItemDef* rod = items.Get("fishing_rod");
+        const ItemDef* rod_recipe = recipe_for("fishing_rod");
+        Check(rod && rod->tool == "rod" && rod_recipe && items.StationFor(*rod_recipe) == CraftStation::Workbench,
+              "a fishing rod is a tool made at a workbench");
+
+        // The hero has the work animations, and holds each tool through them.
+        {
+            const SpriteDef* hero = sprites.Get("player_hero");
+            Check(hero && hero->Find("chop") && hero->Find("mine") && hero->Find("fish"),
+                  "the hero has chop, mine and fish animations");
+            int missing = 0;
+            for (const TierDef& t : tiers) {
+                if (!fs::exists("assets/characters/player_hero/layers/chop_4_weapon_axe_" + t.id + ".png")) ++missing;
+                if (!fs::exists("assets/characters/player_hero/layers/mine_4_weapon_pickaxe_" + t.id + ".png")) ++missing;
+            }
+            if (!fs::exists("assets/characters/player_hero/layers/fish_4_weapon_rod.png")) ++missing;
+            Check(missing == 0, "every axe, pickaxe and the rod are drawn in the hero's hands at work");
+        }
+
+        // The arithmetic.
+        Check(Gathering::Speed(50, 1.0f) > Gathering::Speed(1, 1.0f) &&
+              Gathering::Speed(1, 2.25f) > Gathering::Speed(1, 1.0f), "a higher level and a better tool are both faster");
+        Check(Gathering::WorkTime(3.0f, 99, 10.0f) >= 0.6f, "however good, work takes a moment");
+        Check(string(SkillName(SKILL_FISHING)) == "Fishing" && SkillFromName("Fishing") == SKILL_FISHING, "Fishing is a skill");
+        {
+            bool rising = true;
+            float last = -1.0f;
+            for (const auto& m : Gathering::FishingMilestones()) {
+                const float total = m.two + m.three;
+                if (total < last) rising = false;
+                last = total;
+            }
+            Check(rising && Gathering::FishingMilestones().front().level == 20, "fishing milestones start at 20 and only improve");
+            Check(Gathering::CatchCount(1, 0.0f) == 1 && Gathering::CatchCount(19, 0.01f) == 1,
+                  "below level 20 a catch is always one fish");
+            Check(Gathering::CatchCount(99, 0.05f) == 3 && Gathering::CatchCount(99, 0.3f) == 2 &&
+                  Gathering::CatchCount(99, 0.9f) == 1, "at 99 a catch can be three, two or one");
+            std::mt19937 roll_rng(5);
+            std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+            int doubles = 0;
+            for (int i = 0; i < 10000; ++i) doubles += Gathering::CatchCount(40, unit(roll_rng)) == 2;
+            Check(doubles > 1800 && doubles < 2200, "at Fishing 40 about one catch in five is two fish (" +
+                  std::to_string(doubles / 100) + "%)");
+        }
+        {
+            std::mt19937 fish_rng(9);
+            const vector<string> pond = {"raw_minnow", "raw_trout", "raw_pike"};
+            bool only_minnow = true, above = false;
+            std::map<string, int> seen;
+            for (int i = 0; i < 400; ++i) {
+                if (Gathering::PickFish(pond, 1, items, fish_rng) != "raw_minnow") only_minnow = false;
+                const string f = Gathering::PickFish(pond, 30, items, fish_rng);
+                ++seen[f];
+                if (items.Get(f) && items.Get(f)->fish_level > 30) above = true;
+            }
+            Check(only_minnow, "a level 1 fisher only ever lands minnows at the pond");
+            Check(seen["raw_pike"] > 0 && seen["raw_trout"] > 0 && seen["raw_minnow"] > 0 && !above,
+                  "at level 30 the pond gives pike, trout and minnows, and nothing above the level");
+        }
+        for (const char* fish : {"raw_minnow", "raw_trout", "raw_pike", "raw_salmon", "raw_eel"}) {
+            const ItemDef* raw = items.Get(fish);
+            const ItemDef* cooked = raw ? items.Get(raw->cook_result) : nullptr;
+            Check(raw && raw->fish_level >= 1 && cooked && cooked->heal > 0, string(fish) + " can be caught and cooked into food");
+        }
+
+        // Fishing spots: in the pond, the stream and the lake, each reachable from a bank.
+        int spots = 0;
+        std::set<string> where;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "fishing_spot") continue;
+                ++spots;
+                where.insert(id);
+                bool fish_ok = !o.fish.empty();
+                for (const string& f : o.fish) if (!items.Get(f) || items.Get(f)->fish_level <= 0) fish_ok = false;
+                Check(fish_ok && o.skill == "Fishing", o.id + " has real fish in it");
+                bool bank = false;
+                for (float a = 0.0f; a < 6.28f && !bank; a += 0.3f)
+                    for (float d = 16.0f; d <= 50.0f && !bank; d += 6.0f) {
+                        const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                        if (!m.Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) bank = true;
+                    }
+                Check(bank, o.id + " can be reached from dry land");
+            }
+        }
+        Check(spots >= 8 && where.count("fernhollow") && where.count("whisperwood_trail") && where.count("overworld"),
+              "there is fishing at Fernhollow's pond, the Whisperwood stream and the Hollowmarch lake (" +
+              std::to_string(spots) + " spots)");
+
+        // --- in the world -------------------------------------------------------------------
+        Input input;
+        std::mt19937 rng(44);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        // Stands the player beside the first object of a kind on a map and
+        // presses Interact on it; returns the object, or null.
+        const auto work_at = [&](World& w, const string& map_id, const std::function<bool(const MapObject&)>& pick,
+                                 int skill, int level) -> const MapObject* {
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap(map_id, "", ctx)) return nullptr;
+            w.enemies.clear();
+            LevelUp lu;
+            if (level > 1) w.player.skills.AddXp(skill, XpForLevel(level), lu);
+            for (const MapObject& o : w.CurrentMap().Objects()) {
+                if (!pick(o)) continue;
+                // A spot on dry ground within reach of it.
+                for (float a = 1.57f; a < 1.57f + 6.28f; a += 0.3f)
+                    for (float d = 14.0f; d <= 44.0f; d += 6.0f) {
+                        const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                        if (w.CurrentMap().Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) continue;
+                        w.player.x = px;
+                        w.player.y = py;
+                        frames(w, 2);
+                        if (w.player.interact.kind == InteractTarget::Object) return &o;
+                    }
+            }
+            return nullptr;
+        };
+        const auto is_tree = [](const MapObject& o) { return o.skill == "Woodcutting" && o.skill_level <= 1; };
+        const auto is_copper = [](const MapObject& o) { return o.yield == "copper_ore" && o.skill_level <= 1; };
+        const auto is_pond = [](const MapObject& o) { return o.type == "fishing_spot"; };
+
+        // Seconds from pressing Interact until the first thing lands in the bag.
+        const auto time_to_first = [&](World& w, const string& id, float limit) {
+            const int before = w.player.inventory.Count(id);
+            w.TryInteract(ctx);
+            for (int f = 0; f < static_cast<int>(limit * 60.0f); ++f) {
+                frames(w, 1);
+                if (w.player.inventory.Count(id) > before) return f / 60.0f;
+            }
+            return -1.0f;
+        };
+
+        {
+            World w;
+            const MapObject* tree = work_at(w, "overworld", is_tree, SKILL_WOODCUTTING, 1);
+            Check(tree != nullptr, "there is a tree to test on");
+            if (tree) {
+                Check(w.player.interact.label.find("needs an axe") != string::npos,
+                      "without an axe the tree says so before the button is pressed");
+                w.TryInteract(ctx);
+                frames(w, 2);
+                Check(!w.Gathering() && w.player.GatherClip().empty(), "and pressing it chops nothing");
+                w.player.inventory.Add("bronze_axe", 1);
+                frames(w, 1);
+                const float bronze = time_to_first(w, "logs", 12.0f);
+                Check(bronze > 0.0f, "with a bronze axe the tree gives logs (" + std::to_string(bronze).substr(0, 4) + "s)");
+                w.TryInteract(ctx);
+                frames(w, 1);
+                w.TryInteract(ctx);
+                frames(w, 1);
+                Check(w.Gathering() && w.player.GatherClip() == "chop", "the hero chops while it works");
+                Check(w.player.BuildLayerStyle(&items).weapon_model == "axe_bronze", "holding the axe, not a weapon");
+                w.TryInteract(ctx);   // stop
+                frames(w, 2);
+                Check(!w.Gathering() && w.player.GatherClip().empty(), "and stops when told to");
+            }
+            World w2;
+            if (work_at(w2, "overworld", is_tree, SKILL_WOODCUTTING, 70)) {
+                w2.player.inventory.Add("bronze_axe", 1);
+                frames(w2, 1);
+                const float slow = time_to_first(w2, "logs", 12.0f);
+                w2.player.inventory.Add("demonrite_axe", 1);
+                w2.TryInteract(ctx);
+                frames(w2, 1);
+                const float fast = time_to_first(w2, "logs", 12.0f);
+                Check(slow > 0.0f && fast > 0.0f && fast < slow * 0.7f,
+                      "a demonrite axe fells the same tree much faster than bronze (" +
+                      std::to_string(fast).substr(0, 4) + "s against " + std::to_string(slow).substr(0, 4) + "s)");
+            }
+        }
+        {
+            World w;
+            if (work_at(w, "overworld", is_copper, SKILL_MINING, 1)) {
+                w.player.inventory.Add("iron_pickaxe", 1);
+                frames(w, 1);
+                w.TryInteract(ctx);
+                frames(w, 2);
+                Check(!w.Gathering(), "an iron pickaxe is no use at Mining 1");
+                w.player.inventory.Add("bronze_pickaxe", 1);
+                frames(w, 1);
+                const float t = time_to_first(w, "copper_ore", 12.0f);
+                Check(t > 0.0f && w.player.GatherClip() == "mine", "a bronze pickaxe mines copper, with the mining animation");
+                w.player.x += 200.0f;
+                frames(w, 3);
+                Check(!w.Gathering() && w.player.GatherClip().empty(), "walking away stops the work");
+            }
+        }
+        {
+            World w;
+            if (work_at(w, "fernhollow", is_pond, SKILL_FISHING, 1)) {
+                Check(w.player.interact.label.find("needs a fishing rod") != string::npos, "the pond wants a rod");
+                w.player.inventory.Add("fishing_rod", 1);
+                frames(w, 1);
+                const float t = time_to_first(w, "raw_minnow", 15.0f);
+                Check(t > 0.0f, "with a rod, a level 1 fisher catches a minnow (" + std::to_string(t).substr(0, 4) + "s)");
+                Check(w.player.GatherClip() == "fish" && w.player.skills.Xp(SKILL_FISHING) > 0,
+                      "fishing plays its animation and trains Fishing");
+            }
+            World w99;
+            if (work_at(w99, "fernhollow", is_pond, SKILL_FISHING, 99)) {
+                w99.player.inventory.Add("fishing_rod", 1);
+                frames(w99, 1);
+                w99.TryInteract(ctx);
+                int catches = 0, multi = 0, last = 0;
+                for (int f = 0; f < 60 * 60 && catches < 30; ++f) {
+                    frames(w99, 1);
+                    int total = 0;
+                    for (int s2 = 0; s2 < w99.player.inventory.SlotCount(); ++s2) {
+                        const ItemDef* d = items.Get(w99.player.inventory.Slot(s2).id);
+                        if (d && d->fish_level > 0) total += w99.player.inventory.Slot(s2).qty;
+                    }
+                    if (total > last) { ++catches; if (total - last > 1) ++multi; last = total; }
+                }
+                Check(catches >= 20 && multi > 0, "at Fishing 99 some casts land more than one fish (" +
+                      std::to_string(multi) + " of " + std::to_string(catches) + ")");
+            }
+        }
+        input.Update(dt);
+    }
+
     // --- day, night and dreams ----------------------------------------------------------
     Section("day, night and dreams");
     {
@@ -2405,18 +2670,8 @@ int main(int argc, char** argv) {
         ctx.projectiles = &projectiles; ctx.spells = &spells;
         ctx.input = &input;       ctx.rng = &rng;
         const float dt = 1.0f / 60.0f;
-        const auto key = [&](SDL_Keycode k, bool down) {
-            SDL_Event e{};
-            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
-            e.key.key = k;
-            input.HandleEvent(e);
-        };
         const auto frames = [&](World& w, int n) {
             for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
-        };
-        const auto tap = [&](World& w, SDL_Keycode k) {
-            input.Update(dt); key(k, true);  w.Update(dt, ctx);
-            input.Update(dt); key(k, false); w.Update(dt, ctx);
         };
         // Runs frames until the test says stop or the time runs out.
         const auto until = [&](World& w, float seconds, const std::function<bool()>& done) {

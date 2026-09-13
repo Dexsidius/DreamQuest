@@ -1,112 +1,411 @@
 {
-  "_comment": "Material tiers. Every tier makes the same seven pieces, and the game builds the items and their recipes from this file: see ItemDatabase::LoadTiers. A piece's stats are its tier's power times the piece's factors; its requirement is the tier's level in the piece's skill. 'ids' and 'names' keep the items that existed before tiers under their old ids, so saves, quests and loot tables still find them.",
+  "_comment": "Material tiers. Every tier makes the same seven pieces, and the game builds the items and their recipes from this file: see ItemDatabase::LoadTiers. A piece's stats are its tier's power times the piece's factors; its requirement is the tier's level in the piece's skill. 'ids' and 'names' keep the items that existed before tiers under their old ids, so saves, quests and loot tables still find them. Axes and pickaxes are tools rather than gear: carried, not worn, needing the tier's level in Woodcutting or Mining, and each tier works faster by its 'tool_speed'.",
   "pieces": {
-    "sword":  { "slot": "weapon", "kind": "melee", "skill": "Attack",  "noun": "Sword",   "power": "weapon",
-                "bonus": { "attack": 1.0, "strength": 1.5 }, "speed": 1.0, "value": 40,
-                "bars": 2, "extra": { "logs": 1 }, "craft_offset": 1,
-                "desc": "A straight blade and a plain grip." },
-    "bow":    { "slot": "weapon", "kind": "bow",   "skill": "Ranged",  "noun": "Bow",     "power": "weapon",
-                "bonus": { "ranged": 2.0 }, "speed": 0.9, "value": 36,
-                "bars": 1, "extra": { "logs": 2, "thread": 1 }, "craft_offset": 2,
-                "desc": "Takes both hands, and a steady eye." },
-    "staff":  { "slot": "weapon", "kind": "staff", "skill": "Magic",   "noun": "Staff",   "power": "weapon",
-                "bonus": { "magic": 2.0 }, "speed": 1.05, "value": 38,
-                "bars": 1, "extra": { "logs": 3 }, "craft_offset": 2,
-                "desc": "It carries a spell further than a bare hand can." },
-    "shield": { "slot": "shield", "skill": "Defence", "noun": "Shield", "power": "armour",
-                "bonus": { "defence": 1.0 }, "value": 34,
-                "bars": 3, "extra": { "logs": 1 }, "craft_offset": 2,
-                "desc": "Something to put between you and the worst of it." },
-    "helm":   { "slot": "head", "skill": "Defence", "noun": "Helm", "power": "armour",
-                "bonus": { "defence": 0.6 }, "value": 28,
-                "bars": 2, "extra": {}, "craft_offset": 0,
-                "desc": "Narrow eye slit. You get used to it." },
-    "body":   { "slot": "body", "skill": "Defence", "noun": "Cuirass", "power": "armour",
-                "bonus": { "defence": 1.2 }, "value": 60,
-                "bars": 5, "extra": {}, "craft_offset": 4,
-                "desc": "Plate over a padded backing." },
-    "legs":   { "slot": "legs", "skill": "Defence", "noun": "Greaves", "power": "armour",
-                "bonus": { "defence": 0.75 }, "value": 40,
-                "bars": 3, "extra": {}, "craft_offset": 3,
-                "desc": "Shin and thigh plates, strapped over the hose." }
+    "sword": {
+      "slot": "weapon",
+      "kind": "melee",
+      "skill": "Attack",
+      "noun": "Sword",
+      "power": "weapon",
+      "bonus": {
+        "attack": 1.0,
+        "strength": 1.5
+      },
+      "speed": 1.0,
+      "value": 40,
+      "bars": 2,
+      "extra": {
+        "logs": 1
+      },
+      "craft_offset": 1,
+      "desc": "A straight blade and a plain grip."
+    },
+    "bow": {
+      "slot": "weapon",
+      "kind": "bow",
+      "skill": "Ranged",
+      "noun": "Bow",
+      "power": "weapon",
+      "bonus": {
+        "ranged": 2.0
+      },
+      "speed": 0.9,
+      "value": 36,
+      "bars": 1,
+      "extra": {
+        "logs": 2,
+        "thread": 1
+      },
+      "craft_offset": 2,
+      "desc": "Takes both hands, and a steady eye."
+    },
+    "staff": {
+      "slot": "weapon",
+      "kind": "staff",
+      "skill": "Magic",
+      "noun": "Staff",
+      "power": "weapon",
+      "bonus": {
+        "magic": 2.0
+      },
+      "speed": 1.05,
+      "value": 38,
+      "bars": 1,
+      "extra": {
+        "logs": 3
+      },
+      "craft_offset": 2,
+      "desc": "It carries a spell further than a bare hand can."
+    },
+    "shield": {
+      "slot": "shield",
+      "skill": "Defence",
+      "noun": "Shield",
+      "power": "armour",
+      "bonus": {
+        "defence": 1.0
+      },
+      "value": 34,
+      "bars": 3,
+      "extra": {
+        "logs": 1
+      },
+      "craft_offset": 2,
+      "desc": "Something to put between you and the worst of it."
+    },
+    "helm": {
+      "slot": "head",
+      "skill": "Defence",
+      "noun": "Helm",
+      "power": "armour",
+      "bonus": {
+        "defence": 0.6
+      },
+      "value": 28,
+      "bars": 2,
+      "extra": {},
+      "craft_offset": 0,
+      "desc": "Narrow eye slit. You get used to it."
+    },
+    "body": {
+      "slot": "body",
+      "skill": "Defence",
+      "noun": "Cuirass",
+      "power": "armour",
+      "bonus": {
+        "defence": 1.2
+      },
+      "value": 60,
+      "bars": 5,
+      "extra": {},
+      "craft_offset": 4,
+      "desc": "Plate over a padded backing."
+    },
+    "legs": {
+      "slot": "legs",
+      "skill": "Defence",
+      "noun": "Greaves",
+      "power": "armour",
+      "bonus": {
+        "defence": 0.75
+      },
+      "value": 40,
+      "bars": 3,
+      "extra": {},
+      "craft_offset": 3,
+      "desc": "Shin and thigh plates, strapped over the hose."
+    },
+    "axe": {
+      "slot": "none",
+      "skill": "Woodcutting",
+      "noun": "Axe",
+      "tool": "axe",
+      "value": 30,
+      "bars": 2,
+      "extra": {
+        "logs": 1
+      },
+      "craft_offset": 0,
+      "desc": "For felling trees. The better the metal, the faster the work."
+    },
+    "pickaxe": {
+      "slot": "none",
+      "skill": "Mining",
+      "noun": "Pickaxe",
+      "tool": "pickaxe",
+      "value": 32,
+      "bars": 2,
+      "extra": {
+        "logs": 1
+      },
+      "craft_offset": 1,
+      "desc": "For breaking ore out of rock. The better the metal, the faster the work."
+    }
   },
   "tiers": [
     {
-      "id": "wood", "name": "Wooden", "level": 1, "weapon_power": 6, "armour_power": 12, "value": 1,
-      "colour": [168, 124, 76],
-      "material": "logs", "wood": true,
+      "id": "wood",
+      "name": "Wooden",
+      "level": 1,
+      "weapon_power": 6,
+      "armour_power": 12,
+      "value": 1,
+      "tool_speed": 1.0,
+      "colour": [
+        168,
+        124,
+        76
+      ],
+      "material": "logs",
+      "wood": true,
       "flavour": "Seasoned wood, carved and pegged. Better than bare hands.",
-      "ids":   { "shield": "wooden_shield", "bow": "oak_shortbow" },
-      "names": { "bow": "Oak Shortbow", "helm": "Barkwood Helm", "body": "Barkwood Cuirass", "legs": "Barkwood Greaves" },
+      "ids": {
+        "shield": "wooden_shield",
+        "bow": "oak_shortbow"
+      },
+      "names": {
+        "bow": "Oak Shortbow",
+        "helm": "Barkwood Helm",
+        "body": "Barkwood Cuirass",
+        "legs": "Barkwood Greaves",
+        "pickaxe": "Wooden Pickaxe"
+      },
       "wood_inputs": {
-        "sword": { "logs": 3 }, "bow": { "logs": 3, "thread": 1 }, "staff": { "logs": 4 },
-        "shield": { "logs": 3, "hide": 1 }, "helm": { "logs": 2, "hide": 1 },
-        "body": { "logs": 4, "hide": 2 }, "legs": { "logs": 3, "hide": 1 }
+        "sword": {
+          "logs": 3
+        },
+        "bow": {
+          "logs": 3,
+          "thread": 1
+        },
+        "staff": {
+          "logs": 4
+        },
+        "shield": {
+          "logs": 3,
+          "hide": 1
+        },
+        "helm": {
+          "logs": 2,
+          "hide": 1
+        },
+        "body": {
+          "logs": 4,
+          "hide": 2
+        },
+        "legs": {
+          "logs": 3,
+          "hide": 1
+        },
+        "axe": {
+          "logs": 3
+        },
+        "pickaxe": {
+          "logs": 3
+        }
       }
     },
     {
-      "id": "bronze", "name": "Bronze", "level": 1, "weapon_power": 10, "armour_power": 18, "value": 2,
-      "colour": [206, 142, 78],
-      "ore": "copper_ore", "ore_name": "Copper Ore", "mining": 1,
+      "id": "bronze",
+      "name": "Bronze",
+      "level": 1,
+      "weapon_power": 10,
+      "armour_power": 18,
+      "value": 2,
+      "tool_speed": 1.15,
+      "colour": [
+        206,
+        142,
+        78
+      ],
+      "ore": "copper_ore",
+      "ore_name": "Copper Ore",
+      "mining": 1,
       "ore_desc": "Green-streaked rock. Heavier than it has any right to be.",
-      "bar": "bronze_bar", "bar_name": "Bronze Bar", "smelt": { "copper_ore": 2 },
+      "bar": "bronze_bar",
+      "bar_name": "Bronze Bar",
+      "smelt": {
+        "copper_ore": 2
+      },
       "flavour": "Soft metal, honest edge. It will see you through the meadow."
     },
     {
-      "id": "iron", "name": "Iron", "level": 10, "weapon_power": 21, "armour_power": 26, "value": 6,
-      "colour": [150, 154, 164],
-      "ore": "iron_ore", "ore_name": "Iron Ore", "mining": 5,
+      "id": "iron",
+      "name": "Iron",
+      "level": 10,
+      "weapon_power": 21,
+      "armour_power": 26,
+      "value": 6,
+      "tool_speed": 1.3,
+      "colour": [
+        150,
+        154,
+        164
+      ],
+      "ore": "iron_ore",
+      "ore_name": "Iron Ore",
+      "mining": 5,
       "ore_desc": "Dull red and dense. The forge will know what to do with it.",
-      "bar": "iron_bar", "bar_name": "Iron Bar", "smelt": { "iron_ore": 2 },
+      "bar": "iron_bar",
+      "bar_name": "Iron Bar",
+      "smelt": {
+        "iron_ore": 2
+      },
       "flavour": "Heavier in the hand, and it bites far deeper than bronze."
     },
     {
-      "id": "steel", "name": "Steel", "level": 20, "weapon_power": 35, "armour_power": 36, "value": 18,
-      "colour": [214, 222, 236],
-      "ore": "coal", "ore_name": "Coal", "mining": 20,
+      "id": "steel",
+      "name": "Steel",
+      "level": 20,
+      "weapon_power": 35,
+      "armour_power": 36,
+      "value": 18,
+      "tool_speed": 1.45,
+      "colour": [
+        214,
+        222,
+        236
+      ],
+      "ore": "coal",
+      "ore_name": "Coal",
+      "mining": 20,
       "ore_desc": "Black, greasy and brittle. Iron needs it to become steel.",
-      "bar": "steel_bar", "bar_name": "Steel Bar", "smelt": { "iron_ore": 2, "coal": 2 },
-      "ids": { "sword": "steel_longsword" }, "names": { "sword": "Steel Longsword" },
+      "bar": "steel_bar",
+      "bar_name": "Steel Bar",
+      "smelt": {
+        "iron_ore": 2,
+        "coal": 2
+      },
+      "ids": {
+        "sword": "steel_longsword"
+      },
+      "names": {
+        "sword": "Steel Longsword"
+      },
       "flavour": "Guild-forged. The kind of work that ends an argument early."
     },
     {
-      "id": "azuryte", "name": "Azuryte", "level": 30, "weapon_power": 50, "armour_power": 48, "value": 40,
-      "colour": [70, 136, 240],
-      "ore": "azuryte_ore", "ore_name": "Azuryte Ore", "mining": 30,
+      "id": "azuryte",
+      "name": "Azuryte",
+      "level": 30,
+      "weapon_power": 50,
+      "armour_power": 48,
+      "value": 40,
+      "tool_speed": 1.6,
+      "colour": [
+        70,
+        136,
+        240
+      ],
+      "ore": "azuryte_ore",
+      "ore_name": "Azuryte Ore",
+      "mining": 30,
       "ore_desc": "Blue veins in pale stone that stay faintly lit in the dark.",
-      "bar": "azuryte_bar", "bar_name": "Azuryte Bar", "smelt": { "azuryte_ore": 2, "coal": 1 },
+      "bar": "azuryte_bar",
+      "bar_name": "Azuryte Bar",
+      "smelt": {
+        "azuryte_ore": 2,
+        "coal": 1
+      },
       "flavour": "Sky-blue metal that rings like a bell and never quite goes cold."
     },
     {
-      "id": "adamantium", "name": "Adamantium", "level": 40, "weapon_power": 64, "armour_power": 60, "value": 80,
-      "colour": [56, 150, 104],
-      "ore": "adamantium_ore", "ore_name": "Adamantium Ore", "mining": 40,
+      "id": "adamantium",
+      "name": "Adamantium",
+      "level": 40,
+      "weapon_power": 64,
+      "armour_power": 60,
+      "value": 80,
+      "tool_speed": 1.75,
+      "colour": [
+        56,
+        150,
+        104
+      ],
+      "ore": "adamantium_ore",
+      "ore_name": "Adamantium Ore",
+      "mining": 40,
       "ore_desc": "Green-black and so hard a pick skids off it more often than not.",
-      "bar": "adamantium_bar", "bar_name": "Adamantium Bar", "smelt": { "adamantium_ore": 3, "coal": 2 },
+      "bar": "adamantium_bar",
+      "bar_name": "Adamantium Bar",
+      "smelt": {
+        "adamantium_ore": 3,
+        "coal": 2
+      },
       "flavour": "Deep green and nearly unbreakable. Heavy, and worth it."
     },
     {
-      "id": "diamond", "name": "Diamond", "level": 50, "weapon_power": 80, "armour_power": 74, "value": 150,
-      "colour": [180, 236, 248],
-      "ore": "diamond_ore", "ore_name": "Rough Diamond", "mining": 50,
+      "id": "diamond",
+      "name": "Diamond",
+      "level": 50,
+      "weapon_power": 80,
+      "armour_power": 74,
+      "value": 150,
+      "tool_speed": 1.9,
+      "colour": [
+        180,
+        236,
+        248
+      ],
+      "ore": "diamond_ore",
+      "ore_name": "Rough Diamond",
+      "mining": 50,
       "ore_desc": "A clouded crystal still half in its rock.",
-      "bar": "diamond_ingot", "bar_name": "Diamond Ingot", "smelt": { "diamond_ore": 3 },
+      "bar": "diamond_ingot",
+      "bar_name": "Diamond Ingot",
+      "smelt": {
+        "diamond_ore": 3
+      },
       "flavour": "Crystal fused into a working edge. It throws the light back at you."
     },
     {
-      "id": "platinum", "name": "Platinum", "level": 60, "weapon_power": 96, "armour_power": 88, "value": 260,
-      "colour": [236, 226, 196],
-      "ore": "platinum_ore", "ore_name": "Platinum Ore", "mining": 60,
+      "id": "platinum",
+      "name": "Platinum",
+      "level": 60,
+      "weapon_power": 96,
+      "armour_power": 88,
+      "value": 260,
+      "tool_speed": 2.05,
+      "colour": [
+        236,
+        226,
+        196
+      ],
+      "ore": "platinum_ore",
+      "ore_name": "Platinum Ore",
+      "mining": 60,
       "ore_desc": "Grains of pale metal that do not tarnish, whatever you do to them.",
-      "bar": "platinum_bar", "bar_name": "Platinum Bar", "smelt": { "platinum_ore": 3, "coal": 1 },
+      "bar": "platinum_bar",
+      "bar_name": "Platinum Bar",
+      "smelt": {
+        "platinum_ore": 3,
+        "coal": 1
+      },
       "flavour": "White metal with gold at the fittings. Made for a champion."
     },
     {
-      "id": "demonrite", "name": "Demonrite", "level": 70, "weapon_power": 115, "armour_power": 105, "value": 420,
-      "colour": [120, 34, 42],
-      "ore": "demonrite_ore", "ore_name": "Demonrite Ore", "mining": 70,
+      "id": "demonrite",
+      "name": "Demonrite",
+      "level": 70,
+      "weapon_power": 115,
+      "armour_power": 105,
+      "value": 420,
+      "tool_speed": 2.25,
+      "colour": [
+        120,
+        34,
+        42
+      ],
+      "ore": "demonrite_ore",
+      "ore_name": "Demonrite Ore",
+      "mining": 70,
       "ore_desc": "Black glass with a red heat inside. It came back from a nightmare.",
-      "bar": "demonrite_bar", "bar_name": "Demonrite Bar", "smelt": { "demonrite_ore": 3, "dream_shard": 2 },
+      "bar": "demonrite_bar",
+      "bar_name": "Demonrite Bar",
+      "smelt": {
+        "demonrite_ore": 3,
+        "dream_shard": 2
+      },
       "flavour": "Forged from what nightmares are made of. It is warm, and it is hungry."
     }
   ]

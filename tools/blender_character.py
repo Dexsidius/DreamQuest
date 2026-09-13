@@ -616,6 +616,69 @@ def pose_death(t):
     }
 
 
+def _ease(k):
+    k = max(0.0, min(1.0, k))
+    return k * k * (3 - 2 * k)
+
+
+def _work_cycle(t, rest, raise_, strike, hold=0.14):
+    """A looping stroke: from rest up to the top of the swing, a fast strike
+    down to the bottom, a beat held there, and back to rest. Each argument is
+    a dict of pose values; the result blends between them."""
+    keys = set(rest) | set(raise_) | set(strike)
+    def mix(a, b, k):
+        return {key: a.get(key, 0.0) + (b.get(key, 0.0) - a.get(key, 0.0)) * k for key in keys}
+    if t < 0.42:
+        return mix(rest, raise_, _ease(t / 0.42))
+    if t < 0.56:
+        return mix(raise_, strike, _ease((t - 0.42) / 0.14))
+    if t < 0.56 + hold:
+        return mix(strike, strike, 0.0)
+    return mix(strike, rest, _ease((t - 0.56 - hold) / (1.0 - 0.56 - hold)))
+
+
+def pose_chop(t):
+    # Feet planted wide and the axe brought round from over the shoulder into
+    # the trunk in front, the body turning into the blow.
+    base = {"leg_l": 14, "leg_r": -10, "knee_l": 14, "knee_r": 10, "flare_l": 16, "flare_r": 22,
+            "scarf": 18, "scarf2": 12, "hair": 3}
+    rest = dict(base, arm_r=40, elbow_r=30, arm_l=30, elbow_l=40, twist=0, lean=4, sword=20)
+    raise_ = dict(base, arm_r=145, elbow_r=65, arm_l=110, elbow_l=60, twist=30, lean=-6, nod=-6,
+                  sword=10, hips_twist=8)
+    strike = dict(base, arm_r=55, elbow_r=10, arm_l=45, elbow_l=20, twist=-28, lean=16, nod=8,
+                  sword=55, hips_twist=-8, lunge=0.04, scarf=34)
+    return _work_cycle(t, rest, raise_, strike)
+
+
+def pose_mine(t):
+    # The pick lifted high over the head and driven straight down into the rock,
+    # the whole body folding over the stroke.
+    base = {"leg_l": 16, "leg_r": -12, "knee_l": 20, "knee_r": 14, "flare_l": 12, "flare_r": 12,
+            "scarf": 16, "scarf2": 10, "hair": 2}
+    rest = dict(base, arm_r=35, elbow_r=30, arm_l=30, elbow_l=30, lean=6, sword=30)
+    raise_ = dict(base, arm_r=175, elbow_r=40, arm_l=160, elbow_l=40, lean=-10, nod=-10,
+                  sword=0, bob=0.01)
+    strike = dict(base, arm_r=40, elbow_r=5, arm_l=35, elbow_l=8, lean=26, nod=14,
+                  sword=20, bob=-0.03, lunge=0.03, scarf=30)
+    return _work_cycle(t, rest, raise_, strike, hold=0.16)
+
+
+def pose_fish(t):
+    # The rod held out over the water, tip up, and the patient bob of waiting:
+    # a slow sway, a twitch of the wrist now and then, and a blink.
+    b = math.sin(t * math.tau)
+    twitch = 1.0 if 0.40 <= t < 0.52 else 0.0
+    return {
+        "arm_r": 62 + 4 * b + 10 * twitch, "elbow_r": 26 - 6 * twitch, "flare_r": 12,
+        "arm_l": 34 + 3 * b, "elbow_l": 50, "flare_l": 14,
+        "lean": 6 + 1.5 * b, "nod": 6, "bob": 0.005 * b,
+        "leg_l": 6, "leg_r": -4, "knee_l": 6, "knee_r": 4,
+        "sword": 38 + 5 * b + 10 * twitch,
+        "scarf": 14 + 4 * b, "scarf2": 8 + 5 * b, "hair": b * 1.5,
+        "blink": 1.0 if 0.80 <= t < 0.88 else 0.0,
+    }
+
+
 # clip -> (pose function, frame count, loops)
 CLIPS = {
     "idle":   (pose_idle,   8,  True),
@@ -626,6 +689,10 @@ CLIPS = {
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
     "death":  (pose_death,  6,  False),
+    # The work: looped for as long as the gathering goes on.
+    "chop":   (pose_chop,   8,  True),
+    "mine":   (pose_mine,   8,  True),
+    "fish":   (pose_fish,   8,  True),
 }
 
 # Rows in the order every sheet in this project uses, and how far the

@@ -104,6 +104,12 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.metal = o.value("metal", false);
         d.use   = o.value("use", string(""));
         d.model = o.value("model", string(""));
+        d.tool  = o.value("tool", string(""));
+        d.tool_speed = o.value("tool_speed", 1.0f);
+        if (o.contains("fish")) {
+            d.fish_level = o["fish"].value("level", 1);
+            d.fish_xp    = o["fish"].value("xp", 10);
+        }
 
         if (o.contains("craft")) {
             const json& c = o["craft"];
@@ -164,7 +170,8 @@ bool ItemDatabase::LoadTiers(const string& path) {
     tier_pieces.clear();
 
     // Pieces in a fixed order, so the recipe list reads the same every time.
-    static const char* kPieces[] = {"sword", "bow", "staff", "shield", "helm", "body", "legs"};
+    static const char* kPieces[] = {"sword", "bow", "staff", "shield", "helm", "body", "legs",
+                                    "axe", "pickaxe"};
     const json& pieces = root["pieces"];
 
     const auto icon_for = [](const string& file) { return "assets/icons/tiers/" + file + ".png"; };
@@ -256,10 +263,12 @@ bool ItemDatabase::LoadTiers(const string& path) {
             d.piece = piece;
 
             const bool weapon = d.slot == SLOT_WEAPON;
-            if (weapon) d.model = piece + "_" + t.id;
+            d.tool = pj.value("tool", string(""));
+            if (!d.tool.empty()) d.tool_speed = tj.value("tool_speed", 1.0f);
+            if (weapon || !d.tool.empty()) d.model = piece + "_" + t.id;
             // A weapon's model is drawn in its own colours; armour has no art on
             // the character, so it shows as the tier's colour over the body.
-            if (!weapon) d.tint = t.colour;
+            if (!weapon && d.tool.empty()) d.tint = t.colour;
 
             const float power = pj.value("power", string("weapon")) == "armour"
                                     ? tj.value("armour_power", 10.0f)

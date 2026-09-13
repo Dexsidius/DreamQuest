@@ -74,6 +74,12 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
         if (w && w->worn && !w->worn_sprite.empty()) s.show_weapon = false;
         if (w) s.weapon_model = w->model;
     }
+    // At work the hands hold the tool, whatever is normally in them.
+    if (!gather_model.empty()) {
+        s.weapon_model = gather_model;
+        s.show_weapon = true;
+        s.weapon = {255, 255, 255, 255};
+    }
     return s;
 }
 
@@ -160,6 +166,23 @@ vector<pair<int,int>> Player::TakeXpDrops() {
     vector<pair<int,int>> out;
     out.swap(pending_xp);
     return out;
+}
+
+void Player::StartGathering(const string& clip, const string& tool_model, float tx, float ty) {
+    gather_clip = clip;
+    gather_model = tool_model;
+    // Face the tree, the rock or the water, not whichever way the walk ended.
+    const float dx = tx - x, dy = ty - y;
+    if (Length(dx, dy) > 1.0f) {
+        if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;
+        else                       facing = (dy > 0) ? FACE_DOWN  : FACE_UP;
+        sprite.facing = facing;
+    }
+}
+
+void Player::StopGathering() {
+    gather_clip.clear();
+    gather_model.clear();
 }
 
 void Player::FacePoint(float tx, float ty) {
@@ -378,6 +401,18 @@ void Player::UpdateAnimation(const Vec2& move) {
     if (attack.Active()) return;                     // attack clip owns the frames
 
     const float mag = Length(move.x, move.y);
+    // The work, looped for as long as it goes on. A rig with no clip for it
+    // swings its attack over and over instead.
+    if (!gather_clip.empty() && mag < 0.05f) {
+        const bool has_clip = sprite.Def() && sprite.Def()->Find(gather_clip);
+        if (has_clip) {
+            sprite.Play(gather_clip);
+        } else if (sprite.current != "attack" || sprite.Finished()) {
+            sprite.Play("attack", true);
+        }
+        if (attack_cooldown <= 0.0f) sprite.speed_scale = 1.0f;
+        return;
+    }
     // Playback speed belongs to the attack until its cooldown ends.
     const bool own_speed = attack_cooldown <= 0.0f;
     if (mag < 0.05f)              sprite.Play("idle");
@@ -444,8 +479,10 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- input ---------------------------------------------------------------
     Vec2 move{0, 0};
+    moving = false;
     if (!input_locked && ctx.input) {
         move = ctx.input->MoveAxis();
+        moving = Length(move.x, move.y) > 0.3f;
         HandleAttackInput(*ctx.input, dt, world);
 
         // Which way a jump would go: where you are steering, or failing that

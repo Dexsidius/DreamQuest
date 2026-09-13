@@ -1,3 +1,4 @@
+#include "../systems/gathering.h"
 #include "../game.h"
 
 // =============================================================================
@@ -1224,7 +1225,20 @@ void Game::DrawSkillsPanel() {
     ui.Text(header, panel.x + panel.w - 24.0f, panel.y + panel.h - 52.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
 
-    const float row_h = 40.0f;
+    // With Fishing selected, its milestones: the chance of more than one fish.
+    if (cursor == SKILL_FISHING) {
+        string line = "Catch more than one:";
+        for (const auto& m : Gathering::FishingMilestones()) {
+            char buf[64];
+            if (m.three > 0.0f) SDL_snprintf(buf, sizeof(buf), "  %d: 3 fish %d%%", m.level, static_cast<int>(m.three * 100 + 0.5f));
+            else                SDL_snprintf(buf, sizeof(buf), "  %d: 2 fish %d%%", m.level, static_cast<int>(m.two * 100 + 0.5f));
+            line += buf;
+        }
+        ui.Text(line, panel.x + 24.0f, panel.y + panel.h - 76.0f, TextSize::Small,
+                s.Level(SKILL_FISHING) >= 20 ? Palette::Xp : Palette::TextDim);
+    }
+
+    const float row_h = 38.0f;
     for (int i = 0; i < SKILL_COUNT; ++i) {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 58.0f + i * row_h,
                                panel.w - 40.0f, row_h - 4.0f};

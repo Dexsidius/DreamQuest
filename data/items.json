@@ -171,7 +171,17 @@
     "desc": "Dense and slow to season. Bowyers pay well for it.",
     "stack": true,
     "value": 18,
-    "icon": "assets/icons/oak_logs.png"
+    "icon": "assets/icons/oak_logs.png",
+    "craft": {
+      "result": "fishing_rod",
+      "qty": 1,
+      "xp": 20,
+      "level": 1,
+      "inputs": {
+        "logs": 2,
+        "thread": 1
+      }
+    }
   },
   "hide": {
     "name": "Raw Hide",
@@ -352,5 +362,138 @@
       "defence": 4
     },
     "icon": "assets/icons/dreamcatcher.png"
+  },
+  "fishing_rod": {
+    "name": "Fishing Rod",
+    "desc": "Willow, waxed line and a bent hook. Carry it to fish; Fishing decides how quickly they bite.",
+    "value": 25,
+    "tool": "rod",
+    "model": "rod",
+    "icon": "assets/icons/tiers/fishing_rod.png"
+  },
+  "raw_minnow": {
+    "name": "Raw Minnow",
+    "desc": "A thumb-long silver fish. Everyone starts somewhere.",
+    "stack": true,
+    "value": 6,
+    "fish": {
+      "level": 1,
+      "xp": 20
+    },
+    "cook": {
+      "result": "cooked_minnow",
+      "xp": 30,
+      "level": 1
+    },
+    "icon": "assets/icons/tiers/raw_minnow.png"
+  },
+  "cooked_minnow": {
+    "name": "Cooked Minnow",
+    "desc": "Restores 4 hitpoints.",
+    "stack": true,
+    "value": 12,
+    "consume": true,
+    "heal": 4,
+    "icon": "assets/icons/tiers/cooked_minnow.png"
+  },
+  "raw_trout": {
+    "name": "Raw Trout",
+    "desc": "Speckled and fighting. It came out of cold water.",
+    "stack": true,
+    "value": 24,
+    "fish": {
+      "level": 15,
+      "xp": 50
+    },
+    "cook": {
+      "result": "cooked_trout",
+      "xp": 70,
+      "level": 15
+    },
+    "icon": "assets/icons/tiers/raw_trout.png"
+  },
+  "cooked_trout": {
+    "name": "Cooked Trout",
+    "desc": "Restores 9 hitpoints.",
+    "stack": true,
+    "value": 48,
+    "consume": true,
+    "heal": 9,
+    "icon": "assets/icons/tiers/cooked_trout.png"
+  },
+  "raw_pike": {
+    "name": "Raw Pike",
+    "desc": "Long, green and all teeth. Mind your fingers.",
+    "stack": true,
+    "value": 45,
+    "fish": {
+      "level": 30,
+      "xp": 80
+    },
+    "cook": {
+      "result": "cooked_pike",
+      "xp": 105,
+      "level": 30
+    },
+    "icon": "assets/icons/tiers/raw_pike.png"
+  },
+  "cooked_pike": {
+    "name": "Cooked Pike",
+    "desc": "Restores 13 hitpoints.",
+    "stack": true,
+    "value": 90,
+    "consume": true,
+    "heal": 13,
+    "icon": "assets/icons/tiers/cooked_pike.png"
+  },
+  "raw_salmon": {
+    "name": "Raw Salmon",
+    "desc": "Heavy, bright and running upstream when you caught it.",
+    "stack": true,
+    "value": 70,
+    "fish": {
+      "level": 45,
+      "xp": 110
+    },
+    "cook": {
+      "result": "cooked_salmon",
+      "xp": 140,
+      "level": 45
+    },
+    "icon": "assets/icons/tiers/raw_salmon.png"
+  },
+  "cooked_salmon": {
+    "name": "Cooked Salmon",
+    "desc": "Restores 17 hitpoints.",
+    "stack": true,
+    "value": 140,
+    "consume": true,
+    "heal": 17,
+    "icon": "assets/icons/tiers/cooked_salmon.png"
+  },
+  "raw_eel": {
+    "name": "Raw Eel",
+    "desc": "It is still trying to leave. Cook it before it does.",
+    "stack": true,
+    "value": 100,
+    "fish": {
+      "level": 60,
+      "xp": 150
+    },
+    "cook": {
+      "result": "cooked_eel",
+      "xp": 180,
+      "level": 60
+    },
+    "icon": "assets/icons/tiers/raw_eel.png"
+  },
+  "cooked_eel": {
+    "name": "Cooked Eel",
+    "desc": "Restores 22 hitpoints.",
+    "stack": true,
+    "value": 200,
+    "consume": true,
+    "heal": 22,
+    "icon": "assets/icons/tiers/cooked_eel.png"
   }
 }

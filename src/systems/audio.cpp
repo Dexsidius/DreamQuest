@@ -358,6 +358,17 @@ Buf Make(Sfx s) {
         Normalize(b, 0.32f);
         break;
     }
+    case Sfx::Splash: {
+        // A line going into water: a soft plop, a hiss of spray, two bubbles.
+        b = Blank(0.6f);
+        Tone(b, 0.0f, 0.09f, 620.0f, 180.0f, 0.8f, 0.002f, 0.04f);
+        Hiss(b, 0.01f, 0.30f, 0.6f, 0.005f, 0.08f, 3200.0f, 900.0f, 400.0f, 77);
+        Tone(b, 0.18f, 0.05f, 900.0f, 1400.0f, 0.25f, 0.002f, 0.02f);
+        Tone(b, 0.30f, 0.05f, 1100.0f, 1700.0f, 0.18f, 0.002f, 0.02f);
+        LowpassAll(b, 4000.0f);
+        Normalize(b, 0.30f);
+        break;
+    }
     case Sfx::UiMove:
         b = Blank(0.04f);
         Tone(b, 0.0f, 0.035f, 1500.0f, 1400.0f, 0.6f, 0.001f, 0.01f);

@@ -2,7 +2,7 @@
 
 static const char* kSkillNames[SKILL_COUNT] = {
     "Attack", "Strength", "Defence", "Hitpoints", "Ranged",
-    "Magic", "Woodcutting", "Mining", "Crafting", "Cooking"
+    "Magic", "Woodcutting", "Mining", "Crafting", "Cooking", "Fishing"
 };
 
 const char* SkillName(int skill) {

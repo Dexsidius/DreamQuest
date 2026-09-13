@@ -1,4 +1,5 @@
 #include "game.h"
+#include "systems/gathering.h"
 
 static constexpr float AUTOSAVE_INTERVAL = 120.0f;
 static constexpr float MAX_FRAME_DT      = 0.05f;   // clamp after a stall
@@ -136,6 +137,12 @@ void Game::NewGame(const string& character, int slot) {
     world.player.inventory.Add("novice_staff", 1);
     // And a bedroll, so the first night can be slept through wherever it falls.
     world.player.inventory.Add("bedroll", 1);
+    // The tools to work the land: nothing can be chopped, mined or fished
+    // without them, and an axe cannot be made without logs to make it from.
+    world.player.inventory.Add("bronze_axe", 1);
+    world.player.inventory.Add("bronze_pickaxe", 1);
+    world.player.inventory.Add("fishing_rod", 1);
+    world.SetFlag("starter_tools");
 
     string why;
     for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot) {
@@ -173,6 +180,20 @@ bool Game::LoadGame(int slot) {
     has_session = true;
     SetState(GameState::Play);
     PushToast("Welcome back.", Palette::Highlight);
+
+    // A character from before gathering needed tools has none, and could not
+    // chop the logs to make an axe with. Hand them the basic set, once.
+    if (!world.Flagged("starter_tools")) {
+        world.SetFlag("starter_tools");
+        Inventory& bag = world.player.inventory;
+        bool given = false;
+        for (const char* kind : {"axe", "pickaxe", "rod"})
+            if (!Gathering::BestTool(bag, world.player.equipment, items, world.player.skills, kind)) {
+                const char* id = string(kind) == "axe" ? "bronze_axe" : string(kind) == "pickaxe" ? "bronze_pickaxe" : "fishing_rod";
+                if (bag.Add(id, 1) > 0) given = true;
+            }
+        if (given) PushToast("Your pack has the tools for chopping, mining and fishing now.", Palette::Xp);
+    }
     return true;
 }
 

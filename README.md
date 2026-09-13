@@ -252,8 +252,9 @@ values.
 | Strength | Landing strong and charged attacks |
 | Defence | Taking hits |
 | Hitpoints | All damage dealt |
-| Woodcutting | Chopping trees in the greenwood |
-| Mining | Working ore seams: the foothills and the Mire, the mines and barrow, and the dreamworld |
+| Woodcutting | Chopping trees, with an axe |
+| Mining | Working ore seams, with a pickaxe: the foothills and the Mire, the mines and barrow, and the dreamworld |
+| Fishing | Fishing the Fernhollow pond, the Whisperwood stream and the Hollowmarch lake, with a rod |
 | Cooking | Using a fire with something raw in your pack |
 | Crafting | Workbenches in Havenbrook and Mossvale, and the anvils in Halda's forge and Mossvale |
 | Ranged | Landing arrows with a bow equipped |
@@ -336,7 +337,9 @@ Weapons and armour come in nine tiers, in this order:
 Every tier makes the same seven pieces -- a **sword, bow, staff, shield, helm,
 cuirass and greaves** -- and every piece needs its tier's level in the skill it
 is used with: Attack for a sword, Ranged for a bow, Magic for a staff, Defence
-for the rest. Each metal tier has an **ore** and a **bar**. Ore is smelted into
+for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
+which need the tier's level in Woodcutting or Mining; see
+[Gathering](#gathering). Each metal tier has an **ore** and a **bar**. Ore is smelted into
 bars at an anvil, and bars are smithed into the pieces there too; wooden pieces
 are made at a workbench. The item panel names an item's tier and says what it
 needs, in red-letter "needs" when you do not have it yet.
@@ -383,13 +386,20 @@ bow read as a blue sword. Armour has no layer on the character and shows, as
 before, as its tier's colour over the body. The icons are 32 pixels, framed
 automatically so a sword and a lump of ore both fill their square.
 
+The same script draws every tier's axe and pickaxe, the fishing rod and the ten
+fish, raw and cooked, and poses the tools in the hero's hands through the chop,
+mine and fish clips (`layers/chop_4_weapon_axe_<tier>.png` and so on). In an icon
+a tool has a shorter haft and a bigger head, turned side-on, or at 32 pixels an
+axe and a pick were both a stick with a speck on the end. Cooked fish keep a
+little of their own colour, so a roast pike and a roast salmon differ in the bag.
+
 ### Where things are made
 
 Each recipe is made at one station, decided by its materials. **Anything that
 needs metal is smithed at an anvil** -- in Halda's forge in Havenbrook, or
 beside the workbench in Mossvale: every bar, every metal tier's pieces, and the
 Copper Ring. **Everything else is made at a workbench**, in Havenbrook or
-Mossvale: the wooden tier, the Leather Jerkin, the Bedroll and the Dreamcatcher.
+Mossvale: the wooden tier, the Leather Jerkin, the Fishing Rod, the Bedroll and the Dreamcatcher.
 The two used to share one list, so a village workbench could smith an iron
 shield.
 
@@ -400,6 +410,78 @@ crafting object in a map names the station it is with `"station"`; the
 self-test checks every recipe against its materials, and that every station in
 the world is drawn as what it works as. Each station's screen says what is made
 at the other, so a missing recipe reads as elsewhere rather than gone.
+
+---
+
+## Gathering
+
+**Chopping needs an axe, mining a pickaxe, and fishing a fishing rod**, carried
+in the bag. Without one, the prompt says so before the button is pressed ("Chop
+oak  -  needs an axe") and pressing it does nothing. With several, the fastest
+one the player has the level for is used; one they carry but cannot yet use is
+named in the refusal ("Your Iron Pickaxe needs Mining 10").
+
+How long a tree, a seam or a cast takes is its base time divided by the level
+and the tool together: every level is 2% quicker, and every tier of axe and
+pickaxe is quicker than the one below. Measured on the same oak at Woodcutting
+70, a demonrite axe takes 0.58 seconds a log and bronze 1.08.
+
+| Tier | Axe and pickaxe speed | Needs |
+| --- | --- | --- |
+| Wood | 1.00x | -- |
+| Bronze | 1.15x | -- |
+| Iron | 1.30x | 10 |
+| Steel | 1.45x | 20 |
+| Azuryte | 1.60x | 30 |
+| Adamantium | 1.75x | 40 |
+| Diamond | 1.90x | 50 |
+| Platinum | 2.05x | 60 |
+| Demonrite | 2.25x | 70 |
+
+Axes and pickaxes are made like the rest of their tier: wooden ones from three
+logs at a workbench, metal ones from two bars and a log at an anvil. The
+**fishing rod** is one rod, made at a workbench from two logs and a waxed thread;
+the Fishing level alone decides how quickly things bite. Every new character
+starts with a bronze axe, a bronze pickaxe and a rod, and a character from a
+save made before tools were needed is handed the same set the first time it
+loads, so nobody is left unable to chop the logs to make an axe from.
+
+While the work goes on the hero **plays its own animation** and holds the tool
+instead of the weapon: a two-handed swing round from the shoulder into the
+trunk, a pick lifted high and driven down into the rock, and the rod held out
+over the water with a slow bob and the odd twitch of the wrist. Walking,
+attacking or jumping stops the work.
+
+### Fishing
+
+**Fishing** is its own skill. A fishing spot is drawn as rings spreading on the
+water with the odd bubble: three on the Fernhollow pond (one off the end of the
+jetty), three on the Whisperwood stream, and four along the Hollowmarch lake.
+
+| Fish | Fishing | Caught in | Cooked, heals | Cooking |
+| --- | --- | --- | --- | --- |
+| Minnow | 1 | pond, stream, lake | 4 | 1 |
+| Trout | 15 | pond, stream | 9 | 15 |
+| Pike | 30 | pond, lake | 13 | 30 |
+| Salmon | 45 | stream | 17 | 45 |
+| Eel | 60 | lake | 22 | 60 |
+
+Each spot gives up the best fish the level allows about a third of the time,
+more often the further past it the level is, and something lesser otherwise.
+Raw fish cook at any fire into food.
+
+The **milestones** are the chance a cast brings up more than one fish. With
+Fishing selected in the Skills panel they are listed along the bottom:
+
+| Fishing | Two fish | Three fish |
+| --- | --- | --- |
+| 20 | 10% | -- |
+| 40 | 20% | -- |
+| 60 | 30% | -- |
+| 80 | 30% | 10% |
+| 99 | 30% | 20% |
+
+A cast that lands more than one says so in gold ("+ 2 Raw Trout").
 
 ---
 
@@ -834,7 +916,7 @@ The bezel is generated by `tools/make_ui.ps1` and the glyphs live in
 ## Sound
 
 There are no audio files. `src/systems/audio.cpp` synthesises every effect at
-start-up -- 38 of them, from tones, filtered noise, struck-metal partials and
+start-up -- 39 of them, from tones, filtered noise, struck-metal partials and
 Karplus-Strong plucked strings -- and plays them through one SDL3 audio stream
 with a small mixer.
 
@@ -849,6 +931,8 @@ with a small mixer.
 - **Progress:** level-up arpeggio, quest start and quest complete fanfares.
 - **Sleep:** a slow falling arpeggio as you drift off, and a rising one with a
   bell when you wake.
+- **Fishing:** a line going into the water, and the same splash, higher, when
+  something bites.
 - **Menus:** cursor ticks, confirm, back and error, handled once in
   `Game::Update` rather than in every screen.
 
@@ -1056,7 +1140,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **4661 checks** covering:
+and checks all of it — currently **5028 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1176,7 +1260,24 @@ and checks all of it — currently **4661 checks** covering:
   lit by their hearths, and the mine ignores the hour
 - a save made in a dream loads still dreaming, at the same hour, with the way
   back and the camp remembered
-- every one of the 38 sounds is audible, short, finite and under clipping;
+- every tier makes an axe and a pickaxe, each faster than the tier below and
+  needing that tier's level in Woodcutting or Mining, at the right station, with
+  its own model; the fishing rod is made at a workbench; the hero has chop, mine
+  and fish clips, with every axe, pickaxe and the rod drawn in hand through them
+- the gathering arithmetic: level and tool both speed the work, which never
+  goes under a floor; fishing milestones start at 20 and only improve, a catch
+  below 20 is always one fish, and at Fishing 40 about one in five is two; a
+  level 1 fisher only lands minnows, a level 30 one gets pike, trout and minnows
+  and nothing above the level; every fish cooks into food
+- there are at least eight fishing spots across the pond, the stream and the
+  lake, each with real fish and reachable from dry land
+- in the world: a tree with no axe says so and gives nothing; a bronze axe
+  gives logs while the hero chops and holds the axe, and stops when told; a
+  demonrite axe fells the same tree much faster than bronze; an iron pickaxe is
+  no use at Mining 1, a bronze one mines copper with the mining animation, and
+  walking away stops it; the pond wants a rod, a level 1 fisher with one lands a
+  minnow and trains Fishing, and at Fishing 99 some casts land more than one fish
+- every one of the 39 sounds is audible, short, finite and under clipping;
   each ambience, the dream's and a night outdoors included, is audible, stays
   in the background and fades out when cleared; forty hits at once are
   voice-capped and never exceed full scale
@@ -1202,7 +1303,8 @@ src/
   entity/               player, enemies, NPCs
   systems/              skills, items, loot, combat, quests, dialogue, saves,
                         projectiles and elements, spells, the clock,
-                        material tiers (items.cpp) and skill trees (talents.cpp)
+                        material tiers (items.cpp), skill trees (talents.cpp),
+                        and tools and fishing (gathering.cpp)
   ui/                   drawing helpers and every screen
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips
