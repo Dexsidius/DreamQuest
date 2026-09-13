@@ -101,6 +101,7 @@ struct MapObject {
     int    yield_xp = 0;
     float  gather_time = 2.6f;
     string title;
+    string station;          // crafting objects: "workbench" or "anvil"
     vector<string> quests;   // mission boards
 };
 

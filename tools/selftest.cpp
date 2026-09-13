@@ -1071,6 +1071,57 @@ int main(int argc, char** argv) {
               "the bow takes the shield's place in the bag");
     }
 
+    // --- crafting stations ----------------------------------------------------------
+    Section("each recipe is made at the station that fits it");
+    {
+        const auto all = items.Recipes();
+        const auto bench = items.Recipes(CraftStation::Workbench);
+        const auto anvil = items.Recipes(CraftStation::Anvil);
+        Check(!bench.empty() && !anvil.empty(), "both the workbench and the anvil have something to make");
+        Check(bench.size() + anvil.size() == all.size(), "every recipe belongs to exactly one station");
+
+        for (const ItemDef* r : all) {
+            bool metal = false;
+            for (const auto& in : r->craft_inputs)
+                if (const ItemDef* mat = items.Get(in.first)) metal |= mat->metal;
+            const bool at_anvil = std::find(anvil.begin(), anvil.end(), r) != anvil.end();
+            Check(metal == at_anvil, r->craft_result + (metal ? " needs metal, so it is smithed at the anvil"
+                                                              : " needs no metal, so it is made at a workbench"));
+        }
+        const auto made_at = [&](const string& result, CraftStation st) {
+            for (const ItemDef* r : items.Recipes(st)) if (r->craft_result == result) return true;
+            return false;
+        };
+        Check(made_at("iron_shield", CraftStation::Anvil) && !made_at("iron_shield", CraftStation::Workbench),
+              "the iron shield is only smithed");
+        Check(made_at("copper_ring", CraftStation::Anvil), "the copper ring is smithed");
+        for (const char* simple : {"wooden_shield", "leather_body", "oak_shortbow"})
+            Check(made_at(simple, CraftStation::Workbench) && !made_at(simple, CraftStation::Anvil),
+                  string(simple) + " is made at a workbench, not the anvil");
+        for (const char* ore : {"copper_ore", "iron_ore"})
+            Check(items.Get(ore) && items.Get(ore)->metal, string(ore) + " counts as metal");
+        for (const char* soft : {"logs", "oak_logs", "hide", "thread"})
+            Check(items.Get(soft) && !items.Get(soft)->metal, string(soft) + " is not metal");
+
+        // What stands in the world agrees with what it is called and drawn as.
+        int anvils = 0, benches = 0;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "workbench") continue;
+                Check(o.station == "workbench" || o.station == "anvil",
+                      o.id + " is a known crafting station");
+                const bool drawn_as_anvil = o.sprite.find("anvil") != string::npos;
+                Check(drawn_as_anvil == (o.station == "anvil"),
+                      o.id + " works as the station it looks like");
+                (o.station == "anvil" ? anvils : benches)++;
+            }
+        }
+        Check(anvils >= 1, "there is an anvil somewhere to smith at");
+        Check(benches >= 1, "there is a workbench somewhere to make simple things");
+    }
+
     // --- dangerous doors -----------------------------------------------------------
     Section("dungeon doors warn a new character");
     {

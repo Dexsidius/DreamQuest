@@ -192,7 +192,7 @@ values.
 | Woodcutting | Chopping trees in the greenwood |
 | Mining | Working ore seams in the foothills and the Mire |
 | Cooking | Using a fire with something raw in your pack |
-| Crafting | Workbenches in the forge and the guild hall |
+| Crafting | Workbenches in Havenbrook and Mossvale, and the anvil in Halda's forge |
 | Ranged | Landing arrows with a bow equipped |
 | Magic | Casting spells with a staff equipped |
 
@@ -202,6 +202,23 @@ Ranged and Magic read their own level and their own equipment bonus for both
 accuracy and damage, exactly as OSRS does, so a bow does nothing for a
 character who never trained Ranged and Strength does nothing for a bow. The
 self-test checks that.
+
+### Where things are made
+
+Each recipe is made at one station, decided by its materials. **Anything that
+needs metal is smithed at an anvil**, the one in Halda's forge in Havenbrook:
+the Copper Ring and the Iron Shield. **Everything else is made at a
+workbench**, in Havenbrook or Mossvale: the Wooden Shield, the Leather Jerkin
+and the Oak Shortbow. The two used to share one list, so a village workbench
+could smith an iron shield.
+
+Nothing declares its station. Materials carry `"metal": true` in
+`data/items.json` (copper and iron ore), and a recipe with any metal input
+belongs at the anvil, so a new recipe cannot be filed in the wrong place. A
+crafting object in a map names the station it is with `"station"`; the
+self-test checks every recipe against its materials, and that every station in
+the world is drawn as what it works as. Each station's screen says what is made
+at the other, so a missing recipe reads as elsewhere rather than gone.
 
 ---
 
@@ -724,7 +741,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **3928 checks** covering:
+and checks all of it — currently **3954 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -781,6 +798,9 @@ and checks all of it — currently **3928 checks** covering:
 - a bow and a shield cannot be worn together, the swap works both ways, and a
   full bag refuses a swap rather than losing an item -- including the case where
   the only room is the slot the new item leaves
+- every recipe that needs metal is smithed at the anvil and every other recipe
+  is made at a workbench, and every crafting object in the world is drawn as
+  the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
 - every one of the 35 sounds is audible, short, finite and under clipping;

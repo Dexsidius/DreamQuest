@@ -465,8 +465,9 @@ void Game::HandleWorldRequests() {
                 break;
 
             case WorldRequest::Type::Craft:
-                craft_title  = r.title;
-                craft_cursor = 0;
+                craft_title   = r.title;
+                craft_station = CraftStationFromName(r.text);
+                craft_cursor  = 0;
                 OpenPanel(GameState::Crafting);
                 break;
 

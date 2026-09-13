@@ -1408,7 +1408,7 @@ void Game::DrawNote() {
 // =============================================================================
 
 void Game::UpdateCrafting() {
-    const vector<const ItemDef*> recipes = items.Recipes();
+    const vector<const ItemDef*> recipes = items.Recipes(craft_station);
     MoveCursor(craft_cursor, static_cast<int>(recipes.size()));
 
     if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) &&
@@ -1451,9 +1451,10 @@ void Game::UpdateCrafting() {
 
 void Game::DrawCrafting() {
     ui.Dim(0.5f);
-    const SDL_FRect panel = CenteredPanel(ui, 660.0f, 420.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 660.0f, 450.0f);
     ui.Panel(panel);
-    ui.Text(craft_title.empty() ? "Workbench" : craft_title,
+    const bool anvil = (craft_station == CraftStation::Anvil);
+    ui.Text(craft_title.empty() ? (anvil ? "Anvil" : "Workbench") : craft_title,
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
@@ -1462,7 +1463,14 @@ void Game::DrawCrafting() {
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
 
-    const vector<const ItemDef*> recipes = items.Recipes();
+    // Say where the rest is made, so a missing recipe reads as "elsewhere"
+    // rather than "gone".
+    ui.Text(anvil ? "Smithing: anything made from metal. Wood and leather are worked at a workbench."
+                  : "Wood, leather and thread. Anything made from metal is smithed at an anvil.",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
+            Palette::TextDim, Align::Center);
+
+    const vector<const ItemDef*> recipes = items.Recipes(craft_station);
     if (recipes.empty()) {
         ui.Text("Nothing to make here.", panel.x + panel.w / 2.0f,
                 panel.y + panel.h / 2.0f, TextSize::Body, Palette::TextDim, Align::Center);

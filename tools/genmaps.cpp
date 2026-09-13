@@ -964,8 +964,9 @@ static void BuildTown() {
     // A workbench by the forge.
     {
         json& o = m.Object("bench_town", "workbench", 20 * CELL, 34 * CELL);
-        o["sprite"] = "assets/props/workbench.png";
-        o["title"]  = "Workbench";
+        o["sprite"]  = "assets/props/workbench.png";
+        o["title"]   = "Workbench";
+        o["station"] = "workbench";
         m.Collision(20 * CELL - 34, 34 * CELL - 18, 67, 18);
     }
 
@@ -1410,8 +1411,9 @@ static void BuildInteriors() {
         {
             const int ax = 5 * CELL + 10, ay = 7 * CELL + 20;
             json& o = m.Object("bench_forge", "workbench", ax, ay);
-            o["sprite"] = "assets/props/anvil.png";
-            o["title"]  = "Anvil";
+            o["sprite"]  = "assets/props/anvil.png";
+            o["title"]   = "Anvil";
+            o["station"] = "anvil";
             m.Collision(ax - 14, ay - 12, 28, 12);
         }
 
@@ -1897,8 +1899,9 @@ static void BuildMossvale() {
     }
     {
         json& o = m.Object("bench_mossvale", "workbench", 44 * CELL, 26 * CELL);
-        o["sprite"] = "assets/props/workbench.png";
-        o["title"]  = "Workbench";
+        o["sprite"]  = "assets/props/workbench.png";
+        o["title"]   = "Workbench";
+        o["station"] = "workbench";
         m.Collision(44 * CELL - 34, 26 * CELL - 18, 67, 18);
     }
     for (const auto& lp : {std::pair<int, int>{35 * CELL, 17 * CELL}, {24 * CELL, 17 * CELL}}) {

@@ -101,6 +101,8 @@ bool ItemDatabase::Load(const string& path, bool required) {
             d.cook_level  = c.value("level", 1);
         }
 
+        d.metal = o.value("metal", false);
+
         if (o.contains("craft")) {
             const json& c = o["craft"];
             d.craft_result = c.value("result", string(""));
@@ -126,6 +128,30 @@ bool ItemDatabase::Load(const string& path, bool required) {
 const ItemDef* ItemDatabase::Get(const string& id) const {
     auto it = defs.find(id);
     return it == defs.end() ? nullptr : &it->second;
+}
+
+CraftStation CraftStationFromName(const string& name) {
+    return name == "anvil" ? CraftStation::Anvil : CraftStation::Workbench;
+}
+
+const char* CraftStationName(CraftStation s) {
+    return s == CraftStation::Anvil ? "anvil" : "workbench";
+}
+
+// Decided when asked rather than when loaded: the materials of a recipe can be
+// defined in a file loaded after the recipe itself.
+CraftStation ItemDatabase::StationFor(const ItemDef& recipe) const {
+    for (const auto& in : recipe.craft_inputs)
+        if (const ItemDef* mat = Get(in.first))
+            if (mat->metal) return CraftStation::Anvil;
+    return CraftStation::Workbench;
+}
+
+vector<const ItemDef*> ItemDatabase::Recipes(CraftStation station) const {
+    vector<const ItemDef*> out;
+    for (const ItemDef* r : Recipes())
+        if (StationFor(*r) == station) out.push_back(r);
+    return out;
 }
 
 vector<const ItemDef*> ItemDatabase::Recipes() const {

@@ -22,6 +22,14 @@ int  EquipSlotFromName(const string& name);
 // What a weapon does when you attack with it. The attack buttons are the same
 // either way; the weapon decides whether the swing is a swing, a shot or a cast.
 enum class WeaponKind { Melee, Bow, Staff };
+
+// Where a recipe is made. Anything that needs metal is smithed at an anvil;
+// wood, leather and thread are worked at a bench. Nothing declares its station:
+// it follows from the materials, so a new recipe cannot end up in the wrong
+// place.
+enum class CraftStation { Workbench, Anvil };
+CraftStation CraftStationFromName(const string& name);
+const char*  CraftStationName(CraftStation s);
 WeaponKind WeaponKindFromName(const string& name);
 
 struct ItemDef {
@@ -49,7 +57,10 @@ struct ItemDef {
     string cook_result;
     int    cook_xp = 0, cook_level = 1;
 
-    // Crafting: what this turns into at a workbench.
+    // A material that has to be worked hot, at an anvil.
+    bool metal = false;
+
+    // Crafting: what this turns into, at the station its materials call for.
     string craft_result;
     int    craft_qty = 1, craft_xp = 0, craft_level = 1;
     map<string, int> craft_inputs;    // item id -> quantity
@@ -77,6 +88,9 @@ public:
     const map<string, ItemDef>& All() const { return defs; }
     // Everything craftable, for the crafting panel.
     vector<const ItemDef*> Recipes() const;
+    // Only what can be made at one station.
+    vector<const ItemDef*> Recipes(CraftStation station) const;
+    CraftStation StationFor(const ItemDef& recipe) const;
 
 private:
     map<string, ItemDef> defs;

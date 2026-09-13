@@ -382,6 +382,7 @@
     "name": "Copper Ore",
     "desc": "Green-streaked rock. Heavier than it has any right to be.",
     "stack": true,
+    "metal": true,
     "value": 11,
     "craft": {
       "result": "copper_ring",
@@ -398,6 +399,7 @@
     "name": "Iron Ore",
     "desc": "Dull red and dense. The forge will know what to do with it.",
     "stack": true,
+    "metal": true,
     "value": 26,
     "craft": {
       "result": "iron_shield",

@@ -168,6 +168,7 @@ private:
     string   note_title, note_text, note_quest;
     string   board_title;
     string   craft_title;
+    CraftStation craft_station = CraftStation::Workbench;
     vector<string> board_quests;
 
     vector<Toast> toasts;

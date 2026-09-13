@@ -223,6 +223,7 @@ bool Map::Load(const string& path) {
             m.yield_xp     = o.value("yield_xp", 0);
             m.gather_time  = o.value("gather_time", 2.6f);
             m.title        = o.value("title", string(""));
+            m.station      = o.value("station", string("workbench"));
             if (!m.sprite.empty())      m.sprite      = ResolveAsset(m.sprite);
             if (!m.sprite_open.empty()) m.sprite_open = ResolveAsset(m.sprite_open);
             if (o.contains("quests"))

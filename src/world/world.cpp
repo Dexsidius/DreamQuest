@@ -346,7 +346,7 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         } else if (o.type == "range" || o.type == "workbench") {
             // Map titles are written as names ("Kitchen fire", "Anvil"), but
             // here they follow "the" mid-sentence.
-            string noun = o.title.empty() ? string(o.type == "range" ? "fire" : "workbench")
+            string noun = o.title.empty() ? string(o.type == "range" ? "fire" : o.station)
                                           : o.title;
             noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
             label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
@@ -430,7 +430,8 @@ void World::TryInteract(const GameContext& ctx) {
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Craft;
                 r.id    = o.id;
-                r.title = o.title.empty() ? "Workbench" : o.title;
+                r.text  = o.station;
+                r.title = o.title.empty() ? (o.station == "anvil" ? "Anvil" : "Workbench") : o.title;
                 requests.push_back(r);
             } else if (o.type == "note" || o.type == "sign") {
                 // A note can also leave something behind, but only once.
