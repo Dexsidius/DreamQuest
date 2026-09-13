@@ -59,10 +59,44 @@ SDL_FRect TextureCache::OpaqueBounds(const string& path) {
     return out;
 }
 
+SDL_Color TextureCache::AverageColor(const string& path) {
+    auto it = average.find(path);
+    if (it != average.end()) return it->second;
+
+    SDL_Color out{120, 116, 110, 255};
+    if (SDL_Surface* loaded = IMG_Load(path.c_str())) {
+        if (SDL_Surface* s = SDL_ConvertSurface(loaded, SDL_PIXELFORMAT_RGBA32)) {
+            if (SDL_LockSurface(s)) {
+                long long r = 0, g = 0, b = 0, n = 0;
+                const Uint8* px = static_cast<const Uint8*>(s->pixels);
+                for (int y = 0; y < s->h; ++y) {
+                    const Uint8* row = px + y * s->pitch;
+                    for (int x = 0; x < s->w; ++x) {
+                        if (row[x * 4 + 3] <= 128) continue;   // transparent: not art
+                        r += row[x * 4 + 0];
+                        g += row[x * 4 + 1];
+                        b += row[x * 4 + 2];
+                        ++n;
+                    }
+                }
+                SDL_UnlockSurface(s);
+                if (n > 0)
+                    out = {static_cast<Uint8>(r / n), static_cast<Uint8>(g / n),
+                           static_cast<Uint8>(b / n), 255};
+            }
+            SDL_DestroySurface(s);
+        }
+        SDL_DestroySurface(loaded);
+    }
+    average[path] = out;
+    return out;
+}
+
 void TextureCache::Clear() {
     for (auto& kv : textures)
         if (kv.second) SDL_DestroyTexture(kv.second);
     textures.clear();
     warned.clear();
     opaque.clear();
+    average.clear();
 }

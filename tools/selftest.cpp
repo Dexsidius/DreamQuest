@@ -25,6 +25,7 @@
 #include "../src/systems/projectile.h"
 #include "../src/systems/spell.h"
 #include "../src/entity/player.h"
+#include "../src/ui/minimap.h"
 
 #include <fstream>
 #include <filesystem>
@@ -934,6 +935,43 @@ int main() {
         Check(inv.Remove("coins", 200) == false, "cannot remove more than you hold");
         Check(inv.Remove("coins", 150), "can remove the whole stack");
         Check(inv.Count("coins") == 0, "stack is gone");
+    }
+
+    // --- the HUD --------------------------------------------------------------
+    Section("hud fittings");
+    {
+        for (const char* art : {"assets/ui/minimap_ring.png",
+                                "assets/icons/hud_heart.png",
+                                "assets/icons/hud_drop.png"})
+            Check(fs::exists(art), string("hud art on disk: ") + art);
+
+        // The minimap draws the world as a stack of rows clipped to the baked
+        // image. Standing in a corner of the world, most of those rows hang off
+        // an edge, and getting this wrong smears the last column of the map
+        // across the glass.
+        struct Case { float src, dst, width; int img; float want_src, want_dst, want_width; };
+        const Case cases[] = {
+            //  src   dst   width  img    expected
+            {  10.0f, 100.0f, 20.0f, 200,  10.0f, 100.0f,  20.0f },   // fully inside
+            {  -5.0f, 100.0f, 20.0f, 200,   0.0f, 105.0f,  15.0f },   // off the west edge
+            { 190.0f, 100.0f, 20.0f, 200, 190.0f, 100.0f,  10.0f },   // off the east edge
+            {  -5.0f, 100.0f, 30.0f,  20,   0.0f, 105.0f,  20.0f },   // map narrower than the glass
+            { -40.0f, 100.0f, 20.0f, 200,   0.0f, 140.0f, -20.0f },   // entirely west of the map
+            { 210.0f, 100.0f, 20.0f, 200, 210.0f, 100.0f, -10.0f },   // entirely east of it
+        };
+        bool clipped = true, nothing_drawn = true;
+        for (const Case& c : cases) {
+            float src = c.src, dst = c.dst;
+            const float w = MinimapClipSpan(src, dst, c.width, c.img);
+            if (fabsf(src - c.want_src) > 0.001f || fabsf(dst - c.want_dst) > 0.001f ||
+                fabsf(w - c.want_width) > 0.001f) clipped = false;
+            // Whatever it returns, it must never ask for pixels the image does
+            // not have.
+            if (w > 0.0f && (src < 0.0f || src + w > static_cast<float>(c.img)))
+                nothing_drawn = false;
+        }
+        Check(clipped, "minimap rows clip to the edges of the map");
+        Check(nothing_drawn, "minimap never samples outside the baked image");
     }
 
     // --- a real fight ---------------------------------------------------------

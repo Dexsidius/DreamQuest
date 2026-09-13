@@ -12,6 +12,7 @@
 #include "systems/spell.h"
 #include "systems/save.h"
 #include "ui/ui.h"
+#include "ui/minimap.h"
 
 enum class GameState {
     MainMenu,
@@ -120,6 +121,7 @@ private:
     // --- services ------------------------------------------------------------
     TextureCache*    textures = nullptr;
     UI               ui;
+    Minimap          minimap;
     Input            input;
     Settings         settings;
     SpriteLibrary    sprites;

@@ -794,9 +794,10 @@ if (-not (Test-Path (Join-Path $fonts "dreamquest.ttf"))) {
 # import brings back flat grass and a bow drawn as a sword. Neither needs
 # anything installed. The Blender props and the player character do, and are
 # rebuilt separately with make_props.ps1 and make_character.ps1.
-Write-Host "`nGenerating ground tiles and item icons ..." -ForegroundColor Cyan
+Write-Host "`nGenerating ground tiles, item icons and HUD fittings ..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "make_ground.ps1")
 & (Join-Path $PSScriptRoot "make_icons.ps1")
+& (Join-Path $PSScriptRoot "make_ui.ps1")
 
 # --- done ---------------------------------------------------------------------
 $total = (Get-ChildItem $assets -Recurse -File -Filter *.png |

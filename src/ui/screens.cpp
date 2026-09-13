@@ -461,16 +461,45 @@ void Game::DrawWorldText() {
     }
 }
 
+// The minimap bezel in assets/ui is 144 across and its glass 124, and the
+// right-hand column of the HUD -- toasts, then the quest tracker -- starts
+// below the whole dial and the map name under it.
+static constexpr float kHudMargin    = 16.0f;
+static constexpr float kMinimapRing  = 144.0f;
+static constexpr float kMinimapGlass = 62.0f;
+static constexpr float kHudRightTop  = kHudMargin + kMinimapRing + 24.0f;
+
 void Game::DrawHud() {
     const Player& p = world.player;
 
-    // --- health --------------------------------------------------------------
-    const SDL_FRect hp_bar = {18.0f, 16.0f, 232.0f, 20.0f};
-    ui.Bar(hp_bar, p.max_hp > 0 ? static_cast<float>(p.hp) / p.max_hp : 0.0f,
-           Palette::Health, Palette::HealthBack);
+    // --- vitals --------------------------------------------------------------
+    // Health and mana in brass plates, each with a glyph at the left end, so
+    // the two are told apart at a glance rather than by colour alone.
+    const float glyph = 22.0f;
+    const float line_h = ui.LineHeight(TextSize::Small);
+
+    auto glyph_plate = [&](const SDL_FRect& box, const char* icon) {
+        ui.Fill(box, {30, 22, 15, 255});
+        ui.Fill({box.x + 1.0f, box.y + 1.0f, box.w - 2.0f, box.h - 2.0f}, {124, 98, 52, 255});
+        ui.Fill({box.x + 1.0f, box.y + 1.0f, box.w - 2.0f, 1.0f}, {186, 156, 92, 255});
+        ui.Fill({box.x + 1.0f, box.y + box.h - 2.0f, box.w - 2.0f, 1.0f}, {74, 56, 28, 255});
+        ui.Fill({box.x + 2.0f, box.y + 2.0f, box.w - 4.0f, box.h - 4.0f}, {24, 18, 15, 255});
+        if (SDL_Texture* tex = textures->Get(icon)) {
+            const float s = box.h - 6.0f;
+            const SDL_FRect dst = {roundf(box.x + (box.w - s) / 2.0f),
+                                   roundf(box.y + (box.h - s) / 2.0f), s, s};
+            SDL_RenderTexture(renderer, tex, nullptr, &dst);
+        }
+    };
+
+    const SDL_FRect hp_bar = {18.0f + glyph + 4.0f, 16.0f, 232.0f, glyph};
+    glyph_plate({18.0f, hp_bar.y, glyph, glyph}, "assets/icons/hud_heart.png");
+    ui.FramedBar(hp_bar, p.max_hp > 0 ? static_cast<float>(p.hp) / p.max_hp : 0.0f,
+                 Palette::Health, Palette::HealthBack);
     char hp_text[32];
     SDL_snprintf(hp_text, sizeof(hp_text), "%d / %d", p.hp, p.max_hp);
-    ui.TextShadowed(hp_text, hp_bar.x + hp_bar.w / 2.0f, hp_bar.y + 1.0f,
+    ui.TextShadowed(hp_text, hp_bar.x + hp_bar.w / 2.0f,
+                    hp_bar.y + (hp_bar.h - line_h) / 2.0f,
                     TextSize::Small, Palette::Text, Align::Center);
 
     // --- mana ----------------------------------------------------------------
@@ -478,15 +507,25 @@ void Game::DrawHud() {
     // told about a resource they never spend.
     float meta_y = hp_bar.y + hp_bar.h + 8.0f;
     if (p.MaxMana() > 0) {
-        const SDL_FRect mana_bar = {hp_bar.x, hp_bar.y + hp_bar.h + 4.0f, 232.0f, 12.0f};
-        ui.Bar(mana_bar, static_cast<float>(p.Mana()) / p.MaxMana(),
-               Palette::Mana, Palette::ManaBack);
+        const float mana_h = 16.0f;
+        const SDL_FRect mana_bar = {hp_bar.x, hp_bar.y + hp_bar.h + 4.0f, 232.0f, mana_h};
+        glyph_plate({18.0f, mana_bar.y, glyph, mana_h}, "assets/icons/hud_drop.png");
+        ui.FramedBar(mana_bar, static_cast<float>(p.Mana()) / p.MaxMana(),
+                     Palette::Mana, Palette::ManaBack);
         char mana_text[32];
         SDL_snprintf(mana_text, sizeof(mana_text), "%d / %d", p.Mana(), p.MaxMana());
-        ui.TextShadowed(mana_text, mana_bar.x + mana_bar.w / 2.0f, mana_bar.y - 2.0f,
+        ui.TextShadowed(mana_text, mana_bar.x + mana_bar.w / 2.0f,
+                        mana_bar.y + (mana_bar.h - line_h) / 2.0f,
                         TextSize::Small, Palette::Text, Align::Center);
         meta_y = mana_bar.y + mana_bar.h + 6.0f;
     }
+
+    // --- minimap -------------------------------------------------------------
+    // Top right, with the bezel hung on the corner; everything else that used
+    // to live in that corner now stacks below it.
+    minimap.Draw(renderer, *textures, ui, world,
+                 ui.ViewWidth() - kHudMargin - kMinimapRing / 2.0f,
+                 kHudMargin + kMinimapRing / 2.0f, kMinimapGlass);
 
     char meta[96];
     SDL_snprintf(meta, sizeof(meta), "Combat %d    %d coins",
@@ -615,8 +654,8 @@ void Game::DrawHud() {
     const vector<string> active = quests.Active();
     if (!active.empty()) {
         const float right = ui.ViewWidth() - 18.0f;
-        // Sits below however many toasts are currently stacked.
-        float y = 74.0f + toasts.size() * 20.0f;
+        // Sits below the minimap, and below however many toasts are stacked.
+        float y = kHudRightTop + toasts.size() * 20.0f;
         const size_t shown = std::min<size_t>(active.size(), 3);
 
         // A dark backing sized to the text. The dim objective lines were
@@ -666,15 +705,15 @@ void Game::DrawHud() {
 }
 
 void Game::DrawToasts() {
-    float y = 18.0f;
+    // Under the minimap while a game is running; at the top on the menus,
+    // where there is no minimap to clear.
+    float y = InGameplayState() ? kHudRightTop : 18.0f;
     const float right = ui.ViewWidth() - 18.0f;
 
     for (const Toast& t : toasts) {
         SDL_Color c = t.color;
         c.a = static_cast<Uint8>(255 * std::clamp(t.life / 0.6f, 0.0f, 1.0f));
-        // Toasts sit under the quest tracker when a game is running.
-        const float draw_y = InGameplayState() ? y + 0.0f : y;
-        ui.TextShadowed(t.text, right, draw_y, TextSize::Small, c, Align::Right);
+        ui.TextShadowed(t.text, right, y, TextSize::Small, c, Align::Right);
         y += 20.0f;
     }
 }

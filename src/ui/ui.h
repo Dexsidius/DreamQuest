@@ -54,6 +54,11 @@ public:
     void Panel(const SDL_FRect& r, bool raised = true);
     void Bar(const SDL_FRect& r, float fraction, SDL_Color fill,
              SDL_Color back, bool bordered = true);
+    // The same bar in a brass frame, for the vitals in the corner of the HUD:
+    // a bevelled band around a sunk track, with quarter ticks across it so a
+    // glance reads roughly how much is left without reading the numbers.
+    void FramedBar(const SDL_FRect& outer, float fraction, SDL_Color fill,
+                   SDL_Color back, int ticks = 4);
     // Full-screen dim, for menus over the world.
     void Dim(float amount);
 

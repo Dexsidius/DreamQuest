@@ -125,6 +125,10 @@ public:
     // with entities without needing to know about the texture list.
     void RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
                     const TileInstance& t, Uint8 alpha = 255) const;
+    // Every tile on the map, for anything that needs to walk the whole set
+    // rather than draw what the camera can see -- the minimap bakes its image
+    // from these.
+    const vector<TileInstance>& Tiles() const { return tiles; }
     // The image a tile draws, or an empty string.
     const string& TexturePath(const TileInstance& t) const {
         static const string none;

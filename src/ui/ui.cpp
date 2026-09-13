@@ -210,6 +210,56 @@ void UI::Bar(const SDL_FRect& r, float fraction, SDL_Color fill,
     if (bordered) Outline(r, Palette::BorderDim, 1.0f);
 }
 
+void UI::FramedBar(const SDL_FRect& outer, float fraction, SDL_Color fill,
+                   SDL_Color back, int ticks) {
+    fraction = std::clamp(fraction, 0.0f, 1.0f);
+
+    // A dark outline, then a brass band lit at the top left and shadowed at the
+    // bottom right, so the frame has a direction of light like the minimap
+    // bezel and the panels.
+    Fill(outer, {30, 22, 15, 255});
+    const SDL_FRect band = {outer.x + 1.0f, outer.y + 1.0f, outer.w - 2.0f, outer.h - 2.0f};
+    Fill(band, {124, 98, 52, 255});
+    Fill({band.x, band.y, band.w, 1.0f}, {186, 156, 92, 255});
+    Fill({band.x, band.y, 1.0f, band.h}, {168, 138, 78, 255});
+    Fill({band.x, band.y + band.h - 1.0f, band.w, 1.0f}, {74, 56, 28, 255});
+    Fill({band.x + band.w - 1.0f, band.y, 1.0f, band.h}, {86, 66, 34, 255});
+
+    // The track, sunk into the band.
+    const SDL_FRect track = {outer.x + 3.0f, outer.y + 3.0f, outer.w - 6.0f, outer.h - 6.0f};
+    Fill(track, back);
+    Fill({track.x, track.y, track.w, 1.0f}, {0, 0, 0, 90});
+
+    if (fraction > 0.0f) {
+        const float w = std::max(1.0f, roundf((track.w - 2.0f) * fraction));
+        const SDL_FRect f = {track.x + 1.0f, track.y + 1.0f, w, track.h - 2.0f};
+        Fill(f, fill);
+        Fill({f.x, f.y, f.w, std::max(1.0f, f.h * 0.34f)},
+             {static_cast<Uint8>(std::min(255, fill.r + 52)),
+              static_cast<Uint8>(std::min(255, fill.g + 52)),
+              static_cast<Uint8>(std::min(255, fill.b + 52)), fill.a});
+        Fill({f.x, f.y + f.h - 1.0f, f.w, 1.0f},
+             {static_cast<Uint8>(fill.r / 2), static_cast<Uint8>(fill.g / 2),
+              static_cast<Uint8>(fill.b / 2), fill.a});
+    }
+
+    for (int i = 1; i < ticks; ++i) {
+        const float x = roundf(track.x + track.w * i / static_cast<float>(ticks));
+        Fill({x, track.y + 1.0f, 1.0f, track.h - 2.0f}, {0, 0, 0, 70});
+    }
+
+    // Rivets, matching the bezel -- but only where there is room for them.
+    if (outer.h >= 18.0f) {
+        const float r = 2.0f;
+        for (const SDL_FPoint& c : {SDL_FPoint{band.x + 1.0f, band.y + 1.0f},
+                                    SDL_FPoint{band.x + band.w - 1.0f - r, band.y + 1.0f},
+                                    SDL_FPoint{band.x + 1.0f, band.y + band.h - 1.0f - r},
+                                    SDL_FPoint{band.x + band.w - 1.0f - r,
+                                               band.y + band.h - 1.0f - r}})
+            Fill({c.x, c.y, r, r}, {214, 184, 116, 255});
+    }
+}
+
 void UI::Dim(float amount) {
     Fill({0, 0, view_w, view_h},
          {0, 0, 0, static_cast<Uint8>(std::clamp(amount, 0.0f, 1.0f) * 255.0f)});

@@ -20,11 +20,17 @@ public:
     // rather than the canvas. Worked out once per image from its pixels.
     SDL_FRect OpaqueBounds(const string& path);
 
+    // The average colour of everything drawn in the image, ignoring what is
+    // transparent. The minimap paints a whole map out of these, so it is worked
+    // out once per image and kept.
+    SDL_Color AverageColor(const string& path);
+
     void Clear();
 
 private:
     SDL_Renderer* renderer;
     unordered_map<string, SDL_Texture*> textures;
     unordered_map<string, SDL_FRect> opaque;
+    unordered_map<string, SDL_Color> average;
     unordered_map<string, bool> warned;
 };

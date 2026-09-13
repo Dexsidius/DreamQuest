@@ -6,6 +6,8 @@ static constexpr float MAX_FRAME_DT      = 0.05f;   // clamp after a stall
 Game::Game() : rng(std::random_device{}()) {}
 
 Game::~Game() {
+    // The minimap owns a texture, so it has to let go before the renderer does.
+    minimap.Forget();
     ui.Shutdown();
     delete textures;
     if (renderer) SDL_DestroyRenderer(renderer);
@@ -542,8 +544,9 @@ void Game::Render() {
     if (settings.show_fps) {
         char buf[32];
         SDL_snprintf(buf, sizeof(buf), "%.0f fps", fps);
-        ui.TextShadowed(buf, ui.ViewWidth() - 10.0f, 8.0f, TextSize::Small,
-                        Palette::TextDim, Align::Right);
+        // Bottom right: the top right corner belongs to the minimap now.
+        ui.TextShadowed(buf, ui.ViewWidth() - 10.0f, ui.ViewHeight() - 22.0f,
+                        TextSize::Small, Palette::TextDim, Align::Right);
     }
 
     SDL_RenderPresent(renderer);
