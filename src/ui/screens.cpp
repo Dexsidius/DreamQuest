@@ -50,7 +50,7 @@ bool AnySaveExists(const vector<SaveSlotInfo>& slots) {
 
 const char* InputModeLabel(int mode) {
     switch (mode) {
-        case 1:  return "Keyboard & Mouse";
+        case 1:  return "Keyboard";
         case 2:  return "Controller";
         default: return "Automatic";
     }
@@ -634,6 +634,28 @@ void Game::DrawHud() {
         }
     }
 
+    // --- target frame ----------------------------------------------------------
+    // Who the fight is with, at the top of the screen: name, level and health,
+    // with a red frame and a LOCKED tag while the lock is on. Out of combat
+    // there is no target, and nothing is drawn.
+    if (live) {
+        if (const Enemy* t = world.targeting.Current(); t && t->Def()) {
+            const bool lock = world.targeting.IsLocked();
+            const float w = 280.0f, cx = ui.ViewWidth() / 2.0f;
+            const SDL_FRect box = {roundf(cx - w / 2.0f), 12.0f, w, 48.0f};
+            ui.Fill(box, {14, 11, 9, 200});
+            ui.Outline(box, lock ? SDL_Color{206, 70, 56, 255} : Palette::BorderDim, lock ? 2.0f : 1.0f);
+            ui.TextShadowed(t->Def()->name, box.x + 12.0f, box.y + 5.0f, TextSize::Small,
+                            lock ? Palette::Highlight : Palette::Text);
+            ui.TextShadowed(lock ? "LOCKED   Lv " + std::to_string(t->level)
+                                 : input.PromptFor(Action::Target) + " lock   Lv " + std::to_string(t->level),
+                            box.x + box.w - 12.0f, box.y + 5.0f, TextSize::Small,
+                            lock ? SDL_Color{236, 110, 90, 255} : Palette::TextDim, Align::Right);
+            ui.FramedBar({box.x + 12.0f, box.y + 27.0f, box.w - 24.0f, 12.0f}, t->HealthFraction(),
+                         {196, 44, 40, 255}, {40, 16, 14, 255});
+        }
+    }
+
     // --- charge meter --------------------------------------------------------
     if (live && p.IsCharging()) {
         const float t = p.ChargeProgress();
@@ -822,7 +844,11 @@ void Game::DrawHud() {
                           ? string("RS element    ")
                           : string("1-4 element    "));
 
-    const string hint = spell_hint + input.PromptFor(Action::Sprint) + " sprint    " +
+    const string hint = spell_hint +
+                        input.PromptFor(Action::LightAttack) + " attack    " +
+                        input.PromptFor(Action::StrongAttack) + " heavy    " +
+                        input.PromptFor(Action::Target) + " target    " +
+                        input.PromptFor(Action::Sprint) + " sprint    " +
                         input.PromptFor(Action::Inventory) + " bag    " +
                         input.PromptFor(Action::Skills) + " skills    " +
                         input.PromptFor(Action::QuestLog) + " quests    " +
@@ -1564,6 +1590,9 @@ void Game::DrawCrafting() {
 
 void Game::UpdateDeath(float dt) {
     (void)dt;
+    // J confirms now, and J is also what a player dying mid-fight is mashing.
+    // Give the screen a moment so it is read, not skipped by the last swing.
+    if (state_time < 0.8f) return;
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         // Respawn at the town, keeping progress, the way a forgiving RPG does.
         world.player.Respawn(0.0f, 0.0f);

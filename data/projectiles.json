@@ -8,6 +8,7 @@
     "sprite_angle": -90,
     "pierce": 0,
     "knockback": 26,
+    "homing": 6.0,
     "element": "none",
     "tint": [
       255,
@@ -25,6 +26,7 @@
     "sprite_angle": -90,
     "pierce": 1,
     "knockback": 60,
+    "homing": 6.0,
     "element": "none",
     "tint": [
       255,
@@ -41,6 +43,7 @@
     "scale": 0.7,
     "spin": true,
     "knockback": 22,
+    "homing": 2.5,
     "element": "fire",
     "patch": {
       "time": 2.4,
@@ -58,6 +61,7 @@
     "scale": 0.95,
     "spin": true,
     "knockback": 34,
+    "homing": 2.5,
     "element": "fire",
     "patch": {
       "time": 3.6,
@@ -129,6 +133,7 @@
     "scale": 0.62,
     "pierce": 1,
     "knockback": 110,
+    "homing": 2.0,
     "element": "air",
     "bounces": 2,
     "bounce_damping": 0.18,
@@ -142,6 +147,7 @@
     "scale": 0.85,
     "pierce": 2,
     "knockback": 150,
+    "homing": 2.0,
     "element": "air",
     "bounces": 3,
     "bounce_damping": 0.14,

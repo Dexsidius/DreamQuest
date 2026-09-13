@@ -1356,8 +1356,8 @@ int main(int argc, char** argv) {
         // Attacking stops a sprint; the swing has its own footwork.
         bool stopped_for_swing = false;
         run_for("player_hero", true, 1.0f, [&](World& w, int f) {
-            if (f == 30) key(SDLK_Z, true);
-            if (f == 31) key(SDLK_Z, false);
+            if (f == 30) key(SDLK_J, true);
+            if (f == 31) key(SDLK_J, false);
             if (f > 32 && f < 40 && !w.player.Sprinting()) stopped_for_swing = true;
         });
         Check(stopped_for_swing, "a sprint stops for an attack");
@@ -1451,6 +1451,267 @@ int main(int argc, char** argv) {
                 input.Update(1.0f / 60.0f);
             }
         }
+    }
+
+    // --- keyboard controls and targeting ---------------------------------------------
+    // The game is played on the keyboard alone. Nothing is aimed by hand: out
+    // of combat a shot flies the way the character faces, and in combat it
+    // goes to whoever the fight is with.
+    Section("keyboard controls and targeting");
+    {
+        Input input;
+        std::mt19937 rng(20260913);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        // --- the bindings ----------------------------------------------------
+        {
+            const auto pressed_by = [&](SDL_Keycode k, Action a) {
+                input.Update(dt);
+                key(k, true);
+                const bool pressed = input.Pressed(a);
+                input.Update(dt);
+                key(k, false);
+                input.Update(dt);
+                return pressed;
+            };
+            Check(pressed_by(SDLK_J, Action::LightAttack), "J is the light attack");
+            Check(pressed_by(SDLK_K, Action::StrongAttack), "K is the heavy attack");
+            Check(pressed_by(SDLK_L, Action::Target), "L is the target lock");
+            Check(pressed_by(SDLK_E, Action::Interact) && pressed_by(SDLK_SPACE, Action::Jump) &&
+                  pressed_by(SDLK_LSHIFT, Action::Sprint), "E interacts, Space jumps and Shift sprints");
+            Check(pressed_by(SDLK_I, Action::Inventory) && pressed_by(SDLK_O, Action::Skills) &&
+                  pressed_by(SDLK_P, Action::QuestLog) && pressed_by(SDLK_ESCAPE, Action::Pause),
+                  "I, O and P open the bag, skills and quests, and Esc the menu");
+            Check(pressed_by(SDLK_J, Action::Confirm) && pressed_by(SDLK_K, Action::Back) &&
+                  pressed_by(SDLK_E, Action::Confirm), "in menus J or E confirms and K backs out");
+            Check(!pressed_by(SDLK_K, Action::Skills), "K no longer opens the skills panel");
+            Check(!pressed_by(SDLK_Z, Action::LightAttack) && !pressed_by(SDLK_X, Action::StrongAttack),
+                  "Z and X no longer attack");
+
+            input.Update(dt);
+            SDL_Event m{};
+            m.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+            m.button.button = SDL_BUTTON_LEFT;
+            input.HandleEvent(m);
+            const bool clicked = input.Pressed(Action::LightAttack) || input.Pressed(Action::Confirm);
+            m.type = SDL_EVENT_MOUSE_BUTTON_UP;
+            input.HandleEvent(m);
+            input.Update(dt);
+            Check(!clicked, "a mouse click does not attack");
+
+            input.SetMode(InputMode::KeyboardMouse);
+            Check(input.PromptFor(Action::LightAttack) == "J" && input.PromptFor(Action::StrongAttack) == "K" &&
+                  input.PromptFor(Action::Target) == "L" && input.PromptFor(Action::Skills) == "O" &&
+                  input.PromptFor(Action::QuestLog) == "P", "the on-screen prompts name the keys");
+            input.SetMode(InputMode::Auto);
+        }
+
+        // --- a small arena ---------------------------------------------------
+        // The overworld start, where the sprint tests run: open ground to the
+        // right with nothing in the way.
+        const auto arena = [&](World& w, const string& weapon) {
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            return true;
+        };
+        // A monster placed so the middle of its body is dx, dy from the
+        // player's chest, where shots leave from.
+        const auto spawn = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            const SDL_FPoint aim = Targeting::AimPoint(*e);
+            const SDL_FPoint muzzle = Targeting::Muzzle(w.player);
+            e->x += (muzzle.x + dx) - aim.x;
+            e->y += (muzzle.y + dy) - aim.y;
+            e->home_x = e->x; e->home_y = e->y;
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        const auto tap = [&](World& w, SDL_Keycode k) {
+            input.Update(dt); key(k, true);  w.Update(dt, ctx);
+            input.Update(dt); key(k, false); w.Update(dt, ctx);
+        };
+        // Attacks with the equipped weapon and returns the direction the first
+        // shot left in, or zero if nothing was loosed.
+        const auto shoot = [&](World& w) -> Vec2 {
+            w.projectiles.clear();
+            tap(w, SDLK_J);
+            for (int f = 0; f < 90 && w.projectiles.empty(); ++f) frames(w, 1);
+            if (w.projectiles.empty()) return {0.0f, 0.0f};
+            const Projectile& pr = w.projectiles.front();
+            const float len = std::max(0.001f, Length(pr.vx, pr.vy));
+            return {pr.vx / len, pr.vy / len};
+        };
+
+        // Out of combat: the way the character faces, whatever is nearby.
+        {
+            World w;
+            if (arena(w, "oak_shortbow")) {
+                spawn(w, "hare", 90.0f, 50.0f);
+                frames(w, 2);
+                Check(!w.targeting.InCombat() && !w.targeting.Current(),
+                      "a grazing hare nearby is not a fight");
+                const Vec2 d = shoot(w);
+                Check(d.x > 0.99f, "out of combat, an arrow flies straight the way the character faces");
+            }
+            World up;
+            if (arena(up, "oak_shortbow")) {
+                up.player.facing = FACE_UP;
+                const Vec2 d = shoot(up);
+                Check(d.y < -0.99f, "and facing up, straight up");
+            }
+        }
+
+        // Striking something starts a fight with it.
+        {
+            World w;
+            if (arena(w, "oak_shortbow")) {
+                Enemy* deer = spawn(w, "deer", 80.0f, 0.0f);
+                shoot(w);
+                for (int f = 0; f < 60 && deer && !deer->HealthBarVisible(); ++f) frames(w, 1);
+                frames(w, 2);
+                Check(deer && deer->HealthBarVisible(), "a straight shot hits the deer in front");
+                Check(deer && w.targeting.Current() == deer, "and hitting it puts the player in combat with it");
+            }
+        }
+
+        // In combat: at the monster, not the way the character faces.
+        {
+            World w;
+            if (arena(w, "oak_shortbow")) {
+                Enemy* orc = spawn(w, "orc1", 60.0f, 95.0f);
+                frames(w, 6);
+                Check(orc && orc->Engaged() && w.targeting.Current() == orc,
+                      "a monster coming for the player is the combat target");
+                const Vec2 d = shoot(w);
+                Vec2 want{0.0f, 0.0f};
+                if (orc) {
+                    const SDL_FPoint a = Targeting::AimPoint(*orc), m = Targeting::Muzzle(w.player);
+                    const float len = std::max(0.001f, Length(a.x - m.x, a.y - m.y));
+                    want = {(a.x - m.x) / len, (a.y - m.y) / len};
+                }
+                Check(d.x * want.x + d.y * want.y > 0.9f && d.y > 0.3f,
+                      "in combat, the arrow is loosed at the monster rather than straight ahead");
+                Check(w.player.facing == FACE_DOWN, "and the character turns to shoot it");
+            }
+        }
+
+        // An arrow steers after its target; one with none flies straight past.
+        {
+            const auto loose = [&](bool aimed) {
+                World w;
+                if (!arena(w, "oak_shortbow")) return false;
+                Enemy* deer = spawn(w, "deer", 170.0f, 56.0f);
+                const SDL_FPoint m = Targeting::Muzzle(w.player);
+                w.SpawnProjectile("arrow", m.x + 12.0f, m.y, 1.0f, 0.0f, w.player.Profile(),
+                                  AttackStyle::Ranged, 1.0f, true, ctx);
+                if (aimed && !w.projectiles.empty()) w.projectiles.back().target = deer;
+                for (int f = 0; f < 70 && deer && !deer->HealthBarVisible(); ++f) frames(w, 1);
+                return deer && deer->HealthBarVisible();
+            };
+            Check(loose(true), "an arrow loosed at a monster off the line steers into it");
+            Check(!loose(false), "the same arrow with no target flies past");
+        }
+
+        // The lock: L steps nearest to furthest, then lets go.
+        {
+            World w;
+            if (arena(w, "oak_shortbow")) {
+                Enemy* near_deer = spawn(w, "deer", 60.0f, 45.0f);
+                Enemy* far_deer  = spawn(w, "deer", 170.0f, -30.0f);
+                frames(w, 1);
+                Check(!w.targeting.InCombat(), "two deer nearby are no fight until one is locked");
+                tap(w, SDLK_L);
+                const bool first = w.targeting.Locked() == near_deer;
+                tap(w, SDLK_L);
+                const bool second = w.targeting.Locked() == far_deer;
+                tap(w, SDLK_L);
+                const bool off = !w.targeting.IsLocked() && !w.targeting.InCombat();
+                Check(first, "L locks the nearest");
+                Check(second, "L again moves the lock to the next one out");
+                Check(off, "and past the last it lets go");
+
+                tap(w, SDLK_L);
+                const Vec2 d = shoot(w);
+                Check(d.y > 0.4f && w.targeting.Locked() == near_deer,
+                      "a locked deer is shot at although it is not fighting");
+            }
+        }
+
+        // A lock turns a standing player to face it, and lets go when the
+        // monster dies or gets away.
+        {
+            World w;
+            if (arena(w, "oak_shortbow")) {
+                Enemy* deer = spawn(w, "deer", -80.0f, 0.0f);
+                tap(w, SDLK_L);
+                frames(w, 2);
+                Check(w.targeting.Locked() == deer && w.player.facing == FACE_LEFT,
+                      "standing still with a lock, the character faces the locked monster");
+                if (deer) { deer->x -= Targeting::LOCK_BREAK + 40.0f; deer->home_x = deer->x; }
+                frames(w, 1);
+                Check(!w.targeting.IsLocked(), "the lock lets go when the monster is out of range");
+
+                Enemy* other = spawn(w, "deer", 60.0f, 0.0f);
+                tap(w, SDLK_L);
+                const bool locked = w.targeting.Locked() == other;
+                if (other) other->Damage(1000);
+                frames(w, 3);
+                Check(locked && !w.targeting.IsLocked() && !w.targeting.Current(),
+                      "and when it dies");
+
+                tap(w, SDLK_L);
+                spawn(w, "deer", 50.0f, 0.0f);
+                tap(w, SDLK_L);
+                w.LoadMap("overworld", "start", ctx);
+                Check(!w.targeting.Current(), "a map change clears the target");
+            }
+        }
+
+        // A sword turns toward a target in reach, and not toward one across the field.
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                Enemy* orc = spawn(w, "orc1", 0.0f, -44.0f);
+                frames(w, 3);
+                tap(w, SDLK_J);
+                Check(orc && w.targeting.Current() == orc && w.player.facing == FACE_UP,
+                      "a sword swing turns to the monster beside the player");
+            }
+            World far_w;
+            if (arena(far_w, "bronze_sword")) {
+                Enemy* orc = spawn(far_w, "orc1", 0.0f, -120.0f);
+                frames(far_w, 3);
+                tap(far_w, SDLK_J);
+                Check(orc && far_w.targeting.Current() == orc && far_w.player.facing == FACE_RIGHT,
+                      "but not to one too far away to reach");
+            }
+        }
+        input.Update(dt);
     }
 
     // --- a real fight ---------------------------------------------------------
@@ -1554,7 +1815,7 @@ int main(int argc, char** argv) {
                              : want == FACE_DOWN ? SDLK_S : SDLK_W;
                         key(held, true);
                     } else if (w.player.CanAttack() && frame % 2 == 0) {
-                        held = SDLK_Z;
+                        held = SDLK_J;
                         key(held, true);
                         ++out.swings;
                     }

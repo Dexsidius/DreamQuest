@@ -6,7 +6,7 @@
 // interchangeable and the options menu can switch between them.
 enum class Action {
     MoveUp, MoveDown, MoveLeft, MoveRight,
-    LightAttack, StrongAttack, Interact, Jump, Sprint,
+    LightAttack, StrongAttack, Interact, Jump, Sprint, Target,
     Inventory, QuestLog, Skills, Pause,
     SelectFire, SelectWater, SelectEarth, SelectAir, CycleSpell,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
@@ -49,10 +49,6 @@ public:
     bool HasGamepad() const { return pad != nullptr; }
     const char* GamepadName() const;
 
-    // Mouse is only meaningful in keyboard/mouse mode.
-    SDL_FPoint MousePos() const { return mouse; }
-    bool MouseClicked() const { return mouse_clicked; }
-    bool MouseDown() const { return mouse_down; }
 
     // Prompt glyphs for UI text, e.g. "E" vs "(A)".
     string PromptFor(Action a) const;
@@ -72,7 +68,9 @@ private:
     bool Repeated(Action a) const;
 
     ActionState state[ACTION_COUNT];
-    map<SDL_Keycode, Action> keymap;
+    // One key can mean something in play and something else in a menu: J is
+    // the light attack and also confirms, K the heavy attack and also backs out.
+    std::multimap<SDL_Keycode, Action> keymap;
     map<int, Action> padmap;               // SDL_GamepadButton -> Action
 
     SDL_Gamepad* pad = nullptr;
@@ -82,6 +80,4 @@ private:
     InputMode active = InputMode::KeyboardMouse;
 
     Vec2 stick{0, 0};
-    SDL_FPoint mouse{0, 0};
-    bool mouse_down = false, mouse_clicked = false;
 };

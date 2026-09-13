@@ -94,23 +94,33 @@ the game runs as soon as it finishes. The packs used are listed in
 
 ## Controls
 
-Both schemes are live at once by default; the game switches to whichever you
-last touched. Options → Input Device pins it to one if you would rather.
+The game is played on the keyboard or a controller; the mouse does nothing.
+Both are live at once by default and the game switches to whichever you last
+touched. Options → Input Device pins it to one if you would rather.
 
-| Action | Keyboard & mouse | Controller |
+On the keyboard the left hand steers, sprints, jumps and interacts, and the
+right rests on `J` `K` `L` for the fight, with the panels on the row above.
+
+| Action | Keyboard | Controller |
 | --- | --- | --- |
 | Move | WASD / arrows | Left stick or d-pad |
-| Light attack | `Z` or left mouse | X (west) |
-| Strong / charged attack | `X` or right mouse | Y (north) |
+| Light attack | `J` | X (west) |
+| Heavy / charged attack | `K` (hold to charge) | Y (north) |
+| Lock on / next target | `L` | Right trigger |
 | Sprint (hold) | `Shift` | Left trigger |
 | Jump / climb | `Space` | Left stick click |
 | Interact | `E` | A (south) |
 | Inventory | `I` or tab | LB |
-| Skills | `K` | RB |
-| Quest journal | `Q` | Back |
+| Skills | `O` | RB |
+| Quest journal | `P` or `Q` | Back |
 | Select element | `1` `2` `3` `4` | — |
 | Cycle element | `R` | Right stick click |
-| Pause / back | `Esc` | Start / B |
+| Pause | `Esc` | Start |
+
+In menus the fighting keys double up the way a controller's face buttons do:
+`J`, `E`, `Space` or `Enter` confirms, and `K`, `Backspace` or `Esc` backs out.
+A panel's own key closes it again. The death screen ignores input for its first
+moment, so the last swing of a lost fight does not skip straight past it.
 
 ### Sprinting
 
@@ -148,8 +158,39 @@ same attack state machine, so the charge mechanic works for every style.
   when it is full. Release to fire. A full charge is worth roughly three times
   a normal strong hit and reaches further, but it roots you while it winds up.
 
-With a mouse, shots and spells fly toward the cursor. On a controller they
-follow the way you are facing.
+### Targeting
+
+Nothing is aimed by hand. Where a shot goes depends on whether you are in a
+fight:
+
+- **Out of combat**, an arrow or a spell flies straight the way the character
+  is facing. A deer grazing off to one side is not something the game decides
+  you meant to shoot.
+- **In combat**, shots go to the monster you are fighting, and the character
+  turns to loose them. Combat starts when a monster is chasing or swinging at
+  you, or once you have struck it -- so the first arrow at a deer goes where
+  you face, and the ones after it follow the deer. A monster that gives up and
+  walks home drops out of the fight.
+
+When several monsters are in the fight, the target is the nearest with a clear
+line to it, weighted toward the way you face: turning toward one is how you
+choose between two. A pale arrow over its head marks it, and its name, level
+and health appear at the top of the screen.
+
+`L` (or the right trigger) **locks on**. The first press takes the monster the
+fight is already with, or the nearest one in reach; each press after steps to
+the next one further out, and a press past the last lets go. A lock can be put
+on anything within reach, fighting or not, and it holds while you move and turn
+away -- the target gets a red arrow and a red ring at its feet, the frame at the
+top says LOCKED, and standing still you face it. It lets go by itself when the
+monster dies or gets far enough away.
+
+Arrows **steer** after their target, so a shot at something moving still
+arrives; fire bolts and air bolts turn a little, and water and earth fly
+straight. A shot never circles back for a target it has already passed. With a
+sword, a swing turns to face a target within reach, but not one across the
+field. The numbers live in `src/world/targeting.h` and the `homing` field of
+`data/projectiles.json`.
 
 ---
 
@@ -575,6 +616,10 @@ told apart at a glance rather than by colour alone.
 Under them, a slimmer amber bar with a lightning bolt is stamina, spent by
 sprinting; it pulses red and reads "winded" when it has been run dry.
 
+In a fight, a frame at the top centre names the target with its level and
+health, and says LOCKED in a red border while the lock is on. The line along the
+bottom lists the keys: attack, heavy, target, sprint, bag, skills, quests, menu.
+
 The top right is a round minimap under a brass bezel with rivets, cardinal
 notches and an amber pip at north. It is north-up and centred on the player:
 terrain in the average colour of each ground tile, portals green, NPCs blue,
@@ -811,7 +856,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **4007 checks** covering:
+and checks all of it — currently **4038 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -876,6 +921,18 @@ and checks all of it — currently **4007 checks** covering:
   player winded and unable to sprint however the key is held, clears only past
   the recovery threshold, waits for a breather before refilling, refills faster
   standing still than walking, and is full again on respawn
+- `J` `K` `L` attack, heavy-attack and lock on, `I` `O` `P` open the panels,
+  `J` and `K` confirm and back out of menus, `Z` `X` and the mouse do nothing,
+  and the prompts name the new keys
+- out of combat an arrow flies straight the way the character faces, with a
+  hare nearby or facing up; striking a deer starts a fight with it; in combat
+  an arrow is loosed at the monster and the character turns to shoot it
+- an arrow aimed at a monster off the line steers into it, and the same arrow
+  with no target flies past
+- `L` locks the nearest, steps to the next, lets go past the last, and a locked
+  deer is shot at although it is not fighting; a standing player faces the
+  lock; the lock lets go out of range, on death and on a map change; a sword
+  turns to a monster beside the player but not to one out of reach
 - a bow and a shield cannot be worn together, the swap works both ways, and a
   full bag refuses a swap rather than losing an item -- including the case where
   the only room is the slot the new item leaves
@@ -897,13 +954,14 @@ It exits with the number of failures, so CI can use it directly.
 ```
 src/
   game.cpp/h            state machine, window, main loop
-  input.cpp/h           one action vocabulary for keyboard, mouse and gamepad
+  input.cpp/h           one action vocabulary for keyboard and gamepad
   camera.cpp/h          dead-zone follow camera with zoom and bounds clamping
   sprite.cpp/h          4-direction animation, data-driven
   texturecache.cpp/h    path -> texture
   world/
     map.cpp/h           .mx loader, chunked render, collision, portals
     world.cpp/h         entities, combat resolution, interaction, loot
+    targeting.cpp/h     who the player is fighting: combat target and lock-on
   entity/               player, enemies, NPCs
   systems/              skills, items, loot, combat, quests, dialogue, saves,
                         projectiles and elements, spells

@@ -8,6 +8,7 @@
 #include "../entity/npc.h"
 #include "../systems/projectile.h"
 #include "ambience.h"
+#include "targeting.h"
 
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
@@ -68,6 +69,8 @@ public:
     Camera  camera{1280.0f, 720.0f};
     Ambience ambience;
     Player  player;
+    // Who the player is fighting; see targeting.h.
+    Targeting targeting;
     vector<std::unique_ptr<Enemy>> enemies;
     vector<std::unique_ptr<Npc>>   npcs;
     vector<Pickup>      pickups;
@@ -96,8 +99,8 @@ private:
     // Marks a wall where a projectile struck it, facing back along the normal.
     void AddImpact(const Projectile& p, float nx, float ny);
     void FirePlayerProjectile(const GameContext& ctx);
-    // Aim at the cursor on mouse and keyboard, and along the facing otherwise.
-    Vec2 PlayerAim(const GameContext& ctx) const;
+    // At the target in combat, along the facing out of it.
+    Vec2 PlayerAim() const;
     // Applies a hit from a projectile or a ground effect to one enemy.
     void HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                   Element element, float damage_mult, float knockback,

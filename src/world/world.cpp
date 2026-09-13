@@ -40,6 +40,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     ground_effects.clear();
     impacts.clear();
     dust.clear();
+    targeting.Clear();
     gather_index = -1;
 
     SpawnEntitiesFromMap(ctx);
@@ -134,6 +135,18 @@ void World::Update(float dt, const GameContext& ctx) {
     const bool locked_by_game = player.input_locked;
     player.input_locked = locked_by_game || frozen;
 
+    // Targeting first, so a swing or a shot starting this frame knows who it
+    // is for.
+    {
+        const bool cycle = !player.input_locked && ctx.input && ctx.input->Pressed(Action::Target);
+        switch (targeting.Update(player, enemies, map, cycle)) {
+            case Targeting::Change::Locked:
+            case Targeting::Change::Switched: Audio::Play(Sfx::UiMove, 0.8f, 0.8f); break;
+            case Targeting::Change::Released: Audio::Play(Sfx::UiBack, 0.6f); break;
+            default: break;
+        }
+    }
+
     player.Update(dt, *this, ctx);
 
     player.input_locked = locked_by_game;
@@ -211,14 +224,14 @@ void World::Update(float dt, const GameContext& ctx) {
 //  Combat resolution
 // -----------------------------------------------------------------------------
 
-// Where a shot or a cast is aimed. With a mouse the cursor is the natural
-// answer; on a controller the character shoots the way they are facing.
-Vec2 World::PlayerAim(const GameContext& ctx) const {
-    if (ctx.input && ctx.input->ActiveDevice() == InputMode::KeyboardMouse) {
-        const SDL_FPoint m = ctx.input->MousePos();
-        const SDL_FPoint w = camera.ToWorld(m.x, m.y);
-        const float dx = w.x - player.x;
-        const float dy = w.y - (player.y - 16.0f);
+// Where a shot or a cast is aimed. In a fight, at whoever the fight is with --
+// the lock, or the monster targeting picked -- so nothing is aimed by hand. Out
+// of one, the way the character is facing.
+Vec2 World::PlayerAim() const {
+    if (const Enemy* t = targeting.Current()) {
+        const SDL_FPoint from = Targeting::Muzzle(player);
+        const SDL_FPoint to = Targeting::AimPoint(*t);
+        const float dx = to.x - from.x, dy = to.y - from.y;
         const float len = Length(dx, dy);
         if (len > 4.0f) return {dx / len, dy / len};
     }
@@ -236,7 +249,7 @@ Vec2 World::PlayerAim(const GameContext& ctx) const {
 void World::FirePlayerProjectile(const GameContext& ctx) {
     const AttackState& atk = player.Attack();
     const AttackStyle style = player.Style();
-    const Vec2 aim = PlayerAim(ctx);
+    const Vec2 aim = PlayerAim();
 
     string projectile_id;
     float damage_mult = atk.damage_mult;
@@ -275,10 +288,14 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     }
 
     // Leave from chest height, slightly ahead so it clears the caster.
+    const size_t before = projectiles.size();
+    const SDL_FPoint muzzle = Targeting::Muzzle(player);
     SpawnProjectile(projectile_id,
-                    player.x + aim.x * 12.0f, player.y - 16.0f + aim.y * 12.0f,
+                    muzzle.x + aim.x * 12.0f, muzzle.y + aim.y * 12.0f,
                     aim.x, aim.y, player.Profile(), style,
                     damage_mult, true, ctx);
+    // Aimed at someone, it can steer after them.
+    if (projectiles.size() > before) projectiles.back().target = targeting.Current();
 }
 
 void World::ApplyPlayerAttack(const GameContext& ctx) {
@@ -697,6 +714,31 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
         // fast arrow cannot pass through a wall or a thin target between one
         // frame and the next. Radius rather than a fixed distance: a small
         // fast bolt needs finer steps than a large slow one.
+        // Homing: turn toward the monster it was loosed at, no faster than the
+        // projectile allows. Once that monster is dead, gone, or already behind
+        // it, the shot flies on straight -- it never circles back.
+        if (p.target && p.def->homing > 0.0f) {
+            const Enemy* t = nullptr;
+            for (const auto& e : enemies) if (e.get() == p.target) { t = e.get(); break; }
+            if (!t || !Targeting::Targetable(*t)) {
+                p.target = nullptr;
+            } else {
+                const SDL_FPoint a = Targeting::AimPoint(*t);
+                const float have = atan2f(p.vy, p.vx);
+                const float want = atan2f(a.y - p.y, a.x - p.x);
+                const float diff = remainderf(want - have, 6.2831853f);
+                if (fabsf(diff) > 1.75f) {
+                    p.target = nullptr;
+                } else {
+                    const float turn = std::clamp(diff, -p.def->homing * dt, p.def->homing * dt);
+                    const float speed = Length(p.vx, p.vy);
+                    p.vx = cosf(have + turn) * speed;
+                    p.vy = sinf(have + turn) * speed;
+                    p.angle = have + turn;
+                }
+            }
+        }
+
         const float travel = Length(p.vx, p.vy) * dt;
         const float max_step = std::max(2.0f, p.def->radius * 0.5f);
         const int steps = std::clamp(static_cast<int>(travel / max_step) + 1, 1, 32);
@@ -1111,6 +1153,46 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         SDL_RenderFillRect(r, &puff);
     }
 
+    // A lock is a ring on the ground round the monster's feet, pulsing, under
+    // everything that stands there. Rigs do not all stand on their anchor -- a
+    // CraftPix orc's feet are a dozen pixels above it -- so the ring goes where
+    // the feet are drawn, found from the bottom of the art in the idle sheet.
+    if (const Enemy* t = targeting.Locked()) {
+        float feet = 0.0f;
+        const SpriteDef* def = t->sprite.Def();
+        if (const AnimClip* idle = def ? def->Find("idle") : nullptr) {
+            if (SDL_Texture* tex = idle->sheet.empty() ? nullptr : cache.Get(idle->sheet)) {
+                float tw = 0, th = 0;
+                SDL_GetTextureSize(tex, &tw, &th);
+                const float fh = th / std::max(1, def->rows);
+                const SDL_FRect ob = cache.OpaqueBounds(idle->sheet);
+                float bottom = fmodf((ob.y + ob.h) * th, fh);
+                if (bottom < 0.5f) bottom = fh;
+                feet = std::max(0.0f, (def->anchor_y - bottom) * def->scale);
+            }
+        }
+        const SDL_FRect body = t->BodyBox();
+        const float rx = std::max(11.0f, body.w * 0.62f), ry = rx * 0.45f;
+        const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) * 0.008f);
+        const float z = camera.zoom;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, static_cast<Uint8>(200 + 55 * pulse), static_cast<Uint8>(52 + 50 * pulse),
+                               static_cast<Uint8>(40 + 30 * pulse), 235);
+        // One art pixel a step round the ellipse, so it reads as a line.
+        const int steps = std::max(24, static_cast<int>(6.2831853f * std::max(rx, ry) * 1.2f));
+        float last_x = -1e9f, last_y = -1e9f;
+        for (int i = 0; i < steps; ++i) {
+            const float a = 6.2831853f * i / steps;
+            const SDL_FPoint s = camera.ToScreen(t->x + cosf(a) * rx,
+                                                 t->y - feet - t->draw_lift + sinf(a) * ry);
+            const float px = roundf(s.x / z) * z, py = roundf(s.y / z) * z;
+            if (px == last_x && py == last_y) continue;
+            last_x = px; last_y = py;
+            const SDL_FRect dot = {px, py, z, z};
+            SDL_RenderFillRect(r, &dot);
+        }
+    }
+
     // Everything at ground level draws in baseline order, so the player walks
     // behind a tree trunk and in front of the grass at its foot.
     struct Item { float sort_y; int kind; const void* ptr; };
@@ -1359,5 +1441,30 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             const SDL_FRect shine = {bx + 1.0f, by + 1.0f, static_cast<float>(fill), 1.0f};
             SDL_RenderFillRect(r, &shine);
         }
+    }
+
+    // The target marker: a small arrow hung over the head of whoever shots are
+    // going to, above the health bar. Pale for the monster the fight picked,
+    // red and bobbing for a lock. In art pixels, so it sits with the sprites.
+    if (const Enemy* t = targeting.Current()) {
+        const bool lock = targeting.IsLocked();
+        const float z = camera.zoom;
+        const SDL_FRect body = t->BodyBox();
+        const float bob = lock ? roundf(sinf(static_cast<float>(SDL_GetTicks()) * 0.009f) * 1.5f) : 0.0f;
+        const float gap = t->HealthBarVisible() ? 9.0f : 4.0f;
+        const SDL_FPoint tip = camera.ToScreen(t->x, body.y - t->draw_lift - gap - bob);
+        const float cx = roundf(tip.x / z) * z, by = roundf(tip.y / z) * z;
+        const SDL_Color fill = lock ? SDL_Color{236, 72, 54, 255} : SDL_Color{246, 226, 160, 235};
+        auto row = [&](float dy, int w, SDL_Color c) {
+            SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+            const SDL_FRect span = {cx - (w / 2) * z, by + dy * z, w * z, z};
+            SDL_RenderFillRect(r, &span);
+        };
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        const SDL_Color ink{20, 12, 10, 230};
+        const int outline[] = {9, 9, 7, 5, 3, 1};
+        for (int i = 0; i < 6; ++i) row(-5.0f + i, outline[i], ink);
+        const int core[] = {7, 5, 3, 1};
+        for (int i = 0; i < 4; ++i) row(-4.0f + i, core[i], fill);
     }
 }

@@ -180,6 +180,7 @@ private:
     float  banner_time = 0.0f;
     bool   banner_active = false;
     float playtime = 0.0f;
+    float state_time = 0.0f;      // seconds since the last state change
     float fps = 0.0f;
     float autosave_timer = 0.0f;
 };

@@ -195,6 +195,7 @@ void Game::SetState(GameState s) {
          state == GameState::CharacterSelect);
 
     state = s;
+    state_time = 0.0f;
     cursor = back_to_menu ? main_menu_cursor : 0;
     // The player only steers during actual gameplay.
     world.player.input_locked = (s != GameState::Play);
@@ -312,6 +313,7 @@ void Game::Process(float dt) {
 }
 
 void Game::Update(float dt) {
+    state_time += dt;
     for (auto& t : toasts) t.life -= dt;
     toasts.erase(std::remove_if(toasts.begin(), toasts.end(),
                                 [](const Toast& t) { return t.life <= 0.0f; }),

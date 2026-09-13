@@ -160,7 +160,24 @@ vector<pair<int,int>> Player::TakeXpDrops() {
     return out;
 }
 
-void Player::HandleAttackInput(const Input& in, float dt) {
+void Player::FacePoint(float tx, float ty) {
+    const float dx = tx - x, dy = ty - (y - 16.0f);
+    if (Length(dx, dy) < 1.0f) return;
+    if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;
+    else                       facing = (dy > 0) ? FACE_DOWN  : FACE_UP;
+    sprite.facing = facing;
+}
+
+void Player::TurnToTarget(const World& world) {
+    const Enemy* t = world.targeting.Current();
+    if (!t) return;
+    const SDL_FPoint a = Targeting::AimPoint(*t);
+    if (Style() == AttackStyle::Melee &&
+        Length(a.x - x, a.y - (y - 16.0f)) > Targeting::MELEE_ASSIST) return;
+    FacePoint(a.x, a.y);
+}
+
+void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
     // A swing already under way locks out new input until it recovers, except
     // for buffering the next link of a light chain.
     const float speed = WeaponSpeed();
@@ -176,6 +193,7 @@ void Player::HandleAttackInput(const Input& in, float dt) {
         attack.combo       = index;
         attack.timer       = 0.0f;
         attack.consumed    = false;
+        TurnToTarget(world);
         sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
         sprite.Play("attack", true);
         combo_window = 0.0f;
@@ -210,6 +228,7 @@ void Player::HandleAttackInput(const Input& in, float dt) {
         attack.combo    = 0;
         attack.timer    = 0.0f;
         attack.consumed = false;
+        TurnToTarget(world);
         sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
         sprite.Play("attack", true);
         if (Style() == AttackStyle::Melee)
@@ -416,7 +435,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     Vec2 move{0, 0};
     if (!input_locked && ctx.input) {
         move = ctx.input->MoveAxis();
-        HandleAttackInput(*ctx.input, dt);
+        HandleAttackInput(*ctx.input, dt, world);
 
         // Which way a jump would go: where you are steering, or failing that
         // where you are facing.
@@ -497,10 +516,16 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         look_ahead.y += (move.y * lead - look_ahead.y) * k;
     }
 
-    // Face the way you are moving, but never mid-swing.
+    // Face the way you are moving, but never mid-swing. Standing still with a
+    // lock on, face the locked monster, so the next shot does not have to turn.
     if (!attack.Active() && Length(move.x, move.y) > 0.05f) {
         if (fabsf(move.x) > fabsf(move.y)) facing = (move.x > 0) ? FACE_RIGHT : FACE_LEFT;
         else                               facing = (move.y > 0) ? FACE_DOWN  : FACE_UP;
+    } else if (!attack.Active()) {
+        if (const Enemy* t = world.targeting.Locked()) {
+            const SDL_FPoint a = Targeting::AimPoint(*t);
+            FacePoint(a.x, a.y);
+        }
     }
     sprite.facing = facing;
 

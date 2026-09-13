@@ -47,6 +47,9 @@ struct ProjectileDef {
 
     int   pierce    = 0;        // extra targets it passes through
     float knockback = 40.0f;
+    // Radians a second it may turn toward the monster it was loosed at, so a
+    // shot at something moving still arrives. Zero flies straight.
+    float homing    = 0.0f;
 
     // --- what it does when it meets a wall -----------------------------------
     // Most things stop. A few ricochet: bounces is how many times, and each one
@@ -105,6 +108,9 @@ struct Projectile {
     // anything the projectile leaves behind -- on the surface rather than
     // wherever the last movement step happened to land.
     bool  hit_wall = false;
+    // The monster the player's targeting had when this was loosed, for homing.
+    // Checked against the world's list before use; null flies straight.
+    const void* target = nullptr;
     // Entities already struck, so one shot cannot hit the same target twice.
     vector<const void*> already_hit;
 

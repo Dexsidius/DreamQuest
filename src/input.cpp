@@ -11,15 +11,20 @@ Input::Input() {
         {SDLK_A, Action::MoveLeft},  {SDLK_LEFT,  Action::MoveLeft},
         {SDLK_D, Action::MoveRight}, {SDLK_RIGHT, Action::MoveRight},
 
-        {SDLK_Z, Action::LightAttack},
-        {SDLK_X, Action::StrongAttack},
+        // The game is played on the keyboard alone: the left hand steers,
+        // sprints, jumps and interacts, and the right rests on J K L for the
+        // fight. The panels sit on the row above that, I O P, where the right
+        // hand reaches them without leaving home.
+        {SDLK_J, Action::LightAttack},
+        {SDLK_K, Action::StrongAttack},
+        {SDLK_L, Action::Target},
         {SDLK_E, Action::Interact},
         {SDLK_SPACE, Action::Jump},
         {SDLK_LSHIFT, Action::Sprint}, {SDLK_RSHIFT, Action::Sprint},
 
         {SDLK_I, Action::Inventory},  {SDLK_TAB, Action::Inventory},
-        {SDLK_Q, Action::QuestLog},
-        {SDLK_K, Action::Skills},
+        {SDLK_O, Action::Skills},
+        {SDLK_P, Action::QuestLog},   {SDLK_Q, Action::QuestLog},
         {SDLK_ESCAPE, Action::Pause},
 
         {SDLK_1, Action::SelectFire},
@@ -28,8 +33,13 @@ Input::Input() {
         {SDLK_4, Action::SelectAir},
         {SDLK_R, Action::CycleSpell},
 
-        {SDLK_RETURN, Action::Confirm},
-        {SDLK_BACKSPACE, Action::Back},
+        // In menus the fighting keys double up, the way a controller's face
+        // buttons do: J or E or Space to confirm, K to back out. Gameplay never
+        // reads Confirm or Back, and menus never read the attacks, so neither
+        // meaning leaks into the other.
+        {SDLK_RETURN, Action::Confirm}, {SDLK_J, Action::Confirm},
+        {SDLK_E, Action::Confirm},      {SDLK_SPACE, Action::Confirm},
+        {SDLK_BACKSPACE, Action::Back}, {SDLK_K, Action::Back},
     };
 
     padmap = {
@@ -120,34 +130,15 @@ bool Input::HandleEvent(const SDL_Event& e) {
             if (e.key.repeat) return true;
             if (mode == InputMode::Auto && e.type == SDL_EVENT_KEY_DOWN)
                 active = InputMode::KeyboardMouse;
-            auto it = keymap.find(e.key.key);
-            if (it != keymap.end()) {
+            const auto range = keymap.equal_range(e.key.key);
+            if (range.first == range.second) return false;
+            for (auto it = range.first; it != range.second; ++it)
                 Set(it->second, e.type == SDL_EVENT_KEY_DOWN, false);
-                return true;
-            }
-            return false;
-        }
-
-        case SDL_EVENT_MOUSE_MOTION:
-            mouse = {e.motion.x, e.motion.y};
-            if (mode == InputMode::Auto) active = InputMode::KeyboardMouse;
-            return true;
-
-        case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        case SDL_EVENT_MOUSE_BUTTON_UP: {
-            const bool dn = (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN);
-            mouse = {e.button.x, e.button.y};
-            if (mode == InputMode::Auto && dn) active = InputMode::KeyboardMouse;
-            if (e.button.button == SDL_BUTTON_LEFT) {
-                mouse_down = dn;
-                if (dn) mouse_clicked = true;
-                Set(Action::LightAttack, dn, false);
-                Set(Action::Confirm, dn, false);
-            } else if (e.button.button == SDL_BUTTON_RIGHT) {
-                Set(Action::StrongAttack, dn, false);
-            }
             return true;
         }
+
+        // The mouse does nothing. Aiming is the targeting system's job, and a
+        // click on the window to focus it should not swing a sword.
 
         case SDL_EVENT_GAMEPAD_ADDED:
             OpenGamepad();
@@ -190,6 +181,12 @@ bool Input::HandleEvent(const SDL_Event& e) {
                 if (!held && v > 0.5f) Set(Action::Sprint, true, true);
                 if (held && v < 0.35f) Set(Action::Sprint, false, true);
             }
+            // And the lock on the right trigger, the same way.
+            if (e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
+                const bool held = state[Index(Action::Target)].padbtn;
+                if (!held && v > 0.5f) Set(Action::Target, true, true);
+                if (held && v < 0.35f) Set(Action::Target, false, true);
+            }
             if (mode == InputMode::Auto && fabsf(v) > 0.6f) active = InputMode::Controller;
             return true;
         }
@@ -211,7 +208,6 @@ void Input::Update(float dt) {
             s.repeat_timer = REPEAT_DELAY;
         }
     }
-    mouse_clicked = false;
     if (mode != InputMode::Auto) active = mode;
 }
 
@@ -266,18 +262,20 @@ string Input::PromptFor(Action a) const {
             case Action::CycleSpell:   return "RS";
             case Action::Jump:         return "LS";
             case Action::Sprint:       return "LT";
+            case Action::Target:       return "RT";
             default:                   return "";
         }
     }
     switch (a) {
-        case Action::LightAttack:  return "LMB";
-        case Action::StrongAttack: return "RMB";
+        case Action::LightAttack:  return "J";
+        case Action::StrongAttack: return "K";
+        case Action::Target:       return "L";
         case Action::Interact:     return "E";
-        case Action::Confirm:      return "Enter";
-        case Action::Back:         return "Esc";
+        case Action::Confirm:      return "J";
+        case Action::Back:         return "K";
         case Action::Inventory:    return "I";
-        case Action::Skills:       return "K";
-        case Action::QuestLog:     return "Q";
+        case Action::Skills:       return "O";
+        case Action::QuestLog:     return "P";
         case Action::Pause:        return "Esc";
         case Action::CycleSpell:   return "R";
         case Action::Jump:         return "Space";

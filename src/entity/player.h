@@ -148,7 +148,11 @@ public:
     void FromJson(const json& j, const GameContext& ctx);
 
 private:
-    void HandleAttackInput(const Input& in, float dt);
+    void HandleAttackInput(const Input& in, float dt, const World& world);
+    // An attack starting turns to face the target: always for a bow or a
+    // staff, and for a sword when the target is within reach of a swing.
+    void TurnToTarget(const World& world);
+    void FacePoint(float tx, float ty);
     void UpdateAttack(float dt);
     void UpdateAnimation(const Vec2& move);
 
