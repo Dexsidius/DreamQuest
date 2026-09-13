@@ -153,6 +153,11 @@ private:
     // Marks a wall where a projectile struck it, facing back along the normal.
     void AddImpact(const Projectile& p, float nx, float ny);
     void FirePlayerProjectile(const GameContext& ctx);
+    // A charged attack chosen from the skill tree, in place of the plain one.
+    // True when it handled the attack.
+    bool MeleeTechnique(const string& technique, const GameContext& ctx);
+    // Rings of sparks and puffs of dust for techniques that have no projectile.
+    void Burst(float x, float y, float radius, SDL_Color color, int count);
     // At the target in combat, along the facing out of it.
     Vec2 PlayerAim() const;
     // Applies a hit from a projectile or a ground effect to one enemy.
@@ -193,6 +198,7 @@ private:
     std::set<string> flags;
     vector<WorldRequest> requests;
 
+    float lifesteal_bank = 0.0f;  // healing on hit, in fractions of a point
     int   gather_index = -1;      // index into map objects
     float gather_timer = 0.0f;
     float gather_needed = 0.0f;

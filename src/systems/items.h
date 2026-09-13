@@ -71,6 +71,16 @@ struct ItemDef {
 
     string icon;                      // image path, optional
 
+    // --- material tiers ---------------------------------------------------------
+    // Set on everything data/tiers.json made: which tier, which of the seven
+    // pieces (or "ore" / "bar"), and for a weapon the model the hero carries.
+    string tier;
+    int    tier_index = -1;           // 0 wood .. 8 demonrite
+    string piece;
+    // The weapon art the hero draws in hand, "sword_iron" and so on. Empty
+    // falls back to the rig's own sword layer, tinted.
+    string model;
+
     // Optional art drawn on the character while this is worn. Left empty for
     // items that only tint, which is everything until layered armour art
     // exists for this rig.
@@ -79,6 +89,16 @@ struct ItemDef {
     LayerSlot worn_after = LayerSlot::Head;
     SDL_FRect worn_rect{24, 17, 16, 16};   // frame pixels
     bool      worn_facings[4] = {true, true, true, true};
+};
+
+// One material tier, in order from wood to demonrite.
+struct TierDef {
+    string id, name;
+    int    level = 1;              // what wearing or wielding it needs
+    SDL_Color colour{255, 255, 255, 255};
+    bool   wood = false;           // worked from logs, with no ore or bar
+    string ore, bar;               // item ids; empty for wood
+    int    mining = 1;             // Mining level to work the ore
 };
 
 class ItemDatabase {
@@ -96,8 +116,22 @@ public:
     vector<const ItemDef*> Recipes(CraftStation station) const;
     CraftStation StationFor(const ItemDef& recipe) const;
 
+    // Builds every tier's ore, bar and seven pieces, and a recipe for each,
+    // from data/tiers.json. Call after the item files: an item that already
+    // exists (copper ore, say) keeps what it had and gains its tier.
+    bool LoadTiers(const string& path);
+    const vector<TierDef>& Tiers() const { return tiers; }
+    const TierDef* Tier(const string& id) const;
+    // The item a tier makes as a piece: "sword", "helm", ...; empty if none.
+    string TierPiece(const string& tier_id, const string& piece) const;
+
 private:
     map<string, ItemDef> defs;
+    // Recipes that are not an item's own: one ingot makes seven things, and an
+    // item can only carry one "craft".
+    vector<ItemDef> recipes;
+    vector<TierDef> tiers;
+    map<string, string> tier_pieces;       // "iron/sword" -> "iron_sword"
 };
 
 struct ItemStack {

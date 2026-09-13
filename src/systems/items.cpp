@@ -103,6 +103,7 @@ bool ItemDatabase::Load(const string& path, bool required) {
 
         d.metal = o.value("metal", false);
         d.use   = o.value("use", string(""));
+        d.model = o.value("model", string(""));
 
         if (o.contains("craft")) {
             const json& c = o["craft"];
@@ -129,6 +130,187 @@ bool ItemDatabase::Load(const string& path, bool required) {
 const ItemDef* ItemDatabase::Get(const string& id) const {
     auto it = defs.find(id);
     return it == defs.end() ? nullptr : &it->second;
+}
+
+// --- material tiers -----------------------------------------------------------
+
+const TierDef* ItemDatabase::Tier(const string& id) const {
+    for (const TierDef& t : tiers) if (t.id == id) return &t;
+    return nullptr;
+}
+
+string ItemDatabase::TierPiece(const string& tier_id, const string& piece) const {
+    auto it = tier_pieces.find(tier_id + "/" + piece);
+    return it == tier_pieces.end() ? string() : it->second;
+}
+
+bool ItemDatabase::LoadTiers(const string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        SDL_Log("ItemDatabase: cannot open '%s'", path.c_str());
+        return false;
+    }
+    json root;
+    try {
+        in >> root;
+    } catch (const std::exception& e) {
+        SDL_Log("ItemDatabase: bad JSON in '%s': %s", path.c_str(), e.what());
+        return false;
+    }
+    if (!root.contains("pieces") || !root.contains("tiers")) return false;
+
+    tiers.clear();
+    recipes.clear();
+    tier_pieces.clear();
+
+    // Pieces in a fixed order, so the recipe list reads the same every time.
+    static const char* kPieces[] = {"sword", "bow", "staff", "shield", "helm", "body", "legs"};
+    const json& pieces = root["pieces"];
+
+    const auto icon_for = [](const string& file) { return "assets/icons/tiers/" + file + ".png"; };
+    const auto add_recipe = [&](const string& result, int level, int xp, const map<string, int>& inputs) {
+        ItemDef r;
+        r.id = "recipe_" + result;
+        r.craft_result = result;
+        r.craft_level = std::clamp(level, 1, 99);
+        r.craft_xp = xp;
+        r.craft_inputs = inputs;
+        recipes.push_back(r);
+    };
+
+    int index = 0;
+    for (const json& tj : root["tiers"]) {
+        TierDef t;
+        t.id     = tj.value("id", string(""));
+        t.name   = tj.value("name", t.id);
+        t.level  = tj.value("level", 1);
+        t.wood   = tj.value("wood", false);
+        t.ore    = tj.value("ore", string(""));
+        t.bar    = tj.value("bar", string(""));
+        t.mining = tj.value("mining", 1);
+        if (tj.contains("colour") && tj["colour"].size() >= 3)
+            t.colour = {static_cast<Uint8>(tj["colour"][0].get<int>()),
+                        static_cast<Uint8>(tj["colour"][1].get<int>()),
+                        static_cast<Uint8>(tj["colour"][2].get<int>()), 255};
+        const int value_mult = tj.value("value", 1);
+        const string flavour = tj.value("flavour", string(""));
+
+        // --- the ore and the bar ------------------------------------------------
+        if (!t.wood && !t.ore.empty()) {
+            ItemDef& ore = defs[t.ore];
+            if (ore.id.empty()) {
+                ore.id = t.ore;
+                ore.value = 6 * value_mult;
+            }
+            ore.name = tj.value("ore_name", ore.name.empty() ? t.ore : ore.name);
+            ore.description = tj.value("ore_desc", ore.description);
+            ore.stackable = true;
+            ore.metal = true;
+            ore.icon = icon_for(t.ore);
+            ore.tier = t.id;
+            ore.tier_index = index;
+            ore.piece = "ore";
+        }
+        if (!t.wood && !t.bar.empty()) {
+            ItemDef bar;
+            bar.id = t.bar;
+            bar.name = tj.value("bar_name", t.bar);
+            bar.description = "A bar of " + t.name + ", ready for the anvil.";
+            bar.stackable = true;
+            bar.metal = true;
+            bar.value = 16 * value_mult;
+            bar.icon = icon_for(t.bar);
+            bar.tier = t.id;
+            bar.tier_index = index;
+            bar.piece = "bar";
+            defs[bar.id] = bar;
+
+            map<string, int> smelt;
+            if (tj.contains("smelt"))
+                for (auto i = tj["smelt"].begin(); i != tj["smelt"].end(); ++i)
+                    smelt[i.key()] = i.value().get<int>();
+            add_recipe(bar.id, t.level, 10 + index * 12, smelt);
+        }
+
+        // --- the seven pieces ----------------------------------------------------
+        for (const char* piece_name : kPieces) {
+            if (!pieces.contains(piece_name)) continue;
+            const json& pj = pieces[piece_name];
+            const string piece = piece_name;
+
+            ItemDef d;
+            d.id = (tj.contains("ids") && tj["ids"].contains(piece))
+                       ? tj["ids"][piece].get<string>() : (t.id + "_" + piece);
+            d.name = (tj.contains("names") && tj["names"].contains(piece))
+                         ? tj["names"][piece].get<string>()
+                         : (t.name + " " + pj.value("noun", piece));
+            d.description = flavour.empty() ? pj.value("desc", string(""))
+                                            : flavour + " " + pj.value("desc", string(""));
+            d.slot = static_cast<EquipSlot>(EquipSlotFromName(pj.value("slot", string("none"))));
+            d.kind = WeaponKindFromName(pj.value("kind", string("melee")));
+            d.attack_speed = pj.value("speed", 1.0f);
+            d.value = pj.value("value", 10) * value_mult;
+            d.icon = icon_for(piece + "_" + t.id);
+            d.tier = t.id;
+            d.tier_index = index;
+            d.piece = piece;
+
+            const bool weapon = d.slot == SLOT_WEAPON;
+            if (weapon) d.model = piece + "_" + t.id;
+            // A weapon's model is drawn in its own colours; armour has no art on
+            // the character, so it shows as the tier's colour over the body.
+            if (!weapon) d.tint = t.colour;
+
+            const float power = pj.value("power", string("weapon")) == "armour"
+                                    ? tj.value("armour_power", 10.0f)
+                                    : tj.value("weapon_power", 10.0f);
+            if (pj.contains("bonus")) {
+                const json& b = pj["bonus"];
+                const auto scaled = [&](const char* k) {
+                    const float f = b.value(k, 0.0f);
+                    return f > 0.0f ? std::max(1, static_cast<int>(std::lround(power * f))) : 0;
+                };
+                d.attack_bonus   = scaled("attack");
+                d.strength_bonus = scaled("strength");
+                d.defence_bonus  = scaled("defence");
+                d.ranged_bonus   = scaled("ranged");
+                d.magic_bonus    = scaled("magic");
+            }
+            if (t.level > 1) {
+                const int s = SkillFromName(pj.value("skill", string("")));
+                if (s >= 0) d.requirements[s] = t.level;
+            }
+            defs[d.id] = d;
+            tier_pieces[t.id + "/" + piece] = d.id;
+
+            // How it is made.
+            map<string, int> inputs;
+            int amount = 0;
+            if (t.wood) {
+                if (tj.contains("wood_inputs") && tj["wood_inputs"].contains(piece))
+                    for (auto i = tj["wood_inputs"][piece].begin(); i != tj["wood_inputs"][piece].end(); ++i) {
+                        inputs[i.key()] = i.value().get<int>();
+                        amount += i.value().get<int>();
+                    }
+            } else if (!t.bar.empty()) {
+                amount = pj.value("bars", 1);
+                inputs[t.bar] = amount;
+                if (pj.contains("extra"))
+                    for (auto i = pj["extra"].begin(); i != pj["extra"].end(); ++i)
+                        inputs[i.key()] += i.value().get<int>();
+            }
+            if (!inputs.empty())
+                add_recipe(d.id, t.level + pj.value("craft_offset", 0),
+                           (12 + index * 14) * std::max(1, amount), inputs);
+        }
+
+        tiers.push_back(t);
+        ++index;
+    }
+
+    SDL_Log("ItemDatabase: %d tiers, %d recipes (%s)",
+            static_cast<int>(tiers.size()), static_cast<int>(recipes.size()), path.c_str());
+    return true;
 }
 
 CraftStation CraftStationFromName(const string& name) {
@@ -159,6 +341,7 @@ vector<const ItemDef*> ItemDatabase::Recipes() const {
     vector<const ItemDef*> out;
     for (const auto& kv : defs)
         if (!kv.second.craft_result.empty()) out.push_back(&kv.second);
+    for (const ItemDef& r : recipes) out.push_back(&r);
     std::sort(out.begin(), out.end(), [](const ItemDef* a, const ItemDef* b) {
         if (a->craft_level != b->craft_level) return a->craft_level < b->craft_level;
         return a->name < b->name;

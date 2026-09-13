@@ -639,6 +639,9 @@ void Game::DrawHud() {
             string line;
             if (current) {
                 line = current->name + "   " + std::to_string(current->mana) + " mana";
+                // A staff's technique rides on the same line as the spell.
+                if (const TalentNode* t = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique()))
+                    line += "     hold " + input.PromptFor(Action::StrongAttack) + ": " + t->name;
             } else {
                 const SpellDef* next = spells.NextFor(p.SelectedElement(),
                                                       p.skills.Level(SKILL_MAGIC));
@@ -649,6 +652,15 @@ void Game::DrawHud() {
                             TextSize::Small,
                             current ? ElementColor(p.SelectedElement()) : Palette::TextDim,
                             Align::Center);
+        }
+
+        // The technique a held heavy attack will come out as, from the tree --
+        // on the line under the prompts, where the bow says it is drawn.
+        const TalentNode* tech = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique());
+        if (tech && style != AttackStyle::Magic) {
+            ui.TextShadowed("Hold " + input.PromptFor(Action::StrongAttack) + ": " + tech->name,
+                            ui.ViewWidth() / 2.0f, ui.ViewHeight() - 46.0f, TextSize::Small,
+                            {236, 150, 110, 255}, Align::Center);
         } else if (style == AttackStyle::Ranged) {
             ui.TextShadowed("Bow drawn", ui.ViewWidth() / 2.0f,
                             ui.ViewHeight() - 46.0f, TextSize::Small,
@@ -1069,6 +1081,16 @@ void Game::DrawInventory() {
     if (const ItemDef* def = sel_id.empty() ? nullptr : items.Get(sel_id)) {
         const float y = grid_y + 4 * (cell + gap) + 12.0f;
         ui.Text(def->name, grid_x, y, TextSize::Body, Palette::Highlight);
+        // The tier and what it needs, on the right of the name.
+        string tag;
+        if (const TierDef* t = def->tier.empty() ? nullptr : items.Tier(def->tier)) tag = t->name + " tier";
+        for (const auto& rq : def->requirements) {
+            const bool met = p.skills.Level(rq.first) >= rq.second;
+            tag += (tag.empty() ? "" : "   ") + string(met ? "" : "needs ") + SkillName(rq.first) +
+                   " " + std::to_string(rq.second);
+        }
+        if (!tag.empty())
+            ui.Text(tag, grid_x + COLS * (cell + gap) - 12.0f, y + 4.0f, TextSize::Small, Palette::TextDim, Align::Right);
         ui.TextWrapped(def->description, grid_x, y + 24.0f, COLS * (cell + gap) - 12.0f,
                        TextSize::Small, Palette::TextDim);
     }
@@ -1084,29 +1106,127 @@ void Game::DrawInventory() {
 // =============================================================================
 
 void Game::UpdateSkillsPanel() {
-    MoveCursor(cursor, SKILL_COUNT);
-    if (input.Pressed(Action::Back) || input.Pressed(Action::Skills) ||
-        input.Pressed(Action::Pause))
+    if (state_time <= 0.0f) tree_reset_armed = false;
+
+    // I and O (the shoulder buttons on a pad) step between the level list and
+    // the three trees; the panel closes with Back.
+    const int tabs = 4;
+    if (input.Pressed(Action::Inventory)) { skills_tab = (skills_tab + tabs - 1) % tabs; tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
+    if (input.Pressed(Action::Skills))    { skills_tab = (skills_tab + 1) % tabs;        tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
         SetState(GameState::Play);
+        return;
+    }
+
+    if (skills_tab == 0) {
+        MoveCursor(cursor, SKILL_COUNT);
+        return;
+    }
+
+    const AttackStyle style = static_cast<AttackStyle>(skills_tab - 1);
+    const TalentTree& tree = skill_trees.Tree(style);
+    Player& p = world.player;
+
+    const int b0 = tree_branch, r0 = tree_row;
+    if (input.MenuLeft())  tree_branch = (tree_branch + SkillTrees::BRANCHES - 1) % SkillTrees::BRANCHES;
+    if (input.MenuRight()) tree_branch = (tree_branch + 1) % SkillTrees::BRANCHES;
+    if (input.MenuUp())    tree_row = std::max(0, tree_row - 1);
+    if (input.MenuDown())  tree_row = std::min(SkillTrees::ROWS - 1, tree_row + 1);
+    if (b0 != tree_branch || r0 != tree_row) Audio::Play(Sfx::UiMove);
+
+    const TalentNode* node = tree.At(tree_branch, tree_row);
+    if (node && input.Pressed(Action::Confirm)) {
+        tree_reset_armed = false;
+        if (p.talents.Has(node->id)) {
+            if (!node->technique.empty() && p.talents.ToggleTechnique(node->id)) {
+                const bool on = p.talents.Technique(style) == node->technique;
+                PushToast(on ? node->name + " is your charged attack now."
+                             : "Back to a plain charged attack.", Palette::Xp);
+                Audio::Play(Sfx::Equip);
+            }
+        } else {
+            switch (p.talents.CanLearn(node->id, p.skills)) {
+                case Talents::Why::Ok:
+                    p.talents.Learn(node->id, p.skills);
+                    PushToast("Learned " + node->name + ".", Palette::Highlight);
+                    Audio::Play(Sfx::QuestStart);
+                    break;
+                case Talents::Why::Level:
+                    PushToast("Needs " + string(SkillName(tree.skill)) + " " +
+                              std::to_string(node->level) + ".", {235, 150, 120, 255});
+                    Audio::Play(Sfx::UiError);
+                    break;
+                case Talents::Why::Prerequisite:
+                    PushToast("Learn the one above it first.", {235, 150, 120, 255});
+                    Audio::Play(Sfx::UiError);
+                    break;
+                case Talents::Why::NoPoints:
+                    PushToast("No points left. One comes every " +
+                              std::to_string(SkillTrees::LEVELS_PER_POINT) + " " +
+                              SkillName(tree.skill) + " levels.", {235, 150, 120, 255});
+                    Audio::Play(Sfx::UiError);
+                    break;
+                default: break;
+            }
+        }
+    }
+
+    // Unlearning a tree takes two presses, so it cannot happen by accident.
+    if (input.Pressed(Action::Target)) {
+        if (!tree_reset_armed) {
+            tree_reset_armed = true;
+            PushToast("Press " + input.PromptFor(Action::Target) + " again to unlearn the " +
+                      tree.name + " tree.", {235, 190, 120, 255});
+        } else {
+            p.talents.Reset(style);
+            tree_reset_armed = false;
+            PushToast(tree.name + " tree unlearned. Its points are free again.", Palette::TextDim);
+            Audio::Play(Sfx::UiBack);
+        }
+    }
 }
 
 void Game::DrawSkillsPanel() {
     ui.Dim(0.5f);
     const Skills& s = world.player.skills;
 
-    const SDL_FRect panel = CenteredPanel(ui, 640.0f, 512.0f);
+    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : 860.0f, 560.0f);
     ui.Panel(panel);
-    ui.Text("Skills", panel.x + 24.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight);
+
+    // --- tabs ------------------------------------------------------------------
+    {
+        static const char* kTabs[4] = {"Skills", "Melee", "Ranged", "Magic"};
+        float tx = panel.x + 24.0f;
+        for (int t = 0; t < 4; ++t) {
+            const float w = ui.Measure(kTabs[t], TextSize::Body).x + 24.0f;
+            const SDL_FRect tab = {tx, panel.y + 14.0f, w, 30.0f};
+            const bool on = (t == skills_tab);
+            ui.Fill(tab, on ? SDL_Color{70, 54, 30, 235} : SDL_Color{30, 24, 20, 200});
+            ui.Outline(tab, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
+            int free = 0;
+            if (t > 0) free = world.player.talents.PointsFree(static_cast<AttackStyle>(t - 1), s);
+            ui.Text(kTabs[t], tab.x + 12.0f, tab.y + 5.0f, TextSize::Body,
+                    on ? Palette::Highlight : (free > 0 ? Palette::Xp : Palette::Text));
+            tx += w + 6.0f;
+        }
+        ui.Text(input.PromptFor(Action::Inventory) + " / " + input.PromptFor(Action::Skills) + " switch",
+                tx + 10.0f, panel.y + 22.0f, TextSize::Small, Palette::TextDim);
+    }
+
+    if (skills_tab > 0) {
+        DrawSkillTree(panel);
+        return;
+    }
 
     char header[128];
     SDL_snprintf(header, sizeof(header), "Combat %d    Total level %d    Total XP %lld",
                  s.CombatLevel(), s.TotalLevel(), s.TotalXp());
-    ui.Text(header, panel.x + panel.w - 24.0f, panel.y + 22.0f, TextSize::Small,
+    ui.Text(header, panel.x + panel.w - 24.0f, panel.y + panel.h - 52.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
 
-    const float row_h = 38.0f;
+    const float row_h = 40.0f;
     for (int i = 0; i < SKILL_COUNT; ++i) {
-        const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + i * row_h,
+        const SDL_FRect row = {panel.x + 20.0f, panel.y + 58.0f + i * row_h,
                                panel.w - 40.0f, row_h - 4.0f};
         const bool selected = (i == cursor);
         if (selected) {
@@ -1138,6 +1258,115 @@ void Game::DrawSkillsPanel() {
 
     ui.Text(input.PromptFor(Action::Back) + " close", panel.x + panel.w / 2.0f,
             panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
+void Game::DrawSkillTree(const SDL_FRect& panel) {
+    const AttackStyle style = static_cast<AttackStyle>(skills_tab - 1);
+    const TalentTree& tree = skill_trees.Tree(style);
+    const Player& p = world.player;
+    const int level = p.skills.Level(tree.skill);
+    const int earned = p.talents.PointsEarned(style, p.skills);
+    const int free = p.talents.PointsFree(style, p.skills);
+
+    char head[160];
+    SDL_snprintf(head, sizeof(head), "%s %d     %d of %d points free     a point every %d levels",
+                 SkillName(tree.skill), level, free, earned, SkillTrees::LEVELS_PER_POINT);
+    ui.Text(head, panel.x + 24.0f, panel.y + 56.0f, TextSize::Small, free > 0 ? Palette::Xp : Palette::TextDim);
+
+    // --- the grid ----------------------------------------------------------------
+    const float gx = panel.x + 78.0f, gy = panel.y + 112.0f;
+    const float col_w = 172.0f, row_h = 78.0f, box_w = 150.0f, box_h = 48.0f;
+
+    for (int b = 0; b < SkillTrees::BRANCHES; ++b) {
+        const string name = b < static_cast<int>(tree.branches.size()) ? tree.branches[b] : "";
+        ui.Text(name, gx + b * col_w + box_w / 2.0f, gy - 26.0f, TextSize::Body, Palette::Highlight, Align::Center);
+    }
+
+    for (int row = 0; row < SkillTrees::ROWS; ++row) {
+        const TalentNode* first = tree.At(0, row);
+        if (first)
+            ui.Text("Lv " + std::to_string(first->level), panel.x + 24.0f, gy + row * row_h + 15.0f,
+                    TextSize::Small, level >= first->level ? Palette::Text : Palette::TextDim);
+    }
+
+    for (const TalentNode& n : tree.nodes) {
+        const SDL_FRect box = {gx + n.branch * col_w, gy + n.row * row_h, box_w, box_h};
+        const bool learned = p.talents.Has(n.id);
+        const Talents::Why why = p.talents.CanLearn(n.id, p.skills);
+        const bool available = why == Talents::Why::Ok;
+        const bool selected = n.branch == tree_branch && n.row == tree_row;
+        const bool active = !n.technique.empty() && p.talents.Technique(style) == n.technique;
+
+        // The line down to the next node in the branch, lit once both ends are.
+        if (n.row + 1 < SkillTrees::ROWS) {
+            const TalentNode* below = tree.At(n.branch, n.row + 1);
+            const bool lit = learned && below && p.talents.Has(below->id);
+            ui.Fill({box.x + box_w / 2.0f - 1.0f, box.y + box_h, 3.0f, row_h - box_h},
+                    lit ? SDL_Color{232, 190, 96, 255} : SDL_Color{70, 60, 50, 255});
+        }
+
+        SDL_Color fill = {26, 21, 18, 235}, text = {120, 110, 100, 255}, edge = Palette::BorderDim;
+        if (learned)        { fill = {92, 70, 30, 240}; text = Palette::Highlight; edge = {232, 190, 96, 255}; }
+        else if (available) { fill = {40, 50, 30, 240}; text = Palette::Text; edge = Palette::Xp; }
+        if (active)         { fill = {120, 50, 36, 245}; edge = {255, 160, 110, 255}; }
+        ui.Fill(box, fill);
+        ui.Outline(box, selected ? SDL_Color{255, 255, 255, 255} : edge, selected ? 3.0f : 1.0f);
+
+        ui.Text(n.name, box.x + box_w / 2.0f, box.y + 7.0f, TextSize::Small, text, Align::Center);
+        const char* kind = !n.technique.empty() ? (active ? "technique - active" : "technique") : "passive";
+        ui.Text(kind, box.x + box_w / 2.0f, box.y + 26.0f, TextSize::Small,
+                !n.technique.empty() ? SDL_Color{236, 150, 110, 255} : Palette::TextDim, Align::Center);
+    }
+
+    // --- the chosen node -------------------------------------------------------------
+    const TalentNode* n = tree.At(tree_branch, tree_row);
+    const float dx = gx + SkillTrees::BRANCHES * col_w + 12.0f;
+    const float dw = panel.x + panel.w - dx - 24.0f;
+    float y = gy - 26.0f;
+    if (n) {
+        ui.Text(n->name, dx, y, TextSize::Body, Palette::Highlight);
+        y += 28.0f;
+        ui.Text(string(SkillName(tree.skill)) + " " + std::to_string(n->level) + ", " +
+                (n->row == 0 ? string("one point") : "one point, after " + tree.At(n->branch, n->row - 1)->name),
+                dx, y, TextSize::Small, level >= n->level ? Palette::TextDim : SDL_Color{225, 130, 120, 255});
+        y += 24.0f;
+        y += ui.TextWrapped(n->description, dx, y, dw, TextSize::Small, Palette::Text) + 14.0f;
+
+        string status, action;
+        const Talents::Why why = p.talents.CanLearn(n->id, p.skills);
+        if (p.talents.Has(n->id)) {
+            status = "Learned.";
+            if (!n->technique.empty()) {
+                const bool active = p.talents.Technique(style) == n->technique;
+                status = active ? "Your charged attack with this style." : "Learned, not in use.";
+                action = input.PromptFor(Action::Confirm) + (active ? " stop using it" : " use as charged attack");
+            }
+        } else if (why == Talents::Why::Ok) {
+            status = "Ready to learn.";
+            action = input.PromptFor(Action::Confirm) + " learn";
+        } else if (why == Talents::Why::Level) {
+            status = "Needs " + string(SkillName(tree.skill)) + " " + std::to_string(n->level) + ".";
+        } else if (why == Talents::Why::Prerequisite) {
+            status = "Learn the node above it first.";
+        } else if (why == Talents::Why::NoPoints) {
+            status = "No points to spend.";
+        }
+        ui.Text(status, dx, y, TextSize::Small, p.talents.Has(n->id) ? Palette::Highlight : Palette::TextDim);
+        y += 22.0f;
+        if (!action.empty()) ui.Text(action, dx, y, TextSize::Small, Palette::Xp);
+    }
+
+    const string technique = p.talents.Technique(style);
+    string shown = technique;
+    for (char& c : shown) if (c == '_') c = ' ';
+    if (!shown.empty()) shown[0] = static_cast<char>(toupper(static_cast<unsigned char>(shown[0])));
+    ui.Text("Charged attack: " + (shown.empty() ? string("plain") : shown),
+            dx, panel.y + panel.h - 96.0f, TextSize::Small, Palette::TextDim);
+
+    ui.Text(input.PromptFor(Action::Target) + " twice unlearn tree     " +
+            input.PromptFor(Action::Back) + " close",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
+            tree_reset_armed ? SDL_Color{235, 190, 120, 255} : Palette::TextDim, Align::Center);
 }
 
 // =============================================================================
@@ -1558,20 +1787,35 @@ void Game::DrawCrafting() {
         return;
     }
 
-    const float list_w = 260.0f, row_h = 34.0f;
-    for (size_t i = 0; i < recipes.size() && i < 9; ++i) {
+    const float list_w = 280.0f, row_h = 34.0f;
+    // A window of nine rows that follows the cursor: the anvil alone makes
+    // sixty-odd things now, one of every piece in every tier.
+    constexpr int SHOWN = 9;
+    const int count = static_cast<int>(recipes.size());
+    const int first = std::clamp(craft_cursor - SHOWN / 2, 0, std::max(0, count - SHOWN));
+    if (first > 0)
+        ui.Text("^", panel.x + 20.0f + list_w / 2.0f, panel.y + 46.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    if (first + SHOWN < count)
+        ui.Text("v", panel.x + 20.0f + list_w / 2.0f, panel.y + 62.0f + SHOWN * row_h - 2.0f,
+                TextSize::Small, Palette::TextDim, Align::Center);
+    for (int i = first; i < count && i < first + SHOWN; ++i) {
         const ItemDef* r = recipes[i];
         const ItemDef* made = items.Get(r->craft_result);
-        const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + i * row_h,
+        const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + (i - first) * row_h,
                                list_w, row_h - 4.0f};
-        const bool selected = (static_cast<int>(i) == craft_cursor);
+        const bool selected = (i == craft_cursor);
         const bool unlocked = p.skills.Level(SKILL_CRAFTING) >= r->craft_level;
 
         if (selected) {
             ui.Fill(row, {58, 46, 28, 210});
             ui.Outline(row, Palette::Highlight, 1.0f);
         }
-        ui.Text(made ? made->name : r->craft_result, row.x + 10.0f, row.y + 5.0f,
+        if (made && !made->icon.empty())
+            if (SDL_Texture* tex = textures->Get(made->icon)) {
+                const SDL_FRect ic = {row.x + 4.0f, row.y + 3.0f, 24.0f, 24.0f};
+                SDL_RenderTexture(renderer, tex, nullptr, &ic);
+            }
+        ui.Text(made ? made->name : r->craft_result, row.x + 34.0f, row.y + 5.0f,
                 TextSize::Small,
                 !unlocked ? SDL_Color{120, 110, 100, 255}
                           : (selected ? Palette::Highlight : Palette::Text));
@@ -1590,6 +1834,13 @@ void Game::DrawCrafting() {
     y += 28.0f;
     if (made) y += ui.TextWrapped(made->description, dx, y, panel.w - list_w - 64.0f,
                                   TextSize::Small, Palette::TextDim) + 8.0f;
+    if (made && !made->requirements.empty()) {
+        string req = "To use: ";
+        for (const auto& rq : made->requirements)
+            req += string(SkillName(rq.first)) + " " + std::to_string(rq.second) + "  ";
+        ui.Text(req, dx, y, TextSize::Small, Palette::Text);
+        y += 22.0f;
+    }
 
     ui.Text("Materials", dx, y, TextSize::Small, Palette::Highlight);
     y += 20.0f;

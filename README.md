@@ -253,9 +253,9 @@ values.
 | Defence | Taking hits |
 | Hitpoints | All damage dealt |
 | Woodcutting | Chopping trees in the greenwood |
-| Mining | Working ore seams in the foothills and the Mire |
+| Mining | Working ore seams: the foothills and the Mire, the mines and barrow, and the dreamworld |
 | Cooking | Using a fire with something raw in your pack |
-| Crafting | Workbenches in Havenbrook and Mossvale, and the anvil in Halda's forge |
+| Crafting | Workbenches in Havenbrook and Mossvale, and the anvils in Halda's forge and Mossvale |
 | Ranged | Landing arrows with a bow equipped |
 | Magic | Casting spells with a staff equipped |
 
@@ -266,17 +266,135 @@ accuracy and damage, exactly as OSRS does, so a bow does nothing for a
 character who never trained Ranged and Strength does nothing for a bow. The
 self-test checks that.
 
+### Skill trees
+
+Each combat style has a tree, opened from the Skills panel (`O`) with `I` and
+`O` to step between the tabs -- Skills, Melee, Ranged, Magic -- or the shoulder
+buttons on a pad. A tree is three branches, five nodes deep:
+
+| Tree | Earned by | Branches |
+| --- | --- | --- |
+| Melee | Attack | Blade, Brawn, Guard |
+| Ranged | Ranged | Marksman, Skirmisher, Hunter |
+| Magic | Magic | Evoker, Channeler, Warden |
+
+**Every fifth level of the tree's skill is a point**, and a node costs one. The
+rows are milestones -- **levels 5, 15, 30, 50 and 70** -- and a node also needs
+the one above it in its branch. So the first point is a choice of direction, a
+level 70 character has most of one branch and some of the others, and a whole
+tree takes until level 75. `J` learns the node under the cursor; `L` twice
+unlearns the whole tree and gives the points back, for anyone who wants to try
+another way to fight.
+
+Most nodes are passive: more damage, faster attacks, critical strikes (half
+again the damage, marked with a `*`), healing on hit, knockback, defence,
+stamina, mana cost and regeneration, spells that seek their target. A few apply
+whatever you hold -- defence, stamina, move speed, mana regeneration, faster
+charging -- and the rest only to attacks of their own style.
+
+**The middle of every branch, at level 30, is a technique**: a new move. Once
+learned, `J` on it makes it that style's charged attack, so holding and
+releasing `K` with that style's weapon comes out as the technique instead of a
+plain charged hit. No new buttons, and the HUD says what a held heavy attack
+will do ("Hold K: Whirlwind").
+
+| Style | Technique | What it does |
+| --- | --- | --- |
+| Melee | **Whirlwind** | Spins, striking everything around you |
+| Melee | **Ground Slam** | Slams the ground, hitting and throwing back everything nearby |
+| Melee | **Lunge** | Dashes forward, striking everything in the way |
+| Ranged | **Piercing Shot** | One fast, heavy arrow that passes through everything in its path |
+| Ranged | **Volley** | A fan of five arrows |
+| Ranged | **Arrow Rain** | A storm of arrows comes down on your target a moment later |
+| Magic | **Nova** | A ring of eight bolts of your element, for twice the mana |
+| Magic | **Barrage** | Four seeking bolts at once, for twice the mana |
+| Magic | **Meteor** | Your element crashes down on your target, for three times the mana |
+
+The capstones at level 70 are Bloodlust, Titan and Last Stand for melee;
+Deadeye, Hail and Bloodletting for ranged; Archmage, Overflow and Elemental
+Mastery for magic. The whole tree is data, in `data/skill_trees.json`, and the
+nodes are saved with the character.
+
+---
+
+## Material tiers
+
+Weapons and armour come in nine tiers, in this order:
+
+| Tier | Needs | Worked from | Mined at | Found |
+| --- | --- | --- | --- | --- |
+| **Wood** | -- | logs, hide, thread | -- | trees everywhere |
+| **Bronze** | -- | copper ore | Mining 1 | the foothills |
+| **Iron** | 10 | iron ore | Mining 5 | the Mire, the Cursed Reach, the upper mine |
+| **Steel** | 20 | iron ore and coal | Mining 20 | coal in the high foothills, the Cursed Reach and the mines |
+| **Azuryte** | 30 | azuryte ore and coal | Mining 30 | the highest foothills and the barrow |
+| **Adamantium** | 40 | adamantium ore and coal | Mining 40 | the lower mine |
+| **Diamond** | 50 | rough diamond | Mining 50 | the barrow |
+| **Platinum** | 60 | platinum ore and coal | Mining 60 | the lower mine |
+| **Demonrite** | 70 | demonrite ore and dream shards | Mining 70 | only in the dreamworld, around the Nightmare Brute |
+
+Every tier makes the same seven pieces -- a **sword, bow, staff, shield, helm,
+cuirass and greaves** -- and every piece needs its tier's level in the skill it
+is used with: Attack for a sword, Ranged for a bow, Magic for a staff, Defence
+for the rest. Each metal tier has an **ore** and a **bar**. Ore is smelted into
+bars at an anvil, and bars are smithed into the pieces there too; wooden pieces
+are made at a workbench. The item panel names an item's tier and says what it
+needs, in red-letter "needs" when you do not have it yet.
+
+The tiers are one data file, `data/tiers.json`: for each tier its level, its
+power, its colour and its ore and bar, and for each piece its slot, its skill
+and how its stats and recipe scale. The game builds every item and recipe from
+that when it loads (`ItemDatabase::LoadTiers`), so a piece is always exactly as
+strong as its tier says. The items that existed before -- the bronze and iron
+swords, the Steel Longsword, the Oak Shortbow, the Wooden Shield, the iron
+shield, helm and cuirass -- are the tier pieces now, under their old ids, so
+saves, quests and loot tables still find them. Recipes that are not an item's
+own "craft" (one bar makes seven things) are kept alongside the items, and the
+crafting panel scrolls, with icons, now that the anvil alone makes sixty-odd
+things. There is a second anvil in Mossvale.
+
+### The tier art
+
+Every ore, bar, weapon and armour piece is modelled in
+`tools/blender_tiers.py`, from the same rounded parts, cel shading, majority
+reduction and outline as the player hero, and rendered headlessly:
+
+```powershell
+.\tools\make_tiers.ps1                          # icons and weapon layers
+.\tools\make_tiers.ps1 -What icons              # just the 79 icons
+.\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
+```
+
+Tiers are told apart three ways at once, because at game size colour alone is
+not enough: each has its own **palette**, its own **silhouette** -- a wooden
+sword is short and blunt, bronze a leaf blade, adamantium a heavy cleaver,
+diamond a faceted crystal, platinum long with a winged guard, demonrite jagged
+and horned -- and the top tiers carry **something that glows**: azuryte's cyan
+edge, diamond's white sparks, platinum's gold halo, demonrite's red heat.
+
+The same models are what the hero holds. For every tier's sword, bow and staff
+the script poses the weapon in the hero's hand for every frame of every clip and
+renders it as a layer, cut by the body and head the way the hero's own sword
+is -- `layers/<clip>_4_weapon_<model>.png`, 216 sheets -- and the game draws the
+one for whatever is equipped in place of the default sword. A bow and a staff
+are carried out and forward of the arm, stood up straighter than the hand
+hangs; held where a sword is, their upper half vanished behind the sleeve and a
+bow read as a blue sword. Armour has no layer on the character and shows, as
+before, as its tier's colour over the body. The icons are 32 pixels, framed
+automatically so a sword and a lump of ore both fill their square.
+
 ### Where things are made
 
 Each recipe is made at one station, decided by its materials. **Anything that
-needs metal is smithed at an anvil**, the one in Halda's forge in Havenbrook:
-the Copper Ring and the Iron Shield. **Everything else is made at a
-workbench**, in Havenbrook or Mossvale: the Wooden Shield, the Leather Jerkin
-the Oak Shortbow, the Bedroll and the Dreamcatcher. The two used to share one list, so a village workbench
-could smith an iron shield.
+needs metal is smithed at an anvil** -- in Halda's forge in Havenbrook, or
+beside the workbench in Mossvale: every bar, every metal tier's pieces, and the
+Copper Ring. **Everything else is made at a workbench**, in Havenbrook or
+Mossvale: the wooden tier, the Leather Jerkin, the Bedroll and the Dreamcatcher.
+The two used to share one list, so a village workbench could smith an iron
+shield.
 
-Nothing declares its station. Materials carry `"metal": true` in
-`data/items.json` (copper and iron ore), and a recipe with any metal input
+Nothing declares its station. Materials carry `"metal": true` -- every ore and
+bar made by `data/tiers.json` does -- and a recipe with any metal input
 belongs at the anvil, so a new recipe cannot be filed in the wrong place. A
 crafting object in a map names the station it is with `"station"`; the
 self-test checks every recipe against its materials, and that every station in
@@ -688,6 +806,9 @@ sprinting; it pulses red and reads "winded" when it has been run dry.
 Under those, a sun or a moon and the time: "Day 2  21:40  Night". It turns
 blue once it is late enough to sleep, and in a dream it counts down to dawn.
 
+With a technique chosen in a skill tree, the line under the prompts says what
+holding the heavy attack will do; with a staff it is on the spell line.
+
 In a fight, a frame at the top centre names the target with its level and
 health, and says LOCKED in a red border while the lock is on. The line along the
 bottom lists the keys: attack, heavy, target, sprint, bag, skills, quests, menu.
@@ -935,7 +1056,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **4235 checks** covering:
+and checks all of it — currently **4661 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1020,6 +1141,24 @@ and checks all of it — currently **4235 checks** covering:
   the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
+- nine tiers in order, each making all seven pieces with a recipe at the right
+  station; every piece stronger and dearer than the same piece a tier down and
+  needing its tier's level in the right skill; every metal tier with an ore and
+  a bar and a smelting recipe; every ore mineable somewhere at its tier's Mining
+  level; the old item ids still resolving as tier pieces
+- all 79 tier icons are different pictures, every tier weapon has a layer sheet
+  for every hero clip, and all 27 look different in the hero's hand; a new
+  character cannot wield an iron sword, can at Attack 10, and then holds its model
+- each style's tree is three branches five deep with rising milestones and three
+  techniques; points come every five levels, nodes need their level, the one
+  above and a point, and unlearning gives them back; a melee node helps a sword
+  and not a bow, and a global one helps both
+- in real fights: a whirlwind strikes all four deer round the player where a
+  plain charged swing strikes the ones in front, a lunge carries the player
+  forward, a volley looses five arrows, a piercing shot passes through a crowd,
+  arrow rain and meteor call strikes down, a nova bursts into eight bolts for
+  twice the mana less Focus, flurry quickens a sword and not a bow, and learned
+  nodes survive a save
 - the clock's dusk only darkens, dawn is half light and warm, half a minute is
   an hour, midnight turns the day, a bed takes you from 19:00 to 04:00 and a
   dream is over at 05:00, and skipping to dawn lands on the right morning
@@ -1062,7 +1201,8 @@ src/
     lighting.cpp/h      night as a multiplied light map, with fires cut out of it
   entity/               player, enemies, NPCs
   systems/              skills, items, loot, combat, quests, dialogue, saves,
-                        projectiles and elements, spells, the clock
+                        projectiles and elements, spells, the clock,
+                        material tiers (items.cpp) and skill trees (talents.cpp)
   ui/                   drawing helpers and every screen
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips
@@ -1071,6 +1211,9 @@ tools/
   selftest.cpp          content and systems validation
   make_ground.ps1       generated ground and interior tiles
   make_icons.ps1        paints the hand-drawn item icons in icons.txt
+  blender_tiers.py      models and renders every tier's ore, bar, weapon and armour,
+                        as icons and as weapon layers in the hero's hand
+  make_tiers.ps1        runs blender_tiers.py headless
   make_sprites_json.ps1 / make_manifest.ps1
 data/                   items, enemies, loot tables, quests, dialogue, sprites,
                         projectiles, spells

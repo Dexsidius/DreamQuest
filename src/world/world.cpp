@@ -514,9 +514,11 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     const AttackState& atk = player.Attack();
     const AttackStyle style = player.Style();
     const Vec2 aim = PlayerAim();
+    const string technique = atk.type == AttackType::Charged ? player.ActiveTechnique() : string();
 
     string projectile_id;
-    float damage_mult = atk.damage_mult;
+    float damage_mult = atk.damage_mult * player.TalentDamage(style, atk.type);
+    Element element = Element::None;
 
     if (style == AttackStyle::Ranged) {
         projectile_id = "arrow";
@@ -530,13 +532,19 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             Audio::Play(Sfx::UiError);
             return;
         }
-        if (!player.SpendMana(spell->mana)) {
+        // Techniques cost more than a single bolt; the tree takes a share off.
+        const float technique_cost = technique == "meteor" ? 3.0f : technique.empty() ? 1.0f : 2.0f;
+        const int cost = std::max(1, static_cast<int>(std::lround(
+            spell->mana * technique_cost *
+            std::max(0.1f, 1.0f - player.talents.Effect("mana_cost", AttackStyle::Magic)))));
+        if (!player.SpendMana(cost)) {
             AddText("Out of mana", player.x, player.y - 54.0f, {150, 180, 235, 255});
             Audio::Play(Sfx::UiError);
             return;
         }
         projectile_id = spell->projectile;
         damage_mult *= spell->damage_mult;
+        element = spell->element;
         // Casting trains Magic whether or not the bolt finds anything.
         player.GrantXp(SKILL_MAGIC, spell->xp);
     }
@@ -551,15 +559,159 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         Audio::Play(Sfx::SpellCast, 1.0f, pitch);
     }
 
-    // Leave from chest height, slightly ahead so it clears the caster.
-    const size_t before = projectiles.size();
     const SDL_FPoint muzzle = Targeting::Muzzle(player);
-    SpawnProjectile(projectile_id,
-                    muzzle.x + aim.x * 12.0f, muzzle.y + aim.y * 12.0f,
-                    aim.x, aim.y, player.Profile(), style,
-                    damage_mult, true, ctx);
-    // Aimed at someone, it can steer after them.
-    if (projectiles.size() > before) projectiles.back().target = targeting.Current();
+    const Enemy* target = targeting.Current();
+
+    // One shot along a direction, with the talents' changes applied to it.
+    const auto loose = [&](float dx, float dy, float mult, bool aimed) -> Projectile* {
+        const size_t before = projectiles.size();
+        SpawnProjectile(projectile_id, muzzle.x + dx * 12.0f, muzzle.y + dy * 12.0f,
+                        dx, dy, player.Profile(), style, mult, true, ctx);
+        if (projectiles.size() == before) return nullptr;
+        Projectile& p = projectiles.back();
+        if (aimed) p.target = target;
+        p.knockback_mult = 1.0f + player.talents.Effect("knockback", style);
+        p.extra_homing = player.talents.Effect("homing", style);
+        if (style == AttackStyle::Ranged) {
+            p.pierce_left += static_cast<int>(player.talents.Effect("pierce", style));
+            const float faster = 1.0f + player.talents.Effect("projectile_speed", style);
+            p.vx *= faster;
+            p.vy *= faster;
+        }
+        return &p;
+    };
+    const auto turned = [&](float degrees) {
+        const float a = atan2f(aim.y, aim.x) + degrees * 3.14159265f / 180.0f;
+        return Vec2{cosf(a), sinf(a)};
+    };
+    // Where a strike from above lands: the target, or a little way ahead.
+    const auto strike_point = [&]() {
+        if (target) return Targeting::AimPoint(*target);
+        return SDL_FPoint{player.x + aim.x * 110.0f, player.y + aim.y * 110.0f};
+    };
+    const auto strike = [&](float radius, float delay, float mult, Element el) {
+        const SDL_FPoint at = strike_point();
+        GroundEffect g;
+        g.x = at.x;
+        g.y = at.y + 8.0f;
+        g.radius = radius;
+        g.delay = delay;
+        g.life = g.max_life = 0.35f;
+        g.burst = true;
+        g.from_player = true;
+        g.owner = player.Profile();
+        g.element = el;
+        g.style = style;
+        g.hit_mult = mult;
+        g.knockback = 60.0f;
+        AddGroundEffect(g);
+    };
+
+    if (technique == "volley") {
+        for (float deg : {-20.0f, -10.0f, 0.0f, 10.0f, 20.0f}) {
+            const Vec2 d = turned(deg);
+            loose(d.x, d.y, damage_mult * 0.65f, deg == 0.0f);
+        }
+    } else if (technique == "piercing_shot") {
+        if (Projectile* p = loose(aim.x, aim.y, damage_mult * 1.35f, true)) {
+            p->pierce_left += 8;
+            p->vx *= 1.6f;
+            p->vy *= 1.6f;
+            p->knockback_mult *= 1.5f;
+            p->life *= 1.3f;
+        }
+    } else if (technique == "arrow_rain") {
+        strike(50.0f, 0.5f, damage_mult * 1.1f, Element::None);
+    } else if (technique == "nova") {
+        for (int i = 0; i < 8; ++i) {
+            const float a = 6.2831853f * i / 8.0f;
+            loose(cosf(a), sinf(a), damage_mult * 0.6f, false);
+        }
+    } else if (technique == "barrage") {
+        for (float deg : {-14.0f, -5.0f, 5.0f, 14.0f})
+            if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 0.5f, true))
+                p->extra_homing += 4.0f;
+    } else if (technique == "meteor") {
+        strike(58.0f, 0.6f, damage_mult * 1.5f, element);
+    } else {
+        loose(aim.x, aim.y, damage_mult, true);
+    }
+}
+
+void World::Burst(float x, float y, float radius, SDL_Color color, int count) {
+    for (int i = 0; i < count; ++i) {
+        const float a = 6.2831853f * i / count;
+        Impact im;
+        im.x = x + cosf(a) * radius;
+        im.y = y + sinf(a) * radius * 0.6f;
+        im.nx = cosf(a);
+        im.ny = sinf(a);
+        im.radius = 4.0f;
+        im.max_life = 0.3f;
+        im.life = im.max_life;
+        im.color = color;
+        impacts.push_back(im);
+        if (!map.IsInterior() && i % 2 == 0) AddDust(im.x, im.y + 4.0f, -cosf(a), -sinf(a));
+    }
+}
+
+bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
+    const AttackState& atk = player.Attack();
+    const float mult = atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type);
+    const float knock = 1.0f + player.talents.Effect("knockback", AttackStyle::Melee);
+    const float cx = player.x, cy = player.y - 16.0f;
+
+    // Everything whose body is within a radius of the player.
+    const auto hit_round = [&](float radius, float damage, float knockback) {
+        bool any = false;
+        for (auto& e : enemies) {
+            if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+            const SDL_FPoint a = Targeting::AimPoint(*e);
+            const SDL_FRect b = e->BodyBox();
+            if (Length(a.x - cx, a.y - cy) > radius + std::max(b.w, b.h) * 0.5f) continue;
+            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, damage,
+                     knockback * knock, player.x, player.y, ctx);
+            any = true;
+        }
+        return any;
+    };
+
+    if (technique == "whirlwind") {
+        const float radius = 42.0f * atk.reach_scale;
+        hit_round(radius, mult * 0.9f, atk.profile.knockback);
+        Burst(player.x, player.y - 10.0f, radius, {236, 236, 255, 255}, 10);
+        Audio::Play(Sfx::SwingHeavy, 1.0f, 1.25f);
+        return true;
+    }
+    if (technique == "ground_slam") {
+        const float radius = 58.0f * atk.reach_scale;
+        hit_round(radius, mult * 0.8f, 170.0f);
+        Burst(player.x, player.y, radius, {214, 180, 120, 255}, 14);
+        Audio::Play(Sfx::Impact, 1.0f, 0.6f);
+        return true;
+    }
+    if (technique == "lunge") {
+        // A burst of speed along the facing, riding the knockback the player
+        // already slides on, and a long strike down the path it covers.
+        const float fx = player.facing == FACE_LEFT ? -1.0f : player.facing == FACE_RIGHT ? 1.0f : 0.0f;
+        const float fy = player.facing == FACE_UP   ? -1.0f : player.facing == FACE_DOWN  ? 1.0f : 0.0f;
+        player.knock_x += fx * 560.0f;
+        player.knock_y += fy * 560.0f;
+        AttackProfile long_reach = atk.profile;
+        long_reach.reach = 82.0f;
+        long_reach.width = atk.profile.width + 10.0f;
+        const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing, long_reach, 1.0f);
+        for (auto& e : enemies) {
+            if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+            if (!RectsOverlap(hit, e->BodyBox())) continue;
+            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult,
+                     atk.profile.knockback * knock, player.x, player.y, ctx);
+        }
+        for (int i = 0; i < 4; ++i) AddDust(player.x - fx * i * 8.0f, player.y - fy * i * 8.0f, fx, fy);
+        Audio::Play(Sfx::SwingHeavy, 1.0f, 1.1f);
+        return true;
+    }
+    return false;
 }
 
 void World::ApplyPlayerAttack(const GameContext& ctx) {
@@ -572,6 +724,8 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         FirePlayerProjectile(ctx);
         return;
     }
+    if (atk.type == AttackType::Charged && MeleeTechnique(player.ActiveTechnique(), ctx))
+        return;
 
     const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing,
                                        atk.profile, atk.reach_scale);
@@ -583,7 +737,8 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
 
         connected = true;
         HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None,
-                 atk.damage_mult, atk.profile.knockback,
+                 atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type),
+                 atk.profile.knockback * (1.0f + player.talents.Effect("knockback", AttackStyle::Melee)),
                  player.x, player.y, ctx);
     }
 
@@ -911,6 +1066,14 @@ float World::GatherProgress() const {
 void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                      Element element, float damage_mult, float knockback,
                      float from_x, float from_y, const GameContext& ctx) {
+    // The player's talents. Everything that reaches this function is the
+    // player hitting something, so they apply to all of it.
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    const bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style);
+    if (crit) damage_mult *= 1.5f + player.talents.Effect("crit_damage", style);
+    if (style == AttackStyle::Magic && ElementMultiplier(element, e.ElementOf()) > 1.05f)
+        damage_mult *= 1.0f + player.talents.Effect("elemental", style);
+
     DamageResult r = RollAttack(owner, e.Profile(), style, damage_mult, *ctx.rng);
 
     // Every way the player can hurt something -- swing, arrow, bolt, burning
@@ -940,9 +1103,21 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     e.Damage(damage);
     player.AwardCombatXp(damage, AttackType::Light);
 
-    SDL_Color color = r.max_hit ? SDL_Color{255, 220, 90, 255}
-                                : SDL_Color{255, 245, 235, 255};
+    const float steal = player.talents.Effect("lifesteal", style);
+    if (steal > 0.0f && !player.IsDead()) {
+        lifesteal_bank += damage * steal;
+        const int whole = static_cast<int>(lifesteal_bank);
+        if (whole > 0 && player.hp < player.max_hp) {
+            lifesteal_bank -= whole;
+            player.Heal(whole);
+            player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+        }
+    }
+
+    SDL_Color color = (r.max_hit || crit) ? SDL_Color{255, 220, 90, 255}
+                                          : SDL_Color{255, 245, 235, 255};
     string label = std::to_string(damage);
+    if (crit) label += "*";
     if (matchup > 1.05f) {
         color = ElementColor(element);
         label += "!";                      // strong against this creature
@@ -1000,14 +1175,11 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
         p.life -= dt;
         if (p.life <= 0.0f) { p.finished = true; }
 
-        // Step in slices no longer than half the projectile's own radius, so a
-        // fast arrow cannot pass through a wall or a thin target between one
-        // frame and the next. Radius rather than a fixed distance: a small
-        // fast bolt needs finer steps than a large slow one.
         // Homing: turn toward the monster it was loosed at, no faster than the
         // projectile allows. Once that monster is dead, gone, or already behind
         // it, the shot flies on straight -- it never circles back.
-        if (p.target && p.def->homing > 0.0f) {
+        const float homing = p.def->homing + p.extra_homing;
+        if (p.target && homing > 0.0f) {
             const Enemy* t = nullptr;
             for (const auto& e : enemies) if (e.get() == p.target) { t = e.get(); break; }
             if (!t || !Targeting::Targetable(*t)) {
@@ -1020,7 +1192,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 if (fabsf(diff) > 1.75f) {
                     p.target = nullptr;
                 } else {
-                    const float turn = std::clamp(diff, -p.def->homing * dt, p.def->homing * dt);
+                    const float turn = std::clamp(diff, -homing * dt, homing * dt);
                     const float speed = Length(p.vx, p.vy);
                     p.vx = cosf(have + turn) * speed;
                     p.vy = sinf(have + turn) * speed;
@@ -1029,6 +1201,10 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             }
         }
 
+        // Step in slices no longer than half the projectile's own radius, so a
+        // fast arrow cannot pass through a wall or a thin target between one
+        // frame and the next. Radius rather than a fixed distance: a small
+        // fast bolt needs finer steps than a large slow one.
         const float travel = Length(p.vx, p.vy) * dt;
         const float max_step = std::max(2.0f, p.def->radius * 0.5f);
         const int steps = std::clamp(static_cast<int>(travel / max_step) + 1, 1, 32);
@@ -1098,7 +1274,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                     p.already_hit.push_back(key);
 
                     HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
-                             p.def->knockback, p.x - p.vx, p.y - p.vy, ctx);
+                             p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
 
                     if (p.pierce_left > 0) --p.pierce_left;
                     else                    p.finished = true;
@@ -1281,8 +1457,11 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             for (auto& e : enemies) {
                 if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
                 if (!RectsOverlap(area, e->BodyBox())) continue;
-                HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
-                         static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
+                if (g.hit_mult >= 0.0f)
+                    HitEnemy(*e, g.owner, g.style, g.element, g.hit_mult, g.knockback, g.x, g.y, ctx);
+                else
+                    HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
+                             static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
             }
         } else if (!player.IsDead() && RectsOverlap(area, player.BodyBox())) {
             player.Damage(std::max(1, g.damage));

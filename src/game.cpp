@@ -65,6 +65,7 @@ int Game::Start(int argc, char** argv) {
     ctx.enemies  = &enemy_db;
     ctx.projectiles = &projectile_db;
     ctx.spells   = &spells;
+    ctx.trees    = &skill_trees;
     ctx.input    = &input;
     ctx.rng      = &rng;
 
@@ -81,6 +82,7 @@ bool Game::LoadContent() {
     // Written by tools/import_assets.ps1 when the armour icon packs are
     // present. Absent is normal, not an error.
     items.Load("data/items_armour.json", false);
+    ok &= items.LoadTiers("data/tiers.json");
     ok &= enemy_db.Load("data/enemies.json");
     ok &= loot.Load("data/loot_tables.json");
     loot.Load("data/loot_tables_armour.json", false);   // optional armour drops
@@ -88,6 +90,7 @@ bool Game::LoadContent() {
     ok &= dialogue_db.Load("data/dialogue.json");
     ok &= projectile_db.Load("data/projectiles.json");
     ok &= spells.Load("data/spells.json");
+    ok &= skill_trees.Load("data/skill_trees.json");
 
     if (!ok) {
         SDL_Log("DreamQuest: one or more data files failed to load. "
@@ -425,9 +428,17 @@ void Game::UpdatePlay(float dt) {
     // Progression feedback raised by the player during the update.
     const vector<LevelUp> ups = world.player.TakeLevelUps();
     if (!ups.empty()) Audio::Play(Sfx::LevelUp);
-    for (const LevelUp& up : ups)
+    for (const LevelUp& up : ups) {
         PushToast(string(SkillName(up.skill)) + " level " + std::to_string(up.level) + "!",
                   Palette::Highlight);
+        // Every fifth level of a tree's skill is a point to spend in it.
+        for (int t = 0; t < 3; ++t) {
+            const TalentTree& tree = skill_trees.Tree(static_cast<AttackStyle>(t));
+            if (tree.skill == up.skill && up.level % SkillTrees::LEVELS_PER_POINT == 0)
+                PushToast(tree.name + " skill point  -  " + input.PromptFor(Action::Skills) +
+                          " to spend it", Palette::Xp);
+        }
+    }
     world.player.TakeXpDrops();     // consumed; the HUD shows totals instead
 
     // Quests that finished this frame pay out now.

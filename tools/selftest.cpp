@@ -41,6 +41,9 @@ static void Check(bool ok, const string& what) {
     if (!ok) {
         ++g_failures;
         printf("  FAIL  %s\n", what.c_str());
+    } else if (getenv("DQ_VERBOSE")) {
+        // Every pass too, for reading the numbers some checks carry.
+        printf("  ok    %s\n", what.c_str());
     }
 }
 
@@ -70,10 +73,12 @@ int main(int argc, char** argv) {
     DialogueDatabase dialogue;
     ProjectileDatabase projectiles;
     SpellBook        spells;
+    SkillTrees       trees;
 
     Check(sprites.Load("data/sprites.json"),        "data/sprites.json loads");
     Check(items.Load("data/items.json"),            "data/items.json loads");
     items.Load("data/items_armour.json", false);   // optional armour pack
+    Check(items.LoadTiers("data/tiers.json"),       "data/tiers.json loads");
     Check(enemy_db.Load("data/enemies.json"),       "data/enemies.json loads");
     Check(loot.Load("data/loot_tables.json"),       "data/loot_tables.json loads");
     loot.Load("data/loot_tables_armour.json", false);  // optional armour drops
@@ -81,6 +86,7 @@ int main(int argc, char** argv) {
     Check(dialogue.Load("data/dialogue.json"),      "data/dialogue.json loads");
     Check(projectiles.Load("data/projectiles.json"), "data/projectiles.json loads");
     Check(spells.Load("data/spells.json"),         "data/spells.json loads");
+    Check(trees.Load("data/skill_trees.json"),     "data/skill_trees.json loads");
 
     // --- sprite art -----------------------------------------------------------
     Section("sprite sheets exist on disk");
@@ -1910,6 +1916,372 @@ int main(int argc, char** argv) {
     }
 
     // --- save round trip ------------------------------------------------------
+    // --- material tiers --------------------------------------------------------------
+    Section("material tiers");
+    {
+        static const char* kOrder[] = {"wood", "bronze", "iron", "steel", "azuryte",
+                                       "adamantium", "diamond", "platinum", "demonrite"};
+        static const char* kPieces[] = {"sword", "bow", "staff", "shield", "helm", "body", "legs"};
+        const auto& tiers = items.Tiers();
+        Check(tiers.size() == 9, "there are nine tiers");
+        bool order = tiers.size() == 9;
+        for (size_t i = 0; i < tiers.size() && i < 9; ++i) order &= tiers[i].id == kOrder[i];
+        Check(order, "wood, bronze, iron, steel, azuryte, adamantium, diamond, platinum, demonrite, in that order");
+
+        bool levels_rise = true, stats_rise = true, reqs_right = true, recipes_ok = true;
+        bool stations_ok = true, models_ok = true, ores_ok = true, value_rises = true;
+        const auto recipe_for = [&](const string& id) -> const ItemDef* {
+            for (const ItemDef* r : items.Recipes()) if (r->craft_result == id) return r;
+            return nullptr;
+        };
+        const auto main_stat = [](const ItemDef* d) {
+            return d->attack_bonus + d->strength_bonus + d->defence_bonus + d->ranged_bonus + d->magic_bonus;
+        };
+        for (size_t i = 0; i < tiers.size(); ++i) {
+            const TierDef& t = tiers[i];
+            if (i > 0 && t.level < tiers[i - 1].level) levels_rise = false;
+            for (const char* piece : kPieces) {
+                const ItemDef* d = items.Get(items.TierPiece(t.id, piece));
+                if (!d) { recipes_ok = false; continue; }
+                if (i > 0) {
+                    const ItemDef* prev = items.Get(items.TierPiece(tiers[i - 1].id, piece));
+                    if (prev && main_stat(d) <= main_stat(prev)) stats_rise = false;
+                    if (prev && d->value <= prev->value) value_rises = false;
+                }
+                const string skill = string(piece) == "sword" ? "Attack" : string(piece) == "bow" ? "Ranged"
+                                   : string(piece) == "staff" ? "Magic" : "Defence";
+                const int s_id = SkillFromName(skill);
+                if (t.level > 1 && (d->requirements.size() != 1 || d->requirements.count(s_id) == 0 ||
+                                    d->requirements.at(s_id) != t.level)) reqs_right = false;
+                if (t.level <= 1 && !d->requirements.empty()) reqs_right = false;
+                const ItemDef* r = recipe_for(d->id);
+                if (!r) { recipes_ok = false; continue; }
+                if (items.StationFor(*r) != (t.wood ? CraftStation::Workbench : CraftStation::Anvil)) stations_ok = false;
+                if (d->slot == SLOT_WEAPON && d->model != string(piece) + "_" + t.id) models_ok = false;
+            }
+            if (!t.wood) {
+                const ItemDef* ore = items.Get(t.ore);
+                const ItemDef* bar = items.Get(t.bar);
+                if (!ore || !bar || !ore->metal || !bar->metal || !recipe_for(t.bar)) ores_ok = false;
+            }
+        }
+        Check(levels_rise, "each tier needs at least the level of the one before");
+        Check(stats_rise, "every piece is stronger than the same piece a tier down");
+        Check(value_rises, "and worth more");
+        Check(reqs_right, "every piece needs its tier's level in Attack, Ranged, Magic or Defence");
+        Check(recipes_ok, "every tier makes all seven pieces, each with a recipe");
+        Check(stations_ok, "wooden pieces are made at a workbench and metal ones at an anvil");
+        Check(ores_ok, "every metal tier has an ore and a bar, and a recipe to smelt it");
+        Check(models_ok, "every tier's sword, bow and staff name their own model");
+
+        // The items that were there before tiers are the tier pieces now.
+        for (const char* old : {"bronze_sword", "iron_sword", "steel_longsword", "oak_shortbow",
+                                "wooden_shield", "iron_shield", "iron_helm", "iron_body"}) {
+            const ItemDef* d = items.Get(old);
+            Check(d && !d->tier.empty(), string(old) + " is still an item, and has a tier");
+        }
+
+        // Every ore can be dug up somewhere, by a miner of the right level.
+        std::map<string, int> seams;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects())
+                if (o.skill == "Mining" && !o.yield.empty())
+                    seams[o.yield] = seams.count(o.yield) ? std::min(seams[o.yield], o.skill_level) : o.skill_level;
+        }
+        for (const TierDef& t : tiers) {
+            if (t.wood) continue;
+            Check(seams.count(t.ore) > 0, t.ore + " can be mined somewhere in the world");
+            if (seams.count(t.ore)) Check(seams[t.ore] <= t.mining, t.ore + " can be mined at Mining " + std::to_string(t.mining));
+        }
+        Check(seams.count("coal") > 0 && seams.count("dream_shard") > 0, "coal and dream crystals are both out there");
+
+        // Art: every icon is its own picture, and every weapon has a layer for
+        // every one of the hero's clips.
+        {
+            std::map<size_t, string> seen;
+            int dupes = 0, icons = 0;
+            for (const auto& kv : items.All()) {
+                if (kv.second.tier.empty() || kv.second.icon.find("/tiers/") == string::npos) continue;
+                std::ifstream f(kv.second.icon, std::ios::binary);
+                const string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+                const size_t h = std::hash<string>{}(bytes);
+                if (bytes.empty()) continue;
+                ++icons;
+                if (seen.count(h) && seen[h] != kv.second.icon) ++dupes;
+                seen[h] = kv.second.icon;
+            }
+            Check(icons >= 79 && dupes == 0, "all " + std::to_string(icons) + " tier icons are different pictures");
+        }
+        {
+            const SpriteDef* hero = sprites.Get("player_hero");
+            int missing = 0, sheets = 0;
+            std::set<size_t> attack_sheets;
+            for (const TierDef& t : tiers)
+                for (const char* kind : {"sword", "bow", "staff"}) {
+                    const string model = string(kind) + "_" + t.id;
+                    for (const auto& clip : hero ? hero->clips : map<string, AnimClip>{}) {
+                        const string path = "assets/characters/player_hero/layers/" + clip.first +
+                                            "_4_weapon_" + model + ".png";
+                        if (!fs::exists(path)) { ++missing; continue; }
+                        ++sheets;
+                        if (clip.first == "attack") {
+                            std::ifstream f(path, std::ios::binary);
+                            attack_sheets.insert(std::hash<string>{}(string(
+                                (std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>())));
+                        }
+                    }
+                }
+            Check(hero && missing == 0, "every tier weapon has a layer sheet for every hero clip (" +
+                  std::to_string(sheets) + ")");
+            Check(attack_sheets.size() == 27, "all 27 weapons look different in the hero's hand");
+        }
+
+        // Requirements hold, and the hero draws what is in hand.
+        {
+            Input input;
+            std::mt19937 rng(3);
+            GameContext ctx;
+            ctx.sprites = &sprites; ctx.items = &items; ctx.trees = &trees; ctx.input = &input; ctx.rng = &rng;
+            Player p;
+            p.Init(ctx, "player_hero");
+            p.inventory.Add("iron_sword", 1);
+            p.inventory.Add("demonrite_staff", 1);
+            const auto slot_of = [&](const string& id) {
+                for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == id) return i;
+                return -1;
+            };
+            string why;
+            Check(!p.EquipFromInventory(slot_of("iron_sword"), why) && why.find("Attack") != string::npos,
+                  "a new character cannot wield an iron sword: " + why);
+            LevelUp up;
+            p.skills.AddXp(SKILL_ATTACK, XpForLevel(10), up);
+            Check(p.EquipFromInventory(slot_of("iron_sword"), why), "at Attack 10 they can");
+            Check(p.BuildLayerStyle(&items).weapon_model == "sword_iron", "and the hero holds the iron sword's model");
+            Check(!p.EquipFromInventory(slot_of("demonrite_staff"), why), "demonrite needs Magic 70");
+        }
+    }
+
+    // --- skill trees ------------------------------------------------------------------------
+    Section("skill trees");
+    {
+        bool shape = true, milestones = true, techniques = true;
+        for (int st = 0; st < 3; ++st) {
+            const TalentTree& t = trees.Tree(static_cast<AttackStyle>(st));
+            if (t.nodes.size() != 15 || t.branches.size() != 3) shape = false;
+            int tech = 0;
+            for (int b = 0; b < 3; ++b)
+                for (int r = 0; r < 5; ++r) {
+                    const TalentNode* n = t.At(b, r);
+                    if (!n) { shape = false; continue; }
+                    const TalentNode* row0 = t.At(0, r);
+                    if (row0 && row0->level != n->level) milestones = false;
+                    if (r > 0 && t.At(b, r - 1) && t.At(b, r - 1)->level >= n->level) milestones = false;
+                    if (!n->technique.empty()) { ++tech; if (r != 2) techniques = false; }
+                    if (n->technique.empty() && n->effects.empty()) techniques = false;
+                }
+            if (tech != 3) techniques = false;
+        }
+        Check(shape, "each style has a tree of three branches five nodes deep");
+        Check(milestones, "every row is one milestone level, rising down the tree");
+        Check(techniques, "each tree teaches three techniques, and every other node does something");
+        Check(trees.Tree(AttackStyle::Melee).skill == SKILL_ATTACK && trees.Tree(AttackStyle::Ranged).skill == SKILL_RANGED &&
+              trees.Tree(AttackStyle::Magic).skill == SKILL_MAGIC, "melee, ranged and magic are earned by Attack, Ranged and Magic");
+
+        Skills sk;
+        Talents t;
+        t.SetDatabase(&trees);
+        Check(t.PointsEarned(AttackStyle::Melee, sk) == 0, "a level 1 character has no points");
+        LevelUp up;
+        sk.AddXp(SKILL_ATTACK, XpForLevel(17), up);
+        Check(t.PointsEarned(AttackStyle::Melee, sk) == 3 && t.PointsEarned(AttackStyle::Ranged, sk) == 0,
+              "Attack 17 earns three melee points and no ranged ones");
+        Check(t.CanLearn("flurry", sk) == Talents::Why::Prerequisite, "a node needs the one above it");
+        Check(t.CanLearn("whirlwind", sk) == Talents::Why::Level, "and its milestone level");
+        Check(t.Learn("keen_edge", sk) && t.Learn("flurry", sk) && t.Learn("heavy_hand", sk),
+              "three points learn three nodes");
+        Check(t.CanLearn("thick_skin", sk) == Talents::Why::NoPoints, "and then there are none left");
+        Check(fabsf(t.Effect("damage", AttackStyle::Melee) - 0.06f) < 1e-4f && t.Effect("damage", AttackStyle::Ranged) == 0.0f,
+              "a melee damage node helps melee and not the bow");
+        Check(fabsf(t.Global("charge") - 0.15f) < 1e-4f, "a global node applies whatever is held");
+        Check(!t.ToggleTechnique("whirlwind"), "an unlearned technique cannot be chosen");
+        t.Reset(AttackStyle::Melee);
+        Check(t.PointsSpent(AttackStyle::Melee) == 0 && t.PointsFree(AttackStyle::Melee, sk) == 3,
+              "unlearning a tree gives every point back");
+
+        // --- in the world ---------------------------------------------------------------
+        Input input;
+        std::mt19937 rng(91);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        // A character with a weapon, a skill at a level, and the nodes named.
+        const auto fighter = [&](World& w, const string& weapon, int skill, int level,
+                                 std::initializer_list<const char*> nodes, const char* technique) {
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(skill, XpForLevel(level), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            for (const char* n : nodes) w.player.talents.Learn(n, w.player.skills);
+            if (technique) w.player.talents.ToggleTechnique(technique);
+            w.player.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto spawn = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        // Holds the heavy button long enough for a full charge, then lets go.
+        const auto charged = [&](World& w) {
+            input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+            frames(w, 80);
+            input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+        };
+
+        // Whirlwind: everything around, not just what is in front.
+        {
+            const auto round = [&](bool with_technique) {
+                World w;
+                if (!fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge", "flurry", "whirlwind"},
+                             with_technique ? "whirlwind" : nullptr)) return 0;
+                vector<Enemy*> ring = {spawn(w, "deer", 30, 0), spawn(w, "deer", -30, 0),
+                                       spawn(w, "deer", 0, 28), spawn(w, "deer", 0, -28)};
+                charged(w);
+                frames(w, 40);
+                int struck = 0;
+                for (Enemy* e : ring) if (e && e->HealthBarVisible()) ++struck;
+                return struck;
+            };
+            const int plain = round(false), spun = round(true);
+            Check(plain <= 2, "a plain charged swing strikes what is in front (" + std::to_string(plain) + " of 4)");
+            Check(spun == 4, "a whirlwind strikes all four deer around the player (" + std::to_string(spun) + ")");
+        }
+        // Lunge: the player covers ground.
+        {
+            World w;
+            if (fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"thick_skin", "second_wind", "lunge"}, "lunge")) {
+                const float x0 = w.player.x;
+                charged(w);
+                frames(w, 40);
+                Check(w.player.x - x0 > 35.0f, "a lunge carries the player forward (" +
+                      std::to_string(static_cast<int>(w.player.x - x0)) + " px)");
+                Check(w.player.Profile().defence_bonus >= 6, "thick skin adds defence");
+            }
+        }
+        // Volley and piercing shot.
+        {
+            World w;
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 30, {"quick_draw", "fleet_foot", "volley"}, "volley")) {
+                w.projectiles.clear();
+                charged(w);
+                size_t most = 0;
+                for (int f = 0; f < 60; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
+                Check(most == 5, "a volley looses five arrows (" + std::to_string(most) + ")");
+            }
+            World w2;
+            if (fighter(w2, "oak_shortbow", SKILL_RANGED, 30, {"steady_aim", "eagle_eye", "piercing_shot"}, "piercing_shot")) {
+                w2.projectiles.clear();
+                charged(w2);
+                int pierce = -1;
+                for (int f = 0; f < 60 && pierce < 0; ++f) {
+                    frames(w2, 1);
+                    if (!w2.projectiles.empty()) pierce = w2.projectiles.front().pierce_left;
+                }
+                Check(pierce >= 8, "a piercing shot passes through a crowd");
+            }
+            World w3;
+            if (fighter(w3, "oak_shortbow", SKILL_RANGED, 30, {"trail_legs", "broadheads", "arrow_rain"}, "arrow_rain")) {
+                spawn(w3, "deer", 90, 0);
+                charged(w3);
+                bool rain = false;
+                for (int f = 0; f < 60 && !rain; ++f) {
+                    frames(w3, 1);
+                    for (const GroundEffect& g : w3.ground_effects) if (g.hit_mult >= 0.0f) rain = true;
+                }
+                Check(rain, "arrow rain calls a strike down ahead of the player");
+                Check(w3.player.MaxStamina() > Player::MAX_STAMINA * 1.1f, "trail legs adds stamina");
+            }
+        }
+        // Nova and barrage, and what they cost.
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 30, {"potency", "focus", "nova"}, "nova")) {
+                const SpellDef* spell = spells.BestFor(w.player.SelectedElement(), 30);
+                const int mana0 = w.player.Mana();
+                w.projectiles.clear();
+                charged(w);
+                size_t most = 0;
+                for (int f = 0; f < 60; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
+                Check(most == 8, "a nova bursts into eight bolts (" + std::to_string(most) + ")");
+                const int spent = mana0 - w.player.Mana();
+                const int expect = spell ? static_cast<int>(std::lround(spell->mana * 2 * 0.9f)) : -1;
+                Check(spell && spent >= expect - 1 && spent <= expect + 1,
+                      "for twice a bolt's mana, less focus (" + std::to_string(spent) + " of " + std::to_string(expect) + ")");
+            }
+            World w2;
+            if (fighter(w2, "novice_staff", SKILL_MAGIC, 30, {"ward", "seeker", "meteor"}, "meteor")) {
+                spawn(w2, "deer", 90, 0);
+                charged(w2);
+                bool meteor = false;
+                for (int f = 0; f < 60 && !meteor; ++f) {
+                    frames(w2, 1);
+                    for (const GroundEffect& g : w2.ground_effects) if (g.hit_mult >= 0.0f && g.element != Element::None) meteor = true;
+                }
+                Check(meteor, "a meteor brings the element down as a strike");
+            }
+        }
+        // Passives reach the numbers the game uses.
+        {
+            World w;
+            if (fighter(w, "bronze_sword", SKILL_ATTACK, 50, {"keen_edge", "flurry"}, nullptr)) {
+                const float fast = w.player.WeaponSpeed();
+                w.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+                const float bow = w.player.WeaponSpeed();
+                w.player.equipment.Equip(SLOT_WEAPON, "bronze_sword");
+                Check(fast < 1.0f && bow == items.Get("oak_shortbow")->attack_speed,
+                      "flurry quickens a sword and not a bow");
+                Check(w.player.TalentDamage(AttackStyle::Melee, AttackType::Light) > 1.05f &&
+                      w.player.TalentDamage(AttackStyle::Ranged, AttackType::Light) == 1.0f,
+                      "keen edge adds melee damage and not ranged");
+                const json saved = w.player.ToJson();
+                Player back;
+                back.FromJson(saved, ctx);
+                Check(back.talents.Has("keen_edge") && back.talents.Has("flurry") && !back.talents.Has("whirlwind"),
+                      "learned nodes survive a save");
+            }
+        }
+        input.Update(dt);
+    }
+
     // --- day, night and dreams ----------------------------------------------------------
     Section("day, night and dreams");
     {

@@ -11,6 +11,7 @@
 #include "systems/dialogue.h"
 #include "systems/projectile.h"
 #include "systems/spell.h"
+#include "systems/talents.h"
 #include "systems/save.h"
 #include "ui/ui.h"
 #include "ui/minimap.h"
@@ -100,6 +101,7 @@ private:
     void DrawPaused();
     void DrawInventory();
     void DrawSkillsPanel();
+    void DrawSkillTree(const SDL_FRect& panel);
     void DrawQuestPanel();
     void DrawDialogue();
     void DrawBoard();
@@ -133,6 +135,7 @@ private:
     DialogueDatabase dialogue_db;
     ProjectileDatabase projectile_db;
     SpellBook        spells;
+    SkillTrees       skill_trees;
     DialogueRunner   dialogue;
     std::mt19937     rng;
     GameContext      ctx;
@@ -152,6 +155,11 @@ private:
     int  quest_cursor = 0;
     int  board_cursor = 0;
     int  craft_cursor = 0;
+    // The skills panel: 0 is the level list, 1..3 the melee, ranged and magic
+    // trees, with a cursor on a branch and a row in whichever tree is open.
+    int  skills_tab = 0;
+    int  tree_branch = 0, tree_row = 0;
+    bool tree_reset_armed = false;
     int  slot_purpose = 0;       // 0 = start new game, 1 = save
     int  overwrite_slot = -1;    // occupied slot a new game is waiting to replace
 

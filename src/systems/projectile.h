@@ -111,6 +111,10 @@ struct Projectile {
     // The monster the player's targeting had when this was loosed, for homing.
     // Checked against the world's list before use; null flies straight.
     const void* target = nullptr;
+    // What the player's talents added: more knockback, and steering for a shot
+    // whose own data has none.
+    float knockback_mult = 1.0f;
+    float extra_homing = 0.0f;
     // Entities already struck, so one shot cannot hit the same target twice.
     vector<const void*> already_hit;
 
@@ -145,6 +149,11 @@ struct GroundEffect {
     CombatProfile owner;
     bool  from_player = true;
     bool  burst = false;         // one big hit rather than damage over time
+    // A technique's strike: resolved as this style at this damage multiplier,
+    // rather than as a spell scaled by damage. Negative for the old behaviour.
+    AttackStyle style = AttackStyle::Magic;
+    float hit_mult = -1.0f;
+    float knockback = 8.0f;
     bool  finished = false;
 
     bool Active() const { return delay <= 0.0f; }

@@ -793,7 +793,7 @@ if (-not (Test-Path (Join-Path $fonts "dreamquest.ttf"))) {
 # the CraftPix icon sheet, so both have to run after the cutting or a fresh
 # import brings back flat grass and a bow drawn as a sword. Neither needs
 # anything installed. The Blender props and the player character do, and are
-# rebuilt separately with make_props.ps1 and make_character.ps1.
+# rebuilt separately with make_props.ps1, make_character.ps1 and make_tiers.ps1.
 Write-Host "`nGenerating ground tiles, item icons and HUD fittings ..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "make_ground.ps1")
 & (Join-Path $PSScriptRoot "make_icons.ps1")

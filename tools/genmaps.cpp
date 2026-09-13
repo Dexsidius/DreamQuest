@@ -422,13 +422,18 @@ static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
     o["skill"]       = "Mining";
     o["skill_level"] = level;
     o["yield"]       = yield;
-    o["yield_xp"]    = big ? 60 : 24;
-    o["gather_time"] = big ? 3.2f : 2.4f;
-    // Named for the ore, because copper and iron use the same rock art: a
-    // plain "outcrop" left a new miner walking up to iron they could not
-    // touch with nothing to say which of the rocks around it was copper.
-    const string ore = (yield == "iron_ore") ? "iron " : "copper ";
-    o["title"]       = ore + (big ? "seam" : "outcrop");
+    // Deeper ore is slower to work and worth more for it.
+    o["yield_xp"]    = static_cast<int>((big ? 60 : 24) * (1.0f + level / 12.0f));
+    o["gather_time"] = (big ? 3.2f : 2.4f) + level * 0.02f;
+    // Named for the ore, because every ore uses the same rock art: a plain
+    // "outcrop" left a new miner walking up to iron they could not touch with
+    // nothing to say which of the rocks around it was copper.
+    static const std::map<string, string> kOre = {
+        {"copper_ore", "copper"}, {"iron_ore", "iron"}, {"coal", "coal"},
+        {"azuryte_ore", "azuryte"}, {"adamantium_ore", "adamantium"},
+        {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonrite_ore", "demonrite"}};
+    const auto name = kOre.find(yield);
+    o["title"]       = (name == kOre.end() ? string("ore") : name->second) + (big ? " seam" : " outcrop");
 
     m.Collision(x - 14, y - 12, 28, 12);
 }
@@ -747,6 +752,10 @@ static void BuildOverworld() {
                 if (r < 0.03f)       PlaceRock(m, rng, rock_index++, x, y, true, 1, "copper_ore");
                 else if (r < 0.05f)  PlaceRock(m, rng, rock_index++, x, y, false, 1, "copper_ore");
                 else if (r < 0.062f) m.Prop("objects", Pick(kSmallRocks, rng), x, y);
+                // Higher up the foothills, the tier after iron: coal for steel,
+                // and the first blue of azuryte.
+                else if (r < 0.070f && ElevationAt(cx, cy) >= 1) PlaceRock(m, rng, rock_index++, x, y, true, 20, "coal");
+                else if (r < 0.075f && ElevationAt(cx, cy) >= 2) PlaceRock(m, rng, rock_index++, x, y, true, 30, "azuryte_ore");
             } else if (b == MIRE) {
                 if (r < 0.028f)      m.Prop("objects", Pick(kSmallTrees, rng), x, y);
                 else if (r < 0.05f)  m.Prop("objects", Pick(kFungus, rng), x, y);
@@ -754,6 +763,7 @@ static void BuildOverworld() {
             } else if (b == CURSED) {
                 if (r < 0.04f)       m.Prop("objects", Pick(kSmallRocks, rng), x, y);
                 else if (r < 0.055f) PlaceRock(m, rng, rock_index++, x, y, true, 10, "iron_ore");
+                else if (r < 0.061f) PlaceRock(m, rng, rock_index++, x, y, true, 20, "coal");
             }
         }
     }
@@ -1462,7 +1472,8 @@ static void BuildDungeon(const string& id, const string& display,
                          const string& chest_table, int chest_count,
                          const string& special_id, const string& special_table,
                          const string& deeper_map, const string& deeper_lock,
-                         const string& boss_type = "", int boss_level = 1) {
+                         const string& boss_type = "", int boss_level = 1,
+                         const vector<std::pair<string, int>>& ores = {}) {
     const int CELL = 32;
     MapBuilder m(id, display, cols * CELL, rows * CELL);
     m.Interior(true);
@@ -1559,6 +1570,19 @@ static void BuildDungeon(const string& id, const string& display,
         const int x = (r.x + 1 + static_cast<int>(rng() % std::max(1, r.w - 2))) * CELL + 16;
         const int y = (r.y + 1 + static_cast<int>(rng() % std::max(1, r.h - 2))) * CELL + 16;
         PlaceChest(m, id + "_chest_" + std::to_string(i), x, y, chest_table);
+    }
+
+    // Seams of the deeper tiers, one to a room, never in the room you arrive in.
+    if (!ores.empty() && rooms.size() > 1) {
+        int n = 0;
+        for (size_t i = 1; i < rooms.size(); ++i) {
+            const Room& r = rooms[i];
+            const auto& ore = ores[(i - 1) % ores.size()];
+            // Tucked against the top wall of the room, out of the way.
+            const int x = (r.x + 1 + static_cast<int>(rng() % std::max(1, r.w - 2))) * CELL + 16;
+            const int y = r.y * CELL + 30;
+            PlaceRock(m, rng, 900 + n++, x, y, true, ore.second, ore.first);
+        }
     }
 
     // The boss holds the last room on its own.
@@ -1920,6 +1944,13 @@ static void BuildMossvale() {
         o["title"]   = "Workbench";
         o["station"] = "workbench";
         m.Collision(44 * CELL - 34, 26 * CELL - 18, 67, 18);
+        // An anvil beside it, so the trail's metal need not go back to
+        // Havenbrook to be smithed.
+        json& a = m.Object("anvil_mossvale", "workbench", 47 * CELL, 26 * CELL);
+        a["sprite"]  = "assets/props/anvil.png";
+        a["title"]   = "Anvil";
+        a["station"] = "anvil";
+        m.Collision(47 * CELL - 14, 26 * CELL - 12, 28, 12);
     }
     for (const auto& lp : {std::pair<int, int>{35 * CELL, 17 * CELL}, {24 * CELL, 17 * CELL}}) {
         m.Prop("props", "log_pile", lp.first, lp.second);
@@ -2450,6 +2481,11 @@ static void BuildDreamworld() {
         m.Enemy("nightmare_shade", px(s.cx - 5), px(s.cy), 6, 40.0f, 200.0f);
         m.Enemy("nightmare_shade", px(s.cx + 6), px(s.cy - 1), 6, 40.0f, 200.0f);
         PlaceChest(m, "chest_dream", px(s.cx + 1), px(s.cy + 4), "chest_dream");
+        // Demonrite: black glass with a red heat inside, found nowhere but here.
+        const float seams[][2] = {{-4, 3}, {5, 3}, {-1, -3}};
+        int k = 0;
+        for (const auto& sp : seams)
+            PlaceRock(m, rng, 950 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 70, "demonrite_ore");
     }
 
     m.Write("maps");
@@ -2477,7 +2513,9 @@ int main() {
                  {{"orc1", 3}, {"orc1", 4}, {"orc2", 5}},
                  "chest_dungeon", 3,
                  "chest_emberfell_key", "key_emberfell",
-                 "dungeon_emberfell_2", "rusted_key");
+                 "dungeon_emberfell_2", "rusted_key",
+                 "", 1,
+                 {{"iron_ore", 10}, {"coal", 20}});
 
     BuildDungeon("dungeon_emberfell_2", "Emberfell Mine, Lower Workings",
                  1002u, 54, 42, 8,
@@ -2487,7 +2525,8 @@ int main() {
                  "chest_dungeon", 3,
                  "", "",
                  "", "",
-                 "orc3", 12);
+                 "orc3", 12,
+                 {{"adamantium_ore", 40}, {"platinum_ore", 60}, {"coal", 20}});
 
     BuildDungeon("dungeon_barrow", "The Barrow Beneath the Mire",
                  2001u, 52, 40, 8,
@@ -2496,7 +2535,8 @@ int main() {
                  {{"orc1", 6}, {"orc2", 8}},
                  "chest_barrow", 3,
                  "chest_barrow_seal", "seal_barrow",
-                 "", "");
+                 "", "", "", 1,
+                 {{"diamond_ore", 50}, {"azuryte_ore", 30}});
 
     std::printf("genmaps: done\n");
     return 0;

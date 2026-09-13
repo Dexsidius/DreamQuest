@@ -204,7 +204,19 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
             continue;
         }
 
-        SDL_Texture* tex = cache.Get(layer.sheet);
+        SDL_Texture* tex = nullptr;
+        bool model_sheet = false;
+        if (layer.slot == LayerSlot::WeaponFront && !style.weapon_model.empty()) {
+            // layers/attack_4_weapon_front.png -> layers/attack_4_weapon_sword_iron.png
+            const size_t at = layer.sheet.rfind("weapon_front");
+            if (at != string::npos) {
+                string path = layer.sheet;
+                path.replace(at, 12, "weapon_" + style.weapon_model);
+                tex = cache.Get(path);
+                model_sheet = tex != nullptr;
+            }
+        }
+        if (!tex) tex = cache.Get(layer.sheet);
         if (!tex) continue;
 
         float tw = 0, th = 0;
@@ -220,7 +232,7 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
             case LayerSlot::Body:        c = blend(tint, style.body); break;
             case LayerSlot::Head:        c = blend(tint, style.head); break;
             case LayerSlot::WeaponBack:
-            case LayerSlot::WeaponFront: c = blend(tint, style.weapon); break;
+            case LayerSlot::WeaponFront: c = model_sheet ? tint : blend(tint, style.weapon); break;
             // The shadow is not part of the character, so it keeps its own
             // colour rather than glowing when the player charges an attack.
             case LayerSlot::Shadow:      c = SDL_Color{255, 255, 255, tint.a}; break;

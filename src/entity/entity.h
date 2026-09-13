@@ -14,6 +14,7 @@ class DialogueDatabase;
 class EnemyDatabase;
 class ProjectileDatabase;
 class SpellBook;
+class SkillTrees;
 
 // Everything shared that entities need to reach. Owned by Game, borrowed here,
 // so no entity has to know how the game is assembled.
@@ -28,6 +29,7 @@ struct GameContext {
     EnemyDatabase*    enemies   = nullptr;
     ProjectileDatabase* projectiles = nullptr;
     SpellBook*        spells    = nullptr;
+    SkillTrees*       trees     = nullptr;
     Input*            input     = nullptr;
     std::mt19937*     rng       = nullptr;
 };

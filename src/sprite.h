@@ -47,6 +47,10 @@ struct LayerStyle {
     SDL_Color head{255, 255, 255, 255};
     SDL_Color weapon{255, 255, 255, 255};
     bool show_weapon = true;
+    // The weapon model in hand, "sword_iron" and so on. A rig that has a layer
+    // sheet for it draws that, in its own colours, in place of its sword;
+    // one that does not falls back to the sword, tinted.
+    string weapon_model;
     // Worn pieces, in the order they should be drawn.
     vector<Attachment> attachments;
 };

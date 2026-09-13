@@ -6,6 +6,7 @@
 #include "../systems/combat.h"
 #include "../systems/projectile.h"
 #include "../systems/spell.h"
+#include "../systems/talents.h"
 
 // What the player is currently standing next to and could press Interact on.
 struct InteractTarget {
@@ -93,6 +94,15 @@ public:
     Skills    skills;
     Inventory inventory;
     Equipment equipment;
+    // Skill trees: learned nodes and chosen techniques.
+    Talents   talents;
+
+    // The talents' damage multiplier for an attack of this style and type,
+    // including the ones that depend on the moment (low health, a charge).
+    float TalentDamage(AttackStyle style, AttackType type) const;
+    // The technique a charged attack with the current weapon comes out as, or
+    // empty for a plain charged attack.
+    const string& ActiveTechnique() const { return talents.Technique(Style()); }
 
     // Queued for the HUD: level-ups and XP drops to show.
     vector<LevelUp> TakeLevelUps();
@@ -137,7 +147,7 @@ public:
     static constexpr float STAMINA_DELAY      = 0.8f;    // breather before regen starts
     static constexpr float STAMINA_RECOVER    = 0.35f;   // share needed to sprint again
     float Stamina() const { return stamina; }
-    float MaxStamina() const { return MAX_STAMINA; }
+    float MaxStamina() const { return MAX_STAMINA * (1.0f + talents.Global("stamina")); }
     bool  Winded() const { return winded; }
     // Where the camera should lead, in world pixels: ahead of a sprint so the
     // player sees what they are running into, and back to centre otherwise.

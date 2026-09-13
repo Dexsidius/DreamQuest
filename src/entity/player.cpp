@@ -19,6 +19,7 @@ void Player::Init(const GameContext& ctx, const string& id) {
     if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(sprite_id));
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
+    talents.SetDatabase(ctx.trees);
     sprite.Play("idle");
     SyncHitpoints();
     hp = max_hp;
@@ -71,6 +72,7 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
     if (db) {
         const ItemDef* w = db->Get(equipment.InSlot(SLOT_WEAPON));
         if (w && w->worn && !w->worn_sprite.empty()) s.show_weapon = false;
+        if (w) s.weapon_model = w->model;
     }
     return s;
 }
@@ -89,7 +91,7 @@ CombatProfile Player::Profile() const {
     p.magic_level    = skills.Current(SKILL_MAGIC);
     p.attack_bonus   = equipment.AttackBonus();
     p.strength_bonus = equipment.StrengthBonus();
-    p.defence_bonus  = equipment.DefenceBonus();
+    p.defence_bonus  = equipment.DefenceBonus() + static_cast<int>(talents.Global("defence"));
     p.ranged_bonus   = equipment.RangedBonus();
     p.magic_bonus    = equipment.MagicBonus();
     return p;
@@ -210,7 +212,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
     }
 
     if (strong_armed && in.Down(Action::StrongAttack)) {
-        charge_held += dt;
+        charge_held += dt * (1.0f + talents.Global("charge"));
         if (charge_held >= CHARGE_HOLD_THRESHOLD) charging = true;
     }
 
@@ -358,8 +360,17 @@ float Player::CooldownProgress() const {
     return std::clamp(attack_cooldown / cooldown_total, 0.0f, 1.0f);
 }
 
+float Player::TalentDamage(AttackStyle style, AttackType type) const {
+    float mult = 1.0f + talents.Effect("damage", style);
+    if (type == AttackType::Charged) mult += talents.Effect("charged_damage", style);
+    if (max_hp > 0 && hp * 3 < max_hp) mult += talents.Effect("low_hp_damage", style);
+    return mult;
+}
+
 float Player::WeaponSpeed() const {
-    return item_db ? equipment.AttackSpeed() : 1.0f;
+    const float base = item_db ? equipment.AttackSpeed() : 1.0f;
+    // Below one is faster, so a speed talent takes a share off the time.
+    return std::max(0.35f, base * (1.0f - talents.Effect("speed", Style())));
 }
 
 void Player::UpdateAnimation(const Vec2& move) {
@@ -503,12 +514,12 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         }
     } else if (stamina_delay > 0.0f) {
         stamina_delay = std::max(0.0f, stamina_delay - dt);
-    } else if (stamina < MAX_STAMINA) {
-        const float rate = STAMINA_REGEN *
+    } else if (stamina < MaxStamina()) {
+        const float rate = STAMINA_REGEN * (1.0f + talents.Global("stamina_regen")) *
             (Length(move.x, move.y) > 0.05f ? STAMINA_REGEN_MOVE : 1.0f);
-        stamina = std::min(MAX_STAMINA, stamina + rate * dt);
+        stamina = std::min(MaxStamina(), stamina + rate * dt);
     }
-    if (winded && stamina >= MAX_STAMINA * STAMINA_RECOVER) winded = false;
+    if (winded && stamina >= MaxStamina() * STAMINA_RECOVER) winded = false;
     {
         const float lead = sprinting ? 56.0f : 0.0f;
         const float k = std::min(1.0f, dt * (sprinting ? 2.5f : 4.0f));
@@ -530,7 +541,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     sprite.facing = facing;
 
     // --- movement ------------------------------------------------------------
-    float speed = move_speed;
+    float speed = move_speed * (1.0f + talents.Global("move_speed"));
     if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk
@@ -573,7 +584,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // --- mana ----------------------------------------------------------------
     SyncMana();
     if (mana < max_mana) {
-        mana_fraction += SpellBook::RegenPerSecond(skills.Level(SKILL_MAGIC)) * dt;
+        mana_fraction += SpellBook::RegenPerSecond(skills.Level(SKILL_MAGIC)) *
+                         (1.0f + talents.Global("mana_regen")) * dt;
         const int whole = static_cast<int>(mana_fraction);
         if (whole > 0) {
             mana_fraction -= whole;
@@ -614,7 +626,7 @@ void Player::Respawn(float sx, float sy) {
     charging = strong_armed = false;
     jumping = false;
     sprinting = winded = false;
-    stamina = MAX_STAMINA;
+    stamina = MaxStamina();
     stamina_delay = 0.0f;
     climb_hint.clear();
     skills.ResetCurrent();
@@ -633,7 +645,7 @@ void Player::Rest() {
     heard_hp = hp;
     SyncMana();
     RestoreMana();
-    stamina = MAX_STAMINA;
+    stamina = MaxStamina();
     stamina_delay = 0.0f;
     winded = false;
 }
@@ -727,6 +739,7 @@ json Player::ToJson() const {
         {"skills",    skills.ToJson()},
         {"inventory", inventory.ToJson()},
         {"equipment", equipment.ToJson()},
+        {"talents",   talents.ToJson()},
     };
 }
 
@@ -736,6 +749,8 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(sprite_id));
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
+    talents.SetDatabase(ctx.trees);
+    talents.FromJson(j.value("talents", json::object()));
 
     x = j.value("x", 0.0f);
     y = j.value("y", 0.0f);
