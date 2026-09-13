@@ -16,6 +16,16 @@ static DialogueCondition ParseCondition(const json& o) {
     c.skill       = o.value("skill", string(""));
     c.skill_level = o.value("level", 0);
     c.invert      = o.value("not", false);
+    if (o.contains("after")) {
+        if (o["after"].is_array())
+            for (const auto& q : o["after"]) c.after.push_back(q.get<string>());
+        else
+            c.after.push_back(o["after"].get<string>());
+    }
+    c.flag    = o.value("flag", string(""));
+    c.no_flag = o.value("no_flag", string(""));
+    c.combat  = o.value("combat", 0);
+    c.time    = o.value("time", string(""));
     return c;
 }
 
@@ -87,7 +97,12 @@ bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx) {
 
     if (!c.quest.empty() && ctx.quests) {
         const QuestStatus st = ctx.quests->Status(c.quest);
-        if (c.quest_state == "not_started") pass = pass && (st == QuestStatus::NotStarted);
+        if (c.quest_state == "available")
+            pass = pass && ctx.skills && ctx.quests->CanStart(c.quest, *ctx.skills);
+        else if (c.quest_state == "locked")
+            pass = pass && st == QuestStatus::NotStarted && ctx.skills &&
+                   !ctx.quests->CanStart(c.quest, *ctx.skills);
+        else if (c.quest_state == "not_started") pass = pass && (st == QuestStatus::NotStarted);
         else if (c.quest_state == "active") pass = pass && (st == QuestStatus::Active);
         else if (c.quest_state == "complete") pass = pass && (st == QuestStatus::Complete);
         if (c.quest_stage >= 0)
@@ -102,20 +117,27 @@ bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx) {
         pass = pass && (s >= 0) && (ctx.skills->Level(s) >= c.skill_level);
     }
 
+    // Missing context counts against a prerequisite rather than for it: a line
+    // that cannot be checked is a line that stays hidden.
+    for (const string& q : c.after)
+        pass = pass && ctx.quests && ctx.quests->IsComplete(q);
+    if (!c.flag.empty())    pass = pass && ctx.flags && ctx.flags->count(c.flag) > 0;
+    if (!c.no_flag.empty()) pass = pass && !(ctx.flags && ctx.flags->count(c.no_flag) > 0);
+    if (c.combat > 0)       pass = pass && ctx.skills && ctx.skills->CombatLevel() >= c.combat;
+    if (c.time == "night")  pass = pass && ctx.night;
+    if (c.time == "day")    pass = pass && !ctx.night;
+
     return c.invert ? !pass : pass;
 }
 
 void DialogueRunner::Begin(const DialogueDatabase* database, const string& node_id,
-                           const string& id, const string& name) {
+                           const string& id, const string& name, const DialogueContext& ctx) {
     db      = database;
     npc_id  = id;
     npc_name = name;
     active  = true;
     pending.clear();
-    // Conditions are re-evaluated on entry, so pass an empty context here and
-    // let the first EnterNode use whatever the caller supplies on Choose.
-    DialogueContext empty;
-    EnterNode(node_id, empty);
+    EnterNode(node_id, ctx);
 }
 
 void DialogueRunner::EnterNode(const string& id, const DialogueContext& ctx) {

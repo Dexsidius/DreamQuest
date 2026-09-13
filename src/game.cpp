@@ -162,6 +162,8 @@ void Game::NewGame(const string& character, int slot) {
     }
 
     has_session = true;
+    quests.SetDay(world.clock.QuestDay());
+    quest_day_seen = world.clock.QuestDay();
     SetState(GameState::Play);
     PushToast("A new journey begins.", Palette::Highlight);
 }
@@ -178,6 +180,8 @@ bool Game::LoadGame(int slot) {
     active_slot = slot;
     autosave_timer = 0.0f;
     has_session = true;
+    quests.SetDay(world.clock.QuestDay());
+    quest_day_seen = world.clock.QuestDay();
     SetState(GameState::Play);
     PushToast("Welcome back.", Palette::Highlight);
 
@@ -424,6 +428,12 @@ void Game::Update(float dt) {
 void Game::UpdatePlay(float dt) {
     playtime += dt;
 
+    // The boards post new dailies when the quest day turns over, at dawn.
+    quests.SetDay(world.clock.QuestDay());
+    if (quest_day_seen >= 0 && world.clock.QuestDay() > quest_day_seen)
+        PushToast("New notices are up on the mission boards.", Palette::Xp);
+    quest_day_seen = world.clock.QuestDay();
+
     world.Update(dt, ctx);
     HandleWorldRequests();
 
@@ -508,7 +518,7 @@ void Game::HandleWorldRequests() {
                 // Freeze the NPC being spoken to.
                 for (auto& n : world.npcs)
                     if (n->Id() == r.id) n->talking = true;
-                dialogue.Begin(&dialogue_db, r.text, r.id, r.title);
+                dialogue.Begin(&dialogue_db, r.text, r.id, r.title, MakeDialogueContext());
                 HandleDialogueActions(dialogue.TakeActions());
                 if (dialogue.Active()) OpenPanel(GameState::Dialogue);
                 else                   for (auto& n : world.npcs) n->talking = false;
@@ -517,6 +527,12 @@ void Game::HandleWorldRequests() {
             case WorldRequest::Type::Board:
                 board_title  = r.title;
                 board_quests = r.list;
+                // Anything whose giver is this board is pinned to it too:
+                // that is how the rotating dailies get posted.
+                for (const auto& kv : quests.Definitions())
+                    if (kv.second.giver == r.id &&
+                        std::find(board_quests.begin(), board_quests.end(), kv.first) == board_quests.end())
+                        board_quests.push_back(kv.first);
                 board_cursor = 0;
                 OpenPanel(GameState::Board);
                 break;
@@ -598,13 +614,21 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
         }
     }
 
-    // Talking to someone is itself a quest objective.
-    if (!dialogue.NpcId().empty()) {
-        QuestEvent e;
-        e.type   = ObjectiveType::Talk;
-        e.target = dialogue.NpcId();
-        quests.Notify(e, p.inventory);
-    }
+    // Talking to someone is no longer an objective by itself. Opening a
+    // conversation used to complete "return to Maren" before the hand-in line
+    // was ever chosen, so the page, the totem and the letter were never taken
+    // and the line that takes them vanished. Talk stages advance only through
+    // an option's explicit "advance" action now.
+}
+
+DialogueContext Game::MakeDialogueContext() const {
+    DialogueContext c;
+    c.quests    = &quests;
+    c.inventory = &world.player.inventory;
+    c.skills    = &world.player.skills;
+    c.flags     = &world.Flags();
+    c.night     = world.clock.IsNight();
+    return c;
 }
 
 void Game::GrantQuestRewards(const string& quest_id) {

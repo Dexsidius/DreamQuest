@@ -33,6 +33,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     map = std::move(arriving);
 
     map_id = id;
+    // Remembered, so dialogue can know where the player has been.
+    SetFlag("visited:" + id);
     enemies.clear();
     npcs.clear();
     pickups.clear();
@@ -896,6 +898,13 @@ void World::TryInteract(const GameContext& ctx) {
                     Audio::Play(Sfx::Pickup);
                 }
             } else if (o.type == "dream_wake") {
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    e.map_id = map_id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
                 Wake(WakeReason::Stone);
             } else if (o.type == "range") {
                 CookOne(o, ctx);
@@ -907,6 +916,14 @@ void World::TryInteract(const GameContext& ctx) {
                 r.title = o.title.empty() ? (o.station == "anvil" ? "Anvil" : "Workbench") : o.title;
                 requests.push_back(r);
             } else if (o.type == "note" || o.type == "sign") {
+                // Reading something can be what a quest asks for.
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    e.map_id = map_id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
                 // A note can also leave something behind, but only once.
                 if (!o.loot_table.empty() && !Flagged(o.id))
                     SpawnLoot(o.loot_table, o.x, o.y + 8.0f, ctx);

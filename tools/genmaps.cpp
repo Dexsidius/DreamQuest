@@ -2473,6 +2473,17 @@ static void BuildDreamworld() {
         m.Collision(ax + 64 - 10, ay - 56 - 8, 20, 8);
     }
 
+    // A slate the dream writes its own requests on: the Reverie's board, where
+    // its daily quests are posted, off to the north-east of the candles and
+    // clear of every bridge.
+    {
+        json& o = m.Object("board_reverie", "board", ax + 130, ay - 100);
+        o["sprite"] = ObjPath("guild_noticeboard");
+        o["title"]  = "The Dreamer's Slate";
+        o["quests"] = json::array();
+        m.Collision(ax + 130 - 36, ay - 100 - 12, 72, 12);
+    }
+
     // --- scenery ----------------------------------------------------------------
     // Toadstools, saplings and bushes on the islands, kept off the bridges, off
     // the plaza you arrive in, and a cell back from every rim so nothing hangs

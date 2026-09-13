@@ -1449,7 +1449,8 @@ void Game::DrawQuestPanel() {
 
             ui.Text(d->name, dx, y, TextSize::Body, Palette::Highlight);
             y += 28.0f;
-            ui.Text("Suggested level " + std::to_string(d->recommended_level),
+            ui.Text("Suggested level " + std::to_string(d->recommended_level) +
+                        (d->daily ? "     daily, done " + std::to_string(quests.Completions(list[index])) + "x" : string("")),
                     dx, y, TextSize::Small, Palette::TextDim);
             y += 24.0f;
             y += ui.TextWrapped(d->summary, dx, y, dw, TextSize::Small, Palette::Text);
@@ -1495,10 +1496,7 @@ void Game::DrawQuestPanel() {
 void Game::UpdateDialogue(float dt) {
     dialogue.Update(dt);
 
-    DialogueContext dctx;
-    dctx.quests    = &quests;
-    dctx.inventory = &world.player.inventory;
-    dctx.skills    = &world.player.skills;
+    const DialogueContext dctx = MakeDialogueContext();
 
     if (!dialogue.Active()) {
         for (auto& n : world.npcs) n->talking = false;
@@ -1645,9 +1643,9 @@ void Game::DrawBoard() {
             ui.Text(d ? d->name : available[i], row.x + 10.0f, row.y + 3.0f,
                     TextSize::Small, selected ? Palette::Highlight : Palette::Text);
             if (d)
-                ui.Text("Lv " + std::to_string(d->recommended_level),
+                ui.Text((d->daily ? string("daily   ") : string("")) + "Lv " + std::to_string(d->recommended_level),
                         row.x + row.w - 8.0f, row.y + 3.0f, TextSize::Small,
-                        Palette::TextDim, Align::Right);
+                        d->daily ? Palette::Xp : Palette::TextDim, Align::Right);
         }
 
         const int index = std::clamp(board_cursor, 0, static_cast<int>(available.size()) - 1);
@@ -1658,6 +1656,10 @@ void Game::DrawBoard() {
 
             ui.Text(d->name, dx, y, TextSize::Body, Palette::Highlight);
             y += 30.0f;
+            if (d->daily) {
+                ui.Text("Daily: new notices at dawn", dx, y, TextSize::Small, Palette::Xp);
+                y += 22.0f;
+            }
             y += ui.TextWrapped(d->summary, dx, y, dw, TextSize::Small, Palette::Text);
             y += 14.0f;
 

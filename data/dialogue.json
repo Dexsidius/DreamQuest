@@ -6,53 +6,110 @@
       {
         "text": "Is there something I can do?",
         "next": "maren_letter_offer",
-        "if": { "quest": "q_marens_letter", "state": "not_started" }
+        "if": {
+          "quest": "q_marens_letter",
+          "state": "available"
+        }
       },
       {
         "text": "I took your letter to the guild.",
         "next": "maren_letter_done",
-        "if": { "quest": "q_marens_letter", "state": "active", "stage": 1 }
+        "if": {
+          "quest": "q_marens_letter",
+          "state": "active",
+          "stage": 1
+        }
       },
       {
         "text": "About the Sunken Road.",
         "next": "maren_road_offer",
-        "if": { "quest": "q_the_sunken_road", "state": "not_started" }
+        "if": {
+          "quest": "q_the_sunken_road",
+          "state": "available"
+        }
       },
       {
         "text": "I found the surveyor's page.",
         "next": "maren_road_done",
-        "if": { "quest": "q_the_sunken_road", "state": "active", "stage": 1 }
+        "if": {
+          "quest": "q_the_sunken_road",
+          "state": "active",
+          "stage": 1
+        }
       },
       {
         "text": "You said something was gathering them.",
         "next": "maren_depths_offer",
-        "if": { "quest": "q_emberfell_depths", "state": "not_started" }
+        "if": {
+          "quest": "q_emberfell_depths",
+          "state": "available"
+        }
       },
       {
         "text": "The Warchief is dead.",
         "next": "maren_depths_done",
-        "if": { "quest": "q_emberfell_depths", "state": "active", "stage": 3 }
+        "if": {
+          "quest": "q_emberfell_depths",
+          "state": "active",
+          "stage": 3
+        }
       },
-      { "text": "What is this place?", "next": "maren_about" },
-      { "text": "Nothing for now.", "next": "end" }
+      {
+        "text": "What is this place?",
+        "next": "maren_about"
+      },
+      {
+        "text": "Is there anything more I can do?",
+        "next": "maren_not_yet",
+        "if": {
+          "after": [
+            "q_marens_letter"
+          ],
+          "quest": "q_the_sunken_road",
+          "state": "locked"
+        }
+      },
+      {
+        "text": "Is there anything more I can do?",
+        "next": "maren_not_yet",
+        "if": {
+          "after": [
+            "q_the_sunken_road"
+          ],
+          "quest": "q_emberfell_depths",
+          "state": "locked"
+        }
+      },
+      {
+        "text": "Nothing for now.",
+        "next": "end"
+      }
     ]
   },
-
   "maren_about": {
     "speaker": "Elder Maren",
     "text": "Havenbrook. Sixty-one people, one inn, one forge, and a guild hall that was here before the village was.\n\nThe greenwood is east. The Sunken Road runs north to Emberfell, and I would not walk it alone this month. West of the barley is the Mire, and nobody goes there at all.",
     "options": [
-      { "text": "Why not the Mire?", "next": "maren_mire" },
-      { "text": "I see.", "next": "maren_root" }
+      {
+        "text": "Why not the Mire?",
+        "next": "maren_mire"
+      },
+      {
+        "text": "I see.",
+        "next": "maren_root"
+      }
     ]
   },
-
   "maren_mire": {
     "speaker": "Elder Maren",
     "text": "Because the ground there remembers being a graveyard, and it has not forgiven anyone for it.\n\nIf you go, and you will, read anything you find before you touch anything you find.",
-    "options": [{ "text": "I will keep that in mind.", "next": "maren_root" }]
+    "options": [
+      {
+        "text": "I will keep that in mind.",
+        "next": "maren_root"
+      }
+    ]
   },
-
   "maren_letter_offer": {
     "speaker": "Elder Maren",
     "text": "There is. I have written to the guild and I would rather not trust it to a carter.\n\nTake it up the hill. Put it in the guild master's hand, not on his desk.",
@@ -60,18 +117,28 @@
       {
         "text": "Consider it delivered.",
         "next": "maren_letter_accept",
-        "action": { "start_quest": "q_marens_letter", "give": "elder_letter", "give_qty": 1 }
+        "action": {
+          "start_quest": "q_marens_letter",
+          "give": "elder_letter",
+          "give_qty": 1
+        }
       },
-      { "text": "Not right now.", "next": "end" }
+      {
+        "text": "Not right now.",
+        "next": "end"
+      }
     ]
   },
-
   "maren_letter_accept": {
     "speaker": "Elder Maren",
     "text": "Good. And do not read it. Not because I would mind, but because you would ask me about it, and I would have to answer.",
-    "options": [{ "text": "Understood.", "next": "end" }]
+    "options": [
+      {
+        "text": "Understood.",
+        "next": "end"
+      }
+    ]
   },
-
   "maren_letter_done": {
     "speaker": "Elder Maren",
     "text": "He read it in front of you, then. He would.\n\nThank you. That was not a small thing, whatever it looked like.",
@@ -79,11 +146,14 @@
       {
         "text": "He seemed worried.",
         "next": "end",
-        "action": { "advance": "npc_maren", "take": "elder_letter", "take_qty": 1 }
+        "action": {
+          "advance": "npc_maren",
+          "take": "elder_letter",
+          "take_qty": 1
+        }
       }
     ]
   },
-
   "maren_road_offer": {
     "speaker": "Elder Maren",
     "text": "A surveyor went out to the Sunken Road three weeks ago with a satchel full of paper. He came back with the satchel.\n\nHe will not say what happened. I would like to know what he wrote down before he stopped writing.",
@@ -91,12 +161,16 @@
       {
         "text": "I will find his papers.",
         "next": "end",
-        "action": { "start_quest": "q_the_sunken_road" }
+        "action": {
+          "start_quest": "q_the_sunken_road"
+        }
       },
-      { "text": "Later.", "next": "end" }
+      {
+        "text": "Later.",
+        "next": "end"
+      }
     ]
   },
-
   "maren_road_done": {
     "speaker": "Elder Maren",
     "text": "Let me see it.\n\n...He counted them. Twelve, then thirty, then he stopped counting and started drawing the same shape over and over. That shape is a mine entrance.",
@@ -104,11 +178,14 @@
       {
         "text": "Emberfell.",
         "next": "end",
-        "action": { "advance": "npc_maren", "take": "torn_page", "take_qty": 1 }
+        "action": {
+          "advance": "npc_maren",
+          "take": "torn_page",
+          "take_qty": 1
+        }
       }
     ]
   },
-
   "maren_depths_offer": {
     "speaker": "Elder Maren",
     "text": "Orcs do not gather. They raid, they scatter, they raid again. Something under Emberfell is holding them together, and it has been doing it for a season.\n\nThe lower workings are locked. The key is somewhere in the upper mine, if the surveyor is to be believed.",
@@ -116,18 +193,26 @@
       {
         "text": "Then I will go down there.",
         "next": "maren_depths_accept",
-        "action": { "start_quest": "q_emberfell_depths" }
+        "action": {
+          "start_quest": "q_emberfell_depths"
+        }
       },
-      { "text": "That sounds like a lot of orcs.", "next": "end" }
+      {
+        "text": "That sounds like a lot of orcs.",
+        "next": "end"
+      }
     ]
   },
-
   "maren_depths_accept": {
     "speaker": "Elder Maren",
     "text": "Eat before you go. Take more than you think you need. And if the thing at the bottom talks to you, do not answer it.",
-    "options": [{ "text": "I will come back.", "next": "end" }]
+    "options": [
+      {
+        "text": "I will come back.",
+        "next": "end"
+      }
+    ]
   },
-
   "maren_depths_done": {
     "speaker": "Elder Maren",
     "text": "You are bleeding on my floor.\n\nGive it here. No, do not explain yet. Sit down first, and then explain.",
@@ -135,11 +220,15 @@
       {
         "text": "Hand over the totem.",
         "next": "end",
-        "action": { "advance": "npc_maren", "take": "warchief_totem", "take_qty": 1, "heal": true }
+        "action": {
+          "advance": "npc_maren",
+          "take": "warchief_totem",
+          "take_qty": 1,
+          "heal": true
+        }
       }
     ]
   },
-
   "guildmaster_root": {
     "speaker": "Guild Master Orlend",
     "text": "The guild takes contracts, not applicants. If you want work, the board outside is where work lives.",
@@ -147,24 +236,41 @@
       {
         "text": "Elder Maren sent this.",
         "next": "guildmaster_letter",
-        "if": { "quest": "q_marens_letter", "state": "active", "stage": 0 }
+        "if": {
+          "quest": "q_marens_letter",
+          "state": "active",
+          "stage": 0
+        }
       },
       {
         "text": "I brought this out of the barrow.",
         "next": "guildmaster_seal",
-        "if": { "quest": "q_barrow_seal", "state": "active", "stage": 2 }
+        "if": {
+          "quest": "q_barrow_seal",
+          "state": "active",
+          "stage": 2
+        }
       },
-      { "text": "Tell me about the guild.", "next": "guildmaster_about" },
-      { "text": "I will look at the board.", "next": "end" }
+      {
+        "text": "Tell me about the guild.",
+        "next": "guildmaster_about"
+      },
+      {
+        "text": "I will look at the board.",
+        "next": "end"
+      }
     ]
   },
-
   "guildmaster_about": {
     "speaker": "Guild Master Orlend",
     "text": "Four of us, down from eleven. We keep the road open, we keep the barrow shut, and we write down what happens so the next four know.\n\nDo the board work. Do it well. Then we will talk about the rest.",
-    "options": [{ "text": "Fair enough.", "next": "end" }]
+    "options": [
+      {
+        "text": "Fair enough.",
+        "next": "end"
+      }
+    ]
   },
-
   "guildmaster_letter": {
     "speaker": "Guild Master Orlend",
     "text": "From Maren? Give it here.\n\n...She is not asking. She is telling me, and she is telling me in writing so I cannot pretend later that she did not.",
@@ -172,17 +278,22 @@
       {
         "text": "Is something wrong?",
         "next": "guildmaster_letter_2",
-        "action": { "advance": "npc_guildmaster" }
+        "action": {
+          "advance": "npc_guildmaster"
+        }
       }
     ]
   },
-
   "guildmaster_letter_2": {
     "speaker": "Guild Master Orlend",
     "text": "Something is wrong every year. This year it is counting.\n\nGo back and tell her I read it. She will know what that means.",
-    "options": [{ "text": "I will.", "next": "end" }]
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
   },
-
   "guildmaster_seal": {
     "speaker": "Guild Master Orlend",
     "text": "Put it down. On the desk, not in my hand.\n\nYou went in there because a note told you to. I want you to hear how that sounds.",
@@ -190,33 +301,76 @@
       {
         "text": "It seemed important.",
         "next": "guildmaster_seal_2",
-        "action": { "advance": "npc_guildmaster", "take": "barrow_seal", "take_qty": 1 }
+        "action": {
+          "advance": "npc_guildmaster",
+          "take": "barrow_seal",
+          "take_qty": 1
+        }
       }
     ]
   },
-
   "guildmaster_seal_2": {
     "speaker": "Guild Master Orlend",
     "text": "It was. That is the part that worries me.\n\nThe guild will pay you and the guild will not discuss it further. Take the amulet as well; I would rather it was on someone who can fight.",
-    "options": [{ "text": "Understood.", "next": "end" }]
+    "options": [
+      {
+        "text": "Understood.",
+        "next": "end"
+      }
+    ]
   },
-
   "smith_root": {
     "speaker": "Smith Halda",
     "text": "Mind the sparks. If you are here to buy, I am short on everything, and if you are here to sell, I am short on coin.",
     "options": [
-      { "text": "What do you need?", "next": "smith_needs" },
-      { "text": "Can you teach me anything?", "next": "smith_teach" },
-      { "text": "Just passing through.", "next": "end" }
+      {
+        "text": "What do you need?",
+        "next": "smith_needs",
+        "if": {
+          "quest": "q_ore_for_the_forge",
+          "state": "complete",
+          "not": true
+        }
+      },
+      {
+        "text": "Can you teach me anything?",
+        "next": "smith_teach"
+      },
+      {
+        "text": "The forge is lit. Anything else?",
+        "next": "smith_orders",
+        "if": {
+          "after": [
+            "q_ore_for_the_forge"
+          ]
+        }
+      },
+      {
+        "text": "I have the copper for your order.",
+        "next": "smith_daily_ore",
+        "if": {
+          "quest": "q_daily_ore",
+          "state": "active",
+          "has_item": "copper_ore",
+          "qty": 8
+        }
+      },
+      {
+        "text": "Just passing through.",
+        "next": "end"
+      }
     ]
   },
-
   "smith_needs": {
     "speaker": "Smith Halda",
     "text": "Copper, to start. There is a seam in the foothills north of the barley that nobody has worked in years.\n\nThe board has the contract written up properly. Take it from there so it is on paper.",
-    "options": [{ "text": "I will look.", "next": "end" }]
+    "options": [
+      {
+        "text": "I will look.",
+        "next": "end"
+      }
+    ]
   },
-
   "smith_teach": {
     "speaker": "Smith Halda",
     "text": "I can show you the shape of it, but crafting is hands, not talk. Find a workbench, bring materials, and make something badly. Then make it again.",
@@ -224,12 +378,17 @@
       {
         "text": "Show me the basics.",
         "next": "end",
-        "action": { "xp_skill": "Crafting", "xp": 220 }
+        "action": {
+          "xp_skill": "Crafting",
+          "xp": 220
+        }
       },
-      { "text": "Another time.", "next": "end" }
+      {
+        "text": "Another time.",
+        "next": "end"
+      }
     ]
   },
-
   "cook_root": {
     "speaker": "Innkeeper Bess",
     "text": "Sit anywhere. The fire is lit, and if you have anything raw in that pack you are welcome to use it.",
@@ -237,18 +396,50 @@
       {
         "text": "You look short-handed.",
         "next": "cook_offer",
-        "if": { "quest": "q_a_decent_meal", "state": "not_started" }
+        "if": {
+          "quest": "q_a_decent_meal",
+          "state": "available"
+        }
       },
       {
         "text": "I brought the food you wanted.",
         "next": "cook_done",
-        "if": { "quest": "q_a_decent_meal", "state": "active", "stage": 1 }
+        "if": {
+          "quest": "q_a_decent_meal",
+          "state": "active",
+          "stage": 1
+        }
       },
-      { "text": "Can I rest here?", "next": "cook_rest" },
-      { "text": "Maybe later.", "next": "end" }
+      {
+        "text": "Can I rest here?",
+        "next": "cook_rest"
+      },
+      {
+        "text": "Logs for the kitchen.",
+        "next": "cook_daily_logs",
+        "if": {
+          "quest": "q_daily_logs",
+          "state": "active",
+          "has_item": "logs",
+          "qty": 10
+        }
+      },
+      {
+        "text": "I brought the fish for the notice.",
+        "next": "cook_daily_fish",
+        "if": {
+          "quest": "q_daily_kitchen",
+          "state": "active",
+          "has_item": "raw_minnow",
+          "qty": 5
+        }
+      },
+      {
+        "text": "Maybe later.",
+        "next": "end"
+      }
     ]
   },
-
   "cook_offer": {
     "speaker": "Innkeeper Bess",
     "text": "Short-handed and short-stocked. I can cook anything you put in front of me, and there is nothing in front of me.\n\nBring me five decent cooked portions and I will call us square.",
@@ -256,12 +447,16 @@
       {
         "text": "I will bring them.",
         "next": "end",
-        "action": { "start_quest": "q_a_decent_meal" }
+        "action": {
+          "start_quest": "q_a_decent_meal"
+        }
       },
-      { "text": "Not today.", "next": "end" }
+      {
+        "text": "Not today.",
+        "next": "end"
+      }
     ]
   },
-
   "cook_done": {
     "speaker": "Innkeeper Bess",
     "text": "Look at that. Properly done, too, not burnt on one side and raw on the other like the guild lads bring me.\n\nSit. You are eating before you go anywhere.",
@@ -269,11 +464,15 @@
       {
         "text": "Gladly.",
         "next": "end",
-        "action": { "advance": "npc_cook", "take": "cooked_meat", "take_qty": 5, "heal": true }
+        "action": {
+          "advance": "npc_cook",
+          "take": "cooked_meat",
+          "take_qty": 5,
+          "heal": true
+        }
       }
     ]
   },
-
   "cook_rest": {
     "speaker": "Innkeeper Bess",
     "text": "You can. You look like you need it more than you think you do.",
@@ -281,27 +480,40 @@
       {
         "text": "Thank you.",
         "next": "end",
-        "action": { "heal": true }
+        "action": {
+          "heal": true
+        }
       }
     ]
   },
-
   "guard_root": {
     "speaker": "Watchman Corrin",
     "text": "Gate is open, and it stays open. That is the whole job, most days.",
     "options": [
-      { "text": "Any trouble lately?", "next": "guard_trouble" },
-      { "text": "How do I fight properly?", "next": "guard_combat" },
-      { "text": "Carry on.", "next": "end" }
+      {
+        "text": "Any trouble lately?",
+        "next": "guard_trouble"
+      },
+      {
+        "text": "How do I fight properly?",
+        "next": "guard_combat"
+      },
+      {
+        "text": "Carry on.",
+        "next": "end"
+      }
     ]
   },
-
   "guard_trouble": {
     "speaker": "Watchman Corrin",
     "text": "Boar in the barley, orcs on the road, and something in the Mire that the dogs will not walk toward.\n\nSo: a normal spring, and two things that are not.",
-    "options": [{ "text": "Right.", "next": "end" }]
+    "options": [
+      {
+        "text": "Right.",
+        "next": "end"
+      }
+    ]
   },
-
   "guard_combat": {
     "speaker": "Watchman Corrin",
     "text": "Three swings, that is all there is.\n\nQuick ones to keep them honest, and they chain if you keep at it. A heavy one when you have the room. And if you hold the heavy swing and let it build, it comes out hard enough to move something bigger than you. Watch the meter, not the enemy, or you will let go early.",
@@ -309,21 +521,31 @@
       {
         "text": "I will practise.",
         "next": "end",
-        "action": { "xp_skill": "Attack", "xp": 180 }
+        "action": {
+          "xp_skill": "Attack",
+          "xp": 180
+        }
       }
     ]
   },
-
   "hunter_root": {
     "speaker": "Hunter Ivo",
     "text": "Quiet. There is a deer forty paces behind you and you have already lost it.",
     "options": [
-      { "text": "Teach me to hunt.", "next": "hunter_teach" },
-      { "text": "What is worth taking out here?", "next": "hunter_game" },
-      { "text": "Sorry.", "next": "end" }
+      {
+        "text": "Teach me to hunt.",
+        "next": "hunter_teach"
+      },
+      {
+        "text": "What is worth taking out here?",
+        "next": "hunter_game"
+      },
+      {
+        "text": "Sorry.",
+        "next": "end"
+      }
     ]
   },
-
   "hunter_teach": {
     "speaker": "Hunter Ivo",
     "text": "Hides come off anything with fur. Meat comes off anything at all. Cook it before you eat it, unless you enjoy the Mire from the inside.\n\nThat is the lesson. It is not a long one.",
@@ -331,17 +553,23 @@
       {
         "text": "Noted.",
         "next": "end",
-        "action": { "xp_skill": "Cooking", "xp": 160 }
+        "action": {
+          "xp_skill": "Cooking",
+          "xp": 160
+        }
       }
     ]
   },
-
   "hunter_game": {
     "speaker": "Hunter Ivo",
     "text": "Hare if you are hungry. Deer if you are patient. Boar if you are armoured, and not otherwise.\n\nFox will fight you for no reason at all. I respect it and I still shoot it.",
-    "options": [{ "text": "Good to know.", "next": "end" }]
+    "options": [
+      {
+        "text": "Good to know.",
+        "next": "end"
+      }
+    ]
   },
-
   "bram_root": {
     "speaker": "Bram the Woodcutter",
     "text": "Mind the fire. And the axe. And the boar, while you are minding things.",
@@ -351,7 +579,7 @@
         "next": "bram_offer",
         "if": {
           "quest": "q_clear_the_trail",
-          "state": "not_started"
+          "state": "available"
         }
       },
       {
@@ -380,7 +608,6 @@
       }
     ]
   },
-
   "bram_offer": {
     "speaker": "Bram the Woodcutter",
     "text": "Boar. Big ones, off the verges and onto the trail, and they do not move for a loaded cart. I lost a wheel last week and nearly a mule.\n\nThin them out. Six should teach the rest.",
@@ -398,7 +625,6 @@
       }
     ]
   },
-
   "bram_accept": {
     "speaker": "Bram the Woodcutter",
     "text": "Good. They come out where the trail runs close under the trees. You will hear them before you see them.",
@@ -409,7 +635,6 @@
       }
     ]
   },
-
   "bram_active": {
     "speaker": "Bram the Woodcutter",
     "text": "Still hearing them at night. Keep at it.",
@@ -420,7 +645,6 @@
       }
     ]
   },
-
   "bram_done": {
     "speaker": "Bram the Woodcutter",
     "text": "Carts through twice this week without a scream between them. That is your doing. Mossvale owes you a drink, and I owe you a better one.",
@@ -431,7 +655,6 @@
       }
     ]
   },
-
   "bram_about": {
     "speaker": "Bram the Woodcutter",
     "text": "Timber camp. We fell the oaks up here and float them down to Mossvale when the stream is high. The rest of the year we cut, stack, and argue about whose turn it is to cook.\n\nThe fork is east of here. Mossvale straight on, Fernhollow up the north path.",
@@ -442,7 +665,6 @@
       }
     ]
   },
-
   "oona_root": {
     "speaker": "Oona the Herbalist",
     "text": "Mind the pots. Everything on that shelf is either a cure or a poison, and the labels fell off in the damp.",
@@ -452,7 +674,7 @@
         "next": "oona_offer",
         "if": {
           "quest": "q_word_to_fernhollow",
-          "state": "not_started"
+          "state": "available"
         }
       },
       {
@@ -466,6 +688,18 @@
       },
       {
         "text": "Wendel has his remedy.",
+        "next": "oona_return",
+        "if": {
+          "quest": "q_word_to_fernhollow",
+          "state": "active",
+          "stage": 1
+        },
+        "action": {
+          "advance": "npc_oona"
+        }
+      },
+      {
+        "text": "How is Wendel?",
         "next": "oona_done",
         "if": {
           "quest": "q_word_to_fernhollow",
@@ -475,7 +709,9 @@
       {
         "text": "Could you tend my wounds?",
         "next": "oona_rest",
-        "action": { "heal": true }
+        "action": {
+          "heal": true
+        }
       },
       {
         "text": "What do you grow?",
@@ -487,7 +723,6 @@
       }
     ]
   },
-
   "oona_offer": {
     "speaker": "Oona the Herbalist",
     "text": "You could, if your legs are younger than mine. Old Wendel in Fernhollow has a chest that rattles like a cart, and this is the only thing that quiets it.\n\nTake the north path at the fork. He will be on the jetty. He is always on the jetty.",
@@ -507,7 +742,6 @@
       }
     ]
   },
-
   "oona_accept": {
     "speaker": "Oona the Herbalist",
     "text": "Tell him it is two spoons, not the bottle. He will not listen, but tell him.",
@@ -518,7 +752,6 @@
       }
     ]
   },
-
   "oona_waiting": {
     "speaker": "Oona the Herbalist",
     "text": "Fernhollow is up the north path at the fork. Two spoons, not the bottle.",
@@ -526,8 +759,14 @@
       {
         "text": "I need a replacement bottle.",
         "next": "oona_accept",
-        "if": { "has_item": "herbal_tonic", "not": true },
-        "action": { "give": "herbal_tonic", "give_qty": 1 }
+        "if": {
+          "has_item": "herbal_tonic",
+          "not": true
+        },
+        "action": {
+          "give": "herbal_tonic",
+          "give_qty": 1
+        }
       },
       {
         "text": "On my way.",
@@ -535,13 +774,16 @@
       }
     ]
   },
-
   "oona_rest": {
     "speaker": "Oona the Herbalist",
     "text": "Sit by the stove. The salve stings, which is how you know I have not given you the roof moss by mistake.\n\nThere. Restored, and fit for the trail.",
-    "options": [{ "text": "Thank you, Oona.", "next": "end" }]
+    "options": [
+      {
+        "text": "Thank you, Oona.",
+        "next": "end"
+      }
+    ]
   },
-
   "oona_done": {
     "speaker": "Oona the Herbalist",
     "text": "He took it? And did he say thank you, or did he say it tasted of ditch? The second one is how I know it is working.",
@@ -552,7 +794,6 @@
       }
     ]
   },
-
   "oona_herbs": {
     "speaker": "Oona the Herbalist",
     "text": "Feverfew, comfrey, and a moss that only grows on the north side of the lodge roof. Reeve Hadley complains about me climbing up there. I complain about his roof.",
@@ -563,7 +804,6 @@
       }
     ]
   },
-
   "wendel_root": {
     "speaker": "Old Wendel",
     "text": "Quiet on the jetty. The fish can hear you think.",
@@ -585,11 +825,34 @@
       },
       {
         "text": "Any fish?",
-        "next": "wendel_fish"
+        "next": "wendel_fish",
+        "if": {
+          "skill": "Fishing",
+          "level": 20,
+          "not": true
+        }
       },
       {
         "text": "What happened to the ferry?",
         "next": "wendel_ferry"
+      },
+      {
+        "text": "Pike, for your supper.",
+        "next": "wendel_daily_pike",
+        "if": {
+          "quest": "q_daily_pike",
+          "state": "active",
+          "has_item": "raw_pike",
+          "qty": 3
+        }
+      },
+      {
+        "text": "The pond is biting for me.",
+        "next": "wendel_fish_later",
+        "if": {
+          "skill": "Fishing",
+          "level": 20
+        }
       },
       {
         "text": "I will leave you to it.",
@@ -597,7 +860,6 @@
       }
     ]
   },
-
   "wendel_remedy": {
     "speaker": "Old Wendel",
     "text": "Two spoons, she says. Every time, two spoons.\n\nTell her it tastes of ditch. She likes to hear it.",
@@ -608,7 +870,6 @@
       }
     ]
   },
-
   "wendel_fish": {
     "speaker": "Old Wendel",
     "text": "There are fish. Whether they are for catching is a question the pond has not answered in forty years.",
@@ -619,7 +880,6 @@
       }
     ]
   },
-
   "wendel_ferry": {
     "speaker": "Old Wendel",
     "text": "There was a ford south of here, before the stream moved. I ran the ferry. Now I run the jetty, which is the ferry without the going anywhere.",
@@ -630,7 +890,6 @@
       }
     ]
   },
-
   "hesper_root": {
     "speaker": "Hesper",
     "text": "Wipe your boots. Wendel never does, and I have given up on him, but not on visitors.",
@@ -638,11 +897,53 @@
       {
         "text": "May I rest a while?",
         "next": "hesper_rest",
-        "action": { "heal": true }
+        "action": {
+          "heal": true
+        }
       },
       {
         "text": "What are the lights on the pond?",
-        "next": "hesper_lights"
+        "next": "hesper_lights",
+        "if": {
+          "no_flag": "visited:dreamworld"
+        }
+      },
+      {
+        "text": "I have been where the lights come from.",
+        "next": "hesper_dreamed",
+        "if": {
+          "flag": "visited:dreamworld",
+          "quest": "q_lights_on_the_pond",
+          "state": "locked"
+        }
+      },
+      {
+        "text": "The lights are brighter every night.",
+        "next": "hesper_brute_offer",
+        "if": {
+          "quest": "q_lights_on_the_pond",
+          "state": "available"
+        }
+      },
+      {
+        "text": "About the thing in the dream.",
+        "next": "hesper_brute_waiting",
+        "if": {
+          "quest": "q_lights_on_the_pond",
+          "state": "active",
+          "stage": 0
+        }
+      },
+      {
+        "text": "It is dead. Here are the shards.",
+        "next": "hesper_brute_done",
+        "if": {
+          "quest": "q_lights_on_the_pond",
+          "state": "active",
+          "stage": 1,
+          "has_item": "dream_shard",
+          "qty": 6
+        }
       },
       {
         "text": "Goodbye.",
@@ -650,13 +951,16 @@
       }
     ]
   },
-
   "hesper_rest": {
     "speaker": "Hesper",
     "text": "The kettle is on. Leave your boots by the door and take the chair by the hearth.\n\nFor a little while, there is only the fire and rain against the shutters.",
-    "options": [{ "text": "I feel ready for the road again.", "next": "end" }]
+    "options": [
+      {
+        "text": "I feel ready for the road again.",
+        "next": "end"
+      }
+    ]
   },
-
   "hesper_lights": {
     "speaker": "Hesper",
     "text": "You have seen them too, then. Mira says the water remembers. Wendel says it is marsh gas. I say both of them should come in before dark.",
@@ -667,7 +971,6 @@
       }
     ]
   },
-
   "mira_root": {
     "speaker": "Mira of the Shrine",
     "text": "Speak softly by the stones. Not for their sake. For mine.",
@@ -676,17 +979,22 @@
         "text": "Here are the two haunches.",
         "next": "mira_done",
         "if": {
-          "quest": "q_old_offering", "state": "active",
-          "has_item": "raw_boar", "qty": 2
+          "quest": "q_old_offering",
+          "state": "active",
+          "has_item": "raw_boar",
+          "qty": 2
         },
-        "action": { "take": "raw_boar", "take_qty": 2 }
+        "action": {
+          "take": "raw_boar",
+          "take_qty": 2
+        }
       },
       {
         "text": "Does the shrine need anything?",
         "next": "mira_offer",
         "if": {
           "quest": "q_old_offering",
-          "state": "not_started"
+          "state": "available"
         }
       },
       {
@@ -702,12 +1010,59 @@
         "next": "mira_about"
       },
       {
+        "text": "What are the lights on the pond?",
+        "next": "mira_dream_offer",
+        "if": {
+          "quest": "q_the_water_remembers",
+          "state": "available"
+        }
+      },
+      {
+        "text": "About the voice in the dream.",
+        "next": "mira_dream_waiting",
+        "if": {
+          "quest": "q_the_water_remembers",
+          "state": "active",
+          "stage": 0
+        }
+      },
+      {
+        "text": "I found the voice in the dream.",
+        "next": "mira_dream_waiting",
+        "if": {
+          "quest": "q_the_water_remembers",
+          "state": "active",
+          "stage": 1
+        }
+      },
+      {
+        "text": "I heard the voice. It said the dream lasts as long as the night.",
+        "next": "mira_dream_done",
+        "if": {
+          "quest": "q_the_water_remembers",
+          "state": "active",
+          "stage": 2
+        },
+        "action": {
+          "advance": "npc_mira"
+        }
+      },
+      {
+        "text": "Shards from the dream, for the shrine.",
+        "next": "mira_daily_shards",
+        "if": {
+          "quest": "q_daily_shrine_shards",
+          "state": "active",
+          "has_item": "dream_shard",
+          "qty": 8
+        }
+      },
+      {
         "text": "Farewell.",
         "next": "end"
       }
     ]
   },
-
   "mira_offer": {
     "speaker": "Mira of the Shrine",
     "text": "An offering. The hunters used to leave the first of the season here, before they stopped coming north. Two boar haunches, and the pond will stop sulking.\n\nThe boar are along the Whisperwood.",
@@ -725,7 +1080,6 @@
       }
     ]
   },
-
   "mira_accept": {
     "speaker": "Mira of the Shrine",
     "text": "Raw, mind. The water does not care for cooking.",
@@ -736,7 +1090,6 @@
       }
     ]
   },
-
   "mira_waiting": {
     "speaker": "Mira of the Shrine",
     "text": "Two haunches. The boar are thickest where the trail runs under the trees.",
@@ -747,13 +1100,16 @@
       }
     ]
   },
-
   "mira_done": {
     "speaker": "Mira of the Shrine",
     "text": "Mira lays the offering on the worn stone. For a moment the pond is perfectly still.\n\nThat will do. Whatever it remembers, it knows we have not forgotten.",
-    "options": [{ "text": "I will leave you to it.", "next": "end" }]
+    "options": [
+      {
+        "text": "I will leave you to it.",
+        "next": "end"
+      }
+    ]
   },
-
   "mira_about": {
     "speaker": "Mira of the Shrine",
     "text": "It was here before the hamlet, and before the trail. The old words on it say the water remembers. Remembers what, nobody wrote down, which I have always thought was either careless or wise.",
@@ -764,7 +1120,6 @@
       }
     ]
   },
-
   "hadley_root": {
     "speaker": "Reeve Hadley",
     "text": "Reeve Hadley. If you are here about the tanner's debts, I am not in. If you are here about work, the notices are by the well.",
@@ -778,12 +1133,21 @@
         "next": "hadley_wood"
       },
       {
+        "text": "Hides for the tannery.",
+        "next": "hadley_daily_hides",
+        "if": {
+          "quest": "q_daily_hides",
+          "state": "active",
+          "has_item": "hide",
+          "qty": 4
+        }
+      },
+      {
         "text": "I will look at the notices.",
         "next": "end"
       }
     ]
   },
-
   "hadley_mossvale": {
     "speaker": "Reeve Hadley",
     "text": "Timber and hides, and a lodge older than anyone's grandfather. We sell oak to Havenbrook and buy back everything else at twice the price, which Pell will tell you is the natural order of things.",
@@ -794,7 +1158,6 @@
       }
     ]
   },
-
   "hadley_wood": {
     "speaker": "Reeve Hadley",
     "text": "The animals are wrong this year. Foxes hunting in packs, boar out on the trail in daylight. Sela thinks something is driving them. Bram thinks it is the weather. I would like it to stop before the timber does.",
@@ -805,7 +1168,6 @@
       }
     ]
   },
-
   "sela_root": {
     "speaker": "Warden Sela",
     "text": "Warden Sela. You came up the trail? Then you already know more about it than the reeve does.",
@@ -820,7 +1182,6 @@
       }
     ]
   },
-
   "sela_warn": {
     "speaker": "Warden Sela",
     "text": "Foxes in threes now, where there used to be one. They go for the legs. Keep your back to a tree and make them come to you.",
@@ -831,7 +1192,6 @@
       }
     ]
   },
-
   "pell_root": {
     "speaker": "Pell the Trader",
     "text": "Pell. Buyer, seller, and very occasional liar. The carts from Havenbrook have stopped, so the stall is half what it should be.",
@@ -841,12 +1201,21 @@
         "next": "pell_carts"
       },
       {
+        "text": "Oak, for your buyer.",
+        "next": "pell_daily_oak",
+        "if": {
+          "quest": "q_daily_oak",
+          "state": "active",
+          "has_item": "oak_logs",
+          "qty": 5
+        }
+      },
+      {
         "text": "Farewell.",
         "next": "end"
       }
     ]
   },
-
   "pell_carts": {
     "speaker": "Pell the Trader",
     "text": "Orcs on the Sunken Road, is what I hear. Nobody wants to haul cloth past that for Mossvale prices. If you are going back that way, tell them we still pay in oak.",
@@ -857,7 +1226,6 @@
       }
     ]
   },
-
   "tamsin_root": {
     "speaker": "Tamsin",
     "text": "Tamsin. I trap for the lodge. Or I did, until the foxes started taking the traps as well as what was in them.",
@@ -872,7 +1240,6 @@
       }
     ]
   },
-
   "tamsin_traps": {
     "speaker": "Tamsin",
     "text": "Chewed through the chains. Foxes do not chew through chains. Something is wrong in the wood this year, and I am not the only one who thinks so.",
@@ -880,6 +1247,253 @@
       {
         "text": "I believe you.",
         "next": "end"
+      }
+    ]
+  },
+  "maren_not_yet": {
+    "speaker": "Elder Maren",
+    "text": "Not yet. What I have for you next would get you killed as you are.\n\nKeep your head down, keep your sword arm busy, and come back to me when the road stops frightening you.",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "oona_return": {
+    "speaker": "Oona the Herbalist",
+    "text": "He took it? And did he say thank you, or did he say it tasted of ditch? The second one is how I know it is working.",
+    "options": [
+      {
+        "text": "It tasted of ditch.",
+        "next": "end"
+      }
+    ]
+  },
+  "smith_orders": {
+    "speaker": "Smith Halda",
+    "text": "Orders. Every morning, on the board outside. Some days it is copper, some days it is nothing, and some days somebody else has already brought it.",
+    "options": [
+      {
+        "text": "I will check the board.",
+        "next": "end"
+      }
+    ]
+  },
+  "smith_daily_ore": {
+    "speaker": "Smith Halda",
+    "text": "Eight. Good weight to it, too. The order is filled.",
+    "options": [
+      {
+        "text": "Glad to help.",
+        "next": "end",
+        "action": {
+          "take": "copper_ore",
+          "take_qty": 8
+        }
+      }
+    ]
+  },
+  "cook_daily_logs": {
+    "speaker": "Innkeeper Bess",
+    "text": "Stack them by the door. No, the other door. That one.",
+    "options": [
+      {
+        "text": "Done.",
+        "next": "end",
+        "action": {
+          "take": "logs",
+          "take_qty": 10
+        }
+      }
+    ]
+  },
+  "cook_daily_fish": {
+    "speaker": "Innkeeper Bess",
+    "text": "Minnows! Flour, salt, hot fat. You are staying for some, whether you like it or not.",
+    "options": [
+      {
+        "text": "I would like it.",
+        "next": "end",
+        "action": {
+          "take": "raw_minnow",
+          "take_qty": 5
+        }
+      }
+    ]
+  },
+  "hadley_daily_hides": {
+    "speaker": "Reeve Hadley",
+    "text": "Four. That is four fewer debts on the tanner's slate, which is four fewer conversations I have to have.",
+    "options": [
+      {
+        "text": "Glad to help.",
+        "next": "end",
+        "action": {
+          "take": "hide",
+          "take_qty": 4
+        }
+      }
+    ]
+  },
+  "pell_daily_oak": {
+    "speaker": "Pell the Trader",
+    "text": "Seasoned, too. My buyer will not ask where it came from, and I will not tell him it came from you.",
+    "options": [
+      {
+        "text": "Pleasure doing business.",
+        "next": "end",
+        "action": {
+          "take": "oak_logs",
+          "take_qty": 5
+        }
+      }
+    ]
+  },
+  "wendel_daily_pike": {
+    "speaker": "Old Wendel",
+    "text": "Out of my pond? Forty years. Forty years, and it gives them to a stranger.",
+    "options": [
+      {
+        "text": "Enjoy them.",
+        "next": "end",
+        "action": {
+          "take": "raw_pike",
+          "take_qty": 3
+        }
+      }
+    ]
+  },
+  "wendel_fish_later": {
+    "speaker": "Old Wendel",
+    "text": "Is it. Is it now. Well, do not tell it I said so, but you have the hands for it.",
+    "options": [
+      {
+        "text": "I will not tell it.",
+        "next": "end"
+      }
+    ]
+  },
+  "mira_dream_offer": {
+    "speaker": "Mira of the Shrine",
+    "text": "Not lights. Windows. The water remembers, and what it remembers is a place you can only walk into asleep.\n\nLie down after dark -- a bed, a camp, anywhere under a roof or the sky -- and you will go there. Something there has been trying to speak. Find it, and come back and tell me what it said.",
+    "options": [
+      {
+        "text": "I will dream, then.",
+        "next": "mira_dream_accept",
+        "action": {
+          "start_quest": "q_the_water_remembers"
+        }
+      },
+      {
+        "text": "That sounds unwise.",
+        "next": "end"
+      }
+    ]
+  },
+  "mira_dream_accept": {
+    "speaker": "Mira of the Shrine",
+    "text": "It is. Do it anyway. And if you die there, you only wake up -- but it takes the rest of your night.",
+    "options": [
+      {
+        "text": "Noted.",
+        "next": "end"
+      }
+    ]
+  },
+  "mira_dream_waiting": {
+    "speaker": "Mira of the Shrine",
+    "text": "Sleep after dusk. Look for the voice where you arrive. It will not come looking for you.",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "mira_dream_done": {
+    "speaker": "Mira of the Shrine",
+    "text": "As long as the night. And that nothing there can kill you, only wake you.\n\nThat is a kind thing for a voice to say. I do not trust kind things that live in the water.",
+    "options": [
+      {
+        "text": "Neither do I.",
+        "next": "end"
+      }
+    ]
+  },
+  "mira_daily_shards": {
+    "speaker": "Mira of the Shrine",
+    "text": "Warm, still. Lay them in the water, one at a time. Slowly.",
+    "options": [
+      {
+        "text": "Slowly.",
+        "next": "end",
+        "action": {
+          "take": "dream_shard",
+          "take_qty": 8
+        }
+      }
+    ]
+  },
+  "hesper_dreamed": {
+    "speaker": "Hesper",
+    "text": "Then you know more than Mira and less than you think.\n\nCome and see me when you have been back a few times. I have something to ask, and I would rather ask someone who knows the way.",
+    "options": [
+      {
+        "text": "I will come back.",
+        "next": "end"
+      }
+    ]
+  },
+  "hesper_brute_offer": {
+    "speaker": "Hesper",
+    "text": "Brighter, and closer together. Like something is pulling them in.\n\nMira will tell you it is the water remembering. I will tell you that I have lived by water all my life and water does not pull. Something in that dream is big, and it is holding the rest of it together. Put it down, and bring me proof I can hang over the door.",
+    "options": [
+      {
+        "text": "I will find it.",
+        "next": "hesper_brute_accept",
+        "action": {
+          "start_quest": "q_lights_on_the_pond"
+        }
+      },
+      {
+        "text": "Not yet.",
+        "next": "end"
+      }
+    ]
+  },
+  "hesper_brute_accept": {
+    "speaker": "Hesper",
+    "text": "South, Wendel says, from where you arrive. Wendel has never been. Wendel talks in his sleep.",
+    "options": [
+      {
+        "text": "South, then.",
+        "next": "end"
+      }
+    ]
+  },
+  "hesper_brute_waiting": {
+    "speaker": "Hesper",
+    "text": "The lights were bright again last night. It is still there.",
+    "options": [
+      {
+        "text": "Not for long.",
+        "next": "end"
+      }
+    ]
+  },
+  "hesper_brute_done": {
+    "speaker": "Hesper",
+    "text": "Warm. They are warm. Give them here -- and sit down, you look like you walked all night, which I suppose you did.",
+    "options": [
+      {
+        "text": "Thank you.",
+        "next": "end",
+        "action": {
+          "take": "dream_shard",
+          "take_qty": 6,
+          "heal": true
+        }
       }
     ]
   }

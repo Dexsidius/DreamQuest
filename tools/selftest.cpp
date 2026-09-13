@@ -380,6 +380,8 @@ int main(int argc, char** argv) {
             if (!o.skill.empty())
                 Check(SkillFromName(o.skill) >= 0,
                       string(id) + " node " + o.id + " unknown skill '" + o.skill + "'");
+            // A board also posts every quest that names it as giver: the dailies.
+            if (o.type == "board") quest_givers.insert(o.id);
             for (const auto& q : o.quests) {
                 Check(quests.Definition(q) != nullptr,
                       string(id) + " board offers unknown quest '" + q + "'");
@@ -2547,6 +2549,324 @@ int main(int argc, char** argv) {
         input.Update(dt);
     }
 
+    // --- quests and dialogue: nothing early, dailies, and the dream --------------------------------
+    Section("quests and dialogue open when they should");
+    {
+        // Every NPC's opening node, from the maps.
+        std::map<string, string> npc_root;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const auto& n : m.Npcs()) if (!n.dialogue.empty()) npc_root[n.id] = n.dialogue;
+        }
+        // Nodes reachable from each NPC's root.
+        std::map<string, std::set<string>> reach;
+        {
+            std::ifstream in("data/dialogue.json");
+            json root;
+            in >> root;
+            for (const auto& kv : npc_root) {
+                std::set<string>& seen = reach[kv.first];
+                vector<string> todo = {kv.second};
+                while (!todo.empty()) {
+                    const string nid = todo.back();
+                    todo.pop_back();
+                    if (nid.empty() || nid == "end" || seen.count(nid) || !root.contains(nid)) continue;
+                    seen.insert(nid);
+                    for (const auto& o : root[nid].value("options", json::array()))
+                        todo.push_back(o.value("next", string("end")));
+                }
+            }
+        }
+        const auto node_owner_has = [&](const string& npc, const string& node) {
+            return reach.count(npc) && reach[npc].count(node);
+        };
+
+        // 1. An offer is only reachable through a line that asks whether the
+        //    quest can be taken right now, not merely whether it has been.
+        {
+            std::ifstream in("data/dialogue.json");
+            json root;
+            in >> root;
+            int offers = 0;
+            for (auto it = root.begin(); it != root.end(); ++it)
+                for (const auto& o : it.value().value("options", json::array())) {
+                    const string next = o.value("next", string(""));
+                    if (!root.contains(next)) continue;
+                    for (const auto& inner : root[next].value("options", json::array())) {
+                        if (!inner.contains("action") || !inner["action"].contains("start_quest")) continue;
+                        const string quest = inner["action"]["start_quest"].get<string>();
+                        ++offers;
+                        const bool gated = o.contains("if") && o["if"].value("quest", string("")) == quest &&
+                                           o["if"].value("state", string("")) == "available";
+                        Check(gated, it.key() + " -> " + next + " offers " + quest +
+                                     " only when it can be taken");
+                    }
+                }
+            Check(offers >= 8, "the dialogue offers quests (" + std::to_string(offers) + ")");
+        }
+
+        // 2. Every talk stage is finished by a line, and every delivery by a line
+        //    that takes the goods -- in that NPC's own conversation, only while
+        //    the quest is at that stage.
+        {
+            std::ifstream in("data/dialogue.json");
+            json root;
+            in >> root;
+            for (const auto& kv : quests.Definitions()) {
+                const QuestDef& q = kv.second;
+                for (size_t si = 0; si < q.stages.size(); ++si) {
+                    const QuestStage& st = q.stages[si];
+                    if (st.type != ObjectiveType::Talk && st.type != ObjectiveType::Deliver) continue;
+                    const string npc = st.type == ObjectiveType::Talk ? st.target : st.deliver_to;
+                    bool found = false;
+                    for (auto it = root.begin(); it != root.end() && !found; ++it) {
+                        if (!node_owner_has(npc, it.key())) continue;
+                        for (const auto& o : it.value().value("options", json::array())) {
+                            // The action sits on this option or on the one line of the node it opens.
+                            vector<json> actions;
+                            if (o.contains("action")) actions.push_back(o["action"]);
+                            const string next = o.value("next", string(""));
+                            if (root.contains(next))
+                                for (const auto& inner : root[next].value("options", json::array()))
+                                    if (inner.contains("action")) actions.push_back(inner["action"]);
+                            bool does = false;
+                            for (const json& a : actions) {
+                                if (st.type == ObjectiveType::Talk && a.value("advance", string("")) == npc) does = true;
+                                if (st.type == ObjectiveType::Deliver && a.value("take", string("")) == st.target &&
+                                    a.value("take_qty", 1) >= st.count) does = true;
+                            }
+                            if (!does || !o.contains("if")) continue;
+                            const json& c = o["if"];
+                            const bool staged = c.value("quest", string("")) == q.id &&
+                                                c.value("state", string("")) == "active" &&
+                                                (q.stages.size() == 1 || c.value("stage", -1) == static_cast<int>(si) ||
+                                                 st.type == ObjectiveType::Deliver);
+                            const bool holds = st.type != ObjectiveType::Deliver ||
+                                               (c.value("has_item", string("")) == st.target && c.value("qty", 1) >= st.count);
+                            if (staged && holds) found = true;
+                        }
+                    }
+                    Check(found, q.id + " stage " + std::to_string(si + 1) + " is finished by a line in " +
+                                 npc + "'s conversation, only while it is that stage");
+                }
+            }
+        }
+
+        // 3. The first thing anyone says respects the player's progress.
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            const auto shown = [&](const string& root_node) {
+                DialogueRunner r;
+                r.Begin(&dialogue, root_node, "npc", "Someone", dc);
+                std::set<string> out;
+                for (const DialogueOption* o : r.VisibleOptions()) out.insert(o->next);
+                return out;
+            };
+            auto maren = shown("maren_root");
+            Check(maren.count("maren_letter_offer") && !maren.count("maren_road_offer") &&
+                  !maren.count("maren_depths_offer") && !maren.count("maren_letter_done") &&
+                  !maren.count("maren_not_yet"),
+                  "a new character is offered Maren's letter and nothing further, from her first line");
+            log.Start("q_marens_letter");
+            QuestEvent talk;
+            talk.type = ObjectiveType::Talk;
+            talk.target = "npc_guildmaster";
+            log.Notify(talk, inv);
+            maren = shown("maren_root");
+            Check(maren.count("maren_letter_done") && !maren.count("maren_letter_offer"),
+                  "with the letter delivered, Maren's hand-in line is there and her offer is gone");
+            talk.target = "npc_maren";
+            log.Notify(talk, inv);
+            maren = shown("maren_root");
+            Check(maren.count("maren_not_yet") && !maren.count("maren_road_offer"),
+                  "too weak for the Sunken Road, Maren says to come back later instead of offering it");
+            LevelUp up;
+            for (int skill : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE}) sk.AddXp(skill, XpForLevel(8), up);
+            sk.AddXp(SKILL_HITPOINTS, XpForLevel(14), up);
+            maren = shown("maren_root");
+            Check(maren.count("maren_road_offer") && !maren.count("maren_depths_offer") && !maren.count("maren_not_yet"),
+                  "strong enough, she offers the Sunken Road, and still not the depths");
+
+            auto hesper = shown("hesper_root");
+            Check(hesper.count("hesper_lights") && !hesper.count("hesper_dreamed") && !hesper.count("hesper_brute_offer"),
+                  "Hesper wonders about the lights until the player has dreamed");
+            flags.insert("visited:dreamworld");
+            hesper = shown("hesper_root");
+            Check(!hesper.count("hesper_lights") && hesper.count("hesper_dreamed"),
+                  "and once they have, she talks about where the lights come from");
+            auto smith = shown("smith_root");
+            Check(smith.count("smith_needs") && !smith.count("smith_orders"), "Halda asks for copper before the forge is lit");
+            auto wendel = shown("wendel_root");
+            Check(wendel.count("wendel_fish") && !wendel.count("wendel_fish_later"),
+                  "Wendel does not credit a beginner's fishing");
+        }
+
+        // 4. Dailies: posted a few at a time, the same all day, reset at dawn.
+        {
+            WorldClock c;
+            c.Set(3, 4.9f);
+            const int before_dawn = c.QuestDay();
+            c.Set(3, 5.0f);
+            Check(before_dawn == 2 && c.QuestDay() == 3, "the quest day turns over at dawn, not midnight");
+
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            std::map<string, int> pool_size;
+            for (const auto& kv : log.Definitions()) {
+                if (!kv.second.daily) continue;
+                ++pool_size[kv.second.pool];
+                bool gathers = false;
+                for (const QuestStage& st2 : kv.second.stages) if (st2.type == ObjectiveType::Collect) gathers = true;
+                Check(!gathers, kv.first + " is spent, not merely held: a daily cannot be a collect quest");
+            }
+            Check(pool_size["havenbrook"] >= 4 && pool_size["mossvale"] >= 3 && pool_size["reverie"] >= 3,
+                  "Havenbrook, Mossvale and the dream each have a pool of dailies");
+            for (const auto& pool : pool_size) {
+                std::set<string> ever;
+                bool steady = true, sized = true;
+                for (int day = 1; day <= 21; ++day) {
+                    log.SetDay(day);
+                    const auto today = log.PoolToday(pool.first);
+                    if (today != log.PoolToday(pool.first)) steady = false;
+                    if (static_cast<int>(today.size()) != std::min(pool.second, QuestLog::DAILY_PER_POOL)) sized = false;
+                    ever.insert(today.begin(), today.end());
+                }
+                Check(steady && sized, pool.first + " posts " + std::to_string(QuestLog::DAILY_PER_POOL) +
+                                       " dailies a day, the same ones all day");
+                Check(static_cast<int>(ever.size()) == pool.second, "and over three weeks every one of them comes up");
+            }
+
+            Skills sk;
+            Inventory inv(&items);
+            int day = 1;
+            const auto posted = [&](const string& id) {
+                log.SetDay(day);
+                const auto t = log.PoolToday("havenbrook");
+                return std::find(t.begin(), t.end(), id) != t.end();
+            };
+            while (!posted("q_daily_boar") && day < 60) ++day;
+            Check(log.CanStart("q_daily_boar", sk), "a posted daily can be taken");
+            log.Start("q_daily_boar");
+            QuestEvent kill;
+            kill.type = ObjectiveType::Kill;
+            kill.target = "boar";
+            kill.map_id = "overworld";
+            kill.amount = 5;
+            log.Notify(kill, inv);
+            Check(log.IsComplete("q_daily_boar") && log.Completions("q_daily_boar") == 1, "and done");
+            Check(!log.CanStart("q_daily_boar", sk), "not twice in one day");
+            const int done_on = day;
+            ++day;
+            while (!posted("q_daily_boar") && day < 90) ++day;
+            Check(day > done_on && log.CanStart("q_daily_boar", sk), "but again on a later day it is posted");
+            log.Start("q_daily_boar");
+            Check(log.IsActive("q_daily_boar") && log.Counter("q_daily_boar") == 0, "starting fresh");
+            log.Notify(kill, inv);
+            Check(log.Completions("q_daily_boar") == 2, "and counting how often it has been done");
+            ++day;
+            while (posted("q_daily_boar") && day < 120) ++day;
+            Check(!log.CanStart("q_daily_boar", sk), "on a day it is not posted, it cannot be taken");
+
+            QuestLog back;
+            back.LoadDefinitions("data/quests.json");
+            back.FromJson(log.ToJson());
+            back.SetDay(done_on);
+            Check(back.Completions("q_daily_boar") == 2 && !back.CanStart("q_daily_boar", sk),
+                  "when a daily was last done survives a save");
+        }
+
+        // 5. The dream quests, through the world.
+        {
+            Input input;
+            std::mt19937 rng(77);
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            GameContext ctx;
+            ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+            ctx.quests = &log;        ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+            ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+            ctx.input = &input;       ctx.rng = &rng;
+            Skills sk;
+            Check(!log.CanStart("q_the_water_remembers", sk), "the dream quest waits on Mira's offering");
+            Inventory inv(&items);
+            log.Start("q_old_offering");
+            QuestEvent give;
+            give.type = ObjectiveType::Deliver;
+            give.target = "raw_boar";
+            give.secondary = "npc_mira";
+            give.amount = 2;
+            log.Notify(give, inv);
+            Check(log.CanStart("q_the_water_remembers", sk), "and opens once the offering is made");
+            log.Start("q_the_water_remembers");
+
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(1, 22.0f);   // a dream in daylight wakes straight up
+            Check(w.LoadMap("dreamworld", "arrival", ctx) && log.Stage("q_the_water_remembers") == 1,
+                  "arriving in the dream counts");
+            Check(w.Flagged("visited:dreamworld"), "and is remembered");
+            const MapObject* voice = nullptr;
+            for (const MapObject& o : w.CurrentMap().Objects()) if (o.id == "dream_voice") voice = &o;
+            if (voice) {
+                w.player.x = voice->x;
+                w.player.y = voice->y + 18.0f;
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+                w.TryInteract(ctx);
+            }
+            Check(voice && log.Stage("q_the_water_remembers") == 2, "reading the voice in the dream counts");
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &w.player.inventory; dc.skills = &w.player.skills;
+            dc.flags = &w.Flags();
+            DialogueRunner mira;
+            mira.Begin(&dialogue, "mira_root", "npc_mira", "Mira", dc);
+            bool hand_in = false;
+            for (const DialogueOption* o : mira.VisibleOptions())
+                if (o->next == "mira_dream_done") hand_in = true;
+            Check(hand_in, "and waking to tell Mira is a line she offers");
+
+            QuestEvent brute;
+            brute.type = ObjectiveType::Kill;
+            brute.target = "nightmare_brute";
+            brute.map_id = "dreamworld";
+            QuestEvent tell;
+            tell.type = ObjectiveType::Talk;
+            tell.target = "npc_mira";
+            log.Notify(tell, inv);
+            Check(log.IsComplete("q_the_water_remembers"), "telling her completes it");
+            LevelUp up;
+            for (int skill : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE}) sk.AddXp(skill, XpForLevel(20), up);
+            sk.AddXp(SKILL_HITPOINTS, XpForLevel(22), up);
+            Check(log.CanStart("q_lights_on_the_pond", sk), "Hesper's hunt opens after it, for a fighter of 18");
+            log.Start("q_lights_on_the_pond");
+            brute.map_id = "overworld";
+            log.Notify(brute, inv);
+            Check(log.Stage("q_lights_on_the_pond") == 0, "the brute only counts in the dream");
+            brute.map_id = "dreamworld";
+            log.Notify(brute, inv);
+            Check(log.Stage("q_lights_on_the_pond") == 1, "the Nightmare Brute put down in the dream counts");
+            give.target = "dream_shard";
+            give.secondary = "npc_hesper";
+            give.amount = 6;
+            log.Notify(give, inv);
+            Check(log.IsComplete("q_lights_on_the_pond"), "and the shards carried back to Hesper finish it");
+            log.SetDay(1);
+            int posted = 0;
+            for (int day = 1; day <= 10; ++day) {
+                log.SetDay(day);
+                for (const string& id : log.PoolToday("reverie")) posted += log.CanStart(id, sk);
+            }
+            Check(posted > 0, "and the Dreamer's Slate posts its dailies to someone who has dreamed");
+        }
+    }
+
     // --- day, night and dreams ----------------------------------------------------------
     Section("day, night and dreams");
     {
@@ -3025,7 +3345,7 @@ int main(int argc, char** argv) {
         bool oona_thanks = false;
         for (const auto& option : dialogue.Get("oona_root")->options)
             if (option.next == "oona_done" && EvaluateCondition(option.condition, dc)) oona_thanks = true;
-        Check(oona_thanks, "Oona's closing conversation remains available after the automatic talk event");
+        Check(oona_thanks, "Oona's closing conversation remains available once the errand is done");
 
         log.Start("q_old_offering");
         inv.Add("raw_boar", 2);

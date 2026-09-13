@@ -12,16 +12,29 @@
 
 struct DialogueCondition {
     string quest;                 // quest id to test
-    string quest_state;           // "not_started" | "active" | "complete"
+    // "not_started" | "active" | "complete", or "available": the quest can be
+    // taken right now -- its prerequisites done, its levels met, and for a
+    // daily, posted today and not already done today. Offers use "available",
+    // so nobody offers work the player is not ready for. "locked" is the
+    // opposite: not taken, and not yet possible to take -- for "come back
+    // when you are ready".
+    string quest_state;
     int    quest_stage = -1;      // when >= 0, the active stage must match
     string has_item;
     int    has_qty = 1;
     string skill;                 // skill name
     int    skill_level = 0;
+    // Prerequisites for a line, however it is otherwise gated.
+    vector<string> after;         // quests that must be complete
+    string flag;                  // a world flag that must be set, e.g. "visited:dreamworld"
+    string no_flag;               // one that must not be
+    int    combat = 0;            // combat level at least this
+    string time;                  // "day" or "night"
     bool   invert = false;
 
     bool Empty() const {
-        return quest.empty() && has_item.empty() && skill.empty();
+        return quest.empty() && has_item.empty() && skill.empty() && after.empty() &&
+               flag.empty() && no_flag.empty() && combat <= 0 && time.empty();
     }
 };
 
@@ -72,6 +85,8 @@ struct DialogueContext {
     const QuestLog*  quests = nullptr;
     const class Inventory* inventory = nullptr;
     const class Skills*    skills = nullptr;
+    const std::set<string>* flags = nullptr;
+    bool night = false;
 };
 
 bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx);
@@ -80,8 +95,10 @@ bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx);
 // actions fired.
 class DialogueRunner {
 public:
+    // The context is needed from the very first node: without it every
+    // quest-gated option on an NPC's opening line used to show at once.
     void Begin(const DialogueDatabase* db, const string& node_id,
-               const string& npc_id, const string& npc_name);
+               const string& npc_id, const string& npc_name, const DialogueContext& ctx);
     void End() { active = false; }
     bool Active() const { return active; }
 

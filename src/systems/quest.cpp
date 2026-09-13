@@ -46,9 +46,12 @@ bool QuestLog::LoadDefinitions(const string& path) {
 
         if (o.contains("req"))
             for (auto r = o["req"].begin(); r != o["req"].end(); ++r) {
+                if (r.key() == "Combat") { d.combat_level = r.value().get<int>(); continue; }
                 const int s = SkillFromName(r.key());
                 if (s >= 0) d.requirements[s] = r.value().get<int>();
             }
+        d.daily = o.value("repeat", string("")) == "daily";
+        d.pool  = o.value("pool", d.giver);
 
         if (o.contains("prereq"))
             for (const auto& p : o["prereq"]) d.prerequisites.push_back(p.get<string>());
@@ -106,10 +109,51 @@ int QuestLog::Counter(const string& id) const {
     return it == progress.end() ? 0 : it->second.counter;
 }
 
+vector<string> QuestLog::PoolToday(const string& pool) const {
+    vector<string> members;
+    for (const auto& kv : defs)
+        if (kv.second.daily && kv.second.pool == pool) members.push_back(kv.first);
+    std::sort(members.begin(), members.end());
+    if (static_cast<int>(members.size()) <= DAILY_PER_POOL) return members;
+
+    // Shuffle the pool with the day and the pool's name as the seed, and post
+    // the first few: stable all day, different tomorrow.
+    unsigned seed = 2166136261u;
+    for (char c : pool) seed = (seed ^ static_cast<unsigned char>(c)) * 16777619u;
+    seed ^= static_cast<unsigned>(today) * 2654435761u;
+    std::mt19937 rng(seed);
+    std::shuffle(members.begin(), members.end(), rng);
+    members.resize(DAILY_PER_POOL);
+    std::sort(members.begin(), members.end());
+    return members;
+}
+
+bool QuestLog::OfferedToday(const string& id) const {
+    const QuestDef* d = Definition(id);
+    if (!d || !d->daily) return true;
+    if (Status(id) == QuestStatus::Active) return true;
+    const vector<string> posted = PoolToday(d->pool);
+    return std::find(posted.begin(), posted.end(), id) != posted.end();
+}
+
+int QuestLog::Completions(const string& id) const {
+    auto it = progress.find(id);
+    return it == progress.end() ? 0 : it->second.completions;
+}
+
 bool QuestLog::CanStart(const string& id, const Skills& skills) const {
     const QuestDef* d = Definition(id);
     if (!d) return false;
-    if (Status(id) != QuestStatus::NotStarted) return false;
+    const QuestStatus st = Status(id);
+    if (d->daily) {
+        // Taken once a day at most, and only while its board is posting it.
+        if (st == QuestStatus::Active) return false;
+        if (st == QuestStatus::Complete && progress.at(id).completed_day >= today) return false;
+        if (!OfferedToday(id)) return false;
+    } else if (st != QuestStatus::NotStarted) {
+        return false;
+    }
+    if (d->combat_level > 0 && skills.CombatLevel() < d->combat_level) return false;
 
     for (const auto& p : d->prerequisites)
         if (Status(p) != QuestStatus::Complete) return false;
@@ -122,9 +166,18 @@ bool QuestLog::CanStart(const string& id, const Skills& skills) const {
 
 bool QuestLog::Start(const string& id) {
     const QuestDef* d = Definition(id);
-    if (!d || Status(id) != QuestStatus::NotStarted) return false;
+    if (!d) return false;
+    const QuestStatus st = Status(id);
+    // A finished daily can be taken again on a later day; nothing else can.
+    const bool again = d->daily && st == QuestStatus::Complete &&
+                       progress[id].completed_day < today;
+    if (st != QuestStatus::NotStarted && !again) return false;
 
     QuestProgress p;
+    if (again) {
+        p.completions = progress[id].completions;
+        p.completed_day = progress[id].completed_day;
+    }
     p.status  = QuestStatus::Active;
     p.stage   = 0;
     p.counter = 0;
@@ -163,6 +216,8 @@ void QuestLog::AdvanceStage(const string& id, const Inventory& inv) {
         p.counter = 0;
         if (p.stage >= static_cast<int>(d->stages.size())) {
             p.status = QuestStatus::Complete;
+            p.completed_day = today;
+            ++p.completions;
             just_completed.push_back(id);
             return;
         }
@@ -282,7 +337,9 @@ json QuestLog::ToJson() const {
         j[kv.first] = json{
             {"status",  static_cast<int>(kv.second.status)},
             {"stage",   kv.second.stage},
-            {"counter", kv.second.counter}};
+            {"counter", kv.second.counter},
+            {"completed_day", kv.second.completed_day},
+            {"completions", kv.second.completions}};
     }
     return j;
 }
@@ -298,6 +355,8 @@ void QuestLog::FromJson(const json& j) {
         p.status  = static_cast<QuestStatus>(it.value().value("status", 0));
         p.stage   = it.value().value("stage", 0);
         p.counter = it.value().value("counter", 0);
+        p.completed_day = it.value().value("completed_day", -1);
+        p.completions = it.value().value("completions", p.status == QuestStatus::Complete ? 1 : 0);
         progress[it.key()] = p;
     }
 }

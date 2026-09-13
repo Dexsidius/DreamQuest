@@ -32,6 +32,9 @@ public:
     void  Set(int day, float hours);
 
     int   Day() const   { return day; }
+    // The day as the quest boards count it: it turns over at dawn rather than
+    // at midnight, so a night's sleep is what brings new notices.
+    int   QuestDay() const { return hours < NIGHT_END ? day - 1 : day; }
     float Hours() const { return hours; }
 
     // 20:00 to 05:00.

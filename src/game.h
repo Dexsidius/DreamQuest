@@ -64,6 +64,8 @@ private:
 
     void HandleWorldRequests();
     void HandleDialogueActions(const vector<DialogueAction>& actions);
+    // What dialogue conditions are judged against, right now.
+    DialogueContext MakeDialogueContext() const;
     void GrantQuestRewards(const string& quest_id);
     void PushToast(const string& text, SDL_Color color = Palette::Text);
 
@@ -189,6 +191,7 @@ private:
     bool   banner_active = false;
     float playtime = 0.0f;
     float state_time = 0.0f;      // seconds since the last state change
+    int   quest_day_seen = -1;    // to say so when the boards post new dailies
     float audio_night = -1.0f;    // what the sound was last told about the dark
     float fps = 0.0f;
     float autosave_timer = 0.0f;

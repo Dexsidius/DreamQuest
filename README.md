@@ -1011,7 +1011,7 @@ rate of fire and a stave’s is its cast rate, with no extra code.
 Quests reach you three ways, all of them live:
 
 - **The mission board** in Havenbrook — four contracts, gated on level and on
-  what you have already finished.
+  what you have already finished, plus the day's two daily notices.
 - **NPC conversations** — Elder Maren runs the main chain (a letter, a missing
   surveyor, and what is gathering the orcs under Emberfell). The innkeeper,
   the smith, the watchman and the hunter have their own.
@@ -1020,9 +1020,86 @@ Quests reach you three ways, all of them live:
 - **Notes left in the world** — a water-stained note at the edge of the Mire
   starts the barrow chain, and a torn survey page on the Sunken Road advances
   Maren's.
+- **The dreamworld** — Mira at the Fernhollow shrine and Hesper the ferryman's
+  widow send you to sleep with a purpose, and the Dreamer's Slate in the
+  Reverie posts its own notices.
 
-Dialogue options are gated on quest state, inventory and skill level, so the
-same NPC says different things before, during and after a quest.
+### Prerequisites
+
+A quest can need other quests finished first, a Combat level (`"req":
+{"Combat": 12}`) and skill levels. **No one offers a quest you cannot start**:
+an offer is gated on the quest being *available* -- not started, every
+prerequisite done, every level met -- rather than merely not started, which is
+what let Maren ask about the Sunken Road before the letter had been carried.
+
+| Quest | Needs |
+| --- | --- |
+| The Sunken Road | Maren's letter, Combat 5 |
+| Orc Trouble | Thin the Herd, Combat 6 |
+| The Barrow Seal | Combat 10 (started from its note) |
+| Trail Wardens | Clear the Trail |
+| Emberfell Depths | The Sunken Road, Combat 12 |
+| The Water Remembers | The Old Offering |
+| Lights on the Pond | The Water Remembers, Combat 18 |
+
+Dialogue conditions can ask for a quest's state (`not_started`, `available`,
+`locked`, `active`, `complete`), a stage, an item, a skill or Combat level,
+quests finished (`"after": [...]`), a world flag or its absence (`"flag"`,
+`"no_flag"`), and the time of day. A condition that needs the player's state
+and is asked without it fails rather than passing, so a line never shows by
+default. Some flags are set by the world itself: `visited:<map>` the first
+time a map loads, so Hesper talks about the lights differently once you have
+seen the Reverie.
+
+When there is nothing to give yet, the NPC says so instead of going quiet:
+Maren, asked for more work between chapters, tells you to come back stronger.
+
+A Talk objective is only met by the option that advances it, and a Deliver
+objective by the option that takes the items. Opening a conversation used to
+tick every Talk stage for that NPC, so greeting Oona before fetching the herb
+finished the errand.
+
+### Daily notices
+
+Repeatable quests are posted in **pools**, one per board, and each pool puts up
+**two a day**. The day turns over **at dawn**, not midnight, so a night's sleep
+is what brings new notices, and the HUD says "New notices are up on the mission
+boards." when it happens. Which two are up is decided by the pool and the day
+alone, so it is the same after a reload. A daily can be done once per posted
+day; the journal counts how many times.
+
+| Pool | Notice | Task | Needs |
+| --- | --- | --- | --- |
+| Havenbrook | Barley Watch | 5 boar | -- |
+| Havenbrook | Road Patrol | 5 orcs | Combat 6 |
+| Havenbrook | The Forge's Order | 8 copper ore to the smith | -- |
+| Havenbrook | Fish for the Inn | 5 raw minnows to the cook | -- |
+| Havenbrook | Kindling | 10 logs to the cook | -- |
+| Mossvale | Fox Patrol | 6 foxes on the Whisperwood trail | Clear the Trail |
+| Mossvale | Tannery Stock | 4 hides to Hadley | -- |
+| Mossvale | Oak for the Lodge | 5 oak logs to Pell | Woodcutting 12 |
+| Mossvale | Wendel's Supper | 3 raw pike to Wendel | Fishing 30 |
+| The Reverie | Nightmares Undone | 8 nightmares, asleep | The Water Remembers |
+| The Reverie | Shards for the Shrine | 8 dream shards to Mira | The Water Remembers |
+| The Reverie | The Brute Returns | the nightmare brute, asleep | Lights on the Pond, Combat 18 |
+
+Dailies are never *collect* stages, which would count what is already in the
+bag: they are hunts or hand-ins, so each one is work done that day. The boards
+mark them "daily" with their level, and the detail pane says when the next
+ones go up.
+
+### Quests in the dreamworld
+
+- **The Water Remembers** (Mira): sleep, find the voice in the Reverie and
+  listen to it, and tell Mira what it said. Magic and Hitpoints XP, coins and
+  dream shards.
+- **Lights on the Pond** (Hesper): hunt the nightmare brute in the Reverie and
+  bring Hesper six dream shards. Attack and Defence XP, coins and a
+  dreamcatcher.
+
+The **Dreamer's Slate** stands on the Reverie's central island and carries the
+reverie dailies. The hunts can only be finished asleep, before the dream ends
+at dawn; the shards for Mira are gathered in the Reverie and handed in awake.
 
 ---
 
@@ -1140,13 +1217,24 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **5028 checks** covering:
+and checks all of it — currently **5253 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
 - every quest objective, prerequisite and reward resolves, and every quest has
   a giver somewhere in the world
 - the dialogue graph is fully connected
+- no NPC offers a quest that is not yet available, and every Talk and Deliver
+  stage has a hand-in option reachable from that NPC, shown only while the quest
+  is at that stage; Maren, Hesper, the smith and Wendel open with the right
+  lines for a new character and for one further on
+- the quest day turns over at dawn; dailies are never collect stages, every
+  pool posts two a day and rotates, a daily cannot be repeated the same day but
+  can on a later day it is posted, completions are counted, and all of it
+  survives a save
+- the dream quests played through the world at night: sleeping into the
+  Reverie, reading the voice, reporting to Mira, Hesper's hunt, and the reverie
+  dailies posted on the Slate
 - all seventeen maps load; portals point at real maps; every enemy, NPC and object
   resolves
 - the OSRS XP table matches known values

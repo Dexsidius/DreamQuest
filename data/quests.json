@@ -6,16 +6,28 @@
     "level": 1,
     "summary": "Boar have come down out of the greenwood and into the barley. Havenbrook wants them gone before the harvest is.",
     "stages": [
-      { "desc": "Hunt wild boar in the meadow", "type": "kill", "target": "boar", "count": 6 }
+      {
+        "desc": "Hunt wild boar in the meadow",
+        "type": "kill",
+        "target": "boar",
+        "count": 6
+      }
     ],
     "rewards": {
-      "xp": { "Strength": 320, "Hitpoints": 140 },
+      "xp": {
+        "Strength": 320,
+        "Hitpoints": 140
+      },
       "coins": 120,
-      "items": [{ "id": "cooked_meat", "qty": 4 }]
+      "items": [
+        {
+          "id": "cooked_meat",
+          "qty": 4
+        }
+      ]
     },
     "completion": "The barley is safe for another season."
   },
-
   "q_firewood": {
     "name": "Cold Hearths",
     "source": "board",
@@ -23,15 +35,22 @@
     "level": 1,
     "summary": "The inn burned through its winter store early. Bring logs and nobody has to sleep cold.",
     "stages": [
-      { "desc": "Gather logs from the meadow trees", "type": "collect", "target": "logs", "count": 12 }
+      {
+        "desc": "Gather logs from the meadow trees",
+        "type": "collect",
+        "target": "logs",
+        "count": 12
+      }
     ],
     "rewards": {
-      "xp": { "Woodcutting": 420, "Crafting": 80 },
+      "xp": {
+        "Woodcutting": 420,
+        "Crafting": 80
+      },
       "coins": 95
     },
     "completion": "The inn will be warm tonight."
   },
-
   "q_ore_for_the_forge": {
     "name": "Ore for the Forge",
     "source": "board",
@@ -39,34 +58,65 @@
     "level": 4,
     "summary": "The smith has orders she cannot fill and a cold forge to fill them with. Copper will do to start.",
     "stages": [
-      { "desc": "Mine copper ore from the foothills", "type": "collect", "target": "copper_ore", "count": 8 }
+      {
+        "desc": "Mine copper ore from the foothills",
+        "type": "collect",
+        "target": "copper_ore",
+        "count": 8
+      }
     ],
     "rewards": {
-      "xp": { "Mining": 560, "Crafting": 160 },
+      "xp": {
+        "Mining": 560,
+        "Crafting": 160
+      },
       "coins": 180,
-      "items": [{ "id": "copper_ring", "qty": 1 }]
+      "items": [
+        {
+          "id": "copper_ring",
+          "qty": 1
+        }
+      ]
     },
     "completion": "The forge is lit again."
   },
-
   "q_orc_trouble": {
     "name": "Trouble on the Road",
     "source": "board",
     "giver": "board_havenbrook",
     "level": 8,
     "summary": "Orcs have been working the Sunken Road, and the carters have stopped coming through. Make the road boring again.",
-    "prereq": ["q_thin_the_herd"],
+    "prereq": [
+      "q_thin_the_herd"
+    ],
     "stages": [
-      { "desc": "Drive the orcs off the Sunken Road", "type": "kill", "target": "orc", "count": 10 }
+      {
+        "desc": "Drive the orcs off the Sunken Road",
+        "type": "kill",
+        "target": "orc",
+        "count": 10
+      }
     ],
     "rewards": {
-      "xp": { "Attack": 900, "Strength": 700, "Defence": 500, "Hitpoints": 400 },
+      "xp": {
+        "Attack": 900,
+        "Strength": 700,
+        "Defence": 500,
+        "Hitpoints": 400
+      },
       "coins": 340,
-      "items": [{ "id": "iron_sword", "qty": 1 }]
+      "items": [
+        {
+          "id": "iron_sword",
+          "qty": 1
+        }
+      ]
     },
-    "completion": "The carters will risk the road again."
+    "completion": "The carters will risk the road again.",
+    "req": {
+      "Combat": 6
+    }
   },
-
   "q_marens_letter": {
     "name": "Maren's Letter",
     "source": "npc",
@@ -74,56 +124,120 @@
     "level": 1,
     "summary": "Elder Maren has written to the guild and will not say what about. She only asks that it reach them today.",
     "stages": [
-      { "desc": "Take Maren's letter to the guild hall", "type": "talk", "target": "npc_guildmaster" },
-      { "desc": "Return to Elder Maren", "type": "talk", "target": "npc_maren" }
+      {
+        "desc": "Take Maren's letter to the guild hall",
+        "type": "talk",
+        "target": "npc_guildmaster"
+      },
+      {
+        "desc": "Return to Elder Maren",
+        "type": "talk",
+        "target": "npc_maren"
+      }
     ],
     "rewards": {
-      "xp": { "Defence": 180, "Hitpoints": 120 },
+      "xp": {
+        "Defence": 180,
+        "Hitpoints": 120
+      },
       "coins": 60,
-      "items": [{ "id": "herbal_tonic", "qty": 2 }]
+      "items": [
+        {
+          "id": "herbal_tonic",
+          "qty": 2
+        }
+      ]
     },
     "completion": "Maren reads your face more carefully than the reply."
   },
-
   "q_the_sunken_road": {
     "name": "The Sunken Road",
     "source": "npc",
     "giver": "npc_maren",
     "level": 6,
     "summary": "A surveyor went out to the Sunken Road with a satchel of paper and came back with none of it. Maren wants to know what he saw.",
-    "prereq": ["q_marens_letter"],
+    "prereq": [
+      "q_marens_letter"
+    ],
     "stages": [
-      { "desc": "Search the Sunken Road for the surveyor's papers", "type": "collect", "target": "torn_page", "count": 1 },
-      { "desc": "Bring the page back to Elder Maren", "type": "talk", "target": "npc_maren" }
+      {
+        "desc": "Search the Sunken Road for the surveyor's papers",
+        "type": "collect",
+        "target": "torn_page",
+        "count": 1
+      },
+      {
+        "desc": "Bring the page back to Elder Maren",
+        "type": "talk",
+        "target": "npc_maren"
+      }
     ],
     "rewards": {
-      "xp": { "Attack": 400, "Defence": 400, "Hitpoints": 260 },
+      "xp": {
+        "Attack": 400,
+        "Defence": 400,
+        "Hitpoints": 260
+      },
       "coins": 210
     },
-    "completion": "Maren folds the page twice and does not put it down."
+    "completion": "Maren folds the page twice and does not put it down.",
+    "req": {
+      "Combat": 5
+    }
   },
-
   "q_emberfell_depths": {
     "name": "The Emberfell Depths",
     "source": "npc",
     "giver": "npc_maren",
     "level": 14,
     "summary": "Whatever is gathering the orcs is doing it under Emberfell. Maren has stopped calling it a rumour.",
-    "prereq": ["q_the_sunken_road"],
+    "prereq": [
+      "q_the_sunken_road"
+    ],
     "stages": [
-      { "desc": "Find the rusted key in the Emberfell mine", "type": "collect", "target": "rusted_key", "count": 1 },
-      { "desc": "Descend into the lower workings", "type": "reach", "target": "dungeon_emberfell_2" },
-      { "desc": "Put down the Orc Warchief", "type": "kill", "target": "orc_warchief", "count": 1 },
-      { "desc": "Carry the totem back to Elder Maren", "type": "talk", "target": "npc_maren" }
+      {
+        "desc": "Find the rusted key in the Emberfell mine",
+        "type": "collect",
+        "target": "rusted_key",
+        "count": 1
+      },
+      {
+        "desc": "Descend into the lower workings",
+        "type": "reach",
+        "target": "dungeon_emberfell_2"
+      },
+      {
+        "desc": "Put down the Orc Warchief",
+        "type": "kill",
+        "target": "orc_warchief",
+        "count": 1
+      },
+      {
+        "desc": "Carry the totem back to Elder Maren",
+        "type": "talk",
+        "target": "npc_maren"
+      }
     ],
     "rewards": {
-      "xp": { "Attack": 2600, "Strength": 2600, "Defence": 1800, "Hitpoints": 1400 },
+      "xp": {
+        "Attack": 2600,
+        "Strength": 2600,
+        "Defence": 1800,
+        "Hitpoints": 1400
+      },
       "coins": 1200,
-      "items": [{ "id": "ember_blade", "qty": 1 }]
+      "items": [
+        {
+          "id": "ember_blade",
+          "qty": 1
+        }
+      ]
     },
-    "completion": "Maren turns the totem over once and puts it in the fire."
+    "completion": "Maren turns the totem over once and puts it in the fire.",
+    "req": {
+      "Combat": 12
+    }
   },
-
   "q_barrow_seal": {
     "name": "What the Mire Keeps",
     "source": "note",
@@ -131,18 +245,42 @@
     "level": 10,
     "summary": "A water-stained note left at the edge of the Mire. Someone went into the barrow on purpose, and wrote down why.",
     "stages": [
-      { "desc": "Enter the barrow beneath the Mire", "type": "reach", "target": "dungeon_barrow" },
-      { "desc": "Recover the barrow seal", "type": "collect", "target": "barrow_seal", "count": 1 },
-      { "desc": "Take the seal to the guild master", "type": "talk", "target": "npc_guildmaster" }
+      {
+        "desc": "Enter the barrow beneath the Mire",
+        "type": "reach",
+        "target": "dungeon_barrow"
+      },
+      {
+        "desc": "Recover the barrow seal",
+        "type": "collect",
+        "target": "barrow_seal",
+        "count": 1
+      },
+      {
+        "desc": "Take the seal to the guild master",
+        "type": "talk",
+        "target": "npc_guildmaster"
+      }
     ],
     "rewards": {
-      "xp": { "Magic": 900, "Crafting": 400, "Hitpoints": 500 },
+      "xp": {
+        "Magic": 900,
+        "Crafting": 400,
+        "Hitpoints": 500
+      },
       "coins": 460,
-      "items": [{ "id": "bone_amulet", "qty": 1 }]
+      "items": [
+        {
+          "id": "bone_amulet",
+          "qty": 1
+        }
+      ]
     },
-    "completion": "The guild master puts the seal in a drawer he then locks."
+    "completion": "The guild master puts the seal in a drawer he then locks.",
+    "req": {
+      "Combat": 10
+    }
   },
-
   "q_a_decent_meal": {
     "name": "A Decent Meal",
     "source": "npc",
@@ -150,17 +288,33 @@
     "level": 2,
     "summary": "The innkeeper can cook. What she cannot do is leave the inn long enough to find anything worth cooking.",
     "stages": [
-      { "desc": "Bring the innkeeper 5 cooked meat", "type": "collect", "target": "cooked_meat", "count": 5 },
-      { "desc": "Hand the food to the innkeeper", "type": "talk", "target": "npc_cook" }
+      {
+        "desc": "Bring the innkeeper 5 cooked meat",
+        "type": "collect",
+        "target": "cooked_meat",
+        "count": 5
+      },
+      {
+        "desc": "Hand the food to the innkeeper",
+        "type": "talk",
+        "target": "npc_cook"
+      }
     ],
     "rewards": {
-      "xp": { "Cooking": 480, "Hitpoints": 200 },
+      "xp": {
+        "Cooking": 480,
+        "Hitpoints": 200
+      },
       "coins": 130,
-      "items": [{ "id": "herbal_tonic", "qty": 1 }]
+      "items": [
+        {
+          "id": "herbal_tonic",
+          "qty": 1
+        }
+      ]
     },
     "completion": "She feeds you first, which is how you know it went well."
   },
-
   "q_clear_the_trail": {
     "name": "Clear the Trail",
     "source": "npc",
@@ -186,7 +340,6 @@
     },
     "completion": "Bram's first cart gets through without anyone running."
   },
-
   "q_word_to_fernhollow": {
     "name": "Word to Fernhollow",
     "source": "npc",
@@ -221,7 +374,6 @@
     },
     "completion": "Oona asks how he looked, and listens to the answer."
   },
-
   "q_mossvale_hides": {
     "name": "Hides for the Tannery",
     "source": "board",
@@ -245,7 +397,6 @@
     },
     "completion": "The hides go under a tarp by the tannery door until spring."
   },
-
   "q_trail_wardens": {
     "name": "Trail Wardens",
     "source": "board",
@@ -280,7 +431,6 @@
     },
     "completion": "Sela marks the trail safe on the gate board, in chalk."
   },
-
   "q_old_offering": {
     "name": "The Old Offering",
     "source": "npc",
@@ -311,7 +461,6 @@
     },
     "completion": "Mira lays the offering on the stone and does not say what she is listening for."
   },
-
   "q_road_beneath_leaves": {
     "name": "The Road Beneath the Leaves",
     "source": "note",
@@ -336,9 +485,440 @@
       }
     ],
     "rewards": {
-      "xp": { "Hitpoints": 120 },
+      "xp": {
+        "Hitpoints": 120
+      },
       "coins": 80
     },
     "completion": "Smoke above the lodge, lamplight on the pond. The names on the sign are places you know now."
+  },
+  "q_daily_boar": {
+    "name": "Barley Watch",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 2,
+    "summary": "The boar keep coming back to the barley, and somebody has to keep sending them home.",
+    "repeat": "daily",
+    "pool": "havenbrook",
+    "stages": [
+      {
+        "desc": "Hunt boar in the Hollowmarch",
+        "type": "kill",
+        "target": "boar",
+        "map": "overworld",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Strength": 260,
+        "Hitpoints": 90
+      },
+      "coins": 70
+    },
+    "completion": "The barley stands another day."
+  },
+  "q_daily_orcs": {
+    "name": "Road Patrol",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 8,
+    "summary": "The Sunken Road needs walking every day it is going to stay open.",
+    "req": {
+      "Combat": 6
+    },
+    "repeat": "daily",
+    "pool": "havenbrook",
+    "stages": [
+      {
+        "desc": "Drive orcs off the Hollowmarch roads",
+        "type": "kill",
+        "target": "orc",
+        "map": "overworld",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 400,
+        "Defence": 250
+      },
+      "coins": 150
+    },
+    "completion": "The carters get through today."
+  },
+  "q_daily_ore": {
+    "name": "The Forge's Order",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 3,
+    "summary": "Halda posts an order for copper most mornings and takes whatever arrives by noon.",
+    "repeat": "daily",
+    "pool": "havenbrook",
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 8 copper ore",
+        "type": "deliver",
+        "target": "copper_ore",
+        "to": "npc_smith",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 300,
+        "Crafting": 120
+      },
+      "coins": 110
+    },
+    "completion": "Halda weighs it in her hand and nods."
+  },
+  "q_daily_kitchen": {
+    "name": "Fish for the Inn",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 2,
+    "summary": "Bess will cook anything with fins, and the pond and the lake are full of things with fins.",
+    "repeat": "daily",
+    "pool": "havenbrook",
+    "stages": [
+      {
+        "desc": "Bring Innkeeper Bess 5 raw minnows",
+        "type": "deliver",
+        "target": "raw_minnow",
+        "to": "npc_cook",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 250,
+        "Cooking": 120
+      },
+      "coins": 90
+    },
+    "completion": "Fried minnows are on the chalk board by supper."
+  },
+  "q_daily_logs": {
+    "name": "Kindling",
+    "source": "board",
+    "giver": "board_havenbrook",
+    "level": 1,
+    "summary": "The inn's fires eat a stack of logs a day, and Bess would rather not split them herself.",
+    "repeat": "daily",
+    "pool": "havenbrook",
+    "stages": [
+      {
+        "desc": "Bring Innkeeper Bess 10 logs",
+        "type": "deliver",
+        "target": "logs",
+        "to": "npc_cook",
+        "count": 10
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Woodcutting": 280
+      },
+      "coins": 80
+    },
+    "completion": "The woodpile by the kitchen door is tall again."
+  },
+  "q_daily_foxes": {
+    "name": "Fox Patrol",
+    "source": "board",
+    "giver": "board_mossvale",
+    "level": 5,
+    "summary": "Warden Sela wants the packs thinned every day until they stop coming back.",
+    "prereq": [
+      "q_clear_the_trail"
+    ],
+    "repeat": "daily",
+    "pool": "mossvale",
+    "stages": [
+      {
+        "desc": "Drive foxes off the Whisperwood Trail",
+        "type": "kill",
+        "target": "fox",
+        "map": "whisperwood_trail",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Ranged": 300,
+        "Attack": 200
+      },
+      "coins": 130
+    },
+    "completion": "Sela chalks another quiet day on the gate board."
+  },
+  "q_daily_hides": {
+    "name": "Tannery Stock",
+    "source": "board",
+    "giver": "board_mossvale",
+    "level": 4,
+    "summary": "The reeve buys hides for the tannery, a few at a time, whenever anyone brings them.",
+    "repeat": "daily",
+    "pool": "mossvale",
+    "stages": [
+      {
+        "desc": "Bring Reeve Hadley 4 raw hides",
+        "type": "deliver",
+        "target": "hide",
+        "to": "npc_hadley",
+        "count": 4
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Crafting": 260
+      },
+      "coins": 140
+    },
+    "completion": "Hadley writes it in the ledger and pays out of his own purse."
+  },
+  "q_daily_oak": {
+    "name": "Oak for the Lodge",
+    "source": "board",
+    "giver": "board_mossvale",
+    "level": 12,
+    "summary": "Pell has a buyer in Havenbrook who pays well for seasoned oak and asks no questions about it.",
+    "req": {
+      "Woodcutting": 12
+    },
+    "repeat": "daily",
+    "pool": "mossvale",
+    "stages": [
+      {
+        "desc": "Bring Pell the Trader 5 oak logs",
+        "type": "deliver",
+        "target": "oak_logs",
+        "to": "npc_pell",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Woodcutting": 450
+      },
+      "coins": 160
+    },
+    "completion": "Pell loads the oak and whistles."
+  },
+  "q_daily_pike": {
+    "name": "Wendel's Supper",
+    "source": "board",
+    "giver": "board_mossvale",
+    "level": 30,
+    "summary": "Old Wendel will pay for pike, because in forty years he has never caught one himself.",
+    "req": {
+      "Fishing": 30
+    },
+    "repeat": "daily",
+    "pool": "mossvale",
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 3 raw pike",
+        "type": "deliver",
+        "target": "raw_pike",
+        "to": "npc_wendel",
+        "count": 3
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 520
+      },
+      "coins": 150
+    },
+    "completion": "Wendel says the pond is having him on. He eats well tonight."
+  },
+  "q_the_water_remembers": {
+    "name": "The Water Remembers",
+    "source": "npc",
+    "giver": "npc_mira",
+    "level": 6,
+    "summary": "Mira says the lights on the pond come from somewhere you can only reach asleep, and that something there has been trying to speak.",
+    "prereq": [
+      "q_old_offering"
+    ],
+    "stages": [
+      {
+        "desc": "Sleep after dusk, in a bed or at a camp, and dream",
+        "type": "reach",
+        "target": "dreamworld"
+      },
+      {
+        "desc": "Find the voice in the dream",
+        "type": "interact",
+        "target": "dream_voice"
+      },
+      {
+        "desc": "Wake, and tell Mira what the voice said",
+        "type": "talk",
+        "target": "npc_mira"
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Magic": 600,
+        "Hitpoints": 200
+      },
+      "coins": 150,
+      "items": [
+        {
+          "id": "dream_shard",
+          "qty": 3
+        }
+      ]
+    },
+    "completion": "Mira writes the words down, then burns what she wrote."
+  },
+  "q_lights_on_the_pond": {
+    "name": "Lights on the Pond",
+    "source": "npc",
+    "giver": "npc_hesper",
+    "level": 18,
+    "summary": "Hesper has watched the lights over the pond grow brighter every night. Something large is holding the dream together, and it is not friendly.",
+    "prereq": [
+      "q_the_water_remembers"
+    ],
+    "req": {
+      "Combat": 18
+    },
+    "stages": [
+      {
+        "desc": "Put down the Nightmare Brute in the dreamworld",
+        "type": "kill",
+        "target": "nightmare_brute",
+        "map": "dreamworld"
+      },
+      {
+        "desc": "Bring Hesper 6 dream shards as proof",
+        "type": "deliver",
+        "target": "dream_shard",
+        "to": "npc_hesper",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 900,
+        "Defence": 700,
+        "Hitpoints": 450
+      },
+      "coins": 500,
+      "items": [
+        {
+          "id": "dreamcatcher",
+          "qty": 1
+        }
+      ]
+    },
+    "completion": "Hesper hangs the shards over the door. The pond is dark tonight."
+  },
+  "q_daily_nightmares": {
+    "name": "Nightmares Undone",
+    "source": "board",
+    "giver": "board_reverie",
+    "level": 8,
+    "summary": "Only asleep. The slate in the dream asks for the same thing every night: fewer nightmares.",
+    "prereq": [
+      "q_the_water_remembers"
+    ],
+    "repeat": "daily",
+    "pool": "reverie",
+    "stages": [
+      {
+        "desc": "Defeat nightmares in the dreamworld",
+        "type": "kill",
+        "target": "nightmare",
+        "map": "dreamworld",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 350,
+        "Strength": 350,
+        "Hitpoints": 180
+      },
+      "coins": 120,
+      "items": [
+        {
+          "id": "dream_shard",
+          "qty": 2
+        }
+      ]
+    },
+    "completion": "The slate wipes itself clean when you look away."
+  },
+  "q_daily_shrine_shards": {
+    "name": "Shards for the Shrine",
+    "source": "board",
+    "giver": "board_reverie",
+    "level": 6,
+    "summary": "The slate asks for dream shards to be carried out of the dream and laid at Mira's shrine in Fernhollow.",
+    "prereq": [
+      "q_the_water_remembers"
+    ],
+    "repeat": "daily",
+    "pool": "reverie",
+    "stages": [
+      {
+        "desc": "Wake, and bring Mira 8 dream shards",
+        "type": "deliver",
+        "target": "dream_shard",
+        "to": "npc_mira",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Magic": 450,
+        "Mining": 200
+      },
+      "coins": 140
+    },
+    "completion": "Mira sets the shards in the water, one at a time."
+  },
+  "q_daily_brute": {
+    "name": "The Brute Returns",
+    "source": "board",
+    "giver": "board_reverie",
+    "level": 20,
+    "summary": "Only asleep. The Nightmare Brute comes back every night. Someone has to put it down again.",
+    "prereq": [
+      "q_lights_on_the_pond"
+    ],
+    "req": {
+      "Combat": 18
+    },
+    "repeat": "daily",
+    "pool": "reverie",
+    "stages": [
+      {
+        "desc": "Put down the Nightmare Brute",
+        "type": "kill",
+        "target": "nightmare_brute",
+        "map": "dreamworld"
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 700,
+        "Strength": 700,
+        "Defence": 400
+      },
+      "coins": 300,
+      "items": [
+        {
+          "id": "demonrite_ore",
+          "qty": 2
+        }
+      ]
+    },
+    "completion": "For one night, the plateau is quiet."
   }
 }

@@ -43,6 +43,11 @@ struct QuestDef {
     string giver;                 // npc id, or board id
     int    recommended_level = 1;
     map<int, int> requirements;   // SkillId -> level
+    int    combat_level = 0;      // "Combat" in the file's req block
+    // A daily quest can be taken again on any later day, and is one of a pool
+    // that a board rotates through: a few of the pool are posted each day.
+    bool   daily = false;
+    string pool;
     vector<string> prerequisites; // quest ids that must be complete first
     vector<QuestStage> stages;
     QuestRewards rewards;
@@ -55,6 +60,8 @@ struct QuestProgress {
     QuestStatus status = QuestStatus::NotStarted;
     int stage = 0;
     int counter = 0;          // progress within the current stage
+    int completed_day = -1;   // the quest day it was last finished on
+    int completions = 0;
 };
 
 // Events the world raises; the log decides whether any of them matter.
@@ -68,7 +75,21 @@ struct QuestEvent {
 
 class QuestLog {
 public:
+    // How many of a pool's daily quests a board posts each day.
+    static constexpr int DAILY_PER_POOL = 2;
+
     bool LoadDefinitions(const string& path);
+
+    // The quest day, from the world clock; dailies reset when it changes.
+    void SetDay(int day) { today = day; }
+    int  Today() const { return today; }
+    // The dailies a pool posts today: the same few all day, different ones on
+    // other days, chosen from the pool by the day number.
+    vector<string> PoolToday(const string& pool) const;
+    // Whether a daily is posted today (or is already taken); always true for
+    // a quest that is not daily.
+    bool OfferedToday(const string& id) const;
+    int  Completions(const string& id) const;
 
     const QuestDef* Definition(const string& id) const;
     const map<string, QuestDef>& Definitions() const { return defs; }
@@ -114,4 +135,5 @@ private:
     map<string, QuestProgress> progress;
     vector<string> just_completed;
     vector<string> just_started;
+    int today = 1;
 };
