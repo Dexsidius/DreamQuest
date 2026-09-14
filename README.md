@@ -530,8 +530,8 @@ in another for more than it cost. The profit is in work:
 - **Gathering pays.** Copper ore fetches 8 coins at a forge, a raw trout 19 at
   Wendel's, an oak log 14 at Bram's.
 - **Working it pays more.** Anything crafted is worth at least 1.8 times its
-  materials (`ItemDatabase::CRAFT_VALUE_ADD`): a cooked trout sells for 38, twice
-  the raw one.
+  materials (`ItemDatabase::CRAFT_VALUE_ADD`), and cooked food is worth twice
+  the raw: a cooked trout sells for 38.
 - **Smithing bought bars pays too**, as far as the day's stock goes. Two bronze
   bars and a log cost 84 coins and make a sword Halda buys back for 107; an iron
   sword is 196 in and 248 out, and a steel cuirass 2415 in and 3042 out.
