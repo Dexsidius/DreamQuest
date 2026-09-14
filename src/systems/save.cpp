@@ -101,6 +101,8 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
     const World::DreamReturn& dream = world.Dream();
     if (dream.active) j["dream_return"] = {{"map", dream.map}, {"x", dream.x}, {"y", dream.y}};
 
+    j["shops"] = world.shops.ToJson();
+
     j["flags"] = json::array();
     for (const auto& f : world.Flags()) j["flags"].push_back(f);
 
@@ -176,6 +178,7 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
         dream.y = j["dream_return"].value("y", 0.0f);
     }
     world.SetDream(dream);
+    world.shops.FromJson(j.value("shops", json::object()));
 
     // Restore the character before the map, so the sprite and stats are in
     // place by the time entities spawn around them.

@@ -268,9 +268,10 @@ public:
         dq["enemies"].push_back(e);
     }
 
-    void Npc(const string& npc_id, const string& name, const string& sprite,
-             int x, int y, const string& dialogue, int facing = 0,
-             bool wanders = false) {
+    // Returns the NPC so a trader can be given its shop: m.Npc(...)["shop"] = id.
+    json& Npc(const string& npc_id, const string& name, const string& sprite,
+              int x, int y, const string& dialogue, int facing = 0,
+              bool wanders = false) {
         json n;
         n["id"]       = npc_id;
         n["name"]     = name;
@@ -281,6 +282,7 @@ public:
         n["facing"]   = facing;
         n["wanders"]  = wanders;
         dq["npcs"].push_back(n);
+        return dq["npcs"].back();
     }
 
     json& Object(const string& obj_id, const string& type, int x, int y) {
@@ -1033,13 +1035,28 @@ static void BuildTown() {
     }
 
     m.Npc("npc_guard",  "Watchman Corrin", "fighter2", 30 * CELL, 39 * CELL, "guard_root", 3);
-    m.Npc("npc_hunter", "Hunter Ivo",      "citizen2", 46 * CELL, 30 * CELL, "hunter_root", 0, true);
+    m.Npc("npc_hunter", "Hunter Ivo",      "citizen2", 46 * CELL, 30 * CELL, "hunter_root", 0, true)["shop"] = "havenbrook_bowyer";
+
+    // The general store: a stall on the square east of the crossroads, with
+    // Tobin beside it and his stock stacked either side.
+    {
+        const int sx = 35 * CELL, sy = 27 * CELL;
+        m.Prop("props", "market_stall", sx, sy);
+        m.Collision(sx - 32, sy - 14, 64, 14);
+        m.Prop("props", "crates_sacks", sx + 56, sy - 4);
+        m.Collision(sx + 56 - 18, sy - 14, 36, 10);
+        m.Prop("props", "barrel", sx - 88, sy - 4);
+        m.Collision(sx - 88 - 14, sy - 14, 28, 10);
+        // Beside the stall, not behind it: the awning would hide him.
+        m.Npc("npc_tobin", "Tobin the Grocer", "citizen1", sx - 50, sy + 6, "tobin_root", 0)["shop"] = "havenbrook_general";
+    }
 
     // Greenery so the village is not a bare field.
     for (int i = 0; i < 26; ++i) {
         const int x = 2 * CELL + static_cast<int>(rng() % ((W - 4) * CELL));
         const int y = 3 * CELL + static_cast<int>(rng() % ((H - 6) * CELL));
         if (abs(y - 22 * CELL) < 80 || abs(x - 28 * CELL) < 80) continue;
+        if (abs(x - 35 * CELL) < 120 && abs(y - 27 * CELL) < 90) continue;   // the stall
         if (rng() % 3 == 0) m.Prop("objects", Pick(kSmallTrees, rng), x, y);
         else                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
     }
@@ -1288,7 +1305,7 @@ static void BuildInteriors() {
         piece("bottle_shelf", 470, 100, 60, 14);
         piece("keg_rack",     580, 110, 62, 16);
         piece("crates_sacks", 650, 108, 35, 14);
-        m.Npc("npc_cook", "Innkeeper Bess", "citizen1", 512, 168, "cook_root", 0);
+        m.Npc("npc_cook", "Innkeeper Bess", "citizen1", 512, 168, "cook_root", 0)["shop"] = "havenbrook_inn";
         piece("bar_counter",  512, 230, 108, 30);
         for (int i = 0; i < 3; ++i)
             piece("bar_stool", 478 + i * 34, 264, 14, 8);
@@ -1482,7 +1499,7 @@ static void BuildInteriors() {
         // --- the shop -------------------------------------------------------
         piece("shop_counter", 13 * CELL + 8, 8 * CELL + 8, 76, 16);
         m.Npc("npc_smith", "Smith Halda", "citizen2", 13 * CELL + 8, 6 * CELL + 28,
-              "smith_root", 0);
+              "smith_root", 0)["shop"] = "havenbrook_forge";
         piece("armour_stand",  16 * CELL + 8, 4 * CELL + 30, 24, 10);
         piece("weapon_barrel", 16 * CELL + 10, 7 * CELL + 10, 18, 10);
         // Kept clear of the doorway, which runs up the middle of the room.
@@ -1799,7 +1816,12 @@ static void BuildWhisperwood() {
         m.Collision(cx0 + 76 - 16, cy0 - 6 - 10, 32, 10);
         m.Prop("props", "crates_sacks", cx0 + 70, cy0 + 50);
         m.Collision(cx0 + 70 - 18, cy0 + 50 - 10, 36, 10);
-        m.Npc("npc_bram", "Bram the Woodcutter", "citizen2", cx0 + 36, cy0 + 14, "bram_root", 0);
+        m.Npc("npc_bram", "Bram the Woodcutter", "citizen2", cx0 + 36, cy0 + 14, "bram_root", 0)["shop"] = "whisperwood_woodcutter";
+        // A pedlar who walks the trail between the villages, stopped at the
+        // camp with his pack open.
+        m.Prop("props", "travel_chest", cx0 - 136, cy0 + 44);
+        m.Collision(cx0 - 136 - 16, cy0 + 34, 32, 10);
+        m.Npc("npc_hob", "Hob the Pedlar", "citizen2", cx0 - 100, cy0 + 40, "hob_root", 0)["shop"] = "whisperwood_general";
     }
 
     // A waystone near the start of the trail, with the one piece of advice the
@@ -2018,7 +2040,12 @@ static void BuildMossvale() {
 
     // --- people -------------------------------------------------------------------
     m.Npc("npc_sela",   "Warden Sela",    "player_female", 4 * CELL, (gate_row + 3) * CELL, "sela_root", 1);
-    m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL, 29 * CELL - 6, "pell_root", 0);
+    m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL + 50, 30 * CELL + 6, "pell_root", 0)["shop"] = "mossvale_general";
+    // The smith works the village anvil by the workbench, with his bars in a
+    // crate at his elbow.
+    m.Npc("npc_garrow", "Garrow the Smith", "fighter2", 49 * CELL + 8, 26 * CELL - 2, "garrow_root", 0)["shop"] = "mossvale_forge";
+    m.Prop("props", "ingot_crate", 51 * CELL, 26 * CELL + 4);
+    m.Collision(51 * CELL - 17, 26 * CELL - 8, 34, 12);
     m.Npc("npc_tamsin", "Tamsin",         "player_male",  45 * CELL, 19 * CELL, "tamsin_root", 0, true);
 
     // --- village life along the street ------------------------------------------
@@ -2058,6 +2085,7 @@ static void BuildMossvale() {
         if (cx >= 10 && cx <= 20 && cy >= 18 && cy <= 24) return true;   // woodcutters' cabin
         if (cx >= 37 && cx <= 43 && cy >= 34 && cy <= 39) return true;   // hide tent
         if (cy >= 28 && cy <= 32 && ((cx >= 17 && cx <= 23) || (cx >= 36 && cx <= 43))) return true;  // stalls
+        if (cx >= 42 && cx <= 53 && cy >= 23 && cy <= 28) return true;   // the smith's corner
         return false;
     };
     for (int cy = 3; cy < H - 2; ++cy)
@@ -2117,6 +2145,7 @@ static void BuildFernhollow() {
         if (cx >= 8 && cx <= 16 && cy >= 5 && cy <= 12) return true;     // cottage
         if (cx >= 3 && cx <= 10 && cy >= 21 && cy <= 28) return true;    // shrine
         if (cx >= 16 && cx <= 24 && cy >= 23 && cy <= 29) return true;   // camp
+        if (cx >= 15 && cx <= 21 && cy >= 17 && cy <= 21) return true;   // Nell's cart
         return false;
     };
 
@@ -2196,7 +2225,17 @@ static void BuildFernhollow() {
         m.Collision(cx0 - 76, cy0 + 14, 32, 10);
     }
 
-    m.Npc("npc_wendel", "Old Wendel", "citizen2", 28 * CELL, 16 * CELL + 10, "wendel_root", 0);
+    m.Npc("npc_wendel", "Old Wendel", "citizen2", 28 * CELL, 16 * CELL + 10, "wendel_root", 0)["shop"] = "fernhollow_tackle";
+
+    // A pedlar's cart just off the path to the jetty: the hamlet's only shop.
+    {
+        const int sx = 18 * CELL, sy = 20 * CELL;
+        m.Prop("props", "market_stall", sx, sy);
+        m.Collision(sx - 32, sy - 14, 64, 14);
+        m.Prop("props", "travel_chest", sx + 52, sy - 2);
+        m.Collision(sx + 52 - 16, sy - 12, 32, 10);
+        m.Npc("npc_nell", "Nell the Pedlar", "citizen1", sx - 50, sy + 6, "nell_root", 0)["shop"] = "fernhollow_general";
+    }
 
     // Reeds round the shore, trees round everything else.
     for (int cy = 1; cy < H - 1; ++cy)
@@ -2320,7 +2359,7 @@ static void BuildWoodlandInteriors() {
         piece("table_round",       7 * CELL,     7 * CELL + 8, 40, 12);
         piece("tavern_chair",      5 * CELL + 16, 7 * CELL + 10, 16, 8);
         PlaceBed(m, "bed_oona", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
-        m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0);
+        m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0)["shop"] = "mossvale_herbalist";
         m.Write("maps");
     }
 
@@ -2472,6 +2511,12 @@ static void BuildDreamworld() {
                       "The shards the nightmares leave behind are real. They come back with you.";
         m.Collision(ax + 64 - 10, ay - 56 - 8, 20, 8);
     }
+
+    // Two traders the dream keeps, either side of the candles and clear of the
+    // east and west bridges: a market for the sleeper's needs, and a collector
+    // of the things only dreams leave behind.
+    m.Npc("npc_night_pedlar", "The Night Pedlar", "citizen1", ax - 150, ay + 40, "night_pedlar_root", 0)["shop"] = "reverie_general";
+    m.Npc("npc_collector", "The Collector", "fighter2", ax + 150, ay + 40, "collector_root", 0)["shop"] = "reverie_curios";
 
     // A slate the dream writes its own requests on: the Reverie's board, where
     // its daily quests are posted, off to the north-east of the candles and

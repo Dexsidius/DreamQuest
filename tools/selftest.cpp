@@ -26,6 +26,7 @@
 #include "../src/systems/projectile.h"
 #include "../src/systems/spell.h"
 #include "../src/systems/audio.h"
+#include "../src/systems/shop.h"
 #include "../src/entity/player.h"
 #include "../src/ui/minimap.h"
 
@@ -3231,6 +3232,332 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("traders");
+    {
+        ShopDatabase shops;
+        Check(shops.Load("data/shops.json"), "data/shops.json loads");
+        Check(shops.All().size() >= 12, "there are at least a dozen traders (" + std::to_string(shops.All().size()) + ")");
+
+        // Which town a map belongs to, for the one-general-store-and-one-more rule.
+        const std::map<string, string> town_of = {
+            {"town_havenbrook", "havenbrook"}, {"house_smith", "havenbrook"}, {"house_inn", "havenbrook"},
+            {"house_inn_upper", "havenbrook"}, {"house_elder", "havenbrook"}, {"guild_hall", "havenbrook"},
+            {"mossvale", "mossvale"}, {"mossvale_lodge_hall", "mossvale"}, {"mossvale_herbalist", "mossvale"},
+            {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"},
+            {"whisperwood_trail", "whisperwood"}, {"dreamworld", "reverie"},
+        };
+
+        // Every trader on every map.
+        struct Keeper { string map, shop, root; float x, y; };
+        std::map<string, Keeper> keepers;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const auto& n : m.Npcs()) {
+                if (n.shop.empty()) continue;
+                keepers[n.id] = {id, n.shop, n.dialogue, n.x, n.y};
+                Check(shops.Get(n.shop) != nullptr, string(id) + " " + n.id + " keeps shop '" + n.shop + "', which exists");
+                // Somewhere to stand within talking distance.
+                bool reachable = false;
+                for (int a = 0; a < 16 && !reachable; ++a) {
+                    const float ang = a / 16.0f * 6.2831853f;
+                    const float px = n.x + cosf(ang) * 40.0f, py = n.y + sinf(ang) * 40.0f;
+                    if (!m.Blocked({px - 7.0f, py - 4.0f, 14.0f, 8.0f}) &&
+                        px > 0 && py > 0 && px < m.Width() && py < m.Height()) reachable = true;
+                }
+                Check(reachable, string(id) + " " + n.id + " can be walked up to");
+            }
+        }
+
+        json dlg;
+        {
+            std::ifstream in("data/dialogue.json");
+            in >> dlg;
+        }
+        std::map<string, int> generals, others;
+        for (const auto& kv : shops.All()) {
+            const ShopDef& s = kv.second;
+            const string sid = "shop " + s.id;
+            Check(!s.name.empty() && !s.type.empty() && !s.town.empty(), sid + " has a name, a type and a town");
+            Check(s.markup >= 1.0f, sid + " never charges below value");
+            for (const auto& b : s.buys)
+                Check(b.second > 0.0f && b.second < 1.0f, sid + " pays less than value for '" + b.first + "'");
+            Check(!s.buys.empty(), sid + " buys something");
+            Check(!s.sells.empty(), sid + " sells something");
+            for (const ShopStock& line : s.sells) {
+                const ItemDef* d = items.Get(line.item);
+                Check(d != nullptr, sid + " sells '" + line.item + "', which exists");
+                if (d) Check(Trade::Tradeable(*d), sid + " sells '" + line.item + "', which has a price");
+                Check(line.stock >= 1 && line.stock <= 20, sid + " keeps a limited stock of " + line.item);
+                for (const string& q : line.after)
+                    Check(quests.Definition(q) != nullptr, sid + " gates " + line.item + " on quest '" + q + "', which exists");
+            }
+
+            // Kept by someone who is standing in the town it belongs to, and
+            // who offers to trade from the first thing they say.
+            auto k = keepers.find(s.keeper);
+            Check(k != keepers.end() && k->second.shop == s.id, sid + " is kept by " + s.keeper + ", who stands on a map");
+            if (k != keepers.end()) {
+                auto t = town_of.find(k->second.map);
+                Check(t != town_of.end() && t->second == s.town,
+                      sid + " is in " + s.town + " (" + k->second.map + ")");
+                bool offers = false;
+                if (dlg.contains(k->second.root))
+                    for (const auto& o : dlg[k->second.root].value("options", json::array()))
+                        if (o.contains("action") && o["action"].value("shop", string("")) == s.id &&
+                            !o.contains("if")) offers = true;
+                Check(offers, sid + ": " + s.keeper + " offers to trade from their first line, always");
+            }
+            (s.General() ? generals : others)[s.town]++;
+        }
+        for (const char* town : {"havenbrook", "mossvale", "fernhollow", "whisperwood", "reverie"}) {
+            Check(generals[town] >= 1, string(town) + " has a general store");
+            Check(others[town] >= 1, string(town) + " has another kind of shop as well (" +
+                  std::to_string(others[town]) + ")");
+        }
+
+        // The forges: a limited supply of materials, and they buy materials and
+        // metalwork.
+        int forges = 0;
+        for (const auto& kv : shops.All()) {
+            const ShopDef& s = kv.second;
+            if (s.type != "forge") continue;
+            ++forges;
+            int materials = 0;
+            for (const ShopStock& line : s.sells)
+                if (const ItemDef* d = items.Get(line.item))
+                    if (d->piece == "ore" || d->piece == "bar") ++materials;
+            Check(materials >= 3, "shop " + s.id + " sells crafting materials (" + std::to_string(materials) + " lines)");
+            for (const char* what : {"copper_ore", "bronze_bar", "bronze_sword", "iron_body", "iron_pickaxe"})
+                if (const ItemDef* d = items.Get(what))
+                    Check(Trade::SellPrice(s, items, *d) > 0, "shop " + s.id + " buys " + what);
+            if (const ItemDef* fish = items.Get("raw_trout"))
+                Check(Trade::SellPrice(s, items, *fish) == 0, "shop " + s.id + " does not buy fish");
+        }
+        Check(forges >= 2, "there is more than one forge");
+
+        // Nothing on a shelf does a quest's work for it: no shop sells what a
+        // quest asks the player to gather or hand over until that quest is
+        // done, and never what a daily asks for.
+        for (const auto& qkv : quests.Definitions())
+            for (const QuestStage& st : qkv.second.stages) {
+                if (st.type != ObjectiveType::Collect && st.type != ObjectiveType::Deliver) continue;
+                for (const auto& kv : shops.All())
+                    for (const ShopStock& line : kv.second.sells) {
+                        if (line.item != st.target) continue;
+                        const bool gated = !qkv.second.daily &&
+                            std::find(line.after.begin(), line.after.end(), qkv.first) != line.after.end();
+                        Check(gated, "shop " + kv.first + " does not sell " + st.target + " for " + qkv.first);
+                    }
+            }
+
+        // --- prices -------------------------------------------------------------
+        // Nothing bought anywhere sells anywhere for what it cost.
+        int pairs = 0;
+        bool arbitrage = false;
+        for (const auto& a : shops.All())
+            for (const ShopStock& line : a.second.sells)
+                if (const ItemDef* d = items.Get(line.item))
+                    for (const auto& b : shops.All()) {
+                        ++pairs;
+                        if (Trade::SellPrice(b.second, items, *d) >= Trade::BuyPrice(a.second, *d)) {
+                            arbitrage = true;
+                            Check(false, line.item + " bought at " + a.first + " sells at " + b.first + " for no less");
+                        }
+                    }
+        Check(!arbitrage, "nothing can be bought and sold straight back for a profit (" + std::to_string(pairs) + " pairs)");
+        if (const ItemDef* letter = items.Get("elder_letter"))
+            Check(Trade::SellPrice(*shops.Get("havenbrook_general"), items, *letter) == 0,
+                  "quest items cannot be sold, even to a general store");
+        if (const ItemDef* coin = items.Get("coins"))
+            Check(!Trade::Tradeable(*coin), "coins are not for sale");
+
+        // Making things adds value.
+        int recipes = 0, short_value = 0;
+        for (const ItemDef* r : items.Recipes()) {
+            const ItemDef* made = items.Get(r->craft_result);
+            if (!made || made->value <= 1) continue;
+            ++recipes;
+            if (made->value * r->craft_qty + 1 < ItemDatabase::CRAFT_VALUE_ADD * items.InputValue(*r)) {
+                ++short_value;
+                Check(false, made->id + " is worth " + std::to_string(made->value) + ", less than its materials warrant");
+            }
+        }
+        Check(short_value == 0, "every one of " + std::to_string(recipes) + " recipes makes something worth more than its materials");
+
+        const auto best_offer = [&](const ItemDef& d) {
+            int best = 0;
+            for (const auto& kv : shops.All()) best = std::max(best, Trade::SellPrice(kv.second, items, d));
+            return best;
+        };
+        const auto cheapest = [&](const string& id) {
+            int best = 0;
+            for (const auto& kv : shops.All())
+                for (const ShopStock& line : kv.second.sells)
+                    if (line.item == id)
+                        if (const ItemDef* d = items.Get(id)) {
+                            const int p = Trade::BuyPrice(kv.second, *d);
+                            if (best == 0 || p < best) best = p;
+                        }
+            return best;
+        };
+
+        // What the land gives sells for something, and working it sells for more.
+        for (const auto& kv : items.All()) {
+            const ItemDef& d = kv.second;
+            const bool gathered = d.piece == "ore" || d.fish_level > 0 || d.id == "logs" ||
+                                  d.id == "oak_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones";
+            if (!gathered) continue;
+            Check(best_offer(d) > 0, "some trader buys " + d.id + " (" + std::to_string(best_offer(d)) + "c)");
+            if (!d.cook_result.empty())
+                if (const ItemDef* cooked = items.Get(d.cook_result))
+                    Check(best_offer(*cooked) > best_offer(d),
+                          "cooking " + d.id + " sells for more (" + std::to_string(best_offer(d)) + "c raw, " +
+                          std::to_string(best_offer(*cooked)) + "c cooked)");
+        }
+
+        // Buying a forge's bars, smithing them and selling the work turns a
+        // profit, as far as the day's stock goes. Anything the forge does not
+        // sell is costed at the cheapest shop, or at what it would have fetched
+        // if no one sells it (logs, which the player chops).
+        for (const auto& kv : shops.All()) {
+            const ShopDef& s = kv.second;
+            if (s.type != "forge") continue;
+            int made = 0;
+            for (const ItemDef* r : items.Recipes()) {
+                bool uses_bar = false, all_known = true;
+                int cost = 0;
+                for (const auto& in : r->craft_inputs) {
+                    const ItemDef* mat = items.Get(in.first);
+                    if (!mat) { all_known = false; break; }
+                    int each = 0;
+                    for (const ShopStock& line : s.sells)
+                        if (line.item == in.first) { each = Trade::BuyPrice(s, *mat); if (mat->piece == "bar") uses_bar = true; }
+                    if (each == 0) each = cheapest(in.first);
+                    if (each == 0) each = best_offer(*mat);
+                    cost += each * in.second;
+                }
+                const ItemDef* out = items.Get(r->craft_result);
+                if (!uses_bar || !all_known || !out) continue;
+                ++made;
+                const int revenue = best_offer(*out) * r->craft_qty;
+                Check(revenue > cost, "smithing " + out->id + " from " + s.id + "'s bars pays: " +
+                      std::to_string(cost) + "c in, " + std::to_string(revenue) + "c out");
+            }
+            Check(made > 0, s.id + " sells bars something can be smithed from");
+        }
+
+        // --- trading ---------------------------------------------------------------
+        const ShopDef* forge = shops.Get("havenbrook_forge");
+        Check(forge != nullptr, "Havenbrook has its forge");
+        if (forge) {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            ShopLedger ledger;
+            ledger.SetDay(3);
+            Inventory bag(&items);
+            bag.Add("coins", 5000);
+            const ItemDef* bar = items.Get("bronze_bar");
+            const int price = Trade::BuyPrice(*forge, *bar);
+            const int stock = ledger.Remaining(*forge, "bronze_bar");
+
+            TradeOutcome t = Trade::Buy(*forge, ledger, bag, items, &log, "bronze_bar", 3);
+            Check(t.result == TradeResult::Ok && t.qty == 3 && bag.Count("bronze_bar") == 3 &&
+                  bag.Coins() == 5000 - 3 * price, "buying three bronze bars takes three prices and gives three bars");
+            Check(ledger.Remaining(*forge, "bronze_bar") == stock - 3, "the shelf has three fewer bars");
+            t = Trade::Buy(*forge, ledger, bag, items, &log, "bronze_bar", 100);
+            Check(t.result == TradeResult::Ok && t.qty == stock - 3, "buying a hundred takes only what is left");
+            t = Trade::Buy(*forge, ledger, bag, items, &log, "bronze_bar", 1);
+            Check(t.result == TradeResult::SoldOut, "then the bars are sold out");
+            ledger.SetDay(3);
+            Check(ledger.Remaining(*forge, "bronze_bar") == 0, "and stay sold out the same day");
+            ShopLedger saved;
+            saved.FromJson(ledger.ToJson());
+            Check(saved.Day() == 3 && saved.Remaining(*forge, "bronze_bar") == 0, "a save remembers what was sold today");
+            saved.SetDay(4);
+            Check(saved.Remaining(*forge, "bronze_bar") == stock, "dawn restocks the shelf");
+
+            // The better stock waits on the smith's own order.
+            const auto on_shelf = [&](const string& id) {
+                for (const ShopStock* line : Trade::Shelf(*forge, &log)) if (line->item == id) return true;
+                return false;
+            };
+            Check(!on_shelf("iron_bar") && on_shelf("bronze_bar"), "iron bars are not on Halda's shelf before her ore arrives");
+            t = Trade::Buy(*forge, ledger, bag, items, &log, "iron_bar", 1);
+            Check(t.result == TradeResult::Locked && bag.Count("iron_bar") == 0, "and cannot be bought");
+            log.FromJson({{"q_ore_for_the_forge", {{"status", 2}}}});
+            Check(on_shelf("iron_bar"), "they are once the forge has its copper");
+            for (const ShopStock& line : forge->sells)
+                if (line.item == "iron_bar")
+                    Check(!Trade::OnShelf(line, nullptr), "with no quest log to ask, gated stock stays hidden");
+
+            // Money, room.
+            Inventory broke(&items);
+            t = Trade::Buy(*forge, ledger, broke, items, &log, "iron_ore", 1);
+            Check(t.result == TradeResult::NoCoins && broke.Count("iron_ore") == 0, "no coins, no ore");
+            Inventory full(&items);
+            full.Add("coins", 900);
+            while (full.FreeSlots() > 0) full.Add("bronze_sword", 1);
+            const int coins_before = full.Coins();
+            t = Trade::Buy(*forge, ledger, full, items, &log, "iron_ore", 1);
+            Check(t.result == TradeResult::BagFull && full.Coins() == coins_before, "a full pack is not charged for ore it cannot hold");
+            for (int i = 0; i < full.SlotCount(); ++i)
+                if (full.Slot(i).id == "bronze_sword") { full.RemoveSlot(i, 1); break; }
+            full.Add("iron_ore", 1);
+            Check(full.FreeSlots() == 0, "the pack is full again, with an ore stack in it");
+            t = Trade::Buy(*forge, ledger, full, items, &log, "iron_ore", 2);
+            Check(t.result == TradeResult::Ok && full.Count("iron_ore") == 3, "and bought ore joins that stack");
+
+            // Selling.
+            Inventory seller(&items);
+            seller.Add("copper_ore", 5);
+            seller.Add("raw_trout", 2);
+            seller.Add("bronze_sword", 1);
+            const int ore_price = Trade::SellPrice(*forge, items, *items.Get("copper_ore"));
+            t = Trade::Sell(*forge, seller, items, "copper_ore", 5);
+            Check(t.result == TradeResult::Ok && seller.Count("copper_ore") == 0 && seller.Coins() == 5 * ore_price,
+                  "selling five copper ore pays five times " + std::to_string(ore_price) + "c");
+            t = Trade::Sell(*forge, seller, items, "raw_trout", 1);
+            Check(t.result == TradeResult::WontBuy && seller.Count("raw_trout") == 2, "the forge turns down a trout and it stays in the pack");
+            t = Trade::Sell(*shops.Get("fernhollow_tackle"), seller, items, "raw_trout", 2);
+            Check(t.result == TradeResult::Ok && seller.Count("raw_trout") == 0, "Wendel buys it");
+            t = Trade::Sell(*forge, seller, items, "iron_ore", 1);
+            Check(t.result == TradeResult::NotHeld, "nothing sells that is not carried");
+            const int sword = Trade::SellPrice(*forge, items, *items.Get("bronze_sword"));
+            const int general = Trade::SellPrice(*shops.Get("havenbrook_general"), items, *items.Get("bronze_sword"));
+            Check(sword > general, "the forge pays more for a sword than the general store (" +
+                  std::to_string(sword) + "c against " + std::to_string(general) + "c)");
+        }
+
+        // Asking to trade opens the shop.
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            for (const auto& kv : shops.All()) {
+                auto k = keepers.find(kv.second.keeper);
+                if (k == keepers.end()) continue;
+                DialogueRunner r;
+                r.Begin(&dialogue, k->second.root, k->first, "Keeper", dc);
+                r.TakeActions();
+                int index = -1;
+                for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                    if (r.VisibleOptions()[i]->action.open_shop == kv.first) index = static_cast<int>(i);
+                Check(index >= 0, kv.second.keeper + " shows a new character the way into " + kv.first);
+                if (index < 0) continue;
+                r.MoveSelection(index - r.Selected());
+                r.Choose(dc);
+                bool opens = false;
+                for (const DialogueAction& a : r.TakeActions()) if (a.open_shop == kv.first) opens = true;
+                Check(opens && !r.Active(), "choosing it closes the conversation and opens " + kv.first);
+            }
+        }
+    }
+
     Section("save round trip");
     {
         Skills before;
@@ -3416,6 +3743,12 @@ int main(int argc, char** argv) {
                     {"mossvale_lodge_hall", "mossvale_lodge", 352, 250, 1.5f},
                     {"mossvale_herbalist", "oonas_cottage", 256, 235, 1.5f},
                     {"fernhollow_cottage", "ferry_cottage", 256, 235, 1.5f},
+                    {"town_havenbrook", "havenbrook_store", 1090, 870, 2},
+                    {"house_smith", "halda_forge", 288, 200, 1.5f},
+                    {"mossvale", "mossvale_pell", 700, 930, 2},
+                    {"mossvale", "mossvale_smith", 1540, 840, 2},
+                    {"fernhollow", "nell_cart", 560, 640, 2},
+                    {"dreamworld", "night_market", 1168, 930, 1.5f},
                 };
                 for (const View& view : views) {
                     World world;

@@ -1518,6 +1518,16 @@ void Game::UpdateDialogue(float dt) {
             dialogue.Choose(dctx);
             HandleDialogueActions(dialogue.TakeActions());
 
+            // "Show me your wares" closes the conversation and opens the shop.
+            if (!pending_shop.empty()) {
+                const string id = pending_shop;
+                pending_shop.clear();
+                dialogue.End();
+                for (auto& n : world.npcs) n->talking = false;
+                OpenShop(id);
+                return;
+            }
+
             for (const string& id : quests.TakeJustStarted())
                 if (const QuestDef* d = quests.Definition(id))
                     PushToast("Quest started: " + d->name, Palette::Xp);
@@ -1878,6 +1888,223 @@ void Game::DrawCrafting() {
 
     ui.Text(input.PromptFor(Action::Confirm) + " craft     " +
             input.PromptFor(Action::Back) + " close",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
+            Palette::TextDim, Align::Center);
+}
+
+// =============================================================================
+//  Shops
+// =============================================================================
+
+void Game::OpenShop(const string& id) {
+    if (!shop_db.Get(id)) return;
+    shop_id = id;
+    shop_tab = 0;
+    shop_cursor = 0;
+    world.shops.SetDay(world.clock.QuestDay());
+    SetState(GameState::Shop);
+}
+
+vector<string> Game::ShopSellRows() const {
+    vector<string> rows;
+    const Inventory& bag = world.player.inventory;
+    for (int i = 0; i < bag.SlotCount(); ++i) {
+        const ItemStack& s = bag.Slot(i);
+        if (s.Empty() || s.id == "coins") continue;
+        if (std::find(rows.begin(), rows.end(), s.id) == rows.end()) rows.push_back(s.id);
+    }
+    return rows;
+}
+
+void Game::UpdateShop() {
+    const ShopDef* shop = shop_db.Get(shop_id);
+    if (!shop || input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+        SetState(GameState::Play);
+        return;
+    }
+
+    if (input.MenuLeft() || input.MenuRight()) {
+        shop_tab = 1 - shop_tab;
+        shop_cursor = 0;
+        Audio::Play(Sfx::UiMove);
+    }
+
+    Player& p = world.player;
+    const vector<const ShopStock*> shelf = Trade::Shelf(*shop, &quests);
+    const vector<string> sell_rows = ShopSellRows();
+    const int count = shop_tab == 0 ? static_cast<int>(shelf.size()) : static_cast<int>(sell_rows.size());
+    MoveCursor(shop_cursor, count);
+    shop_cursor = std::clamp(shop_cursor, 0, std::max(0, count - 1));
+
+    if (!(input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) || count == 0) return;
+
+    // One at a time, or ten -- or the whole stack when selling -- with sprint held.
+    const bool many = input.Down(Action::Sprint);
+    const string item = shop_tab == 0 ? shelf[shop_cursor]->item : sell_rows[shop_cursor];
+    const ItemDef* d = items.Get(item);
+    const string name = d ? d->name : item;
+
+    TradeOutcome t;
+    if (shop_tab == 0) {
+        t = Trade::Buy(*shop, world.shops, p.inventory, items, &quests, item, many ? 10 : 1);
+        if (t.result == TradeResult::Ok)
+            PushToast("Bought " + std::to_string(t.qty) + "x " + name + " for " +
+                      std::to_string(t.coins) + " coins.", Palette::Xp);
+    } else {
+        t = Trade::Sell(*shop, p.inventory, items, item, many ? p.inventory.Count(item) : 1);
+        if (t.result == TradeResult::Ok)
+            PushToast("Sold " + std::to_string(t.qty) + "x " + name + " for " +
+                      std::to_string(t.coins) + " coins.", Palette::Highlight);
+    }
+
+    if (t.result == TradeResult::Ok) {
+        Audio::Play(Sfx::Coins);
+        quests.RefreshCollectObjectives(p.inventory);
+    } else {
+        Audio::Play(Sfx::UiError);
+        PushToast(Trade::Message(t.result), {235, 150, 120, 255});
+    }
+}
+
+void Game::DrawShop() {
+    const ShopDef* shop = shop_db.Get(shop_id);
+    if (!shop) return;
+    const Player& p = world.player;
+
+    ui.Dim(0.5f);
+    const SDL_FRect panel = CenteredPanel(ui, 760.0f, 480.0f);
+    ui.Panel(panel);
+    ui.Text(shop->name, panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
+            Palette::Highlight, Align::Center);
+    ui.Text(std::to_string(p.inventory.Coins()) + " coins", panel.x + panel.w - 24.0f,
+            panel.y + 24.0f, TextSize::Small, Palette::Highlight, Align::Right);
+
+    // The two tabs.
+    const float list_w = 330.0f;
+    for (int t = 0; t < 2; ++t) {
+        const SDL_FRect tab = {panel.x + 20.0f + t * 110.0f, panel.y + 52.0f, 100.0f, 26.0f};
+        const bool on = (t == shop_tab);
+        ui.Fill(tab, on ? SDL_Color{58, 46, 28, 230} : SDL_Color{30, 26, 22, 200});
+        ui.Outline(tab, on ? Palette::Highlight : Palette::Border, 1.0f);
+        ui.Text(t == 0 ? "Buy" : "Sell", tab.x + tab.w / 2.0f, tab.y + 4.0f, TextSize::Small,
+                on ? Palette::Highlight : Palette::TextDim, Align::Center);
+    }
+    ui.Text("< " + string(shop_tab == 0 ? "What is on the shelf" : "What you carry") + " >",
+            panel.x + 250.0f, panel.y + 56.0f, TextSize::Small, Palette::TextDim);
+
+    const vector<const ShopStock*> shelf = Trade::Shelf(*shop, &quests);
+    const vector<string> sell_rows = ShopSellRows();
+    const int count = shop_tab == 0 ? static_cast<int>(shelf.size()) : static_cast<int>(sell_rows.size());
+
+    if (count == 0) {
+        ui.Text(shop_tab == 0 ? "Nothing on the shelf for you yet." : "You have nothing to sell.",
+                panel.x + 20.0f + list_w / 2.0f, panel.y + 200.0f, TextSize::Body,
+                Palette::TextDim, Align::Center);
+    }
+
+    const float row_h = 34.0f, top = panel.y + 92.0f;
+    constexpr int SHOWN = 9;
+    const int first = std::clamp(shop_cursor - SHOWN / 2, 0, std::max(0, count - SHOWN));
+    if (first > 0)
+        ui.Text("^", panel.x + 20.0f + list_w / 2.0f, top - 16.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    if (first + SHOWN < count)
+        ui.Text("v", panel.x + 20.0f + list_w / 2.0f, top + SHOWN * row_h - 2.0f,
+                TextSize::Small, Palette::TextDim, Align::Center);
+
+    for (int i = first; i < count && i < first + SHOWN; ++i) {
+        const string id = shop_tab == 0 ? shelf[i]->item : sell_rows[i];
+        const ItemDef* d = items.Get(id);
+        const SDL_FRect row = {panel.x + 20.0f, top + (i - first) * row_h, list_w, row_h - 4.0f};
+        const bool selected = (i == shop_cursor);
+        if (selected) {
+            ui.Fill(row, {58, 46, 28, 210});
+            ui.Outline(row, Palette::Highlight, 1.0f);
+        }
+        if (d && !d->icon.empty())
+            if (SDL_Texture* tex = textures->Get(d->icon)) {
+                const SDL_FRect ic = {row.x + 4.0f, row.y + 3.0f, 24.0f, 24.0f};
+                SDL_RenderTexture(renderer, tex, nullptr, &ic);
+            }
+
+        string right;
+        SDL_Color right_c = Palette::Text;
+        bool dim = false;
+        if (shop_tab == 0) {
+            const int left = world.shops.Remaining(*shop, id);
+            right = d ? std::to_string(Trade::BuyPrice(*shop, *d)) + "c" : "";
+            right_c = (d && p.inventory.Coins() >= Trade::BuyPrice(*shop, *d)) ? Palette::Highlight
+                                                                                : SDL_Color{225, 130, 120, 255};
+            dim = (left == 0);
+            ui.Text(left == 0 ? "sold out" : ("x" + std::to_string(left)),
+                    row.x + row.w - 64.0f, row.y + 6.0f, TextSize::Small, Palette::TextDim, Align::Right);
+        } else {
+            const int offer = d ? Trade::SellPrice(*shop, items, *d) : 0;
+            right = offer > 0 ? std::to_string(offer) + "c" : "--";
+            right_c = offer > 0 ? Palette::Xp : Palette::TextDim;
+            dim = (offer == 0);
+            ui.Text("x" + std::to_string(p.inventory.Count(id)), row.x + row.w - 64.0f, row.y + 6.0f,
+                    TextSize::Small, Palette::TextDim, Align::Right);
+        }
+        ui.Text(d ? d->name : id, row.x + 34.0f, row.y + 6.0f, TextSize::Small,
+                dim ? SDL_Color{120, 110, 100, 255} : (selected ? Palette::Highlight : Palette::Text));
+        ui.Text(right, row.x + row.w - 8.0f, row.y + 6.0f, TextSize::Small, right_c, Align::Right);
+    }
+
+    // Detail for the highlighted row.
+    if (count > 0) {
+        const int index = std::clamp(shop_cursor, 0, count - 1);
+        const string id = shop_tab == 0 ? shelf[index]->item : sell_rows[index];
+        if (const ItemDef* d = items.Get(id)) {
+            const float dx = panel.x + list_w + 44.0f;
+            const float dw = panel.w - list_w - 68.0f;
+            float y = top;
+            ui.Text(d->name, dx, y, TextSize::Body, Palette::Highlight);
+            y += 28.0f;
+            y += ui.TextWrapped(d->description, dx, y, dw, TextSize::Small, Palette::TextDim) + 8.0f;
+            if (!d->requirements.empty()) {
+                string req = "To use: ";
+                for (const auto& rq : d->requirements)
+                    req += string(SkillName(rq.first)) + " " + std::to_string(rq.second) + "  ";
+                ui.Text(req, dx, y, TextSize::Small, Palette::Text);
+                y += 22.0f;
+            }
+            ui.Text("You carry " + std::to_string(p.inventory.Count(id)), dx, y, TextSize::Small, Palette::Text);
+            y += 20.0f;
+
+            if (shop_tab == 0) {
+                ui.Text("Price " + std::to_string(Trade::BuyPrice(*shop, *d)) + " coins", dx, y,
+                        TextSize::Small, Palette::Highlight);
+                y += 20.0f;
+                ui.Text(std::to_string(world.shops.Remaining(*shop, id)) + " left today; restocks at dawn",
+                        dx, y, TextSize::Small, Palette::TextDim);
+            } else {
+                const int offer = Trade::SellPrice(*shop, items, *d);
+                if (offer > 0) {
+                    ui.Text("They pay " + std::to_string(offer) + " coins each", dx, y, TextSize::Small, Palette::Xp);
+                    y += 20.0f;
+                    // Where it would fetch more, so selling is a choice.
+                    int best = offer;
+                    string where;
+                    for (const auto& kv : shop_db.All()) {
+                        const int o = Trade::SellPrice(kv.second, items, *d);
+                        if (o > best) { best = o; where = kv.second.name; }
+                    }
+                    if (!where.empty())
+                        y += ui.TextWrapped(where + " would pay " + std::to_string(best) + ".",
+                                            dx, y, dw, TextSize::Small, Palette::TextDim);
+                } else {
+                    ui.TextWrapped("This trader does not deal in that.", dx, y, dw, TextSize::Small,
+                                   {225, 130, 120, 255});
+                }
+            }
+        }
+    }
+
+    ui.Text(input.PromptFor(Action::Confirm) + (shop_tab == 0 ? " buy     " : " sell     ") +
+            input.PromptFor(Action::Sprint) + " + " + input.PromptFor(Action::Confirm) +
+            (shop_tab == 0 ? " buy 10     " : " sell all     ") +
+            string(input.ActiveDevice() == InputMode::Controller ? "Left/Right" : "A/D") + " buy / sell     " +
+            input.PromptFor(Action::Back) + " leave",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 }

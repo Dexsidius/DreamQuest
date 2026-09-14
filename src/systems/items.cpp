@@ -102,6 +102,8 @@ bool ItemDatabase::Load(const string& path, bool required) {
         }
 
         d.metal = o.value("metal", false);
+        if (o.contains("tags"))
+            for (const json& t : o["tags"]) d.tags.push_back(t.get<string>());
         d.use   = o.value("use", string(""));
         d.model = o.value("model", string(""));
         d.tool  = o.value("tool", string(""));
@@ -317,9 +319,30 @@ bool ItemDatabase::LoadTiers(const string& path) {
         ++index;
     }
 
+    SettleCraftValues();
     SDL_Log("ItemDatabase: %d tiers, %d recipes (%s)",
             static_cast<int>(tiers.size()), static_cast<int>(recipes.size()), path.c_str());
     return true;
+}
+
+int ItemDatabase::InputValue(const ItemDef& recipe) const {
+    int total = 0;
+    for (const auto& in : recipe.craft_inputs)
+        if (const ItemDef* mat = Get(in.first)) total += mat->value * in.second;
+    return total;
+}
+
+void ItemDatabase::SettleCraftValues() {
+    // A few passes, because a bar is an input to a sword: the bar has to be
+    // settled before the sword can be.
+    for (int pass = 0; pass < 4; ++pass)
+        for (const ItemDef* r : Recipes()) {
+            auto it = defs.find(r->craft_result);
+            if (it == defs.end() || it->second.value <= 1) continue;
+            const float per = static_cast<float>(InputValue(*r)) / std::max(1, r->craft_qty);
+            const int floor_value = static_cast<int>(std::ceil(per * CRAFT_VALUE_ADD));
+            it->second.value = std::max(it->second.value, floor_value);
+        }
 }
 
 CraftStation CraftStationFromName(const string& name) {

@@ -11,6 +11,7 @@
 #include "targeting.h"
 #include "lighting.h"
 #include "../systems/clock.h"
+#include "../systems/shop.h"
 
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
@@ -75,6 +76,8 @@ public:
     Targeting targeting;
     // The time of day; see clock.h.
     WorldClock clock;
+    // What every trader has sold today; see shop.h.
+    ShopLedger shops;
 
     // --- sleep and dreams --------------------------------------------------------
     // After dusk, a bed, a campsite or the player's own camp puts them to

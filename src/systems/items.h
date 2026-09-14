@@ -78,6 +78,9 @@ struct ItemDef {
     map<string, int> craft_inputs;    // item id -> quantity
 
     string icon;                      // image path, optional
+    // What kind of thing it is to a trader, beyond what its fields already say:
+    // "wood", "leather", "gem", "dream". See Trade::Tags.
+    vector<string> tags;
 
     // --- material tiers ---------------------------------------------------------
     // Set on everything data/tiers.json made: which tier, which of the seven
@@ -132,6 +135,14 @@ public:
     const TierDef* Tier(const string& id) const;
     // The item a tier makes as a piece: "sword", "helm", ...; empty if none.
     string TierPiece(const string& tier_id, const string& piece) const;
+
+    // Making something is worth doing: whatever a recipe makes is worth at
+    // least this many times what went into it, so a sword sells for more than
+    // its bars would have. LoadTiers settles it once every recipe is known.
+    static constexpr float CRAFT_VALUE_ADD = 1.8f;
+    void SettleCraftValues();
+    // What a recipe's materials are worth, in coins.
+    int  InputValue(const ItemDef& recipe) const;
 
 private:
     map<string, ItemDef> defs;

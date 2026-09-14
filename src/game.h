@@ -31,6 +31,7 @@ enum class GameState {
     Board,
     Note,
     Crafting,
+    Shop,
     Death,
 };
 
@@ -90,6 +91,7 @@ private:
     void UpdateBoard();
     void UpdateNote();
     void UpdateCrafting();
+    void UpdateShop();
     void UpdateDeath(float dt);
 
     // --- per-state drawing ---------------------------------------------------
@@ -109,6 +111,7 @@ private:
     void DrawBoard();
     void DrawNote();
     void DrawCrafting();
+    void DrawShop();
     void DrawDeath();
     void DrawToasts();
     void DrawSlotList(const SDL_FRect& area, const string& heading);
@@ -138,6 +141,7 @@ private:
     ProjectileDatabase projectile_db;
     SpellBook        spells;
     SkillTrees       skill_trees;
+    ShopDatabase     shop_db;
     DialogueRunner   dialogue;
     std::mt19937     rng;
     GameContext      ctx;
@@ -180,6 +184,16 @@ private:
     string   craft_title;
     CraftStation craft_station = CraftStation::Workbench;
     vector<string> board_quests;
+
+    // The trader being dealt with: which shop, buying (0) or selling (1), and
+    // the row. pending_shop is set by a dialogue line and opened once the
+    // conversation has closed.
+    string shop_id, pending_shop;
+    int    shop_tab = 0;
+    int    shop_cursor = 0;
+    void   OpenShop(const string& id);
+    // What the player could sell here: one row per item carried, in bag order.
+    vector<string> ShopSellRows() const;
 
     vector<Toast> toasts;
 

@@ -321,7 +321,7 @@
   },
   "smith_root": {
     "speaker": "Smith Halda",
-    "text": "Mind the sparks. If you are here to buy, I am short on everything, and if you are here to sell, I am short on coin.",
+    "text": "Mind the sparks. The shelf is thin until the ore comes in, but I pay fair for metal -- ore, bars, anything you have hammered into shape.",
     "options": [
       {
         "text": "What do you need?",
@@ -353,6 +353,13 @@
           "state": "active",
           "has_item": "copper_ore",
           "qty": 8
+        }
+      },
+      {
+        "text": "Let me see what is for sale.",
+        "next": "end",
+        "action": {
+          "shop": "havenbrook_forge"
         }
       },
       {
@@ -432,6 +439,13 @@
           "state": "active",
           "has_item": "raw_minnow",
           "qty": 5
+        }
+      },
+      {
+        "text": "What is on the menu?",
+        "next": "end",
+        "action": {
+          "shop": "havenbrook_inn"
         }
       },
       {
@@ -541,6 +555,13 @@
         "next": "hunter_game"
       },
       {
+        "text": "Do you sell bows?",
+        "next": "end",
+        "action": {
+          "shop": "havenbrook_bowyer"
+        }
+      },
+      {
         "text": "Sorry.",
         "next": "end"
       }
@@ -601,6 +622,13 @@
       {
         "text": "What is this place?",
         "next": "bram_about"
+      },
+      {
+        "text": "Can I buy an axe?",
+        "next": "end",
+        "action": {
+          "shop": "whisperwood_woodcutter"
+        }
       },
       {
         "text": "Farewell.",
@@ -716,6 +744,13 @@
       {
         "text": "What do you grow?",
         "next": "oona_herbs"
+      },
+      {
+        "text": "Do you sell remedies?",
+        "next": "end",
+        "action": {
+          "shop": "mossvale_herbalist"
+        }
       },
       {
         "text": "Goodbye.",
@@ -852,6 +887,13 @@
         "if": {
           "skill": "Fishing",
           "level": 20
+        }
+      },
+      {
+        "text": "Buying any fish?",
+        "next": "end",
+        "action": {
+          "shop": "fernhollow_tackle"
         }
       },
       {
@@ -1211,6 +1253,13 @@
         }
       },
       {
+        "text": "Show me the stall.",
+        "next": "end",
+        "action": {
+          "shop": "mossvale_general"
+        }
+      },
+      {
         "text": "Farewell.",
         "next": "end"
       }
@@ -1494,6 +1543,234 @@
           "take_qty": 6,
           "heal": true
         }
+      }
+    ]
+  },
+  "tobin_root": {
+    "speaker": "Tobin the Grocer",
+    "text": "Thread, rods, a fish for the road. If you have something to be rid of, I will take it -- I will not pay much, mind.",
+    "options": [
+      {
+        "text": "Let me see the stall.",
+        "next": "end",
+        "action": {
+          "shop": "havenbrook_general"
+        }
+      },
+      {
+        "text": "Do you buy anything at all?",
+        "next": "tobin_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "tobin_about": {
+    "speaker": "Tobin the Grocer",
+    "text": "Anything that is not stolen, and some that is. A general store pays a little for everything. Take metal to Halda and fish to Bess and they will pay you better; bring it to me when you cannot be bothered to walk.",
+    "options": [
+      {
+        "text": "Let me see the stall.",
+        "next": "end",
+        "action": {
+          "shop": "havenbrook_general"
+        }
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "garrow_root": {
+    "speaker": "Garrow the Smith",
+    "text": "Iron from the south road, coal from wherever I can get it. Buying or selling?",
+    "options": [
+      {
+        "text": "Show me your bars.",
+        "next": "end",
+        "action": {
+          "shop": "mossvale_forge"
+        }
+      },
+      {
+        "text": "Why an anvil out in the open?",
+        "next": "garrow_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "garrow_about": {
+    "speaker": "Garrow the Smith",
+    "text": "The lodge will not have the noise indoors. Out here I can see the trail, and whoever comes up it with ore to sell. Once the wardens have the woods in hand, the azuryte carts will come through again, and I will have that too.",
+    "options": [
+      {
+        "text": "Show me your bars.",
+        "next": "end",
+        "action": {
+          "shop": "mossvale_forge"
+        }
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "nell_root": {
+    "speaker": "Nell the Pedlar",
+    "text": "Fernhollow has twelve people and one shop, and you are looking at it.",
+    "options": [
+      {
+        "text": "What have you got?",
+        "next": "end",
+        "action": {
+          "shop": "fernhollow_general"
+        }
+      },
+      {
+        "text": "Is it worth trading here?",
+        "next": "nell_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "nell_about": {
+    "speaker": "Nell the Pedlar",
+    "text": "For what you cannot carry any further, yes. For fish, Wendel pays better than I do -- do not tell him I said so.",
+    "options": [
+      {
+        "text": "What have you got?",
+        "next": "end",
+        "action": {
+          "shop": "fernhollow_general"
+        }
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "hob_root": {
+    "speaker": "Hob the Pedlar",
+    "text": "Resting the feet. The pack is open, if you want anything from it.",
+    "options": [
+      {
+        "text": "Let me look in the pack.",
+        "next": "end",
+        "action": {
+          "shop": "whisperwood_general"
+        }
+      },
+      {
+        "text": "Where are you headed?",
+        "next": "hob_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "hob_about": {
+    "speaker": "Hob the Pedlar",
+    "text": "Mossvale, then Fernhollow, then back to Havenbrook, and round again. Everything I sell costs a little more out here. You are paying for the walk.",
+    "options": [
+      {
+        "text": "Let me look in the pack.",
+        "next": "end",
+        "action": {
+          "shop": "whisperwood_general"
+        }
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "night_pedlar_root": {
+    "speaker": "The Night Pedlar",
+    "text": "Welcome to the market that is only open while you sleep. Mind the prices; they are real.",
+    "options": [
+      {
+        "text": "What do you sell?",
+        "next": "end",
+        "action": {
+          "shop": "reverie_general"
+        }
+      },
+      {
+        "text": "Do you take coin, in a dream?",
+        "next": "night_pedlar_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "night_pedlar_about": {
+    "speaker": "The Night Pedlar",
+    "text": "Coin you went to sleep with, and coin you will wake with. Whatever you buy here comes back with you, the same as the shards do.",
+    "options": [
+      {
+        "text": "What do you sell?",
+        "next": "end",
+        "action": {
+          "shop": "reverie_general"
+        }
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "collector_root": {
+    "speaker": "The Collector",
+    "text": "Shards, gems, things with a dream still in them. I buy what others will not look at, and I sell what others cannot find.",
+    "options": [
+      {
+        "text": "Show me the curios.",
+        "next": "end",
+        "action": {
+          "shop": "reverie_curios"
+        }
+      },
+      {
+        "text": "Where does it all come from?",
+        "next": "collector_about"
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "collector_about": {
+    "speaker": "The Collector",
+    "text": "Deeper in than you have been. When the voice by the candles has spoken to you, and when the brute on the lower plateau has stopped troubling Hesper's pond, I will open the better cases.",
+    "options": [
+      {
+        "text": "Show me the curios.",
+        "next": "end",
+        "action": {
+          "shop": "reverie_curios"
+        }
+      },
+      {
+        "text": "Farewell.",
+        "next": "end"
       }
     ]
   }

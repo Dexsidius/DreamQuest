@@ -92,6 +92,7 @@ bool Game::LoadContent() {
     ok &= projectile_db.Load("data/projectiles.json");
     ok &= spells.Load("data/spells.json");
     ok &= skill_trees.Load("data/skill_trees.json");
+    ok &= shop_db.Load("data/shops.json");
 
     if (!ok) {
         SDL_Log("DreamQuest: one or more data files failed to load. "
@@ -122,6 +123,7 @@ void Game::NewGame(const string& character, int slot) {
     world.clock.Set(1, 9.0f);
     world.SetCamp({});
     world.SetDream({});
+    world.shops.Clear();
     world.player = Player();
     world.player.Init(ctx, character);
 
@@ -163,6 +165,7 @@ void Game::NewGame(const string& character, int slot) {
 
     has_session = true;
     quests.SetDay(world.clock.QuestDay());
+    world.shops.SetDay(world.clock.QuestDay());
     quest_day_seen = world.clock.QuestDay();
     SetState(GameState::Play);
     PushToast("A new journey begins.", Palette::Highlight);
@@ -181,6 +184,7 @@ bool Game::LoadGame(int slot) {
     autosave_timer = 0.0f;
     has_session = true;
     quests.SetDay(world.clock.QuestDay());
+    world.shops.SetDay(world.clock.QuestDay());
     quest_day_seen = world.clock.QuestDay();
     SetState(GameState::Play);
     PushToast("Welcome back.", Palette::Highlight);
@@ -254,6 +258,7 @@ bool Game::InGameplayState() const {
         case GameState::Board:
         case GameState::Note:
         case GameState::Crafting:
+        case GameState::Shop:
         case GameState::Death:
             return true;
         default:
@@ -377,6 +382,7 @@ void Game::Update(float dt) {
         case GameState::Board:           UpdateBoard(); break;
         case GameState::Note:            UpdateNote(); break;
         case GameState::Crafting:        UpdateCrafting(); break;
+        case GameState::Shop:            UpdateShop(); break;
         case GameState::Death:           UpdateDeath(dt); break;
     }
 
@@ -428,10 +434,12 @@ void Game::Update(float dt) {
 void Game::UpdatePlay(float dt) {
     playtime += dt;
 
-    // The boards post new dailies when the quest day turns over, at dawn.
+    // The boards post new dailies when the quest day turns over, at dawn, and
+    // the traders restock.
     quests.SetDay(world.clock.QuestDay());
+    world.shops.SetDay(world.clock.QuestDay());
     if (quest_day_seen >= 0 && world.clock.QuestDay() > quest_day_seen)
-        PushToast("New notices are up on the mission boards.", Palette::Xp);
+        PushToast("New notices are up, and the traders have restocked.", Palette::Xp);
     quest_day_seen = world.clock.QuestDay();
 
     world.Update(dt, ctx);
@@ -606,6 +614,9 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
             if (s >= 0) p.GrantXp(s, a.xp_amount);
         }
 
+        // Trading waits for the conversation to close; see UpdateDialogue.
+        if (!a.open_shop.empty() && shop_db.Get(a.open_shop)) pending_shop = a.open_shop;
+
         if (a.heal) {
             p.skills.ResetCurrent();
             p.SyncHitpoints();
@@ -683,6 +694,7 @@ void Game::Render() {
         case GameState::Board:           DrawBoard(); break;
         case GameState::Note:            DrawNote(); break;
         case GameState::Crafting:        DrawCrafting(); break;
+        case GameState::Shop:            DrawShop(); break;
         case GameState::Death:           DrawDeath(); break;
         case GameState::Play:            break;
     }

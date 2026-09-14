@@ -7,6 +7,7 @@
     "icon": "assets/icons/coin.png"
   },
   "bones": {
+    "tags": ["bones"],
     "name": "Bones",
     "desc": "Picked clean. Some in Havenbrook still bury what they find.",
     "stack": true,
@@ -58,6 +59,7 @@
     "model": "staff_bronze"
   },
   "leather_body": {
+    "tags": ["leather"],
     "name": "Leather Jerkin",
     "desc": "Boar hide, boiled and cut. Quiet, and warmer than it looks.",
     "slot": "body",
@@ -73,6 +75,7 @@
     ]
   },
   "leather_legs": {
+    "tags": ["leather"],
     "name": "Leather Chaps",
     "desc": "Stitched from the same hide as the jerkin.",
     "slot": "legs",
@@ -88,6 +91,7 @@
     ]
   },
   "bone_amulet": {
+    "tags": ["bones"],
     "name": "Bone Amulet",
     "desc": "Carved from something that walked out of the Mire once.",
     "slot": "amulet",
@@ -151,6 +155,7 @@
     "icon": "assets/icons/roast_haunch.png"
   },
   "herbal_tonic": {
+    "tags": ["herb", "potion"],
     "name": "Herbal Tonic",
     "desc": "Bitter, green, and it works. Restores 22 hitpoints.",
     "stack": true,
@@ -160,6 +165,7 @@
     "icon": "assets/icons/potion_red.png"
   },
   "logs": {
+    "tags": ["wood"],
     "name": "Logs",
     "desc": "Split pine. The guild always wants more of it.",
     "stack": true,
@@ -167,6 +173,7 @@
     "icon": "assets/icons/logs.png"
   },
   "oak_logs": {
+    "tags": ["wood"],
     "name": "Oak Logs",
     "desc": "Dense and slow to season. Bowyers pay well for it.",
     "stack": true,
@@ -184,6 +191,7 @@
     }
   },
   "hide": {
+    "tags": ["leather"],
     "name": "Raw Hide",
     "desc": "Still needs curing, but it is worth carrying home.",
     "stack": true,
@@ -201,6 +209,7 @@
     "icon": "assets/icons/hide.png"
   },
   "thread": {
+    "tags": ["leather", "cloth"],
     "name": "Waxed Thread",
     "desc": "A spool of it. Sold by the yard in Havenbrook.",
     "stack": true,
@@ -243,6 +252,7 @@
     "icon": "assets/icons/iron_ore.png"
   },
   "ruby": {
+    "tags": ["gem"],
     "name": "Uncut Ruby",
     "desc": "Deep red, badly chipped, and still worth a month of work.",
     "stack": true,
@@ -271,6 +281,7 @@
     "icon": "assets/icons/star.png"
   },
   "ember_shard": {
+    "tags": ["gem"],
     "name": "Ember Shard",
     "desc": "A splinter of something still burning, a long way underground.",
     "stack": true,
@@ -328,6 +339,7 @@
     "model": "staff_wood"
   },
   "bedroll": {
+    "tags": ["supplies"],
     "name": "Bedroll",
     "desc": "Canvas, a blanket and a groundsheet. Use it under open sky to pitch camp, and sleep there after dusk.",
     "value": 40,
@@ -335,6 +347,7 @@
     "icon": "assets/icons/bedroll.png"
   },
   "dream_shard": {
+    "tags": ["dream"],
     "name": "Dream Shard",
     "desc": "A sliver of a dream that came back with you. It is warm, and it hums when nobody is listening.",
     "stack": true,
@@ -352,6 +365,7 @@
     "icon": "assets/icons/dream_shard.png"
   },
   "dreamcatcher": {
+    "tags": ["dream"],
     "name": "Dreamcatcher",
     "desc": "Thread and shards on a willow hoop. What it catches, it keeps.",
     "slot": "amulet",

@@ -485,6 +485,86 @@ A cast that lands more than one says so in gold ("+ 2 Raw Trout").
 
 ---
 
+## Trading
+
+Talk to a trader and pick the trade line ("Let me see what is for sale.", "Buying
+any fish?") and the shop opens. Anyone who trades says so in the prompt: "Talk to
+Smith Halda  -  trades". The trade line is always there, whatever else the
+conversation is gated on.
+
+The shop has two tabs, switched with `A`/`D` (left and right on a controller).
+**Buy** lists what is on the shelf with its price and how many are left today;
+**Sell** lists everything in the pack with what this trader pays, dimmed when they
+do not deal in it, and names the trader who would pay more. `J` (A) buys or sells
+one; hold `Shift` (left trigger) to buy ten or sell the whole stack. `K` leaves.
+
+### Who is where
+
+Every town and significant place has a general store and at least one other
+kind of shop.
+
+| Place | General store | Other shops |
+| --- | --- | --- |
+| Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo) |
+| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies |
+| Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
+| Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
+| The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
+
+### Prices
+
+Prices come from an item's value. A shop charges its markup on the value --
+1.0 at a forge, up to 1.3 for a pedlar out on the trail -- and pays a fraction of
+it for the things it deals in:
+
+- **Forges** pay 75% for ore, bars and metal, and 70% for weapons, armour and tools.
+- **Specialists** pay well for their own trade: Wendel 80% for fish, Bram 80% for
+  timber, the Inn Kitchen 70% for anything raw, Ivo 75% for bows, Oona 80% for
+  herbs, the Collector 85% for dream shards.
+- **General stores** take anything with a price, at 40% (45% in the Reverie).
+- Coins and quest items are never bought or sold.
+
+Every rate is below every markup, so nothing can be bought in one shop and sold
+in another for more than it cost. The profit is in work:
+
+- **Gathering pays.** Copper ore fetches 8 coins at a forge, a raw trout 19 at
+  Wendel's, an oak log 14 at Bram's.
+- **Working it pays more.** Anything crafted is worth at least 1.8 times its
+  materials (`ItemDatabase::CRAFT_VALUE_ADD`): a cooked trout sells for 38, twice
+  the raw one.
+- **Smithing bought bars pays too**, as far as the day's stock goes. Two bronze
+  bars and a log cost 84 coins and make a sword Halda buys back for 107; an iron
+  sword is 196 in and 248 out, and a steel cuirass 2415 in and 3042 out.
+
+### Limited stock
+
+What a shop sells runs out: ten bronze bars a day at Halda's, two steel bars,
+one iron pickaxe. **Every shop restocks at dawn**, when the quest day turns over,
+and the dawn message says so: "New notices are up, and the traders have
+restocked." What has been sold today is saved.
+
+Better stock is gated on the story, the same way dialogue is:
+
+- Halda has only bronze bars, iron ore and a sword or shield until her forge has
+  its copper (Ore for the Forge); then iron bars, coal, steel and an iron
+  pickaxe go on the shelf.
+- Garrow's azuryte waits on the Trail Wardens, Bram's iron and steel axes on
+  clearing the trail, Oona's tonics on Wendel's remedy.
+- The Collector opens the better cases after The Water Remembers and Lights on
+  the Pond: adamantium, platinum and demonrite ore, and a dreamcatcher.
+
+**No shop sells what a quest asks you to gather or deliver**, unless that quest
+is already finished -- and never what a daily asks for. Nobody sells copper ore,
+logs, hides, minnows or dream shards, so the dailies and the early quests stay
+work rather than a purchase.
+
+Shops are data, in `data/shops.json`: the keeper, the town, the markup, what they
+buy (by item tag -- `ore`, `bar`, `weapon`, `fish`, `raw`, `tier:wood`, or `*` for
+anything; see `Trade::Tags`), and the shelf, with a daily stock and optional
+`after` quests for each line.
+
+---
+
 ## Worn equipment
 
 The CraftPix character packs ship their frames already split into layers —
@@ -1063,8 +1143,8 @@ finished the errand.
 
 Repeatable quests are posted in **pools**, one per board, and each pool puts up
 **two a day**. The day turns over **at dawn**, not midnight, so a night's sleep
-is what brings new notices, and the HUD says "New notices are up on the mission
-boards." when it happens. Which two are up is decided by the pool and the day
+is what brings new notices, and the traders restock, and the HUD says "New
+notices are up, and the traders have restocked." when it happens. Which two are up is decided by the pool and the day
 alone, so it is the same after a reload. A daily can be done once per posted
 day; the journal counts how many times.
 
@@ -1201,8 +1281,8 @@ Three slots, plus an autosave every two minutes and one on quitting to the main
 menu. A save records the map, your exact position and facing, HP, every skill's
 XP, inventory, worn equipment, quest progress, and the one-shot world flags —
 which chests you have opened and which notes you have read — plus the day and
-the hour, where your camp is pitched, and, for a save made asleep, where you are
-dreaming from — so loading puts
+the hour, where your camp is pitched, what every trader has sold today, and, for
+a save made asleep, where you are dreaming from — so loading puts
 you back exactly where you left off. Saves are written to a temporary file and
 renamed, so an interrupted write cannot destroy the previous one.
 
@@ -1217,7 +1297,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **5253 checks** covering:
+and checks all of it — currently **5854 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1235,6 +1315,20 @@ and checks all of it — currently **5253 checks** covering:
 - the dream quests played through the world at night: sleeping into the
   Reverie, reading the voice, reporting to Mira, Hesper's hunt, and the reverie
   dailies posted on the Slate
+- traders: every shop is kept by an NPC standing in its own town, who can be
+  walked up to and offers to trade from the first line; every town has a general
+  store and another shop; every shelf item exists, has a price and a limited
+  stock; forges sell materials and buy ore, bars and metalwork but not fish; no
+  shop sells a quest's items before that quest is done, or a daily's ever
+- prices: nothing bought anywhere sells anywhere for what it cost; every recipe
+  makes something worth 1.8 times its materials; everything gathered sells
+  somewhere and sells for more cooked; every piece smithed from a forge's bars
+  sells for more than the bars cost
+- trading: buying takes the price and the stock, never more than is left or
+  affordable, and a full pack is not charged; stock stays sold out the same day,
+  survives a save and comes back at dawn; gated stock appears once its quest is
+  done; selling pays and refuses what a trader does not deal in; choosing a
+  trader's trade line closes the conversation and opens their shop
 - all seventeen maps load; portals point at real maps; every enemy, NPC and object
   resolves
 - the OSRS XP table matches known values
@@ -1392,7 +1486,7 @@ src/
   systems/              skills, items, loot, combat, quests, dialogue, saves,
                         projectiles and elements, spells, the clock,
                         material tiers (items.cpp), skill trees (talents.cpp),
-                        and tools and fishing (gathering.cpp)
+                        tools and fishing (gathering.cpp), and traders (shop.cpp)
   ui/                   drawing helpers and every screen
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips
@@ -1406,7 +1500,7 @@ tools/
   make_tiers.ps1        runs blender_tiers.py headless
   make_sprites_json.ps1 / make_manifest.ps1
 data/                   items, enemies, loot tables, quests, dialogue, sprites,
-                        projectiles, spells
+                        projectiles, spells, shops
 maps/                   generated .mx maps, editable in LevelEdit-Plus
 ```
 

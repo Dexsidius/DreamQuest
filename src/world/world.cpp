@@ -770,7 +770,8 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
 
     for (size_t i = 0; i < npcs.size(); ++i)
         consider(InteractTarget::Npc, static_cast<int>(i),
-                 "Talk to " + npcs[i]->Name(), npcs[i]->x, npcs[i]->y);
+                 "Talk to " + npcs[i]->Name() + (npcs[i]->Shop().empty() ? "" : "  -  trades"),
+                 npcs[i]->x, npcs[i]->y);
 
     const auto& objects = map.Objects();
     for (size_t i = 0; i < objects.size(); ++i) {
