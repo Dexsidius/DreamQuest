@@ -166,7 +166,7 @@ public:
             g.layer = layer;
             dq["layers"][name] = layer;
         }
-        g.locations.push_back({x + w / 2, y + h / 2, w, h});
+        g.locations.push_back({x + ox + w / 2, y + h / 2, w, h});
     }
 
     // True for tiles whose art has visible detail rather than being one colour.
@@ -226,16 +226,17 @@ public:
     }
 
     void Collision(int x, int y, int w, int h) {
-        dq["collision"].push_back(json::array({x, y, w, h}));
+        dq["collision"].push_back(json::array({x + ox, y, w, h}));
     }
 
     void Spawn(const string& name, int x, int y) {
-        dq["spawns"][name] = json::array({x, y});
+        dq["spawns"][name] = json::array({x + ox, y});
     }
 
     // True when a player standing with their feet at (x, y) touches none of
     // the collision placed so far. The foot box matches the self-test's.
     bool Clear(int x, int y) const {
+        x += ox;
         for (const auto& c : dq["collision"]) {
             const int cx = c[0], cy = c[1], cw = c[2], ch = c[3];
             if (x - 8 < cx + cw && cx < x + 8 && y - 10 < cy + ch && cy < y) return false;
@@ -247,7 +248,7 @@ public:
                 const string& spawn, const string& label,
                 bool interact = true, const string& locked_by = "") {
         json p;
-        p["rect"]     = json::array({x, y, w, h});
+        p["rect"]     = json::array({x + ox, y, w, h});
         p["target"]   = target;
         p["spawn"]    = spawn;
         p["label"]    = label;
@@ -265,7 +266,7 @@ public:
     // Ground that burns while it is stood on.
     void Hazard(int x, int y, int w, int h, float dps, const string& kind = "fire") {
         json hz;
-        hz["rect"] = json::array({x, y, w, h});
+        hz["rect"] = json::array({x + ox, y, w, h});
         hz["dps"]  = dps;
         hz["kind"] = kind;
         dq["hazards"].push_back(hz);
@@ -275,7 +276,7 @@ public:
                float respawn = 28.0f, float leash = 260.0f) {
         json e;
         e["type"]    = type;
-        e["x"]       = x;
+        e["x"]       = x + ox;
         e["y"]       = y;
         e["level"]   = level;
         e["respawn"] = respawn;
@@ -291,7 +292,7 @@ public:
         n["id"]       = npc_id;
         n["name"]     = name;
         n["sprite"]   = sprite;
-        n["x"]        = x;
+        n["x"]        = x + ox;
         n["y"]        = y;
         n["dialogue"] = dialogue;
         n["facing"]   = facing;
@@ -304,7 +305,7 @@ public:
         json o;
         o["id"]   = obj_id;
         o["type"] = type;
-        o["x"]    = x;
+        o["x"]    = x + ox;
         o["y"]    = y;
         dq["objects"].push_back(o);
         return dq["objects"].back();
@@ -323,7 +324,7 @@ public:
         e["levels"] = levels;
         json rr = json::array();
         for (const Rect4& r : ramps)
-            rr.push_back(json::array({r.x, r.y, r.w, r.h}));
+            rr.push_back(json::array({r.x + ox, r.y, r.w, r.h}));
         e["ramps"] = rr;
         dq["elevation"] = e;
     }
@@ -371,6 +372,10 @@ public:
     int Height() const { return height; }
 
     json dq;
+    // Added to every x placed, so a map can grow west without renumbering
+    // what is already laid out on it: the overworld keeps its cell (0, 0)
+    // where it always was, and the new land lies at negative cells.
+    int ox = 0;
 
 private:
     string id, display;
@@ -574,9 +579,16 @@ static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
 enum Biome { MEADOW, GREENWOOD, FOOTHILLS, MIRE, CURSED, WATER, ROAD, TRAIL };
 
 static const int OW_CELL = 32;
-static const int OW_W = 128, OW_H = 96;                 // cells
-static const int OW_PX_W = OW_W * OW_CELL;              // 4096
-static const int OW_PX_H = OW_H * OW_CELL;              // 3072
+// The Hollowmarch was 128 by 96 cells, and the Mire in its south-west corner
+// ran into the edge of the world. It has grown twenty cells west and twelve
+// south, out of the same noise, so the swamp, the river, the foothills and the
+// meadow simply carry on. The old cells keep their numbers: the new western
+// land is at negative cells, OW_X0 to -1, and MapBuilder::ox shifts it all
+// onto the map. The north and east edges, where the ways out are, stay put.
+static const int OW_X0 = -20;                           // westmost cell
+static const int OW_W = 128, OW_H = 108;                // east edge, south edge (cells)
+static const int OW_PX_W = OW_W * OW_CELL;              // the east edge, in the old x
+static const int OW_PX_H = OW_H * OW_CELL;              // 3456
 
 // Which variant of a ground family a cell gets.
 //
@@ -642,7 +654,7 @@ static bool BogAt(int cx, int cy) {
     if (BiomeAt(cx, cy) != MIRE) return false;
     const auto near = [&](int x, int y, int r) { return abs(cx - x) <= r && abs(cy - y) <= r; };
     if (near(12, 44, 5) || near(10, 60, 4) || near(MIRE_CAMP_X, MIRE_CAMP_Y, 7) || near(10, 30, 5)) return false;
-    if (cx < 3 || cy < 3) return false;
+    if (cx < OW_X0 + 3 || cy < 3 || cy >= OW_H - 3) return false;
     return Fbm(cx * 0.16f, cy * 0.16f, 4545) > 0.64f;
 }
 
@@ -688,7 +700,8 @@ static int ElevationAt(int cx, int cy) {
 }
 
 static void BuildOverworld() {
-    MapBuilder m("overworld", "The Hollowmarch", OW_PX_W, OW_PX_H);
+    MapBuilder m("overworld", "The Hollowmarch", (OW_W - OW_X0) * OW_CELL, OW_PX_H);
+    m.ox = -OW_X0 * OW_CELL;
     m.Ambient("overworld");
     m.Subtitle("Open country between the foothills and the mire");
     m.Background(38, 52, 40);
@@ -696,7 +709,7 @@ static void BuildOverworld() {
 
     // --- ground ---------------------------------------------------------------
     for (int cy = 0; cy < OW_H; ++cy) {
-        for (int cx = 0; cx < OW_W; ++cx) {
+        for (int cx = OW_X0; cx < OW_W; ++cx) {
             const Biome b = BiomeAt(cx, cy);
             // Low frequency: broad drifts of colour rather than noise per cell.
             //
@@ -746,14 +759,14 @@ static void BuildOverworld() {
         // than as landscape. At 64 the plateaus are broad and their edges run
         // far enough to be read as the edge of something.
         const int EL = 64;
-        const int ecols = OW_PX_W / EL, erows = OW_PX_H / EL;
+        const int ecols = (OW_W - OW_X0) * OW_CELL / EL, erows = OW_PX_H / EL;
         const int per = EL / OW_CELL;          // tile cells per height cell
 
         vector<int> levels(static_cast<size_t>(ecols) * erows, 0);
         for (int ey = 0; ey < erows; ++ey)
             for (int ex = 0; ex < ecols; ++ex)
                 levels[static_cast<size_t>(ey) * ecols + ex] =
-                    ElevationAt(ex * per + per / 2, ey * per + per / 2);
+                    ElevationAt(OW_X0 + ex * per + per / 2, ey * per + per / 2);
 
         // Ramps. Without these a raised map is a set of islands, so the rule
         // is simple and generous: the road is walkable end to end whatever it
@@ -792,34 +805,59 @@ static void BuildOverworld() {
 
     // Water is impassable; walling it off per cell is cheap and exact.
     for (int cy = 0; cy < OW_H; ++cy)
-        for (int cx = 0; cx < OW_W; ++cx)
+        for (int cx = OW_X0; cx < OW_W; ++cx)
             if (BiomeAt(cx, cy) == WATER || BogAt(cx, cy))
                 m.Collision(cx * OW_CELL, cy * OW_CELL, OW_CELL, OW_CELL);
 
     // --- ground decals --------------------------------------------------------
-    // The CraftPix ground set ships its variation as loose patches meant to be
-    // dropped over a flat fill; scattering them is what stops the base layer
-    // looking like coloured squares.
-    for (int cy = 1; cy < OW_H - 1; ++cy) {
-        for (int cx = 1; cx < OW_W - 1; ++cx) {
-            const Biome b = BiomeAt(cx, cy);
-            if (b == WATER || b == ROAD || b == TRAIL) continue;
-            // The decals are dry dirt and grass; they read as rust stains on a bog.
-            if (b == MIRE) continue;
+    // Grass tufts, wildflowers, fallen leaves, pebbles, stones, scorch cracks,
+    // sedge and puddles (tools/make_decals.ps1), each on the ground it would lie
+    // on. These were once shapes cut from the CraftPix road pack's Ground_grass
+    // sheet -- blobs, squares with holes, chevrons -- which are that sheet's
+    // stencils for blending grass into a path, and read on a field as stains.
+    {
+        std::map<string, vector<string>> pools;
+        auto pool = [&](const string& prefix) -> const vector<string>& {
+            auto it = pools.find(prefix);
+            if (it != pools.end()) return it->second;
+            vector<string> names;
+            for (int i = 0; i < 16 && g_manifest.Has("decor/" + prefix + "_" + std::to_string(i)); ++i)
+                names.push_back(prefix + "_" + std::to_string(i));
+            return pools[prefix] = names;
+        };
+        struct Mix { const char* prefix; float upto; };
+        static const Mix meadow[]    = {{"tuft", 0.55f}, {"flowers", 0.80f}, {"pebbles", 1.0f}};
+        static const Mix greenwood[] = {{"tuft_dark", 0.45f}, {"leaves", 0.80f}, {"flowers", 0.90f}, {"pebbles", 1.0f}};
+        static const Mix foothills[] = {{"dry_tuft", 0.35f}, {"pebbles", 0.75f}, {"stone", 1.0f}};
+        static const Mix cursed[]    = {{"crack", 0.60f}, {"pebbles", 1.0f}};
+        static const Mix mire[]      = {{"sedge", 0.70f}, {"puddle", 1.0f}};
 
-            const float r = Hash2(cx, cy, 5150);
-            if (r > 0.12f) continue;
+        for (int cy = 1; cy < OW_H - 1; ++cy) {
+            for (int cx = OW_X0 + 1; cx < OW_W - 1; ++cx) {
+                const Biome b = BiomeAt(cx, cy);
+                if (b == WATER || b == ROAD || b == TRAIL || BogAt(cx, cy)) continue;
+                const float density = b == GREENWOOD ? 0.15f : (b == MIRE ? 0.09f : 0.12f);
+                if (Hash2(cx, cy, 5150) > density) continue;
 
-            // Match the decal to the terrain it is lying on.
-            const char* family = "grass";
-            if (b == FOOTHILLS || b == CURSED) family = "dirt";
-            else if (b == MIRE)                family = "dirt";
+                const Mix* mix = meadow;
+                size_t kinds = 3;
+                if (b == GREENWOOD)      { mix = greenwood; kinds = 4; }
+                else if (b == FOOTHILLS) { mix = foothills; kinds = 3; }
+                else if (b == CURSED)    { mix = cursed;    kinds = 2; }
+                else if (b == MIRE)      { mix = mire;      kinds = 2; }
+                const float which = Hash2(cx, cy, 6161);
+                size_t k = 0;
+                while (k + 1 < kinds && which > mix[k].upto) ++k;
 
-            const vector<string>& pool = g_manifest.Family(family);
-            if (pool.empty()) continue;
-
-            const size_t pick = static_cast<size_t>(Hash2(cx, cy, 6161) * 1000.0f) % pool.size();
-            m.Flat("decor", pool[pick], cx * OW_CELL + 16, cy * OW_CELL + 16);
+                const vector<string>& names = pool(mix[k].prefix);
+                if (names.empty()) continue;
+                const string& name = names[static_cast<size_t>(Hash2(cx, cy, 6262) * 1000.0f) % names.size()];
+                const int jx = static_cast<int>(Hash2(cx, cy, 6363) * 16.0f) - 8;
+                const int jy = static_cast<int>(Hash2(cx, cy, 6464) * 16.0f) - 8;
+                // An overlay, so it is drawn over the ground tiles whatever
+                // its name sorts against.
+                m.Overlay("decor", name, cx * OW_CELL + 16 + jx, cy * OW_CELL + 16 + jy);
+            }
         }
     }
 
@@ -827,7 +865,7 @@ static void BuildOverworld() {
     int tree_index = 0, rock_index = 0;
 
     for (int cy = 2; cy < OW_H - 2; ++cy) {
-        for (int cx = 2; cx < OW_W - 2; ++cx) {
+        for (int cx = OW_X0 + 2; cx < OW_W - 2; ++cx) {
             const Biome b = BiomeAt(cx, cy);
             if (b == WATER || b == ROAD || b == TRAIL) continue;
             // Keep a clear verge either side of the road.
@@ -839,6 +877,8 @@ static void BuildOverworld() {
             if (OnTrail(cx, cy, 3.4f)) continue;
             // And round the two gated ways out, north and east.
             if ((cx >= 20 && cx <= 28 && cy <= 6) || (cx >= OW_W - 8 && cy >= 45 && cy <= 55)) continue;
+            // And the barrow mound and the flagstones up to it.
+            if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) continue;
 
             const float r = Hash2(cx, cy, 4242);
             const int x = cx * OW_CELL + OW_CELL / 2;
@@ -901,6 +941,7 @@ static void BuildOverworld() {
             if (fabsf(cx - MIRE_CAMP_X) <= 6 && fabsf(cy - MIRE_CAMP_Y) <= 6) return false;
             if ((cx >= 20 && cx <= 28 && cy <= 6) || (cx >= OW_W - 8 && cy >= 45 && cy <= 55)) return false;
             if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) return false;   // the mine
+            if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) return false;   // the barrow
             if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
             return !scenery_here(cx, cy);
         };
@@ -915,7 +956,7 @@ static void BuildOverworld() {
                                        cy * OW_CELL + 12 + static_cast<int>(Hash2(cx, cy, seed + 1) * 12.0f)};
         };
         for (int cy = 3; cy < OW_H - 3; ++cy)
-            for (int cx = 3; cx < OW_W - 3; ++cx) {
+            for (int cx = OW_X0 + 3; cx < OW_W - 3; ++cx) {
                 if (!open_ground(cx, cy)) continue;
                 const Biome b = BiomeAt(cx, cy);
                 const float r = Hash2(cx, cy, 7373);
@@ -951,7 +992,7 @@ static void BuildOverworld() {
                     for (int dx = -ring; dx <= ring && !found; ++dx) {
                         if (std::max(abs(dx), abs(dy)) != ring) continue;
                         const int ccx = pt.cx + dx, ccy = pt.cy + dy;
-                        if (ccx < 6 || ccy < 6 || ccx >= OW_W - 6 || ccy >= OW_H - 6) continue;
+                        if (ccx < OW_X0 + 6 || ccy < 6 || ccx >= OW_W - 6 || ccy >= OW_H - 6) continue;
                         bool fits = true;
                         int water = 0;
                         for (int yy = -3; yy <= 3 && fits; ++yy)
@@ -984,7 +1025,7 @@ static void BuildOverworld() {
         int placed = 0, last_cy = -100;
         for (int cy = 10; cy < OW_H - 10 && placed < 4; ++cy) {
             if (cy - last_cy < 3) continue;
-            for (int cx = 2; cx < OW_W - 3; ++cx) {
+            for (int cx = OW_X0 + 2; cx < OW_W - 3; ++cx) {
                 if (BiomeAt(cx, cy) != WATER || BiomeAt(cx + 1, cy) == WATER) continue;
                 const Biome bank = BiomeAt(cx + 1, cy);
                 if (bank == ROAD || bank == TRAIL) break;
@@ -1002,9 +1043,13 @@ static void BuildOverworld() {
     // --- wildlife and orcs ----------------------------------------------------
     int spawned = 0;
     for (int cy = 4; cy < OW_H - 4; cy += 3) {
-        for (int cx = 4; cx < OW_W - 4; cx += 3) {
+        // On the same lattice as before the map grew, carried on west.
+        for (int cx = 4 - 3 * 6; cx < OW_W - 4; cx += 3) {
             const Biome b = BiomeAt(cx, cy);
             if (b == WATER || BogAt(cx, cy)) continue;
+            if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) continue;   // the barrow mound
+            // Not in the trunk of a tree or the side of a rock.
+            if (!m.Clear(cx * OW_CELL + 16, cy * OW_CELL + 16)) continue;
 
             const float r = Hash2(cx, cy, 8888);
             const int x = cx * OW_CELL + 16;
@@ -1104,16 +1149,35 @@ static void BuildOverworld() {
         }
     }
 
-    // Barrow entrance, out in the mire.
+    // The barrow, out in the Mire: a long grave mound grown over with turf, a
+    // dark passage framed by standing stones and a capstone cut into its
+    // front, and flagstones up to it (tools/blender_props.py,
+    // prop_barrow_mound). It used to be a door sprite on the grass.
+    //
+    // The art is 208px, standing on its bottom edge. Measured off it: the
+    // passage is 40px wide at the centre with its floor 42px above the bottom,
+    // the flagstones run from there to the bottom edge, and the mound fills
+    // 100px either side of centre from 23px up to 166px.
     const int barrow_x = 12 * OW_CELL + 16;
     const int barrow_y = 44 * OW_CELL;
-    m.Spawn("from_barrow", barrow_x, barrow_y + 56);
-    m.Prop("objects", "door", barrow_x, barrow_y + 24);
-    m.Portal(barrow_x - 28, barrow_y - 16, 56, 40, "dungeon_barrow", "entrance",
-             "Enter the barrow");
-    m.Danger(10);
-    m.Collision(barrow_x - 48, barrow_y - 20, 40, 28);
-    m.Collision(barrow_x + 28, barrow_y - 20, 40, 28);
+    {
+        const int base = barrow_y + 70;
+        const int door_floor = base - 42;
+        m.Prop("props", "barrow_mound", barrow_x, base);
+        // Sorted at the back of the passage, so someone in the doorway draws
+        // in front of the mound rather than vanishing behind it.
+        m.SortLift("barrow_mound", 76);
+        m.Spawn("from_barrow", barrow_x, base + 18);
+        m.Portal(barrow_x - 18, door_floor - 28, 36, 30, "dungeon_barrow", "entrance",
+                 "Enter the barrow");
+        m.Danger(10);
+        // The mound either side of the door and behind it.
+        m.Collision(barrow_x - 100, base - 150, 78, 128);
+        m.Collision(barrow_x + 24,  base - 150, 76, 128);
+        m.Collision(barrow_x - 22,  base - 150, 46, 74);
+        // The skull on its stake.
+        m.Collision(barrow_x + 34, base - 34, 12, 8);
+    }
 
     // The note that starts the barrow quest, left where someone turned back.
     {
@@ -1952,21 +2016,45 @@ static void BuildDungeon(const string& id, const string& display,
 
     if (rooms.empty()) { m.Write("maps"); return; }
 
-    // Entrance sits in the first room, the stairs down in the last.
+    // The way out is a stone flight climbing into the first room's top wall
+    // toward daylight, and the way down a stairwell in the floor of the last
+    // (tools/blender_props.py). Both were door sprites standing in the middle
+    // of a room.
     const Room& first = rooms.front();
-    const int ex = (first.x + first.w / 2) * CELL + 16;
-    const int ey = (first.y + first.h / 2) * CELL + 16;
+    // A column of the top wall with solid rock above it either side, so the
+    // flight never stands across a corridor coming in from the north.
+    int stair_cx = first.x + first.w / 2;
+    for (int d = 0; d < first.w / 2; ++d) {
+        bool found = false;
+        for (int c : {first.x + first.w / 2 - d, first.x + first.w / 2 + d}) {
+            if (c - 1 < first.x || c + 1 >= first.x + first.w || first.y < 1) continue;
+            if (!floor[first.y - 1][c - 1] && !floor[first.y - 1][c] && !floor[first.y - 1][c + 1]) {
+                stair_cx = c; found = true; break;
+            }
+        }
+        if (found) break;
+    }
+    const int ex = stair_cx * CELL + 16;
+    const int stair_base = first.y * CELL + 72;
+    const int ey = stair_base + 22;
     m.Spawn("entrance", ex, ey);
     m.Spawn("default",  ex, ey);
-    m.Prop("objects", "door_open", ex, ey - 8);
-    m.Portal(ex - 24, ey + 4, 48, 32, exit_map, exit_spawn, "Leave", true);
+    m.Prop("props", "dungeon_stairs_up", ex, stair_base);
+    m.SortLift("dungeon_stairs_up", 90);
+    m.Portal(ex - 20, stair_base - 38, 40, 36, exit_map, exit_spawn, "Leave", true);
+    // The walls of the flight, and its upper steps.
+    m.Collision(ex - 26, stair_base - 72, 52, 34);
+    m.Collision(ex - 26, stair_base - 38, 6, 38);
+    m.Collision(ex + 20, stair_base - 38, 6, 38);
 
     if (!deeper_map.empty() && rooms.size() > 1) {
         const Room& last = rooms.back();
         const int dx = (last.x + last.w / 2) * CELL + 16;
         const int dy = (last.y + last.h / 2) * CELL + 16;
-        m.Prop("objects", "door", dx, dy + 8);
-        m.Portal(dx - 24, dy - 24, 48, 40, deeper_map, "entrance",
+        // North of the room's middle, clear of the quest chest in front of it.
+        m.Prop("props", "dungeon_stairs_down", dx, dy + 2);
+        m.SortLift("dungeon_stairs_down", 40);
+        m.Portal(dx - 24, dy - 44, 48, 40, deeper_map, "entrance",
                  "Descend", true, deeper_lock);
     }
 

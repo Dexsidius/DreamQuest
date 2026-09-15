@@ -1131,7 +1131,8 @@ character per pixel, with a small palette per icon — and painted by:
 
 Text rather than image files so they can be read, diffed and touched up without
 an image editor. `import_assets.ps1` runs this and `make_ground.ps1` at the end
-of an import, because both overwrite or add to what the import cuts.
+of an import, because both overwrite or add to what the import cuts; the import
+also runs `make_decals.ps1` for the ground decals.
 
 ---
 
@@ -1322,7 +1323,7 @@ at dawn; the shards for Mira are gathered in the Reverie and handed in awake.
 
 ## The world
 
-`maps/overworld.mx` is 4096 × 3072 pixels — about eight screens across — and
+`maps/overworld.mx` is 4736 × 3456 pixels — about nine screens across — and
 the camera scrolls it as a viewport on the player. Biomes: meadow, greenwood,
 northern foothills, the Mire, and the Cursed Reach, joined by the Sunken Road,
 with the Whisperwood trail leaving from the east.
@@ -1393,6 +1394,35 @@ Whisperwood.
   (`"sort_lift"` in a map): the hill sorts at the back of the tunnel, so someone
   standing in the mouth is drawn in front of the rock around them rather than
   ghosting the whole hillside out.
+- **A barrow that is a grave.** The barrow in the Mire was a door sprite on the
+  grass beside a mushroom. It is a long turf mound now (`prop_barrow_mound`),
+  its passage framed by two standing stones and a capstone with a facade of
+  slabs curving out either side, flagstones up to the door, a faint green light
+  far down the passage and a skull on a stake. The portal is in the doorway.
+- **Stairs, not doors, underground.** Inside every dungeon the way out was a
+  door standing in the middle of the first room and the way down another in the
+  last. The way out is a stone flight now, climbing into the first room's top
+  wall toward daylight (`prop_dungeon_stairs_up`, set against solid rock so it
+  never blocks a corridor), and the way down a stairwell in the floor with a
+  kerb, a parapet and a torch (`prop_dungeon_stairs_down`).
+- **Things lying on the ground.** The overworld was scattered with round blobs,
+  squares with holes in them, chevrons and keyholes, each a flat colour. They
+  were cut from the CraftPix road pack's `Ground_grass` sheet by the importer,
+  and they are not decorations: they are that sheet's stencils, the masks its
+  autotiles use to blend grass into a path. `tools/make_decals.ps1` draws what
+  a field actually has in it instead, on transparent ground -- clumps of meadow
+  and shade grass, wildflowers, fallen leaves, pebbles, straw-coloured hill grass
+  and cracked stones, scorch cracks on the Cursed Reach, and sedge and puddles
+  in the Mire -- and genmaps lays each only on its own ground.
+- **Room to the west.** The Mire ran into the edge of the world. The Hollowmarch
+  has grown twenty cells west and twelve south, out of the same noise, so the
+  swamp, its bog pools and lizardmen, the river and the foothills carry on
+  instead of stopping. The north and east edges, where the ways out are, did not
+  move. So nothing already built had to be renumbered, the old cells kept their
+  coordinates and the new ones are negative: `MapBuilder::ox` adds an offset to
+  every x a map places. Saves are version 2; a position saved on the overworld
+  by an older build is moved the same 640 pixels east when it is loaded, so a
+  character stands on the same ground they saved on.
 
 Maps are big enough to grow: the base layer is bucketed into chunks and culled
 against the camera, so adding another biome costs load time and nothing else.
@@ -1524,7 +1554,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **9917 checks** covering:
+and checks all of it — currently **10684 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1565,6 +1595,14 @@ and checks all of it — currently **9917 checks** covering:
   survives a save and comes back at dawn; gated stock appears once its quest is
   done; selling pays and refuses what a trader does not deal in; choosing a
   trader's trade line closes the conversation and opens their shop
+- the grown Hollowmarch and its ways in: the overworld is 4736 by 3456 with its
+  height grid covering all of it and every arrival on the map; the Mire carries
+  on into the new west with lizardmen in it, and the land carries on south; none
+  of the road pack's grass stencils are on the ground and every kind of new
+  decal is; the barrow is a mound with its portal in the doorway and no door
+  sprite; every dungeon is left by a stone flight and gone deeper into by a
+  stairwell; and an overworld save from before the map grew loads with the
+  player and their camp on the same ground
 - monsters and the new places: every new monster has its sprite, all five clips
   drawn and a loot table; lizardmen and their chief hold the Mire, rats, spiders
   and the broodmother the cellar, trolls, wyverns and the matriarch the Ice Spire,
@@ -1757,6 +1795,7 @@ tools/
   genmaps.cpp           builds the world into maps/*.mx
   selftest.cpp          content and systems validation
   make_ground.ps1       generated ground and interior tiles
+  make_decals.ps1       grass tufts, flowers, leaves, pebbles and the like for the overworld's ground
   make_icons.ps1        paints the hand-drawn item icons in icons.txt
   blender_tiers.py      models and renders every tier's ore, bar, weapon and armour,
                         as icons and as weapon layers in the hero's hand

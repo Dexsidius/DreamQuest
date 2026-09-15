@@ -3293,6 +3293,36 @@ int main(int argc, char** argv) {
                 SaveSystem::Delete(3);
             }
         }
+
+        // --- a save from before the Hollowmarch grew ---------------------------------------------
+        // Written as the old layout would have had it -- version 1, twenty
+        // cells further left -- and loaded back onto the same ground.
+        if (!SaveSystem::Exists(3)) {
+            World w;
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                const float px = w.player.x, py = w.player.y;
+                w.SetCamp({true, "overworld", 1500.0f, 900.0f});
+                Check(SaveSystem::Save(3, w, log, 5.0f), "an overworld save writes");
+                json j;
+                { std::ifstream in(SaveSystem::SlotPath(3)); in >> j; }
+                j["version"] = 1;
+                j["player"]["x"] = px - 640.0f;
+                j["camp"]["x"] = 1500.0f - 640.0f;
+                { std::ofstream out(SaveSystem::SlotPath(3), std::ios::trunc); out << j.dump(); }
+                World loaded;
+                QuestLog log2;
+                log2.LoadDefinitions("data/quests.json");
+                float playtime = 0.0f;
+                Check(SaveSystem::Load(3, loaded, log2, ctx, playtime), "an old overworld save loads");
+                Check(fabsf(loaded.player.x - px) < 0.5f && fabsf(loaded.player.y - py) < 0.5f,
+                      "an old save stands the player on the same ground after the map grew west");
+                Check(fabsf(loaded.PlayerCamp().x - 1500.0f) < 0.5f, "and its camp where it was pitched");
+                SaveSystem::Delete(3);
+            }
+        }
     }
 
     Section("traders");
@@ -3665,7 +3695,7 @@ int main(int argc, char** argv) {
             if (!m.Load(string("maps/") + id + ".mx")) continue;
             for (const EnemySpawnDef& e : m.Enemies()) {
                 types[id].insert(e.type);
-                if (string(id) == "overworld" && e.x < 34 * 32 && e.type.rfind("lizardman", 0) == 0) types["mire"].insert(e.type);
+                if (string(id) == "overworld" && e.x < (34 + 20) * 32 && e.type.rfind("lizardman", 0) == 0) types["mire"].insert(e.type);
                 const int lv = effective(e.type, e.level);
                 auto& rg = range[id];
                 rg.first = std::max(rg.first, lv);
@@ -3709,6 +3739,65 @@ int main(int argc, char** argv) {
                   " pool cells)");
             for (const char* prop : {"reeds", "lily_pads", "swamp_tree", "lizard_hut", "lizard_totem"})
                 Check(mx["tiles"].contains(prop), string("the swamp has ") + prop);
+
+            // The Hollowmarch grew twenty cells west and twelve south.
+            const json& dq = mx["dreamquest"];
+            Check(dq["bounds"][0] == 4736 && dq["bounds"][1] == 3456, "the Hollowmarch is 4736 by 3456 now");
+            Check(dq["elevation"]["cols"].get<int>() * dq["elevation"]["cell"].get<int>() == 4736 &&
+                  dq["elevation"]["rows"].get<int>() * dq["elevation"]["cell"].get<int>() == 3456,
+                  "its height grid covers the whole of it");
+            int west_swamp = 0, south_ground = 0;
+            for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
+                for (const auto& l : it.value()["locations"]) {
+                    if (l[0].get<int>() < 640 && (it.key().rfind("swamp_", 0) == 0 || it.key().rfind("peat", 0) == 0 || it.key().rfind("bog_water", 0) == 0)) ++west_swamp;
+                    if (l[1].get<int>() > 3072 && l[2].get<int>() == 32) ++south_ground;
+                }
+            Check(west_swamp > 300, "the Mire carries on into the new land to the west (" + std::to_string(west_swamp) + " cells)");
+            Check(south_ground > 1500, "and the land carries on south (" + std::to_string(south_ground) + " cells)");
+            int west_lizards = 0;
+            for (const auto& e : dq["enemies"]) if (e["x"].get<float>() < 640.0f && e["type"] == "lizardman") ++west_lizards;
+            Check(west_lizards >= 2, "lizardmen range into the new western Mire");
+            for (auto it = dq["spawns"].begin(); it != dq["spawns"].end(); ++it)
+                Check(it.value()[0].get<int>() > 0 && it.value()[0].get<int>() < 4736 && it.value()[1].get<int>() > 0 && it.value()[1].get<int>() < 3456,
+                      "the overworld's " + it.key() + " arrival is on the map");
+
+            // The ground decals are things lying on the ground, not the road
+            // pack's blending stencils.
+            bool stencils = false;
+            for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
+                if (it.key().find("patch_") != string::npos) stencils = true;
+            Check(!stencils, "none of the road pack's grass stencils are scattered on the overworld");
+            for (const char* d : {"~tuft_", "~flowers_", "~leaves_", "~pebbles_", "~dry_tuft_", "~crack_", "~sedge_"}) {
+                bool any = false;
+                for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it) if (it.key().rfind(d, 0) == 0) any = true;
+                Check(any, string("the overworld has ") + (d + 1) + "* lying on its ground");
+            }
+
+            // The barrow is a mound with a doorway in it, the portal in the door.
+            Check(mx["tiles"].contains("barrow_mound") && !mx["tiles"].contains("door") && !mx["tiles"].contains("door_open"),
+                  "the barrow is entered through a grave mound, not a door sprite on the grass");
+            if (mx["tiles"].contains("barrow_mound")) {
+                const auto& l = mx["tiles"]["barrow_mound"]["locations"][0];
+                for (const auto& p : dq["portals"])
+                    if (p["target"] == "dungeon_barrow") {
+                        const int px = p["rect"][0].get<int>() + p["rect"][2].get<int>() / 2;
+                        const int py = p["rect"][1].get<int>() + p["rect"][3].get<int>();
+                        const int bottom = l[1].get<int>() + l[3].get<int>() / 2;
+                        Check(abs(px - l[0].get<int>()) <= 4 && bottom - py >= 30 && bottom - py <= 60,
+                              "the barrow's portal is in the mound's doorway");
+                    }
+            }
+        }
+        // Inside, the way out is a stone flight up and the way down a stairwell.
+        for (const char* id : {"dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow", "dungeon_infernal"}) {
+            std::ifstream in(string("maps/") + id + ".mx");
+            json mx;
+            in >> mx;
+            Check(mx["tiles"].contains("dungeon_stairs_up") && !mx["tiles"].contains("door") && !mx["tiles"].contains("door_open"),
+                  string(id) + " is left by a flight of stone stairs, not a door in the middle of a room");
+            bool deeper = false;
+            for (const auto& p : mx["dreamquest"]["portals"]) if (p["label"] == "Descend") deeper = true;
+            if (deeper) Check(mx["tiles"].contains("dungeon_stairs_down"), string(id) + " goes deeper down a stairwell");
         }
 
         // --- the ways in ----------------------------------------------------------------------
@@ -3986,7 +4075,7 @@ int main(int argc, char** argv) {
             }
             int west_bogbean = 0;
             for (const MapObject& o : ow.Objects())
-                if (o.type == "herb" && o.yield == "bogbean") west_bogbean += (o.x < 1600.0f);
+                if (o.type == "herb" && o.yield == "bogbean") west_bogbean += (o.x < 2240.0f);
             Check(west_bogbean * 10 >= total["bogbean"] * 9, "bogbean keeps to the Mire in the west");
         }
 
@@ -4538,9 +4627,16 @@ int main(int argc, char** argv) {
                     {"mossvale_herbalist", "oonas_cottage", 256, 235, 1.5f},
                     {"fernhollow_cottage", "ferry_cottage", 256, 235, 1.5f},
                     {"town_havenbrook", "havenbrook_store", 1090, 870, 2},
-                    {"overworld", "emberfell_entrance", 2128, 300, 2},
-                    {"overworld", "mire_bogs", 420, 1000, 1.5f},
-                    {"overworld", "lizard_camp", 430, 2540, 1.5f},
+                    {"overworld", "emberfell_entrance", 2768, 300, 2},
+                    {"overworld", "mire_bogs", 1060, 1000, 1.5f},
+                    {"overworld", "lizard_camp", 1070, 2540, 1.5f},
+                    {"overworld", "barrow_mound", 1048, 1440, 2},
+                    {"overworld", "far_west_mire", 420, 2200, 1.5f},
+                    {"overworld", "southern_meadow", 2600, 3200, 1.5f},
+                    {"overworld", "meadow_decals", 2900, 2300, 2},
+                    {"dungeon_emberfell_1", "mine_stairs_up", 592, 440, 2},
+                    {"dungeon_emberfell_1", "mine_stairs_down", 1616, 950, 3},
+                    {"dungeon_barrow", "barrow_stairs_up", 720, 640, 2},
                     {"house_inn_cellar", "inn_cellar", 330, 230, 1.5f},
                     {"ice_spire_peak", "peak_camp", 1028, 2480, 1.5f},
                     {"ice_spire_peak", "peak_slopes", 650, 1600, 1.5f},

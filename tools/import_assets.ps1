@@ -278,8 +278,10 @@ function Cut-Sprites($sheet, $outDir, $prefix, $gap = 3, $minSize = 10) {
     return (Get-ChildItem $outDir -Filter "$prefix*.png").Count
 }
 
-$n = Cut-Sprites (Join-Path (Pack "path-and-road-top-down-pixel-tileset") "PNG_Tiled\Ground_grass.png") $decor "patch" 2 12
-Write-Host "  $n ground patches"
+# The ground decals used to be cut from this pack's Ground_grass sheet, but
+# what that sheet holds are flat-colour stencils for blending grass into a
+# path, not things lying on the ground. They are drawn by make_decals.ps1.
+& (Join-Path $PSScriptRoot "make_decals.ps1")
 
 foreach ($i in 1, 3) {
     Cut-Sprites (Join-Path (Pack "path-and-road-top-down-pixel-tileset") "PNG_Tiled\Road${i}_grass.png") $decor "roadpiece$i" 2 20 | Out-Null

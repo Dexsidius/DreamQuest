@@ -7,7 +7,15 @@
 
 namespace fs = std::filesystem;
 
-static constexpr int SAVE_VERSION = 1;
+// 2: the Hollowmarch grew twenty cells west, so everything on it moved right.
+static constexpr int SAVE_VERSION = 2;
+
+// How far a position saved before a map was widened has to move to stand on
+// the same ground now. Only the overworld has ever grown.
+static float LayoutShiftX(const string& map, int saved_version) {
+    if (map == "overworld" && saved_version < 2) return 20.0f * 32.0f;
+    return 0.0f;
+}
 
 string SaveSystem::SlotPath(int slot) {
     return "saves/slot" + std::to_string(std::clamp(slot, 1, SAVE_SLOTS)) + ".json";
@@ -154,6 +162,7 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
     }
 
     playtime = j.value("playtime", 0.0f);
+    const int version = j.value("version", 1);
 
     if (j.contains("quests")) quests.FromJson(j["quests"]);
 
@@ -170,6 +179,7 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
         camp.map = j["camp"].value("map", string(""));
         camp.x = j["camp"].value("x", 0.0f);
         camp.y = j["camp"].value("y", 0.0f);
+        camp.x += LayoutShiftX(camp.map, version);
     }
     world.SetCamp(camp);
     World::DreamReturn dream;
@@ -178,6 +188,7 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
         dream.map = j["dream_return"].value("map", string("overworld"));
         dream.x = j["dream_return"].value("x", 0.0f);
         dream.y = j["dream_return"].value("y", 0.0f);
+        dream.x += LayoutShiftX(dream.map, version);
     }
     world.SetDream(dream);
     world.shops.FromJson(j.value("shops", json::object()));
@@ -199,7 +210,7 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
 
     // LoadMap drops the player on a spawn point; put them back where they were.
     if (j.contains("player")) {
-        world.player.x = j["player"].value("x", world.player.x);
+        world.player.x = j["player"].value("x", world.player.x) + LayoutShiftX(map_id, version);
         world.player.y = j["player"].value("y", world.player.y);
     }
     world.camera.SnapTo(world.player.x, world.player.y);

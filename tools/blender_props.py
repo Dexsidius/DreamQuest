@@ -2685,6 +2685,144 @@ def prop_cobweb():
     return 1.2
 
 
+# -----------------------------------------------------------------------------
+#  Ways in and out of the dungeons
+#
+#  The barrow in the Mire was a door sprite standing on the grass next to a
+#  mushroom, and inside every dungeon the way out was another door and the way
+#  down a third, standing in the middle of a room. A way in should say what it
+#  is from across the screen: a grave mound with a stone doorway cut into it,
+#  a stone flight climbing up to daylight, a stairwell dropping into the dark.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "barrow_turf":    (0.447, 0.502, 0.286),
+    "barrow_turf_dk": (0.341, 0.396, 0.224),
+    "barrow_stone":   (0.482, 0.490, 0.463),
+    "barrow_stone_dk":(0.345, 0.357, 0.337),
+    "barrow_stone_lt":(0.620, 0.620, 0.576),
+    "lichen":         (0.600, 0.620, 0.380),
+    "grave_glow":     (0.420, 0.780, 0.580),
+    "daylight":       (1.000, 0.945, 0.780),
+})
+
+
+def prop_barrow_mound():
+    """A long grave mound grown over with turf, its doorway a dark passage
+    framed by two standing stones and a capstone, with a facade of slabs
+    curving out either side, flagstones leading up to it, a faint green light
+    far down the passage and a skull on a stake to say keep out. The doorway
+    sits at the image's horizontal centre, where genmaps puts the portal."""
+    import random
+    rng = random.Random(44)
+    # The mound: a long low dome with lumps on it, so its outline is ground
+    # rather than a ball.
+    ob = sphere("mound", 1.0, (0, 1.05, 0.0), "barrow_turf")
+    ob.scale = (2.05, 1.45, 1.55)
+    for p in ob.data.polygons:
+        p.use_smooth = True
+    for k, (x, y, r, z) in enumerate(((-1.35, 0.9, 0.62, 0.55), (1.30, 1.0, 0.66, 0.6), (-0.4, 1.7, 0.7, 1.05),
+                                      (0.6, 1.5, 0.64, 1.1), (-1.8, 1.4, 0.45, 0.2), (1.85, 1.3, 0.5, 0.2))):
+        lump = sphere("lump_%d" % k, r, (x, y, z), "barrow_turf_dk" if k % 2 else "barrow_turf")
+        lump.scale = (1.2, 1.0, 0.7)
+    # The passage mouth, set into the front of the mound.
+    OPEN_W, OPEN_H = 0.86, 1.18
+    face_y = -0.42
+    blk("dark", (OPEN_W + 0.1, 0.7, OPEN_H), (0, face_y + 0.30, OPEN_H / 2), "tunnel", bev=0)
+    blk("glow", (0.40, 0.04, 0.34), (0, face_y + 0.62, 0.22), "grave_glow", emit=0.9, bev=0)
+    # The door stones and the capstone laid across them.
+    for sx in (-1, 1):
+        blk("jamb_%d" % sx, (0.30, 0.34, OPEN_H + 0.12), (sx * (OPEN_W / 2 + 0.14), face_y, (OPEN_H + 0.12) / 2),
+            "barrow_stone", rot=(0, math.radians(-3 * sx), 0), bev=0.05)
+    blk("capstone", (1.62, 0.62, 0.30), (0.03, face_y + 0.08, OPEN_H + 0.27), "barrow_stone_lt",
+        rot=(0, math.radians(2), 0), bev=0.07)
+    blk("capstone_under", (1.50, 0.50, 0.08), (0.03, face_y + 0.02, OPEN_H + 0.10), "barrow_stone_dk", bev=0.02)
+    # Turf grown over the back of the capstone, flattened into the mound.
+    turf = sphere("cap_turf", 0.5, (0, face_y + 0.52, OPEN_H + 0.40), "barrow_turf_dk")
+    turf.scale = (1.35, 0.7, 0.32)
+    # The facade: slabs set on end, shorter the further out, curving forward.
+    for sx in (-1, 1):
+        for k in range(4):
+            x = sx * (0.95 + k * 0.36)
+            h = 1.10 - k * 0.2
+            y = face_y - 0.04 - k * k * 0.05
+            rock("slab_%d_%d" % (sx, k), (0.19, 0.14, h / 2), (x, y, h / 2 - 0.05),
+                 ("barrow_stone", "barrow_stone_dk", "barrow_stone_lt", "barrow_stone")[k], rng)
+        sphere("lichen_%d" % sx, 0.08, (sx * 0.62, face_y - 0.16, 0.95), "lichen")
+    # Flagstones up to the door, and the kerb of the forecourt.
+    for k, (x, y) in enumerate(((0.0, -0.78), (0.12, -1.12), (-0.1, -1.44), (0.06, -1.76))):
+        blk("flag_%d" % k, (0.62 - k * 0.04, 0.28, 0.06), (x, y, 0.03), "barrow_stone_lt" if k % 2 else "barrow_stone",
+            rot=(0, 0, math.radians(rng.uniform(-8, 8))), bev=0.02)
+    # The warning: a skull on a leaning stake to one side of the path.
+    blk("stake", (0.06, 0.06, 1.05), (0.82, -1.15, 0.50), "timber_dk", rot=(math.radians(-6), math.radians(8), 0))
+    sphere("skull", 0.13, (0.86, -1.20, 1.07), "bone_white")
+    blk("jaw", (0.14, 0.08, 0.06), (0.86, -1.30, 0.98), "bone_white", bev=0.02)
+    for sx in (-1, 1):
+        sphere("eye_%d" % sx, 0.03, (0.86 + sx * 0.05, -1.32, 1.08), "tunnel")
+    # Sedge round the foot of the mound.
+    for k in range(9):
+        x = rng.uniform(-2.0, 2.0)
+        if abs(x) < 0.7:
+            continue
+        cone("sedge_%d" % k, 0.09, 0.42, (x, rng.uniform(-0.3, 0.3), 0.18), "reed" if k % 2 else "reed_dk", verts=6)
+    return (4.8, BUILDING_ELEVATION)
+
+
+def prop_dungeon_stairs_up():
+    """The way out of a dungeon: a stone flight climbing away from the camera
+    between rough walls to a landing lit by daylight from above."""
+    import random
+    rng = random.Random(7)
+    steps, rise, run, width = 7, 0.19, 0.26, 0.90
+    for i in range(steps):
+        h = (i + 1) * rise
+        y = -0.80 + i * run
+        blk("riser_%d" % i, (width, run, h), (0, y, h / 2), "barrow_stone_dk", bev=0.01)
+        blk("tread_%d" % i, (width + 0.02, run + 0.02, 0.05), (0, y, h + 0.01),
+            "barrow_stone_lt" if i % 2 else "barrow_stone", bev=0.01)
+    top = steps * rise
+    far = -0.80 + steps * run
+    # The light coming down the stairs from outside.
+    blk("daylight", (width, 0.30, 0.9), (0, far + 0.05, top + 0.45), "daylight", emit=1.6, bev=0)
+    blk("light_pool", (width - 0.1, run * 2.5, 0.02), (0, far - run * 1.6, top - rise + 0.04), "daylight", emit=0.5, bev=0)
+    # Walls of rough stone either side, rising with the flight.
+    for sx in (-1, 1):
+        for i in range(steps + 1):
+            h = min(top, (i + 1) * rise) + 0.55
+            y = -0.80 + i * run
+            rock("wall_%d_%d" % (sx, i), (0.20, run * 0.62, h / 2),
+                 (sx * (width / 2 + 0.16), y, h / 2), ("barrow_stone", "barrow_stone_dk")[(i + (sx > 0)) % 2], rng)
+    # The arch the flight climbs out through.
+    blk("lintel", (width + 0.7, 0.34, 0.28), (0, far + 0.15, top + 1.05), "barrow_stone_lt", bev=0.04)
+    for sx in (-1, 1):
+        blk("pier_%d" % sx, (0.32, 0.34, top + 1.0), (sx * (width / 2 + 0.2), far + 0.15, (top + 1.0) / 2),
+            "barrow_stone", bev=0.04)
+    return (3.7, 40.0)
+
+
+def prop_dungeon_stairs_down():
+    """The way deeper: a stairwell in the floor with a stone kerb round it and
+    a low parapet on three sides, steps dropping into the dark, and a torch on
+    the corner. Open on the near side, where you step onto the flight."""
+    width, depth = 0.96, 1.60
+    blk("well", (width, depth, 0.02), (0, 0, -0.30), "tunnel", bev=0)
+    steps = 6
+    for i in range(steps):
+        # Nearest step highest; they drop away from the camera.
+        y = -depth / 2 + 0.14 + i * (depth / steps)
+        z = -0.03 - i * 0.045
+        tone = ("barrow_stone_lt", "barrow_stone", "barrow_stone", "barrow_stone_dk", "char_lt", "char")[i]
+        blk("step_%d" % i, (width - 0.02, depth / steps - 0.02, 0.05), (0, y, z), tone, bev=0.006)
+    for sx in (-1, 1):
+        blk("parapet_%d" % sx, (0.18, depth + 0.18, 0.30), (sx * (width / 2 + 0.09), 0.09, 0.15), "barrow_stone", bev=0.03)
+    blk("parapet_far", (width + 0.36, 0.18, 0.22), (0, depth / 2 + 0.09, 0.11), "barrow_stone_dk", bev=0.03)
+    # A torch in a bracket on the far corner.
+    blk("torch_post", (0.08, 0.08, 0.60), (width / 2 + 0.09, depth / 2 + 0.09, 0.52), "timber_dk")
+    cone("torch_flame", 0.09, 0.24, (width / 2 + 0.09, depth / 2 + 0.09, 0.94), "ember")
+    bpy.context.active_object.data.materials[0] = material("torch_flame", "ember", 0.6, 0.0, 1.8)
+    return (2.3, 62.0)
+
+
 AREA_PROPS = {
     "reeds": (prop_reeds, 48), "lily_pads": (prop_lily_pads, 40), "swamp_tree": (prop_swamp_tree, 72),
     "lizard_hut": (prop_lizard_hut, 128), "lizard_totem": (prop_lizard_totem, 56),
@@ -2692,6 +2830,8 @@ AREA_PROPS = {
     "wyvern_nest": (prop_wyvern_nest, 72), "charred_tree": (prop_charred_tree, 72),
     "obsidian_rock": (prop_obsidian_rock, 40), "hellgate": (prop_hellgate, 144),
     "cellar_hatch": (prop_cellar_hatch, 48), "cobweb": (prop_cobweb, 40),
+    "barrow_mound": (prop_barrow_mound, 208), "dungeon_stairs_up": (prop_dungeon_stairs_up, 96),
+    "dungeon_stairs_down": (prop_dungeon_stairs_down, 80),
 }
 HERB_PROPS.update(AREA_PROPS)
 
