@@ -1958,6 +1958,316 @@ WOODLAND_PROPS = {
 }
 
 
+# -----------------------------------------------------------------------------
+#  Herbs and plants -- Foraging
+#
+#  Each plant is drawn twice: growing, with its flowers or caps, and picked, as
+#  the cut stubs and a leaf or two left behind while it grows back. They are
+#  seen from higher than the furniture, the way the ground scatter they stand
+#  among is drawn, so a flower head reads from above. And each has one strong
+#  thing it is known by -- orange pompoms, paired mint spears, a trefoil in
+#  black water, glowing caps -- because at forty pixels that is all anyone
+#  sees.
+# -----------------------------------------------------------------------------
+
+HERB_ELEVATION = 52.0
+HERB_SPAN = 0.80
+
+PALETTE.update({
+    "herb_leaf":     (0.294, 0.478, 0.216),
+    "herb_leaf_dk":  (0.192, 0.337, 0.157),
+    "herb_leaf_lt":  (0.482, 0.671, 0.290),
+    "stub":          (0.557, 0.600, 0.341),
+    "marigold":      (0.973, 0.557, 0.106),
+    "marigold_dk":   (0.839, 0.345, 0.078),
+    "mint":          (0.380, 0.749, 0.478),
+    "mint_dk":       (0.227, 0.537, 0.345),
+    "mint_flower":   (0.733, 0.639, 0.906),
+    "nettle":        (0.220, 0.431, 0.200),
+    "nettle_lt":     (0.286, 0.502, 0.231),
+    "bog_water":     (0.227, 0.290, 0.259),
+    "bogbean":       (0.451, 0.580, 0.314),
+    "bog_flower":    (0.965, 0.914, 0.925),
+    "bog_pink":      (0.886, 0.600, 0.667),
+    "sage":          (0.557, 0.635, 0.529),
+    "sage_dk":       (0.408, 0.482, 0.388),
+    "sage_flower":   (0.643, 0.518, 0.812),
+    "pebble":        (0.588, 0.576, 0.553),
+    "glowcap":       (0.435, 0.788, 0.812),
+    "glowcap_dot":   (0.847, 0.976, 0.965),
+    "glowcap_stem":  (0.851, 0.824, 0.749),
+    "ash":           (0.353, 0.318, 0.298),
+    "ember_petal":   (0.925, 0.231, 0.090),
+    "ember_core":    (1.000, 0.741, 0.227),
+    "ember_stem":    (0.259, 0.157, 0.141),
+    "moon_petal":    (0.420, 0.557, 0.953),
+    "moon_core":     (0.937, 0.953, 1.000),
+    "moon_leaf":     (0.365, 0.431, 0.600),
+    "star_petal":    (1.000, 0.973, 0.878),
+    "star_core":     (1.000, 0.835, 0.341),
+    "star_leaf":     (0.518, 0.749, 0.749),
+    "cauldron":      (0.180, 0.180, 0.196),
+    "cauldron_lt":   (0.310, 0.314, 0.337),
+    "brew":          (0.412, 0.749, 0.337),
+})
+
+
+def leaf(name, length, width, loc, yaw, pitch, colour, thick=0.018):
+    """A flattened, pointed leaf: a squashed sphere, stretched along its own X,
+    turned out from the stem and tipped up or down."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=loc, segments=12, ring_count=6)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.scale = (length / 2.0, width / 2.0, thick)
+    ob.rotation_euler = (0.0, math.radians(-pitch), math.radians(yaw))
+    ob.data.materials.append(material(name, colour, 0.85))
+    return ob
+
+
+def stem(name, height, loc, colour="herb_leaf_dk", radius=0.014, lean=(0.0, 0.0)):
+    x, y, z = loc
+    ob = cyl(name, radius, height, (x + lean[0] * height / 2, y + lean[1] * height / 2, z + height / 2),
+             colour, rot=(math.atan2(-lean[1], 1.0), math.atan2(lean[0], 1.0), 0.0), verts=8)
+    return (x + lean[0] * height, y + lean[1] * height, z + height)
+
+
+def ground_tuft(rng, count, radius, colour, length=0.18, width=0.07, z=0.03):
+    for i in range(count):
+        a = i / count * math.tau + rng.random() * 0.4
+        r = radius * (0.35 + rng.random() * 0.65)
+        leaf("tuft_%d" % i, length, width, (math.cos(a) * r, math.sin(a) * r, z),
+             math.degrees(a), 18 + rng.random() * 12, colour)
+
+
+def stubs(rng, count, radius, height=0.07, colour="stub"):
+    """What is left once a plant has been picked: cut stalks, pale at the top."""
+    for i in range(count):
+        a = i / count * math.tau + rng.random()
+        r = radius * rng.random()
+        cyl("stub_%d" % i, 0.016, height, (math.cos(a) * r, math.sin(a) * r, height / 2), colour, verts=8)
+
+
+def herb_marigold(picked):
+    import random
+    rng = random.Random(11)
+    ground_tuft(rng, 9, 0.22, "herb_leaf", 0.22, 0.09)
+    if picked:
+        stubs(rng, 4, 0.12)
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.12, 0.02, 0.26), (0.10, -0.06, 0.32), (0.02, 0.12, 0.22), (0.16, 0.10, 0.18))):
+        top = stem("stem_%d" % i, h, (x, y, 0.02))
+        sphere("bloom_%d" % i, 0.075, top, "marigold")
+        sphere("bloom_c_%d" % i, 0.045, (top[0], top[1] - 0.03, top[2] + 0.04), "marigold_dk")
+        leaf("sl_%d" % i, 0.12, 0.05, (x, y, h * 0.5), rng.random() * 360, 20, "herb_leaf_lt")
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_brookmint(picked):
+    import random
+    rng = random.Random(12)
+    ground_tuft(rng, 6, 0.2, "mint_dk", 0.16, 0.07)
+    if picked:
+        stubs(rng, 5, 0.14, 0.09, "mint_dk")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.10, 0.0, 0.40), (0.08, -0.05, 0.34), (0.0, 0.10, 0.30), (0.17, 0.08, 0.26))):
+        top = stem("stem_%d" % i, h, (x, y, 0.0), "mint_dk", 0.016)
+        # Paired leaves up the stem, each pair turned a quarter from the last.
+        for k in range(3):
+            z = 0.08 + k * (h - 0.1) / 3
+            for side in (0, 180):
+                leaf("ml_%d_%d_%d" % (i, k, side), 0.15 - k * 0.02, 0.08, (x, y, z),
+                     side + k * 90 + i * 30, 12, "mint")
+        cone("spike_%d" % i, 0.035, 0.10, (top[0], top[1], top[2] + 0.02), "mint_flower", verts=8)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_nettle(picked):
+    import random
+    rng = random.Random(13)
+    ground_tuft(rng, 5, 0.18, "nettle", 0.16, 0.08)
+    if picked:
+        stubs(rng, 3, 0.1, 0.1, "nettle_lt")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.08, 0.02, 0.50), (0.10, -0.04, 0.44), (0.02, 0.12, 0.38))):
+        stem("stem_%d" % i, h, (x, y, 0.0), "nettle", 0.02)
+        # Big drooping heart-shaped leaves, darkest low down.
+        for k in range(4):
+            z = 0.10 + k * (h - 0.08) / 4
+            for side in (0, 180):
+                leaf("nl_%d_%d_%d" % (i, k, side), 0.20 - k * 0.03, 0.12 - k * 0.015, (x, y, z),
+                     side + k * 70 + i * 40, -18, "nettle" if k < 2 else "nettle_lt", 0.02)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_bogbean(picked):
+    import random
+    rng = random.Random(14)
+    cyl("water", 0.19, 0.02, (0, 0, 0.01), "bog_water", verts=20, rough=0.25)
+    if picked:
+        stubs(rng, 4, 0.14, 0.08, "bogbean")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.12, 0.0, 0.26), (0.10, 0.06, 0.22), (0.0, -0.10, 0.18))):
+        top = stem("stalk_%d" % i, h, (x, y, 0.0), "bogbean", 0.02)
+        for k in range(3):
+            leaf("tl_%d_%d" % (i, k), 0.14, 0.09, (top[0] + math.cos(k * 2.094 + i) * 0.06,
+                                                   top[1] + math.sin(k * 2.094 + i) * 0.06, top[2]),
+                 math.degrees(k * 2.094 + i), 8, "bogbean")
+    # The fringed white flower spike that gives it away.
+    top = stem("spike", 0.38, (0.04, 0.04, 0.0), "bogbean", 0.018)
+    for k in range(5):
+        sphere("flower_%d" % k, 0.035, (0.04 + math.cos(k * 1.3) * 0.03, 0.04 + math.sin(k * 1.3) * 0.03,
+                                        top[2] - k * 0.045), "bog_flower" if k % 2 == 0 else "bog_pink")
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_mountain_sage(picked):
+    import random
+    rng = random.Random(15)
+    for i, (x, y, s) in enumerate(((-0.24, 0.10, 0.09), (0.22, -0.06, 0.07), (0.16, 0.18, 0.06))):
+        bpy.ops.mesh.primitive_ico_sphere_add(radius=s, location=(x, y, s * 0.5), subdivisions=1)
+        ob = bpy.context.active_object
+        ob.data.materials.append(material("pebble_%d" % i, "pebble"))
+    if picked:
+        ground_tuft(rng, 4, 0.12, "sage_dk", 0.12, 0.07)
+        stubs(rng, 4, 0.10, 0.06, "sage")
+        return (HERB_SPAN, HERB_ELEVATION)
+    # A low mound of soft, rounded grey-green leaves, with lilac spikes above.
+    for i in range(14):
+        a = i * 2.39
+        r = 0.04 + (i / 14) * 0.18
+        leaf("sg_%d" % i, 0.15, 0.09, (math.cos(a) * r, math.sin(a) * r, 0.05 + (1 - i / 14) * 0.12),
+             math.degrees(a), 25, "sage" if i % 3 else "sage_dk", 0.03)
+    for i, (x, y) in enumerate(((-0.06, 0.02), (0.06, -0.03), (0.0, 0.08))):
+        top = stem("fs_%d" % i, 0.18, (x, y, 0.14), "sage_dk")
+        cone("sf_%d" % i, 0.035, 0.12, (top[0], top[1], top[2] + 0.03), "sage_flower", verts=8)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_glowcap(picked):
+    import random
+    rng = random.Random(16)
+    ground_tuft(rng, 6, 0.24, "moss_dk", 0.14, 0.08)
+    caps = ((-0.10, 0.02, 0.26, 0.12), (0.10, -0.04, 0.19, 0.10), (0.02, 0.13, 0.14, 0.08), (0.18, 0.10, 0.10, 0.06))
+    if picked:
+        for i, (x, y, h, r) in enumerate(caps[:3]):
+            cyl("cut_%d" % i, r * 0.35, 0.04, (x, y, 0.02), "glowcap_stem", verts=10)
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h, r) in enumerate(caps):
+        cyl("stalk_%d" % i, r * 0.3, h, (x, y, h / 2), "glowcap_stem", verts=10)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=(x, y, h), segments=16, ring_count=8)
+        cap = bpy.context.active_object
+        cap.scale = (1.0, 1.0, 0.55)
+        cap.data.materials.append(material("cap_%d" % i, "glowcap", 0.5, 0.0, 0.35))
+        for k in range(3):
+            a = k * 2.1 + i
+            sphere("dot_%d_%d" % (i, k), r * 0.16, (x + math.cos(a) * r * 0.5, y + math.sin(a) * r * 0.5, h + r * 0.4),
+                   "glowcap_dot", emit=0.5)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_emberbloom(picked):
+    import random
+    rng = random.Random(17)
+    cyl("scorch", 0.17, 0.015, (0, 0, 0.008), "ash", verts=16)
+    ground_tuft(rng, 5, 0.16, "ember_stem", 0.14, 0.05)
+    if picked:
+        stubs(rng, 3, 0.1, 0.08, "ember_stem")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.08, 0.02, 0.34), (0.10, -0.02, 0.28), (0.02, 0.12, 0.22))):
+        top = stem("stem_%d" % i, h, (x, y, 0.0), "ember_stem", 0.018)
+        # Petals like tongues of flame, pointing up and out.
+        for k in range(5):
+            a = k / 5 * math.tau
+            cone("petal_%d_%d" % (i, k), 0.05, 0.19,
+                 (top[0] + math.cos(a) * 0.035, top[1] + math.sin(a) * 0.035, top[2] + 0.05), "ember_petal",
+                 rot=(math.sin(a) * -0.45, math.cos(a) * 0.45, 0.0), verts=6)
+            bpy.context.active_object.data.materials[0] = material("petal_%d_%d" % (i, k), "ember_petal", 0.6, 0.0, 0.9)
+        sphere("core_%d" % i, 0.045, (top[0], top[1], top[2] + 0.04), "ember_core", emit=1.0)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def flower(name, loc, petals, length, width, petal_col, core_col, emit=0.0, tilt=30):
+    for k in range(petals):
+        a = k / petals * 360.0
+        l = leaf("%s_p%d" % (name, k), length, width,
+                 (loc[0] + math.cos(math.radians(a)) * length * 0.45,
+                  loc[1] + math.sin(math.radians(a)) * length * 0.45, loc[2]), a, tilt, petal_col, 0.02)
+        if emit:
+            l.data.materials[0] = material("%s_p%d" % (name, k), petal_col, 0.6, 0.0, emit)
+    sphere(name + "_core", width * 0.35, (loc[0], loc[1], loc[2] + 0.02), core_col, emit=emit * 1.4)
+
+
+def herb_moonpetal(picked):
+    import random
+    rng = random.Random(18)
+    ground_tuft(rng, 7, 0.2, "moon_leaf", 0.18, 0.06)
+    if picked:
+        stubs(rng, 3, 0.1, 0.08, "moon_leaf")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.09, 0.03, 0.30), (0.11, -0.03, 0.24))):
+        top = stem("stem_%d" % i, h, (x, y, 0.0), "moon_leaf", 0.016)
+        flower("bloom_%d" % i, top, 6, 0.14, 0.08, "moon_petal", "moon_core", emit=0.25)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_starlily(picked):
+    import random
+    rng = random.Random(19)
+    # Leaves like blades of pale glass.
+    for i in range(6):
+        a = i / 6 * math.tau + 0.3
+        cone("blade_%d" % i, 0.04, 0.26, (math.cos(a) * 0.08, math.sin(a) * 0.08, 0.11), "star_leaf",
+             rot=(math.sin(a) * -0.5, math.cos(a) * 0.5, 0.0), verts=4)
+    if picked:
+        stubs(rng, 2, 0.05, 0.10, "star_leaf")
+        return (HERB_SPAN, HERB_ELEVATION)
+    top = stem("stem", 0.40, (0.0, 0.0, 0.0), "star_leaf", 0.02)
+    flower("lily", top, 6, 0.18, 0.08, "star_petal", "star_core", emit=1.0, tilt=45)
+    top2 = stem("stem2", 0.26, (0.12, -0.04, 0.0), "star_leaf", 0.016)
+    flower("bud", top2, 5, 0.10, 0.05, "star_petal", "star_core", emit=0.9, tilt=55)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def prop_cauldron():
+    """An iron pot on three legs over a small fire, full to near the brim with
+    something green. The green is the whole identity: without it, a pot."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.36, location=(0, 0, 0.66), segments=28, ring_count=14)
+    pot = bpy.context.active_object
+    pot.scale = (1.0, 1.0, 0.78)
+    pot.data.materials.append(material("pot", "cauldron", 0.8, 0.0))
+    cyl("rim", 0.31, 0.06, (0, 0, 0.93), "cauldron_lt", verts=28, rough=0.7)
+    cyl("brew", 0.27, 0.02, (0, 0, 0.95), "brew", verts=28, rough=0.3)
+    bpy.context.active_object.data.materials[0] = material("brew", "brew", 0.3, 0.0, 0.5)
+    for k, (x, y) in enumerate(((0.08, 0.05), (-0.10, -0.06), (0.02, -0.14))):
+        sphere("bubble_%d" % k, 0.03 + 0.01 * k, (x * 0.8, y * 0.8, 0.97), "brew", emit=0.8)
+    for k in range(3):
+        a = k / 3 * math.tau + 0.5
+        blk("leg_%d" % k, (0.08, 0.08, 0.42), (math.cos(a) * 0.27, math.sin(a) * 0.27, 0.21), "cauldron_lt")
+    for k in range(2):
+        a = math.radians(-90 + (k * 2 - 1) * 60)
+        cyl("handle_%d" % k, 0.03, 0.12, (math.cos(a) * 0.38, math.sin(a) * 0.38, 0.86), "cauldron_lt",
+            rot=(0, math.radians(90), a), verts=8)
+    for k in range(4):
+        a = k / 4 * math.tau
+        blk("log_%d" % k, (0.40, 0.09, 0.09), (math.cos(a) * 0.20, math.sin(a) * 0.20, 0.05), "log",
+            rot=(0, 0, a))
+    for k, (x, h) in enumerate(((-0.08, 0.20), (0.08, 0.24), (0.0, 0.30))):
+        cone("flame_%d" % k, 0.08, h, (x, -0.12, 0.10 + h / 2), "ember")
+        bpy.context.active_object.data.materials[0] = material("flame_%d" % k, "ember", 0.6, 0.0, 1.6)
+    cone("flame", 0.10, 0.22, (0, 0, 0.16), "ember")
+    bpy.context.active_object.data.materials[0] = material("flame", "ember", 0.6, 0.0, 1.6)
+    return 1.45
+
+
+HERBS = ("marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
+         "emberbloom", "moonpetal", "starlily")
+HERB_PROPS = {"cauldron": (prop_cauldron, 48)}
+for _name in HERBS:
+    _builder = globals()["herb_" + _name]
+    HERB_PROPS["herb_" + _name] = ((lambda b=_builder: b(False)), 40)
+    HERB_PROPS["herb_" + _name + "_picked"] = ((lambda b=_builder: b(True)), 40)
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),
@@ -1979,6 +2289,7 @@ PROPS.update(INN_PROPS)
 PROPS.update(ROOM_PROPS)
 PROPS.update(BUILDING_PROPS)
 PROPS.update(WOODLAND_PROPS)
+PROPS.update(HERB_PROPS)
 
 
 def main():

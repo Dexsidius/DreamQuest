@@ -55,6 +55,11 @@ int CatchCount(int level, float roll);
 // Which fish a spot gives up: the best one the level allows a fair share of
 // the time, otherwise something lesser. Empty if the level allows none.
 string PickFish(const vector<string>& fish, int level, const ItemDatabase& db, std::mt19937& rng);
+// --- foraging -------------------------------------------------------------------------
+// The chance a plant gives two herbs instead of one: nothing at its level,
+// rising a point for every level past it, to at most a half.
+float ForageExtraChance(int level, int plant_level);
+
 // The lowest level any fish at a spot can be caught at.
 int SpotLevel(const vector<string>& fish, const ItemDatabase& db);
 

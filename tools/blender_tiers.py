@@ -748,6 +748,207 @@ def all_icons(only_tiers):
     print("icons %d" % count)
 
 
+# --- herbs, vials, potions and recipes (icons) -------------------------------------------------
+# Foraging and Brewing. Everything is laid out in the picture plane (X across,
+# Z up), facing the icon camera, the way a fish is.
+
+bc.PALETTE.update({
+    "stalk": (0.28, 0.44, 0.20), "stalk_dk": (0.18, 0.30, 0.14), "leafy": (0.36, 0.60, 0.26),
+    "marigold_head": (0.98, 0.56, 0.10), "marigold_eye": (0.80, 0.32, 0.06),
+    "mint_leaf": (0.40, 0.78, 0.50), "mint_tip": (0.72, 0.62, 0.92),
+    "nettle_leaf": (0.22, 0.46, 0.20), "nettle_vein": (0.36, 0.60, 0.30),
+    "bog_leaf": (0.48, 0.62, 0.32), "bog_white": (0.97, 0.94, 0.95), "bog_pink": (0.90, 0.60, 0.68),
+    "sage_leaf": (0.58, 0.66, 0.55), "sage_leaf_dk": (0.42, 0.50, 0.40),
+    "cap_glow": (0.52, 0.90, 0.92), "cap_stalk": (0.88, 0.85, 0.76),
+    "ember_petal": (0.93, 0.24, 0.10), "ember_glow": (1.00, 0.78, 0.26), "ember_stalk": (0.28, 0.16, 0.14),
+    "moon_petal": (0.44, 0.58, 0.96), "moon_glow": (0.90, 0.94, 1.00), "moon_stalk": (0.36, 0.42, 0.60),
+    "star_petal": (1.00, 0.97, 0.88), "star_glow": (1.00, 0.84, 0.36), "star_stalk": (0.52, 0.74, 0.74),
+    "glass": (0.76, 0.86, 0.90), "glass_shine": (0.97, 0.99, 1.00), "cork": (0.66, 0.48, 0.30),
+    "parchment": (0.90, 0.83, 0.64), "parchment_dk": (0.72, 0.62, 0.44), "rod_wood": (0.40, 0.26, 0.16),
+    "seal": (0.72, 0.14, 0.14), "ink": (0.26, 0.20, 0.18),
+})
+
+
+def _leaf(parent, name, at, length, width, angle, colour, depth=0.012):
+    """A leaf lying in the picture plane, pointing along `angle` (degrees from +X)."""
+    a = math.radians(angle)
+    centre = (at[0] + math.cos(a) * length * 0.5, at[1], at[2] + math.sin(a) * length * 0.5)
+    return bc.part(name, bc.mesh_ellipsoid(length * 0.5, depth, width * 0.5), colour, parent,
+                   loc=centre, rot=(0, -a, 0))
+
+
+def _sprig(parent, parts, base, top, colour="stalk", r=0.014):
+    parts.append(bc.spike("stalk", base, top, r, colour, parent, r_tip=r * 0.7))
+
+
+def build_herb(name, parent):
+    parts = []
+    if name == "marigold":
+        for i, (top, h) in enumerate((((-0.07, 0, 0.12), 0.07), ((0.08, 0, 0.16), 0.08))):
+            _sprig(parent, parts, (0, 0, -0.20), top)
+            parts.append(bc.part("head", bc.mesh_ellipsoid(h, 0.04, h), "marigold_head", parent, loc=top))
+            parts.append(bc.part("eye", bc.mesh_ellipsoid(h * 0.45, 0.045, h * 0.45), "marigold_eye", parent,
+                                 loc=(top[0], -0.01, top[2])))
+        parts.append(_leaf(parent, "leaf", (0, 0, -0.10), 0.14, 0.06, 150, "leafy"))
+        parts.append(_leaf(parent, "leaf", (0, 0, -0.06), 0.14, 0.06, 30, "leafy"))
+    elif name == "brookmint":
+        _sprig(parent, parts, (0, 0, -0.22), (0, 0, 0.18), "stalk")
+        for k in range(4):
+            z = -0.14 + k * 0.08
+            size = 0.13 - k * 0.018
+            parts.append(_leaf(parent, "l", (0, 0, z), size, 0.07, 160 - k * 6, "mint_leaf"))
+            parts.append(_leaf(parent, "r", (0, 0, z), size, 0.07, 20 + k * 6, "mint_leaf"))
+        parts.append(bc.part("tip", bc.mesh_ellipsoid(0.03, 0.03, 0.05), "mint_tip", parent, loc=(0, 0, 0.21)))
+    elif name == "nettle":
+        _sprig(parent, parts, (0, 0, -0.24), (0.02, 0, 0.20), "stalk_dk", 0.018)
+        for k in range(3):
+            z = -0.14 + k * 0.12
+            size = 0.19 - k * 0.04
+            for side, ang in ((0, 200), (1, -20)):
+                l = _leaf(parent, "nl", (0.01, 0, z), size, 0.10 - k * 0.015, ang if k else ang + (10 if side else -10),
+                          "nettle_leaf")
+                parts.append(l)
+                a = math.radians(ang)
+                parts.append(bc.spike("vein", (0.01, -0.012, z), (0.01 + math.cos(a) * size * 0.8, -0.012,
+                                                                  z + math.sin(a) * size * 0.8),
+                                      0.006, "nettle_vein", parent, r_tip=0.004))
+    elif name == "bogbean":
+        _sprig(parent, parts, (0, 0, -0.24), (-0.04, 0, 0.04), "bog_leaf", 0.016)
+        for ang in (40, 150, 260):
+            parts.append(_leaf(parent, "tri", (-0.04, 0, 0.04), 0.13, 0.09, ang, "bog_leaf"))
+        _sprig(parent, parts, (0, 0, -0.24), (0.10, 0, 0.20), "bog_leaf", 0.012)
+        for k in range(4):
+            parts.append(bc.part("flower", bc.mesh_ellipsoid(0.028, 0.03, 0.028), "bog_white" if k % 2 else "bog_pink",
+                                 parent, loc=(0.10 - k * 0.012, -0.01, 0.20 - k * 0.05)))
+    elif name == "mountain_sage":
+        # A tied bundle of soft grey-green leaves.
+        for k, ang in enumerate((60, 80, 100, 120, 90)):
+            parts.append(_leaf(parent, "sg", (0, 0, -0.06), 0.24, 0.09, ang, "sage_leaf" if k % 2 else "sage_leaf_dk",
+                               depth=0.02 + 0.004 * k))
+        for k in range(3):
+            parts.append(bc.spike("stem", (0, 0, -0.06), (-0.03 + k * 0.03, 0, -0.22), 0.012, "stalk_dk", parent))
+        parts.append(bc.part("twine", bc.mesh_torus(0.035, 0.012), "string", parent, loc=(0, 0, -0.08),
+                             rot=(math.radians(90), 0, 0)))
+    elif name == "glowcap":
+        for (x, h, r) in ((-0.06, 0.20, 0.10), (0.08, 0.13, 0.075)):
+            parts.append(bc.part("stalk", bc.mesh_capsule(r * 0.3, r * 0.36, h), "cap_stalk", parent,
+                                 loc=(x, 0, -0.20 + h)))
+            parts.append(bc.part("cap", bc.mesh_ellipsoid(r, r * 0.9, r * 0.55), "cap_glow", parent,
+                                 loc=(x, 0, -0.20 + h)))
+    else:
+        petal, glow, stalk, count, length = {
+            "emberbloom": ("ember_petal", "ember_glow", "ember_stalk", 6, 0.12),
+            "moonpetal":  ("moon_petal", "moon_glow", "moon_stalk", 6, 0.12),
+            "starlily":   ("star_petal", "star_glow", "star_stalk", 6, 0.15),
+        }[name]
+        centre = (0.0, 0.0, 0.06)
+        _sprig(parent, parts, (0, 0, -0.24), centre, stalk)
+        parts.append(_leaf(parent, "leaf", (0, 0, -0.14), 0.12, 0.05, 150, stalk))
+        for k in range(count):
+            ang = 90 + k * 360.0 / count
+            if name == "emberbloom":
+                a = math.radians(ang)
+                parts.append(bc.spike("petal", centre, (math.cos(a) * length, 0, centre[2] + math.sin(a) * length),
+                                      0.04, petal, parent, r_tip=0.006))
+            else:
+                parts.append(_leaf(parent, "petal", centre, length, 0.07 if name == "moonpetal" else 0.055, ang, petal))
+        parts.append(bc.part("core", bc.mesh_ellipsoid(0.035, 0.03, 0.035), glow, parent,
+                             loc=(0, -0.02, centre[2])))
+    return parts
+
+
+POTIONS = {
+    #                     liquid               glow?  shape
+    "healing_draught":   ((0.86, 0.20, 0.18), False, "round"),
+    "mana_tonic":        ((0.22, 0.42, 0.92), False, "round"),
+    "nettle_brew":       ((0.24, 0.52, 0.20), False, "round"),
+    "fen_bitters":       ((0.50, 0.44, 0.20), False, "tall"),
+    "stoneskin_draught": ((0.56, 0.56, 0.60), False, "tall"),
+    "hunters_focus":     ((0.24, 0.78, 0.70), True,  "flask"),
+    "emberfire_elixir":  ((1.00, 0.46, 0.10), True,  "flask"),
+    "moonlit_draught":   ((0.62, 0.72, 1.00), True,  "flask"),
+    "starlily_panacea":  ((1.00, 0.90, 0.56), True,  "star"),
+}
+for _name, (_rgb, _glow, _shape) in POTIONS.items():
+    bc.PALETTE["potion_%s" % _name] = _rgb
+    bc.PALETTE["potion_%s_glow" % _name] = _rgb
+
+
+def build_potion(name, parent):
+    """A vial, empty or filled. The liquid is the body, so the colour carries the
+    whole icon; a brew that glows is lit from inside."""
+    parts = []
+    if name == "vial":
+        liquid, shape = "glass", "round"
+    else:
+        rgb, glow, shape = POTIONS[name]
+        liquid = ("potion_%s_glow" if glow else "potion_%s") % name
+    if shape == "tall":
+        parts.append(bc.part("body", bc.mesh_capsule(0.10, 0.11, 0.20), liquid, parent, loc=(0, 0, 0.02)))
+        neck_z = 0.08
+    elif shape == "flask":
+        parts.append(bc.part("body", bc.mesh_ellipsoid(0.15, 0.10, 0.12), liquid, parent, loc=(0, 0, -0.10)))
+        parts.append(bc.part("shoulder", bc.mesh_capsule(0.05, 0.10, 0.08), liquid, parent, loc=(0, 0, 0.02)))
+        neck_z = 0.07
+    else:
+        parts.append(bc.part("body", bc.mesh_ellipsoid(0.13, 0.11, 0.13), liquid, parent, loc=(0, 0, -0.08)))
+        neck_z = 0.05
+    if name != "vial":
+        parts.append(bc.part("glass_top", bc.mesh_ellipsoid(0.08, 0.07, 0.03), "glass", parent,
+                             loc=(0, 0, neck_z - 0.04)))
+    parts.append(bc.part("neck", bc.mesh_capsule(0.042, 0.048, 0.09), "glass", parent, loc=(0, 0, neck_z + 0.08)))
+    parts.append(bc.part("lip", bc.mesh_torus(0.045, 0.014), "glass", parent, loc=(0, 0, neck_z + 0.08),
+                         rot=(0, 0, 0)))
+    parts.append(bc.part("cork", bc.mesh_capsule(0.036, 0.034, 0.06), "cork", parent, loc=(0, 0, neck_z + 0.13)))
+    parts.append(bc.part("shine", bc.mesh_ellipsoid(0.022, 0.02, 0.05), "glass_shine", parent,
+                         loc=(-0.07, -0.10, -0.06)))
+    if shape == "star":
+        # A glint of starlight beside the bottle, not over it.
+        for a in (0, 90):
+            r = math.radians(a)
+            parts.append(bc.spike("glint", (0.15 - math.cos(r) * 0.05, -0.12, 0.06 - math.sin(r) * 0.05),
+                                  (0.15 + math.cos(r) * 0.05, -0.12, 0.06 + math.sin(r) * 0.05),
+                                  0.014, "star_glow", parent, r_tip=0.014))
+    return parts
+
+
+def build_recipe_scroll(parent):
+    parts = []
+    parts.append(bc.part("sheet", mesh_box(0.30, 0.02, 0.24), "parchment", parent, loc=(0, 0, 0)))
+    for z in (0.13, -0.13):
+        parts.append(bc.part("roll", bc.mesh_capsule(0.035, 0.035, 0.34), "parchment_dk", parent,
+                             loc=(0.17, 0, z), rot=(0, math.radians(90), 0)))
+        for x in (-0.19, 0.19):
+            parts.append(bc.part("knob", bc.mesh_ellipsoid(0.02, 0.02, 0.03), "rod_wood", parent, loc=(x, 0, z)))
+    for k in range(4):
+        parts.append(bc.part("line", mesh_box(0.18 - 0.05 * (k % 2), 0.03, 0.022), "ink", parent,
+                             loc=(-0.02 - 0.025 * (k % 2), -0.012, 0.065 - k * 0.045)))
+    parts.append(bc.part("seal", bc.mesh_ellipsoid(0.045, 0.03, 0.045), "seal", parent, loc=(0.10, -0.02, -0.08)))
+    return parts
+
+
+HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
+              "emberbloom", "moonpetal", "starlily"]
+
+
+def brewing_icons(only=None):
+    count = 0
+    for name in HERB_ICONS:
+        if only and name not in only:
+            continue
+        render_icon(name, lambda t, p, n=name: build_herb(n, p), "wood", 0, 0, 0.9)
+        count += 1
+    for name in ["vial"] + list(POTIONS):
+        if only and name not in only:
+            continue
+        render_icon(name, lambda t, p, n=name: build_potion(n, p), "wood", 0, 0, 0.86)
+        count += 1
+    if not only or "recipe_scroll" in only:
+        render_icon("recipe_scroll", lambda t, p: build_recipe_scroll(p), "wood", 0, 0, 0.92)
+        count += 1
+    print("icons %d brewing" % count)
+
+
 # --- weapon layers on the hero --------------------------------------------------------------
 
 def weapon_layers(clip_name, models, out_dir):
@@ -813,10 +1014,14 @@ def main():
     clips = option("--only") or list(bc.CLIPS)
     tiers = option("--tiers") or TIERS
     chosen = option("--models")
+    names = option("--names")
 
     # Each clip draws what is in hand during it: the work clips their tool,
     # every other clip the weapons.
     def models_for(clip):
+        # Picking herbs is done bare-handed: nothing in hand, so no layers.
+        if clip == "gather":
+            return []
         kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",)}.get(clip, ("sword", "bow", "staff"))
         every = ["rod"] if kinds == ("rod",) else ["%s_%s" % (k, t) for t in tiers for k in kinds]
         if chosen:
@@ -827,6 +1032,11 @@ def main():
     os.makedirs(ICON_DIR, exist_ok=True)
     if "icons" in wanted:
         all_icons(tiers)
+    if "icons" in wanted or "brewing" in wanted:
+        if "icons" in wanted and len(tiers) != len(TIERS) and not names:
+            pass
+        else:
+            brewing_icons(set(names) if names else None)
     if "layers" in wanted:
         for clip in clips:
             wanted_models = models_for(clip)

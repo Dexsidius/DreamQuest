@@ -679,6 +679,23 @@ def pose_fish(t):
     }
 
 
+def pose_gather(t):
+    # Down on one knee at the plant, reaching in with the right hand and
+    # drawing it back to the chest, the left hand steadying on the thigh. The
+    # body folds a long way over, because a small lean is lost at this size.
+    reach = _ease(t / 0.45) if t < 0.45 else (1.0 if t < 0.6 else 1.0 - _ease((t - 0.6) / 0.4))
+    b = math.sin(t * math.tau)
+    return {
+        "bob": -0.14, "lean": 12 + 10 * reach, "nod": 6 + 6 * reach,
+        "leg_l": 70, "knee_l": 95, "leg_r": -20, "knee_r": 120,
+        "arm_r": 30 + 60 * reach, "elbow_r": 50 - 40 * reach, "flare_r": 18 + 30 * reach,
+        "arm_l": 30, "elbow_l": 70, "flare_l": 18,
+        "twist": -6 * reach, "sword": 30,
+        "scarf": 10 + 6 * reach, "scarf2": 10, "hair": 2 * b,
+        "blink": 1.0 if 0.70 <= t < 0.78 else 0.0,
+    }
+
+
 # clip -> (pose function, frame count, loops)
 CLIPS = {
     "idle":   (pose_idle,   8,  True),
@@ -693,6 +710,7 @@ CLIPS = {
     "chop":   (pose_chop,   8,  True),
     "mine":   (pose_mine,   8,  True),
     "fish":   (pose_fish,   8,  True),
+    "gather": (pose_gather, 8,  True),
 }
 
 # Rows in the order every sheet in this project uses, and how far the

@@ -109,9 +109,13 @@ public:
     vector<pair<int,int>> TakeXpDrops();     // skill, amount
     void GrantXp(int skill, int amount);
 
-    // Consume the item in an inventory slot; returns false when it is not
-    // edible or the player is already at full health.
+    // Consume the item in an inventory slot: food heals, a potion can also
+    // restore mana and stamina and boost combat levels. Returns false, with
+    // the reason, when it would do nothing.
     bool Eat(int slot);
+    bool Consume(int slot, string& why_not);
+    // A boost above a level wears off one point every BOOST_DECAY seconds.
+    static constexpr float BOOST_DECAY = 45.0f;
     // Wear the item in an inventory slot, swapping out whatever it replaces.
     // Fails when the slot is not equipment or a skill requirement is unmet.
     bool EquipFromInventory(int slot, string& why_not);
@@ -217,6 +221,7 @@ private:
     bool  winded = false;
     Vec2  look_ahead{0, 0};
 
+    float boost_timer = 0.0f;
     int   mana = 0, max_mana = 0;
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point
     Element selected_element = Element::Fire;

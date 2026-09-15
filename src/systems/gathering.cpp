@@ -2,6 +2,10 @@
 
 namespace Gathering {
 
+float ForageExtraChance(int level, int plant_level) {
+    return std::clamp((level - plant_level) * 0.01f, 0.0f, 0.5f);
+}
+
 const char* ToolFor(const string& skill) {
     if (skill == "Woodcutting") return "axe";
     if (skill == "Mining")      return "pickaxe";

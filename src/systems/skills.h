@@ -19,6 +19,9 @@ enum SkillId {
     SKILL_CRAFTING,
     SKILL_COOKING,
     SKILL_FISHING,
+    SKILL_SMITHING,      // smelting and smithing at an anvil
+    SKILL_FORAGING,      // picking herbs and plants
+    SKILL_BREWING,       // potions, at a cauldron
     SKILL_COUNT
 };
 

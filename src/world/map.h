@@ -100,6 +100,8 @@ struct MapObject {
     string yield;            // item a gathering node produces
     int    yield_xp = 0;
     float  gather_time = 2.6f;
+    // Herbs: game hours before a picked plant grows back.
+    float  regrow_hours = 6.0f;
     string title;
     string station;          // crafting objects: "workbench" or "anvil"
     vector<string> quests;   // mission boards

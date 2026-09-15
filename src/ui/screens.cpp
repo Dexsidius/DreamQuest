@@ -938,11 +938,25 @@ void Game::UpdateInventory() {
             if (!s.Empty()) {
                 const ItemDef* def = items.Get(s.id);
                 if (def && def->consumable) {
-                    if (p.Eat(inventory_cursor)) {
-                        PushToast("You eat the " + def->name + ".", Palette::Xp);
+                    const bool potion = !def->boosts.empty() || def->mana > 0 || def->stamina ||
+                                        std::find(def->tags.begin(), def->tags.end(), "potion") != def->tags.end();
+                    string why;
+                    if (p.Consume(inventory_cursor, why)) {
+                        PushToast((potion ? "You drink the " : "You eat the ") + def->name + ".", Palette::Xp);
                         Audio::Play(Sfx::Eat);
                     } else {
-                        PushToast("You are already at full health.", Palette::TextDim);
+                        PushToast(why, Palette::TextDim);
+                    }
+                } else if (def && !def->learn.empty()) {
+                    const ItemDef* brew = items.Get(def->learn);
+                    const string name = brew ? brew->name : def->learn;
+                    if (world.KnowsRecipe(def->learn)) {
+                        PushToast("You already know how to brew " + name + ".", Palette::TextDim);
+                    } else {
+                        world.SetFlag("recipe:" + def->learn);
+                        p.inventory.RemoveSlot(inventory_cursor, 1);
+                        PushToast("Recipe learned: " + name + ". Brew it at a cauldron.", Palette::Highlight);
+                        Audio::Play(Sfx::QuestStart);
                     }
                 } else if (def && def->use == "camp") {
                     const string why = world.PitchCamp(inventory_cursor, ctx);
@@ -1191,7 +1205,7 @@ void Game::DrawSkillsPanel() {
     ui.Dim(0.5f);
     const Skills& s = world.player.skills;
 
-    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : 860.0f, 560.0f);
+    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : 860.0f, 640.0f);
     ui.Panel(panel);
 
     // --- tabs ------------------------------------------------------------------
@@ -1238,7 +1252,7 @@ void Game::DrawSkillsPanel() {
                 s.Level(SKILL_FISHING) >= 20 ? Palette::Xp : Palette::TextDim);
     }
 
-    const float row_h = 38.0f;
+    const float row_h = 32.0f;
     for (int i = 0; i < SKILL_COUNT; ++i) {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 58.0f + i * row_h,
                                panel.w - 40.0f, row_h - 4.0f};
@@ -1249,10 +1263,14 @@ void Game::DrawSkillsPanel() {
         }
 
         const int level = s.Level(i);
-        ui.Text(SkillName(i), row.x + 10.0f, row.y + 7.0f, TextSize::Body,
+        ui.Text(SkillName(i), row.x + 10.0f, row.y + 4.0f, TextSize::Body,
                 selected ? Palette::Highlight : Palette::Text);
-        ui.Text(std::to_string(level), row.x + 170.0f, row.y + 7.0f, TextSize::Body,
-                Palette::Text, Align::Right);
+        // A boosted level shows what it is working at right now.
+        const int now = s.Current(i);
+        const bool boosted = i != SKILL_HITPOINTS && now != level;
+        ui.Text(boosted ? std::to_string(now) + "/" + std::to_string(level) : std::to_string(level),
+                row.x + 170.0f, row.y + 4.0f, TextSize::Body,
+                boosted ? (now > level ? Palette::Xp : SDL_Color{235, 150, 120, 255}) : Palette::Text, Align::Right);
 
         // Progress toward the next level, the way the OSRS skill guide reads.
         const int xp = s.Xp(i);
@@ -1260,13 +1278,13 @@ void Game::DrawSkillsPanel() {
         const int next = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
         const float frac = (next > here) ? static_cast<float>(xp - here) / (next - here) : 1.0f;
 
-        const SDL_FRect bar = {row.x + 190.0f, row.y + 10.0f, row.w - 320.0f, 14.0f};
+        const SDL_FRect bar = {row.x + 190.0f, row.y + 8.0f, row.w - 320.0f, 14.0f};
         ui.Bar(bar, frac, Palette::Xp, {26, 34, 26, 235});
 
         char xp_text[48];
         if (level >= MAX_SKILL_LEVEL) SDL_snprintf(xp_text, sizeof(xp_text), "max");
         else SDL_snprintf(xp_text, sizeof(xp_text), "%d xp to %d", next - xp, level + 1);
-        ui.Text(xp_text, row.x + row.w - 10.0f, row.y + 9.0f, TextSize::Small,
+        ui.Text(xp_text, row.x + row.w - 10.0f, row.y + 7.0f, TextSize::Small,
                 Palette::TextDim, Align::Right);
     }
 
@@ -1791,9 +1809,15 @@ void Game::UpdateCrafting() {
         const ItemDef* recipe = recipes[std::clamp(craft_cursor, 0,
                                                    static_cast<int>(recipes.size()) - 1)];
         Player& p = world.player;
+        const int skill = CraftSkill(craft_station);
 
-        if (p.skills.Level(SKILL_CRAFTING) < recipe->craft_level) {
-            PushToast("Needs Crafting " + std::to_string(recipe->craft_level) + ".",
+        if (craft_station == CraftStation::Cauldron && !world.KnowsRecipe(recipe->craft_result)) {
+            PushToast("You have not learned that recipe yet.", {235, 150, 120, 255});
+            Audio::Play(Sfx::UiError);
+            return;
+        }
+        if (p.skills.Level(skill) < recipe->craft_level) {
+            PushToast("Needs " + string(SkillName(skill)) + " " + std::to_string(recipe->craft_level) + ".",
                       {235, 150, 120, 255});
             return;
         }
@@ -1813,10 +1837,12 @@ void Game::UpdateCrafting() {
 
         for (const auto& in : recipe->craft_inputs) p.inventory.Remove(in.first, in.second);
         p.inventory.Add(recipe->craft_result, recipe->craft_qty);
-        p.GrantXp(SKILL_CRAFTING, recipe->craft_xp);
+        p.GrantXp(skill, recipe->craft_xp);
 
         const ItemDef* made = items.Get(recipe->craft_result);
-        PushToast("Crafted " + (made ? made->name : recipe->craft_result) + ".", Palette::Xp);
+        PushToast(string(craft_station == CraftStation::Cauldron ? "Brewed " :
+                         craft_station == CraftStation::Anvil ? "Smithed " : "Crafted ") +
+                  (made ? made->name : recipe->craft_result) + ".", Palette::Xp);
         quests.RefreshCollectObjectives(p.inventory);
     }
 
@@ -1829,19 +1855,22 @@ void Game::DrawCrafting() {
     const SDL_FRect panel = CenteredPanel(ui, 660.0f, 450.0f);
     ui.Panel(panel);
     const bool anvil = (craft_station == CraftStation::Anvil);
-    ui.Text(craft_title.empty() ? (anvil ? "Anvil" : "Workbench") : craft_title,
+    const bool cauldron = (craft_station == CraftStation::Cauldron);
+    const int skill = CraftSkill(craft_station);
+    ui.Text(craft_title.empty() ? (cauldron ? "Cauldron" : anvil ? "Anvil" : "Workbench") : craft_title,
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
     const Player& p = world.player;
-    ui.Text("Crafting " + std::to_string(p.skills.Level(SKILL_CRAFTING)),
+    ui.Text(string(SkillName(skill)) + " " + std::to_string(p.skills.Level(skill)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
 
     // Say where the rest is made, so a missing recipe reads as "elsewhere"
     // rather than "gone".
-    ui.Text(anvil ? "Smithing: anything made from metal. Wood and leather are worked at a workbench."
-                  : "Wood, leather and thread. Anything made from metal is smithed at an anvil.",
+    ui.Text(cauldron ? "Brewing: herbs and a vial. A recipe has to be learned before it can be brewed."
+            : anvil  ? "Smithing: anything made from metal. Wood and leather are worked at a workbench."
+                     : "Wood, leather and thread. Metal is smithed at an anvil, potions brewed at a cauldron.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -1869,7 +1898,8 @@ void Game::DrawCrafting() {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + (i - first) * row_h,
                                list_w, row_h - 4.0f};
         const bool selected = (i == craft_cursor);
-        const bool unlocked = p.skills.Level(SKILL_CRAFTING) >= r->craft_level;
+        const bool known = !cauldron || world.KnowsRecipe(r->craft_result);
+        const bool unlocked = known && p.skills.Level(skill) >= r->craft_level;
 
         if (selected) {
             ui.Fill(row, {58, 46, 28, 210});
@@ -1880,7 +1910,7 @@ void Game::DrawCrafting() {
                 const SDL_FRect ic = {row.x + 4.0f, row.y + 3.0f, 24.0f, 24.0f};
                 SDL_RenderTexture(renderer, tex, nullptr, &ic);
             }
-        ui.Text(made ? made->name : r->craft_result, row.x + 34.0f, row.y + 5.0f,
+        ui.Text(known ? (made ? made->name : r->craft_result) : string("Unknown recipe"), row.x + 34.0f, row.y + 5.0f,
                 TextSize::Small,
                 !unlocked ? SDL_Color{120, 110, 100, 255}
                           : (selected ? Palette::Highlight : Palette::Text));
@@ -1897,6 +1927,11 @@ void Game::DrawCrafting() {
 
     ui.Text(made ? made->name : r->craft_result, dx, y, TextSize::Body, Palette::Highlight);
     y += 28.0f;
+    if (cauldron && !world.KnowsRecipe(r->craft_result)) {
+        y += ui.TextWrapped("You have not learned to brew this yet." +
+                            (made && !made->recipe_from.empty() ? " " + made->recipe_from : string("")),
+                            dx, y, panel.w - list_w - 64.0f, TextSize::Small, {235, 150, 120, 255}) + 8.0f;
+    }
     if (made) y += ui.TextWrapped(made->description, dx, y, panel.w - list_w - 64.0f,
                                   TextSize::Small, Palette::TextDim) + 8.0f;
     if (made && !made->requirements.empty()) {
@@ -1922,10 +1957,10 @@ void Game::DrawCrafting() {
     }
 
     y += 10.0f;
-    ui.Text(std::to_string(r->craft_xp) + " Crafting XP", dx, y, TextSize::Small,
+    ui.Text(std::to_string(r->craft_xp) + " " + SkillName(skill) + " XP", dx, y, TextSize::Small,
             Palette::TextDim);
 
-    ui.Text(input.PromptFor(Action::Confirm) + " craft     " +
+    ui.Text(input.PromptFor(Action::Confirm) + (cauldron ? " brew     " : anvil ? " smith     " : " craft     ") +
             input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);

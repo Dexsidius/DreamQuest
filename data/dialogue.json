@@ -749,6 +749,20 @@
         }
       },
       {
+        "text": "Could you teach me to brew?",
+        "next": "oona_brew_teach",
+        "if": {
+          "no_flag": "recipe:healing_draught"
+        }
+      },
+      {
+        "text": "About brewing.",
+        "next": "oona_brew_more",
+        "if": {
+          "flag": "recipe:healing_draught"
+        }
+      },
+      {
         "text": "What do you grow?",
         "next": "oona_herbs"
       },
@@ -1783,6 +1797,36 @@
     "options": [
       {
         "text": "Enjoy them.",
+        "next": "end"
+      }
+    ]
+  },
+  "oona_brew_teach": {
+    "speaker": "Oona the Herbalist",
+    "text": "Sit. Two marigolds, a vial of clean water, and a slow fire under the cauldron -- never a quick one. Stir it until it goes the colour of the flower. That is a healing draught, and every other brew starts from knowing it.",
+    "options": [
+      {
+        "text": "Two marigolds, a vial, a slow fire.",
+        "next": "oona_brew_more",
+        "action": {
+          "learn": "healing_draught"
+        }
+      }
+    ]
+  },
+  "oona_brew_more": {
+    "speaker": "Oona the Herbalist",
+    "text": "Marigolds grow in the open meadows, mint by the water, nettles under the trees. The rarer things grow where the land is strange: the Mire, the high foothills, the burnt ground in the east, and places you only reach asleep. Every brew beyond the first is written down somewhere. I sell the mana tonic; ask the traders for the rest.",
+    "options": [
+      {
+        "text": "Show me what you sell.",
+        "next": "end",
+        "action": {
+          "shop": "mossvale_herbalist"
+        }
+      },
+      {
+        "text": "Thank you.",
         "next": "end"
       }
     ]

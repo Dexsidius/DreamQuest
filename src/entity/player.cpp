@@ -74,6 +74,8 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
         if (w && w->worn && !w->worn_sprite.empty()) s.show_weapon = false;
         if (w) s.weapon_model = w->model;
     }
+    // Picking herbs is done bare-handed, so the weapon is put away.
+    if (gather_clip == "gather") s.show_weapon = false;
     // At work the hands hold the tool, whatever is normally in them.
     if (!gather_model.empty()) {
         s.weapon_model = gather_model;
@@ -618,6 +620,20 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         stride = 14.0f;     // the first step after standing comes quickly
     }
 
+    // --- boosts wearing off -----------------------------------------------------
+    // Hitpoints is its own thing -- it drains with damage -- so only the
+    // levels a potion can lift drift back toward the real level.
+    boost_timer += dt;
+    if (boost_timer >= BOOST_DECAY) {
+        boost_timer -= BOOST_DECAY;
+        for (int s = 0; s < SKILL_COUNT; ++s) {
+            if (s == SKILL_HITPOINTS) continue;
+            const int level = skills.Level(s), now = skills.Current(s);
+            if (now > level) skills.SetCurrent(s, now - 1);
+            else if (now < level) skills.SetCurrent(s, now + 1);
+        }
+    }
+
     // --- mana ----------------------------------------------------------------
     SyncMana();
     if (mana < max_mana) {
@@ -688,15 +704,44 @@ void Player::Rest() {
 }
 
 bool Player::Eat(int slot) {
+    string why;
+    return Consume(slot, why);
+}
+
+bool Player::Consume(int slot, string& why_not) {
+    why_not.clear();
     if (!item_db || slot < 0 || slot >= inventory.SlotCount()) return false;
     const ItemStack& s = inventory.Slot(slot);
     if (s.Empty()) return false;
 
     const ItemDef* def = item_db->Get(s.id);
-    if (!def || !def->consumable || def->heal <= 0) return false;
-    if (hp >= max_hp) return false;
+    if (!def || !def->consumable) { why_not = "You cannot eat that."; return false; }
 
-    Heal(def->heal);
+    // Only worth using if something would change: food at full health is
+    // refused, but a potion that also boosts or restores is not.
+    bool helps = (def->heal > 0 && hp < max_hp) || (def->mana > 0 && mana < max_mana) ||
+                 (def->stamina && stamina < MaxStamina());
+    for (const auto& b : def->boosts) {
+        const int level = skills.Level(b.first);
+        const int target = level + b.second.first + static_cast<int>(level * b.second.second);
+        if (skills.Current(b.first) < target) helps = true;
+    }
+    if (!helps) {
+        why_not = def->boosts.empty() && def->mana == 0 ? "You are already at full health."
+                                                        : "It would do nothing for you right now.";
+        return false;
+    }
+
+    if (def->heal > 0) Heal(def->heal);
+    if (def->mana > 0) { SyncMana(); mana = std::min(max_mana, mana + def->mana); }
+    if (def->stamina) { stamina = MaxStamina(); stamina_delay = 0.0f; winded = false; }
+    for (const auto& b : def->boosts) {
+        const int level = skills.Level(b.first);
+        const int target = level + b.second.first + static_cast<int>(level * b.second.second);
+        // A boost never stacks past its own ceiling, and never lowers one.
+        skills.SetCurrent(b.first, std::max(skills.Current(b.first), target));
+    }
+    if (!def->boosts.empty()) boost_timer = 0.0f;
     skills.SetCurrent(SKILL_HITPOINTS, hp);
     inventory.RemoveSlot(slot, 1);
     return true;

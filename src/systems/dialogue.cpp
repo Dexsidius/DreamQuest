@@ -42,6 +42,7 @@ static DialogueAction ParseAction(const json& o) {
     a.open_shop     = o.value("shop", string(""));
     a.open_orders   = o.value("orders", string(""));
     a.hand_in       = o.value("hand_in", false);
+    a.learn_recipe  = o.value("learn", string(""));
     a.skill_xp      = o.value("xp_skill", string(""));
     a.xp_amount     = o.value("xp", 0);
     a.heal          = o.value("heal", false);

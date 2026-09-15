@@ -123,6 +123,7 @@ void Game::NewGame(const string& character, int slot) {
     world.clock.Set(1, 9.0f);
     world.SetCamp({});
     world.SetDream({});
+    world.SetPickedHerbs({});
     world.shops.Clear();
     world.player = Player();
     world.player.Init(ctx, character);
@@ -618,6 +619,13 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
         // Trading waits for the conversation to close; see UpdateDialogue.
         if (!a.open_shop.empty() && shop_db.Get(a.open_shop)) pending_shop = a.open_shop;
         if (!a.open_orders.empty()) pending_orders = a.open_orders;
+
+        if (!a.learn_recipe.empty() && !world.KnowsRecipe(a.learn_recipe)) {
+            world.SetFlag("recipe:" + a.learn_recipe);
+            const ItemDef* d = items.Get(a.learn_recipe);
+            PushToast("Recipe learned: " + (d ? d->name : a.learn_recipe), Palette::Highlight);
+            Audio::Play(Sfx::QuestStart);
+        }
 
         // Every order the bag can fill for this NPC, at once.
         if (a.hand_in) {

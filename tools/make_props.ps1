@@ -61,6 +61,18 @@ $sizes = @{
     mossvale_lodge = 192
     herbalist_cottage = 168
     well = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
+
+    # Herbs for Foraging, growing and picked, and the brewing cauldron.
+    cauldron = 48
+    herb_marigold = 40; herb_marigold_picked = 40
+    herb_brookmint = 40; herb_brookmint_picked = 40
+    herb_nettle = 40; herb_nettle_picked = 40
+    herb_bogbean = 40; herb_bogbean_picked = 40
+    herb_mountain_sage = 40; herb_mountain_sage_picked = 40
+    herb_glowcap = 40; herb_glowcap_picked = 40
+    herb_emberbloom = 40; herb_emberbloom_picked = 40
+    herb_moonpetal = 40; herb_moonpetal_picked = 40
+    herb_starlily = 40; herb_starlily_picked = 40
 }
 
 if (-not $SkipRender) {

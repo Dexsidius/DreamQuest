@@ -7,7 +7,9 @@
     "icon": "assets/icons/coin.png"
   },
   "bones": {
-    "tags": ["bones"],
+    "tags": [
+      "bones"
+    ],
     "name": "Bones",
     "desc": "Picked clean. Some in Havenbrook still bury what they find.",
     "stack": true,
@@ -59,7 +61,9 @@
     "model": "staff_bronze"
   },
   "leather_body": {
-    "tags": ["leather"],
+    "tags": [
+      "leather"
+    ],
     "name": "Leather Jerkin",
     "desc": "Boar hide, boiled and cut. Quiet, and warmer than it looks.",
     "slot": "body",
@@ -75,7 +79,9 @@
     ]
   },
   "leather_legs": {
-    "tags": ["leather"],
+    "tags": [
+      "leather"
+    ],
     "name": "Leather Chaps",
     "desc": "Stitched from the same hide as the jerkin.",
     "slot": "legs",
@@ -91,7 +97,9 @@
     ]
   },
   "bone_amulet": {
-    "tags": ["bones"],
+    "tags": [
+      "bones"
+    ],
     "name": "Bone Amulet",
     "desc": "Carved from something that walked out of the Mire once.",
     "slot": "amulet",
@@ -155,7 +163,10 @@
     "icon": "assets/icons/roast_haunch.png"
   },
   "herbal_tonic": {
-    "tags": ["herb", "potion"],
+    "tags": [
+      "herb",
+      "potion"
+    ],
     "name": "Herbal Tonic",
     "desc": "Bitter, green, and it works. Restores 22 hitpoints.",
     "stack": true,
@@ -165,7 +176,9 @@
     "icon": "assets/icons/potion_red.png"
   },
   "logs": {
-    "tags": ["wood"],
+    "tags": [
+      "wood"
+    ],
     "name": "Logs",
     "desc": "Split pine. The guild always wants more of it.",
     "stack": true,
@@ -173,7 +186,9 @@
     "icon": "assets/icons/logs.png"
   },
   "oak_logs": {
-    "tags": ["wood"],
+    "tags": [
+      "wood"
+    ],
     "name": "Oak Logs",
     "desc": "Dense and slow to season. Bowyers pay well for it.",
     "stack": true,
@@ -191,7 +206,9 @@
     }
   },
   "hide": {
-    "tags": ["leather"],
+    "tags": [
+      "leather"
+    ],
     "name": "Raw Hide",
     "desc": "Still needs curing, but it is worth carrying home.",
     "stack": true,
@@ -209,7 +226,10 @@
     "icon": "assets/icons/hide.png"
   },
   "thread": {
-    "tags": ["leather", "cloth"],
+    "tags": [
+      "leather",
+      "cloth"
+    ],
     "name": "Waxed Thread",
     "desc": "A spool of it. Sold by the yard in Havenbrook.",
     "stack": true,
@@ -252,7 +272,9 @@
     "icon": "assets/icons/iron_ore.png"
   },
   "ruby": {
-    "tags": ["gem"],
+    "tags": [
+      "gem"
+    ],
     "name": "Uncut Ruby",
     "desc": "Deep red, badly chipped, and still worth a month of work.",
     "stack": true,
@@ -281,7 +303,9 @@
     "icon": "assets/icons/star.png"
   },
   "ember_shard": {
-    "tags": ["gem"],
+    "tags": [
+      "gem"
+    ],
     "name": "Ember Shard",
     "desc": "A splinter of something still burning, a long way underground.",
     "stack": true,
@@ -339,7 +363,9 @@
     "model": "staff_wood"
   },
   "bedroll": {
-    "tags": ["supplies"],
+    "tags": [
+      "supplies"
+    ],
     "name": "Bedroll",
     "desc": "Canvas, a blanket and a groundsheet. Use it under open sky to pitch camp, and sleep there after dusk.",
     "value": 40,
@@ -347,7 +373,9 @@
     "icon": "assets/icons/bedroll.png"
   },
   "dream_shard": {
-    "tags": ["dream"],
+    "tags": [
+      "dream"
+    ],
     "name": "Dream Shard",
     "desc": "A sliver of a dream that came back with you. It is warm, and it hums when nobody is listening.",
     "stack": true,
@@ -365,7 +393,9 @@
     "icon": "assets/icons/dream_shard.png"
   },
   "dreamcatcher": {
-    "tags": ["dream"],
+    "tags": [
+      "dream"
+    ],
     "name": "Dreamcatcher",
     "desc": "Thread and shards on a willow hoop. What it catches, it keeps.",
     "slot": "amulet",
@@ -509,5 +539,507 @@
     "consume": true,
     "heal": 22,
     "icon": "assets/icons/tiers/cooked_eel.png"
+  },
+  "marigold": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Marigold",
+    "desc": "A bright orange head from the open fields. The start of half the remedies in the Hollowmarch.",
+    "stack": true,
+    "value": 4,
+    "forage": {
+      "level": 1,
+      "xp": 10,
+      "grows": "meadow"
+    },
+    "icon": "assets/icons/tiers/marigold.png"
+  },
+  "brookmint": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Brookmint",
+    "desc": "Cold, sharp-smelling leaves that only grow with their feet wet.",
+    "stack": true,
+    "value": 8,
+    "forage": {
+      "level": 6,
+      "xp": 18,
+      "grows": "waterside"
+    },
+    "icon": "assets/icons/tiers/brookmint.png"
+  },
+  "nettle": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Stinging Nettle",
+    "desc": "It stings going in and it stings going down, and it puts iron in the arm.",
+    "stack": true,
+    "value": 12,
+    "forage": {
+      "level": 12,
+      "xp": 26,
+      "grows": "woodland"
+    },
+    "icon": "assets/icons/tiers/nettle.png"
+  },
+  "bogbean": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Bogbean",
+    "desc": "Three fat leaves on a stalk out of the black water. Bitter enough to wake the dead.",
+    "stack": true,
+    "value": 18,
+    "forage": {
+      "level": 20,
+      "xp": 38,
+      "grows": "mire"
+    },
+    "icon": "assets/icons/tiers/bogbean.png"
+  },
+  "mountain_sage": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Mountain Sage",
+    "desc": "Grey-green and tough as the rock it clings to.",
+    "stack": true,
+    "value": 26,
+    "forage": {
+      "level": 28,
+      "xp": 50,
+      "grows": "foothills"
+    },
+    "icon": "assets/icons/tiers/mountain_sage.png"
+  },
+  "glowcap": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Glowcap",
+    "desc": "A pale mushroom that gives off a faint light in the shade of old trees.",
+    "stack": true,
+    "value": 34,
+    "forage": {
+      "level": 36,
+      "xp": 64,
+      "grows": "deep forest"
+    },
+    "icon": "assets/icons/tiers/glowcap.png"
+  },
+  "emberbloom": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Emberbloom",
+    "desc": "A red flower that grows only where the ground is scorched. It is warm to hold.",
+    "stack": true,
+    "value": 48,
+    "forage": {
+      "level": 46,
+      "xp": 82,
+      "grows": "cursed"
+    },
+    "icon": "assets/icons/tiers/emberbloom.png"
+  },
+  "moonpetal": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Moonpetal",
+    "desc": "A silver-blue flower that exists only in dreams, and somehow comes back with you.",
+    "stack": true,
+    "value": 64,
+    "forage": {
+      "level": 56,
+      "xp": 100,
+      "grows": "reverie"
+    },
+    "icon": "assets/icons/tiers/moonpetal.png"
+  },
+  "starlily": {
+    "tags": [
+      "herb",
+      "brewing"
+    ],
+    "name": "Starlily",
+    "desc": "Its petals hold a little light of their own. The rarest thing that grows in the Reverie.",
+    "stack": true,
+    "value": 90,
+    "forage": {
+      "level": 68,
+      "xp": 130,
+      "grows": "reverie"
+    },
+    "icon": "assets/icons/tiers/starlily.png"
+  },
+  "vial": {
+    "tags": [
+      "brewing",
+      "supplies"
+    ],
+    "name": "Glass Vial",
+    "desc": "An empty vial with a cork. Every brew needs one.",
+    "stack": true,
+    "value": 3,
+    "icon": "assets/icons/tiers/vial.png"
+  },
+  "healing_draught": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Healing Draught",
+    "desc": "Marigold steeped until the water turns gold. Restores 20 hitpoints.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "heal": 20,
+    "recipe_from": "Oona the herbalist in Mossvale teaches it to anyone who asks.",
+    "craft": {
+      "result": "healing_draught",
+      "qty": 1,
+      "xp": 20,
+      "level": 1,
+      "inputs": {
+        "marigold": 2,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/healing_draught.png"
+  },
+  "mana_tonic": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Mana Tonic",
+    "desc": "Clear and freezing cold. Restores 40 mana.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "mana": 40,
+    "recipe_from": "Oona sells the recipe in Mossvale.",
+    "craft": {
+      "result": "mana_tonic",
+      "qty": 1,
+      "xp": 32,
+      "level": 6,
+      "inputs": {
+        "brookmint": 2,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/mana_tonic.png"
+  },
+  "scroll_mana_tonic": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Mana Tonic",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Mana Tonic.",
+    "value": 56,
+    "learn": "mana_tonic",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "nettle_brew": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Nettle Brew",
+    "desc": "Dark green, and it stings. Boosts Strength by 3 and a tenth.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "boost": {
+      "Strength": [
+        3,
+        0.1
+      ]
+    },
+    "recipe_from": "Tobin's General Store in Havenbrook sells the recipe.",
+    "craft": {
+      "result": "nettle_brew",
+      "qty": 1,
+      "xp": 45,
+      "level": 12,
+      "inputs": {
+        "nettle": 2,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/nettle_brew.png"
+  },
+  "scroll_nettle_brew": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Nettle Brew",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Nettle Brew.",
+    "value": 92,
+    "learn": "nettle_brew",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "fen_bitters": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Fen Bitters",
+    "desc": "Foul, and worth it. Restores all stamina and 12 hitpoints.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "stamina": true,
+    "heal": 12,
+    "recipe_from": "Hob the Pedlar sells the recipe at the woodcutter's camp.",
+    "craft": {
+      "result": "fen_bitters",
+      "qty": 1,
+      "xp": 60,
+      "level": 20,
+      "inputs": {
+        "bogbean": 2,
+        "marigold": 1,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/fen_bitters.png"
+  },
+  "scroll_fen_bitters": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Fen Bitters",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Fen Bitters.",
+    "value": 140,
+    "learn": "fen_bitters",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "stoneskin_draught": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Stoneskin Draught",
+    "desc": "Grey and gritty. Boosts Defence by 3 and an eighth.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "boost": {
+      "Defence": [
+        3,
+        0.12
+      ]
+    },
+    "recipe_from": "Garrow the smith sells the recipe in Mossvale.",
+    "craft": {
+      "result": "stoneskin_draught",
+      "qty": 1,
+      "xp": 78,
+      "level": 28,
+      "inputs": {
+        "mountain_sage": 2,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/stoneskin_draught.png"
+  },
+  "scroll_stoneskin_draught": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Stoneskin Draught",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Stoneskin Draught.",
+    "value": 188,
+    "learn": "stoneskin_draught",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "hunters_focus": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Hunter's Focus",
+    "desc": "It glows faintly in the vial. Boosts Ranged by 4 and an eighth.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "boost": {
+      "Ranged": [
+        4,
+        0.12
+      ]
+    },
+    "recipe_from": "Hunter Ivo sells the recipe in Havenbrook.",
+    "craft": {
+      "result": "hunters_focus",
+      "qty": 1,
+      "xp": 95,
+      "level": 36,
+      "inputs": {
+        "glowcap": 2,
+        "nettle": 1,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/hunters_focus.png"
+  },
+  "scroll_hunters_focus": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Hunter's Focus",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Hunter's Focus.",
+    "value": 236,
+    "learn": "hunters_focus",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "emberfire_elixir": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Emberfire Elixir",
+    "desc": "Hot enough to feel through the glass. Boosts Attack and Strength by 4 and an eighth.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "boost": {
+      "Attack": [
+        4,
+        0.12
+      ],
+      "Strength": [
+        4,
+        0.12
+      ]
+    },
+    "recipe_from": "The Collector in the Reverie sells the recipe.",
+    "craft": {
+      "result": "emberfire_elixir",
+      "qty": 1,
+      "xp": 120,
+      "level": 46,
+      "inputs": {
+        "emberbloom": 2,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/emberfire_elixir.png"
+  },
+  "scroll_emberfire_elixir": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Emberfire Elixir",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Emberfire Elixir.",
+    "value": 296,
+    "learn": "emberfire_elixir",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "moonlit_draught": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Moonlit Draught",
+    "desc": "Silver, and it moves in the vial when nothing touches it. Restores 80 mana and boosts Magic by 5 and an eighth.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "mana": 80,
+    "boost": {
+      "Magic": [
+        5,
+        0.12
+      ]
+    },
+    "recipe_from": "The Night Pedlar in the Reverie sells the recipe.",
+    "craft": {
+      "result": "moonlit_draught",
+      "qty": 1,
+      "xp": 145,
+      "level": 56,
+      "inputs": {
+        "moonpetal": 2,
+        "brookmint": 1,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/moonlit_draught.png"
+  },
+  "scroll_moonlit_draught": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Moonlit Draught",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Moonlit Draught.",
+    "value": 356,
+    "learn": "moonlit_draught",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "starlily_panacea": {
+    "tags": [
+      "potion"
+    ],
+    "name": "Starlily Panacea",
+    "desc": "A little starlight in a bottle. Restores 40 hitpoints, 100 mana and all stamina, and boosts every combat level a little.",
+    "stack": true,
+    "value": 10,
+    "consume": true,
+    "heal": 40,
+    "mana": 100,
+    "stamina": true,
+    "boost": {
+      "Attack": [
+        2,
+        0.06
+      ],
+      "Strength": [
+        2,
+        0.06
+      ],
+      "Defence": [
+        2,
+        0.06
+      ],
+      "Ranged": [
+        2,
+        0.06
+      ],
+      "Magic": [
+        2,
+        0.06
+      ]
+    },
+    "recipe_from": "The Collector in the Reverie opens that case only for someone who has calmed Hesper's pond.",
+    "craft": {
+      "result": "starlily_panacea",
+      "qty": 1,
+      "xp": 190,
+      "level": 68,
+      "inputs": {
+        "starlily": 2,
+        "moonpetal": 1,
+        "marigold": 1,
+        "vial": 1
+      }
+    },
+    "icon": "assets/icons/tiers/starlily_panacea.png"
+  },
+  "scroll_starlily_panacea": {
+    "tags": [
+      "recipe"
+    ],
+    "name": "Recipe: Starlily Panacea",
+    "desc": "Brewing notes in a careful hand. Read it to learn to brew Starlily Panacea.",
+    "value": 428,
+    "learn": "starlily_panacea",
+    "icon": "assets/icons/tiers/recipe_scroll.png"
   }
 }

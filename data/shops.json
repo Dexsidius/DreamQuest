@@ -7,17 +7,54 @@
       "keeper": "npc_tobin",
       "town": "havenbrook",
       "markup": 1.25,
-      "buys": { "*": 0.4 },
+      "buys": {
+        "*": 0.4
+      },
       "sells": [
-        { "item": "thread", "stock": 20 },
-        { "item": "cooked_minnow", "stock": 10 },
-        { "item": "cooked_trout", "stock": 5 },
-        { "item": "bedroll", "stock": 2 },
-        { "item": "fishing_rod", "stock": 2 },
-        { "item": "bronze_axe", "stock": 2 },
-        { "item": "bronze_pickaxe", "stock": 2 },
-        { "item": "training_bow", "stock": 1 },
-        { "item": "novice_staff", "stock": 1 }
+        {
+          "item": "thread",
+          "stock": 20
+        },
+        {
+          "item": "cooked_minnow",
+          "stock": 10
+        },
+        {
+          "item": "cooked_trout",
+          "stock": 5
+        },
+        {
+          "item": "bedroll",
+          "stock": 2
+        },
+        {
+          "item": "fishing_rod",
+          "stock": 2
+        },
+        {
+          "item": "bronze_axe",
+          "stock": 2
+        },
+        {
+          "item": "bronze_pickaxe",
+          "stock": 2
+        },
+        {
+          "item": "training_bow",
+          "stock": 1
+        },
+        {
+          "item": "novice_staff",
+          "stock": 1
+        },
+        {
+          "item": "vial",
+          "stock": 15
+        },
+        {
+          "item": "scroll_nettle_brew",
+          "stock": 1
+        }
       ]
     },
     "havenbrook_forge": {
@@ -26,16 +63,59 @@
       "keeper": "npc_smith",
       "town": "havenbrook",
       "markup": 1.0,
-      "buys": { "ore": 0.75, "bar": 0.75, "metal": 0.75, "weapon": 0.7, "armour": 0.7, "tool": 0.7 },
+      "buys": {
+        "ore": 0.75,
+        "bar": 0.75,
+        "metal": 0.75,
+        "weapon": 0.7,
+        "armour": 0.7,
+        "tool": 0.7
+      },
       "sells": [
-        { "item": "bronze_bar", "stock": 10 },
-        { "item": "iron_ore", "stock": 6 },
-        { "item": "iron_bar", "stock": 4, "after": ["q_ore_for_the_forge"] },
-        { "item": "coal", "stock": 4, "after": ["q_ore_for_the_forge"] },
-        { "item": "steel_bar", "stock": 2, "after": ["q_ore_for_the_forge"] },
-        { "item": "bronze_sword", "stock": 1 },
-        { "item": "bronze_shield", "stock": 1 },
-        { "item": "iron_pickaxe", "stock": 1, "after": ["q_ore_for_the_forge"] }
+        {
+          "item": "bronze_bar",
+          "stock": 10
+        },
+        {
+          "item": "iron_ore",
+          "stock": 6
+        },
+        {
+          "item": "iron_bar",
+          "stock": 4,
+          "after": [
+            "q_ore_for_the_forge"
+          ]
+        },
+        {
+          "item": "coal",
+          "stock": 4,
+          "after": [
+            "q_ore_for_the_forge"
+          ]
+        },
+        {
+          "item": "steel_bar",
+          "stock": 2,
+          "after": [
+            "q_ore_for_the_forge"
+          ]
+        },
+        {
+          "item": "bronze_sword",
+          "stock": 1
+        },
+        {
+          "item": "bronze_shield",
+          "stock": 1
+        },
+        {
+          "item": "iron_pickaxe",
+          "stock": 1,
+          "after": [
+            "q_ore_for_the_forge"
+          ]
+        }
       ]
     },
     "havenbrook_inn": {
@@ -44,13 +124,39 @@
       "keeper": "npc_cook",
       "town": "havenbrook",
       "markup": 1.2,
-      "buys": { "raw": 0.7, "fish": 0.7, "food": 0.6, "herb": 0.5 },
+      "buys": {
+        "raw": 0.7,
+        "fish": 0.7,
+        "food": 0.6,
+        "herb": 0.5
+      },
       "sells": [
-        { "item": "cooked_minnow", "stock": 12 },
-        { "item": "cooked_boar", "stock": 6 },
-        { "item": "cooked_trout", "stock": 6 },
-        { "item": "cooked_meat", "stock": 8, "after": ["q_a_decent_meal"] },
-        { "item": "cooked_pike", "stock": 3, "after": ["q_a_decent_meal"] }
+        {
+          "item": "cooked_minnow",
+          "stock": 12
+        },
+        {
+          "item": "cooked_boar",
+          "stock": 6
+        },
+        {
+          "item": "cooked_trout",
+          "stock": 6
+        },
+        {
+          "item": "cooked_meat",
+          "stock": 8,
+          "after": [
+            "q_a_decent_meal"
+          ]
+        },
+        {
+          "item": "cooked_pike",
+          "stock": 3,
+          "after": [
+            "q_a_decent_meal"
+          ]
+        }
       ]
     },
     "havenbrook_bowyer": {
@@ -59,33 +165,96 @@
       "keeper": "npc_hunter",
       "town": "havenbrook",
       "markup": 1.15,
-      "buys": { "bow": 0.75, "leather": 0.7, "bones": 0.6, "raw": 0.5 },
+      "buys": {
+        "bow": 0.75,
+        "leather": 0.7,
+        "bones": 0.6,
+        "raw": 0.5
+      },
       "sells": [
-        { "item": "training_bow", "stock": 2 },
-        { "item": "oak_shortbow", "stock": 2 },
-        { "item": "bronze_bow", "stock": 1 },
-        { "item": "thread", "stock": 15 },
-        { "item": "leather_body", "stock": 1 },
-        { "item": "iron_bow", "stock": 1, "after": ["q_thin_the_herd"] }
+        {
+          "item": "training_bow",
+          "stock": 2
+        },
+        {
+          "item": "oak_shortbow",
+          "stock": 2
+        },
+        {
+          "item": "bronze_bow",
+          "stock": 1
+        },
+        {
+          "item": "thread",
+          "stock": 15
+        },
+        {
+          "item": "leather_body",
+          "stock": 1
+        },
+        {
+          "item": "iron_bow",
+          "stock": 1,
+          "after": [
+            "q_thin_the_herd"
+          ]
+        },
+        {
+          "item": "scroll_hunters_focus",
+          "stock": 1
+        }
       ]
     },
-
     "mossvale_general": {
       "name": "Pell's Stall",
       "type": "general",
       "keeper": "npc_pell",
       "town": "mossvale",
       "markup": 1.25,
-      "buys": { "*": 0.4, "wood": 0.55 },
+      "buys": {
+        "*": 0.4,
+        "wood": 0.55
+      },
       "sells": [
-        { "item": "thread", "stock": 20 },
-        { "item": "cooked_trout", "stock": 6 },
-        { "item": "bedroll", "stock": 2 },
-        { "item": "fishing_rod", "stock": 2 },
-        { "item": "wood_sword", "stock": 2 },
-        { "item": "wooden_shield", "stock": 2 },
-        { "item": "leather_legs", "stock": 1 },
-        { "item": "iron_axe", "stock": 1, "after": ["q_clear_the_trail"] }
+        {
+          "item": "thread",
+          "stock": 20
+        },
+        {
+          "item": "cooked_trout",
+          "stock": 6
+        },
+        {
+          "item": "bedroll",
+          "stock": 2
+        },
+        {
+          "item": "fishing_rod",
+          "stock": 2
+        },
+        {
+          "item": "wood_sword",
+          "stock": 2
+        },
+        {
+          "item": "wooden_shield",
+          "stock": 2
+        },
+        {
+          "item": "leather_legs",
+          "stock": 1
+        },
+        {
+          "item": "iron_axe",
+          "stock": 1,
+          "after": [
+            "q_clear_the_trail"
+          ]
+        },
+        {
+          "item": "vial",
+          "stock": 15
+        }
       ]
     },
     "mossvale_forge": {
@@ -94,15 +263,56 @@
       "keeper": "npc_garrow",
       "town": "mossvale",
       "markup": 1.0,
-      "buys": { "ore": 0.75, "bar": 0.75, "metal": 0.75, "weapon": 0.7, "armour": 0.7, "tool": 0.7 },
+      "buys": {
+        "ore": 0.75,
+        "bar": 0.75,
+        "metal": 0.75,
+        "weapon": 0.7,
+        "armour": 0.7,
+        "tool": 0.7
+      },
       "sells": [
-        { "item": "iron_bar", "stock": 8 },
-        { "item": "coal", "stock": 8 },
-        { "item": "steel_bar", "stock": 4 },
-        { "item": "azuryte_ore", "stock": 4, "after": ["q_trail_wardens"] },
-        { "item": "azuryte_bar", "stock": 2, "after": ["q_trail_wardens"] },
-        { "item": "iron_sword", "stock": 1 },
-        { "item": "steel_axe", "stock": 1, "after": ["q_clear_the_trail"] }
+        {
+          "item": "iron_bar",
+          "stock": 8
+        },
+        {
+          "item": "coal",
+          "stock": 8
+        },
+        {
+          "item": "steel_bar",
+          "stock": 4
+        },
+        {
+          "item": "azuryte_ore",
+          "stock": 4,
+          "after": [
+            "q_trail_wardens"
+          ]
+        },
+        {
+          "item": "azuryte_bar",
+          "stock": 2,
+          "after": [
+            "q_trail_wardens"
+          ]
+        },
+        {
+          "item": "iron_sword",
+          "stock": 1
+        },
+        {
+          "item": "steel_axe",
+          "stock": 1,
+          "after": [
+            "q_clear_the_trail"
+          ]
+        },
+        {
+          "item": "scroll_stoneskin_draught",
+          "stock": 1
+        }
       ]
     },
     "mossvale_herbalist": {
@@ -111,28 +321,80 @@
       "keeper": "npc_oona",
       "town": "mossvale",
       "markup": 1.2,
-      "buys": { "herb": 0.8, "fish": 0.55, "raw": 0.5, "bones": 0.5 },
+      "buys": {
+        "herb": 0.8,
+        "fish": 0.55,
+        "raw": 0.5,
+        "bones": 0.5,
+        "potion": 0.75
+      },
       "sells": [
-        { "item": "herbal_tonic", "stock": 6, "after": ["q_word_to_fernhollow"] },
-        { "item": "cooked_trout", "stock": 3 }
+        {
+          "item": "herbal_tonic",
+          "stock": 6,
+          "after": [
+            "q_word_to_fernhollow"
+          ]
+        },
+        {
+          "item": "cooked_trout",
+          "stock": 3
+        },
+        {
+          "item": "vial",
+          "stock": 20
+        },
+        {
+          "item": "scroll_mana_tonic",
+          "stock": 1
+        }
       ]
     },
-
     "fernhollow_general": {
       "name": "Nell's Cart",
       "type": "general",
       "keeper": "npc_nell",
       "town": "fernhollow",
       "markup": 1.25,
-      "buys": { "*": 0.4 },
+      "buys": {
+        "*": 0.4
+      },
       "sells": [
-        { "item": "thread", "stock": 12 },
-        { "item": "cooked_minnow", "stock": 10 },
-        { "item": "cooked_trout", "stock": 5 },
-        { "item": "bedroll", "stock": 2 },
-        { "item": "bronze_axe", "stock": 1 },
-        { "item": "oak_shortbow", "stock": 1 },
-        { "item": "herbal_tonic", "stock": 2, "after": ["q_word_to_fernhollow"] }
+        {
+          "item": "thread",
+          "stock": 12
+        },
+        {
+          "item": "cooked_minnow",
+          "stock": 10
+        },
+        {
+          "item": "cooked_trout",
+          "stock": 5
+        },
+        {
+          "item": "bedroll",
+          "stock": 2
+        },
+        {
+          "item": "bronze_axe",
+          "stock": 1
+        },
+        {
+          "item": "oak_shortbow",
+          "stock": 1
+        },
+        {
+          "item": "herbal_tonic",
+          "stock": 2,
+          "after": [
+            "q_word_to_fernhollow"
+          ]
+        },
+        {
+          "item": "vial",
+          "stock": 15
+        }
       ]
     },
     "fernhollow_tackle": {
@@ -141,28 +403,72 @@
       "keeper": "npc_wendel",
       "town": "fernhollow",
       "markup": 1.15,
-      "buys": { "fish": 0.8 },
+      "buys": {
+        "fish": 0.8
+      },
       "sells": [
-        { "item": "fishing_rod", "stock": 3 },
-        { "item": "cooked_trout", "stock": 4 },
-        { "item": "cooked_pike", "stock": 3, "after": ["q_word_to_fernhollow"] },
-        { "item": "cooked_salmon", "stock": 2, "after": ["q_word_to_fernhollow"] }
+        {
+          "item": "fishing_rod",
+          "stock": 3
+        },
+        {
+          "item": "cooked_trout",
+          "stock": 4
+        },
+        {
+          "item": "cooked_pike",
+          "stock": 3,
+          "after": [
+            "q_word_to_fernhollow"
+          ]
+        },
+        {
+          "item": "cooked_salmon",
+          "stock": 2,
+          "after": [
+            "q_word_to_fernhollow"
+          ]
+        }
       ]
     },
-
     "whisperwood_general": {
       "name": "Hob's Pack",
       "type": "general",
       "keeper": "npc_hob",
       "town": "whisperwood",
       "markup": 1.3,
-      "buys": { "*": 0.4 },
+      "buys": {
+        "*": 0.4
+      },
       "sells": [
-        { "item": "cooked_boar", "stock": 4 },
-        { "item": "cooked_minnow", "stock": 6 },
-        { "item": "thread", "stock": 10 },
-        { "item": "bedroll", "stock": 2 },
-        { "item": "fishing_rod", "stock": 1 }
+        {
+          "item": "cooked_boar",
+          "stock": 4
+        },
+        {
+          "item": "cooked_minnow",
+          "stock": 6
+        },
+        {
+          "item": "thread",
+          "stock": 10
+        },
+        {
+          "item": "bedroll",
+          "stock": 2
+        },
+        {
+          "item": "fishing_rod",
+          "stock": 1
+        },
+        {
+          "item": "vial",
+          "stock": 15
+        },
+        {
+          "item": "scroll_fen_bitters",
+          "stock": 1
+        }
       ]
     },
     "whisperwood_woodcutter": {
@@ -171,29 +477,82 @@
       "keeper": "npc_bram",
       "town": "whisperwood",
       "markup": 1.15,
-      "buys": { "wood": 0.8, "tier:wood": 0.7, "axe": 0.7 },
+      "buys": {
+        "wood": 0.8,
+        "tier:wood": 0.7,
+        "axe": 0.7
+      },
       "sells": [
-        { "item": "bronze_axe", "stock": 2 },
-        { "item": "wood_staff", "stock": 1 },
-        { "item": "oak_shortbow", "stock": 1 },
-        { "item": "iron_axe", "stock": 1, "after": ["q_clear_the_trail"] },
-        { "item": "steel_axe", "stock": 1, "after": ["q_trail_wardens"] }
+        {
+          "item": "bronze_axe",
+          "stock": 2
+        },
+        {
+          "item": "wood_staff",
+          "stock": 1
+        },
+        {
+          "item": "oak_shortbow",
+          "stock": 1
+        },
+        {
+          "item": "iron_axe",
+          "stock": 1,
+          "after": [
+            "q_clear_the_trail"
+          ]
+        },
+        {
+          "item": "steel_axe",
+          "stock": 1,
+          "after": [
+            "q_trail_wardens"
+          ]
+        }
       ]
     },
-
     "reverie_general": {
       "name": "The Night Market",
       "type": "general",
       "keeper": "npc_night_pedlar",
       "town": "reverie",
       "markup": 1.25,
-      "buys": { "*": 0.45 },
+      "buys": {
+        "*": 0.45
+      },
       "sells": [
-        { "item": "cooked_trout", "stock": 5 },
-        { "item": "cooked_pike", "stock": 3 },
-        { "item": "thread", "stock": 10 },
-        { "item": "bedroll", "stock": 1 },
-        { "item": "herbal_tonic", "stock": 3, "after": ["q_word_to_fernhollow", "q_the_water_remembers"] }
+        {
+          "item": "cooked_trout",
+          "stock": 5
+        },
+        {
+          "item": "cooked_pike",
+          "stock": 3
+        },
+        {
+          "item": "thread",
+          "stock": 10
+        },
+        {
+          "item": "bedroll",
+          "stock": 1
+        },
+        {
+          "item": "herbal_tonic",
+          "stock": 3,
+          "after": [
+            "q_word_to_fernhollow",
+            "q_the_water_remembers"
+          ]
+        },
+        {
+          "item": "vial",
+          "stock": 15
+        },
+        {
+          "item": "scroll_moonlit_draught",
+          "stock": 1
+        }
       ]
     },
     "reverie_curios": {
@@ -202,13 +561,57 @@
       "keeper": "npc_collector",
       "town": "reverie",
       "markup": 1.1,
-      "buys": { "dream": 0.85, "gem": 0.8, "tier:demonrite": 0.8, "jewellery": 0.7 },
+      "buys": {
+        "dream": 0.85,
+        "gem": 0.8,
+        "tier:demonrite": 0.8,
+        "jewellery": 0.7,
+        "potion": 0.6
+      },
       "sells": [
-        { "item": "azuryte_ore", "stock": 3 },
-        { "item": "adamantium_ore", "stock": 2, "after": ["q_the_water_remembers"] },
-        { "item": "platinum_ore", "stock": 2, "after": ["q_lights_on_the_pond"] },
-        { "item": "demonrite_ore", "stock": 2, "after": ["q_lights_on_the_pond"] },
-        { "item": "dreamcatcher", "stock": 1, "after": ["q_lights_on_the_pond"] }
+        {
+          "item": "azuryte_ore",
+          "stock": 3
+        },
+        {
+          "item": "adamantium_ore",
+          "stock": 2,
+          "after": [
+            "q_the_water_remembers"
+          ]
+        },
+        {
+          "item": "platinum_ore",
+          "stock": 2,
+          "after": [
+            "q_lights_on_the_pond"
+          ]
+        },
+        {
+          "item": "demonrite_ore",
+          "stock": 2,
+          "after": [
+            "q_lights_on_the_pond"
+          ]
+        },
+        {
+          "item": "dreamcatcher",
+          "stock": 1,
+          "after": [
+            "q_lights_on_the_pond"
+          ]
+        },
+        {
+          "item": "scroll_emberfire_elixir",
+          "stock": 1
+        },
+        {
+          "item": "scroll_starlily_panacea",
+          "stock": 1,
+          "after": [
+            "q_lights_on_the_pond"
+          ]
+        }
       ]
     }
   }

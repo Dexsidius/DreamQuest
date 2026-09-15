@@ -17,7 +17,9 @@ param(
     [string[]]$What = @(),
     [string[]]$Only = @(),
     [string[]]$Tiers = @(),
-    [string[]]$Models = @()
+    [string[]]$Models = @(),
+    # With -What brewing: only these herb, potion or recipe icons.
+    [string[]]$Names = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,6 +32,7 @@ $args = @("--background", "--factory-startup", "--python",
 if ($Only.Count)   { $args += @("--only",   ($Only -join ",")) }
 if ($Tiers.Count)  { $args += @("--tiers",  ($Tiers -join ",")) }
 if ($Models.Count) { $args += @("--models", ($Models -join ",")) }
+if ($Names.Count)  { $args += @("--names",  ($Names -join ",")) }
 
 Write-Host "Rendering tier art in Blender ..." -ForegroundColor Cyan
 $prev = $ErrorActionPreference

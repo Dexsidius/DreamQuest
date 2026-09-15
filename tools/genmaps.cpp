@@ -479,6 +479,56 @@ static void PlaceFishingSpot(MapBuilder& m, const string& spot_id, int x, int y,
     o["fish"]        = fish;
 }
 
+// --- herbs ----------------------------------------------------------------------
+// What each plant is -- its name, the Foraging level it needs and the XP it is
+// worth -- comes from data/items.json, so the maps and the items can never
+// disagree about it.
+struct HerbInfo { string name; int level = 1, xp = 10; };
+static std::map<string, HerbInfo> g_herbs;
+
+static void LoadHerbs() {
+    std::ifstream in("data/items.json");
+    json root;
+    try { in >> root; } catch (const std::exception&) { return; }
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        if (!it.value().is_object() || !it.value().contains("forage")) continue;
+        HerbInfo h;
+        h.name  = it.value().value("name", it.key());
+        h.level = it.value()["forage"].value("level", 1);
+        h.xp    = it.value()["forage"].value("xp", 10);
+        g_herbs[it.key()] = h;
+    }
+}
+
+// A plant to pick. Drawn growing, and picked while it grows back; no collision,
+// so a patch of them never walls anything off.
+static void PlaceHerb(MapBuilder& m, const string& herb, int x, int y, int& index) {
+    auto it = g_herbs.find(herb);
+    if (it == g_herbs.end()) return;
+    json& o = m.Object("herb_" + std::to_string(index++), "herb", x, y);
+    o["sprite"]      = "assets/props/herb_" + herb + ".png";
+    o["sprite_open"] = "assets/props/herb_" + herb + "_picked.png";
+    o["skill"]       = "Foraging";
+    o["skill_level"] = it->second.level;
+    o["yield"]       = herb;
+    o["yield_xp"]    = it->second.xp;
+    o["gather_time"] = 1.4f + it->second.level * 0.012f;
+    // Game hours to grow back: a marigold in three, a starlily in nearly nine.
+    o["regrow"]      = 3.0f + it->second.level / 12.0f;
+    string title = it->second.name;
+    for (char& c : title) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    o["title"]       = title;
+}
+
+// A cauldron to brew at.
+static void PlaceCauldron(MapBuilder& m, const string& obj_id, int x, int y) {
+    json& o = m.Object(obj_id, "workbench", x, y);
+    o["sprite"]  = "assets/props/cauldron.png";
+    o["title"]   = "Cauldron";
+    o["station"] = "cauldron";
+    m.Collision(x - 16, y - 12, 32, 12);
+}
+
 // Buildings are drawn bottom-centre. Collision runs along the lower wall but
 // leaves the doorway open, and a portal sits in the gap. exit_spawn names the
 // spot on the doorstep that the interior's way out should arrive at.
@@ -783,6 +833,95 @@ static void BuildOverworld() {
         }
     }
 
+    // --- herbs ----------------------------------------------------------------
+    // Every plant has the ground it likes, and is scattered thinly over it:
+    // marigolds in the meadow, nettles under the greenwood, bogbean in the
+    // Mire, sage in the foothills (more of it the higher up), emberbloom on the
+    // burnt ground of the Cursed Reach, and brookmint wherever the land meets
+    // water. Then each has one patch where it grows thick -- the place a
+    // forager learns to go back to.
+    {
+        int herb_i = 0;
+        auto scenery_here = [&](int cx, int cy) { return Hash2(cx, cy, 4242) < 0.14f; };
+        auto open_ground = [&](int cx, int cy) {
+            const Biome b = BiomeAt(cx, cy);
+            if (b == WATER || b == ROAD || b == TRAIL) return false;
+            if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
+            return !scenery_here(cx, cy);
+        };
+        auto near_water = [&](int cx, int cy) {
+            for (int dy = -2; dy <= 2; ++dy)
+                for (int dx = -2; dx <= 2; ++dx)
+                    if (BiomeAt(cx + dx, cy + dy) == WATER) return true;
+            return false;
+        };
+        auto at = [&](int cx, int cy, int seed) {
+            return std::pair<int, int>{cx * OW_CELL + 8 + static_cast<int>(Hash2(cx, cy, seed) * 16.0f),
+                                       cy * OW_CELL + 12 + static_cast<int>(Hash2(cx, cy, seed + 1) * 12.0f)};
+        };
+        for (int cy = 3; cy < OW_H - 3; ++cy)
+            for (int cx = 3; cx < OW_W - 3; ++cx) {
+                if (!open_ground(cx, cy)) continue;
+                const Biome b = BiomeAt(cx, cy);
+                const float r = Hash2(cx, cy, 7373);
+                string herb;
+                if (r < 0.05f && near_water(cx, cy))                      herb = "brookmint";
+                else if (b == MEADOW && r < 0.010f)                       herb = "marigold";
+                else if (b == GREENWOOD && r < 0.010f)                    herb = "nettle";
+                else if (b == GREENWOOD && r < 0.013f)                    herb = "marigold";
+                else if (b == MIRE && r < 0.014f)                         herb = "bogbean";
+                else if (b == FOOTHILLS && r < (ElevationAt(cx, cy) >= 1 ? 0.016f : 0.007f)) herb = "mountain_sage";
+                else if (b == CURSED && r < 0.016f)                       herb = "emberbloom";
+                if (herb.empty()) continue;
+                const auto [x, y] = at(cx, cy, 7474);
+                PlaceHerb(m, herb, x, y, herb_i);
+            }
+
+        // The patches. Each looks outward from a rough spot for somewhere its
+        // whole round is the right ground, so the patch never spills onto the
+        // road or into the next biome.
+        struct Patch { const char* herb; Biome biome; int cx, cy; bool water; };
+        const Patch patches[] = {
+            {"marigold",      MEADOW,    60, 78, false},
+            {"nettle",        GREENWOOD, 108, 66, false},
+            {"bogbean",       MIRE,      10, 30, false},
+            {"mountain_sage", FOOTHILLS, 40, 8,  false},
+            {"emberbloom",    CURSED,    114, 14, false},
+            {"brookmint",     MEADOW,    30, 62, true},
+        };
+        for (const Patch& pt : patches) {
+            bool found = false;
+            for (int ring = 0; ring < 30 && !found; ++ring)
+                for (int dy = -ring; dy <= ring && !found; ++dy)
+                    for (int dx = -ring; dx <= ring && !found; ++dx) {
+                        if (std::max(abs(dx), abs(dy)) != ring) continue;
+                        const int ccx = pt.cx + dx, ccy = pt.cy + dy;
+                        if (ccx < 6 || ccy < 6 || ccx >= OW_W - 6 || ccy >= OW_H - 6) continue;
+                        bool fits = true;
+                        int water = 0;
+                        for (int yy = -3; yy <= 3 && fits; ++yy)
+                            for (int xx = -3; xx <= 3 && fits; ++xx) {
+                                const Biome b = BiomeAt(ccx + xx, ccy + yy);
+                                if (b == WATER) { ++water; continue; }
+                                if (b == ROAD || b == TRAIL || fabsf(ccx + xx - RoadX(ccy + yy)) < 3.2f) fits = false;
+                                else if (!pt.water && b != pt.biome) fits = false;
+                            }
+                        if (pt.water ? (water < 6 || water > 20) : water > 0) fits = false;
+                        if (!fits) continue;
+                        found = true;
+                        for (int yy = -3; yy <= 3; ++yy)
+                            for (int xx = -3; xx <= 3; ++xx) {
+                                const int hx = ccx + xx, hy = ccy + yy;
+                                if (xx * xx + yy * yy > 10 || !open_ground(hx, hy)) continue;
+                                if (pt.water && !near_water(hx, hy)) continue;
+                                if (Hash2(hx, hy, 9393) > 0.45f) continue;
+                                const auto [x, y] = at(hx, hy, 7575);
+                                PlaceHerb(m, pt.herb, x, y, herb_i);
+                            }
+                    }
+        }
+    }
+
     // --- fishing -------------------------------------------------------------
     // Along the lake's east shore, a spot every few rows where dry land
     // meets the water: close enough to the edge to reach from dry land.
@@ -1024,6 +1163,9 @@ static void BuildTown() {
         o["title"]  = "Cooking fire";
         m.Collision(40 * CELL - 16, 30 * CELL - 12, 32, 12);
     }
+
+    // A cauldron beside it, for anyone with a brew to make.
+    PlaceCauldron(m, "cauldron_town", 43 * CELL, 30 * CELL);
 
     // A workbench by the forge.
     {
@@ -1770,6 +1912,14 @@ static void BuildWhisperwood() {
     // Dense enough that the canopies overlap and the trail is the way through.
     // A share of the big trees can be felled; the rest are scenery.
     int tree_i = 5000;
+    int herb_i = 0;
+    // Brookmint on the open banks either side of the stream.
+    for (int cy = 2; cy < H - 2; ++cy)
+        for (int cx = 2; cx < W - 2; ++cx) {
+            const float off = fabsf(cx - StreamX(static_cast<float>(cy)));
+            if (off < 1.4f || off >= 2.6f || TrailGap(cx, cy) < 3.0f) continue;
+            if (Hash2(cx, cy, 8383) < 0.30f) PlaceHerb(m, "brookmint", cx * CELL + 16, cy * CELL + 20, herb_i);
+        }
     for (int cy = 1; cy < H - 1; ++cy)
         for (int cx = 1; cx < W - 1; ++cx) {
             if (fabsf(cx - StreamX(static_cast<float>(cy))) < 2.6f) continue;
@@ -1779,11 +1929,19 @@ static void BuildWhisperwood() {
             const float r = Hash2(cx, cy, 9191);
 
             if (gap < 3.5f) {
-                // The verge: open, with the odd bush or mushroom at its edge.
+                // The verge: open, with the odd bush or mushroom at its edge,
+                // and the nettles that like the light along a path.
                 if (gap > 2.2f) {
                     if (r < 0.05f)      m.Prop("objects", Pick(kSmallBushes, rng), x, y);
                     else if (r < 0.08f) m.Prop("objects", Pick(kFungus, rng), x, y);
+                    else if (Hash2(cx, cy, 8181) < 0.06f) PlaceHerb(m, "nettle", x, y, herb_i);
                 }
+                continue;
+            }
+            // Glowcaps want the shade just inside the trees, in the gaps
+            // between trunks. The Whisperwood is where they grow best.
+            if (gap < 6.0f && r >= 0.45f && Hash2(cx, cy, 8282) < 0.10f) {
+                PlaceHerb(m, "glowcap", x, y, herb_i);
                 continue;
             }
             const bool edge = (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4);
@@ -2038,6 +2196,16 @@ static void BuildMossvale() {
         m.Collision(gx - 16, gy - 10, 32, 10);
     }
 
+    // Oona's herb garden, beside her cottage: a row of each of the three
+    // plants a beginner brews with.
+    {
+        int herb_i = 0;
+        const char* rows_of[] = {"marigold", "brookmint", "nettle"};
+        for (int row = 0; row < 3; ++row)
+            for (int col = 0; col < 3; ++col)
+                PlaceHerb(m, rows_of[row], (17 + col) * CELL + 16, (33 + row) * CELL + 12, herb_i);
+    }
+
     // --- people -------------------------------------------------------------------
     m.Npc("npc_sela",   "Warden Sela",    "player_female", 4 * CELL, (gate_row + 3) * CELL, "sela_root", 1);
     m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL + 50, 30 * CELL + 6, "pell_root", 0)["shop"] = "mossvale_general";
@@ -2223,6 +2391,7 @@ static void BuildFernhollow() {
         m.Collision(cx0 + 60 - 16, cy0 + 18, 32, 10);
         m.Prop("props", "log_pile", cx0 - 60, cy0 + 24);
         m.Collision(cx0 - 76, cy0 + 14, 32, 10);
+        PlaceCauldron(m, "cauldron_fernhollow", cx0 + 104, cy0 + 8);
     }
 
     m.Npc("npc_wendel", "Old Wendel", "citizen2", 28 * CELL, 16 * CELL + 10, "wendel_root", 0)["shop"] = "fernhollow_tackle";
@@ -2237,7 +2406,9 @@ static void BuildFernhollow() {
         m.Npc("npc_nell", "Nell the Pedlar", "citizen1", sx - 50, sy + 6, "nell_root", 0)["shop"] = "fernhollow_general";
     }
 
-    // Reeds round the shore, trees round everything else.
+    // Reeds and brookmint round the shore, marigolds in the meadow to the
+    // south, trees round everything else.
+    int herb_i = 0;
     for (int cy = 1; cy < H - 1; ++cy)
         for (int cx = 1; cx < W - 1; ++cx) {
             if (in_pond(cx, cy) || on_path(cx, cy) || on_jetty(cx, cy) || reserved(cx, cy)) continue;
@@ -2254,6 +2425,8 @@ static void BuildFernhollow() {
             const int x = cx * CELL + 16, y = cy * CELL + 16;
             if (shore) {
                 if (r < 0.45f) m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+                // The pond is the best brookmint in the woods.
+                else if (Hash2(cx, cy, 4848) < 0.40f) PlaceHerb(m, "brookmint", x, y, herb_i);
             } else if (woods) {
                 if (r < 0.50f && tall_ok) PlaceForestTree(m, rng, x, y, r < 0.30f);
                 else if (r < 0.62f)       m.Prop("objects", Pick(kBushes, rng), x, y);
@@ -2261,6 +2434,8 @@ static void BuildFernhollow() {
                 if (tall_ok) PlaceForestTree(m, rng, x, y, false);
             } else if (r < 0.07f && tall_ok) {
                 m.Prop("objects", Pick(kFungus, rng), x, y);
+            } else if (cy > 20 && Hash2(cx, cy, 4949) < 0.04f) {
+                PlaceHerb(m, "marigold", x, y, herb_i);
             }
         }
 
@@ -2359,6 +2534,7 @@ static void BuildWoodlandInteriors() {
         piece("table_round",       7 * CELL,     7 * CELL + 8, 40, 12);
         piece("tavern_chair",      5 * CELL + 16, 7 * CELL + 10, 16, 8);
         PlaceBed(m, "bed_oona", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
+        PlaceCauldron(m, "cauldron_oona", 4 * CELL + 8, 9 * CELL + 20);
         m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0)["shop"] = "mossvale_herbalist";
         m.Write("maps");
     }
@@ -2529,6 +2705,9 @@ static void BuildDreamworld() {
         m.Collision(ax + 130 - 36, ay - 100 - 12, 72, 12);
     }
 
+    // A cauldron by the candles: dream herbs are best brewed where they grow.
+    PlaceCauldron(m, "cauldron_reverie", ax - 170, ay - 70);
+
     // --- scenery ----------------------------------------------------------------
     // Toadstools, saplings and bushes on the islands, kept off the bridges, off
     // the plaza you arrive in, and a cell back from every rim so nothing hangs
@@ -2539,6 +2718,7 @@ static void BuildDreamworld() {
                 if (which_isle(cx + dx, cy + dy) < 0) return false;
         return true;
     };
+    int herb_i = 0;
     for (int cy = 1; cy < H - 1; ++cy)
         for (int cx = 1; cx < W - 1; ++cx) {
             const int isle = which_isle(cx, cy);
@@ -2547,6 +2727,17 @@ static void BuildDreamworld() {
             if (to_centre < (isle == 0 ? 5.5f : 3.0f)) continue;
             const float r = Hash2(cx, cy, 313);
             const int x = cx * CELL + 16, y = cy * CELL + 26;
+            // Starlily only in the crystal field; moonpetal on every other island
+            // but the arrival plaza.
+            const float hr = Hash2(cx, cy, 515);
+            if (r >= 0.20f && isle == 2 && hr < 0.22f) {
+                PlaceHerb(m, "starlily", x, y, herb_i);
+                continue;
+            }
+            if (r >= 0.20f && isle != 2 && isle != 0 && hr < 0.12f) {
+                PlaceHerb(m, "moonpetal", x, y, herb_i);
+                continue;
+            }
             if (r < 0.09f) {
                 m.Prop("objects", Pick(kFungus, rng), x, y);
                 m.Collision(x - 8, y - 6, 16, 6);
@@ -2617,6 +2808,7 @@ static void BuildDreamworld() {
 int main() {
     std::printf("genmaps: building the Hollowmarch\n");
     g_manifest.Load("data/asset_manifest.json");
+    LoadHerbs();
 
     BuildOverworld();
     BuildTown();

@@ -49,6 +49,16 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.slot        = static_cast<EquipSlot>(EquipSlotFromName(o.value("slot", string("none"))));
         d.consumable  = o.value("consume", false);
         d.heal        = o.value("heal", 0);
+        d.mana        = o.value("mana", 0);
+        d.stamina     = o.value("stamina", false);
+        d.learn       = o.value("learn", string(""));
+        d.recipe_from = o.value("recipe_from", string(""));
+        if (o.contains("boost"))
+            for (auto b = o["boost"].begin(); b != o["boost"].end(); ++b) {
+                const int s = SkillFromName(b.key());
+                if (s < 0 || !b.value().is_array() || b.value().size() < 2) continue;
+                d.boosts[s] = {b.value()[0].get<int>(), b.value()[1].get<float>()};
+            }
         d.icon        = o.value("icon", string(""));
         d.attack_speed = o.value("speed", 1.0f);
         d.kind        = WeaponKindFromName(o.value("kind", string("melee")));
@@ -108,6 +118,11 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.model = o.value("model", string(""));
         d.tool  = o.value("tool", string(""));
         d.tool_speed = o.value("tool_speed", 1.0f);
+        if (o.contains("forage")) {
+            d.forage_level = o["forage"].value("level", 1);
+            d.forage_xp    = o["forage"].value("xp", 10);
+            d.grows        = o["forage"].value("grows", string(""));
+        }
         if (o.contains("fish")) {
             d.fish_level = o["fish"].value("level", 1);
             d.fish_xp    = o["fish"].value("xp", 10);
@@ -311,7 +326,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
                         inputs[i.key()] += i.value().get<int>();
             }
             if (!inputs.empty())
-                add_recipe(d.id, t.level + pj.value("craft_offset", 0),
+                add_recipe(d.id, t.wood ? t.level + pj.value("craft_offset", 0) : t.level,
                            (12 + index * 14) * std::max(1, amount), inputs);
         }
 
@@ -346,16 +361,34 @@ void ItemDatabase::SettleCraftValues() {
 }
 
 CraftStation CraftStationFromName(const string& name) {
+    if (name == "cauldron") return CraftStation::Cauldron;
     return name == "anvil" ? CraftStation::Anvil : CraftStation::Workbench;
 }
 
 const char* CraftStationName(CraftStation s) {
-    return s == CraftStation::Anvil ? "anvil" : "workbench";
+    switch (s) {
+        case CraftStation::Anvil:    return "anvil";
+        case CraftStation::Cauldron: return "cauldron";
+        default:                     return "workbench";
+    }
+}
+
+int CraftSkill(CraftStation s) {
+    switch (s) {
+        case CraftStation::Anvil:    return SKILL_SMITHING;
+        case CraftStation::Cauldron: return SKILL_BREWING;
+        default:                     return SKILL_CRAFTING;
+    }
 }
 
 // Decided when asked rather than when loaded: the materials of a recipe can be
 // defined in a file loaded after the recipe itself.
 CraftStation ItemDatabase::StationFor(const ItemDef& recipe) const {
+    // Anything brewed is brewed, even with a metal in it.
+    for (const auto& in : recipe.craft_inputs)
+        if (const ItemDef* mat = Get(in.first))
+            if (std::find(mat->tags.begin(), mat->tags.end(), "brewing") != mat->tags.end())
+                return CraftStation::Cauldron;
     for (const auto& in : recipe.craft_inputs)
         if (const ItemDef* mat = Get(in.first))
             if (mat->metal) return CraftStation::Anvil;

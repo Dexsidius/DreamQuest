@@ -1136,6 +1136,10 @@
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/cauldron":  {
+                                          "w":  48,
+                                          "h":  48
+                                      },
                    "props/chair":  {
                                        "w":  40,
                                        "h":  40
@@ -1176,10 +1180,82 @@
                                         "w":  80,
                                         "h":  80
                                     },
+                   "props/herb_bogbean":  {
+                                              "w":  40,
+                                              "h":  40
+                                          },
+                   "props/herb_bogbean_picked":  {
+                                                     "w":  40,
+                                                     "h":  40
+                                                 },
+                   "props/herb_brookmint":  {
+                                                "w":  40,
+                                                "h":  40
+                                            },
+                   "props/herb_brookmint_picked":  {
+                                                       "w":  40,
+                                                       "h":  40
+                                                   },
+                   "props/herb_emberbloom":  {
+                                                 "w":  40,
+                                                 "h":  40
+                                             },
+                   "props/herb_emberbloom_picked":  {
+                                                        "w":  40,
+                                                        "h":  40
+                                                    },
+                   "props/herb_glowcap":  {
+                                              "w":  40,
+                                              "h":  40
+                                          },
+                   "props/herb_glowcap_picked":  {
+                                                     "w":  40,
+                                                     "h":  40
+                                                 },
+                   "props/herb_marigold":  {
+                                               "w":  40,
+                                               "h":  40
+                                           },
+                   "props/herb_marigold_picked":  {
+                                                      "w":  40,
+                                                      "h":  40
+                                                  },
+                   "props/herb_moonpetal":  {
+                                                "w":  40,
+                                                "h":  40
+                                            },
+                   "props/herb_moonpetal_picked":  {
+                                                       "w":  40,
+                                                       "h":  40
+                                                   },
+                   "props/herb_mountain_sage":  {
+                                                    "w":  40,
+                                                    "h":  40
+                                                },
+                   "props/herb_mountain_sage_picked":  {
+                                                           "w":  40,
+                                                           "h":  40
+                                                       },
+                   "props/herb_nettle":  {
+                                             "w":  40,
+                                             "h":  40
+                                         },
+                   "props/herb_nettle_picked":  {
+                                                    "w":  40,
+                                                    "h":  40
+                                                },
                    "props/herb_pots":  {
                                            "w":  36,
                                            "h":  36
                                        },
+                   "props/herb_starlily":  {
+                                               "w":  40,
+                                               "h":  40
+                                           },
+                   "props/herb_starlily_picked":  {
+                                                      "w":  40,
+                                                      "h":  40
+                                                  },
                    "props/herbalist_cottage":  {
                                                    "w":  168,
                                                    "h":  168

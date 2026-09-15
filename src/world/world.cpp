@@ -801,6 +801,14 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
                                           : o.title;
             noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
             label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
+        } else if (o.type == "herb") {
+            // A picked plant offers nothing until it has grown back.
+            if (!Picked(o)) {
+                if (player.skills.Level(SKILL_FORAGING) < o.skill_level)
+                    label = "Needs Foraging " + std::to_string(o.skill_level) + " for the " + o.title;
+                else
+                    label = "Pick " + o.title;
+            }
         } else if (!o.skill.empty()) {
             const int s = SkillFromName(o.skill);
             const bool fishing = o.skill == "Fishing";
@@ -945,6 +953,19 @@ void World::TryInteract(const GameContext& ctx) {
                 r.title = o.title.empty() ? "Mission Board" : o.title;
                 r.list  = o.quests;
                 requests.push_back(r);
+            } else if (o.type == "herb") {
+                if (Picked(o)) break;
+                if (player.skills.Level(SKILL_FORAGING) < o.skill_level) {
+                    AddText("Foraging " + std::to_string(o.skill_level) + " needed", o.x, o.y - 30.0f,
+                            {255, 140, 140, 255});
+                    Audio::Play(Sfx::UiError);
+                    break;
+                }
+                // Picked by hand: no tool, and the level alone sets the pace.
+                gather_index  = t.index;
+                gather_timer  = 0.0f;
+                gather_needed = Gathering::WorkTime(o.gather_time, player.skills.Level(SKILL_FORAGING), 1.0f);
+                player.StartGathering("gather", "", o.x, o.y);
             } else if (!o.skill.empty()) {
                 const int s = SkillFromName(o.skill);
                 if (s < 0 || !ctx.items) break;
@@ -1055,6 +1076,19 @@ void World::CookOne(const MapObject& range, const GameContext& ctx) {
         AddText("Nothing raw to cook", range.x, range.y - 34.0f, {200, 200, 210, 255});
 }
 
+bool World::Picked(const MapObject& o) const {
+    auto it = picked.find(map_id + ":" + o.id);
+    return it != picked.end() && GameHours() < it->second;
+}
+
+void World::Pick(const MapObject& o) {
+    picked[map_id + ":" + o.id] = GameHours() + o.regrow_hours;
+    // Anything already grown back is dropped, so the save does not keep
+    // every herb ever picked.
+    for (auto it = picked.begin(); it != picked.end();)
+        it = (GameHours() >= it->second) ? picked.erase(it) : std::next(it);
+}
+
 void World::UpdateGathering(float dt, const GameContext& ctx) {
     if (gather_index < 0) return;
 
@@ -1071,8 +1105,8 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     }
 
     // A strike every so often while the work goes on, not just at the end.
-    // Fishing is quiet until something bites.
-    const bool fishing = o.skill == "Fishing";
+    // Fishing is quiet until something bites, and so is picking.
+    const bool fishing = o.skill == "Fishing" || o.type == "herb";
     constexpr float STRIKE = 0.62f;
     const float before = gather_timer;
     gather_timer += dt;
@@ -1081,6 +1115,32 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     if (gather_timer < gather_needed) return;
 
     const int skill = SkillFromName(o.skill);
+
+    // A herb is picked once, then grows back. The further past its level the
+    // forager is, the more often a plant gives two.
+    if (o.type == "herb") {
+        const ItemDef* d = ctx.items ? ctx.items->Get(o.yield) : nullptr;
+        int count = 1;
+        if (ctx.rng) {
+            const float extra = Gathering::ForageExtraChance(player.skills.Level(SKILL_FORAGING), o.skill_level);
+            std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+            if (unit(*ctx.rng) < extra) count = 2;
+        }
+        const int added = player.inventory.Add(o.yield, count);
+        if (added <= 0) {
+            AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
+            gather_index = -1;
+            return;
+        }
+        player.GrantXp(SKILL_FORAGING, o.yield_xp * added);
+        AddText("+ " + (added > 1 ? std::to_string(added) + " " : string("")) + (d ? d->name : o.yield),
+                player.x, player.y - 54.0f, added > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
+        Audio::PlayAt(Sfx::Pickup, o.x, o.y);
+        Pick(o);
+        if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+        gather_index = -1;
+        return;
+    }
 
     if (fishing && ctx.items && ctx.rng) {
         const int level = player.skills.Level(SKILL_FISHING);
@@ -1911,7 +1971,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             }
             case 3: {
                 const MapObject* o = static_cast<const MapObject*>(it.ptr);
-                const bool used = Flagged(o->id) && !o->sprite_open.empty();
+                const bool used = !o->sprite_open.empty() &&
+                                  (o->type == "herb" ? Picked(*o) : Flagged(o->id));
                 SDL_Texture* tex = cache.Get(used ? o->sprite_open : o->sprite);
                 if (!tex) break;
                 float tw = 0, th = 0;

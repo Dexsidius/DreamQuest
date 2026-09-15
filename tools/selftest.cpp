@@ -433,7 +433,7 @@ int main(int argc, char** argv) {
     for (const char* id : {"overworld", "town_havenbrook",
                            "house_smith", "guild_hall", "house_elder", "house_inn",
                            "house_inn_upper", "mossvale_lodge_hall", "mossvale_herbalist",
-                           "fernhollow_cottage", "mossvale", "fernhollow", "whisperwood_trail"}) {
+                           "fernhollow_cottage", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -480,8 +480,12 @@ int main(int argc, char** argv) {
         }
 
         auto reachable = [&](float x, float y) {
-            for (int cy = 0; cy < rows; ++cy)
-                for (int cx = 0; cx < cols; ++cx)
+            // Only the cells within reach can matter.
+            const int r = static_cast<int>(REACH / STEP) + 1;
+            const int x0 = std::max(0, static_cast<int>(x / STEP) - r), x1 = std::min(cols - 1, static_cast<int>(x / STEP) + r);
+            const int y0 = std::max(0, static_cast<int>(y / STEP) - r), y1 = std::min(rows - 1, static_cast<int>(y / STEP) + r);
+            for (int cy = y0; cy <= y1; ++cy)
+                for (int cx = x0; cx <= x1; ++cx)
                     if (seen[static_cast<size_t>(cy) * cols + cx] &&
                         Length(cx * STEP - x, cy * STEP - y) <= REACH)
                         return true;
@@ -493,7 +497,26 @@ int main(int argc, char** argv) {
         for (const MapObject& o : room.Objects()) {
             // Preserve the existing gathering layout; this pass adds route
             // coverage to the old overworld rather than auditing every tree.
-            if (string(id) == "overworld" && o.id != "sign_trailhead") continue;
+            if (string(id) == "overworld" && o.id != "sign_trailhead" && o.type != "herb") continue;
+            // The flood walks but does not jump, so it never climbs onto the
+            // overworld's plateaus -- the player does, and "no raised ground is
+            // sealed off" proves it. A herb up there only has to stand on open
+            // ground.
+            // So does one in a hollow ringed by plateaus, which is reached by
+            // climbing over them.
+            bool ringed = false;
+            if (string(id) == "overworld" && o.type == "herb")
+                for (float a = 0.0f; a < 6.28f && !ringed; a += 0.5f)
+                    for (float d = 64.0f; d <= 256.0f && !ringed; d += 64.0f)
+                        if (room.LevelAt(o.x + cosf(a) * d, o.y + sinf(a) * d) > 0) ringed = true;
+            if (string(id) == "overworld" && o.type == "herb" &&
+                (room.LevelAt(o.x, o.y) > 0 || (ringed && !reachable(o.x, o.y)))) {
+                bool open = false;
+                for (float a = 0.0f; a < 6.28f && !open; a += 0.4f)
+                    if (!room.Blocked(feet(o.x + cosf(a) * 30.0f, o.y + sinf(a) * 30.0f))) open = true;
+                Check(open, string(id) + ": " + o.id + " stands on open raised ground");
+                continue;
+            }
             Check(reachable(o.x, o.y), string(id) + ": " + o.id + " can be walked up to");
         }
 
@@ -1089,12 +1112,19 @@ int main(int argc, char** argv) {
         const auto bench = items.Recipes(CraftStation::Workbench);
         const auto anvil = items.Recipes(CraftStation::Anvil);
         Check(!bench.empty() && !anvil.empty(), "both the workbench and the anvil have something to make");
-        Check(bench.size() + anvil.size() == all.size(), "every recipe belongs to exactly one station");
-
+        const auto cauldron = items.Recipes(CraftStation::Cauldron);
+        Check(!cauldron.empty(), "and the cauldron has brews");
+        Check(bench.size() + anvil.size() + cauldron.size() == all.size(), "every recipe belongs to exactly one station");
         for (const ItemDef* r : all) {
-            bool metal = false;
+            bool metal = false, brewed = false;
             for (const auto& in : r->craft_inputs)
-                if (const ItemDef* mat = items.Get(in.first)) metal |= mat->metal;
+                if (const ItemDef* mat = items.Get(in.first)) {
+                    metal |= mat->metal;
+                    brewed |= std::find(mat->tags.begin(), mat->tags.end(), "brewing") != mat->tags.end();
+                }
+            const bool at_cauldron = std::find(cauldron.begin(), cauldron.end(), r) != cauldron.end();
+            Check(brewed == at_cauldron, r->craft_result + (brewed ? " is brewed at a cauldron" : " is not brewed"));
+            if (brewed) continue;
             const bool at_anvil = std::find(anvil.begin(), anvil.end(), r) != anvil.end();
             Check(metal == at_anvil, r->craft_result + (metal ? " needs metal, so it is smithed at the anvil"
                                                               : " needs no metal, so it is made at a workbench"));
@@ -1115,22 +1145,44 @@ int main(int argc, char** argv) {
             Check(items.Get(soft) && !items.Get(soft)->metal, string(soft) + " is not metal");
 
         // What stands in the world agrees with what it is called and drawn as.
-        int anvils = 0, benches = 0;
+        int anvils = 0, benches = 0, cauldrons = 0;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
             for (const MapObject& o : m.Objects()) {
                 if (o.type != "workbench") continue;
-                Check(o.station == "workbench" || o.station == "anvil",
+                Check(o.station == "workbench" || o.station == "anvil" || o.station == "cauldron",
                       o.id + " is a known crafting station");
                 const bool drawn_as_anvil = o.sprite.find("anvil") != string::npos;
-                Check(drawn_as_anvil == (o.station == "anvil"),
+                const bool drawn_as_cauldron = o.sprite.find("cauldron") != string::npos;
+                Check(drawn_as_anvil == (o.station == "anvil") && drawn_as_cauldron == (o.station == "cauldron"),
                       o.id + " works as the station it looks like");
-                (o.station == "anvil" ? anvils : benches)++;
+                if (o.station == "anvil") ++anvils;
+                else if (o.station == "workbench") ++benches;
+                else ++cauldrons;
             }
         }
         Check(anvils >= 1, "there is an anvil somewhere to smith at");
         Check(benches >= 1, "there is a workbench somewhere to make simple things");
+        Check(cauldrons >= 3, "there are cauldrons to brew at (" + std::to_string(cauldrons) + ")");
+
+        // Each station trains its own skill, and smithing a tier asks for the
+        // same level as its tier: the level its gear needs to be worn.
+        Check(CraftSkill(CraftStation::Workbench) == SKILL_CRAFTING && CraftSkill(CraftStation::Anvil) == SKILL_SMITHING &&
+              CraftSkill(CraftStation::Cauldron) == SKILL_BREWING, "workbench, anvil and cauldron train Crafting, Smithing and Brewing");
+        for (const TierDef& t : items.Tiers()) {
+            if (t.wood) continue;
+            for (const char* piece : {"sword", "bow", "staff", "shield", "helm", "body", "legs", "axe", "pickaxe"}) {
+                const string id = items.TierPiece(t.id, piece);
+                for (const ItemDef* r : anvil)
+                    if (r->craft_result == id)
+                        Check(r->craft_level == t.level, id + " is smithed at Smithing " + std::to_string(t.level) +
+                              ", its tier's level");
+            }
+            for (const ItemDef* r : anvil)
+                if (r->craft_result == t.bar)
+                    Check(r->craft_level == t.level, t.bar + " is smelted at Smithing " + std::to_string(t.level));
+        }
     }
 
     // --- dangerous doors -----------------------------------------------------------
@@ -2026,8 +2078,9 @@ int main(int argc, char** argv) {
                 for (const char* kind : {"sword", "bow", "staff"}) {
                     const string model = string(kind) + "_" + t.id;
                     for (const auto& clip : hero ? hero->clips : map<string, AnimClip>{}) {
-                        // The work clips hold a tool, not a weapon.
-                        if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish") continue;
+                        // The work clips hold a tool, not a weapon, and picking herbs holds nothing.
+                        if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish" ||
+                            clip.first == "gather") continue;
                         const string path = "assets/characters/player_hero/layers/" + clip.first +
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
@@ -3424,7 +3477,8 @@ int main(int argc, char** argv) {
         for (const auto& kv : items.All()) {
             const ItemDef& d = kv.second;
             const bool gathered = d.piece == "ore" || d.fish_level > 0 || d.id == "logs" ||
-                                  d.id == "oak_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones";
+                                  d.id == "oak_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones" ||
+                                  d.forage_level > 0;
             if (!gathered) continue;
             Check(best_offer(d) > 0, "some trader buys " + d.id + " (" + std::to_string(best_offer(d)) + "c)");
             if (!d.cook_result.empty())
@@ -3576,6 +3630,326 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("smithing, foraging and brewing");
+    {
+        // --- the skills -----------------------------------------------------------------------
+        Check(string(SkillName(SKILL_SMITHING)) == "Smithing" && string(SkillName(SKILL_FORAGING)) == "Foraging" &&
+              string(SkillName(SKILL_BREWING)) == "Brewing", "Smithing, Foraging and Brewing are skills");
+        {
+            // A save from before Smithing: bars and blades trained Crafting.
+            Skills old;
+            old.FromJson(json{{"xp", {{"Crafting", XpForLevel(34)}, {"Mining", XpForLevel(20)}}}});
+            Check(old.Level(SKILL_SMITHING) == 34, "an old save's Smithing starts where its Crafting stood");
+            Skills fresh;
+            fresh.FromJson(json{{"xp", {{"Crafting", XpForLevel(34)}, {"Smithing", 0}}}});
+            Check(fresh.Level(SKILL_SMITHING) == 1, "a new save's Smithing is its own");
+        }
+
+        // --- herbs ------------------------------------------------------------------------------
+        vector<const ItemDef*> herbs;
+        for (const auto& kv : items.All()) if (kv.second.forage_level > 0) herbs.push_back(&kv.second);
+        Check(herbs.size() >= 8, "there are herbs to forage (" + std::to_string(herbs.size()) + ")");
+        std::set<int> levels;
+        for (const ItemDef* h : herbs) {
+            levels.insert(h->forage_level);
+            Check(!h->grows.empty() && h->forage_xp > 0, h->id + " says where it grows and what it is worth");
+            Check(std::find(h->tags.begin(), h->tags.end(), "brewing") != h->tags.end(), h->id + " goes in a brew");
+            for (const char* art : {"assets/props/herb_%s.png", "assets/props/herb_%s_picked.png"}) {
+                char path[128];
+                SDL_snprintf(path, sizeof(path), art, h->id.c_str());
+                Check(fs::exists(path), h->id + " is drawn in the world: " + path);
+            }
+        }
+        Check(levels.size() == herbs.size(), "every herb opens at its own Foraging level");
+
+        // Where they are, on every map.
+        std::map<string, int> spawned;
+        std::map<string, std::map<string, int>> by_map;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "herb") continue;
+                const ItemDef* h = items.Get(o.yield);
+                Check(h && h->forage_level > 0, string(id) + " " + o.id + " grows a real herb");
+                if (!h) continue;
+                Check(o.skill == "Foraging" && o.skill_level == h->forage_level && o.yield_xp == h->forage_xp,
+                      string(id) + " " + o.id + " asks the herb's own level and pays its XP");
+                Check(!o.sprite.empty() && !o.sprite_open.empty() && o.regrow_hours > 0.0f,
+                      string(id) + " " + o.id + " is drawn growing and picked, and grows back");
+                ++spawned[o.yield];
+                ++by_map[id][o.yield];
+            }
+        }
+        for (const ItemDef* h : herbs)
+            Check(spawned[h->id] >= 12, h->id + " grows in at least a dozen places (" + std::to_string(spawned[h->id]) + ")");
+        Check(by_map["dreamworld"]["starlily"] > 0 && by_map["dreamworld"]["moonpetal"] > 0 &&
+              !by_map["overworld"]["starlily"] && !by_map["overworld"]["moonpetal"],
+              "moonpetal and starlily grow only in the Reverie");
+        Check(by_map["whisperwood_trail"]["glowcap"] > by_map["overworld"]["glowcap"] &&
+              by_map["whisperwood_trail"]["glowcap"] >= 20, "the Whisperwood is where glowcaps grow");
+        Check(by_map["mossvale"]["marigold"] > 0 && by_map["mossvale"]["brookmint"] > 0 && by_map["mossvale"]["nettle"] > 0,
+              "Oona's garden grows the three beginner herbs");
+
+        // On the overworld, each grows on its own ground, thickest in one patch.
+        {
+            std::ifstream in("maps/overworld.mx");
+            json mx;
+            in >> mx;
+            std::map<std::pair<int, int>, vector<string>> ground;
+            for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
+                for (const auto& loc : it.value()["locations"])
+                    // Ground is laid in 32px tiles, and the Mire's dark mud and
+                    // stones in quarters of one.
+                    if (loc[2].get<int>() == loc[3].get<int>() && loc[2].get<int>() <= 32)
+                        ground[{loc[0].get<int>() / 32, loc[1].get<int>() / 32}].push_back(it.key());
+            // Whether any ground laid in a cell is of a family: decals are
+            // drawn over the tiles, so a cell can hold several names.
+            const auto has = [&](int cx, int cy, const char* prefix) {
+                auto g = ground.find({cx, cy});
+                if (g == ground.end()) return false;
+                for (const string& n : g->second) if (n.rfind(prefix, 0) == 0) return true;
+                return false;
+            };
+            const auto near_water = [&](int cx, int cy) {
+                for (int dy = -3; dy <= 3; ++dy)
+                    for (int dx = -3; dx <= 3; ++dx)
+                        if (has(cx + dx, cy + dy, "water")) return true;
+                return false;
+            };
+            Map ow;
+            ow.Load("maps/overworld.mx");
+            std::map<string, int> total, right;
+            std::map<string, vector<std::pair<int, int>>> cells;
+            for (const MapObject& o : ow.Objects()) {
+                if (o.type != "herb") continue;
+                const int cx = static_cast<int>(o.x) / 32, cy = static_cast<int>(o.y - 12) / 32;
+                bool ok = false;
+                if (o.yield == "marigold")      ok = has(cx, cy, "grass") || has(cx, cy, "moss");
+                if (o.yield == "nettle")        ok = has(cx, cy, "grass") || has(cx, cy, "moss");
+                if (o.yield == "bogbean")       ok = has(cx, cy, "marsh");
+                if (o.yield == "mountain_sage") ok = has(cx, cy, "dirt") || has(cx, cy, "sand");
+                if (o.yield == "emberbloom")    ok = has(cx, cy, "cursed");
+                if (o.yield == "brookmint")     ok = near_water(cx, cy);
+                ++total[o.yield];
+                right[o.yield] += ok;
+                cells[o.yield].push_back({cx, cy});
+            }
+            for (const char* herb : {"marigold", "nettle", "bogbean", "mountain_sage", "emberbloom", "brookmint"}) {
+                Check(total[herb] > 0 && right[herb] * 10 >= total[herb] * 9,
+                      string(herb) + " grows on its own ground on the overworld (" + std::to_string(right[herb]) +
+                      " of " + std::to_string(total[herb]) + ")");
+                int best = 0;
+                for (const auto& c : cells[herb]) {
+                    int near = 0;
+                    for (const auto& d : cells[herb])
+                        if (abs(d.first - c.first) <= 3 && abs(d.second - c.second) <= 3) ++near;
+                    best = std::max(best, near);
+                }
+                Check(best >= 6, string(herb) + " has a patch where it grows thick (" + std::to_string(best) +
+                      " within a few steps)");
+            }
+            int west_bogbean = 0;
+            for (const MapObject& o : ow.Objects())
+                if (o.type == "herb" && o.yield == "bogbean") west_bogbean += (o.x < 1600.0f);
+            Check(west_bogbean * 10 >= total["bogbean"] * 9, "bogbean keeps to the Mire in the west");
+        }
+
+        // --- picking one ----------------------------------------------------------------------
+        Input input;
+        std::mt19937 rng(55);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        const auto stand_by = [&](World& w, const string& map_id, const string& herb, int level) -> const MapObject* {
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            w.SetPickedHerbs({});
+            w.clock.Set(2, 10.0f);
+            if (!w.LoadMap(map_id, "", ctx)) return nullptr;
+            w.enemies.clear();
+            LevelUp lu;
+            if (level > 1) w.player.skills.AddXp(SKILL_FORAGING, XpForLevel(level), lu);
+            for (const MapObject& o : w.CurrentMap().Objects()) {
+                if (o.type != "herb" || o.yield != herb) continue;
+                for (float a = 1.57f; a < 1.57f + 6.28f; a += 0.3f)
+                    for (float d = 14.0f; d <= 40.0f; d += 6.0f) {
+                        const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                        if (w.CurrentMap().Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) continue;
+                        w.player.x = px;
+                        w.player.y = py;
+                        frames(w, 2);
+                        if (w.player.interact.kind == InteractTarget::Object &&
+                            &w.CurrentMap().Objects()[w.player.interact.index] == &o) return &o;
+                    }
+            }
+            return nullptr;
+        };
+        {
+            World w;
+            const MapObject* herb = stand_by(w, "mossvale", "marigold", 1);
+            Check(herb != nullptr, "a new character can stand at a marigold in Oona's garden");
+            if (herb) {
+                Check(w.player.interact.label.rfind("Pick marigold", 0) == 0, "the prompt says Pick marigold (" +
+                      w.player.interact.label + ")");
+                w.TryInteract(ctx);
+                frames(w, 1);
+                Check(w.player.GatherClip() == "gather", "picking plays the gather animation, hands empty");
+                int f = 0;
+                while (w.player.inventory.Count("marigold") == 0 && f++ < 600) frames(w, 1);
+                Check(w.player.inventory.Count("marigold") >= 1 && w.player.skills.Xp(SKILL_FORAGING) >= 10,
+                      "and gives a marigold and Foraging XP, in " + std::to_string(f / 60.0f).substr(0, 4) + "s");
+                Check(!w.Gathering() && w.Picked(*herb), "then it is picked, and the work stops");
+                frames(w, 2);
+                Check(!(w.player.interact.kind == InteractTarget::Object &&
+                        &w.CurrentMap().Objects()[w.player.interact.index] == herb),
+                      "a picked plant offers nothing");
+                w.clock.Set(2, 10.0f + herb->regrow_hours * 0.5f);
+                Check(w.Picked(*herb), "half way through its regrowth it is still bare");
+                w.clock.Set(2, 10.0f + herb->regrow_hours + 0.1f);
+                Check(!w.Picked(*herb), "and it grows back");
+                // A save carries it.
+                w.clock.Set(2, 10.0f);
+                w.Pick(*herb);
+                World back;
+                back.SetPickedHerbs(w.PickedHerbs());
+                back.clock.Set(2, 10.0f);
+                back.LoadMap("mossvale", "", ctx);
+                Check(back.Picked(back.CurrentMap().Objects()[herb - &w.CurrentMap().Objects()[0]]),
+                      "what was picked is remembered across a save");
+            }
+        }
+        {
+            World w;
+            const MapObject* cap = stand_by(w, "whisperwood_trail", "glowcap", 1);
+            Check(cap != nullptr && w.player.interact.label.find("Needs Foraging 36") != string::npos,
+                  "a glowcap tells a beginner it needs Foraging 36");
+            if (cap) {
+                w.TryInteract(ctx);
+                frames(w, 120);
+                Check(w.player.inventory.Count("glowcap") == 0 && !w.Picked(*cap), "and gives them nothing");
+            }
+            World w2;
+            if (stand_by(w2, "whisperwood_trail", "glowcap", 99)) {
+                int twos = 0;
+                for (int k = 0; k < 40; ++k) {
+                    const int before = w2.player.inventory.Count("glowcap");
+                    w2.SetPickedHerbs({});
+                    w2.TryInteract(ctx);
+                    for (int f = 0; f < 400 && w2.player.inventory.Count("glowcap") == before; ++f) frames(w2, 1);
+                    if (w2.player.inventory.Count("glowcap") - before == 2) ++twos;
+                    frames(w2, 2);
+                }
+                Check(twos >= 10 && twos <= 30, "a master forager often picks two (" + std::to_string(twos) + " of 40)");
+            }
+        }
+        Check(Gathering::ForageExtraChance(10, 10) == 0.0f && Gathering::ForageExtraChance(99, 1) == 0.5f,
+              "two herbs from one plant: never at its level, at most half the time");
+
+        // --- brewing ----------------------------------------------------------------------------
+        const auto brews = items.Recipes(CraftStation::Cauldron);
+        Check(brews.size() >= 8, "there are brews (" + std::to_string(brews.size()) + ")");
+        std::set<string> scrolls, sold;
+        for (const auto& kv : items.All()) if (!kv.second.learn.empty()) scrolls.insert(kv.second.learn);
+        ShopDatabase shopdb;
+        shopdb.Load("data/shops.json");
+        for (const auto& kv : shopdb.All())
+            for (const ShopStock& line : kv.second.sells)
+                if (const ItemDef* d = items.Get(line.item)) if (!d->learn.empty()) sold.insert(d->learn);
+        for (const auto& kv : shopdb.All())
+            for (const ShopStock& line : kv.second.sells)
+                if (line.item == "vial" && kv.second.General()) sold.insert("vial@" + kv.second.town);
+        for (const char* town : {"havenbrook", "mossvale", "fernhollow", "whisperwood", "reverie"})
+            Check(sold.count(string("vial@") + town), string("the general store in ") + town + " sells vials");
+        for (const ItemDef* r : brews) {
+            const ItemDef* potion = items.Get(r->craft_result);
+            Check(potion && potion->consumable && !potion->icon.empty(), r->craft_result + " is a potion you can drink");
+            if (!potion) continue;
+            Check(potion->heal > 0 || potion->mana > 0 || potion->stamina || !potion->boosts.empty(),
+                  potion->id + " does something");
+            Check(r->craft_inputs.count("vial") && r->craft_inputs.at("vial") == 1, potion->id + " is brewed into one vial");
+            int herb_level = 0;
+            for (const auto& in : r->craft_inputs)
+                if (const ItemDef* mat = items.Get(in.first)) herb_level = std::max(herb_level, mat->forage_level);
+            Check(r->craft_level == herb_level, potion->id + " is brewed at Brewing " + std::to_string(r->craft_level) +
+                  ", the Foraging level of its rarest herb");
+            Check(!potion->recipe_from.empty(), potion->id + " says where its recipe is learned");
+            if (potion->id != "healing_draught") {
+                Check(scrolls.count(potion->id), potion->id + " has a recipe scroll");
+                Check(sold.count(potion->id), "someone sells the recipe for " + potion->id);
+            }
+        }
+        {
+            // Oona teaches the first one, once.
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            DialogueRunner r;
+            r.Begin(&dialogue, "oona_root", "npc_oona", "Oona", dc);
+            int teach = -1;
+            for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                if (r.VisibleOptions()[i]->next == "oona_brew_teach") teach = static_cast<int>(i);
+            Check(teach >= 0, "Oona offers to teach a new character to brew");
+            if (teach >= 0) {
+                r.MoveSelection(teach - r.Selected());
+                r.Choose(dc);
+                bool learns = false;
+                for (const auto& o : r.VisibleOptions()) if (o->action.learn_recipe == "healing_draught") learns = true;
+                Check(learns, "and her lesson teaches the healing draught");
+            }
+            flags.insert("recipe:healing_draught");
+            DialogueRunner again;
+            again.Begin(&dialogue, "oona_root", "npc_oona", "Oona", dc);
+            bool offers = false;
+            for (const auto& o : again.VisibleOptions()) if (o->next == "oona_brew_teach") offers = true;
+            Check(!offers, "and does not offer the lesson twice");
+        }
+
+        // --- drinking -----------------------------------------------------------------------------
+        {
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            w.LoadMap("mossvale", "", ctx);
+            w.enemies.clear();
+            Player& p = w.player;
+            LevelUp lu;
+            p.skills.AddXp(SKILL_STRENGTH, XpForLevel(40), lu);
+            p.skills.ResetCurrent();
+            const auto slot = [&](const string& id) {
+                for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == id) return i;
+                return -1;
+            };
+            string why;
+            p.inventory.Add("nettle_brew", 2);
+            Check(p.Consume(slot("nettle_brew"), why) && p.skills.Current(SKILL_STRENGTH) == 40 + 3 + 4,
+                  "a nettle brew lifts Strength 40 to 47");
+            Check(!p.Consume(slot("nettle_brew"), why) && p.inventory.Count("nettle_brew") == 1 && !why.empty(),
+                  "a second one does nothing while the first holds, and is not wasted");
+            frames(w, static_cast<int>(Player::BOOST_DECAY * 60.0f) + 30);
+            Check(p.skills.Current(SKILL_STRENGTH) == 46, "the boost wears off a point at a time");
+            p.inventory.Add("healing_draught", 1);
+            Check(!p.Consume(slot("healing_draught"), why), "a healing draught at full health is kept");
+            p.hp = 2;
+            p.skills.SetCurrent(SKILL_HITPOINTS, 2);
+            Check(p.Consume(slot("healing_draught"), why) && p.hp > 2, "and heals when it is needed");
+            p.inventory.Add("mana_tonic", 1);
+            p.SyncMana();
+            p.SpendMana(p.Mana());
+            Check(p.Consume(slot("mana_tonic"), why) && p.Mana() > 0, "a mana tonic restores mana");
+        }
+    }
+
     Section("order books");
     {
         ShopDatabase shops;
@@ -3616,8 +3990,11 @@ int main(int argc, char** argv) {
                 // And whatever it needs to be made or caught, it says so.
                 for (const ItemDef* r : items.Recipes())
                     if (r->craft_result == want->id && r->craft_level > 1)
-                        Check(q.requirements.count(SKILL_CRAFTING) && q.requirements.at(SKILL_CRAFTING) >= r->craft_level,
-                              qid + " needs the Crafting level its " + want->id + " is made at");
+                        {
+                            const int sk = CraftSkill(items.StationFor(*r));
+                            Check(q.requirements.count(sk) && q.requirements.at(sk) >= r->craft_level,
+                                  qid + " needs the " + SkillName(sk) + " level its " + want->id + " is made at");
+                        }
                 if (want->fish_level > 1)
                     Check(q.requirements.count(SKILL_FISHING) && q.requirements.at(SKILL_FISHING) >= want->fish_level,
                           qid + " needs the Fishing level " + want->id + " bites at");
@@ -3724,6 +4101,7 @@ int main(int argc, char** argv) {
             LevelUp up;
             strong.AddXp(SKILL_MINING, 200000, up);
             strong.AddXp(SKILL_CRAFTING, 200000, up);
+            strong.AddXp(SKILL_SMITHING, 200000, up);
             strong.AddXp(SKILL_FISHING, 2000000, up);
             strong.AddXp(SKILL_COOKING, 200000, up);
             std::set<string> weak_seen, strong_seen;

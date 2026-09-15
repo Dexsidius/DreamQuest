@@ -706,8 +706,44 @@
                                                                       "sheet":  "layers/chop_3_body.png"
                                                                   },
                                                                   {
+                                                                      "slot":  "weapon_axe_platinum",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_iron",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_steel",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_steel.png"
+                                                                  },
+                                                                  {
                                                                       "slot":  "weapon_front",
                                                                       "sheet":  "layers/chop_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_wood",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_azuryte",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_adamantium",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_adamantium.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_bronze",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_diamond",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_axe_demonrite",
+                                                                      "sheet":  "layers/chop_4_weapon_axe_demonrite.png"
                                                                   },
                                                                   {
                                                                       "slot":  "head",
@@ -862,6 +898,10 @@
                                                                       "sheet":  "layers/fish_3_body.png"
                                                                   },
                                                                   {
+                                                                      "slot":  "weapon_rod",
+                                                                      "sheet":  "layers/fish_4_weapon_rod.png"
+                                                                  },
+                                                                  {
                                                                       "slot":  "weapon_front",
                                                                       "sheet":  "layers/fish_4_weapon_front.png"
                                                                   },
@@ -871,6 +911,30 @@
                                                                   }
                                                               ]
                                                },
+                                      "gather":  {
+                                                     "sheet":  "gather.png",
+                                                     "frames":  8,
+                                                     "fps":  8,
+                                                     "loop":  true,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/gather_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/gather_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/gather_4_weapon_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/gather_5_head.png"
+                                                                    }
+                                                                ]
+                                                 },
                                       "hurt":  {
                                                    "sheet":  "hurt.png",
                                                    "frames":  4,
@@ -1282,8 +1346,44 @@
                                                                       "sheet":  "layers/mine_3_body.png"
                                                                   },
                                                                   {
+                                                                      "slot":  "weapon_pickaxe_iron",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_diamond",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_platinum",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_wood",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_steel",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_adamantium",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_adamantium.png"
+                                                                  },
+                                                                  {
                                                                       "slot":  "weapon_front",
                                                                       "sheet":  "layers/mine_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_azuryte",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_demonrite",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_demonrite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_pickaxe_bronze",
+                                                                      "sheet":  "layers/mine_4_weapon_pickaxe_bronze.png"
                                                                   },
                                                                   {
                                                                       "slot":  "head",

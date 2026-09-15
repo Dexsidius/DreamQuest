@@ -2,7 +2,8 @@
 
 static const char* kSkillNames[SKILL_COUNT] = {
     "Attack", "Strength", "Defence", "Hitpoints", "Ranged",
-    "Magic", "Woodcutting", "Mining", "Crafting", "Cooking", "Fishing"
+    "Magic", "Woodcutting", "Mining", "Crafting", "Cooking", "Fishing",
+    "Smithing", "Foraging", "Brewing"
 };
 
 const char* SkillName(int skill) {
@@ -148,6 +149,12 @@ void Skills::FromJson(const json& j) {
             const int s = SkillFromName(it.key());
             if (s >= 0) xp[s] = it.value().get<int>();
         }
+
+    // Before Smithing was its own skill, every bar and blade trained Crafting.
+    // A save from then keeps what it earned: its Smithing starts where its
+    // Crafting stands, so nobody loses the tiers they could already work.
+    if (j.contains("xp") && !j["xp"].contains("Smithing") && j["xp"].contains("Crafting"))
+        xp[SKILL_SMITHING] = xp[SKILL_CRAFTING];
 
     ResetCurrent();
 

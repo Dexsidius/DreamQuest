@@ -27,9 +27,15 @@ enum class WeaponKind { Melee, Bow, Staff };
 // wood, leather and thread are worked at a bench. Nothing declares its station:
 // it follows from the materials, so a new recipe cannot end up in the wrong
 // place.
-enum class CraftStation { Workbench, Anvil };
+//
+// A cauldron brews: a recipe with a herb or a vial in it is a potion. What is
+// made at each station trains its own skill -- Crafting at a workbench,
+// Smithing at an anvil, Brewing at a cauldron -- and a potion has to be learned
+// before it can be brewed.
+enum class CraftStation { Workbench, Anvil, Cauldron };
 CraftStation CraftStationFromName(const string& name);
 const char*  CraftStationName(CraftStation s);
+int          CraftSkill(CraftStation s);
 WeaponKind WeaponKindFromName(const string& name);
 
 struct ItemDef {
@@ -52,6 +58,16 @@ struct ItemDef {
     // Consumables.
     bool consumable = false;
     int  heal = 0;
+    // Potions, on top of healing: mana back, a full breath of stamina, and
+    // boosts to combat levels -- a flat amount plus a share of the level, the
+    // OSRS way, wearing off a point at a time.
+    int  mana = 0;
+    bool stamina = false;
+    map<int, pair<int, float>> boosts;   // SkillId -> (flat, fraction of level)
+    // A recipe scroll: using it teaches the brew with this id.
+    string learn;
+    // Where the recipe for this brew is learned, for the cauldron to say.
+    string recipe_from;
 
     // Cooking: raw -> cooked.
     string cook_result;
@@ -64,6 +80,12 @@ struct ItemDef {
     // A fish: the Fishing level it bites at and the XP it is worth.
     int    fish_level = 0;
     int    fish_xp = 0;
+    // A herb: the Foraging level it is picked at, its XP, and where it grows
+    // best ("meadow", "waterside", "woodland", "mire", "foothills", "deep
+    // forest", "cursed", "reverie").
+    int    forage_level = 0;
+    int    forage_xp = 0;
+    string grows;
 
     // What using it from the bag does, beyond eating and wearing: "camp"
     // pitches a camp where the player stands.

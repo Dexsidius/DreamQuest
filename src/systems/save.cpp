@@ -102,6 +102,8 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
     if (dream.active) j["dream_return"] = {{"map", dream.map}, {"x", dream.x}, {"y", dream.y}};
 
     j["shops"] = world.shops.ToJson();
+    j["picked"] = json::object();
+    for (const auto& kv : world.PickedHerbs()) j["picked"][kv.first] = kv.second;
 
     j["flags"] = json::array();
     for (const auto& f : world.Flags()) j["flags"].push_back(f);
@@ -179,6 +181,11 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
     }
     world.SetDream(dream);
     world.shops.FromJson(j.value("shops", json::object()));
+    map<string, double> picked;
+    if (j.contains("picked") && j["picked"].is_object())
+        for (auto it = j["picked"].begin(); it != j["picked"].end(); ++it)
+            if (it.value().is_number()) picked[it.key()] = it.value().get<double>();
+    world.SetPickedHerbs(picked);
 
     // Restore the character before the map, so the sprite and stats are in
     // place by the time entities spawn around them.

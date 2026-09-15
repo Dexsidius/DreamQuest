@@ -1029,7 +1029,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 600
+        "Mining": 600,
+        "Smithing": 360
       },
       "coins": 216
     },
@@ -1042,7 +1043,7 @@
     "level": 10,
     "summary": "Iron bars for the watch's new hinges and hasps.",
     "req": {
-      "Crafting": 10,
+      "Smithing": 10,
       "Mining": 5
     },
     "repeat": "daily",
@@ -1059,7 +1060,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 900
+        "Mining": 900,
+        "Smithing": 540
       },
       "coins": 432
     },
@@ -1072,7 +1074,7 @@
     "level": 20,
     "summary": "Steel bars. The guild wants blades, and blades want steel.",
     "req": {
-      "Crafting": 20,
+      "Smithing": 20,
       "Mining": 20
     },
     "repeat": "daily",
@@ -1089,7 +1091,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 1400
+        "Mining": 1400,
+        "Smithing": 840
       },
       "coins": 1304
     },
@@ -1099,11 +1102,8 @@
     "name": "Order: Bronze Swords",
     "source": "npc",
     "giver": "npc_smith",
-    "level": 2,
+    "level": 1,
     "summary": "Two bronze swords for the watch's new recruits, who will certainly drop them.",
-    "req": {
-      "Crafting": 2
-    },
     "repeat": "daily",
     "pool": "halda_orders",
     "posts": 3,
@@ -1118,7 +1118,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 500
+        "Mining": 500,
+        "Smithing": 400
       },
       "coins": 275
     },
@@ -1128,10 +1129,10 @@
     "name": "Order: Iron Sword",
     "source": "npc",
     "giver": "npc_smith",
-    "level": 11,
+    "level": 10,
     "summary": "An iron sword for a caravan guard who lost his to the Mire.",
     "req": {
-      "Crafting": 11
+      "Smithing": 10
     },
     "repeat": "daily",
     "pool": "halda_orders",
@@ -1147,7 +1148,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 700
+        "Mining": 700,
+        "Smithing": 560
       },
       "coins": 319
     },
@@ -1157,10 +1159,10 @@
     "name": "Order: Steel Longsword",
     "source": "npc",
     "giver": "npc_smith",
-    "level": 21,
+    "level": 20,
     "summary": "A steel longsword, commissioned by the guild master himself.",
     "req": {
-      "Crafting": 21
+      "Smithing": 20
     },
     "repeat": "daily",
     "pool": "halda_orders",
@@ -1176,7 +1178,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 1600
+        "Mining": 1600,
+        "Smithing": 1280
       },
       "coins": 2273
     },
@@ -1228,7 +1231,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 450
+        "Mining": 450,
+        "Smithing": 360
       },
       "coins": 375
     },
@@ -1238,10 +1242,10 @@
     "name": "Order: Iron Cuirass",
     "source": "npc",
     "giver": "npc_smith",
-    "level": 14,
+    "level": 10,
     "summary": "An iron cuirass, fitted for a watchman who will not stop growing.",
     "req": {
-      "Crafting": 14
+      "Smithing": 10
     },
     "repeat": "daily",
     "pool": "halda_orders",
@@ -1257,7 +1261,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 1100
+        "Mining": 1100,
+        "Smithing": 880
       },
       "coins": 1124
     },
@@ -1267,10 +1272,10 @@
     "name": "Order: Steel Greaves",
     "source": "npc",
     "giver": "npc_smith",
-    "level": 23,
+    "level": 20,
     "summary": "Steel greaves for an adventurer going under Emberfell.",
     "req": {
-      "Crafting": 23
+      "Smithing": 20
     },
     "repeat": "daily",
     "pool": "halda_orders",
@@ -1286,7 +1291,8 @@
     ],
     "rewards": {
       "xp": {
-        "Mining": 2200
+        "Mining": 2200,
+        "Smithing": 1760
       },
       "coins": 3392
     },

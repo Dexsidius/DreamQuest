@@ -61,6 +61,16 @@ public:
     const std::set<string>& Flags() const { return flags; }
     void  SetFlags(const std::set<string>& f) { flags = f; }
 
+    // Herbs picked and growing back: "map:object" -> the absolute game hour
+    // (day * 24 + hour) it is ready again. Saved.
+    bool  Picked(const MapObject& o) const;
+    void  Pick(const MapObject& o);
+    const std::map<string, double>& PickedHerbs() const { return picked; }
+    void  SetPickedHerbs(const std::map<string, double>& p) { picked = p; }
+    double GameHours() const { return clock.Day() * 24.0 + clock.Hours(); }
+    // Recipes the player has learned to brew live in the flags as "recipe:<id>".
+    bool  KnowsRecipe(const string& id) const { return Flagged("recipe:" + id); }
+
     // Gathering (Woodcutting / Mining) in progress, 0..1 for the HUD bar.
     float GatherProgress() const;
     bool  Gathering() const { return gather_index >= 0; }
@@ -202,6 +212,7 @@ private:
     vector<WorldRequest> requests;
 
     float lifesteal_bank = 0.0f;  // healing on hit, in fractions of a point
+    std::map<string, double> picked;
     int   gather_index = -1;      // index into map objects
     float gather_timer = 0.0f;
     float gather_needed = 0.0f;

@@ -53,13 +53,15 @@ struct DialogueAction {
     string open_orders;
     // Hands in every order for this NPC that the bag can fill.
     bool   hand_in = false;
+    // Teaches the brew with this id.
+    string learn_recipe;
     string skill_xp;              // skill name
     int    xp_amount = 0;
     bool   heal = false;
 
     bool Empty() const {
         return start_quest.empty() && advance_quest.empty() && give_item.empty() &&
-               take_item.empty() && open_shop.empty() && open_orders.empty() && !hand_in &&
+               take_item.empty() && open_shop.empty() && open_orders.empty() && !hand_in && learn_recipe.empty() &&
                skill_xp.empty() && !heal;
     }
 };
