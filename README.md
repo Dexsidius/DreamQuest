@@ -561,7 +561,7 @@ and every brew is worth at least 1.8 times its herbs, like anything crafted.
 The art is original. The plants (each growing and picked) and the cauldron are
 modelled in `tools/blender_props.py` and rendered with `make_props.ps1`; the
 herb, vial, potion and recipe-scroll icons are built in `tools/blender_tiers.py`
-beside the fish (`.	ools\make_tiers.ps1 -What brewing`); the kneel-and-pick
+beside the fish (`.\tools\make_tiers.ps1 -What brewing`); the kneel-and-pick
 `gather` clip is in `tools/blender_character.py`.
 
 ---
