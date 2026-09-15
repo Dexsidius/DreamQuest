@@ -174,7 +174,20 @@ bool Map::Load(const string& path) {
             portal.requires_interact= p.value("interact", true);
             portal.locked_by        = p.value("locked_by", string(""));
             portal.danger_level     = p.value("level", 0);
+            portal.min_combat       = p.value("min_combat", 0);
             portals.push_back(portal);
+        }
+
+    // ---- hazards -------------------------------------------------------------
+    if (dq.contains("hazards"))
+        for (const auto& h : dq["hazards"]) {
+            Hazard hz;
+            const json& r = h.value("rect", json::array());
+            if (r.is_array() && r.size() >= 4)
+                hz.rect = {r[0].get<float>(), r[1].get<float>(), r[2].get<float>(), r[3].get<float>()};
+            hz.dps  = h.value("dps", 4.0f);
+            hz.kind = h.value("kind", string("fire"));
+            hazards.push_back(hz);
         }
 
     // ---- spawn points --------------------------------------------------------
@@ -734,6 +747,14 @@ SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy) cons
     }
 
     return {b.x, b.y};
+}
+
+const Hazard* Map::HazardAt(const SDL_FRect& box) const {
+    for (const Hazard& h : hazards)
+        if (box.x < h.rect.x + h.rect.w && h.rect.x < box.x + box.w &&
+            box.y < h.rect.y + h.rect.h && h.rect.y < box.y + box.h)
+            return &h;
+    return nullptr;
 }
 
 const Portal* Map::PortalAt(const SDL_FRect& box) const {

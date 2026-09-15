@@ -66,6 +66,18 @@ struct Portal {
     bool   requires_interact = true;   // false = step-through
     string locked_by;        // item id needed to pass, empty when open
     int    danger_level = 0; // Combat level advised beyond it; 0 when safe
+    // Combat level needed to go through at all; 0 when anyone may. The Ice
+    // Spire and the way to the pit are closed to a character who would only
+    // die there.
+    int    min_combat = 0;
+};
+
+// Ground that hurts to stand on: lava vents, burning ash. Damage per second
+// while the player's feet are on it.
+struct Hazard {
+    SDL_FRect rect{};
+    float dps = 4.0f;
+    string kind = "fire";
 };
 
 struct EnemySpawnDef {
@@ -190,6 +202,9 @@ public:
     const vector<NpcDef>&        Npcs() const { return npcs; }
     const vector<MapObject>&     Objects() const { return objects; }
     const vector<Portal>&        Portals() const { return portals; }
+    const vector<Hazard>&        Hazards() const { return hazards; }
+    // The hazard under a box, or null.
+    const Hazard* HazardAt(const SDL_FRect& box) const;
     // Objects that are not in the file: the player's own camp. They last until
     // the map is loaded again, so the world puts them back each time.
     void AddObject(const MapObject& o) { objects.push_back(o); }
@@ -219,6 +234,7 @@ private:
     vector<SDL_FRect>    colliders;
 
     vector<Portal>        portals;
+    vector<Hazard>        hazards;
     vector<EnemySpawnDef> enemies;
     vector<NpcDef>        npcs;
     vector<MapObject>     objects;

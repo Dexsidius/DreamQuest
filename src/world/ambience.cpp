@@ -8,6 +8,8 @@ float Range(std::mt19937& rng, float lo, float hi) { return lo + (hi - lo) * Ran
 void Ambience::SetKind(const string& ambient, bool interior) {
     if (ambient == "dungeon")     kind = Kind::Dungeon;
     else if (ambient == "dream")  kind = Kind::Dream;
+    else if (ambient == "snow")   kind = Kind::Snow;
+    else if (ambient == "ash")    kind = Kind::Ash;
     else if (interior)            kind = Kind::None;
     else if (ambient == "forest") kind = Kind::Forest;
     else if (ambient == "grove")  kind = Kind::Grove;
@@ -56,6 +58,22 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.speed = Range(rng, 0.3f, 0.8f);
             m.size  = 1.0f;
             break;
+        case SNOW:
+            // Flakes on the mountain wind: slanting down, a few big and near.
+            m.color = {236, 244, 255, static_cast<Uint8>(Range(rng, 170.0f, 240.0f))};
+            m.vx    = Range(rng, -22.0f, -8.0f);
+            m.vy    = Range(rng, 26.0f, 46.0f);
+            m.speed = Range(rng, 1.0f, 2.0f);
+            m.size  = Range(rng, 1.0f, 2.2f);
+            break;
+        case EMBER:
+            // Sparks lifting off the burning ground, with grey ash drifting.
+            m.color = (rng() % 3) ? SDL_Color{255, 150, 60, 255} : SDL_Color{150, 140, 136, 200};
+            m.vx    = Range(rng, -6.0f, 6.0f);
+            m.vy    = Range(rng, -24.0f, -8.0f);
+            m.speed = Range(rng, 1.0f, 2.2f);
+            m.size  = Range(rng, 1.0f, 1.8f);
+            break;
         case WISP: {
             // Motes of dream rising out of the void: violet, rose and a pale
             // cyan, glowing and fading as they climb.
@@ -81,6 +99,8 @@ void Ambience::Populate(const SDL_FRect& view) {
         case Kind::Town:    pollen = 10; break;
         case Kind::Dungeon: dust = 44; break;
         case Kind::Dream:   break;
+        case Kind::Snow:    break;
+        case Kind::Ash:     dust = 10; break;
         case Kind::None:    break;
     }
     motes.clear();
@@ -90,6 +110,10 @@ void Ambience::Populate(const SDL_FRect& view) {
     for (int i = 0; i < dust; ++i)   motes.push_back(Make(DUST, view));
     if (kind == Kind::Dream)
         for (int i = 0; i < 60; ++i) motes.push_back(Make(WISP, view));
+    if (kind == Kind::Snow)
+        for (int i = 0; i < 90; ++i) motes.push_back(Make(SNOW, view));
+    if (kind == Kind::Ash)
+        for (int i = 0; i < 46; ++i) motes.push_back(Make(EMBER, view));
 }
 
 void Ambience::Update(float dt, const Camera& cam) {
@@ -123,6 +147,14 @@ void Ambience::Update(float dt, const Camera& cam) {
                 break;
             case WISP:
                 m.x += (m.vx + sinf(m.phase) * 6.0f) * dt;
+                m.y += m.vy * dt;
+                break;
+            case SNOW:
+                m.x += (m.vx + sinf(m.phase) * 9.0f) * dt;
+                m.y += m.vy * dt;
+                break;
+            case EMBER:
+                m.x += (m.vx + sinf(m.phase) * 7.0f) * dt;
                 m.y += m.vy * dt;
                 break;
         }
@@ -189,6 +221,15 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
                 break;
             }
+            case EMBER: {
+                const float glow = 0.6f + 0.4f * sinf(m.phase * 2.1f);
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, static_cast<Uint8>(m.color.a * glow));
+                const float s = std::max(1.0f, roundf(m.size * z));
+                const SDL_FRect q = {roundf(p.x - s / 2.0f), roundf(p.y - s / 2.0f), s, s};
+                SDL_RenderFillRect(r, &q);
+                break;
+            }
+            case SNOW:
             case POLLEN:
             case DUST: {
                 SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
@@ -208,6 +249,8 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
     else if (kind == Kind::Grove)   strength = 0.4f;
     else if (kind == Kind::Dungeon) { strength = 1.25f; tint = {0, 0, 0, 255}; }
     else if (kind == Kind::Dream)   { strength = 1.1f;  tint = {26, 8, 46, 255}; }
+    else if (kind == Kind::Snow)    { strength = 0.7f;  tint = {210, 226, 240, 255}; }
+    else if (kind == Kind::Ash)     { strength = 0.9f;  tint = {60, 12, 6, 255}; }
     if (strength <= 0.0f) return;
 
     int w = 0, h = 0;

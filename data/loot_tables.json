@@ -641,5 +641,520 @@
         "weight": 40
       }
     ]
+  },
+  "rat": {
+    "always": [],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 40
+      },
+      {
+        "item": "bones",
+        "weight": 20
+      },
+      {
+        "item": "raw_meat",
+        "weight": 15
+      },
+      {
+        "item": "coins",
+        "weight": 20,
+        "qty": [
+          2,
+          8
+        ]
+      }
+    ]
+  },
+  "spider": {
+    "always": [],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 30
+      },
+      {
+        "item": "spider_silk",
+        "weight": 35,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "coins",
+        "weight": 20,
+        "qty": [
+          3,
+          12
+        ]
+      }
+    ]
+  },
+  "broodmother": {
+    "always": [
+      {
+        "item": "spider_silk",
+        "qty": [
+          4,
+          6
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "coins",
+        "weight": 40,
+        "qty": [
+          40,
+          90
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 20
+      },
+      {
+        "item": "thread",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "copper_ring",
+        "weight": 8
+      }
+    ]
+  },
+  "lizardman": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 25
+      },
+      {
+        "item": "lizard_scale",
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "weight": 25,
+        "qty": [
+          20,
+          60
+        ]
+      },
+      {
+        "item": "bogbean",
+        "weight": 10,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "iron_ore",
+        "weight": 8,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "hide",
+        "weight": 6,
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "lizardman_chief": {
+    "always": [
+      {
+        "item": "bones"
+      },
+      {
+        "item": "lizard_scale",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "coins",
+        "weight": 40,
+        "qty": [
+          80,
+          160
+        ]
+      },
+      {
+        "item": "iron_bar",
+        "weight": 15,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "steel_longsword",
+        "weight": 6
+      },
+      {
+        "item": "fen_bitters",
+        "weight": 10
+      }
+    ]
+  },
+  "ice_troll": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 20
+      },
+      {
+        "item": "troll_hide",
+        "weight": 20
+      },
+      {
+        "item": "coins",
+        "weight": 30,
+        "qty": [
+          90,
+          220
+        ]
+      },
+      {
+        "item": "adamantium_ore",
+        "weight": 12,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 8
+      },
+      {
+        "item": "azuryte_body",
+        "weight": 3
+      },
+      {
+        "item": "cooked_salmon",
+        "weight": 8,
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "wyvern": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 15
+      },
+      {
+        "item": "wyvern_scale",
+        "weight": 22
+      },
+      {
+        "item": "coins",
+        "weight": 30,
+        "qty": [
+          160,
+          380
+        ]
+      },
+      {
+        "item": "platinum_ore",
+        "weight": 10,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "adamantium_bar",
+        "weight": 8
+      },
+      {
+        "item": "adamantium_sword",
+        "weight": 3
+      },
+      {
+        "item": "adamantium_body",
+        "weight": 2
+      }
+    ]
+  },
+  "wyvern_matriarch": {
+    "always": [
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          3,
+          5
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          600,
+          1200
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "weight": 30,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "platinum_helm",
+        "weight": 12
+      },
+      {
+        "item": "platinum_sword",
+        "weight": 8
+      },
+      {
+        "item": "diamond_ore",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ]
+  },
+  "imp": {
+    "always": [],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "weight": 35,
+        "qty": [
+          60,
+          160
+        ]
+      },
+      {
+        "item": "emberbloom",
+        "weight": 12
+      },
+      {
+        "item": "platinum_ore",
+        "weight": 8
+      },
+      {
+        "item": "demon_horn",
+        "weight": 4
+      }
+    ]
+  },
+  "demon": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "nothing",
+        "weight": 15
+      },
+      {
+        "item": "demon_horn",
+        "weight": 20
+      },
+      {
+        "item": "coins",
+        "weight": 30,
+        "qty": [
+          250,
+          550
+        ]
+      },
+      {
+        "item": "demonrite_ore",
+        "weight": 14,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 10
+      },
+      {
+        "item": "platinum_sword",
+        "weight": 3
+      },
+      {
+        "item": "demonrite_staff",
+        "weight": 1
+      }
+    ]
+  },
+  "pit_lord": {
+    "always": [
+      {
+        "item": "demon_horn",
+        "qty": [
+          3,
+          5
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          1500,
+          3000
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "demonrite_bar",
+        "weight": 30,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "demonrite_sword",
+        "weight": 10
+      },
+      {
+        "item": "demonrite_body",
+        "weight": 6
+      },
+      {
+        "item": "demonrite_staff",
+        "weight": 8
+      }
+    ]
+  },
+  "chest_peak": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          400,
+          900
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "adamantium_bar",
+        "weight": 30,
+        "qty": [
+          2,
+          3
+        ]
+      },
+      {
+        "item": "platinum_ore",
+        "weight": 25,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "wyvern_scale",
+        "weight": 20
+      },
+      {
+        "item": "moonlit_draught",
+        "weight": 10
+      }
+    ]
+  },
+  "chest_infernal": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          900,
+          2000
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "demonrite_ore",
+        "weight": 30,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 25,
+        "qty": [
+          2,
+          3
+        ]
+      },
+      {
+        "item": "demon_horn",
+        "weight": 20
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 6
+      }
+    ]
   }
 }

@@ -425,6 +425,53 @@
         }
       },
       {
+        "text": "Something wrong downstairs?",
+        "next": "cook_cellar_offer",
+        "if": {
+          "quest": "q_cellar_vermin",
+          "state": "available"
+        }
+      },
+      {
+        "text": "About the cellar.",
+        "next": "cook_cellar_waiting",
+        "if": {
+          "quest": "q_cellar_vermin",
+          "state": "active",
+          "stage": 0
+        }
+      },
+      {
+        "text": "About the cellar.",
+        "next": "cook_cellar_waiting",
+        "if": {
+          "quest": "q_cellar_vermin",
+          "state": "active",
+          "stage": 1
+        }
+      },
+      {
+        "text": "About the cellar.",
+        "next": "cook_cellar_waiting",
+        "if": {
+          "quest": "q_cellar_vermin",
+          "state": "active",
+          "stage": 2
+        }
+      },
+      {
+        "text": "The cellar is clear.",
+        "next": "cook_cellar_done",
+        "if": {
+          "quest": "q_cellar_vermin",
+          "state": "active",
+          "stage": 3
+        },
+        "action": {
+          "advance": "npc_cook"
+        }
+      },
+      {
         "text": "Can I rest here?",
         "next": "cook_rest"
       },
@@ -1827,6 +1874,53 @@
       },
       {
         "text": "Thank you.",
+        "next": "end"
+      }
+    ]
+  },
+  "cook_cellar_offer": {
+    "speaker": "Innkeeper Bess",
+    "text": "Downstairs? Don't. Rats in the grain sacks, and something with too many legs has webbed up the kegs. My boy went down for a barrel and came back up without the barrel. The hatch is behind the bar.",
+    "options": [
+      {
+        "text": "I'll clear it out.",
+        "next": "cook_cellar_accept",
+        "action": {
+          "start_quest": "q_cellar_vermin"
+        }
+      },
+      {
+        "text": "Not today.",
+        "next": "end"
+      }
+    ]
+  },
+  "cook_cellar_accept": {
+    "speaker": "Innkeeper Bess",
+    "text": "Bless you. Mind the back corner -- whatever spun those webs is the size of a dog.",
+    "options": [
+      {
+        "text": "I'll mind it.",
+        "next": "end"
+      }
+    ]
+  },
+  "cook_cellar_waiting": {
+    "speaker": "Innkeeper Bess",
+    "text": "I can still hear them down there. Scratching. The hatch is behind the bar.",
+    "options": [
+      {
+        "text": "I'm going back down.",
+        "next": "end"
+      }
+    ]
+  },
+  "cook_cellar_done": {
+    "speaker": "Innkeeper Bess",
+    "text": "Clear? The big one too? Then you're drinking free tonight, and here -- take something hot for the road.",
+    "options": [
+      {
+        "text": "Glad to help.",
         "next": "end"
       }
     ]

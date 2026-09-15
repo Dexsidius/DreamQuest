@@ -216,4 +216,6 @@ private:
     int   gather_index = -1;      // index into map objects
     float gather_timer = 0.0f;
     float gather_needed = 0.0f;
+    float hazard_timer = 0.0f;     // until the next burn from the ground underfoot
+    float gate_note_timer = 0.0f;  // so a closed way says so once, not every frame
 };

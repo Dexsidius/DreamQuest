@@ -143,6 +143,9 @@ public:
     // sword does, and the animation has to agree with that or the character is
     // still following through when the hitbox has already gone.
     float speed_scale = 1.0f;
+    // Drawn this much bigger than the sheet's own scale: a boss is the same art
+    // as its kin, only larger.
+    float size_scale = 1.0f;
 
 private:
     // Returns false when this clip has no layer stack to draw.

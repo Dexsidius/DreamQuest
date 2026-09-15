@@ -314,5 +314,366 @@
       46
     ],
     "element": "fire"
+  },
+  "rat": {
+    "name": "Cellar Rat",
+    "sprite": "rat",
+    "hp": 5,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 0,
+    "speed": 48,
+    "aggro": 110,
+    "attack_range": 22,
+    "attack_cooldown": 1.3,
+    "loot": "rat",
+    "kill_target": "rat",
+    "foot_box": [
+      -7,
+      -8,
+      14,
+      8
+    ],
+    "body_box": [
+      -10,
+      -18,
+      20,
+      18
+    ],
+    "element": "none"
+  },
+  "spider": {
+    "name": "Cellar Spider",
+    "sprite": "spider",
+    "hp": 8,
+    "attack": 3,
+    "strength": 3,
+    "defence": 2,
+    "attack_bonus": 2,
+    "strength_bonus": 2,
+    "defence_bonus": 2,
+    "speed": 50,
+    "aggro": 130,
+    "attack_range": 26,
+    "attack_cooldown": 1.4,
+    "loot": "spider",
+    "kill_target": "spider",
+    "foot_box": [
+      -10,
+      -8,
+      20,
+      8
+    ],
+    "body_box": [
+      -15,
+      -22,
+      30,
+      22
+    ],
+    "element": "earth"
+  },
+  "broodmother": {
+    "name": "Broodmother",
+    "sprite": "spider",
+    "hp": 30,
+    "attack": 6,
+    "strength": 7,
+    "defence": 5,
+    "attack_bonus": 6,
+    "strength_bonus": 6,
+    "defence_bonus": 6,
+    "speed": 44,
+    "aggro": 160,
+    "attack_range": 34,
+    "attack_cooldown": 1.6,
+    "loot": "broodmother",
+    "kill_target": "broodmother",
+    "foot_box": [
+      -14,
+      -10,
+      28,
+      10
+    ],
+    "body_box": [
+      -22,
+      -32,
+      44,
+      32
+    ],
+    "element": "earth",
+    "scale": 1.6,
+    "tint": [
+      196,
+      150,
+      214
+    ],
+    "boss": true
+  },
+  "lizardman": {
+    "name": "Lizardman",
+    "sprite": "lizardman",
+    "hp": 26,
+    "attack": 10,
+    "strength": 10,
+    "defence": 9,
+    "attack_bonus": 10,
+    "strength_bonus": 10,
+    "defence_bonus": 12,
+    "speed": 54,
+    "aggro": 190,
+    "attack_range": 36,
+    "attack_cooldown": 1.5,
+    "loot": "lizardman",
+    "kill_target": "lizardman",
+    "foot_box": [
+      -9,
+      -12,
+      18,
+      12
+    ],
+    "body_box": [
+      -13,
+      -42,
+      26,
+      42
+    ],
+    "element": "water"
+  },
+  "lizardman_chief": {
+    "name": "Lizardman Chief",
+    "sprite": "lizardman",
+    "hp": 60,
+    "attack": 14,
+    "strength": 15,
+    "defence": 13,
+    "attack_bonus": 18,
+    "strength_bonus": 18,
+    "defence_bonus": 20,
+    "speed": 52,
+    "aggro": 210,
+    "attack_range": 40,
+    "attack_cooldown": 1.6,
+    "loot": "lizardman_chief",
+    "kill_target": "lizardman",
+    "foot_box": [
+      -11,
+      -13,
+      22,
+      13
+    ],
+    "body_box": [
+      -16,
+      -50,
+      32,
+      50
+    ],
+    "element": "water",
+    "scale": 1.25,
+    "tint": [
+      230,
+      190,
+      120
+    ],
+    "boss": true
+  },
+  "ice_troll": {
+    "name": "Ice Troll",
+    "sprite": "ice_troll",
+    "hp": 70,
+    "attack": 26,
+    "strength": 29,
+    "defence": 26,
+    "attack_bonus": 24,
+    "strength_bonus": 30,
+    "defence_bonus": 28,
+    "speed": 40,
+    "aggro": 170,
+    "attack_range": 42,
+    "attack_cooldown": 2.1,
+    "loot": "ice_troll",
+    "kill_target": "ice_troll",
+    "foot_box": [
+      -14,
+      -14,
+      28,
+      14
+    ],
+    "body_box": [
+      -25,
+      -68,
+      50,
+      68
+    ],
+    "element": "water",
+    "scale": 1.15
+  },
+  "wyvern": {
+    "name": "Frost Wyvern",
+    "sprite": "wyvern",
+    "hp": 110,
+    "attack": 33,
+    "strength": 33,
+    "defence": 30,
+    "attack_bonus": 30,
+    "strength_bonus": 32,
+    "defence_bonus": 34,
+    "speed": 58,
+    "aggro": 230,
+    "attack_range": 54,
+    "attack_cooldown": 1.9,
+    "loot": "wyvern",
+    "kill_target": "wyvern",
+    "foot_box": [
+      -22,
+      -16,
+      44,
+      16
+    ],
+    "body_box": [
+      -40,
+      -80,
+      80,
+      80
+    ],
+    "element": "air",
+    "scale": 1.3
+  },
+  "wyvern_matriarch": {
+    "name": "Wyvern Matriarch",
+    "sprite": "wyvern",
+    "hp": 260,
+    "attack": 40,
+    "strength": 42,
+    "defence": 36,
+    "attack_bonus": 40,
+    "strength_bonus": 42,
+    "defence_bonus": 42,
+    "speed": 54,
+    "aggro": 260,
+    "attack_range": 62,
+    "attack_cooldown": 2.1,
+    "loot": "wyvern_matriarch",
+    "kill_target": "wyvern",
+    "foot_box": [
+      -28,
+      -18,
+      56,
+      18
+    ],
+    "body_box": [
+      -52,
+      -104,
+      104,
+      104
+    ],
+    "element": "air",
+    "scale": 1.75,
+    "tint": [
+      200,
+      230,
+      255
+    ],
+    "boss": true
+  },
+  "imp": {
+    "name": "Imp",
+    "sprite": "imp",
+    "hp": 34,
+    "attack": 30,
+    "strength": 28,
+    "defence": 26,
+    "attack_bonus": 28,
+    "strength_bonus": 26,
+    "defence_bonus": 24,
+    "speed": 70,
+    "aggro": 200,
+    "attack_range": 30,
+    "attack_cooldown": 1.2,
+    "loot": "imp",
+    "kill_target": "imp",
+    "foot_box": [
+      -7,
+      -8,
+      14,
+      8
+    ],
+    "body_box": [
+      -10,
+      -36,
+      20,
+      28
+    ],
+    "element": "fire"
+  },
+  "demon": {
+    "name": "Demon",
+    "sprite": "demon",
+    "hp": 120,
+    "attack": 40,
+    "strength": 44,
+    "defence": 38,
+    "attack_bonus": 40,
+    "strength_bonus": 44,
+    "defence_bonus": 42,
+    "speed": 50,
+    "aggro": 210,
+    "attack_range": 46,
+    "attack_cooldown": 2.0,
+    "loot": "demon",
+    "kill_target": "demon",
+    "foot_box": [
+      -14,
+      -14,
+      28,
+      14
+    ],
+    "body_box": [
+      -24,
+      -64,
+      48,
+      64
+    ],
+    "element": "fire",
+    "scale": 1.15
+  },
+  "pit_lord": {
+    "name": "The Pit Lord",
+    "sprite": "demon",
+    "hp": 420,
+    "attack": 54,
+    "strength": 58,
+    "defence": 50,
+    "attack_bonus": 52,
+    "strength_bonus": 58,
+    "defence_bonus": 54,
+    "speed": 48,
+    "aggro": 320,
+    "attack_range": 56,
+    "attack_cooldown": 2.2,
+    "loot": "pit_lord",
+    "kill_target": "pit_lord",
+    "foot_box": [
+      -18,
+      -16,
+      36,
+      16
+    ],
+    "body_box": [
+      -32,
+      -86,
+      64,
+      86
+    ],
+    "element": "fire",
+    "scale": 1.55,
+    "tint": [
+      150,
+      110,
+      190
+    ],
+    "boss": true
   }
 }

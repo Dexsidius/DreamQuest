@@ -927,6 +927,47 @@ def build_recipe_scroll(parent):
     return parts
 
 
+# --- what the monsters leave (icons) ----------------------------------------------------------
+bc.PALETTE.update({
+    "silk": (0.94, 0.94, 0.90), "silk_dk": (0.74, 0.74, 0.72),
+    "scale_green": (0.36, 0.62, 0.34), "scale_green_lt": (0.62, 0.82, 0.48),
+    "troll_hide": (0.72, 0.80, 0.86), "troll_fur": (0.93, 0.95, 0.97),
+    "wyv_scale": (0.46, 0.66, 0.86), "wyv_scale_glow": (0.66, 0.94, 1.00),
+    "horn_black": (0.22, 0.17, 0.17), "horn_tip": (0.62, 0.20, 0.14),
+})
+
+
+def build_trophy(name, parent):
+    parts = []
+    if name == "spider_silk":
+        # A skein of silk wound on itself, with a loose strand.
+        for k in range(4):
+            parts.append(bc.part("wind", bc.mesh_torus(0.13 - k * 0.018, 0.035), "silk" if k % 2 else "silk_dk", parent,
+                                 loc=(0, 0, -0.04 + k * 0.03), rot=(math.radians(70), 0, k * 0.6)))
+        parts.append(bc.spike("strand", (0.10, -0.02, 0.0), (0.24, -0.02, 0.20), 0.012, "silk", parent, r_tip=0.006))
+    elif name in ("lizard_scale", "wyvern_scale"):
+        main, light = ("scale_green", "scale_green_lt") if name == "lizard_scale" else ("wyv_scale", "wyv_scale_glow")
+        parts.append(bc.part("scale", bc.mesh_ellipsoid(0.16, 0.03, 0.22), main, parent))
+        parts.append(bc.part("ridge", bc.mesh_ellipsoid(0.03, 0.035, 0.18), light, parent, loc=(0, -0.02, 0.01)))
+        parts.append(bc.part("scale2", bc.mesh_ellipsoid(0.11, 0.025, 0.15), light, parent, loc=(0.12, 0.03, -0.10),
+                             rot=(0, 0.5, 0)))
+    elif name == "troll_hide":
+        parts.append(bc.part("hide", mesh_box(0.40, 0.04, 0.30), "troll_hide", parent, rot=(0, 0.15, 0)))
+        for k in range(5):
+            parts.append(bc.spike("fur", (-0.16 + k * 0.08, -0.03, 0.12), (-0.18 + k * 0.08, -0.03, 0.26), 0.035,
+                                  "troll_fur", parent, r_tip=0.01))
+        parts.append(bc.part("fold", mesh_box(0.40, 0.05, 0.06), "troll_fur", parent, loc=(0, -0.02, -0.12)))
+    elif name == "demon_horn":
+        pts = [(-0.18, 0, -0.20), (-0.14, 0, 0.04), (0.0, 0, 0.20), (0.18, 0, 0.18)]
+        for i in range(3):
+            parts.append(bc.spike("horn", pts[i], pts[i + 1], 0.09 - i * 0.025, "horn_black" if i < 2 else "horn_tip",
+                                  parent, r_tip=0.065 - i * 0.025))
+    return parts
+
+
+TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn"]
+
+
 HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
               "emberbloom", "moonpetal", "starlily"]
 
@@ -942,6 +983,11 @@ def brewing_icons(only=None):
         if only and name not in only:
             continue
         render_icon(name, lambda t, p, n=name: build_potion(n, p), "wood", 0, 0, 0.86)
+        count += 1
+    for name in TROPHY_ICONS:
+        if only and name not in only:
+            continue
+        render_icon(name, lambda t, p, n=name: build_trophy(n, p), "wood", 0, 0, 0.88)
         count += 1
     if not only or "recipe_scroll" in only:
         render_icon("recipe_scroll", lambda t, p: build_recipe_scroll(p), "wood", 0, 0, 0.92)

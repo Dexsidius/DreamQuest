@@ -327,4 +327,97 @@ for ($v = 0; $v -lt 3; $v++) {
     $made++
 }
 
+# --- the swamp, the peak and the pit ---------------------------------------------------
+# The Mire used to be laid from three tiles cut out of the cursed-land pack, and
+# one of them -- "marsh_dark" -- was a patch of black cliff face, so a third of
+# the swamp was a streaked black void. Generated instead, like the grass: sedge,
+# peat and mud, and bog water with ripples on it. Then the tiles for the Ice
+# Spire, the Ashen Path and the infernal dungeon below it.
+#
+# On a seed of their own, for the same reason as the setts above.
+$script:seed = 20260915
+$Size = 16
+
+# Short horizontal ripples, lighter, on a darker surface: water seen from above.
+function Add-Ripples($bmp, $base, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size
+        $y = RandInt $Size
+        $len = 2 + (RandInt 3)
+        for ($k = 0; $k -lt $len; $k++) { Set-Wrapped $bmp ($x + $k) $y (Shade $base 0.20) }
+        Set-Wrapped $bmp ($x + 1) ($y + 1) (Shade $base (-0.12))
+    }
+}
+# Long faint streaks, for ice.
+function Add-Streaks($bmp, $base, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size
+        $y = RandInt $Size
+        $len = 3 + (RandInt 5)
+        for ($k = 0; $k -lt $len; $k++) { Set-Wrapped $bmp ($x + $k) ($y + [int]($k / 3)) (Shade $base 0.35) }
+    }
+}
+# Molten rock: bright blobs in an orange field, crossed by dark crust.
+function Add-Crust($bmp, $base, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size
+        $y = RandInt $Size
+        $len = 3 + (RandInt 4)
+        $dx = if ((Rand) -lt 0.5) { 1 } else { 0 }
+        for ($k = 0; $k -lt $len; $k++) {
+            Set-Wrapped $bmp ($x + $k * $dx) ($y + $k * (1 - $dx)) ([System.Drawing.Color]::FromArgb(255, 70, 28, 20))
+        }
+    }
+    for ($i = 0; $i -lt 10; $i++) {
+        Set-Wrapped $bmp (RandInt $Size) (RandInt $Size) ([System.Drawing.Color]::FromArgb(255, 255, 200, 80))
+    }
+}
+
+$wild = @(
+    @{ name = "swamp_grass"; rgb = @(104, 118,  66); kind = "grass";  variants = 3 },
+    @{ name = "swamp_mud";   rgb = @( 92,  80,  54); kind = "earth";  variants = 3 },
+    @{ name = "peat";        rgb = @( 88,  78,  56); kind = "earth";  variants = 2 },
+    @{ name = "bog_water";   rgb = @( 56,  80,  64); kind = "water";  variants = 3 },
+    @{ name = "ice";         rgb = @(176, 208, 226); kind = "ice";    variants = 3 },
+    @{ name = "frost_rock";  rgb = @(128, 138, 150); kind = "earth";  variants = 2 },
+    @{ name = "ash";         rgb = @( 92,  84,  82); kind = "sand";   variants = 3 },
+    @{ name = "lava";        rgb = @(214,  86,  30); kind = "lava";   variants = 2 },
+    # The Ice Spire's cliffs, a step darker than its trodden track, and the
+    # cinders either side of the Ashen Path.
+    @{ name = "crag";        rgb = @( 88,  96, 110); kind = "earth";  variants = 2 },
+    @{ name = "cinder";      rgb = @( 62,  52,  50); kind = "sand";   variants = 3 }
+)
+foreach ($f in $wild) {
+    $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])
+    for ($v = 0; $v -lt $f.variants; $v++) {
+        $bmp = New-Tile $base
+        switch ($f.kind) {
+            "grass" { Add-Speckle $bmp $base 54 0.10 0.10; Add-Blades $bmp $base 11; Add-Grit $bmp $base 4 1 }
+            "earth" { Add-Speckle $bmp $base 62 0.08 0.12; Add-Grit $bmp $base 8 2 }
+            "sand"  { Add-Speckle $bmp $base 78 0.07 0.08; Add-Grit $bmp $base 3 1 }
+            "water" { Add-Speckle $bmp $base 30 0.04 0.10; Add-Ripples $bmp $base 5 }
+            "ice"   { Add-Speckle $bmp $base 40 0.08 0.06; Add-Streaks $bmp $base 3 }
+            "lava"  { Add-Speckle $bmp $base 40 0.12 0.08; Add-Crust $bmp $base 5 }
+        }
+        $name = if ($v -eq 0) { $f.name } else { "$($f.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# Thirty-two pixel masonry: the infernal dungeon's basalt with embers glowing in
+# the joints, its walls, and the flagstones of the inn's cellar.
+$Size = 32
+foreach ($t in @(@{ name = "hell_floor";      rgb = @(88, 62, 56);  mortar = @(150, 60, 28); course = 16; unit = 16; jitter = 0.22 },
+                 @{ name = "hell_floor_dark"; rgb = @(70, 50, 46);  mortar = @(120, 46, 24); course = 16; unit = 16; jitter = 0.22 },
+                 @{ name = "hell_wall";       rgb = @(62, 42, 42);  mortar = @(26, 16, 16);  course = 8;  unit = 16; jitter = 0.24 },
+                 @{ name = "cellar_floor";    rgb = @(104, 96, 86); mortar = @(62, 56, 50);  course = 16; unit = 16; jitter = 0.18 },
+                 @{ name = "cellar_floor_dark"; rgb = @(88, 80, 72); mortar = @(54, 48, 42); course = 16; unit = 16; jitter = 0.18 })) {
+    $bmp = New-Masonry 32 $t.rgb $t.mortar $t.course $t.unit $t.jitter $true "half"
+    $bmp.Save((Join-Path $tiles "$($t.name).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

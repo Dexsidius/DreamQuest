@@ -24,6 +24,7 @@
 #include <map>
 #include <algorithm>
 #include <fstream>
+#include <set>
 #include <filesystem>
 #include <random>
 
@@ -258,6 +259,17 @@ public:
     // Marks the last portal as leading somewhere a new character should not
     // wander into unwarned.
     void Danger(int combat_level) { dq["portals"].back()["level"] = combat_level; }
+    // And one that is closed outright below a Combat level.
+    void Requires(int combat_level) { dq["portals"].back()["min_combat"] = combat_level; }
+
+    // Ground that burns while it is stood on.
+    void Hazard(int x, int y, int w, int h, float dps, const string& kind = "fire") {
+        json hz;
+        hz["rect"] = json::array({x, y, w, h});
+        hz["dps"]  = dps;
+        hz["kind"] = kind;
+        dq["hazards"].push_back(hz);
+    }
 
     void Enemy(const string& type, int x, int y, int level,
                float respawn = 28.0f, float leash = 260.0f) {
@@ -621,6 +633,19 @@ static Biome BiomeAt(int cx, int cy) {
     return MEADOW;
 }
 
+// The lizardmen's camp, deep in the south of the Mire.
+static const int MIRE_CAMP_X = 13, MIRE_CAMP_Y = 80;
+
+// Open bog water in the Mire: impassable, with reeds round its edges and lily
+// pads on it. Never round anything in the Mire that has to be walked to.
+static bool BogAt(int cx, int cy) {
+    if (BiomeAt(cx, cy) != MIRE) return false;
+    const auto near = [&](int x, int y, int r) { return abs(cx - x) <= r && abs(cy - y) <= r; };
+    if (near(12, 44, 5) || near(10, 60, 4) || near(MIRE_CAMP_X, MIRE_CAMP_Y, 7) || near(10, 30, 5)) return false;
+    if (cx < 3 || cy < 3) return false;
+    return Fbm(cx * 0.16f, cy * 0.16f, 4545) > 0.64f;
+}
+
 // How high the ground stands, in levels, at a given cell.
 //
 // The shape is deliberate rather than pure noise: the land climbs steadily
@@ -694,7 +719,11 @@ static void BuildOverworld() {
                 case ROAD:      tile = VariantOf("road", cx, cy); break;
                 case TRAIL:     tile = (v > 0.55f) ? "dirt_dark" : "dirt"; break;
                 case FOOTHILLS: tile = (v > 0.62f) ? "dirt_dark" : (v > 0.34f ? "dirt" : "sand"); break;
-                case MIRE:      tile = (v > 0.6f) ? "marsh_dark" : (v > 0.32f ? "marsh_ground" : "marsh_stone"); break;
+                // Sedge and peat and mud, and pools of bog water. It was laid
+                // from a cut of the cursed-land pack that turned out to be
+                // black cliff face, so a third of the swamp was a void.
+                case MIRE:      tile = BogAt(cx, cy) ? "bog_water"
+                                     : (v > 0.62f ? "peat" : (v > 0.34f ? "swamp_grass" : "swamp_mud")); break;
                 case CURSED:    tile = (v > 0.5f) ? "cursed_ground" : "cursed_sand"; break;
                 case GREENWOOD: tile = (v > 0.55f) ? "grass_dark" : (v > 0.28f ? "grass" : "moss"); break;
                 default:        tile = (v > 0.58f) ? "grass_olive" : (v > 0.3f ? "grass" : "grass_dark"); break;
@@ -755,6 +784,8 @@ static void BuildOverworld() {
         clearing(96, 78, 3);                            // meadow chest
         clearing(114, 52, 3);                           // wood chest
         clearing(10, 60, 3);                            // mire chest
+        clearing(24, 2, 4);                             // the climb to the Ice Spire
+        clearing(OW_W - 3, 50, 4);                      // the Ashen Path
 
         m.Elevation(EL, ecols, erows, levels, ramps);
     }
@@ -762,7 +793,7 @@ static void BuildOverworld() {
     // Water is impassable; walling it off per cell is cheap and exact.
     for (int cy = 0; cy < OW_H; ++cy)
         for (int cx = 0; cx < OW_W; ++cx)
-            if (BiomeAt(cx, cy) == WATER)
+            if (BiomeAt(cx, cy) == WATER || BogAt(cx, cy))
                 m.Collision(cx * OW_CELL, cy * OW_CELL, OW_CELL, OW_CELL);
 
     // --- ground decals --------------------------------------------------------
@@ -773,6 +804,8 @@ static void BuildOverworld() {
         for (int cx = 1; cx < OW_W - 1; ++cx) {
             const Biome b = BiomeAt(cx, cy);
             if (b == WATER || b == ROAD || b == TRAIL) continue;
+            // The decals are dry dirt and grass; they read as rust stains on a bog.
+            if (b == MIRE) continue;
 
             const float r = Hash2(cx, cy, 5150);
             if (r > 0.12f) continue;
@@ -804,6 +837,8 @@ static void BuildOverworld() {
             // And either side of the Whisperwood Trail, so it reads as a path
             // cut through the trees rather than a stripe of dirt under them.
             if (OnTrail(cx, cy, 3.4f)) continue;
+            // And round the two gated ways out, north and east.
+            if ((cx >= 20 && cx <= 28 && cy <= 6) || (cx >= OW_W - 8 && cy >= 45 && cy <= 55)) continue;
 
             const float r = Hash2(cx, cy, 4242);
             const int x = cx * OW_CELL + OW_CELL / 2;
@@ -827,9 +862,21 @@ static void BuildOverworld() {
                 else if (r < 0.070f && ElevationAt(cx, cy) >= 1) PlaceRock(m, rng, rock_index++, x, y, true, 20, "coal");
                 else if (r < 0.075f && ElevationAt(cx, cy) >= 2) PlaceRock(m, rng, rock_index++, x, y, true, 30, "azuryte_ore");
             } else if (b == MIRE) {
-                if (r < 0.028f)      m.Prop("objects", Pick(kSmallTrees, rng), x, y);
-                else if (r < 0.05f)  m.Prop("objects", Pick(kFungus, rng), x, y);
-                else if (r < 0.062f) PlaceRock(m, rng, rock_index++, x, y, false, 5, "iron_ore");
+                const bool bog = BogAt(cx, cy);
+                const bool shore = !bog && (BogAt(cx + 1, cy) || BogAt(cx - 1, cy) || BogAt(cx, cy + 1) || BogAt(cx, cy - 1));
+                if (fabsf(cx - MIRE_CAMP_X) <= 6 && fabsf(cy - MIRE_CAMP_Y) <= 6) continue;
+                if (bog) {
+                    if (r < 0.14f) m.Prop("props", "lily_pads", x, y + 8);
+                } else if (shore && Hash2(cx, cy, 4343) < 0.40f) {
+                    m.Prop("props", "reeds", x, y + 4);
+                } else if (r < 0.024f) {
+                    m.Prop("props", "swamp_tree", x, y);
+                    m.Collision(x - 8, y - 8, 16, 8);
+                } else if (r < 0.042f) {
+                    m.Prop("objects", Pick(kFungus, rng), x, y);
+                } else if (r < 0.054f) {
+                    PlaceRock(m, rng, rock_index++, x, y, false, 5, "iron_ore");
+                }
             } else if (b == CURSED) {
                 if (r < 0.04f)       m.Prop("objects", Pick(kSmallRocks, rng), x, y);
                 else if (r < 0.055f) PlaceRock(m, rng, rock_index++, x, y, true, 10, "iron_ore");
@@ -850,7 +897,9 @@ static void BuildOverworld() {
         auto scenery_here = [&](int cx, int cy) { return Hash2(cx, cy, 4242) < 0.14f; };
         auto open_ground = [&](int cx, int cy) {
             const Biome b = BiomeAt(cx, cy);
-            if (b == WATER || b == ROAD || b == TRAIL) return false;
+            if (b == WATER || b == ROAD || b == TRAIL || BogAt(cx, cy)) return false;
+            if (fabsf(cx - MIRE_CAMP_X) <= 6 && fabsf(cy - MIRE_CAMP_Y) <= 6) return false;
+            if ((cx >= 20 && cx <= 28 && cy <= 6) || (cx >= OW_W - 8 && cy >= 45 && cy <= 55)) return false;
             if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) return false;   // the mine
             if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
             return !scenery_here(cx, cy);
@@ -955,7 +1004,7 @@ static void BuildOverworld() {
     for (int cy = 4; cy < OW_H - 4; cy += 3) {
         for (int cx = 4; cx < OW_W - 4; cx += 3) {
             const Biome b = BiomeAt(cx, cy);
-            if (b == WATER) continue;
+            if (b == WATER || BogAt(cx, cy)) continue;
 
             const float r = Hash2(cx, cy, 8888);
             const int x = cx * OW_CELL + 16;
@@ -977,8 +1026,10 @@ static void BuildOverworld() {
                 if (r < 0.06f)       { m.Enemy("orc1", x, y, 2); ++spawned; }
                 else if (r < 0.08f)  { m.Enemy("orc2", x, y, 4); ++spawned; }
             } else if (b == MIRE) {
-                if (r < 0.05f)       { m.Enemy("orc1", x, y, 5); ++spawned; }
-                else if (r < 0.07f)  { m.Enemy("fox", x, y, 4); ++spawned; }
+                // The swamp belongs to the lizardmen now.
+                if (fabsf(cx - MIRE_CAMP_X) <= 7 && fabsf(cy - MIRE_CAMP_Y) <= 7) continue;
+                if (r < 0.055f)      { m.Enemy("lizardman", x, y, 1 + static_cast<int>(Hash2(cx, cy, 99) * 3)); ++spawned; }
+                else if (r < 0.065f) { m.Enemy("orc1", x, y, 5); ++spawned; }
             } else if (b == CURSED) {
                 if (r < 0.09f)       { m.Enemy("orc2", x, y, 8); ++spawned; }
             }
@@ -995,6 +1046,9 @@ static void BuildOverworld() {
     const int gate_x = static_cast<int>(RoadX(86)) * OW_CELL + 16;
     const int gate_y = 88 * OW_CELL;
     m.Spawn("start", gate_x, gate_y - 40);
+    // Named, so loading the map with no spawn lands at the town gate rather
+    // than at whichever arrival sorts first alphabetically.
+    m.Spawn("default", gate_x, gate_y - 40);
     m.Spawn("from_town", gate_x, gate_y - 40);
     m.Portal(gate_x - 48, gate_y, 96, 48, "town_havenbrook", "from_field",
              "Enter Havenbrook", false);
@@ -1106,6 +1160,63 @@ static void BuildOverworld() {
         m.Portal(OW_PX_W - 24, ey - 72, 24, 144, "whisperwood_trail", "from_hollowmarch",
                  "To the Whisperwood", false);
         m.Spawn("from_whisperwood", OW_PX_W - 96, static_cast<int>(TrailY(OW_W - 4) * OW_CELL) + 16);
+    }
+
+    // --- the lizardmen's camp ------------------------------------------------------
+    // Three huts up on stilts round a fire, painted totems, and their chief.
+    {
+        const int cx0 = MIRE_CAMP_X * OW_CELL + 16, cy0 = MIRE_CAMP_Y * OW_CELL + 16;
+        for (const auto& h : {std::pair<int, int>{-112, -30}, {100, -48}, {-8, -118}}) {
+            m.Prop("props", "lizard_hut", cx0 + h.first, cy0 + h.second);
+            m.Collision(cx0 + h.first - 42, cy0 + h.second - 26, 84, 26);
+        }
+        for (const auto& t : {std::pair<int, int>{-52, 52}, {58, 40}, {140, 30}}) {
+            m.Prop("props", "lizard_totem", cx0 + t.first, cy0 + t.second);
+            m.Collision(cx0 + t.first - 7, cy0 + t.second - 7, 14, 7);
+        }
+        json& fire = m.Object("range_lizard_camp", "range", cx0 + 6, cy0 + 8);
+        fire["sprite"] = "assets/props/campfire_ring.png";
+        fire["title"]  = "Camp fire";
+        m.Collision(cx0 + 6 - 16, cy0 - 2, 32, 10);
+        m.Enemy("lizardman_chief", cx0 - 10, cy0 - 56, 3, 120.0f, 260.0f);
+        const int guards[][3] = {{-80, 20, 2}, {70, 10, 3}, {-30, 90, 2}, {110, 90, 4}, {-140, 60, 3}};
+        for (const auto& g : guards) m.Enemy("lizardman", cx0 + g[0], cy0 + g[1], g[2], 40.0f, 240.0f);
+    }
+
+    // --- the way up to the Ice Spire --------------------------------------------------
+    // North off the top of the foothills, and closed to anyone below Combat 30.
+    {
+        const int px = 24 * OW_CELL + 16;
+        m.Portal(px - 64, 0, 128, 24, "ice_spire_peak", "from_hollowmarch", "To the Ice Spire", false);
+        m.Danger(34);
+        m.Requires(30);
+        m.Spawn("from_peak", px, 76);
+        json& o = m.Object("sign_ice_spire", "sign", px + 80, 96);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "The climb north";
+        o["text"]   = "ICE SPIRE PEAK, north, up the goat track.\n\n"
+                      "Trolls on the high slopes. Wyverns nest at the summit.\n\n"
+                      "The warden's mark is cut under it: no one below Combat 30 is let past this stone.";
+        m.Collision(px + 64, 86, 32, 10);
+    }
+
+    // --- the way east to the Ashen Path -------------------------------------------------
+    // Off the east edge below the Cursed Reach, north of the Whisperwood trail,
+    // and closed below Combat 40. Not up on the Reach itself: its plateau is
+    // climbed to, and an exit has to be walkable to from the road.
+    {
+        const int ey = 50 * OW_CELL + 16;
+        m.Portal(OW_PX_W - 24, ey - 72, 24, 144, "ashen_path", "from_hollowmarch", "To the Ashen Path", false);
+        m.Danger(45);
+        m.Requires(40);
+        m.Spawn("from_ashen", OW_PX_W - 96, ey);
+        json& o = m.Object("sign_ashen_path", "sign", OW_PX_W - 150, ey - 70);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A burnt stake";
+        o["text"]   = "Somebody has burnt letters into it.\n\n"
+                      "THE ASHEN PATH. At its end, the pit.\n\n"
+                      "Do not go on unless you have fought for a long time and won: Combat 40.";
+        m.Collision(OW_PX_W - 166, ey - 80, 32, 10);
     }
 
     // A couple of chests off the road for the curious.
@@ -1507,6 +1618,54 @@ static void BuildInteriors() {
         piece("tavern_bench", 600, 398, 46, 12);
         piece("crates_sacks", 640, 250, 35, 14);
 
+        // --- the cellar hatch, behind the bar ------------------------------------------
+        m.Overlay("props", "cellar_hatch", 628, 180);
+        m.Portal(606, 160, 36, 30, "house_inn_cellar", "from_inn", "Go down to the cellar", true);
+        m.Spawn("from_cellar", 628, 222);
+
+        m.Write("maps");
+    }
+
+    // The inn's cellar: kegs and grain and something living in them.
+    {
+        const int CELL = 32, cols = 20, rows = 13;
+        MapBuilder m("house_inn_cellar", "The Inn Cellar", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Ambient("dungeon");
+        m.Subtitle("Under the Barley and Bell");
+        m.Background(16, 14, 12);
+        RoomShell(m, cols, rows, CELL, "cellar_floor", "forge_wall");
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        // The steps back up, in the corner the hatch is above.
+        m.Overlay("props", "stairs_up", 47, 164);
+        m.Portal(34, 116, 30, 16, "house_inn", "from_cellar", "Climb back up", false);
+        m.Spawn("from_inn", 48, 236);
+        m.Spawn("default", 48, 236);
+        m.Collision(64, 118, 6, 70);
+        m.Collision(32, 64, 34, 50);
+
+        piece("keg_rack",     260, 100, 62, 16);
+        piece("keg_rack",     360, 100, 62, 16);
+        piece("bottle_shelf", 470, 100, 60, 14);
+        piece("crates_sacks", 560, 106, 35, 14);
+        piece("barrel",       600, 180, 26, 10);
+        piece("barrel",       600, 220, 26, 10);
+        piece("crates_sacks", 180, 380, 35, 14);
+        piece("barrel",       300, 390, 26, 10);
+        piece("table_long",   330, 250, 88, 14);
+        for (const auto& w : {std::pair<int, int>{96, 94}, {cols * CELL - 56, 94}, {cols * CELL - 56, rows * CELL - 64},
+                              {400, rows * CELL - 64}})
+            m.Prop("props", "cobweb", w.first, w.second);
+
+        const int rats[][2] = {{180, 200}, {260, 320}, {420, 190}, {470, 330}, {150, 300}, {540, 280}};
+        for (const auto& r : rats) m.Enemy("rat", r[0], r[1], 1, 30.0f, 220.0f);
+        const int spiders[][3] = {{300, 150, 1}, {510, 160, 2}, {420, 370, 1}, {560, 360, 2}};
+        for (const auto& sp : spiders) m.Enemy("spider", sp[0], sp[1], sp[2], 40.0f, 220.0f);
+        m.Enemy("broodmother", cols * CELL - 96, rows * CELL - 90, 2, 120.0f, 260.0f);
         m.Write("maps");
     }
 
@@ -1705,7 +1864,8 @@ static void BuildDungeon(const string& id, const string& display,
                          const string& special_id, const string& special_table,
                          const string& deeper_map, const string& deeper_lock,
                          const string& boss_type = "", int boss_level = 1,
-                         const vector<std::pair<string, int>>& ores = {}) {
+                         const vector<std::pair<string, int>>& ores = {},
+                         int lava_vents = 0) {
     const int CELL = 32;
     MapBuilder m(id, display, cols * CELL, rows * CELL);
     m.Interior(true);
@@ -1750,9 +1910,37 @@ static void BuildDungeon(const string& id, const string& display,
         }
     }
 
+    // Vents of lava in the floor, in the corridors and away from the middle of
+    // each room, never in the room you walk in through: they burn while stood
+    // on, so the way through is picked, or jumped.
+    std::set<std::pair<int, int>> vents;
+    if (lava_vents > 0 && rooms.size() > 1) {
+        vector<std::pair<int, int>> spots;
+        const Room& first = rooms.front();
+        for (int cy = 1; cy < rows - 1; ++cy)
+            for (int cx = 1; cx < cols - 1; ++cx) {
+                if (!floor[cy][cx]) continue;
+                if (cx >= first.x - 3 && cx < first.x + first.w + 3 && cy >= first.y - 3 && cy < first.y + first.h + 3) continue;
+                bool centre = false;
+                for (const Room& r : rooms)
+                    if (abs(cx - (r.x + r.w / 2)) <= 1 && abs(cy - (r.y + r.h / 2)) <= 1) centre = true;
+                if (!centre) spots.push_back({cx, cy});
+            }
+        std::shuffle(spots.begin(), spots.end(), rng);
+        for (const auto& sp : spots) {
+            if (static_cast<int>(vents.size()) >= lava_vents) break;
+            bool next_to = false;
+            for (const auto& v : vents) if (abs(v.first - sp.first) <= 1 && abs(v.second - sp.second) <= 1) next_to = true;
+            if (!next_to) vents.insert(sp);
+        }
+    }
+
     for (int cy = 0; cy < rows; ++cy)
         for (int cx = 0; cx < cols; ++cx) {
-            if (floor[cy][cx]) {
+            if (vents.count({cx, cy})) {
+                m.Ground(VariantOf("lava", cx, cy), cx * CELL, cy * CELL, CELL);
+                m.Hazard(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8, 10.0f);
+            } else if (floor[cy][cx]) {
                 const float v = Fbm(cx * 0.3f, cy * 0.3f, static_cast<int>(seed));
                 m.Ground(v > 0.55f ? floor_tile : (floor_tile + "_dark"),
                          cx * CELL, cy * CELL, CELL);
@@ -1789,8 +1977,10 @@ static void BuildDungeon(const string& id, const string& display,
         const int count = 1 + static_cast<int>(rng() % 3);
         for (int k = 0; k < count && !monsters.empty(); ++k) {
             const auto& mon = monsters[rng() % monsters.size()];
-            const int x = (r.x + 1 + static_cast<int>(rng() % std::max(1, r.w - 2))) * CELL + 16;
-            const int y = (r.y + 1 + static_cast<int>(rng() % std::max(1, r.h - 2))) * CELL + 16;
+            int x = (r.x + 1 + static_cast<int>(rng() % std::max(1, r.w - 2))) * CELL + 16;
+            int y = (r.y + 1 + static_cast<int>(rng() % std::max(1, r.h - 2))) * CELL + 16;
+            // Not stood in a vent.
+            if (vents.count({x / CELL, y / CELL})) { x = (r.x + r.w / 2) * CELL + 16; y = (r.y + r.h / 2) * CELL + 16; }
             m.Enemy(mon.first, x, y, mon.second, 40.0f, 320.0f);
             ++placed;
         }
@@ -1847,6 +2037,278 @@ static void BuildDungeon(const string& id, const string& display,
             if (m.Clear(dx + t[0], dy + t[1])) { sx = dx + t[0]; sy = dy + t[1]; break; }
         m.Spawn("from_below", sx, sy);
     }
+
+    m.Write("maps");
+}
+
+// =============================================================================
+//  Ice Spire Peak
+//
+//  North out of the foothills a goat track climbs switchbacks through snow,
+//  between cliffs of frost-riven rock and spires of blue ice. Ice trolls hold
+//  the middle slopes and frost wyverns nest round the summit, where the great
+//  spire stands and the matriarch of the nests with it. A camp at the foot is
+//  a safe place to rest, cook and sleep. The track is wide, the monsters are
+//  spaced out along it and do not chase far, so it can be climbed a fight at a
+//  time -- hard, not hopeless.
+// =============================================================================
+
+namespace peak {
+static const int CELL = 32, W = 56, H = 84;
+static float PathX(float cy) { return 28.0f + sinf(cy * 0.11f) * 12.0f + sinf(cy * 0.037f + 1.0f) * 3.0f; }
+// How far a cell is from the track, in cells; the foot and the summit open out.
+static float Gap(int cx, int cy) { return fabsf(cx - PathX(static_cast<float>(cy))); }
+static float Width(int cy) {
+    float w = 7.0f;
+    if (cy > H - 12) w += (cy - (H - 12)) * 1.2f;      // the camp at the foot
+    if (cy < 12)     w += (12 - cy) * 1.0f;            // the summit
+    return w;
+}
+static bool Open(int cx, int cy) {
+    if (cx < 1 || cy < 1 || cx >= W - 1 || cy >= H) return false;
+    return Gap(cx, cy) < Width(cy) + (Fbm(cx * 0.3f, cy * 0.3f, 8484) - 0.5f) * 3.0f;
+}
+}   // namespace peak
+
+static void BuildIceSpire() {
+    using namespace peak;
+    MapBuilder m("ice_spire_peak", "Ice Spire Peak", W * CELL, H * CELL);
+    m.Ambient("snow");
+    m.Subtitle("Where the wyverns nest above the clouds");
+    m.Background(206, 220, 232);
+    std::mt19937 rng(3131u);
+    int rock_i = 0;
+
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float v = Fbm(cx * 0.2f, cy * 0.2f, 8585);
+            string tile;
+            if (!Open(cx, cy)) {
+                tile = "crag";
+                // The exit at the foot of the track stays open.
+                const bool exit = cy == H - 1 && Gap(cx, cy) < 3.0f;
+                if (!exit) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            } else if (Gap(cx, cy) < 1.4f) {
+                tile = "frost_rock";                       // the trodden track
+            } else {
+                tile = v > 0.64f ? "ice" : "snow";
+            }
+            m.Ground(VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
+        }
+
+    // The cliffs: pines and ice along their edges, so a wall of rock reads as
+    // a mountainside rather than a grey border.
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            if (Open(cx, cy)) continue;
+            const bool edge = Open(cx + 1, cy) || Open(cx - 1, cy) || Open(cx, cy + 1) || Open(cx, cy - 1);
+            const float r = Hash2(cx, cy, 8686);
+            const int x = cx * CELL + 16, y = cy * CELL + 28;
+            if (edge) {
+                if (r < 0.18f)      m.Prop("props", "ice_spire", x, y);
+                else if (r < 0.55f) m.Prop("props", "snow_pine", x, y);
+                else if (r < 0.68f) m.Prop("props", "ice_crystal", x, y);
+            } else if (r < 0.10f) {
+                m.Prop("props", "snow_pine", x, y);
+            }
+        }
+    // Crystals scattered in the snow, off the track.
+    for (int cy = 2; cy < H - 2; ++cy)
+        for (int cx = 2; cx < W - 2; ++cx) {
+            if (!Open(cx, cy) || Gap(cx, cy) < 2.5f) continue;
+            if (!Open(cx + 1, cy) || !Open(cx - 1, cy) || !Open(cx, cy + 1) || !Open(cx, cy - 1)) continue;
+            if (Hash2(cx, cy, 8787) < 0.03f) {
+                const int x = cx * CELL + 16, y = cy * CELL + 20;
+                m.Prop("props", "ice_crystal", x, y);
+                m.Collision(x - 8, y - 6, 16, 6);
+            }
+        }
+
+    // --- the camp at the foot -----------------------------------------------------
+    const int fx = static_cast<int>(PathX(static_cast<float>(H - 3)) * CELL) + 16;
+    const int fy = (H - 3) * CELL;
+    m.Portal(fx - 96, (H - 1) * CELL, 192, 32, "overworld", "from_peak", "Down to the Hollowmarch", false);
+    m.Spawn("from_hollowmarch", fx, fy);
+    m.Spawn("default", fx, fy);
+    m.Spawn("respawn", fx, fy);
+    PlaceCampsite(m, "campsite_peak", fx - 120, fy - 60);
+    m.Collision(fx - 150, fy - 76, 60, 16);
+    {
+        json& o = m.Object("range_peak", "range", fx + 110, fy - 40);
+        o["sprite"] = "assets/props/campfire_ring.png";
+        o["title"]  = "Camp fire";
+        m.Collision(fx + 94, fy - 50, 32, 10);
+        json& sign = m.Object("sign_peak_camp", "sign", fx + 60, fy - 110);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "Climbers' stone";
+        sign["text"]   = "LAST FIRE BEFORE THE SPIRE.\n\n"
+                         "Trolls from the first bend. They are slow; do not let them close.\n"
+                         "Wyverns above the frozen pools. They are not slow.\n\n"
+                         "Rest here. Go up one fight at a time.";
+        m.Collision(fx + 44, fy - 120, 32, 10);
+    }
+
+    // Monsters on and beside the track at a given height, stood on open snow.
+    const auto beside = [&](int cy, int side) {
+        for (int d = 3; d >= 0; --d) {
+            const int cx = static_cast<int>(PathX(static_cast<float>(cy))) + side * d;
+            if (Open(cx, cy) && Open(cx + 1, cy) && Open(cx - 1, cy)) return std::pair<int, int>{cx * CELL + 16, cy * CELL + 16};
+        }
+        return std::pair<int, int>{static_cast<int>(PathX(static_cast<float>(cy)) * CELL) + 16, cy * CELL + 16};
+    };
+    // Ice trolls on the middle slopes.
+    const int trolls[][3] = {{66, 1, 1}, {60, -1, 1}, {54, 1, 2}, {48, -1, 2}, {43, 1, 3}, {38, -1, 3}, {33, 1, 4}};
+    for (const auto& t : trolls) {
+        const auto [x, y] = beside(t[0], t[1]);
+        m.Enemy("ice_troll", x, y, t[2], 50.0f, 200.0f);
+    }
+    // Ore in the rock the trolls guard.
+    for (int k = 0; k < 3; ++k) {
+        const auto [x, y] = beside(58 - k * 9, k % 2 ? 1 : -1);
+        PlaceRock(m, rng, 700 + rock_i++, x + (k % 2 ? 40 : -40), y, true, 40, "adamantium_ore");
+    }
+    // Wyverns and their nests round the summit.
+    const int wyverns[][3] = {{27, -1, 1}, {22, 1, 2}, {17, -1, 3}, {13, 1, 3}, {9, -1, 4}};
+    for (const auto& wv : wyverns) {
+        const auto [x, y] = beside(wv[0], wv[1]);
+        m.Prop("props", "wyvern_nest", x + wv[1] * 56, y + 10);
+        m.Enemy("wyvern", x, y, wv[2], 60.0f, 220.0f);
+    }
+    for (int k = 0; k < 2; ++k) {
+        const auto [x, y] = beside(24 - k * 10, k % 2 ? -1 : 1);
+        PlaceRock(m, rng, 700 + rock_i++, x + (k % 2 ? -44 : 44), y - 30, true, 60, "platinum_ore");
+    }
+
+    // --- the summit ----------------------------------------------------------------
+    const int sx = static_cast<int>(PathX(4.0f) * CELL) + 16;
+    const int sy = 5 * CELL;
+    for (const auto& sp : {std::pair<int, int>{-90, -10}, {0, -40}, {96, -6}}) {
+        m.Prop("props", "ice_spire", sx + sp.first, sy + sp.second);
+        m.Collision(sx + sp.first - 30, sy + sp.second - 18, 60, 18);
+    }
+    m.Enemy("wyvern_matriarch", sx, sy + 70, 1, 300.0f, 260.0f);
+    PlaceChest(m, "chest_peak_summit", sx + 40, sy + 20, "chest_peak");
+
+    m.Write("maps");
+}
+
+// =============================================================================
+//  The Ashen Path
+//
+//  East out of the Cursed Reach the ground has burnt. A path of ash winds
+//  between charred trees and black glass, crossed three times by rivers of
+//  lava where the only way over is a scorched ford that burns to walk on.
+//  Imps haunt it, and at the end, where two demons stand guard, the hellgate
+//  opens on the Infernal Pit.
+// =============================================================================
+
+namespace ash {
+static const int CELL = 32, W = 96, H = 40;
+static float TrailY(float cx) { return 20.0f + sinf(cx * 0.07f) * 7.0f + sinf(cx * 0.023f + 2.0f) * 3.0f; }
+static float LavaX(int river, float cy) {
+    static const float kX[] = {30.0f, 57.0f, 80.0f};
+    return kX[river] + sinf(cy * 0.2f + river) * 2.0f;
+}
+static int RiverAt(int cx, int cy) {
+    for (int i = 0; i < 3; ++i)
+        if (fabsf(cx - LavaX(i, static_cast<float>(cy))) < 1.3f) return i;
+    return -1;
+}
+}   // namespace ash
+
+static void BuildAshenPath() {
+    using namespace ash;
+    MapBuilder m("ashen_path", "The Ashen Path", W * CELL, H * CELL);
+    m.Ambient("ash");
+    m.Subtitle("The burnt road to the pit");
+    m.Background(36, 22, 20);
+    std::mt19937 rng(6161u);
+
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float gap = fabsf(cy - TrailY(static_cast<float>(cx)));
+            const float v = Fbm(cx * 0.22f, cy * 0.22f, 6262);
+            string tile;
+            const int river = RiverAt(cx, cy);
+            if (river >= 0) {
+                tile = "lava";
+                if (gap < 2.4f)
+                    m.Hazard(cx * CELL, cy * CELL, CELL, CELL, 6.0f);     // the ford: passable, and it burns
+                else
+                    m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            } else if (gap < 1.4f) {
+                tile = "ash";
+            } else if (gap < 4.0f) {
+                tile = v > 0.5f ? "ash" : "cinder";
+            } else {
+                tile = v > 0.6f ? "cursed_ground" : "cinder";
+            }
+            m.Ground(VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
+
+            // The edges of the world are cliffs, open only where the path leaves.
+            const bool west_exit = cx == 0 && gap < 3.0f;
+            const bool edge = cx == 0 || cy == 0 || cy == H - 1 || cx == W - 1;
+            if (edge && !west_exit) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+
+    // Burnt trees, black glass and ember vents off the path.
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            const float gap = fabsf(cy - TrailY(static_cast<float>(cx)));
+            if (gap < 3.0f || RiverAt(cx, cy) >= 0 || RiverAt(cx + 1, cy) >= 0 || RiverAt(cx - 1, cy) >= 0) continue;
+            if (cx > W - 12 && gap < 7.0f) continue;          // the gate's forecourt
+            const float r = Hash2(cx, cy, 6363);
+            const int x = cx * CELL + 16, y = cy * CELL + 24;
+            if (r < 0.07f) {
+                m.Prop("props", "charred_tree", x, y);
+                m.Collision(x - 8, y - 8, 16, 8);
+            } else if (r < 0.12f) {
+                m.Prop("props", "obsidian_rock", x, y);
+                m.Collision(x - 10, y - 8, 20, 8);
+            } else if (r < 0.14f && gap < 6.0f) {
+                m.Ground(VariantOf("lava", cx, cy), cx * CELL, cy * CELL, CELL);
+                m.Hazard(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8, 8.0f);
+            }
+        }
+
+    // --- the way back west -----------------------------------------------------------
+    const int wy = static_cast<int>(TrailY(0.0f) * CELL) + 16;
+    m.Portal(0, wy - 72, 24, 144, "overworld", "from_ashen", "To the Hollowmarch", false);
+    m.Spawn("from_hollowmarch", 80, wy);
+    m.Spawn("default", 80, wy);
+    {
+        json& o = m.Object("sign_ashen_start", "sign", 150, wy - 70);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A scorched post";
+        o["text"]   = "Three rivers of fire cross the path ahead. Where it fords them the ground will burn "
+                      "your feet: cross quickly, or jump.\n\nAt the end, the gate. Beyond it, the pit.";
+        m.Collision(134, wy - 80, 32, 10);
+    }
+
+    // --- imps along the way, and the gate's two guards ------------------------------------
+    const int imps[][2] = {{12, 1}, {22, 1}, {36, 2}, {46, 2}, {52, 3}, {64, 3}, {72, 4}, {86, 4}};
+    for (const auto& im : imps) {
+        const int cx = im[0];
+        const int cy = static_cast<int>(TrailY(static_cast<float>(cx))) + ((cx / 10) % 2 ? 2 : -2);
+        m.Enemy("imp", cx * CELL + 16, cy * CELL + 16, im[1], 45.0f, 220.0f);
+    }
+
+    // --- the hellgate ----------------------------------------------------------------------
+    const int gcx = W - 6;
+    const int gx = gcx * CELL + 16;
+    const int gy = static_cast<int>(TrailY(static_cast<float>(gcx)) * CELL) - 8;
+    // The art is 144px, standing on its base; its glowing doorway is 34px wide
+    // at the centre and its sill 20px above the base.
+    m.Prop("props", "hellgate", gx, gy + 20);
+    m.Portal(gx - 16, gy - 34, 32, 30, "dungeon_infernal", "entrance", "Enter the Infernal Pit", true);
+    m.Danger(45);
+    m.Requires(40);
+    m.Collision(gx - 70, gy - 70, 52, 72);
+    m.Collision(gx + 18, gy - 70, 52, 72);
+    m.Collision(gx - 18, gy - 110, 36, 72);
+    m.Spawn("from_pit", gx, gy + 56);
+    m.Enemy("demon", gx - 90, gy + 60, 1, 90.0f, 200.0f);
+    m.Enemy("demon", gx + 90, gy + 60, 2, 90.0f, 200.0f);
 
     m.Write("maps");
 }
@@ -2856,6 +3318,8 @@ int main() {
     BuildFernhollow();
     BuildWoodlandInteriors();
     BuildDreamworld();
+    BuildIceSpire();
+    BuildAshenPath();
 
     BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",
                  1001u, 60, 46, 9,
@@ -2888,6 +3352,19 @@ int main() {
                  "chest_barrow_seal", "seal_barrow",
                  "", "", "", 1,
                  {{"diamond_ore", 50}, {"azuryte_ore", 30}});
+
+    // The Infernal Pit, at the end of the Ashen Path: imps and demons, lava vents
+    // in the floors, and the Pit Lord in the last room.
+    BuildDungeon("dungeon_infernal", "The Infernal Pit",
+                 6661u, 64, 50, 10,
+                 "hell_floor", "hell_wall",
+                 "ashen_path", "from_pit",
+                 {{"imp", 3}, {"imp", 5}, {"demon", 2}, {"demon", 4}},
+                 "chest_infernal", 3,
+                 "", "", "", "",
+                 "pit_lord", 1,
+                 {{"demonrite_ore", 70}, {"platinum_ore", 60}},
+                 26);
 
     std::printf("genmaps: done\n");
     return 0;

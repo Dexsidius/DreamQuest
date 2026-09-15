@@ -5,6 +5,7 @@ obj/
 *.exe
 *.x86_64
 DreamQuest.x86_64
+.claude/
 
 # --- art ---------------------------------------------------------------------
 # The art is CraftPix free content. Its licence covers using the assets in a

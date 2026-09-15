@@ -1,5 +1,57 @@
 {
     "assets":  {
+                   "tiles/ash":  {
+                                     "w":  16,
+                                     "h":  16
+                                 },
+                   "tiles/ash_1":  {
+                                       "w":  16,
+                                       "h":  16
+                                   },
+                   "tiles/ash_2":  {
+                                       "w":  16,
+                                       "h":  16
+                                   },
+                   "tiles/bog_water":  {
+                                           "w":  16,
+                                           "h":  16
+                                       },
+                   "tiles/bog_water_1":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/bog_water_2":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/cellar_floor":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/cellar_floor_dark":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "tiles/cinder":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
+                   "tiles/cinder_1":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/cinder_2":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/crag":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/crag_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
                    "tiles/cursed_ground":  {
                                                "w":  16,
                                                "h":  16
@@ -72,6 +124,14 @@
                                               "w":  32,
                                               "h":  32
                                           },
+                   "tiles/frost_rock":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/frost_rock_1":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
                    "tiles/grass":  {
                                        "w":  16,
                                        "h":  16
@@ -132,6 +192,38 @@
                                             "w":  32,
                                             "h":  32
                                         },
+                   "tiles/hell_floor":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
+                   "tiles/hell_floor_dark":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/hell_wall":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
+                   "tiles/ice":  {
+                                     "w":  16,
+                                     "h":  16
+                                 },
+                   "tiles/ice_1":  {
+                                       "w":  16,
+                                       "h":  16
+                                   },
+                   "tiles/ice_2":  {
+                                       "w":  16,
+                                       "h":  16
+                                   },
+                   "tiles/lava":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/lava_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
                    "tiles/marsh_dark":  {
                                             "w":  16,
                                             "h":  16
@@ -153,6 +245,14 @@
                                       "h":  16
                                   },
                    "tiles/moss_1":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
+                   "tiles/peat":  {
+                                      "w":  16,
+                                      "h":  16
+                                  },
+                   "tiles/peat_1":  {
                                         "w":  16,
                                         "h":  16
                                     },
@@ -216,6 +316,30 @@
                                         "w":  16,
                                         "h":  16
                                     },
+                   "tiles/swamp_grass":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/swamp_grass_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/swamp_grass_2":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/swamp_mud":  {
+                                           "w":  16,
+                                           "h":  16
+                                       },
+                   "tiles/swamp_mud_1":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/swamp_mud_2":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
                    "tiles/water":  {
                                        "w":  16,
                                        "h":  16
@@ -1140,6 +1264,10 @@
                                           "w":  48,
                                           "h":  48
                                       },
+                   "props/cellar_hatch":  {
+                                              "w":  48,
+                                              "h":  48
+                                          },
                    "props/chair":  {
                                        "w":  40,
                                        "h":  40
@@ -1148,10 +1276,18 @@
                                              "w":  44,
                                              "h":  44
                                          },
+                   "props/charred_tree":  {
+                                              "w":  72,
+                                              "h":  72
+                                          },
                    "props/coal_bin":  {
                                           "w":  44,
                                           "h":  44
                                       },
+                   "props/cobweb":  {
+                                        "w":  40,
+                                        "h":  40
+                                    },
                    "props/cottage_bookshelf":  {
                                                    "w":  64,
                                                    "h":  64
@@ -1180,6 +1316,10 @@
                                         "w":  80,
                                         "h":  80
                                     },
+                   "props/hellgate":  {
+                                          "w":  144,
+                                          "h":  144
+                                      },
                    "props/herb_bogbean":  {
                                               "w":  40,
                                               "h":  40
@@ -1260,6 +1400,14 @@
                                                    "w":  168,
                                                    "h":  168
                                                },
+                   "props/ice_crystal":  {
+                                             "w":  40,
+                                             "h":  40
+                                         },
+                   "props/ice_spire":  {
+                                           "w":  112,
+                                           "h":  112
+                                       },
                    "props/ingot_crate":  {
                                              "w":  44,
                                              "h":  44
@@ -1284,6 +1432,18 @@
                                          "w":  56,
                                          "h":  56
                                      },
+                   "props/lily_pads":  {
+                                           "w":  40,
+                                           "h":  40
+                                       },
+                   "props/lizard_hut":  {
+                                            "w":  128,
+                                            "h":  128
+                                        },
+                   "props/lizard_totem":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
                    "props/log_pile":  {
                                           "w":  48,
                                           "h":  48
@@ -1304,6 +1464,10 @@
                                             "w":  32,
                                             "h":  32
                                         },
+                   "props/obsidian_rock":  {
+                                               "w":  40,
+                                               "h":  40
+                                           },
                    "props/palisade":  {
                                           "w":  64,
                                           "h":  64
@@ -1312,6 +1476,10 @@
                                                "w":  56,
                                                "h":  56
                                            },
+                   "props/reeds":  {
+                                       "w":  48,
+                                       "h":  48
+                                   },
                    "props/room_door":  {
                                            "w":  56,
                                            "h":  56
@@ -1328,6 +1496,10 @@
                                           "w":  56,
                                           "h":  56
                                       },
+                   "props/snow_pine":  {
+                                           "w":  80,
+                                           "h":  80
+                                       },
                    "props/spinning_wheel":  {
                                                 "w":  56,
                                                 "h":  56
@@ -1344,6 +1516,10 @@
                                            "w":  44,
                                            "h":  44
                                        },
+                   "props/swamp_tree":  {
+                                            "w":  72,
+                                            "h":  72
+                                        },
                    "props/table_long":  {
                                             "w":  96,
                                             "h":  96
@@ -1404,6 +1580,10 @@
                                               "w":  64,
                                               "h":  64
                                           },
+                   "props/wyvern_nest":  {
+                                             "w":  72,
+                                             "h":  72
+                                         },
                    "icons/armour/acolyte_robe":  {
                                                      "w":  64,
                                                      "h":  64,

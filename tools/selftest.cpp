@@ -60,6 +60,7 @@ static const char* kMaps[] = {
     "whisperwood_trail", "mossvale", "fernhollow",
     "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage",
     "dreamworld",
+    "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
 };
 
 int main(int argc, char** argv) {
@@ -433,7 +434,8 @@ int main(int argc, char** argv) {
     for (const char* id : {"overworld", "town_havenbrook",
                            "house_smith", "guild_hall", "house_elder", "house_inn",
                            "house_inn_upper", "mossvale_lodge_hall", "mossvale_herbalist",
-                           "fernhollow_cottage", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld"}) {
+                           "fernhollow_cottage", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld",
+                           "house_inn_cellar", "ice_spire_peak", "ashen_path"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -3630,6 +3632,239 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("monsters and the new places");
+    {
+        // --- the monsters -----------------------------------------------------------------
+        const char* kNew[] = {"rat", "spider", "broodmother", "lizardman", "lizardman_chief", "ice_troll",
+                              "wyvern", "wyvern_matriarch", "imp", "demon", "pit_lord"};
+        for (const char* id : kNew) {
+            const EnemyDef* d = enemy_db.Get(id);
+            Check(d != nullptr, string(id) + " is a monster");
+            if (!d) continue;
+            const SpriteDef* sd = sprites.Get(d->sprite);
+            Check(sd != nullptr, string(id) + " has its sprite '" + d->sprite + "'");
+            if (sd)
+                for (const char* clip : {"idle", "walk", "attack", "hurt", "death"})
+                    Check(sd->Find(clip) != nullptr, string(id) + " has a " + clip + " clip");
+            Check(!d->loot_table.empty() && loot.Has(d->loot_table), string(id) + " drops from table '" + d->loot_table + "'");
+        }
+        for (const char* art : {"rat", "spider", "lizardman", "ice_troll", "wyvern", "demon", "imp"})
+            for (const char* clip : {"idle", "walk", "attack", "hurt", "death"})
+                Check(fs::exists(string("assets/characters/") + art + "/" + clip + ".png"),
+                      string(art) + " " + clip + " sheet is drawn");
+
+        // Where each is found, and at what level: every place is harder than the one before it.
+        const auto effective = [&](const string& type, int level) {
+            const EnemyDef* d = enemy_db.Get(type);
+            return d ? d->attack_level + level - 1 : 0;
+        };
+        std::map<string, std::pair<int, int>> range;   // map -> strongest, weakest effective level
+        std::map<string, std::set<string>> types;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                types[id].insert(e.type);
+                if (string(id) == "overworld" && e.x < 34 * 32 && e.type.rfind("lizardman", 0) == 0) types["mire"].insert(e.type);
+                const int lv = effective(e.type, e.level);
+                auto& rg = range[id];
+                rg.first = std::max(rg.first, lv);
+                rg.second = rg.second == 0 ? lv : std::min(rg.second, lv);
+                if (std::find_if(std::begin(kNew), std::end(kNew), [&](const char* n) { return e.type == n; }) != std::end(kNew))
+                    Check(!m.Blocked({e.x - 6.0f, e.y - 6.0f, 12.0f, 6.0f}), string(id) + " " + e.type + " is not spawned inside a wall");
+            }
+        }
+        int lizardmen = 0;
+        {
+            Map ow;
+            ow.Load("maps/overworld.mx");
+            for (const EnemySpawnDef& e : ow.Enemies()) if (e.type == "lizardman" || e.type == "lizardman_chief") ++lizardmen;
+        }
+        Check(lizardmen >= 10 && types["mire"].count("lizardman_chief"), "lizardmen and their chief hold the Mire (" + std::to_string(lizardmen) + ")");
+        Check(types["house_inn_cellar"].count("rat") && types["house_inn_cellar"].count("spider") &&
+              types["house_inn_cellar"].count("broodmother"), "rats, spiders and a broodmother are in the inn's cellar");
+        Check(types["ice_spire_peak"].count("ice_troll") && types["ice_spire_peak"].count("wyvern") &&
+              types["ice_spire_peak"].count("wyvern_matriarch"), "ice trolls and wyverns are on the Ice Spire");
+        Check(types["ashen_path"].count("imp") && types["dungeon_infernal"].count("demon") &&
+              types["dungeon_infernal"].count("pit_lord"), "imps on the Ashen Path, demons and the Pit Lord in the pit");
+        Check(range["house_inn_cellar"].first <= 8, "the cellar is a beginner's fight (up to " + std::to_string(range["house_inn_cellar"].first) + ")");
+        Check(range["ice_spire_peak"].second >= 24 && range["ice_spire_peak"].first <= 42,
+              "the Ice Spire's monsters stand between 24 and 42 (" + std::to_string(range["ice_spire_peak"].second) + "-" +
+              std::to_string(range["ice_spire_peak"].first) + ")");
+        Check(range["dungeon_infernal"].second > range["ice_spire_peak"].second, "the pit is harder than the peak");
+
+        // --- the swamp ----------------------------------------------------------------------
+        {
+            std::ifstream in("maps/overworld.mx");
+            json mx;
+            in >> mx;
+            Check(!mx["tiles"].contains("marsh_dark") && !mx["tiles"].contains("marsh_stone"),
+                  "the black cliff tile cut from the cursed-land pack is gone from the Mire");
+            int bog = 0, sedge = 0;
+            for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it) {
+                if (it.key().rfind("bog_water", 0) == 0) bog += static_cast<int>(it.value()["locations"].size());
+                if (it.key().rfind("swamp_", 0) == 0 || it.key().rfind("peat", 0) == 0) sedge += static_cast<int>(it.value()["locations"].size());
+            }
+            Check(bog > 40 && sedge > 400, "the Mire is sedge, peat and mud with pools of bog water (" + std::to_string(bog) +
+                  " pool cells)");
+            for (const char* prop : {"reeds", "lily_pads", "swamp_tree", "lizard_hut", "lizard_totem"})
+                Check(mx["tiles"].contains(prop), string("the swamp has ") + prop);
+        }
+
+        // --- the ways in ----------------------------------------------------------------------
+        // Copies, so they outlive the map they were read from.
+        std::map<string, Portal> found;
+        const auto portal_to = [&](const string& from, const string& to) -> const Portal* {
+            Map m;
+            m.Load("maps/" + from + ".mx");
+            for (const Portal& p : m.Portals())
+                if (p.target_map == to) { found[from + ">" + to] = p; return &found[from + ">" + to]; }
+            return nullptr;
+        };
+        {
+            const Portal* up = portal_to("overworld", "ice_spire_peak");
+            Check(up && up->min_combat >= 30, "the way to the Ice Spire is closed below Combat 30");
+            const Portal* east = portal_to("overworld", "ashen_path");
+            Check(east && east->min_combat >= 40, "the Ashen Path is closed below Combat 40");
+            const Portal* gate = portal_to("ashen_path", "dungeon_infernal");
+            Check(gate && gate->min_combat >= 40 && gate->requires_interact, "the pit is entered through the hellgate at the Ashen Path's end");
+            Check(portal_to("house_inn", "house_inn_cellar") != nullptr && portal_to("house_inn_cellar", "house_inn") != nullptr,
+                  "the inn has a hatch down to its cellar, and steps back up");
+            Check(portal_to("dungeon_infernal", "ashen_path") != nullptr, "the pit leads back out to the Ashen Path");
+        }
+
+        Input input;
+        std::mt19937 rng(66);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+
+        // A gated edge turns a beginner back and lets a veteran through.
+        {
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            w.LoadMap("overworld", "from_peak", ctx);
+            w.enemies.clear();
+            frames(w, 90);
+            const Portal* up = nullptr;
+            for (const Portal& p : w.CurrentMap().Portals()) if (p.target_map == "ice_spire_peak") up = &p;
+            if (up) {
+                w.player.x = up->rect.x + up->rect.w / 2.0f;
+                w.player.y = up->rect.y + up->rect.h - 2.0f;
+                frames(w, 120);
+                Check(w.MapId() == "overworld", "a new character walking into the Ice Spire's path stays in the Hollowmarch");
+                World v;
+                v.player = Player();
+                v.player.Init(ctx, "player_hero");
+                LevelUp lu;
+                for (int sk : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE, SKILL_HITPOINTS})
+                    v.player.skills.AddXp(sk, XpForLevel(40), lu);
+                v.LoadMap("overworld", "from_peak", ctx);
+                v.enemies.clear();
+                frames(v, 90);
+                v.player.x = up->rect.x + up->rect.w / 2.0f;
+                v.player.y = up->rect.y + up->rect.h - 2.0f;
+                frames(v, 240);
+                Check(v.MapId() == "ice_spire_peak", "a Combat " + std::to_string(v.player.skills.CombatLevel()) +
+                      " character walks on up to the Ice Spire (" + v.MapId() + ")");
+            }
+        }
+
+        // Lava burns.
+        {
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+            w.player.Rest();
+            Check(w.LoadMap("dungeon_infernal", "", ctx), "the Infernal Pit loads");
+            w.enemies.clear();
+            const auto& hz = w.CurrentMap().Hazards();
+            Check(hz.size() >= 12, "the pit's floors have lava vents in them (" + std::to_string(hz.size()) + ")");
+            if (!hz.empty()) {
+                const int before = w.player.hp;
+                w.player.x = hz[0].rect.x + hz[0].rect.w / 2.0f;
+                w.player.y = hz[0].rect.y + hz[0].rect.h / 2.0f + 4.0f;
+                frames(w, 70);
+                Check(w.player.hp < before, "standing in a vent burns (" + std::to_string(before) + " to " + std::to_string(w.player.hp) + ")");
+                const int burnt = w.player.hp;
+                w.player.x = hz[0].rect.x - 80.0f;
+                bool moved = !w.CurrentMap().Blocked(w.player.Bounds());
+                if (moved) {
+                    frames(w, 70);
+                    Check(w.player.hp >= burnt, "and stepping off it stops the burning");
+                }
+            }
+            Map path;
+            path.Load("maps/ashen_path.mx");
+            Check(path.Hazards().size() >= 6, "the Ashen Path's lava fords burn to cross");
+        }
+
+        // --- the cellar quest, played through the world --------------------------------------
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Check(log.CanStart("q_cellar_vermin", sk), "a new character can take the cellar quest from Bess");
+            log.Start("q_cellar_vermin");
+            ctx.quests = &log;
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            LevelUp lu;
+            for (int s2 : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE, SKILL_HITPOINTS})
+                w.player.skills.AddXp(s2, XpForLevel(30), lu);
+            w.player.Rest();
+            Check(w.LoadMap("house_inn_cellar", "from_inn", ctx), "the cellar loads");
+            // Kill everything down there the way the world does it: through the quest events it raises.
+            int rats = 0, spiders = 0, brood = 0;
+            for (auto& e : w.enemies) {
+                const string t = e->Def() ? e->Def()->kill_target : "";
+                QuestEvent k;
+                k.type = ObjectiveType::Kill;
+                k.target = t;
+                k.map_id = "house_inn_cellar";
+                log.Notify(k, w.player.inventory);
+                rats += t == "rat"; spiders += t == "spider"; brood += t == "broodmother";
+            }
+            Check(rats >= 6 && spiders >= 4 && brood == 1, "the cellar holds enough to finish it (" + std::to_string(rats) +
+                  " rats, " + std::to_string(spiders) + " spiders)");
+            // Rats counted before spiders are due do not count twice; kill the rest in order.
+            for (int round = 0; round < 3; ++round)
+                for (auto& e : w.enemies) {
+                    QuestEvent k;
+                    k.type = ObjectiveType::Kill;
+                    k.target = e->Def() ? e->Def()->kill_target : "";
+                    k.map_id = "house_inn_cellar";
+                    log.Notify(k, w.player.inventory);
+                }
+            Check(log.IsActive("q_cellar_vermin") && log.Stage("q_cellar_vermin") == 3, "clearing the cellar leaves Bess to tell");
+            QuestEvent rat_elsewhere;
+            rat_elsewhere.type = ObjectiveType::Kill;
+            rat_elsewhere.target = "rat";
+            rat_elsewhere.map_id = "overworld";
+            QuestLog fresh;
+            fresh.LoadDefinitions("data/quests.json");
+            fresh.Start("q_cellar_vermin");
+            for (int i = 0; i < 10; ++i) fresh.Notify(rat_elsewhere, w.player.inventory);
+            Check(fresh.Counter("q_cellar_vermin") == 0, "rats anywhere else do not count");
+            QuestEvent talk;
+            talk.type = ObjectiveType::Talk;
+            talk.target = "npc_cook";
+            log.Notify(talk, w.player.inventory);
+            Check(log.IsComplete("q_cellar_vermin"), "and telling her finishes it");
+            ctx.quests = &quests;
+        }
+    }
+
     Section("smithing, foraging and brewing");
     {
         // --- the skills -----------------------------------------------------------------------
@@ -3727,7 +3962,7 @@ int main(int argc, char** argv) {
                 bool ok = false;
                 if (o.yield == "marigold")      ok = has(cx, cy, "grass") || has(cx, cy, "moss");
                 if (o.yield == "nettle")        ok = has(cx, cy, "grass") || has(cx, cy, "moss");
-                if (o.yield == "bogbean")       ok = has(cx, cy, "marsh");
+                if (o.yield == "bogbean")       ok = has(cx, cy, "swamp") || has(cx, cy, "peat");
                 if (o.yield == "mountain_sage") ok = has(cx, cy, "dirt") || has(cx, cy, "sand");
                 if (o.yield == "emberbloom")    ok = has(cx, cy, "cursed");
                 if (o.yield == "brookmint")     ok = near_water(cx, cy);
@@ -4304,6 +4539,15 @@ int main(int argc, char** argv) {
                     {"fernhollow_cottage", "ferry_cottage", 256, 235, 1.5f},
                     {"town_havenbrook", "havenbrook_store", 1090, 870, 2},
                     {"overworld", "emberfell_entrance", 2128, 300, 2},
+                    {"overworld", "mire_bogs", 420, 1000, 1.5f},
+                    {"overworld", "lizard_camp", 430, 2540, 1.5f},
+                    {"house_inn_cellar", "inn_cellar", 330, 230, 1.5f},
+                    {"ice_spire_peak", "peak_camp", 1028, 2480, 1.5f},
+                    {"ice_spire_peak", "peak_slopes", 650, 1600, 1.5f},
+                    {"ice_spire_peak", "peak_summit", 1190, 300, 1.5f},
+                    {"ashen_path", "ashen_ford", 976, 860, 1.5f},
+                    {"ashen_path", "ashen_gate", 2896, 540, 1.5f},
+                    {"dungeon_infernal", "infernal_pit", 592, 1040, 1.5f},
                     {"house_smith", "halda_forge", 288, 200, 1.5f},
                     {"mossvale", "mossvale_pell", 700, 930, 2},
                     {"mossvale", "mossvale_smith", 1540, 840, 2},

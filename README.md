@@ -1173,6 +1173,9 @@ Quests reach you three ways, all of them live:
 
 - **The mission board** in Havenbrook — four contracts, gated on level and on
   what you have already finished, plus the day's two daily notices.
+- **Innkeeper Bess** has something living in her cellar: *Rats in the Cellar* sends
+  a new character down the hatch behind the bar to kill six rats, four spiders and
+  the broodmother, and back up to tell her.
 - **NPC conversations** — Elder Maren runs the main chain (a letter, a missing
   surveyor, and what is gathering the orcs under Emberfell). The innkeeper,
   the smith, the watchman and the hunter have their own.
@@ -1337,6 +1340,10 @@ with the Whisperwood trail leaving from the east.
 | `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
 | `dreamworld` | The Reverie, reached only by sleeping: five cloud islands over the void |
+| `house_inn_cellar` | Under the Barley and Bell, down a hatch behind the bar: rats, spiders and a broodmother |
+| `ice_spire_peak` | North off the foothills, Combat 30: a climb through trolls to the wyverns' summit |
+| `ashen_path` | East off the Hollowmarch below the Cursed Reach, Combat 40: a burnt road across rivers of lava |
+| `dungeon_infernal` | The Infernal Pit, through the hellgate at the Ashen Path's end: imps, demons and the Pit Lord |
 
 ### The Whisperwood
 
@@ -1390,6 +1397,82 @@ Whisperwood.
 Maps are big enough to grow: the base layer is bucketed into chunks and culled
 against the camera, so adding another biome costs load time and nothing else.
 
+### The Mire
+
+The swamp in the west of the Hollowmarch was laid from three tiles cut out of
+the cursed-land pack, and one of them, `marsh_dark`, turned out to be a patch of
+black cliff face: a third of the Mire was a streaked black void with rust-coloured
+dirt decals on it. It is generated ground now (`tools/make_ground.ps1`) -- sedge,
+peat and mud -- with **pools of bog water** that cannot be walked through, reeds
+and bulrushes round their edges, lily pads on them, and drowned trees hung with
+moss. The dirt decals are no longer laid on it. The pools keep clear of the
+barrow, the chest, the bogbean patch and the camp.
+
+The Mire belongs to the **lizardmen**. They are scattered through it, and in its
+south their camp stands round a fire: three huts up on stilts, painted totems,
+and their chief.
+
+## Monsters
+
+| Monster | Where | Effective level | Leaves |
+| --- | --- | --- | --- |
+| Cellar Rat | the inn's cellar | 1 | bones, raw meat, a few coins |
+| Cellar Spider | the inn's cellar | 3-4 | spider silk |
+| Broodmother | the back of the inn's cellar | 7 | silk, coins, a tonic or a copper ring |
+| Lizardman | the Mire | 10-13 | lizard scales, bogbean, iron ore, hides |
+| Lizardman Chief | the camp in the Mire | 16 | scales, iron bars, a steel sword, Fen Bitters |
+| Ice Troll | the Ice Spire's slopes | 26-29 | troll hide, adamantium ore, azuryte gear |
+| Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, adamantium gear |
+| Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
+| Imp | the Ashen Path and the pit | 30-34 | coins, emberbloom, platinum ore, the odd horn |
+| Demon | the hellgate and the pit | 40-43 | demon horns, demonrite ore, platinum gear |
+| The Pit Lord | the pit's last room | 54 | horns, demonrite bars and gear |
+
+Each place is a step up from the one before, and none is a wall: monsters in the
+new areas are spaced along the way, do not chase far, and the Ice Spire has a camp
+at its foot to rest, cook and sleep at. The drops trade: Ivo buys silk, scales and
+hides, and the Collector in the Reverie pays best for trophies.
+
+The **ways in** to the harder places are closed until a character could survive
+them. A portal can carry `min_combat`: below it, the prompt says "needs Combat 30"
+and a step-through edge turns the player back with a message rather than letting
+them in to die. The Ice Spire needs Combat 30, the Ashen Path and the hellgate
+Combat 40.
+
+**Hazards.** A map can carry `hazards`: ground that burns while it is stood on,
+a bite every half second with the number over the player's head. The Ashen Path
+is crossed three times by rivers of lava, fordable only where the path crosses
+them, and those fords burn; the Infernal Pit has lava vents in its corridors.
+Jumping over a vent is safe.
+
+A monster's `scale` in `data/enemies.json` now actually draws it bigger -- it was
+read and never used -- so a broodmother, a chief, the matriarch and the Pit Lord
+are the same art as their kin, only larger and tinted.
+
+### The art
+
+Every new monster is original, modelled and animated in
+`tools/blender_creatures.py` (`.\tools\make_creatures.ps1 [-Only wyvern]`) from the
+hero's parts, cel shading and reduction: a small tree of joints per creature with
+rounded meshes hung on them, and an idle, walk, attack, hurt and death clip each,
+four facings, the shadow composited in. Frames are sized per creature at the
+hero's scale -- 48px for a rat, spider or imp, 64 for a lizardman, 80 for a troll
+or demon, 112 for a wyvern -- with the feet the same fraction of the way down the
+frame, so `data/sprites.json`'s anchor stands them on their position.
+
+Two things worth knowing before adding one. About a joint's X axis a positive
+pitch leans a limb built upward *forward* and swings a hanging one *back*; the
+first wyvern had its neck and tail the wrong way round and read as a sitting
+blob. And from this camera, anything behind a head draws above it on screen: the
+first ice troll's mane hid its face.
+
+The swamp, peak and pit props -- reeds, lily pads, swamp trees, stilt huts,
+totems, ice spires and crystals, snowy pines, wyvern nests, charred trees,
+obsidian, the hellgate, the cellar hatch and cobwebs -- are in
+`tools/blender_props.py`; the drops' icons in `tools/blender_tiers.py`. The peak
+has falling snow and a hard wind, and the Ashen Path rising embers, as their own
+kinds of ambience.
+
 ---
 
 ## Level editor integration
@@ -1441,7 +1524,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **9437 checks** covering:
+and checks all of it — currently **9917 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1482,7 +1565,20 @@ and checks all of it — currently **9437 checks** covering:
   survives a save and comes back at dawn; gated stock appears once its quest is
   done; selling pays and refuses what a trader does not deal in; choosing a
   trader's trade line closes the conversation and opens their shop
-- all seventeen maps load; portals point at real maps; every enemy, NPC and object
+- monsters and the new places: every new monster has its sprite, all five clips
+  drawn and a loot table; lizardmen and their chief hold the Mire, rats, spiders
+  and the broodmother the cellar, trolls, wyverns and the matriarch the Ice Spire,
+  imps the Ashen Path and demons and the Pit Lord the pit, none spawned inside a
+  wall, with the cellar a beginner's fight, the peak between 24 and 42 and the pit
+  harder still; the Mire has no black cliff tile, and is sedge, peat and mud with
+  bog pools, reeds, lily pads, drowned trees, huts and totems; the Ice Spire is
+  closed below Combat 30 and the Ashen Path and the hellgate below 40, and in the
+  world a new character walking into the Ice Spire's path stays in the Hollowmarch
+  while a veteran walks on up; the pit has lava vents that burn to stand in and
+  the Ashen Path fords that burn to cross; the cellar quest can be taken, is
+  finished by the cellar's own rats, spiders and broodmother but not by rats
+  anywhere else, and by telling Bess
+- all twenty-one maps load; portals point at real maps; every enemy, NPC and object
   resolves
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest

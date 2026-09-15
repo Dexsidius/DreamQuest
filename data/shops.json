@@ -169,7 +169,8 @@
         "bow": 0.75,
         "leather": 0.7,
         "bones": 0.6,
-        "raw": 0.5
+        "raw": 0.5,
+        "trophy": 0.6
       },
       "sells": [
         {
@@ -566,7 +567,8 @@
         "gem": 0.8,
         "tier:demonrite": 0.8,
         "jewellery": 0.7,
-        "potion": 0.6
+        "potion": 0.6,
+        "trophy": 0.85
       },
       "sells": [
         {

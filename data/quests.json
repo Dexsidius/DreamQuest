@@ -1466,5 +1466,56 @@
       "coins": 108
     },
     "completion": "\"Crisp. Mine are always charcoal.\""
+  },
+  "q_cellar_vermin": {
+    "name": "Rats in the Cellar",
+    "source": "npc",
+    "giver": "npc_cook",
+    "level": 2,
+    "summary": "Something has moved into the inn's cellar: rats in the grain and spiders in the kegs. Bess wants it cleared out.",
+    "stages": [
+      {
+        "desc": "Kill 6 rats in the inn's cellar",
+        "type": "kill",
+        "target": "rat",
+        "map": "house_inn_cellar",
+        "count": 6
+      },
+      {
+        "desc": "Kill 4 cellar spiders",
+        "type": "kill",
+        "target": "spider",
+        "map": "house_inn_cellar",
+        "count": 4
+      },
+      {
+        "desc": "Kill the Broodmother in the back of the cellar",
+        "type": "kill",
+        "target": "broodmother",
+        "map": "house_inn_cellar",
+        "count": 1
+      },
+      {
+        "desc": "Tell Innkeeper Bess the cellar is clear",
+        "type": "talk",
+        "target": "npc_cook"
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 250,
+        "Strength": 250,
+        "Defence": 150,
+        "Hitpoints": 120
+      },
+      "coins": 150,
+      "items": [
+        {
+          "id": "cooked_boar",
+          "qty": 3
+        }
+      ]
+    },
+    "completion": "Bess pours you a drink on the house, and says she will be sweeping webs for a week."
   }
 }

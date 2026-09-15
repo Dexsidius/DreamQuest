@@ -12,6 +12,7 @@ static constexpr float FADE_SPEED     = 3.2f;
 // such as the mission board keeps them ~45px from its centre, so a tighter
 // radius would leave them unable to use something they are leaning on.
 static constexpr float INTERACT_RANGE = 58.0f;
+static constexpr float HAZARD_TICK = 0.5f;
 static constexpr float PICKUP_RANGE   = 18.0f;
 static constexpr float PICKUP_ARM     = 0.35f;   // no instant re-collect
 
@@ -419,6 +420,28 @@ void World::Update(float dt, const GameContext& ctx) {
         }
     }
 
+    if (gate_note_timer > 0.0f) gate_note_timer -= dt;
+
+    // --- hazards --------------------------------------------------------------
+    // Standing on lava or burning ground takes a bite every half second, a
+    // number over the head and a flash, so it is felt rather than noticed on
+    // the health bar afterwards. Jumping over it is safe.
+    if (!player.IsDead() && !transition_pending && !player.IsJumping()) {
+        const Hazard* h = map.HazardAt(player.Bounds());
+        if (h) {
+            hazard_timer -= dt;
+            if (hazard_timer <= 0.0f) {
+                hazard_timer = HAZARD_TICK;
+                const int dmg = std::max(1, static_cast<int>(std::lround(h->dps * HAZARD_TICK)));
+                player.Damage(dmg);
+                player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+                AddText(std::to_string(dmg), player.x, player.y - 44.0f, {255, 140, 60, 255});
+            }
+        } else {
+            hazard_timer = 0.0f;
+        }
+    }
+
     if (!player.IsDead()) {
         ApplyPlayerAttack(ctx);
         ResolveInteractTarget(ctx);
@@ -446,8 +469,17 @@ void World::Update(float dt, const GameContext& ctx) {
         if (!transition_pending && portals_armed) {
             if (const Portal* p = map.PortalAt(player.Bounds()))
                 if (!p->requires_interact && p->locked_by.empty()) {
-                    RequestTransition(p->target_map, p->target_spawn);
-                    Audio::Play(Sfx::Portal);
+                    if (p->min_combat > player.skills.CombatLevel()) {
+                        if (gate_note_timer <= 0.0f) {
+                            AddText("Too dangerous for you yet: Combat " + std::to_string(p->min_combat) + " needed.",
+                                    player.x, player.y - 52.0f, {255, 150, 150, 255}, 2.2f);
+                            Audio::Play(Sfx::Locked);
+                            gate_note_timer = 2.5f;
+                        }
+                    } else {
+                        RequestTransition(p->target_map, p->target_spawn);
+                        Audio::Play(Sfx::Portal);
+                    }
                 }
         }
     } else {
@@ -838,7 +870,9 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             // Say so at the door when what is inside outclasses the player; the
             // mine used to be found out about by dying in its first room.
             string label = p->label;
-            if (p->danger_level > player.skills.CombatLevel())
+            if (p->min_combat > player.skills.CombatLevel())
+                label += "  -  needs Combat " + std::to_string(p->min_combat);
+            else if (p->danger_level > player.skills.CombatLevel())
                 label += "  -  dangerous: Combat " + std::to_string(p->danger_level) + " advised";
             consider(InteractTarget::PortalDoor, 0, label, cx, cy);
         }
@@ -1005,6 +1039,12 @@ void World::TryInteract(const GameContext& ctx) {
             if (!p) break;
             if (!p->locked_by.empty() && !player.inventory.Has(p->locked_by)) {
                 AddText("It is locked.", player.x, player.y - 52.0f, {255, 150, 150, 255});
+                Audio::Play(Sfx::Locked);
+                break;
+            }
+            if (p->min_combat > player.skills.CombatLevel()) {
+                AddText("Too dangerous for you yet: Combat " + std::to_string(p->min_combat) + " needed.",
+                        player.x, player.y - 52.0f, {255, 150, 150, 255}, 2.2f);
                 Audio::Play(Sfx::Locked);
                 break;
             }

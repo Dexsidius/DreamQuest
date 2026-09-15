@@ -139,8 +139,8 @@ int Sprite::FrameSize() const {
 SDL_FRect Sprite::WorldBounds(float wx, float wy) const {
     if (!def || !clip) return {wx, wy, 0, 0};
     // Frames are square, so the row height is also the frame width.
-    return {wx - 32.0f * def->scale, wy - def->anchor_y * def->scale,
-            64.0f * def->scale, 64.0f * def->scale};
+    const float k = def->scale * size_scale;
+    return {wx - 32.0f * k, wy - def->anchor_y * k, 64.0f * k, 64.0f * k};
 }
 
 // Draws the parts in order, giving each the colour its slot calls for. The
@@ -270,9 +270,10 @@ void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     const SDL_FRect src = {shown * fw, row * fh, fw, fh};
 
     // The entity's world position is its feet; the frame hangs above it.
-    const SDL_FRect world = {wx - (fw * def->scale) / 2.0f,
-                             wy - def->anchor_y * def->scale,
-                             fw * def->scale, fh * def->scale};
+    const float k = def->scale * size_scale;
+    const SDL_FRect world = {wx - (fw * k) / 2.0f,
+                             wy - def->anchor_y * k,
+                             fw * k, fh * k};
     const SDL_FRect dst = cam.ToScreenRect(world);
 
     if (DrawLayers(r, cache, dst, shown, row, tint)) return;

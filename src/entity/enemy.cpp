@@ -95,6 +95,7 @@ void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContex
         foot_box = def->foot_box;
         body_box = def->body_box;
         if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(def->sprite));
+        sprite.size_scale = def->scale;
     }
     hp = max_hp;
     last_hp = hp;

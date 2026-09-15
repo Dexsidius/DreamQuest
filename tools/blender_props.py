@@ -2401,6 +2401,301 @@ def prop_mine_adit():
 HERB_PROPS["mine_adit"] = (prop_mine_adit, 256)
 
 
+# -----------------------------------------------------------------------------
+#  The swamp, the Ice Spire, the Ashen Path and the inn's cellar
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "reed":        (0.455, 0.522, 0.263),
+    "reed_dk":     (0.329, 0.388, 0.200),
+    "cattail":     (0.431, 0.286, 0.176),
+    "lily":        (0.318, 0.529, 0.286),
+    "lily_flower": (0.965, 0.827, 0.878),
+    "bog_bark":    (0.349, 0.310, 0.255),
+    "swamp_moss":  (0.494, 0.553, 0.357),
+    "hut_thatch":  (0.557, 0.490, 0.314),
+    "hut_wood":    (0.400, 0.318, 0.231),
+    "bone_white":  (0.890, 0.855, 0.769),
+    "paint_red":   (0.690, 0.200, 0.157),
+    "ice_blue":    (0.620, 0.855, 0.945),
+    "ice_deep":    (0.345, 0.620, 0.820),
+    "ice_pale":    (0.870, 0.960, 1.000),
+    "snow_white":  (0.930, 0.955, 0.980),
+    "pine":        (0.216, 0.369, 0.318),
+    "pine_dk":     (0.141, 0.259, 0.227),
+    "twig":        (0.412, 0.337, 0.255),
+    "egg":         (0.690, 0.800, 0.840),
+    "char":        (0.176, 0.153, 0.149),
+    "char_lt":     (0.302, 0.259, 0.243),
+    "obsidian":    (0.137, 0.118, 0.157),
+    "obsidian_lt": (0.290, 0.259, 0.337),
+    "hell_red":    (0.620, 0.157, 0.110),
+    "cobweb":      (0.900, 0.900, 0.900),
+})
+
+
+def prop_reeds():
+    """A clump of reeds and bulrushes: the brown cigar heads are what make it a
+    swamp plant rather than tall grass."""
+    import random
+    rng = random.Random(31)
+    for k in range(22):
+        a = rng.uniform(0, math.tau)
+        r = rng.uniform(0.0, 0.30)
+        h = rng.uniform(0.50, 0.95)
+        x, y = math.cos(a) * r, math.sin(a) * r
+        lean = rng.uniform(-0.18, 0.18)
+        cyl("blade_%d" % k, 0.035, h, (x + lean * 0.5, y, h / 2), "reed" if k % 3 else "reed_dk",
+            rot=(0, lean, 0), verts=6)
+        if k % 3 == 0:
+            cyl("head_%d" % k, 0.07, 0.22, (x + lean, y, h + 0.02), "cattail", verts=8)
+    return 1.25
+
+
+def prop_lily_pads():
+    """Pads floating on open water, one flowering. Flat, so it lies on the bog
+    without looking stood on it."""
+    import random
+    rng = random.Random(32)
+    for k in range(6):
+        a = k * 1.1
+        r = 0.1 + k * 0.08
+        x, y = math.cos(a) * r, math.sin(a) * r * 0.7
+        s = rng.uniform(0.14, 0.22)
+        cyl("pad_%d" % k, s, 0.015, (x, y, 0.01), "lily", verts=16)
+        blk("notch_%d" % k, (s * 0.5, 0.03, 0.03), (x + s * 0.5, y, 0.02), "reed_dk", bev=0)
+    sphere("flower", 0.07, (0.02, -0.04, 0.06), "lily_flower")
+    return (1.1, 60.0)
+
+
+def prop_swamp_tree():
+    """A drowned tree: a leaning trunk, bare crooked limbs, and moss hanging
+    from them in ragged curtains."""
+    import random
+    rng = random.Random(33)
+    cyl("trunk", 0.16, 1.5, (0.0, 0.0, 0.75), "bog_bark", rot=(0.0, 0.10, 0.0), verts=10)
+    for k in range(4):
+        cyl("root_%d" % k, 0.07, 0.5, (math.cos(k * 1.6) * 0.22, math.sin(k * 1.6) * 0.22, 0.10), "bog_bark",
+            rot=(math.sin(k * 1.6) * 1.0, -math.cos(k * 1.6) * 1.0, 0), verts=8)
+    tips = []
+    for k in range(5):
+        a = k / 5 * math.tau + 0.4
+        ln = rng.uniform(0.5, 0.8)
+        z = 1.2 + k * 0.08
+        x, y = math.cos(a) * ln * 0.5, math.sin(a) * ln * 0.5
+        cyl("limb_%d" % k, 0.05, ln, (x + 0.07, y, z + 0.15), "bog_bark",
+            rot=(math.sin(a) * -0.9, math.cos(a) * 0.9, 0), verts=6)
+        tips.append((x * 2 + 0.07, y * 2, z + 0.3))
+    for k, (x, y, z) in enumerate(tips):
+        for m in range(3):
+            h = rng.uniform(0.25, 0.5)
+            blk("moss_%d_%d" % (k, m), (0.05, 0.03, h), (x + (m - 1) * 0.06, y, z - h / 2), "swamp_moss", bev=0.01)
+    return 2.7
+
+
+def prop_lizard_hut():
+    """The lizardmen's hut, up on stilts out of the water: a round platform of
+    poles, a woven wall, a shaggy cone of reed thatch, and a ladder down."""
+    for k in range(6):
+        a = k / 6 * math.tau
+        cyl("stilt_%d" % k, 0.06, 0.7, (math.cos(a) * 0.62, math.sin(a) * 0.62, 0.35), "hut_wood", verts=8)
+    cyl("platform", 0.85, 0.10, (0, 0, 0.72), "hut_wood", verts=20)
+    cyl("wall", 0.66, 0.62, (0, 0, 1.08), "twig", verts=20)
+    blk("door", (0.30, 0.06, 0.46), (0, -0.66, 1.00), "char", bev=0)
+    bpy.ops.mesh.primitive_cone_add(radius1=0.98, radius2=0.04, depth=0.95, location=(0, 0, 1.82), vertices=20)
+    roof = bpy.context.active_object
+    roof.data.materials.append(material("roof", "hut_thatch", 0.95))
+    for k in range(12):
+        a = k / 12 * math.tau
+        cone("fringe_%d" % k, 0.12, 0.22, (math.cos(a) * 0.9, math.sin(a) * 0.9, 1.30), "hut_thatch",
+             rot=(math.pi, 0, 0), verts=5)
+    for k in range(5):
+        blk("rung_%d" % k, (0.34, 0.04, 0.04), (0, -0.98, 0.12 + k * 0.14), "hut_wood", bev=0)
+    for sx in (-1, 1):
+        blk("rail_%d" % sx, (0.04, 0.04, 0.78), (sx * 0.17, -0.98, 0.38), "hut_wood", bev=0)
+    sphere("skull", 0.09, (0, -0.70, 1.40), "bone_white")
+    return (2.6, BUILDING_ELEVATION)
+
+
+def prop_lizard_totem():
+    """A carved post with a lizard skull on top and red painted bands."""
+    cyl("post", 0.12, 1.3, (0, 0, 0.65), "hut_wood", verts=10)
+    for k, z in enumerate((0.35, 0.75)):
+        cyl("band_%d" % k, 0.13, 0.08, (0, 0, z), "paint_red", verts=10)
+    sphere("skull", 0.16, (0, -0.02, 1.38), "bone_white")
+    blk("snout", (0.12, 0.22, 0.09), (0, -0.16, 1.34), "bone_white", bev=0.03)
+    for sx in (-1, 1):
+        cone("horn_%d" % sx, 0.04, 0.24, (sx * 0.12, 0.02, 1.52), "bone_white", rot=(0, sx * 0.5, 0), verts=6)
+        blk("feather_%d" % sx, (0.03, 0.02, 0.28), (sx * 0.16, 0.02, 1.05), "paint_red", rot=(0, sx * 0.35, 0), bev=0)
+    return 1.9
+
+
+def ice_shard(name, h, r, loc, lean, colour):
+    bpy.ops.mesh.primitive_cone_add(radius1=r, radius2=0.0, depth=h, location=(loc[0], loc[1], loc[2] + h / 2),
+                                    vertices=6)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.rotation_euler = lean
+    ob.data.materials.append(material(name, colour, 0.25, 0.0, 0.15))
+    for p in ob.data.polygons:
+        p.use_smooth = False
+    return ob
+
+
+def prop_ice_spire():
+    """A spire of blue ice pushing out of the snow, with lesser shards round
+    its foot. Faceted and flat shaded, so every face is its own band."""
+    import random
+    rng = random.Random(34)
+    ice_shard("spire", 2.6, 0.42, (0, 0, 0), (0.05, 0.04, 0), "ice_blue")
+    ice_shard("spire_core", 2.0, 0.26, (0.08, -0.12, 0), (0.03, -0.02, 0.4), "ice_pale")
+    for k in range(7):
+        a = k / 7 * math.tau + rng.uniform(-0.2, 0.2)
+        d = rng.uniform(0.38, 0.62)
+        ice_shard("shard_%d" % k, rng.uniform(0.5, 1.2), rng.uniform(0.12, 0.2), (math.cos(a) * d, math.sin(a) * d, 0),
+                  (math.sin(a) * 0.35, -math.cos(a) * 0.35, 0), "ice_deep" if k % 2 else "ice_blue")
+    cyl("drift", 0.8, 0.12, (0, 0, 0.04), "snow_white", verts=18)
+    return 3.2
+
+
+def prop_ice_crystal():
+    import random
+    rng = random.Random(35)
+    for k in range(4):
+        a = k / 4 * math.tau + 0.3
+        ice_shard("c_%d" % k, rng.uniform(0.35, 0.7), 0.10, (math.cos(a) * 0.12, math.sin(a) * 0.12, 0),
+                  (math.sin(a) * 0.3, -math.cos(a) * 0.3, 0), "ice_blue" if k % 2 else "ice_pale")
+    cyl("drift", 0.28, 0.06, (0, 0, 0.02), "snow_white", verts=12)
+    return 1.1
+
+
+def prop_snow_pine():
+    """A fir heavy with snow: tiers of dark needles with white laid on top."""
+    cyl("trunk", 0.09, 0.5, (0, 0, 0.25), "bog_bark", verts=8)
+    for k in range(4):
+        z = 0.45 + k * 0.42
+        r = 0.78 - k * 0.17
+        bpy.ops.mesh.primitive_cone_add(radius1=r, radius2=0.0, depth=0.62, location=(0, 0, z + 0.31), vertices=12)
+        ob = bpy.context.active_object
+        ob.data.materials.append(material("tier_%d" % k, "pine" if k % 2 else "pine_dk", 0.9))
+        bpy.ops.mesh.primitive_cone_add(radius1=r * 0.82, radius2=0.0, depth=0.34, location=(0, 0.02, z + 0.46),
+                                        vertices=12)
+        ob = bpy.context.active_object
+        ob.data.materials.append(material("snow_%d" % k, "snow_white", 0.9))
+    return 2.9
+
+
+def prop_wyvern_nest():
+    """A ring of broken branches and bones on bare rock, with pale blue eggs."""
+    import random
+    rng = random.Random(36)
+    for k in range(26):
+        a = k / 26 * math.tau + rng.uniform(-0.1, 0.1)
+        r = rng.uniform(0.52, 0.66)
+        cyl("stick_%d" % k, 0.035, rng.uniform(0.45, 0.7), (math.cos(a) * r, math.sin(a) * r, 0.10 + (k % 3) * 0.05),
+            "twig", rot=(0.0, math.pi / 2, a + math.pi / 2 + rng.uniform(-0.4, 0.4)), verts=6)
+    cyl("bed", 0.5, 0.06, (0, 0, 0.04), "hut_thatch", verts=16)
+    for k, (x, y) in enumerate(((-0.12, 0.05), (0.12, 0.08), (0.0, -0.12))):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.12, location=(x, y, 0.16), segments=16, ring_count=10)
+        egg = bpy.context.active_object
+        egg.scale = (1.0, 1.0, 1.3)
+        egg.data.materials.append(material("egg_%d" % k, "egg", 0.5))
+    for k in range(3):
+        a = k * 2.2
+        blk("bone_%d" % k, (0.36, 0.05, 0.05), (math.cos(a) * 0.72, math.sin(a) * 0.72, 0.05), "bone_white",
+            rot=(0, 0, a + 1.2), bev=0.02)
+    return 1.9
+
+
+def prop_charred_tree():
+    """A tree burnt to the heartwood: black, split limbs, an ember still in it."""
+    cyl("trunk", 0.15, 1.6, (0, 0, 0.8), "char", verts=8)
+    for k, (a, z, ln) in enumerate(((0.3, 1.3, 0.7), (2.4, 1.1, 0.6), (4.2, 1.45, 0.55), (5.3, 0.9, 0.45))):
+        cyl("limb_%d" % k, 0.05, ln, (math.cos(a) * ln * 0.4, math.sin(a) * ln * 0.4, z + 0.2), "char_lt",
+            rot=(math.sin(a) * -0.9, math.cos(a) * 0.9, 0), verts=6)
+    blk("ember", (0.10, 0.04, 0.16), (0.0, -0.15, 0.55), "ember", emit=1.2, bev=0)
+    for k in range(4):
+        cyl("root_%d" % k, 0.06, 0.4, (math.cos(k * 1.57) * 0.2, math.sin(k * 1.57) * 0.2, 0.08), "char",
+            rot=(math.sin(k * 1.57) * 1.1, -math.cos(k * 1.57) * 1.1, 0), verts=6)
+    return 2.1
+
+
+def prop_obsidian_rock():
+    import random
+    rng = random.Random(37)
+    for k in range(5):
+        a = k / 5 * math.tau
+        ice_shard("ob_%d" % k, rng.uniform(0.35, 0.8), rng.uniform(0.12, 0.2),
+                  (math.cos(a) * 0.14, math.sin(a) * 0.14, 0), (math.sin(a) * 0.3, -math.cos(a) * 0.3, 0),
+                  "obsidian" if k % 2 else "obsidian_lt")
+    return 1.2
+
+
+def prop_hellgate():
+    """The way into the pit: an arch of black stone ribbed with horns, a
+    doorway full of red light, braziers either side."""
+    for sx in (-1, 1):
+        for k in range(6):
+            blk("pier_%d_%d" % (sx, k), (0.42, 0.44, 0.32), (sx * 0.78, 0, 0.16 + k * 0.33), "obsidian_lt" if k % 2 else "obsidian")
+        cone("horn_%d" % sx, 0.14, 0.9, (sx * 0.92, 0, 2.30), "bone_white", rot=(0, sx * -0.6, 0), verts=8)
+        cyl("brazier_%d" % sx, 0.16, 0.5, (sx * 1.40, -0.30, 0.25), "iron", verts=10)
+        cone("fire_%d" % sx, 0.14, 0.4, (sx * 1.40, -0.30, 0.70), "ember")
+        bpy.context.active_object.data.materials[0] = material("fire_%d" % sx, "ember", 0.6, 0.0, 1.6)
+    blk("lintel", (2.10, 0.50, 0.40), (0, 0, 2.15), "obsidian")
+    sphere("skull", 0.20, (0, -0.28, 2.15), "bone_white")
+    blk("glow", (1.14, 0.20, 1.95), (0, 0.10, 0.98), "hell_red", emit=1.3, bev=0)
+    blk("step", (1.4, 0.5, 0.12), (0, -0.4, 0.06), "obsidian_lt")
+    return (3.6, BUILDING_ELEVATION)
+
+
+def prop_cellar_hatch():
+    """An open trapdoor in the floorboards, its lid thrown back, and steps
+    going down into the dark."""
+    blk("hole", (0.80, 0.90, 0.02), (0, 0, 0.01), "char", bev=0)
+    for k in range(4):
+        # Darker the further down they go, into the dark.
+        blk("step_%d" % k, (0.62, 0.14, 0.02), (0, -0.30 + k * 0.19, 0.02), ("hut_wood", "bog_bark", "char_lt", "char")[k],
+            bev=0.005)
+    blk("frame", (0.92, 1.02, 0.04), (0, 0, 0.0), "oak", bev=0)
+    # The lid thrown over onto the boards beside it, so it lies nearly flat
+    # and the hole is the thing seen.
+    blk("lid", (0.80, 0.90, 0.06), (0.86, 0, 0.10), "oak_light", rot=(0, -0.2, 0))
+    for k, y in enumerate((-0.25, 0.25)):
+        blk("strap_%d" % k, (0.84, 0.08, 0.08), (0.86, y, 0.13), "iron", rot=(0, -0.2, 0))
+    return (2.0, 72.0)
+
+
+def prop_cobweb():
+    """A web slung across a corner: radial threads and a spiral of short
+    segments, pale enough to read on dark stone."""
+    for k in range(7):
+        a = math.radians(-8 + k * 16)
+        blk("spoke_%d" % k, (0.012, 0.012, 0.95), (math.sin(a) * 0.48, 0, 0.95 - math.cos(a) * 0.48), "cobweb",
+            rot=(0, a, 0), bev=0)
+    for ring in range(1, 5):
+        r = ring * 0.19
+        for k in range(6):
+            a0 = math.radians(-8 + k * 16)
+            a1 = math.radians(-8 + (k + 1) * 16)
+            x0, z0 = math.sin(a0) * r, 0.95 - math.cos(a0) * r
+            x1, z1 = math.sin(a1) * r, 0.95 - math.cos(a1) * r
+            ln = math.hypot(x1 - x0, z1 - z0)
+            blk("thread_%d_%d" % (ring, k), (ln, 0.01, 0.01), ((x0 + x1) / 2, 0, (z0 + z1) / 2), "cobweb",
+                rot=(0, -math.atan2(z1 - z0, x1 - x0), 0), bev=0)
+    return 1.2
+
+
+AREA_PROPS = {
+    "reeds": (prop_reeds, 48), "lily_pads": (prop_lily_pads, 40), "swamp_tree": (prop_swamp_tree, 72),
+    "lizard_hut": (prop_lizard_hut, 128), "lizard_totem": (prop_lizard_totem, 56),
+    "ice_spire": (prop_ice_spire, 112), "ice_crystal": (prop_ice_crystal, 40), "snow_pine": (prop_snow_pine, 80),
+    "wyvern_nest": (prop_wyvern_nest, 72), "charred_tree": (prop_charred_tree, 72),
+    "obsidian_rock": (prop_obsidian_rock, 40), "hellgate": (prop_hellgate, 144),
+    "cellar_hatch": (prop_cellar_hatch, 48), "cobweb": (prop_cobweb, 40),
+}
+HERB_PROPS.update(AREA_PROPS)
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),

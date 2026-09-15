@@ -1041,5 +1041,59 @@
     "value": 428,
     "learn": "starlily_panacea",
     "icon": "assets/icons/tiers/recipe_scroll.png"
+  },
+  "spider_silk": {
+    "tags": [
+      "leather",
+      "cloth"
+    ],
+    "name": "Spider Silk",
+    "desc": "A sticky skein from a cellar spider. Weavers pay for it.",
+    "stack": true,
+    "value": 14,
+    "icon": "assets/icons/tiers/spider_silk.png"
+  },
+  "lizard_scale": {
+    "tags": [
+      "leather",
+      "trophy"
+    ],
+    "name": "Lizard Scale",
+    "desc": "A hard green scale off a swamp lizardman.",
+    "stack": true,
+    "value": 45,
+    "icon": "assets/icons/tiers/lizard_scale.png"
+  },
+  "troll_hide": {
+    "tags": [
+      "leather",
+      "trophy"
+    ],
+    "name": "Troll Hide",
+    "desc": "Thick, pale and cold to the touch. An ice troll's pelt.",
+    "stack": true,
+    "value": 140,
+    "icon": "assets/icons/tiers/troll_hide.png"
+  },
+  "wyvern_scale": {
+    "tags": [
+      "trophy",
+      "gem"
+    ],
+    "name": "Wyvern Scale",
+    "desc": "A frost wyvern's scale, blue as deep ice and harder than steel.",
+    "stack": true,
+    "value": 380,
+    "icon": "assets/icons/tiers/wyvern_scale.png"
+  },
+  "demon_horn": {
+    "tags": [
+      "trophy"
+    ],
+    "name": "Demon Horn",
+    "desc": "Black, ridged and still warm. Something in the pit wanted it back.",
+    "stack": true,
+    "value": 520,
+    "icon": "assets/icons/tiers/demon_horn.png"
   }
 }
