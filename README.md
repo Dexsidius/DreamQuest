@@ -242,7 +242,7 @@ character is never told about a resource they do not spend.
 
 ## Skills
 
-Ten skills on the Old School RuneScape XP curve — the real one, so level 92 is
+Fourteen skills on the Old School RuneScape XP curve — the real one, so level 92 is
 half the experience of 99, and the self-test checks the table against known
 values.
 
@@ -256,11 +256,18 @@ values.
 | Mining | Working ore seams, with a pickaxe: the foothills and the Mire, the mines and barrow, and the dreamworld |
 | Fishing | Fishing the Fernhollow pond, the Whisperwood stream and the Hollowmarch lake, with a rod |
 | Cooking | Using a fire with something raw in your pack |
-| Crafting | Workbenches in Havenbrook and Mossvale, and the anvils in Halda's forge and Mossvale |
+| Crafting | Workbenches in Havenbrook and Mossvale: wood, leather and thread |
+| Smithing | Smelting and smithing at the anvils in Halda's forge and Mossvale |
+| Foraging | Picking herbs and plants, by hand; see [Foraging](#foraging) |
+| Brewing | Brewing potions at a cauldron; see [Brewing](#brewing) |
 | Ranged | Landing arrows with a bow equipped |
 | Magic | Casting spells with a staff equipped |
 
 Combat level uses the OSRS formula across the melee/ranged/magic triangle.
+
+A potion can lift a combat level above its base. The Skills panel then shows the
+level it is working at over the real one in green ("47/40"), and a boost wears
+off a point every 45 seconds.
 
 Ranged and Magic read their own level and their own equipment bonus for both
 accuracy and damage, exactly as OSRS does, so a bow does nothing for a
@@ -341,7 +348,14 @@ for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
 which need the tier's level in Woodcutting or Mining; see
 [Gathering](#gathering). Each metal tier has an **ore** and a **bar**. Ore is smelted into
 bars at an anvil, and bars are smithed into the pieces there too; wooden pieces
-are made at a workbench. The item panel names an item's tier and says what it
+are made at a workbench.
+
+**Smithing** is its own skill, and it follows the tier milestones exactly:
+smelting a tier's bar and smithing anything from it needs **Smithing at the
+tier's level** -- the same number that wearing or wielding the result asks for.
+Bronze is Smithing 1, iron 10, steel 20, and so on up to demonrite at 70. Before
+Smithing existed every bar and blade trained Crafting, so a save from then starts
+its Smithing where its Crafting stood and loses nothing it could already make. The item panel names an item's tier and says what it
 needs, in red-letter "needs" when you do not have it yet.
 
 The tiers are one data file, `data/tiers.json`: for each tier its level, its
@@ -395,11 +409,13 @@ little of their own colour, so a roast pike and a roast salmon differ in the bag
 
 ### Where things are made
 
-Each recipe is made at one station, decided by its materials. **Anything that
-needs metal is smithed at an anvil** -- in Halda's forge in Havenbrook, or
+Each recipe is made at one station, decided by its materials, and trains that
+station's skill. **Anything brewed -- anything with a herb or a vial in it -- is
+brewed at a cauldron**, with Brewing. **Anything that
+needs metal is smithed at an anvil**, with Smithing -- in Halda's forge in Havenbrook, or
 beside the workbench in Mossvale: every bar, every metal tier's pieces, and the
 Copper Ring. **Everything else is made at a workbench**, in Havenbrook or
-Mossvale: the wooden tier, the Leather Jerkin, the Fishing Rod, the Bedroll and the Dreamcatcher.
+Mossvale, with Crafting: the wooden tier, the Leather Jerkin, the Fishing Rod, the Bedroll and the Dreamcatcher.
 The two used to share one list, so a village workbench could smith an iron
 shield.
 
@@ -482,6 +498,71 @@ Fishing selected in the Skills panel they are listed along the bottom:
 | 99 | 30% | 20% |
 
 A cast that lands more than one says so in gold ("+ 2 Raw Trout").
+
+### Foraging
+
+**Foraging** is picking herbs and plants. It needs no tool: stand at a plant and
+press `E`, and the hero kneels and picks it with the weapon put away. A picked
+plant is left as cut stubs and **grows back** after a few game hours -- three for
+a marigold, nearly nine for a starlily -- and what has been picked is saved. Past
+a plant's level, each level adds a one in a hundred chance it gives two, up to
+half the time.
+
+| Herb | Foraging | Grows best |
+| --- | --- | --- |
+| Marigold | 1 | the meadow round Havenbrook |
+| Brookmint | 6 | wherever land meets water: the lake shore, the Whisperwood stream, the Fernhollow pond |
+| Stinging Nettle | 12 | the greenwood, and along the Whisperwood trail |
+| Bogbean | 20 | the Mire |
+| Mountain Sage | 28 | the foothills, thicker the higher up |
+| Glowcap | 36 | the shade just inside the Whisperwood's trees |
+| Emberbloom | 46 | the burnt ground of the Cursed Reach |
+| Moonpetal | 56 | the Reverie's islands |
+| Starlily | 68 | only the Reverie's crystal field |
+
+Each is scattered thinly over its own ground, and on the overworld each has
+**one patch where it grows thick**, found by `tools/genmaps.cpp` by looking out
+from a rough spot for somewhere its whole round is the right biome. Oona keeps a
+garden of the three beginner herbs beside her cottage in Mossvale. The plants'
+levels and XP come from their items in `data/items.json` (`"forage"`), so the maps
+and the items cannot disagree.
+
+### Brewing
+
+**Brewing** turns herbs and a glass vial into potions at a **cauldron**: in
+Havenbrook by the cooking fire, in Oona's cottage, at the Fernhollow camp and by
+the candles in the Reverie. Vials are sold at every general store.
+
+A recipe has to be **learned** before it can be brewed. The cauldron lists every
+brew, but one not yet learned shows as "Unknown recipe" and says where to learn
+it. Oona teaches the first -- ask her "Could you teach me to brew?" -- and the
+rest are **recipe scrolls**, read from the pack, sold by traders around the
+world. Learned recipes are saved as world flags (`recipe:<id>`).
+
+| Potion | Brewing | Ingredients | Effect | Recipe from |
+| --- | --- | --- | --- | --- |
+| Healing Draught | 1 | 2 marigold | 20 hitpoints | Oona teaches it |
+| Mana Tonic | 6 | 2 brookmint | 40 mana | Oona |
+| Nettle Brew | 12 | 2 nettle | Strength +3 and a tenth | Tobin's General Store |
+| Fen Bitters | 20 | 2 bogbean, marigold | all stamina, 12 hitpoints | Hob the Pedlar |
+| Stoneskin Draught | 28 | 2 mountain sage | Defence +3 and an eighth | Garrow's Smithy |
+| Hunter's Focus | 36 | 2 glowcap, nettle | Ranged +4 and an eighth | Ivo's Bows and Hides |
+| Emberfire Elixir | 46 | 2 emberbloom | Attack and Strength +4 and an eighth | the Collector |
+| Moonlit Draught | 56 | 2 moonpetal, brookmint | 80 mana, Magic +5 and an eighth | the Night Pedlar |
+| Starlily Panacea | 68 | 2 starlily, moonpetal, marigold | 40 hitpoints, 100 mana, all stamina, every combat level a little | the Collector, after Lights on the Pond |
+
+Every brew also takes one vial, and each is brewed at the Foraging level of its
+rarest herb, so the two skills climb together. A boost is the OSRS kind: a flat
+amount plus a share of the level, never stacking past its own ceiling, and a
+second potion of the same kind is refused -- not wasted -- while the first holds.
+Food and potions alike are refused when they would do nothing. Oona buys brews,
+and every brew is worth at least 1.8 times its herbs, like anything crafted.
+
+The art is original. The plants (each growing and picked) and the cauldron are
+modelled in `tools/blender_props.py` and rendered with `make_props.ps1`; the
+herb, vial, potion and recipe-scroll icons are built in `tools/blender_tiers.py`
+beside the fish (`.	ools\make_tiers.ps1 -What brewing`); the kneel-and-pick
+`gather` clip is in `tools/blender_character.py`.
 
 ---
 
@@ -1177,28 +1258,29 @@ and it hands in every order it can at once.
 
 Orders are dailies in a pool of their own. **Halda posts three a day, Wendel
 two**, new at dawn, and each can be filled once a day. A posted order is never
-one the player cannot take yet: an order needing Crafting 20 is passed over for
+one the player cannot take yet: an order needing Smithing 20 is passed over for
 the next in the day's order, so a new character always has at least two to
 choose from, and the book fills out as the skills rise.
 
-Halda's orders pay **Mining XP and coins**:
+Halda's orders pay **Mining XP and coins**, and the smelted and smithed ones
+**Smithing XP** as well:
 
-| Kind | Order | Needs | Mining XP | Coins |
-| --- | --- | --- | --- | --- |
-| Ore | 10 copper ore | -- | 450 | 143 |
-| Ore | 8 iron ore | Mining 5 | 520 | 187 |
-| Ore | 6 coal | Mining 20 | 900 | 583 |
-| Ore | 4 azuryte ore | Mining 30 | 1200 | 864 |
-| Ingots | 6 bronze bars | -- | 600 | 216 |
-| Ingots | 5 iron bars | Crafting 10, Mining 5 | 900 | 432 |
-| Ingots | 3 steel bars | Crafting 20, Mining 20 | 1400 | 1304 |
-| Weapons | 2 bronze swords | Crafting 2 | 500 | 275 |
-| Weapons | 1 iron sword | Crafting 11 | 700 | 319 |
-| Weapons | 1 steel longsword | Crafting 21 | 1600 | 2273 |
-| Hide | 8 hides | -- | 250 | 94 |
-| Armour | 2 bronze helms | -- | 450 | 375 |
-| Armour | 1 iron cuirass | Crafting 14 | 1100 | 1124 |
-| Armour | 1 steel greaves | Crafting 23 | 2200 | 3392 |
+| Kind | Order | Needs | Mining XP | Smithing XP | Coins |
+| --- | --- | --- | --- | --- | --- |
+| Ore | 10 copper ore | -- | 450 | -- | 143 |
+| Ore | 8 iron ore | Mining 5 | 520 | -- | 187 |
+| Ore | 6 coal | Mining 20 | 900 | -- | 583 |
+| Ore | 4 azuryte ore | Mining 30 | 1200 | -- | 864 |
+| Ingots | 6 bronze bars | -- | 600 | 360 | 216 |
+| Ingots | 5 iron bars | Smithing 10, Mining 5 | 900 | 540 | 432 |
+| Ingots | 3 steel bars | Smithing 20, Mining 20 | 1400 | 840 | 1304 |
+| Weapons | 2 bronze swords | -- | 500 | 400 | 275 |
+| Weapons | 1 iron sword | Smithing 10 | 700 | 560 | 319 |
+| Weapons | 1 steel longsword | Smithing 20 | 1600 | 1280 | 2273 |
+| Hide | 8 hides | -- | 250 | -- | 94 |
+| Armour | 2 bronze helms | -- | 450 | 360 | 375 |
+| Armour | 1 iron cuirass | Smithing 10 | 1100 | 880 | 1124 |
+| Armour | 1 steel greaves | Smithing 20 | 2200 | 1760 | 3392 |
 
 Wendel's pay **Fishing XP and coins**:
 
@@ -1294,6 +1376,16 @@ Whisperwood.
   over the foothills' sand was close to unreadable.
 - **Clear streets.** Trees and tall fungus are drawn up from their base, so the
   generator keeps them two tiles back from every road; bushes may still line it.
+- **A mine that is a hole in a hill.** The Emberfell mine used to be a door
+  sprite standing on open dirt. It is a hillside now (`prop_mine_adit`): terraces
+  of broken rock with scrub on the ledges, a timber-framed tunnel mouth with a
+  lantern on the lintel, rails running out of the dark to where the Sunken Road
+  now ends, an ore cart and a spoil heap, and loose rock either side where it
+  runs back into the foothills. The portal is the dark of the tunnel itself.
+  A piece of scenery can now sort against people above its base
+  (`"sort_lift"` in a map): the hill sorts at the back of the tunnel, so someone
+  standing in the mouth is drawn in front of the rock around them rather than
+  ghosting the whole hillside out.
 
 Maps are big enough to grow: the base layer is bucketed into chunks and culled
 against the camera, so adding another biome costs load time and nothing else.
@@ -1349,7 +1441,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **6134 checks** covering:
+and checks all of it — currently **9437 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1503,6 +1595,20 @@ and checks all of it — currently **6134 checks** covering:
   lit by their hearths, and the mine ignores the hour
 - a save made in a dream loads still dreaming, at the same hour, with the way
   back and the camp remembered
+- Smithing, Foraging and Brewing: workbench, anvil and cauldron train Crafting,
+  Smithing and Brewing; every bar and metal piece is smithed at exactly its
+  tier's level; an old save's Smithing starts at its Crafting; every herb has its
+  own level, world art growing and picked, and grows in at least a dozen places;
+  on the overworld every herb stands on its own ground and has a thick patch;
+  moonpetal and starlily grow only in the Reverie and glowcaps mostly in the
+  Whisperwood; picking a marigold in the world plays the gather clip, gives the
+  herb and XP, leaves it bare until it regrows, and is saved; a glowcap refuses a
+  beginner; a master picks two about half the time; every brew is a potion that
+  does something, takes one vial, is brewed at its rarest herb's Foraging level,
+  and has a recipe someone teaches or sells; Oona teaches the first brew once;
+  every general store sells vials; a Nettle Brew lifts Strength, a second is
+  refused, the boost wears off; food and potions are kept when they would do
+  nothing
 - every tier makes an axe and a pickaxe, each faster than the tier below and
   needing that tier's level in Woodcutting or Mining, at the right station, with
   its own model; the fishing rod is made at a workbench; the hero has chop, mine
@@ -1547,7 +1653,7 @@ src/
   systems/              skills, items, loot, combat, quests, dialogue, saves,
                         projectiles and elements, spells, the clock,
                         material tiers (items.cpp), skill trees (talents.cpp),
-                        tools and fishing (gathering.cpp), and traders (shop.cpp)
+                        tools, fishing and foraging (gathering.cpp), and traders (shop.cpp)
   ui/                   drawing helpers and every screen
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips

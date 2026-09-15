@@ -201,6 +201,9 @@ public:
         Place(name, path, layer, x - wh.first / 2, y - wh.second, wh.first, wh.second);
     }
 
+    // Makes a piece of scenery sort against people this far above its base.
+    void SortLift(const string& name, int px) { dq["sort_lift"][name] = px; }
+
     // A decal lying flat on the ground: centred, and on the base layer so
     // nothing sorts against it.
     void Flat(const string& group, const string& name, int x, int y) {
@@ -608,7 +611,7 @@ static Biome BiomeAt(int cx, int cy) {
     const float river = fabsf((cy - 66.0f) - sinf(cx * 0.09f) * 5.0f);
     if (cx < 44 && river < 2.2f + n * 1.4f) return WATER;
 
-    if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 12 && cy < 88) return ROAD;
+    if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 10 && cy < 88) return ROAD;
     if (OnTrail(cx, cy)) return TRAIL;
 
     if (cx > 96 && cy < 34 && n > 0.42f) return CURSED;
@@ -796,6 +799,8 @@ static void BuildOverworld() {
             if (b == WATER || b == ROAD || b == TRAIL) continue;
             // Keep a clear verge either side of the road.
             if (fabsf(cx - RoadX(cy)) < 3.2f) continue;
+            // And the hillside the mine is cut into.
+            if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) continue;
             // And either side of the Whisperwood Trail, so it reads as a path
             // cut through the trees rather than a stripe of dirt under them.
             if (OnTrail(cx, cy, 3.4f)) continue;
@@ -846,6 +851,7 @@ static void BuildOverworld() {
         auto open_ground = [&](int cx, int cy) {
             const Biome b = BiomeAt(cx, cy);
             if (b == WATER || b == ROAD || b == TRAIL) return false;
+            if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) return false;   // the mine
             if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
             return !scenery_here(cx, cy);
         };
@@ -1001,16 +1007,48 @@ static void BuildOverworld() {
         m.Collision(gate_x + 40, gate_y - 16, 32, 12);
     }
 
-    // Mine entrance in the northern foothills.
+    // Mine entrance in the northern foothills: the Emberfell adit, a timber
+    // mouth cut into a shoulder of rock (tools/blender_props.py,
+    // prop_mine_adit). It used to be a door sprite standing on open dirt.
+    //
+    // The art is 256px, drawn standing on its bottom edge. Measured off it:
+    // the tunnel mouth is 42px wide at the centre, its floor 57px above the
+    // bottom, and the rails run out of it to the bottom edge. The rock fills
+    // the rest from 118px left of centre to 122px right, and up 225px.
     const int mine_x = static_cast<int>(RoadX(10)) * OW_CELL + 16;
     const int mine_y = 9 * OW_CELL;
-    m.Spawn("from_mine", mine_x, mine_y + 56);
-    m.Prop("objects", "door", mine_x, mine_y + 24);
-    m.Portal(mine_x - 28, mine_y - 16, 56, 40, "dungeon_emberfell_1", "entrance",
-             "Enter the Emberfell mine");
-    m.Danger(6);
-    m.Collision(mine_x - 48, mine_y - 20, 40, 28);
-    m.Collision(mine_x + 28, mine_y - 20, 40, 28);
+    {
+        const int base = mine_y + 67;               // where the art stands
+        const int mouth_floor = base - 57;          // = mine_y + 10
+        m.Prop("props", "mine_adit", mine_x, base);
+        // Sorted at the back of the tunnel, where the rock behind the mouth
+        // stops the player: standing in the doorway draws them in front of
+        // the hill, not ghosting the whole hillside out behind them.
+        m.SortLift("mine_adit", base - (mine_y - 36));
+        m.Spawn("from_mine", mine_x, mine_y + 56);
+        // The portal is the dark of the tunnel itself.
+        m.Portal(mine_x - 18, mouth_floor - 34, 36, 30, "dungeon_emberfell_1", "entrance",
+                 "Enter the Emberfell mine");
+        m.Danger(6);
+        // Rock either side of the mouth and behind it, so the only way in is
+        // up the rails.
+        m.Collision(mine_x - 118, mine_y - 150, 96, 162);
+        m.Collision(mine_x + 22,  mine_y - 150, 100, 162);
+        m.Collision(mine_x - 22,  mine_y - 150, 44, 116);
+        // The boulders at the foot of the slope, the ore cart and the tailings.
+        m.Collision(mine_x - 118, mouth_floor + 2, 56, 22);
+        m.Collision(mine_x + 64,  mouth_floor + 2, 58, 22);
+        m.Collision(mine_x - 58,  mouth_floor + 12, 32, 16);
+        m.Collision(mine_x + 38,  mouth_floor + 18, 30, 12);
+        // Loose rock where the hill runs out into the foothills either side,
+        // so it grows out of the slope rather than standing on it.
+        const int flank[][3] = {{-150, 4, 1}, {-176, -44, 0}, {154, 0, 1}, {182, -50, 0}, {-138, -112, 0}, {142, -118, 1}};
+        for (const auto& f : flank) {
+            const int fx = mine_x + f[0], fy = mine_y + f[1];
+            m.Prop("objects", f[2] ? kRocks[(fx + fy) % 8] : kSmallRocks[(fx + fy) % 4], fx, fy);
+            m.Collision(fx - (f[2] ? 18 : 10), fy - 10, f[2] ? 36 : 20, 10);
+        }
+    }
 
     // Barrow entrance, out in the mire.
     const int barrow_x = 12 * OW_CELL + 16;

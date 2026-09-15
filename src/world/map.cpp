@@ -55,6 +55,15 @@ bool Map::Load(const string& path) {
         for (auto it = dq["layers"].begin(); it != dq["layers"].end(); ++it)
             layer_of[it.key()] = it.value().get<int>();
 
+    // How far above its bottom edge a piece of scenery sorts against people.
+    // Normally zero: a tree sorts at its base. A hillside with a tunnel cut in
+    // it sorts at the back of the tunnel, so someone standing in the mouth is
+    // drawn in front of the rock around them rather than behind it.
+    map<string, float> sort_lift;
+    if (dq.contains("sort_lift"))
+        for (auto it = dq["sort_lift"].begin(); it != dq["sort_lift"].end(); ++it)
+            sort_lift[it.key()] = it.value().get<float>();
+
     map<string, bool> solid_tile;
     if (dq.contains("solid"))
         for (const auto& s : dq["solid"]) solid_tile[s.get<string>()] = true;
@@ -104,6 +113,7 @@ bool Map::Load(const string& path) {
                 t.tex   = tex_index;
                 t.layer = std::clamp(layer, 0, 2);
                 t.sort_y = t.rect.y + t.rect.h;
+                if (sort_lift.count(tile_name)) t.sort_y -= sort_lift[tile_name];
                 t.overlay = !tile_name.empty() && tile_name[0] == '~';
                 tiles.push_back(t);
 

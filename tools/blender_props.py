@@ -2268,6 +2268,139 @@ for _name in HERBS:
     HERB_PROPS["herb_" + _name + "_picked"] = ((lambda b=_builder: b(True)), 40)
 
 
+# -----------------------------------------------------------------------------
+#  The Emberfell adit -- the mine's way in, on the overworld
+#
+#  It used to be a door sprite standing on open dirt, which read as a cupboard
+#  somebody had left in a field. A mine is a hole in a hill. So this is the
+#  hillside: a shoulder of broken rock in bands of grey and rust, scrub on its
+#  top, and a timber-framed tunnel mouth cut into its face with rails running
+#  out of the dark, an ore cart left by the entrance, a lantern on the lintel
+#  and a spoil heap of tailings. The mouth sits at the image's horizontal
+#  centre, where genmaps puts the portal.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "crag":        (0.545, 0.463, 0.357),
+    "crag_dk":     (0.400, 0.337, 0.263),
+    "crag_lt":     (0.690, 0.616, 0.490),
+    "crag_rust":   (0.639, 0.443, 0.263),
+    "scrub":       (0.388, 0.463, 0.259),
+    "tunnel":      (0.055, 0.047, 0.047),
+    "timber":      (0.451, 0.314, 0.200),
+    "timber_dk":   (0.310, 0.212, 0.141),
+    "rail":        (0.412, 0.408, 0.420),
+    "tailings":    (0.494, 0.431, 0.380),
+    "ore_red":     (0.639, 0.337, 0.247),
+})
+
+
+def rock(name, size, loc, colour, rng, flat=True):
+    """A chunky faceted boulder: a low-poly sphere squashed to size and turned
+    at random, so no two in the face repeat."""
+    bpy.ops.mesh.primitive_ico_sphere_add(radius=1.0, location=loc, subdivisions=1)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.scale = size
+    ob.rotation_euler = (rng.uniform(-0.4, 0.4), rng.uniform(-0.4, 0.4), rng.uniform(0, math.tau))
+    ob.data.materials.append(material(name, colour, 0.9))
+    if flat:
+        for p in ob.data.polygons:
+            p.use_smooth = False
+    return ob
+
+
+def prop_mine_adit():
+    import random
+    rng = random.Random(21)
+    W = 4.6            # width of the rock face
+    OPEN_W, OPEN_H = 1.10, 1.45
+    face_y = 0.0       # the front of the cliff, where the mouth is cut
+
+    # --- the hillside ----------------------------------------------------------------
+    # Terraces stepping back and up, each a block of rock with boulders along
+    # its front edge and scattered on its top, so the camera sees a hillside of
+    # ledges rather than a wall. The lowest terrace has the mouth cut in it.
+    tones = ("crag", "crag_dk", "crag_rust", "crag", "crag_lt", "crag_dk")
+    steps = ((0.00, W,        1.55, 0.00), (0.55, W - 0.5, 2.05, 0.2), (1.10, W - 1.1, 2.50, -0.15), (1.60, W - 1.9, 2.85, 0.25))
+    for t, (back, width, top, shift) in enumerate(steps):
+        depth = 0.75
+        blk("terrace_%d" % t, (width, depth, top), (shift, face_y + back + depth / 2 + 0.15, top / 2),
+            "crag_dk" if t % 2 == 0 else "crag", bev=0.04)
+        # Boulders along the front edge of the terrace's top, and down its face.
+        x = shift - width / 2
+        k = 0
+        while x < shift + width / 2:
+            rr = rng.uniform(0.20, 0.34)
+            cx = x + rr * 0.6
+            x += rr * 1.3
+            rock("ledge_%d_%d" % (t, k), (rr * 1.15, rr * 0.9, rr * 0.8),
+                 (cx, face_y + back + 0.12, top - rr * 0.2), tones[(t * 2 + k) % len(tones)], rng)
+            if t == 0 and abs(cx) > OPEN_W / 2 + 0.35:
+                rock("face_%d" % k, (rr * 1.2, rr * 0.7, rr * 1.1),
+                     (cx + rng.uniform(-0.1, 0.1), face_y + 0.05, rng.uniform(0.3, 1.1)), tones[(k + 3) % len(tones)], rng)
+            k += 1
+    # Big boulders at the foot of the slope, either side, to break the base line.
+    for k, (x, rr) in enumerate(((-2.25, 0.46), (-1.75, 0.34), (2.2, 0.50), (1.65, 0.32))):
+        rock("foot_%d" % k, (rr, rr * 0.85, rr * 0.8), (x, face_y - 0.05, rr * 0.55), tones[k % len(tones)], rng)
+    # Over the mouth, a lip of rock the timbers hold up.
+    rock("brow", (OPEN_W * 0.62, 0.40, 0.26), (0, face_y + 0.18, OPEN_H + 0.32), "crag_dk", rng)
+    # Scrub clinging to the ledges.
+    for k in range(10):
+        t = k % len(steps)
+        back, width, top, shift = steps[t]
+        sphere("scrub_%d" % k, rng.uniform(0.12, 0.19),
+               (shift + rng.uniform(-width / 2 + 0.3, width / 2 - 0.3), face_y + back + 0.3, top + 0.06), "scrub")
+
+    # --- the tunnel mouth ----------------------------------------------------------------
+    blk("dark", (OPEN_W, 0.9, OPEN_H), (0, face_y + 0.55, OPEN_H / 2), "tunnel", bev=0)
+    for sx in (-1, 1):
+        blk("post_%d" % sx, (0.16, 0.18, OPEN_H + 0.05), (sx * (OPEN_W / 2 + 0.02), face_y + 0.08, OPEN_H / 2), "timber")
+        # A brace from the post up into the rock, the way a real adit is set.
+        blk("brace_%d" % sx, (0.10, 0.12, 0.55), (sx * (OPEN_W / 2 + 0.2), face_y + 0.10, OPEN_H - 0.22), "timber_dk",
+            rot=(0, math.radians(-38 * sx), 0))
+    blk("lintel", (OPEN_W + 0.46, 0.22, 0.18), (0, face_y + 0.05, OPEN_H + 0.08), "timber")
+    # A second set a little way in, so the dark reads as depth, not paint.
+    for sx in (-1, 1):
+        blk("inner_post_%d" % sx, (0.10, 0.10, OPEN_H - 0.1), (sx * (OPEN_W / 2 - 0.1), face_y + 0.55, OPEN_H / 2 - 0.05), "timber_dk")
+    blk("inner_lintel", (OPEN_W - 0.1, 0.10, 0.10), (0, face_y + 0.55, OPEN_H - 0.08), "timber_dk")
+    # The lantern on its hook.
+    blk("hook", (0.04, 0.22, 0.04), (0.38, face_y - 0.08, OPEN_H + 0.02), "iron")
+    blk("lantern", (0.12, 0.12, 0.17), (0.38, face_y - 0.18, OPEN_H - 0.12), "glass_lit", emit=1.4)
+    blk("lantern_cap", (0.15, 0.15, 0.04), (0.38, face_y - 0.18, OPEN_H - 0.02), "iron")
+
+    # --- rails, cart and tailings ----------------------------------------------------------
+    for i in range(7):
+        y = face_y + 0.35 - i * 0.30
+        blk("sleeper_%d" % i, (0.78, 0.12, 0.05), (0, y, 0.025), "timber_dk")
+    for sx in (-1, 1):
+        blk("rail_%d" % sx, (0.05, 2.2, 0.05), (sx * 0.26, face_y - 0.55, 0.07), "rail", metal=0.4, rough=0.5)
+    # The cart, off the rails to one side, loaded with rust-red ore.
+    cx, cy = -1.05, face_y - 0.55
+    blk("cart", (0.62, 0.46, 0.34), (cx, cy, 0.30), "timber")
+    blk("cart_band", (0.66, 0.50, 0.06), (cx, cy, 0.42), "iron")
+    for k in range(5):
+        rock("ore_%d" % k, (0.10, 0.09, 0.08), (cx + rng.uniform(-0.2, 0.2), cy + rng.uniform(-0.12, 0.12), 0.50),
+             "ore_red" if k % 2 else "crag_dk", rng)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cyl("wheel", 0.08, 0.05, (cx + sx * 0.22, cy + sy * 0.24, 0.10), "iron", rot=(0, math.radians(90), 0), verts=12)
+    # Tailings tipped out to the right.
+    for k in range(10):
+        rock("spoil_%d" % k, (rng.uniform(0.10, 0.2),) * 3,
+             (1.2 + rng.uniform(-0.35, 0.35), face_y - 0.35 + rng.uniform(-0.3, 0.25), rng.uniform(0.05, 0.16)),
+             "tailings" if k % 3 else "crag_lt", rng)
+    # A pick left leaning on the post.
+    blk("pick_haft", (0.05, 0.05, 0.62), (-OPEN_W / 2 - 0.22, face_y - 0.15, 0.30), "timber",
+        rot=(0, math.radians(14), 0))
+    blk("pick_head", (0.36, 0.06, 0.06), (-OPEN_W / 2 - 0.15, face_y - 0.15, 0.60), "iron",
+        rot=(0, math.radians(14), 0))
+    return (5.6, BUILDING_ELEVATION)
+
+
+HERB_PROPS["mine_adit"] = (prop_mine_adit, 256)
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),

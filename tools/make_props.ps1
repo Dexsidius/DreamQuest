@@ -64,6 +64,8 @@ $sizes = @{
 
     # Herbs for Foraging, growing and picked, and the brewing cauldron.
     cauldron = 48
+    # The Emberfell mine's way in, on the overworld.
+    mine_adit = 256
     herb_marigold = 40; herb_marigold_picked = 40
     herb_brookmint = 40; herb_brookmint_picked = 40
     herb_nettle = 40; herb_nettle_picked = 40

@@ -1292,6 +1292,10 @@
                                               "w":  80,
                                               "h":  80
                                           },
+                   "props/mine_adit":  {
+                                           "w":  256,
+                                           "h":  256
+                                       },
                    "props/mossvale_lodge":  {
                                                 "w":  192,
                                                 "h":  192

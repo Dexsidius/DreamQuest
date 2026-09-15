@@ -4303,6 +4303,7 @@ int main(int argc, char** argv) {
                     {"mossvale_herbalist", "oonas_cottage", 256, 235, 1.5f},
                     {"fernhollow_cottage", "ferry_cottage", 256, 235, 1.5f},
                     {"town_havenbrook", "havenbrook_store", 1090, 870, 2},
+                    {"overworld", "emberfell_entrance", 2128, 300, 2},
                     {"house_smith", "halda_forge", 288, 200, 1.5f},
                     {"mossvale", "mossvale_pell", 700, 930, 2},
                     {"mossvale", "mossvale_smith", 1540, 840, 2},
