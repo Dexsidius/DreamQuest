@@ -106,6 +106,10 @@
           "stock": 1
         },
         {
+          "item": "bronze_spear",
+          "stock": 1
+        },
+        {
           "item": "bronze_shield",
           "stock": 1
         },
@@ -301,6 +305,10 @@
         },
         {
           "item": "iron_sword",
+          "stock": 1
+        },
+        {
+          "item": "iron_spear",
           "stock": 1
         },
         {

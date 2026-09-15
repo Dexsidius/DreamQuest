@@ -128,31 +128,20 @@ void Game::NewGame(const string& character, int slot) {
     world.player = Player();
     world.player.Init(ctx, character);
 
-    // Starting kit: something to fight with, something to hide behind, and
-    // something to eat when neither worked.
+    // Starting kit: a few coins, a wooden sword and a bit of food. Everything
+    // else -- a shield, a bow or a staff, the tools to work the land, a bedroll
+    // -- is bought, found or made.
     world.player.inventory.Add("coins", 25);
-    world.player.inventory.Add("bronze_sword", 1);
-    world.player.inventory.Add("wooden_shield", 1);
-    world.player.inventory.Add("cooked_meat", 4);
-    // A starter bow and staff, so both other styles can be tried out from the
-    // first minute rather than waiting on a drop.
-    world.player.inventory.Add("training_bow", 1);
-    world.player.inventory.Add("novice_staff", 1);
-    // And a bedroll, so the first night can be slept through wherever it falls.
-    world.player.inventory.Add("bedroll", 1);
-    // The tools to work the land: nothing can be chopped, mined or fished
-    // without them, and an axe cannot be made without logs to make it from.
-    world.player.inventory.Add("bronze_axe", 1);
-    world.player.inventory.Add("bronze_pickaxe", 1);
-    world.player.inventory.Add("fishing_rod", 1);
+    world.player.inventory.Add(STARTING_WEAPON, 1);
+    world.player.inventory.Add("cooked_meat", 3);
+    // Marked, so loading this character never hands them the tools a character
+    // from before gathering needed tools is given.
     world.SetFlag("starter_tools");
 
     string why;
-    for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot) {
-        const string& id = world.player.inventory.Slot(slot).id;
-        if (id == "bronze_sword" || id == "wooden_shield")
+    for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
+        if (world.player.inventory.Slot(slot).id == STARTING_WEAPON)
             world.player.EquipFromInventory(slot, why);
-    }
 
     active_slot = slot;
     playtime = 0.0f;

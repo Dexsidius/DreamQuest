@@ -200,8 +200,28 @@ void Player::TurnToTarget(const World& world) {
     if (!t) return;
     const SDL_FPoint a = Targeting::AimPoint(*t);
     if (Style() == AttackStyle::Melee &&
-        Length(a.x - x, a.y - (y - 16.0f)) > Targeting::MELEE_ASSIST) return;
+        Length(a.x - x, a.y - (y - 16.0f)) > Targeting::MELEE_ASSIST * WeaponReach()) return;
     FacePoint(a.x, a.y);
+}
+
+float Player::WeaponReach() const {
+    const ItemDef* w = equipment.Weapon();
+    return (w && Style() == AttackStyle::Melee) ? std::max(0.5f, w->reach) : 1.0f;
+}
+
+void Player::ShapeForWeapon(AttackProfile& p) const {
+    const ItemDef* w = equipment.Weapon();
+    if (!w || Style() != AttackStyle::Melee) return;
+    p.reach     *= std::max(0.5f, w->reach);
+    p.width     *= std::clamp(w->sweep, 0.3f, 2.0f);
+    p.knockback *= std::max(0.0f, w->push);
+}
+
+string Player::AttackClip() const {
+    const ItemDef* w = equipment.Weapon();
+    if (w && !w->attack_clip.empty() && sprite.Def() && sprite.Def()->Find(w->attack_clip))
+        return w->attack_clip;
+    return "attack";
 }
 
 void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
@@ -214,6 +234,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
         combo = index;
         attack.type        = AttackType::Light;
         attack.profile     = ScaleForSpeed(ProfileFor(AttackType::Light, index), speed);
+        ShapeForWeapon(attack.profile);
         attack.rate        = speed;
         attack.damage_mult = attack.profile.damage_mult;
         attack.reach_scale = 1.0f;
@@ -222,7 +243,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
         attack.consumed    = false;
         TurnToTarget(world);
         sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-        sprite.Play("attack", true);
+        sprite.Play(AttackClip(), true);
         combo_window = 0.0f;
         // A bow or a staff makes its own noise when the shot leaves.
         if (Style() == AttackStyle::Melee) Audio::Play(Sfx::Swing, 1.0f, 1.0f + 0.06f * index);
@@ -247,6 +268,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
 
         attack.type    = was_charged ? AttackType::Charged : AttackType::Strong;
         attack.profile = ScaleForSpeed(ProfileFor(attack.type), speed);
+        ShapeForWeapon(attack.profile);
         attack.rate    = speed;
         attack.damage_mult = was_charged ? ChargeMultiplier(ratio)
                                          : attack.profile.damage_mult;
@@ -257,7 +279,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
         attack.consumed = false;
         TurnToTarget(world);
         sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-        sprite.Play("attack", true);
+        sprite.Play(AttackClip(), true);
         if (Style() == AttackStyle::Melee)
             Audio::Play(Sfx::SwingHeavy, was_charged ? 1.0f : 0.85f, was_charged ? 0.85f : 1.0f);
 

@@ -566,6 +566,45 @@ def pose_attack(t):
     }
 
 
+def pose_thrust(t):
+    # A spear's strike: the hand drawn back to the hip with the shaft level,
+    # then driven straight out along the facing with a step in behind it, a
+    # held beat at full stretch, and back. The chest does not turn into it: a
+    # turn swings the shaft across the body. The grip is turned against the arm
+    # every frame so the shaft stays level the whole way -- a thrust that dips
+    # and rises reads as a swing.
+    def ease(k):
+        return k * k * (3 - 2 * k)
+    if t < 0.30:
+        k = ease(t / 0.30)
+        arm, elbow, twist, lean, step = 20 + 10 * k, 30 + 65 * k, 0.0, -4 * k, 0.0
+    elif t < 0.55:
+        k = ease((t - 0.30) / 0.25)
+        arm = 30 + 52 * k
+        elbow = 95 - 91 * k
+        twist = 0.0
+        lean = -4 + 16 * k
+        step = 0.12 * k
+    else:
+        k = ease((t - 0.55) / 0.45)
+        arm = 82 - 52 * k
+        elbow = 4 + 36 * k
+        twist = 0.0
+        lean = 12 - 9 * k
+        step = 0.12 - 0.09 * k
+    return {
+        "arm_r": arm, "elbow_r": elbow, "flare_r": 2,
+        "arm_l": 30 + step * 150, "elbow_l": 55, "flare_l": 10,
+        "twist": twist, "lean": lean, "nod": -lean * 0.4,
+        "leg_l": 18 * (step / 0.12), "leg_r": -14 * (step / 0.12),
+        "knee_l": 14, "knee_r": 10, "lunge": step,
+        # Level: the grip pitches with the arm, the chest's lean, a fifth of
+        # the elbow and eight degrees, plus this.
+        "sword": 90 - arm - lean - 0.2 * elbow - 8,
+        "scarf": 20 + 30 * (step / 0.12), "scarf2": 20, "hair": 4,
+    }
+
+
 def pose_jump(t):
     if t < 0.2:
         k = t / 0.2
@@ -703,6 +742,8 @@ CLIPS = {
     "run":    (pose_run,    8,  True),
     "sprint": (pose_sprint, 8,  True),
     "attack": (pose_attack, 6,  False),
+    # A spear's strike, in place of the swing.
+    "thrust": (pose_thrust, 6,  False),
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
     "death":  (pose_death,  6,  False),

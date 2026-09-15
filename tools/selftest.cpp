@@ -1174,7 +1174,7 @@ int main(int argc, char** argv) {
               CraftSkill(CraftStation::Cauldron) == SKILL_BREWING, "workbench, anvil and cauldron train Crafting, Smithing and Brewing");
         for (const TierDef& t : items.Tiers()) {
             if (t.wood) continue;
-            for (const char* piece : {"sword", "bow", "staff", "shield", "helm", "body", "legs", "axe", "pickaxe"}) {
+            for (const char* piece : {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs", "axe", "pickaxe"}) {
                 const string id = items.TierPiece(t.id, piece);
                 for (const ItemDef* r : anvil)
                     if (r->craft_result == id)
@@ -1979,7 +1979,7 @@ int main(int argc, char** argv) {
     {
         static const char* kOrder[] = {"wood", "bronze", "iron", "steel", "azuryte",
                                        "adamantium", "diamond", "platinum", "demonrite"};
-        static const char* kPieces[] = {"sword", "bow", "staff", "shield", "helm", "body", "legs"};
+        static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs"};
         const auto& tiers = items.Tiers();
         Check(tiers.size() == 9, "there are nine tiers");
         bool order = tiers.size() == 9;
@@ -2006,7 +2006,7 @@ int main(int argc, char** argv) {
                     if (prev && main_stat(d) <= main_stat(prev)) stats_rise = false;
                     if (prev && d->value <= prev->value) value_rises = false;
                 }
-                const string skill = string(piece) == "sword" ? "Attack" : string(piece) == "bow" ? "Ranged"
+                const string skill = (string(piece) == "sword" || string(piece) == "spear") ? "Attack" : string(piece) == "bow" ? "Ranged"
                                    : string(piece) == "staff" ? "Magic" : "Defence";
                 const int s_id = SkillFromName(skill);
                 if (t.level > 1 && (d->requirements.size() != 1 || d->requirements.count(s_id) == 0 ||
@@ -2027,10 +2027,10 @@ int main(int argc, char** argv) {
         Check(stats_rise, "every piece is stronger than the same piece a tier down");
         Check(value_rises, "and worth more");
         Check(reqs_right, "every piece needs its tier's level in Attack, Ranged, Magic or Defence");
-        Check(recipes_ok, "every tier makes all seven pieces, each with a recipe");
+        Check(recipes_ok, "every tier makes all eight pieces, each with a recipe");
         Check(stations_ok, "wooden pieces are made at a workbench and metal ones at an anvil");
         Check(ores_ok, "every metal tier has an ore and a bar, and a recipe to smelt it");
-        Check(models_ok, "every tier's sword, bow and staff name their own model");
+        Check(models_ok, "every tier's sword, spear, bow and staff name their own model");
 
         // The items that were there before tiers are the tier pieces now.
         for (const char* old : {"bronze_sword", "iron_sword", "steel_longsword", "oak_shortbow",
@@ -2070,24 +2070,27 @@ int main(int argc, char** argv) {
                 if (seen.count(h) && seen[h] != kv.second.icon) ++dupes;
                 seen[h] = kv.second.icon;
             }
-            Check(icons >= 79 && dupes == 0, "all " + std::to_string(icons) + " tier icons are different pictures");
+            Check(icons >= 88 && dupes == 0, "all " + std::to_string(icons) + " tier icons are different pictures");
         }
         {
             const SpriteDef* hero = sprites.Get("player_hero");
             int missing = 0, sheets = 0;
             std::set<size_t> attack_sheets;
             for (const TierDef& t : tiers)
-                for (const char* kind : {"sword", "bow", "staff"}) {
+                for (const char* kind : {"sword", "spear", "bow", "staff"}) {
                     const string model = string(kind) + "_" + t.id;
+                    const bool spear = string(kind) == "spear";
                     for (const auto& clip : hero ? hero->clips : map<string, AnimClip>{}) {
                         // The work clips hold a tool, not a weapon, and picking herbs holds nothing.
                         if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish" ||
                             clip.first == "gather") continue;
+                        // A spear strikes with the thrust and nothing else does.
+                        if (clip.first == (spear ? "attack" : "thrust")) continue;
                         const string path = "assets/characters/player_hero/layers/" + clip.first +
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
                         ++sheets;
-                        if (clip.first == "attack") {
+                        if (clip.first == "attack" || clip.first == "thrust") {
                             std::ifstream f(path, std::ios::binary);
                             attack_sheets.insert(std::hash<string>{}(string(
                                 (std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>())));
@@ -2096,7 +2099,64 @@ int main(int argc, char** argv) {
                 }
             Check(hero && missing == 0, "every tier weapon has a layer sheet for every hero clip (" +
                   std::to_string(sheets) + ")");
-            Check(attack_sheets.size() == 27, "all 27 weapons look different in the hero's hand");
+            Check(attack_sheets.size() == 36, "all 36 weapons look different in the hero's hand");
+        }
+
+        // --- the spear ------------------------------------------------------------------------
+        // A thrust that keeps a fight at the end of the shaft: it reaches much
+        // further than a sword down a narrower line, and shoves harder.
+        {
+            const ItemDef* sword = items.Get(items.TierPiece("iron", "sword"));
+            const ItemDef* spear = items.Get(items.TierPiece("iron", "spear"));
+            Check(spear && spear->name == "Iron Spear" && spear->kind == WeaponKind::Melee && spear->slot == SLOT_WEAPON,
+                  "every metal tier has a spear: the Iron Spear is a melee weapon");
+            Check(items.Get(items.TierPiece("wood", "spear")) && items.Get(items.TierPiece("demonrite", "spear")),
+                  "from a fire-hardened wooden spear to a demonrite one");
+            if (sword && spear) {
+                Check(spear->reach >= 1.5f && sword->reach == 1.0f, "a spear reaches half as far again as a sword and more");
+                Check(spear->sweep < 1.0f && spear->push > 1.0f, "down a narrower line, and it shoves harder");
+                Check(spear->attack_clip == "thrust" && sprites.Get("player_hero") &&
+                      sprites.Get("player_hero")->Find("thrust"), "it strikes with the hero's thrust clip");
+                Check(main_stat(spear) < main_stat(sword) * 1.2f && spear->attack_speed > sword->attack_speed,
+                      "the reach is paid for: a spear is slower than a sword of its metal");
+
+                GameContext hand;
+                hand.sprites = &sprites;  hand.items = &items;
+                Player lancer, fencer;
+                lancer.Init(hand, "player_hero");
+                fencer.Init(hand, "player_hero");
+                string why;
+                lancer.inventory.Add(spear->id, 1);
+                fencer.inventory.Add(sword->id, 1);
+                lancer.skills.SetXp(SKILL_ATTACK, XpForLevel(20));
+                fencer.skills.SetXp(SKILL_ATTACK, XpForLevel(20));
+                lancer.EquipFromInventory(0, why);
+                fencer.EquipFromInventory(0, why);
+                Check(lancer.equipment.InSlot(SLOT_WEAPON) == spear->id && fencer.equipment.InSlot(SLOT_WEAPON) == sword->id,
+                      "a spear and a sword are taken in hand");
+                for (AttackType type : {AttackType::Light, AttackType::Strong, AttackType::Charged}) {
+                    AttackProfile a = ProfileFor(type), b = ProfileFor(type);
+                    lancer.ShapeForWeapon(a);
+                    fencer.ShapeForWeapon(b);
+                    const SDL_FRect ha = AttackHitbox(0, 0, FACE_RIGHT, a), hb = AttackHitbox(0, 0, FACE_RIGHT, b);
+                    Check(ha.w > hb.w * 1.5f && ha.h < hb.h, "a spear's strike reaches further down a narrower line than a sword's");
+                }
+                Check(lancer.WeaponReach() > 1.5f && fencer.WeaponReach() == 1.0f, "and the reach is the weapon's");
+                Check(lancer.AttackClip() == "thrust" && fencer.AttackClip() == "attack", "the spear thrusts and the sword swings");
+                // An enemy at spear's length: out of a sword's reach, inside a spear's.
+                AttackProfile light_spear = ProfileFor(AttackType::Light), light_sword = ProfileFor(AttackType::Light);
+                lancer.ShapeForWeapon(light_spear);
+                fencer.ShapeForWeapon(light_sword);
+                const SDL_FRect body = {44.0f, -26.0f, 14.0f, 18.0f};
+                Check(RectsOverlap(AttackHitbox(0, 0, FACE_RIGHT, light_spear), body) &&
+                      !RectsOverlap(AttackHitbox(0, 0, FACE_RIGHT, light_sword), body),
+                      "a monster a spear's length away is hit by a spear and not by a sword");
+                // Smithed like a sword, at the anvil, at its tier's level.
+                bool recipe = false;
+                for (const ItemDef* r : items.Recipes())
+                    if (r->craft_result == spear->id && r->craft_inputs.count("iron_bar")) recipe = true;
+                Check(recipe, "an iron spear is smithed from iron bars");
+            }
         }
 
         // Requirements hold, and the hero draws what is in hand.

@@ -1084,7 +1084,11 @@ void Game::DrawInventory() {
         // a shortbow "even". Anything a tenth either side of the baseline is
         // worth naming.
         const char* word = sp < 0.92f ? "fast" : (sp > 1.08f ? "slow" : "even");
-        SDL_snprintf(bonus, sizeof(bonus), "Attack speed  %.2fx  (%s)", 1.0f / sp, word);
+        const float reach = p.WeaponReach();
+        if (reach > 1.05f)
+            SDL_snprintf(bonus, sizeof(bonus), "Attack speed  %.2fx  (%s)   Reach  %.2fx", 1.0f / sp, word, reach);
+        else
+            SDL_snprintf(bonus, sizeof(bonus), "Attack speed  %.2fx  (%s)", 1.0f / sp, word);
         ui.Text(bonus, eq_x, bonus_y + 50.0f, TextSize::Small, Palette::TextDim);
     }
 

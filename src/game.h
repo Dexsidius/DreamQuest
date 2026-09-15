@@ -35,6 +35,9 @@ enum class GameState {
     Death,
 };
 
+// What a new character starts with in hand.
+static constexpr const char* STARTING_WEAPON = "wood_sword";
+
 // A short-lived message in the top-right: level ups, quest updates, saves.
 struct Toast {
     string text;

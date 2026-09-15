@@ -351,6 +351,93 @@ def build_staff(tier, parent):
     return parts
 
 
+SPEARS = {
+    #             head   width  extras
+    "wood":       (0.16, 0.030, "hardened"),
+    "bronze":     (0.20, 0.052, "leaf"),
+    "iron":       (0.21, 0.036, ""),
+    "steel":      (0.25, 0.040, "lugs"),
+    "azuryte":    (0.25, 0.044, "edge gem"),
+    "adamantium": (0.23, 0.064, "heavy lugs"),
+    "diamond":    (0.26, 0.050, "crystal"),
+    "platinum":   (0.28, 0.050, "wings gem collar"),
+    "demonrite":  (0.28, 0.054, "barbs horns edge"),
+}
+# Which way a spear is carried: upright beside the shoulder like a staff, or,
+# during a thrust, levelled along the arm with the head out in front.
+SPEAR_MODE = {"thrust": False}
+
+
+def build_spear(tier, parent):
+    head_len, width, extras = SPEARS[tier]
+    parts = []
+    icon = ICON_MODE["on"]
+    frame = bc.empty("spear_frame", (0, 0, 0), parent)
+    if SPEAR_MODE["thrust"] and not icon:
+        # The grip's -Z is the way a blade points; turn the spear's +Z onto it,
+        # and take off the grip's outward cant, or the shaft points across the
+        # body rather than down the facing.
+        frame.rotation_euler = Euler((math.radians(180), math.radians(-18), 0), "XYZ")
+    elif not icon:
+        # Carried like the staff: stood up, out and forward of the sleeve.
+        frame.location = Vector((-0.10, -0.08, 0.0))
+        frame.rotation_euler = Euler((0, math.radians(-30), 0), "XYZ")
+    parts.append(frame)
+    parent = frame
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    # An icon has to show the head in 32 pixels, so its shaft is short.
+    top, bottom = (0.34, -0.26) if icon else (0.74, -0.42)
+    if icon:
+        head_len, width = head_len * 1.5, width * 1.5
+    shaft = P(tier, "main") if tier == "wood" else "wood_dark"
+    add("shaft", bc.mesh_capsule(0.019, 0.019, top - bottom), shaft, parent, loc=(0, 0, top))
+    z0 = top
+    if tier != "wood":
+        add("socket", bc.mesh_ellipsoid(0.028, 0.028, 0.04), P(tier, "dark"), parent, loc=(0, 0, top))
+        z0 = top + 0.02
+
+    if "hardened" in extras:
+        # A point cut on the shaft itself and blackened in the fire.
+        parts.append(bc.spike("point", (0, 0, z0 - 0.02), (0, 0, z0 + head_len), 0.026, P(tier, "dark"), parent))
+        add("binding", bc.mesh_ellipsoid(0.026, 0.026, 0.018), "string", parent, loc=(0, 0, z0 - 0.06))
+    elif "crystal" in extras:
+        add("head", mesh_gem(width, width * 0.5, head_len * 0.5, sides=4), P(tier, "main"), parent,
+            loc=(0, 0, z0 + head_len * 0.5))
+    else:
+        broad = 1.25 if ("leaf" in extras or "heavy" in extras) else 0.85
+        add("head", bc.mesh_ellipsoid(width * broad, width * 0.28, head_len * 0.42), P(tier, "main"), parent,
+            loc=(0, 0, z0 + head_len * 0.40))
+        parts.append(bc.spike("point", (0, 0, z0 + head_len * 0.5), (0, 0, z0 + head_len), width * 0.55,
+                              P(tier, "light"), parent))
+    if "edge" in extras:
+        add("edge", bc.mesh_ellipsoid(width * 0.35, width * 0.32, head_len * 0.36), glow_or(tier, "light"),
+            parent, loc=(0, 0, z0 + head_len * 0.42))
+    if "gem" in extras:
+        add("gem", mesh_gem(0.022, 0.018, 0.026), glow_or(tier, "accent"), parent, loc=(0, -0.025, z0 + 0.01))
+    if "lugs" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("lug", (0, 0, z0 - 0.01), (side * 0.07, 0, z0 - 0.03), 0.016,
+                                  P(tier, "dark"), parent))
+    if "wings" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("wing", (side * 0.02, 0, z0), (side * 0.11, 0, z0 - 0.07), 0.022,
+                                  P(tier, "accent"), parent))
+    if "collar" in extras:
+        add("collar", bc.mesh_ellipsoid(0.03, 0.03, 0.02), P(tier, "accent"), parent, loc=(0, 0, z0 - 0.08))
+    if "barbs" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("barb", (side * width * 0.6, 0, z0 + head_len * 0.2),
+                                  (side * width * 1.8, 0, z0 - 0.03), 0.02, P(tier, "light"), parent))
+    if "horns" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("horn", (side * 0.02, 0, z0 - 0.04), (side * 0.10, 0, z0 + 0.06), 0.022,
+                                  P(tier, "light"), parent))
+    # A metal-shod butt.
+    if tier != "wood" and not icon:
+        add("butt", bc.mesh_ellipsoid(0.026, 0.026, 0.035), P(tier, "dark"), parent, loc=(0, 0, bottom))
+    return parts
+
+
 # The wood tier's staff shaft for the metal tiers is dark wood.
 bc.PALETTE["wood_dark"] = PALETTES["wood"]["dark"]
 
@@ -504,7 +591,7 @@ def build_fish(name, parent, cooked=False):
     return parts
 
 
-WEAPONS = {"sword": build_sword, "bow": build_bow, "staff": build_staff,
+WEAPONS = {"sword": build_sword, "spear": build_spear, "bow": build_bow, "staff": build_staff,
            "axe": build_axe, "pickaxe": build_pickaxe, "rod": build_rod}
 
 
@@ -722,6 +809,7 @@ def all_icons(only_tiers):
         #                  file                builder       tilt  spin  fill
         jobs = [("sword_" + tier,  build_sword,  -135, 0,   1.0),
                 ("staff_" + tier,  build_staff,  45,   0,   1.0),
+                ("spear_" + tier,  build_spear,  45,   0,   1.0),
                 ("bow_" + tier,    build_bow,    30,   0,   0.96),
                 ("shield_" + tier, build_shield, 0,    12,  0.9),
                 ("helm_" + tier,   build_helm,   0,    20,  0.88),
@@ -1033,6 +1121,7 @@ def weapon_layers(clip_name, models, out_dir):
 
     bc.setup_camera(cols, rows)
     bc.setup_render(cols, rows)
+    SPEAR_MODE["thrust"] = clip_name == "thrust"
 
     for model in models:
         kind, tier = model.split("_", 1) if "_" in model else (model, "wood")
@@ -1068,7 +1157,10 @@ def main():
         # Picking herbs is done bare-handed: nothing in hand, so no layers.
         if clip == "gather":
             return []
-        kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",)}.get(clip, ("sword", "bow", "staff"))
+        # A spear strikes with its own clip and never plays the swing, and
+        # nothing but a spear plays the thrust.
+        kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",),
+                 "attack": ("sword", "bow", "staff"), "thrust": ("spear",)}.get(clip, ("sword", "spear", "bow", "staff"))
         every = ["rod"] if kinds == ("rod",) else ["%s_%s" % (k, t) for t in tiers for k in kinds]
         if chosen:
             return [m for m in chosen if m.split("_", 1)[0] in kinds]

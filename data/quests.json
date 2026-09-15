@@ -1155,6 +1155,36 @@
     },
     "completion": "\"Balanced. He will not lose this one.\""
   },
+  "q_order_iron_spear": {
+    "name": "Order: Iron Spear",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 10,
+    "summary": "An iron spear for a road warden who wants the orcs kept at a distance.",
+    "req": {
+      "Smithing": 11
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 1 iron spear",
+        "type": "deliver",
+        "target": "iron_spear",
+        "to": "npc_smith",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 720,
+        "Smithing": 600
+      },
+      "coins": 345
+    },
+    "completion": "\"Straight shaft, true point. He'll never have to let them close.\""
+  },
   "q_order_steel_longsword": {
     "name": "Order: Steel Longsword",
     "source": "npc",

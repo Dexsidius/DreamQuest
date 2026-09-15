@@ -62,6 +62,10 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.icon        = o.value("icon", string(""));
         d.attack_speed = o.value("speed", 1.0f);
         d.kind        = WeaponKindFromName(o.value("kind", string("melee")));
+        d.reach       = o.value("reach", 1.0f);
+        d.sweep       = o.value("sweep", 1.0f);
+        d.push        = o.value("push", 1.0f);
+        d.attack_clip = o.value("clip", string(""));
 
         if (o.contains("tint")) {
             const json& t = o["tint"];
@@ -187,7 +191,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
     tier_pieces.clear();
 
     // Pieces in a fixed order, so the recipe list reads the same every time.
-    static const char* kPieces[] = {"sword", "bow", "staff", "shield", "helm", "body", "legs",
+    static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs",
                                     "axe", "pickaxe"};
     const json& pieces = root["pieces"];
 
@@ -273,6 +277,10 @@ bool ItemDatabase::LoadTiers(const string& path) {
             d.slot = static_cast<EquipSlot>(EquipSlotFromName(pj.value("slot", string("none"))));
             d.kind = WeaponKindFromName(pj.value("kind", string("melee")));
             d.attack_speed = pj.value("speed", 1.0f);
+            d.reach = pj.value("reach", 1.0f);
+            d.sweep = pj.value("sweep", 1.0f);
+            d.push = pj.value("push", 1.0f);
+            d.attack_clip = pj.value("clip", string(""));
             d.value = pj.value("value", 10) * value_mult;
             d.icon = icon_for(piece + "_" + t.id);
             d.tier = t.id;
@@ -547,6 +555,10 @@ float Equipment::AttackSpeed() const {
     if (!db) return 1.0f;
     if (const ItemDef* w = db->Get(slots[SLOT_WEAPON])) return w->attack_speed;
     return 1.0f;
+}
+
+const ItemDef* Equipment::Weapon() const {
+    return db ? db->Get(slots[SLOT_WEAPON]) : nullptr;
 }
 
 WeaponKind Equipment::Kind() const {

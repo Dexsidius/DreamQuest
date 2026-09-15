@@ -73,6 +73,12 @@ public:
     float CooldownProgress() const;
     // How fast the equipped weapon swings; 1.0 is the bare-handed baseline.
     float WeaponSpeed() const;
+    // How far the weapon in hand reaches, as a multiplier on a bare swing's.
+    float WeaponReach() const;
+    // A melee strike takes the shape of the weapon it is made with.
+    void ShapeForWeapon(AttackProfile& p) const;
+    // The clip a strike plays: the weapon's own, when the rig has it.
+    string AttackClip() const;
     bool  IsCharging() const { return charging; }
 
     // --- magic ----------------------------------------------------------------

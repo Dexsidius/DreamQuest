@@ -341,10 +341,10 @@ Weapons and armour come in nine tiers, in this order:
 | **Platinum** | 60 | platinum ore and coal | Mining 60 | the lower mine |
 | **Demonrite** | 70 | demonrite ore and dream shards | Mining 70 | only in the dreamworld, around the Nightmare Brute |
 
-Every tier makes the same seven pieces -- a **sword, bow, staff, shield, helm,
-cuirass and greaves** -- and every piece needs its tier's level in the skill it
-is used with: Attack for a sword, Ranged for a bow, Magic for a staff, Defence
-for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
+Every tier makes the same eight pieces -- a **sword, spear, bow, staff, shield,
+helm, cuirass and greaves** -- and every piece needs its tier's level in the
+skill it is used with: Attack for a sword or a spear, Ranged for a bow, Magic
+for a staff, Defence for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
 which need the tier's level in Woodcutting or Mining; see
 [Gathering](#gathering). Each metal tier has an **ore** and a **bar**. Ore is smelted into
 bars at an anvil, and bars are smithed into the pieces there too; wooden pieces
@@ -389,10 +389,10 @@ diamond a faceted crystal, platinum long with a winged guard, demonrite jagged
 and horned -- and the top tiers carry **something that glows**: azuryte's cyan
 edge, diamond's white sparks, platinum's gold halo, demonrite's red heat.
 
-The same models are what the hero holds. For every tier's sword, bow and staff
+The same models are what the hero holds. For every tier's sword, spear, bow and staff
 the script poses the weapon in the hero's hand for every frame of every clip and
 renders it as a layer, cut by the body and head the way the hero's own sword
-is -- `layers/<clip>_4_weapon_<model>.png`, 216 sheets -- and the game draws the
+is -- `layers/<clip>_4_weapon_<model>.png`, 288 sheets -- and the game draws the
 one for whatever is equipped in place of the default sword. A bow and a staff
 are carried out and forward of the arm, stood up straighter than the hand
 hangs; held where a sword is, their upper half vanished behind the sleeve and a
@@ -457,10 +457,10 @@ pickaxe is quicker than the one below. Measured on the same oak at Woodcutting
 Axes and pickaxes are made like the rest of their tier: wooden ones from three
 logs at a workbench, metal ones from two bars and a log at an anvil. The
 **fishing rod** is one rod, made at a workbench from two logs and a waxed thread;
-the Fishing level alone decides how quickly things bite. Every new character
-starts with a bronze axe, a bronze pickaxe and a rod, and a character from a
-save made before tools were needed is handed the same set the first time it
-loads, so nobody is left unable to chop the logs to make an axe from.
+the Fishing level alone decides how quickly things bite. A new character starts
+with none: tools are bought from a general store or the forge, or made. A
+character from a save made before tools were needed is handed a bronze axe, a
+bronze pickaxe and a rod the first time it loads.
 
 While the work goes on the hero **plays its own animation** and holds the tool
 instead of the weapon: a two-handed swing round from the shoulder into the
@@ -1001,8 +1001,8 @@ There are three kinds of place to sleep:
   Oona's in Mossvale and the ferry cottage's double bed in Fernhollow.
 - **Campsites** -- the tents at Bram's camp on the Whisperwood trail and at the
   traveller's camp in Fernhollow.
-- **Your own camp.** Every new character starts with a **Bedroll**, and more are
-  made at a workbench from 2 waxed thread and 2 raw hide. Use it from the bag
+- **Your own camp.** A **Bedroll** is sold at the general stores and made at a
+  workbench from 2 waxed thread and 2 raw hide. Use it from the bag
   under open sky and it pitches a tent and a fire where you stand. After dusk it
   offers "Sleep at your camp"; by day, "Pack up your camp" puts the bedroll back
   in your bag. There is one camp at a time -- pitching another packs the first
@@ -1148,6 +1148,38 @@ properties of the weapon’s shape, not of how fast it moves.
 
 The property had been in `data/items.json` since the beginning and nothing ever
 read it. `Equipment::AttackSpeed()` existed and was never called.
+
+### Spears
+
+A spear is the other melee weapon every tier makes, beside the sword: a fire-
+hardened wooden one, then bronze through demonrite, smithed at the anvil from
+two bars and two logs at the same level as that tier's sword. It is for keeping
+a fight at the end of the shaft. A weapon can declare its **shape** as well as
+its speed -- `reach`, `sweep` and `push` in `data/tiers.json`, multipliers on
+each attack's own reach, width and knockback -- and a spear's are 1.75, 0.6 and
+1.35: every strike reaches three-quarters as far again as a sword's down a line
+not much more than half as wide, and shoves what it hits further back. A light
+jab lands on a monster about 50 pixels away, where a sword swings short. The
+target lock turns a spear toward a target from further off to match. The reach
+is paid for: a spear is slower than a sword of the same metal (speed 1.12), a
+little weaker, and useless against something beside you rather than in front.
+
+It strikes with its own clip. The hero's **thrust** (`pose_thrust` in
+`tools/blender_character.py`) draws the hand back to the hip and drives it
+straight out along the facing with a step in behind; the grip is counter-turned
+against the arm and the lean every frame, and the chest does not twist, so the
+shaft stays level -- a turning chest swung it across the body. A weapon names
+the clip it strikes with (`"clip": "thrust"`), and a rig without that clip
+swings its ordinary attack. Out of a fight a spear is carried upright beside the
+shoulder, the way a staff is. Halda's forge sells a bronze spear and Mossvale's
+smith an iron one, Halda posts orders for iron spears, and lizardmen now and
+then leave a bronze one behind.
+
+## Starting out
+
+A new character starts with **25 coins, a Wooden Sword in hand and three
+cooked meat**, and nothing else. A shield, a bow or a staff, the axe, pickaxe
+and rod, and a bedroll are bought from the traders, found or made.
 
 **Cooldown** is separate from recovery. Recovery is part of the swing and you
 are committed during it; the cooldown is the gap *after* it, and it is what
@@ -1554,7 +1586,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **10684 checks** covering:
+and checks all of it — currently **10845 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1694,13 +1726,17 @@ and checks all of it — currently **10684 checks** covering:
   the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
-- nine tiers in order, each making all seven pieces with a recipe at the right
+- nine tiers in order, each making all eight pieces with a recipe at the right
   station; every piece stronger and dearer than the same piece a tier down and
   needing its tier's level in the right skill; every metal tier with an ore and
   a bar and a smelting recipe; every ore mineable somewhere at its tier's Mining
   level; the old item ids still resolving as tier pieces
-- all 79 tier icons are different pictures, every tier weapon has a layer sheet
-  for every hero clip, and all 27 look different in the hero's hand; a new
+- all 88 tier icons are different pictures, every tier weapon has a layer sheet
+  for every hero clip it can play, and all 36 look different in the hero's hand;
+  every tier has a spear that reaches over one and a half times as far as a sword
+  down a narrower line, shoves harder, is slower, strikes with the thrust clip,
+  hits a monster a spear's length away that a sword cannot reach, and is smithed
+  from its tier's bars; a new
   character cannot wield an iron sword, can at Attack 10, and then holds its model
 - each style's tree is three branches five deep with rising milestones and three
   techniques; points come every five levels, nodes need their level, the one

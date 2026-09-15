@@ -49,6 +49,14 @@ struct ItemDef {
     int ranged_bonus = 0, magic_bonus = 0;
     float attack_speed = 1.0f;        // multiplier on swing time; <1 is faster
     WeaponKind kind = WeaponKind::Melee;
+    // A melee weapon's shape, as multipliers on each attack's own: how far its
+    // strikes reach, how wide they sweep, and how hard they shove. A sword is
+    // all ones. A spear reaches much further down a narrow line and pushes what
+    // it hits back, so a fight stays at the end of the shaft.
+    float reach = 1.0f, sweep = 1.0f, push = 1.0f;
+    // The hero's clip for its strikes: "thrust" for a spear. Empty is the
+    // ordinary swing.
+    string attack_clip;
     // Colour the worn weapon layers take, so a bronze sword and a steel one
     // read differently on the character.
     SDL_Color tint{255, 255, 255, 255};
@@ -230,6 +238,8 @@ public:
     int AttackBonus() const, StrengthBonus() const, DefenceBonus() const;
     int RangedBonus() const, MagicBonus() const;
     float AttackSpeed() const;
+    // The weapon in hand, or null.
+    const ItemDef* Weapon() const;
     // What the equipped weapon is; Melee when nothing is held.
     WeaponKind Kind() const;
     // Colour for the worn weapon layers, and for the body when armour is worn.
