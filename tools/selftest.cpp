@@ -2621,6 +2621,9 @@ int main(int argc, char** argv) {
                     if (st.type != ObjectiveType::Talk && st.type != ObjectiveType::Deliver) continue;
                     const string npc = st.type == ObjectiveType::Talk ? st.target : st.deliver_to;
                     bool found = false;
+                    // An order is handed in by the giver's one "I have your order" line,
+                    // which is only there while an order of theirs can be filled.
+                    const bool order = q.daily && q.giver == npc && st.type == ObjectiveType::Deliver;
                     for (auto it = root.begin(); it != root.end() && !found; ++it) {
                         if (!node_owner_has(npc, it.key())) continue;
                         for (const auto& o : it.value().value("options", json::array())) {
@@ -2632,6 +2635,11 @@ int main(int argc, char** argv) {
                                 for (const auto& inner : root[next].value("options", json::array()))
                                     if (inner.contains("action")) actions.push_back(inner["action"]);
                             bool does = false;
+                            if (order && o.contains("action") && o["action"].value("hand_in", false) &&
+                                o.contains("if") && o["if"].value("order_ready", false)) {
+                                found = true;
+                                break;
+                            }
                             for (const json& a : actions) {
                                 if (st.type == ObjectiveType::Talk && a.value("advance", string("")) == npc) does = true;
                                 if (st.type == ObjectiveType::Deliver && a.value("take", string("")) == st.target &&
@@ -2736,10 +2744,10 @@ int main(int argc, char** argv) {
                     log.SetDay(day);
                     const auto today = log.PoolToday(pool.first);
                     if (today != log.PoolToday(pool.first)) steady = false;
-                    if (static_cast<int>(today.size()) != std::min(pool.second, QuestLog::DAILY_PER_POOL)) sized = false;
+                    if (static_cast<int>(today.size()) != std::min(pool.second, log.PostsPerDay(pool.first))) sized = false;
                     ever.insert(today.begin(), today.end());
                 }
-                Check(steady && sized, pool.first + " posts " + std::to_string(QuestLog::DAILY_PER_POOL) +
+                Check(steady && sized, pool.first + " posts " + std::to_string(log.PostsPerDay(pool.first)) +
                                        " dailies a day, the same ones all day");
                 Check(static_cast<int>(ever.size()) == pool.second, "and over three weeks every one of them comes up");
             }
@@ -2749,7 +2757,7 @@ int main(int argc, char** argv) {
             int day = 1;
             const auto posted = [&](const string& id) {
                 log.SetDay(day);
-                const auto t = log.PoolToday("havenbrook");
+                const auto t = log.PoolToday("havenbrook", &sk);
                 return std::find(t.begin(), t.end(), id) != t.end();
             };
             while (!posted("q_daily_boar") && day < 60) ++day;
@@ -3345,7 +3353,17 @@ int main(int argc, char** argv) {
                 for (const auto& kv : shops.All())
                     for (const ShopStock& line : kv.second.sells) {
                         if (line.item != st.target) continue;
-                        const bool gated = !qkv.second.daily &&
+                        const ItemDef* want = items.Get(st.target);
+                        if (qkv.second.daily && want) {
+                            // A repeatable order may ask for what is on a shelf, so long
+                            // as buying it to fill the order costs more than it pays.
+                            const int cost = Trade::BuyPrice(kv.second, *want) * st.count;
+                            Check(qkv.second.rewards.coins < cost,
+                                  qkv.first + " pays " + std::to_string(qkv.second.rewards.coins) + "c, less than " +
+                                  std::to_string(cost) + "c for its " + st.target + " at " + kv.first);
+                            continue;
+                        }
+                        const bool gated =
                             std::find(line.after.begin(), line.after.end(), qkv.first) != line.after.end();
                         Check(gated, "shop " + kv.first + " does not sell " + st.target + " for " + qkv.first);
                     }
@@ -3555,6 +3573,169 @@ int main(int argc, char** argv) {
                 for (const DialogueAction& a : r.TakeActions()) if (a.open_shop == kv.first) opens = true;
                 Check(opens && !r.Active(), "choosing it closes the conversation and opens " + kv.first);
             }
+        }
+    }
+
+    Section("order books");
+    {
+        ShopDatabase shops;
+        shops.Load("data/shops.json");
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+
+        struct Book { const char* npc; const char* pool; int skill; vector<string> kinds; };
+        const Book books[] = {
+            {"npc_smith", "halda_orders", SKILL_MINING, {"ore", "bar", "weapon", "hide", "armour"}},
+            {"npc_wendel", "wendel_orders", SKILL_FISHING, {"fish"}},
+        };
+        for (const Book& b : books) {
+            std::set<string> kinds;
+            int count = 0;
+            for (const auto& kv : log.Definitions()) {
+                const QuestDef& q = kv.second;
+                if (q.pool != b.pool) continue;
+                ++count;
+                const string qid = "order " + kv.first;
+                Check(q.daily && q.giver == b.npc && q.source == QuestSource::Npc,
+                      qid + " is a daily given by " + b.npc);
+                Check(q.stages.size() == 1 && q.stages[0].type == ObjectiveType::Deliver &&
+                      q.stages[0].deliver_to == b.npc, qid + " is one delivery, to " + string(b.npc));
+                Check(q.rewards.coins > 0 && q.rewards.xp.count(b.skill) && q.rewards.xp.at(b.skill) > 0,
+                      qid + " pays coins and " + SkillName(b.skill) + " XP");
+                const ItemDef* want = items.Get(q.stages[0].target);
+                Check(want != nullptr, qid + " asks for an item that exists");
+                if (!want) continue;
+                const QuestStage& st = q.stages[0];
+                for (const string& tag : Trade::Tags(items, *want)) kinds.insert(tag);
+                if (want->id == "hide") kinds.insert("hide");
+                // Filling it beats selling the goods to anyone.
+                int best = 0;
+                for (const auto& sk : shops.All()) best = std::max(best, Trade::SellPrice(sk.second, items, *want));
+                Check(q.rewards.coins > best * st.count, qid + " pays more than selling the goods (" +
+                      std::to_string(q.rewards.coins) + "c against " + std::to_string(best * st.count) + "c)");
+                // And whatever it needs to be made or caught, it says so.
+                for (const ItemDef* r : items.Recipes())
+                    if (r->craft_result == want->id && r->craft_level > 1)
+                        Check(q.requirements.count(SKILL_CRAFTING) && q.requirements.at(SKILL_CRAFTING) >= r->craft_level,
+                              qid + " needs the Crafting level its " + want->id + " is made at");
+                if (want->fish_level > 1)
+                    Check(q.requirements.count(SKILL_FISHING) && q.requirements.at(SKILL_FISHING) >= want->fish_level,
+                          qid + " needs the Fishing level " + want->id + " bites at");
+            }
+            Check(count >= 6, string(b.pool) + " has a book of orders (" + std::to_string(count) + ")");
+            for (const string& k : b.kinds)
+                Check(kinds.count(k) > 0, string(b.pool) + " has an order for " + k);
+
+            // A new character always has orders they can fill, every day.
+            Skills fresh;
+            int days_short = 0, beyond = 0;
+            for (int day = 1; day <= 40; ++day) {
+                log.SetDay(day);
+                const auto posted = log.PoolToday(b.pool, &fresh);
+                if (static_cast<int>(posted.size()) < 2) ++days_short;
+                for (const string& id : posted) if (!log.CanStart(id, fresh)) ++beyond;
+            }
+            Check(days_short == 0, string(b.npc) + " posts at least two orders a new character can take, every day");
+            Check(beyond == 0, string(b.npc) + " never posts an order the player cannot take yet");
+        }
+        Check(log.PostsPerDay("halda_orders") == 3, "Halda takes three orders a day");
+
+        // Taking an order, filling it through Halda's conversation, and not again today.
+        {
+            QuestLog ql;
+            ql.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &ql; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            const auto lines = [&](const string& npc, const string& root_node) {
+                DialogueRunner r;
+                r.Begin(&dialogue, root_node, npc, "Keeper", dc);
+                vector<const DialogueOption*> out = r.VisibleOptions();
+                return out;
+            };
+            const auto has = [&](const vector<const DialogueOption*>& opts, bool hand_in, const string& orders) {
+                for (const DialogueOption* o : opts)
+                    if ((hand_in && o->action.hand_in) || (!orders.empty() && o->action.open_orders == orders)) return true;
+                return false;
+            };
+            Check(has(lines("npc_smith", "smith_root"), false, "npc_smith"), "Halda offers her order book from her first line");
+            Check(has(lines("npc_wendel", "wendel_root"), false, "npc_wendel"), "and Wendel his");
+            Check(!has(lines("npc_smith", "smith_root"), true, ""), "with no order taken, there is nothing to hand in");
+
+            int day = 1;
+            const auto posted = [&](const string& id) {
+                ql.SetDay(day);
+                const auto t = ql.PoolToday("halda_orders", &sk);
+                return std::find(t.begin(), t.end(), id) != t.end();
+            };
+            while (!posted("q_order_hides") && day < 90) ++day;
+            Check(ql.CanStart("q_order_hides", sk), "an order for hides is posted on some day, and can be taken");
+            ql.Start("q_order_hides");
+            ql.TakeJustStarted();
+            inv.Add("hide", 5);
+            Check(!has(lines("npc_smith", "smith_root"), true, ""), "five hides are not enough to hand in eight");
+            Check(ql.ReadyToDeliver("npc_smith", inv).empty(), "and the order is not ready");
+            inv.Add("hide", 4);
+            Check(has(lines("npc_smith", "smith_root"), true, ""), "nine hides are: Halda asks for the order");
+            Check(!has(lines("npc_wendel", "wendel_root"), true, ""), "Wendel does not");
+
+            // Choose the hand-in line and apply what it does, the way the game does.
+            DialogueRunner r;
+            r.Begin(&dialogue, "smith_root", "npc_smith", "Halda", dc);
+            int index = -1;
+            for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                if (r.VisibleOptions()[i]->action.hand_in) index = static_cast<int>(i);
+            r.MoveSelection(index - r.Selected());
+            r.Choose(dc);
+            bool handed = false;
+            for (const DialogueAction& a : r.TakeActions())
+                if (a.hand_in)
+                    for (const string& id : ql.ReadyToDeliver(r.NpcId(), inv)) {
+                        const QuestStage& st = ql.Definition(id)->stages[ql.Stage(id)];
+                        const int need = st.count - ql.Counter(id);
+                        if (!inv.Remove(st.target, need)) continue;
+                        QuestEvent e;
+                        e.type = ObjectiveType::Deliver; e.target = st.target;
+                        e.secondary = r.NpcId(); e.amount = need;
+                        ql.Notify(e, inv);
+                        handed = true;
+                    }
+            Check(handed && ql.IsComplete("q_order_hides") && inv.Count("hide") == 1,
+                  "handing it in takes eight hides, leaves the ninth, and fills the order");
+            const auto done = ql.TakeJustCompleted();
+            Check(done.size() == 1 && done[0] == "q_order_hides", "the order pays out once");
+            Check(!ql.CanStart("q_order_hides", sk), "the same order cannot be taken twice in a day");
+
+            // A daily for someone else is never handed in by an order line.
+            ql.FromJson(json::object());
+            ql.SetDay(1);
+            ql.Start("q_word_to_fernhollow");
+            inv.Add("herbal_tonic", 1);
+            Check(ql.ReadyToDeliver("npc_wendel", inv).empty(), "Oona's remedy is not one of Wendel's orders");
+        }
+
+        // Levels open more of the book without closing what is already posted.
+        {
+            QuestLog ql;
+            ql.LoadDefinitions("data/quests.json");
+            Skills weak, strong;
+            LevelUp up;
+            strong.AddXp(SKILL_MINING, 200000, up);
+            strong.AddXp(SKILL_CRAFTING, 200000, up);
+            strong.AddXp(SKILL_FISHING, 2000000, up);
+            strong.AddXp(SKILL_COOKING, 200000, up);
+            std::set<string> weak_seen, strong_seen;
+            for (int day = 1; day <= 60; ++day) {
+                ql.SetDay(day);
+                for (const string& id : ql.PoolToday("halda_orders", &weak)) weak_seen.insert(id);
+                for (const string& id : ql.PoolToday("halda_orders", &strong)) strong_seen.insert(id);
+            }
+            Check(strong_seen.count("q_order_steel_greaves") && !weak_seen.count("q_order_steel_greaves"),
+                  "steel greaves are ordered only from someone who can make them");
+            Check(strong_seen.size() > weak_seen.size(), "a skilled smith sees more of the book (" +
+                  std::to_string(strong_seen.size()) + " orders against " + std::to_string(weak_seen.size()) + ")");
         }
     }
 

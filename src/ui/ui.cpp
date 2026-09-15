@@ -138,8 +138,12 @@ void UI::TextShadowed(const string& text, float x, float y, TextSize size,
     Text(text, x, y, size, color, align);
 }
 
+float UI::WrappedHeight(const string& text, float wrap_width, TextSize size) {
+    return TextWrapped(text, 0.0f, 0.0f, wrap_width, size, Palette::Text, false);
+}
+
 float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
-                      TextSize size, SDL_Color color) {
+                      TextSize size, SDL_Color color, bool draw) {
     const float line_h = LineHeight(size) + 2.0f;
     float cursor_y = y;
 
@@ -154,7 +158,7 @@ float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
         while (words >> word) {
             const string candidate = line.empty() ? word : line + " " + word;
             if (Measure(candidate, size).x > wrap_width && !line.empty()) {
-                Text(line, x, cursor_y, size, color);
+                if (draw) Text(line, x, cursor_y, size, color);
                 cursor_y += line_h;
                 line = word;
             } else {
@@ -162,7 +166,7 @@ float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
             }
         }
         if (!line.empty()) {
-            Text(line, x, cursor_y, size, color);
+            if (draw) Text(line, x, cursor_y, size, color);
             cursor_y += line_h;
         }
     }

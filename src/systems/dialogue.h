@@ -30,11 +30,14 @@ struct DialogueCondition {
     string no_flag;               // one that must not be
     int    combat = 0;            // combat level at least this
     string time;                  // "day" or "night"
+    // The NPC being spoken to has an order of theirs the player can hand in
+    // now; see QuestLog::ReadyToDeliver.
+    bool   order_ready = false;
     bool   invert = false;
 
     bool Empty() const {
         return quest.empty() && has_item.empty() && skill.empty() && after.empty() &&
-               flag.empty() && no_flag.empty() && combat <= 0 && time.empty();
+               flag.empty() && no_flag.empty() && combat <= 0 && time.empty() && !order_ready;
     }
 };
 
@@ -46,13 +49,18 @@ struct DialogueAction {
     string take_item;
     int    take_qty = 1;
     string open_shop;
+    // Opens an NPC's order book: their posted daily quests, on the board panel.
+    string open_orders;
+    // Hands in every order for this NPC that the bag can fill.
+    bool   hand_in = false;
     string skill_xp;              // skill name
     int    xp_amount = 0;
     bool   heal = false;
 
     bool Empty() const {
         return start_quest.empty() && advance_quest.empty() && give_item.empty() &&
-               take_item.empty() && open_shop.empty() && skill_xp.empty() && !heal;
+               take_item.empty() && open_shop.empty() && open_orders.empty() && !hand_in &&
+               skill_xp.empty() && !heal;
     }
 };
 
@@ -87,6 +95,8 @@ struct DialogueContext {
     const class Skills*    skills = nullptr;
     const std::set<string>* flags = nullptr;
     bool night = false;
+    // Who is being spoken to; the runner fills it in from its own NPC.
+    string npc;
 };
 
 bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx);

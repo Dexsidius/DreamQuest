@@ -1518,6 +1518,18 @@ void Game::UpdateDialogue(float dt) {
             dialogue.Choose(dctx);
             HandleDialogueActions(dialogue.TakeActions());
 
+            // So does asking for the day's orders.
+            if (!pending_orders.empty()) {
+                const string npc = pending_orders;
+                string name = npc;
+                for (auto& n : world.npcs) if (n->Id() == npc) name = n->Name();
+                pending_orders.clear();
+                dialogue.End();
+                for (auto& n : world.npcs) n->talking = false;
+                OpenOrders(npc, name);
+                return;
+            }
+
             // "Show me your wares" closes the conversation and opens the shop.
             if (!pending_shop.empty()) {
                 const string id = pending_shop;
@@ -1543,9 +1555,14 @@ void Game::DrawDialogue() {
     const DialogueNode* node = dialogue.Node();
     if (!node) return;
 
-    const float box_h = 210.0f;
-    const SDL_FRect box = {40.0f, ui.ViewHeight() - box_h - 30.0f,
-                           ui.ViewWidth() - 80.0f, box_h};
+    // Tall enough for the whole line and every answer under it: a smith with
+    // orders, a shop and a lesson to offer had her answers printed over her
+    // own words. Measured on the full text, so the box does not grow as it types.
+    const float box_w = ui.ViewWidth() - 80.0f;
+    const float text_h = ui.WrappedHeight(node->text, box_w - 48.0f, TextSize::Body);
+    const float needed = 28.0f + text_h + 14.0f + dialogue.VisibleOptions().size() * 26.0f + 16.0f;
+    const float box_h = std::max(210.0f, needed);
+    const SDL_FRect box = {40.0f, ui.ViewHeight() - box_h - 30.0f, box_w, box_h};
     ui.Panel(box);
 
     // Speaker plate overlapping the top edge.
@@ -1631,10 +1648,12 @@ void Game::DrawBoard() {
         if (quests.CanStart(id, world.player.skills)) available.push_back(id);
 
     if (available.empty()) {
-        ui.Text("Nothing new is pinned up today.", panel.x + panel.w / 2.0f,
+        ui.Text(board_orders ? "No orders for you today." : "Nothing new is pinned up today.",
+                panel.x + panel.w / 2.0f,
                 panel.y + panel.h / 2.0f - 20.0f, TextSize::Body, Palette::TextDim,
                 Align::Center);
-        ui.Text("Come back after you have finished what you already took on.",
+        ui.Text(board_orders ? "New orders come in at dawn. Anything you have taken is in your journal."
+                             : "Come back after you have finished what you already took on.",
                 panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f + 6.0f,
                 TextSize::Small, Palette::TextDim, Align::Center);
     } else {
@@ -1653,7 +1672,8 @@ void Game::DrawBoard() {
             ui.Text(d ? d->name : available[i], row.x + 10.0f, row.y + 3.0f,
                     TextSize::Small, selected ? Palette::Highlight : Palette::Text);
             if (d)
-                ui.Text((d->daily ? string("daily   ") : string("")) + "Lv " + std::to_string(d->recommended_level),
+                ui.Text((d->daily ? string(board_orders ? "order   " : "daily   ") : string("")) +
+                        "Lv " + std::to_string(d->recommended_level),
                         row.x + row.w - 8.0f, row.y + 3.0f, TextSize::Small,
                         d->daily ? Palette::Xp : Palette::TextDim, Align::Right);
         }
@@ -1667,11 +1687,30 @@ void Game::DrawBoard() {
             ui.Text(d->name, dx, y, TextSize::Body, Palette::Highlight);
             y += 30.0f;
             if (d->daily) {
-                ui.Text("Daily: new notices at dawn", dx, y, TextSize::Small, Palette::Xp);
+                ui.Text(board_orders ? "Order: new orders at dawn" : "Daily: new notices at dawn",
+                        dx, y, TextSize::Small, Palette::Xp);
                 y += 22.0f;
             }
             y += ui.TextWrapped(d->summary, dx, y, dw, TextSize::Small, Palette::Text);
             y += 14.0f;
+            // What it asks for against what is in the pack.
+            if (!d->stages.empty() && (d->stages[0].type == ObjectiveType::Deliver ||
+                                       d->stages[0].type == ObjectiveType::Collect)) {
+                const QuestStage& st = d->stages[0];
+                const ItemDef* want = items.Get(st.target);
+                const int held = world.player.inventory.Count(st.target);
+                ui.Text((want ? want->name : st.target) + ": you carry " + std::to_string(held) +
+                        " of " + std::to_string(st.count), dx, y, TextSize::Small,
+                        held >= st.count ? Palette::Xp : Palette::TextDim);
+                y += 22.0f;
+            }
+            if (!d->requirements.empty()) {
+                string req = "Needs ";
+                for (const auto& rq : d->requirements)
+                    req += string(SkillName(rq.first)) + " " + std::to_string(rq.second) + "  ";
+                ui.Text(req, dx, y, TextSize::Small, Palette::TextDim);
+                y += 22.0f;
+            }
 
             if (!d->rewards.xp.empty() || d->rewards.coins > 0) {
                 ui.Text("Reward", dx, y, TextSize::Small, Palette::Highlight);

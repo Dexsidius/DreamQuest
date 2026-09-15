@@ -52,6 +52,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
             }
         d.daily = o.value("repeat", string("")) == "daily";
         d.pool  = o.value("pool", d.giver);
+        d.posts = std::max(0, o.value("posts", 0));
 
         if (o.contains("prereq"))
             for (const auto& p : o["prereq"]) d.prerequisites.push_back(p.get<string>());
@@ -109,31 +110,69 @@ int QuestLog::Counter(const string& id) const {
     return it == progress.end() ? 0 : it->second.counter;
 }
 
-vector<string> QuestLog::PoolToday(const string& pool) const {
+int QuestLog::PostsPerDay(const string& pool) const {
+    int posts = 0;
+    for (const auto& kv : defs)
+        if (kv.second.daily && kv.second.pool == pool) posts = std::max(posts, kv.second.posts);
+    return posts > 0 ? posts : DAILY_PER_POOL;
+}
+
+bool QuestLog::MeetsRequirements(const QuestDef& d, const Skills& skills) const {
+    if (d.combat_level > 0 && skills.CombatLevel() < d.combat_level) return false;
+    for (const auto& p : d.prerequisites)
+        if (Status(p) != QuestStatus::Complete) return false;
+    for (const auto& r : d.requirements)
+        if (skills.Level(r.first) < r.second) return false;
+    return true;
+}
+
+vector<string> QuestLog::PoolToday(const string& pool, const Skills* skills) const {
     vector<string> members;
     for (const auto& kv : defs)
         if (kv.second.daily && kv.second.pool == pool) members.push_back(kv.first);
     std::sort(members.begin(), members.end());
-    if (static_cast<int>(members.size()) <= DAILY_PER_POOL) return members;
 
     // Shuffle the pool with the day and the pool's name as the seed, and post
-    // the first few: stable all day, different tomorrow.
+    // the first few: stable all day, different tomorrow. The order does not
+    // depend on the player, so gaining a level only lets a quest they could
+    // not yet take be replaced by one they can.
     unsigned seed = 2166136261u;
     for (char c : pool) seed = (seed ^ static_cast<unsigned char>(c)) * 16777619u;
     seed ^= static_cast<unsigned>(today) * 2654435761u;
     std::mt19937 rng(seed);
     std::shuffle(members.begin(), members.end(), rng);
-    members.resize(DAILY_PER_POOL);
-    std::sort(members.begin(), members.end());
-    return members;
+
+    const int posts = PostsPerDay(pool);
+    vector<string> out;
+    for (const string& id : members) {
+        if (static_cast<int>(out.size()) >= posts) break;
+        if (skills && !MeetsRequirements(defs.at(id), *skills)) continue;
+        out.push_back(id);
+    }
+    std::sort(out.begin(), out.end());
+    return out;
 }
 
-bool QuestLog::OfferedToday(const string& id) const {
+bool QuestLog::OfferedToday(const string& id, const Skills* skills) const {
     const QuestDef* d = Definition(id);
     if (!d || !d->daily) return true;
     if (Status(id) == QuestStatus::Active) return true;
-    const vector<string> posted = PoolToday(d->pool);
+    const vector<string> posted = PoolToday(d->pool, skills);
     return std::find(posted.begin(), posted.end(), id) != posted.end();
+}
+
+vector<string> QuestLog::ReadyToDeliver(const string& npc, const Inventory& inv) const {
+    vector<string> out;
+    for (const auto& kv : progress) {
+        const QuestProgress& p = kv.second;
+        const QuestDef* d = Definition(kv.first);
+        if (!d || !d->daily || d->giver != npc || p.status != QuestStatus::Active) continue;
+        if (p.stage >= static_cast<int>(d->stages.size())) continue;
+        const QuestStage& st = d->stages[p.stage];
+        if (st.type != ObjectiveType::Deliver || st.deliver_to != npc) continue;
+        if (inv.Count(st.target) >= st.count - p.counter) out.push_back(kv.first);
+    }
+    return out;
 }
 
 int QuestLog::Completions(const string& id) const {
@@ -149,19 +188,11 @@ bool QuestLog::CanStart(const string& id, const Skills& skills) const {
         // Taken once a day at most, and only while its board is posting it.
         if (st == QuestStatus::Active) return false;
         if (st == QuestStatus::Complete && progress.at(id).completed_day >= today) return false;
-        if (!OfferedToday(id)) return false;
+        if (!OfferedToday(id, &skills)) return false;
     } else if (st != QuestStatus::NotStarted) {
         return false;
     }
-    if (d->combat_level > 0 && skills.CombatLevel() < d->combat_level) return false;
-
-    for (const auto& p : d->prerequisites)
-        if (Status(p) != QuestStatus::Complete) return false;
-
-    for (const auto& r : d->requirements)
-        if (skills.Level(r.first) < r.second) return false;
-
-    return true;
+    return MeetsRequirements(*d, skills);
 }
 
 bool QuestLog::Start(const string& id) {

@@ -48,6 +48,9 @@ struct QuestDef {
     // that a board rotates through: a few of the pool are posted each day.
     bool   daily = false;
     string pool;
+    // How many of its pool are posted a day; 0 means DAILY_PER_POOL. A pool
+    // posts the largest number any of its quests asks for.
+    int    posts = 0;
     vector<string> prerequisites; // quest ids that must be complete first
     vector<QuestStage> stages;
     QuestRewards rewards;
@@ -84,12 +87,22 @@ public:
     void SetDay(int day) { today = day; }
     int  Today() const { return today; }
     // The dailies a pool posts today: the same few all day, different ones on
-    // other days, chosen from the pool by the day number.
-    vector<string> PoolToday(const string& pool) const;
+    // other days, chosen from the pool by the day number. Given the player's
+    // skills, a quest they could not take yet is passed over for the next one
+    // in the day's order, so a board never posts nothing but work beyond them.
+    vector<string> PoolToday(const string& pool, const class Skills* skills = nullptr) const;
+    int  PostsPerDay(const string& pool) const;
     // Whether a daily is posted today (or is already taken); always true for
     // a quest that is not daily.
-    bool OfferedToday(const string& id) const;
+    bool OfferedToday(const string& id, const class Skills* skills = nullptr) const;
     int  Completions(const string& id) const;
+    // Prerequisites, Combat level and skill levels, and nothing about whether
+    // it has been taken.
+    bool MeetsRequirements(const QuestDef& d, const class Skills& skills) const;
+
+    // Orders: active dailies given by this NPC whose current stage is a
+    // delivery to them that the bag can fill in full, right now.
+    vector<string> ReadyToDeliver(const string& npc, const class Inventory& inv) const;
 
     const QuestDef* Definition(const string& id) const;
     const map<string, QuestDef>& Definitions() const { return defs; }

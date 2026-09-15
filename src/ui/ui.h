@@ -45,7 +45,10 @@ public:
                       SDL_Color color = Palette::Text, Align align = Align::Left);
     // Returns the height used, so callers can lay out flowing blocks.
     float TextWrapped(const string& text, float x, float y, float wrap_width,
-                      TextSize size = TextSize::Body, SDL_Color color = Palette::Text);
+                      TextSize size = TextSize::Body, SDL_Color color = Palette::Text,
+                      bool draw = true);
+    // The height TextWrapped would use, without drawing anything.
+    float WrappedHeight(const string& text, float wrap_width, TextSize size = TextSize::Body);
     SDL_FPoint Measure(const string& text, TextSize size = TextSize::Body);
     float LineHeight(TextSize size = TextSize::Body) const;
 

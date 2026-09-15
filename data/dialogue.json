@@ -346,13 +346,20 @@
         }
       },
       {
-        "text": "I have the copper for your order.",
-        "next": "smith_daily_ore",
+        "text": "Any orders today?",
+        "next": "end",
+        "action": {
+          "orders": "npc_smith"
+        }
+      },
+      {
+        "text": "I have an order for you.",
+        "next": "smith_order_filled",
         "if": {
-          "quest": "q_daily_ore",
-          "state": "active",
-          "has_item": "copper_ore",
-          "qty": 8
+          "order_ready": true
+        },
+        "action": {
+          "hand_in": true
         }
       },
       {
@@ -872,13 +879,20 @@
         "next": "wendel_ferry"
       },
       {
-        "text": "Pike, for your supper.",
-        "next": "wendel_daily_pike",
+        "text": "Any fish wanted?",
+        "next": "end",
+        "action": {
+          "orders": "npc_wendel"
+        }
+      },
+      {
+        "text": "I brought the fish you asked for.",
+        "next": "wendel_order_filled",
         "if": {
-          "quest": "q_daily_pike",
-          "state": "active",
-          "has_item": "raw_pike",
-          "qty": 3
+          "order_ready": true
+        },
+        "action": {
+          "hand_in": true
         }
       },
       {
@@ -1321,25 +1335,18 @@
   },
   "smith_orders": {
     "speaker": "Smith Halda",
-    "text": "Orders. Every morning, on the board outside. Some days it is copper, some days it is nothing, and some days somebody else has already brought it.",
+    "text": "Orders. I keep a book of them: ore, bars, blades, plate, and more hides than you would think. A few come in every morning. Ask me and I will read you what is open.",
     "options": [
       {
-        "text": "I will check the board.",
-        "next": "end"
-      }
-    ]
-  },
-  "smith_daily_ore": {
-    "speaker": "Smith Halda",
-    "text": "Eight. Good weight to it, too. The order is filled.",
-    "options": [
-      {
-        "text": "Glad to help.",
+        "text": "What is open today?",
         "next": "end",
         "action": {
-          "take": "copper_ore",
-          "take_qty": 8
+          "orders": "npc_smith"
         }
+      },
+      {
+        "text": "Later.",
+        "next": "end"
       }
     ]
   },
@@ -1395,20 +1402,6 @@
         "action": {
           "take": "oak_logs",
           "take_qty": 5
-        }
-      }
-    ]
-  },
-  "wendel_daily_pike": {
-    "speaker": "Old Wendel",
-    "text": "Out of my pond? Forty years. Forty years, and it gives them to a stranger.",
-    "options": [
-      {
-        "text": "Enjoy them.",
-        "next": "end",
-        "action": {
-          "take": "raw_pike",
-          "take_qty": 3
         }
       }
     ]
@@ -1770,6 +1763,26 @@
       },
       {
         "text": "Farewell.",
+        "next": "end"
+      }
+    ]
+  },
+  "smith_order_filled": {
+    "speaker": "Smith Halda",
+    "text": "Let me see. Weight's right, work's right. Here -- and there will be more on the book tomorrow.",
+    "options": [
+      {
+        "text": "Glad to help.",
+        "next": "end"
+      }
+    ]
+  },
+  "wendel_order_filled": {
+    "speaker": "Old Wendel",
+    "text": "Now those are fish. Put them in the basket. I will want more tomorrow, I always do.",
+    "options": [
+      {
+        "text": "Enjoy them.",
         "next": "end"
       }
     ]

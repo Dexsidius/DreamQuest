@@ -26,6 +26,7 @@ static DialogueCondition ParseCondition(const json& o) {
     c.no_flag = o.value("no_flag", string(""));
     c.combat  = o.value("combat", 0);
     c.time    = o.value("time", string(""));
+    c.order_ready = o.value("order_ready", false);
     return c;
 }
 
@@ -39,6 +40,8 @@ static DialogueAction ParseAction(const json& o) {
     a.take_item     = o.value("take", string(""));
     a.take_qty      = o.value("take_qty", 1);
     a.open_shop     = o.value("shop", string(""));
+    a.open_orders   = o.value("orders", string(""));
+    a.hand_in       = o.value("hand_in", false);
     a.skill_xp      = o.value("xp_skill", string(""));
     a.xp_amount     = o.value("xp", 0);
     a.heal          = o.value("heal", false);
@@ -126,6 +129,9 @@ bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx) {
     if (c.combat > 0)       pass = pass && ctx.skills && ctx.skills->CombatLevel() >= c.combat;
     if (c.time == "night")  pass = pass && ctx.night;
     if (c.time == "day")    pass = pass && !ctx.night;
+    if (c.order_ready)
+        pass = pass && ctx.quests && ctx.inventory && !ctx.npc.empty() &&
+               !ctx.quests->ReadyToDeliver(ctx.npc, *ctx.inventory).empty();
 
     return c.invert ? !pass : pass;
 }
@@ -159,8 +165,10 @@ void DialogueRunner::EnterNode(const string& id, const DialogueContext& ctx) {
 void DialogueRunner::RebuildVisible(const DialogueContext& ctx) {
     visible.clear();
     if (!node) return;
+    DialogueContext c = ctx;
+    if (c.npc.empty()) c.npc = npc_id;
     for (const auto& o : node->options)
-        if (EvaluateCondition(o.condition, ctx)) visible.push_back(&o);
+        if (EvaluateCondition(o.condition, c)) visible.push_back(&o);
     selected = std::clamp(selected, 0, std::max(0, static_cast<int>(visible.size()) - 1));
 }
 

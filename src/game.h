@@ -189,6 +189,10 @@ private:
     // the row. pending_shop is set by a dialogue line and opened once the
     // conversation has closed.
     string shop_id, pending_shop;
+    // An NPC's order book, asked for in conversation and opened once it closes.
+    string pending_orders;
+    bool   board_orders = false;     // the board panel is showing an order book
+    void   OpenOrders(const string& npc_id, const string& npc_name);
     int    shop_tab = 0;
     int    shop_cursor = 0;
     void   OpenShop(const string& id);

@@ -548,28 +548,28 @@
     "completion": "The carters get through today."
   },
   "q_daily_ore": {
-    "name": "The Forge's Order",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 3,
-    "summary": "Halda posts an order for copper most mornings and takes whatever arrives by noon.",
+    "name": "Order: Copper Ore",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 1,
+    "summary": "Copper for the smelter. Halda goes through it faster than anyone can dig it.",
     "repeat": "daily",
-    "pool": "havenbrook",
+    "pool": "halda_orders",
+    "posts": 3,
     "stages": [
       {
-        "desc": "Bring Smith Halda 8 copper ore",
+        "desc": "Bring Smith Halda 10 copper ore",
         "type": "deliver",
         "target": "copper_ore",
         "to": "npc_smith",
-        "count": 8
+        "count": 10
       }
     ],
     "rewards": {
       "xp": {
-        "Mining": 300,
-        "Crafting": 120
+        "Mining": 450
       },
-      "coins": 110
+      "coins": 143
     },
     "completion": "Halda weighs it in her hand and nods."
   },
@@ -707,16 +707,17 @@
     "completion": "Pell loads the oak and whistles."
   },
   "q_daily_pike": {
-    "name": "Wendel's Supper",
-    "source": "board",
-    "giver": "board_mossvale",
+    "name": "Order: Pike",
+    "source": "npc",
+    "giver": "npc_wendel",
     "level": 30,
     "summary": "Old Wendel will pay for pike, because in forty years he has never caught one himself.",
     "req": {
       "Fishing": 30
     },
     "repeat": "daily",
-    "pool": "mossvale",
+    "pool": "wendel_orders",
+    "posts": 2,
     "stages": [
       {
         "desc": "Bring Old Wendel 3 raw pike",
@@ -730,7 +731,7 @@
       "xp": {
         "Fishing": 520
       },
-      "coins": 150
+      "coins": 176
     },
     "completion": "Wendel says the pond is having him on. He eats well tonight."
   },
@@ -920,5 +921,544 @@
       ]
     },
     "completion": "For one night, the plateau is quiet."
+  },
+  "q_order_iron_ore": {
+    "name": "Order: Iron Ore",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 5,
+    "summary": "Iron ore, for bars the guild has already paid for.",
+    "req": {
+      "Mining": 5
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 8 iron ore",
+        "type": "deliver",
+        "target": "iron_ore",
+        "to": "npc_smith",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 520
+      },
+      "coins": 187
+    },
+    "completion": "\"Red all the way through. Good.\""
+  },
+  "q_order_coal": {
+    "name": "Order: Coal",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 20,
+    "summary": "Coal to keep the forge hot enough for steel.",
+    "req": {
+      "Mining": 20
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 6 coal",
+        "type": "deliver",
+        "target": "coal",
+        "to": "npc_smith",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 900
+      },
+      "coins": 583
+    },
+    "completion": "She tips it straight into the bin by the fire."
+  },
+  "q_order_azuryte_ore": {
+    "name": "Order: Azuryte Ore",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 30,
+    "summary": "A buyer in the south wants azuryte, and will not say what for.",
+    "req": {
+      "Mining": 30
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 4 azuryte ore",
+        "type": "deliver",
+        "target": "azuryte_ore",
+        "to": "npc_smith",
+        "count": 4
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 1200
+      },
+      "coins": 864
+    },
+    "completion": "Halda holds a piece up to the light and whistles."
+  },
+  "q_order_bronze_bars": {
+    "name": "Order: Bronze Bars",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 1,
+    "summary": "Bronze bars, smelted and ready, so the apprentices have something to ruin.",
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 6 bronze bars",
+        "type": "deliver",
+        "target": "bronze_bar",
+        "to": "npc_smith",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 600
+      },
+      "coins": 216
+    },
+    "completion": "\"Clean pours. You can smelt for me any day.\""
+  },
+  "q_order_iron_bars": {
+    "name": "Order: Iron Bars",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 10,
+    "summary": "Iron bars for the watch's new hinges and hasps.",
+    "req": {
+      "Crafting": 10,
+      "Mining": 5
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 5 iron bars",
+        "type": "deliver",
+        "target": "iron_bar",
+        "to": "npc_smith",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 900
+      },
+      "coins": 432
+    },
+    "completion": "She stacks them by the anvil without a word, which from Halda is praise."
+  },
+  "q_order_steel_bars": {
+    "name": "Order: Steel Bars",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 20,
+    "summary": "Steel bars. The guild wants blades, and blades want steel.",
+    "req": {
+      "Crafting": 20,
+      "Mining": 20
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 3 steel bars",
+        "type": "deliver",
+        "target": "steel_bar",
+        "to": "npc_smith",
+        "count": 3
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 1400
+      },
+      "coins": 1304
+    },
+    "completion": "\"Proper steel. Rings when you knock it.\""
+  },
+  "q_order_bronze_swords": {
+    "name": "Order: Bronze Swords",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 2,
+    "summary": "Two bronze swords for the watch's new recruits, who will certainly drop them.",
+    "req": {
+      "Crafting": 2
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 2 bronze swords",
+        "type": "deliver",
+        "target": "bronze_sword",
+        "to": "npc_smith",
+        "count": 2
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 500
+      },
+      "coins": 275
+    },
+    "completion": "Halda tests each edge on her thumbnail."
+  },
+  "q_order_iron_sword": {
+    "name": "Order: Iron Sword",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 11,
+    "summary": "An iron sword for a caravan guard who lost his to the Mire.",
+    "req": {
+      "Crafting": 11
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 1 iron sword",
+        "type": "deliver",
+        "target": "iron_sword",
+        "to": "npc_smith",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 700
+      },
+      "coins": 319
+    },
+    "completion": "\"Balanced. He will not lose this one.\""
+  },
+  "q_order_steel_longsword": {
+    "name": "Order: Steel Longsword",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 21,
+    "summary": "A steel longsword, commissioned by the guild master himself.",
+    "req": {
+      "Crafting": 21
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 1 steel longsword",
+        "type": "deliver",
+        "target": "steel_longsword",
+        "to": "npc_smith",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 1600
+      },
+      "coins": 2273
+    },
+    "completion": "Halda wraps it in oilcloth like something precious."
+  },
+  "q_order_hides": {
+    "name": "Order: Hides",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 1,
+    "summary": "Hides for bellows leather and sword grips. The forge eats leather.",
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 8 hides",
+        "type": "deliver",
+        "target": "hide",
+        "to": "npc_smith",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 250
+      },
+      "coins": 94
+    },
+    "completion": "\"That will do the bellows for a month.\""
+  },
+  "q_order_bronze_helms": {
+    "name": "Order: Bronze Helms",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 1,
+    "summary": "Two bronze helms for the road wardens.",
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 2 bronze helms",
+        "type": "deliver",
+        "target": "bronze_helm",
+        "to": "npc_smith",
+        "count": 2
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 450
+      },
+      "coins": 375
+    },
+    "completion": "She knocks on one with her knuckles. It rings true."
+  },
+  "q_order_iron_cuirass": {
+    "name": "Order: Iron Cuirass",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 14,
+    "summary": "An iron cuirass, fitted for a watchman who will not stop growing.",
+    "req": {
+      "Crafting": 14
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 1 iron cuirass",
+        "type": "deliver",
+        "target": "iron_body",
+        "to": "npc_smith",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 1100
+      },
+      "coins": 1124
+    },
+    "completion": "\"Good plate. Corrin will complain about the weight anyway.\""
+  },
+  "q_order_steel_greaves": {
+    "name": "Order: Steel Greaves",
+    "source": "npc",
+    "giver": "npc_smith",
+    "level": 23,
+    "summary": "Steel greaves for an adventurer going under Emberfell.",
+    "req": {
+      "Crafting": 23
+    },
+    "repeat": "daily",
+    "pool": "halda_orders",
+    "posts": 3,
+    "stages": [
+      {
+        "desc": "Bring Smith Halda 1 steel greaves",
+        "type": "deliver",
+        "target": "steel_legs",
+        "to": "npc_smith",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 2200
+      },
+      "coins": 3392
+    },
+    "completion": "Halda turns them over twice and pays without haggling."
+  },
+  "q_order_minnows": {
+    "name": "Order: Minnows",
+    "source": "npc",
+    "giver": "npc_wendel",
+    "level": 1,
+    "summary": "Minnows for bait. Wendel will not say what he is baiting for.",
+    "repeat": "daily",
+    "pool": "wendel_orders",
+    "posts": 2,
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 10 raw minnows",
+        "type": "deliver",
+        "target": "raw_minnow",
+        "to": "npc_wendel",
+        "count": 10
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 300
+      },
+      "coins": 78
+    },
+    "completion": "\"Lively. They will do.\""
+  },
+  "q_order_trout": {
+    "name": "Order: Trout",
+    "source": "npc",
+    "giver": "npc_wendel",
+    "level": 15,
+    "summary": "Trout for the smokehouse behind the cottage.",
+    "req": {
+      "Fishing": 15
+    },
+    "repeat": "daily",
+    "pool": "wendel_orders",
+    "posts": 2,
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 6 raw trout",
+        "type": "deliver",
+        "target": "raw_trout",
+        "to": "npc_wendel",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 450
+      },
+      "coins": 188
+    },
+    "completion": "Wendel lays them out on the jetty in a neat row."
+  },
+  "q_order_salmon": {
+    "name": "Order: Salmon",
+    "source": "npc",
+    "giver": "npc_wendel",
+    "level": 45,
+    "summary": "Salmon from the Whisperwood stream, for Hesper's birthday. Do not tell her.",
+    "req": {
+      "Fishing": 45
+    },
+    "repeat": "daily",
+    "pool": "wendel_orders",
+    "posts": 2,
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 3 raw salmon",
+        "type": "deliver",
+        "target": "raw_salmon",
+        "to": "npc_wendel",
+        "count": 3
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 600
+      },
+      "coins": 273
+    },
+    "completion": "\"Not a word to Hesper.\""
+  },
+  "q_order_eels": {
+    "name": "Order: Eels",
+    "source": "npc",
+    "giver": "npc_wendel",
+    "level": 60,
+    "summary": "Eels from the Hollowmarch lake. Wendel swears they are a delicacy.",
+    "req": {
+      "Fishing": 60
+    },
+    "repeat": "daily",
+    "pool": "wendel_orders",
+    "posts": 2,
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 2 raw eels",
+        "type": "deliver",
+        "target": "raw_eel",
+        "to": "npc_wendel",
+        "count": 2
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 650
+      },
+      "coins": 260
+    },
+    "completion": "Wendel looks at them, and they look back. He pays quickly."
+  },
+  "q_order_cooked_trout": {
+    "name": "Order: Cooked Trout",
+    "source": "npc",
+    "giver": "npc_wendel",
+    "level": 15,
+    "summary": "Cooked trout for the ferry passengers, if there are ever any again.",
+    "req": {
+      "Fishing": 15,
+      "Cooking": 15
+    },
+    "repeat": "daily",
+    "pool": "wendel_orders",
+    "posts": 2,
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 5 cooked trout",
+        "type": "deliver",
+        "target": "cooked_trout",
+        "to": "npc_wendel",
+        "count": 5
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 400
+      },
+      "coins": 252
+    },
+    "completion": "\"Still warm. You have a hand for it.\""
+  },
+  "q_order_cooked_minnows": {
+    "name": "Order: Cooked Minnows",
+    "source": "npc",
+    "giver": "npc_wendel",
+    "level": 1,
+    "summary": "A plate of fried minnows for the old man's supper. He says his own always burn.",
+    "repeat": "daily",
+    "pool": "wendel_orders",
+    "posts": 2,
+    "stages": [
+      {
+        "desc": "Bring Old Wendel 8 cooked minnows",
+        "type": "deliver",
+        "target": "cooked_minnow",
+        "to": "npc_wendel",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 200
+      },
+      "coins": 108
+    },
+    "completion": "\"Crisp. Mine are always charcoal.\""
   }
 }

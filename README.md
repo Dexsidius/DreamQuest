@@ -1152,13 +1152,11 @@ day; the journal counts how many times.
 | --- | --- | --- | --- |
 | Havenbrook | Barley Watch | 5 boar | -- |
 | Havenbrook | Road Patrol | 5 orcs | Combat 6 |
-| Havenbrook | The Forge's Order | 8 copper ore to the smith | -- |
 | Havenbrook | Fish for the Inn | 5 raw minnows to the cook | -- |
 | Havenbrook | Kindling | 10 logs to the cook | -- |
 | Mossvale | Fox Patrol | 6 foxes on the Whisperwood trail | Clear the Trail |
 | Mossvale | Tannery Stock | 4 hides to Hadley | -- |
 | Mossvale | Oak for the Lodge | 5 oak logs to Pell | Woodcutting 12 |
-| Mossvale | Wendel's Supper | 3 raw pike to Wendel | Fishing 30 |
 | The Reverie | Nightmares Undone | 8 nightmares, asleep | The Water Remembers |
 | The Reverie | Shards for the Shrine | 8 dream shards to Mira | The Water Remembers |
 | The Reverie | The Brute Returns | the nightmare brute, asleep | Lights on the Pond, Combat 18 |
@@ -1167,6 +1165,60 @@ Dailies are never *collect* stages, which would count what is already in the
 bag: they are hunts or hand-ins, so each one is work done that day. The boards
 mark them "daily" with their level, and the detail pane says when the next
 ones go up.
+
+### Order books
+
+**Smith Halda** and **Old Wendel** take orders, every day. Ask Halda "Any
+orders today?" (or Wendel "Any fish wanted?") and the day's orders open on the
+board panel, with what each asks for, how many you carry, what it needs and
+what it pays. Accept one, bring the goods, and pick "I have an order for you."
+-- that line only appears when an order of theirs can be filled from the pack,
+and it hands in every order it can at once.
+
+Orders are dailies in a pool of their own. **Halda posts three a day, Wendel
+two**, new at dawn, and each can be filled once a day. A posted order is never
+one the player cannot take yet: an order needing Crafting 20 is passed over for
+the next in the day's order, so a new character always has at least two to
+choose from, and the book fills out as the skills rise.
+
+Halda's orders pay **Mining XP and coins**:
+
+| Kind | Order | Needs | Mining XP | Coins |
+| --- | --- | --- | --- | --- |
+| Ore | 10 copper ore | -- | 450 | 143 |
+| Ore | 8 iron ore | Mining 5 | 520 | 187 |
+| Ore | 6 coal | Mining 20 | 900 | 583 |
+| Ore | 4 azuryte ore | Mining 30 | 1200 | 864 |
+| Ingots | 6 bronze bars | -- | 600 | 216 |
+| Ingots | 5 iron bars | Crafting 10, Mining 5 | 900 | 432 |
+| Ingots | 3 steel bars | Crafting 20, Mining 20 | 1400 | 1304 |
+| Weapons | 2 bronze swords | Crafting 2 | 500 | 275 |
+| Weapons | 1 iron sword | Crafting 11 | 700 | 319 |
+| Weapons | 1 steel longsword | Crafting 21 | 1600 | 2273 |
+| Hide | 8 hides | -- | 250 | 94 |
+| Armour | 2 bronze helms | -- | 450 | 375 |
+| Armour | 1 iron cuirass | Crafting 14 | 1100 | 1124 |
+| Armour | 1 steel greaves | Crafting 23 | 2200 | 3392 |
+
+Wendel's pay **Fishing XP and coins**:
+
+| Order | Needs | Fishing XP | Coins |
+| --- | --- | --- | --- |
+| 10 raw minnows | -- | 300 | 78 |
+| 8 cooked minnows | -- | 200 | 108 |
+| 6 raw trout | Fishing 15 | 450 | 188 |
+| 5 cooked trout | Fishing 15, Cooking 15 | 400 | 252 |
+| 3 raw pike | Fishing 30 | 520 | 176 |
+| 3 raw salmon | Fishing 45 | 600 | 273 |
+| 2 raw eels | Fishing 60 | 650 | 260 |
+
+Filling an order always pays more than selling the same goods to any trader.
+Some orders ask for things a shop stocks -- Halda sells bronze bars, and the
+inn sells cooked minnows -- and for those the coins are set below the shelf
+price, so buying the goods to fill the order costs more than it pays: the XP
+can be bought, at a loss, but the money is in mining, smelting, smithing and
+fishing it yourself. The two old dailies that were really orders, the forge's
+copper and Wendel's pike, are now in these books.
 
 ### Quests in the dreamworld
 
@@ -1297,7 +1349,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **5854 checks** covering:
+and checks all of it — currently **6134 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1315,6 +1367,15 @@ and checks all of it — currently **5854 checks** covering:
 - the dream quests played through the world at night: sleeping into the
   Reverie, reading the voice, reporting to Mira, Hesper's hunt, and the reverie
   dailies posted on the Slate
+- order books: Halda's orders cover ore, bars, weapons, hides and armour, and
+  pay Mining XP and coins; Wendel's are fish and pay Fishing XP; every order
+  pays more than selling the goods, needs the Crafting or Fishing level its item
+  takes, and costs more to fill from a shelf than it pays; on every one of forty
+  days a new character is posted at least two orders they can take and none they
+  cannot, and a skilled one sees more of the book; the order line appears only
+  when an order can be filled, hands in exactly what it asks and leaves the rest,
+  pays once, cannot be repeated the same day, and never takes another NPC's
+  delivery
 - traders: every shop is kept by an NPC standing in its own town, who can be
   walked up to and offers to trade from the first line; every town has a general
   store and another shop; every shelf item exists, has a price and a limited

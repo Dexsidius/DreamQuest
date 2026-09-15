@@ -533,6 +533,7 @@ void Game::HandleWorldRequests() {
                 break;
             }
             case WorldRequest::Type::Board:
+                board_orders = false;
                 board_title  = r.title;
                 board_quests = r.list;
                 // Anything whose giver is this board is pinned to it too:
@@ -616,6 +617,23 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
 
         // Trading waits for the conversation to close; see UpdateDialogue.
         if (!a.open_shop.empty() && shop_db.Get(a.open_shop)) pending_shop = a.open_shop;
+        if (!a.open_orders.empty()) pending_orders = a.open_orders;
+
+        // Every order the bag can fill for this NPC, at once.
+        if (a.hand_in) {
+            for (const string& id : quests.ReadyToDeliver(dialogue.NpcId(), p.inventory)) {
+                const QuestDef* d = quests.Definition(id);
+                const QuestStage& st = d->stages[quests.Stage(id)];
+                const int need = st.count - quests.Counter(id);
+                if (need <= 0 || !p.inventory.Remove(st.target, need)) continue;
+                QuestEvent e;
+                e.type      = ObjectiveType::Deliver;
+                e.target    = st.target;
+                e.secondary = dialogue.NpcId();
+                e.amount    = need;
+                quests.Notify(e, p.inventory);
+            }
+        }
 
         if (a.heal) {
             p.skills.ResetCurrent();
@@ -630,6 +648,16 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
     // was ever chosen, so the page, the totem and the letter were never taken
     // and the line that takes them vanished. Talk stages advance only through
     // an option's explicit "advance" action now.
+}
+
+void Game::OpenOrders(const string& npc_id, const string& npc_name) {
+    board_orders = true;
+    board_title  = npc_name + "'s Orders";
+    board_quests.clear();
+    for (const auto& kv : quests.Definitions())
+        if (kv.second.giver == npc_id && kv.second.daily) board_quests.push_back(kv.first);
+    board_cursor = 0;
+    SetState(GameState::Board);
 }
 
 DialogueContext Game::MakeDialogueContext() const {
