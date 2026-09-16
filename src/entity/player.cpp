@@ -79,6 +79,27 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
     s.show_weapon = !equipment.InSlot(SLOT_WEAPON).empty();
     s.attachments = equipment.Attachments();
 
+    // Worn plate, a layer at a time: each piece turns on the sheet for its own
+    // slot and paints it its own metal, so a bronze cuirass over iron greaves
+    // is drawn as a bronze cuirass over iron greaves rather than as one
+    // averaged colour over the whole character.
+    if (db) {
+        struct Wear { int slot; ArmourLayer layer; const char* name; };
+        static const Wear kWear[] = {
+            {SLOT_LEGS,   ARMOUR_LEGS,   "legs"},
+            {SLOT_BODY,   ARMOUR_BODY,   "body"},
+            {SLOT_HANDS,  ARMOUR_HANDS,  "hands"},
+            {SLOT_HEAD,   ARMOUR_HEAD,   "head"},
+            {SLOT_SHIELD, ARMOUR_SHIELD, "shield"},
+        };
+        for (const Wear& w : kWear) {
+            const ItemDef* d = db->Get(equipment.InSlot(w.slot));
+            if (!d || d->armour_layer != w.name) continue;
+            s.armour[w.layer].show = true;
+            s.armour[w.layer].tint = d->tint;
+        }
+    }
+
     // The rig's own weapon layers draw a sword. When the equipped weapon
     // carries its own art, hide them and let that stand in instead, or the
     // character ends up holding a staff and a sword at once.

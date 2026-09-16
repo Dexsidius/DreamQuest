@@ -1363,6 +1363,120 @@ int main(int argc, char** argv) {
     }
 
     // --- the hero's sprite set ---------------------------------------------------
+    // --- worn plate ------------------------------------------------------------
+    Section("armour is drawn, a piece at a time");
+    {
+        // Every playable character has all five plate layers for every clip,
+        // and they are on disk. Without these the armour silently does nothing.
+        for (const char* who : {"player_hero", "player_warden", "player_wayfarer"}) {
+            const SpriteDef* def = sprites.Get(who);
+            Check(def != nullptr, string(who) + " is defined");
+            if (!def) continue;
+            for (const char* clip : {"idle", "walk", "run", "attack", "hurt", "death"}) {
+                const AnimClip* c = def->Find(clip);
+                if (!c) { Check(false, string(who) + " has a " + clip + " clip"); continue; }
+                bool legs = false, body = false, hands = false, head = false, shield = false;
+                bool on_disk = true;
+                for (const AnimLayer& l : c->layers) {
+                    legs   |= l.slot == LayerSlot::ArmourLegs;
+                    body   |= l.slot == LayerSlot::ArmourBody;
+                    hands  |= l.slot == LayerSlot::ArmourHands;
+                    head   |= l.slot == LayerSlot::ArmourHead;
+                    shield |= l.slot == LayerSlot::ArmourShield;
+                    if (ArmourLayerOf(l.slot) >= 0) on_disk &= fs::exists(l.sheet);
+                }
+                Check(legs && body && hands && head && shield,
+                      string(who) + "'s " + clip + " has all five plate layers");
+                Check(on_disk, string(who) + "'s " + clip + " plate sheets are on disk");
+            }
+        }
+
+        // The plate is drawn after the character, so a helm covers the hair
+        // rather than the other way round.
+        if (const SpriteDef* hero = sprites.Get("player_hero")) {
+            if (const AnimClip* c = hero->Find("idle")) {
+                int body_at = -1, head_at = -1, plate_at = -1;
+                for (size_t i = 0; i < c->layers.size(); ++i) {
+                    if (c->layers[i].slot == LayerSlot::Body) body_at = static_cast<int>(i);
+                    if (c->layers[i].slot == LayerSlot::Head) head_at = static_cast<int>(i);
+                    if (ArmourLayerOf(c->layers[i].slot) >= 0 && plate_at < 0)
+                        plate_at = static_cast<int>(i);
+                }
+                Check(body_at >= 0 && head_at > body_at && plate_at > head_at,
+                      "plate is drawn over the body and the head");
+            }
+        }
+
+        // Layer names map to slots, and the tier weapon sheets -- which all sit
+        // at the weapon's own index -- are recognised as alternates rather than
+        // as layers of their own. Drawing them all is what used to put a sword,
+        // a spear, a bow and a staff in the same hand at once.
+        Check(LayerSlotFromName("armour_body") == LayerSlot::ArmourBody, "armour_body names the body plate");
+        Check(LayerSlotFromName("armour_head") == LayerSlot::ArmourHead, "armour_head names the helm");
+        Check(LayerSlotFromName("weapon_front") == LayerSlot::WeaponFront, "weapon_front is the weapon layer");
+        Check(LayerSlotFromName("weapon_sword_iron") == LayerSlot::WeaponAlt,
+              "a tier weapon sheet is an alternate, not a layer");
+        Check(LayerSlotFromName("weapon_bow_wood") == LayerSlot::WeaponAlt,
+              "so is a bow's");
+        Check(ArmourLayerOf(LayerSlot::Body) < 0, "the body layer is not plate");
+
+        // Every tier's helm, cuirass, greaves and shield paints the layer for
+        // its own slot; weapons and tools paint none.
+        struct Piece { const char* suffix; const char* layer; EquipSlot slot; };
+        const Piece pieces[] = {
+            {"_helm", "head", SLOT_HEAD}, {"_body", "body", SLOT_BODY},
+            {"_legs", "legs", SLOT_LEGS},
+        };
+        int checked = 0;
+        for (const char* tier : {"bronze", "iron", "steel", "azuryte", "adamantium",
+                                 "diamond", "platinum", "demonrite"}) {
+            for (const Piece& piece : pieces) {
+                const ItemDef* d = items.Get(string(tier) + piece.suffix);
+                if (!d) continue;
+                ++checked;
+                Check(d->armour_layer == piece.layer,
+                      string(tier) + piece.suffix + " paints the " + piece.layer + " plate");
+                Check(d->slot == piece.slot, string(tier) + piece.suffix + " is worn on that slot");
+            }
+            if (const ItemDef* w = items.Get(string(tier) + "_sword"))
+                Check(w->armour_layer.empty(), string(tier) + " sword paints no plate");
+        }
+        Check(checked >= 20, "every metal tier has its three plate pieces");
+
+        // And the whole point: a mismatched set draws as the mismatch. Each
+        // slot turns on its own layer in its own metal.
+        {
+            Player p;
+            GameContext ctx;
+            ctx.items = &items; ctx.sprites = &sprites; ctx.trees = &trees;
+            p.Init(ctx, "player_hero");
+            p.equipment.SetDatabase(&items);
+            p.equipment.Equip(SLOT_HEAD, "bronze_helm");
+            p.equipment.Equip(SLOT_BODY, "iron_body");
+            p.equipment.Equip(SLOT_LEGS, "steel_legs");
+
+            const LayerStyle s = p.BuildLayerStyle(&items);
+            Check(s.armour[ARMOUR_HEAD].show && s.armour[ARMOUR_BODY].show &&
+                  s.armour[ARMOUR_LEGS].show, "three worn pieces turn on three plate layers");
+            Check(!s.armour[ARMOUR_SHIELD].show, "an empty off hand draws no shield");
+            const ItemDef* bronze = items.Get("bronze_helm");
+            const ItemDef* iron   = items.Get("iron_body");
+            Check(bronze && s.armour[ARMOUR_HEAD].tint.r == bronze->tint.r &&
+                  s.armour[ARMOUR_HEAD].tint.g == bronze->tint.g,
+                  "the helm is painted its own metal");
+            Check(iron && s.armour[ARMOUR_BODY].tint.r == iron->tint.r,
+                  "the cuirass is painted its own, not an average of the set");
+            Check(!(s.armour[ARMOUR_HEAD].tint.r == s.armour[ARMOUR_BODY].tint.r &&
+                    s.armour[ARMOUR_HEAD].tint.g == s.armour[ARMOUR_BODY].tint.g &&
+                    s.armour[ARMOUR_HEAD].tint.b == s.armour[ARMOUR_BODY].tint.b),
+                  "bronze over iron is drawn as two metals");
+            // Plate has art of its own, so the skin underneath is not washed in
+            // the armour's colour any more.
+            Check(s.body.r == 255 && s.body.g == 255 && s.body.b == 255,
+                  "a character in plate keeps their own colouring underneath");
+        }
+    }
+
     Section("the hero is drawn in every gear");
     {
         const SpriteDef* hero = sprites.Get("player_hero");

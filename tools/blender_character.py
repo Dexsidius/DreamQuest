@@ -88,6 +88,13 @@ PALETTE = {
     "trouser":  (0.55, 0.46, 0.37),
     "boot":     (0.40, 0.28, 0.20),
     "scarf":    (0.84, 0.24, 0.21),
+    # Plate is rendered pale and almost colourless, because the game multiplies
+    # it by the metal of whatever is worn: bronze, iron, steel, azuryte and the
+    # rest are this same armour in their own colour. Anything saturated here
+    # would tint every tier toward it.
+    "plate":    (0.88, 0.89, 0.92),
+    "plate_dk": (0.62, 0.64, 0.70),
+    "plate_lt": (0.99, 0.99, 1.00),
     "steel":    (0.80, 0.84, 0.88),
     "grip":     (0.38, 0.25, 0.17),
     "eye":      (0.13, 0.11, 0.18),
@@ -172,11 +179,14 @@ LOOKS = {
 HAIR_SCALE = 1.0
 SCARF_ON = True
 WEAPON_ON = True
+# Whether to render the five plate layers. Only the playable characters need
+# them; a grocer is never going to put a cuirass on.
+ARMOUR_ON = True
 
 
 def apply_look(name):
     """Palette and shape for one of LOOKS, before anything is built."""
-    global HAIR_SCALE, SCARF_ON, WEAPON_ON
+    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON
     look = LOOKS.get(name)
     if look is None:
         raise SystemExit("unknown look '%s'; have %s" % (name, ", ".join(LOOKS)))
@@ -184,6 +194,7 @@ def apply_look(name):
     HAIR_SCALE = look.get("hair", 1.0)
     SCARF_ON = look.get("scarf", True)
     WEAPON_ON = look.get("weapon", True)
+    ARMOUR_ON = look.get("armour", name.startswith("player_"))
 
 
 # The ramp: how bright each band is relative to the base colour, where the
@@ -398,11 +409,18 @@ def empty(name, loc, parent=None):
 # about z=1.35, which lands the figure in the same box as the CraftPix rigs.
 
 BODY, HEAD, WEAPON = "body", "head", "weapon"
+# Worn plate, one group per equipment slot, each rendered as its own sheet so
+# the game can draw a bronze cuirass over iron greaves.
+ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD = (
+    "armour_legs", "armour_body", "armour_hands", "armour_head", "armour_shield")
+ARMOUR_GROUPS = (ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD)
 
 
 def build_character():
     """Returns (joints, groups, extras)."""
     g = {BODY: [], HEAD: [], WEAPON: []}
+    for key in ARMOUR_GROUPS:
+        g[key] = []
 
     root = empty("root", (0, 0, 0))
     move = empty("move", (0, 0, 0), root)          # bob, lean and lunge
@@ -528,6 +546,107 @@ def build_character():
             part("guard", mesh_ellipsoid(0.085, 0.03, 0.026), "gold", grip, loc=(0, 0, -0.05)),
             part("blade", mesh_capsule(0.036, 0.012, 0.40, squash_y=0.35), "steel", grip,
                  loc=(0, 0, -0.07)),
+        ]
+
+    # --- worn plate ----------------------------------------------------------
+    # Built on the same joints as the body under it, so it moves with every
+    # pose without a second rig. Each piece is a little larger than the part it
+    # covers: at this size armour has to sit *outside* the silhouette or it
+    # simply disappears into it.
+    if ARMOUR_ON:
+        # Cuirass: a breastplate over the torso, a gorget at the throat, a
+        # fauld hanging off the belt, pauldrons on the shoulders.
+        g[ARM_BODY] += [
+            # A capsule hangs from its top cap's centre, so the top sits
+            # r_top above the location: too generous a shoulder here and the
+            # collar climbs over the character's chin.
+            part("cuirass", mesh_capsule(0.140, 0.172, 0.160, squash_y=0.80), "plate", chest,
+                 loc=(0, 0, 0.175)),
+            part("cuirass_ridge", mesh_ellipsoid(0.052, 0.072, 0.105), "plate_lt", chest,
+                 loc=(0, -0.112, 0.195)),
+            part("gorget", mesh_torus(0.100, 0.024), "plate_dk", chest, loc=(0, 0, 0.278)),
+            part("plackart", mesh_ellipsoid(0.168, 0.135, 0.040), "plate_dk", chest,
+                 loc=(0, 0, 0.055)),
+            part("fauld", mesh_frustum(0.165, 0.205, 0.105, squash_y=0.82), "plate", skirt,
+                 loc=(0, 0, 0.012)),
+            part("fauld_hem", mesh_torus(0.196, 0.020), "plate_dk", skirt, loc=(0, 0, -0.055)),
+        ]
+        for side in ("r", "l"):
+            sh = joints["shoulder_" + side]
+            el = joints["elbow_" + side]
+            g[ARM_BODY] += [
+                part("pauldron_" + side, mesh_ellipsoid(0.104, 0.098, 0.070), "plate", sh,
+                     loc=(0, 0, 0.026)),
+                part("pauldron_rim_" + side, mesh_torus(0.085, 0.016), "plate_dk", sh,
+                     loc=(0, 0, -0.010)),
+                part("rerebrace_" + side, mesh_capsule(0.068, 0.062, 0.060), "plate_dk", sh,
+                     loc=(0, 0, -0.055)),
+                part("vambrace_" + side, mesh_capsule(0.056, 0.052, 0.058), "plate", el,
+                     loc=(0, 0, -0.012)),
+            ]
+
+        # Greaves: thigh plate, knee cop, shin, and a sabaton over the boot.
+        for side in ("r", "l"):
+            hp = joints["hip_" + side]
+            kn = joints["knee_" + side]
+            g[ARM_LEGS] += [
+                part("poleyn_" + side, mesh_ellipsoid(0.066, 0.060, 0.050), "plate_lt", kn,
+                     loc=(0, -0.014, 0.012)),
+                part("greave_" + side, mesh_capsule(0.084, 0.080, 0.082), "plate", kn,
+                     loc=(0, 0, -0.044)),
+                part("sabaton_" + side, mesh_ellipsoid(0.088, 0.124, 0.064), "plate_dk", kn,
+                     loc=(0, -0.040, -0.152)),
+            ]
+            # The hip joint is unused by the leg plate, but naming it keeps the
+            # loop honest about what it is standing on.
+            _ = hp
+
+        # Gauntlets: a cuff and a shell over the mitten.
+        for side in ("r", "l"):
+            ha = joints["hand_" + side]
+            g[ARM_HANDS] += [
+                part("cuff_" + side, mesh_torus(0.072, 0.024), "plate_dk", ha, loc=(0, 0, 0.042)),
+                part("gauntlet_" + side, mesh_ellipsoid(0.076, 0.072, 0.076), "plate", ha,
+                     loc=(0, 0, -0.014)),
+            ]
+
+        # Helm: a dome over the skull, a brow band, a nose guard and a low
+        # crest, all on the tilted head pivot so it turns with the face.
+        # A nasal helm rather than a bucket: a cap over the crown with its rim
+        # just above the eyes, a brow band, a bar down the nose and a flap
+        # either side. Built as a dome sitting high on the skull -- a full
+        # capsule the size of the head enclosed the face and the character
+        # became an egg with hair.
+        g[ARM_HEAD] += [
+            # Slim front to back and set well up the skull: the dome's own
+            # depth is what pushes its lower edge down the face on a camera
+            # looking down at forty-six degrees.
+            part("helm", mesh_ellipsoid(0.296, 0.205, 0.118), "plate", head_tilt,
+                 loc=(0, 0.055, head_c + 0.225)),
+            # The brow band has to sit above the eyes, which are at head_c
+            # minus 0.035: at eye level the ring crosses the face and the
+            # character wears a blindfold.
+            part("helm_brow", mesh_torus(0.286, 0.026), "plate_dk", head_tilt,
+                 loc=(0, 0.014, head_c + 0.060)),
+            part("helm_nasal", mesh_capsule(0.026, 0.022, 0.070), "plate_dk", head_tilt,
+                 loc=(0, -0.252, head_c - 0.020)),
+            part("helm_crest", mesh_ellipsoid(0.030, 0.165, 0.070), "plate_lt", head_tilt,
+                 loc=(0, 0.014, head_c + 0.280)),
+            # Nothing below the brow and nothing behind the ears. The helm is
+            # the one layer the head does not cut -- it has to sit over the
+            # hair, which is as wide as it is -- so anything modelled at or
+            # below eye level is drawn straight through the face.
+        ]
+
+        # Shield, on the off hand: a round face with a rim and a boss.
+        shield_hand = joints["hand_l"]
+        g[ARM_SHIELD] += [
+            part("shield", mesh_ellipsoid(0.175, 0.052, 0.175), "plate", shield_hand,
+                 loc=(0.02, -0.075, -0.030)),
+            part("shield_rim", mesh_torus(0.172, 0.024), "plate_dk", shield_hand,
+                 loc=(0.02, -0.075, -0.030), rot=(rad(90), 0, 0)),
+            part("shield_boss", mesh_ellipsoid(0.055, 0.040, 0.055), "plate_lt", shield_hand,
+                 loc=(0.02, -0.115, -0.030)),
         ]
 
     joints.update({
@@ -1065,6 +1184,9 @@ def build_sheet(clip_name, out_dir):
 
     right, up = camera_basis()
     layers = {"shadow": [], "body": [], "head": [], "weapon_front": []}
+    if ARMOUR_ON:
+        for key in ARMOUR_GROUPS:
+            layers[key] = []
 
     for row, (facing, turn) in enumerate(FACINGS):
         for col in range(frames):
@@ -1091,6 +1213,9 @@ def build_sheet(clip_name, out_dir):
             layers["body"] += groups[BODY]
             layers["head"] += groups[HEAD]
             layers["weapon_front"] += groups[WEAPON]
+            if ARMOUR_ON:
+                for key in ARMOUR_GROUPS:
+                    layers[key] += groups[key]
 
     setup_camera(cols, rows)
     setup_render(cols, rows)
@@ -1100,6 +1225,20 @@ def build_sheet(clip_name, out_dir):
     # body would leave a hole whenever the hands are empty.
     occluders = {"shadow": [], "body": [], "weapon_front": ["body", "head"], "head": ["body"]}
     order = [("shadow", 1), ("body", 3), ("weapon_front", 4), ("head", 5)]
+    # Plate is drawn after the character and cut by the body and the head, so a
+    # forearm crossing the chest still passes in front of the cuirass and the
+    # face still shows under the helm. Never cut by another piece of plate:
+    # each one is optional, and a hole would be left wherever the missing piece
+    # would have been.
+    if ARMOUR_ON:
+        for i, key in enumerate(ARMOUR_GROUPS):
+            # The helm is worn over the hair, so the head must not cut it: the
+            # hair cap is as wide as the helm and was slicing the crown off,
+            # which left a steel bowl sitting over the face. Everything else is
+            # worn under the head -- a forearm crossing the chest passes in
+            # front of the cuirass -- so it keeps both holdouts.
+            occluders[key] = ["body"] if key == ARM_HEAD else ["body", "head"]
+            order.append((key, 6 + i))
 
     written = []
     for layer, index in order:
@@ -1121,9 +1260,10 @@ def build_sheet(clip_name, out_dir):
         write_png(path, small)
         written.append(small)
 
-    # A flattened sheet beside the layers, for the character-select preview.
+    # A flattened sheet beside the layers, for the character-select preview,
+    # which shows the character as authored rather than wearing anything.
     flat = np.zeros_like(written[0])
-    for im in written:
+    for im in written[:4]:
         a = im[..., 3:4].astype(np.float32) / 255.0
         flat[..., :3] = (im[..., :3] * a + flat[..., :3] * (1 - a)).astype(np.uint8)
         flat[..., 3] = np.maximum(flat[..., 3], im[..., 3])

@@ -695,21 +695,65 @@ anything; see `Trade::Tags`), and the shelf, with a daily stock and optional
 
 ## Worn equipment
 
-The CraftPix character packs ship their frames already split into layers —
-shadow, the weapon behind the body, the body, the head, the weapon in front —
-all frame-aligned, with a number in each filename giving the draw order. The
-importer keeps that split, so the player is drawn as a paperdoll rather than a
-flattened sheet.
+The character is rendered as a stack of layers rather than a flat sheet —
+shadow, the weapon, the body, the head, and five pieces of plate — each its own
+sheet, frame-aligned, with a number in the filename giving the draw order.
+
+### Armour is armour, not a colour wash
+
+Every piece of worn plate is **modelled on the rig and rendered as its own
+layer**, for every clip and every facing: greaves, cuirass, gauntlets, helm and
+shield. The game draws the layer for a slot only when something is worn there,
+and paints it the metal of that particular piece — so a bronze helm over an
+iron cuirass over steel greaves is drawn as exactly that, three metals at once.
+Armour used to be a tint over the whole character, which meant a full set of
+adamantium and a full set of bronze were the same silhouette in different
+colours.
+
+| Layer | Worn on | What it is |
+| --- | --- | --- |
+| `armour_legs` | legs | knee cops, greaves, sabatons over the boots |
+| `armour_body` | body | breastplate with a raised ridge, gorget, fauld, pauldrons, vambraces |
+| `armour_hands` | hands | cuffs and gauntlet shells |
+| `armour_head` | head | a skullcap with a brow band, nose guard and crest |
+| `armour_shield` | shield | a round shield on the off arm |
+
+The sheets are rendered once, in pale steel, and multiplied by the item's own
+colour at draw time — nine tiers of the same plate for the cost of one render.
+A piece drives its layer through `layer` on the tier piece in `data/tiers.json`,
+so adding a slot to the paperdoll is a one-line change there and a group in
+`tools/blender_character.py`.
+
+Four things that had to be got right, all of them found by looking at the
+result rather than by reasoning about it:
+
+- **Plate has to sit outside the silhouette.** At sixty-four pixels a cuirass
+  modelled the size of the torso disappears into it. Every piece is fifteen to
+  twenty per cent larger than the part it covers.
+- **The helm is the one layer the head does not cut.** It is worn over the hair,
+  which is as wide as the helm is, so using the head as a holdout sliced the
+  crown off and left a steel bowl over the face. Nothing in that group may be
+  modelled at or below eye level, because with no holdout it draws straight
+  through the face.
+- **A capsule hangs from its top cap.** The first cuirass was given a generous
+  shoulder and its collar climbed over the character's chin.
+- **Every other layer keeps both holdouts**, so a forearm crossing the chest
+  still passes in front of the breastplate.
+
+### Weapons and overlay pieces
 
 - **Weapons are real layers.** What you are holding is drawn from its own
   layers and coloured to match the item, so a bronze sword, a steel longsword,
   a bow and a staff all look different in your hand. An empty hand hides the
-  weapon layers entirely.
-- **Armour draws, and can also tint.** A worn piece carries a `worn` overlay:
+  weapon layers entirely. Every tier's weapon sheet sits at the weapon's own
+  index and only the one in hand is drawn -- they were all being drawn at once,
+  and the character went about holding a sword, a spear, a bow and a staff
+  together.
+- **Pack pieces can still overlay.** A worn piece may carry a `worn` overlay:
   art drawn on top of the character, positioned by a rectangle given in **frame
-  pixels** so it lands on the rig correctly at any camera zoom. A piece with no
-  overlay art falls back to colouring the body and head layers instead, so
-  plain items still read as armour.
+  pixels** so it lands on the rig correctly at any camera zoom. A piece with
+  neither plate nor overlay falls back to colouring the body and head layers,
+  so plain items still read as armour.
 
 ```json
 "plumed_helm": {
@@ -1964,7 +2008,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **12405 checks** covering:
+and checks all of it — currently **12730 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -2077,6 +2121,13 @@ and checks all of it — currently **12405 checks** covering:
 - every worn overlay has art on disk and a rectangle that lands on the
   character rather than in empty frame, with helmets on the head and boots at
   the feet
+- worn plate: all three playable characters have all five armour layers for
+  every clip with the sheets on disk; the plate is drawn after the body and the
+  head; a tier weapon sheet is recognised as an alternate rather than as a layer
+  of its own; every metal tier's helm, cuirass and greaves paints the layer for
+  its own slot and no weapon paints any; and a bronze helm over an iron cuirass
+  over steel greaves turns on three layers in three different metals, with the
+  character's own colouring left alone underneath
 - inventory, equipment, skills and quest progress survive a save round-trip
 - the hero has every clip including sprint, each split into shadow, body and
   head with its sheets on disk, and its head and feet sit where the CraftPix

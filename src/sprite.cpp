@@ -2,12 +2,31 @@
 #include <fstream>
 
 LayerSlot LayerSlotFromName(const string& name) {
-    if (name == "shadow")       return LayerSlot::Shadow;
-    if (name == "weapon_back")  return LayerSlot::WeaponBack;
-    if (name == "head")         return LayerSlot::Head;
-    if (name == "weapon_front") return LayerSlot::WeaponFront;
-    if (name == "effect")       return LayerSlot::Effect;
+    if (name == "shadow")        return LayerSlot::Shadow;
+    if (name == "weapon_back")   return LayerSlot::WeaponBack;
+    if (name == "head")          return LayerSlot::Head;
+    if (name == "weapon_front")  return LayerSlot::WeaponFront;
+    if (name == "effect")        return LayerSlot::Effect;
+    if (name == "armour_legs")   return LayerSlot::ArmourLegs;
+    if (name == "armour_body")   return LayerSlot::ArmourBody;
+    if (name == "armour_hands")  return LayerSlot::ArmourHands;
+    if (name == "armour_head")   return LayerSlot::ArmourHead;
+    if (name == "armour_shield") return LayerSlot::ArmourShield;
+    // weapon_sword_iron, weapon_bow_wood and the like: alternates for the
+    // weapon layer, not layers in their own right.
+    if (name.rfind("weapon_", 0) == 0) return LayerSlot::WeaponAlt;
     return LayerSlot::Body;
+}
+
+int ArmourLayerOf(LayerSlot slot) {
+    switch (slot) {
+        case LayerSlot::ArmourLegs:   return ARMOUR_LEGS;
+        case LayerSlot::ArmourBody:   return ARMOUR_BODY;
+        case LayerSlot::ArmourHands:  return ARMOUR_HANDS;
+        case LayerSlot::ArmourHead:   return ARMOUR_HEAD;
+        case LayerSlot::ArmourShield: return ARMOUR_SHIELD;
+        default: return -1;
+    }
 }
 
 const AnimClip* SpriteDef::Find(const string& clip) const {
@@ -198,11 +217,19 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
 
     bool drew = false;
     for (const AnimLayer& layer : clip->layers) {
+        // Every tier's weapon sheet is listed; the one in hand is drawn by the
+        // weapon_front swap below, and the rest are not drawn at all.
+        if (layer.slot == LayerSlot::WeaponAlt) continue;
+
         if (!style.show_weapon && (layer.slot == LayerSlot::WeaponBack ||
                                    layer.slot == LayerSlot::WeaponFront)) {
             draw_attachments(layer.slot);
             continue;
         }
+
+        // A piece of plate is drawn only when it is worn.
+        const int armour = ArmourLayerOf(layer.slot);
+        if (armour >= 0 && !style.armour[armour].show) continue;
 
         SDL_Texture* tex = nullptr;
         bool model_sheet = false;
@@ -228,6 +255,7 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         const SDL_FRect src = {shown * fw, row * fh, fw, fh};
 
         SDL_Color c = tint;
+        if (armour >= 0) c = blend(tint, style.armour[armour].tint);
         switch (layer.slot) {
             case LayerSlot::Body:        c = blend(tint, style.body); break;
             case LayerSlot::Head:        c = blend(tint, style.head); break;

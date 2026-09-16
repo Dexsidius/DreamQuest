@@ -12,7 +12,25 @@
 // Where a layer sits in a character, so the engine knows what it may recolour
 // or hide. The CraftPix character packs ship their frames already split this
 // way, which is what makes worn equipment possible without new art.
-enum class LayerSlot { Shadow, WeaponBack, Body, Head, WeaponFront, Effect };
+// Draw order is the order the sheets are listed in, which comes from the
+// number in each layer's filename. WeaponAlt is every tier's weapon sheet: they
+// all sit at the weapon's own index and only one of them is ever drawn, chosen
+// by the model in hand, so the rest are skipped rather than stacked -- which is
+// exactly what used to happen, and the character went about holding a sword, a
+// spear, a bow and a staff at once.
+enum class LayerSlot {
+    Shadow, WeaponBack, Body, Head, WeaponFront, WeaponAlt, Effect,
+    // Worn plate, each piece its own sheet so a bronze cuirass over iron
+    // greaves is drawn as exactly that.
+    ArmourLegs, ArmourBody, ArmourHands, ArmourHead, ArmourShield,
+};
+
+// The five armour layers, in the order they are drawn.
+enum ArmourLayer { ARMOUR_LEGS, ARMOUR_BODY, ARMOUR_HANDS, ARMOUR_HEAD,
+                   ARMOUR_SHIELD, ARMOUR_LAYER_COUNT };
+
+// Which armour layer a slot paints, or -1 for a slot that is not armour.
+int ArmourLayerOf(LayerSlot slot);
 
 LayerSlot LayerSlotFromName(const string& name);
 
@@ -39,13 +57,25 @@ struct Attachment {
     SDL_Color tint{255, 255, 255, 255};
 };
 
-// How a character's layers should be drawn right now: armour tints the body
-// and head, the weapon layers take the colour of what is held, and an empty
-// hand hides them entirely.
+// A worn piece that has art of its own: whether to draw that layer at all, and
+// the metal to paint it. The sheets are rendered in pale steel so a colour
+// multiply lands where it should -- bronze, iron, azuryte and the rest are the
+// same plate in a different metal, and each slot carries its own, so mixing
+// tiers looks like mixing tiers.
+struct WornLayer {
+    bool      show = false;
+    SDL_Color tint{255, 255, 255, 255};
+};
+
+// How a character's layers should be drawn right now: what plate is worn and in
+// what metal, the weapon layers take the colour of what is held, and an empty
+// hand hides them entirely. Body and head keep a tint for anything worn that
+// has no art of its own.
 struct LayerStyle {
     SDL_Color body{255, 255, 255, 255};
     SDL_Color head{255, 255, 255, 255};
     SDL_Color weapon{255, 255, 255, 255};
+    WornLayer armour[ARMOUR_LAYER_COUNT];
     bool show_weapon = true;
     // The weapon model in hand, "sword_iron" and so on. A rig that has a layer
     // sheet for it draws that, in its own colours, in place of its sword;

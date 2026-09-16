@@ -75,6 +75,12 @@ struct ItemDef {
     // Colour the worn weapon layers take, so a bronze sword and a steel one
     // read differently on the character.
     SDL_Color tint{255, 255, 255, 255};
+    // Which of the character's armour layers this piece paints -- "body",
+    // "legs", "head", "hands" or "shield" -- or empty for anything with no
+    // plate of its own. The layer is rendered once in pale steel and painted
+    // with `tint`, so every tier is the same plate in its own metal and a
+    // mismatched set draws as the mismatch it is.
+    string armour_layer;
 
     map<int, int> requirements;       // SkillId -> level needed to equip
 

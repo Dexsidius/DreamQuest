@@ -296,9 +296,13 @@ bool ItemDatabase::LoadTiers(const string& path) {
             d.tool = pj.value("tool", string(""));
             if (!d.tool.empty()) d.tool_speed = tj.value("tool_speed", 1.0f);
             if (weapon || !d.tool.empty()) d.model = piece + "_" + t.id;
-            // A weapon's model is drawn in its own colours; armour has no art on
-            // the character, so it shows as the tier's colour over the body.
-            if (!weapon && d.tool.empty()) d.tint = t.colour;
+            // A weapon's model is drawn in its own colours; a piece of plate is
+            // drawn from the character's own armour sheet for that slot, in the
+            // tier's metal.
+            if (!weapon && d.tool.empty()) {
+                d.tint = t.colour;
+                d.armour_layer = pj.value("layer", string(""));
+            }
 
             const float power = pj.value("power", string("weapon")) == "armour"
                                     ? tj.value("armour_power", 10.0f)
@@ -606,9 +610,12 @@ SDL_Color Equipment::ArmourTint() const {
         const ItemDef* d = db->Get(slots[slot]);
         if (!d) continue;
         // Recolouring stands in for armour we have no art for. A piece that
-        // brings its own overlay is already visible, and tinting the body
-        // underneath it as well would wash the whole character in its colour.
+        // brings its own overlay -- an icon-pack attachment, or one of the
+        // character's own plate layers -- is already visible, and tinting the
+        // body underneath it as well would wash the whole character in its
+        // colour.
         if (d->worn && !d->worn_sprite.empty()) continue;
+        if (!d->armour_layer.empty()) continue;
         // Bigger pieces dominate the look.
         const float w = 1.0f + d->defence_bonus * 0.05f;
         r += d->tint.r * w;

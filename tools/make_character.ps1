@@ -35,15 +35,26 @@ if (-not (Test-Path $Blender)) {
 foreach ($look in $Look) {
     $outDir = Join-Path $root "assets\characters\$look"
 
-    # A full render replaces the character outright. Layer files are discovered
-    # by name, so a layer an older version wrote and this one does not -- the
-    # first hero had a weapon_back sheet -- would otherwise be drawn on top
-    # forever.
+    # A full render replaces the character's own sheets. Layer files are
+    # discovered by name, so a layer an older version wrote and this one does
+    # not -- the first hero had a weapon_back sheet -- would otherwise be drawn
+    # on top forever.
+    #
+    # Only this script's own layers are removed. The tier weapon sheets in the
+    # same folder come from make_tiers.ps1 and take four minutes to rebuild;
+    # wiping the whole directory quietly deleted them, and the character went
+    # back to holding a plain sword until someone noticed.
     if ($Only.Count -eq 0 -and (Test-Path $outDir)) {
-        Remove-Item -Recurse -Force $outDir
+        Get-ChildItem $outDir -Filter *.png -File -EA SilentlyContinue | Remove-Item -Force
+        Get-ChildItem (Join-Path $outDir "layers") -File -EA SilentlyContinue |
+            Where-Object { $_.Name -match "_(shadow|body|head|weapon_front|armour_[a-z]+)\.png$" } |
+            Remove-Item -Force
     } elseif ($Only.Count -gt 0) {
         foreach ($clip in $Only) {
+            # Same filter as above: this script's own layers for that clip, not
+            # the tier weapon sheets that live beside them.
             Get-ChildItem (Join-Path $outDir "layers") -Filter "${clip}_*.png" -File -EA SilentlyContinue |
+                Where-Object { $_.Name -match "_(shadow|body|head|weapon_front|armour_[a-z]+)\.png$" } |
                 Remove-Item -Force
         }
     }
