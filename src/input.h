@@ -7,7 +7,7 @@
 enum class Action {
     MoveUp, MoveDown, MoveLeft, MoveRight,
     LightAttack, StrongAttack, Interact, Jump, Sprint, Target,
-    Inventory, QuestLog, Skills, Pause,
+    Inventory, QuestLog, Skills, WorldMap, Pause,
     SelectFire, SelectWater, SelectEarth, SelectAir, CycleSpell,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
     COUNT

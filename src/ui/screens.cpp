@@ -887,6 +887,7 @@ void Game::DrawHud() {
                         input.PromptFor(Action::Inventory) + " bag    " +
                         input.PromptFor(Action::Skills) + " skills    " +
                         input.PromptFor(Action::QuestLog) + " quests    " +
+                        input.PromptFor(Action::WorldMap) + " map    " +
                         input.PromptFor(Action::Pause) + " menu";
     ui.TextShadowed(hint, 18.0f, ui.ViewHeight() - 28.0f, TextSize::Small, Palette::TextDim);
 }
@@ -1486,6 +1487,21 @@ void Game::UpdateQuestPanel() {
     if (input.Pressed(Action::Back) || input.Pressed(Action::QuestLog) ||
         input.Pressed(Action::Pause))
         SetState(GameState::Play);
+}
+
+// =============================================================================
+//  The world map
+// =============================================================================
+
+void Game::UpdateWorldMap() {
+    if (input.Pressed(Action::Back) || input.Pressed(Action::WorldMap) ||
+        input.Pressed(Action::Pause))
+        SetState(GameState::Play);
+}
+
+void Game::DrawWorldMap() {
+    world_map.Draw(renderer, *textures, ui, world,
+                   input.PromptFor(Action::WorldMap) + " or " + input.PromptFor(Action::Back) + " close");
 }
 
 void Game::DrawQuestPanel() {

@@ -25,6 +25,7 @@ Input::Input() {
         {SDLK_I, Action::Inventory},  {SDLK_TAB, Action::Inventory},
         {SDLK_O, Action::Skills},
         {SDLK_P, Action::QuestLog},   {SDLK_Q, Action::QuestLog},
+        {SDLK_M, Action::WorldMap},
         {SDLK_ESCAPE, Action::Pause},
 
         {SDLK_1, Action::SelectFire},
@@ -54,6 +55,7 @@ Input::Input() {
         {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, Action::Inventory},
         {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, Action::Skills},
         {SDL_GAMEPAD_BUTTON_BACK, Action::QuestLog},
+        {SDL_GAMEPAD_BUTTON_GUIDE, Action::WorldMap},
         {SDL_GAMEPAD_BUTTON_START, Action::Pause},
         // Clicking the right stick steps through the elements; the d-pad and
         // both sticks are already spoken for.
@@ -258,6 +260,7 @@ string Input::PromptFor(Action a) const {
             case Action::Inventory:    return "LB";
             case Action::Skills:       return "RB";
             case Action::QuestLog:     return "Back";
+            case Action::WorldMap:     return "Guide";
             case Action::Pause:        return "Start";
             case Action::CycleSpell:   return "RS";
             case Action::Jump:         return "LS";
@@ -276,6 +279,7 @@ string Input::PromptFor(Action a) const {
         case Action::Inventory:    return "I";
         case Action::Skills:       return "O";
         case Action::QuestLog:     return "P";
+        case Action::WorldMap:     return "M";
         case Action::Pause:        return "Esc";
         case Action::CycleSpell:   return "R";
         case Action::Jump:         return "Space";

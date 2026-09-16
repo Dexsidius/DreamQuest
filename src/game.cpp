@@ -9,6 +9,7 @@ Game::Game() : rng(std::random_device{}()) {}
 Game::~Game() {
     // The minimap owns a texture, so it has to let go before the renderer does.
     minimap.Forget();
+    world_map.Forget();
     Audio::Shutdown();
     ui.Shutdown();
     delete textures;
@@ -93,6 +94,9 @@ bool Game::LoadContent() {
     ok &= spells.Load("data/spells.json");
     ok &= skill_trees.Load("data/skill_trees.json");
     ok &= shop_db.Load("data/shops.json");
+    // The world map's marks; the picture itself is baked the first time it is
+    // opened, from maps/overworld.mx.
+    ok &= world_map.Load("data/worldmap.json", shop_db);
 
     if (!ok) {
         SDL_Log("DreamQuest: one or more data files failed to load. "
@@ -244,6 +248,7 @@ bool Game::InGameplayState() const {
         case GameState::Inventory:
         case GameState::SkillsPanel:
         case GameState::QuestPanel:
+        case GameState::WorldMapPage:
         case GameState::Dialogue:
         case GameState::Board:
         case GameState::Note:
@@ -368,6 +373,7 @@ void Game::Update(float dt) {
         case GameState::Inventory:       UpdateInventory(); break;
         case GameState::SkillsPanel:     UpdateSkillsPanel(); break;
         case GameState::QuestPanel:      UpdateQuestPanel(); break;
+        case GameState::WorldMapPage:    UpdateWorldMap(); break;
         case GameState::Dialogue:        UpdateDialogue(dt); break;
         case GameState::Board:           UpdateBoard(); break;
         case GameState::Note:            UpdateNote(); break;
@@ -498,6 +504,7 @@ void Game::UpdatePlay(float dt) {
     if (input.Pressed(Action::Inventory))  OpenPanel(GameState::Inventory);
     if (input.Pressed(Action::Skills))     OpenPanel(GameState::SkillsPanel);
     if (input.Pressed(Action::QuestLog))   OpenPanel(GameState::QuestPanel);
+    if (input.Pressed(Action::WorldMap))   OpenPanel(GameState::WorldMapPage);
     if (input.Pressed(Action::Pause))      OpenPanel(GameState::Paused);
 
     // --- autosave ------------------------------------------------------------
@@ -715,6 +722,7 @@ void Game::Render() {
         case GameState::Inventory:       DrawInventory(); break;
         case GameState::SkillsPanel:     DrawSkillsPanel(); break;
         case GameState::QuestPanel:      DrawQuestPanel(); break;
+        case GameState::WorldMapPage:    DrawWorldMap(); break;
         case GameState::Dialogue:        DrawDialogue(); break;
         case GameState::Board:           DrawBoard(); break;
         case GameState::Note:            DrawNote(); break;

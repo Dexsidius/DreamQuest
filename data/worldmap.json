@@ -1,0 +1,61 @@
+{
+  "height": 3968,
+  "marks": [
+    {
+      "kind": "town",
+      "label": "Havenbrook",
+      "town": "havenbrook",
+      "x": 2672,
+      "y": 2832
+    },
+    {
+      "kind": "dungeon",
+      "label": "Emberfell Mine",
+      "x": 2768,
+      "y": 288
+    },
+    {
+      "kind": "dungeon",
+      "label": "The Barrow",
+      "x": 1040,
+      "y": 1408
+    },
+    {
+      "kind": "landmark",
+      "label": "Trailhead",
+      "x": 2576,
+      "y": 1808
+    },
+    {
+      "kind": "path",
+      "label": "Whisperwood Trail",
+      "x": 4696,
+      "y": 1997
+    },
+    {
+      "kind": "camp",
+      "label": "Lizardmen's Camp",
+      "x": 1072,
+      "y": 2576
+    },
+    {
+      "kind": "grave",
+      "label": "Hollowrest",
+      "x": 1872,
+      "y": 3196
+    },
+    {
+      "kind": "path",
+      "label": "Ice Spire Peak  (Combat 30)",
+      "x": 1424,
+      "y": 16
+    },
+    {
+      "kind": "path",
+      "label": "The Ashen Path  (Combat 40)",
+      "x": 4696,
+      "y": 1616
+    }
+  ],
+  "width": 4736
+}

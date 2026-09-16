@@ -132,6 +132,48 @@ struct Manifest {
 
 static Manifest g_manifest;
 
+// --- the world map ---------------------------------------------------------------
+//
+// What the overworld holds, written out beside the maps as data/worldmap.json.
+// The game bakes the terrain picture itself from maps/overworld.mx; what it
+// cannot work out on its own is which of the portals is a dungeon and which is
+// the road to another zone, or what a place is called before you have been
+// there. That is decided here, where the things are placed.
+struct WorldMark {
+    string kind;      // dungeon | path | town | camp | grave | landmark
+    string label;
+    int x = 0, y = 0;
+    string town;      // for a town: which one, so its shops can be listed
+};
+static vector<WorldMark> g_world_marks;
+
+static void MarkWorld(const string& kind, const string& label, int x, int y,
+                      const string& town = "") {
+    g_world_marks.push_back({kind, label, x, y, town});
+}
+
+static void WriteWorldMap(const string& dir, int px_w, int px_h, int offset_x) {
+    json root;
+    root["width"]  = px_w;
+    root["height"] = px_h;
+    json marks = json::array();
+    for (const WorldMark& m : g_world_marks) {
+        json j;
+        j["kind"]  = m.kind;
+        j["label"] = m.label;
+        // In the map's own pixels: the overworld is shifted east of its origin.
+        j["x"] = m.x + offset_x;
+        j["y"] = m.y;
+        if (!m.town.empty()) j["town"] = m.town;
+        marks.push_back(j);
+    }
+    root["marks"] = marks;
+    fs::create_directories(dir);
+    std::ofstream out(dir + "/worldmap.json", std::ios::trunc);
+    out << root.dump(2);
+    std::printf("  %-24s %6zu marks\n", "worldmap.json", g_world_marks.size());
+}
+
 // --- map builder -------------------------------------------------------------
 
 struct TileGroup {
@@ -1148,6 +1190,7 @@ static void BuildOverworld() {
     m.Spawn("from_town", gate_x, gate_y - 40);
     m.Portal(gate_x - 48, gate_y, 96, 48, "town_havenbrook", "from_field",
              "Enter Havenbrook", false);
+    MarkWorld("town", "Havenbrook", gate_x, gate_y + 16, "havenbrook");
 
     {
         json& o = m.Object("sign_gate", "sign", gate_x + 56, gate_y - 8);
@@ -1179,6 +1222,7 @@ static void BuildOverworld() {
         // The portal is the dark of the tunnel itself.
         m.Portal(mine_x - 18, mouth_floor - 34, 36, 30, "dungeon_emberfell_1", "entrance",
                  "Enter the Emberfell mine");
+        MarkWorld("dungeon", "Emberfell Mine", mine_x, mine_y);
         m.Danger(6);
         // Rock either side of the mouth and behind it, so the only way in is
         // up the rails.
@@ -1221,6 +1265,7 @@ static void BuildOverworld() {
         m.Spawn("from_barrow", barrow_x, base + 18);
         m.Portal(barrow_x - 18, door_floor - 28, 36, 30, "dungeon_barrow", "entrance",
                  "Enter the barrow");
+        MarkWorld("dungeon", "The Barrow", barrow_x, barrow_y);
         m.Danger(10);
         // The mound either side of the door and behind it.
         m.Collision(barrow_x - 100, base - 150, 78, 128);
@@ -1257,6 +1302,7 @@ static void BuildOverworld() {
         const int sx = static_cast<int>(RoadX(TRAIL_JUNCTION_CY) + 5.0f) * OW_CELL + 16;
         const int sy = static_cast<int>(TrailY(static_cast<int>(RoadX(TRAIL_JUNCTION_CY) + 5.0f)) - 2.4f)
                        * OW_CELL + 16;
+        MarkWorld("landmark", "Trailhead", sx, sy);
         json& o = m.Object("sign_trailhead", "sign", sx, sy);
         o["sprite"] = "assets/props/signpost.png";
         o["title"]  = "Trailhead";
@@ -1274,6 +1320,7 @@ static void BuildOverworld() {
         const int ey = static_cast<int>(TrailY(OW_W - 1) * OW_CELL) + 16;
         m.Portal(OW_PX_W - 24, ey - 72, 24, 144, "whisperwood_trail", "from_hollowmarch",
                  "To the Whisperwood", false);
+        MarkWorld("path", "Whisperwood Trail", OW_PX_W - 40, ey);
         m.Spawn("from_whisperwood", OW_PX_W - 96, static_cast<int>(TrailY(OW_W - 4) * OW_CELL) + 16);
     }
 
@@ -1293,6 +1340,7 @@ static void BuildOverworld() {
         fire["sprite"] = "assets/props/campfire_ring.png";
         fire["title"]  = "Camp fire";
         m.Collision(cx0 + 6 - 16, cy0 - 2, 32, 10);
+        MarkWorld("camp", "Lizardmen's Camp", cx0, cy0);
         m.Enemy("lizardman_chief", cx0 - 10, cy0 - 56, 3, 120.0f, 260.0f);
         const int guards[][3] = {{-80, 20, 2}, {70, 10, 3}, {-30, 90, 2}, {110, 90, 4}, {-140, 60, 3}};
         for (const auto& g : guards) m.Enemy("lizardman", cx0 + g[0], cy0 + g[1], g[2], 40.0f, 240.0f);
@@ -1330,6 +1378,7 @@ static void BuildOverworld() {
             // The piers, not the gateway: you walk through the middle.
             m.Collision(gx - 60, gy - 22, 34, 22);
             m.Collision(gx + 26, gy - 22, 34, 22);
+            MarkWorld("grave", "Hollowrest", gx, gy + 40);
             json& sign = m.Object("sign_hollowrest", "sign", gx + 84, gy - 4);
             sign["sprite"] = "assets/props/signpost.png";
             sign["title"]  = "Hollowrest";
@@ -1411,6 +1460,7 @@ static void BuildOverworld() {
     {
         const int px = 24 * OW_CELL + 16;
         m.Portal(px - 64, 0, 128, 24, "ice_spire_peak", "from_hollowmarch", "To the Ice Spire", false);
+        MarkWorld("path", "Ice Spire Peak  (Combat 30)", px, 16);
         m.Danger(34);
         m.Requires(30);
         m.Spawn("from_peak", px, 76);
@@ -1430,6 +1480,7 @@ static void BuildOverworld() {
     {
         const int ey = 50 * OW_CELL + 16;
         m.Portal(OW_PX_W - 24, ey - 72, 24, 144, "ashen_path", "from_hollowmarch", "To the Ashen Path", false);
+        MarkWorld("path", "The Ashen Path  (Combat 40)", OW_PX_W - 40, ey);
         m.Danger(45);
         m.Requires(40);
         m.Spawn("from_ashen", OW_PX_W - 96, ey);
@@ -1448,6 +1499,7 @@ static void BuildOverworld() {
     PlaceChest(m, "chest_mire_01",   10 * OW_CELL, 60 * OW_CELL, "chest_common");
 
     m.Write("maps");
+    WriteWorldMap("data", (OW_W - OW_X0) * OW_CELL, OW_PX_H, m.ox);
 }
 
 // --- town --------------------------------------------------------------------

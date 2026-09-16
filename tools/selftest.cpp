@@ -29,6 +29,7 @@
 #include "../src/systems/shop.h"
 #include "../src/entity/player.h"
 #include "../src/ui/minimap.h"
+#include "../src/ui/worldmap.h"
 
 #include <fstream>
 #include <filesystem>
@@ -3856,6 +3857,78 @@ int main(int argc, char** argv) {
                 Check(grunts && dj.contains("elder_grunt") &&
                       dj["elder_grunt"].value("text", string("")).find("*grunt*") != string::npos,
                       "anyone else gets a grunt");
+            }
+        }
+
+        // --- the world map ---------------------------------------------------------------------
+        // What the map screen marks comes from data/worldmap.json, written by
+        // genmaps as it places things, and the trades in a town come from the
+        // shop database, so neither can drift from the world it describes.
+        {
+            ShopDatabase shop_db;
+            shop_db.Load("data/shops.json");
+            std::ifstream in("data/worldmap.json");
+            Check(in.good(), "data/worldmap.json is written beside the maps");
+            json wm;
+            if (in.good()) in >> wm;
+            Map ow;
+            ow.Load("maps/overworld.mx");
+            Check(wm.value("width", 0) == static_cast<int>(ow.Width()) &&
+                  wm.value("height", 0) == static_cast<int>(ow.Height()),
+                  "it is drawn to the size of the overworld");
+            std::map<string, int> kinds;
+            int off_map = 0;
+            for (const auto& mk : wm.value("marks", json::array())) {
+                ++kinds[mk.value("kind", string(""))];
+                const float x = mk.value("x", 0.0f), y = mk.value("y", 0.0f);
+                if (x < 0.0f || y < 0.0f || x > ow.Width() || y > ow.Height()) ++off_map;
+                Check(!mk.value("label", string("")).empty(),
+                      "every mark on the world map is named (" + mk.value("kind", string("")) + ")");
+            }
+            Check(off_map == 0, "and every one of them is somewhere on it");
+            Check(kinds["dungeon"] >= 2, "the dungeons are marked (" + std::to_string(kinds["dungeon"]) + ")");
+            Check(kinds["path"] >= 3, "so is every way out to another land (" + std::to_string(kinds["path"]) + ")");
+            Check(kinds["town"] >= 1 && kinds["grave"] >= 1 && kinds["camp"] >= 1,
+                  "and the town, the graveyard and the camp");
+            // Each marked way out is a portal that is really there, and each
+            // dungeon mark stands at a door into a dungeon.
+            int matched_paths = 0, matched_dungeons = 0;
+            for (const auto& mk : wm.value("marks", json::array())) {
+                const string kind = mk.value("kind", string(""));
+                if (kind != "path" && kind != "dungeon") continue;
+                const float x = mk.value("x", 0.0f), y = mk.value("y", 0.0f);
+                for (const Portal& p : ow.Portals()) {
+                    const float px = p.rect.x + p.rect.w / 2.0f, py = p.rect.y + p.rect.h / 2.0f;
+                    if (fabsf(px - x) > 120.0f || fabsf(py - y) > 120.0f) continue;
+                    if (kind == "dungeon" && p.target_map.rfind("dungeon_", 0) == 0) ++matched_dungeons;
+                    if (kind == "path" && p.target_map.rfind("dungeon_", 0) != 0 &&
+                        p.target_map.rfind("town_", 0) != 0) ++matched_paths;
+                }
+            }
+            Check(matched_dungeons >= 2, "each dungeon mark stands at a dungeon door");
+            Check(matched_paths >= 3, "each path mark stands at a way out of the Hollowmarch");
+
+            // A town's trades: every shop in the database that belongs to a
+            // marked town has a glyph and a name in the legend.
+            for (const auto& mk : wm.value("marks", json::array())) {
+                const string town = mk.value("town", string(""));
+                if (town.empty()) continue;
+                int found = 0;
+                for (const auto& kv : shop_db.All())
+                    if (kv.second.town == town) {
+                        ++found;
+                        Check(string(WorldMapPanel::ShopGlyph(kv.second.type)) != "S" ||
+                              kv.second.type == "shop",
+                              town + "'s " + kv.second.type + " has an icon on the map");
+                        Check(string(WorldMapPanel::ShopName(kv.second.type)) != "Trader" ||
+                              kv.second.type == "shop",
+                              "and a name for the legend");
+                    }
+                Check(found >= 3, town + " shows the trades it keeps (" + std::to_string(found) + ")");
+            }
+            for (const char* kind : {"town", "dungeon", "path", "grave", "camp", "landmark"}) {
+                Check(string(WorldMapPanel::KindGlyph(kind)).size() == 1, string(kind) + " has a glyph");
+                Check(string(WorldMapPanel::KindName(kind)) != "", string(kind) + " has a legend line");
             }
         }
 

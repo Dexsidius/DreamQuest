@@ -15,6 +15,7 @@
 #include "systems/save.h"
 #include "ui/ui.h"
 #include "ui/minimap.h"
+#include "ui/worldmap.h"
 
 enum class GameState {
     MainMenu,
@@ -27,6 +28,7 @@ enum class GameState {
     Inventory,
     SkillsPanel,
     QuestPanel,
+    WorldMapPage,
     Dialogue,
     Board,
     Note,
@@ -90,6 +92,7 @@ private:
     void UpdateInventory();
     void UpdateSkillsPanel();
     void UpdateQuestPanel();
+    void UpdateWorldMap();
     // The ids in one tab of the journal, active first; active_count is how
     // many of them are still going.
     void QuestList(int tab, vector<string>& out, size_t& active_count,
@@ -115,6 +118,7 @@ private:
     void DrawSkillsPanel();
     void DrawSkillTree(const SDL_FRect& panel);
     void DrawQuestPanel();
+    void DrawWorldMap();
     void DrawDialogue();
     void DrawBoard();
     void DrawNote();
@@ -138,6 +142,7 @@ private:
     TextureCache*    textures = nullptr;
     UI               ui;
     Minimap          minimap;
+    WorldMapPanel    world_map;
     Input            input;
     Settings         settings;
     SpriteLibrary    sprites;
