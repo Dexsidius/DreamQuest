@@ -42,6 +42,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
         d.source  = SourceFromName(o.value("source", string("board")));
         d.giver   = o.value("giver", string(""));
         d.recommended_level = o.value("level", 1);
+        d.major = o.value("major", false);
         d.completion_text   = o.value("completion", string(""));
 
         if (o.contains("req"))
@@ -51,6 +52,9 @@ bool QuestLog::LoadDefinitions(const string& path) {
                 if (s >= 0) d.requirements[s] = r.value().get<int>();
             }
         d.daily = o.value("repeat", string("")) == "daily";
+        // Whatever the file says, nothing off a board and nothing repeatable
+        // is a story quest: those are what the side tab exists for.
+        if (d.source == QuestSource::Board || d.daily) d.major = false;
         d.pool  = o.value("pool", d.giver);
         d.posts = std::max(0, o.value("posts", 0));
 

@@ -854,6 +854,7 @@ bc.PALETTE.update({
     "glass": (0.76, 0.86, 0.90), "glass_shine": (0.97, 0.99, 1.00), "cork": (0.66, 0.48, 0.30),
     "parchment": (0.90, 0.83, 0.64), "parchment_dk": (0.72, 0.62, 0.44), "rod_wood": (0.40, 0.26, 0.16),
     "seal": (0.72, 0.14, 0.14), "ink": (0.26, 0.20, 0.18),
+    "fang_ice": (0.92, 0.96, 0.99), "fang_root": (0.74, 0.82, 0.90), "fang_glow": (0.78, 0.96, 1.00),
 })
 
 
@@ -1045,6 +1046,15 @@ def build_trophy(name, parent):
             parts.append(bc.spike("fur", (-0.16 + k * 0.08, -0.03, 0.12), (-0.18 + k * 0.08, -0.03, 0.26), 0.035,
                                   "troll_fur", parent, r_tip=0.01))
         parts.append(bc.part("fold", mesh_box(0.40, 0.05, 0.06), "troll_fur", parent, loc=(0, -0.02, -0.12)))
+    elif name == "dragon_fang":
+        # A curved tooth, pale and cold, with frost still on the root.
+        pts = [(-0.06, 0, -0.26), (-0.02, 0, -0.04), (0.06, 0, 0.16), (0.16, 0, 0.28)]
+        for i in range(3):
+            parts.append(bc.spike("fang", pts[i], pts[i + 1], 0.085 - i * 0.026, "fang_ice" if i else "fang_root",
+                                  parent, r_tip=0.06 - i * 0.026))
+        for k in range(3):
+            parts.append(bc.part("rime", bc.mesh_ellipsoid(0.035, 0.03, 0.03), "fang_glow", parent,
+                                 loc=(-0.07 + k * 0.03, -0.02, -0.22 + k * 0.05)))
     elif name == "demon_horn":
         pts = [(-0.18, 0, -0.20), (-0.14, 0, 0.04), (0.0, 0, 0.20), (0.18, 0, 0.18)]
         for i in range(3):
@@ -1053,7 +1063,7 @@ def build_trophy(name, parent):
     return parts
 
 
-TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn"]
+TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn", "dragon_fang"]
 
 
 HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",

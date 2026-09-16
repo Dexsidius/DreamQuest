@@ -42,6 +42,10 @@ struct QuestDef {
     QuestSource source = QuestSource::Board;
     string giver;                 // npc id, or board id
     int    recommended_level = 1;
+    // A story quest: one of the chain the world is actually about, rather than
+    // a board contract, a daily order or a favour. The journal keeps the two
+    // apart so the main line is not buried under errands.
+    bool   major = false;
     map<int, int> requirements;   // SkillId -> level
     int    combat_level = 0;      // "Combat" in the file's req block
     // A daily quest can be taken again on any later day, and is one of a pool

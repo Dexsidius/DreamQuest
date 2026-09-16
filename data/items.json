@@ -1095,5 +1095,16 @@
     "stack": true,
     "value": 520,
     "icon": "assets/icons/tiers/demon_horn.png"
+  },
+  "dragon_fang": {
+    "tags": [
+      "trophy",
+      "gem"
+    ],
+    "name": "Dragon Fang",
+    "desc": "A tooth from the dragon of the Ice Spire, longer than a dagger and cold to hold.",
+    "stack": true,
+    "value": 2600,
+    "icon": "assets/icons/tiers/dragon_fang.png"
   }
 }

@@ -1253,6 +1253,40 @@ Quests reach you three ways, all of them live:
 - **The dreamworld** — Mira at the Fernhollow shrine and Hesper the ferryman's
   widow send you to sleep with a purpose, and the Dreamer's Slate in the
   Reverie posts its own notices.
+- **Elder Vask**, in the guild hall, has been waiting fifty years for somebody
+  who could climb the Ice Spire and kill what is sitting on it.
+
+### The journal's two tabs
+
+The journal is split. **Story** holds the line the world is actually about;
+**Side quests** holds the board contracts, the daily orders and the favours.
+Left and right step between them, each keeps its own place in its list, and the
+tab headings carry the counts (`Story 2/5`: two still going, five taken). A
+quest is on the story tab when `data/quests.json` marks it `"major": true`, and
+the loader refuses that mark to anything off a board or anything repeatable, so
+an errand cannot end up in the main line by a typo. Today the story is Maren's
+chain, the road beneath the leaves, the barrow, the two dream quests, and the
+dragon; the tutorials, the contracts and the orders are all side quests.
+
+### The Dragon of the Ice Spire
+
+The first quest with a **Combat requirement you have to have earned**: Combat
+35, and it is the giver, not the quest log, who enforces it. Elder Vask sits in
+the guild hall facing the north wall with a stick across his knees, and to
+anyone who could not survive the climb he offers exactly one line -- `*grunt*`
+-- and goes on looking at the wall. At Combat 35 he looks up, and the
+conversation he has been saving for fifty years comes out: eleven of the
+Spirewatch went up, one came down, and **Hoarfang** has held the summit since.
+Climb the Ice Spire, kill it, and bring him back a tooth.
+
+**Hoarfang** is its own creature (`build_dragon` in `tools/blender_creatures.py`),
+not a bigger wyvern: four legs, a heavier body, a short thick neck and wings
+that fold along the flank at rest and are thrown wide when it rears. 760 hit
+points, an attack level in the sixties, and the widest reach of anything in the
+game. It stands on its own ground above the matriarch's nests, at the top of
+the peak where the ice spires ring a hollow, and it does not respawn. It leaves
+dragon fangs, wyvern scales by the handful, diamond and platinum, and now and
+then a diamond spear or a piece of diamond plate.
 
 ### Prerequisites
 
@@ -1519,6 +1553,7 @@ and their chief.
 | Ice Troll | the Ice Spire's slopes | 26-29 | troll hide, adamantium ore, azuryte gear |
 | Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, adamantium gear |
 | Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
+| **Hoarfang** | its own ground above the summit | 62 | dragon fangs, scales, diamond and platinum, diamond gear |
 | Imp | the Ashen Path and the pit | 30-34 | coins, emberbloom, platinum ore, the odd horn |
 | Demon | the hellgate and the pit | 40-43 | demon horns, demonrite ore, platinum gear |
 | The Pit Lord | the pit's last room | 54 | horns, demonrite bars and gear |
@@ -1619,7 +1654,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **11112 checks** covering:
+and checks all of it — currently **11215 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1759,6 +1794,15 @@ and checks all of it — currently **11112 checks** covering:
   the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
+- the dragon and its quest: Hoarfang is a boss, stands above everything else on
+  the Ice Spire, holds its own ground there, exists exactly once in the world
+  and has all five clips drawn; the hunt is a story quest from Elder Vask that a
+  new character cannot take and a Combat 40 one can, made of a climb, a kill and
+  a fang carried back; Vask is in the guild hall, offers it only at Combat 35,
+  and grunts at anyone else
+- the journal's two tabs: every story quest is off neither a board nor a repeat,
+  Maren's chain and the dragon are on the story tab, and the board contracts,
+  the daily orders and the tutorials are on the side tab
 - the three trades taught in Havenbrook: the sawpit's stand of oak, the pit's
   copper and the pond's casts are all worked at level 1; the camps have their
   props and the pond is water; each teacher stands in the town, gives a quest

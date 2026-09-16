@@ -2464,5 +2464,177 @@
         "next": "end"
       }
     ]
+  },
+  "elder_root": {
+    "speaker": "Elder Vask",
+    "text": "An old man with a stick across his knees, facing the north wall. He does not look up when you come in.",
+    "options": [
+      {
+        "text": "They say something took the Ice Spire.",
+        "next": "elder_offer",
+        "if": {
+          "quest": "q_ice_spire_dragon",
+          "state": "available",
+          "combat": 35
+        }
+      },
+      {
+        "text": "The dragon is dead. Here is its fang.",
+        "next": "elder_done",
+        "if": {
+          "quest": "q_ice_spire_dragon",
+          "state": "active",
+          "stage": 2,
+          "has_item": "dragon_fang"
+        },
+        "action": {
+          "take": "dragon_fang"
+        }
+      },
+      {
+        "text": "About the dragon.",
+        "next": "elder_waiting",
+        "if": {
+          "quest": "q_ice_spire_dragon",
+          "state": "active"
+        }
+      },
+      {
+        "text": "Spirewatch.",
+        "next": "elder_after",
+        "if": {
+          "quest": "q_ice_spire_dragon",
+          "state": "complete"
+        }
+      },
+      {
+        "text": "Excuse me -- are you well?",
+        "next": "elder_grunt",
+        "if": {
+          "combat": 35,
+          "not": true
+        }
+      },
+      {
+        "text": "Leave him to it.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_grunt": {
+    "speaker": "Elder Vask",
+    "text": "*grunt*\n\nHe shifts the stick an inch and goes on looking at the wall. Whatever he is waiting for, it is not you.",
+    "options": [
+      {
+        "text": "...",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_offer": {
+    "speaker": "Elder Vask",
+    "text": "Now he looks up, and takes his time about it. Shoulders, then hands, then the notches on your gear.\n\n\"Took it. Yes. I was nineteen and there were eleven of us -- the Spirewatch, they called us, which was a fine name for eleven people with spears. It came down out of the cloud and it took the summit, and I am the one who came back down to say so. Hoarfang, the wyverns' own grandmother called it.\"",
+    "options": [
+      {
+        "text": "Why has nobody killed it?",
+        "next": "elder_why",
+        "if": {
+          "quest": "q_ice_spire_dragon",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I will go up and kill it.",
+        "next": "elder_accept",
+        "action": {
+          "start_quest": "q_ice_spire_dragon"
+        }
+      },
+      {
+        "text": "Not today.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_why": {
+    "speaker": "Elder Vask",
+    "text": "\"Because the ones who could are dead, and the ones who are alive are sensible. It does not come down. It does not need to. Everything that lives up there feeds it, and the wyverns nest under it the way chickens nest under a hawk.\"\n\n\"Go past the matriarch's nests and keep climbing. Past the last spire the ground opens out, and that is its ground. Take the cold seriously -- it breathes the mountain at you -- and do not fight it in the open unless you can take a hit that would fold a horse.\"",
+    "options": [
+      {
+        "text": "I will go up and kill it.",
+        "next": "elder_accept",
+        "action": {
+          "start_quest": "q_ice_spire_dragon"
+        }
+      },
+      {
+        "text": "I will think on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_accept": {
+    "speaker": "Elder Vask",
+    "text": "\"Then bring me a tooth. Not the head, not a scale -- a tooth. I have been telling this village for fifty years what is sitting over their heads, and I would like to put something on the table.\"",
+    "options": [
+      {
+        "text": "You will have it.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_waiting": {
+    "speaker": "Elder Vask",
+    "text": "\"Still here. So is it.\"\n\nHe turns the stick over once.\n\n\"The track up is off the foothills, north. Past the wyverns. You will know its ground when the wind stops -- nothing sings up there.\"",
+    "options": [
+      {
+        "text": "Tell me about the Spirewatch.",
+        "next": "elder_spirewatch"
+      },
+      {
+        "text": "The dragon is dead. Here is its fang.",
+        "next": "elder_done",
+        "if": {
+          "has_item": "dragon_fang"
+        },
+        "action": {
+          "take": "dragon_fang"
+        }
+      },
+      {
+        "text": "I am going back up.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_done": {
+    "speaker": "Elder Vask",
+    "text": "He takes it in both hands, which shake, and this appears to annoy him.\n\n\"Fifty years. Eleven of us.\" A long pause. \"There is money in the guild's box that was set aside for this and never spent. Take it. Take the stones too -- I have no use for them and neither had they.\"",
+    "options": [
+      {
+        "text": "They would have wanted it done.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_after": {
+    "speaker": "Elder Vask",
+    "text": "\"Spirewatch.\" He almost smiles. \"There are two of us now. Sit down sometime and I will tell you the other ten names.\"",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "elder_spirewatch": {
+    "speaker": "Elder Vask",
+    "text": "\"Because the ones who could are dead, and the ones who are alive are sensible. It does not come down. It does not need to. Everything that lives up there feeds it, and the wyverns nest under it the way chickens nest under a hawk.\"\n\n\"Go past the matriarch's nests and keep climbing. Past the last spire the ground opens out, and that is its ground. Take the cold seriously -- it breathes the mountain at you -- and do not fight it in the open unless you can take a hit that would fold a horse.\"",
+    "options": [
+      {
+        "text": "I will go back up.",
+        "next": "end"
+      }
+    ]
   }
 }

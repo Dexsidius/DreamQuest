@@ -3757,6 +3757,9 @@ int main(int argc, char** argv) {
                 types[id].insert(e.type);
                 if (string(id) == "overworld" && e.x < (34 + 20) * 32 && e.type.rfind("lizardman", 0) == 0) types["mire"].insert(e.type);
                 const int lv = effective(e.type, e.level);
+                // The dragon is not part of the peak's spread: it is the thing
+                // at the top of it, and it is checked on its own below.
+                if (e.type == "frost_dragon") continue;
                 auto& rg = range[id];
                 rg.first = std::max(rg.first, lv);
                 rg.second = rg.second == 0 ? lv : std::min(rg.second, lv);
@@ -3782,6 +3785,100 @@ int main(int argc, char** argv) {
               "the Ice Spire's monsters stand between 24 and 42 (" + std::to_string(range["ice_spire_peak"].second) + "-" +
               std::to_string(range["ice_spire_peak"].first) + ")");
         Check(range["dungeon_infernal"].second > range["ice_spire_peak"].second, "the pit is harder than the peak");
+
+        // --- the dragon ----------------------------------------------------------------------
+        {
+            const EnemyDef* drake = enemy_db.Get("frost_dragon");
+            Check(drake && drake->is_boss && drake->hp > 600, "Hoarfang is a boss with a boss's hit points");
+            Check(drake && effective("frost_dragon", 1) > range["ice_spire_peak"].first,
+                  "and stands above everything else on the Ice Spire");
+            Check(types["ice_spire_peak"].count("frost_dragon"), "it holds the ground above the summit");
+            int dragons = 0;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const EnemySpawnDef& e : m.Enemies()) if (e.type == "frost_dragon") ++dragons;
+            }
+            Check(dragons == 1, "there is one dragon in the world");
+            for (const char* clip : {"idle", "walk", "attack", "hurt", "death"})
+                Check(fs::exists(string("assets/characters/frost_dragon/") + clip + ".png"),
+                      string("the dragon's ") + clip + " sheet is drawn");
+
+            // The quest, and the old man who only speaks to someone who could
+            // survive it.
+            const QuestDef* hunt = quests.Definition("q_ice_spire_dragon");
+            Check(hunt && hunt->major && hunt->giver == "npc_elder" && hunt->combat_level >= 35,
+                  "the dragon hunt is a story quest from Elder Vask, closed below Combat 35");
+            if (hunt) {
+                Skills fresh, veteran;
+                LevelUp lu;
+                for (int sk : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE, SKILL_HITPOINTS})
+                    veteran.AddXp(sk, XpForLevel(40), lu);
+                QuestLog log;
+                log.LoadDefinitions("data/quests.json");
+                Check(!log.CanStart("q_ice_spire_dragon", fresh), "a new character cannot take it");
+                Check(log.CanStart("q_ice_spire_dragon", veteran) && veteran.CombatLevel() >= 35,
+                      "a Combat " + std::to_string(veteran.CombatLevel()) + " character can");
+                Check(hunt->stages.size() == 3 && hunt->stages[1].type == ObjectiveType::Kill &&
+                      hunt->stages[1].target == "frost_dragon" &&
+                      hunt->stages[2].type == ObjectiveType::Deliver && hunt->stages[2].target == "dragon_fang",
+                      "it is climb, kill, and carry the fang back");
+            }
+            {
+                Map hall;
+                Check(hall.Load("maps/guild_hall.mx"), "the guild hall loads");
+                const NpcDef* vask = nullptr;
+                for (const NpcDef& n : hall.Npcs()) if (n.id == "npc_elder") vask = &n;
+                Check(vask && vask->name == "Elder Vask" && vask->dialogue == "elder_root",
+                      "Elder Vask sits in the guild hall");
+            }
+            {
+                std::ifstream in("data/dialogue.json");
+                json dj;
+                in >> dj;
+                bool gated = false, grunts = false;
+                for (const auto& opt : dj["elder_root"].value("options", json::array())) {
+                    const json& cond = opt.value("if", json::object());
+                    if (opt.value("next", string("")) == "elder_offer" && cond.value("combat", 0) >= 35)
+                        gated = true;
+                    if (opt.value("next", string("")) == "elder_grunt" && cond.value("combat", 0) >= 35 &&
+                        cond.value("not", false)) grunts = true;
+                }
+                Check(gated, "only a Combat 35 fighter is offered the hunt");
+                Check(grunts && dj.contains("elder_grunt") &&
+                      dj["elder_grunt"].value("text", string("")).find("*grunt*") != string::npos,
+                      "anyone else gets a grunt");
+            }
+        }
+
+        // --- the journal's two tabs ----------------------------------------------------------
+        // The story is one line; the board, the orders and the favours are not
+        // part of it, or the main quest would be buried under errands.
+        {
+            int major = 0, side = 0;
+            for (const auto& kv : quests.Definitions()) {
+                const QuestDef& d = kv.second;
+                if (d.major) {
+                    ++major;
+                    Check(d.source != QuestSource::Board && !d.daily,
+                          kv.first + " is a story quest, so it is not off a board and not repeatable");
+                } else {
+                    ++side;
+                }
+            }
+            Check(major >= 8 && side > major, "the journal has a story line (" + std::to_string(major) +
+                  ") and a side list (" + std::to_string(side) + ")");
+            for (const char* id : {"q_marens_letter", "q_the_sunken_road", "q_emberfell_depths",
+                                   "q_barrow_seal", "q_ice_spire_dragon"}) {
+                const QuestDef* d = quests.Definition(id);
+                Check(d && d->major, string(id) + " is on the story tab");
+            }
+            for (const char* id : {"q_thin_the_herd", "q_daily_boar", "q_order_iron_ore",
+                                   "q_learn_woodcutting"}) {
+                const QuestDef* d = quests.Definition(id);
+                Check(d && !d->major, string(id) + " is a side quest");
+            }
+        }
 
         // --- the swamp ----------------------------------------------------------------------
         {
@@ -4814,6 +4911,7 @@ int main(int argc, char** argv) {
                     {"ice_spire_peak", "peak_camp", 1028, 2480, 1.5f},
                     {"ice_spire_peak", "peak_slopes", 650, 1600, 1.5f},
                     {"ice_spire_peak", "peak_summit", 1190, 300, 1.5f},
+                    {"ice_spire_peak", "dragon_ground", 1160, 140, 1.5f},
                     {"ashen_path", "ashen_ford", 976, 860, 1.5f},
                     {"ashen_path", "ashen_gate", 2896, 540, 1.5f},
                     {"dungeon_infernal", "infernal_pit", 592, 1040, 1.5f},

@@ -675,5 +675,42 @@
       190
     ],
     "boss": true
+  },
+  "frost_dragon": {
+    "name": "Hoarfang",
+    "sprite": "frost_dragon",
+    "hp": 760,
+    "attack": 62,
+    "strength": 66,
+    "defence": 58,
+    "attack_bonus": 60,
+    "strength_bonus": 66,
+    "defence_bonus": 62,
+    "speed": 46,
+    "aggro": 360,
+    "attack_range": 78,
+    "attack_cooldown": 2.4,
+    "loot": "frost_dragon",
+    "kill_target": "frost_dragon",
+    "foot_box": [
+      -40,
+      -26,
+      80,
+      26
+    ],
+    "body_box": [
+      -86,
+      -150,
+      172,
+      150
+    ],
+    "element": "water",
+    "scale": 1.8,
+    "tint": [
+      225,
+      240,
+      255
+    ],
+    "boss": true
   }
 }

@@ -1409,12 +1409,34 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
 //  Quest log
 // =============================================================================
 
-void Game::UpdateQuestPanel() {
-    vector<string> list = quests.Active();
-    const vector<string> done = quests.Completed();
-    list.insert(list.end(), done.begin(), done.end());
+// The journal's two tabs. A story quest is one marked "major" in
+// data/quests.json; everything else -- board contracts, daily orders, the
+// favours people ask -- is a side quest, so the main line stays readable as a
+// line. Active first, then finished, in both.
+void Game::QuestList(int tab, vector<string>& out, size_t& active_count) const {
+    const auto belongs = [&](const string& id) {
+        const QuestDef* d = quests.Definition(id);
+        return d && (d->major ? tab == 0 : tab == 1);
+    };
+    out.clear();
+    for (const string& id : quests.Active()) if (belongs(id)) out.push_back(id);
+    active_count = out.size();
+    for (const string& id : quests.Completed()) if (belongs(id)) out.push_back(id);
+}
 
-    MoveCursor(quest_cursor, static_cast<int>(list.size()));
+void Game::UpdateQuestPanel() {
+    vector<string> list;
+    size_t active_count = 0;
+
+    // Left and right step between the tabs; the cursor of each is its own.
+    const int before = quest_tab;
+    if (input.MenuLeft())  quest_tab = 0;
+    if (input.MenuRight()) quest_tab = 1;
+    if (quest_tab != before) Audio::Play(Sfx::UiMove);
+
+    QuestList(quest_tab, list, active_count);
+    int& cursor = quest_tab == 0 ? quest_cursor : quest_cursor_side;
+    MoveCursor(cursor, static_cast<int>(list.size()));
     if (input.Pressed(Action::Back) || input.Pressed(Action::QuestLog) ||
         input.Pressed(Action::Pause))
         SetState(GameState::Play);
@@ -1427,28 +1449,56 @@ void Game::DrawQuestPanel() {
     ui.Text("Quest Journal", panel.x + 24.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight);
 
-    const vector<string> active = quests.Active();
-    const vector<string> done   = quests.Completed();
-    vector<string> list = active;
-    list.insert(list.end(), done.begin(), done.end());
+    vector<string> list;
+    size_t active_size = 0;
+    QuestList(quest_tab, list, active_size);
+    const int quest_cursor = quest_tab == 0 ? this->quest_cursor : quest_cursor_side;
+
+    // The two tabs, drawn as headings with the count each holds. The one you
+    // are in is lit and underlined.
+    {
+        float tx = panel.x + 24.0f;
+        for (int tab = 0; tab < 2; ++tab) {
+            vector<string> in_tab;
+            size_t tab_active = 0;
+            QuestList(tab, in_tab, tab_active);
+            const string label = string(tab == 0 ? "Story" : "Side quests") +
+                                 "  " + std::to_string(tab_active) + "/" + std::to_string(in_tab.size());
+            const bool on = tab == quest_tab;
+            const float w = ui.Measure(label, TextSize::Small).x + 24.0f;
+            const SDL_FRect box = {tx, panel.y + 46.0f, w, 24.0f};
+            if (on) {
+                ui.Fill(box, {58, 46, 28, 200});
+                ui.Outline(box, Palette::Highlight, 1.0f);
+            }
+            ui.Text(label, tx + 12.0f, box.y + 5.0f, TextSize::Small,
+                    on ? Palette::Highlight : Palette::TextDim);
+            tx += w + 10.0f;
+        }
+    }
 
     if (list.empty()) {
-        ui.Text("You have not taken on any tasks yet.",
-                panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f - 20.0f,
+        const string what = quest_tab == 0
+            ? "The story has not found you yet."
+            : "No contracts, orders or favours in hand.";
+        const string where = quest_tab == 0
+            ? "Talk to the people who have been here longest."
+            : "Look for a mission board in town, or ask at a forge.";
+        ui.Text(what, panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f - 20.0f,
                 TextSize::Body, Palette::TextDim, Align::Center);
-        ui.Text("Look for a mission board in town, or talk to the villagers.",
-                panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f + 6.0f,
+        ui.Text(where, panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f + 6.0f,
                 TextSize::Small, Palette::TextDim, Align::Center);
     } else {
+        const size_t active_count = active_size;
         // Left: the list. Right: detail for whatever is highlighted.
         const float list_w = 290.0f;
         const float row_h = 34.0f;
 
-        for (size_t i = 0; i < list.size() && i < 10; ++i) {
-            const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + i * row_h,
+        for (size_t i = 0; i < list.size() && i < 9; ++i) {
+            const SDL_FRect row = {panel.x + 20.0f, panel.y + 82.0f + i * row_h,
                                    list_w, row_h - 4.0f};
             const bool selected = (static_cast<int>(i) == quest_cursor);
-            const bool complete = (i >= active.size());
+            const bool complete = (i >= active_count);
 
             if (selected) {
                 ui.Fill(row, {58, 46, 28, 200});
@@ -1467,7 +1517,7 @@ void Game::DrawQuestPanel() {
         if (const QuestDef* d = quests.Definition(list[index])) {
             const float dx = panel.x + list_w + 40.0f;
             const float dw = panel.w - list_w - 64.0f;
-            float y = panel.y + 62.0f;
+            float y = panel.y + 82.0f;
 
             ui.Text(d->name, dx, y, TextSize::Body, Palette::Highlight);
             y += 28.0f;
@@ -1507,8 +1557,9 @@ void Game::DrawQuestPanel() {
         }
     }
 
-    ui.Text(input.PromptFor(Action::Back) + " close", panel.x + panel.w / 2.0f,
-            panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    ui.Text("Left / Right  switch tab     " + input.PromptFor(Action::Back) + " close",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
+            Palette::TextDim, Align::Center);
 }
 
 // =============================================================================

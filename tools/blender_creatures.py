@@ -60,6 +60,10 @@ bc.PALETTE.update({
     "demon": (0.64, 0.17, 0.14), "demon_dk": (0.38, 0.08, 0.10), "demon_horn": (0.20, 0.16, 0.15),
     "demon_eye_glow": (1.00, 0.84, 0.30), "ember_glow": (1.00, 0.52, 0.16), "wing_dk": (0.30, 0.10, 0.12),
     "imp": (0.82, 0.34, 0.20), "imp_dk": (0.56, 0.18, 0.14), "iron_dk": (0.30, 0.30, 0.34),
+    # the dragon of the Ice Spire: hoarfrost over deep glacier blue
+    "drake": (0.63, 0.74, 0.86), "drake_dk": (0.36, 0.49, 0.67), "drake_belly": (0.90, 0.94, 0.97),
+    "drake_wing": (0.58, 0.80, 0.94), "drake_horn": (0.82, 0.88, 0.94),
+    "drake_eye_glow": (0.55, 0.95, 1.00), "rime_glow": (0.78, 0.96, 1.00),
 })
 
 _toon = bc.material
@@ -713,6 +717,142 @@ def wyv_death(t):
 
 
 # =================================================================================
+#  The dragon of the Ice Spire
+#
+#  Four legs where the wyvern has two, a neck that carries the head above its
+#  own wings, and wings half again as wide: at a glance, from across the
+#  summit, it has to read as a different order of thing from the wyverns
+#  nesting round it. Hoarfrost over glacier blue, with rime growing along the
+#  spine and the cold coming out of its mouth.
+# =================================================================================
+
+def build_dragon():
+    r = Rig()
+    r.joint("body", (0, 0.10, 1.10), rest=(-6, 0, 0))
+    r.add("torso", E(0.56, 0.92, 0.52), "drake", "body")
+    r.add("haunch", E(0.52, 0.40, 0.44), "drake", "body", loc=(0, 0.46, -0.04))
+    r.add("belly", E(0.42, 0.78, 0.28), "drake_belly", "body", loc=(0, -0.02, -0.26))
+    r.add("chest", E(0.48, 0.38, 0.44), "drake", "body", loc=(0, -0.52, -0.04))
+    # Rime along the spine, longest over the shoulders.
+    for k in range(7):
+        y = -0.56 + k * 0.19
+        h = 0.20 + 0.12 * math.cos((k - 2) * 0.9)
+        r.limb("ridge", (0, y, 0.40), (0, y - 0.05, 0.40 + h), 0.07, "drake_horn", "body", r_tip=0.006)
+    for s2 in (-1, 1):
+        r.add("rime", E(0.10, 0.18, 0.15), "rime_glow", "body", loc=(s2 * 0.40, -0.34, 0.26))
+
+    # Four legs, heavy, with a backward knee and three claws. Set wide, so the
+    # body is carried on them rather than hung between them.
+    for s2, side in ((-1, "l"), (1, "r")):
+        for tag, hip_y, thigh, shin, rr in (("fore", -0.46, -0.40, -0.36, 0.15), ("hind", 0.40, -0.46, -0.42, 0.19)):
+            j = tag + "_" + side
+            r.joint(j, (s2 * 0.38, hip_y, -0.18), "body", rest=(10 if tag == "hind" else 6, 0, 0))
+            r.limb("thigh", (0, 0, 0), (0, -0.10, thigh), rr, "drake", j, r_tip=0.11)
+            r.joint(j + "_knee", (0, -0.10, thigh), j, rest=(0, 0, 0))
+            r.limb("shin", (0, 0, 0), (0, 0.08, shin), 0.10, "drake_dk", j + "_knee", r_tip=0.08)
+            r.add("foot", E(0.14, 0.18, 0.07), "drake_dk", j + "_knee", loc=(0, 0.02, shin))
+            for k in (-1, 0, 1):
+                r.limb("claw", (0, 0.06, shin), (k * 0.13, -0.20, shin - 0.05), 0.045, "drake_horn",
+                       j + "_knee", r_tip=0.008)
+
+    # Neck, head and horns. Short and thick: a long thin neck reads as a bird.
+    r.joint("neck1", (0, -0.70, 0.20), "body", rest=(46, 0, 0))
+    r.limb("neck", (0, 0, 0), (0, 0, 0.44), 0.22, "drake", "neck1", r_tip=0.18)
+    r.joint("neck2", (0, 0, 0.44), "neck1", rest=(-34, 0, 0))
+    r.limb("neck", (0, 0, 0), (0, 0, 0.36), 0.18, "drake", "neck2", r_tip=0.15)
+    r.joint("head", (0, 0, 0.36), "neck2", rest=(-14, 0, 0))
+    r.add("skull", E(0.25, 0.34, 0.22), "drake", "head", loc=(0, -0.14, 0.02))
+    r.add("snout", E(0.15, 0.30, 0.13), "drake", "head", loc=(0, -0.40, -0.02))
+    r.add("jaw", E(0.13, 0.28, 0.08), "drake_belly", "head", loc=(0, -0.38, -0.12))
+    r.add("breath", E(0.09, 0.09, 0.08), "rime_glow", "head", loc=(0, -0.58, -0.04))
+    for s2 in (-1, 1):
+        r.add("eye", E(0.05, 0.05, 0.045), "drake_eye_glow", "head", loc=(s2 * 0.14, -0.26, 0.11))
+        # Horns swept back over the neck, and a frill of shorter spines.
+        r.limb("horn", (s2 * 0.11, 0.06, 0.14), (s2 * 0.28, 0.54, 0.38), 0.08, "drake_dk", "head", r_tip=0.008)
+        for k in range(3):
+            r.limb("frill", (s2 * 0.15, 0.10 + k * 0.05, 0.02), (s2 * 0.32, 0.26 + k * 0.07, -0.08 - k * 0.06),
+                   0.035, "drake_dk", "head", r_tip=0.004)
+        r.limb("fang", (s2 * 0.08, -0.40, -0.08), (s2 * 0.09, -0.42, -0.20), 0.026, "drake_horn", "head", r_tip=0.004)
+
+    # Tail: heavy at the root, tapering to a spiked tip.
+    r.joint("tail1", (0, 0.84, 0.02), "body", rest=(74, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.58), 0.22, "drake", "tail1", r_tip=0.16)
+    r.joint("tail2", (0, 0, -0.58), "tail1", rest=(10, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.56), 0.16, "drake", "tail2", r_tip=0.10)
+    r.joint("tail3", (0, 0, -0.56), "tail2", rest=(10, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.42), 0.12, "drake_dk", "tail3", r_tip=0.04)
+    for k in (-1, 1):
+        r.limb("barb", (0, 0, -0.34), (k * 0.20, 0, -0.56), 0.05, "drake_horn", "tail3", r_tip=0.006)
+        r.limb("barb", (0, 0, -0.46), (k * 0.13, 0, -0.66), 0.04, "drake_horn", "tail3", r_tip=0.005)
+
+    # Wings, folded along the back at rest: the arm goes up and back from the
+    # shoulder and the fingers carry the membrane down the body toward the
+    # tail. A wing built spread stands up over the back like a pair of ears
+    # from this camera; the poses swing these out instead, about Z.
+    for s2, side in ((-1, "l"), (1, "r")):
+        r.joint("wing_" + side, (s2 * 0.34, -0.34, 0.34), "body", rest=(0, 0, 0))
+        r.limb("arm", (0, 0, 0), (s2 * 0.24, 0.18, 0.36), 0.09, "drake_dk", "wing_" + side, r_tip=0.06)
+        r.joint("wrist_" + side, (s2 * 0.24, 0.18, 0.36), "wing_" + side, rest=(0, 0, 0))
+        # Fingers sweeping back and down the flank, with the membrane hanging
+        # between them: folded, not spread. A sail built over the back reads
+        # from this camera as a balloon tied to the spine.
+        r.limb("finger", (0, 0, 0), (s2 * 0.10, 0.96, -0.34), 0.05, "drake_dk", "wrist_" + side, r_tip=0.010)
+        r.limb("finger", (0, 0, 0), (s2 * 0.30, 0.74, -0.40), 0.042, "drake_dk", "wrist_" + side, r_tip=0.009)
+        r.limb("finger", (0, 0, 0), (s2 * 0.48, 0.32, -0.42), 0.036, "drake_dk", "wrist_" + side, r_tip=0.008)
+        r.add("sail1", E(0.05, 0.46, 0.34), "drake_wing", "wrist_" + side, loc=(s2 * 0.16, 0.48, -0.34),
+              rot=(0, s2 * 0.18, 0))
+        r.add("sail2", E(0.05, 0.34, 0.28), "drake_wing", "wrist_" + side, loc=(s2 * 0.32, 0.46, -0.40),
+              rot=(0, s2 * 0.30, 0))
+        r.limb("thumb", (0, 0, 0), (s2 * 0.18, -0.12, 0.20), 0.035, "drake_horn", "wrist_" + side, r_tip=0.005)
+    return r
+
+
+def drake_idle(t):
+    s = sn(t)
+    return {"_z": 0.03 * s, "body": X(2 * s), "neck1": X(5 * s), "neck2": X(-3 * s), "head": X(-5 * s),
+            "wing_l": (0, 0, -5 * s), "wing_r": (0, 0, 5 * s), "wrist_l": (0, 4 * s, 0), "wrist_r": (0, -4 * s, 0),
+            "tail1": (0, 0, 7 * s), "tail2": (0, 0, 9 * sn(t, 0.2)), "tail3": (0, 0, 11 * sn(t, 0.35))}
+
+
+def drake_walk(t):
+    s = sn(t)
+    # A four-legged walk: each foreleg moves with the opposite hind.
+    return {"fore_l": fwd(22 * s), "hind_r": fwd(20 * s), "fore_r": fwd(-22 * s), "hind_l": fwd(-20 * s),
+            "fore_l_knee": X(16 * max(0, -s)), "fore_r_knee": X(16 * max(0, s)),
+            "hind_l_knee": X(18 * max(0, s)), "hind_r_knee": X(18 * max(0, -s)),
+            "_z": 0.04 * abs(s), "body": (0, 0, 4 * s), "neck1": (0, 0, -5 * s), "head": (0, 0, 3 * s),
+            "wing_l": (0, 0, -14 - 8 * sn(t * 2)), "wing_r": (0, 0, 14 + 8 * sn(t * 2)),
+            "tail1": (0, 0, 12 * s), "tail2": (0, 0, 14 * sn(t, 0.25))}
+
+
+def drake_attack(t):
+    """Rears up on the hind legs with the wings thrown wide, then comes down
+    with the head: the breath is the glow in its mouth as it does."""
+    i, k = phases(t, 0.40, 0.62, 1.0)
+    rear = {"body": X(-30), "_z": 0.26, "_y": 0.14, "neck1": X(-28), "neck2": X(-10), "head": X(-14),
+            "fore_l": fwd(48), "fore_r": fwd(44), "fore_l_knee": X(30), "fore_r_knee": X(30),
+            "wing_l": (-20, 0, -96), "wing_r": (-20, 0, 96), "wrist_l": (0, 40, 0), "wrist_r": (0, -40, 0),
+            "tail1": (16, 0, 0)}
+    strike = {"body": X(16), "_z": -0.02, "_y": -0.40, "neck1": X(38), "neck2": X(20), "head": X(20),
+              "fore_l": fwd(-10), "fore_r": fwd(-6),
+              "wing_l": (10, 0, -60), "wing_r": (10, 0, 60), "hind_l": fwd(22), "hind_r": fwd(-8)}
+    return [mix({}, rear, k), mix(rear, strike, k), mix(strike, {}, k), {}][i]
+
+
+def drake_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-14 * k), "_y": 0.16 * k, "neck1": X(-30 * k), "head": X(-12 * k),
+            "wing_l": (0, 0, -70 * k), "wing_r": (0, 0, 70 * k), "tail1": (0, 0, 20 * k)}
+
+
+def drake_death(t):
+    k = ease(t * 1.1)
+    return {"_roll": 76 * k, "_z": -0.46 * k, "neck1": X(44 * k), "neck2": X(20 * k), "head": X(34 * k),
+            "wing_l": (0, 0, -100 * k), "wing_r": (0, 0, 40 * k), "wrist_l": (0, 50 * k, 0),
+            "fore_l": fwd(46 * k), "hind_l": fwd(40 * k), "tail1": (0, 0, 34 * k)}
+
+
+# =================================================================================
 #  The roster
 # =================================================================================
 CREATURES = {
@@ -724,6 +864,7 @@ CREATURES = {
     "wyvern":    (build_wyvern,   112, (wyv_idle, wyv_walk, wyv_attack, wyv_hurt, wyv_death),            0.70),
     "demon":     (build_demon,     80, (demon_idle, demon_walk, demon_attack, demon_hurt, demon_death),  0.40),
     "imp":       (build_imp,       48, (imp_idle, imp_walk, imp_attack, imp_hurt, imp_death),            0.22),
+    "frost_dragon": (build_dragon, 144, (drake_idle, drake_walk, drake_attack, drake_hurt, drake_death), 0.92),
 }
 CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False), ("death", 6, False)]
 FACINGS = bc.FACINGS

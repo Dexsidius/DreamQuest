@@ -235,6 +235,44 @@
                                        }
                           }
             },
+    "frost_dragon":  {
+                         "dir":  "assets/characters/frost_dragon/",
+                         "rows":  4,
+                         "anchor_y":  122,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "hare":  {
                  "dir":  "assets/characters/hare/",
                  "rows":  4,

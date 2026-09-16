@@ -1675,6 +1675,11 @@ static void BuildInteriors() {
         m.Npc("npc_guildmaster", "Guild Master Orlend", "fighter2",
               dx, 2 * CELL - 8, "guildmaster_root", 0);
 
+        // The last of the Spirewatch, sat under the west wall with a stick
+        // across his knees. He has nothing to say to anyone who could not
+        // survive the climb, and says it.
+        m.Npc("npc_elder", "Elder Vask", "citizen2", 5 * CELL, 11 * CELL, "elder_root", 0);
+
         // The rug sits under him rather than in the middle of the room: it
         // marks where the hall expects you to stand and be spoken to.
         m.Flat("objects", "guild_rug", dx, 5 * CELL);
@@ -2404,6 +2409,29 @@ static void BuildIceSpire() {
     }
     m.Enemy("wyvern_matriarch", sx, sy + 70, 1, 300.0f, 260.0f);
     PlaceChest(m, "chest_peak_summit", sx + 40, sy + 20, "chest_peak");
+
+    // --- the dragon's ground ---------------------------------------------------------
+    // Above the last spire, where the wind stops. Hoarfang has held it for
+    // fifty years; the bones round it are what the wyverns bring up. It does
+    // not respawn -- killing it is the point of a quest, not a farm.
+    {
+        const int dx = static_cast<int>(PathX(2.0f) * CELL) + 16;
+        const int dy = 2 * CELL + 8;
+        for (const auto& sp : {std::pair<int, int>{-150, 26}, {-96, -12}, {104, -16}, {158, 22}}) {
+            m.Prop("props", "ice_spire", dx + sp.first, dy + sp.second);
+            m.Collision(dx + sp.first - 30, dy + sp.second - 18, 60, 18);
+        }
+        for (const auto& c : {std::pair<int, int>{-66, 54}, {72, 58}, {-24, 74}, {36, 70}}) {
+            m.Prop("props", "ice_crystal", dx + c.first, dy + c.second);
+        }
+        // Bones of what it has eaten, and of the ten who did not come down.
+        for (int k = 0; k < 5; ++k) {
+            const int bx = dx - 120 + k * 60, by = dy + 96 + (k % 2) * 22;
+            m.Prop("objects", kSmallRocks[(bx + by) % 4], bx, by);
+        }
+        m.Enemy("frost_dragon", dx, dy + 60, 1, 0.0f, 420.0f);
+        PlaceChest(m, "chest_dragon_hoard", dx - 40, dy + 34, "chest_peak");
+    }
 
     m.Write("maps");
 }

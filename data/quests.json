@@ -218,6 +218,7 @@
     "source": "npc",
     "giver": "npc_maren",
     "level": 1,
+    "major": true,
     "summary": "Elder Maren has written to the guild and will not say what about. She only asks that it reach them today.",
     "stages": [
       {
@@ -251,6 +252,7 @@
     "source": "npc",
     "giver": "npc_maren",
     "level": 6,
+    "major": true,
     "summary": "A surveyor went out to the Sunken Road with a satchel of paper and came back with none of it. Maren wants to know what he saw.",
     "prereq": [
       "q_marens_letter"
@@ -286,6 +288,7 @@
     "source": "npc",
     "giver": "npc_maren",
     "level": 14,
+    "major": true,
     "summary": "Whatever is gathering the orcs is doing it under Emberfell. Maren has stopped calling it a rumour.",
     "prereq": [
       "q_the_sunken_road"
@@ -339,6 +342,7 @@
     "source": "note",
     "giver": "note_mire",
     "level": 10,
+    "major": true,
     "summary": "A water-stained note left at the edge of the Mire. Someone went into the barrow on purpose, and wrote down why.",
     "stages": [
       {
@@ -562,6 +566,7 @@
     "source": "note",
     "giver": "sign_trailhead",
     "level": 2,
+    "major": true,
     "summary": "A weathered trail sign names two settlements beyond the eastern trees. Follow the old road to Mossvale, then take the north fork to Fernhollow.",
     "stages": [
       {
@@ -836,6 +841,7 @@
     "source": "npc",
     "giver": "npc_mira",
     "level": 6,
+    "major": true,
     "summary": "Mira says the lights on the pond come from somewhere you can only reach asleep, and that something there has been trying to speak.",
     "prereq": [
       "q_old_offering"
@@ -877,6 +883,7 @@
     "source": "npc",
     "giver": "npc_hesper",
     "level": 18,
+    "major": true,
     "summary": "Hesper has watched the lights over the pond grow brighter every night. Something large is holding the dream together, and it is not friendly.",
     "prereq": [
       "q_the_water_remembers"
@@ -1643,5 +1650,53 @@
       ]
     },
     "completion": "Bess pours you a drink on the house, and says she will be sweeping webs for a week."
+  },
+  "q_ice_spire_dragon": {
+    "name": "The Dragon of the Ice Spire",
+    "source": "npc",
+    "giver": "npc_elder",
+    "level": 35,
+    "major": true,
+    "summary": "Elder Vask was one of the Spirewatch, and the only one who came down. What took the summit fifty years ago is still up there, and he has waited that long for somebody who could go back for it.",
+    "req": {
+      "Combat": 35
+    },
+    "stages": [
+      {
+        "desc": "Climb the Ice Spire to the summit",
+        "type": "reach",
+        "target": "ice_spire_peak"
+      },
+      {
+        "desc": "Kill Hoarfang, the dragon of the Ice Spire",
+        "type": "kill",
+        "target": "frost_dragon",
+        "map": "ice_spire_peak",
+        "count": 1
+      },
+      {
+        "desc": "Carry the dragon's fang back to Elder Vask",
+        "type": "deliver",
+        "target": "dragon_fang",
+        "to": "npc_elder",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 9000,
+        "Strength": 9000,
+        "Defence": 7000,
+        "Hitpoints": 5000
+      },
+      "coins": 3200,
+      "items": [
+        {
+          "id": "diamond_ingot",
+          "qty": 3
+        }
+      ]
+    },
+    "completion": "Vask turns the fang over twice, then sets it down. \"Fifty years I have been the only one who saw it. Now there are two of us, and one of them killed it.\""
   }
 }
