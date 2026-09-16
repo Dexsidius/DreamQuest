@@ -94,6 +94,57 @@ PALETTE = {
     "shadow":   (0.00, 0.00, 0.00),
 }
 
+# The three characters offered at the start, as differences from the palette
+# above. They used to be this one plus two from a CraftPix pack, which meant
+# the art could not be redistributed with the game; these are the same rig in
+# its own clothes, so everything the repository ships is its own.
+#
+# "hair" scales the locks rather than replacing them, and "scarf" takes the
+# throat wrap and its tail off entirely, which changes the silhouette as much
+# as any colour does.
+LOOKS = {
+    "player_hero": {},
+    "player_warden": {
+        "palette": {"hair":    (0.16, 0.13, 0.12),
+                    "tunic":   (0.36, 0.45, 0.33),
+                    "trim":    (0.24, 0.31, 0.24),
+                    "belt":    (0.30, 0.22, 0.16),
+                    "trouser": (0.36, 0.33, 0.27),
+                    "boot":    (0.28, 0.21, 0.16),
+                    "skin":    (0.85, 0.66, 0.50)},
+        "hair": 0.55,
+        "scarf": False,
+    },
+    "player_wayfarer": {
+        "palette": {"hair":    (0.86, 0.82, 0.70),
+                    "tunic":   (0.62, 0.68, 0.80),
+                    "trim":    (0.42, 0.48, 0.64),
+                    "belt":    (0.34, 0.30, 0.34),
+                    "trouser": (0.40, 0.42, 0.50),
+                    "boot":    (0.30, 0.28, 0.32),
+                    "scarf":   (0.30, 0.40, 0.62),
+                    "skin":    (0.72, 0.55, 0.42)},
+        "hair": 1.45,
+        "scarf": True,
+    },
+}
+
+# Set from --look; the defaults are the hero's.
+HAIR_SCALE = 1.0
+SCARF_ON = True
+
+
+def apply_look(name):
+    """Palette and shape for one of LOOKS, before anything is built."""
+    global HAIR_SCALE, SCARF_ON
+    look = LOOKS.get(name)
+    if look is None:
+        raise SystemExit("unknown look '%s'; have %s" % (name, ", ".join(LOOKS)))
+    PALETTE.update(look.get("palette", {}))
+    HAIR_SCALE = look.get("hair", 1.0)
+    SCARF_ON = look.get("scarf", True)
+
+
 # The ramp: how bright each band is relative to the base colour, where the
 # bands change over (in N.L, which the sun's strength keeps in 0..1), and the
 # cool tint mixed into the shadow band.
@@ -282,9 +333,11 @@ def part(name, mesh, colour, parent, loc=(0, 0, 0), rot=(0, 0, 0)):
 
 
 def spike(name, root, tip, r_root, colour, parent, r_tip=0.012):
-    """A tapered lock of hair from root to tip."""
+    """A tapered lock of hair from root to tip. HAIR_SCALE stretches the lock
+    from its root, so a look can be cropped or long-haired without a second
+    set of coordinates."""
     root, tip = Vector(root), Vector(tip)
-    d = tip - root
+    d = (tip - root) * (HAIR_SCALE if colour == "hair" else 1.0)
     length = max(0.001, d.length - r_root * 0.2)
     ob = part(name, mesh_capsule(r_root, r_tip, length), colour, parent, loc=root)
     ob.rotation_mode = "QUATERNION"
@@ -406,12 +459,20 @@ def build_character():
     scarf3 = empty("scarf3", (0, 0, -0.12), scarf2)
     # The wrap belongs to the body layer: drawn in the head layer it sat over
     # the lower half of the face and read as a red mouth.
-    g[BODY].append(part("scarf_wrap", mesh_torus(0.125, 0.03), "scarf", chest, loc=(0, 0, 0.25)))
-    g[HEAD] += [
-        part("scarf_tail1", mesh_capsule(0.046, 0.042, 0.10, squash_y=0.6), "scarf", scarf1),
-        part("scarf_tail2", mesh_capsule(0.042, 0.038, 0.10, squash_y=0.6), "scarf", scarf2),
-        part("scarf_tail3", mesh_capsule(0.038, 0.024, 0.10, squash_y=0.6), "scarf", scarf3),
-    ]
+    #
+    # A look without a scarf keeps the empties -- every pose sets angles on
+    # them -- and simply hangs nothing off them.
+    if SCARF_ON:
+        g[BODY].append(part("scarf_wrap", mesh_torus(0.125, 0.03), "scarf", chest, loc=(0, 0, 0.25)))
+        g[HEAD] += [
+            part("scarf_tail1", mesh_capsule(0.046, 0.042, 0.10, squash_y=0.6), "scarf", scarf1),
+            part("scarf_tail2", mesh_capsule(0.042, 0.038, 0.10, squash_y=0.6), "scarf", scarf2),
+            part("scarf_tail3", mesh_capsule(0.038, 0.024, 0.10, squash_y=0.6), "scarf", scarf3),
+        ]
+    else:
+        # Something at the throat, so the neckline is not bare: a rolled collar
+        # in the tunic's trim.
+        g[BODY].append(part("collar", mesh_torus(0.128, 0.026), "trim", chest, loc=(0, 0, 0.25)))
 
     # --- the sword, in the right hand: screen left when facing down, where the
     # CraftPix rigs carry theirs --------------------------------------------
@@ -1030,6 +1091,10 @@ def build_sheet(clip_name, out_dir):
 def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     out_dir = OUT_DIR
+    if "--look" in args:
+        i = args.index("--look")
+        apply_look(args[i + 1])
+        del args[i:i + 2]
     if "--out" in args:
         i = args.index("--out")
         out_dir = args[i + 1]

@@ -3407,14 +3407,14 @@ static void BuildMossvale() {
     }
 
     // --- people -------------------------------------------------------------------
-    m.Npc("npc_sela",   "Warden Sela",    "player_female", 4 * CELL, (gate_row + 3) * CELL, "sela_root", 1);
+    m.Npc("npc_sela",   "Warden Sela",    "player_wayfarer", 4 * CELL, (gate_row + 3) * CELL, "sela_root", 1);
     m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL + 50, 30 * CELL + 6, "pell_root", 0)["shop"] = "mossvale_general";
     // The smith works the village anvil by the workbench, with his bars in a
     // crate at his elbow.
     m.Npc("npc_garrow", "Garrow the Smith", "fighter2", 49 * CELL + 8, 26 * CELL - 2, "garrow_root", 0)["shop"] = "mossvale_forge";
     m.Prop("props", "ingot_crate", 51 * CELL, 26 * CELL + 4);
     m.Collision(51 * CELL - 17, 26 * CELL - 8, 34, 12);
-    m.Npc("npc_tamsin", "Tamsin",         "player_male",  45 * CELL, 19 * CELL, "tamsin_root", 0, true);
+    m.Npc("npc_tamsin", "Tamsin",         "player_warden", 45 * CELL, 19 * CELL, "tamsin_root", 0, true);
 
     // --- village life along the street ------------------------------------------
     // Without these the walk from the gate to the square is a bare dirt road

@@ -1,18 +1,38 @@
 # Assets
 
-Every image the game loads comes from a free [CraftPix](https://craftpix.net)
-asset pack. The CraftPix file licence
-(<https://craftpix.net/file-licenses/>) allows using these assets in a game but
-not redistributing the files themselves, so **none of them are committed to
-this repository**. `tools/import_assets.ps1` rebuilds `assets/` from the `.zip`
-packs on your own machine.
+Some of what the game draws is its own -- modelled and rendered by the tools in
+`tools/`, and free to travel with the repository. The rest still comes from free
+[CraftPix](https://craftpix.net) asset packs, whose file licence
+(<https://craftpix.net/file-licenses/>) allows using the assets in a game but
+not redistributing the files themselves, so **none of those are committed
+here**. `tools/import_assets.ps1` rebuilds `assets/` from the `.zip` packs on
+your own machine.
 
-## Packs used
+## The game's own art
+
+Nothing below needs a pack. Every one of these is generated from source in this
+repository, so it can be redistributed with it.
+
+| What | Made by |
+| --- | --- |
+| The three playable characters | `tools/blender_character.py` (`make_character.ps1`) |
+| Every monster except the orcs | `tools/blender_creatures.py` (`make_creatures.ps1`) |
+| Every prop -- furniture, buildings, herbs, gravestones, the well | `tools/blender_props.py` (`make_props.ps1`) |
+| Every ore, bar, weapon and armour icon, and the weapon layers in hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
+| All ground and interior tiles | `tools/make_ground.ps1` |
+| Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
+| Hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
+| HUD fittings and the minimap bezel | `tools/make_ui.ps1` |
+| The title painting, the window icon and the .exe icon | `art/`, see the README |
+
+## What still comes from a pack
+
+The list below is what remains, and it is also the to-do list for making the
+repository fully self-contained. `Path and Road` is in it only for the ten road
+pieces the ground decals use; the flat fills it once supplied are generated now.
 
 | Pack | Used for |
 | --- | --- |
-| Base 4-Direction Male Character | The male player character |
-| Base 4-Direction Female Character | The female player character |
 | Top-Down Orc Game Character | Orc Grunt, Orc Raider, Orc Warchief |
 | Top-Down Hunt Animals Sprite Pack | Boar, deer, fox, hare |
 | Top-Down Pixel Art Guild Hall | The guild hall inside and out, its sign, and the town NPCs |

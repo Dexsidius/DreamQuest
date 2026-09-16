@@ -69,7 +69,7 @@ SaveSlotInfo SaveSystem::Peek(int slot) {
     info.total_level  = j.value("total_level", 1);
     info.playtime     = j.value("playtime", 0.0f);
     info.saved_at     = j.value("saved_at", string(""));
-    info.character    = j.value("character", string("player_male"));
+    info.character    = j.value("character", string(Player::kDefaultCharacter));
     return info;
 }
 

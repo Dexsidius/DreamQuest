@@ -140,8 +140,13 @@ public:
 
     const ItemDatabase* ItemDb() const { return item_db; }
 
+    // The character every fallback lands on: the game's own art, always
+    // present, where the pack characters were only there if someone had run
+    // the importer with those packs installed.
+    static constexpr const char* kDefaultCharacter = "player_hero";
+
     InteractTarget interact;
-    string sprite_id = "player_male";
+    string sprite_id = kDefaultCharacter;
     float  move_speed = 78.0f;
 
     // --- sprinting ------------------------------------------------------------

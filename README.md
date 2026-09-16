@@ -836,16 +836,34 @@ prop:
   — a signpost, a barrel, a strongbox — come out well. A bookshelf full of
   books does not. Use it for what the packs genuinely lack.
 
-### The player hero
+### The player characters
 
-`tools/blender_character.py` builds the Hollow-born character, poses it and
-renders every clip -- idle, walk, run, sprint, attack, jump, hurt and death, in
-all four facings -- straight into the layered sheets the game reads:
+`tools/blender_character.py` builds the three playable characters, poses them
+and renders every clip -- idle, walk, run, sprint, attack, thrust, jump, hurt,
+death and the four gathering clips, in all four facings -- straight into the
+layered sheets the game reads:
 
 ```powershell
-.\tools\make_character.ps1                    # every clip, then data/sprites.json
-.\tools\make_character.ps1 -Only walk,sprint  # a couple of clips
+.\tools\make_character.ps1                      # all three, every clip
+.\tools\make_character.ps1 -Look player_warden  # one of them
+.\tools\make_character.ps1 -Only walk,sprint    # a couple of clips
 ```
+
+There is **one rig in three sets of clothes**: a `LOOKS` table of palette
+overrides plus two shape switches -- how far the hair locks stretch from their
+roots, and whether the character wears the scarf or a rolled collar.
+
+| Character | Looks like |
+| --- | --- |
+| **Hollow-born** | auburn, cream tunic, the red scarf streaming behind |
+| **Greenwarden** | cropped black hair, forest green, a collar instead of a scarf |
+| **Wayfarer** | long ash-blond hair, slate blue, a deep blue scarf |
+
+The two that used to stand beside the first were a CraftPix male and female
+character. That licence covers using the art in a game but not passing the
+files on, which is what made the repository undistributable; these are the
+game's own. A save naming a character this build no longer has falls back to
+the Hollow-born rather than loading as an invisible player.
 
 The first version was bevelled boxes and read as boxes -- a crate of a head on
 planks. The second is modelled the way a sprite is drawn rather than the way a

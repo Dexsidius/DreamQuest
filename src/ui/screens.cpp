@@ -127,14 +127,16 @@ void Game::DrawMainMenu() {
 //  Character select
 // =============================================================================
 
-// The choices, and the order they appear in. player_hero is this project's own
-// character -- modelled and animated in tools/blender_character.py rather than
-// taken from a pack -- so it leads.
+// The choices, and the order they appear in. All three are this project's own
+// character -- one rig in three sets of clothes, modelled and animated in
+// tools/blender_character.py. The two that used to sit beside the first were
+// from a CraftPix pack, whose licence covers using the art but not passing the
+// files on, which made the game undistributable as a repository.
 const char* Game::kCharacterIds[kCharacterCount] = {
-    "player_hero", "player_male", "player_female"
+    "player_hero", "player_warden", "player_wayfarer"
 };
 const char* Game::kCharacterLabels[kCharacterCount] = {
-    "Hollow-born", "Wanderer", "Wayfarer"
+    "Hollow-born", "Greenwarden", "Wayfarer"
 };
 
 void Game::UpdateCharacterSelect() {

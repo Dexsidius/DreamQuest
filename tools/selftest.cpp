@@ -1062,7 +1062,7 @@ int main(int argc, char** argv) {
             return -1;
         };
         Player p;
-        p.Init(ctx, "player_male");
+        p.Init(ctx, "player_hero");
         p.inventory.Add("bronze_sword", 1);
         p.inventory.Add("wooden_shield", 1);
         p.inventory.Add("training_bow", 1);
@@ -1084,7 +1084,7 @@ int main(int argc, char** argv) {
         // No room for what would come off: refuse rather than lose it.
         p.EquipFromInventory(slot_of(p, "training_bow"), why);    // bow on, shield in bag
         Player full;
-        full.Init(ctx, "player_male");
+        full.Init(ctx, "player_hero");
         full.inventory.Add("training_bow", 1);
         full.inventory.Add("wooden_shield", 1);
         full.EquipFromInventory(slot_of(full, "wooden_shield"), why);
@@ -1099,7 +1099,7 @@ int main(int argc, char** argv) {
         // Exactly full, with the shield's own slot the only room there is:
         // the bow must land in the space the shield leaves, not vanish.
         Player tight;
-        tight.Init(ctx, "player_male");
+        tight.Init(ctx, "player_hero");
         tight.inventory.Add("training_bow", 1);
         tight.EquipFromInventory(slot_of(tight, "training_bow"), why);
         tight.inventory.Add("wooden_shield", 1);
@@ -1471,10 +1471,14 @@ int main(int argc, char** argv) {
         Check(dash.dust, "a sprint kicks up dust outdoors");
         Check(dash.lead > 20.0f && fabsf(jog.lead) < 1.0f, "the camera leads a sprint and centres on a run");
 
-        // A rig with no sprint clip still speeds up, and runs rather than
-        // freezing on a missing animation.
-        const Run fallback = run_for("player_male", true, 1.0f);
-        Check(fallback.sprinted && fallback.clip == "run", "a rig without a sprint clip runs faster instead");
+        // A rig with no sprint clip still speeds up, and plays whatever it does
+        // have rather than freezing on a missing animation. The rig used to be
+        // one of the pack characters; with those gone it is a monster rig,
+        // which is the case that matters anyway -- every one of them is a rig
+        // the player could be given and none of them has a sprint.
+        const Run fallback = run_for("zombie", true, 1.0f);
+        Check(fallback.sprinted && fallback.clip != "sprint",
+              "a rig without a sprint clip speeds up and plays what it has instead");
         Check(fallback.distance > jog.distance * 1.45f, "and still covers the ground");
 
         // Attacking stops a sprint; the swing has its own footwork.
@@ -5253,7 +5257,7 @@ int main(int argc, char** argv) {
         std::mt19937 rng(42);
         ctx.sprites = &sprites; ctx.items = &items; ctx.enemies = &enemy_db;
         ctx.quests = &log; ctx.rng = &rng;
-        world.player.Init(ctx, "player_male");
+        world.player.Init(ctx, "player_hero");
         log.Start("q_road_beneath_leaves");
         Check(world.LoadMap("overworld", "start", ctx), "the journey begins in the Hollowmarch");
         const size_t tiles = world.CurrentMap().Tiles().size();
@@ -5342,7 +5346,7 @@ int main(int argc, char** argv) {
                 };
                 for (const View& view : views) {
                     World world;
-                    world.player.Init(ctx, "player_male");
+                    world.player.Init(ctx, "player_hero");
                     const bool loaded = world.LoadMap(view.map, "", ctx);
                     Check(loaded, string(view.map) + " loads for rendering");
                     if (!loaded) continue;

@@ -16,7 +16,20 @@ Player::Player() : inventory(nullptr), equipment(nullptr) {
 void Player::Init(const GameContext& ctx, const string& id) {
     sprite_id = id;
     item_db = ctx.items;
-    if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(sprite_id));
+    if (ctx.sprites) {
+        // A save may name a character this build no longer has -- the two
+        // pack-art characters were dropped when the game went to art it can
+        // distribute. Falling back keeps those saves playable instead of
+        // loading them as an invisible player.
+        const SpriteDef* def = ctx.sprites->Get(sprite_id);
+        if (!def) {
+            SDL_Log("Player: no sprite '%s'; falling back to %s",
+                    sprite_id.c_str(), kDefaultCharacter);
+            sprite_id = kDefaultCharacter;
+            def = ctx.sprites->Get(sprite_id);
+        }
+        sprite.SetDef(def);
+    }
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
     talents.SetDatabase(ctx.trees);
@@ -849,7 +862,7 @@ json Player::ToJson() const {
 }
 
 void Player::FromJson(const json& j, const GameContext& ctx) {
-    sprite_id = j.value("sprite", string("player_male"));
+    sprite_id = j.value("sprite", string(kDefaultCharacter));
     item_db = ctx.items;
     if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(sprite_id));
     inventory.SetDatabase(ctx.items);

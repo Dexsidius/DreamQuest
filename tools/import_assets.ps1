@@ -105,26 +105,15 @@ function Copy-Sheets($destName, $sourceDir, [hashtable]$clips) {
     Write-Host ("  {0,-16} {1} clips" -f $destName, $copied)
 }
 
-foreach ($who in @(
-    @{ id = "player_male";   pack = "base-4-direction-male-character-pixel-art" },
-    @{ id = "player_female"; pack = "base-4-direction-female-character-pixel-art" }
-)) {
-    Copy-Sheets $who.id (Join-Path (Pack $who.pack) "PNG\Sword\With_shadow") @{
-        idle   = "Sword_Idle_with_shadow.png"
-        walk   = "Sword_Walk_with_shadow.png"
-        run    = "Sword_Run_with_shadow.png"
-        attack = "Sword_attack_with_shadow.png"
-        hurt   = "Sword_Hurt_with_shadow.png"
-        death  = "Sword_Death_with_shadow.png"
-    }
-}
-
-# The player is the only character who equips anything, so only the player
-# sheets are imported as separate layers. The packs ship them already split and
-# frame-aligned -- shadow, sword behind the body, body, head, sword in front --
-# with a number in each filename giving the draw order. Keeping that order is
-# what makes a paperdoll possible: the weapon layers can be hidden or recoloured
-# independently of the body, and the body and head can be tinted for armour.
+# The playable characters are not imported from anything: the game has its own,
+# three looks off one rig, rendered by tools/make_character.ps1. The two
+# CraftPix ones that used to stand beside it were dropped so that assets/ can
+# be redistributed with the game -- that pack's licence covers using the art,
+# not passing the files on.
+#
+# Copy-Layers stays because it is what splits a pack character into the shadow,
+# body, head and weapon sheets a paperdoll needs; nothing calls it now, and the
+# next pack character to be imported will want it.
 function Copy-Layers($destName, $partsDir, $clipMap) {
     if (-not (Test-Path $partsDir)) { Write-Warning "  ! missing $partsDir"; return }
     $dest = Join-Path $assets "characters\$destName\layers"
@@ -154,40 +143,6 @@ function Copy-Layers($destName, $partsDir, $clipMap) {
         }
     }
     Write-Host ("  {0,-16} {1} layer files" -f "$destName/layers", $copied)
-}
-
-foreach ($who in @(
-    @{ id = "player_male";   pack = "base-4-direction-male-character-pixel-art" },
-    @{ id = "player_female"; pack = "base-4-direction-female-character-pixel-art" }
-)) {
-    Copy-Layers $who.id (Join-Path (Pack $who.pack) "PNG\Sword\Parts") @{
-        idle   = "Sword_Idle"
-        walk   = "Sword_Walk"
-        run    = "Sword_Run"
-        attack = "Sword_attack"
-        hurt   = "Sword_Hurt"
-        death  = "Sword_Death"
-    }
-}
-
-# The female pack ships no shadow layer. Both characters use the same rig with
-# identical frame counts and poses, so the male shadow lines up exactly; without
-# this one character would cast a shadow and the other would not.
-$maleLayers   = Join-Path $assets "characters\player_male\layers"
-$femaleLayers = Join-Path $assets "characters\player_female\layers"
-if ((Test-Path $maleLayers) -and (Test-Path $femaleLayers)) {
-    $borrowed = 0
-    foreach ($shadow in (Get-ChildItem $maleLayers -Filter "*_shadow.png" -File)) {
-        $target = Join-Path $femaleLayers $shadow.Name
-        if (-not (Test-Path $target)) {
-            Copy-Item $shadow.FullName $target -Force
-            $borrowed++
-        }
-    }
-    if ($borrowed -gt 0) {
-        Write-Host ("  {0,-16} {1} shadow layers borrowed from player_male" -f
-                    "player_female", $borrowed)
-    }
 }
 
 $orcPack = Pack "top-down-orc-game-character-pixel-art"
