@@ -86,6 +86,27 @@ bc.PALETTE.update({
     "ankou_bone": (0.84, 0.82, 0.74), "ankou_eye_glow": (0.42, 1.00, 0.72), "scythe_steel": (0.62, 0.66, 0.70),
     "banshee": (0.62, 0.78, 0.88), "banshee_dk": (0.40, 0.56, 0.70), "banshee_hair": (0.84, 0.90, 0.96),
     "banshee_glow": (0.72, 0.94, 1.00),
+    # The orcs: three sizes of the same build, in their own art rather than a
+    # pack's, so the character sheets can travel with the repository.
+    "orc_skin": (0.45, 0.56, 0.37), "orc_skin_dk": (0.33, 0.43, 0.27),
+    "orc_hide": (0.46, 0.33, 0.22), "orc_hide_dk": (0.31, 0.22, 0.15),
+    "orc_iron": (0.56, 0.58, 0.62), "orc_iron_dk": (0.38, 0.40, 0.44),
+    "orc_steel": (0.74, 0.77, 0.80), "orc_tusk": (0.91, 0.89, 0.78),
+    "orc_eye": (0.97, 0.74, 0.22), "orc_war_red": (0.58, 0.19, 0.17),
+    "orc_gold": (0.80, 0.66, 0.28),
+    # The woodland animals. They were a CraftPix pack; these are the game's own,
+    # so assets/characters can be redistributed with it.
+    "boar_hide": (0.36, 0.28, 0.23), "boar_hide_dk": (0.25, 0.19, 0.16),
+    "boar_bristle": (0.17, 0.13, 0.12), "boar_snout": (0.45, 0.34, 0.31),
+    "boar_tusk": (0.92, 0.90, 0.80),
+    "deer_hide": (0.60, 0.38, 0.23), "deer_hide_dk": (0.45, 0.27, 0.16),
+    "deer_belly": (0.88, 0.79, 0.64), "deer_antler": (0.72, 0.64, 0.48),
+    "deer_hoof": (0.26, 0.20, 0.16),
+    "fox_fur": (0.80, 0.41, 0.15), "fox_fur_dk": (0.61, 0.28, 0.10),
+    "fox_belly": (0.95, 0.91, 0.85), "fox_sock": (0.21, 0.17, 0.16),
+    "hare_fur": (0.68, 0.54, 0.37), "hare_fur_dk": (0.51, 0.39, 0.27),
+    "hare_belly": (0.92, 0.88, 0.80), "hare_ear_in": (0.82, 0.63, 0.57),
+    "beast_eye": (0.10, 0.08, 0.07),
     # Elder Vask, and the chair he has not got out of in some years
     "vask_robe": (0.42, 0.40, 0.36), "vask_robe_dk": (0.30, 0.29, 0.26),
     "vask_shawl": (0.45, 0.33, 0.28), "vask_blanket": (0.38, 0.30, 0.34),
@@ -1663,12 +1684,453 @@ def banshee_death(t):
             "shoulder_l": fwd(-34 * k), "shoulder_r": fwd(-34 * k)}
 
 
+
+# =================================================================================
+#  The woodland animals
+#
+#  Four quadrupeds off one plan -- a barrel body on four hinged legs, a neck and
+#  a head -- told apart by proportion rather than detail, because at thirty-odd
+#  pixels proportion is all that survives: the boar is a wedge with no daylight
+#  under it, the deer is mostly leg, the fox is a low line with a tail as long
+#  as it is, and the hare is a crouch with two ears.
+# =================================================================================
+def _quadruped(r, colour, dark, body_z, chest, hips, leg_len, leg_r, fore_y, hind_y, hip_x):
+    """The shared frame: chest, belly and hips, and four two-bone legs."""
+    r.joint("body", (0, 0, body_z), rest=(-2, 0, 0))
+    r.add("chest", E(chest[0], chest[1], chest[2]), colour, "body", loc=(0, -0.12, 0.02))
+    r.add("hips", E(hips[0], hips[1], hips[2]), colour, "body", loc=(0, 0.18, 0.01))
+    r.add("belly", E(chest[0] * 0.86, 0.22, chest[2] * 0.70), dark, "body", loc=(0, 0.02, -0.05))
+    for sx, side in ((-1, "l"), (1, "r")):
+        for tag, y in (("fore", fore_y), ("hind", hind_y)):
+            j = tag + "_" + side
+            r.joint(j, (sx * hip_x, y, -0.04), "body", rest=(6 if tag == "hind" else 3, 0, 0))
+            r.limb("thigh", (0, 0, 0), (0, 0.01 if tag == "hind" else -0.01, -leg_len * 0.55),
+                   leg_r, colour, j, r_tip=leg_r * 0.72)
+            r.joint(j + "_knee", (0, 0.01 if tag == "hind" else -0.01, -leg_len * 0.55), j,
+                    rest=(-14, 0, 0))
+            r.limb("shin", (0, 0, 0), (0, 0, -leg_len * 0.45), leg_r * 0.66, dark, j + "_knee",
+                   r_tip=leg_r * 0.5)
+            r.add("foot", E(leg_r * 0.9, leg_r * 1.2, leg_r * 0.6), dark, j + "_knee",
+                  loc=(0, -0.012, -leg_len * 0.47))
+
+
+def build_boar():
+    """All shoulder and no neck: a wedge that reads as bad news from behind."""
+    r = Rig()
+    _quadruped(r, "boar_hide", "boar_hide_dk", 0.40,
+               chest=(0.20, 0.24, 0.20), hips=(0.17, 0.18, 0.17),
+               leg_len=0.30, leg_r=0.055, fore_y=-0.14, hind_y=0.19, hip_x=0.11)
+    # The hump over the shoulders, and the bristles along it.
+    r.add("hump", E(0.17, 0.15, 0.13), "boar_hide", "body", loc=(0, -0.10, 0.14))
+    for k in range(6):
+        r.limb("bristle", (0, -0.20 + k * 0.09, 0.17), (0, -0.26 + k * 0.09, 0.36),
+               0.024, "boar_bristle", "body", r_tip=0.004)
+    r.joint("neck", (0, -0.24, 0.06), "body", rest=(16, 0, 0))
+    r.joint("head", (0, -0.10, -0.01), "neck", rest=(-12, 0, 0))
+    r.add("skull", E(0.10, 0.12, 0.10), "boar_hide", "head")
+    r.add("snout", E(0.058, 0.16, 0.050), "boar_hide_dk", "head", loc=(0, -0.19, -0.05))
+    r.add("nose", E(0.052, 0.035, 0.042), "boar_snout", "head", loc=(0, -0.32, -0.05))
+    for sx in (-1, 1):
+        r.add("ear", E(0.028, 0.02, 0.06), "boar_hide_dk", "head", loc=(sx * 0.075, 0.02, 0.10),
+              rot=(0, sx * -0.3, 0))
+        r.add("eye", E(0.022, 0.02, 0.022), "beast_eye", "head", loc=(sx * 0.062, -0.09, 0.04))
+        # Tusks, curling up out of the lower jaw: the one detail worth pixels.
+        r.limb("tusk", (sx * 0.055, -0.24, -0.085), (sx * 0.080, -0.33, 0.055),
+               0.022, "boar_tusk", "head", r_tip=0.005)
+    r.joint("tail1", (0, 0.26, 0.10), "body", rest=(24, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.10), 0.016, "boar_hide_dk", "tail1", r_tip=0.010)
+    r.pose.scale = (1.5, 1.5, 1.5)
+    return r
+
+
+def boar_idle(t):
+    s = sn(t)
+    return {"_z": 0.010 * s, "body": X(2 * s), "neck": X(3 * sn(t, 0.3)),
+            "head": (0, 0, 4 * sn(t, 0.2)), "tail1": (0, 0, 16 * s)}
+
+
+def boar_walk(t):
+    s = sn(t)
+    return {"fore_l": fwd(20 * s), "hind_r": fwd(18 * s), "fore_r": fwd(-20 * s), "hind_l": fwd(-18 * s),
+            "fore_l_knee": X(14 * max(0.0, -s)), "fore_r_knee": X(14 * max(0.0, s)),
+            "hind_l_knee": X(16 * max(0.0, s)), "hind_r_knee": X(16 * max(0.0, -s)),
+            "_z": 0.022 * abs(s), "body": (0, 0, 3 * s), "head": (0, 0, -3 * s),
+            "tail1": (0, 0, 20 * s)}
+
+
+def boar_attack(t):
+    # A charge: back on the haunches, then everything behind a lowered head.
+    i, k = phases(t, 0.32, 0.52, 1.0)
+    coil = {"body": X(-12), "_y": 0.10, "neck": X(-14), "head": X(-10),
+            "hind_l": fwd(-22), "hind_r": fwd(-20), "hind_l_knee": X(28), "hind_r_knee": X(28)}
+    gore = {"body": X(14), "_y": -0.30, "_z": 0.05, "neck": X(22), "head": X(26),
+            "fore_l": fwd(34), "fore_r": fwd(30), "tail1": (0, 0, -18)}
+    return [mix({}, coil, k), mix(coil, gore, k), mix(gore, {}, k), {}][i]
+
+
+def boar_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-12 * k), "_y": 0.10 * k, "neck": X(-16 * k), "head": (0, 0, 14 * k)}
+
+
+def boar_death(t):
+    k = ease(t * 1.1)
+    return {"_roll": 76 * k, "_z": -0.22 * k, "neck": X(24 * k), "head": X(18 * k),
+            "fore_l": fwd(30 * k), "hind_l": fwd(26 * k)}
+
+
+def build_deer():
+    """Mostly leg. The antlers and the high head are what make it read as a
+    deer rather than a large dog."""
+    r = Rig()
+    _quadruped(r, "deer_hide", "deer_hide_dk", 0.78,
+               chest=(0.125, 0.20, 0.15), hips=(0.115, 0.15, 0.14),
+               leg_len=0.72, leg_r=0.044, fore_y=-0.13, hind_y=0.17, hip_x=0.085)
+    r.add("rump", E(0.10, 0.08, 0.09), "deer_belly", "body", loc=(0, 0.27, 0.03))
+    r.joint("neck", (0, -0.20, 0.11), "body", rest=(-58, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, -0.04, 0.34), 0.046, "deer_hide", "neck", r_tip=0.036)
+    r.add("throat", E(0.036, 0.05, 0.13), "deer_belly", "neck", loc=(0, -0.055, 0.17))
+    r.joint("head", (0, -0.04, 0.34), "neck", rest=(62, 0, 0))
+    r.add("skull", E(0.055, 0.075, 0.055), "deer_hide", "head")
+    r.add("muzzle", E(0.040, 0.105, 0.038), "deer_hide", "head", loc=(0, -0.14, -0.03))
+    r.add("nose", E(0.028, 0.022, 0.024), "deer_hoof", "head", loc=(0, -0.24, -0.03))
+    for sx in (-1, 1):
+        r.add("ear", E(0.02, 0.035, 0.055), "deer_hide_dk", "head", loc=(sx * 0.055, 0.0, 0.055),
+              rot=(0, sx * -0.55, 0))
+        r.add("eye", E(0.018, 0.016, 0.018), "beast_eye", "head", loc=(sx * 0.045, -0.062, 0.02))
+        # A young stag's antlers: a beam and two tines, kept small enough to
+        # survive the reduction.
+        r.limb("beam", (sx * 0.030, 0.015, 0.055), (sx * 0.075, 0.05, 0.26), 0.018,
+               "deer_antler", "head", r_tip=0.008)
+        r.limb("tine1", (sx * 0.050, 0.030, 0.150), (sx * 0.135, -0.02, 0.21), 0.013,
+               "deer_antler", "head", r_tip=0.005)
+        r.limb("tine2", (sx * 0.066, 0.042, 0.210), (sx * 0.042, -0.04, 0.315), 0.011,
+               "deer_antler", "head", r_tip=0.004)
+    r.joint("tail1", (0, 0.30, 0.10), "body", rest=(30, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.08), 0.018, "deer_belly", "tail1", r_tip=0.010)
+    r.pose.scale = (1.15, 1.15, 1.15)
+    return r
+
+
+def deer_idle(t):
+    s = sn(t)
+    return {"_z": 0.012 * s, "neck": X(4 * s), "head": (0, 0, 7 * sn(t, 0.28)),
+            "tail1": (0, 0, 18 * sn(t, 0.4))}
+
+
+def deer_walk(t):
+    s = sn(t)
+    return {"fore_l": fwd(26 * s), "hind_r": fwd(24 * s), "fore_r": fwd(-26 * s), "hind_l": fwd(-24 * s),
+            "fore_l_knee": X(20 * max(0.0, -s)), "fore_r_knee": X(20 * max(0.0, s)),
+            "hind_l_knee": X(22 * max(0.0, s)), "hind_r_knee": X(22 * max(0.0, -s)),
+            "_z": 0.03 * abs(s), "neck": X(5 * s), "head": (0, 0, -4 * s), "tail1": (0, 0, 16 * s)}
+
+
+def deer_attack(t):
+    # It has no attack in the game; this is the warning stamp it gives instead.
+    i, k = phases(t, 0.35, 0.6, 1.0)
+    rear = {"_z": 0.10, "body": X(-16), "neck": X(-10), "fore_l": fwd(-40), "fore_r": fwd(-36),
+            "fore_l_knee": X(38), "fore_r_knee": X(34)}
+    down = {"_z": -0.02, "body": X(6), "neck": X(8), "fore_l": fwd(18), "fore_r": fwd(16)}
+    return [mix({}, rear, k), mix(rear, down, k), mix(down, {}, k), {}][i]
+
+
+def deer_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-10 * k), "_y": 0.12 * k, "neck": X(-14 * k), "head": (0, 0, 18 * k),
+            "tail1": (0, 0, -20 * k)}
+
+
+def deer_death(t):
+    k = ease(t)
+    return {"_roll": 80 * k, "_z": -0.34 * k, "neck": X(26 * k), "head": X(16 * k),
+            "fore_l": fwd(34 * k), "hind_l": fwd(30 * k), "fore_l_knee": X(30 * k)}
+
+
+def build_fox():
+    """A low line with a tail as long as the rest of it, and the black socks
+    that say fox at any size."""
+    r = Rig()
+    _quadruped(r, "fox_fur", "fox_belly", 0.34,
+               chest=(0.105, 0.17, 0.105), hips=(0.10, 0.13, 0.10),
+               leg_len=0.26, leg_r=0.032, fore_y=-0.11, hind_y=0.15, hip_x=0.072)
+    for sx, side in ((-1, "l"), (1, "r")):
+        for tag in ("fore", "hind"):
+            r.add("sock", E(0.036, 0.042, 0.055), "fox_sock", tag + "_" + side + "_knee",
+                  loc=(0, 0, -0.10))
+    r.joint("neck", (0, -0.19, 0.05), "body", rest=(12, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, -0.07, 0.03), 0.048, "fox_fur", "neck", r_tip=0.042)
+    r.joint("head", (0, -0.07, 0.03), "neck", rest=(-10, 0, 0))
+    r.add("skull", E(0.058, 0.068, 0.056), "fox_fur", "head")
+    r.add("muzzle", E(0.032, 0.085, 0.030), "fox_fur", "head", loc=(0, -0.12, -0.025))
+    r.add("cheek", E(0.055, 0.035, 0.035), "fox_belly", "head", loc=(0, -0.075, -0.045))
+    r.add("nose", E(0.022, 0.018, 0.02), "fox_sock", "head", loc=(0, -0.195, -0.02))
+    for sx in (-1, 1):
+        # Big triangular ears, dark on the outside.
+        r.limb("ear", (sx * 0.042, 0.01, 0.045), (sx * 0.062, 0.02, 0.135), 0.030,
+               "fox_fur_dk", "head", r_tip=0.004)
+        r.add("eye", E(0.018, 0.016, 0.018), "beast_eye", "head", loc=(sx * 0.042, -0.055, 0.025))
+    r.joint("tail1", (0, 0.24, 0.06), "body", rest=(64, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.20), 0.055, "fox_fur", "tail1", r_tip=0.050)
+    r.joint("tail2", (0, 0, -0.20), "tail1", rest=(10, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.14), 0.048, "fox_belly", "tail2", r_tip=0.024)
+    r.pose.scale = (1.45, 1.45, 1.45)
+    return r
+
+
+def fox_idle(t):
+    s = sn(t)
+    return {"_z": 0.008 * s, "head": (0, 0, 8 * sn(t, 0.3)), "neck": X(3 * s),
+            "tail1": (0, 0, 20 * s), "tail2": (0, 0, 16 * sn(t, 0.2))}
+
+
+def fox_walk(t):
+    s = sn(t)
+    return {"fore_l": fwd(28 * s), "hind_r": fwd(26 * s), "fore_r": fwd(-28 * s), "hind_l": fwd(-26 * s),
+            "fore_l_knee": X(20 * max(0.0, -s)), "fore_r_knee": X(20 * max(0.0, s)),
+            "hind_l_knee": X(22 * max(0.0, s)), "hind_r_knee": X(22 * max(0.0, -s)),
+            "_z": 0.024 * abs(s), "body": (0, 0, 4 * s), "tail1": (0, 0, 26 * s)}
+
+
+def fox_attack(t):
+    i, k = phases(t, 0.34, 0.54, 1.0)
+    coil = {"body": X(-14), "_y": 0.09, "neck": X(-18), "head": X(-8),
+            "hind_l": fwd(-26), "hind_r": fwd(-24), "hind_l_knee": X(32), "hind_r_knee": X(32)}
+    snap = {"body": X(14), "_y": -0.26, "_z": 0.08, "neck": X(24), "head": X(16),
+            "fore_l": fwd(38), "fore_r": fwd(32), "tail1": (0, 0, -24)}
+    return [mix({}, coil, k), mix(coil, snap, k), mix(snap, {}, k), {}][i]
+
+
+def fox_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-12 * k), "_y": 0.10 * k, "neck": X(-18 * k), "head": (0, 0, 16 * k),
+            "tail1": (0, 0, -28 * k)}
+
+
+def fox_death(t):
+    k = ease(t * 1.1)
+    return {"_roll": 78 * k, "_z": -0.18 * k, "neck": X(26 * k), "head": X(20 * k),
+            "fore_l": fwd(32 * k), "hind_l": fwd(28 * k), "tail1": (0, 0, 30 * k)}
+
+
+def build_hare():
+    """A crouch with two ears. The haunches are half of it, so the hop has
+    somewhere to come from."""
+    r = Rig()
+    _quadruped(r, "hare_fur", "hare_belly", 0.26,
+               chest=(0.085, 0.12, 0.085), hips=(0.11, 0.13, 0.115),
+               leg_len=0.16, leg_r=0.028, fore_y=-0.08, hind_y=0.10, hip_x=0.058)
+    # Hind legs folded under it rather than hanging: a hare at rest sits on them.
+    r.joint("haunch_l", (-0.075, 0.09, -0.01), "body", rest=(26, 0, 0))
+    r.joint("haunch_r", (0.075, 0.09, -0.01), "body", rest=(26, 0, 0))
+    for j in ("haunch_l", "haunch_r"):
+        r.add("haunch", E(0.055, 0.085, 0.075), "hare_fur", j)
+    r.joint("neck", (0, -0.13, 0.05), "body", rest=(8, 0, 0))
+    r.joint("head", (0, -0.05, 0.04), "neck", rest=(-6, 0, 0))
+    r.add("skull", E(0.055, 0.065, 0.055), "hare_fur", "head")
+    r.add("muzzle", E(0.032, 0.05, 0.030), "hare_fur", "head", loc=(0, -0.075, -0.025))
+    r.add("nose", E(0.018, 0.015, 0.016), "hare_ear_in", "head", loc=(0, -0.115, -0.02))
+    for sx in (-1, 1):
+        r.limb("ear", (sx * 0.030, 0.015, 0.05), (sx * 0.058, 0.055, 0.34), 0.032,
+               "hare_fur", "head", r_tip=0.018)
+        r.limb("ear_in", (sx * 0.030, 0.000, 0.055), (sx * 0.055, 0.040, 0.325), 0.018,
+               "hare_ear_in", "head", r_tip=0.008)
+        r.add("eye", E(0.020, 0.018, 0.020), "beast_eye", "head", loc=(sx * 0.044, -0.042, 0.022))
+    r.add("scut", E(0.038, 0.032, 0.038), "hare_belly", "body", loc=(0, 0.19, 0.03))
+    r.pose.scale = (1.85, 1.85, 1.85)
+    return r
+
+
+def hare_idle(t):
+    s = sn(t)
+    # A hare at rest is ears and nose: the body barely moves.
+    return {"_z": 0.006 * s, "head": (0, 0, 6 * sn(t, 0.25)), "neck": X(2 * s)}
+
+
+def hare_walk(t):
+    # It hops rather than walks: both hind legs together, a beat in the air.
+    k = (t % 1.0)
+    lift = max(0.0, math.sin(k * math.pi))
+    return {"_z": 0.10 * lift, "_y": -0.02 * lift,
+            "body": X(-14 * lift), "neck": X(10 * lift), "head": X(-8 * lift),
+            "haunch_l": X(-34 * lift), "haunch_r": X(-34 * lift),
+            "hind_l": fwd(30 * lift), "hind_r": fwd(30 * lift),
+            "fore_l": fwd(-26 * lift), "fore_r": fwd(-26 * lift)}
+
+
+def hare_attack(t):
+    i, k = phases(t, 0.4, 0.7, 1.0)
+    rear = {"_z": 0.06, "body": X(-24), "neck": X(-12), "fore_l": fwd(-42), "fore_r": fwd(-38)}
+    kick = {"_z": 0.0, "body": X(8), "fore_l": fwd(24), "fore_r": fwd(20)}
+    return [mix({}, rear, k), mix(rear, kick, k), mix(kick, {}, k), {}][i]
+
+
+def hare_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-16 * k), "_y": 0.08 * k, "head": (0, 0, 20 * k), "neck": X(-10 * k)}
+
+
+def hare_death(t):
+    k = ease(t * 1.1)
+    return {"_roll": 82 * k, "_z": -0.12 * k, "neck": X(22 * k), "head": X(16 * k),
+            "fore_l": fwd(28 * k), "haunch_l": X(-30 * k), "haunch_r": X(-30 * k)}
+
+
+
+# =================================================================================
+#  The orcs
+#
+#  One build at three sizes, because the player meets them in that order and
+#  should be able to tell which is in front of them before it is in reach: a
+#  grunt with a club, a raider in leather with an axe and a shield, and the
+#  Warchief, a head taller again, in iron with a two-hander and a red war cape.
+#
+#  What makes an orc read at sixty-four pixels is the silhouette -- shoulders
+#  far wider than the hips, a head sunk between them with no neck showing, and
+#  two tusks coming up out of the jaw -- not the green.
+# =================================================================================
+def _orc(bulk, height, r_leg, r_arm):
+    r = Rig()
+    r.joint("pelvis", (0, 0, 0.60 * height))
+    r.add("hips", E(0.15 * bulk, 0.11 * bulk, 0.10), "orc_hide", "pelvis")
+    humanoid_legs(r, -0.03, 0.09 * bulk, 0.24 * height, 0.24 * height, r_leg,
+                  "orc_skin", "orc_skin_dk", foot_col="orc_hide_dk")
+    r.joint("chest", (0, 0, 0.07), "pelvis", rest=(8, 0, 0))
+    # A slab of a torso that widens upward: the shoulders are the whole point.
+    r.add("torso", E(0.17 * bulk, 0.12 * bulk, 0.18 * height), "orc_skin", "chest",
+          loc=(0, 0, 0.18 * height))
+    r.add("belly", E(0.14 * bulk, 0.10 * bulk, 0.10), "orc_skin_dk", "chest", loc=(0, -0.02, 0.07))
+    r.add("yoke", E(0.215 * bulk, 0.115 * bulk, 0.07), "orc_skin", "chest", loc=(0, 0, 0.33 * height))
+    humanoid_arms(r, 0.34 * height, 0.20 * bulk, 0.22 * height, 0.21 * height, r_arm,
+                  "orc_skin", "orc_skin_dk", flare=18)
+    # Barely a neck, but the head has to clear the shoulders or it reads as a
+    # green lump with arms: the first cut had the yoke drawn over the skull.
+    r.joint("neck", (0, 0, 0.40 * height), "chest")
+    r.joint("head", (0, -0.01, 0.10), "neck", rest=(-6, 0, 0))
+    r.add("skull", E(0.125, 0.13, 0.12), "orc_skin", "head", loc=(0, 0, 0.07))
+    r.add("brow", E(0.125, 0.065, 0.042), "orc_skin_dk", "head", loc=(0, -0.09, 0.115))
+    r.add("jaw", E(0.10, 0.10, 0.055), "orc_skin", "head", loc=(0, -0.055, -0.015))
+    for sx in (-1, 1):
+        r.add("eye", E(0.024, 0.018, 0.024), "orc_eye", "head", loc=(sx * 0.052, -0.105, 0.075))
+        # Ears back along the skull, and the tusks up out of the lower jaw.
+        r.limb("ear", (sx * 0.105, 0.01, 0.07), (sx * 0.175, 0.07, 0.13), 0.026,
+               "orc_skin_dk", "head", r_tip=0.005)
+        r.limb("tusk", (sx * 0.050, -0.090, -0.030), (sx * 0.060, -0.105, 0.055), 0.019,
+               "orc_tusk", "head", r_tip=0.005)
+    return r
+
+
+def build_orc1():
+    """The grunt: lean, half-clothed, swinging a lump of wood."""
+    r = _orc(bulk=0.92, height=0.95, r_leg=0.050, r_arm=0.044)
+    r.add("belt", E(0.16, 0.12, 0.035), "orc_hide_dk", "pelvis", loc=(0, 0, 0.02))
+    r.add("strap", E(0.05, 0.10, 0.20), "orc_hide", "chest", loc=(-0.06, -0.06, 0.20),
+          rot=(0, 0.35, 0))
+    # A club: a shaft with a knot on the end and a couple of nails in it.
+    r.limb("club", (0, 0, -0.03), (0, 0, 0.40), 0.038, "orc_hide", "hand_r", r_tip=0.060)
+    r.add("knot", E(0.090, 0.090, 0.10), "orc_hide", "hand_r", loc=(0, 0, 0.38))
+    for k in (-1, 1):
+        r.add("nail", E(0.018, 0.018, 0.04), "orc_steel", "hand_r", loc=(k * 0.07, 0, 0.38))
+    r.pose.scale = (1.80, 1.80, 1.80)
+    return r
+
+
+def build_orc2():
+    """The raider: leather, a shoulder plate, a cleaver and a round shield."""
+    r = _orc(bulk=1.05, height=1.05, r_leg=0.056, r_arm=0.050)
+    r.add("cuirass", E(0.185, 0.135, 0.15), "orc_hide", "chest", loc=(0, 0, 0.19))
+    r.add("belt", E(0.175, 0.13, 0.04), "orc_hide_dk", "pelvis", loc=(0, 0, 0.02))
+    r.add("kilt", E(0.155, 0.12, 0.09), "orc_hide_dk", "pelvis", loc=(0, 0, -0.06))
+    # One pauldron, on the shield side, the way a raider would actually wear it.
+    r.add("pauldron", E(0.095, 0.095, 0.06), "orc_iron", "shoulder_l", loc=(0, 0, 0.01))
+    r.add("rivets", E(0.05, 0.05, 0.02), "orc_iron_dk", "shoulder_l", loc=(0, -0.04, 0.03))
+    # A cleaver: a haft with a broad head on one side.
+    r.limb("haft", (0, 0, -0.03), (0, 0, 0.34), 0.030, "orc_hide_dk", "hand_r", r_tip=0.026)
+    r.add("blade", E(0.040, 0.105, 0.145), "orc_steel", "hand_r", loc=(0.055, 0, 0.31))
+    r.add("edge", E(0.016, 0.090, 0.130), "orc_iron_dk", "hand_r", loc=(0.095, 0, 0.31))
+    r.add("shield", E(0.145, 0.045, 0.145), "orc_hide", "hand_l", loc=(0, -0.05, -0.01))
+    r.add("rim", E(0.155, 0.025, 0.155), "orc_iron_dk", "hand_l", loc=(0, -0.035, -0.01))
+    r.add("boss", E(0.05, 0.035, 0.05), "orc_iron", "hand_l", loc=(0, -0.08, -0.01))
+    r.pose.scale = (1.92, 1.92, 1.92)
+    return r
+
+
+def build_orc3():
+    """The Warchief: a head taller, in iron, with a two-hander and the red of
+    whatever he took it from over one shoulder."""
+    r = _orc(bulk=1.22, height=1.18, r_leg=0.064, r_arm=0.058)
+    r.add("cuirass", E(0.215, 0.155, 0.175), "orc_iron", "chest", loc=(0, 0, 0.21))
+    r.add("plate", E(0.135, 0.06, 0.12), "orc_iron_dk", "chest", loc=(0, -0.11, 0.21))
+    r.add("belt", E(0.20, 0.15, 0.045), "orc_hide_dk", "pelvis", loc=(0, 0, 0.02))
+    r.add("buckle", E(0.05, 0.03, 0.045), "orc_gold", "pelvis", loc=(0, -0.11, 0.02))
+    for side in ("l", "r"):
+        r.add("pauldron", E(0.12, 0.12, 0.075), "orc_iron", "shoulder_" + side, loc=(0, 0, 0.01))
+        r.add("spike", E(0.03, 0.03, 0.055), "orc_iron_dk", "shoulder_" + side, loc=(0, 0, 0.07))
+    # The cape, hanging off the left shoulder down the back.
+    r.add("cape", E(0.16, 0.05, 0.26), "orc_war_red", "chest", loc=(0, 0.11, 0.16))
+    # A helm brow and a topknot, so the head reads as the biggest orc's.
+    r.add("helm", E(0.115, 0.115, 0.055), "orc_iron", "head", loc=(0, 0.005, 0.125))
+    r.limb("topknot", (0, 0.04, 0.16), (0, 0.16, 0.10), 0.030, "orc_hide_dk", "head", r_tip=0.008)
+    # Two-hander: a long blade held in the right, the left brought across to it
+    # by the poses.
+    r.limb("blade", (0, 0, -0.02), (0, 0, 0.72), 0.058, "orc_steel", "hand_r", r_tip=0.026)
+    r.add("edge", E(0.020, 0.020, 0.34), "orc_iron_dk", "hand_r", loc=(0.040, 0, 0.40))
+    r.add("guard", E(0.125, 0.035, 0.028), "orc_gold", "hand_r", loc=(0, 0, -0.02))
+    r.add("pommel", E(0.035, 0.035, 0.035), "orc_gold", "hand_r", loc=(0, 0, -0.08))
+    r.pose.scale = (2.05, 2.05, 2.05)
+    return r
+
+
+# The three share their poses: the same body swinging whatever is in its hand.
+def orc_idle(t):
+    s = sn(t)
+    return {"_z": 0.012 * s, "chest": X(3 * s), "head": (0, 0, 6 * sn(t, 0.3)),
+            "shoulder_r": fwd(12), "elbow_r": X(-52), "hand_r": X(16),
+            "shoulder_l": fwd(16), "elbow_l": X(-46)}
+
+
+def orc_walk(t):
+    v = gait(t, 30, 26, 20, 0.03, 8)
+    v.update({"shoulder_r": fwd(14 + 8 * sn(t)), "elbow_r": X(-52), "hand_r": X(16),
+              "shoulder_l": fwd(18 - 8 * sn(t)), "elbow_l": X(-46),
+              "head": (0, 0, -4 * sn(t))})
+    return v
+
+
+def orc_attack(t):
+    # Overhead: wound up behind the shoulder, then brought down through the
+    # target with the hips behind it.
+    i, k = phases(t, 0.38, 0.58, 1.0)
+    wind = {"chest": (-8, 0, -22), "shoulder_r": fwd(-118), "elbow_r": X(-30), "hand_r": X(-10),
+            "shoulder_l": fwd(-30), "head": (0, 0, -14), "_y": 0.06}
+    down = {"chest": (16, 0, 26), "shoulder_r": fwd(64), "elbow_r": X(-6), "hand_r": X(24),
+            "shoulder_l": fwd(34), "head": (0, 0, 16), "_y": -0.16, "_z": -0.02}
+    return [mix({}, wind, k), mix(wind, down, k), mix(down, {}, k), {}][i]
+
+
+def orc_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"chest": X(-16 * k), "_y": 0.14 * k, "head": (0, 0, 18 * k),
+            "shoulder_r": fwd(-24 * k), "shoulder_l": fwd(-20 * k)}
+
+
+def orc_death(t):
+    return fall_back(t)
+
+
 # =================================================================================
 #  The roster
 # =================================================================================
 CREATURES = {
     #             builder          frame  clips (idle, walk, attack, hurt, death)                      shadow radius
     "rat":       (build_rat,       48, (rat_idle, rat_walk, rat_attack, rat_hurt, rat_death),              0.34),
+    "boar":      (build_boar,      48, (boar_idle, boar_walk, boar_attack, boar_hurt, boar_death),        0.46),
+    "deer":      (build_deer,      48, (deer_idle, deer_walk, deer_attack, deer_hurt, deer_death),        0.34),
+    "fox":       (build_fox,       48, (fox_idle, fox_walk, fox_attack, fox_hurt, fox_death),             0.34),
+    "hare":      (build_hare,      48, (hare_idle, hare_walk, hare_attack, hare_hurt, hare_death),        0.26),
+    "orc1":      (build_orc1,      64, (orc_idle, orc_walk, orc_attack, orc_hurt, orc_death),             0.30),
+    "orc2":      (build_orc2,      64, (orc_idle, orc_walk, orc_attack, orc_hurt, orc_death),             0.34),
+    "orc3":      (build_orc3,      64, (orc_idle, orc_walk, orc_attack, orc_hurt, orc_death),             0.38),
     "spider":    (build_spider,    48, (spider_idle, spider_walk, spider_attack, spider_hurt, spider_death), 0.50),
     "lizardman": (build_lizardman, 80, (liz_idle, liz_walk, liz_attack, liz_hurt, liz_death),            0.58),
     "ice_troll": (build_troll,     80, (troll_idle, troll_walk, troll_attack, troll_hurt, troll_death),  0.48),

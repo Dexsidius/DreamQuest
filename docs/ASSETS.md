@@ -15,8 +15,8 @@ repository, so it can be redistributed with it.
 
 | What | Made by |
 | --- | --- |
-| The three playable characters | `tools/blender_character.py` (`make_character.ps1`) |
-| Every monster except the orcs | `tools/blender_creatures.py` (`make_creatures.ps1`) |
+| The three playable characters, and the town NPCs | `tools/blender_character.py` (`make_character.ps1`) |
+| Every monster, including the orcs, and the woodland animals | `tools/blender_creatures.py` (`make_creatures.ps1`) |
 | Every prop -- furniture, buildings, herbs, gravestones, the well | `tools/blender_props.py` (`make_props.ps1`) |
 | Every ore, bar, weapon and armour icon, and the weapon layers in hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
 | All ground and interior tiles | `tools/make_ground.ps1` |
@@ -33,9 +33,7 @@ pieces the ground decals use; the flat fills it once supplied are generated now.
 
 | Pack | Used for |
 | --- | --- |
-| Top-Down Orc Game Character | Orc Grunt, Orc Raider, Orc Warchief |
-| Top-Down Hunt Animals Sprite Pack | Boar, deer, fox, hare |
-| Top-Down Pixel Art Guild Hall | The guild hall inside and out, its sign, and the town NPCs |
+| Top-Down Pixel Art Guild Hall | The guild hall inside and out, and its sign |
 | Glassblower's Workshop Top-Down | The houses, the inn and the forge |
 | Path and Road Top-Down Tileset | Ground palette fills, roads, ground decals |
 | 2D Top-Down Pixel Dungeon | Dungeon floors and walls, chests, doors, fire |

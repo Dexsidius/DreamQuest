@@ -116,12 +116,12 @@
     "boar":  {
                  "dir":  "assets/characters/boar/",
                  "rows":  4,
-                 "anchor_y":  27,
+                 "anchor_y":  41,
                  "scale":  1,
                  "clips":  {
                                "attack":  {
                                               "sheet":  "attack.png",
-                                              "frames":  5,
+                                              "frames":  6,
                                               "fps":  16,
                                               "loop":  false
                                           },
@@ -133,7 +133,7 @@
                                          },
                                "hurt":  {
                                             "sheet":  "hurt.png",
-                                            "frames":  4,
+                                            "frames":  3,
                                             "fps":  12,
                                             "loop":  false
                                         },
@@ -160,70 +160,136 @@
     "citizen1":  {
                      "dir":  "assets/characters/citizen1/",
                      "rows":  4,
-                     "anchor_y":  27,
+                     "anchor_y":  54,
                      "scale":  1,
                      "clips":  {
                                    "idle":  {
                                                 "sheet":  "idle.png",
-                                                "frames":  12,
+                                                "frames":  8,
                                                 "fps":  8,
                                                 "loop":  true,
-                                                "row_frames":  [
-                                                                   12,
-                                                                   12,
-                                                                   12,
-                                                                   6
-                                                               ]
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/idle_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/idle_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/idle_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/idle_5_head.png"
+                                                               }
+                                                           ]
                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
-                                                "frames":  6,
+                                                "frames":  8,
                                                 "fps":  10,
-                                                "loop":  true
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/walk_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/walk_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/walk_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/walk_5_head.png"
+                                                               }
+                                                           ]
                                             }
                                }
                  },
     "citizen2":  {
                      "dir":  "assets/characters/citizen2/",
                      "rows":  4,
-                     "anchor_y":  27,
+                     "anchor_y":  54,
                      "scale":  1,
                      "clips":  {
                                    "idle":  {
                                                 "sheet":  "idle.png",
-                                                "frames":  12,
+                                                "frames":  8,
                                                 "fps":  8,
                                                 "loop":  true,
-                                                "row_frames":  [
-                                                                   12,
-                                                                   12,
-                                                                   12,
-                                                                   6
-                                                               ]
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/idle_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/idle_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/idle_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/idle_5_head.png"
+                                                               }
+                                                           ]
                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
-                                                "frames":  6,
+                                                "frames":  8,
                                                 "fps":  10,
-                                                "loop":  true
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/walk_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/walk_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/walk_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/walk_5_head.png"
+                                                               }
+                                                           ]
                                             }
                                }
                  },
     "deer":  {
                  "dir":  "assets/characters/deer/",
                  "rows":  4,
-                 "anchor_y":  27,
+                 "anchor_y":  41,
                  "scale":  1,
                  "clips":  {
+                               "attack":  {
+                                              "sheet":  "attack.png",
+                                              "frames":  6,
+                                              "fps":  16,
+                                              "loop":  false
+                                          },
                                "death":  {
                                              "sheet":  "death.png",
-                                             "frames":  7,
+                                             "frames":  6,
                                              "fps":  9,
                                              "loop":  false
                                          },
                                "hurt":  {
                                             "sheet":  "hurt.png",
-                                            "frames":  4,
+                                            "frames":  3,
                                             "fps":  12,
                                             "loop":  false
                                         },
@@ -288,35 +354,71 @@
     "fighter2":  {
                      "dir":  "assets/characters/fighter2/",
                      "rows":  4,
-                     "anchor_y":  27,
+                     "anchor_y":  54,
                      "scale":  1,
                      "clips":  {
                                    "idle":  {
                                                 "sheet":  "idle.png",
-                                                "frames":  12,
+                                                "frames":  8,
                                                 "fps":  8,
                                                 "loop":  true,
-                                                "row_frames":  [
-                                                                   12,
-                                                                   12,
-                                                                   12,
-                                                                   6
-                                                               ]
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/idle_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/idle_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/idle_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/idle_5_head.png"
+                                                               }
+                                                           ]
                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
-                                                "frames":  6,
+                                                "frames":  8,
                                                 "fps":  10,
-                                                "loop":  true
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/walk_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/walk_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/walk_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/walk_5_head.png"
+                                                               }
+                                                           ]
                                             }
                                }
                  },
     "fox":  {
                 "dir":  "assets/characters/fox/",
                 "rows":  4,
-                "anchor_y":  27,
+                "anchor_y":  41,
                 "scale":  1,
                 "clips":  {
+                              "attack":  {
+                                             "sheet":  "attack.png",
+                                             "frames":  6,
+                                             "fps":  16,
+                                             "loop":  false
+                                         },
                               "death":  {
                                             "sheet":  "death.png",
                                             "frames":  6,
@@ -325,7 +427,7 @@
                                         },
                               "hurt":  {
                                            "sheet":  "hurt.png",
-                                           "frames":  4,
+                                           "frames":  3,
                                            "fps":  12,
                                            "loop":  false
                                        },
@@ -390,9 +492,15 @@
     "hare":  {
                  "dir":  "assets/characters/hare/",
                  "rows":  4,
-                 "anchor_y":  27,
+                 "anchor_y":  41,
                  "scale":  1,
                  "clips":  {
+                               "attack":  {
+                                              "sheet":  "attack.png",
+                                              "frames":  6,
+                                              "fps":  16,
+                                              "loop":  false
+                                          },
                                "death":  {
                                              "sheet":  "death.png",
                                              "frames":  6,
@@ -401,7 +509,7 @@
                                          },
                                "hurt":  {
                                             "sheet":  "hurt.png",
-                                            "frames":  4,
+                                            "frames":  3,
                                             "fps":  12,
                                             "loop":  false
                                         },
@@ -419,7 +527,7 @@
                                        },
                                "walk":  {
                                             "sheet":  "walk.png",
-                                            "frames":  5,
+                                            "frames":  6,
                                             "fps":  10,
                                             "loop":  true
                                         }
@@ -585,19 +693,19 @@
                  "clips":  {
                                "attack":  {
                                               "sheet":  "attack.png",
-                                              "frames":  8,
+                                              "frames":  6,
                                               "fps":  16,
                                               "loop":  false
                                           },
                                "death":  {
                                              "sheet":  "death.png",
-                                             "frames":  8,
+                                             "frames":  6,
                                              "fps":  9,
                                              "loop":  false
                                          },
                                "hurt":  {
                                             "sheet":  "hurt.png",
-                                            "frames":  6,
+                                            "frames":  3,
                                             "fps":  12,
                                             "loop":  false
                                         },
@@ -629,19 +737,19 @@
                  "clips":  {
                                "attack":  {
                                               "sheet":  "attack.png",
-                                              "frames":  8,
+                                              "frames":  6,
                                               "fps":  16,
                                               "loop":  false
                                           },
                                "death":  {
                                              "sheet":  "death.png",
-                                             "frames":  8,
+                                             "frames":  6,
                                              "fps":  9,
                                              "loop":  false
                                          },
                                "hurt":  {
                                             "sheet":  "hurt.png",
-                                            "frames":  6,
+                                            "frames":  3,
                                             "fps":  12,
                                             "loop":  false
                                         },
@@ -673,19 +781,19 @@
                  "clips":  {
                                "attack":  {
                                               "sheet":  "attack.png",
-                                              "frames":  8,
+                                              "frames":  6,
                                               "fps":  16,
                                               "loop":  false
                                           },
                                "death":  {
                                              "sheet":  "death.png",
-                                             "frames":  8,
+                                             "frames":  6,
                                              "fps":  9,
                                              "loop":  false
                                          },
                                "hurt":  {
                                             "sheet":  "hurt.png",
-                                            "frames":  6,
+                                            "frames":  3,
                                             "fps":  12,
                                             "loop":  false
                                         },

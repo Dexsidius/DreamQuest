@@ -115,6 +115,45 @@ LOOKS = {
         "hair": 0.55,
         "scarf": False,
     },
+    # The town: the same rig again, in working clothes. These are NPC sprites
+    # rather than characters to choose, so they carry nothing but the watchman,
+    # who would look odd on a gate without a sword.
+    "citizen1": {
+        "palette": {"hair":    (0.36, 0.24, 0.16),
+                    "tunic":   (0.74, 0.46, 0.31),
+                    "trim":    (0.53, 0.32, 0.22),
+                    "belt":    (0.36, 0.26, 0.18),
+                    "trouser": (0.40, 0.36, 0.32),
+                    "boot":    (0.31, 0.25, 0.19),
+                    "skin":    (0.95, 0.78, 0.63)},
+        "hair": 1.15,
+        "scarf": False,
+        "weapon": False,
+    },
+    "citizen2": {
+        "palette": {"hair":    (0.23, 0.19, 0.15),
+                    "tunic":   (0.52, 0.57, 0.64),
+                    "trim":    (0.35, 0.39, 0.45),
+                    "belt":    (0.33, 0.27, 0.22),
+                    "trouser": (0.38, 0.36, 0.34),
+                    "boot":    (0.28, 0.24, 0.20),
+                    "skin":    (0.88, 0.70, 0.55)},
+        "hair": 0.7,
+        "scarf": False,
+        "weapon": False,
+    },
+    "fighter2": {
+        "palette": {"hair":    (0.30, 0.26, 0.22),
+                    "tunic":   (0.60, 0.62, 0.68),
+                    "trim":    (0.74, 0.62, 0.31),
+                    "belt":    (0.32, 0.26, 0.20),
+                    "trouser": (0.33, 0.35, 0.40),
+                    "boot":    (0.27, 0.25, 0.24),
+                    "skin":    (0.93, 0.76, 0.60)},
+        "hair": 0.45,
+        "scarf": False,
+        "weapon": True,
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),
@@ -132,17 +171,19 @@ LOOKS = {
 # Set from --look; the defaults are the hero's.
 HAIR_SCALE = 1.0
 SCARF_ON = True
+WEAPON_ON = True
 
 
 def apply_look(name):
     """Palette and shape for one of LOOKS, before anything is built."""
-    global HAIR_SCALE, SCARF_ON
+    global HAIR_SCALE, SCARF_ON, WEAPON_ON
     look = LOOKS.get(name)
     if look is None:
         raise SystemExit("unknown look '%s'; have %s" % (name, ", ".join(LOOKS)))
     PALETTE.update(look.get("palette", {}))
     HAIR_SCALE = look.get("hair", 1.0)
     SCARF_ON = look.get("scarf", True)
+    WEAPON_ON = look.get("weapon", True)
 
 
 # The ramp: how bright each band is relative to the base colour, where the
@@ -478,13 +519,16 @@ def build_character():
     # CraftPix rigs carry theirs --------------------------------------------
     grip = empty("grip", (0, -0.01, -0.02), joints["hand_r"])
     grip.rotation_euler = Euler((rad(10), rad(18), 0), "XYZ")
-    g[WEAPON] += [
-        part("pommel", mesh_ellipsoid(0.028, 0.028, 0.028), "gold", grip, loc=(0, 0, 0.09)),
-        part("hilt", mesh_capsule(0.02, 0.02, 0.1), "grip", grip, loc=(0, 0, 0.06)),
-        part("guard", mesh_ellipsoid(0.085, 0.03, 0.026), "gold", grip, loc=(0, 0, -0.05)),
-        part("blade", mesh_capsule(0.036, 0.012, 0.40, squash_y=0.35), "steel", grip,
-             loc=(0, 0, -0.07)),
-    ]
+    # A townsfolk look carries nothing: the grip empty stays, because every pose
+    # turns it, and nothing hangs off it.
+    if WEAPON_ON:
+        g[WEAPON] += [
+            part("pommel", mesh_ellipsoid(0.028, 0.028, 0.028), "gold", grip, loc=(0, 0, 0.09)),
+            part("hilt", mesh_capsule(0.02, 0.02, 0.1), "grip", grip, loc=(0, 0, 0.06)),
+            part("guard", mesh_ellipsoid(0.085, 0.03, 0.026), "gold", grip, loc=(0, 0, -0.05)),
+            part("blade", mesh_capsule(0.036, 0.012, 0.40, squash_y=0.35), "steel", grip,
+                 loc=(0, 0, -0.07)),
+        ]
 
     joints.update({
         "root": root, "move": move, "hips": hips, "chest": chest, "neck": neck,
