@@ -92,7 +92,9 @@ private:
     void UpdateQuestPanel();
     // The ids in one tab of the journal, active first; active_count is how
     // many of them are still going.
-    void QuestList(int tab, vector<string>& out, size_t& active_count) const;
+    void QuestList(int tab, vector<string>& out, size_t& active_count,
+                   size_t& not_started_count) const;
+    static const char* QuestTabName(int tab);
     void UpdateDialogue(float dt);
     void UpdateBoard();
     void UpdateNote();
@@ -164,11 +166,11 @@ private:
     int  inventory_cursor = 0;
     int  equipment_cursor = 0;
     bool inventory_on_equipment = false;
-    int  quest_cursor = 0;
-    // 0 the story, 1 everything else. One cursor per tab, so stepping between
-    // them does not lose your place.
+    // The journal's tabs: 0 the story, 1 the tutorials, 2 everything else.
+    // One cursor each, so stepping between them does not lose your place.
+    static constexpr int kQuestTabs = 3;
     int  quest_tab = 0;
-    int  quest_cursor_side = 0;
+    int  quest_cursor[kQuestTabs] = {0, 0, 0};
     int  board_cursor = 0;
     int  craft_cursor = 0;
     // The skills panel: 0 is the level list, 1..3 the melee, ranged and magic

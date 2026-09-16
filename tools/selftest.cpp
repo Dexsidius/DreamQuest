@@ -3873,11 +3873,24 @@ int main(int argc, char** argv) {
                 const QuestDef* d = quests.Definition(id);
                 Check(d && d->major, string(id) + " is on the story tab");
             }
-            for (const char* id : {"q_thin_the_herd", "q_daily_boar", "q_order_iron_ore",
-                                   "q_learn_woodcutting"}) {
+            for (const char* id : {"q_thin_the_herd", "q_daily_boar", "q_order_iron_ore"}) {
                 const QuestDef* d = quests.Definition(id);
-                Check(d && !d->major, string(id) + " is a side quest");
+                Check(d && !d->major && !d->tutorial, string(id) + " is a side quest");
             }
+            // And a third tab for the trades, named for what each one teaches.
+            const std::pair<const char*, const char*> taught[] = {
+                {"q_learn_woodcutting", "Woodcutting"}, {"q_learn_mining", "Mining"},
+                {"q_learn_fishing", "Fishing"}};
+            for (const auto& t : taught) {
+                const QuestDef* d = quests.Definition(t.first);
+                Check(d && d->tutorial && !d->major, string(t.first) + " is on the tutorial tab");
+                Check(d && d->name.rfind(t.second, 0) == 0,
+                      string(t.first) + " is named for the skill it teaches (" + (d ? d->name : "") + ")");
+            }
+            for (const auto& kv : quests.Definitions())
+                if (kv.second.source == QuestSource::Board || kv.second.daily)
+                    Check(!kv.second.major && !kv.second.tutorial,
+                          kv.first + " stays out of the story and tutorial tabs");
         }
 
         // --- the swamp ----------------------------------------------------------------------

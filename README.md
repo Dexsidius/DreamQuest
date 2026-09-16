@@ -1256,17 +1256,36 @@ Quests reach you three ways, all of them live:
 - **Elder Vask**, in the guild hall, has been waiting fifty years for somebody
   who could climb the Ice Spire and kill what is sitting on it.
 
-### The journal's two tabs
+### The journal's three tabs
 
-The journal is split. **Story** holds the line the world is actually about;
-**Side quests** holds the board contracts, the daily orders and the favours.
+The journal is split three ways:
+
+| Tab | What is on it |
+| --- | --- |
+| **Story** | the line the world is actually about: Maren's chain, the road beneath the leaves, the barrow, the two dream quests, the dragon |
+| **Tutorials** | the three trades, each named for what it teaches -- *Woodcutting: The Sawpit*, *Mining: The Gravel Pit*, *Fishing: The Mill Pond* |
+| **Side quests** | board contracts, daily orders, and the favours people ask |
+
 Left and right step between them, each keeps its own place in its list, and the
-tab headings carry the counts (`Story 2/5`: two still going, five taken). A
-quest is on the story tab when `data/quests.json` marks it `"major": true`, and
-the loader refuses that mark to anything off a board or anything repeatable, so
-an errand cannot end up in the main line by a typo. Today the story is Maren's
-chain, the road beneath the leaves, the barrow, the two dream quests, and the
-dragon; the tutorials, the contracts and the orders are all side quests.
+headings carry the counts (`Story 2/8`: two in hand out of eight the tab knows
+about). A quest lands on a tab by what `data/quests.json` says -- `"major":
+true` for the story, `"tutorial": true` for a trade -- and the loader refuses
+both marks to anything off a board and anything repeatable, so an errand cannot
+end up in the main line by a typo.
+
+**Every line is coloured by its state**, which is what makes the tab readable
+without being read: **red** for a quest not started, **blue** for one in hand,
+**green** for one finished. The detail panel says the same word -- *Not
+started*, *In progress*, *Completed* -- in the same colour.
+
+Quests **not yet taken are listed too**, under whatever is in hand and in the
+order they are meant to be met, which is the point of the story tab: what is
+still ahead is as much a part of a journal as what is in it. A quest not yet
+taken shows its first step in place of an objective, and its Combat requirement
+if it has one, in green once you meet it. Dailies are the exception: there are
+dozens of them and they come back every morning, so they are listed only while
+one is actually taken. A list longer than nine rows scrolls with the cursor and
+says where you are in it.
 
 ### The Dragon of the Ice Spire
 
@@ -1654,7 +1673,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **11215 checks** covering:
+and checks all of it — currently **11258 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1800,9 +1819,11 @@ and checks all of it — currently **11215 checks** covering:
   new character cannot take and a Combat 40 one can, made of a climb, a kill and
   a fang carried back; Vask is in the guild hall, offers it only at Combat 35,
   and grunts at anyone else
-- the journal's two tabs: every story quest is off neither a board nor a repeat,
-  Maren's chain and the dragon are on the story tab, and the board contracts,
-  the daily orders and the tutorials are on the side tab
+- the journal's three tabs: every story quest is off neither a board nor a
+  repeat, Maren's chain and the dragon are on the story tab, the three trades
+  are on the tutorial tab and named for the skill each teaches, the contracts
+  and the daily orders are on the side tab, and nothing off a board or anything
+  repeatable can reach either of the other two
 - the three trades taught in Havenbrook: the sawpit's stand of oak, the pit's
   copper and the pond's casts are all worked at level 1; the camps have their
   props and the pond is water; each teacher stands in the town, gives a quest

@@ -1,9 +1,10 @@
 {
   "q_learn_woodcutting": {
-    "name": "The Sawpit",
+    "name": "Woodcutting: The Sawpit",
     "source": "npc",
     "giver": "npc_sawyer",
     "level": 1,
+    "tutorial": true,
     "summary": "Sawyer Jessa lends an axe to anyone willing to learn the trade, and wants ten logs cut to prove it was worth lending.",
     "stages": [
       {
@@ -30,10 +31,11 @@
     "completion": "Jessa waves the axe away when you offer it back. \"It has your swing in it now. Keep it, and keep the pit in mind when you have a load to sell.\""
   },
   "q_learn_mining": {
-    "name": "The Gravel Pit",
+    "name": "Mining: The Gravel Pit",
     "source": "npc",
     "giver": "npc_pitmaster",
     "level": 1,
+    "tutorial": true,
     "summary": "Pitmaster Dorn will put a pickaxe in your hands, and eight lumps of copper back in his, if you can be taught to swing it.",
     "stages": [
       {
@@ -60,10 +62,11 @@
     "completion": "Dorn looks at the ore, then at your hands. \"The pick is yours. Halda will buy what you dig, and she will teach you what to do with it.\""
   },
   "q_learn_fishing": {
-    "name": "The Mill Pond",
+    "name": "Fishing: The Mill Pond",
     "source": "npc",
     "giver": "npc_angler",
     "level": 1,
+    "tutorial": true,
     "summary": "Angler Sula has a spare rod and a pond full of minnow, and will trade the loan of one for six of the other.",
     "stages": [
       {
