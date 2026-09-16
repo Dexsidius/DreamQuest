@@ -469,6 +469,20 @@ static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
+// A chest with one named thing in it rather than a table roll, standing in the
+// world only while its quest is being done. It is how an item can exist in
+// exactly one place: no loot table can roll what is not in one, and the chest
+// is not there to be opened before the quest is taken or after it is over.
+static void PlaceRelicChest(MapBuilder& m, const string& chest_id, int x, int y,
+                            const string& item, const string& quest) {
+    json& o = m.Object(chest_id, "chest", x, y);
+    o["sprite"]      = ObjPath("chest");
+    o["sprite_open"] = ObjPath("chest_open");
+    o["item"]        = item;
+    o["needs_quest"] = quest;
+    m.Collision(x - 14, y - 10, 28, 10);
+}
+
 // A bed anyone may sleep in after dusk. Drawn from the same prop art as the
 // rest of the furniture, but placed as an object so it can be used.
 static void PlaceBed(MapBuilder& m, const string& bed_id, const string& art,
@@ -2062,7 +2076,9 @@ static void BuildDungeon(const string& id, const string& display,
                          const string& deeper_map, const string& deeper_lock,
                          const string& boss_type = "", int boss_level = 1,
                          const vector<std::pair<string, int>>& ores = {},
-                         int lava_vents = 0) {
+                         int lava_vents = 0,
+                         const string& relic_id = "", const string& relic_item = "",
+                         const string& relic_quest = "") {
     const int CELL = 32;
     MapBuilder m(id, display, cols * CELL, rows * CELL);
     m.Interior(true);
@@ -2241,6 +2257,22 @@ static void BuildDungeon(const string& id, const string& display,
         const int x = (r.x + r.w / 2) * CELL + 16;
         const int y = (r.y + r.h / 2) * CELL + 48;
         PlaceChest(m, special_id, x, y, special_table);
+    }
+
+    // The relic, in the chamber furthest in that is not the boss's: a chest
+    // that is only there while the quest that sends you for it is running.
+    if (!relic_id.empty() && rooms.size() > 2) {
+        const Room& r = rooms[rooms.size() - 2];
+        // Against the wall, not in the middle: the room's centre is where the
+        // ordinary chests and the ore go, and two chests on one tile read as
+        // one chest.
+        int x = (r.x + 1) * CELL + 16, y = (r.y + 1) * CELL + 16;
+        static const int kTry[][2] = {{0, 0}, {1, 0}, {0, 1}, {2, 0}, {0, 2}, {1, 1}};
+        for (const auto& t : kTry) {
+            const int tx = (r.x + 1 + t[0]) * CELL + 16, ty = (r.y + 1 + t[1]) * CELL + 16;
+            if (m.Clear(tx, ty + 12)) { x = tx; y = ty; break; }
+        }
+        PlaceRelicChest(m, relic_id, x, y, relic_item, relic_quest);
     }
 
     // Where climbing back up from the level below comes out: beside these
@@ -3587,6 +3619,8 @@ int main() {
                  "orc3", 12,
                  {{"adamantium_ore", 40}, {"platinum_ore", 60}, {"coal", 20}});
 
+    // The barrow also holds the drowned king's chest, for anyone Orlend has
+    // sent back down for it.
     BuildDungeon("dungeon_barrow", "The Barrow Beneath the Mire",
                  2001u, 52, 40, 8,
                  "dungeon_floor", "dungeon_wall",
@@ -3595,7 +3629,8 @@ int main() {
                  "chest_barrow", 3,
                  "chest_barrow_seal", "seal_barrow",
                  "", "", "", 1,
-                 {{"diamond_ore", 50}, {"azuryte_ore", 30}});
+                 {{"diamond_ore", 50}, {"azuryte_ore", 30}}, 0,
+                 "chest_barrow_hoard", "drowned_king_boots", "q_drowned_hoard");
 
     // The Infernal Pit, at the end of the Ashen Path: imps and demons, lava vents
     // in the floors, and the Pit Lord in the last room.

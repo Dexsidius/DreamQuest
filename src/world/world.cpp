@@ -258,6 +258,7 @@ vector<Light> World::CollectLights() const {
     };
 
     for (const MapObject& o : map.Objects()) {
+        if (!ObjectPresent(o)) continue;
         const bool fire = o.type == "range" || o.type == "camp_fire";
         if (fire) {
             const float f = flicker(o.id);
@@ -361,7 +362,13 @@ void World::ApplyTransition(const GameContext& ctx) {
 //  Frame update
 // -----------------------------------------------------------------------------
 
+bool World::ObjectPresent(const MapObject& o) const {
+    if (o.needs_quest.empty()) return true;
+    return quest_log && quest_log->IsActive(o.needs_quest);
+}
+
 void World::Update(float dt, const GameContext& ctx) {
+    quest_log = ctx.quests;
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
         fade += fade_dir * fade_speed * dt;
@@ -432,7 +439,10 @@ void World::Update(float dt, const GameContext& ctx) {
             hazard_timer -= dt;
             if (hazard_timer <= 0.0f) {
                 hazard_timer = HAZARD_TICK;
-                const int dmg = std::max(1, static_cast<int>(std::lround(h->dps * HAZARD_TICK)));
+                // Ground that burns takes half as much out of anyone wearing
+                // the Drowned King's boots.
+                const float share = player.Passive(Player::PASSIVE_MARSHSTRIDE) ? 0.5f : 1.0f;
+                const int dmg = std::max(1, static_cast<int>(std::lround(h->dps * HAZARD_TICK * share)));
                 player.Damage(dmg);
                 player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
                 AddText(std::to_string(dmg), player.x, player.y - 44.0f, {255, 140, 60, 255});
@@ -810,6 +820,7 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         const MapObject& o = objects[i];
         string label;
 
+        if (!ObjectPresent(o)) continue;
         if (o.type == "chest") {
             label = Flagged(o.id) ? "" : "Open chest";
         } else if (o.type == "note") {
@@ -913,10 +924,13 @@ void World::TryInteract(const GameContext& ctx) {
             const MapObject& o = objects[t.index];
 
             if (o.type == "chest") {
-                if (Flagged(o.id)) break;
+                if (Flagged(o.id) || !ObjectPresent(o)) break;
                 SetFlag(o.id);
                 Audio::Play(Sfx::ChestOpen);
                 if (!o.loot_table.empty()) SpawnLoot(o.loot_table, o.x, o.y + 10.0f, ctx);
+                // What a chest holds by name, which no loot table can roll.
+                if (!o.loot_item.empty())
+                    DropItem(o.loot_item, std::max(1, o.loot_qty), o.x, o.y + 10.0f, ctx);
                 AddText("Opened!", o.x, o.y - 34.0f, {255, 225, 120, 255});
                 if (ctx.quests) {
                     QuestEvent e;
@@ -1880,7 +1894,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     const SDL_FRect view = camera.VisibleWorldRect(96.0f);
 
     for (const auto& o : map.Objects()) {
-        if (o.sprite.empty()) continue;
+        if (o.sprite.empty() || !ObjectPresent(o)) continue;
         if (o.x < view.x || o.x > view.x + view.w ||
             o.y < view.y || o.y > view.y + view.h) continue;
         queue.push_back({o.y, 3, &o});

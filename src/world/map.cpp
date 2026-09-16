@@ -236,6 +236,9 @@ bool Map::Load(const string& path) {
             m.x            = o.value("x", 0.0f);
             m.y            = o.value("y", 0.0f);
             m.loot_table   = o.value("loot", string(""));
+            m.loot_item    = o.value("item", string(""));
+            m.loot_qty     = o.value("item_qty", 1);
+            m.needs_quest  = o.value("needs_quest", string(""));
             m.text         = o.value("text", string(""));
             m.starts_quest = o.value("starts_quest", string(""));
             m.sprite       = o.value("sprite", string(""));

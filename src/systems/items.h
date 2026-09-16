@@ -57,6 +57,10 @@ struct ItemDef {
     // The hero's clip for its strikes: "thrust" for a spear. Empty is the
     // ordinary swing.
     string attack_clip;
+    // A named effect the item has while it is worn, and the line the journal
+    // and the bag print for it. One legendary piece can do something no stat
+    // block can say; everything that reads it asks for it by name.
+    string passive, passive_text;
     // Colour the worn weapon layers take, so a bronze sword and a steel one
     // read differently on the character.
     SDL_Color tint{255, 255, 255, 255};
@@ -240,6 +244,8 @@ public:
     float AttackSpeed() const;
     // The weapon in hand, or null.
     const ItemDef* Weapon() const;
+    // True when something worn carries this passive.
+    bool HasPassive(const string& id) const;
     // What the equipped weapon is; Melee when nothing is held.
     WeaponKind Kind() const;
     // Colour for the worn weapon layers, and for the body when armour is worn.

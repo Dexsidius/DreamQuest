@@ -234,6 +234,34 @@
     "text": "The guild takes contracts, not applicants. If you want work, the board outside is where work lives.",
     "options": [
       {
+        "text": "Your ledger mentions a second chamber.",
+        "next": "orlend_hoard_offer",
+        "if": {
+          "quest": "q_drowned_hoard",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I opened the drowned king's chest.",
+        "next": "orlend_hoard_done",
+        "if": {
+          "quest": "q_drowned_hoard",
+          "state": "active",
+          "stage": 2
+        },
+        "action": {
+          "advance": "npc_guildmaster"
+        }
+      },
+      {
+        "text": "About the second chamber.",
+        "next": "orlend_hoard_waiting",
+        "if": {
+          "quest": "q_drowned_hoard",
+          "state": "active"
+        }
+      },
+      {
         "text": "Elder Maren sent this.",
         "next": "guildmaster_letter",
         "if": {
@@ -2633,6 +2661,78 @@
     "options": [
       {
         "text": "I will go back up.",
+        "next": "end"
+      }
+    ]
+  },
+  "orlend_hoard_offer": {
+    "speaker": "Guild Master Orlend",
+    "text": "\"It mentions a good deal that I would rather it did not.\" He turns the ledger round so you can read it upside down, which is his way of saying he has read it a hundred times.\n\n\"Forty years ago a party went into that barrow and came out four short. What they wrote is that the passage forked, that the far chamber was under water, and that the man they left down there was wearing the king's own boots when he went in. Now the seal is broken and the water has gone down. Go and find out whether they were lying to cover a bad night's work.\"",
+    "options": [
+      {
+        "text": "What am I looking for?",
+        "next": "orlend_hoard_what",
+        "if": {
+          "quest": "q_drowned_hoard",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I'll go down.",
+        "next": "orlend_hoard_accept",
+        "action": {
+          "start_quest": "q_drowned_hoard"
+        }
+      },
+      {
+        "text": "Not just now.",
+        "next": "end"
+      }
+    ]
+  },
+  "orlend_hoard_what": {
+    "speaker": "Guild Master Orlend",
+    "text": "\"A chest, in the far chamber, and nothing else worth the walk. It is the last thing in the barrow that has not been carried off by somebody's grandfather.\"\n\n\"If it is there, open it. Whatever is inside is yours -- the guild's interest is in the ledger, not the leather. Bring me the truth and I will pay for it.\"",
+    "options": [
+      {
+        "text": "I'll go down.",
+        "next": "orlend_hoard_accept",
+        "action": {
+          "start_quest": "q_drowned_hoard"
+        }
+      },
+      {
+        "text": "I will think on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "orlend_hoard_accept": {
+    "speaker": "Guild Master Orlend",
+    "text": "\"Take a lamp. The far chamber is past the rooms you have already cleared, and whatever is down there has had forty years of quiet.\"",
+    "options": [
+      {
+        "text": "I will be back.",
+        "next": "end"
+      }
+    ]
+  },
+  "orlend_hoard_waiting": {
+    "speaker": "Guild Master Orlend",
+    "text": "\"The far chamber. Past the fork, as far in as the passage goes.\" He does not look up from the ledger. \"It waited forty years. It will wait until you are ready.\"",
+    "options": [
+      {
+        "text": "I am going back down.",
+        "next": "end"
+      }
+    ]
+  },
+  "orlend_hoard_done": {
+    "speaker": "Guild Master Orlend",
+    "text": "He takes the ledger, finds the page, and writes one line across it in a hand that presses hard enough to mark the leaf beneath.\n\n\"Then they were not lying. Four men, and the guild sealed the door and called it prudence.\" He closes the book. \"The boots are yours. Wear them where people can see them.\"",
+    "options": [
+      {
+        "text": "I will.",
         "next": "end"
       }
     ]

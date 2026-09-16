@@ -1701,5 +1701,45 @@
       ]
     },
     "completion": "Vask turns the fang over twice, then sets it down. \"Fifty years I have been the only one who saw it. Now there are two of us, and one of them killed it.\""
+  },
+  "q_drowned_hoard": {
+    "name": "The Drowned King",
+    "source": "npc",
+    "giver": "npc_guildmaster",
+    "level": 14,
+    "major": true,
+    "summary": "The guild's oldest ledger says the barrow was opened once before, and the party that did it wrote down a second chamber they never reached. Orlend wants to know whether the ledger was lying.",
+    "prereq": [
+      "q_barrow_seal"
+    ],
+    "req": {
+      "Combat": 14
+    },
+    "stages": [
+      {
+        "desc": "Go back down into the barrow beneath the Mire",
+        "type": "reach",
+        "target": "dungeon_barrow"
+      },
+      {
+        "desc": "Open the drowned king's chest in the far chamber",
+        "type": "interact",
+        "target": "chest_barrow_hoard"
+      },
+      {
+        "desc": "Tell Guild Master Orlend what was in it",
+        "type": "talk",
+        "target": "npc_guildmaster"
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Defence": 1600,
+        "Attack": 900,
+        "Hitpoints": 700
+      },
+      "coins": 950
+    },
+    "completion": "Orlend looks at the boots for a long moment. \"Keep them. The ledger is forty years of men saying the guild should not have sealed that door, and you have just made every one of them right.\""
   }
 }

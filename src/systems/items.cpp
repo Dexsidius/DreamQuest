@@ -66,6 +66,8 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.sweep       = o.value("sweep", 1.0f);
         d.push        = o.value("push", 1.0f);
         d.attack_clip = o.value("clip", string(""));
+        d.passive     = o.value("passive", string(""));
+        d.passive_text = o.value("passive_text", string(""));
 
         if (o.contains("tint")) {
             const json& t = o["tint"];
@@ -559,6 +561,14 @@ float Equipment::AttackSpeed() const {
 
 const ItemDef* Equipment::Weapon() const {
     return db ? db->Get(slots[SLOT_WEAPON]) : nullptr;
+}
+
+bool Equipment::HasPassive(const string& id) const {
+    if (!db || id.empty()) return false;
+    for (int s = 0; s < SLOT_COUNT; ++s)
+        if (const ItemDef* d = db->Get(slots[s]))
+            if (d->passive == id) return true;
+    return false;
 }
 
 WeaponKind Equipment::Kind() const {

@@ -1106,5 +1106,24 @@
     "stack": true,
     "value": 2600,
     "icon": "assets/icons/tiers/dragon_fang.png"
+  },
+  "drowned_king_boots": {
+    "name": "Boots of the Drowned King",
+    "desc": "Bog-black leather under drowned gold, weed still in the buckles. Whoever was laid in the barrow with these on walked out of the Mire once, and only once.",
+    "slot": "feet",
+    "value": 3200,
+    "bonus": {
+      "defence": 24,
+      "strength": 4
+    },
+    "req": {
+      "Defence": 15
+    },
+    "passive": "marshstride",
+    "passive_text": "Marshstride: you walk a seventh quicker, and ground that burns takes half as much out of you.",
+    "tags": [
+      "legendary"
+    ],
+    "icon": "assets/icons/tiers/drowned_king_boots.png"
   }
 }

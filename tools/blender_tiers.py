@@ -855,6 +855,8 @@ bc.PALETTE.update({
     "parchment": (0.90, 0.83, 0.64), "parchment_dk": (0.72, 0.62, 0.44), "rod_wood": (0.40, 0.26, 0.16),
     "seal": (0.72, 0.14, 0.14), "ink": (0.26, 0.20, 0.18),
     "fang_ice": (0.92, 0.96, 0.99), "fang_root": (0.74, 0.82, 0.90), "fang_glow": (0.78, 0.96, 1.00),
+    "bog_leather": (0.20, 0.22, 0.18), "bog_leather_lt": (0.28, 0.30, 0.24), "bog_sole": (0.14, 0.15, 0.13),
+    "drowned_gold": (0.78, 0.66, 0.30), "bog_weed": (0.36, 0.48, 0.26), "bog_glow": (0.56, 0.86, 0.72),
 })
 
 
@@ -1066,6 +1068,32 @@ def build_trophy(name, parent):
 TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn", "dragon_fang"]
 
 
+def build_drowned_boots(parent):
+    """The one pair of boots in the barrow's oldest chest: bog-black leather
+    under drowned gold, weed still caught in the buckles. Laid out in the
+    picture plane the way the herbs and the fish are -- side on, one boot
+    behind the other -- because from the icon camera a boot built standing up
+    is a cylinder seen down the leg."""
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    #        x      y     dark              gold
+    for k, (x, y, dark) in enumerate(((-0.10, 0.06, "bog_leather_lt"), (0.06, -0.04, "bog_leather"))):
+        top = 0.40
+        add("shaft", bc.mesh_ellipsoid(0.075, 0.05, 0.15), dark, parent, loc=(x, y, top - 0.14))
+        add("cuff", bc.mesh_ellipsoid(0.088, 0.055, 0.03), "drowned_gold", parent, loc=(x, y, top))
+        add("ankle", bc.mesh_ellipsoid(0.07, 0.05, 0.05), dark, parent, loc=(x, y, top - 0.27))
+        add("foot", bc.mesh_ellipsoid(0.125, 0.05, 0.048), dark, parent, loc=(x + 0.06, y, top - 0.33))
+        add("toe", bc.mesh_ellipsoid(0.045, 0.045, 0.042), "drowned_gold", parent, loc=(x + 0.16, y, top - 0.33))
+        add("sole", bc.mesh_ellipsoid(0.135, 0.05, 0.016), "bog_sole", parent, loc=(x + 0.06, y, top - 0.37))
+        add("heel", bc.mesh_ellipsoid(0.035, 0.045, 0.03), "bog_sole", parent, loc=(x - 0.05, y, top - 0.36))
+        for b in range(2):
+            add("strap", mesh_box(0.16, 0.055, 0.022), "drowned_gold", parent, loc=(x, y - 0.005, top - 0.10 - b * 0.09))
+        parts.append(bc.spike("weed", (x - 0.06, y - 0.02, top - 0.18), (x - 0.13, y - 0.02, top - 0.02),
+                              0.014, "bog_weed", parent, r_tip=0.004))
+        add("drip", bc.mesh_ellipsoid(0.018, 0.018, 0.022), "bog_glow", parent, loc=(x + 0.17, y - 0.03, top - 0.38))
+    return parts
+
+
 HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
               "emberbloom", "moonpetal", "starlily"]
 
@@ -1086,6 +1114,9 @@ def brewing_icons(only=None):
         if only and name not in only:
             continue
         render_icon(name, lambda t, p, n=name: build_trophy(n, p), "wood", 0, 0, 0.88)
+        count += 1
+    if not only or "drowned_king_boots" in only:
+        render_icon("drowned_king_boots", lambda t, p: build_drowned_boots(p), "wood", 0, 0, 0.9)
         count += 1
     if not only or "recipe_scroll" in only:
         render_icon("recipe_scroll", lambda t, p: build_recipe_scroll(p), "wood", 0, 0, 0.92)

@@ -1287,6 +1287,32 @@ dozens of them and they come back every morning, so they are listed only while
 one is actually taken. A list longer than nine rows scrolls with the cursor and
 says where you are in it.
 
+### The Drowned King
+
+The barrow's second chamber, and the one **legendary** item in the game. Once
+the barrow has been opened, Guild Master Orlend will show you the guild's oldest
+ledger: forty years ago a party went down, came out four short, and wrote that
+the far chamber was under water and that the man they left behind was wearing
+the king's own boots. Go back down, open his chest, and tell Orlend what was in
+it.
+
+Inside are the **Boots of the Drowned King** (Defence 24, a little Strength,
+Defence 15 to wear), and they carry a **passive**: *Marshstride* -- you walk a
+seventh quicker, and ground that burns takes half as much out of you. A passive
+is a named effect an item has while it is worn (`"passive"` and
+`"passive_text"` in `data/items.json`); anything that cares asks for it by name,
+so the boots' speed lives in the player's movement and their half-damage in the
+hazard tick, and the bag prints what they do under the description.
+
+**They exist in exactly one place.** They are in no loot table, on no shelf and
+in no quest's reward list -- the chest holds them *by name* (`"item"` on the
+object, which no table roll can produce) -- and the chest itself carries
+`"needs_quest"`, so it is not drawn, not lit and cannot be opened except while
+that quest is being done. Before you take the quest the far chamber is empty;
+after you hand it in, it is empty again. The self-test checks all four of those
+things, because "unique" is a claim that rots the moment somebody adds a drop
+table.
+
 ### The Dragon of the Ice Spire
 
 The first quest with a **Combat requirement you have to have earned**: Combat
@@ -1673,7 +1699,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **11258 checks** covering:
+and checks all of it — currently **11302 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1813,6 +1839,11 @@ and checks all of it — currently **11258 checks** covering:
   the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
+- the drowned king's boots: worn on the feet, carrying a passive, in no loot
+  table, no shop and no reward list; the chest that holds them names them
+  itself, is gated on the quest, and is the only place in the world they exist;
+  and the quest is Orlend's, only after the barrow, with opening that chest as
+  its middle stage
 - the dragon and its quest: Hoarfang is a boss, stands above everything else on
   the Ice Spire, holds its own ground there, exists exactly once in the world
   and has all five clips drawn; the hunt is a story quest from Elder Vask that a

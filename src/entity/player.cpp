@@ -603,6 +603,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- movement ------------------------------------------------------------
     float speed = move_speed * (1.0f + talents.Global("move_speed"));
+    if (Passive(PASSIVE_MARSHSTRIDE)) speed *= MARSHSTRIDE_SPEED;
     if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk

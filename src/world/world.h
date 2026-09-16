@@ -56,6 +56,9 @@ public:
 
     // Object flags record one-shot world state: a chest already looted, a note
     // already read. They ride along in the save so the world stays consistent.
+    // False for an object whose quest is not being done right now; such an
+    // object is not drawn, not lit and cannot be used.
+    bool  ObjectPresent(const MapObject& o) const;
     bool  Flagged(const string& key) const { return flags.count(key) > 0; }
     void  SetFlag(const string& key) { flags.insert(key); }
     const std::set<string>& Flags() const { return flags; }
@@ -210,6 +213,9 @@ private:
 
     std::set<string> flags;
     vector<WorldRequest> requests;
+    // Borrowed each frame from the context, so drawing can ask what the
+    // player is in the middle of. Never owned, never outlives a frame's use.
+    const class QuestLog* quest_log = nullptr;
 
     float lifesteal_bank = 0.0f;  // healing on hit, in fractions of a point
     std::map<string, double> picked;

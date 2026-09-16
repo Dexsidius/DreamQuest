@@ -75,6 +75,12 @@ public:
     float WeaponSpeed() const;
     // How far the weapon in hand reaches, as a multiplier on a bare swing's.
     float WeaponReach() const;
+    // Whether something worn carries a named passive.
+    bool Passive(const string& id) const { return equipment.HasPassive(id); }
+    // What the Drowned King's boots do: a quicker step, and ground that burns
+    // takes half as much out of you.
+    static constexpr const char* PASSIVE_MARSHSTRIDE = "marshstride";
+    static constexpr float MARSHSTRIDE_SPEED = 1.15f;
     // A melee strike takes the shape of the weapon it is made with.
     void ShapeForWeapon(AttackProfile& p) const;
     // The clip a strike plays: the weapon's own, when the rig has it.

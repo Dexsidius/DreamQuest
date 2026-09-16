@@ -1110,8 +1110,12 @@ void Game::DrawInventory() {
         }
         if (!tag.empty())
             ui.Text(tag, grid_x + COLS * (cell + gap) - 12.0f, y + 4.0f, TextSize::Small, Palette::TextDim, Align::Right);
-        ui.TextWrapped(def->description, grid_x, y + 24.0f, COLS * (cell + gap) - 12.0f,
-                       TextSize::Small, Palette::TextDim);
+        const float desc_h = ui.TextWrapped(def->description, grid_x, y + 24.0f,
+                                            COLS * (cell + gap) - 12.0f, TextSize::Small, Palette::TextDim);
+        // What it does beyond its numbers, in the colour of something rare.
+        if (!def->passive_text.empty())
+            ui.TextWrapped(def->passive_text, grid_x, y + 28.0f + desc_h,
+                           COLS * (cell + gap) - 12.0f, TextSize::Small, Palette::Highlight);
     }
 
     ui.Text(input.PromptFor(Action::Confirm) + " use / equip     " +

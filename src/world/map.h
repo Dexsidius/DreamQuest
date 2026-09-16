@@ -103,6 +103,14 @@ struct MapObject {
     float  x = 0, y = 0;
     SDL_FRect solid{};       // optional blocking box, w == 0 when not solid
     string loot_table;       // chests
+    // A chest holding one named thing rather than a table roll: the only way
+    // to put an item in the world that no loot table can ever produce.
+    string loot_item;
+    int    loot_qty = 1;
+    // When set, the object is only in the world while this quest is being
+    // done: before it is taken and after it is finished, it is not there to
+    // be seen or opened.
+    string needs_quest;
     string text;             // notes and signs
     string starts_quest;     // notes that kick off a quest
     string sprite;           // optional image path drawn at the position

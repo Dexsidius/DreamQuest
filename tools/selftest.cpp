@@ -3851,6 +3851,76 @@ int main(int argc, char** argv) {
             }
         }
 
+        // --- the drowned king's boots --------------------------------------------------------
+        // One item, one chest, one quest: the boots are in no loot table, no
+        // shop and no reward list, and the chest that holds them is only in
+        // the world while the quest that sends you for it is running.
+        {
+            const ItemDef* boots = items.Get("drowned_king_boots");
+            Check(boots && boots->slot == SLOT_FEET && boots->passive == "marshstride" &&
+                  !boots->passive_text.empty(),
+                  "the Boots of the Drowned King are worn on the feet and carry a passive");
+            Check(boots && boots->defence_bonus > 20 && boots->requirements.count(SkillFromName("Defence")),
+                  "they are worth wearing, and ask for the Defence to wear them");
+
+            // Nowhere in any table, on any shelf, or in any quest's rewards.
+            int in_tables = 0;
+            for (const char* file : {"data/loot_tables.json", "data/loot_tables_armour.json"}) {
+                std::ifstream in(file);
+                if (!in) continue;
+                json root;
+                in >> root;
+                const string text = root.dump();
+                if (text.find("drowned_king_boots") != string::npos) ++in_tables;
+            }
+            Check(in_tables == 0, "no loot table can drop them");
+            {
+                std::ifstream in("data/shops.json");
+                json shops;
+                in >> shops;
+                Check(shops.dump().find("drowned_king_boots") == string::npos, "no trader sells them");
+            }
+            int as_reward = 0;
+            for (const auto& kv : quests.Definitions())
+                for (const auto& it : kv.second.rewards.items)
+                    if (it.first == "drowned_king_boots") ++as_reward;
+            Check(as_reward == 0, "and no quest hands them over as a reward");
+
+            // The chest: in the barrow, holding them by name, gated on the quest.
+            Map barrow;
+            Check(barrow.Load("maps/dungeon_barrow.mx"), "the barrow loads for its hoard");
+            const MapObject* hoard = nullptr;
+            for (const MapObject& o : barrow.Objects()) if (o.id == "chest_barrow_hoard") hoard = &o;
+            Check(hoard && hoard->loot_item == "drowned_king_boots" && hoard->loot_table.empty(),
+                  "the drowned king's chest holds the boots themselves, not a table roll");
+            Check(hoard && hoard->needs_quest == "q_drowned_hoard",
+                  "and stands in the world only while the quest is being done");
+            int gated_chests = 0;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const MapObject& o : m.Objects())
+                    if (o.loot_item == "drowned_king_boots") ++gated_chests;
+            }
+            Check(gated_chests == 1, "and it is the only place in the world they are");
+
+            // The quest itself: Orlend, after the barrow, opening that chest.
+            const QuestDef* hunt = quests.Definition("q_drowned_hoard");
+            Check(hunt && hunt->giver == "npc_guildmaster" && hunt->major, "Orlend gives the hunt for it");
+            Check(hunt && hunt->prerequisites.size() == 1 && hunt->prerequisites[0] == "q_barrow_seal",
+                  "and only once the barrow has already been opened");
+            Check(hunt && hunt->stages.size() == 3 && hunt->stages[1].type == ObjectiveType::Interact &&
+                  hunt->stages[1].target == "chest_barrow_hoard",
+                  "its middle stage is opening that chest");
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            LevelUp lu;
+            for (int s2 : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE, SKILL_HITPOINTS})
+                sk.AddXp(s2, XpForLevel(20), lu);
+            Check(!log.CanStart("q_drowned_hoard", sk), "it cannot be taken before the barrow quest is done");
+        }
+
         // --- the journal's two tabs ----------------------------------------------------------
         // The story is one line; the board, the orders and the favours are not
         // part of it, or the main quest would be buried under errands.
