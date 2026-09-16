@@ -1301,6 +1301,26 @@ static void BuildTown() {
     m.Background(44, 58, 44);
     std::mt19937 rng(4242u);
 
+    // Havenbrook teaches its trades. Three working places stand inside the
+    // fence: the sawpit in the north-west with a stand of timber behind it,
+    // the gravel pit in the north-east, and the mill pond in the south-east
+    // with a jetty out over it. Which ground a cell gets is decided here, so
+    // the pit is dirt and the pond is water rather than a patch laid over
+    // grass -- the base layer is drawn in name order, and grass would cover
+    // dirt whatever order it was placed in.
+    const auto in_pit = [](int cx, int cy) {
+        return cx >= 42 && cx <= 52 && cy >= 3 && cy <= 10;
+    };
+    // The pond, as an ellipse, and the planks of the jetty out into it.
+    const auto pond = [](int cx, int cy) {
+        const float dx = (cx - 47.5f) / 5.6f, dy = (cy - 37.5f) / 3.6f;
+        return dx * dx + dy * dy <= 1.0f;
+    };
+    const auto jetty = [&](int cx, int cy) {
+        // From dry land, or it is an island: the bank is only land west of 42.
+        return cy == 37 && cx >= 42 && cx <= 46;
+    };
+
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
             const float v = Fbm(cx * 0.25f, cy * 0.25f, 77);
@@ -1308,8 +1328,16 @@ static void BuildTown() {
             const bool on_road = (abs(cy - 22) <= 1) || (abs(cx - 28) <= 1);
             string tile = on_road ? VariantOf("road", cx, cy)
                         : (v > 0.6f ? "grass_light" : (v > 0.3f ? "grass" : "grass_olive"));
-            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (in_pit(cx, cy))   tile = v > 0.6f ? "sand" : (v > 0.3f ? "dirt" : "dirt_dark");
+            else if (jetty(cx, cy)) tile = "plank_floor";
+            else if (pond(cx, cy))  tile = "water";
+            m.Ground(VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
         }
+
+    // The pond is water: it cannot be walked into, but the jetty over it can.
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx)
+            if (pond(cx, cy) && !jetty(cx, cy)) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
 
     // Fence the village in, leaving the south gate open.
     for (int cx = 0; cx < W; ++cx) {
@@ -1406,12 +1434,112 @@ static void BuildTown() {
         m.Npc("npc_tobin", "Tobin the Grocer", "citizen1", sx - 50, sy + 6, "tobin_root", 0)["shop"] = "havenbrook_general";
     }
 
+    // --- the sawpit ---------------------------------------------------------------------
+    // A log up on trestles with the saw still in it, timber stacked round it,
+    // and a stand of young oak behind to cut. Where a new character is taught
+    // to use an axe.
+    int town_tree = 0, town_rock = 0;
+    {
+        const int sx = 9 * CELL, sy = 9 * CELL;
+        m.Prop("props", "sawmill", sx, sy);
+        m.Collision(sx - 58, sy - 26, 116, 26);
+        m.Prop("props", "log_pile", sx + 84, sy - 30);
+        m.Collision(sx + 84 - 22, sy - 40, 44, 12);
+        m.Prop("props", "log_pile", sx - 96, sy + 26);
+        m.Collision(sx - 96 - 22, sy + 16, 44, 12);
+        m.Prop("props", "crates_sacks", sx + 100, sy + 40);
+        m.Collision(sx + 100 - 18, sy + 30, 36, 10);
+        m.Prop("props", "workbench", sx - 40, sy + 80);
+        m.Collision(sx - 40 - 34, sy + 62, 67, 18);
+
+        json& sign = m.Object("sign_sawpit", "sign", sx + 122, sy + 6);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "Havenbrook Sawpit";
+        sign["text"]   = "THE SAWPIT\n\nTimber cut and sawn. Firewood by the cord.\n\n"
+                         "Under it, in newer paint: apprentices wanted. Axe provided.";
+        m.Collision(sx + 122 - 16, sy - 4, 32, 10);
+
+        // The stand of timber: young oak, cut at Woodcutting 1.
+        const int trees[][2] = {{3, 4}, {5, 3}, {7, 4}, {4, 7}, {6, 6}, {3, 10}, {5, 11}, {8, 12}, {11, 12}, {2, 7}};
+        for (const auto& t : trees)
+            PlaceTree(m, rng, 900 + town_tree++, t[0] * CELL + 16, t[1] * CELL + 16, t[0] % 2 == 0, 1, "logs");
+
+        m.Npc("npc_sawyer", "Sawyer Jessa", "citizen1", sx + 52, sy + 34, "sawyer_root", 0);
+    }
+
+    // --- the gravel pit -----------------------------------------------------------------
+    // Cut into the rise behind the houses: copper in the rock, a tipper cart
+    // on a length of rail, and the pitmaster who will lend a pickaxe.
+    {
+        const int px = 46 * CELL, py = 7 * CELL;
+        m.Prop("props", "ore_cart", px, py);
+        m.Collision(px - 34, py - 20, 68, 20);
+        m.Prop("props", "crates_sacks", px + 76, py + 26);
+        m.Collision(px + 76 - 18, py + 16, 36, 10);
+        m.Prop("props", "barrel", px - 84, py + 34);
+        m.Collision(px - 84 - 14, py + 24, 28, 10);
+
+        json& sign = m.Object("sign_pit", "sign", px - 108, py - 18);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "The Gravel Pit";
+        sign["text"]   = "HAVENBROOK PIT\n\nCopper worked here. Mind the loose face.\n\n"
+                         "Chalked below: pick lent to anyone willing to swing it.";
+        m.Collision(px - 108 - 16, py - 28, 32, 10);
+
+        // Copper in the face, at Mining 1, and loose rock round the edge.
+        const int seams[][3] = {{43, 4, 1}, {45, 3, 1}, {49, 4, 1}, {51, 6, 0}, {44, 9, 0}, {50, 9, 1}};
+        for (const auto& r : seams)
+            PlaceRock(m, rng, 900 + town_rock++, r[0] * CELL + 16, r[1] * CELL + 16, r[2] != 0, 1, "copper_ore");
+        for (const auto& b : {std::pair<int, int>{42, 6}, {52, 3}, {48, 10}, {41, 9}}) {
+            const int bx = b.first * CELL + 16, by = b.second * CELL + 16;
+            m.Prop("objects", kRocks[(bx + by) % 8], bx, by);
+            m.Collision(bx - 18, by - 10, 36, 10);
+        }
+
+        m.Npc("npc_pitmaster", "Pitmaster Dorn", "citizen2", px - 24, py + 62, "pit_root", 0);
+    }
+
+    // --- the mill pond -------------------------------------------------------------------
+    // Fed by the brook under the south fence: a jetty of planks out over the
+    // water, a boat drawn up on the bank, and the angler who teaches the rod.
+    {
+        // Reeds along the bank. Nothing under the jetty: a row of boulders
+        // there read as rocks dumped in the water.
+        for (const auto& r : {std::pair<int, int>{42, 35}, {44, 34}, {49, 34}, {52, 37}, {50, 41}, {45, 41}}) {
+            m.Prop("props", "reeds", r.first * CELL + 16, r.second * CELL + 20);
+        }
+        for (const auto& l : {std::pair<int, int>{48, 36}, {50, 38}, {46, 39}}) {
+            m.Prop("props", "lily_pads", l.first * CELL + 16, l.second * CELL + 16);
+        }
+        m.Prop("props", "rowboat", 42 * CELL, 41 * CELL);
+        m.Collision(42 * CELL - 30, 41 * CELL - 24, 60, 24);
+
+        json& sign = m.Object("sign_pond", "sign", 41 * CELL, 34 * CELL);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "The Mill Pond";
+        sign["text"]   = "THE MILL POND\n\nMinnow and pike. Keep the jetty clear.\n\n"
+                         "A smaller hand has added: rods lent, fish shared.";
+        m.Collision(41 * CELL - 16, 34 * CELL - 10, 32, 10);
+
+        // Two places to cast from: the end of the jetty and the bank beside it.
+        PlaceFishingSpot(m, "fish_pond_1", 47 * CELL + 16, 37 * CELL + 16, "pond",
+                         {"raw_minnow", "raw_pike"}, 1);
+        PlaceFishingSpot(m, "fish_pond_2", 44 * CELL + 16, 40 * CELL + 16, "pond",
+                         {"raw_minnow"}, 1);
+
+        m.Npc("npc_angler", "Angler Sula", "citizen1", 42 * CELL + 16, 36 * CELL + 20, "angler_root", 0);
+    }
+
     // Greenery so the village is not a bare field.
     for (int i = 0; i < 26; ++i) {
         const int x = 2 * CELL + static_cast<int>(rng() % ((W - 4) * CELL));
         const int y = 3 * CELL + static_cast<int>(rng() % ((H - 6) * CELL));
         if (abs(y - 22 * CELL) < 80 || abs(x - 28 * CELL) < 80) continue;
         if (abs(x - 35 * CELL) < 120 && abs(y - 27 * CELL) < 90) continue;   // the stall
+        // And out of the sawpit's stand of timber, the gravel pit and the pond.
+        if (x < 15 * CELL && y < 15 * CELL) continue;
+        if (x > 39 * CELL && y < 13 * CELL) continue;
+        if (x > 38 * CELL && y > 31 * CELL) continue;
         if (rng() % 3 == 0) m.Prop("objects", Pick(kSmallTrees, rng), x, y);
         else                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
     }

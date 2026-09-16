@@ -2381,7 +2381,7 @@ def prop_mine_adit():
     blk("cart_band", (0.66, 0.50, 0.06), (cx, cy, 0.42), "iron")
     for k in range(5):
         rock("ore_%d" % k, (0.10, 0.09, 0.08), (cx + rng.uniform(-0.2, 0.2), cy + rng.uniform(-0.12, 0.12), 0.50),
-             "ore_red" if k % 2 else "crag_dk", rng)
+             "ore_red" if k % 2 else "crag_lt", rng)
     for sx in (-1, 1):
         for sy in (-1, 1):
             cyl("wheel", 0.08, 0.05, (cx + sx * 0.22, cy + sy * 0.24, 0.10), "iron", rot=(0, math.radians(90), 0), verts=12)
@@ -2823,6 +2823,134 @@ def prop_dungeon_stairs_down():
     return (2.3, 62.0)
 
 
+# -----------------------------------------------------------------------------
+#  The three working camps in Havenbrook, where a new character is taught to
+#  cut, mine and fish: a sawpit, an ore cart, and a boat drawn up on the bank.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "sawdust":    (0.812, 0.702, 0.490),
+    "boat_hull":  (0.478, 0.333, 0.216),
+    "boat_trim":  (0.639, 0.475, 0.294),
+    "boat_in":    (0.361, 0.259, 0.180),
+    "paint_blue": (0.263, 0.412, 0.549),
+})
+
+
+def prop_sawmill():
+    """A sawpit: a log up on two trestles, lying across the view, with a
+    two-man saw standing in the cut, fresh boards stacked in front of it and
+    sawdust underfoot. Laid across rather than away from the camera -- end-on,
+    a log two metres long is a circle."""
+    import random
+    rng = random.Random(9)
+    LOG_Z = 0.74
+    for sx in (-1, 1):
+        x = sx * 0.78
+        for sy in (-1, 1):
+            blk("leg_%d_%d" % (sx, sy), (0.09, 0.09, 0.80), (x, sy * 0.24, 0.36),
+                "oak", rot=(math.radians(-sy * 16), 0, 0))
+        blk("cross_%d" % sx, (0.10, 0.60, 0.08), (x, 0, 0.34), "oak_light")
+        blk("cap_%d" % sx, (0.16, 0.74, 0.09), (x, 0, 0.72), "oak")
+    cyl("log", 0.26, 2.10, (0, 0, LOG_Z + 0.14), "log", rot=(0, math.radians(90), 0), verts=14)
+    for sx in (-1, 1):
+        cyl("log_end_%d" % sx, 0.23, 0.03, (sx * 1.05, 0, LOG_Z + 0.14), "log_end",
+            rot=(0, math.radians(90), 0), verts=14)
+    # The cut, and the saw standing in it.
+    blk("cut", (0.05, 0.50, 0.46), (0.16, 0.0, LOG_Z + 0.24), "log_end", bev=0)
+    blk("blade", (1.20, 0.05, 0.30), (0.16, 0.02, LOG_Z + 0.52), "iron_light", metal=0.6, rough=0.4, bev=0)
+    for k in range(12):
+        blk("tooth_%d" % k, (0.06, 0.05, 0.07), (-0.34 + k * 0.09, 0.02, LOG_Z + 0.34), "iron_light", bev=0)
+    for sx in (-1, 1):
+        blk("handle_%d" % sx, (0.20, 0.07, 0.09), (sx * 0.74 + 0.16, 0.02, LOG_Z + 0.56), "oak_light")
+        blk("grip_%d" % sx, (0.07, 0.07, 0.24), (sx * 0.84 + 0.16, 0.02, LOG_Z + 0.44), "oak_pale")
+    # Boards off the log, stacked flat in front.
+    for k in range(4):
+        blk("board_%d" % k, (1.70, 0.44, 0.06), (-0.10, -0.86, 0.05 + k * 0.07),
+            "oak_pale" if k % 2 else "oak_light")
+    # A chopping block with an axe left in it.
+    cyl("block", 0.28, 0.48, (1.18, -0.46, 0.24), "log", verts=14)
+    cyl("block_top", 0.27, 0.03, (1.18, -0.46, 0.48), "log_end", verts=14)
+    blk("axe_haft", (0.05, 0.05, 0.56), (1.24, -0.46, 0.70), "oak_light", rot=(0, math.radians(16), 0))
+    blk("axe_head", (0.20, 0.05, 0.13), (1.12, -0.46, 0.92), "iron_light", metal=0.6)
+    # Sawdust under the cut, and offcuts thrown clear.
+    for k in range(16):
+        sphere("dust_%d" % k, rng.uniform(0.05, 0.10),
+               (rng.uniform(-0.5, 0.8), rng.uniform(-0.5, 0.35), 0.02), "sawdust")
+    for k in range(3):
+        cyl("offcut_%d" % k, 0.07, rng.uniform(0.3, 0.5),
+            (-1.15 + rng.uniform(-0.15, 0.15), rng.uniform(-0.6, 0.2), 0.07), "log_dk",
+            rot=(0, math.radians(90), math.radians(rng.uniform(0, 180))), verts=10)
+    return (3.4, 40.0)
+
+
+def prop_ore_cart():
+    """A tipper cart of broken rock on a short length of rail, with a pick
+    leaning on it: the working end of a quarry."""
+    import random
+    rng = random.Random(11)
+    # Rails and sleepers under it.
+    for k in range(4):
+        blk("sleeper_%d" % k, (0.86, 0.12, 0.05), (0, 0.42 - k * 0.30, 0.025), "timber_dk")
+    for sx in (-1, 1):
+        blk("rail_%d" % sx, (0.05, 1.30, 0.05), (sx * 0.28, 0, 0.07), "rail", metal=0.4, rough=0.5)
+    cx, cy = 0.0, 0.05
+    blk("body", (0.74, 0.62, 0.42), (cx, cy, 0.36), "timber")
+    blk("band_low", (0.78, 0.66, 0.06), (cx, cy, 0.24), "iron", metal=0.5)
+    blk("band_top", (0.80, 0.68, 0.06), (cx, cy, 0.48), "iron", metal=0.5)
+    # Heaped ore, rust-red in the grey.
+    for k in range(12):
+        rock("ore_%d" % k, (0.13, 0.12, 0.10),
+             (cx + rng.uniform(-0.26, 0.26), cy + rng.uniform(-0.20, 0.20), 0.62 + rng.uniform(0, 0.08)),
+             ("ore_red", "crag_lt", "tailings")[k % 3], rng)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cyl("wheel_%d_%d" % (sx, sy), 0.09, 0.05, (cx + sx * 0.28, cy + sy * 0.22, 0.11), "iron",
+                rot=(0, math.radians(90), 0), verts=12)
+    blk("pick_haft", (0.05, 0.05, 0.70), (-0.52, -0.30, 0.34), "timber", rot=(0, math.radians(-16), 0))
+    blk("pick_head", (0.40, 0.06, 0.06), (-0.62, -0.30, 0.66), "iron", metal=0.5)
+    # Spoil tipped out beside the rails.
+    for k in range(7):
+        rock("spoil_%d" % k, (rng.uniform(0.08, 0.15),) * 3,
+             (0.60 + rng.uniform(-0.2, 0.2), rng.uniform(-0.5, 0.5), rng.uniform(0.04, 0.12)),
+             "tailings" if k % 3 else "crag_lt", rng)
+    return (2.6, 40.0)
+
+
+def prop_rowboat():
+    """A little boat drawn up on the bank, bow toward the water, with its oars
+    crossed inside and a creel of fish in the stern. Hull and inside are two
+    squashed domes rather than four planks: from above a boat is an outline,
+    and a boxy one reads as a crate."""
+    hull = sphere("hull", 1.0, (0, 0, 0.14), "boat_hull")
+    hull.scale = (0.46, 1.02, 0.32)
+    # The bow, drawn out to a point, and a stem post on it.
+    bow = cone("bow", 0.19, 0.60, (0, 1.06, 0.26), "boat_hull", rot=(math.radians(-96), 0, 0), verts=14)
+    bow.scale = (1.0, 1.0, 0.55)
+    blk("stem", (0.09, 0.14, 0.26), (0, 1.16, 0.34), "boat_trim", rot=(math.radians(20), 0, 0))
+    # The gunwale: a rim of trim round the top of the hull.
+    rim = sphere("rim", 1.0, (0, 0, 0.30), "boat_trim")
+    rim.scale = (0.44, 0.98, 0.10)
+    # The inside, lower than the rim so she reads as hollow.
+    inner = sphere("inner", 1.0, (0, 0, 0.22), "boat_in")
+    inner.scale = (0.36, 0.88, 0.14)
+    # Thwarts to sit on.
+    for y in (0.42, -0.34):
+        blk("thwart_%.2f" % y, (0.70, 0.14, 0.06), (0, y, 0.40), "boat_trim", bev=0.02)
+    # Oars crossed inside her, blades over the stern.
+    for sx in (-1, 1):
+        blk("oar_%d" % sx, (0.06, 1.50, 0.05), (sx * 0.10, 0.10, 0.44), "oak_light",
+            rot=(0, 0, math.radians(sx * 9)))
+        blk("blade_%d" % sx, (0.14, 0.34, 0.04), (sx * 0.24, -0.62, 0.44), "oak_pale",
+            rot=(0, 0, math.radians(sx * 9)))
+    # A creel of the morning's catch, and a coil of rope at the bow.
+    blk("creel", (0.26, 0.26, 0.22), (0.14, -0.74, 0.40), "straw", bev=0.06)
+    blk("creel_lid", (0.28, 0.28, 0.05), (0.14, -0.74, 0.53), "leather", bev=0.02)
+    for k in range(3):
+        cyl("rope_%d" % k, 0.12 - k * 0.03, 0.04, (-0.04, 0.62, 0.42 + k * 0.04), "straw", verts=14)
+    return (3.0, 46.0)
+
+
 AREA_PROPS = {
     "reeds": (prop_reeds, 48), "lily_pads": (prop_lily_pads, 40), "swamp_tree": (prop_swamp_tree, 72),
     "lizard_hut": (prop_lizard_hut, 128), "lizard_totem": (prop_lizard_totem, 56),
@@ -2832,6 +2960,7 @@ AREA_PROPS = {
     "cellar_hatch": (prop_cellar_hatch, 48), "cobweb": (prop_cobweb, 40),
     "barrow_mound": (prop_barrow_mound, 208), "dungeon_stairs_up": (prop_dungeon_stairs_up, 96),
     "dungeon_stairs_down": (prop_dungeon_stairs_down, 80),
+    "sawmill": (prop_sawmill, 144), "ore_cart": (prop_ore_cart, 96), "rowboat": (prop_rowboat, 128),
 }
 HERB_PROPS.update(AREA_PROPS)
 

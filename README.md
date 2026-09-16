@@ -1178,8 +1178,41 @@ then leave a bronze one behind.
 ## Starting out
 
 A new character starts with **25 coins, a Wooden Sword in hand and three
-cooked meat**, and nothing else. A shield, a bow or a staff, the axe, pickaxe
-and rod, and a bedroll are bought from the traders, found or made.
+cooked meat**, and nothing else. A shield, a bow or a staff, and a bedroll are
+bought from the traders, found or made. The tools are lent, by the three people
+in Havenbrook who work with them.
+
+### Learning a trade
+
+Havenbrook has three working places inside its fence, and each one teaches a
+gathering skill to someone who has never done it and lends the tool to do it
+with. None of the three asks for anything first, and all three can be walked to
+from the south gate.
+
+| Where | Who | Lends | Asks for | Teaches |
+| --- | --- | --- | --- | --- |
+| **The sawpit**, north-west | Sawyer Jessa | a bronze axe | 10 logs | Woodcutting |
+| **The gravel pit**, north-east | Pitmaster Dorn | a bronze pickaxe | 8 copper ore | Mining |
+| **The mill pond**, south-east | Angler Sula | a fishing rod | 6 minnow | Fishing |
+
+Each conversation has a **"How does it work?"** line before the work is taken
+on, and the same lesson again from the reminder afterwards, so the tutorial is
+never a wall of text you have to read before you can say yes. The lesson says
+the things the game never says out loud: that the tool only has to be in the
+pack, not in hand; that you stand by a tree, a seam or the water until the
+prompt names it and press use; that the work repeats until you move away or
+press use again; what the skill's level actually changes; and, for each trade,
+where to go next and who buys what you bring back. If the tool is lost, the
+reminder has a line that hands over another.
+
+The work is gathered from the camp itself -- a stand of young oak behind the
+sawpit, copper in the pit face, minnow off the jetty -- and carried back. On
+the hand-in the tool stops being lent: **it is kept**, along with the coins and
+the experience. The three places are built in `tools/genmaps.cpp` with three
+props of their own (`sawmill`, `ore_cart` and `rowboat` in
+`tools/blender_props.py`): a log up on trestles with the saw still in the cut,
+a tipper cart on a length of rail, and a boat drawn up on the bank beside a
+plank jetty over the pond.
 
 **Cooldown** is separate from recovery. Recovery is part of the swing and you
 are committed during it; the cooldown is the gap *after* it, and it is what
@@ -1586,7 +1619,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **10845 checks** covering:
+and checks all of it — currently **11112 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1726,6 +1759,12 @@ and checks all of it — currently **10845 checks** covering:
   the station it works as
 - the doors to the mine and the barrow warn a new character, and the way to
   town and the Whisperwood do not
+- the three trades taught in Havenbrook: the sawpit's stand of oak, the pit's
+  copper and the pond's casts are all worked at level 1; the camps have their
+  props and the pond is water; each teacher stands in the town, gives a quest
+  that needs nothing first, lends a tool a beginner may actually use, asks for
+  a load gathered and carried back, and hands it over only when the whole load
+  is in the bag -- and the quest completes with the tool kept
 - nine tiers in order, each making all eight pieces with a recipe at the right
   station; every piece stronger and dearer than the same piece a tier down and
   needing its tier's level in the right skill; every metal tier with an ore and

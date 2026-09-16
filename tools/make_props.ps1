@@ -69,6 +69,7 @@ $sizes = @{
     # The swamp, the Ice Spire, the Ashen Path and the inn's cellar.
     reeds = 48; lily_pads = 40; swamp_tree = 72; lizard_hut = 128; lizard_totem = 56; ice_spire = 112; ice_crystal = 40; snow_pine = 80; wyvern_nest = 72; charred_tree = 72; obsidian_rock = 40; hellgate = 144; cellar_hatch = 48; cobweb = 40
     barrow_mound = 208; dungeon_stairs_up = 96; dungeon_stairs_down = 80
+    sawmill = 144; ore_cart = 96; rowboat = 128
     herb_marigold = 40; herb_marigold_picked = 40
     herb_brookmint = 40; herb_brookmint_picked = 40
     herb_nettle = 40; herb_nettle_picked = 40

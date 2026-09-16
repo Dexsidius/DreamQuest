@@ -1420,6 +1420,10 @@
                                                "w":  40,
                                                "h":  40
                                            },
+                   "props/ore_cart":  {
+                                          "w":  96,
+                                          "h":  96
+                                      },
                    "props/palisade":  {
                                           "w":  64,
                                           "h":  64
@@ -1436,10 +1440,18 @@
                                            "w":  56,
                                            "h":  56
                                        },
+                   "props/rowboat":  {
+                                         "w":  128,
+                                         "h":  128
+                                     },
                    "props/rug":  {
                                      "w":  88,
                                      "h":  88
                                  },
+                   "props/sawmill":  {
+                                         "w":  144,
+                                         "h":  144
+                                     },
                    "props/shop_counter":  {
                                               "w":  96,
                                               "h":  96

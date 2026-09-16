@@ -1924,5 +1924,545 @@
         "next": "end"
       }
     ]
+  },
+  "sawyer_root": {
+    "speaker": "Sawyer Jessa",
+    "text": "Mind the sawdust. That log has been on the trestles since dawn and it is winning.",
+    "options": [
+      {
+        "text": "The sign says an axe is provided.",
+        "next": "sawyer_offer",
+        "if": {
+          "quest": "q_learn_woodcutting",
+          "state": "available"
+        }
+      },
+      {
+        "text": "Here. Ten logs, cut and carried.",
+        "next": "sawyer_done",
+        "if": {
+          "quest": "q_learn_woodcutting",
+          "state": "active",
+          "stage": 1,
+          "has_item": "logs",
+          "qty": 10
+        },
+        "action": {
+          "take": "logs",
+          "take_qty": 10
+        }
+      },
+      {
+        "text": "About those logs.",
+        "next": "sawyer_waiting",
+        "if": {
+          "quest": "q_learn_woodcutting",
+          "state": "active"
+        }
+      },
+      {
+        "text": "The pit still standing, Jessa?",
+        "next": "sawyer_after",
+        "if": {
+          "quest": "q_learn_woodcutting",
+          "state": "complete"
+        }
+      },
+      {
+        "text": "Good day to you.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_offer": {
+    "speaker": "Sawyer Jessa",
+    "text": "Provided, lent, and wanted back with interest -- the interest being ten logs. There is a stand of young oak behind me, and a bronze axe in the crate that nobody is using. Bring me ten logs and the axe stops being mine.",
+    "options": [
+      {
+        "text": "How does it work?",
+        "next": "sawyer_teach",
+        "if": {
+          "quest": "q_learn_woodcutting",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I'll take the axe.",
+        "next": "sawyer_accept",
+        "action": {
+          "start_quest": "q_learn_woodcutting",
+          "give": "bronze_axe"
+        }
+      },
+      {
+        "text": "Not just now.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_teach": {
+    "speaker": "Sawyer Jessa",
+    "text": "Simple enough. Carry the axe -- in your pack is enough, you need not hold it. Walk up to a tree until the prompt reads Chop, then press use. You swing until the wood gives, a log goes in your pack, and you keep swinging until you walk away or press use again.\n\nEvery log is Woodcutting experience. The higher that gets the faster you cut, and a better axe cuts faster still -- though an axe of good metal wants the Woodcutting level to match. The young oak behind me is the easiest wood there is: anyone can cut it. A full-grown tree is slower and worth more.",
+    "options": [
+      {
+        "text": "I'll take the axe.",
+        "next": "sawyer_accept",
+        "action": {
+          "start_quest": "q_learn_woodcutting",
+          "give": "bronze_axe"
+        }
+      },
+      {
+        "text": "I will think on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_accept": {
+    "speaker": "Sawyer Jessa",
+    "text": "There. Mind your shins, and do not try to cut the big timber on the trail until you have some bark under your nails.",
+    "options": [
+      {
+        "text": "I will be back.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_waiting": {
+    "speaker": "Sawyer Jessa",
+    "text": "Ten logs. The stand is right behind me -- the saplings go quickest.",
+    "options": [
+      {
+        "text": "Tell me again how it is done.",
+        "next": "sawyer_lesson"
+      },
+      {
+        "text": "Here. Ten logs, cut and carried.",
+        "next": "sawyer_done",
+        "if": {
+          "has_item": "logs",
+          "qty": 10
+        },
+        "action": {
+          "take": "logs",
+          "take_qty": 10
+        }
+      },
+      {
+        "text": "I lost the axe.",
+        "next": "sawyer_replace",
+        "if": {
+          "has_item": "bronze_axe",
+          "not": true
+        },
+        "action": {
+          "give": "bronze_axe"
+        }
+      },
+      {
+        "text": "I am working on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_replace": {
+    "speaker": "Sawyer Jessa",
+    "text": "Careless. Here, take this one, and keep hold of it.",
+    "options": [
+      {
+        "text": "Thank you.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_done": {
+    "speaker": "Sawyer Jessa",
+    "text": "Ten, and none of them split. That is better than my last apprentice managed in a week.",
+    "options": [
+      {
+        "text": "Gladly.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_after": {
+    "speaker": "Sawyer Jessa",
+    "text": "Cut where you like now. If you get a good load, the pit buys timber, and a better axe is worth every coin.",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_root": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Watch the face. It drops loose rock on people who stand about admiring it.",
+    "options": [
+      {
+        "text": "Someone chalked that a pick is lent here.",
+        "next": "pit_offer",
+        "if": {
+          "quest": "q_learn_mining",
+          "state": "available"
+        }
+      },
+      {
+        "text": "Eight copper, out of your own face.",
+        "next": "pit_done",
+        "if": {
+          "quest": "q_learn_mining",
+          "state": "active",
+          "stage": 1,
+          "has_item": "copper_ore",
+          "qty": 8
+        },
+        "action": {
+          "take": "copper_ore",
+          "take_qty": 8
+        }
+      },
+      {
+        "text": "About that copper.",
+        "next": "pit_waiting",
+        "if": {
+          "quest": "q_learn_mining",
+          "state": "active"
+        }
+      },
+      {
+        "text": "How is the face holding, Dorn?",
+        "next": "pit_after",
+        "if": {
+          "quest": "q_learn_mining",
+          "state": "complete"
+        }
+      },
+      {
+        "text": "Good day to you.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_offer": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Lent, aye. There is copper in that rock and no one with the arms to get it out. Take the spare pickaxe, bring me eight lumps of copper ore, and we will call the pick paid for.",
+    "options": [
+      {
+        "text": "How does it work?",
+        "next": "pit_teach",
+        "if": {
+          "quest": "q_learn_mining",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I'll take the pick.",
+        "next": "pit_accept",
+        "action": {
+          "start_quest": "q_learn_mining",
+          "give": "bronze_pickaxe"
+        }
+      },
+      {
+        "text": "Not just now.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_teach": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Carry the pick -- your pack will do. Stand at a seam until the prompt names it, copper here, then press use. You work at it until a lump comes free, and you go on working until you move off or press use again.\n\nEvery lump is Mining experience, and the level is what lets you touch the deeper metals: copper at the start, iron soon after, then coal and the blue stuff. A pick of better metal works faster but wants the Mining level to swing it. Take the ore to Halda at the forge -- she smelts it into bars, and that is Smithing, which is a different argument.",
+    "options": [
+      {
+        "text": "I'll take the pick.",
+        "next": "pit_accept",
+        "action": {
+          "start_quest": "q_learn_mining",
+          "give": "bronze_pickaxe"
+        }
+      },
+      {
+        "text": "I will think on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_accept": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Good. Copper is soft going; do not start on the iron out in the foothills until your arms know the work.",
+    "options": [
+      {
+        "text": "I will be back.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_waiting": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Eight lumps of copper. The seams are in the face behind me, and they are all copper -- I checked them myself.",
+    "options": [
+      {
+        "text": "Tell me again how it is done.",
+        "next": "pit_lesson"
+      },
+      {
+        "text": "Eight copper, out of your own face.",
+        "next": "pit_done",
+        "if": {
+          "has_item": "copper_ore",
+          "qty": 8
+        },
+        "action": {
+          "take": "copper_ore",
+          "take_qty": 8
+        }
+      },
+      {
+        "text": "I lost the pickaxe.",
+        "next": "pit_replace",
+        "if": {
+          "has_item": "bronze_pickaxe",
+          "not": true
+        },
+        "action": {
+          "give": "bronze_pickaxe"
+        }
+      },
+      {
+        "text": "I am working on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_replace": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Dropped it down a hole, did you. Take this one.",
+    "options": [
+      {
+        "text": "Thank you.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_done": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Eight, and you still have all your fingers. The pick is yours.",
+    "options": [
+      {
+        "text": "Gladly.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_after": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Dig where you like. The foothills north of here have iron, and the mine past them has better, if you fancy the company down there.",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_root": {
+    "speaker": "Angler Sula",
+    "text": "Quietly, if you can. They can hear boots.",
+    "options": [
+      {
+        "text": "Someone wrote that rods are lent here.",
+        "next": "angler_offer",
+        "if": {
+          "quest": "q_learn_fishing",
+          "state": "available"
+        }
+      },
+      {
+        "text": "Six minnow, off the jetty.",
+        "next": "angler_done",
+        "if": {
+          "quest": "q_learn_fishing",
+          "state": "active",
+          "stage": 1,
+          "has_item": "raw_minnow",
+          "qty": 6
+        },
+        "action": {
+          "take": "raw_minnow",
+          "take_qty": 6
+        }
+      },
+      {
+        "text": "About those minnow.",
+        "next": "angler_waiting",
+        "if": {
+          "quest": "q_learn_fishing",
+          "state": "active"
+        }
+      },
+      {
+        "text": "Anything biting, Sula?",
+        "next": "angler_after",
+        "if": {
+          "quest": "q_learn_fishing",
+          "state": "complete"
+        }
+      },
+      {
+        "text": "Good day to you.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_offer": {
+    "speaker": "Angler Sula",
+    "text": "Lent, and I want paying in fish. There is a spare rod in the boat. Six minnow out of this pond and the rod stays with you.",
+    "options": [
+      {
+        "text": "How does it work?",
+        "next": "angler_teach",
+        "if": {
+          "quest": "q_learn_fishing",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I'll take the rod.",
+        "next": "angler_accept",
+        "action": {
+          "start_quest": "q_learn_fishing",
+          "give": "fishing_rod"
+        }
+      },
+      {
+        "text": "Not just now.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_teach": {
+    "speaker": "Angler Sula",
+    "text": "Keep the rod in your pack. Stand on the jetty, or on the bank where the prompt reads Fish the pond, and press use. Give it a few seconds and something takes it; keep standing there and you keep catching until you move or press use again.\n\nA rod asks nothing of you -- no level to use it. Your Fishing level only decides how quickly they bite, and once you are past twenty you will start landing two at a time. Raw fish does nobody any good: cook it on a fire, and it heals better than bread.",
+    "options": [
+      {
+        "text": "I'll take the rod.",
+        "next": "angler_accept",
+        "action": {
+          "start_quest": "q_learn_fishing",
+          "give": "fishing_rod"
+        }
+      },
+      {
+        "text": "I will think on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_accept": {
+    "speaker": "Angler Sula",
+    "text": "Mind the planks, they are slick. Minnow are in close; the pike sit out where the lilies are.",
+    "options": [
+      {
+        "text": "I will be back.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_waiting": {
+    "speaker": "Angler Sula",
+    "text": "Six minnow. Off the jetty is quickest, and they are in close today.",
+    "options": [
+      {
+        "text": "Tell me again how it is done.",
+        "next": "angler_lesson"
+      },
+      {
+        "text": "Six minnow, off the jetty.",
+        "next": "angler_done",
+        "if": {
+          "has_item": "raw_minnow",
+          "qty": 6
+        },
+        "action": {
+          "take": "raw_minnow",
+          "take_qty": 6
+        }
+      },
+      {
+        "text": "I lost the rod.",
+        "next": "angler_replace",
+        "if": {
+          "has_item": "fishing_rod",
+          "not": true
+        },
+        "action": {
+          "give": "fishing_rod"
+        }
+      },
+      {
+        "text": "I am working on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_replace": {
+    "speaker": "Angler Sula",
+    "text": "Into the water, I expect. Take the spare.",
+    "options": [
+      {
+        "text": "Thank you.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_done": {
+    "speaker": "Angler Sula",
+    "text": "Six. And you kept the jetty clear, which is more than the last one did. The rod is yours.",
+    "options": [
+      {
+        "text": "Gladly.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_after": {
+    "speaker": "Angler Sula",
+    "text": "The lake up the road has pike and eel in it, and Wendel down in the market will buy every fish you land.",
+    "options": [
+      {
+        "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "sawyer_lesson": {
+    "speaker": "Sawyer Jessa",
+    "text": "Simple enough. Carry the axe -- in your pack is enough, you need not hold it. Walk up to a tree until the prompt reads Chop, then press use. You swing until the wood gives, a log goes in your pack, and you keep swinging until you walk away or press use again.\n\nEvery log is Woodcutting experience. The higher that gets the faster you cut, and a better axe cuts faster still -- though an axe of good metal wants the Woodcutting level to match. The young oak behind me is the easiest wood there is: anyone can cut it. A full-grown tree is slower and worth more.",
+    "options": [
+      {
+        "text": "Back to it.",
+        "next": "end"
+      }
+    ]
+  },
+  "pit_lesson": {
+    "speaker": "Pitmaster Dorn",
+    "text": "Carry the pick -- your pack will do. Stand at a seam until the prompt names it, copper here, then press use. You work at it until a lump comes free, and you go on working until you move off or press use again.\n\nEvery lump is Mining experience, and the level is what lets you touch the deeper metals: copper at the start, iron soon after, then coal and the blue stuff. A pick of better metal works faster but wants the Mining level to swing it. Take the ore to Halda at the forge -- she smelts it into bars, and that is Smithing, which is a different argument.",
+    "options": [
+      {
+        "text": "Back to it.",
+        "next": "end"
+      }
+    ]
+  },
+  "angler_lesson": {
+    "speaker": "Angler Sula",
+    "text": "Keep the rod in your pack. Stand on the jetty, or on the bank where the prompt reads Fish the pond, and press use. Give it a few seconds and something takes it; keep standing there and you keep catching until you move or press use again.\n\nA rod asks nothing of you -- no level to use it. Your Fishing level only decides how quickly they bite, and once you are past twenty you will start landing two at a time. Raw fish does nobody any good: cook it on a fire, and it heals better than bread.",
+    "options": [
+      {
+        "text": "Back to it.",
+        "next": "end"
+      }
+    ]
   }
 }

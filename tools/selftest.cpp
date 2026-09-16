@@ -4012,6 +4012,116 @@ int main(int argc, char** argv) {
             Check(log.IsComplete("q_cellar_vermin"), "and telling her finishes it");
             ctx.quests = &quests;
         }
+
+        // --- the three trades taught in Havenbrook -------------------------------------------
+        // A new character starts with no tools, so the town has somewhere to
+        // learn each gathering skill and someone to lend the tool for it.
+        {
+            Map town;
+            Check(town.Load("maps/town_havenbrook.mx"), "Havenbrook loads for its working camps");
+            int oaks = 0, seams = 0, casts = 0;
+            for (const MapObject& o : town.Objects()) {
+                if (o.skill == "Woodcutting" && o.yield == "logs" && o.skill_level <= 1) ++oaks;
+                if (o.skill == "Mining" && o.yield == "copper_ore" && o.skill_level <= 1) ++seams;
+                if (o.skill == "Fishing" && o.skill_level <= 1) ++casts;
+            }
+            Check(oaks >= 8, "a stand of timber behind the sawpit, cut at Woodcutting 1 (" + std::to_string(oaks) + ")");
+            Check(seams >= 5, "copper in the gravel pit's face, at Mining 1 (" + std::to_string(seams) + ")");
+            Check(casts >= 2, "somewhere to cast on the mill pond (" + std::to_string(casts) + ")");
+            bool water = false;
+            {
+                std::ifstream in("maps/town_havenbrook.mx");
+                json mx;
+                in >> mx;
+                water = mx["tiles"].contains("water");
+                for (const char* prop : {"sawmill", "ore_cart", "rowboat"})
+                    Check(mx["tiles"].contains(prop), string("the camps have their ") + prop);
+            }
+            Check(water, "and the pond is water, not a patch of grass");
+
+            struct Trade { const char* npc; const char* name; const char* quest; const char* tool;
+                           const char* item; int count; const char* skill; };
+            const Trade trades[] = {
+                {"npc_sawyer",    "Sawyer Jessa",    "q_learn_woodcutting", "bronze_axe",     "logs",       10, "Woodcutting"},
+                {"npc_pitmaster", "Pitmaster Dorn",  "q_learn_mining",      "bronze_pickaxe", "copper_ore",  8, "Mining"},
+                {"npc_angler",    "Angler Sula",     "q_learn_fishing",     "fishing_rod",    "raw_minnow",  6, "Fishing"},
+            };
+            std::ifstream din("data/dialogue.json");
+            json dj;
+            din >> dj;
+            for (const Trade& t : trades) {
+                const NpcDef* who = nullptr;
+                for (const NpcDef& n : town.Npcs()) if (n.id == t.npc) who = &n;
+                Check(who && who->name == t.name, string(t.name) + " works in Havenbrook");
+
+                const QuestDef* d = quests.Definition(t.quest);
+                Check(d && d->giver == t.npc && d->recommended_level <= 1 && d->prerequisites.empty(),
+                      string(t.quest) + " is given by " + t.npc + " and needs nothing first");
+                Skills fresh_skills;
+                QuestLog log;
+                log.LoadDefinitions("data/quests.json");
+                Check(log.CanStart(t.quest, fresh_skills), string("a brand new character can take ") + t.quest);
+                if (!d) continue;
+                Check(d->stages.size() == 2 && d->stages[0].type == ObjectiveType::Collect &&
+                      d->stages[0].target == t.item && d->stages[0].count == t.count,
+                      string(t.quest) + " asks for " + std::to_string(t.count) + " " + t.item);
+                Check(d->stages[1].type == ObjectiveType::Deliver && d->stages[1].deliver_to == t.npc,
+                      "and for them to be carried back to " + string(t.npc));
+
+                // The lesson hands the tool over when the work is taken on.
+                bool lends = false;
+                for (auto it = dj.begin(); it != dj.end(); ++it)
+                    for (const auto& opt : it.value().value("options", json::array())) {
+                        if (!opt.contains("action")) continue;
+                        const json& a = opt["action"];
+                        if (a.value("start_quest", string("")) == t.quest && a.value("give", string("")) == t.tool)
+                            lends = true;
+                    }
+                Check(lends, string(t.npc) + " lends a " + t.tool + " with the work");
+
+                // And the tool lent is one a character of no level at all may use.
+                Inventory bag;
+                bag.SetDatabase(&items);
+                bag.Add(t.tool, 1);
+                Equipment worn;
+                worn.SetDatabase(&items);
+                const ItemDef* usable = Gathering::BestTool(bag, worn, items, fresh_skills,
+                                                            Gathering::ToolFor(t.skill));
+                Check(usable && usable->id == t.tool, string("a beginner can work with the ") + t.tool);
+
+                // Played through: gather what was asked for, carry it back.
+                log.Start(t.quest);
+                Inventory carried;
+                carried.SetDatabase(&items);
+                for (int i = 0; i < t.count; ++i) {
+                    carried.Add(t.item, 1);
+                    log.RefreshCollectObjectives(carried);
+                }
+                Check(log.Stage(t.quest) == 1, string("gathering ") + std::to_string(t.count) + " " + t.item +
+                      " sends you back to " + t.npc);
+                // The line that hands them over: offered only with the whole
+                // load in the bag, and it takes them.
+                bool hands_in = false;
+                for (auto it = dj.begin(); it != dj.end(); ++it)
+                    for (const auto& opt : it.value().value("options", json::array())) {
+                        if (!opt.contains("action") || !opt.contains("if")) continue;
+                        if (opt["action"].value("take", string("")) != t.item) continue;
+                        if (opt["action"].value("take_qty", 1) != t.count) continue;
+                        if (opt["if"].value("has_item", string("")) == t.item &&
+                            opt["if"].value("qty", 1) >= t.count) hands_in = true;
+                    }
+                Check(hands_in, string("the load is handed to ") + t.npc + " only once it is all carried");
+                QuestEvent hand;
+                hand.type      = ObjectiveType::Deliver;
+                hand.target    = t.item;
+                hand.secondary = t.npc;
+                hand.amount    = t.count;
+                carried.Remove(t.item, t.count);
+                log.Notify(hand, carried);
+                Check(log.IsComplete(t.quest), string("handing them over finishes ") + t.quest +
+                      ", and the " + t.tool + " is kept");
+            }
+        }
     }
 
     Section("smithing, foraging and brewing");
@@ -4687,6 +4797,9 @@ int main(int argc, char** argv) {
                     {"mossvale_herbalist", "oonas_cottage", 256, 235, 1.5f},
                     {"fernhollow_cottage", "ferry_cottage", 256, 235, 1.5f},
                     {"town_havenbrook", "havenbrook_store", 1090, 870, 2},
+                    {"town_havenbrook", "havenbrook_sawpit", 300, 300, 1.5f},
+                    {"town_havenbrook", "havenbrook_pit", 1460, 240, 1.5f},
+                    {"town_havenbrook", "havenbrook_pond", 1450, 1190, 1.5f},
                     {"overworld", "emberfell_entrance", 2768, 300, 2},
                     {"overworld", "mire_bogs", 1060, 1000, 1.5f},
                     {"overworld", "lizard_camp", 1070, 2540, 1.5f},

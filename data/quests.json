@@ -1,4 +1,100 @@
 {
+  "q_learn_woodcutting": {
+    "name": "The Sawpit",
+    "source": "npc",
+    "giver": "npc_sawyer",
+    "level": 1,
+    "summary": "Sawyer Jessa lends an axe to anyone willing to learn the trade, and wants ten logs cut to prove it was worth lending.",
+    "stages": [
+      {
+        "desc": "Chop 10 logs from the stand behind the sawpit",
+        "type": "collect",
+        "target": "logs",
+        "count": 10
+      },
+      {
+        "desc": "Bring the 10 logs to Sawyer Jessa",
+        "type": "deliver",
+        "target": "logs",
+        "to": "npc_sawyer",
+        "count": 10
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Woodcutting": 260,
+        "Crafting": 60
+      },
+      "coins": 40
+    },
+    "completion": "Jessa waves the axe away when you offer it back. \"It has your swing in it now. Keep it, and keep the pit in mind when you have a load to sell.\""
+  },
+  "q_learn_mining": {
+    "name": "The Gravel Pit",
+    "source": "npc",
+    "giver": "npc_pitmaster",
+    "level": 1,
+    "summary": "Pitmaster Dorn will put a pickaxe in your hands, and eight lumps of copper back in his, if you can be taught to swing it.",
+    "stages": [
+      {
+        "desc": "Mine 8 copper ore from the pit face",
+        "type": "collect",
+        "target": "copper_ore",
+        "count": 8
+      },
+      {
+        "desc": "Bring the 8 copper ore to Pitmaster Dorn",
+        "type": "deliver",
+        "target": "copper_ore",
+        "to": "npc_pitmaster",
+        "count": 8
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Mining": 280,
+        "Smithing": 60
+      },
+      "coins": 45
+    },
+    "completion": "Dorn looks at the ore, then at your hands. \"The pick is yours. Halda will buy what you dig, and she will teach you what to do with it.\""
+  },
+  "q_learn_fishing": {
+    "name": "The Mill Pond",
+    "source": "npc",
+    "giver": "npc_angler",
+    "level": 1,
+    "summary": "Angler Sula has a spare rod and a pond full of minnow, and will trade the loan of one for six of the other.",
+    "stages": [
+      {
+        "desc": "Catch 6 minnow from the mill pond",
+        "type": "collect",
+        "target": "raw_minnow",
+        "count": 6
+      },
+      {
+        "desc": "Bring the 6 minnow to Angler Sula",
+        "type": "deliver",
+        "target": "raw_minnow",
+        "to": "npc_angler",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Fishing": 240,
+        "Cooking": 80
+      },
+      "coins": 35,
+      "items": [
+        {
+          "id": "cooked_minnow",
+          "qty": 2
+        }
+      ]
+    },
+    "completion": "Sula strings the minnow on a withy and hands the rod back to you. \"Yours. The lake north of town is better water, and Wendel pays for what you land.\""
+  },
   "q_thin_the_herd": {
     "name": "Thin the Herd",
     "source": "board",
