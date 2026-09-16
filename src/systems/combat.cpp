@@ -57,22 +57,34 @@ static int Effective(int level) { return level + 8; }
 // maxed one with the best blade in the game tops out around 20.
 static constexpr float MAX_HIT_DIVISOR = 280.0f;
 
+// The unmodified top of the damage range: what the character could hit for
+// with a swing that has no multiplier on it at all.
+static int BaseMaxHit(int level, int bonus) {
+    const float effective = static_cast<float>(Effective(level));
+    return std::max(1, static_cast<int>(
+        floorf(0.5f + effective * (bonus + 64) / MAX_HIT_DIVISOR)));
+}
+
+// A swing's multiplier scales the damage that was rolled, not the size of the
+// die it was rolled on. Scaling the die and truncating it to an int made the
+// opening links of the light chain (x0.72 and x0.82) collapse a level 1
+// character's range of 0-2 to 0-1 -- so half of every connecting hit did
+// nothing, and the first two thirds of every combo were strictly worse than
+// they read. Above about level 20 the two orderings agree; below it, this one
+// is the one that matches what the numbers promise.
+static int Scaled(int rolled, float damage_mult) {
+    return std::max(1, static_cast<int>(lroundf(rolled * damage_mult)));
+}
+
 int MaxHit(const CombatProfile& p, float damage_mult) {
-    const float effective = static_cast<float>(Effective(p.strength_level));
-    const int base = static_cast<int>(
-        floorf(0.5f + effective * (p.strength_bonus + 64) / MAX_HIT_DIVISOR));
-    return std::max(1, static_cast<int>(base * damage_mult));
+    return Scaled(BaseMaxHit(p.strength_level, p.strength_bonus), damage_mult);
 }
 
 int MaxHitFor(const CombatProfile& p, AttackStyle style, float damage_mult) {
     int level = p.strength_level, bonus = p.strength_bonus;
     if (style == AttackStyle::Ranged) { level = p.ranged_level; bonus = p.ranged_bonus; }
     else if (style == AttackStyle::Magic) { level = p.magic_level; bonus = p.magic_bonus; }
-
-    const float effective = static_cast<float>(Effective(level));
-    const int base = static_cast<int>(
-        floorf(0.5f + effective * (bonus + 64) / MAX_HIT_DIVISOR));
-    return std::max(1, static_cast<int>(base * damage_mult));
+    return Scaled(BaseMaxHit(level, bonus), damage_mult);
 }
 
 float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
@@ -89,21 +101,32 @@ float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
 }
 
 DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defender,
-                        AttackStyle style, float damage_mult, std::mt19937& rng) {
+                        AttackStyle style, float damage_mult, std::mt19937& rng,
+                        bool floor_damage) {
     DamageResult r;
 
     std::uniform_real_distribution<float> chance(0.0f, 1.0f);
     if (chance(rng) > HitChanceFor(attacker, defender, style)) return r;
 
-    const int max_hit = MaxHitFor(attacker, style, damage_mult);
-    std::uniform_int_distribution<int> roll(0, max_hit);
+    // For the player the die starts at 1 rather than 0: a connecting shot that
+    // deals nothing reads as the game ignoring you, and early on it was most
+    // of them -- at level 1 a 0-2 range meant a third of everything that got
+    // through did no damage, on top of the accuracy roll that had already
+    // eaten half the swings. The floor matters least where the numbers are
+    // biggest: half a point of average damage at level 40, double it at 1.
+    int level = attacker.strength_level, bonus = attacker.strength_bonus;
+    if (style == AttackStyle::Ranged) { level = attacker.ranged_level; bonus = attacker.ranged_bonus; }
+    else if (style == AttackStyle::Magic) { level = attacker.magic_level; bonus = attacker.magic_bonus; }
+
+    const int base = BaseMaxHit(level, bonus);
+    std::uniform_int_distribution<int> roll(floor_damage ? 1 : 0, base);
     r.damage  = roll(rng);
     r.hit     = true;
-    r.max_hit = (r.damage == max_hit && max_hit > 1);
-
-    // A committed shot or cast that rolls nothing still chips, the same way a
-    // charged melee swing does.
-    if (r.damage == 0 && damage_mult >= CHARGE_MIN_MULT) r.damage = 1;
+    // The swing's multiplier scales what came up rather than the die it came
+    // up on, so a rolled zero stays zero.
+    if (r.damage > 0) r.damage = Scaled(r.damage, damage_mult);
+    else if (damage_mult >= CHARGE_MIN_MULT) r.damage = 1;   // a committed shot still chips
+    r.max_hit = (base > 1 && r.damage >= Scaled(base, damage_mult));
     return r;
 }
 
@@ -116,21 +139,21 @@ float HitChance(const CombatProfile& attacker, const CombatProfile& defender) {
 }
 
 DamageResult RollMelee(const CombatProfile& attacker, const CombatProfile& defender,
-                       float damage_mult, std::mt19937& rng) {
+                       float damage_mult, std::mt19937& rng, bool floor_damage) {
     DamageResult r;
 
     std::uniform_real_distribution<float> chance(0.0f, 1.0f);
     if (chance(rng) > HitChance(attacker, defender)) return r;   // splash
 
-    const int max_hit = MaxHit(attacker, damage_mult);
-    std::uniform_int_distribution<int> roll(0, max_hit);
+    // As in RollAttack: the multiplier scales what came up rather than the die
+    // it came up on, and only the player's rolls have a floor under them.
+    const int base = BaseMaxHit(attacker.strength_level, attacker.strength_bonus);
+    std::uniform_int_distribution<int> roll(floor_damage ? 1 : 0, base);
     r.damage  = roll(rng);
     r.hit     = true;
-    r.max_hit = (r.damage == max_hit && max_hit > 1);
-
-    // A connecting swing that rolls zero still chips, so committing to a big
-    // charged attack never feels like it did literally nothing.
-    if (r.damage == 0 && damage_mult >= CHARGE_MIN_MULT) r.damage = 1;
+    if (r.damage > 0) r.damage = Scaled(r.damage, damage_mult);
+    else if (damage_mult >= CHARGE_MIN_MULT) r.damage = 1;
+    r.max_hit = (base > 1 && r.damage >= Scaled(base, damage_mult));
     return r;
 }
 

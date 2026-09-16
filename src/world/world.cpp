@@ -1294,7 +1294,10 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     if (style == AttackStyle::Magic && ElementMultiplier(element, e.ElementOf()) > 1.05f)
         damage_mult *= 1.0f + player.talents.Effect("elemental", style);
 
-    DamageResult r = RollAttack(owner, e.Profile(), style, damage_mult, *ctx.rng);
+    // Everything the player does to a monster comes through here, so this is
+    // the one place the damage floor is asked for: a swing of theirs that
+    // connects always takes something off.
+    DamageResult r = RollAttack(owner, e.Profile(), style, damage_mult, *ctx.rng, true);
 
     // Every way the player can hurt something -- swing, arrow, bolt, burning
     // ground -- comes through here, so this is where the bar first appears.

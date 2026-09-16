@@ -143,20 +143,33 @@ void Game::NewGame(const string& character, int slot) {
     world.player = Player();
     world.player.Init(ctx, character);
 
-    // Starting kit: a few coins, a wooden sword and a bit of food. Everything
-    // else -- a shield, a bow or a staff, the tools to work the land, a bedroll
-    // -- is bought, found or made.
+    // Starting kit: a few coins, a wooden sword, a bit of food, and something
+    // to put between yourself and the first boar. Everything else -- the rest
+    // of a set, a bow or a staff, the tools to work the land, a bedroll -- is
+    // bought, found or made.
+    //
+    // The cuirass and the shield are not generosity. Accuracy here is
+    // (level + 8) x (bonus + 64) on both sides, so at level 1 the bonus from
+    // gear is most of the number: with nothing worn a boar hits a new
+    // character 60% of the time and an orc 65%, while they hit back at about
+    // 42%. Twenty-six points of defence bonus brings that to 45% and 48%, and
+    // the opening hour stops feeling arranged against you.
     world.player.inventory.Add("coins", 25);
     world.player.inventory.Add(STARTING_WEAPON, 1);
+    world.player.inventory.Add("wood_body", 1);
+    world.player.inventory.Add("wooden_shield", 1);
     world.player.inventory.Add("cooked_meat", 3);
     // Marked, so loading this character never hands them the tools a character
     // from before gathering needed tools is given.
     world.SetFlag("starter_tools");
 
+    // Worn straight away: a new player should not have to find the bag screen
+    // before the first fight to benefit from what they were given.
     string why;
-    for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
-        if (world.player.inventory.Slot(slot).id == STARTING_WEAPON)
-            world.player.EquipFromInventory(slot, why);
+    for (const char* worn : {STARTING_WEAPON, "wood_body", "wooden_shield"})
+        for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
+            if (world.player.inventory.Slot(slot).id == worn)
+                world.player.EquipFromInventory(slot, why);
 
     active_slot = slot;
     playtime = 0.0f;

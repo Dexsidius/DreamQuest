@@ -73,12 +73,20 @@ struct DamageResult {
 };
 
 // Accuracy roll then damage roll.
+//
+// `floor_damage` starts the damage die at 1 instead of 0, so a swing that beat
+// the accuracy roll always does something. It is passed for the player's
+// attacks and not for the monsters': a hit of your own that lands for nothing
+// reads as the game ignoring you, where a monster rolling low is just a quiet
+// moment. Making it symmetric raised every monster's average damage by half
+// at low levels, which is the opposite of what it is for.
 DamageResult RollMelee(const CombatProfile& attacker, const CombatProfile& defender,
-                       float damage_mult, std::mt19937& rng);
+                       float damage_mult, std::mt19937& rng, bool floor_damage = false);
 
 // Rolls an attack of any style. Melee is identical to RollMelee.
 DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defender,
-                        AttackStyle style, float damage_mult, std::mt19937& rng);
+                        AttackStyle style, float damage_mult, std::mt19937& rng,
+                        bool floor_damage = false);
 
 int MaxHit(const CombatProfile& p, float damage_mult);
 float HitChance(const CombatProfile& attacker, const CombatProfile& defender);

@@ -297,6 +297,30 @@ accuracy and damage, exactly as OSRS does, so a bow does nothing for a
 character who never trained Ranged and Strength does nothing for a bow. The
 self-test checks that.
 
+### How a swing resolves
+
+Two rolls, in `src/systems/combat.cpp`. First accuracy: `(level + 8) x (bonus +
+64)` for the attacker against the same for the defender's Defence, and the
+larger of the two wins more often. Note the `+64` -- at low levels the gear
+bonus is most of that number, which is why a starting character feels the lack
+of armour more than the lack of levels. Then damage: an integer rolled up to
+`floor(0.5 + (strength + 8) x (strength bonus + 64) / 280)`, the swing's own
+multiplier applied to whatever came up.
+
+Two details of that are the difference between "unlucky" and "unfair", and both
+were got wrong first time:
+
+- **The player's damage die starts at 1, monsters' start at 0.** A hit of your
+  own that lands for nothing reads as the game ignoring you; a monster rolling
+  low is just a quiet moment. Symmetrical flooring was tried and it raised
+  every early monster's average damage by half, which is the opposite of the
+  point.
+- **The multiplier scales the roll, not the die.** The light chain's links are
+  x0.72, x0.82 and x1.10. Scaling the die and truncating it to an int collapsed
+  a level 1 character's 1-2 range to 1-1 on the opening links, so two thirds of
+  every combo were quietly worse than they read. Above about level 20 the two
+  orderings agree.
+
 ### Skill trees
 
 Each combat style has a tree, opened from the Skills panel (`O`) with `I` and
@@ -1261,10 +1285,17 @@ then leave a bronze one behind.
 
 ## Starting out
 
-A new character starts with **25 coins, a Wooden Sword in hand and three
-cooked meat**, and nothing else. A shield, a bow or a staff, and a bedroll are
-bought from the traders, found or made. The tools are lent, by the three people
-in Havenbrook who work with them.
+A new character starts with **25 coins, a Wooden Sword, a Barkwood Cuirass and
+a Wooden Shield, all worn, and three cooked meat**. Nothing else: the rest of a
+set, a bow or a staff, and a bedroll are bought from the traders, found or made.
+The tools are lent, by the three people in Havenbrook who work with them.
+
+The two pieces of armour are not generosity, they are the accuracy formula.
+Defence is `(level + 8) x (bonus + 64)`, so at level 1 the bonus from what you
+are wearing is most of the number: with an empty body slot a boar hits a new
+character 60% of the time and an orc 65%, while they hit back at about 42%.
+Twenty-six points of defence bonus brings that to 44% and 50%, and the first
+hour stops feeling arranged against you.
 
 ### Learning a trade
 
