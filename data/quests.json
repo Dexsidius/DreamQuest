@@ -1746,11 +1746,11 @@
     "name": "The Dry Well",
     "source": "npc",
     "giver": "npc_cook",
-    "level": 15,
+    "level": 30,
     "major": true,
     "summary": "Havenbrook's well ran dry the year everything else went wrong, and nobody has been down it since. Bess wants to know what is in the way of the water.",
     "req": {
-      "Combat": 12
+      "Combat": 20
     },
     "stages": [
       {

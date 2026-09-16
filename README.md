@@ -1744,8 +1744,11 @@ is crossed a fight at a time rather than in one running battle.
 
 | Floor | What holds it |
 | --- | --- |
-| **The Upper Workings** (92 x 72 cells) | slimes, cellar rats, well bats; copper in the walls, two chests |
-| **The Deep Cut** (96 x 78 cells) | pit hounds, ankous, banshees; coal, standing water, and the spring at the end of a long passage south |
+| **The Upper Workings** (92 x 72 cells) | slimes, cellar rats, well bats at 8-12; copper in the walls, two chests |
+| **The Deep Cut** (96 x 78 cells) | pit hounds at 20, ankous at 27, banshees at 30; coal, standing water, and the spring at the end of a long passage south |
+
+Bess will not hand it over below **Combat 20**, and the journal suggests 30:
+the top of the shaft is a beginner's fight but the bottom of it is not.
 
 At the bottom of that passage is the **spring itself**, in a room of its own with
 a basin, a plug of fallen stone in the outflow, and the thing that has been
@@ -1793,21 +1796,24 @@ and their chief.
 | Cellar Rat | the inn's cellar | 1 | bones, raw meat, a few coins |
 | Cellar Spider | the inn's cellar | 3-4 | spider silk |
 | Broodmother | the back of the inn's cellar | 7 | silk, coins, a tonic or a copper ring |
+| Orc Grunt | the Sunken Road, the mine, the barrow | 5-9 | bones, coins, raw meat, the odd bronze piece |
+| Orc Raider | deeper in the mine and the barrow | 15-20 | bones, coins, iron ore and iron gear |
+| **Orc Warchief** | the mine's last room | 28 | his totem, a warchief's purse, ember shards, steel and iron gear |
 | Lizardman | the Mire | 10-13 | lizard scales, bogbean, iron ore, hides |
 | Lizardman Chief | the camp in the Mire | 16 | scales, iron bars, a steel sword, Fen Bitters |
 | Ice Troll | the Ice Spire's slopes | 26-29 | troll hide, adamantium ore, azuryte gear |
 | Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, adamantium gear |
 | Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
 | **Hoarfang** | its own ground above the summit | 62 | dragon fangs, scales, diamond and platinum, diamond gear |
-| Cellar Slime | the well's upper workings | 5-8 | empty vials, bones, coins |
-| Well Bat | the well's upper workings | 4-7 | bones, coins |
-| Pit Hound | the well's deep cut | 14-17 | bones, hides, raw meat, coins |
-| Ankou | the well's deep cut | 18-21 | bones, grave candles, tarnished rings, iron bars |
-| Banshee | the well's deep cut | 16-19 | mourning lockets, grave candles, vials, coins |
-| **The Thing in the Spring** | the spring at the bottom of the well | 24 | a purse of coins, a locket, steel, azuryte, the odd diamond |
-| Shambler | Hollowrest, among the graves | 12-15 | rotten flesh, coins |
-| Skeleton | Hollowrest, along the fence | 15-18 | bones |
-| Wraith | Hollowrest, the old western half | 17-20 | grave candles, tarnished rings, mourning lockets |
+| Cellar Slime | the well's upper workings | 8-9 | empty vials, bones, coins |
+| Well Bat | the well's upper workings | 11-12 | bones, coins |
+| Pit Hound | the well's deep cut | 20-21 | bones, hides, raw meat, coins |
+| Ankou | the well's deep cut | 27 | bones, grave candles, tarnished rings, iron bars |
+| Banshee | the well's deep cut | 30-31 | mourning lockets, grave candles, vials, coins |
+| **The Thing in the Spring** | the spring at the bottom of the well | 32 | a purse of coins, a locket, steel, azuryte, the odd diamond |
+| Shambler | Hollowrest, among the graves | 12-14 | rotten flesh, coins |
+| Skeleton | Hollowrest, along the fence | 15-17 | bones |
+| Wraith | Hollowrest, the old western half | 17-18 | grave candles, tarnished rings, mourning lockets |
 | The Hollowrest Wight | in front of the crypt | 26 | lockets, rings, candles, coins, steel |
 | Imp | the Ashen Path and the pit | 30-34 | coins, emberbloom, platinum ore, the odd horn |
 | Demon | the hellgate and the pit | 40-43 | demon horns, demonrite ore, platinum gear |

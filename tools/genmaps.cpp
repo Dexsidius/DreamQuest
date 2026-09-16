@@ -4040,7 +4040,12 @@ int main() {
                  "chest_dungeon", 3,
                  "", "",
                  "", "",
-                 "orc3", 12,
+                 // Level 1: the Warchief's own stat block is the whole of him
+                 // now, the way every other boss works. Spawning him at 12
+                 // added eleven levels to a block that was already a boss's
+                 // and put him at an effective 41, in a mine whose orcs top
+                 // out at 20.
+                 "orc3", 1,
                  {{"adamantium_ore", 40}, {"platinum_ore", 60}, {"coal", 20}});
 
     // The barrow also holds the drowned king's chest, for anyone Orlend has
