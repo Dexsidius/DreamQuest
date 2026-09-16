@@ -3831,6 +3831,14 @@ int main(int argc, char** argv) {
                 for (const NpcDef& n : hall.Npcs()) if (n.id == "npc_elder") vask = &n;
                 Check(vask && vask->name == "Elder Vask" && vask->dialogue == "elder_root",
                       "Elder Vask sits in the guild hall");
+                // Art of his own: an old man in a rocking chair, not a townsfolk sheet.
+                Check(vask && vask->sprite == "vask" && sprites.Get("vask"),
+                      "and has art of his own rather than a townsfolk sheet");
+                for (const char* clip : {"idle", "walk"})
+                    Check(fs::exists(string("assets/characters/vask/") + clip + ".png"),
+                          string("his ") + clip + " sheet is drawn");
+                Check(vask && hall.Blocked({vask->x - 4.0f, vask->y - 6.0f, 8.0f, 6.0f}),
+                      "and the floor his chair stands on is blocked");
             }
             {
                 std::ifstream in("data/dialogue.json");

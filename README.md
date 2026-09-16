@@ -1317,12 +1317,23 @@ table.
 
 The first quest with a **Combat requirement you have to have earned**: Combat
 35, and it is the giver, not the quest log, who enforces it. Elder Vask sits in
-the guild hall facing the north wall with a stick across his knees, and to
-anyone who could not survive the climb he offers exactly one line -- `*grunt*`
--- and goes on looking at the wall. At Combat 35 he looks up, and the
+the guild hall in a rocking chair, a blanket over his knees and a stick across
+them, and to anyone who could not survive the climb he offers exactly one line
+-- `*grunt*` -- and goes on rocking. At Combat 35 he looks up, and the
 conversation he has been saving for fifty years comes out: eleven of the
 Spirewatch went up, one came down, and **Hoarfang** has held the summit since.
 Climb the Ice Spire, kill it, and bring him back a tooth.
+
+He has **art of his own** rather than a townsfolk sheet (`build_vask` in
+`tools/blender_creatures.py`): white-bearded, bald on top, stooped so far
+forward that the stoop is most of what reads as age, with a shawl on his
+shoulders and boots that have not been outside in a while. The **rocking chair
+is part of the sprite rather than a prop beside him** -- a chair he is not
+actually sitting in reads as furniture he happens to be standing next to, and a
+prop cannot rock. Everything in the rig hangs off one joint down at the
+rockers, so tilting that joint rocks the man and the chair together, which is
+the entire animation; the floor his chair stands on is blocked, so he cannot be
+walked through.
 
 **Hoarfang** is its own creature (`build_dragon` in `tools/blender_creatures.py`),
 not a bigger wyvern: four legs, a heavier body, a short thick neck and wings
@@ -1699,7 +1710,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **11302 checks** covering:
+and checks all of it — currently **11308 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1849,7 +1860,8 @@ and checks all of it — currently **11302 checks** covering:
   and has all five clips drawn; the hunt is a story quest from Elder Vask that a
   new character cannot take and a Combat 40 one can, made of a climb, a kill and
   a fang carried back; Vask is in the guild hall, offers it only at Combat 35,
-  and grunts at anyone else
+  and grunts at anyone else, in art of his own with both its clips drawn and the
+  floor under his chair blocked
 - the journal's three tabs: every story quest is off neither a board nor a
   repeat, Maren's chain and the dragon are on the story tab, the three trades
   are on the tutorial tab and named for the skill each teaches, the contracts

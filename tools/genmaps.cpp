@@ -1692,7 +1692,11 @@ static void BuildInteriors() {
         // The last of the Spirewatch, sat under the west wall with a stick
         // across his knees. He has nothing to say to anyone who could not
         // survive the climb, and says it.
-        m.Npc("npc_elder", "Elder Vask", "citizen2", 5 * CELL, 11 * CELL, "elder_root", 0);
+        // Art of his own (tools/blender_creatures.py, build_vask): the chair is
+        // part of the sprite and rocks with him, so the floor under it is
+        // blocked rather than the chair being a prop you can walk through.
+        m.Npc("npc_elder", "Elder Vask", "vask", 5 * CELL, 11 * CELL, "elder_root", 0);
+        m.Collision(5 * CELL - 22, 11 * CELL - 14, 44, 14);
 
         // The rug sits under him rather than in the middle of the room: it
         // marks where the hall expects you to stand and be spoken to.

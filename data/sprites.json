@@ -2553,6 +2553,26 @@
                                           }
                              }
                },
+    "vask":  {
+                 "dir":  "assets/characters/vask/",
+                 "rows":  4,
+                 "anchor_y":  54,
+                 "scale":  1,
+                 "clips":  {
+                               "idle":  {
+                                            "sheet":  "idle.png",
+                                            "frames":  4,
+                                            "fps":  8,
+                                            "loop":  true
+                                        },
+                               "walk":  {
+                                            "sheet":  "walk.png",
+                                            "frames":  6,
+                                            "fps":  10,
+                                            "loop":  true
+                                        }
+                           }
+             },
     "wyvern":  {
                    "dir":  "assets/characters/wyvern/",
                    "rows":  4,

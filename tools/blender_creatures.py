@@ -60,6 +60,13 @@ bc.PALETTE.update({
     "demon": (0.64, 0.17, 0.14), "demon_dk": (0.38, 0.08, 0.10), "demon_horn": (0.20, 0.16, 0.15),
     "demon_eye_glow": (1.00, 0.84, 0.30), "ember_glow": (1.00, 0.52, 0.16), "wing_dk": (0.30, 0.10, 0.12),
     "imp": (0.82, 0.34, 0.20), "imp_dk": (0.56, 0.18, 0.14), "iron_dk": (0.30, 0.30, 0.34),
+    # Elder Vask, and the chair he has not got out of in some years
+    "vask_robe": (0.42, 0.40, 0.36), "vask_robe_dk": (0.30, 0.29, 0.26),
+    "vask_shawl": (0.45, 0.33, 0.28), "vask_blanket": (0.38, 0.30, 0.34),
+    "vask_skin": (0.86, 0.71, 0.58), "vask_skin_dk": (0.70, 0.56, 0.45),
+    "vask_hair": (0.90, 0.89, 0.86), "vask_hair_dk": (0.72, 0.71, 0.68),
+    "chair_wood": (0.44, 0.30, 0.19), "chair_wood_lt": (0.56, 0.40, 0.26),
+    "chair_wood_dk": (0.32, 0.21, 0.14), "vask_stick": (0.38, 0.26, 0.16),
     # the dragon of the Ice Spire: hoarfrost over deep glacier blue
     "drake": (0.63, 0.74, 0.86), "drake_dk": (0.36, 0.49, 0.67), "drake_belly": (0.90, 0.94, 0.97),
     "drake_wing": (0.58, 0.80, 0.94), "drake_horn": (0.82, 0.88, 0.94),
@@ -853,6 +860,114 @@ def drake_death(t):
 
 
 # =================================================================================
+#  Elder Vask
+#
+#  The only NPC in the game with art of its own rather than a townsfolk sheet,
+#  because he is the only one who never stands up: an old man in a rocking
+#  chair in the guild hall, white-bearded, stooped, a blanket over his knees
+#  and his stick across them. The chair is part of the rig rather than a prop
+#  beside him -- a chair he is not actually sitting in reads as furniture he
+#  happens to be standing next to, and a prop cannot rock. Everything hangs off
+#  a joint down at the rockers, so tilting that one joint rocks the man and the
+#  chair together, which is the whole animation.
+# =================================================================================
+
+def build_vask():
+    r = Rig()
+    r.joint("rock", (0, 0.04, 0.05), rest=(-2, 0, 0))
+
+    # --- the chair -----------------------------------------------------------------
+    for sx in (-1, 1):
+        # A rocker: a long shallow arc, faked as a flattened ellipsoid.
+        r.add("rocker", E(0.035, 0.34, 0.05), "chair_wood_dk", "rock", loc=(sx * 0.20, 0.02, -0.03))
+        # Legs up to the seat, and the front posts that carry the arms.
+        for sy, h in ((-0.20, 0.30), (0.18, 0.30)):
+            r.limb("leg", (sx * 0.20, sy, -0.02), (sx * 0.18, sy, h), 0.028, "chair_wood", "rock", r_tip=0.024)
+        r.limb("post", (sx * 0.19, -0.20, 0.30), (sx * 0.19, -0.20, 0.50), 0.025, "chair_wood", "rock", r_tip=0.022)
+        # The arm rest, and the back upright behind it.
+        r.add("arm", E(0.035, 0.24, 0.028), "chair_wood_lt", "rock", loc=(sx * 0.19, -0.02, 0.52))
+        r.limb("upright", (sx * 0.19, 0.18, 0.30), (sx * 0.17, 0.22, 0.92), 0.028, "chair_wood", "rock", r_tip=0.022)
+    r.add("seat", E(0.21, 0.19, 0.028), "chair_wood_lt", "rock", loc=(0, -0.01, 0.31))
+    r.add("cushion", E(0.18, 0.16, 0.035), "vask_blanket", "rock", loc=(0, -0.02, 0.335))
+    for k in range(4):
+        r.add("slat", E(0.14, 0.02, 0.035), "chair_wood", "rock", loc=(0, 0.20 + k * 0.006, 0.46 + k * 0.14))
+    r.add("rail", E(0.19, 0.03, 0.04), "chair_wood_lt", "rock", loc=(0, 0.22, 0.94))
+    for sx in (-1, 1):
+        r.add("finial", E(0.035, 0.035, 0.045), "chair_wood_lt", "rock", loc=(sx * 0.17, 0.22, 0.97))
+
+    # --- the man in it --------------------------------------------------------------
+    # Sitting: the thighs run forward out of the hips and the shins drop from
+    # the knees, so he is folded into the chair rather than standing in it.
+    r.joint("pelvis", (0, -0.02, 0.38), "rock")
+    r.add("hips", E(0.15, 0.13, 0.10), "vask_robe", "pelvis")
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("hip_" + side, (sx * 0.09, -0.02, 0.0), "pelvis")
+        r.limb("thigh", (0, 0, 0), (0, -0.22, -0.02), 0.075, "vask_robe", "hip_" + side, r_tip=0.065)
+        r.joint("knee_" + side, (0, -0.22, -0.02), "hip_" + side)
+        r.limb("shin", (0, 0, 0), (0, -0.02, -0.30), 0.06, "vask_robe_dk", "knee_" + side, r_tip=0.05)
+        r.add("boot", E(0.06, 0.09, 0.045), "boot", "knee_" + side, loc=(0, -0.06, -0.32))
+    # The blanket over his knees.
+    r.add("blanket", E(0.20, 0.20, 0.055), "vask_blanket", "pelvis", loc=(0, -0.16, 0.03))
+    r.add("blanket_fold", E(0.19, 0.06, 0.07), "vask_blanket", "pelvis", loc=(0, -0.28, -0.02))
+
+    # Stooped: the chest leans forward and the neck carries the head further
+    # forward still, which is most of what makes him read as old.
+    r.joint("chest", (0, 0.01, 0.10), "pelvis", rest=(16, 0, 0))
+    r.add("torso", E(0.17, 0.13, 0.21), "vask_robe", "chest", loc=(0, 0, 0.18))
+    r.add("shawl", E(0.21, 0.17, 0.09), "vask_shawl", "chest", loc=(0, 0.01, 0.30))
+    r.add("shawl_front", E(0.10, 0.06, 0.14), "vask_shawl", "chest", loc=(0, -0.10, 0.24))
+
+    # Arms hanging to the rests, forearms forward over the blanket, hands on
+    # the stick lying across his knees.
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("shoulder_" + side, (sx * 0.16, 0, 0.32), "chest", rest=(6, sx * -8, 0))
+        r.limb("upper", (0, 0, 0), (0, 0, -0.20), 0.05, "vask_robe", "shoulder_" + side, r_tip=0.045)
+        r.joint("elbow_" + side, (0, 0, -0.20), "shoulder_" + side, rest=(-72, 0, 0))
+        r.limb("fore", (0, 0, 0), (0, 0, -0.20), 0.045, "vask_robe_dk", "elbow_" + side, r_tip=0.04)
+        r.joint("hand_" + side, (0, 0, -0.20), "elbow_" + side)
+        r.add("hand", E(0.045, 0.05, 0.04), "vask_skin_dk", "hand_" + side)
+    # The stick, across the knees and under both hands.
+    r.add("stick", C(0.018, 0.018, 0.46), "vask_stick", "pelvis", loc=(0, -0.20, 0.10),
+          rot=(0, math.radians(90), 0))
+    r.add("stick_knob", E(0.035, 0.035, 0.035), "vask_stick", "pelvis", loc=(-0.24, -0.20, 0.10))
+
+    r.joint("neck", (0, -0.03, 0.38), "chest", rest=(-10, 0, 0))
+    r.add("neckp", C(0.05, 0.055, 0.07), "vask_skin_dk", "neck", loc=(0, 0, 0.05))
+    r.joint("head", (0, -0.01, 0.09), "neck", rest=(-8, 0, 0))
+    r.add("skull", E(0.115, 0.12, 0.115), "vask_skin", "head", loc=(0, 0, 0.06))
+    # Bald on top with white hair round the sides and back, and a big beard.
+    r.add("fringe", E(0.125, 0.125, 0.06), "vask_hair", "head", loc=(0, 0.02, 0.05))
+    r.add("hair_back", E(0.115, 0.07, 0.10), "vask_hair", "head", loc=(0, 0.08, 0.04))
+    for sx in (-1, 1):
+        r.add("hair_side", E(0.035, 0.07, 0.07), "vask_hair", "head", loc=(sx * 0.11, 0.01, 0.03))
+        r.add("brow", E(0.045, 0.02, 0.022), "vask_hair", "head", loc=(sx * 0.055, -0.10, 0.09))
+        r.add("eye", E(0.018, 0.012, 0.014), "eye", "head", loc=(sx * 0.05, -0.105, 0.06))
+    r.add("nose", E(0.028, 0.035, 0.035), "vask_skin", "head", loc=(0, -0.115, 0.03))
+    r.add("beard", E(0.10, 0.075, 0.105), "vask_hair", "head", loc=(0, -0.06, -0.09))
+    r.add("beard_tip", E(0.06, 0.05, 0.07), "vask_hair_dk", "head", loc=(0, -0.05, -0.18))
+    r.add("moustache", E(0.065, 0.03, 0.028), "vask_hair", "head", loc=(0, -0.10, -0.015))
+    # Modelled small and scaled up at the end: a man in a chair is about two
+    # and a half units tall next to the hero, and building him at that size
+    # would mean writing every number twice as long.
+    r.pose.scale = (2.4, 2.4, 2.4)
+    return r
+
+
+def vask_idle(t):
+    """The chair rocks, slowly, and he breathes. Nothing else happens: that is
+    the character."""
+    s = sn(t)
+    return {"rock": X(3.5 * s), "chest": X(1.5 * sn(t, 0.1)), "head": X(-2.0 * sn(t, 0.15)),
+            "neck": X(1.0 * sn(t, 0.2))}
+
+
+def vask_walk(t):
+    # He does not. The clip exists so anything that asks for it gets the man in
+    # his chair rather than nothing at all.
+    return vask_idle(t)
+
+
+# =================================================================================
 #  The roster
 # =================================================================================
 CREATURES = {
@@ -865,6 +980,7 @@ CREATURES = {
     "demon":     (build_demon,     80, (demon_idle, demon_walk, demon_attack, demon_hurt, demon_death),  0.40),
     "imp":       (build_imp,       48, (imp_idle, imp_walk, imp_attack, imp_hurt, imp_death),            0.22),
     "frost_dragon": (build_dragon, 144, (drake_idle, drake_walk, drake_attack, drake_hurt, drake_death), 0.92),
+    "vask":      (build_vask,      64, (vask_idle, vask_walk, vask_idle, vask_idle, vask_idle),         0.52),
 }
 CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False), ("death", 6, False)]
 FACINGS = bc.FACINGS

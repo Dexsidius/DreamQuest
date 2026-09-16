@@ -2495,7 +2495,7 @@
   },
   "elder_root": {
     "speaker": "Elder Vask",
-    "text": "An old man with a stick across his knees, facing the north wall. He does not look up when you come in.",
+    "text": "An old man in a rocking chair, a blanket over his knees and a stick across them. The chair goes on rocking. He does not look up when you come in.",
     "options": [
       {
         "text": "They say something took the Ice Spire.",
@@ -2551,7 +2551,7 @@
   },
   "elder_grunt": {
     "speaker": "Elder Vask",
-    "text": "*grunt*\n\nHe shifts the stick an inch and goes on looking at the wall. Whatever he is waiting for, it is not you.",
+    "text": "*grunt*\n\nHe shifts the stick an inch and goes on rocking. Whatever he is waiting for, it is not you.",
     "options": [
       {
         "text": "...",
@@ -2561,7 +2561,7 @@
   },
   "elder_offer": {
     "speaker": "Elder Vask",
-    "text": "Now he looks up, and takes his time about it. Shoulders, then hands, then the notches on your gear.\n\n\"Took it. Yes. I was nineteen and there were eleven of us -- the Spirewatch, they called us, which was a fine name for eleven people with spears. It came down out of the cloud and it took the summit, and I am the one who came back down to say so. Hoarfang, the wyverns' own grandmother called it.\"",
+    "text": "Now he looks up, and takes his time about it. Shoulders, then hands, then the notches on your gear. The chair stops.\n\n\"Took it. Yes. I was nineteen and there were eleven of us -- the Spirewatch, they called us, which was a fine name for eleven people with spears. It came down out of the cloud and it took the summit, and I am the one who came back down to say so. Hoarfang, the wyverns' own grandmother called it.\"",
     "options": [
       {
         "text": "Why has nobody killed it?",
