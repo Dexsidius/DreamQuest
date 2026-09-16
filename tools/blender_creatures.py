@@ -65,6 +65,14 @@ bc.PALETTE.update({
     "demon": (0.64, 0.17, 0.14), "demon_dk": (0.38, 0.08, 0.10), "demon_horn": (0.20, 0.16, 0.15),
     "demon_eye_glow": (1.00, 0.84, 0.30), "ember_glow": (1.00, 0.52, 0.16), "wing_dk": (0.30, 0.10, 0.12),
     "imp": (0.82, 0.34, 0.20), "imp_dk": (0.56, 0.18, 0.14), "iron_dk": (0.30, 0.30, 0.34),
+    # the dead of Hollowrest: rot, old bone, and whatever a wraith is
+    "rot": (0.55, 0.60, 0.44), "rot_dk": (0.38, 0.43, 0.31), "rot_wound": (0.47, 0.25, 0.24),
+    "rot_cloth": (0.38, 0.35, 0.30), "rot_cloth_dk": (0.27, 0.25, 0.22),
+    "rot_eye_glow": (0.78, 0.94, 0.42),
+    "bone_w": (0.86, 0.84, 0.75), "bone_g": (0.70, 0.68, 0.58), "bone_dk": (0.52, 0.50, 0.42),
+    "rust": (0.46, 0.31, 0.21), "rust_lt": (0.60, 0.44, 0.30),
+    "shroud": (0.31, 0.31, 0.40), "shroud_dk": (0.20, 0.20, 0.28), "shroud_lt": (0.44, 0.45, 0.56),
+    "wisp_glow": (0.58, 0.88, 0.94), "grave_gold": (0.74, 0.64, 0.32),
     # Elder Vask, and the chair he has not got out of in some years
     "vask_robe": (0.42, 0.40, 0.36), "vask_robe_dk": (0.30, 0.29, 0.26),
     "vask_shawl": (0.45, 0.33, 0.28), "vask_blanket": (0.38, 0.30, 0.34),
@@ -1056,6 +1064,236 @@ def vask_walk(t):
 
 
 # =================================================================================
+#  The dead of Hollowrest
+#
+#  Three of them, and they have to be told apart at a glance across a dark
+#  graveyard: the zombie is a thick shambling thing with its arms out, the
+#  skeleton is a thin bright one with a rusted blade, and the wraith is a
+#  hooded robe with nothing in it and no feet on the ground.
+# =================================================================================
+
+def build_zombie():
+    r = Rig()
+    r.joint("pelvis", (0, 0, 0.60))
+    r.add("hips", E(0.17, 0.14, 0.12), "rot_cloth", "pelvis")
+    humanoid_legs(r, -0.04, 0.11, 0.26, 0.26, 0.075, "rot_cloth", "rot_cloth_dk", foot_col="rot_dk")
+    # Stooped, with one shoulder lower than the other: nothing about it is level.
+    r.joint("chest", (0, 0, 0.08), "pelvis", rest=(22, 0, 4))
+    r.add("torso", E(0.20, 0.15, 0.26), "rot", "chest", loc=(0, 0, 0.22))
+    r.add("shirt", E(0.21, 0.16, 0.16), "rot_cloth", "chest", loc=(0, 0.01, 0.12))
+    # A wound in the side with a rib showing through it.
+    r.add("wound", E(0.07, 0.05, 0.08), "rot_wound", "chest", loc=(0.11, -0.10, 0.26))
+    for k in range(2):
+        r.limb("rib", (-0.10, -0.12, 0.20 + k * 0.07), (0.04, -0.13, 0.22 + k * 0.07), 0.018, "bone_w",
+               "chest", r_tip=0.012)
+    humanoid_arms(r, 0.40, 0.21, 0.24, 0.23, 0.06, "rot", "rot_dk", flare=16)
+    for side in ("l", "r"):
+        for k in (-1, 0, 1):
+            r.limb("finger", (k * 0.035, -0.02, -0.05), (k * 0.05, -0.09, -0.08), 0.015, "rot_dk",
+                   "hand_" + side, r_tip=0.004)
+    r.joint("neck", (0, -0.03, 0.48), "chest", rest=(10, 0, 0))
+    r.joint("head", (0, -0.01, 0.08), "neck", rest=(-16, 0, 0))
+    r.add("skull", E(0.115, 0.12, 0.125), "rot", "head", loc=(0, 0, 0.08))
+    r.add("hair", E(0.115, 0.11, 0.06), "rot_cloth_dk", "head", loc=(0, 0.03, 0.14))
+    # The jaw hangs: the single clearest thing that says this one is dead.
+    r.add("jaw", E(0.075, 0.08, 0.05), "rot_dk", "head", loc=(0, -0.07, -0.03))
+    r.add("mouth", E(0.05, 0.04, 0.035), "rot_cloth_dk", "head", loc=(0, -0.08, 0.01))
+    for sx in (-1, 1):
+        r.add("socket", E(0.032, 0.025, 0.03), "rot_dk", "head", loc=(sx * 0.055, -0.095, 0.10))
+    r.add("eye", E(0.022, 0.018, 0.02), "rot_eye_glow", "head", loc=(-0.055, -0.105, 0.10))
+    r.pose.scale = (1.45, 1.45, 1.45)
+    return r
+
+
+def zom_idle(t):
+    s = sn(t)
+    return {"_z": 0.012 * s, "chest": (2 * s, 0, 4), "neck": X(2 * s), "head": (0, 0, 6 * sn(t, 0.3)),
+            "shoulder_l": fwd(58 + 4 * s), "elbow_l": X(-26), "shoulder_r": fwd(52 - 4 * s), "elbow_r": X(-34)}
+
+
+def zom_walk(t):
+    # A shamble: one leg drags, so the swing is lopsided and the body rolls.
+    s = sn(t)
+    return {"hip_l": fwd(26 * s), "hip_r": fwd(-14 * s), "knee_l": X(20 * max(0.0, -s)), "knee_r": X(8),
+            "_z": 0.02 * abs(s), "chest": (18, 0, 5 * s), "neck": X(6),
+            "shoulder_l": fwd(60), "elbow_l": X(-24), "shoulder_r": fwd(54), "elbow_r": X(-32),
+            "head": (0, 0, 8 * sn(t, 0.2))}
+
+
+def zom_attack(t):
+    i, k = phases(t, 0.38, 0.6, 1.0)
+    rest = {"shoulder_l": fwd(58), "elbow_l": X(-26), "shoulder_r": fwd(52), "elbow_r": X(-34), "chest": (20, 0, 4)}
+    rear = {"shoulder_r": fwd(-24), "elbow_r": X(-70), "chest": (6, 0, -12), "neck": X(-10), "_y": 0.06}
+    swipe = {"shoulder_r": fwd(78), "elbow_r": X(-10), "chest": (30, 0, 16), "neck": X(12), "_y": -0.20,
+             "hip_l": fwd(22), "shoulder_l": fwd(40)}
+    return [mix(rest, rear, k), mix(rear, swipe, k), mix(swipe, rest, k), rest][i]
+
+
+def zom_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"chest": (20 - 24 * k, 0, 4), "_y": 0.12 * k, "neck": X(-18 * k),
+            "shoulder_l": fwd(58 - 30 * k), "shoulder_r": fwd(52 - 26 * k)}
+
+
+def zom_death(t):
+    v = fall_back(t)
+    v.update({"shoulder_l": fwd(40 * (1 - ease(t))), "shoulder_r": fwd(36 * (1 - ease(t)))})
+    return v
+
+
+def build_skeleton():
+    r = Rig()
+    r.joint("pelvis", (0, 0, 0.60))
+    r.add("hips", E(0.13, 0.10, 0.09), "bone_g", "pelvis")
+    humanoid_legs(r, -0.03, 0.085, 0.27, 0.27, 0.042, "bone_w", "bone_g", foot_col="bone_g")
+    r.joint("chest", (0, 0, 0.07), "pelvis", rest=(6, 0, 0))
+    # A spine with a cage of ribs on it rather than a torso.
+    r.limb("spine", (0, 0.02, 0), (0, 0.02, 0.34), 0.035, "bone_g", "chest", r_tip=0.03)
+    for k in range(4):
+        wide = 0.145 - abs(k - 1) * 0.015
+        r.add("rib", E(wide, 0.075, 0.022), "bone_w", "chest", loc=(0, -0.01, 0.08 + k * 0.075))
+    r.add("sternum", E(0.035, 0.05, 0.14), "bone_w", "chest", loc=(0, -0.07, 0.17))
+    r.add("collar", E(0.16, 0.05, 0.03), "bone_w", "chest", loc=(0, -0.02, 0.36))
+    humanoid_arms(r, 0.36, 0.17, 0.23, 0.22, 0.035, "bone_w", "bone_g", flare=14)
+    for side in ("l", "r"):
+        for k in (-1, 0, 1):
+            r.limb("finger", (k * 0.025, -0.02, -0.03), (k * 0.04, -0.07, -0.06), 0.011, "bone_w",
+                   "hand_" + side, r_tip=0.003)
+    r.joint("neck", (0, 0, 0.42), "chest")
+    r.limb("vertebra", (0, 0.01, 0), (0, 0.01, 0.07), 0.028, "bone_g", "neck", r_tip=0.026)
+    r.joint("head", (0, 0, 0.08), "neck", rest=(-8, 0, 0))
+    r.add("skull", E(0.10, 0.105, 0.105), "bone_w", "head", loc=(0, 0, 0.07))
+    r.add("brow", E(0.10, 0.05, 0.03), "bone_g", "head", loc=(0, -0.07, 0.11))
+    r.add("jaw", E(0.075, 0.075, 0.035), "bone_w", "head", loc=(0, -0.05, -0.01))
+    for sx in (-1, 1):
+        r.add("socket", E(0.032, 0.02, 0.032), "bone_dk", "head", loc=(sx * 0.045, -0.085, 0.08))
+        r.add("spark", E(0.016, 0.012, 0.016), "rot_eye_glow", "head", loc=(sx * 0.045, -0.095, 0.08))
+        for k in range(3):
+            r.limb("tooth", (sx * (0.015 + k * 0.018), -0.075, 0.015), (sx * (0.015 + k * 0.018), -0.075, -0.005),
+                   0.008, "bone_w", "head", r_tip=0.003)
+    # A notched, rusted sword in the right hand, and a broken buckler on the left.
+    r.limb("blade", (0, 0, -0.02), (0, 0, 0.54), 0.035, "rust", "hand_r", r_tip=0.012)
+    r.add("edge", E(0.012, 0.012, 0.22), "rust_lt", "hand_r", loc=(0.02, 0, 0.30))
+    r.add("guard", E(0.09, 0.03, 0.02), "bone_g", "hand_r", loc=(0, 0, -0.02))
+    r.add("buckler", E(0.13, 0.04, 0.13), "rust", "hand_l", loc=(0, -0.04, -0.02))
+    r.add("boss", E(0.045, 0.03, 0.045), "rust_lt", "hand_l", loc=(0, -0.07, -0.02))
+    r.pose.scale = (1.4, 1.4, 1.4)
+    return r
+
+
+def skel_idle(t):
+    s = sn(t)
+    return {"_z": 0.01 * s, "chest": X(2 * s), "head": (0, 0, 5 * sn(t, 0.25)),
+            "shoulder_r": fwd(14), "elbow_r": X(-58), "hand_r": X(20),
+            "shoulder_l": fwd(20), "elbow_l": X(-64)}
+
+
+def skel_walk(t):
+    v = gait(t, 30, 26, 18, 0.025, 6)
+    v.update({"shoulder_r": fwd(16 + 6 * sn(t)), "elbow_r": X(-58), "hand_r": X(20),
+              "shoulder_l": fwd(22), "elbow_l": X(-64)})
+    return v
+
+
+def skel_attack(t):
+    i, k = phases(t, 0.36, 0.56, 1.0)
+    rest = {"shoulder_r": fwd(14), "elbow_r": X(-58), "hand_r": X(20), "shoulder_l": fwd(20), "elbow_l": X(-64)}
+    raise_ = {"shoulder_r": fwd(-74), "elbow_r": X(-96), "hand_r": X(30), "chest": (-6, 0, -14), "_y": 0.05}
+    chop = {"shoulder_r": fwd(64), "elbow_r": X(-12), "hand_r": X(10), "chest": (18, 0, 16), "_y": -0.20,
+            "hip_l": fwd(24), "hip_r": fwd(-16)}
+    return [mix(rest, raise_, k), mix(raise_, chop, k), mix(chop, rest, k), rest][i]
+
+
+def skel_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"chest": X(-16 * k), "_y": 0.12 * k, "neck": X(-16 * k), "head": (0, 0, 12 * k),
+            "shoulder_l": fwd(20 - 40 * k), "shoulder_r": fwd(14), "elbow_r": X(-58)}
+
+
+def skel_death(t):
+    # It comes apart rather than falling over: the pieces drop where they stood.
+    k = ease(t)
+    return {"_z": -0.34 * k, "_pitch": 24 * k, "chest": X(30 * k), "neck": X(40 * k), "head": (30 * k, 0, 40 * k),
+            "shoulder_l": (0, 0, -70 * k), "shoulder_r": (0, 0, 70 * k), "elbow_l": X(-80 * k),
+            "hip_l": fwd(-50 * k), "hip_r": fwd(40 * k), "knee_l": X(70 * k), "knee_r": X(60 * k)}
+
+
+def build_wraith():
+    """A robe with nothing in it: no feet, a hood with two lights in it, and
+    hands of bone at the ends of the sleeves."""
+    r = Rig()
+    r.joint("pelvis", (0, 0, 0.78))
+    # The robe: a wide skirt tapering to a wisp instead of legs.
+    r.add("skirt", C(0.24, 0.05, 0.52, squash_y=0.85), "shroud", "pelvis", loc=(0, 0.02, -0.18))
+    for k in range(3):
+        r.add("tatter", E(0.07 - k * 0.012, 0.05, 0.10), "shroud_dk", "pelvis",
+              loc=(-0.14 + k * 0.14, -0.02, -0.46 - k * 0.04))
+    r.add("wisp", E(0.07, 0.06, 0.09), "wisp_glow", "pelvis", loc=(0, 0.02, -0.52))
+    r.joint("chest", (0, 0, 0.10), "pelvis", rest=(6, 0, 0))
+    r.add("robe", E(0.22, 0.17, 0.24), "shroud", "chest", loc=(0, 0, 0.16))
+    r.add("mantle", E(0.25, 0.20, 0.10), "shroud_lt", "chest", loc=(0, 0.01, 0.30))
+    r.add("clasp", E(0.04, 0.03, 0.04), "grave_gold", "chest", loc=(0, -0.14, 0.30))
+    # Sleeves, with skeletal hands hanging out of them.
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("shoulder_" + side, (sx * 0.20, 0, 0.30), "chest", rest=(0, sx * -18, 0))
+        r.limb("sleeve", (0, 0, 0), (0, 0, -0.26), 0.075, "shroud", "shoulder_" + side, r_tip=0.055)
+        r.joint("elbow_" + side, (0, 0, -0.26), "shoulder_" + side, rest=(-30, 0, 0))
+        r.limb("cuff", (0, 0, 0), (0, 0, -0.18), 0.055, "shroud_dk", "elbow_" + side, r_tip=0.04)
+        r.joint("hand_" + side, (0, 0, -0.18), "elbow_" + side)
+        r.add("palm", E(0.045, 0.04, 0.05), "bone_w", "hand_" + side)
+        for k in (-1, 0, 1):
+            r.limb("finger", (k * 0.03, -0.02, -0.03), (k * 0.05, -0.07, -0.07), 0.012, "bone_w",
+                   "hand_" + side, r_tip=0.003)
+    # The hood, with the dark inside it and two lights where a face is not.
+    r.joint("neck", (0, 0, 0.44), "chest")
+    r.joint("head", (0, -0.01, 0.06), "neck", rest=(-10, 0, 0))
+    r.add("hood", E(0.135, 0.145, 0.15), "shroud_lt", "head", loc=(0, 0.01, 0.08))
+    r.add("hood_peak", E(0.07, 0.09, 0.09), "shroud_lt", "head", loc=(0, 0.06, 0.18))
+    r.add("dark", E(0.095, 0.05, 0.10), "shroud_dk", "head", loc=(0, -0.10, 0.07))
+    for sx in (-1, 1):
+        r.add("light", E(0.026, 0.02, 0.026), "wisp_glow", "head", loc=(sx * 0.045, -0.13, 0.09))
+    r.pose.scale = (1.3, 1.3, 1.3)
+    return r
+
+
+def wraith_idle(t):
+    s = sn(t)
+    # It does not stand: it hangs, and drifts.
+    return {"_z": 0.05 * s, "chest": X(3 * s), "head": (0, 0, 7 * sn(t, 0.3)),
+            "shoulder_l": (0, -10 - 6 * s, 0), "shoulder_r": (0, 10 + 6 * s, 0), "pelvis": (0, 0, 4 * s)}
+
+
+def wraith_walk(t):
+    s = sn(t)
+    return {"_z": 0.07 * s, "_y": 0.02 * sn(t, 0.25), "chest": X(5 * s),
+            "shoulder_l": (0, -16 - 10 * s, 0), "shoulder_r": (0, 16 + 10 * s, 0),
+            "head": (0, 0, 10 * sn(t, 0.2))}
+
+
+def wraith_attack(t):
+    i, k = phases(t, 0.40, 0.58, 1.0)
+    rest = {"shoulder_l": (0, -10, 0), "shoulder_r": (0, 10, 0)}
+    gather = {"_z": 0.14, "chest": X(-12), "shoulder_l": fwd(-40), "shoulder_r": fwd(-40),
+              "elbow_l": X(-70), "elbow_r": X(-70)}
+    reach = {"_z": 0.02, "_y": -0.26, "chest": X(20), "shoulder_l": fwd(84), "shoulder_r": fwd(84),
+             "elbow_l": X(-6), "elbow_r": X(-6), "head": X(10)}
+    return [mix(rest, gather, k), mix(gather, reach, k), mix(reach, rest, k), rest][i]
+
+
+def wraith_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"chest": X(-20 * k), "_y": 0.14 * k, "_z": 0.06 * k,
+            "shoulder_l": (0, -30 * k, 0), "shoulder_r": (0, 30 * k, 0)}
+
+
+def wraith_death(t):
+    # It sinks and folds in on itself instead of falling.
+    k = ease(t)
+    return {"_z": -0.46 * k, "chest": X(40 * k), "neck": X(30 * k), "head": X(20 * k),
+            "shoulder_l": fwd(-30 * k), "shoulder_r": fwd(-30 * k), "_roll": 12 * k}
+
+
+# =================================================================================
 #  The roster
 # =================================================================================
 CREATURES = {
@@ -1069,6 +1307,9 @@ CREATURES = {
     "imp":       (build_imp,       48, (imp_idle, imp_walk, imp_attack, imp_hurt, imp_death),            0.22),
     "frost_dragon": (build_dragon, 144, (drake_idle, drake_walk, drake_attack, drake_hurt, drake_death), 0.92),
     "vask":      (build_vask,      64, (vask_idle, vask_walk, vask_idle, vask_idle, vask_idle),         0.52),
+    "zombie":    (build_zombie,    64, (zom_idle, zom_walk, zom_attack, zom_hurt, zom_death),           0.36),
+    "skeleton":  (build_skeleton,  64, (skel_idle, skel_walk, skel_attack, skel_hurt, skel_death),      0.30),
+    "wraith":    (build_wraith,    64, (wraith_idle, wraith_walk, wraith_attack, wraith_hurt, wraith_death), 0.26),
 }
 CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False), ("death", 6, False)]
 FACINGS = bc.FACINGS

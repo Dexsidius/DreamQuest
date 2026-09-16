@@ -1125,5 +1125,47 @@
       "legendary"
     ],
     "icon": "assets/icons/tiers/drowned_king_boots.png"
+  },
+  "rotten_flesh": {
+    "tags": [
+      "trophy"
+    ],
+    "name": "Rotten Flesh",
+    "desc": "Cold, grey and still on the bone in places. Somebody will buy it. Do not ask what for.",
+    "stack": true,
+    "value": 14,
+    "icon": "assets/icons/tiers/rotten_flesh.png"
+  },
+  "tarnished_ring": {
+    "tags": [
+      "trophy",
+      "gem"
+    ],
+    "name": "Tarnished Ring",
+    "desc": "Silver gone black, with a dull stone in it. It was buried with somebody who could afford better.",
+    "stack": true,
+    "value": 165,
+    "icon": "assets/icons/tiers/tarnished_ring.png"
+  },
+  "mourning_locket": {
+    "tags": [
+      "trophy",
+      "gem"
+    ],
+    "name": "Mourning Locket",
+    "desc": "A lock of somebody's hair behind a hinged case. The catch still works.",
+    "stack": true,
+    "value": 230,
+    "icon": "assets/icons/tiers/mourning_locket.png"
+  },
+  "grave_candle": {
+    "tags": [
+      "trophy"
+    ],
+    "name": "Grave Candle",
+    "desc": "A stub of funeral wax that has burned longer than it had any business burning.",
+    "stack": true,
+    "value": 48,
+    "icon": "assets/icons/tiers/grave_candle.png"
   }
 }

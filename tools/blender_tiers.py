@@ -855,6 +855,11 @@ bc.PALETTE.update({
     "parchment": (0.90, 0.83, 0.64), "parchment_dk": (0.72, 0.62, 0.44), "rod_wood": (0.40, 0.26, 0.16),
     "seal": (0.72, 0.14, 0.14), "ink": (0.26, 0.20, 0.18),
     "fang_ice": (0.92, 0.96, 0.99), "fang_root": (0.74, 0.82, 0.90), "fang_glow": (0.78, 0.96, 1.00),
+    # What the dead of Hollowrest leave behind.
+    "rot_meat": (0.48, 0.34, 0.33), "rot_meat_lt": (0.62, 0.47, 0.44), "rot_mould": (0.46, 0.55, 0.36),
+    "bone_pale": (0.88, 0.86, 0.78), "tarnish": (0.42, 0.44, 0.40), "tarnish_lt": (0.60, 0.60, 0.52),
+    "grave_stone_gem": (0.34, 0.30, 0.42), "locket_hair": (0.36, 0.26, 0.20),
+    "wax": (0.84, 0.82, 0.72), "wax_lt": (0.93, 0.92, 0.85), "candle_flame": (1.00, 0.84, 0.42),
     "bog_leather": (0.20, 0.22, 0.18), "bog_leather_lt": (0.28, 0.30, 0.24), "bog_sole": (0.14, 0.15, 0.13),
     "drowned_gold": (0.78, 0.66, 0.30), "bog_weed": (0.36, 0.48, 0.26), "bog_glow": (0.56, 0.86, 0.72),
 })
@@ -1057,6 +1062,40 @@ def build_trophy(name, parent):
         for k in range(3):
             parts.append(bc.part("rime", bc.mesh_ellipsoid(0.035, 0.03, 0.03), "fang_glow", parent,
                                  loc=(-0.07 + k * 0.03, -0.02, -0.22 + k * 0.05)))
+    elif name == "rotten_flesh":
+        # A lump of something that was meat, with a rib still in it.
+        parts.append(bc.part("meat", bc.mesh_ellipsoid(0.18, 0.10, 0.13), "rot_meat", parent))
+        parts.append(bc.part("fat", bc.mesh_ellipsoid(0.11, 0.06, 0.07), "rot_meat_lt", parent,
+                             loc=(-0.04, -0.05, 0.04)))
+        parts.append(bc.part("mould", bc.mesh_ellipsoid(0.06, 0.04, 0.05), "rot_mould", parent,
+                             loc=(0.07, -0.05, -0.03)))
+        parts.append(bc.spike("rib", (0.10, -0.02, -0.02), (0.22, -0.02, 0.10), 0.022, "bone_pale", parent,
+                              r_tip=0.008))
+    elif name == "tarnished_ring":
+        parts.append(bc.part("band", bc.mesh_torus(0.15, 0.035), "tarnish", parent,
+                             rot=(math.radians(64), 0, math.radians(14))))
+        parts.append(bc.part("shoulder", bc.mesh_ellipsoid(0.06, 0.04, 0.05), "tarnish_lt", parent,
+                             loc=(0, -0.03, 0.14)))
+        parts.append(bc.part("stone", mesh_gem(0.055, 0.04, 0.05), "grave_stone_gem", parent, loc=(0, -0.05, 0.18)))
+    elif name == "mourning_locket":
+        parts.append(bc.part("case", bc.mesh_ellipsoid(0.13, 0.05, 0.16), "tarnish_lt", parent, loc=(0, 0, -0.04)))
+        parts.append(bc.part("lid", bc.mesh_ellipsoid(0.11, 0.04, 0.13), "tarnish", parent,
+                             loc=(0.05, -0.05, 0.02), rot=(0, math.radians(26), 0)))
+        parts.append(bc.part("hair", bc.mesh_ellipsoid(0.06, 0.02, 0.07), "locket_hair", parent, loc=(0, -0.04, -0.04)))
+        parts.append(bc.part("loop", bc.mesh_torus(0.035, 0.014), "tarnish", parent,
+                             loc=(0, 0, 0.14), rot=(math.radians(90), 0, 0)))
+        for k in range(5):
+            parts.append(bc.part("link", bc.mesh_torus(0.028, 0.011), "tarnish", parent,
+                                 loc=(-0.05 - k * 0.045, 0, 0.19 + k * 0.03),
+                                 rot=(math.radians(90), 0, math.radians(40))))
+    elif name == "grave_candle":
+        parts.append(bc.part("stub", bc.mesh_capsule(0.075, 0.08, 0.26), "wax", parent, loc=(0, 0, 0.12)))
+        for k in range(3):
+            parts.append(bc.part("drip", bc.mesh_ellipsoid(0.028, 0.028, 0.06), "wax_lt", parent,
+                                 loc=(-0.06 + k * 0.06, -0.06, -0.02 - k * 0.02)))
+        parts.append(bc.part("pool", bc.mesh_ellipsoid(0.13, 0.11, 0.025), "wax_lt", parent, loc=(0, 0, -0.13)))
+        parts.append(bc.spike("wick", (0, 0, 0.12), (0, 0, 0.19), 0.012, "ink", parent, r_tip=0.005))
+        parts.append(bc.part("flame", mesh_gem(0.045, 0.04, 0.075), "candle_flame", parent, loc=(0, 0, 0.25)))
     elif name == "demon_horn":
         pts = [(-0.18, 0, -0.20), (-0.14, 0, 0.04), (0.0, 0, 0.20), (0.18, 0, 0.18)]
         for i in range(3):
@@ -1065,7 +1104,8 @@ def build_trophy(name, parent):
     return parts
 
 
-TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn", "dragon_fang"]
+TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn", "dragon_fang",
+                "rotten_flesh", "tarnished_ring", "mourning_locket", "grave_candle"]
 
 
 def build_drowned_boots(parent):

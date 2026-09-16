@@ -184,6 +184,26 @@
                                                "w":  16,
                                                "h":  16
                                            },
+                   "tiles/grave_earth":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/grave_earth_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/grave_grass":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/grave_grass_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/grave_grass_2":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
                    "tiles/guild_floor":  {
                                              "w":  32,
                                              "h":  32
@@ -1244,6 +1264,10 @@
                                               "w":  48,
                                               "h":  48
                                           },
+                   "props/crypt":  {
+                                       "w":  176,
+                                       "h":  176
+                                   },
                    "props/dining_table":  {
                                               "w":  56,
                                               "h":  56
@@ -1260,6 +1284,22 @@
                                        "w":  96,
                                        "h":  96
                                    },
+                   "props/grave_fence":  {
+                                             "w":  72,
+                                             "h":  72
+                                         },
+                   "props/grave_mound":  {
+                                             "w":  64,
+                                             "h":  64
+                                         },
+                   "props/gravestone":  {
+                                            "w":  48,
+                                            "h":  48
+                                        },
+                   "props/gravestone_cross":  {
+                                                  "w":  52,
+                                                  "h":  52
+                                              },
                    "props/grindstone":  {
                                             "w":  48,
                                             "h":  48
@@ -1400,6 +1440,10 @@
                                           "w":  48,
                                           "h":  48
                                       },
+                   "props/lych_gate":  {
+                                           "w":  144,
+                                           "h":  144
+                                       },
                    "props/market_stall":  {
                                               "w":  80,
                                               "h":  80

@@ -1478,7 +1478,7 @@ at dawn; the shards for Mira are gathered in the Reverie and handed in awake.
 
 ## The world
 
-`maps/overworld.mx` is 4736 × 3456 pixels — about nine screens across — and
+`maps/overworld.mx` is 4736 × 3968 pixels — about nine screens across and seven down — and
 the camera scrolls it as a viewport on the player. Biomes: meadow, greenwood,
 northern foothills, the Mire, and the Cursed Reach, joined by the Sunken Road,
 with the Whisperwood trail leaving from the east.
@@ -1570,7 +1570,7 @@ Whisperwood.
   and cracked stones, scorch cracks on the Cursed Reach, and sedge and puddles
   in the Mire -- and genmaps lays each only on its own ground.
 - **Room to the west.** The Mire ran into the edge of the world. The Hollowmarch
-  has grown twenty cells west and twelve south, out of the same noise, so the
+  has grown twenty cells west and twenty-eight south, out of the same noise, so the
   swamp, its bog pools and lizardmen, the river and the foothills carry on
   instead of stopping. The north and east edges, where the ways out are, did not
   move. So nothing already built had to be renumbered, the old cells kept their
@@ -1592,6 +1592,40 @@ peat and mud -- with **pools of bog water** that cannot be walked through, reeds
 and bulrushes round their edges, lily pads on them, and drowned trees hung with
 moss. The dirt decals are no longer laid on it. The pools keep clear of the
 barrow, the chest, the bogbean patch and the camp.
+
+### Hollowrest
+
+South of Havenbrook, out where the meadow runs into the Mire, the burying
+ground: **its own biome**, dead grass and turned earth inside an iron fence,
+thirty-six cells across and twenty-two deep. A lych gate at the north with a
+lantern somebody still lights, a second gap in the east wall where the railing
+has come down, two aisles crossing the field, a hundred-odd headstones and
+leaning crosses with grass between them, dug graves with the spade still in
+them, drowned trees left where they stood, and the crypt at the south end with
+the family's wight in front of its door. There is a chest in the yard for
+anyone who walks the whole of it.
+
+The dead are laid out by where they lie rather than in a knot: **skeletons** out
+along the fence, **shamblers** among the newer graves in the east, and
+**wraiths** in the old sunken western half. They stand three cells apart, on a
+lattice, and notice you late, which is the point -- the first version of the
+yard was a plot the size of a room, and opening the gate woke every grave in it
+at once. A graveyard should be a place you walk into, not a fight you fall into.
+
+| What it is | What it leaves |
+| --- | --- |
+| **Shambler** (zombie) | its own rotten flesh, and whatever money was in its pockets |
+| **Skeleton** | bones, and nothing else: there is nothing else left of it |
+| **Wraith** | what it was buried in -- grave candles, tarnished rings, mourning lockets: oddments for a trader |
+| **The Hollowrest Wight** | lockets, rings, candles by the handful, coins, and a piece of good steel |
+
+Each of the three is its own creature in `tools/blender_creatures.py`, built to
+be told apart across a dark field: the zombie thick and stooped with its arms
+out and its jaw hanging, the skeleton thin and bright with a rusted sword and a
+broken buckler, and the wraith a hooded robe with two lights in it and a wisp
+where its feet should be. The yard's own props -- headstone, cross, dug grave,
+railing, lych gate and crypt -- are in `tools/blender_props.py`, and the ground
+is two new tiles from `tools/make_ground.ps1`.
 
 ### The lizardmen
 
@@ -1630,6 +1664,10 @@ and their chief.
 | Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, adamantium gear |
 | Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
 | **Hoarfang** | its own ground above the summit | 62 | dragon fangs, scales, diamond and platinum, diamond gear |
+| Shambler | Hollowrest, among the graves | 12-15 | rotten flesh, coins |
+| Skeleton | Hollowrest, along the fence | 15-18 | bones |
+| Wraith | Hollowrest, the old western half | 17-20 | grave candles, tarnished rings, mourning lockets |
+| The Hollowrest Wight | in front of the crypt | 26 | lockets, rings, candles, coins, steel |
 | Imp | the Ashen Path and the pit | 30-34 | coins, emberbloom, platinum ore, the odd horn |
 | Demon | the hellgate and the pit | 40-43 | demon horns, demonrite ore, platinum gear |
 | The Pit Lord | the pit's last room | 54 | horns, demonrite bars and gear |
@@ -1730,7 +1768,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **11308 checks** covering:
+and checks all of it — currently **11676 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1875,6 +1913,12 @@ and checks all of it — currently **11308 checks** covering:
   itself, is gated on the quest, and is the only place in the world they exist;
   and the quest is Orlend's, only after the barrow, with opening that chest as
   its middle stage
+- Hollowrest: it is ground of its own with its fence, gate, crypt and a field
+  of markers; zombies, skeletons and wraiths walk in it and the wight holds the
+  crypt; none of them has wandered outside the fence; each has its own table,
+  and those tables say what they should -- a zombie leaves flesh and money and
+  nothing else, a skeleton leaves bones and nothing else, and everything a
+  wraith leaves is worth carrying to a trader
 - the dragon and its quest: Hoarfang is a boss, stands above everything else on
   the Ice Spire, holds its own ground there, exists exactly once in the world
   and has all five clips drawn; the hunt is a story quest from Elder Vask that a

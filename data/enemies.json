@@ -712,5 +712,132 @@
       255
     ],
     "boss": true
+  },
+  "zombie": {
+    "name": "Shambler",
+    "sprite": "zombie",
+    "hp": 34,
+    "attack": 12,
+    "strength": 14,
+    "defence": 8,
+    "attack_bonus": 12,
+    "strength_bonus": 14,
+    "defence_bonus": 10,
+    "speed": 34,
+    "aggro": 140,
+    "attack_range": 34,
+    "attack_cooldown": 1.9,
+    "loot": "zombie",
+    "kill_target": "zombie",
+    "foot_box": [
+      -10,
+      -12,
+      20,
+      12
+    ],
+    "body_box": [
+      -14,
+      -44,
+      28,
+      44
+    ],
+    "element": "earth"
+  },
+  "skeleton": {
+    "name": "Skeleton",
+    "sprite": "skeleton",
+    "hp": 26,
+    "attack": 15,
+    "strength": 13,
+    "defence": 12,
+    "attack_bonus": 16,
+    "strength_bonus": 13,
+    "defence_bonus": 12,
+    "speed": 52,
+    "aggro": 165,
+    "attack_range": 38,
+    "attack_cooldown": 1.4,
+    "loot": "skeleton",
+    "kill_target": "skeleton",
+    "foot_box": [
+      -9,
+      -11,
+      18,
+      11
+    ],
+    "body_box": [
+      -13,
+      -44,
+      26,
+      44
+    ],
+    "element": "earth"
+  },
+  "wraith": {
+    "name": "Wraith",
+    "sprite": "wraith",
+    "hp": 30,
+    "attack": 17,
+    "strength": 15,
+    "defence": 10,
+    "attack_bonus": 18,
+    "strength_bonus": 15,
+    "defence_bonus": 10,
+    "speed": 44,
+    "aggro": 170,
+    "attack_range": 40,
+    "attack_cooldown": 1.7,
+    "loot": "wraith",
+    "kill_target": "wraith",
+    "foot_box": [
+      -9,
+      -10,
+      18,
+      10
+    ],
+    "body_box": [
+      -13,
+      -46,
+      26,
+      46
+    ],
+    "element": "air"
+  },
+  "barrow_wight": {
+    "name": "The Hollowrest Wight",
+    "sprite": "wraith",
+    "hp": 180,
+    "attack": 26,
+    "strength": 26,
+    "defence": 22,
+    "attack_bonus": 28,
+    "strength_bonus": 26,
+    "defence_bonus": 24,
+    "speed": 46,
+    "aggro": 150,
+    "attack_range": 46,
+    "attack_cooldown": 1.8,
+    "loot": "barrow_wight",
+    "kill_target": "wraith",
+    "foot_box": [
+      -12,
+      -13,
+      24,
+      13
+    ],
+    "body_box": [
+      -18,
+      -62,
+      36,
+      62
+    ],
+    "element": "air",
+    "scale": 1.45,
+    "tint": [
+      180,
+      210,
+      255
+    ],
+    "boss": true
   }
 }

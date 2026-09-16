@@ -2951,6 +2951,176 @@ def prop_rowboat():
     return (3.0, 46.0)
 
 
+# -----------------------------------------------------------------------------
+#  Hollowrest: the graveyard in the south of the Hollowmarch
+#
+#  Everything here is meant to be read at a glance from above and in the dark:
+#  pale stone against dead grass, and silhouettes that are nothing else on the
+#  map -- a round-topped headstone, a leaning cross, a fresh mound with the
+#  spade still in it, a railing of spear-tipped iron, a lych gate to walk in
+#  through and a crypt at the far end.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    # Cool grey, not warm: under this light a stone mixed toward yellow comes
+    # out pink, and a graveyard full of pink stones reads as sandstone.
+    "granite":     (0.470, 0.500, 0.520),
+    "granite_lt":  (0.620, 0.650, 0.665),
+    "granite_dk":  (0.300, 0.325, 0.345),
+    "grave_moss":  (0.360, 0.450, 0.290),
+    "grave_earth": (0.300, 0.250, 0.200),
+    "grave_earth_lt": (0.400, 0.340, 0.270),
+    "grave_iron":  (0.220, 0.225, 0.240),
+    "grave_iron_lt": (0.360, 0.370, 0.390),
+    "crypt_dark":  (0.050, 0.048, 0.055),
+    "candle_glow": (1.000, 0.870, 0.520),
+})
+
+
+def _weathering(rng, parent, n, x_span, z_span, colour="granite_dk"):
+    """Chips and lichen on a face of stone, so no two markers are the same."""
+    for k in range(n):
+        sphere("wear_%d" % k, rng.uniform(0.02, 0.05),
+               (rng.uniform(-x_span, x_span), -0.06, rng.uniform(0.05, z_span)), colour)
+
+
+def prop_gravestone():
+    """A round-topped headstone, leaning, with moss up the back of it."""
+    import random
+    rng = random.Random(3)
+    lean = math.radians(-6)
+    blk("stone", (0.46, 0.14, 0.62), (0, 0, 0.34), "granite", rot=(lean, 0, 0), bev=0.03)
+    cyl("top", 0.23, 0.14, (0, 0.035, 0.64), "granite", rot=(math.radians(90), 0, 0), verts=16)
+    blk("face", (0.34, 0.04, 0.42), (0, -0.08, 0.36), "granite_lt", rot=(lean, 0, 0), bev=0.02)
+    for k in range(3):
+        blk("line", (0.20 - k * 0.03, 0.02, 0.02), (0, -0.11, 0.48 - k * 0.09), "granite_dk", bev=0)
+    blk("base", (0.56, 0.24, 0.10), (0, 0, 0.05), "granite_dk", bev=0.02)
+    for k in range(4):
+        sphere("moss_%d" % k, rng.uniform(0.05, 0.09),
+               (rng.uniform(-0.2, 0.2), 0.08, rng.uniform(0.05, 0.3)), "grave_moss")
+    _weathering(rng, None, 3, 0.18, 0.5)
+    return 1.5
+
+
+def prop_gravestone_cross():
+    """A stone cross, leaning harder than the headstone does."""
+    import random
+    rng = random.Random(5)
+    lean = math.radians(-11)
+    blk("shaft", (0.16, 0.14, 0.86), (0, 0, 0.46), "granite", rot=(lean, 0, 0), bev=0.03)
+    blk("arms", (0.56, 0.13, 0.15), (0, -0.09, 0.66), "granite", rot=(lean, 0, 0), bev=0.03)
+    blk("boss", (0.17, 0.10, 0.17), (0, -0.12, 0.66), "granite_lt", rot=(lean, 0, 0), bev=0.04)
+    blk("base", (0.40, 0.26, 0.12), (0, 0, 0.06), "granite_dk", bev=0.02)
+    for k in range(3):
+        sphere("moss_%d" % k, rng.uniform(0.05, 0.08),
+               (rng.uniform(-0.16, 0.16), 0.07, rng.uniform(0.06, 0.34)), "grave_moss")
+    return 1.6
+
+
+def prop_grave_mound():
+    """A grave dug and filled in again this week: turned earth, a plank marker
+    and the spade left standing in it."""
+    import random
+    rng = random.Random(7)
+    mound = sphere("mound", 0.5, (0, 0, 0.0), "grave_earth")
+    mound.scale = (0.72, 1.05, 0.34)
+    for k in range(9):
+        clod = sphere("clod_%d" % k, rng.uniform(0.05, 0.10),
+                      (rng.uniform(-0.3, 0.3), rng.uniform(-0.45, 0.45), rng.uniform(0.10, 0.17)),
+                      "grave_earth_lt" if k % 2 else "grave_earth")
+        clod.scale = (1.2, 1.2, 0.7)
+    blk("marker", (0.26, 0.05, 0.34), (0, 0.42, 0.21), "oak", rot=(math.radians(-8), 0, 0), bev=0.02)
+    blk("marker_bar", (0.34, 0.04, 0.06), (0, 0.40, 0.30), "oak_light", bev=0.02)
+    blk("spade_haft", (0.05, 0.05, 0.60), (0.30, -0.22, 0.32), "oak_light", rot=(0, math.radians(14), 0))
+    blk("spade_grip", (0.14, 0.05, 0.06), (0.36, -0.22, 0.60), "oak_light", bev=0.02)
+    blk("spade_blade", (0.18, 0.06, 0.20), (0.22, -0.22, 0.10), "iron", rot=(0, math.radians(14), 0), bev=0.02)
+    return 1.9
+
+
+def prop_grave_fence():
+    """A length of spear-tipped iron railing, laid end to end round the yard."""
+    n = 7
+    step = 0.26
+    width = step * (n - 1)
+    for i in range(n):
+        x = -width / 2 + i * step
+        cyl("bar_%d" % i, 0.026, 0.92, (x, 0, 0.46), "grave_iron", verts=8)
+        cone("tip_%d" % i, 0.05, 0.16, (x, 0, 0.98), "grave_iron_lt", verts=8)
+    for z in (0.24, 0.74):
+        blk("rail_%.2f" % z, (width + 0.16, 0.05, 0.05), (0, 0, z), "grave_iron", bev=0.01)
+    for sx in (-1, 1):
+        cyl("post_%d" % sx, 0.05, 1.10, (sx * (width / 2 + 0.10), 0, 0.55), "grave_iron", verts=10)
+        blk("cap_%d" % sx, (0.13, 0.13, 0.07), (sx * (width / 2 + 0.10), 0, 1.12), "grave_iron_lt", bev=0.02)
+    return 2.3
+
+
+def prop_lych_gate():
+    """The way in: two stone piers, an iron gate standing open, and a little
+    shingled roof over the whole thing for the bearers to stand under."""
+    for sx in (-1, 1):
+        blk("pier_%d" % sx, (0.34, 0.34, 1.30), (sx * 0.92, 0, 0.65), "granite", bev=0.04)
+        blk("cap_%d" % sx, (0.44, 0.44, 0.12), (sx * 0.92, 0, 1.36), "granite_lt", bev=0.03)
+        sphere("finial_%d" % sx, 0.13, (sx * 0.92, 0, 1.50), "granite_lt")
+        # A leaf of the gate, swung back against its pier.
+        for k in range(4):
+            cyl("bar_%d_%d" % (sx, k), 0.022, 0.86, (sx * (0.70 - k * 0.14), 0.24 + k * 0.03, 0.46),
+                "grave_iron", verts=8)
+        blk("leaf_rail_%d" % sx, (0.60, 0.05, 0.05), (sx * 0.52, 0.28, 0.80), "grave_iron", bev=0.01)
+    # The roof over the gateway: two slopes on a pair of tie beams.
+    blk("beam", (2.30, 0.18, 0.14), (0, 0, 1.46), "oak", bev=0.02)
+    for sx in (-1, 1):
+        blk("rafter_%d" % sx, (1.30, 0.06, 0.10), (sx * 0.58, 0, 1.76), "oak",
+            rot=(0, sx * math.radians(34), 0), bev=0.02)
+        blk("shingle_%d" % sx, (1.38, 1.10, 0.09), (sx * 0.56, 0, 1.78), "shingle",
+            rot=(0, sx * math.radians(34), 0), bev=0.02)
+    blk("ridge", (0.16, 1.16, 0.10), (0, 0, 2.10), "shingle_dk", bev=0.02)
+    # A lantern hung under the roof, because somebody still keeps it lit.
+    blk("hook", (0.04, 0.04, 0.22), (0, -0.30, 1.36), "iron")
+    blk("lantern", (0.16, 0.16, 0.20), (0, -0.30, 1.16), "candle_glow", emit=1.3, bev=0.03)
+    blk("lantern_cap", (0.20, 0.20, 0.05), (0, -0.30, 1.28), "iron", bev=0.02)
+    return (3.6, BUILDING_ELEVATION)
+
+
+def prop_crypt():
+    """The mausoleum at the head of the yard: a stone house for one family,
+    with a barred door, a pediment, and urns either side of the step."""
+    import random
+    rng = random.Random(11)
+    W, D, H = 2.10, 1.70, 1.15
+    blk("plinth", (W + 0.30, D + 0.26, 0.18), (0, 0, 0.09), "granite_dk", bev=0.03)
+    blk("body", (W, D, H), (0, 0, 0.18 + H / 2), "granite", bev=0.04)
+    # Pilasters at the corners, and a course under the roof.
+    for sx in (-1, 1):
+        blk("pilaster_%d" % sx, (0.20, 0.20, H), (sx * (W / 2 - 0.08), -D / 2 + 0.06, 0.18 + H / 2),
+            "granite_lt", bev=0.03)
+    blk("cornice", (W + 0.22, D + 0.20, 0.16), (0, 0, 0.18 + H + 0.06), "granite_lt", bev=0.03)
+    # A shallow pitched roof with a pediment facing the yard.
+    for sx in (-1, 1):
+        blk("roof_%d" % sx, (W * 0.66, D + 0.20, 0.13), (sx * W * 0.27, 0, 0.18 + H + 0.30),
+            "granite_dk", rot=(0, sx * math.radians(26), 0), bev=0.03)
+        # Courses of slate, so the roof is not one flat grey lid.
+        for k in range(3):
+            blk("slate_%d_%d" % (sx, k), (W * 0.60, 0.05, 0.03),
+                (sx * W * 0.27, -D / 2 + 0.35 + k * 0.42, 0.18 + H + 0.30 + 0.07),
+                "granite", rot=(0, sx * math.radians(26), 0), bev=0)
+    blk("ridge", (0.18, D + 0.18, 0.10), (0, 0, 0.18 + H + 0.52), "granite_lt", bev=0.03)
+    blk("pediment", (W * 0.78, 0.12, 0.34), (0, -D / 2 - 0.02, 0.18 + H + 0.18), "granite_lt", bev=0.03)
+    # The doorway: dark, barred, with a step up to it.
+    blk("dark", (0.86, 0.30, 0.98), (0, -D / 2 + 0.16, 0.66), "crypt_dark", bev=0)
+    for k in range(4):
+        cyl("bar_%d" % k, 0.025, 1.00, (-0.27 + k * 0.18, -D / 2 + 0.02, 0.70), "grave_iron", verts=8)
+    blk("lintel", (0.96, 0.18, 0.16), (0, -D / 2 + 0.02, 1.28), "granite_lt", bev=0.03)
+    blk("step", (1.10, 0.36, 0.10), (0, -D / 2 - 0.20, 0.10), "granite_dk", bev=0.02)
+    # Urns on the step, and moss creeping up the north side.
+    for sx in (-1, 1):
+        cyl("urn_%d" % sx, 0.13, 0.26, (sx * 0.72, -D / 2 - 0.16, 0.28), "granite_lt", verts=12)
+        cyl("urn_lip_%d" % sx, 0.15, 0.05, (sx * 0.72, -D / 2 - 0.16, 0.43), "granite", verts=12)
+    for k in range(7):
+        sphere("moss_%d" % k, rng.uniform(0.07, 0.13),
+               (rng.uniform(-W / 2, W / 2), D / 2 - 0.05, rng.uniform(0.2, 1.2)), "grave_moss")
+    return (4.4, BUILDING_ELEVATION)
+
+
 AREA_PROPS = {
     "reeds": (prop_reeds, 48), "lily_pads": (prop_lily_pads, 40), "swamp_tree": (prop_swamp_tree, 72),
     "lizard_hut": (prop_lizard_hut, 128), "lizard_totem": (prop_lizard_totem, 56),
@@ -2961,6 +3131,9 @@ AREA_PROPS = {
     "barrow_mound": (prop_barrow_mound, 208), "dungeon_stairs_up": (prop_dungeon_stairs_up, 96),
     "dungeon_stairs_down": (prop_dungeon_stairs_down, 80),
     "sawmill": (prop_sawmill, 144), "ore_cart": (prop_ore_cart, 96), "rowboat": (prop_rowboat, 128),
+    "gravestone": (prop_gravestone, 48), "gravestone_cross": (prop_gravestone_cross, 52),
+    "grave_mound": (prop_grave_mound, 64), "grave_fence": (prop_grave_fence, 72),
+    "lych_gate": (prop_lych_gate, 144), "crypt": (prop_crypt, 176),
 }
 HERB_PROPS.update(AREA_PROPS)
 

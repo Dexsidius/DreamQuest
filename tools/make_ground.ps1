@@ -385,7 +385,10 @@ $wild = @(
     # The Ice Spire's cliffs, a step darker than its trodden track, and the
     # cinders either side of the Ashen Path.
     @{ name = "crag";        rgb = @( 88,  96, 110); kind = "earth";  variants = 2 },
-    @{ name = "cinder";      rgb = @( 62,  52,  50); kind = "sand";   variants = 3 }
+    @{ name = "cinder";      rgb = @( 62,  52,  50); kind = "sand";   variants = 3 },
+    # Hollowrest: grass that nothing grazes, and the earth of a dug plot.
+    @{ name = "grave_grass"; rgb = @( 96, 102,  80); kind = "grass";  variants = 3 },
+    @{ name = "grave_earth"; rgb = @( 74,  68,  58); kind = "earth";  variants = 2 }
 )
 foreach ($f in $wild) {
     $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])

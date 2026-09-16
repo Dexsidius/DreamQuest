@@ -590,7 +590,7 @@ static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
 
 // --- overworld ---------------------------------------------------------------
 
-enum Biome { MEADOW, GREENWOOD, FOOTHILLS, MIRE, CURSED, WATER, ROAD, TRAIL };
+enum Biome { MEADOW, GREENWOOD, FOOTHILLS, MIRE, CURSED, GRAVEYARD, WATER, ROAD, TRAIL };
 
 static const int OW_CELL = 32;
 // The Hollowmarch was 128 by 96 cells, and the Mire in its south-west corner
@@ -600,9 +600,9 @@ static const int OW_CELL = 32;
 // land is at negative cells, OW_X0 to -1, and MapBuilder::ox shifts it all
 // onto the map. The north and east edges, where the ways out are, stay put.
 static const int OW_X0 = -20;                           // westmost cell
-static const int OW_W = 128, OW_H = 108;                // east edge, south edge (cells)
+static const int OW_W = 128, OW_H = 124;                // east edge, south edge (cells)
 static const int OW_PX_W = OW_W * OW_CELL;              // the east edge, in the old x
-static const int OW_PX_H = OW_H * OW_CELL;              // 3456
+static const int OW_PX_H = OW_H * OW_CELL;              // 3968
 
 // Which variant of a ground family a cell gets.
 //
@@ -642,6 +642,34 @@ static bool OnTrail(int cx, int cy, float half = 1.2f) {
     return cx >= RoadX(TRAIL_JUNCTION_CY) + 1.0f && fabsf(cy - TrailY(cx)) < half;
 }
 
+// Hollowrest, the burying ground south-west of Havenbrook: its own patch of
+// dead grass and turned earth inside an iron fence, out on the flat where the
+// meadow runs into the Mire. An ellipse with the edge roughened by noise, so
+// the ground it stands on does not look drawn with a compass.
+// Big enough to walk about in: the first one was a plot the size of a room,
+// and every grave in it woke at once when you opened the gate. This is a field
+// -- thirty-six cells across and twenty-two deep, better than a thousand feet
+// of ground -- with aisles through it and the dead spread thin.
+static const int GRAVE_CX = 38, GRAVE_CY = 110;
+static const float GRAVE_RX = 18.0f, GRAVE_RY = 11.0f;
+static float GraveField(int cx, int cy) {
+    const float dx = (cx - GRAVE_CX) / GRAVE_RX, dy = (cy - GRAVE_CY) / GRAVE_RY;
+    return dx * dx + dy * dy;
+}
+static bool InGraveyard(int cx, int cy) {
+    return GraveField(cx, cy) <= 1.0f + (Fbm(cx * 0.16f, cy * 0.16f, 2727) - 0.5f) * 0.30f;
+}
+// The two gaps in the fence: the lych gate at the north, and the old gap in
+// the east wall where the wall has come down.
+static bool GraveGate(int cx, int cy) {
+    if (abs(cx - GRAVE_CX) <= 1 && cy <= GRAVE_CY) return true;
+    return abs(cy - GRAVE_CY) <= 1 && cx >= GRAVE_CX;
+}
+// The aisles: a walk from the gate to the crypt, and one across it.
+static bool GraveAisle(int cx, int cy) {
+    return abs(cx - GRAVE_CX) <= 1 || abs(cy - GRAVE_CY) <= 1;
+}
+
 static Biome BiomeAt(int cx, int cy) {
     const float n = Fbm(cx * 0.045f, cy * 0.045f, 1337);
 
@@ -652,6 +680,7 @@ static Biome BiomeAt(int cx, int cy) {
     if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 10 && cy < 88) return ROAD;
     if (OnTrail(cx, cy)) return TRAIL;
 
+    if (InGraveyard(cx, cy)) return GRAVEYARD;
     if (cx > 96 && cy < 34 && n > 0.42f) return CURSED;
     if (cy < 20 + n * 8.0f) return FOOTHILLS;
     if (cx < 24 + n * 10.0f) return MIRE;
@@ -752,6 +781,8 @@ static void BuildOverworld() {
                 case MIRE:      tile = BogAt(cx, cy) ? "bog_water"
                                      : (v > 0.62f ? "peat" : (v > 0.34f ? "swamp_grass" : "swamp_mud")); break;
                 case CURSED:    tile = (v > 0.5f) ? "cursed_ground" : "cursed_sand"; break;
+                // Hollowrest: grass nothing grazes, worn to earth on the paths.
+                case GRAVEYARD: tile = (v > 0.58f) ? "grave_earth" : "grave_grass"; break;
                 case GREENWOOD: tile = (v > 0.55f) ? "grass_dark" : (v > 0.28f ? "grass" : "moss"); break;
                 default:        tile = (v > 0.58f) ? "grass_olive" : (v > 0.3f ? "grass" : "grass_dark"); break;
             }
@@ -845,6 +876,7 @@ static void BuildOverworld() {
         static const Mix foothills[] = {{"dry_tuft", 0.35f}, {"pebbles", 0.75f}, {"stone", 1.0f}};
         static const Mix cursed[]    = {{"crack", 0.60f}, {"pebbles", 1.0f}};
         static const Mix mire[]      = {{"sedge", 0.70f}, {"puddle", 1.0f}};
+        static const Mix boneyard[]  = {{"dry_tuft", 0.45f}, {"pebbles", 0.80f}, {"stone", 1.0f}};
 
         for (int cy = 1; cy < OW_H - 1; ++cy) {
             for (int cx = OW_X0 + 1; cx < OW_W - 1; ++cx) {
@@ -859,6 +891,7 @@ static void BuildOverworld() {
                 else if (b == FOOTHILLS) { mix = foothills; kinds = 3; }
                 else if (b == CURSED)    { mix = cursed;    kinds = 2; }
                 else if (b == MIRE)      { mix = mire;      kinds = 2; }
+                else if (b == GRAVEYARD)  { mix = boneyard;  kinds = 3; }
                 const float which = Hash2(cx, cy, 6161);
                 size_t k = 0;
                 while (k + 1 < kinds && which > mix[k].upto) ++k;
@@ -893,6 +926,8 @@ static void BuildOverworld() {
             if ((cx >= 20 && cx <= 28 && cy <= 6) || (cx >= OW_W - 8 && cy >= 45 && cy <= 55)) continue;
             // And the barrow mound and the flagstones up to it.
             if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) continue;
+            // And inside Hollowrest, which is laid out by hand below.
+            if (GraveField(cx, cy) < 2.2f) continue;
 
             const float r = Hash2(cx, cy, 4242);
             const int x = cx * OW_CELL + OW_CELL / 2;
@@ -956,6 +991,7 @@ static void BuildOverworld() {
             if ((cx >= 20 && cx <= 28 && cy <= 6) || (cx >= OW_W - 8 && cy >= 45 && cy <= 55)) return false;
             if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) return false;   // the mine
             if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) return false;   // the barrow
+            if (GraveField(cx, cy) < 2.2f) return false;                   // Hollowrest
             if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
             return !scenery_here(cx, cy);
         };
@@ -1062,6 +1098,7 @@ static void BuildOverworld() {
             const Biome b = BiomeAt(cx, cy);
             if (b == WATER || BogAt(cx, cy)) continue;
             if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) continue;   // the barrow mound
+            if (GraveField(cx, cy) < 2.6f) continue;                   // Hollowrest
             // Not in the trunk of a tree or the side of a rock.
             if (!m.Clear(cx * OW_CELL + 16, cy * OW_CELL + 16)) continue;
 
@@ -1259,6 +1296,114 @@ static void BuildOverworld() {
         m.Enemy("lizardman_chief", cx0 - 10, cy0 - 56, 3, 120.0f, 260.0f);
         const int guards[][3] = {{-80, 20, 2}, {70, 10, 3}, {-30, 90, 2}, {110, 90, 4}, {-140, 60, 3}};
         for (const auto& g : guards) m.Enemy("lizardman", cx0 + g[0], cy0 + g[1], g[2], 40.0f, 240.0f);
+    }
+
+    // --- Hollowrest ------------------------------------------------------------------
+    // The burying ground: an iron fence round a field of dead grass, a lych
+    // gate at the north with a lantern still lit under it, ranks of headstones
+    // and dug graves, drowned trees left where they stood, and the crypt at the
+    // south end with the family's wight still in it. The dead walk here: the
+    // shamblers among the graves, skeletons along the fence, and wraiths where
+    // the old part of the yard has sunk.
+    {
+        const auto at = [&](int cx, int cy, int ox = 16, int oy = 16) {
+            return std::pair<int, int>{cx * OW_CELL + ox, cy * OW_CELL + oy};
+        };
+        // The fence: one length of railing per cell along the edge of the
+        // ground, minus the gaps the gates stand in.
+        for (int cy = GRAVE_CY - 14; cy <= GRAVE_CY + 14; ++cy)
+            for (int cx = GRAVE_CX - 22; cx <= GRAVE_CX + 22; ++cx) {
+                if (!InGraveyard(cx, cy) || GraveGate(cx, cy)) continue;
+                const bool edge = !InGraveyard(cx + 1, cy) || !InGraveyard(cx - 1, cy) ||
+                                  !InGraveyard(cx, cy + 1) || !InGraveyard(cx, cy - 1);
+                if (!edge) continue;
+                const auto [x, y] = at(cx, cy, 16, 26);
+                m.Prop("props", "grave_fence", x, y);
+                m.Collision(x - 16, y - 10, 32, 12);
+            }
+
+        // The gate, and the path in from it.
+        {
+            const auto [gx, gy] = at(GRAVE_CX, GRAVE_CY - 12, 16, 20);
+            m.Prop("props", "lych_gate", gx, gy);
+            m.SortLift("lych_gate", 60);
+            // The piers, not the gateway: you walk through the middle.
+            m.Collision(gx - 60, gy - 22, 34, 22);
+            m.Collision(gx + 26, gy - 22, 34, 22);
+            json& sign = m.Object("sign_hollowrest", "sign", gx + 84, gy - 4);
+            sign["sprite"] = "assets/props/signpost.png";
+            sign["title"]  = "Hollowrest";
+            sign["text"]   = "HOLLOWREST BURYING GROUND\n\n"
+                             "Havenbrook's dead, and Emberfell's, and whoever the road left.\n\n"
+                             "Under it, cut later and deeper: THEY DO NOT STAY DOWN. "
+                             "SHUT THE GATE.";
+            m.Collision(gx + 68, gy - 14, 32, 10);
+        }
+
+        // Headstones in ranks, with the odd cross and dug grave among them, and
+        // a drowned tree left standing where the yard grew round it.
+        // Markers, thinner on the ground than they were: a field reads as a
+        // field because there is grass between the stones.
+        int graves = 0;
+        for (int cy = GRAVE_CY - 13; cy <= GRAVE_CY + 13; ++cy)
+            for (int cx = GRAVE_CX - 21; cx <= GRAVE_CX + 21; ++cx) {
+                if (!InGraveyard(cx, cy) || GraveAisle(cx, cy)) continue;
+                const float r = Hash2(cx, cy, 5511);
+                const auto [x, y] = at(cx, cy, 8 + static_cast<int>(Hash2(cx, cy, 5512) * 16.0f),
+                                       10 + static_cast<int>(Hash2(cx, cy, 5513) * 14.0f));
+                if (r < 0.17f) {
+                    m.Prop("props", "gravestone", x, y);
+                    m.Collision(x - 10, y - 7, 20, 7);
+                    ++graves;
+                } else if (r < 0.24f) {
+                    m.Prop("props", "gravestone_cross", x, y);
+                    m.Collision(x - 9, y - 7, 18, 7);
+                    ++graves;
+                } else if (r < 0.275f) {
+                    m.Prop("props", "grave_mound", x, y);
+                    ++graves;
+                } else if (r < 0.30f) {
+                    m.Prop("props", "swamp_tree", x, y);
+                    m.Collision(x - 8, y - 8, 16, 8);
+                }
+            }
+        (void)graves;
+
+        // The crypt at the head of the yard, and what is in front of it.
+        {
+            const auto [cx0, cy0] = at(GRAVE_CX, GRAVE_CY + 8, 16, 30);
+            m.Prop("props", "crypt", cx0, cy0);
+            m.SortLift("crypt", 74);
+            m.Collision(cx0 - 78, cy0 - 40, 156, 44);
+            PlaceChest(m, "chest_hollowrest", cx0 - 132, cy0 - 26, "chest_hollowrest");
+            // In the aisle in front of its own door, not behind the crypt:
+            // south of it is outside the fence.
+            m.Enemy("barrow_wight", cx0 + 6, cy0 - 56, 1, 0.0f, 200.0f);
+        }
+
+        // The dead, spread over the ground rather than in a knot: shamblers in
+        // the middle, skeletons out by the fence, wraiths in the sunken corner.
+        // On a lattice three cells apart, so no two of them start within reach
+        // of each other: walking in wakes one grave, not the whole yard.
+        for (int cy = GRAVE_CY - 12; cy <= GRAVE_CY + 12; cy += 3)
+            for (int cx = GRAVE_CX - 20; cx <= GRAVE_CX + 20; cx += 3) {
+                if (!InGraveyard(cx, cy) || GraveGate(cx, cy)) continue;
+                const float r = Hash2(cx, cy, 6611);
+                const auto [x, y] = at(cx, cy);
+                if (!m.Clear(x, y)) continue;
+                const float edge = GraveField(cx, cy);
+                const int level = 1 + static_cast<int>(Hash2(cx, cy, 6612) * 3.0f);
+                if (edge > 0.55f) {
+                    // Out by the fence: the ones that still carry a blade.
+                    if (r < 0.46f) m.Enemy("skeleton", x, y, level, 50.0f, 240.0f);
+                } else if (cx < GRAVE_CX - 4) {
+                    // The old, sunken half of the yard.
+                    if (r < 0.50f) m.Enemy("wraith", x, y, level, 60.0f, 240.0f);
+                } else if (r < 0.46f) {
+                    // Among the newer graves, where the digging still happens.
+                    m.Enemy("zombie", x, y, level, 50.0f, 220.0f);
+                }
+            }
     }
 
     // --- the way up to the Ice Spire --------------------------------------------------

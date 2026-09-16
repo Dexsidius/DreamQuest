@@ -3859,6 +3859,89 @@ int main(int argc, char** argv) {
             }
         }
 
+        // --- Hollowrest and its dead -----------------------------------------------------------
+        // A graveyard is its own ground with its own fence and its own dead,
+        // and each kind of dead leaves a different kind of thing: a zombie its
+        // flesh and its pockets, a skeleton nothing but bones, a wraith the
+        // oddments it was buried in.
+        {
+            std::ifstream in("maps/overworld.mx");
+            json mx;
+            in >> mx;
+            int grave_ground = 0;
+            for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
+                if (it.key().rfind("grave_grass", 0) == 0 || it.key().rfind("grave_earth", 0) == 0)
+                    grave_ground += static_cast<int>(it.value()["locations"].size());
+            Check(grave_ground > 100, "Hollowrest is ground of its own, not a patch of meadow (" +
+                  std::to_string(grave_ground) + " cells)");
+            for (const char* prop : {"grave_fence", "lych_gate", "crypt", "gravestone", "gravestone_cross",
+                                     "grave_mound"})
+                Check(mx["tiles"].contains(prop), string("the graveyard has its ") + prop);
+            int stones = 0;
+            for (const char* prop : {"gravestone", "gravestone_cross"})
+                if (mx["tiles"].contains(prop)) stones += static_cast<int>(mx["tiles"][prop]["locations"].size());
+            Check(stones >= 80, "with a field full of markers (" + std::to_string(stones) + ")");
+
+            Map ow;
+            Check(ow.Load("maps/overworld.mx"), "the overworld loads for its graveyard");
+            std::map<string, int> dead;
+            int outside = 0;
+            for (const EnemySpawnDef& e : ow.Enemies()) {
+                if (e.type != "zombie" && e.type != "skeleton" && e.type != "wraith" &&
+                    e.type != "barrow_wight") continue;
+                ++dead[e.type];
+                // Every one of them stands inside the fence: the graveyard is
+                // an ellipse about (40, 99) in cells, and the map is shifted
+                // twenty cells east of its old origin.
+                const float cx = (e.x - 20.0f * 32.0f) / 32.0f, cy = e.y / 32.0f;
+                const float dx = (cx - 38.0f) / 18.0f, dy = (cy - 110.0f) / 11.0f;
+                if (dx * dx + dy * dy > 1.6f) ++outside;
+            }
+            Check(dead["zombie"] >= 4 && dead["skeleton"] >= 5 && dead["wraith"] >= 4,
+                  "zombies, skeletons and wraiths walk in it (" + std::to_string(dead["zombie"]) + ", " +
+                  std::to_string(dead["skeleton"]) + ", " + std::to_string(dead["wraith"]) + ")");
+            Check(dead["barrow_wight"] == 1, "and the wight holds the crypt");
+            Check(outside == 0, "none of the dead has wandered outside the fence");
+            for (const char* id : {"zombie", "skeleton", "wraith", "barrow_wight"}) {
+                const EnemyDef* d = enemy_db.Get(id);
+                Check(d && loot.Has(d->loot_table), string(id) + " drops from a table of its own");
+                for (const char* clip : {"idle", "walk", "attack", "hurt", "death"})
+                    Check(fs::exists(string("assets/characters/") + (d ? d->sprite : "") + "/" + clip + ".png"),
+                          string(id) + " has its " + clip + " drawn");
+            }
+
+            // What each of them leaves, read straight out of the tables.
+            std::ifstream lin("data/loot_tables.json");
+            json tables;
+            lin >> tables;
+            const auto drops = [&](const char* table) {
+                std::set<string> out;
+                for (const auto& a : tables[table].value("always", json::array()))
+                    out.insert(a.value("item", string("")));
+                for (const auto& row : tables[table].value("table", json::array()))
+                    out.insert(row.value("item", string("")));
+                out.erase("nothing");
+                return out;
+            };
+            const std::set<string> zom = drops("zombie"), skel = drops("skeleton"), wr = drops("wraith");
+            Check(zom.count("rotten_flesh") && zom.count("coins") && zom.size() == 2,
+                  "a zombie leaves its flesh and its money, and nothing else");
+            Check(skel.size() == 1 && skel.count("bones"), "a skeleton leaves bones, and nothing else");
+            Check(!wr.count("coins") && !wr.count("rotten_flesh") && wr.size() >= 3,
+                  "a wraith leaves oddments rather than meat or money");
+            for (const string& id : wr) {
+                const ItemDef* d = items.Get(id);
+                Check(d && d->value >= 10 && d->slot == SLOT_NONE,
+                      "a wraith's " + id + " is worth carrying to a trader (" +
+                      std::to_string(d ? d->value : 0) + ")");
+            }
+            // The graveyard's own chest, inside the fence.
+            bool chest = false;
+            for (const MapObject& o : ow.Objects())
+                if (o.id == "chest_hollowrest" && o.loot_table == "chest_hollowrest") chest = true;
+            Check(chest && loot.Has("chest_hollowrest"), "there is a chest in the yard worth opening");
+        }
+
         // --- the drowned king's boots --------------------------------------------------------
         // One item, one chest, one quest: the boots are in no loot table, no
         // shop and no reward list, and the chest that holds them is only in
@@ -3990,9 +4073,9 @@ int main(int argc, char** argv) {
 
             // The Hollowmarch grew twenty cells west and twelve south.
             const json& dq = mx["dreamquest"];
-            Check(dq["bounds"][0] == 4736 && dq["bounds"][1] == 3456, "the Hollowmarch is 4736 by 3456 now");
+            Check(dq["bounds"][0] == 4736 && dq["bounds"][1] == 3968, "the Hollowmarch is 4736 by 3968 now");
             Check(dq["elevation"]["cols"].get<int>() * dq["elevation"]["cell"].get<int>() == 4736 &&
-                  dq["elevation"]["rows"].get<int>() * dq["elevation"]["cell"].get<int>() == 3456,
+                  dq["elevation"]["rows"].get<int>() * dq["elevation"]["cell"].get<int>() == 3968,
                   "its height grid covers the whole of it");
             int west_swamp = 0, south_ground = 0;
             for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
@@ -4006,7 +4089,7 @@ int main(int argc, char** argv) {
             for (const auto& e : dq["enemies"]) if (e["x"].get<float>() < 640.0f && e["type"] == "lizardman") ++west_lizards;
             Check(west_lizards >= 2, "lizardmen range into the new western Mire");
             for (auto it = dq["spawns"].begin(); it != dq["spawns"].end(); ++it)
-                Check(it.value()[0].get<int>() > 0 && it.value()[0].get<int>() < 4736 && it.value()[1].get<int>() > 0 && it.value()[1].get<int>() < 3456,
+                Check(it.value()[0].get<int>() > 0 && it.value()[0].get<int>() < 4736 && it.value()[1].get<int>() > 0 && it.value()[1].get<int>() < 3968,
                       "the overworld's " + it.key() + " arrival is on the map");
 
             // The ground decals are things lying on the ground, not the road
@@ -4995,6 +5078,8 @@ int main(int argc, char** argv) {
                     {"overworld", "far_west_mire", 420, 2200, 1.5f},
                     {"overworld", "southern_meadow", 2600, 3200, 1.5f},
                     {"overworld", "meadow_decals", 2900, 2300, 2},
+                    {"overworld", "hollowrest_gate", 1872, 3230, 1},
+                    {"overworld", "hollowrest_crypt", 1872, 3700, 1},
                     {"dungeon_emberfell_1", "mine_stairs_up", 592, 440, 2},
                     {"dungeon_emberfell_1", "mine_stairs_down", 1616, 950, 3},
                     {"dungeon_barrow", "barrow_stairs_up", 720, 640, 2},
