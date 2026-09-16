@@ -94,10 +94,12 @@ void Game::UpdateMainMenu() {
 void Game::DrawMainMenu() {
     const float cx = ui.ViewWidth() / 2.0f;
 
-    ui.Text("DREAMQUEST", cx, ui.ViewHeight() * 0.16f, TextSize::Title,
-            Palette::Highlight, Align::Center);
-    ui.Text("An adventure in the Hollowmarch", cx, ui.ViewHeight() * 0.16f + 52.0f,
-            TextSize::Body, Palette::TextDim, Align::Center);
+    // Shadowed, and higher up than it used to sit: the title stands on the
+    // painting now rather than on a flat colour, and the moon is behind it.
+    ui.TextShadowed("DREAMQUEST", cx, ui.ViewHeight() * 0.09f, TextSize::Title,
+                    Palette::Highlight, Align::Center);
+    ui.TextShadowed("An adventure in the Hollowmarch", cx, ui.ViewHeight() * 0.09f + 52.0f,
+                    TextSize::Body, {214, 200, 176, 255}, Align::Center);
 
     const vector<SaveSlotInfo> slots = SaveSystem::PeekAll();
     const vector<string> options = MainMenuOptions(AnySaveExists(slots));
@@ -114,10 +116,11 @@ void Game::DrawMainMenu() {
         ui.MenuItem(row, options[i], static_cast<int>(i) == cursor);
     }
 
-    ui.Text(input.ActiveDevice() == InputMode::Controller
-                ? "D-pad to move   (A) select"
-                : "Arrow keys / WASD to move   Enter to select",
-            cx, ui.ViewHeight() - 44.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    ui.TextShadowed(input.ActiveDevice() == InputMode::Controller
+                        ? "D-pad to move   (A) select"
+                        : "Arrow keys / WASD to move   Enter to select",
+                    cx, ui.ViewHeight() - 44.0f, TextSize::Small,
+                    {186, 176, 158, 255}, Align::Center);
 }
 
 // =============================================================================
@@ -152,8 +155,10 @@ void Game::UpdateCharacterSelect() {
 
 void Game::DrawCharacterSelect() {
     const float cx = ui.ViewWidth() / 2.0f;
-    ui.Text("Choose your adventurer", cx, ui.ViewHeight() * 0.16f, TextSize::Large,
-            Palette::Text, Align::Center);
+    // Shadowed: the front end stands on the title painting, and a heading in
+    // flat text over a moonlit sky is hard to read.
+    ui.TextShadowed("Choose your adventurer", cx, ui.ViewHeight() * 0.16f, TextSize::Large,
+                    Palette::Text, Align::Center);
 
     const float card_w = 200.0f, card_h = 280.0f, gap = 28.0f;
     const float total = card_w * kCharacterCount + gap * (kCharacterCount - 1);
@@ -183,9 +188,10 @@ void Game::DrawCharacterSelect() {
                 Align::Center);
     }
 
-    ui.Text("Left / Right to choose   " + input.PromptFor(Action::Confirm) + " to continue   " +
-            input.PromptFor(Action::Back) + " to go back",
-            cx, ui.ViewHeight() - 52.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    ui.TextShadowed("Left / Right to choose   " + input.PromptFor(Action::Confirm) +
+                    " to continue   " + input.PromptFor(Action::Back) + " to go back",
+                    cx, ui.ViewHeight() - 52.0f, TextSize::Small,
+                    {186, 176, 158, 255}, Align::Center);
 }
 
 // =============================================================================
@@ -264,10 +270,10 @@ void Game::DrawSlotList(const SDL_FRect& area, const string& heading) {
 void Game::DrawSlotSelect() {
     const SDL_FRect area = CenteredPanel(ui, 560.0f, 400.0f);
     DrawSlotList(area, slot_purpose == 0 ? "Start a new game in..." : "Save game to...");
-    ui.Text(input.PromptFor(Action::Confirm) + " confirm     " +
-            input.PromptFor(Action::Back) + " back",
-            ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
-            Palette::TextDim, Align::Center);
+    ui.TextShadowed(input.PromptFor(Action::Confirm) + " confirm     " +
+                    input.PromptFor(Action::Back) + " back",
+                    ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
+                    {186, 176, 158, 255}, Align::Center);
 
     if (overwrite_slot >= 0) {
         ui.Dim(0.6f);
@@ -302,10 +308,10 @@ void Game::UpdateLoadMenu() {
 void Game::DrawLoadMenu() {
     const SDL_FRect area = CenteredPanel(ui, 560.0f, 400.0f);
     DrawSlotList(area, "Load game");
-    ui.Text(input.PromptFor(Action::Confirm) + " load     " +
-            input.PromptFor(Action::Back) + " back",
-            ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
-            Palette::TextDim, Align::Center);
+    ui.TextShadowed(input.PromptFor(Action::Confirm) + " load     " +
+                    input.PromptFor(Action::Back) + " back",
+                    ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
+                    {186, 176, 158, 255}, Align::Center);
 }
 
 // =============================================================================

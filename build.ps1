@@ -115,6 +115,25 @@ if ($Test) {
 # --- game ---------------------------------------------------------------------
 $objects = Compile-Set $gameSources
 
+# The .exe's own icon. Explorer never runs the program, so the window icon set
+# at startup does nothing for the file or a shortcut to it: the picture has to
+# be compiled in as a resource. Skipped where windres is missing rather than
+# failing the build, since it costs nothing but the icon.
+$rc = 'tools\appicon.rc'
+$ico = 'art\dreamquest.ico'
+if ((Test-Path $rc) -and (Test-Path $ico) -and (Get-Command windres -ErrorAction SilentlyContinue)) {
+    $res = 'obj\appicon.o'
+    $stale = (-not (Test-Path $res)) -or
+             ((Get-Item $rc).LastWriteTimeUtc  -gt (Get-Item $res).LastWriteTimeUtc) -or
+             ((Get-Item $ico).LastWriteTimeUtc -gt (Get-Item $res).LastWriteTimeUtc)
+    if ($stale) {
+        Write-Host "  RC  $rc"
+        & windres $rc -O coff -o $res
+        if ($LASTEXITCODE -ne 0) { throw "Could not compile the icon resource." }
+    }
+    $objects += $res
+}
+
 Write-Host "  LD  bin/DreamQuest.exe"
 & g++ $objects -o bin\DreamQuest.exe @libs
 if ($LASTEXITCODE -ne 0) { throw "Link failed." }

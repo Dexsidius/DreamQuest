@@ -1,0 +1,8 @@
+/* The icon Windows shows on DreamQuest.exe itself, in Explorer, on a shortcut
+   and in Alt-Tab. The window's own icon is set at runtime from art/app_icon.png;
+   this one has to be compiled in, because Explorer never runs the program.
+
+   Built by build.ps1 with windres, from art/dreamquest.ico -- both that and the
+   .png come out of tools/make_titleart.ps1. Lowest id wins in Explorer, so the
+   application icon is 1. */
+1 ICON "art/dreamquest.ico"

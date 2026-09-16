@@ -44,6 +44,17 @@ int Game::Start(int argc, char** argv) {
         return 0;
     }
 
+    // The title painting's own crest, for the window and the taskbar. Windows
+    // takes the .exe's embedded icon for the shortcut and the file itself;
+    // this is what the running window shows, and it is what every other
+    // platform has. Missing art is not worth refusing to start over.
+    if (SDL_Surface* icon = IMG_Load(TitleScreen::kIconPath)) {
+        SDL_SetWindowIcon(window, icon);
+        SDL_DestroySurface(icon);
+    } else {
+        SDL_Log("DreamQuest: no window icon (%s): %s", TitleScreen::kIconPath, SDL_GetError());
+    }
+
     renderer = SDL_CreateRenderer(window, nullptr);
     if (!renderer) {
         SDL_Log("DreamQuest: could not create renderer: %s", SDL_GetError());
@@ -707,6 +718,11 @@ void Game::Render() {
         world.Render(renderer, *textures);
         DrawWorldText();
         DrawHud();
+    } else if (!has_session) {
+        // The front end: the cover painting and its night sky, rather than a
+        // flat colour. Only without a session -- a panel opened mid-game draws
+        // over the world it belongs to.
+        title.Draw(renderer, *textures, ui);
     } else {
         SDL_SetRenderDrawColor(renderer, 16, 13, 18, 255);
         SDL_RenderClear(renderer);

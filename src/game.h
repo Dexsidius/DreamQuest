@@ -16,6 +16,7 @@
 #include "ui/ui.h"
 #include "ui/minimap.h"
 #include "ui/worldmap.h"
+#include "ui/titlescreen.h"
 
 enum class GameState {
     MainMenu,
@@ -143,6 +144,7 @@ private:
     UI               ui;
     Minimap          minimap;
     WorldMapPanel    world_map;
+    TitleBackdrop    title;
     Input            input;
     Settings         settings;
     SpriteLibrary    sprites;

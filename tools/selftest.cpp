@@ -30,6 +30,7 @@
 #include "../src/entity/player.h"
 #include "../src/ui/minimap.h"
 #include "../src/ui/worldmap.h"
+#include "../src/ui/titlescreen.h"
 
 #include <fstream>
 #include <filesystem>
@@ -1273,6 +1274,53 @@ int main(int argc, char** argv) {
         Check(peak <= 1.0f, "forty hits at once stay inside full scale");
         Audio::Shutdown();
         Check(Audio::ActiveVoices() == 0, "shutting down silences everything");
+    }
+
+    // --- the title screen and the application icon -----------------------------
+    Section("title art and icons");
+    {
+        // The cover painting is the game's own art, so unlike everything under
+        // assets/ it is in the repository and the menus can count on it.
+        Check(fs::exists(TitleScreen::kArtPath),
+              string("the title painting is in the repository: ") + TitleScreen::kArtPath);
+        Check(fs::exists(TitleScreen::kIconPath),
+              string("the window icon is beside it: ") + TitleScreen::kIconPath);
+        Check(fs::exists("art/dreamquest.ico"), "the .exe's icon is built and committed");
+
+        if (SDL_Surface* icon = IMG_Load(TitleScreen::kIconPath)) {
+            Check(icon->w == icon->h, "the window icon is square");
+            Check(icon->w >= 256, "the window icon is at least 256px, for a hi-dpi taskbar");
+            SDL_DestroySurface(icon);
+        } else {
+            Check(false, "the window icon loads");
+        }
+
+        // An .ico Windows will actually use: the header says icon, and the
+        // sizes it lists include the 16 and 32 Explorer asks for.
+        std::ifstream ico("art/dreamquest.ico", std::ios::binary);
+        vector<unsigned char> bytes((std::istreambuf_iterator<char>(ico)),
+                                    std::istreambuf_iterator<char>());
+        const bool header = bytes.size() > 6 && bytes[0] == 0 && bytes[1] == 0 &&
+                            bytes[2] == 1 && bytes[3] == 0;
+        Check(header, "the .ico has an icon header");
+        int entries = header ? bytes[4] | (bytes[5] << 8) : 0;
+        bool has16 = false, has32 = false, has256 = false;
+        for (int i = 0; i < entries && 6 + 16 * (i + 1) <= static_cast<int>(bytes.size()); ++i) {
+            const int w = bytes[6 + 16 * i];
+            if (w == 16) has16 = true;
+            if (w == 32) has32 = true;
+            if (w == 0)  has256 = true;      // 0 means 256 in an icon directory
+        }
+        Check(has16 && has32, "the .ico carries the 16 and 32px sizes Explorer asks for");
+        Check(has256, "and a 256px one for large icon views");
+
+        // The resource script the build compiles has to name that file, or the
+        // .exe ends up with the toolchain's default icon and nobody notices.
+        std::ifstream rc("tools/appicon.rc");
+        const string rc_text((std::istreambuf_iterator<char>(rc)),
+                             std::istreambuf_iterator<char>());
+        Check(rc_text.find("art/dreamquest.ico") != string::npos,
+              "tools/appicon.rc points at the icon that is built");
     }
 
     // --- the HUD --------------------------------------------------------------
