@@ -3202,6 +3202,181 @@ AREA_PROPS = {
 HERB_PROPS.update(AREA_PROPS)
 
 
+# =============================================================================
+#  Scenery: trees, rocks, bushes and fungus
+#
+#  These replace a set of CraftPix packs -- trees, rocks, bushes, forest
+#  objects -- so that assets/objects/ is the game's own and can travel with it.
+#
+#  They are generated rather than modelled one at a time: a builder takes a
+#  seed and shakes out a different tree from the same rules, because what a
+#  wood needs is ten trees that are plainly the same kind of tree and plainly
+#  not the same tree. Everything is built around the origin with its base at
+#  z=0, and the renderer frames a square of the size the table gives.
+# =============================================================================
+PALETTE.update({
+    "bark":        (0.42, 0.29, 0.18), "bark_dk": (0.30, 0.20, 0.13),
+    "bark_pale":   (0.55, 0.43, 0.30),
+    "canopy":      (0.22, 0.40, 0.21), "canopy_dk": (0.14, 0.27, 0.15),
+    "canopy_lt":   (0.33, 0.54, 0.26),
+    "canopy_gold": (0.62, 0.45, 0.14), "canopy_rust": (0.52, 0.26, 0.12),
+    "shrub":       (0.24, 0.40, 0.20), "shrub_dk": (0.16, 0.28, 0.15),
+    "berry_red":   (0.66, 0.18, 0.18), "berry_blue": (0.33, 0.36, 0.62),
+    # Warm grey rather than neutral: the shading step tints the shadow band
+    # cool, and a neutral stone came out of it lavender.
+    "boulder":     (0.46, 0.44, 0.40), "boulder_dk": (0.31, 0.30, 0.27),
+    "boulder_lt":  (0.58, 0.56, 0.51),
+    "cap_red":     (0.62, 0.17, 0.16), "cap_pale": (0.80, 0.76, 0.66),
+    "cap_brown":   (0.48, 0.33, 0.19), "stalk": (0.84, 0.80, 0.68),
+    "cap_blue":    (0.30, 0.40, 0.60), "cap_rim": (0.20, 0.16, 0.14),
+})
+
+
+def _rng(seed):
+    import random
+    return random.Random(seed)
+
+
+def scenery_tree(seed, big=True):
+    """A trunk that leans a little and a canopy of three or four overlapping
+    blobs. The blobs are what makes it a tree at this size; the trunk only has
+    to be visible under them."""
+    rng = _rng(seed)
+    autumn = rng.random() < 0.3
+    leaf = "canopy" if not autumn else rng.choice(("canopy_gold", "canopy_rust"))
+    leaf_dk = "canopy_dk" if not autumn else "bark"
+    h = (1.35 if big else 0.85) * rng.uniform(0.9, 1.1)
+    lean = rng.uniform(-0.06, 0.06)
+    cyl("trunk", 0.10 if big else 0.075, h, (lean * 0.5, 0, h / 2), "bark",
+        rot=(0, lean, 0), verts=8)
+    cyl("root", 0.16 if big else 0.12, 0.10, (0, 0, 0.05), "bark_dk", verts=8)
+    # One or two boughs, so the trunk is not a pole.
+    for k in range(rng.randint(1, 2)):
+        a = rng.uniform(0, 6.28)
+        cyl("bough_%d" % k, 0.045, 0.34, (math.cos(a) * 0.14, math.sin(a) * 0.14, h * 0.72),
+            "bark", rot=(math.cos(a) * 0.9, math.sin(a) * 0.9, 0), verts=6)
+    blobs = rng.randint(3, 4)
+    for k in range(blobs):
+        a = k / blobs * math.tau + rng.uniform(-0.3, 0.3)
+        r = (0.46 if big else 0.32) * rng.uniform(0.82, 1.12)
+        d = (0.30 if big else 0.20) * rng.uniform(0.7, 1.15)
+        z = h - (0.06 if big else 0.04) + rng.uniform(-0.06, 0.10) * (1.2 if big else 0.8)
+        ob = sphere("leaf_%d" % k, r, (math.cos(a) * d + lean, math.sin(a) * d, z),
+                    leaf_dk if k % 2 else leaf, rough=0.95)
+        ob.scale = (1.0, 1.0, 0.72)
+    top = sphere("crown", (0.40 if big else 0.28), (lean, 0, h + (0.20 if big else 0.13)),
+                 "canopy_lt" if not autumn else leaf, rough=0.95)
+    top.scale = (1.0, 1.0, 0.68)
+    return (2.6 if big else 1.8)
+
+
+def scenery_bush(seed, big=True):
+    """Three or four low blobs with a few berries, which is all a bush is at
+    thirty pixels."""
+    rng = _rng(seed)
+    berries = rng.random() < 0.45
+    berry = rng.choice(("berry_red", "berry_blue"))
+    n = rng.randint(3, 5)
+    base = 0.34 if big else 0.24
+    for k in range(n):
+        a = k / n * math.tau + rng.uniform(-0.4, 0.4)
+        d = base * rng.uniform(0.25, 0.7)
+        r = base * rng.uniform(0.62, 1.0)
+        sphere("clump_%d" % k, r, (math.cos(a) * d, math.sin(a) * d, r * 0.78),
+               "shrub" if k % 2 == 0 else "shrub_dk", rough=0.9)
+    if berries:
+        for k in range(rng.randint(3, 6)):
+            a = rng.uniform(0, 6.28)
+            d = base * rng.uniform(0.3, 0.85)
+            sphere("berry_%d" % k, base * 0.12,
+                   (math.cos(a) * d, math.sin(a) * d, base * rng.uniform(0.75, 1.25)),
+                   berry, rough=0.4)
+    return (1.25 if big else 0.9)
+
+
+def scenery_rock(seed, big=True):
+    """A boulder is two or three lumps with the smaller ones tucked against the
+    biggest, and a fleck of moss on the shaded side."""
+    rng = _rng(seed)
+    n = rng.randint(2, 3)
+    base = 0.40 if big else 0.26
+    for k in range(n):
+        a = k / n * math.tau + rng.uniform(-0.5, 0.5)
+        d = base * rng.uniform(0.0, 0.55) if k else 0.0
+        r = base * (1.0 if k == 0 else rng.uniform(0.45, 0.75))
+        ob = sphere("lump_%d" % k, r, (math.cos(a) * d, math.sin(a) * d, r * 0.55),
+                    ("boulder", "boulder_dk", "boulder_lt")[k % 3], rough=0.98)
+        ob.scale = (1.0, rng.uniform(0.80, 1.05), rng.uniform(0.52, 0.70))
+        ob.rotation_euler = (0, rng.uniform(-0.25, 0.25), rng.uniform(0, 3.14))
+    if rng.random() < 0.6:
+        sphere("moss", base * 0.34, (base * 0.2, base * 0.28, base * 0.78), "moss", rough=1.0)
+    return (1.35 if big else 0.95)
+
+
+def scenery_mushroom(seed, tall=False):
+    """A cluster: one big cap and two smaller, with gills under the big one."""
+    rng = _rng(seed)
+    cap = rng.choice(("cap_red", "cap_brown", "cap_pale", "cap_blue"))
+    n = rng.randint(2, 3)
+    scale = 1.0 if tall else 0.7
+    for k in range(n):
+        a = k / n * math.tau + rng.uniform(-0.4, 0.4)
+        d = 0.0 if k == 0 else rng.uniform(0.16, 0.30) * scale
+        r = (0.28 if k == 0 else rng.uniform(0.14, 0.20)) * scale
+        h = (0.44 if k == 0 else rng.uniform(0.20, 0.30)) * scale
+        x, y = math.cos(a) * d, math.sin(a) * d
+        cyl("stalk_%d" % k, r * 0.30, h, (x, y, h / 2), "stalk", verts=10)
+        rim = sphere("rim_%d" % k, r * 1.04, (x, y, h - r * 0.06), "cap_rim", rough=0.9)
+        rim.scale = (1.0, 1.0, 0.40)
+        ob = sphere("cap_%d" % k, r, (x, y, h), cap, rough=0.85)
+        ob.scale = (1.0, 1.0, 0.46)
+        cyl("gills_%d" % k, r * 0.72, 0.03, (x, y, h - r * 0.10), "cap_pale", verts=12)
+        if rng.random() < 0.5:
+            for j in range(3):
+                b = rng.uniform(0, 6.28)
+                sphere("spot_%d_%d" % (k, j), r * 0.16,
+                       (x + math.cos(b) * r * 0.5, y + math.sin(b) * r * 0.5, h + r * 0.30),
+                       "cap_pale" if cap != "cap_pale" else "cap_brown", rough=0.6)
+    return (1.5 if tall else 1.0)
+
+
+def scenery_fungus(seed):
+    """Shelf fungus and toadstools: ground cover rather than a cluster."""
+    rng = _rng(seed)
+    cap = rng.choice(("cap_brown", "cap_pale", "cap_blue"))
+    for k in range(rng.randint(3, 5)):
+        a = rng.uniform(0, 6.28)
+        d = rng.uniform(0.05, 0.26)
+        r = rng.uniform(0.09, 0.15)
+        x, y = math.cos(a) * d, math.sin(a) * d
+        cyl("stalk_%d" % k, r * 0.28, r * 1.1, (x, y, r * 0.55), "stalk", verts=8)
+        ob = sphere("cap_%d" % k, r, (x, y, r * 1.05), cap, rough=0.9)
+        ob.scale = (1.0, 1.0, 0.5)
+    return 0.85
+
+
+def _scenery_table():
+    """Names to (builder, framed pixels), matching what maps and genmaps already
+    ask for by name."""
+    out = {}
+    for i in range(10):
+        out["tree_%02d" % i] = ((lambda s=i: scenery_tree(400 + s, True)), 128)
+        out["treesmall_%02d" % i] = ((lambda s=i: scenery_tree(500 + s, False)), 64)
+    for i in range(8):
+        out["rock_%02d" % i] = ((lambda s=i: scenery_rock(600 + s, True)), 64)
+        out["rocksmall_%02d" % i] = ((lambda s=i: scenery_rock(700 + s, False)), 32)
+        out["bush_%02d" % i] = ((lambda s=i: scenery_bush(800 + s, True)), 64)
+        out["bushsmall_%02d" % i] = ((lambda s=i: scenery_bush(900 + s, False)), 32)
+    for i, px in enumerate((128, 64, 32, 128, 64, 64)):
+        out["mushroom_%02d" % i] = ((lambda s=i: scenery_mushroom(1000 + s, s in (0, 3))), px)
+    for i in range(3):
+        out["fungus_%02d" % i] = ((lambda s=i: scenery_fungus(1100 + s)), 32)
+    return out
+
+
+SCENERY = _scenery_table()
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),
@@ -3228,12 +3403,18 @@ PROPS.update(HERB_PROPS)
 
 def main():
     only = None
+    table = PROPS
     if "--" in sys.argv:
         rest = sys.argv[sys.argv.index("--") + 1:]
+        # The scenery is a second family, written to assets/objects/ rather
+        # than assets/props/, because that is where the maps look for it.
+        if "--objects" in rest:
+            table = SCENERY
+            rest = [x for x in rest if x != "--objects"]
         if rest:
             only = set(rest)
 
-    for name, (builder, out_px) in sorted(PROPS.items()):
+    for name, (builder, out_px) in sorted(table.items()):
         if only and name not in only:
             continue
         clear_scene()

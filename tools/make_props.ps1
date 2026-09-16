@@ -22,6 +22,10 @@
 
 param(
     [switch]$SkipRender,
+    # The second family: the scenery that stands on the ground rather than in a
+    # room -- trees, rocks, bushes, fungus. Same pipeline, written to
+    # assets/objects/ because that is where the maps look for it.
+    [switch]$Objects,
     [string]$Blender = "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe",
     [string[]]$Only = @()
 )
@@ -31,7 +35,7 @@ Add-Type -AssemblyName System.Drawing
 
 $root    = Split-Path $PSScriptRoot -Parent
 $renders = Join-Path $root "assets\_render"
-$outDir  = Join-Path $root "assets\props"
+$outDir  = Join-Path $root ($(if ($Objects) { "assets\objects" } else { "assets\props" }))
 
 # How many pixels across each prop ends up. blender_props.py renders at eight
 # times these, and the two lists have to agree; the check below says so out
@@ -84,13 +88,52 @@ $sizes = @{
     herb_starlily = 40; herb_starlily_picked = 40
 }
 
+# The scenery sizes, built to the same names the maps already use. Ten trees and
+# ten saplings, eight rocks and eight small ones, the same for bushes, six
+# mushrooms and three patches of fungus.
+if ($Objects) {
+    $sizes = @{}
+    foreach ($i in 0..9) {
+        $sizes["tree_{0:d2}" -f $i] = 128
+        $sizes["treesmall_{0:d2}" -f $i] = 64
+    }
+    foreach ($i in 0..7) {
+        $sizes["rock_{0:d2}" -f $i] = 64
+        $sizes["rocksmall_{0:d2}" -f $i] = 32
+        $sizes["bush_{0:d2}" -f $i] = 64
+        $sizes["bushsmall_{0:d2}" -f $i] = 32
+    }
+    $mush = @(128, 64, 32, 128, 64, 64)
+    foreach ($i in 0..5) { $sizes["mushroom_{0:d2}" -f $i] = $mush[$i] }
+    foreach ($i in 0..2) { $sizes["fungus_{0:d2}" -f $i] = 32 }
+}
+
+# Every name the scenery family owns, so a run of one family stays quiet about
+# renders belonging to the other.
+$SCENERY_NAMES = New-Object System.Collections.Generic.HashSet[string]
+foreach ($i in 0..9) {
+    [void]$SCENERY_NAMES.Add("tree_{0:d2}" -f $i)
+    [void]$SCENERY_NAMES.Add("treesmall_{0:d2}" -f $i)
+}
+foreach ($i in 0..7) {
+    foreach ($fam in "rock", "rocksmall", "bush", "bushsmall") {
+        [void]$SCENERY_NAMES.Add("{0}_{1:d2}" -f $fam, $i)
+    }
+}
+foreach ($i in 0..5) { [void]$SCENERY_NAMES.Add("mushroom_{0:d2}" -f $i) }
+foreach ($i in 0..2) { [void]$SCENERY_NAMES.Add("fungus_{0:d2}" -f $i) }
+
 if (-not $SkipRender) {
     if (-not (Test-Path $Blender)) {
         throw "Blender not found at $Blender. Pass -Blender with the right path, or -SkipRender to convert existing renders."
     }
     Write-Host "Rendering props in Blender ..." -ForegroundColor Cyan
     $args = @("--background", "--python", (Join-Path $PSScriptRoot "blender_props.py"))
-    if ($Only.Count -gt 0) { $args += @("--") + $Only }
+    if ($Objects -or $Only.Count -gt 0) {
+        $args += @("--")
+        if ($Objects) { $args += "--objects" }
+        $args += $Only
+    }
     # Blender chats on stderr, and Windows PowerShell turns each of those lines
     # into an error record that "Stop" treats as fatal. Only the exit code says
     # whether the render actually failed.
@@ -306,7 +349,11 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
     $name = $file.BaseName
     if ($Only.Count -gt 0 -and $Only -notcontains $name) { continue }
     if (-not $sizes.ContainsKey($name)) {
-        Write-Warning "  ! $name has no target size in make_props.ps1; skipped"
+        # assets/_render holds both families; a name from the other one is not
+        # a mistake, it is simply not this run's business.
+        if (-not $Objects -and -not $SCENERY_NAMES.Contains($name)) {
+            Write-Warning "  ! $name has no target size in make_props.ps1; skipped"
+        }
         continue
     }
 
@@ -331,4 +378,5 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
     $done++
 }
 
-Write-Host "`n$done props written to assets/props/" -ForegroundColor Green
+Write-Host ("`n{0} images written to {1}" -f $done,
+            $(if ($Objects) { "assets/objects/" } else { "assets/props/" })) -ForegroundColor Green

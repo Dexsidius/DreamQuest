@@ -845,12 +845,12 @@
                                            "h":  64
                                        },
                    "objects/bush_05":  {
-                                           "w":  32,
-                                           "h":  32
+                                           "w":  64,
+                                           "h":  64
                                        },
                    "objects/bush_06":  {
-                                           "w":  32,
-                                           "h":  32
+                                           "w":  64,
+                                           "h":  64
                                        },
                    "objects/bush_07":  {
                                            "w":  64,
@@ -1089,8 +1089,8 @@
                                            "h":  128
                                        },
                    "objects/tree_01":  {
-                                           "w":  32,
-                                           "h":  32
+                                           "w":  128,
+                                           "h":  128
                                        },
                    "objects/tree_02":  {
                                            "w":  128,
@@ -1129,8 +1129,8 @@
                                                 "h":  64
                                             },
                    "objects/treesmall_01":  {
-                                                "w":  32,
-                                                "h":  32
+                                                "w":  64,
+                                                "h":  64
                                             },
                    "objects/treesmall_02":  {
                                                 "w":  64,
@@ -1141,12 +1141,12 @@
                                                 "h":  64
                                             },
                    "objects/treesmall_04":  {
-                                                "w":  128,
-                                                "h":  128
+                                                "w":  64,
+                                                "h":  64
                                             },
                    "objects/treesmall_05":  {
-                                                "w":  128,
-                                                "h":  128
+                                                "w":  64,
+                                                "h":  64
                                             },
                    "objects/treesmall_06":  {
                                                 "w":  64,

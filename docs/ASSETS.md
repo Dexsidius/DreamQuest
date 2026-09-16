@@ -18,6 +18,7 @@ repository, so it can be redistributed with it.
 | The three playable characters, and the town NPCs | `tools/blender_character.py` (`make_character.ps1`) |
 | Every monster, including the orcs, and the woodland animals | `tools/blender_creatures.py` (`make_creatures.ps1`) |
 | Every prop -- furniture, buildings, herbs, gravestones, the well | `tools/blender_props.py` (`make_props.ps1`) |
+| The scenery -- trees, rocks, bushes, mushrooms | `tools/blender_props.py` (`make_props.ps1 -Objects`) |
 | Every ore, bar, weapon and armour icon, and the weapon layers in hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
 | All ground and interior tiles | `tools/make_ground.ps1` |
 | Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
@@ -39,10 +40,6 @@ pieces the ground decals use; the flat fills it once supplied are generated now.
 | 2D Top-Down Pixel Dungeon | Dungeon floors and walls, chests, doors, fire |
 | Cursed Land Top-Down Tileset | The Cursed Reach ground |
 | Undead Tileset Top-Down | The Mire ground |
-| Top-Down Trees | Woodcutting nodes and scenery |
-| Rocks and Stones Top-Down | Mining nodes and scenery |
-| Top-Down Bushes | Scenery |
-| Forest Objects Top-Down | Mushrooms and undergrowth |
 | Basic Pixel Art UI for RPG | Item icons |
 
 Three more packs (bridges, dungeon props, dungeon objects) are unpacked by the

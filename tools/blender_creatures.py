@@ -1780,35 +1780,43 @@ def boar_death(t):
 
 
 def build_deer():
-    """Mostly leg. The antlers and the high head are what make it read as a
-    deer rather than a large dog."""
+    """Mostly leg, with the neck carried out in front of the shoulders rather
+    than up out of them.
+
+    The first cut put the neck joint over the chest and raised it: from a
+    camera forty-six degrees above the ground that flattens the whole neck into
+    the shoulder and the animal arrives as a lump of fur with antlers in it.
+    The neck starts ahead of the body now and leans forward as it rises, so
+    from the side there is daylight between the head and the back -- which is
+    the shape the eye actually reads as "deer"."""
     r = Rig()
-    _quadruped(r, "deer_hide", "deer_hide_dk", 0.78,
-               chest=(0.125, 0.20, 0.15), hips=(0.115, 0.15, 0.14),
-               leg_len=0.72, leg_r=0.044, fore_y=-0.13, hind_y=0.17, hip_x=0.085)
-    r.add("rump", E(0.10, 0.08, 0.09), "deer_belly", "body", loc=(0, 0.27, 0.03))
-    r.joint("neck", (0, -0.20, 0.11), "body", rest=(-58, 0, 0))
-    r.limb("neckp", (0, 0, 0), (0, -0.04, 0.34), 0.046, "deer_hide", "neck", r_tip=0.036)
-    r.add("throat", E(0.036, 0.05, 0.13), "deer_belly", "neck", loc=(0, -0.055, 0.17))
-    r.joint("head", (0, -0.04, 0.34), "neck", rest=(62, 0, 0))
-    r.add("skull", E(0.055, 0.075, 0.055), "deer_hide", "head")
-    r.add("muzzle", E(0.040, 0.105, 0.038), "deer_hide", "head", loc=(0, -0.14, -0.03))
-    r.add("nose", E(0.028, 0.022, 0.024), "deer_hoof", "head", loc=(0, -0.24, -0.03))
+    _quadruped(r, "deer_hide", "deer_hide_dk", 0.80,
+               chest=(0.105, 0.19, 0.125), hips=(0.10, 0.155, 0.12),
+               leg_len=0.76, leg_r=0.042, fore_y=-0.14, hind_y=0.18, hip_x=0.080)
+    r.add("rump", E(0.088, 0.07, 0.08), "deer_belly", "body", loc=(0, 0.26, 0.02))
+    # Out in front of the chest, and leaning forward as it goes up.
+    r.joint("neck", (0, -0.28, 0.08), "body", rest=(-40, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, -0.02, 0.40), 0.042, "deer_hide", "neck", r_tip=0.032)
+    r.add("throat", E(0.032, 0.045, 0.15), "deer_belly", "neck", loc=(0, -0.05, 0.19))
+    r.joint("head", (0, -0.02, 0.40), "neck", rest=(52, 0, 0))
+    r.add("skull", E(0.052, 0.070, 0.052), "deer_hide", "head")
+    r.add("muzzle", E(0.038, 0.115, 0.036), "deer_hide", "head", loc=(0, -0.15, -0.030))
+    r.add("nose", E(0.027, 0.022, 0.023), "deer_hoof", "head", loc=(0, -0.255, -0.030))
     for sx in (-1, 1):
-        r.add("ear", E(0.02, 0.035, 0.055), "deer_hide_dk", "head", loc=(sx * 0.055, 0.0, 0.055),
-              rot=(0, sx * -0.55, 0))
-        r.add("eye", E(0.018, 0.016, 0.018), "beast_eye", "head", loc=(sx * 0.045, -0.062, 0.02))
-        # A young stag's antlers: a beam and two tines, kept small enough to
-        # survive the reduction.
-        r.limb("beam", (sx * 0.030, 0.015, 0.055), (sx * 0.075, 0.05, 0.26), 0.018,
+        r.add("ear", E(0.019, 0.034, 0.054), "deer_hide_dk", "head", loc=(sx * 0.052, 0.005, 0.050),
+              rot=(0, sx * -0.6, 0))
+        r.add("eye", E(0.018, 0.016, 0.018), "beast_eye", "head", loc=(sx * 0.043, -0.062, 0.018))
+        # Antlers swept back over the neck rather than straight up: from the
+        # side they read as a rack instead of crowding the skull.
+        r.limb("beam", (sx * 0.028, 0.020, 0.050), (sx * 0.070, 0.135, 0.225), 0.017,
                "deer_antler", "head", r_tip=0.008)
-        r.limb("tine1", (sx * 0.050, 0.030, 0.150), (sx * 0.135, -0.02, 0.21), 0.013,
+        r.limb("tine1", (sx * 0.048, 0.070, 0.130), (sx * 0.120, 0.010, 0.195), 0.012,
                "deer_antler", "head", r_tip=0.005)
-        r.limb("tine2", (sx * 0.066, 0.042, 0.210), (sx * 0.042, -0.04, 0.315), 0.011,
+        r.limb("tine2", (sx * 0.062, 0.110, 0.185), (sx * 0.048, 0.055, 0.300), 0.011,
                "deer_antler", "head", r_tip=0.004)
-    r.joint("tail1", (0, 0.30, 0.10), "body", rest=(30, 0, 0))
-    r.limb("tail", (0, 0, 0), (0, 0, -0.08), 0.018, "deer_belly", "tail1", r_tip=0.010)
-    r.pose.scale = (1.15, 1.15, 1.15)
+    r.joint("tail1", (0, 0.29, 0.09), "body", rest=(26, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.08), 0.017, "deer_belly", "tail1", r_tip=0.010)
+    r.pose.scale = (1.12, 1.12, 1.12)
     return r
 
 
