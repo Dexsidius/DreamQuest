@@ -10,6 +10,12 @@
     },
     {
       "kind": "dungeon",
+      "label": "The Dry Well, in Havenbrook",
+      "x": 2646,
+      "y": 2908
+    },
+    {
+      "kind": "dungeon",
       "label": "Emberfell Mine",
       "x": 2768,
       "y": 288

@@ -1272,7 +1272,8 @@ Quests reach you three ways, all of them live:
   what you have already finished, plus the day's two daily notices.
 - **Innkeeper Bess** has something living in her cellar: *Rats in the Cellar* sends
   a new character down the hatch behind the bar to kill six rats, four spiders and
-  the broodmother, and back up to tell her.
+  the broodmother, and back up to tell her. She also remembers when the well in
+  the square still ran: *The Dry Well* is hers.
 - **NPC conversations** — Elder Maren runs the main chain (a letter, a missing
   surveyor, and what is gathering the orcs under Emberfell). The innkeeper,
   the smith, the watchman and the hunter have their own.
@@ -1293,7 +1294,7 @@ The journal is split three ways:
 
 | Tab | What is on it |
 | --- | --- |
-| **Story** | the line the world is actually about: Maren's chain, the road beneath the leaves, the barrow, the two dream quests, the dragon |
+| **Story** | the line the world is actually about: Maren's chain, the road beneath the leaves, the barrow, the two dream quests, the well, the dragon |
 | **Tutorials** | the three trades, each named for what it teaches -- *Woodcutting: The Sawpit*, *Mining: The Gravel Pit*, *Fishing: The Mill Pond* |
 | **Side quests** | board contracts, daily orders, and the favours people ask |
 
@@ -1658,6 +1659,56 @@ where its feet should be. The yard's own props -- headstone, cross, dug grave,
 railing, lych gate and crypt -- are in `tools/blender_props.py`, and the ground
 is two new tiles from `tools/make_ground.ps1`.
 
+### The well of Havenbrook
+
+There is a well on the corner of the square, paved round, with a board nailed
+over the mouth and the bucket left on the rim. It has been dry eleven years.
+Ask **Innkeeper Bess** about it and she puts the cloth down: four hundred
+buckets a day it gave, and a queue from dawn, until the year everything else
+went wrong; the town has carted water from the brook ever since, and nobody has
+been down it because nobody was mad enough.
+
+Say you will go and she writes out what the old well-crews carried: an **unlit
+lantern**, two bars and a length of wood, beaten at any anvil. The recipe is
+`needs_recipe`, so it is not in the smithing list until she gives it -- the same
+lock brews have always had, now on anything taught rather than worked out.
+Carry the lantern and **use a tinderbox** from the pack and it becomes a lit
+one, worn in the **off hand**, in the shield slot.
+
+It matters because the well is **dark**. A map can now carry `"dark": true`,
+which means it has no light of its own: ambient drops to almost nothing and the
+only thing lighting the room is what the player is carrying. An item can carry
+`light`, a radius in world pixels, and `Equipment::LightRadius()` returns the
+best one worn -- so the lit lantern throws a warm, faintly guttering pool about
+seven tiles across, and a player who climbs down without one gets an arm's
+length of grey and no more.
+
+Two floors, both big, both laid out the same way: a hub at the stairs, four
+chambers around it at the corners, an L of corridor to each. **One kind of thing
+to a chamber**, so a fight is with the slimes or with the bats and never with
+both, and they stand three cells apart on a lattice with short leashes -- a room
+is crossed a fight at a time rather than in one running battle.
+
+| Floor | What holds it |
+| --- | --- |
+| **The Upper Workings** (92 x 72 cells) | slimes, cellar rats, well bats; copper in the walls, two chests |
+| **The Deep Cut** (96 x 78 cells) | pit hounds, ankous, banshees; coal, standing water, and the spring at the end of a long passage south |
+
+At the bottom of that passage is the **spring itself**, in a room of its own with
+a basin, a plug of fallen stone in the outflow, and the thing that has been
+sitting in it. Clear it, pull the stone, and the water goes. Tell Bess and she
+sends the boy to the square with a bucket before you have finished talking.
+
+Three things the playtest changed. The warden first stood on the basin with the
+basin's own collision between it and the player: a boss fight fought through a
+fence, neither able to reach the other. The basin is a low kerb now and the
+warden waits beside it, with floor to circle. It also sat four tiles from the
+stairs, so arriving on the floor *was* the fight; it is at the far end of a
+passage now, with a pair of hounds kennelled along the way. And the cave growth
+used the full mushroom set, including the 128px ones -- tree-sized, and a player
+standing behind one in a map where the player is the light source simply
+disappears. Only the small fungus grows down there.
+
 ### The lizardmen
 
 The first ones were built at a townsfolk's proportions and read as something a
@@ -1695,6 +1746,12 @@ and their chief.
 | Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, adamantium gear |
 | Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
 | **Hoarfang** | its own ground above the summit | 62 | dragon fangs, scales, diamond and platinum, diamond gear |
+| Cellar Slime | the well's upper workings | 5-8 | empty vials, bones, coins |
+| Well Bat | the well's upper workings | 4-7 | bones, coins |
+| Pit Hound | the well's deep cut | 14-17 | bones, hides, raw meat, coins |
+| Ankou | the well's deep cut | 18-21 | bones, grave candles, tarnished rings, iron bars |
+| Banshee | the well's deep cut | 16-19 | mourning lockets, grave candles, vials, coins |
+| **The Thing in the Spring** | the spring at the bottom of the well | 24 | a purse of coins, a locket, steel, azuryte, the odd diamond |
 | Shambler | Hollowrest, among the graves | 12-15 | rotten flesh, coins |
 | Skeleton | Hollowrest, along the fence | 15-18 | bones |
 | Wraith | Hollowrest, the old western half | 17-20 | grave candles, tarnished rings, mourning lockets |
@@ -1799,7 +1856,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **11714 checks** covering:
+and checks all of it — currently **12396 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -1840,7 +1897,7 @@ and checks all of it — currently **11714 checks** covering:
   survives a save and comes back at dawn; gated stock appears once its quest is
   done; selling pays and refuses what a trader does not deal in; choosing a
   trader's trade line closes the conversation and opens their shop
-- the grown Hollowmarch and its ways in: the overworld is 4736 by 3456 with its
+- the grown Hollowmarch and its ways in: the overworld is 4736 by 3968 with its
   height grid covering all of it and every arrival on the map; the Mire carries
   on into the new west with lizardmen in it, and the land carries on south; none
   of the road pack's grass stencils are on the ground and every kind of new
@@ -1861,7 +1918,7 @@ and checks all of it — currently **11714 checks** covering:
   the Ashen Path fords that burn to cross; the cellar quest can be taken, is
   finished by the cellar's own rats, spiders and broodmother but not by rats
   anywhere else, and by telling Bess
-- all twenty-one maps load; portals point at real maps; every enemy, NPC and object
+- all twenty-three maps load; portals point at real maps; every enemy, NPC and object
   resolves
 - the OSRS XP table matches known values
 - a starting character can actually win the first fight the level 1 board quest
@@ -1967,6 +2024,16 @@ and checks all of it — currently **11714 checks** covering:
   are on the tutorial tab and named for the skill each teaches, the contracts
   and the daily orders are on the side tab, and nothing off a board or anything
   repeatable can reach either of the other two
+- the well under Havenbrook: the square has a well with a way down it, both
+  floors are marked dark and neither is lit by anything but what is carried;
+  the upper workings hold only slimes, rats and bats and the deep cut only
+  hounds, ankous and banshees, one kind to a chamber, none spawned in a wall,
+  none with an aggro range over 175 or a leash that would drag it out of its
+  own room; the lantern chain hangs together -- the unlit one needs a recipe
+  and is smithed from bars at an anvil, the tinderbox turns it into the lit one,
+  the lit one is worn in the off hand and is the only worn thing in the game
+  that carries a light; and the quest is Bess's, made of the lantern, the climb,
+  the thing in the spring, the stone in the outflow and the walk back
 - the three trades taught in Havenbrook: the sawpit's stand of oak, the pit's
   copper and the pond's casts are all worked at level 1; the camps have their
   props and the pond is water; each teacher stands in the town, gives a quest

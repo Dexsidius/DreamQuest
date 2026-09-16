@@ -60,7 +60,7 @@ $sizes = @{
     # Mossvale and the Whisperwood.
     mossvale_lodge = 192
     herbalist_cottage = 168
-    well = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
+    well = 56; well_dry = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
 
     # Herbs for Foraging, growing and picked, and the brewing cauldron.
     cauldron = 48
@@ -71,6 +71,7 @@ $sizes = @{
     barrow_mound = 208; dungeon_stairs_up = 96; dungeon_stairs_down = 80
     sawmill = 144; ore_cart = 96; rowboat = 128
     gravestone = 48; gravestone_cross = 52; grave_mound = 64; grave_fence = 72
+    spring_basin = 112
     lych_gate = 144; crypt = 176
     herb_marigold = 40; herb_marigold_picked = 40
     herb_brookmint = 40; herb_brookmint_picked = 40

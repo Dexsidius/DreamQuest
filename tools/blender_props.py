@@ -1803,6 +1803,40 @@ def prop_well():
     return 2.3
 
 
+def prop_well_dry():
+    """The same well eleven years after it stopped: no water in it, the bucket
+    stood on the rim where somebody left it, and a board nailed across the
+    mouth. The dark shaft is the whole point -- from above it should read as a
+    hole rather than as a pool."""
+    import random
+    rng = random.Random(3)
+    R = 0.50
+    n = 14
+    for course in range(2):
+        for i in range(n):
+            a = (i + course * 0.5) / n * math.tau
+            x, y = math.cos(a) * R, math.sin(a) * R
+            blk("ring_%d_%d" % (course, i), (0.24, 0.20, 0.22), (x, y, 0.11 + course * 0.22),
+                ("stone", "stone_pale")[(i + course) % 2 if rng.random() > 0.3 else 0],
+                rot=(0, 0, a + math.pi / 2), bev=0.03)
+    # No water disc: just the shaft, sunk deeper so no floor catches the light.
+    cyl("shaft", R - 0.04, 0.60, (0, 0, 0.05), "coal", verts=24, rough=1.0)
+    for side in (-1, 1):
+        blk("post_%d" % side, (0.12, 0.12, 1.30), (side * (R + 0.06), 0, 0.65), "log")
+    cyl("crank", 0.04, 1.26, (0, 0, 1.00), "oak", rot=(0, math.radians(90), 0), verts=10)
+    blk("handle", (0.05, 0.05, 0.22), (R + 0.18, -0.08, 0.92), "oak_light", bev=0.01)
+    # The board nailed over the mouth, and the rope hanging slack off the crank.
+    blk("board", (1.16, 0.16, 0.04), (0, 0.10, 0.46), "oak", rot=(0, 0, math.radians(-7)))
+    blk("rope", (0.02, 0.02, 0.30), (0.10, -0.06, 0.84), "straw", bev=0)
+    # The bucket is up on the rim, dry and tipped, not down the hole.
+    cyl("bucket", 0.10, 0.14, (-0.30, -0.30, 0.52), "oak_light", verts=12,
+        rot=(math.radians(22), 0, 0))
+    cyl("bucket_hoop", 0.105, 0.03, (-0.30, -0.30, 0.56), "iron", verts=12, metal=0.7,
+        rot=(math.radians(22), 0, 0))
+    gable_roof("roof", 1.22, 0.90, 1.30, 38, "shingle", thick=0.08, overhang=0.12)
+    return 2.3
+
+
 def prop_market_stall():
     """A market stall: a counter under a striped awning with baskets of
     produce on it. The stripes are the identifying mark -- without them it is
@@ -1950,6 +1984,7 @@ def prop_campfire_ring():
 
 WOODLAND_PROPS = {
     "well":         (prop_well,         56),
+    "well_dry":     (prop_well_dry,     56),
     "market_stall": (prop_market_stall, 80),
     "palisade":     (prop_palisade,     64),
     "log_pile":     (prop_log_pile,     48),
@@ -2964,6 +2999,8 @@ def prop_rowboat():
 PALETTE.update({
     # Cool grey, not warm: under this light a stone mixed toward yellow comes
     # out pink, and a graveyard full of pink stones reads as sandstone.
+    "spring_water": (0.290, 0.560, 0.620),
+    "spring_glow":  (0.520, 0.840, 0.860),
     "granite":     (0.470, 0.500, 0.520),
     "granite_lt":  (0.620, 0.650, 0.665),
     "granite_dk":  (0.300, 0.325, 0.345),
@@ -3121,6 +3158,32 @@ def prop_crypt():
     return (4.4, BUILDING_ELEVATION)
 
 
+def prop_spring_basin():
+    """The head of the spring at the bottom of the well: a stone basin with a
+    mouth cut into the rock behind it, choked with rubble and weed, and a
+    little water still finding its way through."""
+    import random
+    rng = random.Random(23)
+    # The mouth in the rock, and the basin under it.
+    blk("back", (1.50, 0.42, 1.10), (0, 0.42, 0.55), "granite_dk", bev=0.05)
+    blk("mouth", (0.60, 0.26, 0.52), (0, 0.24, 0.52), "crypt_dark", bev=0)
+    blk("lintel", (0.86, 0.30, 0.16), (0, 0.22, 0.84), "granite_lt", bev=0.03)
+    cyl("basin", 0.62, 0.30, (0, -0.16, 0.15), "granite", verts=18)
+    cyl("rim", 0.66, 0.10, (0, -0.16, 0.30), "granite_lt", verts=18)
+    cyl("water", 0.54, 0.06, (0, -0.16, 0.31), "spring_water", verts=18)
+    for k in range(3):
+        cyl("ripple", 0.34 - k * 0.10, 0.02, (0.04, -0.20, 0.335 + k * 0.004), "spring_glow", verts=14)
+    # The rubble in the mouth, and weed growing out of the wet.
+    for k in range(7):
+        rock("rubble_%d" % k, (rng.uniform(0.10, 0.20),) * 3,
+             (rng.uniform(-0.28, 0.28), 0.10 + rng.uniform(-0.06, 0.10), 0.12 + rng.uniform(0, 0.42)),
+             "granite" if k % 2 else "granite_dk", rng)
+    for k in range(5):
+        parts_x = -0.40 + k * 0.20
+        cone("weed_%d" % k, 0.05, 0.26, (parts_x, -0.02, 0.28), "grave_moss", verts=6)
+    return (2.6, 44.0)
+
+
 AREA_PROPS = {
     "reeds": (prop_reeds, 48), "lily_pads": (prop_lily_pads, 40), "swamp_tree": (prop_swamp_tree, 72),
     "lizard_hut": (prop_lizard_hut, 128), "lizard_totem": (prop_lizard_totem, 56),
@@ -3131,6 +3194,7 @@ AREA_PROPS = {
     "barrow_mound": (prop_barrow_mound, 208), "dungeon_stairs_up": (prop_dungeon_stairs_up, 96),
     "dungeon_stairs_down": (prop_dungeon_stairs_down, 80),
     "sawmill": (prop_sawmill, 144), "ore_cart": (prop_ore_cart, 96), "rowboat": (prop_rowboat, 128),
+    "spring_basin": (prop_spring_basin, 112),
     "gravestone": (prop_gravestone, 48), "gravestone_cross": (prop_gravestone_cross, 52),
     "grave_mound": (prop_grave_mound, 64), "grave_fence": (prop_grave_fence, 72),
     "lych_gate": (prop_lych_gate, 144), "crypt": (prop_crypt, 176),

@@ -860,6 +860,10 @@ bc.PALETTE.update({
     "bone_pale": (0.88, 0.86, 0.78), "tarnish": (0.42, 0.44, 0.40), "tarnish_lt": (0.60, 0.60, 0.52),
     "grave_stone_gem": (0.34, 0.30, 0.42), "locket_hair": (0.36, 0.26, 0.20),
     "wax": (0.84, 0.82, 0.72), "wax_lt": (0.93, 0.92, 0.85), "candle_flame": (1.00, 0.84, 0.42),
+    # The lantern and what lights it.
+    "lamp_iron": (0.30, 0.31, 0.34), "lamp_iron_lt": (0.50, 0.52, 0.56),
+    "horn_pane": (0.98, 0.84, 0.46), "horn_pane_dk": (0.42, 0.40, 0.34),
+    "lamp_flame": (1.00, 0.92, 0.60), "flint_grey": (0.44, 0.44, 0.48), "char_cloth": (0.26, 0.24, 0.22),
     "bog_leather": (0.20, 0.22, 0.18), "bog_leather_lt": (0.28, 0.30, 0.24), "bog_sole": (0.14, 0.15, 0.13),
     "drowned_gold": (0.78, 0.66, 0.30), "bog_weed": (0.36, 0.48, 0.26), "bog_glow": (0.56, 0.86, 0.72),
 })
@@ -1096,6 +1100,31 @@ def build_trophy(name, parent):
         parts.append(bc.part("pool", bc.mesh_ellipsoid(0.13, 0.11, 0.025), "wax_lt", parent, loc=(0, 0, -0.13)))
         parts.append(bc.spike("wick", (0, 0, 0.12), (0, 0, 0.19), 0.012, "ink", parent, r_tip=0.005))
         parts.append(bc.part("flame", mesh_gem(0.045, 0.04, 0.075), "candle_flame", parent, loc=(0, 0, 0.25)))
+    elif name in ("lantern", "lantern_unlit"):
+        lit = name == "lantern"
+        # A frame of iron with horn panes, a ring on top and a foot under it.
+        parts.append(bc.part("pane", mesh_box(0.16, 0.10, 0.22), "horn_pane" if lit else "horn_pane_dk",
+                             parent, loc=(0, 0, 0.02)))
+        if lit:
+            parts.append(bc.part("flame", mesh_gem(0.045, 0.035, 0.085), "lamp_flame", parent, loc=(0, -0.03, 0.0)))
+        for sx in (-1, 1):
+            parts.append(bc.part("post", mesh_box(0.022, 0.09, 0.26), "lamp_iron", parent, loc=(sx * 0.085, 0, 0.02)))
+        parts.append(bc.part("cap", mesh_box(0.20, 0.12, 0.05), "lamp_iron", parent, loc=(0, 0, 0.17)))
+        parts.append(bc.part("vent", mesh_box(0.12, 0.09, 0.04), "lamp_iron_lt", parent, loc=(0, 0, 0.22)))
+        parts.append(bc.part("base", mesh_box(0.21, 0.13, 0.05), "lamp_iron", parent, loc=(0, 0, -0.13)))
+        parts.append(bc.part("ring", bc.mesh_torus(0.05, 0.016), "lamp_iron_lt", parent,
+                             loc=(0, 0, 0.29), rot=(math.radians(90), 0, 0)))
+        parts.append(bc.part("handle", bc.mesh_torus(0.09, 0.014), "lamp_iron", parent,
+                             loc=(0, 0, 0.26), rot=(0, math.radians(90), 0)))
+    elif name == "tinderbox":
+        # A tin with a flint and a steel striker on it, and one spark.
+        parts.append(bc.part("tin", mesh_box(0.30, 0.20, 0.12), "lamp_iron", parent, loc=(0, 0, -0.06)))
+        parts.append(bc.part("lid", mesh_box(0.31, 0.21, 0.04), "lamp_iron_lt", parent, loc=(0, -0.01, 0.01)))
+        parts.append(bc.part("flint", mesh_gem(0.07, 0.05, 0.05), "flint_grey", parent, loc=(-0.07, -0.04, 0.07)))
+        parts.append(bc.spike("striker", (0.02, -0.03, 0.05), (0.16, -0.03, 0.12), 0.022, "lamp_iron_lt",
+                              parent, r_tip=0.012))
+        parts.append(bc.part("spark", mesh_gem(0.03, 0.025, 0.04), "lamp_flame", parent, loc=(-0.01, -0.06, 0.13)))
+        parts.append(bc.part("cloth", mesh_box(0.12, 0.08, 0.03), "char_cloth", parent, loc=(0.07, 0.05, 0.04)))
     elif name == "demon_horn":
         pts = [(-0.18, 0, -0.20), (-0.14, 0, 0.04), (0.0, 0, 0.20), (0.18, 0, 0.18)]
         for i in range(3):
@@ -1105,7 +1134,8 @@ def build_trophy(name, parent):
 
 
 TROPHY_ICONS = ["spider_silk", "lizard_scale", "troll_hide", "wyvern_scale", "demon_horn", "dragon_fang",
-                "rotten_flesh", "tarnished_ring", "mourning_locket", "grave_candle"]
+                "rotten_flesh", "tarnished_ring", "mourning_locket", "grave_candle",
+                "lantern", "lantern_unlit", "tinderbox"]
 
 
 def build_drowned_boots(parent):

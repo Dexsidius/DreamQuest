@@ -80,6 +80,7 @@ bool Map::Load(const string& path) {
         }
 
     interior   = dq.value("interior", false);
+    dark       = dq.value("dark", false);
     ambient    = dq.value("ambient", string("overworld"));
     subtitle   = dq.value("subtitle", string(""));
     background = ColorFromJson(dq.contains("background") ? dq["background"] : json(),

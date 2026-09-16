@@ -1167,5 +1167,47 @@
     "stack": true,
     "value": 48,
     "icon": "assets/icons/tiers/grave_candle.png"
+  },
+  "tinderbox": {
+    "tags": [
+      "tool"
+    ],
+    "name": "Tinderbox",
+    "desc": "Flint, steel and a twist of charcloth. Use it with something in your pack that will take a flame.",
+    "value": 35,
+    "use": "light",
+    "icon": "assets/icons/tiers/tinderbox.png"
+  },
+  "lantern_unlit": {
+    "tags": [
+      "tool"
+    ],
+    "name": "Unlit Lantern",
+    "desc": "Iron frame, horn panes, a wick sitting in oil. It wants a flame: use a tinderbox while you carry it.",
+    "value": 140,
+    "lights": "lantern",
+    "needs_recipe": true,
+    "recipe_from": "Innkeeper Bess showed you how the old well-crews made theirs.",
+    "craft": {
+      "result": "lantern_unlit",
+      "level": 8,
+      "xp": 90,
+      "inputs": {
+        "iron_bar": 2,
+        "logs": 1
+      }
+    },
+    "icon": "assets/icons/tiers/lantern_unlit.png"
+  },
+  "lantern": {
+    "tags": [
+      "tool"
+    ],
+    "name": "Lit Lantern",
+    "desc": "It throws a good pool of light and asks for nothing but a hand to hold it. Worn in the off hand.",
+    "slot": "shield",
+    "value": 180,
+    "light": 210,
+    "icon": "assets/icons/tiers/lantern.png"
   }
 }

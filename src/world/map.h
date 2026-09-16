@@ -141,6 +141,8 @@ public:
     float Width() const { return bounds_w; }
     float Height() const { return bounds_h; }
     bool  IsInterior() const { return interior; }
+    // A place with no light of its own: what you can see is what you carry.
+    bool  IsDark() const { return dark; }
     const string& Ambient() const { return ambient; }
     SDL_Color BackgroundColor() const { return background; }
 
@@ -235,6 +237,7 @@ private:
     bool   loaded = false;
     string id, display_name, source_dir, ambient, subtitle;
     bool   interior = false;
+    bool   dark = false;
     SDL_Color background{24, 20, 32, 255};
 
     vector<string>       textures;      // resolved image paths

@@ -73,6 +73,19 @@ bc.PALETTE.update({
     "rust": (0.46, 0.31, 0.21), "rust_lt": (0.60, 0.44, 0.30),
     "shroud": (0.31, 0.31, 0.40), "shroud_dk": (0.20, 0.20, 0.28), "shroud_lt": (0.44, 0.45, 0.56),
     "wisp_glow": (0.58, 0.88, 0.94), "grave_gold": (0.74, 0.64, 0.32),
+    # what lives down the well: slime, bats, hounds, and the two that stopped
+    # being alive some time ago
+    "slime": (0.44, 0.72, 0.46), "slime_dk": (0.28, 0.52, 0.34), "slime_lt": (0.68, 0.90, 0.62),
+    "slime_core": (0.86, 0.96, 0.66),
+    "slime_eye": (0.96, 0.99, 0.94), "slime_pupil": (0.06, 0.10, 0.08), "bat_fur": (0.34, 0.28, 0.30), "bat_fur_dk": (0.22, 0.18, 0.20),
+    "bat_wing": (0.42, 0.33, 0.36), "bat_eye_glow": (1.00, 0.62, 0.30),
+    # Ash rather than soot: a black dog on black stone in a map with no light
+    # of its own is a silhouette the player never sees coming.
+    "hound": (0.46, 0.42, 0.42), "hound_dk": (0.30, 0.27, 0.29), "hound_eye_glow": (1.00, 0.46, 0.20),
+    "ankou_robe": (0.26, 0.26, 0.31), "ankou_robe_lt": (0.38, 0.38, 0.45),
+    "ankou_bone": (0.84, 0.82, 0.74), "ankou_eye_glow": (0.42, 1.00, 0.72), "scythe_steel": (0.62, 0.66, 0.70),
+    "banshee": (0.62, 0.78, 0.88), "banshee_dk": (0.40, 0.56, 0.70), "banshee_hair": (0.84, 0.90, 0.96),
+    "banshee_glow": (0.72, 0.94, 1.00),
     # Elder Vask, and the chair he has not got out of in some years
     "vask_robe": (0.42, 0.40, 0.36), "vask_robe_dk": (0.30, 0.29, 0.26),
     "vask_shawl": (0.45, 0.33, 0.28), "vask_blanket": (0.38, 0.30, 0.34),
@@ -1294,6 +1307,363 @@ def wraith_death(t):
 
 
 # =================================================================================
+#  What is down the well
+# =================================================================================
+
+def build_slime():
+    """A blob with something undigested in the middle of it. Everything about
+    it is one shape, so all of the character has to come from how it moves."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.16))
+    blob = r.add("blob", E(0.30, 0.30, 0.22), "slime", "body")
+    r.add("sheen", E(0.20, 0.20, 0.13), "slime_lt", "body", loc=(-0.05, -0.08, 0.06))
+    r.add("core", E(0.09, 0.09, 0.07), "slime_core", "body", loc=(0, -0.02, -0.02))
+    r.add("foot", E(0.32, 0.30, 0.06), "slime_dk", "body", loc=(0, 0, -0.16))
+    # Eyes big enough to survive a 48px frame in a dark room, and a pair on the
+    # back of it too: a blob seen from behind is otherwise a green dot, and the
+    # thing the player needs to read at a glance is which way it is looking.
+    for sx in (-1, 1):
+        r.add("eye", E(0.075, 0.06, 0.075), "slime_eye", "body", loc=(sx * 0.11, -0.235, 0.07))
+        r.add("pupil", E(0.038, 0.03, 0.038), "slime_pupil", "body", loc=(sx * 0.11, -0.285, 0.07))
+        r.add("eye_back", E(0.055, 0.045, 0.055), "slime_eye", "body", loc=(sx * 0.11, 0.235, 0.07))
+        r.add("pupil_back", E(0.028, 0.022, 0.028), "slime_pupil", "body", loc=(sx * 0.11, 0.285, 0.07))
+    # A drip running off one side, and a blob of it on the floor.
+    r.add("drip", E(0.05, 0.05, 0.10), "slime", "body", loc=(0.26, 0.06, -0.10))
+    r.pose.scale = (1.75, 1.75, 1.75)
+    return r
+
+
+def slime_idle(t):
+    s = sn(t)
+    # It breathes by squashing: the only thing it can do standing still.
+    return {"_z": 0.02 * s, "body": (3 * s, 0, 4 * sn(t, 0.25))}
+
+
+def slime_walk(t):
+    s = sn(t)
+    return {"_z": 0.05 * max(0.0, s), "_y": -0.02 * s, "body": (8 * s, 0, 6 * sn(t, 0.2))}
+
+
+def slime_attack(t):
+    i, k = phases(t, 0.36, 0.56, 1.0)
+    gather = {"_z": -0.06, "body": (-14, 0, 0)}
+    leap = {"_z": 0.22, "_y": -0.26, "body": (18, 0, 0)}
+    return [mix({}, gather, k), mix(gather, leap, k), mix(leap, {}, k), {}][i]
+
+
+def slime_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"_z": -0.06 * k, "body": (-20 * k, 0, 14 * k), "_y": 0.10 * k}
+
+
+def slime_death(t):
+    # It does not fall over: it goes flat.
+    k = ease(t)
+    return {"_z": -0.13 * k, "body": (-40 * k, 0, 0), "_pitch": 10 * k}
+
+
+def build_bat():
+    r = Rig()
+    r.joint("body", (0, 0, 0.62), rest=(16, 0, 0))
+    r.add("torso", E(0.085, 0.13, 0.10), "bat_fur", "body")
+    r.add("belly", E(0.06, 0.09, 0.06), "bat_fur_dk", "body", loc=(0, -0.04, -0.05))
+    r.joint("head", (0, -0.12, 0.04), "body", rest=(-14, 0, 0))
+    r.add("skull", E(0.065, 0.07, 0.065), "bat_fur", "head")
+    r.add("snout", E(0.035, 0.05, 0.03), "bat_fur_dk", "head", loc=(0, -0.07, -0.02))
+    for sx in (-1, 1):
+        r.add("ear", E(0.028, 0.012, 0.075), "bat_fur_dk", "head", loc=(sx * 0.05, 0.01, 0.10),
+              rot=(0, sx * -0.3, 0))
+        r.add("eye", E(0.018, 0.014, 0.016), "bat_eye_glow", "head", loc=(sx * 0.035, -0.06, 0.02))
+        r.limb("fang", (sx * 0.02, -0.09, -0.03), (sx * 0.02, -0.09, -0.06), 0.009, "ankou_bone", "head",
+               r_tip=0.002)
+        # Wings: an arm out to a wrist, three fingers, membrane between.
+        r.joint("wing_" + ("l" if sx < 0 else "r"), (sx * 0.07, 0, 0.03), "body", rest=(0, sx * -20, 0))
+        w = "wing_" + ("l" if sx < 0 else "r")
+        r.limb("arm", (0, 0, 0), (sx * 0.20, 0.02, 0.10), 0.018, "bat_fur_dk", w, r_tip=0.012)
+        r.joint("wrist_" + ("l" if sx < 0 else "r"), (sx * 0.20, 0.02, 0.10), w, rest=(0, sx * 34, 0))
+        wr = "wrist_" + ("l" if sx < 0 else "r")
+        for k, (dx, dy, dz) in enumerate(((0.26, 0.06, -0.02), (0.20, 0.16, -0.10), (0.10, 0.22, -0.14))):
+            r.limb("finger", (0, 0, 0), (sx * dx, dy, dz), 0.012 - k * 0.002, "bat_fur_dk", wr, r_tip=0.004)
+        r.add("membrane", E(0.16, 0.02, 0.12), "bat_wing", wr, loc=(sx * 0.14, 0.12, -0.06),
+              rot=(0, sx * 0.4, 0))
+        r.add("membrane_in", E(0.11, 0.02, 0.09), "bat_wing", w, loc=(sx * 0.11, 0.06, 0.04),
+              rot=(0, sx * -0.3, 0))
+    r.joint("feet", (0, 0.06, -0.09), "body")
+    for sx in (-1, 1):
+        r.limb("leg", (sx * 0.03, 0, 0), (sx * 0.04, 0.03, -0.10), 0.012, "bat_fur_dk", "feet", r_tip=0.004)
+    r.pose.scale = (1.5, 1.5, 1.5)
+    return r
+
+
+def _bat_flap(t, amp=44.0, speed=2.0):
+    s = sn(t * speed)
+    return {"wing_l": (0, -amp * s, 0), "wing_r": (0, amp * s, 0),
+            "wrist_l": (0, 24 * s, 0), "wrist_r": (0, -24 * s, 0)}
+
+
+def bat_idle(t):
+    v = _bat_flap(t, 30.0, 1.0)
+    v.update({"_z": 0.05 * sn(t), "body": X(3 * sn(t, 0.2)), "head": X(-4 * sn(t, 0.3))})
+    return v
+
+
+def bat_walk(t):
+    v = _bat_flap(t, 50.0, 2.0)
+    v.update({"_z": 0.09 * sn(t * 2), "body": X(8), "head": X(-8)})
+    return v
+
+
+def bat_attack(t):
+    i, k = phases(t, 0.38, 0.58, 1.0)
+    up = {"_z": 0.20, "body": X(-16), "head": X(-18), "wing_l": (0, -70, 0), "wing_r": (0, 70, 0)}
+    dive = {"_z": -0.10, "_y": -0.30, "body": X(26), "head": X(16), "wing_l": (0, -14, 0), "wing_r": (0, 14, 0)}
+    return [mix(_bat_flap(t), up, k), mix(up, dive, k), mix(dive, _bat_flap(t), k), _bat_flap(t)][i]
+
+
+def bat_hurt(t):
+    k = math.sin(t * math.pi)
+    v = _bat_flap(t, 60.0, 3.0)
+    v.update({"_y": 0.12 * k, "body": X(-20 * k), "_roll": 16 * k})
+    return v
+
+
+def bat_death(t):
+    k = ease(t)
+    return {"_z": -0.58 * k, "_roll": 90 * k, "body": X(20 * k),
+            "wing_l": (0, -20 * k, 0), "wing_r": (0, 20 * k, 0)}
+
+
+def build_hound():
+    """Long, low and thin: a dog that has been down here too long."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.44), rest=(-4, 0, 0))
+    r.add("chest", E(0.14, 0.17, 0.14), "hound", "body", loc=(0, -0.14, 0.02))
+    r.add("belly", E(0.12, 0.20, 0.11), "hound_dk", "body", loc=(0, 0.04, -0.03))
+    r.add("hips", E(0.13, 0.13, 0.13), "hound", "body", loc=(0, 0.22, 0.02))
+    for k in range(4):
+        r.limb("spine", (0, -0.14 + k * 0.12, 0.13), (0, -0.16 + k * 0.12, 0.19), 0.022, "hound_dk", "body",
+               r_tip=0.004)
+    for sx, side in ((-1, "l"), (1, "r")):
+        for tag, y in (("fore", -0.16), ("hind", 0.20)):
+            j = tag + "_" + side
+            r.joint(j, (sx * 0.10, y, -0.06), "body", rest=(8 if tag == "hind" else 4, 0, 0))
+            r.limb("thigh", (0, 0, 0), (0, 0.02 if tag == "hind" else -0.02, -0.18), 0.045, "hound", j,
+                   r_tip=0.032)
+            r.joint(j + "_knee", (0, 0.02 if tag == "hind" else -0.02, -0.18), j, rest=(-18, 0, 0))
+            r.limb("shin", (0, 0, 0), (0, 0, -0.18), 0.03, "hound_dk", j + "_knee", r_tip=0.022)
+            r.add("paw", E(0.04, 0.06, 0.03), "hound_dk", j + "_knee", loc=(0, -0.02, -0.19))
+    r.joint("neck", (0, -0.26, 0.06), "body", rest=(14, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, -0.10, 0.04), 0.06, "hound", "neck", r_tip=0.05)
+    r.joint("head", (0, -0.10, 0.04), "neck", rest=(-10, 0, 0))
+    r.add("skull", E(0.075, 0.09, 0.075), "hound", "head")
+    r.add("muzzle", E(0.05, 0.10, 0.045), "hound_dk", "head", loc=(0, -0.13, -0.02))
+    r.add("jaw", E(0.042, 0.085, 0.025), "hound", "head", loc=(0, -0.12, -0.06))
+    for sx in (-1, 1):
+        r.add("ear", E(0.02, 0.03, 0.06), "hound_dk", "head", loc=(sx * 0.055, 0.03, 0.08),
+              rot=(0, sx * -0.25, 0))
+        r.add("eye", E(0.022, 0.018, 0.02), "hound_eye_glow", "head", loc=(sx * 0.045, -0.07, 0.03))
+        for k in range(3):
+            r.limb("tooth", (sx * 0.028, -0.13 - k * 0.03, -0.035), (sx * 0.028, -0.13 - k * 0.03, -0.06),
+                   0.009, "ankou_bone", "head", r_tip=0.002)
+    r.joint("tail1", (0, 0.32, 0.04), "body", rest=(52, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.20), 0.028, "hound", "tail1", r_tip=0.018)
+    r.joint("tail2", (0, 0, -0.20), "tail1", rest=(14, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.18), 0.018, "hound_dk", "tail2", r_tip=0.006)
+    r.pose.scale = (1.55, 1.55, 1.55)
+    return r
+
+
+def hound_idle(t):
+    s = sn(t)
+    return {"_z": 0.012 * s, "body": X(2 * s), "head": (0, 0, 5 * sn(t, 0.3)),
+            "tail1": (0, 0, 14 * s), "tail2": (0, 0, 18 * sn(t, 0.25))}
+
+
+def hound_walk(t):
+    s = sn(t)
+    return {"fore_l": fwd(24 * s), "hind_r": fwd(22 * s), "fore_r": fwd(-24 * s), "hind_l": fwd(-22 * s),
+            "fore_l_knee": X(18 * max(0.0, -s)), "fore_r_knee": X(18 * max(0.0, s)),
+            "hind_l_knee": X(20 * max(0.0, s)), "hind_r_knee": X(20 * max(0.0, -s)),
+            "_z": 0.03 * abs(s), "body": (0, 0, 4 * s), "neck": X(6), "head": (0, 0, -4 * s),
+            "tail1": (0, 0, 22 * s)}
+
+
+def hound_attack(t):
+    i, k = phases(t, 0.34, 0.54, 1.0)
+    coil = {"body": X(-14), "_y": 0.10, "neck": X(-20), "head": X(-8),
+            "hind_l": fwd(-26), "hind_r": fwd(-24), "hind_l_knee": X(34), "hind_r_knee": X(34)}
+    lunge = {"body": X(16), "_y": -0.34, "_z": 0.10, "neck": X(26), "head": X(18),
+             "fore_l": fwd(40), "fore_r": fwd(34), "tail1": (0, 0, -20)}
+    return [mix({}, coil, k), mix(coil, lunge, k), mix(lunge, {}, k), {}][i]
+
+
+def hound_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-14 * k), "_y": 0.12 * k, "neck": X(-22 * k), "head": (0, 0, 16 * k),
+            "tail1": (0, 0, -24 * k)}
+
+
+def hound_death(t):
+    k = ease(t * 1.1)
+    return {"_roll": 78 * k, "_z": -0.26 * k, "neck": X(30 * k), "head": X(24 * k),
+            "fore_l": fwd(36 * k), "hind_l": fwd(30 * k), "tail1": (0, 0, 26 * k)}
+
+
+def build_ankou():
+    """The grave's own coachman: a tall black robe, a skull in the hood, and a
+    scythe it does not need to swing hard."""
+    r = Rig()
+    r.joint("pelvis", (0, 0, 0.86))
+    r.add("skirt", C(0.22, 0.05, 0.62), "ankou_robe", "pelvis", loc=(0, 0.02, -0.26))
+    for k in range(4):
+        r.add("tatter", E(0.06, 0.05, 0.11), "ankou_robe_lt", "pelvis",
+              loc=(-0.15 + k * 0.10, -0.02, -0.56 - (k % 2) * 0.04))
+    r.joint("chest", (0, 0, 0.12), "pelvis", rest=(4, 0, 0))
+    r.add("robe", E(0.21, 0.16, 0.26), "ankou_robe", "chest", loc=(0, 0, 0.18))
+    r.add("mantle", E(0.25, 0.19, 0.09), "ankou_robe_lt", "chest", loc=(0, 0.01, 0.34))
+    for sx in (-1, 1):
+        r.add("clavicle", E(0.05, 0.05, 0.05), "ankou_bone", "chest", loc=(sx * 0.13, -0.10, 0.32))
+        r.joint("shoulder_" + ("l" if sx < 0 else "r"), (sx * 0.20, 0, 0.34), "chest", rest=(0, sx * -16, 0))
+        side = "l" if sx < 0 else "r"
+        r.limb("sleeve", (0, 0, 0), (0, 0, -0.26), 0.07, "ankou_robe", "shoulder_" + side, r_tip=0.05)
+        r.joint("elbow_" + side, (0, 0, -0.26), "shoulder_" + side, rest=(-24, 0, 0))
+        r.limb("forearm", (0, 0, 0), (0, 0, -0.20), 0.035, "ankou_bone", "elbow_" + side, r_tip=0.028)
+        r.joint("hand_" + side, (0, 0, -0.20), "elbow_" + side)
+        r.add("palm", E(0.04, 0.035, 0.045), "ankou_bone", "hand_" + side)
+        for k in (-1, 0, 1):
+            r.limb("finger", (k * 0.025, -0.02, -0.03), (k * 0.04, -0.06, -0.07), 0.011, "ankou_bone",
+                   "hand_" + side, r_tip=0.003)
+    r.joint("neck", (0, 0, 0.48), "chest")
+    r.joint("head", (0, -0.02, 0.08), "neck", rest=(-8, 0, 0))
+    r.add("hood", E(0.13, 0.14, 0.15), "ankou_robe", "head", loc=(0, 0.02, 0.07))
+    r.add("hood_peak", E(0.07, 0.09, 0.09), "ankou_robe_lt", "head", loc=(0, 0.07, 0.17))
+    r.add("skull", E(0.085, 0.09, 0.09), "ankou_bone", "head", loc=(0, -0.06, 0.05))
+    r.add("jaw", E(0.06, 0.06, 0.03), "ankou_bone", "head", loc=(0, -0.08, -0.03))
+    for sx in (-1, 1):
+        r.add("socket", E(0.028, 0.02, 0.028), "ankou_robe", "head", loc=(sx * 0.038, -0.12, 0.07))
+        r.add("light", E(0.016, 0.012, 0.016), "ankou_eye_glow", "head", loc=(sx * 0.038, -0.13, 0.07))
+    # The scythe: a long haft in the right hand and a blade off the top of it.
+    r.limb("haft", (0, 0, 0.58), (0, 0, -0.62), 0.024, "spear", "hand_r")
+    r.limb("blade", (0, 0.02, 0.58), (0, -0.46, 0.50), 0.035, "scythe_steel", "hand_r", r_tip=0.006)
+    r.add("edge", E(0.012, 0.18, 0.05), "ankou_bone", "hand_r", loc=(0, -0.22, 0.50), rot=(0.2, 0, 0))
+    r.pose.scale = (1.45, 1.45, 1.45)
+    return r
+
+
+def ankou_idle(t):
+    s = sn(t)
+    return {"_z": 0.02 * s, "chest": X(2 * s), "head": (0, 0, 4 * sn(t, 0.3)),
+            "shoulder_r": fwd(8), "elbow_r": X(-30), "shoulder_l": (0, -8 - 4 * s, 0)}
+
+
+def ankou_walk(t):
+    s = sn(t)
+    # It does not walk so much as advance: the robe sways, the feet never show.
+    return {"_z": 0.04 * s, "_y": 0.01 * sn(t, 0.3), "chest": X(4 * s), "pelvis": (0, 0, 5 * s),
+            "shoulder_r": fwd(8), "elbow_r": X(-30), "shoulder_l": (0, -12 - 8 * s, 0),
+            "head": (0, 0, 6 * sn(t, 0.2))}
+
+
+def ankou_attack(t):
+    i, k = phases(t, 0.40, 0.60, 1.0)
+    rest = {"shoulder_r": fwd(8), "elbow_r": X(-30)}
+    raise_ = {"shoulder_r": fwd(-60), "elbow_r": X(-70), "hand_r": X(30), "chest": (-8, 0, -20),
+              "_z": 0.10}
+    reap = {"shoulder_r": fwd(52), "elbow_r": X(-8), "hand_r": X(-20), "chest": (14, 0, 26),
+            "_y": -0.22, "head": X(10)}
+    return [mix(rest, raise_, k), mix(raise_, reap, k), mix(reap, rest, k), rest][i]
+
+
+def ankou_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"chest": X(-16 * k), "_y": 0.12 * k, "head": X(-14 * k),
+            "shoulder_l": (0, -40 * k, 0), "shoulder_r": fwd(8)}
+
+
+def ankou_death(t):
+    k = ease(t)
+    return {"_z": -0.44 * k, "chest": X(34 * k), "neck": X(24 * k), "head": X(20 * k),
+            "shoulder_l": fwd(-26 * k), "shoulder_r": fwd(-20 * k), "_roll": 10 * k}
+
+
+def build_banshee():
+    """A woman-shaped cold spot: hair and a gown and a mouth open on a note you
+    cannot hear. Nothing below the waist but a trail."""
+    r = Rig()
+    r.joint("pelvis", (0, 0, 0.92))
+    r.add("gown", C(0.20, 0.03, 0.66), "banshee", "pelvis", loc=(0, 0.02, -0.30))
+    for k in range(4):
+        r.add("wisp", E(0.05 - k * 0.006, 0.04, 0.12), "banshee_dk", "pelvis",
+              loc=(-0.13 + k * 0.09, 0.01, -0.62 - k * 0.05))
+    r.add("trail", E(0.07, 0.06, 0.12), "banshee_glow", "pelvis", loc=(0, 0.02, -0.80))
+    r.joint("chest", (0, 0, 0.14), "pelvis", rest=(-4, 0, 0))
+    r.add("torso", E(0.15, 0.12, 0.22), "banshee", "chest", loc=(0, 0, 0.14))
+    r.add("collar", E(0.18, 0.13, 0.06), "banshee_dk", "chest", loc=(0, 0.01, 0.26))
+    for sx in (-1, 1):
+        side = "l" if sx < 0 else "r"
+        r.joint("shoulder_" + side, (sx * 0.15, 0, 0.26), "chest", rest=(0, sx * -30, 0))
+        r.limb("arm", (0, 0, 0), (0, 0, -0.24), 0.045, "banshee", "shoulder_" + side, r_tip=0.03)
+        r.joint("elbow_" + side, (0, 0, -0.24), "shoulder_" + side, rest=(-20, 0, 0))
+        r.limb("fore", (0, 0, 0), (0, 0, -0.20), 0.03, "banshee_dk", "elbow_" + side, r_tip=0.02)
+        r.joint("hand_" + side, (0, 0, -0.20), "elbow_" + side)
+        for k in (-1, 0, 1):
+            r.limb("finger", (k * 0.02, -0.01, 0), (k * 0.045, -0.06, -0.08), 0.01, "banshee_glow",
+                   "hand_" + side, r_tip=0.003)
+    r.joint("neck", (0, 0, 0.40), "chest")
+    r.joint("head", (0, -0.01, 0.07), "neck", rest=(-6, 0, 0))
+    r.add("skull", E(0.085, 0.09, 0.095), "banshee", "head", loc=(0, 0, 0.04))
+    r.add("jawdrop", E(0.045, 0.05, 0.055), "banshee_dk", "head", loc=(0, -0.06, -0.06))
+    r.add("mouth", E(0.03, 0.03, 0.04), "shroud_dk", "head", loc=(0, -0.08, -0.04))
+    for sx in (-1, 1):
+        r.add("eye", E(0.022, 0.016, 0.03), "banshee_glow", "head", loc=(sx * 0.038, -0.075, 0.06))
+        # Hair, streaming back and up as though she is always falling.
+        for k in range(3):
+            r.limb("hair", (sx * (0.05 + k * 0.02), 0.02, 0.10 - k * 0.03),
+                   (sx * (0.10 + k * 0.05), 0.24 + k * 0.06, 0.20 - k * 0.10), 0.028, "banshee_hair",
+                   "head", r_tip=0.006)
+    r.limb("hair", (0, 0.04, 0.12), (0, 0.30, 0.16), 0.035, "banshee_hair", "head", r_tip=0.008)
+    r.pose.scale = (1.4, 1.4, 1.4)
+    return r
+
+
+def banshee_idle(t):
+    s = sn(t)
+    return {"_z": 0.06 * s, "chest": X(3 * s), "head": (0, 0, 6 * sn(t, 0.3)),
+            "shoulder_l": (0, -26 - 6 * s, 0), "shoulder_r": (0, 26 + 6 * s, 0),
+            "pelvis": (0, 0, 5 * sn(t, 0.2))}
+
+
+def banshee_walk(t):
+    s = sn(t)
+    return {"_z": 0.09 * s, "_y": 0.02 * sn(t, 0.25), "chest": X(5 * s),
+            "shoulder_l": (0, -34 - 10 * s, 0), "shoulder_r": (0, 34 + 10 * s, 0),
+            "head": (0, 0, 10 * sn(t, 0.2)), "pelvis": (0, 0, 8 * s)}
+
+
+def banshee_attack(t):
+    """The scream: she draws up, throws her head back, and everything in front
+    of her gets it."""
+    i, k = phases(t, 0.42, 0.62, 1.0)
+    draw = {"_z": 0.20, "chest": X(-16), "neck": X(-14), "head": X(-20),
+            "shoulder_l": fwd(-40), "shoulder_r": fwd(-40), "elbow_l": X(-60), "elbow_r": X(-60)}
+    scream = {"_z": 0.06, "_y": -0.20, "chest": X(18), "neck": X(16), "head": X(22),
+              "shoulder_l": (0, -80, 0), "shoulder_r": (0, 80, 0), "elbow_l": X(-6), "elbow_r": X(-6)}
+    return [mix({}, draw, k), mix(draw, scream, k), mix(scream, {}, k), {}][i]
+
+
+def banshee_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"chest": X(-20 * k), "_y": 0.14 * k, "_z": 0.06 * k, "head": X(-16 * k),
+            "shoulder_l": (0, -50 * k, 0), "shoulder_r": (0, 50 * k, 0)}
+
+
+def banshee_death(t):
+    k = ease(t)
+    return {"_z": -0.50 * k, "chest": X(30 * k), "head": X(30 * k), "_roll": 14 * k,
+            "shoulder_l": fwd(-34 * k), "shoulder_r": fwd(-34 * k)}
+
+
+# =================================================================================
 #  The roster
 # =================================================================================
 CREATURES = {
@@ -1310,6 +1680,11 @@ CREATURES = {
     "zombie":    (build_zombie,    64, (zom_idle, zom_walk, zom_attack, zom_hurt, zom_death),           0.36),
     "skeleton":  (build_skeleton,  64, (skel_idle, skel_walk, skel_attack, skel_hurt, skel_death),      0.30),
     "wraith":    (build_wraith,    64, (wraith_idle, wraith_walk, wraith_attack, wraith_hurt, wraith_death), 0.26),
+    "slime":     (build_slime,     48, (slime_idle, slime_walk, slime_attack, slime_hurt, slime_death),  0.30),
+    "bat":       (build_bat,       48, (bat_idle, bat_walk, bat_attack, bat_hurt, bat_death),            0.18),
+    "hound":     (build_hound,     64, (hound_idle, hound_walk, hound_attack, hound_hurt, hound_death),  0.34),
+    "ankou":     (build_ankou,     80, (ankou_idle, ankou_walk, ankou_attack, ankou_hurt, ankou_death),  0.30),
+    "banshee":   (build_banshee,   72, (banshee_idle, banshee_walk, banshee_attack, banshee_hurt, banshee_death), 0.26),
 }
 CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False), ("death", 6, False)]
 FACINGS = bc.FACINGS

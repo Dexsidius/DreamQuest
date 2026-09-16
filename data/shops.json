@@ -12,6 +12,10 @@
       },
       "sells": [
         {
+          "item": "tinderbox",
+          "stock": 3
+        },
+        {
           "item": "thread",
           "stock": 20
         },
@@ -222,6 +226,10 @@
       },
       "sells": [
         {
+          "item": "tinderbox",
+          "stock": 3
+        },
+        {
           "item": "thread",
           "stock": 20
         },
@@ -370,6 +378,10 @@
       },
       "sells": [
         {
+          "item": "tinderbox",
+          "stock": 3
+        },
+        {
           "item": "thread",
           "stock": 12
         },
@@ -451,6 +463,10 @@
       },
       "sells": [
         {
+          "item": "tinderbox",
+          "stock": 3
+        },
+        {
           "item": "cooked_boar",
           "stock": 4
         },
@@ -530,6 +546,10 @@
         "*": 0.45
       },
       "sells": [
+        {
+          "item": "tinderbox",
+          "stock": 3
+        },
         {
           "item": "cooked_trout",
           "stock": 5

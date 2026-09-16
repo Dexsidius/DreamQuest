@@ -1512,6 +1512,10 @@
                                                 "w":  56,
                                                 "h":  56
                                             },
+                   "props/spring_basin":  {
+                                              "w":  112,
+                                              "h":  112
+                                          },
                    "props/stairs_up":  {
                                            "w":  88,
                                            "h":  88
@@ -1580,6 +1584,10 @@
                                       "w":  56,
                                       "h":  56
                                   },
+                   "props/well_dry":  {
+                                          "w":  56,
+                                          "h":  56
+                                      },
                    "props/workbench":  {
                                            "w":  80,
                                            "h":  80

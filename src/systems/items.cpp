@@ -66,6 +66,9 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.sweep       = o.value("sweep", 1.0f);
         d.push        = o.value("push", 1.0f);
         d.attack_clip = o.value("clip", string(""));
+        d.light_radius = o.value("light", 0.0f);
+        d.lights       = o.value("lights", string(""));
+        d.needs_recipe = o.value("needs_recipe", false);
         d.passive     = o.value("passive", string(""));
         d.passive_text = o.value("passive_text", string(""));
 
@@ -561,6 +564,14 @@ float Equipment::AttackSpeed() const {
 
 const ItemDef* Equipment::Weapon() const {
     return db ? db->Get(slots[SLOT_WEAPON]) : nullptr;
+}
+
+float Equipment::LightRadius() const {
+    if (!db) return 0.0f;
+    float best = 0.0f;
+    for (int s = 0; s < SLOT_COUNT; ++s)
+        if (const ItemDef* d = db->Get(slots[s])) best = std::max(best, d->light_radius);
+    return best;
 }
 
 bool Equipment::HasPassive(const string& id) const {

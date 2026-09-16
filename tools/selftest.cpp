@@ -58,6 +58,7 @@ static const char* kMaps[] = {
     "overworld", "town_havenbrook", "guild_hall",
     "house_elder", "house_inn", "house_inn_upper", "house_smith",
     "dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow",
+    "well_shallow", "well_deep",
     "whisperwood_trail", "mossvale", "fernhollow",
     "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage",
     "dreamworld",
@@ -3860,6 +3861,126 @@ int main(int argc, char** argv) {
             }
         }
 
+        // --- the well under Havenbrook ----------------------------------------------------------
+        // Two dark floors, four chambers to a floor, one kind of thing to a
+        // chamber, and a lantern the only way to see any of it.
+        {
+            const ItemDef* lit = items.Get("lantern");
+            const ItemDef* unlit = items.Get("lantern_unlit");
+            const ItemDef* tinder = items.Get("tinderbox");
+            Check(lit && lit->slot == SLOT_SHIELD && lit->light_radius > 150.0f,
+                  "a lit lantern is worn in the off hand and throws a long light");
+            Check(unlit && unlit->lights == "lantern" && unlit->needs_recipe,
+                  "an unlit one becomes it when lit, and has to be shown to you first");
+            Check(tinder && tinder->use == "light", "a tinderbox is what lights it");
+            // Made at an anvil, out of a couple of bars.
+            const ItemDef* recipe = nullptr;
+            for (const ItemDef* r : items.Recipes())
+                if (r->craft_result == "lantern_unlit") recipe = r;
+            Check(recipe && items.StationFor(*recipe) == CraftStation::Anvil,
+                  "the lantern is smithed at an anvil");
+            int bars = 0;
+            if (recipe)
+                for (const auto& in : recipe->craft_inputs) {
+                    const ItemDef* mat = items.Get(in.first);
+                    if (mat && mat->piece == "bar") bars += in.second;
+                }
+            Check(bars >= 1 && bars <= 3, "out of a couple of ingots (" + std::to_string(bars) + ")");
+            // Sold somewhere a new character can reach.
+            bool sold = false;
+            ShopDatabase well_shops;
+            well_shops.Load("data/shops.json");
+            for (const auto& kv : well_shops.All())
+                for (const ShopStock& st : kv.second.sells)
+                    if (st.item == "tinderbox") sold = true;
+            Check(sold, "and a tinderbox can be bought");
+
+            for (const char* id : {"well_shallow", "well_deep"}) {
+                std::ifstream in(string("maps/") + id + ".mx");
+                json mx;
+                in >> mx;
+                Check(mx["dreamquest"].value("dark", false), string(id) + " is pitch dark");
+                Check(mx["dreamquest"]["bounds"][0].get<int>() >= 2900 &&
+                      mx["dreamquest"]["bounds"][1].get<int>() >= 2200,
+                      string(id) + " is a big floor (" + std::to_string(mx["dreamquest"]["bounds"][0].get<int>()) +
+                      "x" + std::to_string(mx["dreamquest"]["bounds"][1].get<int>()) + ")");
+            }
+
+            // Four chambers of monsters on each floor: the quadrants hold what
+            // they should, and nothing stands in the same room as its neighbour.
+            const auto quadrants = [&](const string& id, std::map<string, std::set<string>>& out) {
+                Map m;
+                if (!m.Load("maps/" + id + ".mx")) return;
+                for (const EnemySpawnDef& e : m.Enemies()) {
+                    const string q = string(e.y < m.Height() / 2 ? "n" : "s") +
+                                     (e.x < m.Width() / 2 ? "w" : "e");
+                    out[q].insert(e.type);
+                }
+            };
+            std::map<string, std::set<string>> shallow, deep;
+            quadrants("well_shallow", shallow);
+            quadrants("well_deep", deep);
+            Check(shallow.size() == 4 && deep.size() == 4, "each floor has four quadrants with something in them");
+            std::set<string> up_kinds, down_kinds;
+            for (const auto& kv : shallow) up_kinds.insert(kv.second.begin(), kv.second.end());
+            for (const auto& kv : deep) down_kinds.insert(kv.second.begin(), kv.second.end());
+            for (const char* k : {"slime", "rat", "bat"})
+                Check(up_kinds.count(k) > 0, string("the upper workings have ") + k + "s");
+            for (const char* k : {"hound", "ankou", "banshee"})
+                Check(down_kinds.count(k) > 0, string("the deep cut has ") + k + "s");
+            Check(!up_kinds.count("ankou") && !down_kinds.count("slime"),
+                  "and neither floor is holding the other's monsters");
+            for (const char* k : {"slime", "bat", "hound", "ankou", "banshee", "well_warden"}) {
+                const EnemyDef* d = enemy_db.Get(k);
+                Check(d && d->aggro_range <= 175.0f, string(k) + " notices you late (" +
+                      std::to_string(static_cast<int>(d ? d->aggro_range : 0)) + ")");
+                Check(d && loot.Has(d->loot_table), string(k) + " has a loot table");
+                for (const char* clip : {"idle", "walk", "attack", "hurt", "death"})
+                    Check(fs::exists(string("assets/characters/") + (d ? d->sprite : "") + "/" + clip + ".png"),
+                          string(k) + " has its " + clip + " drawn");
+            }
+            {
+                Map deep_map;
+                deep_map.Load("maps/well_deep.mx");
+                int warden = 0;
+                bool spring = false;
+                for (const EnemySpawnDef& e : deep_map.Enemies()) if (e.type == "well_warden") ++warden;
+                for (const MapObject& o : deep_map.Objects())
+                    if (o.id == "spring_well" && o.type == "lever") spring = true;
+                Check(warden == 1 && spring, "the spring is at the bottom, with the thing in it");
+            }
+
+            // The quest: the lantern first, then down, then the spring, then Bess.
+            const QuestDef* q = quests.Definition("q_dry_well");
+            Check(q && q->giver == "npc_cook" && q->major, "Bess gives the well quest");
+            Check(q && q->stages.size() == 5 && q->stages[0].target == "lantern" &&
+                  q->stages[1].target == "well_deep" && q->stages[2].target == "well_warden" &&
+                  q->stages[3].target == "spring_well" && q->stages[4].target == "npc_cook",
+                  "it is a lantern, a climb, a fight, the spring, and word back");
+            // And the recipe comes with the work.
+            {
+                std::ifstream din("data/dialogue.json");
+                json dj;
+                din >> dj;
+                bool teaches = false;
+                for (auto it = dj.begin(); it != dj.end(); ++it)
+                    for (const auto& opt : it.value().value("options", json::array())) {
+                        const json& a = opt.value("action", json::object());
+                        if (a.value("start_quest", string("")) == "q_dry_well" &&
+                            a.value("learn", string("")) == "lantern_unlit") teaches = true;
+                    }
+                Check(teaches, "and taking it on is what teaches the lantern");
+            }
+            // The way down is in the town square.
+            {
+                Map town;
+                town.Load("maps/town_havenbrook.mx");
+                const Portal* down = nullptr;
+                for (const Portal& p : town.Portals()) if (p.target_map == "well_shallow") down = &p;
+                Check(down != nullptr, "the well in the square is the way in");
+            }
+        }
+
         // --- the world map ---------------------------------------------------------------------
         // What the map screen marks comes from data/worldmap.json, written by
         // genmaps as it places things, and the trades in a town come from the
@@ -5144,6 +5265,7 @@ int main(int argc, char** argv) {
                     {"town_havenbrook", "havenbrook_sawpit", 300, 300, 1.5f},
                     {"town_havenbrook", "havenbrook_pit", 1460, 240, 1.5f},
                     {"town_havenbrook", "havenbrook_pond", 1450, 1190, 1.5f},
+                    {"town_havenbrook", "havenbrook_well", 768, 832, 2},
                     {"overworld", "emberfell_entrance", 2768, 300, 2},
                     {"overworld", "mire_bogs", 1060, 1000, 1.5f},
                     {"overworld", "lizard_camp", 1070, 2540, 1.5f},

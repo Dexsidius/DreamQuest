@@ -222,7 +222,12 @@ string World::PitchCamp(int slot, const GameContext& ctx) {
 
 SDL_Color World::AmbientLight() const {
     const SDL_Color white{255, 255, 255, 255};
-    if (!map.Loaded() || map.Ambient() == "dungeon") return white;
+    if (!map.Loaded()) return white;
+    // A dark map is black but for what is carried into it. Not quite black:
+    // at nothing at all the walls stop existing and the place reads as a bug
+    // rather than as a cellar.
+    if (map.IsDark()) return {26, 24, 32, 255};
+    if (map.Ambient() == "dungeon") return white;
     if (InDream()) return {156, 124, 214, 255};
 
     float dark = clock.Darkness();
@@ -242,10 +247,12 @@ SDL_Color World::AmbientLight() const {
 
 vector<Light> World::CollectLights() const {
     vector<Light> lights;
-    if (!map.Loaded() || map.Ambient() == "dungeon") return lights;
+    if (!map.Loaded()) return lights;
+    if (map.Ambient() == "dungeon" && !map.IsDark()) return lights;
     const bool dreaming = InDream();
     float dark = dreaming ? 1.0f : clock.Darkness();
     if (map.IsInterior()) dark *= 0.8f;
+    if (map.IsDark()) dark = 1.0f;
     if (dark <= 0.01f) return lights;
 
     const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
@@ -273,12 +280,25 @@ vector<Light> World::CollectLights() const {
     }
 
     // A little light of your own, so the player is never lost in the dark: a
-    // warm glow outdoors, a pale one in a dream.
+    // warm glow outdoors, a pale one in a dream. Underground it is only what
+    // is in your hand -- and with nothing in it, barely an arm's length.
     if (!player.IsDead() || player.DeathTimer() > 0.0f) {
-        if (dreaming)
+        const float lamp = player.equipment.LightRadius();
+        if (map.IsDark()) {
+            const float t2 = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+            const float flame = 0.94f + 0.06f * sinf(t2 * 6.1f) + 0.03f * sinf(t2 * 11.3f);
+            if (lamp > 0.0f)
+                lights.push_back({player.x, player.y - 16.0f, lamp * flame,
+                                  {255, 226, 168, 255}, 1.0f});
+            else
+                lights.push_back({player.x, player.y - 16.0f, 44.0f, {180, 186, 210, 255}, 0.55f});
+        } else if (dreaming) {
             lights.push_back({player.x, player.y - 16.0f, 120.0f, {236, 226, 255, 255}, 0.75f});
-        else
-            lights.push_back({player.x, player.y - 16.0f, 80.0f, {255, 236, 200, 255}, 0.42f * dark});
+        } else {
+            const float radius = std::max(80.0f, lamp * 0.8f);
+            lights.push_back({player.x, player.y - 16.0f, radius, {255, 236, 200, 255},
+                              (lamp > 0.0f ? 0.6f : 0.42f) * dark});
+        }
     }
 
     for (const Projectile& p : projectiles) {
@@ -823,6 +843,8 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         if (!ObjectPresent(o)) continue;
         if (o.type == "chest") {
             label = Flagged(o.id) ? "" : "Open chest";
+        } else if (o.type == "lever") {
+            label = Flagged(o.id) ? "" : (o.title.empty() ? "Use it" : o.title);
         } else if (o.type == "note") {
             label = "Read note";
         } else if (o.type == "board") {
@@ -923,6 +945,19 @@ void World::TryInteract(const GameContext& ctx) {
             if (t.index < 0 || t.index >= static_cast<int>(objects.size())) break;
             const MapObject& o = objects[t.index];
 
+            if (o.type == "lever") {
+                if (Flagged(o.id) || !ObjectPresent(o)) break;
+                SetFlag(o.id);
+                Audio::Play(Sfx::ChestOpen);
+                AddText(o.text.empty() ? "It gives." : o.text, o.x, o.y - 34.0f, {200, 235, 255, 255}, 2.4f);
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
+                break;
+            }
             if (o.type == "chest") {
                 if (Flagged(o.id) || !ObjectPresent(o)) break;
                 SetFlag(o.id);

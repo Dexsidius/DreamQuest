@@ -959,6 +959,34 @@ void Game::UpdateInventory() {
                         PushToast("Recipe learned: " + name + ". Brew it at a cauldron.", Palette::Highlight);
                         Audio::Play(Sfx::QuestStart);
                     }
+                } else if (def && def->use == "light") {
+                    // A firestarter is no use on its own: it lights whatever
+                    // in the bag says what it becomes when lit, and it is not
+                    // used up doing it.
+                    int slot = -1;
+                    for (int k = 0; k < p.inventory.SlotCount() && slot < 0; ++k) {
+                        const ItemDef* carried = items.Get(p.inventory.Slot(k).id);
+                        if (carried && !carried->lights.empty()) slot = k;
+                    }
+                    const ItemDef* unlit = slot < 0 ? nullptr : items.Get(p.inventory.Slot(slot).id);
+                    const ItemDef* lit = unlit ? items.Get(unlit->lights) : nullptr;
+                    if (!lit) {
+                        PushToast("You have nothing to light.", Palette::TextDim);
+                        Audio::Play(Sfx::UiError);
+                    } else {
+                        p.inventory.RemoveSlot(slot, 1);
+                        p.inventory.Add(lit->id, 1);
+                        // Both names read badly in the sentence ("You light the
+                        // Lit Lantern", "You light the Unlit Lantern"), so the
+                        // state word is dropped and the rest lower-cased: what
+                        // you lit is a lantern.
+                        string what = lit->name;
+                        if (what.rfind("Lit ", 0) == 0) what = what.substr(4);
+                        for (char& c : what) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+                        PushToast("You light the " + what + ".", Palette::Highlight);
+                        Audio::Play(Sfx::QuestStart);
+                        quests.RefreshCollectObjectives(p.inventory);
+                    }
                 } else if (def && def->use == "camp") {
                     const string why = world.PitchCamp(inventory_cursor, ctx);
                     if (why.empty()) {
@@ -1961,7 +1989,9 @@ void Game::UpdateCrafting() {
         Player& p = world.player;
         const int skill = CraftSkill(craft_station);
 
-        if (craft_station == CraftStation::Cauldron && !world.KnowsRecipe(recipe->craft_result)) {
+        const ItemDef* result = items.Get(recipe->craft_result);
+        if ((craft_station == CraftStation::Cauldron || (result && result->needs_recipe)) &&
+            !world.KnowsRecipe(recipe->craft_result)) {
             PushToast("You have not learned that recipe yet.", {235, 150, 120, 255});
             Audio::Play(Sfx::UiError);
             return;
@@ -2048,7 +2078,9 @@ void Game::DrawCrafting() {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + (i - first) * row_h,
                                list_w, row_h - 4.0f};
         const bool selected = (i == craft_cursor);
-        const bool known = !cauldron || world.KnowsRecipe(r->craft_result);
+        // A brew, or anything else marked as taught rather than worked out.
+        const bool taught = cauldron || (made && made->needs_recipe);
+        const bool known = !taught || world.KnowsRecipe(r->craft_result);
         const bool unlocked = known && p.skills.Level(skill) >= r->craft_level;
 
         if (selected) {
@@ -2077,8 +2109,10 @@ void Game::DrawCrafting() {
 
     ui.Text(made ? made->name : r->craft_result, dx, y, TextSize::Body, Palette::Highlight);
     y += 28.0f;
-    if (cauldron && !world.KnowsRecipe(r->craft_result)) {
-        y += ui.TextWrapped("You have not learned to brew this yet." +
+    const bool taught_here = cauldron || (made && made->needs_recipe);
+    if (taught_here && !world.KnowsRecipe(r->craft_result)) {
+        y += ui.TextWrapped(string(cauldron ? "You have not learned to brew this yet."
+                                            : "You have not been shown how to make this yet.") +
                             (made && !made->recipe_from.empty() ? " " + made->recipe_from : string("")),
                             dx, y, panel.w - list_w - 64.0f, TextSize::Small, {235, 150, 120, 255}) + 8.0f;
     }

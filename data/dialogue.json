@@ -436,6 +436,34 @@
     "text": "Sit anywhere. The fire is lit, and if you have anything raw in that pack you are welcome to use it.",
     "options": [
       {
+        "text": "What happened to the well in the square?",
+        "next": "bess_well_offer",
+        "if": {
+          "quest": "q_dry_well",
+          "state": "available"
+        }
+      },
+      {
+        "text": "The well is running again.",
+        "next": "bess_well_done",
+        "if": {
+          "quest": "q_dry_well",
+          "state": "active",
+          "stage": 4
+        },
+        "action": {
+          "advance": "npc_cook"
+        }
+      },
+      {
+        "text": "About the well.",
+        "next": "bess_well_waiting",
+        "if": {
+          "quest": "q_dry_well",
+          "state": "active"
+        }
+      },
+      {
         "text": "You look short-handed.",
         "next": "cook_offer",
         "if": {
@@ -2733,6 +2761,94 @@
     "options": [
       {
         "text": "I will.",
+        "next": "end"
+      }
+    ]
+  },
+  "bess_well_offer": {
+    "speaker": "Innkeeper Bess",
+    "text": "She puts the cloth down, which she does not do for much.\n\n\"That well fed this town. Four hundred buckets a day out of it, and a queue from dawn -- every family took their share and nobody ever went short, not in the dry years, not once. My mother drew from it. I drew from it.\"\n\n\"Then the year everything went wrong -- the road, the mine, the things out of the Mire -- it slowed. Then it stopped. We have carted water from the brook for eleven years and the cart costs more every spring. Nobody has been down it, because nobody was mad enough.\"",
+    "options": [
+      {
+        "text": "What is down there?",
+        "next": "bess_well_what",
+        "if": {
+          "quest": "q_dry_well",
+          "state": "available"
+        }
+      },
+      {
+        "text": "I will go down.",
+        "next": "bess_well_accept",
+        "action": {
+          "start_quest": "q_dry_well",
+          "learn": "lantern_unlit"
+        }
+      },
+      {
+        "text": "Not today.",
+        "next": "end"
+      }
+    ]
+  },
+  "bess_well_what": {
+    "speaker": "Innkeeper Bess",
+    "text": "\"Water, if there is any justice. Something else, if there is not.\"\n\n\"It is a shaft with steps cut in it and rooms cut off the steps -- the old crews worked it in sections, and the sections went down further than the water ever did. It is pitch black. You will not get ten feet without a lantern.\"\n\n\"I can tell you how the crews made theirs: an iron frame, two bars' worth, and a bit of seasoned wood for the handle. Take it to an anvil. Then get a tinderbox off Tobin and put a flame in it, and hold it in your off hand where it will do you some good.\"",
+    "options": [
+      {
+        "text": "I will go down.",
+        "next": "bess_well_accept",
+        "action": {
+          "start_quest": "q_dry_well",
+          "learn": "lantern_unlit"
+        }
+      },
+      {
+        "text": "I will think on it.",
+        "next": "end"
+      }
+    ]
+  },
+  "bess_well_accept": {
+    "speaker": "Innkeeper Bess",
+    "text": "\"Then you will want this written down.\" She chalks the lantern out on the bar top: frame, panes, wick.\n\n\"Two iron bars and a length of wood, at an anvil. Light it before you go down, not after -- there is nowhere down there to strike a flame twice.\"",
+    "options": [
+      {
+        "text": "I will bring the water back.",
+        "next": "end"
+      }
+    ]
+  },
+  "bess_well_waiting": {
+    "speaker": "Innkeeper Bess",
+    "text": "\"The well is in the square, and the shaft has steps. Take the lantern lit.\"\n\nShe wipes the same patch of bar twice.\n\n\"If it is something living in the water, kill it. If it is rubble, shift it. If it is neither, come back up and tell me what it is and we will think again.\"",
+    "options": [
+      {
+        "text": "Tell me about the lantern again.",
+        "next": "bess_well_lesson"
+      },
+      {
+        "text": "I am going back down.",
+        "next": "end"
+      }
+    ]
+  },
+  "bess_well_done": {
+    "speaker": "Innkeeper Bess",
+    "text": "She does not say anything for a moment. Then she takes the cloth off her shoulder, puts it down, and goes to the door to look at the square.\n\n\"Eleven years.\" She sends the boy out with a bucket. \"Sit down. You are eating here tonight and you are not paying for it, and if you argue I will have you thrown out of my own inn.\"",
+    "options": [
+      {
+        "text": "I will not argue.",
+        "next": "end"
+      }
+    ]
+  },
+  "bess_well_lesson": {
+    "speaker": "Innkeeper Bess",
+    "text": "\"Water, if there is any justice. Something else, if there is not.\"\n\n\"It is a shaft with steps cut in it and rooms cut off the steps -- the old crews worked it in sections, and the sections went down further than the water ever did. It is pitch black. You will not get ten feet without a lantern.\"\n\n\"I can tell you how the crews made theirs: an iron frame, two bars' worth, and a bit of seasoned wood for the handle. Take it to an anvil. Then get a tinderbox off Tobin and put a flame in it, and hold it in your off hand where it will do you some good.\"",
+    "options": [
+      {
+        "text": "Back to it.",
         "next": "end"
       }
     ]

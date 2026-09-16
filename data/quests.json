@@ -1741,5 +1741,62 @@
       "coins": 950
     },
     "completion": "Orlend looks at the boots for a long moment. \"Keep them. The ledger is forty years of men saying the guild should not have sealed that door, and you have just made every one of them right.\""
+  },
+  "q_dry_well": {
+    "name": "The Dry Well",
+    "source": "npc",
+    "giver": "npc_cook",
+    "level": 15,
+    "major": true,
+    "summary": "Havenbrook's well ran dry the year everything else went wrong, and nobody has been down it since. Bess wants to know what is in the way of the water.",
+    "req": {
+      "Combat": 12
+    },
+    "stages": [
+      {
+        "desc": "Make a lantern at an anvil and light it with a tinderbox",
+        "type": "collect",
+        "target": "lantern",
+        "count": 1
+      },
+      {
+        "desc": "Climb down the well and find the bottom of the shaft",
+        "type": "reach",
+        "target": "well_deep"
+      },
+      {
+        "desc": "Clear whatever is sitting in the spring",
+        "type": "kill",
+        "target": "well_warden",
+        "map": "well_deep",
+        "count": 1
+      },
+      {
+        "desc": "Open the spring so the water runs again",
+        "type": "interact",
+        "target": "spring_well"
+      },
+      {
+        "desc": "Tell Innkeeper Bess the well is running",
+        "type": "talk",
+        "target": "npc_cook"
+      }
+    ],
+    "rewards": {
+      "xp": {
+        "Attack": 1400,
+        "Defence": 1200,
+        "Hitpoints": 900,
+        "Smithing": 600
+      },
+      "coins": 1100,
+      "items": [
+        {
+          "id": "cooked_boar",
+          "qty": 4
+        }
+      ]
+    },
+    "completion": "Bess sends the boy to the square with a bucket before you have finished talking, and the whole street hears him shout when it comes up full."
   }
 }

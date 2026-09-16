@@ -57,6 +57,17 @@ struct ItemDef {
     // The hero's clip for its strikes: "thrust" for a spear. Empty is the
     // ordinary swing.
     string attack_clip;
+    // How far a worn light throws, in world pixels; 0 for everything that is
+    // not a lamp. A lantern in the off hand is the only way to see down a
+    // well, so the light is a property of the item rather than of the player.
+    float light_radius = 0.0f;
+    // What this becomes when a firestarter is used on it: an unlit lantern
+    // names the lit one. Empty for everything that does not catch.
+    string lights;
+    // A recipe nobody can make until they have been shown how, whatever the
+    // station. Brews have always worked this way; this puts the same lock on
+    // anything else that is taught rather than worked out.
+    bool  needs_recipe = false;
     // A named effect the item has while it is worn, and the line the journal
     // and the bag print for it. One legendary piece can do something no stat
     // block can say; everything that reads it asks for it by name.
@@ -246,6 +257,8 @@ public:
     const ItemDef* Weapon() const;
     // True when something worn carries this passive.
     bool HasPassive(const string& id) const;
+    // The furthest a worn light throws; 0 when nothing worn is lit.
+    float LightRadius() const;
     // What the equipped weapon is; Melee when nothing is held.
     WeaponKind Kind() const;
     // Colour for the worn weapon layers, and for the body when armour is worn.

@@ -1191,6 +1191,8 @@ static void BuildOverworld() {
     m.Portal(gate_x - 48, gate_y, 96, 48, "town_havenbrook", "from_field",
              "Enter Havenbrook", false);
     MarkWorld("town", "Havenbrook", gate_x, gate_y + 16, "havenbrook");
+    // The well is inside the town, so its mark sits just under the town's.
+    MarkWorld("dungeon", "The Dry Well, in Havenbrook", gate_x - 26, gate_y + 92);
 
     {
         json& o = m.Object("sign_gate", "sign", gate_x + 56, gate_y - 8);
@@ -1606,6 +1608,34 @@ static void BuildTown() {
         o["quests"] = json::array({"q_thin_the_herd", "q_firewood",
                                    "q_ore_for_the_forge", "q_orc_trouble"});
         m.Collision(33 * CELL - 36, 24 * CELL - 12, 72, 12);
+    }
+
+    // --- the well ----------------------------------------------------------------------
+    // Dry these eleven years, and the way down to what stopped it.
+    {
+        const int wcx = 25, wcy = 25;
+        const int wx = wcx * CELL, wy = wcy * CELL;
+        // A paved apron, so the well reads as part of the square rather than as
+        // something standing in a field: four hundred buckets a day wore the
+        // grass off long before the water stopped.
+        for (int cy = wcy - 1; cy <= wcy + 1; ++cy)
+            for (int cx = wcx - 1; cx <= wcx + 1; ++cx)
+                m.Ground(VariantOf("road", cx, cy), cx * CELL, cy * CELL, CELL);
+        // The dry variant: a board over the mouth and the bucket left on the
+        // rim. A well with water in it would tell the player the opposite of
+        // what Bess is about to.
+        m.Prop("props", "well_dry", wx, wy);
+        m.Collision(wx - 20, wy - 14, 40, 14);
+        m.Spawn("from_well", wx, wy + 40);
+        m.Portal(wx - 24, wy - 6, 48, 30, "well_shallow", "entrance", "Climb down the well");
+        m.Danger(12);
+        json& sign = m.Object("sign_well", "sign", wx - 62, wy + 6);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "The town well";
+        sign["text"]   = "HAVENBROOK WELL\n\nFour hundred buckets a day, and a queue from dawn.\n\n"
+                         "Under that, on a board nailed over the winch: DRY SINCE THE BAD YEAR. "
+                         "DO NOT LOWER THE BUCKET. DO NOT GO DOWN.";
+        m.Collision(wx - 78, wy - 4, 32, 10);
     }
 
     // A cooking fire anyone may use.
@@ -2490,6 +2520,199 @@ static void BuildDungeon(const string& id, const string& display,
         for (const auto& t : kTry)
             if (m.Clear(dx + t[0], dy + t[1])) { sx = dx + t[0]; sy = dy + t[1]; break; }
         m.Spawn("from_below", sx, sy);
+    }
+
+    m.Write("maps");
+}
+
+// =============================================================================
+//  The well of Havenbrook
+//
+//  Two floors cut under the square, both pitch dark: what you can see down
+//  here is what you carry, which is the whole point of the lantern. Each floor
+//  is four chambers round a hub, one kind of thing to a chamber, so a fight is
+//  with the slimes or with the bats and not with both at once -- and the mobs
+//  are spaced on a lattice with short leashes, so a room is crossed a fight at
+//  a time rather than in one running battle.
+// =============================================================================
+
+struct WellMob { const char* type; int level; };
+
+// Cave growth, and only the small sprites: the big mushrooms are as tall as a
+// tree and a player standing behind one vanishes, which in a dark map where
+// the player is the light source reads as the game having lost them.
+static const char* kCaveFungus[] = {
+    "mushroom_02", "fungus_00", "fungus_01", "fungus_02"
+};
+
+static void BuildWellFloor(const string& id, const string& display, const string& subtitle,
+                           unsigned seed, int cols, int rows,
+                           const string& floor_tile, const string& wall_tile,
+                           const string& up_map, const string& up_spawn, const string& down_map,
+                           const vector<vector<WellMob>>& quadrants, int per_quadrant,
+                           bool deep) {
+    const int CELL = 32;
+    MapBuilder m(id, display, cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Ambient("dungeon");
+    m.Background(6, 6, 9);
+    m.Subtitle(subtitle);
+    m.dq["dark"] = true;                       // no light of its own
+    std::mt19937 rng(seed);
+
+    const int hx = cols / 2, hy = rows / 2;
+    const int qx = cols / 4, qy = rows / 4;    // how far a chamber sits from the hub
+    const float rx = cols * 0.19f, ry = rows * 0.19f;
+
+    // The four chambers, NW NE SW SE, and the hub they open onto.
+    const std::pair<int, int> centres[4] = {{hx - qx, hy - qy}, {hx + qx, hy - qy},
+                                            {hx - qx, hy + qy}, {hx + qx, hy + qy}};
+    const auto in_chamber = [&](int q, int cx, int cy) {
+        const float dx = (cx - centres[q].first) / rx, dy = (cy - centres[q].second) / ry;
+        return dx * dx + dy * dy <= 1.0f + (Fbm(cx * 0.16f, cy * 0.16f, static_cast<int>(seed) + q) - 0.5f) * 0.5f;
+    };
+    const auto in_hub = [&](int cx, int cy) {
+        const float dx = (cx - hx) / (cols * 0.09f), dy = (cy - hy) / (rows * 0.10f);
+        return dx * dx + dy * dy <= 1.0f;
+    };
+    // The spring lies at the bottom of the shaft, in a room of its own down a
+    // long passage south of the hub. It is deliberately far from the stairs:
+    // arriving on a floor and finding the boss already within reach gives the
+    // player no room to see it coming.
+    const int sprx = hx, spry = rows - 10;
+    const float spr_r = 6.5f;
+    const auto in_spring = [&](int cx, int cy) {
+        const float dx = (cx - sprx) / spr_r, dy = (cy - spry) / (spr_r * 0.86f);
+        return dx * dx + dy * dy <= 1.0f;
+    };
+    const auto in_corridor = [&](int cx, int cy) {
+        for (int q = 0; q < 4; ++q) {
+            const int ccx = centres[q].first, ccy = centres[q].second;
+            // An L from the hub: along x at the hub's row, then down to the chamber.
+            if (abs(cy - hy) <= 1 && cx >= std::min(hx, ccx) && cx <= std::max(hx, ccx)) return true;
+            if (abs(cx - ccx) <= 1 && cy >= std::min(hy, ccy) && cy <= std::max(hy, ccy)) return true;
+        }
+        // And, on the deep floor, the passage down to the spring.
+        if (deep && abs(cx - sprx) <= 1 && cy >= hy && cy <= spry) return true;
+        return false;
+    };
+    const auto open = [&](int cx, int cy) {
+        if (cx < 2 || cy < 2 || cx >= cols - 2 || cy >= rows - 2) return false;
+        if (in_hub(cx, cy) || in_corridor(cx, cy)) return true;
+        if (deep && in_spring(cx, cy)) return true;
+        for (int q = 0; q < 4; ++q) if (in_chamber(q, cx, cy)) return true;
+        return false;
+    };
+
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            if (!open(cx, cy)) {
+                m.Ground(wall_tile, cx * CELL, cy * CELL, CELL);
+                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+                continue;
+            }
+            const float v = Fbm(cx * 0.3f, cy * 0.3f, static_cast<int>(seed) + 11);
+            // Standing water in the deep cut: it is a well, after all.
+            if (deep && v > 0.72f) {
+                m.Ground(VariantOf("bog_water", cx, cy), cx * CELL, cy * CELL, CELL);
+                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            } else {
+                m.Ground(v > 0.55f ? floor_tile : (floor_tile + "_dark"), cx * CELL, cy * CELL, CELL);
+            }
+        }
+
+    // Rubble, webs and fungus, thickest against the walls.
+    int rock_i = 0;
+    for (int cy = 3; cy < rows - 3; ++cy)
+        for (int cx = 3; cx < cols - 3; ++cx) {
+            if (!open(cx, cy)) continue;
+            // The floor round the spring stays bare: the fight there needs room
+            // to circle, and a rock in the way of the basin reads as a bug.
+            if (deep && abs(cx - sprx) <= 4 && abs(cy - spry) <= 4) continue;
+            const bool wall = !open(cx + 1, cy) || !open(cx - 1, cy) || !open(cx, cy + 1) || !open(cx, cy - 1);
+            const float r = Hash2(cx, cy, 7711);
+            const int x = cx * CELL + 16, y = cy * CELL + 20;
+            if (wall && r < 0.16f) {
+                m.Prop("objects", kSmallRocks[(cx + cy) % 4], x, y);
+                m.Collision(x - 10, y - 8, 20, 8);
+            } else if (wall && r < 0.24f) {
+                m.Prop("props", "cobweb", x, y);
+            } else if (!wall && r < 0.05f) {
+                m.Prop("objects", Pick(kCaveFungus, rng), x, y);
+            } else if (!wall && r < 0.065f) {
+                PlaceRock(m, rng, 800 + rock_i++, x, y, false, deep ? 20 : 1, deep ? "coal" : "copper_ore");
+            }
+        }
+
+    // The way up, on the hub's north side, and the way down on its south.
+    const int ux = hx * CELL + 16, uy = (hy - 3) * CELL + 16;
+    m.Spawn("entrance", ux, uy + 44);
+    m.Spawn("default",  ux, uy + 44);
+    m.Prop("props", "dungeon_stairs_up", ux, uy);
+    m.SortLift("dungeon_stairs_up", 90);
+    m.Spawn("from_above", ux, uy + 44);
+    m.Portal(ux - 20, uy - 38, 40, 36, up_map, up_spawn, "Climb back up", true);
+    m.Collision(ux - 26, uy - 72, 52, 34);
+
+    if (!down_map.empty()) {
+        const int dx2 = hx * CELL + 16, dy2 = (hy + 3) * CELL + 16;
+        m.Prop("props", "dungeon_stairs_down", dx2, dy2 + 26);
+        m.SortLift("dungeon_stairs_down", 40);
+        m.Portal(dx2 - 24, dy2 - 16, 48, 40, down_map, "from_above", "Go deeper", true);
+        // Climbing back up puts you beside these stairs, not at the shaft you
+        // came in by, which is half the hub away.
+        m.Spawn("from_below", dx2, dy2 + 44);
+    }
+
+    // One kind of thing to a chamber, spaced three cells apart.
+    for (int q = 0; q < 4; ++q) {
+        const vector<WellMob>& kinds = quadrants[q];
+        if (kinds.empty()) continue;
+        int placed = 0;
+        for (int cy = centres[q].second - 9; cy <= centres[q].second + 9 && placed < per_quadrant; cy += 3)
+            for (int cx = centres[q].first - 11; cx <= centres[q].first + 11 && placed < per_quadrant; cx += 3) {
+                if (!in_chamber(q, cx, cy) || in_corridor(cx, cy)) continue;
+                const int x = cx * CELL + 16, y = cy * CELL + 16;
+                if (!m.Clear(x, y)) continue;
+                if (Hash2(cx, cy, 8811) > 0.45f) continue;
+                const WellMob& mob = kinds[static_cast<size_t>(Hash2(cx, cy, 8822) * 100.0f) % kinds.size()];
+                // Short leashes: nothing follows you out of its own chamber.
+                m.Enemy(mob.type, x, y, mob.level, 45.0f, 150.0f);
+                ++placed;
+            }
+        // Something worth the walk in two of the four.
+        if (q % 3 == 0) {
+            const int x = centres[q].first * CELL + 16, y = centres[q].second * CELL + 16;
+            if (m.Clear(x, y)) PlaceChest(m, id + "_chest_" + std::to_string(q), x, y, "chest_well");
+        }
+    }
+
+    // The bottom of it: the spring at the far end of the south passage, with
+    // the thing that has been sitting in it standing over the basin. The room
+    // is its own, and empty otherwise -- the fight wants floor to move on.
+    if (deep) {
+        const int sx = sprx * CELL + 16, sy = spry * CELL + 20;
+        m.Prop("props", "spring_basin", sx, sy);
+        // A low kerb, not a wall: the first cut of this room put a full-width
+        // collision across the basin and the warden stood behind it, unable to
+        // reach the player and unreachable in turn -- a boss fight fought
+        // through a fence.
+        m.Collision(sx - 26, sy - 8, 52, 10);
+        // What is actually in the way of the water: a plug of fallen stone in
+        // the outflow. A note sprite sat here first and read as a letter lying
+        // on the floor of a cave.
+        json& o = m.Object("spring_well", "lever", sx, sy + 26);
+        o["sprite"] = "assets/objects/rocksmall_02.png";
+        o["title"]  = "The choked spring";
+        // It waits beside the basin, with clear floor between it and the way
+        // in, and does not leave the room: the leash is the room's width.
+        m.Enemy("well_warden", sx + 104, sy + 24, 1, 0.0f, 300.0f);
+        // Two hounds kennelled in the passage itself -- it is three cells wide,
+        // so they stand in the middle of it -- and the walk down is not silent.
+        for (int cy : {spry - 10, spry - 16}) {
+            const int hx2 = sprx * CELL + 16, hy2 = cy * CELL + 16;
+            if (m.Clear(hx2, hy2)) m.Enemy("hound", hx2, hy2, 2, 40.0f, 150.0f);
+        }
     }
 
     m.Write("maps");
@@ -3832,6 +4055,22 @@ int main() {
                  "", "", "", 1,
                  {{"diamond_ore", 50}, {"azuryte_ore", 30}}, 0,
                  "chest_barrow_hoard", "drowned_king_boots", "q_drowned_hoard");
+
+    // The well under Havenbrook: two dark floors, four chambers to a floor.
+    BuildWellFloor("well_shallow", "The Well, Upper Workings",
+                   "Cut by the old well-crews, and dark as the inside of a boot",
+                   5101u, 92, 72, "cellar_floor", "dungeon_wall",
+                   "town_havenbrook", "from_well", "well_deep",
+                   {{{"slime", 1}, {"slime", 2}}, {{"rat", 2}, {"rat", 3}},
+                    {{"bat", 1}, {"bat", 2}}, {{"slime", 2}, {"bat", 2}, {"rat", 3}}},
+                   7, false);
+    BuildWellFloor("well_deep", "The Well, the Deep Cut",
+                   "Where the water was, and what is in the way of it",
+                   5102u, 96, 78, "dungeon_floor", "dungeon_wall",
+                   "well_shallow", "from_below", "",
+                   {{{"hound", 1}, {"hound", 2}}, {{"ankou", 1}}, {{"banshee", 1}, {"banshee", 2}},
+                    {{"hound", 2}, {"banshee", 1}, {"ankou", 1}}},
+                   5, true);
 
     // The Infernal Pit, at the end of the Ashen Path: imps and demons, lava vents
     // in the floors, and the Pit Lord in the last room.

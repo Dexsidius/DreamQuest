@@ -839,5 +839,192 @@
       255
     ],
     "boss": true
+  },
+  "slime": {
+    "name": "Cellar Slime",
+    "sprite": "slime",
+    "hp": 30,
+    "attack": 8,
+    "strength": 11,
+    "defence": 6,
+    "attack_bonus": 8,
+    "strength_bonus": 12,
+    "defence_bonus": 8,
+    "speed": 30,
+    "aggro": 96,
+    "attack_range": 30,
+    "attack_cooldown": 2.0,
+    "loot": "slime",
+    "kill_target": "slime",
+    "foot_box": [
+      -11,
+      -9,
+      22,
+      9
+    ],
+    "body_box": [
+      -16,
+      -26,
+      32,
+      26
+    ],
+    "element": "water"
+  },
+  "bat": {
+    "name": "Well Bat",
+    "sprite": "bat",
+    "hp": 16,
+    "attack": 11,
+    "strength": 8,
+    "defence": 7,
+    "attack_bonus": 12,
+    "strength_bonus": 8,
+    "defence_bonus": 6,
+    "speed": 78,
+    "aggro": 110,
+    "attack_range": 28,
+    "attack_cooldown": 1.2,
+    "loot": "bat",
+    "kill_target": "bat",
+    "foot_box": [
+      -8,
+      -7,
+      16,
+      7
+    ],
+    "body_box": [
+      -14,
+      -30,
+      28,
+      30
+    ],
+    "element": "air"
+  },
+  "hound": {
+    "name": "Pit Hound",
+    "sprite": "hound",
+    "hp": 52,
+    "attack": 20,
+    "strength": 21,
+    "defence": 15,
+    "attack_bonus": 21,
+    "strength_bonus": 22,
+    "defence_bonus": 16,
+    "speed": 74,
+    "aggro": 120,
+    "attack_range": 36,
+    "attack_cooldown": 1.3,
+    "loot": "hound",
+    "kill_target": "hound",
+    "foot_box": [
+      -12,
+      -10,
+      24,
+      10
+    ],
+    "body_box": [
+      -20,
+      -34,
+      40,
+      34
+    ],
+    "element": "earth"
+  },
+  "ankou": {
+    "name": "Ankou",
+    "sprite": "ankou",
+    "hp": 86,
+    "attack": 27,
+    "strength": 26,
+    "defence": 22,
+    "attack_bonus": 28,
+    "strength_bonus": 26,
+    "defence_bonus": 24,
+    "speed": 44,
+    "aggro": 115,
+    "attack_range": 52,
+    "attack_cooldown": 2.1,
+    "loot": "ankou",
+    "kill_target": "ankou",
+    "foot_box": [
+      -11,
+      -12,
+      22,
+      12
+    ],
+    "body_box": [
+      -18,
+      -58,
+      36,
+      58
+    ],
+    "element": "earth"
+  },
+  "banshee": {
+    "name": "Banshee",
+    "sprite": "banshee",
+    "hp": 64,
+    "attack": 30,
+    "strength": 24,
+    "defence": 18,
+    "attack_bonus": 30,
+    "strength_bonus": 24,
+    "defence_bonus": 18,
+    "speed": 56,
+    "aggro": 125,
+    "attack_range": 46,
+    "attack_cooldown": 1.8,
+    "loot": "banshee",
+    "kill_target": "banshee",
+    "foot_box": [
+      -10,
+      -11,
+      20,
+      11
+    ],
+    "body_box": [
+      -16,
+      -52,
+      32,
+      52
+    ],
+    "element": "air"
+  },
+  "well_warden": {
+    "name": "The Thing in the Spring",
+    "sprite": "ankou",
+    "hp": 170,
+    "attack": 24,
+    "strength": 24,
+    "defence": 20,
+    "attack_bonus": 24,
+    "strength_bonus": 24,
+    "defence_bonus": 22,
+    "speed": 48,
+    "aggro": 170,
+    "attack_range": 56,
+    "attack_cooldown": 1.9,
+    "loot": "well_warden",
+    "kill_target": "well_warden",
+    "foot_box": [
+      -14,
+      -14,
+      28,
+      14
+    ],
+    "body_box": [
+      -24,
+      -72,
+      48,
+      72
+    ],
+    "element": "water",
+    "scale": 1.5,
+    "tint": [
+      150,
+      220,
+      235
+    ],
+    "boss": true
   }
 }
