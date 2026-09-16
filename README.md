@@ -1593,6 +1593,26 @@ and bulrushes round their edges, lily pads on them, and drowned trees hung with
 moss. The dirt decals are no longer laid on it. The pools keep clear of the
 barrow, the chest, the bogbean patch and the camp.
 
+### The lizardmen
+
+The first ones were built at a townsfolk's proportions and read as something a
+hero could step over. They are **heavy reptilian warriors** now, half again the
+hero's height and twice the width: shoulders wider than their hips, a slab of a
+chest with belly plates down it, a jawed head carried on a thick neck under a
+crest of five backswept spines, a yellow throat frill, a pelt over one shoulder,
+a loincloth and belt, three-clawed hands and feet, a plated tail, and a
+bone-headed spear bound with cord and hung with a red rag that they carry
+planted upright until they lunge with it. The build is in
+`tools/blender_creatures.py` (`build_lizardman`), rendered at 80px a frame like
+the trolls, with hit boxes to match.
+
+Two things learned making them: a creature modelled at the size the numbers
+suggest comes out *smaller* than the hero, because a frame spans several world
+units -- the rig is built at arm's length and scaled at the end. And a forward
+lean that looks like a warrior's hunch in the file reads, from this camera, as a
+crocodile crouching; the head has to come up and clear the shoulders before the
+thing stands like a fighter.
+
 The Mire belongs to the **lizardmen**. They are scattered through it, and in its
 south their camp stands round a fire: three huts up on stilts, painted totems,
 and their chief.
@@ -1642,7 +1662,7 @@ Every new monster is original, modelled and animated in
 hero's parts, cel shading and reduction: a small tree of joints per creature with
 rounded meshes hung on them, and an idle, walk, attack, hurt and death clip each,
 four facings, the shadow composited in. Frames are sized per creature at the
-hero's scale -- 48px for a rat, spider or imp, 64 for a lizardman, 80 for a troll
+hero's scale -- 48px for a rat, spider or imp, 80 for a lizardman or a troll
 or demon, 112 for a wyvern -- with the feet the same fraction of the way down the
 frame, so `data/sprites.json`'s anchor stands them on their position.
 

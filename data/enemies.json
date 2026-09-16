@@ -424,21 +424,21 @@
     "defence_bonus": 12,
     "speed": 54,
     "aggro": 190,
-    "attack_range": 36,
+    "attack_range": 44,
     "attack_cooldown": 1.5,
     "loot": "lizardman",
     "kill_target": "lizardman",
     "foot_box": [
-      -9,
-      -12,
-      18,
-      12
+      -14,
+      -14,
+      28,
+      14
     ],
     "body_box": [
-      -13,
-      -42,
-      26,
-      42
+      -22,
+      -62,
+      44,
+      62
     ],
     "element": "water"
   },
@@ -454,21 +454,21 @@
     "defence_bonus": 20,
     "speed": 52,
     "aggro": 210,
-    "attack_range": 40,
+    "attack_range": 48,
     "attack_cooldown": 1.6,
     "loot": "lizardman_chief",
     "kill_target": "lizardman",
     "foot_box": [
-      -11,
-      -13,
-      22,
-      13
+      -16,
+      -16,
+      32,
+      16
     ],
     "body_box": [
-      -16,
-      -50,
-      32,
-      50
+      -26,
+      -72,
+      52,
+      72
     ],
     "element": "water",
     "scale": 1.25,

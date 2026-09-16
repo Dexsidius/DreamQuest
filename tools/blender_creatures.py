@@ -46,9 +46,14 @@ bc.PALETTE.update({
     "spider": (0.30, 0.24, 0.22), "spider_dk": (0.18, 0.14, 0.14), "spider_mark": (0.84, 0.72, 0.52),
     "spider_eye_glow": (1.00, 0.20, 0.16), "fang": (0.92, 0.88, 0.80),
     # lizardman
-    "liz": (0.36, 0.58, 0.32), "liz_dk": (0.22, 0.40, 0.24), "liz_belly": (0.84, 0.80, 0.56),
-    "liz_eye_glow": (1.00, 0.84, 0.20), "loincloth": (0.50, 0.34, 0.22), "spear": (0.46, 0.34, 0.22),
-    "bone": (0.90, 0.86, 0.74), "crest": (0.80, 0.34, 0.22),
+    "liz": (0.30, 0.52, 0.31), "liz_dk": (0.18, 0.33, 0.21), "liz_belly": (0.78, 0.78, 0.55),
+    "liz_eye_glow": (1.00, 0.72, 0.16), "loincloth": (0.50, 0.34, 0.22), "spear": (0.46, 0.34, 0.22),
+    "bone": (0.90, 0.86, 0.74), "crest": (0.13, 0.20, 0.16),
+    # The heavier build: a lighter back, a plated belly, the yellow throat
+    # frill, the pelt over the shoulders and the rag on the spear.
+    "liz_lt": (0.41, 0.63, 0.36), "liz_plate": (0.55, 0.56, 0.34), "liz_frill": (0.92, 0.84, 0.28),
+    "liz_claw": (0.28, 0.26, 0.20), "pelt": (0.80, 0.78, 0.70), "pelt_dk": (0.52, 0.49, 0.43),
+    "rag_red": (0.72, 0.16, 0.14),
     # ice troll
     "troll": (0.64, 0.76, 0.86), "troll_dk": (0.44, 0.56, 0.68), "troll_fur": (0.92, 0.94, 0.96),
     "troll_eye_glow": (0.40, 0.95, 1.00), "ice": (0.66, 0.90, 0.98), "ice_dk": (0.40, 0.70, 0.86),
@@ -365,52 +370,135 @@ def fall_back(t, side=0):
 
 # --- lizardman ------------------------------------------------------------------------
 def build_lizardman():
+    """A heavy reptilian warrior rather than a lizard standing up: shoulders
+    wider than its hips, a slab of a chest with belly plates down it, a jawed
+    head carried forward on a thick neck under a crest of backswept spines,
+    the yellow throat frill they display with, a pelt over one shoulder and a
+    bone-headed spear. The first one was built at a townsfolk's proportions and
+    read as something a hero could step over."""
     r = Rig()
-    r.joint("pelvis", (0, 0, 0.56))
-    r.add("hips", E(0.17, 0.14, 0.12), "liz", "pelvis")
-    r.add("cloth", C(0.17, 0.20, 0.18, squash_y=0.8), "loincloth", "pelvis", loc=(0, -0.01, 0.02))
-    humanoid_legs(r, -0.04, 0.11, 0.26, 0.28, 0.07, "liz", "liz_dk", digitigrade=True)
-    r.joint("chest", (0, 0, 0.08), "pelvis", rest=(8, 0, 0))
-    r.add("torso", E(0.20, 0.15, 0.27), "liz", "chest", loc=(0, 0, 0.24))
-    r.add("belly", E(0.12, 0.08, 0.22), "liz_belly", "chest", loc=(0, -0.09, 0.20))
-    humanoid_arms(r, 0.40, 0.21, 0.24, 0.22, 0.055, "liz", "liz_dk")
-    r.joint("neck", (0, -0.02, 0.50), "chest")
-    r.add("neckp", C(0.07, 0.08, 0.10), "liz", "neck", loc=(0, 0, 0.10))
-    r.joint("head", (0, -0.02, 0.12), "neck", rest=(-14, 0, 0))
-    r.add("skull", E(0.13, 0.15, 0.12), "liz", "head", loc=(0, 0, 0.06))
-    r.add("snout", E(0.08, 0.17, 0.07), "liz", "head", loc=(0, -0.18, 0.02))
-    r.add("jaw", E(0.07, 0.14, 0.04), "liz_belly", "head", loc=(0, -0.15, -0.04))
-    for s in (-1, 1):
-        r.add("eye", E(0.035, 0.03, 0.03), "liz_eye_glow", "head", loc=(s * 0.09, -0.08, 0.11))
+    r.joint("pelvis", (0, 0, 0.74))
+    r.add("hips", E(0.25, 0.20, 0.16), "liz", "pelvis")
+    r.add("rump", E(0.23, 0.16, 0.14), "liz_dk", "pelvis", loc=(0, 0.10, -0.02))
+
+    # --- legs: heavy thighs, a digitigrade shin, three claws on a broad foot --
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("hip_" + side, (sx * 0.16, 0, -0.04), "pelvis")
+        r.limb("thigh", (0, 0, 0), (0, -0.02, -0.34), 0.115, "liz", "hip_" + side, r_tip=0.085)
+        r.joint("knee_" + side, (0, -0.02, -0.34), "hip_" + side, rest=(-30, 0, 0))
+        r.limb("shin", (0, 0, 0), (0, 0, -0.36), 0.075, "liz_dk", "knee_" + side, r_tip=0.055)
+        r.add("foot", E(0.085, 0.14, 0.05), "liz_dk", "knee_" + side, loc=(0, -0.07, -0.33))
+        for k in (-1, 0, 1):
+            r.limb("claw", (k * 0.05, -0.13, -0.34), (k * 0.07, -0.20, -0.35), 0.022, "liz_claw",
+                   "knee_" + side, r_tip=0.005)
+
+    # --- torso: broad, leaning forward, plated down the front -----------------
+    r.joint("chest", (0, 0, 0.10), "pelvis", rest=(6, 0, 0))
+    r.add("torso", E(0.29, 0.20, 0.30), "liz", "chest", loc=(0, 0, 0.24))
+    r.add("back", E(0.25, 0.13, 0.20), "liz", "chest", loc=(0, 0.07, 0.28))
+    for k in range(3):
+        r.add("scute", E(0.10 - k * 0.015, 0.05, 0.035), "liz_lt", "chest", loc=(0, 0.13, 0.42 - k * 0.12))
     for k in range(4):
-        r.limb("crest", (0, 0.06 - k * 0.07, 0.16 - k * 0.01), (0, 0.10 - k * 0.07, 0.28 - k * 0.03), 0.03, "crest",
-               "head", r_tip=0.005)
-    r.joint("tail1", (0, 0.12, -0.04), "pelvis", rest=(58, 0, 0))
-    r.limb("tail", (0, 0, 0), (0, 0, -0.34), 0.09, "liz", "tail1", r_tip=0.06)
-    r.joint("tail2", (0, 0, -0.34), "tail1", rest=(18, 0, 0))
-    r.limb("tail", (0, 0, 0), (0, 0, -0.34), 0.06, "liz_dk", "tail2", r_tip=0.015)
-    # A bone-tipped spear in the right hand, held upright.
-    r.limb("shaft", (0, 0.0, 0.62), (0, 0.0, -0.70), 0.025, "spear", "hand_r")
-    r.limb("head", (0, 0.0, 0.62), (0, 0.0, 0.86), 0.05, "bone", "hand_r", r_tip=0.006)
+        r.add("plate", E(0.15 - k * 0.012, 0.05, 0.055), "liz_belly", "chest", loc=(0, -0.14, 0.09 + k * 0.10))
+    r.add("gut", E(0.16, 0.11, 0.10), "liz_belly", "chest", loc=(0, -0.09, 0.02))
+    # Dorsal spines, neck to tail.
+    for k in range(5):
+        r.limb("spine", (0, 0.10, 0.44 - k * 0.09), (0, 0.16, 0.54 - k * 0.09), 0.028, "crest", "chest",
+               r_tip=0.005)
+    # A pelt over the left shoulder, tied across the chest.
+    for k in range(3):
+        r.add("pelt", E(0.085 - k * 0.012, 0.075, 0.055), "pelt" if k % 2 == 0 else "pelt_dk", "chest",
+              loc=(-0.17 - k * 0.02, -0.06 + k * 0.05, 0.46 - k * 0.06))
+    r.add("pelt_tail", E(0.06, 0.055, 0.11), "pelt_dk", "chest", loc=(-0.20, -0.08, 0.30))
+    r.add("strap", E(0.17, 0.12, 0.035), "loincloth", "chest", loc=(0.02, -0.12, 0.26), rot=(0, 0, 0.5))
+
+    # --- arms: thick, with three-clawed hands ---------------------------------
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("shoulder_" + side, (sx * 0.29, 0, 0.40), "chest", rest=(0, sx * -14, 0))
+        r.add("deltoid", E(0.105, 0.105, 0.10), "liz_lt", "shoulder_" + side)
+        r.limb("upper", (0, 0, 0), (0, 0, -0.26), 0.085, "liz", "shoulder_" + side, r_tip=0.07)
+        r.joint("elbow_" + side, (0, 0, -0.26), "shoulder_" + side, rest=(-18, 0, 0))
+        r.limb("fore", (0, 0, 0), (0, 0, -0.25), 0.07, "liz_dk", "elbow_" + side, r_tip=0.055)
+        r.joint("hand_" + side, (0, 0, -0.25), "elbow_" + side)
+        r.add("hand", E(0.075, 0.07, 0.08), "liz_dk", "hand_" + side)
+        for k in (-1, 0, 1):
+            r.limb("finger", (k * 0.04, -0.03, -0.06), (k * 0.055, -0.09, -0.09), 0.018, "liz_claw",
+                   "hand_" + side, r_tip=0.004)
+
+    # --- belt and loincloth ----------------------------------------------------
+    r.add("belt", E(0.26, 0.21, 0.035), "loincloth", "pelvis", loc=(0, 0, 0.06))
+    r.add("cloth_front", E(0.13, 0.05, 0.19), "loincloth", "pelvis", loc=(0, -0.16, -0.10))
+    r.add("cloth_back", E(0.12, 0.05, 0.15), "liz_plate", "pelvis", loc=(0, 0.15, -0.10))
+    r.add("pouch", E(0.06, 0.05, 0.07), "pelt_dk", "pelvis", loc=(0.19, -0.06, 0.0))
+
+    # --- neck and head: carried forward, jaw first ----------------------------
+    r.joint("neck", (0, -0.02, 0.58), "chest", rest=(2, 0, 0))
+    r.add("neckp", C(0.11, 0.125, 0.20), "liz", "neck", loc=(0, 0, 0.10))
+    r.joint("head", (0, -0.01, 0.21), "neck", rest=(-2, 0, 0))
+    r.add("skull", E(0.155, 0.17, 0.145), "liz", "head", loc=(0, 0, 0.05))
+    r.add("brow", E(0.155, 0.09, 0.05), "liz_lt", "head", loc=(0, -0.10, 0.12))
+    r.add("snout", E(0.115, 0.17, 0.095), "liz", "head", loc=(0, -0.20, 0.02))
+    r.add("jaw", E(0.10, 0.16, 0.055), "liz_belly", "head", loc=(0, -0.19, -0.07))
+    for sx in (-1, 1):
+        r.add("eye", E(0.042, 0.035, 0.036), "liz_eye_glow", "head", loc=(sx * 0.105, -0.11, 0.10))
+        r.add("nostril", E(0.02, 0.02, 0.018), "liz_dk", "head", loc=(sx * 0.04, -0.37, 0.03))
+        # Teeth in the upper jaw, and a horn behind each eye.
+        for k in range(3):
+            r.limb("tooth", (sx * (0.06 + k * 0.012), -0.16 - k * 0.07, -0.05),
+                   (sx * (0.06 + k * 0.012), -0.16 - k * 0.07, -0.10), 0.016, "bone", "head", r_tip=0.003)
+        r.limb("horn", (sx * 0.12, 0.02, 0.10), (sx * 0.20, 0.16, 0.18), 0.035, "crest", "head", r_tip=0.006)
+    # The crest: five backswept spines, longest in the middle.
+    for k in range(5):
+        off = abs(k - 2)
+        r.limb("crest", (0, 0.02 + k * 0.045 - 0.09, 0.17), (0, 0.14 + k * 0.05 - 0.09, 0.34 - off * 0.05),
+               0.032 - off * 0.005, "crest", "head", r_tip=0.005)
+    # The throat frill they display with: yellow, and the loudest thing on them.
+    r.add("frill", E(0.115, 0.09, 0.13), "liz_frill", "head", loc=(0, -0.17, -0.16))
+    for sx in (-1, 1):
+        r.add("frill_lobe", E(0.05, 0.05, 0.08), "liz_frill", "head", loc=(sx * 0.08, -0.12, -0.20))
+
+    # --- tail: three segments, thick at the root, plated on top ---------------
+    r.joint("tail1", (0, 0.18, -0.06), "pelvis", rest=(62, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.30), 0.135, "liz", "tail1", r_tip=0.10)
+    r.joint("tail2", (0, 0, -0.30), "tail1", rest=(16, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.27), 0.10, "liz", "tail2", r_tip=0.065)
+    r.joint("tail3", (0, 0, -0.27), "tail2", rest=(14, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.24), 0.065, "liz_dk", "tail3", r_tip=0.018)
+    for k in range(3):
+        r.add("tail_plate", E(0.09 - k * 0.02, 0.05, 0.03), "liz_plate", "tail1", loc=(0, -0.10, -0.08 - k * 0.11))
+
+    # --- the spear: a bone head on a bound haft, with a rag on it -------------
+    r.limb("shaft", (0, 0.0, 0.70), (0, 0.0, -0.78), 0.032, "spear", "hand_r")
+    for k in range(3):
+        r.add("binding", E(0.042, 0.042, 0.022), "loincloth", "hand_r", loc=(0, 0, 0.44 + k * 0.09))
+    r.limb("head", (0, 0.0, 0.66), (0, 0.0, 1.02), 0.062, "bone", "hand_r", r_tip=0.006)
+    for sx in (-1, 1):
+        r.limb("barb", (sx * 0.03, 0, 0.72), (sx * 0.10, 0, 0.62), 0.022, "bone", "hand_r", r_tip=0.004)
+    r.add("rag", E(0.022, 0.05, 0.065), "rag_red", "hand_r", loc=(0.02, -0.03, 0.54))
+    r.add("charm", E(0.025, 0.025, 0.03), "bone", "hand_r", loc=(-0.05, 0.0, 0.30))
+    # Modelled at arm's length and scaled up at the end: he stands head and
+    # shoulders over the hero, which is the whole point of the redesign.
+    r.pose.scale = (1.9, 1.9, 1.9)
     return r
 
 
 def liz_idle(t):
     s = sn(t)
     return {"_z": 0.01 * s, "chest": X(2 * s), "tail1": (0, 0, 8 * s), "tail2": (0, 0, 10 * sn(t, 0.2)),
-            "shoulder_r": fwd(20), "elbow_r": X(-50), "hand_r": X(40), "head": X(3 * sn(t * 2))}
+            "tail3": (0, 0, 12 * sn(t, 0.35)),
+            "shoulder_r": fwd(6), "elbow_r": X(-14), "hand_r": X(4), "head": X(3 * sn(t * 2))}
 
 
 def liz_walk(t):
     v = gait(t, 34, 26, 22, 0.03, 10)
-    v.update({"tail1": (0, 0, 16 * sn(t)), "tail2": (0, 0, 20 * sn(t, 0.25)),
-              "shoulder_r": fwd(20 + 6 * sn(t)), "elbow_r": X(-50), "hand_r": X(40)})
+    v.update({"tail1": (0, 0, 16 * sn(t)), "tail2": (0, 0, 20 * sn(t, 0.25)), "tail3": (0, 0, 24 * sn(t, 0.4)),
+              "shoulder_r": fwd(8 + 6 * sn(t)), "elbow_r": X(-16), "hand_r": X(4)})
     return v
 
 
 def liz_attack(t):
     i, k = phases(t, 0.4, 0.58, 1.0)
-    rest = {"shoulder_r": fwd(20), "elbow_r": X(-50), "hand_r": X(40)}
+    rest = {"shoulder_r": fwd(6), "elbow_r": X(-14), "hand_r": X(4)}
     draw = {"shoulder_r": fwd(-30), "elbow_r": X(-100), "hand_r": X(100), "chest": X(-8), "_y": 0.06,
             "hip_l": fwd(20), "hip_r": fwd(-15), "tail1": (0, 0, -14)}
     thrust = {"shoulder_r": fwd(85), "elbow_r": X(-5), "hand_r": X(95), "chest": X(22), "_y": -0.26,
@@ -420,8 +508,8 @@ def liz_attack(t):
 
 def liz_hurt(t):
     k = math.sin(t * math.pi)
-    return {"chest": X(-18 * k), "_y": 0.12 * k, "neck": X(-20 * k), "shoulder_r": fwd(20), "elbow_r": X(-50),
-            "hand_r": X(40), "shoulder_l": fwd(-30 * k)}
+    return {"chest": X(-18 * k), "_y": 0.12 * k, "neck": X(-20 * k), "shoulder_r": fwd(6), "elbow_r": X(-14),
+            "hand_r": X(4), "shoulder_l": fwd(-30 * k)}
 
 
 def liz_death(t):
@@ -974,7 +1062,7 @@ CREATURES = {
     #             builder          frame  clips (idle, walk, attack, hurt, death)                      shadow radius
     "rat":       (build_rat,       48, (rat_idle, rat_walk, rat_attack, rat_hurt, rat_death),              0.34),
     "spider":    (build_spider,    48, (spider_idle, spider_walk, spider_attack, spider_hurt, spider_death), 0.50),
-    "lizardman": (build_lizardman, 64, (liz_idle, liz_walk, liz_attack, liz_hurt, liz_death),            0.30),
+    "lizardman": (build_lizardman, 80, (liz_idle, liz_walk, liz_attack, liz_hurt, liz_death),            0.58),
     "ice_troll": (build_troll,     80, (troll_idle, troll_walk, troll_attack, troll_hurt, troll_death),  0.48),
     "wyvern":    (build_wyvern,   112, (wyv_idle, wyv_walk, wyv_attack, wyv_hurt, wyv_death),            0.70),
     "demon":     (build_demon,     80, (demon_idle, demon_walk, demon_attack, demon_hurt, demon_death),  0.40),

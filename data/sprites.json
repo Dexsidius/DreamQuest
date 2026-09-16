@@ -390,7 +390,7 @@
     "lizardman":  {
                       "dir":  "assets/characters/lizardman/",
                       "rows":  4,
-                      "anchor_y":  54,
+                      "anchor_y":  68,
                       "scale":  1,
                       "clips":  {
                                     "attack":  {
