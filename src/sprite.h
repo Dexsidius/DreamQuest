@@ -134,6 +134,14 @@ public:
     bool Load(const string& json_path);
     const SpriteDef* Get(const string& id) const;
     bool Has(const string& id) const { return defs.count(id) > 0; }
+    // Every sprite there is, for anything that has to walk the whole set --
+    // the self-test measures each sheet's rows against each other.
+    vector<string> Ids() const {
+        vector<string> out;
+        out.reserve(defs.size());
+        for (const auto& kv : defs) out.push_back(kv.first);
+        return out;
+    }
 
 private:
     map<string, SpriteDef> defs;

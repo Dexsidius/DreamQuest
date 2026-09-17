@@ -843,6 +843,19 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         if (!ObjectPresent(o)) continue;
         if (o.type == "chest") {
             label = Flagged(o.id) ? "" : "Open chest";
+        } else if (o.type == "storage") {
+            // A chest you keep things in rather than one you loot once, so it
+            // never goes quiet after the first use.
+            // The whole title lower-cased, not just its first letter the way
+            // a workbench does it: a chest is named "Storage Chest" on the
+            // panel that opens, and "Open the storage Chest" is not a sentence.
+            string noun = o.title.empty() ? string("chest") : o.title;
+            for (char& c : noun) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+            label = "Open the " + noun;
+        } else if (o.type == "search") {
+            // Something to look under or behind. Says what it is before it is
+            // searched and nothing afterwards, like a chest.
+            label = Flagged(o.id) ? "" : (o.title.empty() ? "Search" : o.title);
         } else if (o.type == "lever") {
             label = Flagged(o.id) ? "" : (o.title.empty() ? "Use it" : o.title);
         } else if (o.type == "note") {
@@ -954,6 +967,34 @@ void World::TryInteract(const GameContext& ctx) {
                     QuestEvent e;
                     e.type = ObjectiveType::Interact;
                     e.target = o.id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
+                break;
+            }
+            if (o.type == "storage") {
+                WorldRequest r;
+                r.type  = WorldRequest::Type::Storage;
+                r.id    = o.id;
+                r.title = o.title.empty() ? "Storage Chest" : o.title;
+                r.count = o.capacity > 0 ? o.capacity : 100;
+                requests.push_back(r);
+                Audio::Play(Sfx::ChestOpen);
+                break;
+            }
+            if (o.type == "search") {
+                if (Flagged(o.id) || !ObjectPresent(o)) break;
+                SetFlag(o.id);
+                Audio::Play(Sfx::ChestOpen);
+                if (!o.loot_table.empty()) SpawnLoot(o.loot_table, o.x, o.y + 10.0f, ctx);
+                if (!o.loot_item.empty())
+                    DropItem(o.loot_item, std::max(1, o.loot_qty), o.x, o.y + 10.0f, ctx);
+                AddText(o.text.empty() ? "There is something under it." : o.text,
+                        o.x, o.y - 30.0f, {255, 225, 120, 255}, 2.4f);
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    e.map_id = map_id;
                     ctx.quests->Notify(e, player.inventory);
                 }
                 break;
@@ -1163,6 +1204,19 @@ void World::CookOne(const MapObject& range, const GameContext& ctx) {
                 range.x, range.y - 34.0f, {255, 150, 150, 255});
     else
         AddText("Nothing raw to cook", range.x, range.y - 34.0f, {200, 200, 210, 255});
+}
+
+Inventory& World::Storage(const string& object_id, int slots, const ItemDatabase* db) {
+    auto it = storage.find(object_id);
+    if (it == storage.end())
+        it = storage.emplace(object_id, Inventory(db, std::max(1, slots))).first;
+    // A chest that has been saved and loaded comes back without a database,
+    // and one whose capacity has been changed in the data comes back the old
+    // size. Both are fixed here rather than at load, so there is one place
+    // that knows what a chest is supposed to be.
+    it->second.SetDatabase(db);
+    it->second.Resize(std::max(1, slots));
+    return it->second;
 }
 
 bool World::Picked(const MapObject& o) const {

@@ -1732,6 +1732,7 @@ with the Whisperwood trail leaving from the east.
 | `whisperwood_trail` | The forest path east of the Hollowmarch: a woodcutter's camp, a stream with a plank bridge, and a fork |
 | `mossvale` | A logging village behind a palisade at the trail's east end |
 | `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge and Oona the herbalist's cottage |
+| `mossvale_cottage` | The tanner's empty house at the bottom of the village -- yours, once you find the key |
 | `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
 | `dreamworld` | The Reverie, reached only by sleeping: five cloud islands over the void |
@@ -1755,6 +1756,46 @@ five-quest woodland chain (clear the trail, carry word to Fernhollow, hides for
 Mossvale, the trail wardens, and an offering at the shrine), with kill stages
 tied to the map they belong on so a wolf in the Mire does not count toward the
 Whisperwood.
+
+### Havenbrook's gate
+
+The Sunken Road used to stop in the middle of a field, and the way into the
+town was a rectangle of grass at the end of it. It ends at a gate now: two
+stacked-log towers either side of the road with a lintel and the town's board
+across them, lamps on the inner faces, the leaves of the gate swung back
+against the towers, and a run of palisade either side that gives out after a
+few lengths the way a village's does. The road runs through it (`prop_town_gate`
+in `tools/blender_props.py`), and the portal sits in the opening, so you walk
+through a gate rather than onto a patch of grass.
+
+The waymarker that used to stand there now stands on the verge a little north
+of it, saying which way is which.
+
+### A house of your own
+
+The tanner's house at the bottom of Mossvale has stood empty since he went to
+the coast. Bess at the Barley and Bell will tell you so, and where he kept the
+key: under a loose stone at the gable end, because he was not a man who changed
+his habits. The door is locked (`locked_by` on the portal) until you have it.
+
+Inside is a hearth, a bed, a workbench, and the only container in the world that
+keeps what is put in it: a **storage chest of a hundred slots, ten by ten**. It
+is the answer to having nowhere to put anything down -- the bag is
+twenty-eight slots and everything else in the world is either a shop or a chest
+you loot once.
+
+A storage chest is a map object of type `storage` with a `capacity`, and what is
+in it lives in the save beside the world flags rather than in the map: the maps
+are regenerated from `tools/genmaps.cpp` whenever anything changes, and a chest
+whose contents lived in the map would be emptied every time. So the chest
+belongs to the character, and a second one placed anywhere else would be a
+second chest with its own contents.
+
+The panel is two grids side by side -- the bag and the chest, the same squares
+as the inventory screen -- and the button moves a stack from whichever side the
+cursor is on to the other, one at a time or the whole stack with sprint held,
+which is the hand the shop screen already uses. Nothing is ever destroyed: a
+move that will not fit moves what fits and says so.
 
 ### Making zones feel like places
 
@@ -2011,6 +2052,47 @@ first wyvern had its neck and tail the wrong way round and read as a sitting
 blob. And from this camera, anything behind a head draws above it on screen: the
 first ice troll's mane hid its face.
 
+Anything that runs -- the orcs, the boar, the deer, the fox and the hare -- has
+its run made out of its own walk (`running()`): the same cycle with longer
+strides, more lift and a lean into it. A creature that runs already has a walk
+that says how it moves, and a second gait authored separately would not match
+the first.
+
+**Three render bugs found by looking at the sheets rather than at the code**,
+all of them worth knowing about because none of them showed up as an error:
+
+- *Every hurt clip in the game was rendered at the wrong scale.* A hurt is
+  three frames against four facings, so its sheet is taller than it is wide,
+  and the render camera's `ortho_scale` was left on `AUTO` -- which means "the
+  longer side of the image". Every other clip has at least four frames and came
+  out right; the three-frame ones were scaled to their height, so each row was
+  drawn lower in its cell than the one above it until the bottom row's feet hung
+  out of the frame. `sensor_fit = "HORIZONTAL"` is the whole fix. The self-test
+  now measures where the feet land in each row of every clip and compares that
+  pattern between clips of the same creature, so a whole class of grid
+  misalignment fails loudly.
+- *A fall has to be in world space.* The humanoids' deaths tipped the body over
+  its own backwards axis, which looks right from the side and nowhere else: in
+  the row where the creature faced the camera it fell away from it, in the row
+  where it faced away it fell towards it, and both foreshortened into a standing
+  lump that never seemed to drop. `_wroll` is applied outside the facing turn
+  (Euler order `ZYX`, which puts the turn innermost), so every row topples the
+  same way across the frame -- the one direction a camera looking down at
+  forty-six degrees can read. `Rig.apply` measures the rig to know how long the
+  body is, pulls the fall back by half of that to keep it in the middle of its
+  cell, and eases off the angle for a creature too long to lie flat in one frame.
+  The Euler's order lives on the *object*, not on the Euler handed to it: an
+  object keeps its own `rotation_mode` and reads only the three numbers, so the
+  first attempt silently applied them in the wrong order and moved the problem
+  to the other two rows.
+- *A weapon arm has to stay down.* Flinging both arms forward is right for empty
+  hands; a spear or a club held that way ends up pointing straight at the camera,
+  where a sideways fall cannot lay it down, and it stands in the frame like a
+  planted pole while the body under it goes flat. `topple(armed=True)` lays that
+  arm straight along the body -- rest angles and all, through `_straighten`,
+  because what matters is the arm's *total* angle and every creature's rest angle
+  is different.
+
 The swamp, peak and pit props -- reeds, lily pads, swamp trees, stilt huts,
 totems, ice spires and crystals, snowy pines, wyvern nests, charred trees,
 obsidian, the hellgate, the cellar hatch and cobwebs -- are in
@@ -2195,6 +2277,17 @@ and checks all of it — currently **12730 checks** covering:
   alternate rather than as a second cuirass, and a bronze helm over a demonite
   cuirass over steel greaves is drawn as a cap over a horned breastplate over
   plain plate
+- a house of your own: Mossvale's empty house has a locked door, the key is
+  under a stone round the side rather than on the step, the quest points at both,
+  and the whole thing plays through -- walk to the stone, look under it, let
+  yourself in, open the chest, put twenty-five logs in it, walk out and back and
+  find them still there
+- the storage chest: a hundred slots; a stack goes in whole; a full chest takes
+  nothing and says so by taking nothing, because the panel leans on that to
+  decide whether to remove what it was moving; a chest made smaller gives back
+  what was in the slots that went away; and what is in it survives a save
+- every creature stands at the same height in all four facings of every clip it
+  is still standing up in, measured off the sheets themselves
 - inventory, equipment, skills and quest progress survive a save round-trip
 - the hero has every clip including sprint, each split into shadow, body and
   head with its sheets on disk, and its head and feet sit where the CraftPix

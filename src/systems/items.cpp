@@ -460,6 +460,16 @@ int Inventory::Add(const string& id, int qty) {
     return qty - remaining;
 }
 
+void Inventory::Resize(int slots) {
+    slots = std::max(1, slots);
+    if (slots == static_cast<int>(items.size())) return;
+    if (slots > static_cast<int>(items.size())) { items.resize(slots); return; }
+    vector<ItemStack> spill(items.begin() + slots, items.end());
+    items.resize(slots);
+    for (const ItemStack& s : spill)
+        if (!s.Empty()) Add(s.id, s.qty);
+}
+
 bool Inventory::Remove(const string& id, int qty) {
     if (Count(id) < qty) return false;
     int remaining = qty;

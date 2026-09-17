@@ -116,6 +116,16 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
     j["flags"] = json::array();
     for (const auto& f : world.Flags()) j["flags"].push_back(f);
 
+    // Storage chests, by object id. Only the ones with something in them: an
+    // empty chest is rebuilt from the map the next time it is opened.
+    j["storage"] = json::object();
+    for (const auto& kv : world.Storages()) {
+        json slots = kv.second.ToJson();
+        bool any = false;
+        for (const json& sl : slots) any = any || !sl.is_null();
+        if (any) j["storage"][kv.first] = slots;
+    }
+
     // Write to a temp file first so a crash mid-write cannot destroy the
     // existing save.
     const string final_path = SlotPath(slot);
@@ -170,6 +180,18 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
     if (j.contains("flags"))
         for (const auto& f : j["flags"]) flags.insert(f.get<string>());
     world.SetFlags(flags);
+
+    // A saved chest comes back without an item database and at whatever size
+    // it was written; World::Storage fixes both the first time it is opened.
+    map<string, Inventory> chests;
+    if (j.contains("storage") && j["storage"].is_object())
+        for (auto it = j["storage"].begin(); it != j["storage"].end(); ++it) {
+            if (!it.value().is_array()) continue;
+            Inventory inv(nullptr, static_cast<int>(it.value().size()));
+            inv.FromJson(it.value());
+            chests.emplace(it.key(), std::move(inv));
+        }
+    world.SetStorages(std::move(chests));
 
     // Saves from before the clock start at nine in the morning of day one.
     world.clock.FromJson(j.value("clock", json::object()));

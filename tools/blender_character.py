@@ -1133,6 +1133,13 @@ def camera_basis():
 def setup_camera(cols, rows):
     cam_data = bpy.data.cameras.new("cam")
     cam_data.type = "ORTHO"
+    # ortho_scale is the width of the view, always. Left on AUTO it is the
+    # width of whichever side of the image is longer, so a sheet with fewer
+    # columns than rows -- every three-frame hurt clip, against four facings --
+    # was rendered at the wrong scale: the grid no longer lined up with the
+    # cells, and each row of the sheet was drawn further down its cell than the
+    # one above it until the bottom row's feet hung out of the frame.
+    cam_data.sensor_fit = "HORIZONTAL"
     cam_data.ortho_scale = FRAME_SPAN * cols
     cam = bpy.data.objects.new("cam", cam_data)
     link(cam)

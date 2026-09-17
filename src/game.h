@@ -35,6 +35,7 @@ enum class GameState {
     Note,
     Crafting,
     Shop,
+    Storage,
     Death,
 };
 
@@ -104,6 +105,7 @@ private:
     void UpdateNote();
     void UpdateCrafting();
     void UpdateShop();
+    void UpdateStorage();
     void UpdateDeath(float dt);
 
     // --- per-state drawing ---------------------------------------------------
@@ -125,6 +127,7 @@ private:
     void DrawNote();
     void DrawCrafting();
     void DrawShop();
+    void DrawStorage();
     void DrawDeath();
     void DrawToasts();
     void DrawSlotList(const SDL_FRect& area, const string& heading);
@@ -214,6 +217,12 @@ private:
     void   OpenOrders(const string& npc_id, const string& npc_name);
     int    shop_tab = 0;
     int    shop_cursor = 0;
+    // The storage chest standing open: which one, what it is called, how many
+    // slots it has, and where the cursor is on each side of it.
+    string storage_id, storage_title;
+    int    storage_slots = 100;
+    int    storage_cursor = 0, storage_bag_cursor = 0;
+    bool   storage_on_chest = false;
     void   OpenShop(const string& id);
     // What the player could sell here: one row per item carried, in bag order.
     vector<string> ShopSellRows() const;

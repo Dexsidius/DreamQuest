@@ -304,6 +304,9 @@ public:
     void Danger(int combat_level) { dq["portals"].back()["level"] = combat_level; }
     // And one that is closed outright below a Combat level.
     void Requires(int combat_level) { dq["portals"].back()["min_combat"] = combat_level; }
+    // And one that wants a key. PlaceBuilding makes the portal itself, so the
+    // lock is put on afterwards rather than threaded through its arguments.
+    void Lock(const string& item) { dq["portals"].back()["locked_by"] = item; }
 
     // Ground that burns while it is stood on.
     void Hazard(int x, int y, int w, int h, float dps, const string& kind = "fire") {
@@ -720,7 +723,10 @@ static Biome BiomeAt(int cx, int cy) {
     const float river = fabsf((cy - 66.0f) - sinf(cx * 0.09f) * 5.0f);
     if (cx < 44 && river < 2.2f + n * 1.4f) return WATER;
 
-    if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 10 && cy < 88) return ROAD;
+    // The road runs all the way to Havenbrook's gate rather than stopping a
+    // cell short of it: the cobbles used to give out in the grass and the gate
+    // stood on a lawn behind them.
+    if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 10 && cy < 90) return ROAD;
     if (OnTrail(cx, cy)) return TRAIL;
 
     if (InGraveyard(cx, cy)) return GRAVEYARD;
@@ -1188,19 +1194,36 @@ static void BuildOverworld() {
     // Named, so loading the map with no spawn lands at the town gate rather
     // than at whichever arrival sorts first alphabetically.
     m.Spawn("default", gate_x, gate_y - 40);
-    m.Spawn("from_town", gate_x, gate_y - 40);
-    m.Portal(gate_x - 48, gate_y, 96, 48, "town_havenbrook", "from_field",
+    m.Spawn("from_town", gate_x, gate_y - 44);
+
+    // Havenbrook's gate, standing where the Sunken Road ends. Before this the
+    // road simply stopped in a field and the way in was a rectangle of grass:
+    // nothing told you that you had arrived anywhere. The palisade runs a few
+    // lengths either side and then gives out, the way a village's does -- it
+    // is a gate, not a wall around the world.
+    m.Prop("props", "town_gate", gate_x, gate_y + 46);
+    for (int side = -1; side <= 1; side += 2) {
+        m.Collision(gate_x + (side < 0 ? -98 : 40), gate_y + 8, 58, 38);
+        for (int k = 0; k < 4; ++k) {
+            const int px_ = gate_x + side * (126 + k * 54);
+            m.Prop("props", "palisade", px_, gate_y + 42);
+            m.Collision(px_ - 27, gate_y + 30, 54, 14);
+        }
+    }
+    m.Portal(gate_x - 36, gate_y + 6, 72, 44, "town_havenbrook", "from_field",
              "Enter Havenbrook", false);
     MarkWorld("town", "Havenbrook", gate_x, gate_y + 16, "havenbrook");
     // The well is inside the town, so its mark sits just under the town's.
     MarkWorld("dungeon", "The Dry Well, in Havenbrook", gate_x - 26, gate_y + 92);
 
     {
-        json& o = m.Object("sign_gate", "sign", gate_x + 56, gate_y - 8);
+        // Clear of the gate's right-hand tower, on the verge where the road
+        // still is: it used to stand where the gatehouse now stands.
+        json& o = m.Object("sign_gate", "sign", gate_x + 78, gate_y - 74);
         o["sprite"] = "assets/props/signpost.png";
         o["title"]  = "Waymarker";
-        o["text"]   = "HAVENBROOK, south.\nEMBERFELL MINE, north along the Sunken Road.\n\nBelow, scratched later and deeper:\nthe road is not safe after the second milestone.";
-        m.Collision(gate_x + 40, gate_y - 16, 32, 12);
+        o["text"]   = "HAVENBROOK, south through the gate.\nEMBERFELL MINE, north along the Sunken Road.\n\nBelow, scratched later and deeper:\nthe road is not safe after the second milestone.";
+        m.Collision(gate_x + 62, gate_y - 82, 32, 12);
     }
 
     // Mine entrance in the northern foothills: the Emberfell adit, a timber
@@ -3340,11 +3363,32 @@ static void BuildMossvale() {
     PlaceBuilding(m, "herbalist_cottage", 12 * CELL + 16, 37 * CELL, 136, 125,
                   "mossvale_herbalist", "entrance", "Enter Oona's cottage",
                   "from_mossvale_herbalist", "props");
-    // The tanner's, shut up for the season: standing, but not somewhere to go.
+    // The tanner's old house, empty since he left. The door is locked and the
+    // key is under a stone at the gable end, which is the sort of thing a
+    // village innkeeper knows. Once it is open it is the player's: the only
+    // place in the world with somewhere to put things down.
     {
         const int tx = 46 * CELL, ty = 38 * CELL;
-        m.Prop("objects", "building_house_a", tx, ty);
-        m.Collision(tx - 64, ty - 140, 128, 140);
+        PlaceBuilding(m, "building_house_a", tx, ty, 128, 140,
+                      "mossvale_cottage", "entrance", "Try the door",
+                      "from_mossvale_cottage", "objects");
+        m.Lock("mossvale_house_key");
+
+        // The stone the key is under, at the side of the house away from the
+        // door, so it is found by walking round rather than by walking up.
+        json& o = m.Object("rock_mossvale_key", "search", tx - 84, ty - 18);
+        o["sprite"] = ObjPath("rocksmall_00");
+        o["title"]  = "Look under the loose stone";
+        o["item"]   = "mossvale_house_key";
+        o["text"]   = "A key, wrapped in oilcloth.";
+        m.Collision(tx - 84 - 14, ty - 18 - 10, 28, 10);
+
+        json& n = m.Object("sign_mossvale_house", "sign", tx + 74, ty - 10);
+        n["sprite"] = "assets/props/signpost.png";
+        n["title"]  = "A nailed board";
+        n["text"]   = "TANNER'S HOUSE\nGone to the coast. Do not wait.\n\n"
+                      "Underneath, in a different hand: the key is where it always was.";
+        m.Collision(tx + 74 - 16, ty - 10 - 10, 32, 10);
     }
 
     // --- the square -------------------------------------------------------------
@@ -3743,6 +3787,60 @@ static void BuildWoodlandInteriors() {
         PlaceBed(m, "bed_oona", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
         PlaceCauldron(m, "cauldron_oona", 4 * CELL + 8, 9 * CELL + 20);
         m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0)["shop"] = "mossvale_herbalist";
+        m.Write("maps");
+    }
+
+    // The house in Mossvale, once the player has the key. Nobody lives here:
+    // a hearth to cook at, a bed to sleep in, a bench to work at, and the one
+    // chest in the world that keeps what is put in it.
+    {
+        const int CELL = 32, cols = 16, rows = 12;
+        MapBuilder m("mossvale_cottage", "Your House in Mossvale", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Subtitle("Nobody has been in here for a season");
+        m.Background(22, 18, 16);
+        RoomShell(m, cols, rows, CELL, "plank_floor", "plaster_wall_warm",
+                  cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "mossvale", "from_mossvale_cottage",
+                 "Step outside", false);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        m.Overlay("props", "rug", dx, 6 * CELL + 16);
+        {
+            json& o = m.Object("range_cottage", "range", 3 * CELL, 100);
+            o["sprite"] = "assets/props/cottage_hearth.png";
+            o["title"]  = "Hearth";
+            m.Collision(3 * CELL - 32, 74, 64, 26);
+        }
+        // The chest. A hundred slots, ten by ten, and what goes in it stays
+        // there: it is the player's own, saved with the character rather than
+        // with the map.
+        {
+            json& o = m.Object("storage_mossvale", "storage", 12 * CELL, 4 * CELL + 8);
+            o["sprite"]   = "assets/props/travel_chest.png";
+            o["title"]    = "Storage Chest";
+            o["capacity"] = 100;
+            m.Collision(12 * CELL - 16, 4 * CELL + 8 - 14, 32, 14);
+        }
+        PlaceBed(m, "bed_cottage", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
+        piece("dining_table", 7 * CELL,      7 * CELL + 8,  46, 14);
+        piece("tavern_chair", 5 * CELL + 16, 7 * CELL + 10, 16, 8);
+        piece("wardrobe",     6 * CELL,      3 * CELL + 4,  34, 14);
+        piece("cottage_bookshelf", 9 * CELL, 3 * CELL + 4,  40, 14);
+        piece("barrel",       2 * CELL,      9 * CELL,      28, 10);
+        {
+            json& o = m.Object("bench_cottage", "workbench", 2 * CELL + 16, 5 * CELL + 16);
+            o["sprite"]  = "assets/props/workbench.png";
+            o["title"]   = "Workbench";
+            o["station"] = "workbench";
+            m.Collision(2 * CELL + 16 - 34, 5 * CELL + 16 - 18, 67, 18);
+        }
         m.Write("maps");
     }
 

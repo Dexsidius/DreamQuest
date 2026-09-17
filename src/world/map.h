@@ -99,7 +99,7 @@ struct NpcDef {
 
 struct MapObject {
     string id;               // unique across the save, e.g. "chest_mine_01"
-    string type;             // chest | note | board | tree | rock | sign
+    string type;             // chest | storage | search | note | board | tree | rock | sign
     float  x = 0, y = 0;
     SDL_FRect solid{};       // optional blocking box, w == 0 when not solid
     string loot_table;       // chests
@@ -124,6 +124,9 @@ struct MapObject {
     float  regrow_hours = 6.0f;
     string title;
     string station;          // crafting objects: "workbench" or "anvil"
+    // A storage chest: how many slots it holds. What is in it is the player's
+    // and lives in the save, not here.
+    int    capacity = 0;
     vector<string> quests;   // mission boards
     vector<string> fish;     // fishing spots: what can be caught there
 };

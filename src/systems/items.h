@@ -218,8 +218,13 @@ static constexpr int INVENTORY_SLOTS = 28;
 
 class Inventory {
 public:
-    explicit Inventory(const ItemDatabase* db = nullptr) : items(INVENTORY_SLOTS), db(db) {}
+    explicit Inventory(const ItemDatabase* db = nullptr, int slots = INVENTORY_SLOTS)
+        : items(std::max(1, slots)), db(db) {}
     void SetDatabase(const ItemDatabase* d) { db = d; }
+    // Grow or shrink the bag. Anything in a slot that is being cut away is
+    // gathered back into what is left, so a chest whose capacity was reduced
+    // in the data does not quietly eat what was in it.
+    void Resize(int slots);
 
     // Returns how many were actually added (0 when full).
     int  Add(const string& id, int qty = 1);

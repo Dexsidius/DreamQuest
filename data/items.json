@@ -1,1213 +1,1220 @@
 {
-  "coins": {
-    "name": "Coins",
-    "desc": "Stamped copper pieces. Every trader in the Hollowmarch takes them.",
-    "stack": true,
-    "value": 1,
-    "icon": "assets/icons/coin.png"
-  },
-  "bones": {
-    "tags": [
-      "bones"
-    ],
-    "name": "Bones",
-    "desc": "Picked clean. Some in Havenbrook still bury what they find.",
-    "stack": true,
-    "value": 2,
-    "icon": "assets/icons/skull.png"
-  },
-  "ember_blade": {
-    "name": "Ember Blade",
-    "desc": "Warm to the touch, even in the cold under the mountain.",
-    "slot": "weapon",
-    "value": 1800,
-    "speed": 0.95,
-    "bonus": {
-      "attack": 58,
-      "strength": 68,
-      "magic": 10
-    },
-    "req": {
-      "Attack": 30
-    },
-    "icon": "assets/icons/spark.png",
-    "tint": [
-      255,
-      156,
-      88
-    ],
-    "model": "sword_bronze"
-  },
-  "apprentice_staff": {
-    "name": "Apprentice Staff",
-    "desc": "The runes have mostly worn off. Enough of them are left.",
-    "slot": "weapon",
-    "value": 190,
-    "speed": 1.05,
-    "bonus": {
-      "magic": 28,
-      "attack": 6
-    },
-    "req": {
-      "Magic": 5
-    },
-    "icon": "assets/icons/apprentice_staff.png",
-    "kind": "staff",
-    "tint": [
-      168,
-      150,
-      226
-    ],
-    "model": "staff_bronze"
-  },
-  "leather_body": {
-    "tags": [
-      "leather"
-    ],
-    "name": "Leather Jerkin",
-    "desc": "Boar hide, boiled and cut. Quiet, and warmer than it looks.",
-    "slot": "body",
-    "value": 90,
-    "bonus": {
-      "defence": 14
-    },
-    "icon": "assets/icons/leather_jerkin.png",
-    "tint": [
-      162,
-      118,
-      78
-    ]
-  },
-  "leather_legs": {
-    "tags": [
-      "leather"
-    ],
-    "name": "Leather Chaps",
-    "desc": "Stitched from the same hide as the jerkin.",
-    "slot": "legs",
-    "value": 60,
-    "bonus": {
-      "defence": 9
-    },
-    "icon": "assets/icons/leather_chaps.png",
-    "tint": [
-      162,
-      118,
-      78
-    ]
-  },
-  "bone_amulet": {
-    "tags": [
-      "bones"
-    ],
-    "name": "Bone Amulet",
-    "desc": "Carved from something that walked out of the Mire once.",
-    "slot": "amulet",
-    "value": 220,
-    "bonus": {
-      "strength": 9,
-      "magic": 8
-    },
-    "icon": "assets/icons/amulet.png"
-  },
-  "copper_ring": {
-    "name": "Copper Ring",
-    "desc": "Plain, warm, faintly lucky.",
-    "slot": "ring",
-    "value": 80,
-    "bonus": {
-      "attack": 6
-    },
-    "icon": "assets/icons/ring.png"
-  },
-  "raw_meat": {
-    "name": "Raw Meat",
-    "desc": "Needs a fire before it needs a plate.",
-    "stack": true,
-    "value": 6,
-    "cook": {
-      "result": "cooked_meat",
-      "xp": 30,
-      "level": 1
-    },
-    "icon": "assets/icons/meat_red.png"
-  },
-  "raw_boar": {
-    "name": "Raw Boar Haunch",
-    "desc": "A heavy cut. Worth the trouble of carrying it back.",
-    "stack": true,
-    "value": 14,
-    "cook": {
-      "result": "cooked_boar",
-      "xp": 85,
-      "level": 12
-    },
-    "icon": "assets/icons/raw_haunch.png"
-  },
-  "cooked_meat": {
-    "name": "Cooked Meat",
-    "desc": "Restores 6 hitpoints.",
-    "stack": true,
-    "value": 12,
-    "consume": true,
-    "heal": 6,
-    "icon": "assets/icons/meat_cooked.png"
-  },
-  "cooked_boar": {
-    "name": "Roast Boar",
-    "desc": "Restores 16 hitpoints. Worth saving for a hard fight.",
-    "stack": true,
-    "value": 30,
-    "consume": true,
-    "heal": 16,
-    "icon": "assets/icons/roast_haunch.png"
-  },
-  "herbal_tonic": {
-    "tags": [
-      "herb",
-      "potion"
-    ],
-    "name": "Herbal Tonic",
-    "desc": "Bitter, green, and it works. Restores 22 hitpoints.",
-    "stack": true,
-    "value": 65,
-    "consume": true,
-    "heal": 22,
-    "icon": "assets/icons/potion_red.png"
-  },
-  "logs": {
-    "tags": [
-      "wood"
-    ],
-    "name": "Logs",
-    "desc": "Split pine. The guild always wants more of it.",
-    "stack": true,
-    "value": 5,
-    "icon": "assets/icons/logs.png"
-  },
-  "oak_logs": {
-    "tags": [
-      "wood"
-    ],
-    "name": "Oak Logs",
-    "desc": "Dense and slow to season. Bowyers pay well for it.",
-    "stack": true,
-    "value": 18,
-    "icon": "assets/icons/oak_logs.png",
-    "craft": {
-      "result": "fishing_rod",
-      "qty": 1,
-      "xp": 20,
-      "level": 1,
-      "inputs": {
-        "logs": 2,
-        "thread": 1
-      }
-    }
-  },
-  "hide": {
-    "tags": [
-      "leather"
-    ],
-    "name": "Raw Hide",
-    "desc": "Still needs curing, but it is worth carrying home.",
-    "stack": true,
-    "value": 9,
-    "craft": {
-      "result": "leather_body",
-      "qty": 1,
-      "xp": 90,
-      "level": 8,
-      "inputs": {
-        "hide": 3,
-        "thread": 1
-      }
-    },
-    "icon": "assets/icons/hide.png"
-  },
-  "thread": {
-    "tags": [
-      "leather",
-      "cloth"
-    ],
-    "name": "Waxed Thread",
-    "desc": "A spool of it. Sold by the yard in Havenbrook.",
-    "stack": true,
-    "value": 7,
-    "icon": "assets/icons/scissors.png",
-    "craft": {
-      "result": "bedroll",
-      "qty": 1,
-      "xp": 30,
-      "level": 1,
-      "inputs": {
-        "thread": 2,
-        "hide": 2
-      }
-    }
-  },
-  "copper_ore": {
-    "name": "Copper Ore",
-    "desc": "Green-streaked rock. Heavier than it has any right to be.",
-    "stack": true,
-    "metal": true,
-    "value": 11,
-    "craft": {
-      "result": "copper_ring",
-      "qty": 1,
-      "xp": 70,
-      "level": 6,
-      "inputs": {
-        "copper_ore": 3
-      }
-    },
-    "icon": "assets/icons/copper_ore.png"
-  },
-  "iron_ore": {
-    "name": "Iron Ore",
-    "desc": "Dull red and dense. The forge will know what to do with it.",
-    "stack": true,
-    "metal": true,
-    "value": 26,
-    "icon": "assets/icons/iron_ore.png"
-  },
-  "ruby": {
-    "tags": [
-      "gem"
-    ],
-    "name": "Uncut Ruby",
-    "desc": "Deep red, badly chipped, and still worth a month of work.",
-    "stack": true,
-    "value": 900,
-    "icon": "assets/icons/gem_red.png"
-  },
-  "elder_letter": {
-    "name": "Maren's Letter",
-    "desc": "Folded twice, sealed with grey wax. Addressed to the guild.",
-    "stack": false,
-    "value": 0,
-    "icon": "assets/icons/scroll.png"
-  },
-  "rusted_key": {
-    "name": "Rusted Key",
-    "desc": "Long teeth, orange with age. It opens something in Emberfell.",
-    "stack": false,
-    "value": 0,
-    "icon": "assets/icons/key.png"
-  },
-  "warchief_totem": {
-    "name": "Warchief's Totem",
-    "desc": "Bound bone and red cord. Taken from the thing that carried it.",
-    "stack": false,
-    "value": 0,
-    "icon": "assets/icons/star.png"
-  },
-  "ember_shard": {
-    "tags": [
-      "gem"
-    ],
-    "name": "Ember Shard",
-    "desc": "A splinter of something still burning, a long way underground.",
-    "stack": true,
-    "value": 240,
-    "icon": "assets/icons/gem_blue.png"
-  },
-  "barrow_seal": {
-    "name": "Barrow Seal",
-    "desc": "A clay disc pressed with a name nobody in town will read aloud.",
-    "stack": false,
-    "value": 0,
-    "icon": "assets/icons/seal.png"
-  },
-  "torn_page": {
-    "name": "Torn Page",
-    "desc": "Half a survey of the Sunken Road, in a careful, frightened hand.",
-    "stack": false,
-    "value": 0,
-    "icon": "assets/icons/torn_page.png"
-  },
-  "training_bow": {
-    "name": "Training Bow",
-    "desc": "Guild issue, half the draw weight, and it never misses the butts.",
-    "slot": "weapon",
-    "kind": "bow",
-    "value": 30,
-    "speed": 0.88,
-    "bonus": {
-      "ranged": 12
-    },
-    "tint": [
-      186,
-      152,
-      104
-    ],
-    "icon": "assets/icons/shortbow.png",
-    "model": "bow_wood"
-  },
-  "novice_staff": {
-    "name": "Novice Staff",
-    "desc": "A stick with one working rune on it. That is one more than none.",
-    "slot": "weapon",
-    "kind": "staff",
-    "value": 35,
-    "speed": 1.15,
-    "bonus": {
-      "magic": 14
-    },
-    "tint": [
-      158,
-      142,
-      208
-    ],
-    "icon": "assets/icons/novice_staff.png",
-    "model": "staff_wood"
-  },
-  "bedroll": {
-    "tags": [
-      "supplies"
-    ],
-    "name": "Bedroll",
-    "desc": "Canvas, a blanket and a groundsheet. Use it under open sky to pitch camp, and sleep there after dusk.",
-    "value": 40,
-    "use": "camp",
-    "icon": "assets/icons/bedroll.png"
-  },
-  "dream_shard": {
-    "tags": [
-      "dream"
-    ],
-    "name": "Dream Shard",
-    "desc": "A sliver of a dream that came back with you. It is warm, and it hums when nobody is listening.",
-    "stack": true,
-    "value": 30,
-    "craft": {
-      "result": "dreamcatcher",
-      "qty": 1,
-      "xp": 160,
-      "level": 5,
-      "inputs": {
-        "dream_shard": 6,
-        "thread": 2
-      }
-    },
-    "icon": "assets/icons/dream_shard.png"
-  },
-  "dreamcatcher": {
-    "tags": [
-      "dream"
-    ],
-    "name": "Dreamcatcher",
-    "desc": "Thread and shards on a willow hoop. What it catches, it keeps.",
-    "slot": "amulet",
-    "value": 400,
-    "bonus": {
-      "magic": 10,
-      "ranged": 8,
-      "defence": 4
-    },
-    "icon": "assets/icons/dreamcatcher.png"
-  },
-  "fishing_rod": {
-    "name": "Fishing Rod",
-    "desc": "Willow, waxed line and a bent hook. Carry it to fish; Fishing decides how quickly they bite.",
-    "value": 25,
-    "tool": "rod",
-    "model": "rod",
-    "icon": "assets/icons/tiers/fishing_rod.png"
-  },
-  "raw_minnow": {
-    "name": "Raw Minnow",
-    "desc": "A thumb-long silver fish. Everyone starts somewhere.",
-    "stack": true,
-    "value": 6,
-    "fish": {
-      "level": 1,
-      "xp": 20
-    },
-    "cook": {
-      "result": "cooked_minnow",
-      "xp": 30,
-      "level": 1
-    },
-    "icon": "assets/icons/tiers/raw_minnow.png"
-  },
-  "cooked_minnow": {
-    "name": "Cooked Minnow",
-    "desc": "Restores 4 hitpoints.",
-    "stack": true,
-    "value": 12,
-    "consume": true,
-    "heal": 4,
-    "icon": "assets/icons/tiers/cooked_minnow.png"
-  },
-  "raw_trout": {
-    "name": "Raw Trout",
-    "desc": "Speckled and fighting. It came out of cold water.",
-    "stack": true,
-    "value": 24,
-    "fish": {
-      "level": 15,
-      "xp": 50
-    },
-    "cook": {
-      "result": "cooked_trout",
-      "xp": 70,
-      "level": 15
-    },
-    "icon": "assets/icons/tiers/raw_trout.png"
-  },
-  "cooked_trout": {
-    "name": "Cooked Trout",
-    "desc": "Restores 9 hitpoints.",
-    "stack": true,
-    "value": 48,
-    "consume": true,
-    "heal": 9,
-    "icon": "assets/icons/tiers/cooked_trout.png"
-  },
-  "raw_pike": {
-    "name": "Raw Pike",
-    "desc": "Long, green and all teeth. Mind your fingers.",
-    "stack": true,
-    "value": 45,
-    "fish": {
-      "level": 30,
-      "xp": 80
-    },
-    "cook": {
-      "result": "cooked_pike",
-      "xp": 105,
-      "level": 30
-    },
-    "icon": "assets/icons/tiers/raw_pike.png"
-  },
-  "cooked_pike": {
-    "name": "Cooked Pike",
-    "desc": "Restores 13 hitpoints.",
-    "stack": true,
-    "value": 90,
-    "consume": true,
-    "heal": 13,
-    "icon": "assets/icons/tiers/cooked_pike.png"
-  },
-  "raw_salmon": {
-    "name": "Raw Salmon",
-    "desc": "Heavy, bright and running upstream when you caught it.",
-    "stack": true,
-    "value": 70,
-    "fish": {
-      "level": 45,
-      "xp": 110
-    },
-    "cook": {
-      "result": "cooked_salmon",
-      "xp": 140,
-      "level": 45
-    },
-    "icon": "assets/icons/tiers/raw_salmon.png"
-  },
-  "cooked_salmon": {
-    "name": "Cooked Salmon",
-    "desc": "Restores 17 hitpoints.",
-    "stack": true,
-    "value": 140,
-    "consume": true,
-    "heal": 17,
-    "icon": "assets/icons/tiers/cooked_salmon.png"
-  },
-  "raw_eel": {
-    "name": "Raw Eel",
-    "desc": "It is still trying to leave. Cook it before it does.",
-    "stack": true,
-    "value": 100,
-    "fish": {
-      "level": 60,
-      "xp": 150
-    },
-    "cook": {
-      "result": "cooked_eel",
-      "xp": 180,
-      "level": 60
-    },
-    "icon": "assets/icons/tiers/raw_eel.png"
-  },
-  "cooked_eel": {
-    "name": "Cooked Eel",
-    "desc": "Restores 22 hitpoints.",
-    "stack": true,
-    "value": 200,
-    "consume": true,
-    "heal": 22,
-    "icon": "assets/icons/tiers/cooked_eel.png"
-  },
-  "marigold": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Marigold",
-    "desc": "A bright orange head from the open fields. The start of half the remedies in the Hollowmarch.",
-    "stack": true,
-    "value": 4,
-    "forage": {
-      "level": 1,
-      "xp": 10,
-      "grows": "meadow"
-    },
-    "icon": "assets/icons/tiers/marigold.png"
-  },
-  "brookmint": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Brookmint",
-    "desc": "Cold, sharp-smelling leaves that only grow with their feet wet.",
-    "stack": true,
-    "value": 8,
-    "forage": {
-      "level": 6,
-      "xp": 18,
-      "grows": "waterside"
-    },
-    "icon": "assets/icons/tiers/brookmint.png"
-  },
-  "nettle": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Stinging Nettle",
-    "desc": "It stings going in and it stings going down, and it puts iron in the arm.",
-    "stack": true,
-    "value": 12,
-    "forage": {
-      "level": 12,
-      "xp": 26,
-      "grows": "woodland"
-    },
-    "icon": "assets/icons/tiers/nettle.png"
-  },
-  "bogbean": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Bogbean",
-    "desc": "Three fat leaves on a stalk out of the black water. Bitter enough to wake the dead.",
-    "stack": true,
-    "value": 18,
-    "forage": {
-      "level": 20,
-      "xp": 38,
-      "grows": "mire"
-    },
-    "icon": "assets/icons/tiers/bogbean.png"
-  },
-  "mountain_sage": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Mountain Sage",
-    "desc": "Grey-green and tough as the rock it clings to.",
-    "stack": true,
-    "value": 26,
-    "forage": {
-      "level": 28,
-      "xp": 50,
-      "grows": "foothills"
-    },
-    "icon": "assets/icons/tiers/mountain_sage.png"
-  },
-  "glowcap": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Glowcap",
-    "desc": "A pale mushroom that gives off a faint light in the shade of old trees.",
-    "stack": true,
-    "value": 34,
-    "forage": {
-      "level": 36,
-      "xp": 64,
-      "grows": "deep forest"
-    },
-    "icon": "assets/icons/tiers/glowcap.png"
-  },
-  "emberbloom": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Emberbloom",
-    "desc": "A red flower that grows only where the ground is scorched. It is warm to hold.",
-    "stack": true,
-    "value": 48,
-    "forage": {
-      "level": 46,
-      "xp": 82,
-      "grows": "cursed"
-    },
-    "icon": "assets/icons/tiers/emberbloom.png"
-  },
-  "moonpetal": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Moonpetal",
-    "desc": "A silver-blue flower that exists only in dreams, and somehow comes back with you.",
-    "stack": true,
-    "value": 64,
-    "forage": {
-      "level": 56,
-      "xp": 100,
-      "grows": "reverie"
-    },
-    "icon": "assets/icons/tiers/moonpetal.png"
-  },
-  "starlily": {
-    "tags": [
-      "herb",
-      "brewing"
-    ],
-    "name": "Starlily",
-    "desc": "Its petals hold a little light of their own. The rarest thing that grows in the Reverie.",
-    "stack": true,
-    "value": 90,
-    "forage": {
-      "level": 68,
-      "xp": 130,
-      "grows": "reverie"
-    },
-    "icon": "assets/icons/tiers/starlily.png"
-  },
-  "vial": {
-    "tags": [
-      "brewing",
-      "supplies"
-    ],
-    "name": "Glass Vial",
-    "desc": "An empty vial with a cork. Every brew needs one.",
-    "stack": true,
-    "value": 3,
-    "icon": "assets/icons/tiers/vial.png"
-  },
-  "healing_draught": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Healing Draught",
-    "desc": "Marigold steeped until the water turns gold. Restores 20 hitpoints.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "heal": 20,
-    "recipe_from": "Oona the herbalist in Mossvale teaches it to anyone who asks.",
-    "craft": {
-      "result": "healing_draught",
-      "qty": 1,
-      "xp": 20,
-      "level": 1,
-      "inputs": {
-        "marigold": 2,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/healing_draught.png"
-  },
-  "mana_tonic": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Mana Tonic",
-    "desc": "Clear and freezing cold. Restores 40 mana.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "mana": 40,
-    "recipe_from": "Oona sells the recipe in Mossvale.",
-    "craft": {
-      "result": "mana_tonic",
-      "qty": 1,
-      "xp": 32,
-      "level": 6,
-      "inputs": {
-        "brookmint": 2,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/mana_tonic.png"
-  },
-  "scroll_mana_tonic": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Mana Tonic",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Mana Tonic.",
-    "value": 56,
-    "learn": "mana_tonic",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "nettle_brew": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Nettle Brew",
-    "desc": "Dark green, and it stings. Boosts Strength by 3 and a tenth.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "boost": {
-      "Strength": [
-        3,
-        0.1
-      ]
-    },
-    "recipe_from": "Tobin's General Store in Havenbrook sells the recipe.",
-    "craft": {
-      "result": "nettle_brew",
-      "qty": 1,
-      "xp": 45,
-      "level": 12,
-      "inputs": {
-        "nettle": 2,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/nettle_brew.png"
-  },
-  "scroll_nettle_brew": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Nettle Brew",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Nettle Brew.",
-    "value": 92,
-    "learn": "nettle_brew",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "fen_bitters": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Fen Bitters",
-    "desc": "Foul, and worth it. Restores all stamina and 12 hitpoints.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "stamina": true,
-    "heal": 12,
-    "recipe_from": "Hob the Pedlar sells the recipe at the woodcutter's camp.",
-    "craft": {
-      "result": "fen_bitters",
-      "qty": 1,
-      "xp": 60,
-      "level": 20,
-      "inputs": {
-        "bogbean": 2,
-        "marigold": 1,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/fen_bitters.png"
-  },
-  "scroll_fen_bitters": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Fen Bitters",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Fen Bitters.",
-    "value": 140,
-    "learn": "fen_bitters",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "stoneskin_draught": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Stoneskin Draught",
-    "desc": "Grey and gritty. Boosts Defence by 3 and an eighth.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "boost": {
-      "Defence": [
-        3,
-        0.12
-      ]
-    },
-    "recipe_from": "Garrow the smith sells the recipe in Mossvale.",
-    "craft": {
-      "result": "stoneskin_draught",
-      "qty": 1,
-      "xp": 78,
-      "level": 28,
-      "inputs": {
-        "mountain_sage": 2,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/stoneskin_draught.png"
-  },
-  "scroll_stoneskin_draught": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Stoneskin Draught",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Stoneskin Draught.",
-    "value": 188,
-    "learn": "stoneskin_draught",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "hunters_focus": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Hunter's Focus",
-    "desc": "It glows faintly in the vial. Boosts Ranged by 4 and an eighth.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "boost": {
-      "Ranged": [
-        4,
-        0.12
-      ]
-    },
-    "recipe_from": "Hunter Ivo sells the recipe in Havenbrook.",
-    "craft": {
-      "result": "hunters_focus",
-      "qty": 1,
-      "xp": 95,
-      "level": 36,
-      "inputs": {
-        "glowcap": 2,
-        "nettle": 1,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/hunters_focus.png"
-  },
-  "scroll_hunters_focus": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Hunter's Focus",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Hunter's Focus.",
-    "value": 236,
-    "learn": "hunters_focus",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "emberfire_elixir": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Emberfire Elixir",
-    "desc": "Hot enough to feel through the glass. Boosts Attack and Strength by 4 and an eighth.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "boost": {
-      "Attack": [
-        4,
-        0.12
-      ],
-      "Strength": [
-        4,
-        0.12
-      ]
-    },
-    "recipe_from": "The Collector in the Reverie sells the recipe.",
-    "craft": {
-      "result": "emberfire_elixir",
-      "qty": 1,
-      "xp": 120,
-      "level": 46,
-      "inputs": {
-        "emberbloom": 2,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/emberfire_elixir.png"
-  },
-  "scroll_emberfire_elixir": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Emberfire Elixir",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Emberfire Elixir.",
-    "value": 296,
-    "learn": "emberfire_elixir",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "moonlit_draught": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Moonlit Draught",
-    "desc": "Silver, and it moves in the vial when nothing touches it. Restores 80 mana and boosts Magic by 5 and an eighth.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "mana": 80,
-    "boost": {
-      "Magic": [
-        5,
-        0.12
-      ]
-    },
-    "recipe_from": "The Night Pedlar in the Reverie sells the recipe.",
-    "craft": {
-      "result": "moonlit_draught",
-      "qty": 1,
-      "xp": 145,
-      "level": 56,
-      "inputs": {
-        "moonpetal": 2,
-        "brookmint": 1,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/moonlit_draught.png"
-  },
-  "scroll_moonlit_draught": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Moonlit Draught",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Moonlit Draught.",
-    "value": 356,
-    "learn": "moonlit_draught",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "starlily_panacea": {
-    "tags": [
-      "potion"
-    ],
-    "name": "Starlily Panacea",
-    "desc": "A little starlight in a bottle. Restores 40 hitpoints, 100 mana and all stamina, and boosts every combat level a little.",
-    "stack": true,
-    "value": 10,
-    "consume": true,
-    "heal": 40,
-    "mana": 100,
-    "stamina": true,
-    "boost": {
-      "Attack": [
-        2,
-        0.06
-      ],
-      "Strength": [
-        2,
-        0.06
-      ],
-      "Defence": [
-        2,
-        0.06
-      ],
-      "Ranged": [
-        2,
-        0.06
-      ],
-      "Magic": [
-        2,
-        0.06
-      ]
-    },
-    "recipe_from": "The Collector in the Reverie opens that case only for someone who has calmed Hesper's pond.",
-    "craft": {
-      "result": "starlily_panacea",
-      "qty": 1,
-      "xp": 190,
-      "level": 68,
-      "inputs": {
-        "starlily": 2,
-        "moonpetal": 1,
-        "marigold": 1,
-        "vial": 1
-      }
-    },
-    "icon": "assets/icons/tiers/starlily_panacea.png"
-  },
-  "scroll_starlily_panacea": {
-    "tags": [
-      "recipe"
-    ],
-    "name": "Recipe: Starlily Panacea",
-    "desc": "Brewing notes in a careful hand. Read it to learn to brew Starlily Panacea.",
-    "value": 428,
-    "learn": "starlily_panacea",
-    "icon": "assets/icons/tiers/recipe_scroll.png"
-  },
-  "spider_silk": {
-    "tags": [
-      "leather",
-      "cloth"
-    ],
-    "name": "Spider Silk",
-    "desc": "A sticky skein from a cellar spider. Weavers pay for it.",
-    "stack": true,
-    "value": 14,
-    "icon": "assets/icons/tiers/spider_silk.png"
-  },
-  "lizard_scale": {
-    "tags": [
-      "leather",
-      "trophy"
-    ],
-    "name": "Lizard Scale",
-    "desc": "A hard green scale off a swamp lizardman.",
-    "stack": true,
-    "value": 45,
-    "icon": "assets/icons/tiers/lizard_scale.png"
-  },
-  "troll_hide": {
-    "tags": [
-      "leather",
-      "trophy"
-    ],
-    "name": "Troll Hide",
-    "desc": "Thick, pale and cold to the touch. An ice troll's pelt.",
-    "stack": true,
-    "value": 140,
-    "icon": "assets/icons/tiers/troll_hide.png"
-  },
-  "wyvern_scale": {
-    "tags": [
-      "trophy",
-      "gem"
-    ],
-    "name": "Wyvern Scale",
-    "desc": "A frost wyvern's scale, blue as deep ice and harder than steel.",
-    "stack": true,
-    "value": 380,
-    "icon": "assets/icons/tiers/wyvern_scale.png"
-  },
-  "demon_horn": {
-    "tags": [
-      "trophy"
-    ],
-    "name": "Demon Horn",
-    "desc": "Black, ridged and still warm. Something in the pit wanted it back.",
-    "stack": true,
-    "value": 520,
-    "icon": "assets/icons/tiers/demon_horn.png"
-  },
-  "dragon_fang": {
-    "tags": [
-      "trophy",
-      "gem"
-    ],
-    "name": "Dragon Fang",
-    "desc": "A tooth from the dragon of the Ice Spire, longer than a dagger and cold to hold.",
-    "stack": true,
-    "value": 2600,
-    "icon": "assets/icons/tiers/dragon_fang.png"
-  },
-  "drowned_king_boots": {
-    "name": "Boots of the Drowned King",
-    "desc": "Bog-black leather under drowned gold, weed still in the buckles. Whoever was laid in the barrow with these on walked out of the Mire once, and only once.",
-    "slot": "feet",
-    "value": 3200,
-    "bonus": {
-      "defence": 24,
-      "strength": 4
-    },
-    "req": {
-      "Defence": 15
-    },
-    "passive": "marshstride",
-    "passive_text": "Marshstride: you walk a seventh quicker, and ground that burns takes half as much out of you.",
-    "tags": [
-      "legendary"
-    ],
-    "icon": "assets/icons/tiers/drowned_king_boots.png"
-  },
-  "rotten_flesh": {
-    "tags": [
-      "trophy"
-    ],
-    "name": "Rotten Flesh",
-    "desc": "Cold, grey and still on the bone in places. Somebody will buy it. Do not ask what for.",
-    "stack": true,
-    "value": 14,
-    "icon": "assets/icons/tiers/rotten_flesh.png"
-  },
-  "tarnished_ring": {
-    "tags": [
-      "trophy",
-      "gem"
-    ],
-    "name": "Tarnished Ring",
-    "desc": "Silver gone black, with a dull stone in it. It was buried with somebody who could afford better.",
-    "stack": true,
-    "value": 165,
-    "icon": "assets/icons/tiers/tarnished_ring.png"
-  },
-  "mourning_locket": {
-    "tags": [
-      "trophy",
-      "gem"
-    ],
-    "name": "Mourning Locket",
-    "desc": "A lock of somebody's hair behind a hinged case. The catch still works.",
-    "stack": true,
-    "value": 230,
-    "icon": "assets/icons/tiers/mourning_locket.png"
-  },
-  "grave_candle": {
-    "tags": [
-      "trophy"
-    ],
-    "name": "Grave Candle",
-    "desc": "A stub of funeral wax that has burned longer than it had any business burning.",
-    "stack": true,
-    "value": 48,
-    "icon": "assets/icons/tiers/grave_candle.png"
-  },
-  "tinderbox": {
-    "tags": [
-      "tool"
-    ],
-    "name": "Tinderbox",
-    "desc": "Flint, steel and a twist of charcloth. Use it with something in your pack that will take a flame.",
-    "value": 35,
-    "use": "light",
-    "icon": "assets/icons/tiers/tinderbox.png"
-  },
-  "lantern_unlit": {
-    "tags": [
-      "tool"
-    ],
-    "name": "Unlit Lantern",
-    "desc": "Iron frame, horn panes, a wick sitting in oil. It wants a flame: use a tinderbox while you carry it.",
-    "value": 140,
-    "lights": "lantern",
-    "needs_recipe": true,
-    "recipe_from": "Innkeeper Bess showed you how the old well-crews made theirs.",
-    "craft": {
-      "result": "lantern_unlit",
-      "level": 8,
-      "xp": 90,
-      "inputs": {
-        "iron_bar": 2,
-        "logs": 1
-      }
-    },
-    "icon": "assets/icons/tiers/lantern_unlit.png"
-  },
-  "lantern": {
-    "tags": [
-      "tool"
-    ],
-    "name": "Lit Lantern",
-    "desc": "It throws a good pool of light and asks for nothing but a hand to hold it. Worn in the off hand.",
-    "slot": "shield",
-    "value": 180,
-    "light": 210,
-    "icon": "assets/icons/tiers/lantern.png"
+ "coins": {
+  "name": "Coins",
+  "desc": "Stamped copper pieces. Every trader in the Hollowmarch takes them.",
+  "stack": true,
+  "value": 1,
+  "icon": "assets/icons/coin.png"
+ },
+ "bones": {
+  "tags": [
+   "bones"
+  ],
+  "name": "Bones",
+  "desc": "Picked clean. Some in Havenbrook still bury what they find.",
+  "stack": true,
+  "value": 2,
+  "icon": "assets/icons/skull.png"
+ },
+ "ember_blade": {
+  "name": "Ember Blade",
+  "desc": "Warm to the touch, even in the cold under the mountain.",
+  "slot": "weapon",
+  "value": 1800,
+  "speed": 0.95,
+  "bonus": {
+   "attack": 58,
+   "strength": 68,
+   "magic": 10
+  },
+  "req": {
+   "Attack": 30
+  },
+  "icon": "assets/icons/spark.png",
+  "tint": [
+   255,
+   156,
+   88
+  ],
+  "model": "sword_bronze"
+ },
+ "apprentice_staff": {
+  "name": "Apprentice Staff",
+  "desc": "The runes have mostly worn off. Enough of them are left.",
+  "slot": "weapon",
+  "value": 190,
+  "speed": 1.05,
+  "bonus": {
+   "magic": 28,
+   "attack": 6
+  },
+  "req": {
+   "Magic": 5
+  },
+  "icon": "assets/icons/apprentice_staff.png",
+  "kind": "staff",
+  "tint": [
+   168,
+   150,
+   226
+  ],
+  "model": "staff_bronze"
+ },
+ "leather_body": {
+  "tags": [
+   "leather"
+  ],
+  "name": "Leather Jerkin",
+  "desc": "Boar hide, boiled and cut. Quiet, and warmer than it looks.",
+  "slot": "body",
+  "value": 90,
+  "bonus": {
+   "defence": 14
+  },
+  "icon": "assets/icons/leather_jerkin.png",
+  "tint": [
+   162,
+   118,
+   78
+  ]
+ },
+ "leather_legs": {
+  "tags": [
+   "leather"
+  ],
+  "name": "Leather Chaps",
+  "desc": "Stitched from the same hide as the jerkin.",
+  "slot": "legs",
+  "value": 60,
+  "bonus": {
+   "defence": 9
+  },
+  "icon": "assets/icons/leather_chaps.png",
+  "tint": [
+   162,
+   118,
+   78
+  ]
+ },
+ "bone_amulet": {
+  "tags": [
+   "bones"
+  ],
+  "name": "Bone Amulet",
+  "desc": "Carved from something that walked out of the Mire once.",
+  "slot": "amulet",
+  "value": 220,
+  "bonus": {
+   "strength": 9,
+   "magic": 8
+  },
+  "icon": "assets/icons/amulet.png"
+ },
+ "copper_ring": {
+  "name": "Copper Ring",
+  "desc": "Plain, warm, faintly lucky.",
+  "slot": "ring",
+  "value": 80,
+  "bonus": {
+   "attack": 6
+  },
+  "icon": "assets/icons/ring.png"
+ },
+ "raw_meat": {
+  "name": "Raw Meat",
+  "desc": "Needs a fire before it needs a plate.",
+  "stack": true,
+  "value": 6,
+  "cook": {
+   "result": "cooked_meat",
+   "xp": 30,
+   "level": 1
+  },
+  "icon": "assets/icons/meat_red.png"
+ },
+ "raw_boar": {
+  "name": "Raw Boar Haunch",
+  "desc": "A heavy cut. Worth the trouble of carrying it back.",
+  "stack": true,
+  "value": 14,
+  "cook": {
+   "result": "cooked_boar",
+   "xp": 85,
+   "level": 12
+  },
+  "icon": "assets/icons/raw_haunch.png"
+ },
+ "cooked_meat": {
+  "name": "Cooked Meat",
+  "desc": "Restores 6 hitpoints.",
+  "stack": true,
+  "value": 12,
+  "consume": true,
+  "heal": 6,
+  "icon": "assets/icons/meat_cooked.png"
+ },
+ "cooked_boar": {
+  "name": "Roast Boar",
+  "desc": "Restores 16 hitpoints. Worth saving for a hard fight.",
+  "stack": true,
+  "value": 30,
+  "consume": true,
+  "heal": 16,
+  "icon": "assets/icons/roast_haunch.png"
+ },
+ "herbal_tonic": {
+  "tags": [
+   "herb",
+   "potion"
+  ],
+  "name": "Herbal Tonic",
+  "desc": "Bitter, green, and it works. Restores 22 hitpoints.",
+  "stack": true,
+  "value": 65,
+  "consume": true,
+  "heal": 22,
+  "icon": "assets/icons/potion_red.png"
+ },
+ "logs": {
+  "tags": [
+   "wood"
+  ],
+  "name": "Logs",
+  "desc": "Split pine. The guild always wants more of it.",
+  "stack": true,
+  "value": 5,
+  "icon": "assets/icons/logs.png"
+ },
+ "oak_logs": {
+  "tags": [
+   "wood"
+  ],
+  "name": "Oak Logs",
+  "desc": "Dense and slow to season. Bowyers pay well for it.",
+  "stack": true,
+  "value": 18,
+  "icon": "assets/icons/oak_logs.png",
+  "craft": {
+   "result": "fishing_rod",
+   "qty": 1,
+   "xp": 20,
+   "level": 1,
+   "inputs": {
+    "logs": 2,
+    "thread": 1
+   }
   }
+ },
+ "hide": {
+  "tags": [
+   "leather"
+  ],
+  "name": "Raw Hide",
+  "desc": "Still needs curing, but it is worth carrying home.",
+  "stack": true,
+  "value": 9,
+  "craft": {
+   "result": "leather_body",
+   "qty": 1,
+   "xp": 90,
+   "level": 8,
+   "inputs": {
+    "hide": 3,
+    "thread": 1
+   }
+  },
+  "icon": "assets/icons/hide.png"
+ },
+ "thread": {
+  "tags": [
+   "leather",
+   "cloth"
+  ],
+  "name": "Waxed Thread",
+  "desc": "A spool of it. Sold by the yard in Havenbrook.",
+  "stack": true,
+  "value": 7,
+  "icon": "assets/icons/scissors.png",
+  "craft": {
+   "result": "bedroll",
+   "qty": 1,
+   "xp": 30,
+   "level": 1,
+   "inputs": {
+    "thread": 2,
+    "hide": 2
+   }
+  }
+ },
+ "copper_ore": {
+  "name": "Copper Ore",
+  "desc": "Green-streaked rock. Heavier than it has any right to be.",
+  "stack": true,
+  "metal": true,
+  "value": 11,
+  "craft": {
+   "result": "copper_ring",
+   "qty": 1,
+   "xp": 70,
+   "level": 6,
+   "inputs": {
+    "copper_ore": 3
+   }
+  },
+  "icon": "assets/icons/copper_ore.png"
+ },
+ "iron_ore": {
+  "name": "Iron Ore",
+  "desc": "Dull red and dense. The forge will know what to do with it.",
+  "stack": true,
+  "metal": true,
+  "value": 26,
+  "icon": "assets/icons/iron_ore.png"
+ },
+ "ruby": {
+  "tags": [
+   "gem"
+  ],
+  "name": "Uncut Ruby",
+  "desc": "Deep red, badly chipped, and still worth a month of work.",
+  "stack": true,
+  "value": 900,
+  "icon": "assets/icons/gem_red.png"
+ },
+ "elder_letter": {
+  "name": "Maren's Letter",
+  "desc": "Folded twice, sealed with grey wax. Addressed to the guild.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/scroll.png"
+ },
+ "rusted_key": {
+  "name": "Rusted Key",
+  "desc": "Long teeth, orange with age. It opens something in Emberfell.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/key.png"
+ },
+ "mossvale_house_key": {
+  "name": "Mossvale House Key",
+  "desc": "Wrapped in oilcloth and left under a stone. It opens the empty house at the bottom of Mossvale, which is yours now.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/key.png"
+ },
+ "warchief_totem": {
+  "name": "Warchief's Totem",
+  "desc": "Bound bone and red cord. Taken from the thing that carried it.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/star.png"
+ },
+ "ember_shard": {
+  "tags": [
+   "gem"
+  ],
+  "name": "Ember Shard",
+  "desc": "A splinter of something still burning, a long way underground.",
+  "stack": true,
+  "value": 240,
+  "icon": "assets/icons/gem_blue.png"
+ },
+ "barrow_seal": {
+  "name": "Barrow Seal",
+  "desc": "A clay disc pressed with a name nobody in town will read aloud.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/seal.png"
+ },
+ "torn_page": {
+  "name": "Torn Page",
+  "desc": "Half a survey of the Sunken Road, in a careful, frightened hand.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/torn_page.png"
+ },
+ "training_bow": {
+  "name": "Training Bow",
+  "desc": "Guild issue, half the draw weight, and it never misses the butts.",
+  "slot": "weapon",
+  "kind": "bow",
+  "value": 30,
+  "speed": 0.88,
+  "bonus": {
+   "ranged": 12
+  },
+  "tint": [
+   186,
+   152,
+   104
+  ],
+  "icon": "assets/icons/shortbow.png",
+  "model": "bow_wood"
+ },
+ "novice_staff": {
+  "name": "Novice Staff",
+  "desc": "A stick with one working rune on it. That is one more than none.",
+  "slot": "weapon",
+  "kind": "staff",
+  "value": 35,
+  "speed": 1.15,
+  "bonus": {
+   "magic": 14
+  },
+  "tint": [
+   158,
+   142,
+   208
+  ],
+  "icon": "assets/icons/novice_staff.png",
+  "model": "staff_wood"
+ },
+ "bedroll": {
+  "tags": [
+   "supplies"
+  ],
+  "name": "Bedroll",
+  "desc": "Canvas, a blanket and a groundsheet. Use it under open sky to pitch camp, and sleep there after dusk.",
+  "value": 40,
+  "use": "camp",
+  "icon": "assets/icons/bedroll.png"
+ },
+ "dream_shard": {
+  "tags": [
+   "dream"
+  ],
+  "name": "Dream Shard",
+  "desc": "A sliver of a dream that came back with you. It is warm, and it hums when nobody is listening.",
+  "stack": true,
+  "value": 30,
+  "craft": {
+   "result": "dreamcatcher",
+   "qty": 1,
+   "xp": 160,
+   "level": 5,
+   "inputs": {
+    "dream_shard": 6,
+    "thread": 2
+   }
+  },
+  "icon": "assets/icons/dream_shard.png"
+ },
+ "dreamcatcher": {
+  "tags": [
+   "dream"
+  ],
+  "name": "Dreamcatcher",
+  "desc": "Thread and shards on a willow hoop. What it catches, it keeps.",
+  "slot": "amulet",
+  "value": 400,
+  "bonus": {
+   "magic": 10,
+   "ranged": 8,
+   "defence": 4
+  },
+  "icon": "assets/icons/dreamcatcher.png"
+ },
+ "fishing_rod": {
+  "name": "Fishing Rod",
+  "desc": "Willow, waxed line and a bent hook. Carry it to fish; Fishing decides how quickly they bite.",
+  "value": 25,
+  "tool": "rod",
+  "model": "rod",
+  "icon": "assets/icons/tiers/fishing_rod.png"
+ },
+ "raw_minnow": {
+  "name": "Raw Minnow",
+  "desc": "A thumb-long silver fish. Everyone starts somewhere.",
+  "stack": true,
+  "value": 6,
+  "fish": {
+   "level": 1,
+   "xp": 20
+  },
+  "cook": {
+   "result": "cooked_minnow",
+   "xp": 30,
+   "level": 1
+  },
+  "icon": "assets/icons/tiers/raw_minnow.png"
+ },
+ "cooked_minnow": {
+  "name": "Cooked Minnow",
+  "desc": "Restores 4 hitpoints.",
+  "stack": true,
+  "value": 12,
+  "consume": true,
+  "heal": 4,
+  "icon": "assets/icons/tiers/cooked_minnow.png"
+ },
+ "raw_trout": {
+  "name": "Raw Trout",
+  "desc": "Speckled and fighting. It came out of cold water.",
+  "stack": true,
+  "value": 24,
+  "fish": {
+   "level": 15,
+   "xp": 50
+  },
+  "cook": {
+   "result": "cooked_trout",
+   "xp": 70,
+   "level": 15
+  },
+  "icon": "assets/icons/tiers/raw_trout.png"
+ },
+ "cooked_trout": {
+  "name": "Cooked Trout",
+  "desc": "Restores 9 hitpoints.",
+  "stack": true,
+  "value": 48,
+  "consume": true,
+  "heal": 9,
+  "icon": "assets/icons/tiers/cooked_trout.png"
+ },
+ "raw_pike": {
+  "name": "Raw Pike",
+  "desc": "Long, green and all teeth. Mind your fingers.",
+  "stack": true,
+  "value": 45,
+  "fish": {
+   "level": 30,
+   "xp": 80
+  },
+  "cook": {
+   "result": "cooked_pike",
+   "xp": 105,
+   "level": 30
+  },
+  "icon": "assets/icons/tiers/raw_pike.png"
+ },
+ "cooked_pike": {
+  "name": "Cooked Pike",
+  "desc": "Restores 13 hitpoints.",
+  "stack": true,
+  "value": 90,
+  "consume": true,
+  "heal": 13,
+  "icon": "assets/icons/tiers/cooked_pike.png"
+ },
+ "raw_salmon": {
+  "name": "Raw Salmon",
+  "desc": "Heavy, bright and running upstream when you caught it.",
+  "stack": true,
+  "value": 70,
+  "fish": {
+   "level": 45,
+   "xp": 110
+  },
+  "cook": {
+   "result": "cooked_salmon",
+   "xp": 140,
+   "level": 45
+  },
+  "icon": "assets/icons/tiers/raw_salmon.png"
+ },
+ "cooked_salmon": {
+  "name": "Cooked Salmon",
+  "desc": "Restores 17 hitpoints.",
+  "stack": true,
+  "value": 140,
+  "consume": true,
+  "heal": 17,
+  "icon": "assets/icons/tiers/cooked_salmon.png"
+ },
+ "raw_eel": {
+  "name": "Raw Eel",
+  "desc": "It is still trying to leave. Cook it before it does.",
+  "stack": true,
+  "value": 100,
+  "fish": {
+   "level": 60,
+   "xp": 150
+  },
+  "cook": {
+   "result": "cooked_eel",
+   "xp": 180,
+   "level": 60
+  },
+  "icon": "assets/icons/tiers/raw_eel.png"
+ },
+ "cooked_eel": {
+  "name": "Cooked Eel",
+  "desc": "Restores 22 hitpoints.",
+  "stack": true,
+  "value": 200,
+  "consume": true,
+  "heal": 22,
+  "icon": "assets/icons/tiers/cooked_eel.png"
+ },
+ "marigold": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Marigold",
+  "desc": "A bright orange head from the open fields. The start of half the remedies in the Hollowmarch.",
+  "stack": true,
+  "value": 4,
+  "forage": {
+   "level": 1,
+   "xp": 10,
+   "grows": "meadow"
+  },
+  "icon": "assets/icons/tiers/marigold.png"
+ },
+ "brookmint": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Brookmint",
+  "desc": "Cold, sharp-smelling leaves that only grow with their feet wet.",
+  "stack": true,
+  "value": 8,
+  "forage": {
+   "level": 6,
+   "xp": 18,
+   "grows": "waterside"
+  },
+  "icon": "assets/icons/tiers/brookmint.png"
+ },
+ "nettle": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Stinging Nettle",
+  "desc": "It stings going in and it stings going down, and it puts iron in the arm.",
+  "stack": true,
+  "value": 12,
+  "forage": {
+   "level": 12,
+   "xp": 26,
+   "grows": "woodland"
+  },
+  "icon": "assets/icons/tiers/nettle.png"
+ },
+ "bogbean": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Bogbean",
+  "desc": "Three fat leaves on a stalk out of the black water. Bitter enough to wake the dead.",
+  "stack": true,
+  "value": 18,
+  "forage": {
+   "level": 20,
+   "xp": 38,
+   "grows": "mire"
+  },
+  "icon": "assets/icons/tiers/bogbean.png"
+ },
+ "mountain_sage": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Mountain Sage",
+  "desc": "Grey-green and tough as the rock it clings to.",
+  "stack": true,
+  "value": 26,
+  "forage": {
+   "level": 28,
+   "xp": 50,
+   "grows": "foothills"
+  },
+  "icon": "assets/icons/tiers/mountain_sage.png"
+ },
+ "glowcap": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Glowcap",
+  "desc": "A pale mushroom that gives off a faint light in the shade of old trees.",
+  "stack": true,
+  "value": 34,
+  "forage": {
+   "level": 36,
+   "xp": 64,
+   "grows": "deep forest"
+  },
+  "icon": "assets/icons/tiers/glowcap.png"
+ },
+ "emberbloom": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Emberbloom",
+  "desc": "A red flower that grows only where the ground is scorched. It is warm to hold.",
+  "stack": true,
+  "value": 48,
+  "forage": {
+   "level": 46,
+   "xp": 82,
+   "grows": "cursed"
+  },
+  "icon": "assets/icons/tiers/emberbloom.png"
+ },
+ "moonpetal": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Moonpetal",
+  "desc": "A silver-blue flower that exists only in dreams, and somehow comes back with you.",
+  "stack": true,
+  "value": 64,
+  "forage": {
+   "level": 56,
+   "xp": 100,
+   "grows": "reverie"
+  },
+  "icon": "assets/icons/tiers/moonpetal.png"
+ },
+ "starlily": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Starlily",
+  "desc": "Its petals hold a little light of their own. The rarest thing that grows in the Reverie.",
+  "stack": true,
+  "value": 90,
+  "forage": {
+   "level": 68,
+   "xp": 130,
+   "grows": "reverie"
+  },
+  "icon": "assets/icons/tiers/starlily.png"
+ },
+ "vial": {
+  "tags": [
+   "brewing",
+   "supplies"
+  ],
+  "name": "Glass Vial",
+  "desc": "An empty vial with a cork. Every brew needs one.",
+  "stack": true,
+  "value": 3,
+  "icon": "assets/icons/tiers/vial.png"
+ },
+ "healing_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Healing Draught",
+  "desc": "Marigold steeped until the water turns gold. Restores 20 hitpoints.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "heal": 20,
+  "recipe_from": "Oona the herbalist in Mossvale teaches it to anyone who asks.",
+  "craft": {
+   "result": "healing_draught",
+   "qty": 1,
+   "xp": 20,
+   "level": 1,
+   "inputs": {
+    "marigold": 2,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/healing_draught.png"
+ },
+ "mana_tonic": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Mana Tonic",
+  "desc": "Clear and freezing cold. Restores 40 mana.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "mana": 40,
+  "recipe_from": "Oona sells the recipe in Mossvale.",
+  "craft": {
+   "result": "mana_tonic",
+   "qty": 1,
+   "xp": 32,
+   "level": 6,
+   "inputs": {
+    "brookmint": 2,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/mana_tonic.png"
+ },
+ "scroll_mana_tonic": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Mana Tonic",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Mana Tonic.",
+  "value": 56,
+  "learn": "mana_tonic",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "nettle_brew": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Nettle Brew",
+  "desc": "Dark green, and it stings. Boosts Strength by 3 and a tenth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Strength": [
+    3,
+    0.1
+   ]
+  },
+  "recipe_from": "Tobin's General Store in Havenbrook sells the recipe.",
+  "craft": {
+   "result": "nettle_brew",
+   "qty": 1,
+   "xp": 45,
+   "level": 12,
+   "inputs": {
+    "nettle": 2,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/nettle_brew.png"
+ },
+ "scroll_nettle_brew": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Nettle Brew",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Nettle Brew.",
+  "value": 92,
+  "learn": "nettle_brew",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "fen_bitters": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Fen Bitters",
+  "desc": "Foul, and worth it. Restores all stamina and 12 hitpoints.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "stamina": true,
+  "heal": 12,
+  "recipe_from": "Hob the Pedlar sells the recipe at the woodcutter's camp.",
+  "craft": {
+   "result": "fen_bitters",
+   "qty": 1,
+   "xp": 60,
+   "level": 20,
+   "inputs": {
+    "bogbean": 2,
+    "marigold": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/fen_bitters.png"
+ },
+ "scroll_fen_bitters": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Fen Bitters",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Fen Bitters.",
+  "value": 140,
+  "learn": "fen_bitters",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "stoneskin_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Stoneskin Draught",
+  "desc": "Grey and gritty. Boosts Defence by 3 and an eighth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Defence": [
+    3,
+    0.12
+   ]
+  },
+  "recipe_from": "Garrow the smith sells the recipe in Mossvale.",
+  "craft": {
+   "result": "stoneskin_draught",
+   "qty": 1,
+   "xp": 78,
+   "level": 28,
+   "inputs": {
+    "mountain_sage": 2,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/stoneskin_draught.png"
+ },
+ "scroll_stoneskin_draught": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Stoneskin Draught",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Stoneskin Draught.",
+  "value": 188,
+  "learn": "stoneskin_draught",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "hunters_focus": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Hunter's Focus",
+  "desc": "It glows faintly in the vial. Boosts Ranged by 4 and an eighth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Ranged": [
+    4,
+    0.12
+   ]
+  },
+  "recipe_from": "Hunter Ivo sells the recipe in Havenbrook.",
+  "craft": {
+   "result": "hunters_focus",
+   "qty": 1,
+   "xp": 95,
+   "level": 36,
+   "inputs": {
+    "glowcap": 2,
+    "nettle": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/hunters_focus.png"
+ },
+ "scroll_hunters_focus": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Hunter's Focus",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Hunter's Focus.",
+  "value": 236,
+  "learn": "hunters_focus",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "emberfire_elixir": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Emberfire Elixir",
+  "desc": "Hot enough to feel through the glass. Boosts Attack and Strength by 4 and an eighth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Attack": [
+    4,
+    0.12
+   ],
+   "Strength": [
+    4,
+    0.12
+   ]
+  },
+  "recipe_from": "The Collector in the Reverie sells the recipe.",
+  "craft": {
+   "result": "emberfire_elixir",
+   "qty": 1,
+   "xp": 120,
+   "level": 46,
+   "inputs": {
+    "emberbloom": 2,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/emberfire_elixir.png"
+ },
+ "scroll_emberfire_elixir": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Emberfire Elixir",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Emberfire Elixir.",
+  "value": 296,
+  "learn": "emberfire_elixir",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "moonlit_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Moonlit Draught",
+  "desc": "Silver, and it moves in the vial when nothing touches it. Restores 80 mana and boosts Magic by 5 and an eighth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "mana": 80,
+  "boost": {
+   "Magic": [
+    5,
+    0.12
+   ]
+  },
+  "recipe_from": "The Night Pedlar in the Reverie sells the recipe.",
+  "craft": {
+   "result": "moonlit_draught",
+   "qty": 1,
+   "xp": 145,
+   "level": 56,
+   "inputs": {
+    "moonpetal": 2,
+    "brookmint": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/moonlit_draught.png"
+ },
+ "scroll_moonlit_draught": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Moonlit Draught",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Moonlit Draught.",
+  "value": 356,
+  "learn": "moonlit_draught",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "starlily_panacea": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Starlily Panacea",
+  "desc": "A little starlight in a bottle. Restores 40 hitpoints, 100 mana and all stamina, and boosts every combat level a little.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "heal": 40,
+  "mana": 100,
+  "stamina": true,
+  "boost": {
+   "Attack": [
+    2,
+    0.06
+   ],
+   "Strength": [
+    2,
+    0.06
+   ],
+   "Defence": [
+    2,
+    0.06
+   ],
+   "Ranged": [
+    2,
+    0.06
+   ],
+   "Magic": [
+    2,
+    0.06
+   ]
+  },
+  "recipe_from": "The Collector in the Reverie opens that case only for someone who has calmed Hesper's pond.",
+  "craft": {
+   "result": "starlily_panacea",
+   "qty": 1,
+   "xp": 190,
+   "level": 68,
+   "inputs": {
+    "starlily": 2,
+    "moonpetal": 1,
+    "marigold": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/starlily_panacea.png"
+ },
+ "scroll_starlily_panacea": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Starlily Panacea",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Starlily Panacea.",
+  "value": 428,
+  "learn": "starlily_panacea",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "spider_silk": {
+  "tags": [
+   "leather",
+   "cloth"
+  ],
+  "name": "Spider Silk",
+  "desc": "A sticky skein from a cellar spider. Weavers pay for it.",
+  "stack": true,
+  "value": 14,
+  "icon": "assets/icons/tiers/spider_silk.png"
+ },
+ "lizard_scale": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Lizard Scale",
+  "desc": "A hard green scale off a swamp lizardman.",
+  "stack": true,
+  "value": 45,
+  "icon": "assets/icons/tiers/lizard_scale.png"
+ },
+ "troll_hide": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Troll Hide",
+  "desc": "Thick, pale and cold to the touch. An ice troll's pelt.",
+  "stack": true,
+  "value": 140,
+  "icon": "assets/icons/tiers/troll_hide.png"
+ },
+ "wyvern_scale": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Wyvern Scale",
+  "desc": "A frost wyvern's scale, blue as deep ice and harder than steel.",
+  "stack": true,
+  "value": 380,
+  "icon": "assets/icons/tiers/wyvern_scale.png"
+ },
+ "demon_horn": {
+  "tags": [
+   "trophy"
+  ],
+  "name": "Demon Horn",
+  "desc": "Black, ridged and still warm. Something in the pit wanted it back.",
+  "stack": true,
+  "value": 520,
+  "icon": "assets/icons/tiers/demon_horn.png"
+ },
+ "dragon_fang": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Dragon Fang",
+  "desc": "A tooth from the dragon of the Ice Spire, longer than a dagger and cold to hold.",
+  "stack": true,
+  "value": 2600,
+  "icon": "assets/icons/tiers/dragon_fang.png"
+ },
+ "drowned_king_boots": {
+  "name": "Boots of the Drowned King",
+  "desc": "Bog-black leather under drowned gold, weed still in the buckles. Whoever was laid in the barrow with these on walked out of the Mire once, and only once.",
+  "slot": "feet",
+  "value": 3200,
+  "bonus": {
+   "defence": 24,
+   "strength": 4
+  },
+  "req": {
+   "Defence": 15
+  },
+  "passive": "marshstride",
+  "passive_text": "Marshstride: you walk a seventh quicker, and ground that burns takes half as much out of you.",
+  "tags": [
+   "legendary"
+  ],
+  "icon": "assets/icons/tiers/drowned_king_boots.png"
+ },
+ "rotten_flesh": {
+  "tags": [
+   "trophy"
+  ],
+  "name": "Rotten Flesh",
+  "desc": "Cold, grey and still on the bone in places. Somebody will buy it. Do not ask what for.",
+  "stack": true,
+  "value": 14,
+  "icon": "assets/icons/tiers/rotten_flesh.png"
+ },
+ "tarnished_ring": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Tarnished Ring",
+  "desc": "Silver gone black, with a dull stone in it. It was buried with somebody who could afford better.",
+  "stack": true,
+  "value": 165,
+  "icon": "assets/icons/tiers/tarnished_ring.png"
+ },
+ "mourning_locket": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Mourning Locket",
+  "desc": "A lock of somebody's hair behind a hinged case. The catch still works.",
+  "stack": true,
+  "value": 230,
+  "icon": "assets/icons/tiers/mourning_locket.png"
+ },
+ "grave_candle": {
+  "tags": [
+   "trophy"
+  ],
+  "name": "Grave Candle",
+  "desc": "A stub of funeral wax that has burned longer than it had any business burning.",
+  "stack": true,
+  "value": 48,
+  "icon": "assets/icons/tiers/grave_candle.png"
+ },
+ "tinderbox": {
+  "tags": [
+   "tool"
+  ],
+  "name": "Tinderbox",
+  "desc": "Flint, steel and a twist of charcloth. Use it with something in your pack that will take a flame.",
+  "value": 35,
+  "use": "light",
+  "icon": "assets/icons/tiers/tinderbox.png"
+ },
+ "lantern_unlit": {
+  "tags": [
+   "tool"
+  ],
+  "name": "Unlit Lantern",
+  "desc": "Iron frame, horn panes, a wick sitting in oil. It wants a flame: use a tinderbox while you carry it.",
+  "value": 140,
+  "lights": "lantern",
+  "needs_recipe": true,
+  "recipe_from": "Innkeeper Bess showed you how the old well-crews made theirs.",
+  "craft": {
+   "result": "lantern_unlit",
+   "level": 8,
+   "xp": 90,
+   "inputs": {
+    "iron_bar": 2,
+    "logs": 1
+   }
+  },
+  "icon": "assets/icons/tiers/lantern_unlit.png"
+ },
+ "lantern": {
+  "tags": [
+   "tool"
+  ],
+  "name": "Lit Lantern",
+  "desc": "It throws a good pool of light and asks for nothing but a hand to hold it. Worn in the off hand.",
+  "slot": "shield",
+  "value": 180,
+  "light": 210,
+  "icon": "assets/icons/tiers/lantern.png"
+ }
 }

@@ -1,1802 +1,1828 @@
 {
-  "q_learn_woodcutting": {
-    "name": "Woodcutting: The Sawpit",
-    "source": "npc",
-    "giver": "npc_sawyer",
-    "level": 1,
-    "tutorial": true,
-    "summary": "Sawyer Jessa lends an axe to anyone willing to learn the trade, and wants ten logs cut to prove it was worth lending.",
-    "stages": [
-      {
-        "desc": "Chop 10 logs from the stand behind the sawpit",
-        "type": "collect",
-        "target": "logs",
-        "count": 10
-      },
-      {
-        "desc": "Bring the 10 logs to Sawyer Jessa",
-        "type": "deliver",
-        "target": "logs",
-        "to": "npc_sawyer",
-        "count": 10
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Woodcutting": 260,
-        "Crafting": 60
-      },
-      "coins": 40
-    },
-    "completion": "Jessa waves the axe away when you offer it back. \"It has your swing in it now. Keep it, and keep the pit in mind when you have a load to sell.\""
+ "q_learn_woodcutting": {
+  "name": "Woodcutting: The Sawpit",
+  "source": "npc",
+  "giver": "npc_sawyer",
+  "level": 1,
+  "tutorial": true,
+  "summary": "Sawyer Jessa lends an axe to anyone willing to learn the trade, and wants ten logs cut to prove it was worth lending.",
+  "stages": [
+   {
+    "desc": "Chop 10 logs from the stand behind the sawpit",
+    "type": "collect",
+    "target": "logs",
+    "count": 10
+   },
+   {
+    "desc": "Bring the 10 logs to Sawyer Jessa",
+    "type": "deliver",
+    "target": "logs",
+    "to": "npc_sawyer",
+    "count": 10
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Woodcutting": 260,
+    "Crafting": 60
+   },
+   "coins": 40
   },
-  "q_learn_mining": {
-    "name": "Mining: The Gravel Pit",
-    "source": "npc",
-    "giver": "npc_pitmaster",
-    "level": 1,
-    "tutorial": true,
-    "summary": "Pitmaster Dorn will put a pickaxe in your hands, and eight lumps of copper back in his, if you can be taught to swing it.",
-    "stages": [
-      {
-        "desc": "Mine 8 copper ore from the pit face",
-        "type": "collect",
-        "target": "copper_ore",
-        "count": 8
-      },
-      {
-        "desc": "Bring the 8 copper ore to Pitmaster Dorn",
-        "type": "deliver",
-        "target": "copper_ore",
-        "to": "npc_pitmaster",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 280,
-        "Smithing": 60
-      },
-      "coins": 45
-    },
-    "completion": "Dorn looks at the ore, then at your hands. \"The pick is yours. Halda will buy what you dig, and she will teach you what to do with it.\""
+  "completion": "Jessa waves the axe away when you offer it back. \"It has your swing in it now. Keep it, and keep the pit in mind when you have a load to sell.\""
+ },
+ "q_learn_mining": {
+  "name": "Mining: The Gravel Pit",
+  "source": "npc",
+  "giver": "npc_pitmaster",
+  "level": 1,
+  "tutorial": true,
+  "summary": "Pitmaster Dorn will put a pickaxe in your hands, and eight lumps of copper back in his, if you can be taught to swing it.",
+  "stages": [
+   {
+    "desc": "Mine 8 copper ore from the pit face",
+    "type": "collect",
+    "target": "copper_ore",
+    "count": 8
+   },
+   {
+    "desc": "Bring the 8 copper ore to Pitmaster Dorn",
+    "type": "deliver",
+    "target": "copper_ore",
+    "to": "npc_pitmaster",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 280,
+    "Smithing": 60
+   },
+   "coins": 45
   },
-  "q_learn_fishing": {
-    "name": "Fishing: The Mill Pond",
-    "source": "npc",
-    "giver": "npc_angler",
-    "level": 1,
-    "tutorial": true,
-    "summary": "Angler Sula has a spare rod and a pond full of minnow, and will trade the loan of one for six of the other.",
-    "stages": [
-      {
-        "desc": "Catch 6 minnow from the mill pond",
-        "type": "collect",
-        "target": "raw_minnow",
-        "count": 6
-      },
-      {
-        "desc": "Bring the 6 minnow to Angler Sula",
-        "type": "deliver",
-        "target": "raw_minnow",
-        "to": "npc_angler",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 240,
-        "Cooking": 80
-      },
-      "coins": 35,
-      "items": [
-        {
-          "id": "cooked_minnow",
-          "qty": 2
-        }
-      ]
-    },
-    "completion": "Sula strings the minnow on a withy and hands the rod back to you. \"Yours. The lake north of town is better water, and Wendel pays for what you land.\""
-  },
-  "q_thin_the_herd": {
-    "name": "Thin the Herd",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 1,
-    "summary": "Boar have come down out of the greenwood and into the barley. Havenbrook wants them gone before the harvest is.",
-    "stages": [
-      {
-        "desc": "Hunt wild boar in the meadow",
-        "type": "kill",
-        "target": "boar",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Strength": 320,
-        "Hitpoints": 140
-      },
-      "coins": 120,
-      "items": [
-        {
-          "id": "cooked_meat",
-          "qty": 4
-        }
-      ]
-    },
-    "completion": "The barley is safe for another season."
-  },
-  "q_firewood": {
-    "name": "Cold Hearths",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 1,
-    "summary": "The inn burned through its winter store early. Bring logs and nobody has to sleep cold.",
-    "stages": [
-      {
-        "desc": "Gather logs from the meadow trees",
-        "type": "collect",
-        "target": "logs",
-        "count": 12
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Woodcutting": 420,
-        "Crafting": 80
-      },
-      "coins": 95
-    },
-    "completion": "The inn will be warm tonight."
-  },
-  "q_ore_for_the_forge": {
-    "name": "Ore for the Forge",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 4,
-    "summary": "The smith has orders she cannot fill and a cold forge to fill them with. Copper will do to start.",
-    "stages": [
-      {
-        "desc": "Mine copper ore from the foothills",
-        "type": "collect",
-        "target": "copper_ore",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 560,
-        "Crafting": 160
-      },
-      "coins": 180,
-      "items": [
-        {
-          "id": "copper_ring",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "The forge is lit again."
-  },
-  "q_orc_trouble": {
-    "name": "Trouble on the Road",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 8,
-    "summary": "Orcs have been working the Sunken Road, and the carters have stopped coming through. Make the road boring again.",
-    "prereq": [
-      "q_thin_the_herd"
-    ],
-    "stages": [
-      {
-        "desc": "Drive the orcs off the Sunken Road",
-        "type": "kill",
-        "target": "orc",
-        "count": 10
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 900,
-        "Strength": 700,
-        "Defence": 500,
-        "Hitpoints": 400
-      },
-      "coins": 340,
-      "items": [
-        {
-          "id": "iron_sword",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "The carters will risk the road again.",
-    "req": {
-      "Combat": 6
+  "completion": "Dorn looks at the ore, then at your hands. \"The pick is yours. Halda will buy what you dig, and she will teach you what to do with it.\""
+ },
+ "q_learn_fishing": {
+  "name": "Fishing: The Mill Pond",
+  "source": "npc",
+  "giver": "npc_angler",
+  "level": 1,
+  "tutorial": true,
+  "summary": "Angler Sula has a spare rod and a pond full of minnow, and will trade the loan of one for six of the other.",
+  "stages": [
+   {
+    "desc": "Catch 6 minnow from the mill pond",
+    "type": "collect",
+    "target": "raw_minnow",
+    "count": 6
+   },
+   {
+    "desc": "Bring the 6 minnow to Angler Sula",
+    "type": "deliver",
+    "target": "raw_minnow",
+    "to": "npc_angler",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 240,
+    "Cooking": 80
+   },
+   "coins": 35,
+   "items": [
+    {
+     "id": "cooked_minnow",
+     "qty": 2
     }
+   ]
   },
-  "q_marens_letter": {
-    "name": "Maren's Letter",
-    "source": "npc",
-    "giver": "npc_maren",
-    "level": 1,
-    "major": true,
-    "summary": "Elder Maren has written to the guild and will not say what about. She only asks that it reach them today.",
-    "stages": [
-      {
-        "desc": "Take Maren's letter to the guild hall",
-        "type": "talk",
-        "target": "npc_guildmaster"
-      },
-      {
-        "desc": "Return to Elder Maren",
-        "type": "talk",
-        "target": "npc_maren"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Defence": 180,
-        "Hitpoints": 120
-      },
-      "coins": 60,
-      "items": [
-        {
-          "id": "herbal_tonic",
-          "qty": 2
-        }
-      ]
-    },
-    "completion": "Maren reads your face more carefully than the reply."
-  },
-  "q_the_sunken_road": {
-    "name": "The Sunken Road",
-    "source": "npc",
-    "giver": "npc_maren",
-    "level": 6,
-    "major": true,
-    "summary": "A surveyor went out to the Sunken Road with a satchel of paper and came back with none of it. Maren wants to know what he saw.",
-    "prereq": [
-      "q_marens_letter"
-    ],
-    "stages": [
-      {
-        "desc": "Search the Sunken Road for the surveyor's papers",
-        "type": "collect",
-        "target": "torn_page",
-        "count": 1
-      },
-      {
-        "desc": "Bring the page back to Elder Maren",
-        "type": "talk",
-        "target": "npc_maren"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 400,
-        "Defence": 400,
-        "Hitpoints": 260
-      },
-      "coins": 210
-    },
-    "completion": "Maren folds the page twice and does not put it down.",
-    "req": {
-      "Combat": 5
+  "completion": "Sula strings the minnow on a withy and hands the rod back to you. \"Yours. The lake north of town is better water, and Wendel pays for what you land.\""
+ },
+ "q_thin_the_herd": {
+  "name": "Thin the Herd",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 1,
+  "summary": "Boar have come down out of the greenwood and into the barley. Havenbrook wants them gone before the harvest is.",
+  "stages": [
+   {
+    "desc": "Hunt wild boar in the meadow",
+    "type": "kill",
+    "target": "boar",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Strength": 320,
+    "Hitpoints": 140
+   },
+   "coins": 120,
+   "items": [
+    {
+     "id": "cooked_meat",
+     "qty": 4
     }
+   ]
   },
-  "q_emberfell_depths": {
-    "name": "The Emberfell Depths",
-    "source": "npc",
-    "giver": "npc_maren",
-    "level": 14,
-    "major": true,
-    "summary": "Whatever is gathering the orcs is doing it under Emberfell. Maren has stopped calling it a rumour.",
-    "prereq": [
-      "q_the_sunken_road"
-    ],
-    "stages": [
-      {
-        "desc": "Find the rusted key in the Emberfell mine",
-        "type": "collect",
-        "target": "rusted_key",
-        "count": 1
-      },
-      {
-        "desc": "Descend into the lower workings",
-        "type": "reach",
-        "target": "dungeon_emberfell_2"
-      },
-      {
-        "desc": "Put down the Orc Warchief",
-        "type": "kill",
-        "target": "orc_warchief",
-        "count": 1
-      },
-      {
-        "desc": "Carry the totem back to Elder Maren",
-        "type": "talk",
-        "target": "npc_maren"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 2600,
-        "Strength": 2600,
-        "Defence": 1800,
-        "Hitpoints": 1400
-      },
-      "coins": 1200,
-      "items": [
-        {
-          "id": "ember_blade",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "Maren turns the totem over once and puts it in the fire.",
-    "req": {
-      "Combat": 12
+  "completion": "The barley is safe for another season."
+ },
+ "q_firewood": {
+  "name": "Cold Hearths",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 1,
+  "summary": "The inn burned through its winter store early. Bring logs and nobody has to sleep cold.",
+  "stages": [
+   {
+    "desc": "Gather logs from the meadow trees",
+    "type": "collect",
+    "target": "logs",
+    "count": 12
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Woodcutting": 420,
+    "Crafting": 80
+   },
+   "coins": 95
+  },
+  "completion": "The inn will be warm tonight."
+ },
+ "q_ore_for_the_forge": {
+  "name": "Ore for the Forge",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 4,
+  "summary": "The smith has orders she cannot fill and a cold forge to fill them with. Copper will do to start.",
+  "stages": [
+   {
+    "desc": "Mine copper ore from the foothills",
+    "type": "collect",
+    "target": "copper_ore",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 560,
+    "Crafting": 160
+   },
+   "coins": 180,
+   "items": [
+    {
+     "id": "copper_ring",
+     "qty": 1
     }
+   ]
   },
-  "q_barrow_seal": {
-    "name": "What the Mire Keeps",
-    "source": "note",
-    "giver": "note_mire",
-    "level": 10,
-    "major": true,
-    "summary": "A water-stained note left at the edge of the Mire. Someone went into the barrow on purpose, and wrote down why.",
-    "stages": [
-      {
-        "desc": "Enter the barrow beneath the Mire",
-        "type": "reach",
-        "target": "dungeon_barrow"
-      },
-      {
-        "desc": "Recover the barrow seal",
-        "type": "collect",
-        "target": "barrow_seal",
-        "count": 1
-      },
-      {
-        "desc": "Take the seal to the guild master",
-        "type": "talk",
-        "target": "npc_guildmaster"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Magic": 900,
-        "Crafting": 400,
-        "Hitpoints": 500
-      },
-      "coins": 460,
-      "items": [
-        {
-          "id": "bone_amulet",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "The guild master puts the seal in a drawer he then locks.",
-    "req": {
-      "Combat": 10
+  "completion": "The forge is lit again."
+ },
+ "q_orc_trouble": {
+  "name": "Trouble on the Road",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 8,
+  "summary": "Orcs have been working the Sunken Road, and the carters have stopped coming through. Make the road boring again.",
+  "prereq": [
+   "q_thin_the_herd"
+  ],
+  "stages": [
+   {
+    "desc": "Drive the orcs off the Sunken Road",
+    "type": "kill",
+    "target": "orc",
+    "count": 10
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 900,
+    "Strength": 700,
+    "Defence": 500,
+    "Hitpoints": 400
+   },
+   "coins": 340,
+   "items": [
+    {
+     "id": "iron_sword",
+     "qty": 1
     }
+   ]
   },
-  "q_a_decent_meal": {
-    "name": "A Decent Meal",
-    "source": "npc",
-    "giver": "npc_cook",
-    "level": 2,
-    "summary": "The innkeeper can cook. What she cannot do is leave the inn long enough to find anything worth cooking.",
-    "stages": [
-      {
-        "desc": "Bring the innkeeper 5 cooked meat",
-        "type": "collect",
-        "target": "cooked_meat",
-        "count": 5
-      },
-      {
-        "desc": "Hand the food to the innkeeper",
-        "type": "talk",
-        "target": "npc_cook"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Cooking": 480,
-        "Hitpoints": 200
-      },
-      "coins": 130,
-      "items": [
-        {
-          "id": "herbal_tonic",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "She feeds you first, which is how you know it went well."
-  },
-  "q_clear_the_trail": {
-    "name": "Clear the Trail",
-    "source": "npc",
-    "giver": "npc_bram",
-    "level": 3,
-    "summary": "Boar have come off the Whisperwood verges and onto the trail, and Bram's carts will not go past them. He wants the trail made dull again.",
-    "stages": [
-      {
-        "desc": "Hunt boar along the Whisperwood Trail",
-        "type": "kill",
-        "target": "boar",
-        "map": "whisperwood_trail",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 320,
-        "Strength": 320,
-        "Hitpoints": 160
-      },
-      "coins": 120
-    },
-    "completion": "Bram's first cart gets through without anyone running."
-  },
-  "q_word_to_fernhollow": {
-    "name": "Word to Fernhollow",
-    "source": "npc",
-    "giver": "npc_oona",
-    "level": 2,
-    "summary": "Oona the herbalist has a remedy for Old Wendel's chest, and her knees will not take the north trail any more.",
-    "stages": [
-      {
-        "desc": "Take Oona's remedy to Old Wendel in Fernhollow",
-        "type": "deliver",
-        "target": "herbal_tonic",
-        "to": "npc_wendel"
-      },
-      {
-        "desc": "Return to Oona in Mossvale",
-        "type": "talk",
-        "target": "npc_oona"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Hitpoints": 220,
-        "Cooking": 140
-      },
-      "coins": 90,
-      "items": [
-        {
-          "id": "herbal_tonic",
-          "qty": 2
-        }
-      ]
-    },
-    "completion": "Oona asks how he looked, and listens to the answer."
-  },
-  "q_mossvale_hides": {
-    "name": "Hides for the Tannery",
-    "source": "board",
-    "giver": "board_mossvale",
-    "level": 4,
-    "summary": "The tanner has shut up for the season with half the orders unfilled. Mossvale will pay for raw hides brought to the square.",
-    "stages": [
-      {
-        "desc": "Gather raw hides from the Whisperwood",
-        "type": "collect",
-        "target": "hide",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Crafting": 300,
-        "Hitpoints": 120
-      },
-      "coins": 160
-    },
-    "completion": "The hides go under a tarp by the tannery door until spring."
-  },
-  "q_trail_wardens": {
-    "name": "Trail Wardens",
-    "source": "board",
-    "giver": "board_mossvale",
-    "level": 5,
-    "summary": "Warden Sela is short of hands. Foxes are hunting the trail in packs, and something is teaching them to.",
-    "prereq": [
-      "q_clear_the_trail"
-    ],
-    "stages": [
-      {
-        "desc": "Drive the foxes off the Whisperwood Trail",
-        "type": "kill",
-        "target": "fox",
-        "map": "whisperwood_trail",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Ranged": 360,
-        "Attack": 240,
-        "Defence": 200
-      },
-      "coins": 220,
-      "items": [
-        {
-          "id": "oak_shortbow",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "Sela marks the trail safe on the gate board, in chalk."
-  },
-  "q_old_offering": {
-    "name": "The Old Offering",
-    "source": "npc",
-    "giver": "npc_mira",
-    "level": 3,
-    "summary": "Mira keeps the shrine at Fernhollow, and the pond has not had its offering since the hunters stopped coming north.",
-    "stages": [
-      {
-        "desc": "Bring Mira two boar haunches for the shrine",
-        "type": "deliver",
-        "target": "raw_boar",
-        "to": "npc_mira",
-        "count": 2
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Magic": 280,
-        "Hitpoints": 120
-      },
-      "coins": 100,
-      "items": [
-        {
-          "id": "herbal_tonic",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "Mira lays the offering on the stone and does not say what she is listening for."
-  },
-  "q_road_beneath_leaves": {
-    "name": "The Road Beneath the Leaves",
-    "source": "note",
-    "giver": "sign_trailhead",
-    "level": 2,
-    "major": true,
-    "summary": "A weathered trail sign names two settlements beyond the eastern trees. Follow the old road to Mossvale, then take the north fork to Fernhollow.",
-    "stages": [
-      {
-        "desc": "Follow the eastern forest path into the Whisperwood",
-        "type": "reach",
-        "target": "whisperwood_trail"
-      },
-      {
-        "desc": "Follow the main trail east to Mossvale",
-        "type": "reach",
-        "target": "mossvale"
-      },
-      {
-        "desc": "Return to the trail fork and follow its north path to Fernhollow",
-        "type": "reach",
-        "target": "fernhollow"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Hitpoints": 120
-      },
-      "coins": 80
-    },
-    "completion": "Smoke above the lodge, lamplight on the pond. The names on the sign are places you know now."
-  },
-  "q_daily_boar": {
-    "name": "Barley Watch",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 2,
-    "summary": "The boar keep coming back to the barley, and somebody has to keep sending them home.",
-    "repeat": "daily",
-    "pool": "havenbrook",
-    "stages": [
-      {
-        "desc": "Hunt boar in the Hollowmarch",
-        "type": "kill",
-        "target": "boar",
-        "map": "overworld",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Strength": 260,
-        "Hitpoints": 90
-      },
-      "coins": 70
-    },
-    "completion": "The barley stands another day."
-  },
-  "q_daily_orcs": {
-    "name": "Road Patrol",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 8,
-    "summary": "The Sunken Road needs walking every day it is going to stay open.",
-    "req": {
-      "Combat": 6
-    },
-    "repeat": "daily",
-    "pool": "havenbrook",
-    "stages": [
-      {
-        "desc": "Drive orcs off the Hollowmarch roads",
-        "type": "kill",
-        "target": "orc",
-        "map": "overworld",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 400,
-        "Defence": 250
-      },
-      "coins": 150
-    },
-    "completion": "The carters get through today."
-  },
-  "q_daily_ore": {
-    "name": "Order: Copper Ore",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 1,
-    "summary": "Copper for the smelter. Halda goes through it faster than anyone can dig it.",
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 10 copper ore",
-        "type": "deliver",
-        "target": "copper_ore",
-        "to": "npc_smith",
-        "count": 10
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 450
-      },
-      "coins": 143
-    },
-    "completion": "Halda weighs it in her hand and nods."
-  },
-  "q_daily_kitchen": {
-    "name": "Fish for the Inn",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 2,
-    "summary": "Bess will cook anything with fins, and the pond and the lake are full of things with fins.",
-    "repeat": "daily",
-    "pool": "havenbrook",
-    "stages": [
-      {
-        "desc": "Bring Innkeeper Bess 5 raw minnows",
-        "type": "deliver",
-        "target": "raw_minnow",
-        "to": "npc_cook",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 250,
-        "Cooking": 120
-      },
-      "coins": 90
-    },
-    "completion": "Fried minnows are on the chalk board by supper."
-  },
-  "q_daily_logs": {
-    "name": "Kindling",
-    "source": "board",
-    "giver": "board_havenbrook",
-    "level": 1,
-    "summary": "The inn's fires eat a stack of logs a day, and Bess would rather not split them herself.",
-    "repeat": "daily",
-    "pool": "havenbrook",
-    "stages": [
-      {
-        "desc": "Bring Innkeeper Bess 10 logs",
-        "type": "deliver",
-        "target": "logs",
-        "to": "npc_cook",
-        "count": 10
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Woodcutting": 280
-      },
-      "coins": 80
-    },
-    "completion": "The woodpile by the kitchen door is tall again."
-  },
-  "q_daily_foxes": {
-    "name": "Fox Patrol",
-    "source": "board",
-    "giver": "board_mossvale",
-    "level": 5,
-    "summary": "Warden Sela wants the packs thinned every day until they stop coming back.",
-    "prereq": [
-      "q_clear_the_trail"
-    ],
-    "repeat": "daily",
-    "pool": "mossvale",
-    "stages": [
-      {
-        "desc": "Drive foxes off the Whisperwood Trail",
-        "type": "kill",
-        "target": "fox",
-        "map": "whisperwood_trail",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Ranged": 300,
-        "Attack": 200
-      },
-      "coins": 130
-    },
-    "completion": "Sela chalks another quiet day on the gate board."
-  },
-  "q_daily_hides": {
-    "name": "Tannery Stock",
-    "source": "board",
-    "giver": "board_mossvale",
-    "level": 4,
-    "summary": "The reeve buys hides for the tannery, a few at a time, whenever anyone brings them.",
-    "repeat": "daily",
-    "pool": "mossvale",
-    "stages": [
-      {
-        "desc": "Bring Reeve Hadley 4 raw hides",
-        "type": "deliver",
-        "target": "hide",
-        "to": "npc_hadley",
-        "count": 4
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Crafting": 260
-      },
-      "coins": 140
-    },
-    "completion": "Hadley writes it in the ledger and pays out of his own purse."
-  },
-  "q_daily_oak": {
-    "name": "Oak for the Lodge",
-    "source": "board",
-    "giver": "board_mossvale",
-    "level": 12,
-    "summary": "Pell has a buyer in Havenbrook who pays well for seasoned oak and asks no questions about it.",
-    "req": {
-      "Woodcutting": 12
-    },
-    "repeat": "daily",
-    "pool": "mossvale",
-    "stages": [
-      {
-        "desc": "Bring Pell the Trader 5 oak logs",
-        "type": "deliver",
-        "target": "oak_logs",
-        "to": "npc_pell",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Woodcutting": 450
-      },
-      "coins": 160
-    },
-    "completion": "Pell loads the oak and whistles."
-  },
-  "q_daily_pike": {
-    "name": "Order: Pike",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 30,
-    "summary": "Old Wendel will pay for pike, because in forty years he has never caught one himself.",
-    "req": {
-      "Fishing": 30
-    },
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 3 raw pike",
-        "type": "deliver",
-        "target": "raw_pike",
-        "to": "npc_wendel",
-        "count": 3
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 520
-      },
-      "coins": 176
-    },
-    "completion": "Wendel says the pond is having him on. He eats well tonight."
-  },
-  "q_the_water_remembers": {
-    "name": "The Water Remembers",
-    "source": "npc",
-    "giver": "npc_mira",
-    "level": 6,
-    "major": true,
-    "summary": "Mira says the lights on the pond come from somewhere you can only reach asleep, and that something there has been trying to speak.",
-    "prereq": [
-      "q_old_offering"
-    ],
-    "stages": [
-      {
-        "desc": "Sleep after dusk, in a bed or at a camp, and dream",
-        "type": "reach",
-        "target": "dreamworld"
-      },
-      {
-        "desc": "Find the voice in the dream",
-        "type": "interact",
-        "target": "dream_voice"
-      },
-      {
-        "desc": "Wake, and tell Mira what the voice said",
-        "type": "talk",
-        "target": "npc_mira"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Magic": 600,
-        "Hitpoints": 200
-      },
-      "coins": 150,
-      "items": [
-        {
-          "id": "dream_shard",
-          "qty": 3
-        }
-      ]
-    },
-    "completion": "Mira writes the words down, then burns what she wrote."
-  },
-  "q_lights_on_the_pond": {
-    "name": "Lights on the Pond",
-    "source": "npc",
-    "giver": "npc_hesper",
-    "level": 18,
-    "major": true,
-    "summary": "Hesper has watched the lights over the pond grow brighter every night. Something large is holding the dream together, and it is not friendly.",
-    "prereq": [
-      "q_the_water_remembers"
-    ],
-    "req": {
-      "Combat": 18
-    },
-    "stages": [
-      {
-        "desc": "Put down the Nightmare Brute in the dreamworld",
-        "type": "kill",
-        "target": "nightmare_brute",
-        "map": "dreamworld"
-      },
-      {
-        "desc": "Bring Hesper 6 dream shards as proof",
-        "type": "deliver",
-        "target": "dream_shard",
-        "to": "npc_hesper",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 900,
-        "Defence": 700,
-        "Hitpoints": 450
-      },
-      "coins": 500,
-      "items": [
-        {
-          "id": "dreamcatcher",
-          "qty": 1
-        }
-      ]
-    },
-    "completion": "Hesper hangs the shards over the door. The pond is dark tonight."
-  },
-  "q_daily_nightmares": {
-    "name": "Nightmares Undone",
-    "source": "board",
-    "giver": "board_reverie",
-    "level": 8,
-    "summary": "Only asleep. The slate in the dream asks for the same thing every night: fewer nightmares.",
-    "prereq": [
-      "q_the_water_remembers"
-    ],
-    "repeat": "daily",
-    "pool": "reverie",
-    "stages": [
-      {
-        "desc": "Defeat nightmares in the dreamworld",
-        "type": "kill",
-        "target": "nightmare",
-        "map": "dreamworld",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 350,
-        "Strength": 350,
-        "Hitpoints": 180
-      },
-      "coins": 120,
-      "items": [
-        {
-          "id": "dream_shard",
-          "qty": 2
-        }
-      ]
-    },
-    "completion": "The slate wipes itself clean when you look away."
-  },
-  "q_daily_shrine_shards": {
-    "name": "Shards for the Shrine",
-    "source": "board",
-    "giver": "board_reverie",
-    "level": 6,
-    "summary": "The slate asks for dream shards to be carried out of the dream and laid at Mira's shrine in Fernhollow.",
-    "prereq": [
-      "q_the_water_remembers"
-    ],
-    "repeat": "daily",
-    "pool": "reverie",
-    "stages": [
-      {
-        "desc": "Wake, and bring Mira 8 dream shards",
-        "type": "deliver",
-        "target": "dream_shard",
-        "to": "npc_mira",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Magic": 450,
-        "Mining": 200
-      },
-      "coins": 140
-    },
-    "completion": "Mira sets the shards in the water, one at a time."
-  },
-  "q_daily_brute": {
-    "name": "The Brute Returns",
-    "source": "board",
-    "giver": "board_reverie",
-    "level": 20,
-    "summary": "Only asleep. The Nightmare Brute comes back every night. Someone has to put it down again.",
-    "prereq": [
-      "q_lights_on_the_pond"
-    ],
-    "req": {
-      "Combat": 18
-    },
-    "repeat": "daily",
-    "pool": "reverie",
-    "stages": [
-      {
-        "desc": "Put down the Nightmare Brute",
-        "type": "kill",
-        "target": "nightmare_brute",
-        "map": "dreamworld"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 700,
-        "Strength": 700,
-        "Defence": 400
-      },
-      "coins": 300,
-      "items": [
-        {
-          "id": "demonite_ore",
-          "qty": 2
-        }
-      ]
-    },
-    "completion": "For one night, the plateau is quiet."
-  },
-  "q_order_iron_ore": {
-    "name": "Order: Iron Ore",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 5,
-    "summary": "Iron ore, for bars the guild has already paid for.",
-    "req": {
-      "Mining": 5
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 8 iron ore",
-        "type": "deliver",
-        "target": "iron_ore",
-        "to": "npc_smith",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 520
-      },
-      "coins": 187
-    },
-    "completion": "\"Red all the way through. Good.\""
-  },
-  "q_order_coal": {
-    "name": "Order: Coal",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 20,
-    "summary": "Coal to keep the forge hot enough for steel.",
-    "req": {
-      "Mining": 20
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 6 coal",
-        "type": "deliver",
-        "target": "coal",
-        "to": "npc_smith",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 900
-      },
-      "coins": 583
-    },
-    "completion": "She tips it straight into the bin by the fire."
-  },
-  "q_order_azuryte_ore": {
-    "name": "Order: Azuryte Ore",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 30,
-    "summary": "A buyer in the south wants azuryte, and will not say what for.",
-    "req": {
-      "Mining": 30
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 4 azuryte ore",
-        "type": "deliver",
-        "target": "azuryte_ore",
-        "to": "npc_smith",
-        "count": 4
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 1200
-      },
-      "coins": 864
-    },
-    "completion": "Halda holds a piece up to the light and whistles."
-  },
-  "q_order_bronze_bars": {
-    "name": "Order: Bronze Bars",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 1,
-    "summary": "Bronze bars, smelted and ready, so the apprentices have something to ruin.",
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 6 bronze bars",
-        "type": "deliver",
-        "target": "bronze_bar",
-        "to": "npc_smith",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 600,
-        "Smithing": 360
-      },
-      "coins": 216
-    },
-    "completion": "\"Clean pours. You can smelt for me any day.\""
-  },
-  "q_order_iron_bars": {
-    "name": "Order: Iron Bars",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 10,
-    "summary": "Iron bars for the watch's new hinges and hasps.",
-    "req": {
-      "Smithing": 10,
-      "Mining": 5
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 5 iron bars",
-        "type": "deliver",
-        "target": "iron_bar",
-        "to": "npc_smith",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 900,
-        "Smithing": 540
-      },
-      "coins": 432
-    },
-    "completion": "She stacks them by the anvil without a word, which from Halda is praise."
-  },
-  "q_order_steel_bars": {
-    "name": "Order: Steel Bars",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 20,
-    "summary": "Steel bars. The guild wants blades, and blades want steel.",
-    "req": {
-      "Smithing": 20,
-      "Mining": 20
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 3 steel bars",
-        "type": "deliver",
-        "target": "steel_bar",
-        "to": "npc_smith",
-        "count": 3
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 1400,
-        "Smithing": 840
-      },
-      "coins": 1304
-    },
-    "completion": "\"Proper steel. Rings when you knock it.\""
-  },
-  "q_order_bronze_swords": {
-    "name": "Order: Bronze Swords",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 1,
-    "summary": "Two bronze swords for the watch's new recruits, who will certainly drop them.",
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 2 bronze swords",
-        "type": "deliver",
-        "target": "bronze_sword",
-        "to": "npc_smith",
-        "count": 2
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 500,
-        "Smithing": 400
-      },
-      "coins": 275
-    },
-    "completion": "Halda tests each edge on her thumbnail."
-  },
-  "q_order_iron_sword": {
-    "name": "Order: Iron Sword",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 10,
-    "summary": "An iron sword for a caravan guard who lost his to the Mire.",
-    "req": {
-      "Smithing": 10
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 1 iron sword",
-        "type": "deliver",
-        "target": "iron_sword",
-        "to": "npc_smith",
-        "count": 1
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 700,
-        "Smithing": 560
-      },
-      "coins": 319
-    },
-    "completion": "\"Balanced. He will not lose this one.\""
-  },
-  "q_order_iron_spear": {
-    "name": "Order: Iron Spear",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 10,
-    "summary": "An iron spear for a road warden who wants the orcs kept at a distance.",
-    "req": {
-      "Smithing": 11
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 1 iron spear",
-        "type": "deliver",
-        "target": "iron_spear",
-        "to": "npc_smith",
-        "count": 1
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 720,
-        "Smithing": 600
-      },
-      "coins": 345
-    },
-    "completion": "\"Straight shaft, true point. He'll never have to let them close.\""
-  },
-  "q_order_steel_longsword": {
-    "name": "Order: Steel Longsword",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 20,
-    "summary": "A steel longsword, commissioned by the guild master himself.",
-    "req": {
-      "Smithing": 20
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 1 steel longsword",
-        "type": "deliver",
-        "target": "steel_longsword",
-        "to": "npc_smith",
-        "count": 1
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 1600,
-        "Smithing": 1280
-      },
-      "coins": 2273
-    },
-    "completion": "Halda wraps it in oilcloth like something precious."
-  },
-  "q_order_hides": {
-    "name": "Order: Hides",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 1,
-    "summary": "Hides for bellows leather and sword grips. The forge eats leather.",
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 8 hides",
-        "type": "deliver",
-        "target": "hide",
-        "to": "npc_smith",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 250
-      },
-      "coins": 94
-    },
-    "completion": "\"That will do the bellows for a month.\""
-  },
-  "q_order_bronze_helms": {
-    "name": "Order: Bronze Helms",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 1,
-    "summary": "Two bronze helms for the road wardens.",
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 2 bronze helms",
-        "type": "deliver",
-        "target": "bronze_helm",
-        "to": "npc_smith",
-        "count": 2
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 450,
-        "Smithing": 360
-      },
-      "coins": 375
-    },
-    "completion": "She knocks on one with her knuckles. It rings true."
-  },
-  "q_order_iron_cuirass": {
-    "name": "Order: Iron Cuirass",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 10,
-    "summary": "An iron cuirass, fitted for a watchman who will not stop growing.",
-    "req": {
-      "Smithing": 10
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 1 iron cuirass",
-        "type": "deliver",
-        "target": "iron_body",
-        "to": "npc_smith",
-        "count": 1
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 1100,
-        "Smithing": 880
-      },
-      "coins": 1124
-    },
-    "completion": "\"Good plate. Corrin will complain about the weight anyway.\""
-  },
-  "q_order_steel_greaves": {
-    "name": "Order: Steel Greaves",
-    "source": "npc",
-    "giver": "npc_smith",
-    "level": 20,
-    "summary": "Steel greaves for an adventurer going under Emberfell.",
-    "req": {
-      "Smithing": 20
-    },
-    "repeat": "daily",
-    "pool": "halda_orders",
-    "posts": 3,
-    "stages": [
-      {
-        "desc": "Bring Smith Halda 1 steel greaves",
-        "type": "deliver",
-        "target": "steel_legs",
-        "to": "npc_smith",
-        "count": 1
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Mining": 2200,
-        "Smithing": 1760
-      },
-      "coins": 3392
-    },
-    "completion": "Halda turns them over twice and pays without haggling."
-  },
-  "q_order_minnows": {
-    "name": "Order: Minnows",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 1,
-    "summary": "Minnows for bait. Wendel will not say what he is baiting for.",
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 10 raw minnows",
-        "type": "deliver",
-        "target": "raw_minnow",
-        "to": "npc_wendel",
-        "count": 10
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 300
-      },
-      "coins": 78
-    },
-    "completion": "\"Lively. They will do.\""
-  },
-  "q_order_trout": {
-    "name": "Order: Trout",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 15,
-    "summary": "Trout for the smokehouse behind the cottage.",
-    "req": {
-      "Fishing": 15
-    },
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 6 raw trout",
-        "type": "deliver",
-        "target": "raw_trout",
-        "to": "npc_wendel",
-        "count": 6
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 450
-      },
-      "coins": 188
-    },
-    "completion": "Wendel lays them out on the jetty in a neat row."
-  },
-  "q_order_salmon": {
-    "name": "Order: Salmon",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 45,
-    "summary": "Salmon from the Whisperwood stream, for Hesper's birthday. Do not tell her.",
-    "req": {
-      "Fishing": 45
-    },
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 3 raw salmon",
-        "type": "deliver",
-        "target": "raw_salmon",
-        "to": "npc_wendel",
-        "count": 3
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 600
-      },
-      "coins": 273
-    },
-    "completion": "\"Not a word to Hesper.\""
-  },
-  "q_order_eels": {
-    "name": "Order: Eels",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 60,
-    "summary": "Eels from the Hollowmarch lake. Wendel swears they are a delicacy.",
-    "req": {
-      "Fishing": 60
-    },
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 2 raw eels",
-        "type": "deliver",
-        "target": "raw_eel",
-        "to": "npc_wendel",
-        "count": 2
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 650
-      },
-      "coins": 260
-    },
-    "completion": "Wendel looks at them, and they look back. He pays quickly."
-  },
-  "q_order_cooked_trout": {
-    "name": "Order: Cooked Trout",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 15,
-    "summary": "Cooked trout for the ferry passengers, if there are ever any again.",
-    "req": {
-      "Fishing": 15,
-      "Cooking": 15
-    },
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 5 cooked trout",
-        "type": "deliver",
-        "target": "cooked_trout",
-        "to": "npc_wendel",
-        "count": 5
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 400
-      },
-      "coins": 252
-    },
-    "completion": "\"Still warm. You have a hand for it.\""
-  },
-  "q_order_cooked_minnows": {
-    "name": "Order: Cooked Minnows",
-    "source": "npc",
-    "giver": "npc_wendel",
-    "level": 1,
-    "summary": "A plate of fried minnows for the old man's supper. He says his own always burn.",
-    "repeat": "daily",
-    "pool": "wendel_orders",
-    "posts": 2,
-    "stages": [
-      {
-        "desc": "Bring Old Wendel 8 cooked minnows",
-        "type": "deliver",
-        "target": "cooked_minnow",
-        "to": "npc_wendel",
-        "count": 8
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Fishing": 200
-      },
-      "coins": 108
-    },
-    "completion": "\"Crisp. Mine are always charcoal.\""
-  },
-  "q_cellar_vermin": {
-    "name": "Rats in the Cellar",
-    "source": "npc",
-    "giver": "npc_cook",
-    "level": 2,
-    "summary": "Something has moved into the inn's cellar: rats in the grain and spiders in the kegs. Bess wants it cleared out.",
-    "stages": [
-      {
-        "desc": "Kill 6 rats in the inn's cellar",
-        "type": "kill",
-        "target": "rat",
-        "map": "house_inn_cellar",
-        "count": 6
-      },
-      {
-        "desc": "Kill 4 cellar spiders",
-        "type": "kill",
-        "target": "spider",
-        "map": "house_inn_cellar",
-        "count": 4
-      },
-      {
-        "desc": "Kill the Broodmother in the back of the cellar",
-        "type": "kill",
-        "target": "broodmother",
-        "map": "house_inn_cellar",
-        "count": 1
-      },
-      {
-        "desc": "Tell Innkeeper Bess the cellar is clear",
-        "type": "talk",
-        "target": "npc_cook"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 250,
-        "Strength": 250,
-        "Defence": 150,
-        "Hitpoints": 120
-      },
-      "coins": 150,
-      "items": [
-        {
-          "id": "cooked_boar",
-          "qty": 3
-        }
-      ]
-    },
-    "completion": "Bess pours you a drink on the house, and says she will be sweeping webs for a week."
-  },
-  "q_ice_spire_dragon": {
-    "name": "The Dragon of the Ice Spire",
-    "source": "npc",
-    "giver": "npc_elder",
-    "level": 35,
-    "major": true,
-    "summary": "Elder Vask was one of the Spirewatch, and the only one who came down. What took the summit fifty years ago is still up there, and he has waited that long for somebody who could go back for it.",
-    "req": {
-      "Combat": 35
-    },
-    "stages": [
-      {
-        "desc": "Climb the Ice Spire to the summit",
-        "type": "reach",
-        "target": "ice_spire_peak"
-      },
-      {
-        "desc": "Kill Hoarfang, the dragon of the Ice Spire",
-        "type": "kill",
-        "target": "frost_dragon",
-        "map": "ice_spire_peak",
-        "count": 1
-      },
-      {
-        "desc": "Carry the dragon's fang back to Elder Vask",
-        "type": "deliver",
-        "target": "dragon_fang",
-        "to": "npc_elder",
-        "count": 1
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 9000,
-        "Strength": 9000,
-        "Defence": 7000,
-        "Hitpoints": 5000
-      },
-      "coins": 3200,
-      "items": [
-        {
-          "id": "diamond_ingot",
-          "qty": 3
-        }
-      ]
-    },
-    "completion": "Vask turns the fang over twice, then sets it down. \"Fifty years I have been the only one who saw it. Now there are two of us, and one of them killed it.\""
-  },
-  "q_drowned_hoard": {
-    "name": "The Drowned King",
-    "source": "npc",
-    "giver": "npc_guildmaster",
-    "level": 14,
-    "major": true,
-    "summary": "The guild's oldest ledger says the barrow was opened once before, and the party that did it wrote down a second chamber they never reached. Orlend wants to know whether the ledger was lying.",
-    "prereq": [
-      "q_barrow_seal"
-    ],
-    "req": {
-      "Combat": 14
-    },
-    "stages": [
-      {
-        "desc": "Go back down into the barrow beneath the Mire",
-        "type": "reach",
-        "target": "dungeon_barrow"
-      },
-      {
-        "desc": "Open the drowned king's chest in the far chamber",
-        "type": "interact",
-        "target": "chest_barrow_hoard"
-      },
-      {
-        "desc": "Tell Guild Master Orlend what was in it",
-        "type": "talk",
-        "target": "npc_guildmaster"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Defence": 1600,
-        "Attack": 900,
-        "Hitpoints": 700
-      },
-      "coins": 950
-    },
-    "completion": "Orlend looks at the boots for a long moment. \"Keep them. The ledger is forty years of men saying the guild should not have sealed that door, and you have just made every one of them right.\""
-  },
-  "q_dry_well": {
-    "name": "The Dry Well",
-    "source": "npc",
-    "giver": "npc_cook",
-    "level": 30,
-    "major": true,
-    "summary": "Havenbrook's well ran dry the year everything else went wrong, and nobody has been down it since. Bess wants to know what is in the way of the water.",
-    "req": {
-      "Combat": 20
-    },
-    "stages": [
-      {
-        "desc": "Make a lantern at an anvil and light it with a tinderbox",
-        "type": "collect",
-        "target": "lantern",
-        "count": 1
-      },
-      {
-        "desc": "Climb down the well and find the bottom of the shaft",
-        "type": "reach",
-        "target": "well_deep"
-      },
-      {
-        "desc": "Clear whatever is sitting in the spring",
-        "type": "kill",
-        "target": "well_warden",
-        "map": "well_deep",
-        "count": 1
-      },
-      {
-        "desc": "Open the spring so the water runs again",
-        "type": "interact",
-        "target": "spring_well"
-      },
-      {
-        "desc": "Tell Innkeeper Bess the well is running",
-        "type": "talk",
-        "target": "npc_cook"
-      }
-    ],
-    "rewards": {
-      "xp": {
-        "Attack": 1400,
-        "Defence": 1200,
-        "Hitpoints": 900,
-        "Smithing": 600
-      },
-      "coins": 1100,
-      "items": [
-        {
-          "id": "cooked_boar",
-          "qty": 4
-        }
-      ]
-    },
-    "completion": "Bess sends the boy to the square with a bucket before you have finished talking, and the whole street hears him shout when it comes up full."
+  "completion": "The carters will risk the road again.",
+  "req": {
+   "Combat": 6
   }
+ },
+ "q_marens_letter": {
+  "name": "Maren's Letter",
+  "source": "npc",
+  "giver": "npc_maren",
+  "level": 1,
+  "major": true,
+  "summary": "Elder Maren has written to the guild and will not say what about. She only asks that it reach them today.",
+  "stages": [
+   {
+    "desc": "Take Maren's letter to the guild hall",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   },
+   {
+    "desc": "Return to Elder Maren",
+    "type": "talk",
+    "target": "npc_maren"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Defence": 180,
+    "Hitpoints": 120
+   },
+   "coins": 60,
+   "items": [
+    {
+     "id": "herbal_tonic",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Maren reads your face more carefully than the reply."
+ },
+ "q_the_sunken_road": {
+  "name": "The Sunken Road",
+  "source": "npc",
+  "giver": "npc_maren",
+  "level": 6,
+  "major": true,
+  "summary": "A surveyor went out to the Sunken Road with a satchel of paper and came back with none of it. Maren wants to know what he saw.",
+  "prereq": [
+   "q_marens_letter"
+  ],
+  "stages": [
+   {
+    "desc": "Search the Sunken Road for the surveyor's papers",
+    "type": "collect",
+    "target": "torn_page",
+    "count": 1
+   },
+   {
+    "desc": "Bring the page back to Elder Maren",
+    "type": "talk",
+    "target": "npc_maren"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 400,
+    "Defence": 400,
+    "Hitpoints": 260
+   },
+   "coins": 210
+  },
+  "completion": "Maren folds the page twice and does not put it down.",
+  "req": {
+   "Combat": 5
+  }
+ },
+ "q_emberfell_depths": {
+  "name": "The Emberfell Depths",
+  "source": "npc",
+  "giver": "npc_maren",
+  "level": 14,
+  "major": true,
+  "summary": "Whatever is gathering the orcs is doing it under Emberfell. Maren has stopped calling it a rumour.",
+  "prereq": [
+   "q_the_sunken_road"
+  ],
+  "stages": [
+   {
+    "desc": "Find the rusted key in the Emberfell mine",
+    "type": "collect",
+    "target": "rusted_key",
+    "count": 1
+   },
+   {
+    "desc": "Descend into the lower workings",
+    "type": "reach",
+    "target": "dungeon_emberfell_2"
+   },
+   {
+    "desc": "Put down the Orc Warchief",
+    "type": "kill",
+    "target": "orc_warchief",
+    "count": 1
+   },
+   {
+    "desc": "Carry the totem back to Elder Maren",
+    "type": "talk",
+    "target": "npc_maren"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 2600,
+    "Strength": 2600,
+    "Defence": 1800,
+    "Hitpoints": 1400
+   },
+   "coins": 1200,
+   "items": [
+    {
+     "id": "ember_blade",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Maren turns the totem over once and puts it in the fire.",
+  "req": {
+   "Combat": 12
+  }
+ },
+ "q_barrow_seal": {
+  "name": "What the Mire Keeps",
+  "source": "note",
+  "giver": "note_mire",
+  "level": 10,
+  "major": true,
+  "summary": "A water-stained note left at the edge of the Mire. Someone went into the barrow on purpose, and wrote down why.",
+  "stages": [
+   {
+    "desc": "Enter the barrow beneath the Mire",
+    "type": "reach",
+    "target": "dungeon_barrow"
+   },
+   {
+    "desc": "Recover the barrow seal",
+    "type": "collect",
+    "target": "barrow_seal",
+    "count": 1
+   },
+   {
+    "desc": "Take the seal to the guild master",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Magic": 900,
+    "Crafting": 400,
+    "Hitpoints": 500
+   },
+   "coins": 460,
+   "items": [
+    {
+     "id": "bone_amulet",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "The guild master puts the seal in a drawer he then locks.",
+  "req": {
+   "Combat": 10
+  }
+ },
+ "q_a_decent_meal": {
+  "name": "A Decent Meal",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 2,
+  "summary": "The innkeeper can cook. What she cannot do is leave the inn long enough to find anything worth cooking.",
+  "stages": [
+   {
+    "desc": "Bring the innkeeper 5 cooked meat",
+    "type": "collect",
+    "target": "cooked_meat",
+    "count": 5
+   },
+   {
+    "desc": "Hand the food to the innkeeper",
+    "type": "talk",
+    "target": "npc_cook"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 480,
+    "Hitpoints": 200
+   },
+   "coins": 130,
+   "items": [
+    {
+     "id": "herbal_tonic",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "She feeds you first, which is how you know it went well."
+ },
+ "q_clear_the_trail": {
+  "name": "Clear the Trail",
+  "source": "npc",
+  "giver": "npc_bram",
+  "level": 3,
+  "summary": "Boar have come off the Whisperwood verges and onto the trail, and Bram's carts will not go past them. He wants the trail made dull again.",
+  "stages": [
+   {
+    "desc": "Hunt boar along the Whisperwood Trail",
+    "type": "kill",
+    "target": "boar",
+    "map": "whisperwood_trail",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 320,
+    "Strength": 320,
+    "Hitpoints": 160
+   },
+   "coins": 120
+  },
+  "completion": "Bram's first cart gets through without anyone running."
+ },
+ "q_word_to_fernhollow": {
+  "name": "Word to Fernhollow",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 2,
+  "summary": "Oona the herbalist has a remedy for Old Wendel's chest, and her knees will not take the north trail any more.",
+  "stages": [
+   {
+    "desc": "Take Oona's remedy to Old Wendel in Fernhollow",
+    "type": "deliver",
+    "target": "herbal_tonic",
+    "to": "npc_wendel"
+   },
+   {
+    "desc": "Return to Oona in Mossvale",
+    "type": "talk",
+    "target": "npc_oona"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 220,
+    "Cooking": 140
+   },
+   "coins": 90,
+   "items": [
+    {
+     "id": "herbal_tonic",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Oona asks how he looked, and listens to the answer."
+ },
+ "q_mossvale_hides": {
+  "name": "Hides for the Tannery",
+  "source": "board",
+  "giver": "board_mossvale",
+  "level": 4,
+  "summary": "The tanner has shut up for the season with half the orders unfilled. Mossvale will pay for raw hides brought to the square.",
+  "stages": [
+   {
+    "desc": "Gather raw hides from the Whisperwood",
+    "type": "collect",
+    "target": "hide",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 300,
+    "Hitpoints": 120
+   },
+   "coins": 160
+  },
+  "completion": "The hides go under a tarp by the tannery door until spring."
+ },
+ "q_trail_wardens": {
+  "name": "Trail Wardens",
+  "source": "board",
+  "giver": "board_mossvale",
+  "level": 5,
+  "summary": "Warden Sela is short of hands. Foxes are hunting the trail in packs, and something is teaching them to.",
+  "prereq": [
+   "q_clear_the_trail"
+  ],
+  "stages": [
+   {
+    "desc": "Drive the foxes off the Whisperwood Trail",
+    "type": "kill",
+    "target": "fox",
+    "map": "whisperwood_trail",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Ranged": 360,
+    "Attack": 240,
+    "Defence": 200
+   },
+   "coins": 220,
+   "items": [
+    {
+     "id": "oak_shortbow",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Sela marks the trail safe on the gate board, in chalk."
+ },
+ "q_old_offering": {
+  "name": "The Old Offering",
+  "source": "npc",
+  "giver": "npc_mira",
+  "level": 3,
+  "summary": "Mira keeps the shrine at Fernhollow, and the pond has not had its offering since the hunters stopped coming north.",
+  "stages": [
+   {
+    "desc": "Bring Mira two boar haunches for the shrine",
+    "type": "deliver",
+    "target": "raw_boar",
+    "to": "npc_mira",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Magic": 280,
+    "Hitpoints": 120
+   },
+   "coins": 100,
+   "items": [
+    {
+     "id": "herbal_tonic",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Mira lays the offering on the stone and does not say what she is listening for."
+ },
+ "q_road_beneath_leaves": {
+  "name": "The Road Beneath the Leaves",
+  "source": "note",
+  "giver": "sign_trailhead",
+  "level": 2,
+  "major": true,
+  "summary": "A weathered trail sign names two settlements beyond the eastern trees. Follow the old road to Mossvale, then take the north fork to Fernhollow.",
+  "stages": [
+   {
+    "desc": "Follow the eastern forest path into the Whisperwood",
+    "type": "reach",
+    "target": "whisperwood_trail"
+   },
+   {
+    "desc": "Follow the main trail east to Mossvale",
+    "type": "reach",
+    "target": "mossvale"
+   },
+   {
+    "desc": "Return to the trail fork and follow its north path to Fernhollow",
+    "type": "reach",
+    "target": "fernhollow"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 120
+   },
+   "coins": 80
+  },
+  "completion": "Smoke above the lodge, lamplight on the pond. The names on the sign are places you know now."
+ },
+ "q_daily_boar": {
+  "name": "Barley Watch",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 2,
+  "summary": "The boar keep coming back to the barley, and somebody has to keep sending them home.",
+  "repeat": "daily",
+  "pool": "havenbrook",
+  "stages": [
+   {
+    "desc": "Hunt boar in the Hollowmarch",
+    "type": "kill",
+    "target": "boar",
+    "map": "overworld",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Strength": 260,
+    "Hitpoints": 90
+   },
+   "coins": 70
+  },
+  "completion": "The barley stands another day."
+ },
+ "q_daily_orcs": {
+  "name": "Road Patrol",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 8,
+  "summary": "The Sunken Road needs walking every day it is going to stay open.",
+  "req": {
+   "Combat": 6
+  },
+  "repeat": "daily",
+  "pool": "havenbrook",
+  "stages": [
+   {
+    "desc": "Drive orcs off the Hollowmarch roads",
+    "type": "kill",
+    "target": "orc",
+    "map": "overworld",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 400,
+    "Defence": 250
+   },
+   "coins": 150
+  },
+  "completion": "The carters get through today."
+ },
+ "q_daily_ore": {
+  "name": "Order: Copper Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "summary": "Copper for the smelter. Halda goes through it faster than anyone can dig it.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 10 copper ore",
+    "type": "deliver",
+    "target": "copper_ore",
+    "to": "npc_smith",
+    "count": 10
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 450
+   },
+   "coins": 143
+  },
+  "completion": "Halda weighs it in her hand and nods."
+ },
+ "q_daily_kitchen": {
+  "name": "Fish for the Inn",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 2,
+  "summary": "Bess will cook anything with fins, and the pond and the lake are full of things with fins.",
+  "repeat": "daily",
+  "pool": "havenbrook",
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 5 raw minnows",
+    "type": "deliver",
+    "target": "raw_minnow",
+    "to": "npc_cook",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 250,
+    "Cooking": 120
+   },
+   "coins": 90
+  },
+  "completion": "Fried minnows are on the chalk board by supper."
+ },
+ "q_daily_logs": {
+  "name": "Kindling",
+  "source": "board",
+  "giver": "board_havenbrook",
+  "level": 1,
+  "summary": "The inn's fires eat a stack of logs a day, and Bess would rather not split them herself.",
+  "repeat": "daily",
+  "pool": "havenbrook",
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 10 logs",
+    "type": "deliver",
+    "target": "logs",
+    "to": "npc_cook",
+    "count": 10
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Woodcutting": 280
+   },
+   "coins": 80
+  },
+  "completion": "The woodpile by the kitchen door is tall again."
+ },
+ "q_daily_foxes": {
+  "name": "Fox Patrol",
+  "source": "board",
+  "giver": "board_mossvale",
+  "level": 5,
+  "summary": "Warden Sela wants the packs thinned every day until they stop coming back.",
+  "prereq": [
+   "q_clear_the_trail"
+  ],
+  "repeat": "daily",
+  "pool": "mossvale",
+  "stages": [
+   {
+    "desc": "Drive foxes off the Whisperwood Trail",
+    "type": "kill",
+    "target": "fox",
+    "map": "whisperwood_trail",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Ranged": 300,
+    "Attack": 200
+   },
+   "coins": 130
+  },
+  "completion": "Sela chalks another quiet day on the gate board."
+ },
+ "q_daily_hides": {
+  "name": "Tannery Stock",
+  "source": "board",
+  "giver": "board_mossvale",
+  "level": 4,
+  "summary": "The reeve buys hides for the tannery, a few at a time, whenever anyone brings them.",
+  "repeat": "daily",
+  "pool": "mossvale",
+  "stages": [
+   {
+    "desc": "Bring Reeve Hadley 4 raw hides",
+    "type": "deliver",
+    "target": "hide",
+    "to": "npc_hadley",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 260
+   },
+   "coins": 140
+  },
+  "completion": "Hadley writes it in the ledger and pays out of his own purse."
+ },
+ "q_daily_oak": {
+  "name": "Oak for the Lodge",
+  "source": "board",
+  "giver": "board_mossvale",
+  "level": 12,
+  "summary": "Pell has a buyer in Havenbrook who pays well for seasoned oak and asks no questions about it.",
+  "req": {
+   "Woodcutting": 12
+  },
+  "repeat": "daily",
+  "pool": "mossvale",
+  "stages": [
+   {
+    "desc": "Bring Pell the Trader 5 oak logs",
+    "type": "deliver",
+    "target": "oak_logs",
+    "to": "npc_pell",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Woodcutting": 450
+   },
+   "coins": 160
+  },
+  "completion": "Pell loads the oak and whistles."
+ },
+ "q_daily_pike": {
+  "name": "Order: Pike",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 30,
+  "summary": "Old Wendel will pay for pike, because in forty years he has never caught one himself.",
+  "req": {
+   "Fishing": 30
+  },
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 3 raw pike",
+    "type": "deliver",
+    "target": "raw_pike",
+    "to": "npc_wendel",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 520
+   },
+   "coins": 176
+  },
+  "completion": "Wendel says the pond is having him on. He eats well tonight."
+ },
+ "q_the_water_remembers": {
+  "name": "The Water Remembers",
+  "source": "npc",
+  "giver": "npc_mira",
+  "level": 6,
+  "major": true,
+  "summary": "Mira says the lights on the pond come from somewhere you can only reach asleep, and that something there has been trying to speak.",
+  "prereq": [
+   "q_old_offering"
+  ],
+  "stages": [
+   {
+    "desc": "Sleep after dusk, in a bed or at a camp, and dream",
+    "type": "reach",
+    "target": "dreamworld"
+   },
+   {
+    "desc": "Find the voice in the dream",
+    "type": "interact",
+    "target": "dream_voice"
+   },
+   {
+    "desc": "Wake, and tell Mira what the voice said",
+    "type": "talk",
+    "target": "npc_mira"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Magic": 600,
+    "Hitpoints": 200
+   },
+   "coins": 150,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "Mira writes the words down, then burns what she wrote."
+ },
+ "q_lights_on_the_pond": {
+  "name": "Lights on the Pond",
+  "source": "npc",
+  "giver": "npc_hesper",
+  "level": 18,
+  "major": true,
+  "summary": "Hesper has watched the lights over the pond grow brighter every night. Something large is holding the dream together, and it is not friendly.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "req": {
+   "Combat": 18
+  },
+  "stages": [
+   {
+    "desc": "Put down the Nightmare Brute in the dreamworld",
+    "type": "kill",
+    "target": "nightmare_brute",
+    "map": "dreamworld"
+   },
+   {
+    "desc": "Bring Hesper 6 dream shards as proof",
+    "type": "deliver",
+    "target": "dream_shard",
+    "to": "npc_hesper",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 900,
+    "Defence": 700,
+    "Hitpoints": 450
+   },
+   "coins": 500,
+   "items": [
+    {
+     "id": "dreamcatcher",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Hesper hangs the shards over the door. The pond is dark tonight."
+ },
+ "q_daily_nightmares": {
+  "name": "Nightmares Undone",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 8,
+  "summary": "Only asleep. The slate in the dream asks for the same thing every night: fewer nightmares.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "pool": "reverie",
+  "stages": [
+   {
+    "desc": "Defeat nightmares in the dreamworld",
+    "type": "kill",
+    "target": "nightmare",
+    "map": "dreamworld",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 350,
+    "Strength": 350,
+    "Hitpoints": 180
+   },
+   "coins": 120,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "The slate wipes itself clean when you look away."
+ },
+ "q_daily_shrine_shards": {
+  "name": "Shards for the Shrine",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 6,
+  "summary": "The slate asks for dream shards to be carried out of the dream and laid at Mira's shrine in Fernhollow.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "pool": "reverie",
+  "stages": [
+   {
+    "desc": "Wake, and bring Mira 8 dream shards",
+    "type": "deliver",
+    "target": "dream_shard",
+    "to": "npc_mira",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Magic": 450,
+    "Mining": 200
+   },
+   "coins": 140
+  },
+  "completion": "Mira sets the shards in the water, one at a time."
+ },
+ "q_daily_brute": {
+  "name": "The Brute Returns",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 20,
+  "summary": "Only asleep. The Nightmare Brute comes back every night. Someone has to put it down again.",
+  "prereq": [
+   "q_lights_on_the_pond"
+  ],
+  "req": {
+   "Combat": 18
+  },
+  "repeat": "daily",
+  "pool": "reverie",
+  "stages": [
+   {
+    "desc": "Put down the Nightmare Brute",
+    "type": "kill",
+    "target": "nightmare_brute",
+    "map": "dreamworld"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 700,
+    "Strength": 700,
+    "Defence": 400
+   },
+   "coins": 300,
+   "items": [
+    {
+     "id": "demonite_ore",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "For one night, the plateau is quiet."
+ },
+ "q_order_iron_ore": {
+  "name": "Order: Iron Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 5,
+  "summary": "Iron ore, for bars the guild has already paid for.",
+  "req": {
+   "Mining": 5
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 8 iron ore",
+    "type": "deliver",
+    "target": "iron_ore",
+    "to": "npc_smith",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 520
+   },
+   "coins": 187
+  },
+  "completion": "\"Red all the way through. Good.\""
+ },
+ "q_order_coal": {
+  "name": "Order: Coal",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 20,
+  "summary": "Coal to keep the forge hot enough for steel.",
+  "req": {
+   "Mining": 20
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 6 coal",
+    "type": "deliver",
+    "target": "coal",
+    "to": "npc_smith",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 900
+   },
+   "coins": 583
+  },
+  "completion": "She tips it straight into the bin by the fire."
+ },
+ "q_order_azuryte_ore": {
+  "name": "Order: Azuryte Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 30,
+  "summary": "A buyer in the south wants azuryte, and will not say what for.",
+  "req": {
+   "Mining": 30
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 4 azuryte ore",
+    "type": "deliver",
+    "target": "azuryte_ore",
+    "to": "npc_smith",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 1200
+   },
+   "coins": 864
+  },
+  "completion": "Halda holds a piece up to the light and whistles."
+ },
+ "q_order_bronze_bars": {
+  "name": "Order: Bronze Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "summary": "Bronze bars, smelted and ready, so the apprentices have something to ruin.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 6 bronze bars",
+    "type": "deliver",
+    "target": "bronze_bar",
+    "to": "npc_smith",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 600,
+    "Smithing": 360
+   },
+   "coins": 216
+  },
+  "completion": "\"Clean pours. You can smelt for me any day.\""
+ },
+ "q_order_iron_bars": {
+  "name": "Order: Iron Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 10,
+  "summary": "Iron bars for the watch's new hinges and hasps.",
+  "req": {
+   "Smithing": 10,
+   "Mining": 5
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 5 iron bars",
+    "type": "deliver",
+    "target": "iron_bar",
+    "to": "npc_smith",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 900,
+    "Smithing": 540
+   },
+   "coins": 432
+  },
+  "completion": "She stacks them by the anvil without a word, which from Halda is praise."
+ },
+ "q_order_steel_bars": {
+  "name": "Order: Steel Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 20,
+  "summary": "Steel bars. The guild wants blades, and blades want steel.",
+  "req": {
+   "Smithing": 20,
+   "Mining": 20
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 3 steel bars",
+    "type": "deliver",
+    "target": "steel_bar",
+    "to": "npc_smith",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 1400,
+    "Smithing": 840
+   },
+   "coins": 1304
+  },
+  "completion": "\"Proper steel. Rings when you knock it.\""
+ },
+ "q_order_bronze_swords": {
+  "name": "Order: Bronze Swords",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "summary": "Two bronze swords for the watch's new recruits, who will certainly drop them.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 2 bronze swords",
+    "type": "deliver",
+    "target": "bronze_sword",
+    "to": "npc_smith",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 500,
+    "Smithing": 400
+   },
+   "coins": 275
+  },
+  "completion": "Halda tests each edge on her thumbnail."
+ },
+ "q_order_iron_sword": {
+  "name": "Order: Iron Sword",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 10,
+  "summary": "An iron sword for a caravan guard who lost his to the Mire.",
+  "req": {
+   "Smithing": 10
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 iron sword",
+    "type": "deliver",
+    "target": "iron_sword",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 700,
+    "Smithing": 560
+   },
+   "coins": 319
+  },
+  "completion": "\"Balanced. He will not lose this one.\""
+ },
+ "q_order_iron_spear": {
+  "name": "Order: Iron Spear",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 10,
+  "summary": "An iron spear for a road warden who wants the orcs kept at a distance.",
+  "req": {
+   "Smithing": 11
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 iron spear",
+    "type": "deliver",
+    "target": "iron_spear",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 720,
+    "Smithing": 600
+   },
+   "coins": 345
+  },
+  "completion": "\"Straight shaft, true point. He'll never have to let them close.\""
+ },
+ "q_order_steel_longsword": {
+  "name": "Order: Steel Longsword",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 20,
+  "summary": "A steel longsword, commissioned by the guild master himself.",
+  "req": {
+   "Smithing": 20
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 steel longsword",
+    "type": "deliver",
+    "target": "steel_longsword",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 1600,
+    "Smithing": 1280
+   },
+   "coins": 2273
+  },
+  "completion": "Halda wraps it in oilcloth like something precious."
+ },
+ "q_order_hides": {
+  "name": "Order: Hides",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "summary": "Hides for bellows leather and sword grips. The forge eats leather.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 8 hides",
+    "type": "deliver",
+    "target": "hide",
+    "to": "npc_smith",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 250
+   },
+   "coins": 94
+  },
+  "completion": "\"That will do the bellows for a month.\""
+ },
+ "q_order_bronze_helms": {
+  "name": "Order: Bronze Helms",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "summary": "Two bronze helms for the road wardens.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 2 bronze helms",
+    "type": "deliver",
+    "target": "bronze_helm",
+    "to": "npc_smith",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 450,
+    "Smithing": 360
+   },
+   "coins": 375
+  },
+  "completion": "She knocks on one with her knuckles. It rings true."
+ },
+ "q_order_iron_cuirass": {
+  "name": "Order: Iron Cuirass",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 10,
+  "summary": "An iron cuirass, fitted for a watchman who will not stop growing.",
+  "req": {
+   "Smithing": 10
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 iron cuirass",
+    "type": "deliver",
+    "target": "iron_body",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 1100,
+    "Smithing": 880
+   },
+   "coins": 1124
+  },
+  "completion": "\"Good plate. Corrin will complain about the weight anyway.\""
+ },
+ "q_order_steel_greaves": {
+  "name": "Order: Steel Greaves",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 20,
+  "summary": "Steel greaves for an adventurer going under Emberfell.",
+  "req": {
+   "Smithing": 20
+  },
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 steel greaves",
+    "type": "deliver",
+    "target": "steel_legs",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 2200,
+    "Smithing": 1760
+   },
+   "coins": 3392
+  },
+  "completion": "Halda turns them over twice and pays without haggling."
+ },
+ "q_order_minnows": {
+  "name": "Order: Minnows",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 1,
+  "summary": "Minnows for bait. Wendel will not say what he is baiting for.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 10 raw minnows",
+    "type": "deliver",
+    "target": "raw_minnow",
+    "to": "npc_wendel",
+    "count": 10
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 300
+   },
+   "coins": 78
+  },
+  "completion": "\"Lively. They will do.\""
+ },
+ "q_order_trout": {
+  "name": "Order: Trout",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 15,
+  "summary": "Trout for the smokehouse behind the cottage.",
+  "req": {
+   "Fishing": 15
+  },
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 6 raw trout",
+    "type": "deliver",
+    "target": "raw_trout",
+    "to": "npc_wendel",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 450
+   },
+   "coins": 188
+  },
+  "completion": "Wendel lays them out on the jetty in a neat row."
+ },
+ "q_order_salmon": {
+  "name": "Order: Salmon",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 45,
+  "summary": "Salmon from the Whisperwood stream, for Hesper's birthday. Do not tell her.",
+  "req": {
+   "Fishing": 45
+  },
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 3 raw salmon",
+    "type": "deliver",
+    "target": "raw_salmon",
+    "to": "npc_wendel",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 600
+   },
+   "coins": 273
+  },
+  "completion": "\"Not a word to Hesper.\""
+ },
+ "q_order_eels": {
+  "name": "Order: Eels",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 60,
+  "summary": "Eels from the Hollowmarch lake. Wendel swears they are a delicacy.",
+  "req": {
+   "Fishing": 60
+  },
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 2 raw eels",
+    "type": "deliver",
+    "target": "raw_eel",
+    "to": "npc_wendel",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 650
+   },
+   "coins": 260
+  },
+  "completion": "Wendel looks at them, and they look back. He pays quickly."
+ },
+ "q_order_cooked_trout": {
+  "name": "Order: Cooked Trout",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 15,
+  "summary": "Cooked trout for the ferry passengers, if there are ever any again.",
+  "req": {
+   "Fishing": 15,
+   "Cooking": 15
+  },
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 5 cooked trout",
+    "type": "deliver",
+    "target": "cooked_trout",
+    "to": "npc_wendel",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 400
+   },
+   "coins": 252
+  },
+  "completion": "\"Still warm. You have a hand for it.\""
+ },
+ "q_order_cooked_minnows": {
+  "name": "Order: Cooked Minnows",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 1,
+  "summary": "A plate of fried minnows for the old man's supper. He says his own always burn.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 8 cooked minnows",
+    "type": "deliver",
+    "target": "cooked_minnow",
+    "to": "npc_wendel",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 200
+   },
+   "coins": 108
+  },
+  "completion": "\"Crisp. Mine are always charcoal.\""
+ },
+ "q_cellar_vermin": {
+  "name": "Rats in the Cellar",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 2,
+  "summary": "Something has moved into the inn's cellar: rats in the grain and spiders in the kegs. Bess wants it cleared out.",
+  "stages": [
+   {
+    "desc": "Kill 6 rats in the inn's cellar",
+    "type": "kill",
+    "target": "rat",
+    "map": "house_inn_cellar",
+    "count": 6
+   },
+   {
+    "desc": "Kill 4 cellar spiders",
+    "type": "kill",
+    "target": "spider",
+    "map": "house_inn_cellar",
+    "count": 4
+   },
+   {
+    "desc": "Kill the Broodmother in the back of the cellar",
+    "type": "kill",
+    "target": "broodmother",
+    "map": "house_inn_cellar",
+    "count": 1
+   },
+   {
+    "desc": "Tell Innkeeper Bess the cellar is clear",
+    "type": "talk",
+    "target": "npc_cook"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 250,
+    "Strength": 250,
+    "Defence": 150,
+    "Hitpoints": 120
+   },
+   "coins": 150,
+   "items": [
+    {
+     "id": "cooked_boar",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "Bess pours you a drink on the house, and says she will be sweeping webs for a week."
+ },
+ "q_ice_spire_dragon": {
+  "name": "The Dragon of the Ice Spire",
+  "source": "npc",
+  "giver": "npc_elder",
+  "level": 35,
+  "major": true,
+  "summary": "Elder Vask was one of the Spirewatch, and the only one who came down. What took the summit fifty years ago is still up there, and he has waited that long for somebody who could go back for it.",
+  "req": {
+   "Combat": 35
+  },
+  "stages": [
+   {
+    "desc": "Climb the Ice Spire to the summit",
+    "type": "reach",
+    "target": "ice_spire_peak"
+   },
+   {
+    "desc": "Kill Hoarfang, the dragon of the Ice Spire",
+    "type": "kill",
+    "target": "frost_dragon",
+    "map": "ice_spire_peak",
+    "count": 1
+   },
+   {
+    "desc": "Carry the dragon's fang back to Elder Vask",
+    "type": "deliver",
+    "target": "dragon_fang",
+    "to": "npc_elder",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 9000,
+    "Strength": 9000,
+    "Defence": 7000,
+    "Hitpoints": 5000
+   },
+   "coins": 3200,
+   "items": [
+    {
+     "id": "diamond_ingot",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "Vask turns the fang over twice, then sets it down. \"Fifty years I have been the only one who saw it. Now there are two of us, and one of them killed it.\""
+ },
+ "q_drowned_hoard": {
+  "name": "The Drowned King",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 14,
+  "major": true,
+  "summary": "The guild's oldest ledger says the barrow was opened once before, and the party that did it wrote down a second chamber they never reached. Orlend wants to know whether the ledger was lying.",
+  "prereq": [
+   "q_barrow_seal"
+  ],
+  "req": {
+   "Combat": 14
+  },
+  "stages": [
+   {
+    "desc": "Go back down into the barrow beneath the Mire",
+    "type": "reach",
+    "target": "dungeon_barrow"
+   },
+   {
+    "desc": "Open the drowned king's chest in the far chamber",
+    "type": "interact",
+    "target": "chest_barrow_hoard"
+   },
+   {
+    "desc": "Tell Guild Master Orlend what was in it",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Defence": 1600,
+    "Attack": 900,
+    "Hitpoints": 700
+   },
+   "coins": 950
+  },
+  "completion": "Orlend looks at the boots for a long moment. \"Keep them. The ledger is forty years of men saying the guild should not have sealed that door, and you have just made every one of them right.\""
+ },
+ "q_dry_well": {
+  "name": "The Dry Well",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 30,
+  "major": true,
+  "summary": "Havenbrook's well ran dry the year everything else went wrong, and nobody has been down it since. Bess wants to know what is in the way of the water.",
+  "req": {
+   "Combat": 20
+  },
+  "stages": [
+   {
+    "desc": "Make a lantern at an anvil and light it with a tinderbox",
+    "type": "collect",
+    "target": "lantern",
+    "count": 1
+   },
+   {
+    "desc": "Climb down the well and find the bottom of the shaft",
+    "type": "reach",
+    "target": "well_deep"
+   },
+   {
+    "desc": "Clear whatever is sitting in the spring",
+    "type": "kill",
+    "target": "well_warden",
+    "map": "well_deep",
+    "count": 1
+   },
+   {
+    "desc": "Open the spring so the water runs again",
+    "type": "interact",
+    "target": "spring_well"
+   },
+   {
+    "desc": "Tell Innkeeper Bess the well is running",
+    "type": "talk",
+    "target": "npc_cook"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 1400,
+    "Defence": 1200,
+    "Hitpoints": 900,
+    "Smithing": 600
+   },
+   "coins": 1100,
+   "items": [
+    {
+     "id": "cooked_boar",
+     "qty": 4
+    }
+   ]
+  },
+  "completion": "Bess sends the boy to the square with a bucket before you have finished talking, and the whole street hears him shout when it comes up full."
+ },
+ "q_a_place_of_your_own": {
+  "name": "A Place of Your Own",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 5,
+  "summary": "Bess is tired of watching you sort your pack on her tables. The tanner's house at the bottom of Mossvale has stood empty since he went to the coast, and she says the key has always lived under a stone at the gable end.",
+  "stages": [
+   {
+    "desc": "Find the key under the stone beside the empty house in Mossvale",
+    "type": "interact",
+    "target": "rock_mossvale_key"
+   },
+   {
+    "desc": "Let yourself in",
+    "type": "reach",
+    "target": "mossvale_cottage"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 120
+   },
+   "coins": 0
+  },
+  "completion": "The hinges complain and the air is stale, but the roof holds and there is a chest by the wall with nothing in it. Yours, then."
+ }
 }

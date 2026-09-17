@@ -2405,3 +2405,154 @@ void Game::DrawDeath() {
     ui.Text(input.PromptFor(Action::Confirm) + " to return to Havenbrook", cx,
             ui.ViewHeight() * 0.38f + 96.0f, TextSize::Body, Palette::Highlight, Align::Center);
 }
+
+// =============================================================================
+//  Storage
+//
+//  A chest you keep things in, standing open beside your pack. Two grids, the
+//  same squares as the inventory, and the button moves a stack from whichever
+//  side the cursor is on to the other. Nothing is ever destroyed: a move that
+//  will not fit moves what fits and says so.
+// =============================================================================
+
+namespace {
+constexpr int kStorageCols = 10;   // a ten by ten chest
+constexpr int kBagCols     = 7;    // the same shape as the inventory screen
+}
+
+void Game::UpdateStorage() {
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause) ||
+        input.Pressed(Action::Inventory)) {
+        ClosePanel();
+        return;
+    }
+
+    Player& p = world.player;
+    Inventory& chest = world.Storage(storage_id, storage_slots, &items);
+    const int bag_slots = p.inventory.SlotCount();
+    const int box_slots = chest.SlotCount();
+
+    int& cursor = storage_on_chest ? storage_cursor : storage_bag_cursor;
+    const int cols  = storage_on_chest ? kStorageCols : kBagCols;
+    const int count = storage_on_chest ? box_slots : bag_slots;
+    const int before = cursor;
+    const bool side_before = storage_on_chest;
+
+    if (input.MenuRight()) {
+        // The right-hand edge of the pack steps across into the chest, and the
+        // chest's right-hand edge stops: there is nothing further right.
+        if (!storage_on_chest && cursor % cols == cols - 1) storage_on_chest = true;
+        else cursor = std::min(cursor + 1, count - 1);
+    }
+    if (input.MenuLeft()) {
+        if (storage_on_chest && cursor % cols == 0) storage_on_chest = false;
+        else cursor = std::max(cursor - 1, 0);
+    }
+    if (input.MenuDown()) cursor = std::min(cursor + cols, count - 1);
+    if (input.MenuUp())   cursor = std::max(cursor - cols, 0);
+
+    // Whichever side the cursor lands on, keep it inside that side's grid.
+    storage_cursor     = std::clamp(storage_cursor, 0, std::max(0, box_slots - 1));
+    storage_bag_cursor = std::clamp(storage_bag_cursor, 0, std::max(0, bag_slots - 1));
+    if (cursor != before || storage_on_chest != side_before) Audio::Play(Sfx::UiMove);
+
+    if (!(input.Pressed(Action::Confirm) || input.Pressed(Action::Interact))) return;
+
+    // One at a time, or the whole stack with sprint held: the same hand as the
+    // shop screen, so the two panels are not opposites of each other.
+    const bool all = input.Down(Action::Sprint);
+    Inventory& from = storage_on_chest ? chest : p.inventory;
+    Inventory& to   = storage_on_chest ? p.inventory : chest;
+    const int slot  = storage_on_chest ? storage_cursor : storage_bag_cursor;
+
+    const ItemStack stack = from.Slot(slot);
+    if (stack.Empty()) { Audio::Play(Sfx::UiError); return; }
+
+    const int want = all ? stack.qty : 1;
+    const int moved = to.Add(stack.id, want);
+    if (moved <= 0) {
+        PushToast(storage_on_chest ? "Your pack is full." : "The chest is full.",
+                  {235, 150, 120, 255});
+        Audio::Play(Sfx::UiError);
+        return;
+    }
+    from.RemoveSlot(slot, moved);
+
+    const ItemDef* d = items.Get(stack.id);
+    const string name = d ? d->name : stack.id;
+    PushToast((storage_on_chest ? "Took " : "Stored ") + std::to_string(moved) + "x " + name +
+                  (moved < want ? "  -  no room for the rest" : ""),
+              moved < want ? SDL_Color{235, 200, 120, 255} : Palette::Text);
+    Audio::Play(Sfx::Pickup, 0.7f);
+    quests.RefreshCollectObjectives(p.inventory);
+}
+
+void Game::DrawStorage() {
+    ui.Dim(0.5f);
+    Player& p = world.player;
+    const Inventory& chest = world.Storage(storage_id, storage_slots, &items);
+
+    const float cell = 34.0f, gap = 4.0f;
+    const float bag_w   = kBagCols * (cell + gap) - gap;
+    const float box_w   = kStorageCols * (cell + gap) - gap;
+    const int   box_rows = (chest.SlotCount() + kStorageCols - 1) / kStorageCols;
+    const int   bag_rows = (p.inventory.SlotCount() + kBagCols - 1) / kBagCols;
+    const float grid_h  = std::max(box_rows, bag_rows) * (cell + gap) - gap;
+
+    const SDL_FRect panel = CenteredPanel(ui, bag_w + box_w + 96.0f, grid_h + 168.0f);
+    ui.Panel(panel);
+    ui.Text(storage_title, panel.x + 24.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight);
+
+    const float grid_y = panel.y + 76.0f;
+    const float bag_x  = panel.x + 24.0f;
+    const float box_x  = bag_x + bag_w + 48.0f;
+
+    // One square, drawn the same on either side so a stack does not change
+    // appearance when it crosses over.
+    const auto square = [&](const Inventory& inv, int i, float x, float y, bool selected) {
+        const SDL_FRect r = {x, y, cell, cell};
+        ui.Fill(r, {34, 27, 22, 235});
+        ui.Outline(r, selected ? Palette::Highlight : Palette::BorderDim, selected ? 2.0f : 1.0f);
+        const ItemStack& s = inv.Slot(i);
+        if (s.Empty()) return;
+        const ItemDef* def = items.Get(s.id);
+        SDL_Texture* tex = (def && !def->icon.empty()) ? textures->Get(def->icon) : nullptr;
+        const SDL_FRect inner = {r.x + 4.0f, r.y + 4.0f, r.w - 8.0f, r.h - 8.0f};
+        if (tex) SDL_RenderTexture(renderer, tex, nullptr, &inner);
+        else     DrawItemPlaceholder(ui, def, s.id, inner);
+        if (s.qty > 1)
+            ui.TextShadowed(std::to_string(s.qty), r.x + r.w - 2.0f, r.y + r.h - 15.0f,
+                            TextSize::Small, Palette::Highlight, Align::Right);
+    };
+
+    char head[96];
+    SDL_snprintf(head, sizeof(head), "Your pack   %d / %d",
+                 p.inventory.SlotCount() - p.inventory.FreeSlots(), p.inventory.SlotCount());
+    ui.Text(head, bag_x, panel.y + 52.0f, TextSize::Small, Palette::TextDim);
+    for (int i = 0; i < p.inventory.SlotCount(); ++i)
+        square(p.inventory, i, bag_x + (i % kBagCols) * (cell + gap),
+               grid_y + (i / kBagCols) * (cell + gap),
+               !storage_on_chest && i == storage_bag_cursor);
+
+    SDL_snprintf(head, sizeof(head), "The chest   %d / %d",
+                 chest.SlotCount() - chest.FreeSlots(), chest.SlotCount());
+    ui.Text(head, box_x, panel.y + 52.0f, TextSize::Small, Palette::TextDim);
+    for (int i = 0; i < chest.SlotCount(); ++i)
+        square(chest, i, box_x + (i % kStorageCols) * (cell + gap),
+               grid_y + (i / kStorageCols) * (cell + gap),
+               storage_on_chest && i == storage_cursor);
+
+    // What is under the cursor, and how to move it.
+    const ItemStack& sel = storage_on_chest ? chest.Slot(storage_cursor)
+                                            : p.inventory.Slot(storage_bag_cursor);
+    const float foot_y = grid_y + grid_h + 16.0f;
+    if (const ItemDef* def = sel.Empty() ? nullptr : items.Get(sel.id)) {
+        ui.Text(def->name, bag_x, foot_y, TextSize::Body, Palette::Highlight);
+        ui.Text(def->description, bag_x, foot_y + 20.0f, TextSize::Small, Palette::TextDim);
+    }
+    ui.Text(input.PromptFor(Action::Confirm) + " move one   -   hold " +
+                input.PromptFor(Action::Sprint) + " for the stack   -   " +
+                input.PromptFor(Action::Back) + " close",
+            panel.x + panel.w - 24.0f, panel.y + panel.h - 28.0f, TextSize::Small,
+            Palette::TextDim, Align::Right);
+}

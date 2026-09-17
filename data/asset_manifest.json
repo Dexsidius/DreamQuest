@@ -1468,6 +1468,10 @@
                                            "w":  64,
                                            "h":  64
                                        },
+                   "props/town_gate":  {
+                                           "w":  160,
+                                           "h":  160
+                                       },
                    "props/travel_chest":  {
                                               "w":  40,
                                               "h":  40

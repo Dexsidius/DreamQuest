@@ -252,6 +252,7 @@ bool Map::Load(const string& path) {
             m.regrow_hours = o.value("regrow", 6.0f);
             m.title        = o.value("title", string(""));
             m.station      = o.value("station", string("workbench"));
+            m.capacity     = o.value("capacity", 0);
             if (o.contains("fish"))
                 for (const auto& f : o["fish"]) m.fish.push_back(f.get<string>());
             if (!m.sprite.empty())      m.sprite      = ResolveAsset(m.sprite);

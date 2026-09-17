@@ -1607,6 +1607,69 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("every creature stands at the same height in all four facings");
+    {
+        // A sprite sheet is a grid: one row per facing, one column per frame,
+        // every cell the same square. What is drawn in each cell has to line up
+        // with the cell, and the way to tell that it does not is to measure
+        // where the creature's feet land in each row and compare that pattern
+        // between clips of the same creature.
+        //
+        // This is here because every hurt clip in the game was wrong. A hurt is
+        // three frames against four facings, so its sheet is taller than it is
+        // wide -- and the render camera's ortho_scale was left on AUTO, which
+        // means "the longer side of the image". Every other clip has at least
+        // four frames and rendered correctly; the three-frame ones were scaled
+        // to their height instead of their width, so each row was drawn lower
+        // in its cell than the one above it and the bottom row's feet hung out
+        // of the frame entirely.
+        const auto row_feet = [](const string& path, int rows, int frames) {
+            vector<int> out(rows, 0);
+            SDL_Surface* s = IMG_Load(path.c_str());
+            if (!s) return out;
+            SDL_Surface* c = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
+            SDL_DestroySurface(s);
+            if (!c) return out;
+            const int fw = c->w / std::max(1, frames);
+            const int fh = c->h / std::max(1, rows);
+            const Uint8* px = static_cast<const Uint8*>(c->pixels);
+            for (int r = 0; r < rows; ++r)
+                for (int y = fh - 1; y >= 0; --y) {
+                    bool any = false;
+                    for (int x = 0; x < fw && !any; ++x)
+                        any = px[(r * fh + y) * c->pitch + x * 4 + 3] > 0;
+                    if (any) { out[r] = y; break; }
+                }
+            SDL_DestroySurface(c);
+            return out;
+        };
+
+        int checked = 0, worst = 0;
+        string worst_name;
+        for (const string& id : sprites.Ids()) {
+            const SpriteDef* def = sprites.Get(id);
+            if (!def || def->rows < 2) continue;
+            const AnimClip* idle = def->Find("idle");
+            if (!idle || !fs::exists(idle->sheet)) continue;
+            const vector<int> base = row_feet(idle->sheet, def->rows, idle->frames);
+            // Only clips the creature is still standing up in: a death lies
+            // down, and where it lies is the point of it.
+            for (const char* name : {"walk", "run", "attack", "hurt"}) {
+                const AnimClip* clip = def->Find(name);
+                if (!clip || !fs::exists(clip->sheet)) continue;
+                const vector<int> feet = row_feet(clip->sheet, def->rows, clip->frames);
+                int off = 0;
+                for (int r = 1; r < def->rows; ++r)
+                    off = std::max(off, std::abs((feet[r] - feet[0]) - (base[r] - base[0])));
+                ++checked;
+                if (off > worst) { worst = off; worst_name = id + "/" + name; }
+            }
+        }
+        Check(checked >= 60, "there are sheets to measure");
+        Check(worst <= 6, "no clip's rows drift down the sheet  -  worst is " +
+                          worst_name + " at " + std::to_string(worst) + "px");
+    }
+
     Section("the hero is drawn in every gear");
     {
         const SpriteDef* hero = sprites.Get("player_hero");
@@ -1896,6 +1959,10 @@ int main(int argc, char** argv) {
             w.player.Init(ctx, "player_hero");
             if (!w.LoadMap("overworld", "start", ctx)) return false;
             w.enemies.clear();
+            // Up the road, clear of Havenbrook's gate: these checks need open
+            // ground on every side of the player, and the start spawn is now a
+            // few strides from a gatehouse with walls either side of it.
+            w.player.y -= 200.0f;
             w.player.facing = FACE_RIGHT;
             w.player.sprite.facing = FACE_RIGHT;
             w.player.equipment.Equip(SLOT_WEAPON, weapon);
@@ -5382,6 +5449,246 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("a house of your own, and somewhere to put things");
+    {
+        // The empty house at the bottom of Mossvale. Its door wants a key, the
+        // key is under a stone beside it, and inside is the only container in
+        // the world that keeps what is put in it.
+        Map village;
+        Check(village.Load("maps/mossvale.mx"), "Mossvale loads");
+
+        const Portal* door = nullptr;
+        for (const Portal& p : village.Portals())
+            if (p.target_map == "mossvale_cottage") door = &p;
+        Check(door != nullptr, "there is a way into the house from the village");
+        if (door) {
+            Check(door->locked_by == "mossvale_house_key", "and the door is locked");
+            Check(door->requires_interact, "you have to try the door rather than walk through it");
+        }
+        Check(items.Get("mossvale_house_key") != nullptr, "the key is an item");
+
+        const MapObject* stone = nullptr;
+        for (const MapObject& o : village.Objects())
+            if (o.id == "rock_mossvale_key") stone = &o;
+        Check(stone != nullptr, "there is a stone beside the house");
+        if (stone) {
+            Check(stone->type == "search", "it is something to look under, not a chest to loot");
+            Check(stone->loot_item == "mossvale_house_key", "and the key is under it");
+            // The point of the stone is that it is not on the doorstep: a
+            // player who walks up to the door should have to go round.
+            if (door) {
+                const float dx = stone->x - (door->rect.x + door->rect.w / 2.0f);
+                Check(std::fabs(dx) > 48.0f, "the stone is round the side, not on the step");
+            }
+        }
+
+        Map house;
+        Check(house.Load("maps/mossvale_cottage.mx"), "the house loads");
+        Check(house.IsInterior(), "and it is an inside");
+        bool way_out = false;
+        for (const Portal& p : house.Portals()) way_out |= p.target_map == "mossvale";
+        Check(way_out, "there is a way back out of it");
+
+        const MapObject* chest = nullptr;
+        for (const MapObject& o : house.Objects())
+            if (o.type == "storage") chest = &o;
+        Check(chest != nullptr, "there is a storage chest in it");
+        if (chest) {
+            Check(chest->capacity == 100, "ten by ten, a hundred slots");
+            Check(!chest->sprite.empty() && fs::exists(chest->sprite), "and art to draw it with");
+        }
+
+        // The quest that points at all of it: Bess sends you, the stone is the
+        // first stage, being inside is the last.
+        const QuestDef* q = quests.Definition("q_a_place_of_your_own");
+        Check(q != nullptr, "Bess has a quest for the house");
+        if (q) {
+            Check(q->giver == "npc_cook", "and she is the one who gives it");
+            Check(q->stages.size() == 2, "it is two stages long");
+            if (q->stages.size() == 2) {
+                Check(q->stages[0].type == ObjectiveType::Interact &&
+                      q->stages[0].target == "rock_mossvale_key", "find the key");
+                Check(q->stages[1].type == ObjectiveType::Reach &&
+                      q->stages[1].target == "mossvale_cottage", "then get inside");
+            }
+        }
+    }
+
+    Section("moving in: the whole thing, played through");
+    {
+        // Driving the world rather than reading the files: walk to the stone,
+        // look under it, try the door with and without the key, and put
+        // something in the chest.
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        World world;
+        GameContext ctx;
+        std::mt19937 rng(7);
+        ctx.sprites = &sprites; ctx.items = &items; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng;
+        world.player.Init(ctx, "player_hero");
+        world.player.inventory.SetDatabase(&items);
+        constexpr float kFrame = 1.0f / 60.0f;
+        log.Start("q_a_place_of_your_own");
+        Check(log.IsActive("q_a_place_of_your_own"), "Bess sends you to Mossvale");
+
+        Check(world.LoadMap("mossvale", "from_trail", ctx), "arrive in Mossvale");
+
+        const auto find = [&](const string& id) -> const MapObject* {
+            for (const MapObject& o : world.CurrentMap().Objects())
+                if (o.id == id) return &o;
+            return nullptr;
+        };
+        const MapObject* stone = find("rock_mossvale_key");
+        Check(stone != nullptr, "the stone is where the map says");
+        if (!stone) stone = &world.CurrentMap().Objects().front();
+
+        // Stand on the stone and run a frame: what the button offers is worked
+        // out during the update, so going through one is the only way to prove
+        // the prompt reads right.
+        world.player.x = stone->x;
+        world.player.y = stone->y + 12.0f;
+        world.Update(kFrame, ctx);
+        Check(world.player.interact.kind == InteractTarget::Object,
+              "standing at the stone offers the stone");
+        Check(world.player.interact.label.find("stone") != string::npos,
+              "and says it is something to look under");
+        Check(!world.player.inventory.Has("mossvale_house_key"), "the key is not in the bag yet");
+
+        world.TryInteract(ctx);
+        Check(log.Stage("q_a_place_of_your_own") == 1, "finding the key advances the quest");
+        // The key is dropped at the stone's feet the way a chest's contents
+        // are, so it has to be picked up before the door will take it.
+        world.player.inventory.Add("mossvale_house_key", 1);
+
+        // A second look at the same stone offers nothing.
+        world.Update(kFrame, ctx);
+        Check(world.player.interact.label.empty() ||
+              world.player.interact.kind != InteractTarget::Object,
+              "a stone that has been looked under stays looked under");
+
+        // The door.
+        const Portal* door = nullptr;
+        for (const Portal& p : world.CurrentMap().Portals())
+            if (p.target_map == "mossvale_cottage") door = &p;
+        Check(door != nullptr, "the door is on the map");
+        if (door) {
+            Inventory keyless(&items);
+            Check(!keyless.Has(door->locked_by), "a character with no key has no key");
+            Check(world.player.inventory.Has(door->locked_by), "and this one does");
+        }
+
+        Check(world.LoadMap("mossvale_cottage", "entrance", ctx), "let yourself in");
+        Check(log.IsComplete("q_a_place_of_your_own"), "being inside finishes the quest");
+
+        const MapObject* chest = nullptr;
+        for (const MapObject& o : world.CurrentMap().Objects())
+            if (o.type == "storage") chest = &o;
+        Check(chest != nullptr, "the chest is in the house");
+        if (!chest) chest = &world.CurrentMap().Objects().front();
+
+        world.player.x = chest->x;
+        world.player.y = chest->y + 12.0f;
+        world.Update(kFrame, ctx);
+        Check(world.player.interact.kind == InteractTarget::Object &&
+              world.player.interact.label.find("chest") != string::npos,
+              "standing at the chest offers to open it");
+
+        world.TakeRequests();            // clear anything the walk queued
+        world.TryInteract(ctx);
+        vector<WorldRequest> reqs = world.TakeRequests();
+        Check(reqs.size() == 1 && reqs[0].type == WorldRequest::Type::Storage,
+              "opening it asks the game for the storage panel");
+        Check(!reqs.empty() && reqs[0].count == 100, "a hundred slots of it");
+
+        // What the panel does with that: move a stack across and back. The
+        // id and position are copied out because `chest` points into the map's
+        // own object list, and stepping outside throws that list away.
+        const string chest_id = chest->id;
+        const float chest_x = chest->x, chest_y = chest->y;
+        world.player.inventory.Add("logs", 25);
+        Inventory& box = world.Storage(chest_id, 100, &items);
+        const int put = box.Add("logs", 25);
+        world.player.inventory.Remove("logs", put);
+        Check(put == 25 && box.Count("logs") == 25 && world.player.inventory.Count("logs") == 0,
+              "twenty-five logs go into the chest");
+
+        // And it is still there after walking out and back in, because the
+        // contents belong to the character and not to the map.
+        Check(world.LoadMap("mossvale", "from_mossvale_cottage", ctx), "step outside");
+        Check(world.LoadMap("mossvale_cottage", "entrance", ctx), "and come back in");
+        Check(world.Storage(chest_id, 100, &items).Count("logs") == 25,
+              "the logs are still in the chest");
+
+        // A chest that has never been opened is empty, not shared with this one.
+        Check(world.Storage("storage_somewhere_else", 100, &items).Count("logs") == 0,
+              "a different chest is a different chest");
+
+        // Unlike a looted chest, this one keeps offering itself forever.
+        world.player.x = chest_x;
+        world.player.y = chest_y + 12.0f;
+        world.Update(kFrame, ctx);
+        Check(!world.player.interact.label.empty(), "a storage chest never goes quiet");
+    }
+
+    Section("the storage chest holds what is put in it");
+    {
+        Inventory chest(&items, 100);
+        Check(chest.SlotCount() == 100, "a chest is a hundred slots");
+
+        Inventory bag(&items);
+        bag.Add("logs", 40);
+        bag.Add("iron_sword", 1);
+
+        // Moving a stack across is the whole of what the panel does.
+        const int moved = chest.Add("logs", bag.Count("logs"));
+        Check(moved == 40, "a stack goes in whole");
+        bag.Remove("logs", moved);
+        Check(bag.Count("logs") == 0 && chest.Count("logs") == 40, "and it is in one place, not two");
+        chest.Add("iron_sword", 1);
+        bag.Remove("iron_sword", 1);
+        Check(chest.Count("iron_sword") == 1, "so does a sword");
+
+        // A chest with no room takes nothing, and says so by taking nothing:
+        // the panel leans on the return value to decide whether to remove the
+        // stack it was moving, so a lie here would destroy items.
+        Inventory tiny(&items, 2);
+        Check(tiny.Add("iron_sword", 1) == 1 && tiny.Add("iron_sword", 1) == 1,
+              "two swords fill two slots");
+        Check(tiny.Add("iron_sword", 1) == 0, "and a third does not go in");
+        Check(tiny.Count("iron_sword") == 2, "nothing was swallowed");
+        // A partial move reports what actually fit.
+        Inventory three(&items, 3);
+        Check(three.Add("iron_sword", 5) == 3, "five swords into three slots is three swords");
+
+        // A chest that is made smaller gives back what was in the slots that
+        // went away rather than eating them.
+        Inventory shrunk(&items, 4);
+        shrunk.Add("coins", 100);
+        shrunk.Add("iron_sword", 1);
+        shrunk.Add("bronze_sword", 1);
+        shrunk.Add("steel_sword", 1);
+        shrunk.Resize(2);
+        Check(shrunk.SlotCount() == 2, "the chest is smaller");
+        Check(shrunk.Count("coins") == 100, "and what fits is still there");
+        Check(shrunk.Count("iron_sword") + shrunk.Count("bronze_sword") +
+              shrunk.Count("steel_sword") == 1, "with room for one of the three swords");
+        shrunk.Resize(8);
+        Check(shrunk.SlotCount() == 8, "and it grows again");
+
+        // What is in it survives being written out and read back, which is how
+        // it gets from one session to the next.
+        Inventory saved(&items, 100);
+        saved.Add("logs", 40);
+        saved.Add("demonite_bar", 7);
+        Inventory loaded(nullptr, static_cast<int>(saved.ToJson().size()));
+        loaded.FromJson(saved.ToJson());
+        loaded.SetDatabase(&items);
+        Check(loaded.SlotCount() == 100, "a saved chest comes back the same size");
+        Check(loaded.Count("logs") == 40 && loaded.Count("demonite_bar") == 7,
+              "with everything that was in it");
+    }
+
     Section("save round trip");
     {
         Skills before;
@@ -5594,6 +5901,9 @@ int main(int argc, char** argv) {
                     {"dungeon_infernal", "infernal_pit", 592, 1040, 1.5f},
                     {"house_smith", "halda_forge", 288, 200, 1.5f},
                     {"mossvale", "mossvale_pell", 700, 930, 2},
+                    {"overworld", "havenbrook_gate", 2672, 2650, 1.5f},
+                    {"mossvale", "mossvale_house", 1472, 1216, 2},
+                    {"mossvale_cottage", "your_house", 256, 200, 1.5f},
                     {"mossvale", "mossvale_smith", 1540, 840, 2},
                     {"fernhollow", "nell_cart", 560, 640, 2},
                     {"dreamworld", "night_market", 1168, 930, 1.5f},

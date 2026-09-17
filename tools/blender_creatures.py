@@ -160,6 +160,7 @@ class Rig:
         self.j = {"pose": self.pose}
         self.rest = {}
         self.parts = []
+        self.fall = Vector((0, 0, 0))     # world-space shift, set by apply()
 
     def joint(self, name, loc, parent="pose", rest=(0, 0, 0)):
         self.j[name] = bc.empty(name, loc, self.j[parent])
@@ -176,16 +177,74 @@ class Rig:
         self.parts.append(ob)
         return ob
 
-    def apply(self, values):
+    def standing_height(self):
+        """How tall the rig is before it is posed, in world units.
+
+        Measured off the rig rather than written down per creature: a topple
+        has to be pulled back by half a body length to stay in the middle of
+        its cell, and the one number that says how long a body is belongs to
+        the body. Called before any joint is turned, so it is always the rest
+        height."""
+        bpy.context.view_layer.update()
+        top = 0.0
+        for ob in self.parts:
+            for corner in ob.bound_box:
+                top = max(top, (ob.matrix_world @ Vector(corner)).z)
+        return top
+
+    def apply(self, values, turn=0.0):
+        # The world-space fall, worked out before anything is posed so the
+        # height is the rig's own.
+        wroll = values.get("_wroll", 0.0)
+        fall = Vector((values.get("_wx", 0.0), values.get("_wy", 0.0),
+                       values.get("_wz", 0.0)))
+        if wroll:
+            h = self.standing_height()
+            # It goes over about its feet, so it ends up a body length to one
+            # side. Pull it back by half of that, and do not let it go so far
+            # over that its head lands in the neighbouring frame: a small
+            # creature lies flat, a big one finishes propped on its shoulder.
+            fit = min(1.0, (bc.FRAME_SPAN * 0.74) / max(1e-6, h))
+            wroll = math.degrees(math.asin(
+                min(1.0, fit * abs(math.sin(math.radians(wroll))))))
+            wroll = math.copysign(wroll, values["_wroll"])
+            fall.x -= 0.5 * h * math.sin(math.radians(wroll))
+        self.fall = fall
+
+        # "_straighten" fades a joint's rest angle out rather than adding to
+        # it: {"elbow_r": 0.8} means four-fifths of the way to straight. A limb
+        # holding something long needs this -- what matters is its total angle,
+        # and every creature's rest angle is different, so "swing it back by
+        # twenty degrees" lands somewhere different on each of them.
+        straighten = values.get("_straighten", {})
         for name, e in self.j.items():
             if name == "pose":
                 continue
             base = self.rest.get(name, (0, 0, 0))
+            f = 1.0 - straighten.get(name, 0.0)
             add = values.get(name, (0, 0, 0))
-            e.rotation_euler = Euler(tuple(math.radians(base[i] + add[i]) for i in range(3)), "XYZ")
+            e.rotation_euler = Euler(tuple(math.radians(base[i] * f + add[i]) for i in range(3)), "XYZ")
         self.pose.location = (values.get("_x", 0.0), values.get("_y", 0.0), values.get("_z", 0.0))
         self.pose.rotation_euler = Euler((math.radians(values.get("_pitch", 0.0)),
                                           math.radians(values.get("_roll", 0.0)), 0.0), "XYZ")
+        # _pitch and _roll above are in the creature's own frame, which is what
+        # a lean or a flinch wants. A fall is not: a body that tips over its own
+        # backwards axis topples away from the camera in the row where it faced
+        # the camera, and towards it in the row where it faced away, and both of
+        # those foreshorten to a standing blob. _wpitch and _wroll are applied
+        # outside the facing turn -- Euler order ZYX puts the turn innermost --
+        # so a fall goes the same way across the screen whichever way the
+        # creature was looking. _wx / _wy / _wz shift it along the world axes
+        # for the same reason: a body lying across the frame has to be pulled
+        # back towards the middle of its cell or its head hangs off the edge.
+        # The order lives on the object, not on the Euler handed to it: an
+        # object keeps its own rotation_mode and reads only the three numbers,
+        # so assigning an Euler built as "ZYX" to an "XYZ" object silently
+        # applies them in the wrong order -- which put the fall back inside the
+        # facing and moved the problem to the other two rows.
+        self.root.rotation_mode = "ZYX"
+        self.root.rotation_euler = Euler((math.radians(values.get("_wpitch", 0.0)),
+                                          math.radians(wroll), math.radians(turn)), "ZYX")
 
 
 def sn(t, phase=0.0):
@@ -404,10 +463,65 @@ def gait(t, legs=34, knees=30, arms=26, bob=0.03, lean=6):
             "_z": bob * abs(sn(t)), "chest": X(lean)}
 
 
-def fall_back(t, side=0):
+def running(walk_fn, stretch=1.5, lean=5, bob=1.7):
+    """A run built out of the creature's own walk: the same cycle, opened up.
+
+    Anything that runs already has a walk that says how it moves -- which legs
+    swing against which, how the body rides over them -- so the run borrows it
+    instead of inventing a second gait that would not match the first. Longer
+    strides, more lift, and a lean into it.
+    """
+    def pose(t):
+        v = dict(walk_fn(t))
+        for name, value in list(v.items()):
+            if name.startswith("_"):
+                continue
+            v[name] = tuple(a * stretch for a in value)
+        v["_z"] = v.get("_z", 0.0) * bob
+        v["chest"] = tuple(a + b for a, b in zip(v.get("chest", (0, 0, 0)), (lean, 0, 0)))
+        return v
+    return pose
+
+
+def topple(t, dir=1, lean=88, armed=False):
+    """Go down sideways and lie there, across the frame.
+
+    This used to tip the body over its own backwards axis, which looks right
+    from the side and nowhere else: in the row where the creature faced the
+    camera it fell away from it, in the row where it faced away it fell towards
+    it, and in both the body foreshortened into a standing lump that never
+    seemed to drop at all. Toppling about the world's own sideways axis instead
+    gives every row the one direction a camera looking down at forty-six
+    degrees can actually read, so all four rows end as a body lying flat.
+
+    Keeping the body inside its cell is Rig.apply's job: it knows how tall the
+    rig is, so it pulls the fall back by half a body length and eases off the
+    angle for a creature too long to lie flat in one frame.
+
+    `armed` leaves the right arm hanging. Flinging it forward is right for empty
+    hands, but a spear or a club held that way ends up pointing straight at the
+    camera, where the fall cannot lay it down: it stays standing in the frame
+    like a planted pole while the body under it goes flat. An arm left along the
+    body puts the weapon on the ground beside it.
+    """
     k = ease(t * 1.15)
-    return {"_pitch": 84 * k, "_z": 0.10 * k, "_y": 0.25 * k, "hip_l": fwd(30 * k), "hip_r": fwd(12 * k),
-            "shoulder_l": fwd(70 * k), "shoulder_r": fwd(60 * k), "neck": X(-20 * k)}
+    s = ease(min(1.0, t * 2.0))               # the legs give first
+    # A body lying on the ground still has thickness, and the frame's anchor is
+    # the feet: without the lift the near side of it hangs a few pixels below
+    # the cell and smudges the frame underneath.
+    return {"_wroll": dir * lean * k, "_z": -0.04 * k, "_wz": 0.22 * k,
+            "hip_l": fwd(24 * s), "hip_r": fwd(12 * s),
+            "knee_l": X(30 * s), "knee_r": X(18 * s),
+            "shoulder_l": fwd(64 * k),
+            "shoulder_r": (0, 0, 0) if armed else fwd(52 * k),
+            "elbow_l": X(-28 * k), "elbow_r": (0, 0, 0) if armed else X(-16 * k),
+            "chest": X(-10 * k), "neck": X(-22 * k),
+            # The weapon arm is laid straight down the body, rest angles and
+            # all, so what it holds lies in the same plane the body falls in.
+            # Any angle left in it points the weapon towards or away from the
+            # camera, where a sideways fall cannot lay it down -- and that is
+            # the one direction the frame has no room in.
+            "_straighten": {"shoulder_r": k, "elbow_r": k, "hand_r": k} if armed else {}}
 
 
 # --- lizardman ------------------------------------------------------------------------
@@ -555,8 +669,11 @@ def liz_hurt(t):
 
 
 def liz_death(t):
-    v = fall_back(t)
-    v.update({"tail1": (0, 0, 30 * ease(t))})
+    # The tail curls in the plane the body falls in. Yawing it about the body's
+    # own up axis swung it towards the camera once the body was down, which on
+    # a creature this long put the tip in the frame above.
+    v = topple(t, armed=True)
+    v.update({"tail1": X(26 * ease(t)), "tail2": X(16 * ease(t))})
     return v
 
 
@@ -625,9 +742,12 @@ def troll_hurt(t):
 
 
 def troll_death(t):
+    # It goes over the other way from everything else, and it is big enough to
+    # need a longer pull back into the frame.
     k = ease(t * 1.1)
-    return {"_pitch": -80 * k, "_z": 0.12 * k, "_y": -0.30 * k, "chest": X(10 * k),
-            "shoulder_l": fwd(90 * k), "shoulder_r": fwd(80 * k), "hip_l": fwd(-10 * k)}
+    v = topple(t, dir=-1, armed=True)
+    v.update({"chest": X(10 * k), "shoulder_l": fwd(90 * k), "hip_l": fwd(-10 * k)})
+    return v
 
 
 # --- demon --------------------------------------------------------------------------------
@@ -693,7 +813,7 @@ def demon_hurt(t):
 
 
 def demon_death(t):
-    v = fall_back(t)
+    v = topple(t)
     v.update({"wing_l": (0, 0, -40 * ease(t)), "wing_r": (0, 0, 40 * ease(t))})
     return v
 
@@ -761,9 +881,12 @@ def imp_hurt(t):
 
 
 def imp_death(t):
+    # It drops out of its hover first and then goes over sideways like the rest.
     k = ease(t * 1.1)
     v = imp_hover(0, 10 * (1 - k))
-    v.update({"_z": 0.30 * (1 - k), "_pitch": 80 * k, "_y": 0.2 * k, "wing_l": (0, 0, -60 * k), "wing_r": (0, 0, 60 * k)})
+    v.update(topple(t, lean=82))
+    v.update({"_z": 0.30 * (1 - k) - 0.04 * k,
+              "wing_l": (0, 0, -60 * k), "wing_r": (0, 0, 60 * k)})
     return v
 
 
@@ -1170,7 +1293,7 @@ def zom_hurt(t):
 
 
 def zom_death(t):
-    v = fall_back(t)
+    v = topple(t)
     v.update({"shoulder_l": fwd(40 * (1 - ease(t))), "shoulder_r": fwd(36 * (1 - ease(t)))})
     return v
 
@@ -2123,7 +2246,7 @@ def orc_hurt(t):
 
 
 def orc_death(t):
-    return fall_back(t)
+    return topple(t, armed=True)
 
 
 # =================================================================================
@@ -2156,14 +2279,29 @@ CREATURES = {
     "ankou":     (build_ankou,     80, (ankou_idle, ankou_walk, ankou_attack, ankou_hurt, ankou_death),  0.30),
     "banshee":   (build_banshee,   72, (banshee_idle, banshee_walk, banshee_attack, banshee_hurt, banshee_death), 0.26),
 }
-CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False), ("death", 6, False)]
+CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False),
+               ("death", 6, False), ("run", 6, True)]
+
+# Who runs. A creature that charges or bolts gets a run cycle; everything else
+# has one gait and uses it, and a sheet it never plays is a sheet that quietly
+# goes stale. These seven had run sheets left over from the art this project
+# started with -- bright green orcs and spotted fawns, in a different style and
+# a different layout from everything around them, and still being drawn the
+# moment anything broke into a run.
+# How far each one opens its walk up. A two-legged stride takes a lot of
+# stretching before it reads as a run; four legs do not -- at anything much
+# over a fifth the deer stops running and starts doing the splits.
+RUNNERS = {"orc1": 1.45, "orc2": 1.45, "orc3": 1.40,
+           "boar": 1.20, "deer": 1.18, "fox": 1.20, "hare": 1.20}
 FACINGS = bc.FACINGS
 
 
 def build_sheet(creature, clip_index):
     builder, frame_px, poses, shadow_r = CREATURES[creature]
     clip, frames, loops = CLIP_FRAMES[clip_index]
-    pose_fn = poses[clip_index]
+    # A run is made out of the creature's own walk rather than authored twice:
+    # see running().
+    pose_fn = running(poses[1], RUNNERS[creature]) if clip == "run" else poses[clip_index]
 
     bc.FRAME_PX = frame_px
     bc.FRAME_SPAN = UNITS_PER_PX * frame_px
@@ -2178,10 +2316,11 @@ def build_sheet(creature, clip_index):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(max(1, frames - 1))
             rig = builder()
-            rig.apply(pose_fn(t))
             offset = right * (bc.FRAME_SPAN * col) - up * (bc.FRAME_SPAN * row)
-            rig.root.rotation_euler = (0, 0, math.radians(turn))
-            rig.root.location = offset
+            # apply() sets the root's rotation, turn included, so that a
+            # world-space fall can sit outside the facing.
+            rig.apply(pose_fn(t), turn)
+            rig.root.location = offset + rig.fall
             shadow = part("shadow", E(shadow_r, shadow_r * 0.7, 0.004), "shadow", None,
                           loc=offset + Vector((0, 0, 0.004)))
             bodies += rig.parts
@@ -2229,6 +2368,8 @@ def main():
     for creature in wanted:
         for index, (clip, _, _) in enumerate(CLIP_FRAMES):
             if clips and clip not in clips:
+                continue
+            if clip == "run" and creature not in RUNNERS:
                 continue
             build_sheet(creature, index)
 

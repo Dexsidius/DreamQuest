@@ -1982,7 +1982,73 @@ def prop_campfire_ring():
     return 1.6
 
 
+def prop_town_gate():
+    """Havenbrook's gate: two stacked-log towers either side of the Sunken
+    Road, a lintel across the top with the town's board hung under it, and the
+    leaves of the gate standing open flat against the towers.
+
+    The road used to simply stop in a field, and the way into the town was a
+    rectangle of grass at the end of it. A gate is what tells you that you have
+    arrived somewhere before you walk through it.
+
+    The opening is left clear all the way up to the lintel: anything hung
+    across it -- the board, a beam, a bar of the gate -- reads as a closed
+    door from above, and the one thing this has to say is "walk through here".
+    """
+    OPEN = 2.20          # the gap the road runs through
+    px_of = lambda sx: sx * (OPEN / 2 + 0.44)
+
+    # The roadway under the gate, so the opening reads as a way through rather
+    # than as a gap between two sheds.
+    blk("threshold", (OPEN + 0.20, 0.90, 0.06), (0, 0, 0.03), "stone", bev=0.02)
+    for k in range(4):
+        blk("rut_%d" % k, (OPEN + 0.16, 0.09, 0.03), (0, -0.33 + k * 0.22, 0.07),
+            "stone_pale", bev=0.01)
+
+    for sx in (-1, 1):
+        px = px_of(sx)
+        # A tower of stacked logs laid along the wall, ends facing the road.
+        for k in range(6):
+            z = 0.16 + k * 0.30
+            for row, y in enumerate((-0.32, 0.0, 0.32)):
+                cyl("log_%d_%d_%d" % (sx, k, row), 0.15, 0.84,
+                    (px, y, z), ("log", "log_dk")[(k + row) % 2],
+                    rot=(0, math.radians(90), 0), verts=10)
+        blk("cap_%d" % sx, (1.00, 1.06, 0.12), (px, 0, 1.98), "log_dk", bev=0.03)
+        # A little shingled roof on each tower, so they read as gatehouses
+        # rather than as two stacks of firewood.
+        for rx in (-1, 1):
+            blk("shingle_%d_%d" % (sx, rx), (0.66, 1.16, 0.09), (px + rx * 0.27, 0, 2.12),
+                "shingle", rot=(0, rx * math.radians(32), 0), bev=0.02)
+        blk("ridge_%d" % sx, (0.14, 1.20, 0.09), (px, 0, 2.30), "shingle_dk", bev=0.02)
+        # The leaf of the gate, swung right back against the outside of its
+        # tower and out of the road.
+        lx = px + sx * 0.52
+        for k in range(5):
+            cyl("bar_%d_%d" % (sx, k), 0.036, 1.20, (lx, -0.28 + k * 0.15, 0.62), "log", verts=8)
+        for z in (0.30, 1.02):
+            blk("leaf_rail_%d_%.2f" % (sx, z), (0.10, 0.76, 0.08), (lx, 0, z), "log_dk", bev=0.02)
+        blk("hinge_%d" % sx, (0.20, 0.10, 0.10), (px + sx * 0.28, -0.26, 0.96), "iron", bev=0.02)
+        # A lamp on the inner face of each tower, for coming home after dark.
+        blk("lamp_%d" % sx, (0.17, 0.17, 0.22), (px - sx * 0.46, -0.34, 1.50),
+            "candle_glow", emit=1.5, bev=0.03)
+        blk("lamp_cap_%d" % sx, (0.22, 0.22, 0.05), (px - sx * 0.46, -0.34, 1.64), "iron", bev=0.02)
+        blk("lamp_arm_%d" % sx, (0.26, 0.06, 0.06), (px - sx * 0.34, -0.34, 1.64), "iron", bev=0.015)
+
+    # The lintel across the top, high enough that the way under it stays open,
+    # with the town's board fixed to its face rather than hung in the gap.
+    blk("lintel", (OPEN + 1.90, 0.40, 0.30), (0, 0, 1.82), "oak", bev=0.03)
+    blk("lintel_trim", (OPEN + 1.90, 0.44, 0.08), (0, 0, 1.64), "log_dk", bev=0.02)
+    for sx in (-1, 1):
+        blk("brace_%d" % sx, (0.60, 0.18, 0.18), (sx * (OPEN / 2 + 0.06), 0, 1.44),
+            "log_dk", rot=(0, sx * math.radians(44), 0), bev=0.02)
+    blk("board", (1.24, 0.10, 0.40), (0, -0.24, 1.80), "oak_light", bev=0.02)
+    blk("board_edge", (1.30, 0.07, 0.06), (0, -0.26, 1.58), "log_dk", bev=0.015)
+    return (4.8, BUILDING_ELEVATION)
+
+
 WOODLAND_PROPS = {
+    "town_gate":    (prop_town_gate,    160),
     "well":         (prop_well,         56),
     "well_dry":     (prop_well_dry,     56),
     "market_stall": (prop_market_stall, 80),

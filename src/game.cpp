@@ -278,6 +278,7 @@ bool Game::InGameplayState() const {
         case GameState::Note:
         case GameState::Crafting:
         case GameState::Shop:
+        case GameState::Storage:
         case GameState::Death:
             return true;
         default:
@@ -403,6 +404,7 @@ void Game::Update(float dt) {
         case GameState::Note:            UpdateNote(); break;
         case GameState::Crafting:        UpdateCrafting(); break;
         case GameState::Shop:            UpdateShop(); break;
+        case GameState::Storage:         UpdateStorage(); break;
         case GameState::Death:           UpdateDeath(dt); break;
     }
 
@@ -581,6 +583,15 @@ void Game::HandleWorldRequests() {
                 OpenPanel(GameState::Crafting);
                 break;
 
+            case WorldRequest::Type::Storage:
+                storage_id     = r.id;
+                storage_title  = r.title;
+                storage_slots  = r.count > 0 ? r.count : 100;
+                storage_cursor = storage_bag_cursor = 0;
+                storage_on_chest = false;
+                OpenPanel(GameState::Storage);
+                break;
+
             case WorldRequest::Type::Toast:
                 PushToast(r.text);
                 break;
@@ -757,6 +768,7 @@ void Game::Render() {
         case GameState::Note:            DrawNote(); break;
         case GameState::Crafting:        DrawCrafting(); break;
         case GameState::Shop:            DrawShop(); break;
+        case GameState::Storage:         DrawStorage(); break;
         case GameState::Death:           DrawDeath(); break;
         case GameState::Play:            break;
     }

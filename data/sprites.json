@@ -145,7 +145,7 @@
                                         },
                                "run":  {
                                            "sheet":  "run.png",
-                                           "frames":  5,
+                                           "frames":  6,
                                            "fps":  13,
                                            "loop":  true
                                        },
@@ -717,7 +717,7 @@
                                         },
                                "run":  {
                                            "sheet":  "run.png",
-                                           "frames":  8,
+                                           "frames":  6,
                                            "fps":  13,
                                            "loop":  true
                                        },
@@ -761,7 +761,7 @@
                                         },
                                "run":  {
                                            "sheet":  "run.png",
-                                           "frames":  8,
+                                           "frames":  6,
                                            "fps":  13,
                                            "loop":  true
                                        },
@@ -805,7 +805,7 @@
                                         },
                                "run":  {
                                            "sheet":  "run.png",
-                                           "frames":  8,
+                                           "frames":  6,
                                            "fps":  13,
                                            "loop":  true
                                        },
