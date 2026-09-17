@@ -5,7 +5,7 @@
 #      blender --background --python tools/blender_tiers.py -- [icons] [layers]
 #          [--only CLIP,CLIP] [--models sword_iron,bow_wood]
 #
-#  Wood, Bronze, Iron, Steel, Azuryte, Adamantium, Diamond, Platinum, Demonrite.
+#  Wood, Bronze, Iron, Steel, Azuryte, Damascus, Diamond, Platinum, Demonite.
 #  Every tier gets its own ore, bar, sword, bow, staff, shield, helm, cuirass and
 #  greaves, modelled here from the same rounded parts and cel shading as the
 #  player hero (tools/blender_character.py, which this imports), so the icons
@@ -23,8 +23,8 @@
 #  Telling the tiers apart is done three ways at once, because at game size a
 #  colour on its own is not enough: each tier has its own palette, its own
 #  silhouette (a wooden sword is short and blunt, a platinum one long with a
-#  winged guard, a demonrite one jagged), and the top tiers carry something
-#  that glows -- azuryte's cyan edge, diamond's white facets, demonrite's red.
+#  winged guard, a demonite one jagged), and the top tiers carry something
+#  that glows -- azuryte's cyan edge, diamond's white facets, demonite's red.
 # =============================================================================
 
 import math
@@ -43,7 +43,8 @@ ICON_DIR = os.path.join(bc.ROOT, "assets", "icons", "tiers")
 RENDER_DIR = os.path.join(bc.ROOT, "assets", "_render", "tiers")
 ICON_PX = 32
 
-TIERS = ["wood", "bronze", "iron", "steel", "azuryte", "adamantium", "diamond", "platinum", "demonrite"]
+TIERS = ["wood", "bronze", "iron", "steel", "azuryte", "damascus", "orichalcum",
+         "diamond", "platinum", "demonite", "dracon", "enchanted"]
 
 # Per tier: the main material, a lighter one for edges and highlights, a dark
 # one for fittings, the grip, an accent, and a glow (None for no glow).
@@ -58,14 +59,20 @@ PALETTES = {
                        grip=(0.20, 0.23, 0.36), accent=(0.93, 0.76, 0.34), glow=None),
     "azuryte":    dict(main=(0.24, 0.48, 0.94), light=(0.50, 0.74, 1.00), dark=(0.13, 0.22, 0.54),
                        grip=(0.12, 0.16, 0.32), accent=(0.84, 0.88, 0.96), glow=(0.52, 0.94, 1.00)),
-    "adamantium": dict(main=(0.20, 0.54, 0.36), light=(0.44, 0.80, 0.58), dark=(0.10, 0.25, 0.17),
-                       grip=(0.18, 0.15, 0.13), accent=(0.66, 0.70, 0.62), glow=None),
+    "damascus":   dict(main=(0.42, 0.44, 0.50), light=(0.74, 0.78, 0.84), dark=(0.19, 0.20, 0.25),
+                       grip=(0.24, 0.18, 0.14), accent=(0.58, 0.62, 0.70), glow=None),
     "diamond":    dict(main=(0.74, 0.93, 1.00), light=(1.00, 1.00, 1.00), dark=(0.46, 0.74, 0.88),
                        grip=(0.30, 0.36, 0.48), accent=(0.60, 0.86, 0.98), glow=(0.86, 1.00, 1.00)),
     "platinum":   dict(main=(0.93, 0.91, 0.85), light=(1.00, 1.00, 0.96), dark=(0.66, 0.63, 0.56),
                        grip=(0.48, 0.16, 0.19), accent=(0.96, 0.78, 0.32), glow=(1.00, 0.94, 0.68)),
-    "demonrite":  dict(main=(0.30, 0.15, 0.18), light=(0.56, 0.26, 0.28), dark=(0.14, 0.07, 0.09),
+    "demonite":  dict(main=(0.30, 0.15, 0.18), light=(0.56, 0.26, 0.28), dark=(0.14, 0.07, 0.09),
                        grip=(0.12, 0.07, 0.08), accent=(0.42, 0.14, 0.16), glow=(1.00, 0.26, 0.12)),
+    "orichalcum": dict(main=(0.84, 0.62, 0.26), light=(0.98, 0.84, 0.48), dark=(0.50, 0.33, 0.12),
+                       grip=(0.26, 0.17, 0.10), accent=(0.72, 0.36, 0.20), glow=None),
+    "dracon":     dict(main=(0.78, 0.38, 0.12), light=(0.98, 0.64, 0.26), dark=(0.40, 0.17, 0.06),
+                       grip=(0.22, 0.14, 0.10), accent=(0.96, 0.84, 0.44), glow=(1.00, 0.62, 0.18)),
+    "enchanted":  dict(main=(0.56, 0.40, 0.86), light=(0.80, 0.68, 1.00), dark=(0.28, 0.18, 0.48),
+                       grip=(0.22, 0.16, 0.34), accent=(0.92, 0.88, 1.00), glow=(0.78, 0.56, 1.00)),
 }
 
 for _tier, _pal in PALETTES.items():
@@ -158,10 +165,13 @@ SWORDS = {
     "iron":       (0.46, 0.050, 0.10, ""),
     "steel":      (0.54, 0.052, 0.13, "pommel"),
     "azuryte":    (0.56, 0.056, 0.12, "edge gem"),
-    "adamantium": (0.52, 0.085, 0.15, "heavy"),
+    "damascus": (0.52, 0.085, 0.15, "heavy"),
     "diamond":    (0.60, 0.058, 0.10, "crystal edge"),
     "platinum":   (0.66, 0.060, 0.12, "wings gem pommel"),
-    "demonrite":  (0.64, 0.066, 0.13, "spikes horns edge gem"),
+    "demonite":  (0.64, 0.066, 0.13, "spikes horns edge gem"),
+    "orichalcum": (0.60, 0.072, 0.15, "heavy leaf pommel"),
+    "dracon":     (0.70, 0.070, 0.14, "spikes edge wings gem"),
+    "enchanted":  (0.72, 0.050, 0.12, "edge crystal gem pommel wings"),
 }
 
 
@@ -229,10 +239,13 @@ BOWS = {
     "iron":       (0.38, 0.11, 0.030, "bands"),
     "steel":      (0.42, 0.10, 0.028, "recurve tips"),
     "azuryte":    (0.44, 0.12, 0.030, "recurve glowstring gem"),
-    "adamantium": (0.42, 0.09, 0.040, "bands tips"),
+    "damascus": (0.42, 0.09, 0.040, "bands tips"),
     "diamond":    (0.46, 0.12, 0.030, "crystal"),
     "platinum":   (0.48, 0.12, 0.030, "recurve wings gem"),
-    "demonrite":  (0.48, 0.13, 0.034, "recurve spikes glowstring"),
+    "demonite":  (0.48, 0.13, 0.034, "recurve spikes glowstring"),
+    "orichalcum": (0.46, 0.11, 0.036, "recurve bands tips gem"),
+    "dracon":     (0.50, 0.14, 0.034, "recurve spikes wings glowstring"),
+    "enchanted":  (0.52, 0.12, 0.028, "recurve crystal glowstring gem"),
 }
 
 
@@ -295,7 +308,7 @@ def build_staff(tier, parent):
     parts.append(frame)
     parent = frame
     add = lambda *a, **k: parts.append(bc.part(*a, **k))
-    shaft = {"wood": P(tier, "main"), "platinum": P(tier, "main"), "demonrite": P(tier, "main"),
+    shaft = {"wood": P(tier, "main"), "platinum": P(tier, "main"), "demonite": P(tier, "main"),
              "diamond": P(tier, "dark")}.get(tier, "wood_dark")
     top, bottom = 0.60, -0.34
     add("shaft", bc.mesh_capsule(0.024, 0.022, top - bottom), shaft, parent, loc=(0, 0, top))
@@ -321,7 +334,7 @@ def build_staff(tier, parent):
             parts.append(bc.spike("prong", (0, 0, top), (side * 0.07, 0, top + 0.12), 0.022,
                                   P(tier, "main"), parent))
         add("crystal", mesh_gem(0.05, 0.045, 0.11), P(tier, "glow"), parent, loc=(0, 0, top + 0.14))
-    elif tier == "adamantium":
+    elif tier == "damascus":
         for dx in (-0.08, 0.0, 0.08):
             parts.append(bc.spike("prong", (0, 0, top - 0.02), (dx, 0, top + 0.2), 0.026,
                                   P(tier, "main"), parent))
@@ -337,7 +350,7 @@ def build_staff(tier, parent):
             rot=(math.radians(90), 0, 0))
         add("orb", bc.mesh_ellipsoid(0.05, 0.05, 0.05), P(tier, "glow"), parent, loc=(0, 0, top + 0.14))
         add("collar", bc.mesh_ellipsoid(0.04, 0.04, 0.03), P(tier, "accent"), parent, loc=(0, 0, top))
-    elif tier == "demonrite":
+    elif tier == "demonite":
         for side in (-1, 1):
             parts.append(bc.spike("horn", (side * 0.02, 0, top - 0.02), (side * 0.12, 0, top + 0.12), 0.034,
                                   P(tier, "light"), parent))
@@ -358,10 +371,13 @@ SPEARS = {
     "iron":       (0.21, 0.036, ""),
     "steel":      (0.25, 0.040, "lugs"),
     "azuryte":    (0.25, 0.044, "edge gem"),
-    "adamantium": (0.23, 0.064, "heavy lugs"),
+    "damascus": (0.23, 0.064, "heavy lugs"),
     "diamond":    (0.26, 0.050, "crystal"),
     "platinum":   (0.28, 0.050, "wings gem collar"),
-    "demonrite":  (0.28, 0.054, "barbs horns edge"),
+    "demonite":  (0.28, 0.054, "barbs horns edge"),
+    "orichalcum": (0.27, 0.058, "heavy lugs collar"),
+    "dracon":     (0.30, 0.058, "barbs wings edge"),
+    "enchanted":  (0.31, 0.046, "crystal edge gem collar"),
 }
 # Which way a spear is carried: upright beside the shoulder like a staff, or,
 # during a thrust, levelled along the arm with the head out in front.
@@ -445,7 +461,7 @@ bc.PALETTE["wood_dark"] = PALETTES["wood"]["dark"]
 # Built in the grip's frame like the sword: the fist at the origin, the haft
 # running down -Z past it to the head. The heads grow a little with each tier
 # and pick up the tier's extras, so a diamond pick carries a crystal and a
-# demonrite axe is barbed.
+# demonite axe is barbed.
 
 # In an icon the whole tool has to fit a 32-pixel square, and at its in-hand
 # proportions that is a long stick with a speck on the end: an axe and a pick
@@ -468,7 +484,7 @@ def _tool_extras(tier, parent, at, size):
     if tier in ("platinum", "steel"):
         parts.append(bc.part("band", bc.mesh_torus(0.028 * size, 0.009), P(tier, "accent"), parent,
                              loc=(0, 0, at + 0.07 * size)))
-    if tier == "demonrite":
+    if tier == "demonite":
         for side in (-1, 1):
             parts.append(bc.spike("barb", (0, 0, at), (side * 0.06 * size, 0, at + 0.10 * size), 0.018,
                                   P(tier, "light"), parent))
@@ -619,12 +635,25 @@ def build_shield(tier, parent):
             add("gem", mesh_gem(0.06, 0.05, 0.07), P(tier, "glow"), parent, loc=(0, -0.09, 0.12))
         if tier == "platinum":
             add("rim", bc.mesh_ellipsoid(0.32, 0.03, 0.05), P(tier, "accent"), parent, loc=(0, -0.02, 0.36))
-        if tier == "demonrite":
+        if tier == "demonite":
             for side in (-1, 1):
                 parts.append(bc.spike("spike", (side * 0.26, 0, 0.3), (side * 0.40, 0, 0.44), 0.05,
                                       P(tier, "light"), parent))
-        if tier == "adamantium":
+        if tier == "damascus":
             add("rivets", bc.mesh_ellipsoid(0.30, 0.04, 0.03), P(tier, "dark"), parent, loc=(0, -0.03, 0.30))
+        if tier == "orichalcum":
+            # Heavy and banded: red gold worked the way the old smiths worked it.
+            for z in (0.10, 0.26):
+                add("band", bc.mesh_ellipsoid(0.29, 0.04, 0.025), P(tier, "accent"), parent,
+                    loc=(0, -0.03, z))
+        if tier == "dracon":
+            for side in (-1, 1):
+                parts.append(bc.spike("wing", (side * 0.24, 0, 0.32), (side * 0.44, 0, 0.14), 0.06,
+                                      P(tier, "accent"), parent))
+        if tier == "enchanted":
+            for dz in (0.06, 0.20, 0.34):
+                add("shard", mesh_gem(0.045, 0.035, 0.08, sides=4), P(tier, "accent"), parent,
+                    loc=(0, -0.09, dz))
     return parts
 
 
@@ -640,7 +669,7 @@ def build_helm(tier, parent):
         add("crest", bc.mesh_ellipsoid(0.04, 0.22, 0.09), P(tier, "accent"), parent, loc=(0, 0.02, 0.28))
     if tier == "azuryte":
         add("gem", mesh_gem(0.05, 0.03, 0.06), P(tier, "glow"), parent, loc=(0, -0.26, 0.12))
-    if tier == "adamantium":
+    if tier == "damascus":
         add("ridge", bc.mesh_ellipsoid(0.05, 0.26, 0.05), P(tier, "light"), parent, loc=(0, 0, 0.26))
     if tier == "diamond":
         for dx in (-0.12, 0, 0.12):
@@ -649,11 +678,30 @@ def build_helm(tier, parent):
         for side in (-1, 1):
             parts.append(bc.spike("wing", (side * 0.22, 0, 0.1), (side * 0.40, 0, 0.30), 0.04,
                                   P(tier, "light"), parent))
-    if tier == "demonrite":
+    if tier == "demonite":
         for side in (-1, 1):
             parts.append(bc.spike("horn", (side * 0.2, 0, 0.14), (side * 0.36, 0, 0.40), 0.06,
                                   P(tier, "light"), parent))
         add("eyes", mesh_box(0.18, 0.02, 0.02), P(tier, "glow"), parent, loc=(0, -0.28, -0.02))
+    if tier == "orichalcum":
+        # A broad brow and a cheek plate either side: a heavier helm, not a
+        # spikier one -- the spikes belong to the tiers above it.
+        add("brow", bc.mesh_ellipsoid(0.27, 0.27, 0.04), P(tier, "accent"), parent, loc=(0, 0, 0.10))
+        for side in (-1, 1):
+            add("cheek", bc.mesh_ellipsoid(0.07, 0.10, 0.12), P(tier, "dark"), parent,
+                loc=(side * 0.22, -0.08, -0.06))
+    if tier == "dracon":
+        # Horns curling forward, and a fin down the crown.
+        for side in (-1, 1):
+            parts.append(bc.spike("horn", (side * 0.20, 0.04, 0.16), (side * 0.34, -0.22, 0.34), 0.06,
+                                  P(tier, "accent"), parent))
+        add("fin", bc.mesh_ellipsoid(0.04, 0.24, 0.10), P(tier, "light"), parent, loc=(0, 0.02, 0.28))
+        add("eyes", mesh_box(0.18, 0.02, 0.02), P(tier, "glow"), parent, loc=(0, -0.28, -0.02))
+    if tier == "enchanted":
+        for dx, dz in ((-0.13, 0.28), (0, 0.36), (0.13, 0.28)):
+            add("shard", mesh_gem(0.04, 0.04, 0.12, sides=4), P(tier, "accent"), parent,
+                loc=(dx, 0, dz))
+        add("eyes", mesh_box(0.16, 0.02, 0.02), P(tier, "glow"), parent, loc=(0, -0.27, -0.02))
     if tier == "wood":
         add("band", bc.mesh_torus(0.24, 0.02), "leather", parent, loc=(0, 0, 0.08))
     return parts
@@ -668,16 +716,31 @@ def build_body(tier, parent):
     for side in (-1, 1):
         add("pauldron", bc.mesh_ellipsoid(0.13, 0.13, 0.09), P(tier, "dark" if tier != "platinum" else "accent"),
             parent, loc=(side * 0.27, 0, 0.18))
-        if tier == "demonrite":
+        if tier == "demonite":
             parts.append(bc.spike("spike", (side * 0.3, 0, 0.22), (side * 0.44, 0, 0.40), 0.05,
                                   P(tier, "light"), parent))
         if tier == "diamond":
             add("crystal", mesh_gem(0.05, 0.05, 0.10, sides=4), P(tier, "light"), parent,
                 loc=(side * 0.27, 0, 0.30))
+        if tier == "orichalcum":
+            add("stud", bc.mesh_ellipsoid(0.05, 0.05, 0.05), P(tier, "accent"), parent,
+                loc=(side * 0.27, -0.04, 0.24))
+        if tier == "dracon":
+            parts.append(bc.spike("wing", (side * 0.26, 0.04, 0.22), (side * 0.48, 0.16, 0.42), 0.06,
+                                  P(tier, "accent"), parent))
+        if tier == "enchanted":
+            add("shard", mesh_gem(0.04, 0.04, 0.12, sides=4), P(tier, "accent"), parent,
+                loc=(side * 0.27, 0, 0.32))
     if PALETTES[tier]["glow"]:
         add("core", mesh_gem(0.05, 0.03, 0.06), P(tier, "glow"), parent, loc=(0, -0.22, 0.10))
     if tier == "steel":
         add("trim", bc.mesh_ellipsoid(0.03, 0.03, 0.14), P(tier, "accent"), parent, loc=(0, -0.21, 0.08))
+    if tier == "orichalcum":
+        add("collar", bc.mesh_torus(0.15, 0.03), P(tier, "accent"), parent, loc=(0, 0, 0.30))
+    if tier == "dracon":
+        for z in (0.02, 0.12, 0.22):
+            add("scale", bc.mesh_ellipsoid(0.11, 0.05, 0.035), P(tier, "dark"), parent,
+                loc=(0, -0.17, z))
     return parts
 
 
@@ -689,10 +752,16 @@ def build_legs(tier, parent):
         add("thigh", bc.mesh_capsule(0.10, 0.085, 0.20), P(tier, "main"), parent, loc=(side * 0.11, 0, 0.26))
         add("knee", bc.mesh_ellipsoid(0.07, 0.07, 0.06), P(tier, "light"), parent, loc=(side * 0.11, -0.05, -0.02))
         add("shin", bc.mesh_capsule(0.085, 0.075, 0.22), P(tier, "main"), parent, loc=(side * 0.11, 0, -0.06))
-        if tier == "demonrite":
+        if tier in ("demonite", "dracon"):
             parts.append(bc.spike("spike", (side * 0.11, -0.05, -0.02), (side * 0.2, -0.12, 0.06), 0.04,
-                                  P(tier, "light"), parent))
-        if PALETTES[tier]["glow"] and tier != "demonrite":
+                                  P(tier, "light" if tier == "demonite" else "accent"), parent))
+        if tier == "orichalcum":
+            add("band", bc.mesh_torus(0.09, 0.022), P(tier, "accent"), parent,
+                loc=(side * 0.11, 0, -0.16))
+        if tier == "enchanted":
+            add("shard", mesh_gem(0.03, 0.03, 0.08, sides=4), P(tier, "accent"), parent,
+                loc=(side * 0.11, -0.09, 0.04))
+        if PALETTES[tier]["glow"] and tier not in ("demonite", "dracon", "enchanted"):
             add("gem", mesh_gem(0.03, 0.02, 0.04), P(tier, "glow"), parent, loc=(side * 0.11, -0.08, -0.02))
     return parts
 
@@ -702,15 +771,15 @@ def build_ore(tier, parent):
     crystals. Wood has no ore; bronze is worked from copper ore."""
     parts = []
     add = lambda *a, **k: parts.append(bc.part(*a, **k))
-    rock = "rock_dark" if tier in ("demonrite", "adamantium") else "rock"
+    rock = "rock_dark" if tier in ("demonite", "damascus") else "rock"
     add("rock", bc.mesh_ellipsoid(0.30, 0.24, 0.20), rock, parent)
     add("rock2", bc.mesh_ellipsoid(0.16, 0.16, 0.14), rock, parent, loc=(0.2, 0.02, 0.1))
     spots = [(-0.12, -0.2, 0.06), (0.06, -0.22, 0.0), (0.18, -0.12, 0.16), (-0.05, -0.14, 0.16)]
     if tier == "steel":            # coal: black lumps rather than metal in rock
         for i, s in enumerate(spots):
-            add("coal", mesh_gem(0.10, 0.09, 0.08, sides=5), P("demonrite", "main"), parent, loc=s)
+            add("coal", mesh_gem(0.10, 0.09, 0.08, sides=5), P("demonite", "main"), parent, loc=s)
         return parts
-    crystal = tier in ("azuryte", "diamond", "demonrite")
+    crystal = tier in ("azuryte", "diamond", "demonite")
     for i, s in enumerate(spots):
         colour = P(tier, "light") if i % 2 else P(tier, "main")
         if crystal:
@@ -795,11 +864,14 @@ def render_icon(name, builder, tier, tilt, spin, fill=0.92):
 
 
 ORES = {"bronze": "copper_ore", "iron": "iron_ore", "steel": "coal", "azuryte": "azuryte_ore",
-        "adamantium": "adamantium_ore", "diamond": "diamond_ore", "platinum": "platinum_ore",
-        "demonrite": "demonrite_ore"}
+        "damascus": "damascus_ore", "orichalcum": "orichalcum_ore", "diamond": "diamond_ore",
+        "platinum": "platinum_ore", "demonite": "demonite_ore"}
 BARS = {"bronze": "bronze_bar", "iron": "iron_bar", "steel": "steel_bar", "azuryte": "azuryte_bar",
-        "adamantium": "adamantium_bar", "diamond": "diamond_ingot", "platinum": "platinum_bar",
-        "demonrite": "demonrite_bar"}
+        "damascus": "damascus_bar", "orichalcum": "orichalcum_bar", "diamond": "diamond_ingot",
+        "platinum": "platinum_bar", "demonite": "demonite_bar",
+        # Neither of the last two is mined, so neither has an ore icon -- but
+        # both still need a bar to sit in the bag.
+        "dracon": "dracon_bar", "enchanted": "enchanted_bar"}
 
 
 def all_icons(only_tiers):
@@ -818,8 +890,12 @@ def all_icons(only_tiers):
         # Turned side-on, so the blade and the points are seen in profile.
         jobs.append(("axe_" + tier,     build_axe,     -135, 90, 1.0))
         jobs.append(("pickaxe_" + tier, build_pickaxe, -135, 90, 1.0))
+        # A tier with no ore is smelted from something else -- dracon from a
+        # dragon's fang, enchanted in the Reverie -- so it has a bar to draw
+        # but no rock.
         if tier in ORES:
             jobs.append((ORES[tier], build_ore, 0, 18, 0.9))
+        if tier in BARS:
             jobs.append((BARS[tier], build_bar, 0, 28, 0.9))
         for name, builder, tilt, spin, fill in jobs:
             render_icon(name, builder, tier, tilt, spin, fill)

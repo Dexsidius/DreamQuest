@@ -15,6 +15,8 @@ LayerSlot LayerSlotFromName(const string& name) {
     // weapon_sword_iron, weapon_bow_wood and the like: alternates for the
     // weapon layer, not layers in their own right.
     if (name.rfind("weapon_", 0) == 0) return LayerSlot::WeaponAlt;
+    // armour_body_light, armour_head_ornate: the other cuts of the same piece.
+    if (name.rfind("armour_", 0) == 0) return LayerSlot::ArmourAlt;
     return LayerSlot::Body;
 }
 
@@ -220,6 +222,8 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         // Every tier's weapon sheet is listed; the one in hand is drawn by the
         // weapon_front swap below, and the rest are not drawn at all.
         if (layer.slot == LayerSlot::WeaponAlt) continue;
+        // Likewise the light and ornate cuts of each plate piece.
+        if (layer.slot == LayerSlot::ArmourAlt) continue;
 
         if (!style.show_weapon && (layer.slot == LayerSlot::WeaponBack ||
                                    layer.slot == LayerSlot::WeaponFront)) {
@@ -241,6 +245,15 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
                 path.replace(at, 12, "weapon_" + style.weapon_model);
                 tex = cache.Get(path);
                 model_sheet = tex != nullptr;
+            }
+        }
+        if (armour >= 0 && !style.armour[armour].cut.empty()) {
+            // layers/idle_7_armour_body.png -> layers/idle_7_armour_body_light.png
+            string path = layer.sheet;
+            const size_t dot = path.rfind(".png");
+            if (dot != string::npos) {
+                path.insert(dot, "_" + style.armour[armour].cut);
+                tex = cache.Get(path);
             }
         }
         if (!tex) tex = cache.Get(layer.sheet);

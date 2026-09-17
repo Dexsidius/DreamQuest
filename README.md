@@ -383,7 +383,7 @@ nodes are saved with the character.
 
 ## Material tiers
 
-Weapons and armour come in nine tiers, in this order:
+Weapons and armour come in twelve tiers, in this order:
 
 | Tier | Needs | Worked from | Mined at | Found |
 | --- | --- | --- | --- | --- |
@@ -392,24 +392,34 @@ Weapons and armour come in nine tiers, in this order:
 | **Iron** | 10 | iron ore | Mining 5 | the Mire, the Cursed Reach, the upper mine |
 | **Steel** | 20 | iron ore and coal | Mining 20 | coal in the high foothills, the Cursed Reach and the mines |
 | **Azuryte** | 30 | azuryte ore and coal | Mining 30 | the highest foothills and the barrow |
-| **Adamantium** | 40 | adamantium ore and coal | Mining 40 | the lower mine |
-| **Diamond** | 50 | rough diamond | Mining 50 | the barrow |
-| **Platinum** | 60 | platinum ore and coal | Mining 60 | the lower mine |
-| **Demonrite** | 70 | demonrite ore and dream shards | Mining 70 | only in the dreamworld, around the Nightmare Brute |
+| **Damascus** | 40 | damascus ore and coal | Mining 40 | the lower mine |
+| **Orichalcum** | 50 | orichalcum ore and coal | Mining 50 | the Ice Spire |
+| **Diamond** | 60 | rough diamond | Mining 60 | the barrow |
+| **Platinum** | 70 | platinum ore and coal | Mining 70 | the lower mine |
+| **Demonite** | 80 | demonite ore and dream shards | Mining 80 | only in the dreamworld, around the Nightmare Brute |
+| **Dracon** | 88 | demonite bars, a dragon's fang and coal | -- | not mined: beaten out of what a dragon leaves behind |
+| **Enchanted** | 95 | dracon bars and dream shards | -- | not mined: quenched in the Reverie |
+
+The last two tiers have no ore of their own. They are smelted from the tier
+below and something the player already brings back, so the end of the game asks
+for a trophy rather than another vein of rock.
 
 Every tier makes the same eight pieces -- a **sword, spear, bow, staff, shield,
 helm, cuirass and greaves** -- and every piece needs its tier's level in the
 skill it is used with: Attack for a sword or a spear, Ranged for a bow, Magic
 for a staff, Defence for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
 which need the tier's level in Woodcutting or Mining; see
-[Gathering](#gathering). Each metal tier has an **ore** and a **bar**. Ore is smelted into
+[Gathering](#gathering). Each mined tier has an **ore** and a **bar**. Ore is smelted into
 bars at an anvil, and bars are smithed into the pieces there too; wooden pieces
-are made at a workbench.
+are made at a workbench. Mining a tier's ore asks for **Mining at the tier's
+level**, the same as smelting and smithing it, except for bronze and iron,
+which stay below theirs so the first ores come out of the rock before the gear
+made from them can be worn.
 
 **Smithing** is its own skill, and it follows the tier milestones exactly:
 smelting a tier's bar and smithing anything from it needs **Smithing at the
 tier's level** -- the same number that wearing or wielding the result asks for.
-Bronze is Smithing 1, iron 10, steel 20, and so on up to demonrite at 70. Before
+Bronze is Smithing 1, iron 10, steel 20, and so on up to enchanted at 95. Before
 Smithing existed every bar and blade trained Crafting, so a save from then starts
 its Smithing where its Crafting stood and loses nothing it could already make. The item panel names an item's tier and says what it
 needs, in red-letter "needs" when you do not have it yet.
@@ -434,16 +444,22 @@ reduction and outline as the player hero, and rendered headlessly:
 
 ```powershell
 .\tools\make_tiers.ps1                          # icons and weapon layers
-.\tools\make_tiers.ps1 -What icons              # just the 79 icons
+.\tools\make_tiers.ps1 -What icons              # just the 112 icons
 .\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
 ```
 
 Tiers are told apart three ways at once, because at game size colour alone is
 not enough: each has its own **palette**, its own **silhouette** -- a wooden
-sword is short and blunt, bronze a leaf blade, adamantium a heavy cleaver,
-diamond a faceted crystal, platinum long with a winged guard, demonrite jagged
-and horned -- and the top tiers carry **something that glows**: azuryte's cyan
-edge, diamond's white sparks, platinum's gold halo, demonrite's red heat.
+sword is short and blunt, bronze a leaf blade, damascus a heavy cleaver,
+orichalcum broad and ridged, diamond a faceted crystal, platinum long with a
+winged guard, demonite jagged and horned, dracon a scaled fang, enchanted
+slender and lit -- and the top tiers carry **something that glows**: azuryte's
+cyan edge, diamond's white sparks, platinum's gold halo, demonite's red heat,
+dracon's ember, enchanted's violet.
+
+Damascus is watered steel now rather than the green it wore under its old name,
+and the three tiers added beside it are red gold (orichalcum), hot bronze
+(dracon) and the Reverie's violet (enchanted).
 
 The same models are what the hero holds. For every tier's sword, spear, bow and staff
 the script poses the weapon in the hero's hand for every frame of every clip and
@@ -496,7 +512,7 @@ named in the refusal ("Your Iron Pickaxe needs Mining 10").
 How long a tree, a seam or a cast takes is its base time divided by the level
 and the tool together: every level is 2% quicker, and every tier of axe and
 pickaxe is quicker than the one below. Measured on the same oak at Woodcutting
-70, a demonrite axe takes 0.58 seconds a log and bronze 1.08.
+70, a demonite axe takes 0.58 seconds a log and bronze 1.08.
 
 | Tier | Axe and pickaxe speed | Needs |
 | --- | --- | --- |
@@ -505,10 +521,10 @@ pickaxe is quicker than the one below. Measured on the same oak at Woodcutting
 | Iron | 1.30x | 10 |
 | Steel | 1.45x | 20 |
 | Azuryte | 1.60x | 30 |
-| Adamantium | 1.75x | 40 |
+| Damascus | 1.75x | 40 |
 | Diamond | 1.90x | 50 |
 | Platinum | 2.05x | 60 |
-| Demonrite | 2.25x | 70 |
+| Demonite | 2.25x | 70 |
 
 Axes and pickaxes are made like the rest of their tier: wooden ones from three
 logs at a workbench, metal ones from two bars and a log at an anvil. The
@@ -688,7 +704,7 @@ Better stock is gated on the story, the same way dialogue is:
 - Garrow's azuryte waits on the Trail Wardens, Bram's iron and steel axes on
   clearing the trail, Oona's tonics on Wendel's remedy.
 - The Collector opens the better cases after The Water Remembers and Lights on
-  the Pond: adamantium, platinum and demonrite ore, and a dreamcatcher.
+  the Pond: damascus, platinum and demonite ore, and a dreamcatcher.
 
 **No shop sells what a quest asks you to gather or deliver**, unless that quest
 is already finished -- and never what a daily asks for. Nobody sells copper ore,
@@ -716,7 +732,7 @@ shield. The game draws the layer for a slot only when something is worn there,
 and paints it the metal of that particular piece — so a bronze helm over an
 iron cuirass over steel greaves is drawn as exactly that, three metals at once.
 Armour used to be a tint over the whole character, which meant a full set of
-adamantium and a full set of bronze were the same silhouette in different
+damascus and a full set of bronze were the same silhouette in different
 colours.
 
 | Layer | Worn on | What it is |
@@ -727,11 +743,44 @@ colours.
 | `armour_head` | head | a skullcap with a brow band, nose guard and crest |
 | `armour_shield` | shield | a round shield on the off arm |
 
-The sheets are rendered once, in pale steel, and multiplied by the item's own
-colour at draw time — nine tiers of the same plate for the cost of one render.
-A piece drives its layer through `layer` on the tier piece in `data/tiers.json`,
-so adding a slot to the paperdoll is a one-line change there and a group in
+The sheets are rendered in pale steel and multiplied by the item's own colour
+at draw time, so twelve tiers of the same plate cost one render. A piece drives
+its layer through `layer` on the tier piece in `data/tiers.json`, so adding a
+slot to the paperdoll is a one-line change there and a group in
 `tools/blender_character.py`.
+
+### Three cuts, so a tier is not just a colour
+
+Colour alone would still have made a bronze jerkin and a demonite warplate the
+same silhouette, so the plate is modelled in **three cuts**, chosen by `cut` on
+the tier:
+
+| Cut | Tiers | What changes |
+| --- | --- | --- |
+| `light` | wood, bronze, iron | a leather cap with no crest or nasal, a strap and a bracer instead of pauldrons, no knee cops, a small buckler, everything a shade darker |
+| `plate` | steel to platinum | the full harness: crested helm, pauldrons, poleyns, a round shield |
+| `ornate` | demonite, dracon, enchanted | horns off the brow band, a taller crest, a swept wing and a spike on each pauldron, a knee spike, a deeper fauld, a spiked shield |
+
+Plate is the cut the sheets are named after, so it carries no suffix; the other
+two are rendered as `<clip>_<n>_armour_<slot>_<cut>.png` beside them, and the
+engine swaps the sheet for the piece's cut at draw time the way it already
+swaps the weapon sheet for the model in hand. Those sheets are listed in
+`data/sprites.json` like any other, under `LayerSlot::ArmourAlt`, which is
+skipped unless something worn asks for it — the same trick that keeps the
+character from holding a sword, a spear, a bow and a staff at once.
+
+Because the cut is per slot, the mixing still works both ways: a bronze helm
+over a demonite cuirass is drawn as a leather cap over a horned breastplate, in
+two metals.
+
+```powershell
+.\tools\make_character.ps1                          # three looks, three cuts
+.\tools\make_character.ps1 -Style light -Only idle   # just that cut's armour
+```
+
+An alternate cut renders the armour groups only — the body, head and weapon
+underneath are the same sheets whatever is worn over them — so each one costs
+about a third of a full pass.
 
 Four things that had to be got right, all of them found by looking at the
 result rather than by reasoning about it:
@@ -745,7 +794,10 @@ result rather than by reasoning about it:
   modelled at or below eye level, because with no holdout it draws straight
   through the face.
 - **A capsule hangs from its top cap.** The first cuirass was given a generous
-  shoulder and its collar climbed over the character's chin.
+  shoulder and its collar climbed over the character's chin. The same thing
+  decides a horn: a capsule points *down*, so the rotation that aims it is
+  about Y. Turning it about Z only spun it on its own axis, and the first
+  ornate horns stayed buried inside the helm.
 - **Every other layer keeps both holdouts**, so a forearm crossing the chest
   still passes in front of the breastplate.
 
@@ -1331,7 +1383,7 @@ read it. `Equipment::AttackSpeed()` existed and was never called.
 ### Spears
 
 A spear is the other melee weapon every tier makes, beside the sword: a fire-
-hardened wooden one, then bronze through demonrite, smithed at the anvil from
+hardened wooden one, then bronze through demonite, smithed at the anvil from
 two bars and two logs at the same level as that tier's sword. It is for keeping
 a fight at the end of the shaft. A weapon can declare its **shape** as well as
 its speed -- `reach`, `sweep` and `push` in `data/tiers.json`, multipliers on
@@ -1903,8 +1955,8 @@ and their chief.
 | **Orc Warchief** | the mine's last room | 28 | his totem, a warchief's purse, ember shards, steel and iron gear |
 | Lizardman | the Mire | 10-13 | lizard scales, bogbean, iron ore, hides |
 | Lizardman Chief | the camp in the Mire | 16 | scales, iron bars, a steel sword, Fen Bitters |
-| Ice Troll | the Ice Spire's slopes | 26-29 | troll hide, adamantium ore, azuryte gear |
-| Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, adamantium gear |
+| Ice Troll | the Ice Spire's slopes | 26-29 | troll hide, damascus ore, azuryte gear |
+| Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, damascus gear |
 | Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
 | **Hoarfang** | its own ground above the summit | 62 | dragon fangs, scales, diamond and platinum, diamond gear |
 | Cellar Slime | the well's upper workings | 8-9 | empty vials, bones, coins |
@@ -1918,8 +1970,8 @@ and their chief.
 | Wraith | Hollowrest, the old western half | 17-18 | grave candles, tarnished rings, mourning lockets |
 | The Hollowrest Wight | in front of the crypt | 26 | lockets, rings, candles, coins, steel |
 | Imp | the Ashen Path and the pit | 30-34 | coins, emberbloom, platinum ore, the odd horn |
-| Demon | the hellgate and the pit | 40-43 | demon horns, demonrite ore, platinum gear |
-| The Pit Lord | the pit's last room | 54 | horns, demonrite bars and gear |
+| Demon | the hellgate and the pit | 40-43 | demon horns, demonite ore, platinum gear |
+| The Pit Lord | the pit's last room | 54 | horns, demonite bars and gear |
 
 Each place is a step up from the one before, and none is a wall: monsters in the
 new areas are spaced along the way, do not chase far, and the Ice Spire has a camp
@@ -2137,6 +2189,12 @@ and checks all of it — currently **12730 checks** covering:
   its own slot and no weapon paints any; and a bronze helm over an iron cuirass
   over steel greaves turns on three layers in three different metals, with the
   character's own colouring left alone underneath
+- three cuts of armour: every tier is cut light, plate or ornate, plate carries
+  no suffix so it never looks for a sheet that was not rendered, every character
+  has every light and ornate sheet on disk, an alternate cut is recognised as an
+  alternate rather than as a second cuirass, and a bronze helm over a demonite
+  cuirass over steel greaves is drawn as a cap over a horned breastplate over
+  plain plate
 - inventory, equipment, skills and quest progress survive a save round-trip
 - the hero has every clip including sprint, each split into shadow, body and
   head with its sheets on disk, and its head and feet sit where the CraftPix
@@ -2213,13 +2271,13 @@ and checks all of it — currently **12730 checks** covering:
   that needs nothing first, lends a tool a beginner may actually use, asks for
   a load gathered and carried back, and hands it over only when the whole load
   is in the bag -- and the quest completes with the tool kept
-- nine tiers in order, each making all eight pieces with a recipe at the right
+- twelve tiers in order, each making all eight pieces with a recipe at the right
   station; every piece stronger and dearer than the same piece a tier down and
   needing its tier's level in the right skill; every metal tier with an ore and
   a bar and a smelting recipe; every ore mineable somewhere at its tier's Mining
   level; the old item ids still resolving as tier pieces
-- all 88 tier icons are different pictures, every tier weapon has a layer sheet
-  for every hero clip it can play, and all 36 look different in the hero's hand;
+- all 112 tier icons are different pictures, every tier weapon has a layer sheet
+  for every hero clip it can play, and all 48 look different in the hero's hand;
   every tier has a spear that reaches over one and a half times as far as a sword
   down a narrower line, shoves harder, is slower, strikes with the thrust clip,
   hits a monster a spear's length away that a sword cannot reach, and is smithed
@@ -2279,7 +2337,7 @@ and checks all of it — currently **12730 checks** covering:
   lake, each with real fish and reachable from dry land
 - in the world: a tree with no axe says so and gives nothing; a bronze axe
   gives logs while the hero chops and holds the axe, and stops when told; a
-  demonrite axe fells the same tree much faster than bronze; an iron pickaxe is
+  demonite axe fells the same tree much faster than bronze; an iron pickaxe is
   no use at Mining 1, a bronze one mines copper with the mining animation, and
   walking away stops it; the pond wants a rod, a level 1 fisher with one lands a
   minnow and trains Fishing, and at Fishing 99 some casts land more than one fish

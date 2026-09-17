@@ -494,8 +494,9 @@ static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
     // nothing to say which of the rocks around it was copper.
     static const std::map<string, string> kOre = {
         {"copper_ore", "copper"}, {"iron_ore", "iron"}, {"coal", "coal"},
-        {"azuryte_ore", "azuryte"}, {"adamantium_ore", "adamantium"},
-        {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonrite_ore", "demonrite"}};
+        {"azuryte_ore", "azuryte"}, {"damascus_ore", "damascus"},
+        {"orichalcum_ore", "orichalcum"},
+        {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonite_ore", "demonite"}};
     const auto name = kOre.find(yield);
     o["title"]       = (name == kOre.end() ? string("ore") : name->second) + (big ? " seam" : " outcrop");
 
@@ -2839,10 +2840,16 @@ static void BuildIceSpire() {
         const auto [x, y] = beside(t[0], t[1]);
         m.Enemy("ice_troll", x, y, t[2], 50.0f, 200.0f);
     }
-    // Ore in the rock the trolls guard.
+    // Ore in the rock the trolls guard, and orichalcum a little higher: it is
+    // the tier between damascus and diamond, so it is mined between the ground
+    // that yields one and the ground that yields the other.
     for (int k = 0; k < 3; ++k) {
         const auto [x, y] = beside(58 - k * 9, k % 2 ? 1 : -1);
-        PlaceRock(m, rng, 700 + rock_i++, x + (k % 2 ? 40 : -40), y, true, 40, "adamantium_ore");
+        PlaceRock(m, rng, 700 + rock_i++, x + (k % 2 ? 40 : -40), y, true, 40, "damascus_ore");
+    }
+    for (int k = 0; k < 3; ++k) {
+        const auto [x, y] = beside(40 - k * 7, k % 2 ? -1 : 1);
+        PlaceRock(m, rng, 760 + rock_i++, x + (k % 2 ? -44 : 44), y, true, 50, "orichalcum_ore");
     }
     // Wyverns and their nests round the summit.
     const int wyverns[][3] = {{27, -1, 1}, {22, 1, 2}, {17, -1, 3}, {13, 1, 3}, {9, -1, 4}};
@@ -2853,7 +2860,7 @@ static void BuildIceSpire() {
     }
     for (int k = 0; k < 2; ++k) {
         const auto [x, y] = beside(24 - k * 10, k % 2 ? -1 : 1);
-        PlaceRock(m, rng, 700 + rock_i++, x + (k % 2 ? -44 : 44), y - 30, true, 60, "platinum_ore");
+        PlaceRock(m, rng, 700 + rock_i++, x + (k % 2 ? -44 : 44), y - 30, true, 70, "platinum_ore");
     }
 
     // --- the summit ----------------------------------------------------------------
@@ -3993,11 +4000,11 @@ static void BuildDreamworld() {
         m.Enemy("nightmare_shade", px(s.cx - 5), px(s.cy), 6, 40.0f, 200.0f);
         m.Enemy("nightmare_shade", px(s.cx + 6), px(s.cy - 1), 6, 40.0f, 200.0f);
         PlaceChest(m, "chest_dream", px(s.cx + 1), px(s.cy + 4), "chest_dream");
-        // Demonrite: black glass with a red heat inside, found nowhere but here.
+        // Demonite: black glass with a red heat inside, found nowhere but here.
         const float seams[][2] = {{-4, 3}, {5, 3}, {-1, -3}};
         int k = 0;
         for (const auto& sp : seams)
-            PlaceRock(m, rng, 950 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 70, "demonrite_ore");
+            PlaceRock(m, rng, 950 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 80, "demonite_ore");
     }
 
     m.Write("maps");
@@ -4046,7 +4053,7 @@ int main() {
                  // and put him at an effective 41, in a mine whose orcs top
                  // out at 20.
                  "orc3", 1,
-                 {{"adamantium_ore", 40}, {"platinum_ore", 60}, {"coal", 20}});
+                 {{"damascus_ore", 40}, {"platinum_ore", 70}, {"coal", 20}});
 
     // The barrow also holds the drowned king's chest, for anyone Orlend has
     // sent back down for it.
@@ -4058,7 +4065,7 @@ int main() {
                  "chest_barrow", 3,
                  "chest_barrow_seal", "seal_barrow",
                  "", "", "", 1,
-                 {{"diamond_ore", 50}, {"azuryte_ore", 30}}, 0,
+                 {{"diamond_ore", 60}, {"azuryte_ore", 30}}, 0,
                  "chest_barrow_hoard", "drowned_king_boots", "q_drowned_hoard");
 
     // The well under Havenbrook: two dark floors, four chambers to a floor.
@@ -4087,7 +4094,7 @@ int main() {
                  "chest_infernal", 3,
                  "", "", "", "",
                  "pit_lord", 1,
-                 {{"demonrite_ore", 70}, {"platinum_ore", 60}},
+                 {{"demonite_ore", 80}, {"platinum_ore", 70}},
                  26);
 
     std::printf("genmaps: done\n");

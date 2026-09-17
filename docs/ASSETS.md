@@ -15,7 +15,7 @@ was a game with no pictures in it. Everything has since been replaced.
 
 | What | Made by |
 | --- | --- |
-| The three playable characters, their armour layers, and the town NPCs | `tools/blender_character.py` (`make_character.ps1`) |
+| The three playable characters, their armour layers in three cuts, and the town NPCs | `tools/blender_character.py` (`make_character.ps1`) |
 | Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`) |
 | Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`) |
 | The scenery and buildings -- trees, rocks, bushes, mushrooms, houses, the guild hall, chests, doors, the campfire | `tools/blender_props.py` (`make_props.ps1 -Objects`) |

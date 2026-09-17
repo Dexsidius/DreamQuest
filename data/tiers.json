@@ -184,6 +184,7 @@
     124,
     76
    ],
+   "cut": "light",
    "material": "logs",
    "wood": true,
    "flavour": "Seasoned wood, carved and pegged. Better than bare hands.",
@@ -250,6 +251,7 @@
     142,
     78
    ],
+   "cut": "light",
    "ore": "copper_ore",
    "ore_name": "Copper Ore",
    "mining": 1,
@@ -274,6 +276,7 @@
     154,
     164
    ],
+   "cut": "light",
    "ore": "iron_ore",
    "ore_name": "Iron Ore",
    "mining": 5,
@@ -298,6 +301,7 @@
     222,
     236
    ],
+   "cut": "plate",
    "ore": "coal",
    "ore_name": "Coal",
    "mining": 20,
@@ -329,6 +333,7 @@
     136,
     240
    ],
+   "cut": "plate",
    "ore": "azuryte_ore",
    "ore_name": "Azuryte Ore",
    "mining": 30,
@@ -342,46 +347,74 @@
    "flavour": "Sky-blue metal that rings like a bell and never quite goes cold."
   },
   {
-   "id": "adamantium",
-   "name": "Adamantium",
+   "id": "damascus",
+   "name": "Damascus",
    "level": 40,
    "weapon_power": 64,
    "armour_power": 60,
    "value": 80,
    "tool_speed": 1.75,
    "colour": [
-    56,
-    150,
-    104
+    122,
+    128,
+    144
    ],
-   "ore": "adamantium_ore",
-   "ore_name": "Adamantium Ore",
+   "cut": "plate",
+   "ore": "damascus_ore",
+   "ore_name": "Damascus Ore",
    "mining": 40,
    "ore_desc": "Green-black and so hard a pick skids off it more often than not.",
-   "bar": "adamantium_bar",
-   "bar_name": "Adamantium Bar",
+   "bar": "damascus_bar",
+   "bar_name": "Damascus Bar",
    "smelt": {
-    "adamantium_ore": 3,
+    "damascus_ore": 3,
     "coal": 2
    },
    "flavour": "Deep green and nearly unbreakable. Heavy, and worth it."
   },
   {
+   "id": "orichalcum",
+   "name": "Orichalcum",
+   "level": 50,
+   "weapon_power": 78,
+   "armour_power": 72,
+   "value": 140,
+   "tool_speed": 1.9,
+   "colour": [
+    214,
+    160,
+    66
+   ],
+   "cut": "plate",
+   "ore": "orichalcum_ore",
+   "ore_name": "Orichalcum Ore",
+   "mining": 50,
+   "ore_desc": "Red-gold and warm to hold, hours after it comes out of the rock.",
+   "bar": "orichalcum_bar",
+   "bar_name": "Orichalcum Bar",
+   "smelt": {
+    "orichalcum_ore": 3,
+    "coal": 2
+   },
+   "flavour": "Mountain gold, worked the way the old smiths worked it."
+  },
+  {
    "id": "diamond",
    "name": "Diamond",
-   "level": 50,
-   "weapon_power": 80,
-   "armour_power": 74,
-   "value": 150,
-   "tool_speed": 1.9,
+   "level": 60,
+   "weapon_power": 92,
+   "armour_power": 86,
+   "value": 220,
+   "tool_speed": 2.05,
    "colour": [
     180,
     236,
     248
    ],
+   "cut": "plate",
    "ore": "diamond_ore",
    "ore_name": "Rough Diamond",
-   "mining": 50,
+   "mining": 60,
    "ore_desc": "A clouded crystal still half in its rock.",
    "bar": "diamond_ingot",
    "bar_name": "Diamond Ingot",
@@ -393,19 +426,20 @@
   {
    "id": "platinum",
    "name": "Platinum",
-   "level": 60,
-   "weapon_power": 96,
-   "armour_power": 88,
-   "value": 260,
-   "tool_speed": 2.05,
+   "level": 70,
+   "weapon_power": 106,
+   "armour_power": 100,
+   "value": 330,
+   "tool_speed": 2.2,
    "colour": [
     236,
     226,
     196
    ],
+   "cut": "plate",
    "ore": "platinum_ore",
    "ore_name": "Platinum Ore",
-   "mining": 60,
+   "mining": 70,
    "ore_desc": "Grains of pale metal that do not tarnish, whatever you do to them.",
    "bar": "platinum_bar",
    "bar_name": "Platinum Bar",
@@ -416,29 +450,75 @@
    "flavour": "White metal with gold at the fittings. Made for a champion."
   },
   {
-   "id": "demonrite",
-   "name": "Demonrite",
-   "level": 70,
-   "weapon_power": 115,
-   "armour_power": 105,
-   "value": 420,
-   "tool_speed": 2.25,
+   "id": "demonite",
+   "name": "Demonite",
+   "level": 80,
+   "weapon_power": 122,
+   "armour_power": 116,
+   "value": 480,
+   "tool_speed": 2.35,
    "colour": [
     120,
     34,
     42
    ],
-   "ore": "demonrite_ore",
-   "ore_name": "Demonrite Ore",
-   "mining": 70,
+   "cut": "ornate",
+   "ore": "demonite_ore",
+   "ore_name": "Demonite Ore",
+   "mining": 80,
    "ore_desc": "Black glass with a red heat inside. It came back from a nightmare.",
-   "bar": "demonrite_bar",
-   "bar_name": "Demonrite Bar",
+   "bar": "demonite_bar",
+   "bar_name": "Demonite Bar",
    "smelt": {
-    "demonrite_ore": 3,
+    "demonite_ore": 3,
     "dream_shard": 2
    },
    "flavour": "Forged from what nightmares are made of. It is warm, and it is hungry."
+  },
+  {
+   "id": "dracon",
+   "name": "Dracon",
+   "level": 88,
+   "weapon_power": 140,
+   "armour_power": 134,
+   "value": 700,
+   "tool_speed": 2.5,
+   "colour": [
+    214,
+    110,
+    40
+   ],
+   "cut": "ornate",
+   "bar": "dracon_bar",
+   "bar_name": "Dracon Bar",
+   "smelt": {
+    "demonite_bar": 2,
+    "dragon_fang": 1,
+    "coal": 4
+   },
+   "flavour": "Fang and demonite, taken to a heat that would ruin either alone."
+  },
+  {
+   "id": "enchanted",
+   "name": "Enchanted",
+   "level": 95,
+   "weapon_power": 160,
+   "armour_power": 154,
+   "value": 1000,
+   "tool_speed": 2.65,
+   "colour": [
+    176,
+    126,
+    244
+   ],
+   "cut": "ornate",
+   "bar": "enchanted_bar",
+   "bar_name": "Enchanted Bar",
+   "smelt": {
+    "dracon_bar": 2,
+    "dream_shard": 4
+   },
+   "flavour": "Quenched in the Reverie, and it has not entirely come back."
   }
  ]
 }

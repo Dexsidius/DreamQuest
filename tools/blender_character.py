@@ -415,6 +415,16 @@ ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD = (
     "armour_legs", "armour_body", "armour_hands", "armour_head", "armour_shield")
 ARMOUR_GROUPS = (ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD)
 
+# Three cuts of armour, so a tier reads as a different kind of armour and not
+# only as a different colour. "plate" is the middle of the game and the one the
+# sheets are named after; the other two get a suffix.
+#
+#   light   wood, bronze, iron -- hide and mail: a cap, a jerkin, no pauldrons
+#   plate   steel to platinum  -- the full harness
+#   ornate  demonite and above -- horned helm, winged pauldrons, a heavier skirt
+ARMOUR_STYLES = ("light", "plate", "ornate")
+ARMOUR_STYLE = "plate"
+
 
 def build_character():
     """Returns (joints, groups, extras)."""
@@ -554,49 +564,77 @@ def build_character():
     # covers: at this size armour has to sit *outside* the silhouette or it
     # simply disappears into it.
     if ARMOUR_ON:
+        light = ARMOUR_STYLE == "light"
+        ornate = ARMOUR_STYLE == "ornate"
         # Cuirass: a breastplate over the torso, a gorget at the throat, a
         # fauld hanging off the belt, pauldrons on the shoulders.
         g[ARM_BODY] += [
             # A capsule hangs from its top cap's centre, so the top sits
             # r_top above the location: too generous a shoulder here and the
             # collar climbs over the character's chin.
-            part("cuirass", mesh_capsule(0.140, 0.172, 0.160, squash_y=0.80), "plate", chest,
-                 loc=(0, 0, 0.175)),
+            part("cuirass", mesh_capsule(0.140, 0.172, 0.160, squash_y=0.80),
+                 "plate_dk" if light else "plate", chest, loc=(0, 0, 0.175)),
             part("cuirass_ridge", mesh_ellipsoid(0.052, 0.072, 0.105), "plate_lt", chest,
                  loc=(0, -0.112, 0.195)),
             part("gorget", mesh_torus(0.100, 0.024), "plate_dk", chest, loc=(0, 0, 0.278)),
             part("plackart", mesh_ellipsoid(0.168, 0.135, 0.040), "plate_dk", chest,
                  loc=(0, 0, 0.055)),
-            part("fauld", mesh_frustum(0.165, 0.205, 0.105, squash_y=0.82), "plate", skirt,
-                 loc=(0, 0, 0.012)),
+            part("fauld", mesh_frustum(0.165, 0.205, 0.105 * (1.35 if ornate else 1.0),
+                                       squash_y=0.82), "plate", skirt, loc=(0, 0, 0.012)),
             part("fauld_hem", mesh_torus(0.196, 0.020), "plate_dk", skirt, loc=(0, 0, -0.055)),
         ]
         for side in ("r", "l"):
             sh = joints["shoulder_" + side]
             el = joints["elbow_" + side]
-            g[ARM_BODY] += [
-                part("pauldron_" + side, mesh_ellipsoid(0.104, 0.098, 0.070), "plate", sh,
-                     loc=(0, 0, 0.026)),
-                part("pauldron_rim_" + side, mesh_torus(0.085, 0.016), "plate_dk", sh,
-                     loc=(0, 0, -0.010)),
-                part("rerebrace_" + side, mesh_capsule(0.068, 0.062, 0.060), "plate_dk", sh,
-                     loc=(0, 0, -0.055)),
-                part("vambrace_" + side, mesh_capsule(0.056, 0.052, 0.058), "plate", el,
-                     loc=(0, 0, -0.012)),
-            ]
+            if light:
+                # Hide and mail: a shoulder strap and a bracer, no plate.
+                g[ARM_BODY] += [
+                    part("strap_" + side, mesh_torus(0.072, 0.018), "plate_dk", sh,
+                         loc=(0, 0, 0.010)),
+                    part("bracer_" + side, mesh_capsule(0.058, 0.054, 0.050), "plate", el,
+                         loc=(0, 0, -0.016)),
+                ]
+            else:
+                g[ARM_BODY] += [
+                    part("pauldron_" + side, mesh_ellipsoid(0.104, 0.098, 0.070), "plate", sh,
+                         loc=(0, 0, 0.026)),
+                    part("pauldron_rim_" + side, mesh_torus(0.085, 0.016), "plate_dk", sh,
+                         loc=(0, 0, -0.010)),
+                    part("rerebrace_" + side, mesh_capsule(0.068, 0.062, 0.060), "plate_dk", sh,
+                         loc=(0, 0, -0.055)),
+                    part("vambrace_" + side, mesh_capsule(0.056, 0.052, 0.058), "plate", el,
+                         loc=(0, 0, -0.012)),
+                ]
+            if ornate:
+                # A wing swept back off each pauldron, and a spike on top.
+                sx = -1 if side == "r" else 1
+                g[ARM_BODY] += [
+                    part("wing_" + side, mesh_ellipsoid(0.040, 0.105, 0.075), "plate_lt", sh,
+                         loc=(sx * 0.050, 0.070, 0.055), rot=(rad(-18), 0, rad(sx * 22))),
+                    part("shoulder_spike_" + side, mesh_capsule(0.026, 0.008, 0.075), "plate_lt", sh,
+                         loc=(sx * 0.030, -0.010, 0.135)),
+                ]
 
         # Greaves: thigh plate, knee cop, shin, and a sabaton over the boot.
         for side in ("r", "l"):
             hp = joints["hip_" + side]
             kn = joints["knee_" + side]
+            # Light legs are a boot and a wrap: no knee cop, so the leg keeps a
+            # soft outline. Ornate gets a spike off the knee instead.
+            if not light:
+                g[ARM_LEGS].append(
+                    part("poleyn_" + side, mesh_ellipsoid(0.066, 0.060, 0.050), "plate_lt", kn,
+                         loc=(0, -0.014, 0.012)))
             g[ARM_LEGS] += [
-                part("poleyn_" + side, mesh_ellipsoid(0.066, 0.060, 0.050), "plate_lt", kn,
-                     loc=(0, -0.014, 0.012)),
-                part("greave_" + side, mesh_capsule(0.084, 0.080, 0.082), "plate", kn,
-                     loc=(0, 0, -0.044)),
+                part("greave_" + side, mesh_capsule(0.084, 0.080, 0.082),
+                     "plate_dk" if light else "plate", kn, loc=(0, 0, -0.044)),
                 part("sabaton_" + side, mesh_ellipsoid(0.088, 0.124, 0.064), "plate_dk", kn,
                      loc=(0, -0.040, -0.152)),
             ]
+            if ornate:
+                g[ARM_LEGS].append(
+                    part("knee_spike_" + side, mesh_capsule(0.030, 0.008, 0.078), "plate_lt", kn,
+                         loc=(0, -0.048, 0.016), rot=(rad(118), 0, 0)))
             # The hip joint is unused by the leg plate, but naming it keeps the
             # loop honest about what it is standing on.
             _ = hp
@@ -605,9 +643,14 @@ def build_character():
         for side in ("r", "l"):
             ha = joints["hand_" + side]
             g[ARM_HANDS] += [
-                part("cuff_" + side, mesh_torus(0.072, 0.024), "plate_dk", ha, loc=(0, 0, 0.042)),
-                part("gauntlet_" + side, mesh_ellipsoid(0.076, 0.072, 0.076), "plate", ha,
-                     loc=(0, 0, -0.014)),
+                part("cuff_" + side, mesh_torus(0.072 if light else 0.082, 0.024), "plate_dk",
+                     ha, loc=(0, 0, 0.042)),
+                # A leather glove is barely larger than the hand; a gauntlet is
+                # a shell over it, and the ornate one is a shell with a cuff.
+                part("gauntlet_" + side,
+                     mesh_ellipsoid(0.068 if light else 0.076, 0.066 if light else 0.072,
+                                    0.068 if light else 0.076),
+                     "plate_dk" if light else "plate", ha, loc=(0, 0, -0.014)),
             ]
 
         # Helm: a dome over the skull, a brow band, a nose guard and a low
@@ -617,37 +660,69 @@ def build_character():
         # either side. Built as a dome sitting high on the skull -- a full
         # capsule the size of the head enclosed the face and the character
         # became an egg with hair.
+        #
+        # Nothing below the brow and nothing behind the ears. The helm is the
+        # one layer the head does not cut -- it has to sit over the hair, which
+        # is as wide as it is -- so anything modelled at or below eye level is
+        # drawn straight through the face.
         g[ARM_HEAD] += [
             # Slim front to back and set well up the skull: the dome's own
             # depth is what pushes its lower edge down the face on a camera
             # looking down at forty-six degrees.
-            part("helm", mesh_ellipsoid(0.296, 0.205, 0.118), "plate", head_tilt,
-                 loc=(0, 0.055, head_c + 0.225)),
+            # The light cut is a leather cap: shallower, and it keeps neither
+            # the crest nor the nasal, so the early tiers read as a hood rather
+            # than as a knight in a cheaper colour.
+            part("helm", mesh_ellipsoid(0.296, 0.205, 0.100 if light else 0.118), "plate",
+                 head_tilt, loc=(0, 0.055, head_c + (0.210 if light else 0.225))),
             # The brow band has to sit above the eyes, which are at head_c
             # minus 0.035: at eye level the ring crosses the face and the
             # character wears a blindfold.
             part("helm_brow", mesh_torus(0.286, 0.026), "plate_dk", head_tilt,
                  loc=(0, 0.014, head_c + 0.060)),
-            part("helm_nasal", mesh_capsule(0.026, 0.022, 0.070), "plate_dk", head_tilt,
-                 loc=(0, -0.252, head_c - 0.020)),
-            part("helm_crest", mesh_ellipsoid(0.030, 0.165, 0.070), "plate_lt", head_tilt,
-                 loc=(0, 0.014, head_c + 0.280)),
-            # Nothing below the brow and nothing behind the ears. The helm is
-            # the one layer the head does not cut -- it has to sit over the
-            # hair, which is as wide as it is -- so anything modelled at or
-            # below eye level is drawn straight through the face.
         ]
+        if not light:
+            g[ARM_HEAD] += [
+                part("helm_nasal", mesh_capsule(0.026, 0.022, 0.070), "plate_dk", head_tilt,
+                     loc=(0, -0.252, head_c - 0.020)),
+                part("helm_crest", mesh_ellipsoid(0.030 * (1.7 if ornate else 1.0),
+                                                  0.165 * (1.2 if ornate else 1.0),
+                                                  0.070 * (1.9 if ornate else 1.0)),
+                     "plate_lt", head_tilt, loc=(0, 0.014, head_c + 0.280)),
+            ]
+        if ornate:
+            # Horns, swept up and out off the brow band. A capsule hangs down
+            # from its location, so the rotation that matters is about Y: a Z
+            # turn only spins it about its own axis and the horns stayed buried
+            # in the dome. 143 degrees puts the tip up and out at about 37
+            # degrees off vertical, which clears the helm at this width.
+            for sx in (-1, 1):
+                g[ARM_HEAD].append(
+                    part("horn_%d" % sx, mesh_capsule(0.042, 0.010, 0.230), "plate_lt", head_tilt,
+                         loc=(sx * 0.205, 0.105, head_c + 0.120),
+                         rot=(0, rad(-sx * 143), 0)))
 
         # Shield, on the off hand: a round face with a rim and a boss.
+        # A buckler for the light cut, a kite face for the rest, and spikes off
+        # the rim for the ornate one.
         shield_hand = joints["hand_l"]
+        sr = 0.128 if light else 0.175
         g[ARM_SHIELD] += [
-            part("shield", mesh_ellipsoid(0.175, 0.052, 0.175), "plate", shield_hand,
+            part("shield", mesh_ellipsoid(sr, 0.052, sr), "plate", shield_hand,
                  loc=(0.02, -0.075, -0.030)),
-            part("shield_rim", mesh_torus(0.172, 0.024), "plate_dk", shield_hand,
+            part("shield_rim", mesh_torus(sr - 0.003, 0.024), "plate_dk", shield_hand,
                  loc=(0.02, -0.075, -0.030), rot=(rad(90), 0, 0)),
             part("shield_boss", mesh_ellipsoid(0.055, 0.040, 0.055), "plate_lt", shield_hand,
                  loc=(0.02, -0.115, -0.030)),
         ]
+        if ornate:
+            for i, (dx, dz) in enumerate(((0, 1), (-0.87, -0.5), (0.87, -0.5))):
+                g[ARM_SHIELD].append(
+                    part("shield_spike_%d" % i, mesh_capsule(0.024, 0.006, 0.070), "plate_lt",
+                         shield_hand,
+                         loc=(0.02 + dx * sr, -0.075, -0.030 + dz * sr),
+                         # A capsule points down, so a Y turn of atan2(-dx, -dz)
+                         # aims it along the rim's outward direction.
+                         rot=(0, math.atan2(-dx, -dz), 0)))
 
     joints.update({
         "root": root, "move": move, "hips": hips, "chest": chest, "neck": neck,
@@ -1240,13 +1315,20 @@ def build_sheet(clip_name, out_dir):
             occluders[key] = ["body"] if key == ARM_HEAD else ["body", "head"]
             order.append((key, 6 + i))
 
+    # The other two cuts only replace the armour: the body, the head and the
+    # weapon underneath them are the same sheets whatever is worn over them.
+    alt = ARMOUR_STYLE != "plate"
+    suffix = "_" + ARMOUR_STYLE if alt else ""
+    if alt:
+        order = [(l, i) for l, i in order if l in ARMOUR_GROUPS]
+
     written = []
     for layer, index in order:
         for name, objs in layers.items():
             for ob in objs:
                 ob.hide_render = not (name == layer or name in occluders[layer])
                 ob.is_holdout = name in occluders[layer]
-        raw_path = os.path.join(RENDER_DIR, "%s_%d_%s.png" % (clip_name, index, layer))
+        raw_path = os.path.join(RENDER_DIR, "%s_%d_%s%s.png" % (clip_name, index, layer, suffix))
         render_to(raw_path)
 
         big = read_png(raw_path)
@@ -1256,9 +1338,14 @@ def build_sheet(clip_name, out_dir):
             small[..., 3] = np.where(small[..., 3] > 0, 72, 0)
         else:
             small = outline(reduce_majority(big))
-        path = os.path.join(out_dir, "layers", "%s_%d_%s.png" % (clip_name, index, layer))
+        path = os.path.join(out_dir, "layers",
+                            "%s_%d_%s%s.png" % (clip_name, index, layer, suffix))
         write_png(path, small)
         written.append(small)
+
+    if alt:
+        print("sheet %-7s %s armour only" % (clip_name, ARMOUR_STYLE))
+        return
 
     # A flattened sheet beside the layers, for the character-select preview,
     # which shows the character as authored rather than wearing anything.
@@ -1278,6 +1365,12 @@ def main():
     if "--look" in args:
         i = args.index("--look")
         apply_look(args[i + 1])
+        del args[i:i + 2]
+    if "--style" in args:
+        i = args.index("--style")
+        global ARMOUR_STYLE
+        ARMOUR_STYLE = args[i + 1]
+        assert ARMOUR_STYLE in ARMOUR_STYLES, ARMOUR_STYLE
         del args[i:i + 2]
     if "--out" in args:
         i = args.index("--out")

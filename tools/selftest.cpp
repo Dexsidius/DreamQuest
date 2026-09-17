@@ -1472,6 +1472,12 @@ int main(int argc, char** argv) {
               "a tier weapon sheet is an alternate, not a layer");
         Check(LayerSlotFromName("weapon_bow_wood") == LayerSlot::WeaponAlt,
               "so is a bow's");
+        Check(LayerSlotFromName("armour_body_light") == LayerSlot::ArmourAlt,
+              "the light cut of the cuirass is an alternate, not a second cuirass");
+        Check(LayerSlotFromName("armour_head_ornate") == LayerSlot::ArmourAlt,
+              "and so is the horned helm");
+        Check(ArmourLayerOf(LayerSlot::ArmourAlt) < 0,
+              "an alternate cut paints no layer of its own");
         Check(ArmourLayerOf(LayerSlot::Body) < 0, "the body layer is not plate");
 
         // Every tier's helm, cuirass, greaves and shield paints the layer for
@@ -1482,8 +1488,9 @@ int main(int argc, char** argv) {
             {"_legs", "legs", SLOT_LEGS},
         };
         int checked = 0;
-        for (const char* tier : {"bronze", "iron", "steel", "azuryte", "adamantium",
-                                 "diamond", "platinum", "demonrite"}) {
+        for (const char* tier : {"bronze", "iron", "steel", "azuryte", "damascus",
+                                 "orichalcum", "diamond", "platinum", "demonite",
+                                 "dracon", "enchanted"}) {
             for (const Piece& piece : pieces) {
                 const ItemDef* d = items.Get(string(tier) + piece.suffix);
                 if (!d) continue;
@@ -1528,6 +1535,75 @@ int main(int argc, char** argv) {
             // the armour's colour any more.
             Check(s.body.r == 255 && s.body.g == 255 && s.body.b == 255,
                   "a character in plate keeps their own colouring underneath");
+        }
+    }
+
+    Section("armour comes in three cuts, not one in twelve colours");
+    {
+        // A tier's "cut" decides which sheets its plate is drawn from. Plate is
+        // the one the sheets are named after, so it carries no suffix at all --
+        // an item whose cut is "plate" must end up with an empty armour_cut or
+        // the engine would look for a sheet that was never rendered.
+        struct Cut { const char* tier; const char* cut; };
+        const Cut kCuts[] = {
+            {"wood", "light"}, {"bronze", "light"}, {"iron", "light"},
+            {"steel", ""}, {"azuryte", ""}, {"damascus", ""}, {"orichalcum", ""},
+            {"diamond", ""}, {"platinum", ""},
+            {"demonite", "ornate"}, {"dracon", "ornate"}, {"enchanted", "ornate"},
+        };
+        std::set<string> cuts_used;
+        for (const Cut& c : kCuts) {
+            const ItemDef* d = items.Get(string(c.tier) + "_body");
+            if (!d) { Check(false, string(c.tier) + " has a cuirass"); continue; }
+            Check(d->armour_cut == c.cut,
+                  string(c.tier) + " plate is cut " + (c.cut[0] ? c.cut : "plain"));
+            if (!d->armour_cut.empty()) cuts_used.insert(d->armour_cut);
+            if (const ItemDef* w = items.Get(string(c.tier) + "_sword"))
+                Check(w->armour_cut.empty(), string(c.tier) + " sword has no cut of armour");
+        }
+        Check(cuts_used.size() == 2, "both alternate cuts are worn by some tier");
+
+        // Each alternate cut has its own sheets on disk, for every character
+        // and every clip -- a missing one falls back to plate silently, which
+        // is exactly the kind of thing nobody notices for a month.
+        for (const char* who : {"player_hero", "player_warden", "player_wayfarer"}) {
+            const SpriteDef* def = sprites.Get(who);
+            if (!def) continue;
+            for (const char* cut : {"light", "ornate"}) {
+                int found = 0, missing = 0;
+                for (const char* clip : {"idle", "walk", "run", "sprint", "attack",
+                                         "jump", "hurt", "death"}) {
+                    const AnimClip* c = def->Find(clip);
+                    if (!c) continue;
+                    for (const AnimLayer& l : c->layers) {
+                        if (ArmourLayerOf(l.slot) < 0) continue;
+                        string path = l.sheet;
+                        const size_t dot = path.rfind(".png");
+                        if (dot == string::npos) continue;
+                        path.insert(dot, string("_") + cut);
+                        if (fs::exists(path)) ++found; else ++missing;
+                    }
+                }
+                Check(missing == 0 && found >= 40,
+                      string(who) + " has every " + cut + " plate sheet");
+            }
+        }
+
+        // And the cut reaches the draw: a bronze jerkin over a demonite
+        // warplate is two cuts as well as two metals.
+        {
+            Player p;
+            GameContext ctx;
+            ctx.items = &items; ctx.sprites = &sprites; ctx.trees = &trees;
+            p.Init(ctx, "player_hero");
+            p.equipment.SetDatabase(&items);
+            p.equipment.Equip(SLOT_HEAD, "bronze_helm");
+            p.equipment.Equip(SLOT_BODY, "demonite_body");
+            p.equipment.Equip(SLOT_LEGS, "steel_legs");
+            const LayerStyle st = p.BuildLayerStyle(&items);
+            Check(st.armour[ARMOUR_HEAD].cut == "light", "a bronze helm is drawn as a cap");
+            Check(st.armour[ARMOUR_BODY].cut == "ornate", "a demonite cuirass is drawn horned");
+            Check(st.armour[ARMOUR_LEGS].cut.empty(), "steel greaves are drawn as plain plate");
         }
     }
 
@@ -2200,13 +2276,15 @@ int main(int argc, char** argv) {
     Section("material tiers");
     {
         static const char* kOrder[] = {"wood", "bronze", "iron", "steel", "azuryte",
-                                       "adamantium", "diamond", "platinum", "demonrite"};
+                                       "damascus", "orichalcum", "diamond", "platinum",
+                                       "demonite", "dracon", "enchanted"};
+        static const int kTierCount = 12;
         static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs"};
         const auto& tiers = items.Tiers();
-        Check(tiers.size() == 9, "there are nine tiers");
-        bool order = tiers.size() == 9;
-        for (size_t i = 0; i < tiers.size() && i < 9; ++i) order &= tiers[i].id == kOrder[i];
-        Check(order, "wood, bronze, iron, steel, azuryte, adamantium, diamond, platinum, demonrite, in that order");
+        Check(tiers.size() == kTierCount, "there are twelve tiers");
+        bool order = tiers.size() == kTierCount;
+        for (size_t i = 0; i < tiers.size() && i < kTierCount; ++i) order &= tiers[i].id == kOrder[i];
+        Check(order, "wood through enchanted, in that order");
 
         bool levels_rise = true, stats_rise = true, reqs_right = true, recipes_ok = true;
         bool stations_ok = true, models_ok = true, ores_ok = true, value_rises = true;
@@ -2240,9 +2318,14 @@ int main(int argc, char** argv) {
                 if (d->slot == SLOT_WEAPON && d->model != string(piece) + "_" + t.id) models_ok = false;
             }
             if (!t.wood) {
-                const ItemDef* ore = items.Get(t.ore);
+                // Dracon is beaten out of a dragon's fang and enchanted is
+                // quenched in the Reverie: both have a bar and no ore.
                 const ItemDef* bar = items.Get(t.bar);
-                if (!ore || !bar || !ore->metal || !bar->metal || !recipe_for(t.bar)) ores_ok = false;
+                if (!bar || !bar->metal || !recipe_for(t.bar)) ores_ok = false;
+                if (!t.ore.empty()) {
+                    const ItemDef* ore = items.Get(t.ore);
+                    if (!ore || !ore->metal) ores_ok = false;
+                }
             }
         }
         Check(levels_rise, "each tier needs at least the level of the one before");
@@ -2251,7 +2334,7 @@ int main(int argc, char** argv) {
         Check(reqs_right, "every piece needs its tier's level in Attack, Ranged, Magic or Defence");
         Check(recipes_ok, "every tier makes all eight pieces, each with a recipe");
         Check(stations_ok, "wooden pieces are made at a workbench and metal ones at an anvil");
-        Check(ores_ok, "every metal tier has an ore and a bar, and a recipe to smelt it");
+        Check(ores_ok, "every metal tier has a bar with a recipe, and an ore if it is mined");
         Check(models_ok, "every tier's sword, spear, bow and staff name their own model");
 
         // The items that were there before tiers are the tier pieces now.
@@ -2271,10 +2354,13 @@ int main(int argc, char** argv) {
                     seams[o.yield] = seams.count(o.yield) ? std::min(seams[o.yield], o.skill_level) : o.skill_level;
         }
         for (const TierDef& t : tiers) {
-            if (t.wood) continue;
+            if (t.wood || t.ore.empty()) continue;
             Check(seams.count(t.ore) > 0, t.ore + " can be mined somewhere in the world");
             if (seams.count(t.ore)) Check(seams[t.ore] <= t.mining, t.ore + " can be mined at Mining " + std::to_string(t.mining));
         }
+        // And what the two smelted tiers are made of has to be gettable too.
+        for (const char* what : {"dragon_fang", "dream_shard"})
+            Check(items.Get(what) != nullptr, string(what) + " exists, for the tiers that are not mined");
         Check(seams.count("coal") > 0 && seams.count("dream_shard") > 0, "coal and dream crystals are both out there");
 
         // Art: every icon is its own picture, and every weapon has a layer for
@@ -2292,7 +2378,7 @@ int main(int argc, char** argv) {
                 if (seen.count(h) && seen[h] != kv.second.icon) ++dupes;
                 seen[h] = kv.second.icon;
             }
-            Check(icons >= 88 && dupes == 0, "all " + std::to_string(icons) + " tier icons are different pictures");
+            Check(icons >= 112 && dupes == 0, "all " + std::to_string(icons) + " tier icons are different pictures");
         }
         {
             const SpriteDef* hero = sprites.Get("player_hero");
@@ -2321,7 +2407,7 @@ int main(int argc, char** argv) {
                 }
             Check(hero && missing == 0, "every tier weapon has a layer sheet for every hero clip (" +
                   std::to_string(sheets) + ")");
-            Check(attack_sheets.size() == 36, "all 36 weapons look different in the hero's hand");
+            Check(attack_sheets.size() == 48, "all 48 weapons look different in the hero's hand");
         }
 
         // --- the spear ------------------------------------------------------------------------
@@ -2332,8 +2418,8 @@ int main(int argc, char** argv) {
             const ItemDef* spear = items.Get(items.TierPiece("iron", "spear"));
             Check(spear && spear->name == "Iron Spear" && spear->kind == WeaponKind::Melee && spear->slot == SLOT_WEAPON,
                   "every metal tier has a spear: the Iron Spear is a melee weapon");
-            Check(items.Get(items.TierPiece("wood", "spear")) && items.Get(items.TierPiece("demonrite", "spear")),
-                  "from a fire-hardened wooden spear to a demonrite one");
+            Check(items.Get(items.TierPiece("wood", "spear")) && items.Get(items.TierPiece("demonite", "spear")),
+                  "from a fire-hardened wooden spear to a demonite one");
             if (sword && spear) {
                 Check(spear->reach >= 1.5f && sword->reach == 1.0f, "a spear reaches half as far again as a sword and more");
                 Check(spear->sweep < 1.0f && spear->push > 1.0f, "down a narrower line, and it shoves harder");
@@ -2390,7 +2476,7 @@ int main(int argc, char** argv) {
             Player p;
             p.Init(ctx, "player_hero");
             p.inventory.Add("iron_sword", 1);
-            p.inventory.Add("demonrite_staff", 1);
+            p.inventory.Add("demonite_staff", 1);
             const auto slot_of = [&](const string& id) {
                 for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == id) return i;
                 return -1;
@@ -2402,7 +2488,7 @@ int main(int argc, char** argv) {
             p.skills.AddXp(SKILL_ATTACK, XpForLevel(10), up);
             Check(p.EquipFromInventory(slot_of("iron_sword"), why), "at Attack 10 they can");
             Check(p.BuildLayerStyle(&items).weapon_model == "sword_iron", "and the hero holds the iron sword's model");
-            Check(!p.EquipFromInventory(slot_of("demonrite_staff"), why), "demonrite needs Magic 70");
+            Check(!p.EquipFromInventory(slot_of("demonite_staff"), why), "demonite needs Magic 70");
         }
     }
 
@@ -2828,12 +2914,12 @@ int main(int argc, char** argv) {
                 w2.player.inventory.Add("bronze_axe", 1);
                 frames(w2, 1);
                 const float slow = time_to_first(w2, "logs", 12.0f);
-                w2.player.inventory.Add("demonrite_axe", 1);
+                w2.player.inventory.Add("platinum_axe", 1);
                 w2.TryInteract(ctx);
                 frames(w2, 1);
                 const float fast = time_to_first(w2, "logs", 12.0f);
                 Check(slow > 0.0f && fast > 0.0f && fast < slow * 0.7f,
-                      "a demonrite axe fells the same tree much faster than bronze (" +
+                      "a platinum axe fells the same tree much faster than bronze (" +
                       std::to_string(fast).substr(0, 4) + "s against " + std::to_string(slow).substr(0, 4) + "s)");
             }
         }

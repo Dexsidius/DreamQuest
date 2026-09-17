@@ -81,6 +81,9 @@ struct ItemDef {
     // with `tint`, so every tier is the same plate in its own metal and a
     // mismatched set draws as the mismatch it is.
     string armour_layer;
+    // And which cut of it: "light" for the early tiers' hide and mail,
+    // "ornate" for the last tiers' horned harness, empty for plain plate.
+    string armour_cut;
 
     map<int, int> requirements;       // SkillId -> level needed to equip
 

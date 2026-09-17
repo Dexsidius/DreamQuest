@@ -23,6 +23,10 @@ enum class LayerSlot {
     // Worn plate, each piece its own sheet so a bronze cuirass over iron
     // greaves is drawn as exactly that.
     ArmourLegs, ArmourBody, ArmourHands, ArmourHead, ArmourShield,
+    // The same five pieces in another cut -- armour_body_light and the like.
+    // Like WeaponAlt these are alternates, never drawn on their own: the piece
+    // that is worn picks its cut and the plain sheet swaps to that one.
+    ArmourAlt,
 };
 
 // The five armour layers, in the order they are drawn.
@@ -65,6 +69,11 @@ struct Attachment {
 struct WornLayer {
     bool      show = false;
     SDL_Color tint{255, 255, 255, 255};
+    // Which cut of armour: "light" for hide and mail, "ornate" for the horned
+    // and winged harness, empty for the plain plate the sheets are named
+    // after. So a bronze jerkin and a demonite warplate are not the same
+    // silhouette in two colours.
+    string    cut;
 };
 
 // How a character's layers should be drawn right now: what plate is worn and in

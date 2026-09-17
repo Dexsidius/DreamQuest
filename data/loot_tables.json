@@ -852,7 +852,7 @@
         ]
       },
       {
-        "item": "adamantium_ore",
+        "item": "damascus_ore",
         "weight": 12,
         "qty": [
           1,
@@ -910,15 +910,15 @@
         ]
       },
       {
-        "item": "adamantium_bar",
+        "item": "damascus_bar",
         "weight": 8
       },
       {
-        "item": "adamantium_sword",
+        "item": "damascus_sword",
         "weight": 3
       },
       {
-        "item": "adamantium_body",
+        "item": "damascus_body",
         "weight": 2
       }
     ]
@@ -1023,7 +1023,7 @@
         ]
       },
       {
-        "item": "demonrite_ore",
+        "item": "demonite_ore",
         "weight": 14,
         "qty": [
           1,
@@ -1039,7 +1039,7 @@
         "weight": 3
       },
       {
-        "item": "demonrite_staff",
+        "item": "demonite_staff",
         "weight": 1
       }
     ]
@@ -1064,7 +1064,7 @@
     "rolls": 3,
     "table": [
       {
-        "item": "demonrite_bar",
+        "item": "demonite_bar",
         "weight": 30,
         "qty": [
           2,
@@ -1072,15 +1072,15 @@
         ]
       },
       {
-        "item": "demonrite_sword",
+        "item": "demonite_sword",
         "weight": 10
       },
       {
-        "item": "demonrite_body",
+        "item": "demonite_body",
         "weight": 6
       },
       {
-        "item": "demonrite_staff",
+        "item": "demonite_staff",
         "weight": 8
       }
     ]
@@ -1098,7 +1098,7 @@
     "rolls": 2,
     "table": [
       {
-        "item": "adamantium_bar",
+        "item": "damascus_bar",
         "weight": 30,
         "qty": [
           2,
@@ -1136,7 +1136,7 @@
     "rolls": 2,
     "table": [
       {
-        "item": "demonrite_ore",
+        "item": "demonite_ore",
         "weight": 30,
         "qty": [
           2,

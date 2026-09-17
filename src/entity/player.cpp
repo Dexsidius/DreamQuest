@@ -97,6 +97,7 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
             if (!d || d->armour_layer != w.name) continue;
             s.armour[w.layer].show = true;
             s.armour[w.layer].tint = d->tint;
+            s.armour[w.layer].cut = d->armour_cut;
         }
     }
 

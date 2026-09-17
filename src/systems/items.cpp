@@ -302,6 +302,10 @@ bool ItemDatabase::LoadTiers(const string& path) {
             if (!weapon && d.tool.empty()) {
                 d.tint = t.colour;
                 d.armour_layer = pj.value("layer", string(""));
+                // Which cut of armour this tier wears. Plate is what the sheets
+                // are named after, so it is the one that needs no suffix.
+                d.armour_cut = tj.value("cut", string(""));
+                if (d.armour_cut == "plate") d.armour_cut.clear();
             }
 
             const float power = pj.value("power", string("weapon")) == "armour"
