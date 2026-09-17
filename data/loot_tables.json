@@ -1359,7 +1359,7 @@
         ]
       },
       {
-        "item": "steel_greaves",
+        "item": "steel_legs",
         "weight": 12
       },
       {
@@ -1603,7 +1603,7 @@
         "weight": 14
       },
       {
-        "item": "steel_sabatons",
+        "item": "steel_helm",
         "weight": 18
       }
     ]

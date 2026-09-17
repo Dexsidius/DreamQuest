@@ -33,6 +33,7 @@
 #include "../src/ui/titlescreen.h"
 
 #include <fstream>
+#include <set>
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -1364,6 +1365,59 @@ int main(int argc, char** argv) {
 
     // --- the hero's sprite set ---------------------------------------------------
     // --- worn plate ------------------------------------------------------------
+    // --- what a clone has -------------------------------------------------------
+    Section("nothing depends on the optional packs");
+    {
+        // data/items_armour.json is written by the importer from four optional
+        // CraftPix icon packs. This machine may have it; a clone does not. So
+        // nothing in the committed data may name one of those items directly --
+        // the dungeon chests reach them through the armour_cache table, which
+        // the importer fills and which is empty without it.
+        //
+        // This is here because a fresh clone once failed on exactly that: the
+        // barrow wight dropped steel greaves and the thing in the spring
+        // dropped sabatons, and both look fine on the machine that imported the
+        // packs.
+        std::ifstream f("data/items_armour.json");
+        std::set<string> optional;
+        if (f) {
+            json j;
+            try { f >> j; } catch (...) { j = json::object(); }
+            for (auto it = j.begin(); it != j.end(); ++it) optional.insert(it.key());
+        }
+        Check(true, "checked the optional item list" + string(optional.empty() ? " (not installed)" : ""));
+
+        const auto committed = [&](const char* path) {
+            std::ifstream in(path);
+            return string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+        struct Where { const char* path; const char* what; };
+        const Where files[] = {
+            {"data/loot_tables.json", "a loot table"},
+            {"data/shops.json",       "a shop"},
+            {"data/quests.json",      "a quest reward"},
+            {"data/dialogue.json",    "a line of dialogue"},
+        };
+        int named = 0;
+        for (const Where& w : files) {
+            const string text = committed(w.path);
+            if (text.empty()) continue;
+            for (const string& id : optional) {
+                // Quoted, so "steel_legs" does not match inside "steel_legspan".
+                if (text.find("\"" + id + "\"") != string::npos) {
+                    ++named;
+                    Check(false, string(w.what) + " names '" + id +
+                                 "', which only exists once the optional packs are imported");
+                }
+            }
+        }
+        Check(named == 0, "the committed data names no item a clone would not have");
+
+        // And the indirection those drops are supposed to use is present and
+        // resolvable whether or not the packs are.
+        Check(loot.Has("armour_cache"), "armour_cache is defined for a clone to find");
+    }
+
     Section("armour is drawn, a piece at a time");
     {
         // Every playable character has all five plate layers for every clip,
