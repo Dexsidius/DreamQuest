@@ -225,8 +225,18 @@ class Rig:
             add = values.get(name, (0, 0, 0))
             e.rotation_euler = Euler(tuple(math.radians(base[i] * f + add[i]) for i in range(3)), "XYZ")
         self.pose.location = (values.get("_x", 0.0), values.get("_y", 0.0), values.get("_z", 0.0))
+        roll = values.get("_roll", 0.0)
+        if values.get("_roll_to_camera") and abs(math.sin(math.radians(turn))) > 0.5:
+            # A four-legged animal goes down onto its side, which is a roll
+            # about its own spine -- the right axis for it, unlike a humanoid's
+            # fall. But which side it lands on decides where its legs point.
+            # Side on, legs rolled away from the camera stand straight up the
+            # screen and the carcass reads as a deer balanced on its back; rolled
+            # towards the camera they lie down the screen under it. Facing down
+            # or up either side is fine, so only the two side rows are turned.
+            roll = -math.copysign(abs(roll), math.sin(math.radians(turn)))
         self.pose.rotation_euler = Euler((math.radians(values.get("_pitch", 0.0)),
-                                          math.radians(values.get("_roll", 0.0)), 0.0), "XYZ")
+                                          math.radians(roll), 0.0), "XYZ")
         # _pitch and _roll above are in the creature's own frame, which is what
         # a lean or a flinch wants. A fall is not: a body that tips over its own
         # backwards axis topples away from the camera in the row where it faced
@@ -657,7 +667,11 @@ def liz_attack(t):
     rest = {"shoulder_r": fwd(6), "elbow_r": X(-14), "hand_r": X(4)}
     draw = {"shoulder_r": fwd(-30), "elbow_r": X(-100), "hand_r": X(100), "chest": X(-8), "_y": 0.06,
             "hip_l": fwd(20), "hip_r": fwd(-15), "tail1": (0, 0, -14)}
-    thrust = {"shoulder_r": fwd(85), "elbow_r": X(-5), "hand_r": X(95), "chest": X(22), "_y": -0.26,
+    # The spear goes out level with the shoulder rather than raised to it: at
+    # full reach, pointing straight down the facing, it was longer than an 80px
+    # cell is tall in the rows where that facing is towards or away from the
+    # camera, and no amount of sliding it about kept both ends inside.
+    thrust = {"shoulder_r": fwd(62), "elbow_r": X(-5), "hand_r": X(70), "chest": X(16), "_y": -0.20,
               "hip_l": fwd(40), "hip_r": fwd(-30), "knee_r": X(20), "tail1": (-10, 0, 14)}
     return [mix(rest, draw, k), mix(draw, thrust, k), mix(thrust, rest, k), rest][i]
 
@@ -1572,9 +1586,14 @@ def bat_hurt(t):
 
 
 def bat_death(t):
+    # It drops out of the air and lies where it lands, wings half spread. It
+    # used to roll onto its side on the way down, which is a roll about its own
+    # spine: facing the camera that turned its wings flat, but side on it stood
+    # them straight up the screen, and the bat hung in the air a full wingspan
+    # tall and never seemed to land at all.
     k = ease(t)
-    return {"_z": -0.58 * k, "_roll": 90 * k, "body": X(20 * k),
-            "wing_l": (0, -20 * k, 0), "wing_r": (0, 20 * k, 0)}
+    return {"_z": -0.58 * k, "body": X(20 * k),
+            "wing_l": (0, -35 * k, 0), "wing_r": (0, 35 * k, 0)}
 
 
 def build_hound():
@@ -1898,7 +1917,7 @@ def boar_hurt(t):
 
 def boar_death(t):
     k = ease(t * 1.1)
-    return {"_roll": 76 * k, "_z": -0.22 * k, "neck": X(24 * k), "head": X(18 * k),
+    return {"_roll_to_camera": True, "_roll": 76 * k, "_z": -0.22 * k, "neck": X(24 * k), "head": X(18 * k),
             "fore_l": fwd(30 * k), "hind_l": fwd(26 * k)}
 
 
@@ -1974,7 +1993,7 @@ def deer_hurt(t):
 
 def deer_death(t):
     k = ease(t)
-    return {"_roll": 80 * k, "_z": -0.34 * k, "neck": X(26 * k), "head": X(16 * k),
+    return {"_roll_to_camera": True, "_roll": 80 * k, "_z": -0.34 * k, "neck": X(26 * k), "head": X(16 * k),
             "fore_l": fwd(34 * k), "hind_l": fwd(30 * k), "fore_l_knee": X(30 * k)}
 
 
@@ -2040,7 +2059,7 @@ def fox_hurt(t):
 
 def fox_death(t):
     k = ease(t * 1.1)
-    return {"_roll": 78 * k, "_z": -0.18 * k, "neck": X(26 * k), "head": X(20 * k),
+    return {"_roll_to_camera": True, "_roll": 78 * k, "_z": -0.18 * k, "neck": X(26 * k), "head": X(20 * k),
             "fore_l": fwd(32 * k), "hind_l": fwd(28 * k), "tail1": (0, 0, 30 * k)}
 
 
@@ -2103,7 +2122,7 @@ def hare_hurt(t):
 
 def hare_death(t):
     k = ease(t * 1.1)
-    return {"_roll": 82 * k, "_z": -0.12 * k, "neck": X(22 * k), "head": X(16 * k),
+    return {"_roll_to_camera": True, "_roll": 82 * k, "_z": -0.12 * k, "neck": X(22 * k), "head": X(16 * k),
             "fore_l": fwd(28 * k), "haunch_l": X(-30 * k), "haunch_r": X(-30 * k)}
 
 
@@ -2291,9 +2310,74 @@ CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hur
 # How far each one opens its walk up. A two-legged stride takes a lot of
 # stretching before it reads as a run; four legs do not -- at anything much
 # over a fifth the deer stops running and starts doing the splits.
+# Pixels to stand a creature lower in its frame than the rest. Every rig is
+# rendered with its feet about three quarters of the way down the cell, which
+# leaves a strip of empty frame under the feet and less over the head. The
+# Warchief is a head taller than the other orcs and his topknot reached past
+# the top of the cell in the side and back views -- a few pixels of him drawn
+# into the frame above, and cut off his own. Lowering him uses the empty strip
+# instead of making him smaller.
+FRAME_DROP = {"orc3": 8}
+
 RUNNERS = {"orc1": 1.45, "orc2": 1.45, "orc3": 1.40,
            "boar": 1.20, "deer": 1.18, "fox": 1.20, "hare": 1.20}
 FACINGS = bc.FACINGS
+
+
+def keep_in_cell(rig, cell, right, up, creature, clip, facing, col):
+    """Slide a posed rig back inside its cell if any of it has left.
+
+    The engine draws exactly one cell of a sheet, so anything posed across a
+    cell's edge is drawn twice: cut off in its own frame and as a scrap in the
+    frame next door. Most poses never come near an edge. The ones that did were
+    all the same kind of thing -- a four-legged animal rolled onto its side, a
+    bat dropping out of the air, a spear thrust at the camera -- where the pose
+    is right and only its position in the frame is wrong, and a pose authored
+    per creature cannot know which of the four facings it is being drawn in.
+
+    So this measures what was actually built, in the camera's own screen axes,
+    and moves the whole rig by just enough to bring it back in. Nothing that
+    already fits is touched, so every other sheet renders exactly as before; a
+    rig too big for its cell is centred rather than pushed off the other side,
+    and said so.
+    """
+    bpy.context.view_layer.update()
+    lo_x = lo_y = float("inf")
+    hi_x = hi_y = float("-inf")
+    for ob in rig.parts:
+        if ob.type != "MESH":
+            continue
+        m = ob.matrix_world
+        for v in ob.data.vertices:
+            w = m @ v.co
+            sx, sy = w.dot(right), w.dot(up)
+            lo_x, hi_x = min(lo_x, sx), max(hi_x, sx)
+            lo_y, hi_y = min(lo_y, sy), max(hi_y, sy)
+    if lo_x == float("inf"):
+        return
+    # The cell in the same screen axes. The camera sits a little over each
+    # cell's ground point (setup_camera's lift), so the cell's middle is that
+    # far up the screen from its grid position.
+    half = bc.FRAME_SPAN / 2.0
+    margin = UNITS_PER_PX * 2.0          # the outline pass adds a pixel
+    elev = math.radians(bc.CAMERA_ELEVATION)
+    cx = cell.dot(right)
+    cy = cell.dot(up) + bc.FRAME_SPAN * 0.30 * math.cos(elev)
+
+    def shift(lo, hi, centre):
+        lo_edge, hi_edge = centre - half + margin, centre + half - margin
+        if hi - lo > hi_edge - lo_edge:
+            print("  ! %s %s %s frame %d is bigger than its cell" % (creature, clip, facing, col))
+            return centre - (lo + hi) / 2.0
+        if lo < lo_edge:
+            return lo_edge - lo
+        if hi > hi_edge:
+            return hi_edge - hi
+        return 0.0
+
+    dx, dy = shift(lo_x, hi_x, cx), shift(lo_y, hi_y, cy)
+    if dx or dy:
+        rig.root.location = rig.root.location + right * dx + up * dy
 
 
 def build_sheet(creature, clip_index):
@@ -2316,11 +2400,14 @@ def build_sheet(creature, clip_index):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(max(1, frames - 1))
             rig = builder()
-            offset = right * (bc.FRAME_SPAN * col) - up * (bc.FRAME_SPAN * row)
+            offset = (right * (bc.FRAME_SPAN * col) - up * (bc.FRAME_SPAN * row)
+                      - up * (UNITS_PER_PX * FRAME_DROP.get(creature, 0)))
             # apply() sets the root's rotation, turn included, so that a
             # world-space fall can sit outside the facing.
             rig.apply(pose_fn(t), turn)
             rig.root.location = offset + rig.fall
+            cell = right * (bc.FRAME_SPAN * col) - up * (bc.FRAME_SPAN * row)
+            keep_in_cell(rig, cell, right, up, creature, clip, facing, col)
             shadow = part("shadow", E(shadow_r, shadow_r * 0.7, 0.004), "shadow", None,
                           loc=offset + Vector((0, 0, 0.004)))
             bodies += rig.parts
