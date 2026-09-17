@@ -558,17 +558,39 @@ void Game::DrawHud() {
         const SDL_FRect st_bar = {hp_bar.x, top, 232.0f, st_h};
         glyph_plate({18.0f, st_bar.y, glyph, st_h}, "assets/icons/hud_stamina.png");
         SDL_Color fill = Palette::Stamina;
-        if (p.Winded()) {
+        // Out of breath and out of guard pulse the same red: both are the bar
+        // run dry, and both lift at the same point. A raised guard turns the
+        // bar steel blue, because it is what every blow on the shield is paid
+        // out of and that is worth seeing at a glance.
+        const bool spent = p.Winded() || p.GuardBroken();
+        if (spent) {
             const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) * 0.012f);
             fill = {static_cast<Uint8>(196 + 40 * pulse), static_cast<Uint8>(70 + 30 * pulse),
                     static_cast<Uint8>(48), 255};
+        } else if (p.Blocking()) {
+            fill = {122, 166, 214, 255};
         }
         ui.FramedBar(st_bar, p.Stamina() / p.MaxStamina(), fill, Palette::StaminaBack);
-        if (p.Winded())
-            ui.TextShadowed("winded", st_bar.x + st_bar.w / 2.0f,
+        const char* label = p.GuardBroken() ? "guard broken" : p.Winded() ? "winded"
+                          : p.Blocking() ? "guard" : nullptr;
+        if (label)
+            ui.TextShadowed(label, st_bar.x + st_bar.w / 2.0f,
                             st_bar.y + (st_bar.h - line_h) / 2.0f,
                             TextSize::Small, Palette::Text, Align::Center);
         meta_y = st_bar.y + st_bar.h + 6.0f;
+    }
+
+    // --- Rushing Strike ------------------------------------------------------
+    // A hairline under the stamina bar, only for a character who has the move
+    // and a melee weapon to make it with: amber and full when a running light
+    // attack will leap, filling back up over the three seconds after one.
+    if (p.talents.Effect("rushing_strike", AttackStyle::Melee) > 0.0f && p.Style() == AttackStyle::Melee) {
+        const float ready = 1.0f - std::clamp(p.RushCooldown() / Player::RUSH_COOLDOWN, 0.0f, 1.0f);
+        const SDL_FRect rush_bar = {hp_bar.x, meta_y - 3.0f, 232.0f, 5.0f};
+        ui.Fill(rush_bar, {24, 20, 18, 220});
+        ui.Fill({rush_bar.x, rush_bar.y, rush_bar.w * ready, rush_bar.h},
+                ready >= 1.0f ? SDL_Color{236, 176, 72, 255} : SDL_Color{120, 100, 70, 255});
+        meta_y = rush_bar.y + rush_bar.h + 6.0f;
     }
 
     // --- minimap -------------------------------------------------------------
@@ -891,6 +913,8 @@ void Game::DrawHud() {
                         input.PromptFor(Action::LightAttack) + " attack    " +
                         input.PromptFor(Action::StrongAttack) + " heavy    " +
                         input.PromptFor(Action::Target) + " target    " +
+                        // Only worth a word when there is a shield to raise.
+                        (p.Shield() ? input.PromptFor(Action::Block) + " block    " : string()) +
                         input.PromptFor(Action::Sprint) + " sprint    " +
                         input.PromptFor(Action::Inventory) + " bag    " +
                         input.PromptFor(Action::Skills) + " skills    " +
@@ -1187,9 +1211,12 @@ void Game::UpdateSkillsPanel() {
     const TalentTree& tree = skill_trees.Tree(style);
     Player& p = world.player;
 
+    // Stepping from the melee tree's fourth column to a tree with three.
+    const int branches = tree.BranchCount();
+    tree_branch = std::min(tree_branch, branches - 1);
     const int b0 = tree_branch, r0 = tree_row;
-    if (input.MenuLeft())  tree_branch = (tree_branch + SkillTrees::BRANCHES - 1) % SkillTrees::BRANCHES;
-    if (input.MenuRight()) tree_branch = (tree_branch + 1) % SkillTrees::BRANCHES;
+    if (input.MenuLeft())  tree_branch = (tree_branch + branches - 1) % branches;
+    if (input.MenuRight()) tree_branch = (tree_branch + 1) % branches;
     if (input.MenuUp())    tree_row = std::max(0, tree_row - 1);
     if (input.MenuDown())  tree_row = std::min(SkillTrees::ROWS - 1, tree_row + 1);
     if (b0 != tree_branch || r0 != tree_row) Audio::Play(Sfx::UiMove);
@@ -1250,7 +1277,13 @@ void Game::DrawSkillsPanel() {
     ui.Dim(0.5f);
     const Skills& s = world.player.skills;
 
-    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : 860.0f, 640.0f);
+    // A tree with a fourth branch -- melee has Footwork -- widens the panel by
+    // a column, so the node descriptions keep the room they had.
+    float tree_w = 860.0f;
+    if (skills_tab > 0)
+        tree_w += 172.0f * (skill_trees.Tree(static_cast<AttackStyle>(skills_tab - 1)).BranchCount() -
+                            SkillTrees::BRANCHES);
+    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : tree_w, 640.0f);
     ui.Panel(panel);
 
     // --- tabs ------------------------------------------------------------------
@@ -1354,7 +1387,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
     const float gx = panel.x + 78.0f, gy = panel.y + 112.0f;
     const float col_w = 172.0f, row_h = 78.0f, box_w = 150.0f, box_h = 48.0f;
 
-    for (int b = 0; b < SkillTrees::BRANCHES; ++b) {
+    for (int b = 0; b < tree.BranchCount(); ++b) {
         const string name = b < static_cast<int>(tree.branches.size()) ? tree.branches[b] : "";
         ui.Text(name, gx + b * col_w + box_w / 2.0f, gy - 26.0f, TextSize::Body, Palette::Highlight, Align::Center);
     }
@@ -1390,21 +1423,26 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         ui.Outline(box, selected ? SDL_Color{255, 255, 255, 255} : edge, selected ? 3.0f : 1.0f);
 
         ui.Text(n.name, box.x + box_w / 2.0f, box.y + 7.0f, TextSize::Small, text, Align::Center);
-        const char* kind = !n.technique.empty() ? (active ? "technique - active" : "technique") : "passive";
+        // Rushing Strike is neither a charged technique nor a passive: it is a
+        // move of its own, made on its own button.
+        const char* kind = !n.technique.empty() ? (active ? "technique - active" : "technique")
+                         : n.effects.count("rushing_strike") ? "move" : "passive";
         ui.Text(kind, box.x + box_w / 2.0f, box.y + 26.0f, TextSize::Small,
                 !n.technique.empty() ? SDL_Color{236, 150, 110, 255} : Palette::TextDim, Align::Center);
     }
 
     // --- the chosen node -------------------------------------------------------------
     const TalentNode* n = tree.At(tree_branch, tree_row);
-    const float dx = gx + SkillTrees::BRANCHES * col_w + 12.0f;
+    const float dx = gx + tree.BranchCount() * col_w + 12.0f;
     const float dw = panel.x + panel.w - dx - 24.0f;
     float y = gy - 26.0f;
     if (n) {
         ui.Text(n->name, dx, y, TextSize::Body, Palette::Highlight);
         y += 28.0f;
         ui.Text(string(SkillName(tree.skill)) + " " + std::to_string(n->level) + ", " +
-                (n->row == 0 ? string("one point") : "one point, after " + tree.At(n->branch, n->row - 1)->name),
+                (n->row == 0 || !tree.At(n->branch, n->row - 1)
+                     ? string("one point")
+                     : "one point, after " + tree.At(n->branch, n->row - 1)->name),
                 dx, y, TextSize::Small, level >= n->level ? Palette::TextDim : SDL_Color{225, 130, 120, 255});
         y += 24.0f;
         y += ui.TextWrapped(n->description, dx, y, dw, TextSize::Small, Palette::Text) + 14.0f;

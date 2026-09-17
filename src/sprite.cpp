@@ -293,7 +293,7 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
 }
 
 void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
-                  float wx, float wy, SDL_Color tint) const {
+                  float wx, float wy, SDL_Color tint, SDL_BlendMode blend, float grow) const {
     if (!def || !clip) return;
 
     SDL_Texture* tex = cache.Get(clip->sheet);
@@ -312,18 +312,28 @@ void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
 
     // The entity's world position is its feet; the frame hangs above it.
     const float k = def->scale * size_scale;
-    const SDL_FRect world = {wx - (fw * k) / 2.0f,
-                             wy - def->anchor_y * k,
-                             fw * k, fh * k};
+    SDL_FRect world = {wx - (fw * k) / 2.0f,
+                       wy - def->anchor_y * k,
+                       fw * k, fh * k};
+    if (grow != 1.0f) {
+        const float cx = world.x + world.w / 2.0f, cy = world.y + world.h / 2.0f;
+        world.w *= grow;
+        world.h *= grow;
+        world.x = cx - world.w / 2.0f;
+        world.y = cy - world.h / 2.0f;
+    }
     const SDL_FRect dst = cam.ToScreenRect(world);
 
-    if (DrawLayers(r, cache, dst, shown, row, tint)) return;
+    if (blend == SDL_BLENDMODE_BLEND && grow == 1.0f && DrawLayers(r, cache, dst, shown, row, tint)) return;
 
+    SDL_SetTextureBlendMode(tex, blend);
     SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
     SDL_SetTextureAlphaMod(tex, tint.a);
     SDL_RenderTexture(r, tex, &src, &dst);
     SDL_SetTextureColorMod(tex, 255, 255, 255);
     SDL_SetTextureAlphaMod(tex, 255);
+    // The cache hands the same texture to everything that draws this sheet.
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
 }
 
 void Sprite::DrawAt(SDL_Renderer* r, TextureCache& cache,

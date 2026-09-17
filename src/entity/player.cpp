@@ -150,6 +150,131 @@ void Player::GrantXp(int skill, int amount) {
     pending_xp.emplace_back(skill, amount);
 }
 
+void Player::BankXp(int skill, float amount) {
+    if (skill < 0 || skill >= SKILL_COUNT || amount <= 0.0f) return;
+    xp_fraction[skill] += amount;
+    const int whole = static_cast<int>(xp_fraction[skill]);
+    if (whole > 0) {
+        xp_fraction[skill] -= whole;
+        GrantXp(skill, whole);
+    }
+}
+
+bool Player::CanRush() const {
+    return rush_cooldown <= 0.0f && Style() == AttackStyle::Melee &&
+           talents.Effect("rushing_strike", AttackStyle::Melee) > 0.0f;
+}
+
+float Player::RushLift() const {
+    if (!rushing) return 0.0f;
+    const float flight = attack.profile.windup + attack.profile.active;
+    const float t = std::clamp(attack.timer / std::max(0.001f, flight), 0.0f, 1.0f);
+    return sinf(t * 3.14159265f) * RUSH_HEIGHT;
+}
+
+bool Player::StartRush(const World& world) {
+    if (!CanRush()) return false;
+
+    // At whatever is being fought, when it is close enough to leap at;
+    // otherwise on along the way the character was already running.
+    float dx = move_axis.x, dy = move_axis.y;
+    if (const Enemy* t = world.targeting.Current()) {
+        const float tx = t->x - x, ty = t->y - y;
+        if (Length(tx, ty) <= RUSH_SEEK) { dx = tx; dy = ty; }
+    }
+    const float len = Length(dx, dy);
+    if (len < 0.001f) return false;
+    rush_dx = dx / len;
+    rush_dy = dy / len;
+    if (fabsf(rush_dx) > fabsf(rush_dy)) facing = rush_dx > 0 ? FACE_RIGHT : FACE_LEFT;
+    else                                 facing = rush_dy > 0 ? FACE_DOWN  : FACE_UP;
+    sprite.facing = facing;
+
+    // The opening light swing's shape with the leap's own timing: a gather,
+    // the flight -- whose last tenth of a second is when the blow lands -- and
+    // a recovery on the ground. Weapon speed does not stretch it; the leap is
+    // footwork, not a swing.
+    const AttackProfile& light = ProfileFor(AttackType::Light, 0);
+    AttackProfile p = light;
+    p.windup      = 0.24f;
+    p.active      = 0.10f;
+    p.recover     = 0.20f;
+    p.cooldown    = 0.12f;
+    p.damage_mult = light.damage_mult * RUSH_DAMAGE;
+    p.reach       = 34.0f;
+    p.width       = 42.0f;
+    p.knockback   = 70.0f;
+    p.move_scale  = 0.0f;           // the leap steers itself
+    ShapeForWeapon(p);
+
+    combo = 0;
+    combo_window = 0.0f;
+    attack.type        = AttackType::Light;
+    attack.profile     = p;
+    attack.rate        = 1.0f;
+    attack.damage_mult = p.damage_mult;
+    attack.reach_scale = 1.0f;
+    attack.combo       = 0;
+    attack.timer       = 0.0f;
+    attack.consumed    = false;
+    rushing = true;
+    rush_cooldown = RUSH_COOLDOWN;
+    sprinting = false;
+
+    const bool has_clip = sprite.Def() && sprite.Def()->Find("rush");
+    sprite.speed_scale = 1.0f;
+    sprite.Play(has_clip ? "rush" : AttackClip(), true);
+    Audio::Play(Sfx::Jump);
+    Audio::Play(Sfx::SwingHeavy, 0.9f, 1.1f);
+    return true;
+}
+
+const ItemDef* Player::Shield() const {
+    if (!item_db) return nullptr;
+    const ItemDef* d = item_db->Get(equipment.InSlot(SLOT_SHIELD));
+    return (d && d->block > 0.0f) ? d : nullptr;
+}
+
+bool Player::CanBlock() const {
+    return Shield() && !dead && !jumping && !attack.Active() && !charging && !strong_armed &&
+           !guard_broken && stamina > 0.0f && gather_clip.empty();
+}
+
+bool Player::GuardFacing(float from_x, float from_y) const {
+    return blocking && Shield() && InFrontOf(facing, from_x - x, from_y - y);
+}
+
+void Player::ShatterGuard() {
+    stamina = 0.0f;
+    stamina_delay = STAMINA_DELAY * 2.0f;
+    guard_broken = true;
+    blocking = false;
+    sprinting = false;
+    Audio::Play(Sfx::Winded);
+}
+
+BlockOutcome Player::TryBlock(int damage, int attacker_level, float from_x, float from_y) {
+    BlockOutcome none;
+    none.taken = std::max(0, damage);
+    const ItemDef* shield = Shield();
+    if (!blocking || !shield || damage <= 0) return none;
+    // Only what comes at the shield. A blow from behind finds the back.
+    if (!InFrontOf(facing, from_x - x, from_y - y)) return none;
+
+    BlockOutcome out = ResolveBlock(damage, attacker_level, shield->block, shield->block_stamina, stamina);
+    stamina = std::max(0.0f, stamina - out.stamina);
+    stamina_delay = STAMINA_DELAY;
+    // Stopping a blow trains Defence at the rate landing one trains the skill
+    // it was made with.
+    BankXp(SKILL_DEFENCE, out.blocked * BLOCK_XP_PER_DAMAGE);
+    if (out.broke) {
+        guard_broken = true;
+        blocking = false;
+        Audio::Play(Sfx::Winded);
+    }
+    return out;
+}
+
 // XP follows the style used, the way OSRS ties training to how you fight:
 // light swings feed Attack, heavy swings feed Strength, and everything feeds
 // Hitpoints.
@@ -264,7 +389,11 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
     // for buffering the next link of a light chain.
     const float speed = WeaponSpeed();
 
-    if (in.Pressed(Action::LightAttack) && CanAttack()) {
+    // At a run, with Rushing Strike learned and rested, the light attack is a
+    // leap. Only as an opener: mid-chain it stays the next link.
+    const bool rushed = in.Pressed(Action::LightAttack) && CanAttack() && combo_window <= 0.0f &&
+                        Length(move_axis.x, move_axis.y) >= RUN_THRESHOLD && StartRush(world);
+    if (!rushed && in.Pressed(Action::LightAttack) && CanAttack()) {
         const int index = (combo_window > 0.0f) ? std::min(combo + 1, 2) : 0;
         combo = index;
         attack.type        = AttackType::Light;
@@ -348,9 +477,11 @@ void Player::UpdateAttack(float dt) {
     }
     attack.timer += dt;
     if (attack.Finished()) {
-        // Only light attacks leave a window open to continue the chain.
-        combo_window = (attack.type == AttackType::Light) ? COMBO_WINDOW : 0.0f;
-        if (attack.type != AttackType::Light) combo = 0;
+        // Only light attacks leave a window open to continue the chain -- and
+        // not a leap, which is an opener that nothing follows on from.
+        combo_window = (attack.type == AttackType::Light && !rushing) ? COMBO_WINDOW : 0.0f;
+        if (attack.type != AttackType::Light || rushing) combo = 0;
+        rushing = false;
         attack_cooldown = attack.profile.cooldown;
         cooldown_total  = std::max(0.0001f, attack.profile.cooldown);
         attack.Clear();
@@ -458,6 +589,14 @@ float Player::WeaponSpeed() const {
 void Player::UpdateAnimation(const Vec2& move) {
     if (dead) { sprite.Play("death"); return; }
     if (attack.Active()) return;                     // attack clip owns the frames
+    if (blocking) {
+        // Guard up, stepping or not. A rig with no guard pose stands in its
+        // idle rather than walking with its shield down.
+        const bool has_clip = sprite.Def() && sprite.Def()->Find("block");
+        sprite.Play(has_clip ? "block" : "idle");
+        if (attack_cooldown <= 0.0f) sprite.speed_scale = 1.0f;
+        return;
+    }
 
     const float mag = Length(move.x, move.y);
     // The work, looped for as long as it goes on. A rig with no clip for it
@@ -499,6 +638,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     }
     heard_hp = hp;
     if (sprint_lockout > 0.0f) sprint_lockout = std::max(0.0f, sprint_lockout - dt);
+    if (rush_cooldown > 0.0f) rush_cooldown = std::max(0.0f, rush_cooldown - dt);
     if (combo_window > 0.0f) {
         combo_window -= dt;
         if (combo_window <= 0.0f) combo = 0;
@@ -542,7 +682,16 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (!input_locked && ctx.input) {
         move = ctx.input->MoveAxis();
         moving = Length(move.x, move.y) > 0.3f;
-        HandleAttackInput(*ctx.input, dt, world);
+        move_axis = move;
+        // The guard first: a raised shield is not something a swing starts
+        // from, and a strong press that was being held is let go of.
+        blocking = ctx.input->Down(Action::Block) && CanBlock();
+        if (blocking) {
+            strong_armed = charging = false;
+            charge_held = 0.0f;
+        } else {
+            HandleAttackInput(*ctx.input, dt, world);
+        }
 
         // Which way a jump would go: where you are steering, or failing that
         // where you are facing.
@@ -583,6 +732,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         }
     } else {
         climb_hint.clear();
+        blocking = false;
         // Dropping input mid-charge should not leave a swing armed.
         strong_armed = false;
         charging = false;
@@ -595,7 +745,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // going on. A light tilt stays a walk however hard the button is held.
     sprinting = !input_locked && ctx.input && ctx.input->Down(Action::Sprint) &&
                 Length(move.x, move.y) >= RUN_THRESHOLD &&
-                !attack.Active() && !charging && !strong_armed &&
+                !attack.Active() && !charging && !strong_armed && !blocking &&
                 sprint_lockout <= 0.0f && !winded && stamina > 0.0f;
 
     // Stamina: spent by the second while sprinting, back after a breather.
@@ -616,6 +766,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         stamina = std::min(MaxStamina(), stamina + rate * dt);
     }
     if (winded && stamina >= MaxStamina() * STAMINA_RECOVER) winded = false;
+    if (guard_broken && stamina >= MaxStamina() * STAMINA_RECOVER) guard_broken = false;
     {
         const float lead = sprinting ? 56.0f : 0.0f;
         const float k = std::min(1.0f, dt * (sprinting ? 2.5f : 4.0f));
@@ -625,7 +776,13 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // Face the way you are moving, but never mid-swing. Standing still with a
     // lock on, face the locked monster, so the next shot does not have to turn.
-    if (!attack.Active() && Length(move.x, move.y) > 0.05f) {
+    // Behind a shield, keep it between you and whatever you are fighting while
+    // you step: turning to walk away would turn the guard away with you.
+    const Enemy* guard_target = blocking ? world.targeting.Current() : nullptr;
+    if (guard_target) {
+        const SDL_FPoint a = Targeting::AimPoint(*guard_target);
+        FacePoint(a.x, a.y);
+    } else if (!attack.Active() && Length(move.x, move.y) > 0.05f) {
         if (fabsf(move.x) > fabsf(move.y)) facing = (move.x > 0) ? FACE_RIGHT : FACE_LEFT;
         else                               facing = (move.y > 0) ? FACE_DOWN  : FACE_UP;
     } else if (!attack.Active()) {
@@ -642,9 +799,19 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk
+    else if (blocking)        speed *= BLOCK_MOVE_SCALE;
 
     float dx = move.x * speed * dt;
     float dy = move.y * speed * dt;
+    // The leap carries the character its whole distance through the flight,
+    // and stops them where they land.
+    if (rushing) {
+        const float flight = attack.profile.windup + attack.profile.active;
+        if (attack.timer < flight) {
+            dx += rush_dx * (RUSH_DISTANCE / flight) * dt;
+            dy += rush_dy * (RUSH_DISTANCE / flight) * dt;
+        }
+    }
 
     // Knockback rides on top of steering and decays quickly.
     dx += knock_x * dt;

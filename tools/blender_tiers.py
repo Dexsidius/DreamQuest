@@ -1347,7 +1347,9 @@ def main():
         # A spear strikes with its own clip and never plays the swing, and
         # nothing but a spear plays the thrust.
         kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",),
-                 "attack": ("sword", "bow", "staff"), "thrust": ("spear",)}.get(clip, ("sword", "spear", "bow", "staff"))
+                 "attack": ("sword", "bow", "staff"), "thrust": ("spear",),
+                 # The leap is a melee move: a bow or a staff never makes it.
+                 "rush": ("sword", "spear")}.get(clip, ("sword", "spear", "bow", "staff"))
         every = ["rod"] if kinds == ("rod",) else ["%s_%s" % (k, t) for t in tiers for k in kinds]
         if chosen:
             return [m for m in chosen if m.split("_", 1)[0] in kinds]

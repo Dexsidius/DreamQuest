@@ -71,6 +71,10 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.needs_recipe = o.value("needs_recipe", false);
         d.passive     = o.value("passive", string(""));
         d.passive_text = o.value("passive_text", string(""));
+        // A shield from a data file rather than a tier says how well it blocks
+        // itself; anything that does not say is not a shield.
+        d.block         = o.value("block", 0.0f);
+        d.block_stamina = o.value("block_stamina", 1.0f);
 
         if (o.contains("tint")) {
             const json& t = o["tint"];
@@ -306,6 +310,11 @@ bool ItemDatabase::LoadTiers(const string& path) {
                 // are named after, so it is the one that needs no suffix.
                 d.armour_cut = tj.value("cut", string(""));
                 if (d.armour_cut == "plate") d.armour_cut.clear();
+                // Only the shield blocks, and how well is its tier's.
+                if (d.slot == SLOT_SHIELD) {
+                    d.block         = tj.value("block", 0.5f);
+                    d.block_stamina = tj.value("block_stamina", 1.0f);
+                }
             }
 
             const float power = pj.value("power", string("weapon")) == "armour"

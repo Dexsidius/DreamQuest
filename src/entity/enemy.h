@@ -4,6 +4,19 @@
 #include "../systems/projectile.h"
 #include "../world/map.h"
 
+// A leader's heavy attack: a long, telegraphed wind-up and a blow that no
+// shield stops. Only what carries a "heavy" block in data/enemies.json has one.
+struct HeavyAttackDef {
+    bool  enabled   = false;
+    float windup    = 1.5f;   // seconds the charge takes, bar filling the whole way
+    float damage    = 2.4f;   // times the monster's own max hit
+    float reach     = 1.3f;   // times its attack range
+    float width     = 1.6f;   // times its body's width
+    float cooldown  = 9.0f;   // seconds between one and the next
+    float opening   = 3.5f;   // seconds into a fight before the first
+    float knockback = 220.0f;
+};
+
 // Stat block for one kind of monster, from data/enemies.json.
 struct EnemyDef {
     string id, name, sprite;
@@ -27,6 +40,7 @@ struct EnemyDef {
     // Multiplied over the sprite: the dream's nightmares are the waking
     // world's orcs and boars, drawn in the colours of a bad night.
     SDL_Color tint{255, 255, 255, 255};
+    HeavyAttackDef heavy;
 };
 
 class EnemyDatabase {
@@ -43,7 +57,9 @@ private:
 // within a leash, swing when close enough, and go home when they run away.
 class Enemy : public Entity {
 public:
-    enum class State { Idle, Chase, Attack, Hurt, Dead, Return };
+    // Heavy: a leader winding up and delivering its heavy attack; see
+    // HeavyAttackDef. The charge, the blow and a moment to recover from it.
+    enum class State { Idle, Chase, Attack, Hurt, Dead, Return, Heavy };
 
     void Init(const EnemyDef* def, const EnemySpawnDef& spawn, const GameContext& ctx);
     void Update(float dt, World& world, const GameContext& ctx) override;
@@ -63,7 +79,22 @@ public:
     const string& TypeId() const { return type_id; }
     State CurrentState() const { return state; }
     // Set while the player is engaged, so the HUD can show a target bar.
-    bool  Engaged() const { return state == State::Chase || state == State::Attack; }
+    bool  Engaged() const { return state == State::Chase || state == State::Attack || state == State::Heavy; }
+
+    // --- heavy attack -------------------------------------------------------------
+    // 0 to 1 through the wind-up, for the bar over its head and the red glow;
+    // 0 when it is not charging.
+    float HeavyCharge() const;
+    bool  ChargingHeavy() const { return HeavyCharge() > 0.0f; }
+    // The rectangle the blow lands in, from where the monster stands facing
+    // the way it is facing. Wider and longer than an ordinary swing.
+    SDL_FRect HeavyHitbox() const;
+    // The damage it will do before any punishment for blocking it.
+    int   HeavyDamage(std::mt19937* rng) const;
+    // How long until the next one may start.
+    float HeavyCooldown() const { return heavy_timer; }
+    static constexpr float HEAVY_RECOVER = 0.7f;   // standing after the blow
+    static constexpr float HEAVY_LOCK    = 0.7f;   // share of the wind-up it keeps turning to follow
 
     // --- health bar -------------------------------------------------------------
     // Hidden until the player first attacks this monster -- a hit, a miss or a
@@ -105,6 +136,8 @@ private:
     float wander_timer = 0.0f;
     float wander_dx = 0, wander_dy = 0;
 
+    float heavy_timer = 0.0f;     // until the next heavy attack may start
+    bool  heavy_landed = false;   // the blow has been delivered this heavy
     bool  swing_landed = false;   // one hit per swing
     float swing_timer = 0.0f;
     bool  swinging = false;

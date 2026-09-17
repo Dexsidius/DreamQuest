@@ -49,6 +49,19 @@ public:
                          const GameContext& ctx);
     void AddGroundEffect(const GroundEffect& effect);
 
+    // A blow that has already beaten the player's defence, from an attacker
+    // standing at (from_x, from_y). The shield gets its say first; whatever
+    // gets past it is taken, shown and trains Defence the way a hit always
+    // has. Every monster swing and every shot comes through here, so blocking
+    // cannot be forgotten by one of them. Returns the damage actually taken.
+    int HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
+                  float knock_x = 0.0f, float knock_y = 0.0f);
+    // A leader's heavy attack landing. No shield stops it, and one raised
+    // against it makes it worse: the guard shatters, the bar empties and the
+    // blow lands harder. Returns the damage taken.
+    static constexpr float HEAVY_BLOCK_PUNISH = 1.5f;
+    int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y);
+
     void SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx);
     void DropItem(const string& item_id, int qty, float x, float y, const GameContext& ctx);
     void AddText(const string& text, float x, float y, SDL_Color color, float life = 0.9f);

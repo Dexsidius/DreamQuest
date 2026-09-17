@@ -18,6 +18,9 @@ Input::Input() {
         {SDLK_J, Action::LightAttack},
         {SDLK_K, Action::StrongAttack},
         {SDLK_L, Action::Target},
+        // Guard, held. H sits under the right hand beside the attacks, so a
+        // swing and a block are one finger apart.
+        {SDLK_H, Action::Block},
         {SDLK_E, Action::Interact},
         {SDLK_SPACE, Action::Jump},
         {SDLK_LSHIFT, Action::Sprint}, {SDLK_RSHIFT, Action::Sprint},
@@ -165,6 +168,10 @@ bool Input::HandleEvent(const SDL_Event& e) {
                 Set(a, dn, true);
                 // The face button that interacts also confirms in menus.
                 if (a == Action::Interact) Set(Action::Confirm, dn, true);
+                // And the one that backs out of menus guards in the game.
+                // Gameplay never reads Back, so the two never collide; every
+                // other button a thumb can reach was already an attack.
+                if (a == Action::Back) Set(Action::Block, dn, true);
                 return true;
             }
             return false;
@@ -256,7 +263,8 @@ string Input::PromptFor(Action a) const {
             case Action::StrongAttack: return "(Y)";
             case Action::Interact:
             case Action::Confirm:      return "(A)";
-            case Action::Back:         return "(B)";
+            case Action::Back:
+            case Action::Block:        return "(B)";
             case Action::Inventory:    return "LB";
             case Action::Skills:       return "RB";
             case Action::QuestLog:     return "Back";
@@ -273,6 +281,7 @@ string Input::PromptFor(Action a) const {
         case Action::LightAttack:  return "J";
         case Action::StrongAttack: return "K";
         case Action::Target:       return "L";
+        case Action::Block:        return "H";
         case Action::Interact:     return "E";
         case Action::Confirm:      return "J";
         case Action::Back:         return "K";

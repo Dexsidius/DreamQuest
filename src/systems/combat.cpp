@@ -173,3 +173,42 @@ SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,
     }
     return {x, cy, width, reach};
 }
+
+// --- blocking ----------------------------------------------------------------
+
+BlockOutcome ResolveBlock(int damage, int attacker_level, float mitigation,
+                          float stamina_mult, float stamina_available) {
+    BlockOutcome out;
+    out.taken = std::max(0, damage);
+    if (damage <= 0 || mitigation <= 0.0f) return out;
+
+    const float cost = static_cast<float>(damage) * static_cast<float>(std::max(1, attacker_level)) *
+                       std::max(0.0f, stamina_mult);
+    const float have = std::max(0.0f, stamina_available);
+    // The share of the block that could be paid for. All of it, or as much as
+    // was left in the bar when the bar ran out.
+    float share = 1.0f;
+    if (cost > have) {
+        share = cost > 0.0f ? have / cost : 1.0f;
+        out.broke = true;
+    }
+    out.stamina = std::min(cost, have);
+    out.blocked = std::clamp(static_cast<int>(std::lround(damage * std::min(1.0f, mitigation) * share)),
+                             0, damage);
+    out.taken = damage - out.blocked;
+    return out;
+}
+
+int CombatLevelOf(const CombatProfile& p) {
+    return std::max({p.attack_level, p.strength_level, p.defence_level,
+                     p.ranged_level, p.magic_level, 1});
+}
+
+bool InFrontOf(Facing facing, float dx, float dy) {
+    const float len = std::sqrt(dx * dx + dy * dy);
+    if (len < 0.001f) return true;             // on top of you is in front of you
+    const float fx = facing == FACE_LEFT ? -1.0f : facing == FACE_RIGHT ? 1.0f : 0.0f;
+    const float fy = facing == FACE_UP   ? -1.0f : facing == FACE_DOWN  ? 1.0f : 0.0f;
+    // cos(100 degrees): a hundred degrees either side of straight ahead.
+    return (fx * dx + fy * dy) / len > -0.18f;
+}

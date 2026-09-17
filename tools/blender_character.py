@@ -939,6 +939,65 @@ def pose_hurt(t):
     }
 
 
+def pose_rush(t):
+    """Rushing Strike: a running leap into a downward blow.
+
+    Gather on the back foot with the blade drawn back, spring with the knees
+    tucked and the weapon lifted over the head, and bring it down as the feet
+    land, the whole body following it through. The distance is the world's --
+    it carries the character forward and lifts them through an arc -- so the
+    pose only has to say which part of the leap this is."""
+    keys = [
+        # t     the pose at that moment
+        (0.00, dict(lean=10, leg_l=12, leg_r=-10, knee_l=16, knee_r=14, arm_r=40, elbow_r=40,
+                    arm_l=20, elbow_l=30, flare_l=14, flare_r=12, sword=10, bob=0.0)),
+        (0.18, dict(lean=22, leg_l=30, leg_r=-24, knee_l=48, knee_r=42, arm_r=110, elbow_r=50,
+                    arm_l=-20, elbow_l=40, flare_l=16, flare_r=14, sword=-10, bob=-0.07, nod=6)),
+        # In the air the blade is raised up and in front of the face, not
+        # straight overhead: straight up it passes behind the head and helm,
+        # which cut it out of the frame, and the leap read as someone jumping
+        # with empty hands.
+        (0.45, dict(lean=-4, leg_l=62, leg_r=18, knee_l=104, knee_r=92, arm_r=138, elbow_r=18,
+                    arm_l=-30, elbow_l=34, flare_l=22, flare_r=10, sword=-32, bob=0.05, nod=-8,
+                    scarf=44, scarf2=30, hair=10)),
+        (0.64, dict(lean=30, leg_l=34, leg_r=-26, knee_l=40, knee_r=26, arm_r=-34, elbow_r=4,
+                    arm_l=30, elbow_l=36, flare_l=18, flare_r=14, sword=34, bob=-0.06, lunge=0.08, nod=14,
+                    scarf=30, scarf2=26, hair=6)),
+        (1.00, dict(lean=6, leg_l=10, leg_r=-8, knee_l=12, knee_r=10, arm_r=10, elbow_r=30,
+                    arm_l=10, elbow_l=26, flare_l=12, flare_r=12, sword=16, bob=0.0, lunge=0.02,
+                    scarf=16, scarf2=10)),
+    ]
+    for (t0, a), (t1, b) in zip(keys, keys[1:]):
+        if t <= t1:
+            k = (t - t0) / max(1e-6, t1 - t0)
+            k = k * k * (3 - 2 * k)
+            names = set(a) | set(b)
+            v = {n: a.get(n, 0.0) + (b.get(n, 0.0) - a.get(n, 0.0)) * k for n in names}
+            v["blink"] = 1.0 if 0.60 <= t < 0.70 else 0.0
+            return v
+    return dict(keys[-1][1])
+
+
+def pose_block(t):
+    # Guard up: the shield arm raised across the front of the chest, the
+    # weapon drawn back low and ready, feet staggered and knees bent, and a
+    # slow breath under it. Held for as long as the button is.
+    b = math.sin(t * math.tau)
+    return {
+        # Swung across the body at the shoulder rather than lifted at it. A
+        # flare turns the arm about the shoulder's own up axis, which leaves
+        # the shield facing where it faced; lifting the arm tips its face up at
+        # the sky, and from above it read as a plate held flat. About forty-five
+        # degrees of pitch altogether tilts it square to a camera looking down.
+        "arm_l": 25 + b * 2, "elbow_l": 20, "flare_l": -55,
+        "arm_r": -8 - b * 2, "elbow_r": 46, "flare_r": 16, "sword": 24,
+        "lean": 9 + b * 1.2, "twist": -12, "nod": 4,
+        "leg_l": 16, "leg_r": -12, "knee_l": 18, "knee_r": 16,
+        "bob": -0.03 + 0.004 * b, "lunge": 0.01,
+        "scarf": 18 + b * 3, "scarf2": 10 + b * 4, "hair": b,
+    }
+
+
 def pose_death(t):
     k = min(1.0, t * 1.15)
     e = k * k * (3 - 2 * k)
@@ -1043,8 +1102,12 @@ CLIPS = {
     "attack": (pose_attack, 6,  False),
     # A spear's strike, in place of the swing.
     "thrust": (pose_thrust, 6,  False),
+    # Rushing Strike, from the melee tree: a running leap into a downward blow.
+    "rush":   (pose_rush,   8,  False),
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
+    # Holding a shield up. Looped: a guard lasts as long as the button is held.
+    "block":  (pose_block,  4,  True),
     "death":  (pose_death,  6,  False),
     # The work: looped for as long as the gathering goes on.
     "chop":   (pose_chop,   8,  True),

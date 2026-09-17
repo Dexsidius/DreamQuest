@@ -185,6 +185,8 @@
     76
    ],
    "cut": "light",
+   "block": 0.5,
+   "block_stamina": 1.0,
    "material": "logs",
    "wood": true,
    "flavour": "Seasoned wood, carved and pegged. Better than bare hands.",
@@ -252,6 +254,8 @@
     78
    ],
    "cut": "light",
+   "block": 0.54,
+   "block_stamina": 0.8,
    "ore": "copper_ore",
    "ore_name": "Copper Ore",
    "mining": 1,
@@ -277,6 +281,8 @@
     164
    ],
    "cut": "light",
+   "block": 0.58,
+   "block_stamina": 0.64,
    "ore": "iron_ore",
    "ore_name": "Iron Ore",
    "mining": 5,
@@ -302,6 +308,8 @@
     236
    ],
    "cut": "plate",
+   "block": 0.62,
+   "block_stamina": 0.512,
    "ore": "coal",
    "ore_name": "Coal",
    "mining": 20,
@@ -334,6 +342,8 @@
     240
    ],
    "cut": "plate",
+   "block": 0.66,
+   "block_stamina": 0.41,
    "ore": "azuryte_ore",
    "ore_name": "Azuryte Ore",
    "mining": 30,
@@ -360,6 +370,8 @@
     144
    ],
    "cut": "plate",
+   "block": 0.7,
+   "block_stamina": 0.328,
    "ore": "damascus_ore",
    "ore_name": "Damascus Ore",
    "mining": 40,
@@ -386,6 +398,8 @@
     66
    ],
    "cut": "plate",
+   "block": 0.75,
+   "block_stamina": 0.262,
    "ore": "orichalcum_ore",
    "ore_name": "Orichalcum Ore",
    "mining": 50,
@@ -412,6 +426,8 @@
     248
    ],
    "cut": "plate",
+   "block": 0.79,
+   "block_stamina": 0.21,
    "ore": "diamond_ore",
    "ore_name": "Rough Diamond",
    "mining": 60,
@@ -437,6 +453,8 @@
     196
    ],
    "cut": "plate",
+   "block": 0.83,
+   "block_stamina": 0.168,
    "ore": "platinum_ore",
    "ore_name": "Platinum Ore",
    "mining": 70,
@@ -463,6 +481,8 @@
     42
    ],
    "cut": "ornate",
+   "block": 0.87,
+   "block_stamina": 0.134,
    "ore": "demonite_ore",
    "ore_name": "Demonite Ore",
    "mining": 80,
@@ -489,6 +509,8 @@
     40
    ],
    "cut": "ornate",
+   "block": 0.91,
+   "block_stamina": 0.107,
    "bar": "dracon_bar",
    "bar_name": "Dracon Bar",
    "smelt": {
@@ -512,6 +534,8 @@
     244
    ],
    "cut": "ornate",
+   "block": 0.95,
+   "block_stamina": 0.086,
    "bar": "enchanted_bar",
    "bar_name": "Enchanted Bar",
    "smelt": {

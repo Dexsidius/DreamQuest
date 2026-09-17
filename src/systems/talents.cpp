@@ -12,6 +12,12 @@ const TalentNode* TalentTree::At(int branch, int row) const {
     return nullptr;
 }
 
+int TalentTree::BranchCount() const {
+    int count = static_cast<int>(branches.size());
+    for (const TalentNode& n : nodes) count = std::max(count, n.branch + 1);
+    return std::max(count, SkillTrees::BRANCHES);
+}
+
 bool SkillTrees::Load(const string& path) {
     std::ifstream in(path);
     if (!in) {

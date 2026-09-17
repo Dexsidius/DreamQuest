@@ -139,6 +139,7 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Light attack | `J` | X (west) |
 | Heavy / charged attack | `K` (hold to charge) | Y (north) |
 | Lock on / next target | `L` | Right trigger |
+| Block (hold, with a shield) | `H` | B (east) |
 | Sprint (hold) | `Shift` | Left trigger |
 | Jump / climb | `Space` | Left stick click |
 | Interact | `E` | A (south) |
@@ -153,6 +154,54 @@ In menus the fighting keys double up the way a controller's face buttons do:
 `J`, `E`, `Space` or `Enter` confirms, and `K`, `Backspace` or `Esc` backs out.
 A panel's own key closes it again. The death screen ignores input for its first
 moment, so the last swing of a lost fight does not skip straight past it.
+
+### Blocking
+
+Hold `H` -- or B on a controller, which only means Back in menus -- with a
+**shield** in the off hand to raise your guard. A lantern is not a shield. The
+guard stops blows from in front of you, melee swings and shots alike; a blow from
+behind finds your back. While it is up you step slowly, cannot swing and cannot
+sprint, and with a monster targeted you keep facing it as you move.
+
+A shield turns aside a share of every blow it takes, and each one costs stamina:
+
+    stamina = the blow's damage x the attacker's level x the shield's multiplier
+
+so a rat's nip costs next to nothing and a dragon's bite empties the bar. If a
+blow costs more than you have left, the shield stops only the share you could pay
+for, the bar empties, and the **guard breaks**: it will not come up again until
+the bar has refilled to the same point a winded sprint waits for. The stamina bar
+turns steel blue while the guard is up and pulses red while it is broken.
+
+Everything a shield stops trains **Defence**, at 4 XP a point -- the rate a hit
+trains the skill it was made with -- on top of the XP any blow that gets through
+already gives.
+
+Every tier of shield blocks more and costs less:
+
+| Shield | Stops | Stamina | | Shield | Stops | Stamina |
+| --- | --- | --- | --- | --- | --- | --- |
+| Wood | 50% | x1.00 | | Orichalcum | 75% | x0.26 |
+| Bronze | 54% | x0.80 | | Diamond | 79% | x0.21 |
+| Iron | 58% | x0.64 | | Platinum | 83% | x0.17 |
+| Steel | 62% | x0.51 | | Demonite | 87% | x0.13 |
+| Azuryte | 66% | x0.41 | | Dracon | 91% | x0.11 |
+| Damascus | 70% | x0.33 | | Enchanted | 95% | x0.09 |
+
+What an average hit costs to block, out of a bar of 100:
+
+| Monster | Level | Wood | Bronze | Steel | Azuryte | Diamond | Enchanted |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Orc Grunt | 9 | 18 | 14 | 9 | 7 | 4 | 2 |
+| Lizardman | 21 | 84 | 67 | 43 | 34 | 18 | 7 |
+| Orc Warchief | 28 | 168 | 134 | 86 | 69 | 35 | 14 |
+| Ice Troll | 31 | 202 | 161 | 103 | 83 | 42 | 17 |
+| Hoarfang | 66 | 1122 | 898 | 574 | 460 | 236 | 96 |
+
+The rule is `ResolveBlock` in `src/systems/combat.h`, and every blow that lands on
+the player goes through `World::HitPlayer`, so no monster or projectile can skip
+the shield. The guard pose is its own clip, `block`, rendered for every character,
+armour cut and tier weapon.
 
 ### Sprinting
 
@@ -338,7 +387,7 @@ buttons on a pad. A tree is three branches, five nodes deep:
 
 | Tree | Earned by | Branches |
 | --- | --- | --- |
-| Melee | Attack | Blade, Brawn, Guard |
+| Melee | Attack | Blade, Brawn, Guard, and Footwork |
 | Ranged | Ranged | Marksman, Skirmisher, Hunter |
 | Magic | Magic | Evoker, Channeler, Warden |
 
@@ -373,6 +422,26 @@ will do ("Hold K: Whirlwind").
 | Magic | **Nova** | A ring of eight bolts of your element, for twice the mana |
 | Magic | **Barrage** | Four seeking bolts at once, for twice the mana |
 | Magic | **Meteor** | Your element crashes down on your target, for three times the mana |
+
+#### Rushing Strike
+
+The melee tree has a fourth branch, **Footwork**, for moves made on the run. Its
+first is **Rushing Strike**, at Attack 15, with nothing above it to learn first.
+
+With it learned and a melee weapon in hand, **a light attack made at a run is a
+leap**: the character springs at whatever they are fighting -- if it is within
+leaping distance, otherwise on along the way they were running -- and brings the
+weapon down as they land. It covers about 86 pixels through a short arc, hits for
+**1.4 times a light attack's damage**, and trains Attack the way a light attack
+does. It is only an opener: a light attack in the middle of a chain stays the next
+link. Then it **rests for 3 seconds**, during which a running light attack is an
+ordinary swing; a hairline under the stamina bar fills back up over those three
+seconds and turns amber when the next one will leap.
+
+It is a move of its own, not a technique, so it does not take the charged
+attack's place and can be used alongside Whirlwind, Ground Slam or Lunge. The leap
+has its own clip, `rush`, rendered for every character, armour cut, and tier sword
+and spear -- a bow or a staff never makes it.
 
 The capstones at level 70 are Bloodlust, Titan and Last Stand for melee;
 Deadeye, Hail and Bloodletting for ranged; Archmage, Overflow and Elemental
@@ -2035,6 +2104,46 @@ A monster's `scale` in `data/enemies.json` now actually draws it bigger -- it wa
 read and never used -- so a broodmother, a chief, the matriarch and the Pit Lord
 are the same art as their kin, only larger and tinted.
 
+### Heavy attacks
+
+Leaders -- the Orc Warchief, the Broodmother, the Lizardman Chief, the Wyvern
+Matriarch and every Frost Wyvern, the Hollowrest Wight, the Thing in the Spring,
+the Pit Lord, Hoarfang, and the Nightmare Brute -- have a second attack besides
+their swing: **a heavy, telegraphed blow that no shield stops.**
+
+A few seconds into a fight, when the player is within its reach, the leader
+plants its feet and winds up. **A bar over its head fills** from yellow to red
+over the wind-up, its frame flashing as it nears full, and **the monster glows
+red**: a red halo round its silhouette, its own colours pulled towards red, and
+at night or underground a red light around it. It cannot be knocked about or
+hit out of the charge.
+
+For most of the wind-up it turns to follow the player. For the last stretch it is
+committed to where the player was, and that is the chance: **step out of the line
+and the blow lands on nothing.** If it connects it hits for two to three times
+the monster's biggest ordinary hit.
+
+**Blocking it is a mistake.** A raised shield stops none of it; the blow lands
+half as hard again, the guard shatters, the stamina bar empties, and the wait
+before stamina comes back is doubled.
+
+| Leader | Wind-up | Damage | Rests |
+| --- | --- | --- | --- |
+| Broodmother | 1.2s | x2.2 | 8s |
+| Lizardman Chief | 1.3s | x2.3 | 9s |
+| Orc Warchief | 1.4s | x2.4 | 9s |
+| Nightmare Brute | 1.4s | x2.2 | 9s |
+| The Hollowrest Wight | 1.4s | x2.4 | 9s |
+| Frost Wyvern | 1.5s | x2.2 | 12s |
+| Wyvern Matriarch | 1.5s | x2.5 | 9s |
+| The Thing in the Spring | 1.5s | x2.5 | 9s |
+| The Pit Lord | 1.6s | x2.6 | 9s |
+| Hoarfang | 1.8s | x2.8 | 10s |
+
+A heavy attack is a `heavy` block on a monster in `data/enemies.json` --
+`windup`, `damage`, `cooldown`, and optionally `reach`, `width`, `opening` and
+`knockback` -- so any monster can be given one.
+
 ### The art
 
 Every new monster is original, modelled and animated in
@@ -2092,6 +2201,20 @@ all of them worth knowing about because none of them showed up as an error:
   arm straight along the body -- rest angles and all, through `_straighten`,
   because what matters is the arm's *total* angle and every creature's rest angle
   is different.
+- *Nothing may be drawn across a cell's edge.* The engine draws exactly one cell
+  of a sheet, so a pose that crosses an edge is cut off in its own frame and
+  leaves a scrap in the next one. `keep_in_cell` measures each posed rig in the
+  camera's screen axes and slides it back inside by just enough; a rig that
+  already fits is not touched. The Warchief, a head taller than the other orcs,
+  is also stood lower in his frame (`FRAME_DROP`), into the empty strip every rig
+  has under its feet. The self-test checks every edge pixel of every creature
+  sheet.
+- *A roll about the body's own spine is right for an animal, but which side it
+  lands on matters.* Side on, a deer rolled away from the camera ended with its
+  legs straight up the screen, balanced on its back; `_roll_to_camera` turns the
+  two side rows so the legs fall down the screen under it. The bat no longer
+  rolls at all -- side on, rolling stood its wings up the screen and it never
+  seemed to land -- it drops and lies where it falls.
 
 The swamp, peak and pit props -- reeds, lily pads, swamp trees, stilt huts,
 totems, ice spires and crystals, snowy pines, wyvern nests, charred trees,
@@ -2288,6 +2411,31 @@ and checks all of it — currently **12730 checks** covering:
   what was in the slots that went away; and what is in it survives a save
 - every creature stands at the same height in all four facings of every clip it
   is still standing up in, measured off the sheets themselves
+- blocking: a blow costs its damage times the attacker's level times the
+  shield's multiplier in stamina; running short stops only the share that was
+  paid for, empties the bar and breaks the guard; every tier's shield stops more
+  and costs less; a lantern is not a shield. Played through: no guard without a
+  shield, a raised guard holds the shield up and cannot swing, a wooden shield
+  stops half of a blow from in front and trains Defence for it, a blow from
+  behind gets through, a dragon's blow breaks the guard and it comes back once
+  the bar refills, an enchanted shield takes the same blow for a fraction, and a
+  guarded step is slow
+- Rushing Strike: the melee tree's Footwork branch has it at Attack 15, and the
+  ranged and magic trees keep three branches. Played through: a running light
+  attack is ordinary without it and standing still with it; with it, a running
+  light attack leaps, plays the leap, hits for 1.4 times a light attack, leaves
+  the ground and covers the distance; inside three seconds it does not leap
+  again and after three it does; a bow never leaps; and with a monster targeted
+  the leap turns to it and lands with the monster inside the blow
+- leaders' heavy attacks: the Warchief, the wyverns, the dragon and every other
+  leader have one and ordinary monsters do not. Played through: the Warchief
+  winds up close to the player, the bar fills steadily over the whole wind-up and
+  nothing lands until it is full, then a blow lands for well over an ordinary hit
+  and it rests before the next; against a raised enchanted shield it stops none
+  of it, lands half as hard again and shatters the guard with all the stamina;
+  it turns to follow early in the wind-up and is committed late in it, and a
+  player who steps out of the line takes nothing; and a charging leader is braced
+  against knockback and keeps charging when hit
 - inventory, equipment, skills and quest progress survive a save round-trip
 - the hero has every clip including sprint, each split into shadow, body and
   head with its sheets on disk, and its head and feet sit where the CraftPix

@@ -85,6 +85,12 @@ struct ItemDef {
     // "ornate" for the last tiers' horned harness, empty for plain plate.
     string armour_cut;
 
+    // A shield's block: the share of a blow it turns aside, and the multiplier
+    // on the stamina that costs. Zero block is anything worn in the off hand
+    // that is not a shield -- a lantern is not something to stop a sword with.
+    float block = 0.0f;
+    float block_stamina = 1.0f;
+
     map<int, int> requirements;       // SkillId -> level needed to equip
 
     // Consumables.

@@ -279,6 +279,14 @@ vector<Light> World::CollectLights() const {
         }
     }
 
+    // A leader winding up a heavy throws red light around it, so the warning
+    // reads at night and underground as well as by day.
+    for (const auto& e : enemies) {
+        const float charge = e->HeavyCharge();
+        if (charge <= 0.0f) continue;
+        lights.push_back({e->x, e->y - 20.0f, 50.0f + 60.0f * charge, {255, 50, 30, 255}, 0.4f + 0.6f * charge});
+    }
+
     // A little light of your own, so the player is never lost in the dark: a
     // warm glow outdoors, a pale one in a dream. Underground it is only what
     // is in your hand -- and with nothing in it, barely an arm's length.
@@ -1561,11 +1569,8 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 DamageResult r = RollAttack(p.owner, player.Profile(), p.style,
                                             p.damage_mult, *ctx.rng);
                 if (r.hit && r.damage > 0) {
-                    player.Damage(r.damage);
-                    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
-                    player.GrantXp(SKILL_DEFENCE, std::max(1, r.damage));
-                    AddText(std::to_string(r.damage), player.x, player.y - 44.0f,
-                            {235, 70, 70, 255});
+                    // Where the shot came from is back along its flight.
+                    HitPlayer(r.damage, p.owner, p.x - p.vx, p.y - p.vy);
                 } else {
                     AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                 }
@@ -1630,13 +1635,13 @@ void World::UpdateElevation() {
     // may visit the same entity's bounds several times.
     if (!map.HasElevation()) {
         // A hop on flat ground still leaves the ground.
-        player.draw_lift = player.IsJumping() ? player.JumpLift() : 0.0f;
+        player.draw_lift = player.IsJumping() ? player.JumpLift() : player.RushLift();
         for (auto& e : enemies) e->draw_lift = 0.0f;
         for (auto& n : npcs)    n->draw_lift = 0.0f;
         return;
     }
     player.draw_lift = player.IsJumping() ? player.JumpLift()
-                                          : map.HeightAt(player.x, player.y);
+                                          : map.HeightAt(player.x, player.y) + player.RushLift();
     for (auto& e : enemies) e->draw_lift = map.HeightAt(e->x, e->y);
     for (auto& n : npcs)    n->draw_lift = map.HeightAt(n->x, n->y);
 }
@@ -1751,6 +1756,53 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
     ground_effects.erase(std::remove_if(ground_effects.begin(), ground_effects.end(),
                                         [](const GroundEffect& g) { return g.finished; }),
                          ground_effects.end());
+}
+
+int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
+                     float knock_x, float knock_y) {
+    if (damage <= 0 || player.IsDead()) return 0;
+    const BlockOutcome b = player.TryBlock(damage, CombatLevelOf(attacker), from_x, from_y);
+
+    if (b.blocked > 0) {
+        AddText("blocked " + std::to_string(b.blocked), player.x, player.y - 58.0f,
+                {150, 196, 240, 255});
+        Audio::PlayAt(Sfx::Block, player.x, player.y);
+    }
+    if (b.broke)
+        AddText("Guard broken!", player.x, player.y - 72.0f, {255, 176, 96, 255}, 1.6f);
+    if (b.taken > 0) {
+        player.Damage(b.taken);
+        player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+        AddText(std::to_string(b.taken), player.x, player.y - 44.0f, {235, 70, 70, 255});
+        // Taking a hit trains Defence, as it does in OSRS.
+        player.GrantXp(SKILL_DEFENCE, std::max(1, b.taken));
+    }
+    // A blow on the shield still shoves, only less.
+    const float push = b.taken > 0 ? 1.0f : 0.35f;
+    player.knock_x += knock_x * push;
+    player.knock_y += knock_y * push;
+    return b.taken;
+}
+
+int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y) {
+    if (damage <= 0 || player.IsDead()) return 0;
+    float push = 1.0f;
+    if (player.GuardFacing(from_x, from_y)) {
+        // Met with a shield: it goes straight through, and takes the guard
+        // and the breath with it.
+        damage = static_cast<int>(std::lround(damage * HEAVY_BLOCK_PUNISH));
+        player.ShatterGuard();
+        push = 1.6f;
+        AddText("Guard shattered!", player.x, player.y - 72.0f, {255, 120, 80, 255}, 1.8f);
+        Audio::PlayAt(Sfx::Block, player.x, player.y, 1.0f, 0.6f);
+    }
+    player.Damage(damage);
+    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+    AddText(std::to_string(damage), player.x, player.y - 44.0f, {255, 60, 40, 255}, 1.2f);
+    player.GrantXp(SKILL_DEFENCE, std::max(1, damage));
+    player.knock_x += knock_x * push;
+    player.knock_y += knock_y * push;
+    return damage;
 }
 
 void World::SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx) {
@@ -2228,6 +2280,40 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         }
     }
 
+    // Heavy attacks winding up: a bar over the head that fills as the charge
+    // does, amber to red, and flashes when it is about to land. Over the
+    // health bar when there is one, so both can be read at once.
+    for (const auto& e : enemies) {
+        const float charge = e->HeavyCharge();
+        if (charge <= 0.0f) continue;
+        const SDL_FRect body = e->BodyBox();
+        if (!RectsOverlap(body, view)) continue;
+        // Wider and thicker than the health bar, with a pale frame, and
+        // yellow to red as it fills: it has to read as a different thing from
+        // the red health bar right under it.
+        const float w = std::max(28.0f, body.w + 12.0f);
+        const float lift = e->HealthBarVisible() ? 12.0f : 6.0f;
+        const SDL_FRect s = camera.ToScreenRect({e->x - w / 2.0f, body.y - e->draw_lift - lift, w, 5.0f});
+        const float bx = roundf(s.x), by = roundf(s.y);
+        const int   bw = std::max(14, static_cast<int>(roundf(s.w)));
+        const int   bh = std::max(9, static_cast<int>(roundf(s.h)));
+        const int   inner = bw - 4;
+        const int   fill = std::clamp(static_cast<int>(std::lround(inner * charge)), 1, inner);
+
+        // Near full the frame flashes: it is about to land.
+        const bool flash = charge > 0.8f && (SDL_GetTicks() / 80) % 2 == 0;
+        SDL_SetRenderDrawColor(r, flash ? 255 : 244, flash ? 70 : 226, flash ? 50 : 190, 255);
+        const SDL_FRect frame = {bx, by, static_cast<float>(bw), static_cast<float>(bh)};
+        SDL_RenderFillRect(r, &frame);
+        SDL_SetRenderDrawColor(r, 24, 8, 6, 255);
+        const SDL_FRect back = {bx + 1.0f, by + 1.0f, bw - 2.0f, bh - 2.0f};
+        SDL_RenderFillRect(r, &back);
+        const Uint8 g = static_cast<Uint8>(210.0f * (1.0f - charge) + 30.0f);
+        SDL_SetRenderDrawColor(r, 255, g, 36, 255);
+        const SDL_FRect bar = {bx + 2.0f, by + 2.0f, static_cast<float>(fill), bh - 4.0f};
+        SDL_RenderFillRect(r, &bar);
+    }
+
     // The target marker: a small arrow hung over the head of whoever shots are
     // going to, above the health bar. Pale for the monster the fight picked,
     // red and bobbing for a lock. In art pixels, so it sits with the sprites.
@@ -2236,7 +2322,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         const float z = camera.zoom;
         const SDL_FRect body = t->BodyBox();
         const float bob = lock ? roundf(sinf(static_cast<float>(SDL_GetTicks()) * 0.009f) * 1.5f) : 0.0f;
-        const float gap = t->HealthBarVisible() ? 9.0f : 4.0f;
+        // Over the health bar, and over a charging heavy's bar above that.
+        const float gap = (t->HealthBarVisible() ? 9.0f : 4.0f) + (t->ChargingHeavy() ? 9.0f : 0.0f);
         const SDL_FPoint tip = camera.ToScreen(t->x, body.y - t->draw_lift - gap - bob);
         const float cx = roundf(tip.x / z) * z, by = roundf(tip.y / z) * z;
         const SDL_Color fill = lock ? SDL_Color{236, 72, 54, 255} : SDL_Color{246, 226, 160, 235};

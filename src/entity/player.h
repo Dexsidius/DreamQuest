@@ -174,6 +174,52 @@ public:
     // player sees what they are running into, and back to centre otherwise.
     Vec2  LookAhead() const { return look_ahead; }
 
+    // --- Rushing Strike -------------------------------------------------------
+    // Learned in the melee tree's Footwork branch. A light attack started at a
+    // run, with a melee weapon, is a leap: the character springs at whatever
+    // they are fighting -- or on along the way they were running -- and brings
+    // the weapon down as they land, for 1.4 times the damage of the light
+    // attack it replaced. Then it rests for three seconds, during which a
+    // running light attack is an ordinary one.
+    static constexpr float RUSH_COOLDOWN = 3.0f;
+    static constexpr float RUSH_DAMAGE   = 1.4f;    // times a light attack's
+    static constexpr float RUSH_DISTANCE = 86.0f;   // world px the leap covers
+    static constexpr float RUSH_HEIGHT   = 12.0f;   // screen px at the top of the arc
+    static constexpr float RUSH_SEEK     = 150.0f;  // how far away a target is leapt at
+    // Whether a light attack right now would come out as the leap, running aside.
+    bool  CanRush() const;
+    bool  Rushing() const { return rushing; }
+    float RushCooldown() const { return rush_cooldown; }
+    // Screen lift through the leap, like JumpLift for a jump.
+    float RushLift() const;
+
+    // --- blocking -------------------------------------------------------------
+    // Held, with a shield in the off hand. The guard stops blows from in front
+    // for as long as there is stamina to pay for them (see ResolveBlock in
+    // combat.h for the rule), trains Defence by what it stops, and slows the
+    // player to a guarded step: no swinging, no sprinting. Running the bar dry
+    // mid-block breaks the guard, and it will not come up again until the bar
+    // has refilled past the same share a winded sprint waits for.
+    static constexpr float BLOCK_MOVE_SCALE    = 0.45f;
+    static constexpr float BLOCK_XP_PER_DAMAGE = 4.0f;   // the rate a hit trains its skill
+    // The shield in the off hand, or null when there is nothing there that
+    // blocks -- including a lantern.
+    const ItemDef* Shield() const;
+    // Whether the guard could come up this instant.
+    bool  CanBlock() const;
+    bool  Blocking() const { return blocking; }
+    bool  GuardBroken() const { return guard_broken; }
+    // A blow about to land, from an attacker of this level standing at
+    // (from_x, from_y). Returns what the shield did with it -- nothing, when
+    // the guard is down or the blow came from behind -- and has already spent
+    // the stamina and banked the Defence XP.
+    BlockOutcome TryBlock(int damage, int attacker_level, float from_x, float from_y);
+    // Whether a blow from (from_x, from_y) would be met by the raised shield.
+    bool  GuardFacing(float from_x, float from_y) const;
+    // What a heavy attack does to a raised guard: the bar emptied, the guard
+    // broken, and a longer wait before stamina starts coming back.
+    void  ShatterGuard();
+
     // --- gathering ------------------------------------------------------------
     // While chopping, mining or fishing, the player turns to the work, plays
     // that clip, and holds the tool rather than the weapon.
@@ -196,6 +242,9 @@ private:
     void TurnToTarget(const World& world);
     void FacePoint(float tx, float ty);
     void UpdateAttack(float dt);
+    // Starts the leap in place of a light attack. False, doing nothing, when a
+    // leap is not possible right now.
+    bool StartRush(const World& world);
     void UpdateAnimation(const Vec2& move);
 
     AttackState attack;
@@ -232,6 +281,12 @@ private:
     bool  moving = false;
 
     bool  sprinting = false;
+    bool  blocking = false;
+    bool  rushing = false;
+    float rush_cooldown = 0.0f;
+    float rush_dx = 0.0f, rush_dy = 0.0f;   // unit direction of the leap
+    Vec2  move_axis{0, 0};                   // this frame's steering, for the attack input
+    bool  guard_broken = false;
     float sprint_lockout = 0.0f;
     float stamina = MAX_STAMINA;
     float stamina_delay = 0.0f;
@@ -250,4 +305,5 @@ private:
 
     // Combat XP accrues in fractions; bank it and hand over whole points.
     float xp_fraction[SKILL_COUNT] = {0};
+    void  BankXp(int skill, float amount);
 };

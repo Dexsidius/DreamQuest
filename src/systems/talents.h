@@ -37,11 +37,14 @@ struct TalentTree {
     vector<TalentNode> nodes;
 
     const TalentNode* At(int branch, int row) const;
+    // Columns this tree draws: its named branches, or as many as its nodes
+    // reach into. Three for most; the melee tree has a fourth for footwork.
+    int BranchCount() const;
 };
 
 class SkillTrees {
 public:
-    static constexpr int BRANCHES = 3;
+    static constexpr int BRANCHES = 3;          // the full columns every tree has
     static constexpr int ROWS = 5;
     static constexpr int LEVELS_PER_POINT = 5;
 

@@ -1051,6 +1051,282 @@
                                                                     }
                                                                 ]
                                                  },
+                                      "block":  {
+                                                    "sheet":  "block.png",
+                                                    "frames":  4,
+                                                    "fps":  6,
+                                                    "loop":  true,
+                                                    "layers":  [
+                                                                   {
+                                                                       "slot":  "shadow",
+                                                                       "sheet":  "layers/block_1_shadow.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "body",
+                                                                       "sheet":  "layers/block_3_body.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_enchanted",
+                                                                       "sheet":  "layers/block_4_weapon_staff_enchanted.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_iron",
+                                                                       "sheet":  "layers/block_4_weapon_staff_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_dracon",
+                                                                       "sheet":  "layers/block_4_weapon_staff_dracon.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_platinum",
+                                                                       "sheet":  "layers/block_4_weapon_staff_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_orichalcum",
+                                                                       "sheet":  "layers/block_4_weapon_staff_orichalcum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_steel",
+                                                                       "sheet":  "layers/block_4_weapon_staff_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_azuryte",
+                                                                       "sheet":  "layers/block_4_weapon_staff_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_wood",
+                                                                       "sheet":  "layers/block_4_weapon_spear_wood.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_steel",
+                                                                       "sheet":  "layers/block_4_weapon_spear_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_diamond",
+                                                                       "sheet":  "layers/block_4_weapon_staff_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_damascus",
+                                                                       "sheet":  "layers/block_4_weapon_staff_damascus.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_bronze",
+                                                                       "sheet":  "layers/block_4_weapon_staff_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_wood",
+                                                                       "sheet":  "layers/block_4_weapon_staff_wood.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_orichalcum",
+                                                                       "sheet":  "layers/block_4_weapon_sword_orichalcum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_iron",
+                                                                       "sheet":  "layers/block_4_weapon_sword_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_enchanted",
+                                                                       "sheet":  "layers/block_4_weapon_sword_enchanted.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_wood",
+                                                                       "sheet":  "layers/block_4_weapon_sword_wood.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_steel",
+                                                                       "sheet":  "layers/block_4_weapon_sword_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_platinum",
+                                                                       "sheet":  "layers/block_4_weapon_sword_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_damascus",
+                                                                       "sheet":  "layers/block_4_weapon_sword_damascus.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_bronze",
+                                                                       "sheet":  "layers/block_4_weapon_sword_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_azuryte",
+                                                                       "sheet":  "layers/block_4_weapon_sword_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_dracon",
+                                                                       "sheet":  "layers/block_4_weapon_sword_dracon.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_diamond",
+                                                                       "sheet":  "layers/block_4_weapon_sword_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_sword_demonite",
+                                                                       "sheet":  "layers/block_4_weapon_sword_demonite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_platinum",
+                                                                       "sheet":  "layers/block_4_weapon_spear_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_iron",
+                                                                       "sheet":  "layers/block_4_weapon_bow_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_enchanted",
+                                                                       "sheet":  "layers/block_4_weapon_bow_enchanted.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_dracon",
+                                                                       "sheet":  "layers/block_4_weapon_bow_dracon.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_steel",
+                                                                       "sheet":  "layers/block_4_weapon_bow_steel.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_platinum",
+                                                                       "sheet":  "layers/block_4_weapon_bow_platinum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_orichalcum",
+                                                                       "sheet":  "layers/block_4_weapon_bow_orichalcum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_bronze",
+                                                                       "sheet":  "layers/block_4_weapon_bow_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_azuryte",
+                                                                       "sheet":  "layers/block_4_weapon_bow_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_staff_demonite",
+                                                                       "sheet":  "layers/block_4_weapon_staff_demonite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_diamond",
+                                                                       "sheet":  "layers/block_4_weapon_bow_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_demonite",
+                                                                       "sheet":  "layers/block_4_weapon_bow_demonite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_damascus",
+                                                                       "sheet":  "layers/block_4_weapon_bow_damascus.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_dracon",
+                                                                       "sheet":  "layers/block_4_weapon_spear_dracon.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_diamond",
+                                                                       "sheet":  "layers/block_4_weapon_spear_diamond.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_enchanted",
+                                                                       "sheet":  "layers/block_4_weapon_spear_enchanted.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_orichalcum",
+                                                                       "sheet":  "layers/block_4_weapon_spear_orichalcum.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_iron",
+                                                                       "sheet":  "layers/block_4_weapon_spear_iron.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_demonite",
+                                                                       "sheet":  "layers/block_4_weapon_spear_demonite.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_azuryte",
+                                                                       "sheet":  "layers/block_4_weapon_spear_azuryte.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_bow_wood",
+                                                                       "sheet":  "layers/block_4_weapon_bow_wood.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_bronze",
+                                                                       "sheet":  "layers/block_4_weapon_spear_bronze.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_front",
+                                                                       "sheet":  "layers/block_4_weapon_front.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_spear_damascus",
+                                                                       "sheet":  "layers/block_4_weapon_spear_damascus.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "head",
+                                                                       "sheet":  "layers/block_5_head.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs_ornate",
+                                                                       "sheet":  "layers/block_6_armour_legs_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs_light",
+                                                                       "sheet":  "layers/block_6_armour_legs_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs",
+                                                                       "sheet":  "layers/block_6_armour_legs.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body_light",
+                                                                       "sheet":  "layers/block_7_armour_body_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body_ornate",
+                                                                       "sheet":  "layers/block_7_armour_body_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body",
+                                                                       "sheet":  "layers/block_7_armour_body.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands",
+                                                                       "sheet":  "layers/block_8_armour_hands.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands_ornate",
+                                                                       "sheet":  "layers/block_8_armour_hands_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands_light",
+                                                                       "sheet":  "layers/block_8_armour_hands_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head",
+                                                                       "sheet":  "layers/block_9_armour_head.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head_light",
+                                                                       "sheet":  "layers/block_9_armour_head_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head_ornate",
+                                                                       "sheet":  "layers/block_9_armour_head_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_shield",
+                                                                       "sheet":  "layers/block_10_armour_shield.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_shield_light",
+                                                                       "sheet":  "layers/block_10_armour_shield_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_shield_ornate",
+                                                                       "sheet":  "layers/block_10_armour_shield_ornate.png"
+                                                                   }
+                                                               ]
+                                                },
                                       "chop":  {
                                                    "sheet":  "chop.png",
                                                    "frames":  8,
@@ -2867,6 +3143,186 @@
                                                                  }
                                                              ]
                                               },
+                                      "rush":  {
+                                                   "sheet":  "rush.png",
+                                                   "frames":  8,
+                                                   "fps":  15,
+                                                   "loop":  false,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/rush_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/rush_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_damascus",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_damascus.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_bronze",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_diamond",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_wood",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_azuryte",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_steel",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_dracon",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_dracon.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_platinum",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_steel",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_steel.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_wood",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_wood.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_enchanted",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_enchanted.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_iron",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_orichalcum",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_orichalcum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_platinum",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_platinum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_bronze",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_bronze.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_damascus",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_damascus.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_demonite",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_demonite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_sword_demonite",
+                                                                      "sheet":  "layers/rush_4_weapon_sword_demonite.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/rush_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_azuryte",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_azuryte.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_enchanted",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_enchanted.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_orichalcum",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_orichalcum.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_dracon",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_dracon.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_iron",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_iron.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_spear_diamond",
+                                                                      "sheet":  "layers/rush_4_weapon_spear_diamond.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/rush_5_head.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_legs_ornate",
+                                                                      "sheet":  "layers/rush_6_armour_legs_ornate.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_legs_light",
+                                                                      "sheet":  "layers/rush_6_armour_legs_light.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_legs",
+                                                                      "sheet":  "layers/rush_6_armour_legs.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_body_light",
+                                                                      "sheet":  "layers/rush_7_armour_body_light.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_body_ornate",
+                                                                      "sheet":  "layers/rush_7_armour_body_ornate.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_body",
+                                                                      "sheet":  "layers/rush_7_armour_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_hands",
+                                                                      "sheet":  "layers/rush_8_armour_hands.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_hands_ornate",
+                                                                      "sheet":  "layers/rush_8_armour_hands_ornate.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_hands_light",
+                                                                      "sheet":  "layers/rush_8_armour_hands_light.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_head",
+                                                                      "sheet":  "layers/rush_9_armour_head.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_head_light",
+                                                                      "sheet":  "layers/rush_9_armour_head_light.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_head_ornate",
+                                                                      "sheet":  "layers/rush_9_armour_head_ornate.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_shield",
+                                                                      "sheet":  "layers/rush_10_armour_shield.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_shield_light",
+                                                                      "sheet":  "layers/rush_10_armour_shield_light.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "armour_shield_ornate",
+                                                                      "sheet":  "layers/rush_10_armour_shield_ornate.png"
+                                                                  }
+                                                              ]
+                                               },
                                       "sprint":  {
                                                      "sheet":  "sprint.png",
                                                      "frames":  8,
@@ -3146,8 +3602,8 @@
                                       "thrust":  {
                                                      "sheet":  "thrust.png",
                                                      "frames":  6,
-                                                     "fps":  10,
-                                                     "loop":  true,
+                                                     "fps":  16,
+                                                     "loop":  false,
                                                      "layers":  [
                                                                     {
                                                                         "slot":  "shadow",
@@ -3643,6 +4099,90 @@
                                                                       }
                                                                   ]
                                                    },
+                                        "block":  {
+                                                      "sheet":  "block.png",
+                                                      "frames":  4,
+                                                      "fps":  6,
+                                                      "loop":  true,
+                                                      "layers":  [
+                                                                     {
+                                                                         "slot":  "shadow",
+                                                                         "sheet":  "layers/block_1_shadow.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "body",
+                                                                         "sheet":  "layers/block_3_body.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_front",
+                                                                         "sheet":  "layers/block_4_weapon_front.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "head",
+                                                                         "sheet":  "layers/block_5_head.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_light",
+                                                                         "sheet":  "layers/block_6_armour_legs_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs",
+                                                                         "sheet":  "layers/block_6_armour_legs.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_ornate",
+                                                                         "sheet":  "layers/block_6_armour_legs_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body_ornate",
+                                                                         "sheet":  "layers/block_7_armour_body_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body_light",
+                                                                         "sheet":  "layers/block_7_armour_body_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body",
+                                                                         "sheet":  "layers/block_7_armour_body.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands",
+                                                                         "sheet":  "layers/block_8_armour_hands.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands_ornate",
+                                                                         "sheet":  "layers/block_8_armour_hands_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands_light",
+                                                                         "sheet":  "layers/block_8_armour_hands_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head",
+                                                                         "sheet":  "layers/block_9_armour_head.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head_light",
+                                                                         "sheet":  "layers/block_9_armour_head_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head_ornate",
+                                                                         "sheet":  "layers/block_9_armour_head_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_shield",
+                                                                         "sheet":  "layers/block_10_armour_shield.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_shield_light",
+                                                                         "sheet":  "layers/block_10_armour_shield_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_shield_ornate",
+                                                                         "sheet":  "layers/block_10_armour_shield_ornate.png"
+                                                                     }
+                                                                 ]
+                                                  },
                                         "chop":  {
                                                      "sheet":  "chop.png",
                                                      "frames":  8,
@@ -4399,6 +4939,90 @@
                                                                    }
                                                                ]
                                                 },
+                                        "rush":  {
+                                                     "sheet":  "rush.png",
+                                                     "frames":  8,
+                                                     "fps":  15,
+                                                     "loop":  false,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/rush_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/rush_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/rush_4_weapon_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/rush_5_head.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs_light",
+                                                                        "sheet":  "layers/rush_6_armour_legs_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs",
+                                                                        "sheet":  "layers/rush_6_armour_legs.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs_ornate",
+                                                                        "sheet":  "layers/rush_6_armour_legs_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body_ornate",
+                                                                        "sheet":  "layers/rush_7_armour_body_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body_light",
+                                                                        "sheet":  "layers/rush_7_armour_body_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body",
+                                                                        "sheet":  "layers/rush_7_armour_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands",
+                                                                        "sheet":  "layers/rush_8_armour_hands.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands_ornate",
+                                                                        "sheet":  "layers/rush_8_armour_hands_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands_light",
+                                                                        "sheet":  "layers/rush_8_armour_hands_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head",
+                                                                        "sheet":  "layers/rush_9_armour_head.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head_light",
+                                                                        "sheet":  "layers/rush_9_armour_head_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head_ornate",
+                                                                        "sheet":  "layers/rush_9_armour_head_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_shield",
+                                                                        "sheet":  "layers/rush_10_armour_shield.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_shield_light",
+                                                                        "sheet":  "layers/rush_10_armour_shield_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_shield_ornate",
+                                                                        "sheet":  "layers/rush_10_armour_shield_ornate.png"
+                                                                    }
+                                                                ]
+                                                 },
                                         "sprint":  {
                                                        "sheet":  "sprint.png",
                                                        "frames":  8,
@@ -4486,8 +5110,8 @@
                                         "thrust":  {
                                                        "sheet":  "thrust.png",
                                                        "frames":  6,
-                                                       "fps":  10,
-                                                       "loop":  true,
+                                                       "fps":  16,
+                                                       "loop":  false,
                                                        "layers":  [
                                                                       {
                                                                           "slot":  "shadow",
@@ -4743,6 +5367,90 @@
                                                                         }
                                                                     ]
                                                      },
+                                          "block":  {
+                                                        "sheet":  "block.png",
+                                                        "frames":  4,
+                                                        "fps":  6,
+                                                        "loop":  true,
+                                                        "layers":  [
+                                                                       {
+                                                                           "slot":  "shadow",
+                                                                           "sheet":  "layers/block_1_shadow.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "body",
+                                                                           "sheet":  "layers/block_3_body.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_front",
+                                                                           "sheet":  "layers/block_4_weapon_front.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "head",
+                                                                           "sheet":  "layers/block_5_head.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_legs_light",
+                                                                           "sheet":  "layers/block_6_armour_legs_light.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_legs",
+                                                                           "sheet":  "layers/block_6_armour_legs.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_legs_ornate",
+                                                                           "sheet":  "layers/block_6_armour_legs_ornate.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_body_ornate",
+                                                                           "sheet":  "layers/block_7_armour_body_ornate.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_body_light",
+                                                                           "sheet":  "layers/block_7_armour_body_light.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_body",
+                                                                           "sheet":  "layers/block_7_armour_body.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_hands",
+                                                                           "sheet":  "layers/block_8_armour_hands.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_hands_ornate",
+                                                                           "sheet":  "layers/block_8_armour_hands_ornate.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_hands_light",
+                                                                           "sheet":  "layers/block_8_armour_hands_light.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_head",
+                                                                           "sheet":  "layers/block_9_armour_head.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_head_light",
+                                                                           "sheet":  "layers/block_9_armour_head_light.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_head_ornate",
+                                                                           "sheet":  "layers/block_9_armour_head_ornate.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_shield",
+                                                                           "sheet":  "layers/block_10_armour_shield.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_shield_light",
+                                                                           "sheet":  "layers/block_10_armour_shield_light.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_shield_ornate",
+                                                                           "sheet":  "layers/block_10_armour_shield_ornate.png"
+                                                                       }
+                                                                   ]
+                                                    },
                                           "chop":  {
                                                        "sheet":  "chop.png",
                                                        "frames":  8,
@@ -5499,6 +6207,90 @@
                                                                      }
                                                                  ]
                                                   },
+                                          "rush":  {
+                                                       "sheet":  "rush.png",
+                                                       "frames":  8,
+                                                       "fps":  15,
+                                                       "loop":  false,
+                                                       "layers":  [
+                                                                      {
+                                                                          "slot":  "shadow",
+                                                                          "sheet":  "layers/rush_1_shadow.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "body",
+                                                                          "sheet":  "layers/rush_3_body.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_front",
+                                                                          "sheet":  "layers/rush_4_weapon_front.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "head",
+                                                                          "sheet":  "layers/rush_5_head.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_light",
+                                                                          "sheet":  "layers/rush_6_armour_legs_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs",
+                                                                          "sheet":  "layers/rush_6_armour_legs.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_ornate",
+                                                                          "sheet":  "layers/rush_6_armour_legs_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body_ornate",
+                                                                          "sheet":  "layers/rush_7_armour_body_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body_light",
+                                                                          "sheet":  "layers/rush_7_armour_body_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body",
+                                                                          "sheet":  "layers/rush_7_armour_body.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands",
+                                                                          "sheet":  "layers/rush_8_armour_hands.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands_ornate",
+                                                                          "sheet":  "layers/rush_8_armour_hands_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands_light",
+                                                                          "sheet":  "layers/rush_8_armour_hands_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head",
+                                                                          "sheet":  "layers/rush_9_armour_head.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head_light",
+                                                                          "sheet":  "layers/rush_9_armour_head_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head_ornate",
+                                                                          "sheet":  "layers/rush_9_armour_head_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_shield",
+                                                                          "sheet":  "layers/rush_10_armour_shield.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_shield_light",
+                                                                          "sheet":  "layers/rush_10_armour_shield_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_shield_ornate",
+                                                                          "sheet":  "layers/rush_10_armour_shield_ornate.png"
+                                                                      }
+                                                                  ]
+                                                   },
                                           "sprint":  {
                                                          "sheet":  "sprint.png",
                                                          "frames":  8,
@@ -5586,8 +6378,8 @@
                                           "thrust":  {
                                                          "sheet":  "thrust.png",
                                                          "frames":  6,
-                                                         "fps":  10,
-                                                         "loop":  true,
+                                                         "fps":  16,
+                                                         "loop":  false,
                                                          "layers":  [
                                                                         {
                                                                             "slot":  "shadow",

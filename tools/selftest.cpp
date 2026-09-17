@@ -1670,6 +1670,54 @@ int main(int argc, char** argv) {
                           worst_name + " at " + std::to_string(worst) + "px");
     }
 
+    Section("every creature stays inside its own frames");
+    {
+        // A sheet is a grid of cells and the engine draws exactly one cell.
+        // Anything drawn across a cell's edge shows up twice: cut off in the
+        // frame it belongs to, and as a stray scrap in the frame next door. The
+        // Warchief is a head taller than the other two orcs and his topknot
+        // crossed the top of the cell facing right and facing away -- in every
+        // frame of every clip -- until he was stood lower in his frame, into
+        // the empty strip under his feet (FRAME_DROP in blender_creatures.py).
+        // Four-legged deaths, a falling bat and a lizardman's thrust did the
+        // same; the renderer now measures each posed rig and slides it back
+        // inside its cell (keep_in_cell), and this holds every sheet to it.
+        const auto crosses_edge = [](const string& path, int rows, int frames, int& bad) {
+            SDL_Surface* s = IMG_Load(path.c_str());
+            if (!s) return false;
+            SDL_Surface* c = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
+            SDL_DestroySurface(s);
+            if (!c) return false;
+            const int fw = c->w / std::max(1, frames), fh = c->h / std::max(1, rows);
+            const Uint8* px = static_cast<const Uint8*>(c->pixels);
+            const auto lit = [&](int x, int y) { return px[y * c->pitch + x * 4 + 3] > 0; };
+            for (int r = 0; r < rows; ++r)
+                for (int f = 0; f < frames; ++f) {
+                    const int x0 = f * fw, y0 = r * fh;
+                    bool edge = false;
+                    for (int i = 0; i < fw && !edge; ++i)
+                        edge = lit(x0 + i, y0) || lit(x0 + i, y0 + fh - 1);
+                    for (int i = 0; i < fh && !edge; ++i)
+                        edge = lit(x0, y0 + i) || lit(x0 + fw - 1, y0 + i);
+                    if (edge) ++bad;
+                }
+            SDL_DestroySurface(c);
+            return true;
+        };
+        for (const string& id : sprites.Ids()) {
+            const char* who = id.c_str();
+            const SpriteDef* def = sprites.Get(who);
+            if (!def || def->rows != 4) continue;
+            for (const auto& kv : def->clips) {
+                int bad = 0;
+                const bool read = crosses_edge(kv.second.sheet, def->rows, kv.second.frames, bad);
+                Check(read, string(who) + "/" + kv.first + " sheet loads");
+                Check(bad == 0, string(who) + "/" + kv.first + " draws nothing across a cell edge  -  " +
+                                std::to_string(bad) + " frames do");
+            }
+        }
+    }
+
     Section("the hero is drawn in every gear");
     {
         const SpriteDef* hero = sprites.Get("player_hero");
@@ -1719,6 +1767,444 @@ int main(int argc, char** argv) {
         Check(head.y >= 19 && head.y <= 25, "the hero's head starts where the CraftPix head does");
         Check(head.x >= 22 && head.w <= 42, "the hero's head is as wide as the rig's, give or take");
         Check(body.h >= 42 && body.h <= 50, "the hero's feet are within a few pixels of the rig's");
+    }
+
+    // --- leaders' heavy attacks --------------------------------------------------------
+    Section("leaders wind up a heavy attack no shield stops");
+    {
+        static const char* kLeaders[] = {"orc3", "nightmare_brute", "broodmother", "lizardman_chief",
+                                         "wyvern", "wyvern_matriarch", "barrow_wight", "well_warden",
+                                         "pit_lord", "frost_dragon"};
+        bool leaders_have = true;
+        for (const char* id : kLeaders) {
+            const EnemyDef* d = enemy_db.Get(id);
+            leaders_have &= d && d->heavy.enabled && d->heavy.windup >= 1.0f && d->heavy.damage >= 2.0f &&
+                            d->heavy.cooldown >= 6.0f;
+        }
+        Check(leaders_have, "the Warchief, the wyverns, the dragon and every other leader have a heavy attack");
+        bool ordinary_do_not = true;
+        for (const char* id : {"orc1", "orc2", "deer", "rat", "lizardman", "ice_troll", "imp", "skeleton"})
+            if (const EnemyDef* d = enemy_db.Get(id)) ordinary_do_not &= !d->heavy.enabled;
+        Check(ordinary_do_not, "ordinary monsters do not");
+
+        Input input;
+        std::mt19937 rng(23);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the Warchief");
+        w.enemies.clear();
+        w.player.y -= 200.0f;
+        {
+            LevelUp up;
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(90), up);
+            w.player.Rest();
+        }
+        const auto frames = [&](int n) {
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+        };
+
+        // A Warchief with no wait before his first heavy, so the test does not
+        // have to sit through his ordinary swings to see it.
+        EnemyDef warchief = *enemy_db.Get("orc3");
+        warchief.heavy.opening = 0.0f;
+        const auto spawn_warchief = [&](float dx, float dy) -> Enemy* {
+            w.enemies.clear();
+            EnemySpawnDef def;
+            def.type = "orc3"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(&warchief, def, ctx);
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        const auto wait_for_charge = [&](Enemy* e) {
+            for (int f = 0; f < 60 && !e->ChargingHeavy(); ++f) frames(1);
+            return e->ChargingHeavy();
+        };
+
+        // --- the wind-up, the bar, and the blow --------------------------------
+        Enemy* orc = spawn_warchief(40.0f, 0.0f);
+        const int least = static_cast<int>(std::lround(MaxHit(orc->Profile(), 1.0f) * warchief.heavy.damage * 0.8f));
+        Check(wait_for_charge(orc), "close to the player, the Warchief starts winding up");
+        const int hp0 = w.player.hp;
+        float last = 0.0f;
+        bool rising = true, reached_full = false, no_damage_yet = true;
+        int charge_frames = 0;
+        while (orc->ChargingHeavy() && charge_frames < 240) {
+            const float c = orc->HeavyCharge();
+            rising &= c >= last;
+            last = c;
+            reached_full |= c > 0.9f;
+            no_damage_yet &= w.player.hp == hp0;
+            frames(1);
+            ++charge_frames;
+        }
+        Check(rising && reached_full, "the charge bar fills steadily from empty to full");
+        Check(std::fabs(charge_frames / 60.0f - warchief.heavy.windup) < 0.1f,
+              "over the whole wind-up (" + std::to_string(charge_frames) + " frames)");
+        Check(no_damage_yet, "and nothing lands until it is full");
+        frames(2);
+        Check(hp0 - w.player.hp >= least,
+              "then the blow lands, for well over an ordinary hit (" + std::to_string(hp0 - w.player.hp) + ")");
+        frames(60);
+        Check(!orc->ChargingHeavy() && orc->HeavyCooldown() > warchief.heavy.cooldown - 1.0f,
+              "and it rests before the next one");
+
+        // --- a raised shield is punished ---------------------------------------
+        w.player.Rest();
+        w.player.equipment.Equip(SLOT_SHIELD, items.TierPiece("enchanted", "shield"));
+        w.player.facing = FACE_RIGHT;
+        orc = spawn_warchief(40.0f, 0.0f);
+        key(SDLK_H, true);
+        frames(2);
+        Check(w.player.Blocking(), "the guard is up against it");
+        Check(wait_for_charge(orc), "the Warchief winds up at a raised shield too");
+        const int hp1 = w.player.hp;
+        for (int f = 0; f < 240 && orc->ChargingHeavy(); ++f) frames(1);
+        frames(2);
+        const int taken = hp1 - w.player.hp;
+        Check(taken >= static_cast<int>(least * World::HEAVY_BLOCK_PUNISH) - 1,
+              "the best shield there is stops none of it, and it lands half as hard again (" +
+              std::to_string(taken) + ")");
+        Check(w.player.GuardBroken() && !w.player.Blocking() && w.player.Stamina() == 0.0f,
+              "and the guard shatters, taking every bit of stamina with it");
+        key(SDLK_H, false);
+        frames(2);
+
+        // --- it can be stepped out of --------------------------------------------
+        w.player.Rest();
+        w.player.facing = FACE_RIGHT;
+        orc = spawn_warchief(40.0f, 0.0f);
+        Check(wait_for_charge(orc), "another wind-up");
+        // Early in the charge it turns to follow.
+        w.player.x = orc->x;
+        w.player.y = orc->y + 44.0f;
+        frames(3);
+        Check(orc->facing == FACE_DOWN, "early in the wind-up it turns to follow the player");
+        // Once committed, it does not.
+        while (orc->ChargingHeavy() && orc->HeavyCharge() < Enemy::HEAVY_LOCK + 0.05f) frames(1);
+        const int hp2 = w.player.hp;
+        w.player.x = orc->x + 80.0f;
+        w.player.y = orc->y;
+        frames(2);
+        Check(orc->facing == FACE_DOWN, "late in it, it is committed to where the player was");
+        for (int f = 0; f < 120 && orc->ChargingHeavy(); ++f) frames(1);
+        frames(2);
+        Check(w.player.hp == hp2, "and a player who stepped out of the line takes nothing");
+
+        // --- braced ---------------------------------------------------------------
+        orc = spawn_warchief(40.0f, 0.0f);
+        Check(wait_for_charge(orc), "one more wind-up");
+        const float ox = orc->x;
+        orc->knock_x += 600.0f;
+        orc->Damage(1);
+        frames(6);
+        Check(std::fabs(orc->x - ox) < 12.0f, "a charging leader is braced against being knocked about");
+        Check(orc->ChargingHeavy(), "and being hit does not stop the charge");
+    }
+
+    // --- Rushing Strike --------------------------------------------------------------
+    Section("Rushing Strike");
+    {
+        Input input;
+        std::mt19937 rng(5);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the leap");
+        w.enemies.clear();
+        w.player.y -= 200.0f;
+        w.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
+        const auto frames = [&](int n) {
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+        };
+        // A tap: the key goes in after the input's frame begins and before the
+        // world reads it, the way a real event arrives. Input::Update clears
+        // the last frame's presses, so a key sent before it is never seen.
+        const auto tap = [&](SDL_Keycode k) {
+            input.Update(1.0f / 60.0f);
+            key(k, true);
+            w.Update(1.0f / 60.0f, ctx);
+            input.Update(1.0f / 60.0f);
+            key(k, false);
+            w.Update(1.0f / 60.0f, ctx);
+        };
+        // Running right and pressing the light attack.
+        const auto running_light = [&]() {
+            w.player.Rest();
+            key(SDLK_D, true);
+            frames(12);
+            tap(SDLK_J);
+        };
+        const auto stop = [&]() {
+            key(SDLK_D, false);
+            frames(50);
+        };
+
+        running_light();
+        Check(!w.player.Rushing() && w.player.Attacking(),
+              "without the skill, a running light attack is an ordinary one");
+        stop();
+
+        {
+            LevelUp up;
+            w.player.skills.AddXp(SKILL_ATTACK, XpForLevel(15), up);
+        }
+        Check(w.player.talents.CanLearn("rushing_strike", w.player.skills) == Talents::Why::Ok,
+              "at Attack 15 it can be learned, with nothing above it to learn first");
+        Check(w.player.talents.Learn("rushing_strike", w.player.skills), "and it is learned");
+
+        // Standing still it is the ordinary attack.
+        tap(SDLK_J);
+        Check(!w.player.Rushing() && w.player.Attacking(), "standing still, the light attack does not leap");
+        frames(50);
+
+        const float x0 = w.player.x;
+        running_light();
+        Check(w.player.Rushing(), "at a run, the light attack leaps");
+        Check(w.player.sprite.current == "rush", "and plays the leap");
+        Check(std::fabs(w.player.Attack().damage_mult - ProfileFor(AttackType::Light, 0).damage_mult * 1.4f) < 0.001f,
+              "for 1.4 times a light attack's damage");
+        Check(std::fabs(w.player.RushCooldown() - Player::RUSH_COOLDOWN) < 0.1f, "and starts its three-second rest");
+        float peak = 0.0f;
+        for (int f = 0; f < 20; ++f) { frames(1); peak = std::max(peak, w.player.RushLift()); }
+        Check(peak > 8.0f, "the character leaves the ground");
+        Check(w.player.x - x0 > 12.0f * (78.0f / 60.0f) + 70.0f,
+              "and covers the leap's distance on top of the run up to it");
+        frames(30);
+        Check(!w.player.Rushing(), "the leap ends");
+
+        // Resting: a second running light attack straight after is ordinary.
+        running_light();
+        Check(!w.player.Rushing() && w.player.Attacking(), "inside three seconds a running light attack does not leap");
+        stop();
+        frames(3 * 60);
+        running_light();
+        Check(w.player.Rushing(), "after three seconds it leaps again");
+        stop();
+
+        // Only with something to swing.
+        w.player.equipment.Equip(SLOT_WEAPON, items.TierPiece("iron", "bow"));
+        frames(4 * 60);
+        running_light();
+        Check(!w.player.Rushing(), "a bow does not leap");
+        stop();
+        w.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
+
+        // At a target: the leap goes at the monster rather than along the run.
+        frames(4 * 60);
+        {
+            const EnemyDef* stats = enemy_db.Get("orc1");
+            EnemySpawnDef def;
+            def.type = "orc1"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + 20.0f; def.y = w.player.y + 90.0f;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            Enemy* orc = e.get();
+            w.enemies.push_back(std::move(e));
+            tap(SDLK_L);
+            const float y0 = w.player.y;
+            running_light();
+            Check(w.player.Rushing() && w.player.facing == FACE_DOWN,
+                  "with a monster targeted, the leap turns to it");
+            frames(18);
+            Check(w.player.y - y0 > 50.0f, "and carries the character at it");
+            const SDL_FRect hit = AttackHitbox(w.player.x, w.player.y, w.player.facing, w.player.Attack().profile, 1.0f);
+            Check(RectsOverlap(hit, orc->BodyBox()), "landing with the monster inside the blow");
+            stop();
+        }
+    }
+
+    // --- blocking -------------------------------------------------------------------
+    Section("blocking with a shield");
+    {
+        // The rule on its own. A blow of 10 from a level 5 attacker costs
+        // 10 x 5 = 50 stamina through a shield with a multiplier of one, and a
+        // shield that turns aside half of it stops 5.
+        BlockOutcome b = ResolveBlock(10, 5, 0.5f, 1.0f, 100.0f);
+        Check(b.blocked == 5 && b.taken == 5 && std::fabs(b.stamina - 50.0f) < 0.01f && !b.broke,
+              "a blow of 10 from a level 5 costs 50 stamina and half of it is stopped");
+        b = ResolveBlock(6, 12, 0.5f, 1.0f, 1000.0f);
+        Check(std::fabs(b.stamina - 72.0f) < 0.01f, "stamina is the damage times the attacker's level");
+        b = ResolveBlock(6, 12, 0.5f, 0.5f, 1000.0f);
+        Check(std::fabs(b.stamina - 36.0f) < 0.01f, "and a shield's multiplier takes its share off that");
+        // Short of stamina: the block holds for what could be paid, all the
+        // stamina goes, and the guard breaks.
+        b = ResolveBlock(10, 20, 0.5f, 1.0f, 50.0f);
+        Check(b.broke && std::fabs(b.stamina - 50.0f) < 0.01f,
+              "a blow costing more than is left empties the bar and breaks the guard");
+        Check(b.blocked == 1 && b.taken == 9, "and only the share that was paid for is stopped");
+        Check(ResolveBlock(10, 5, 0.0f, 1.0f, 100.0f).blocked == 0, "something that does not block stops nothing");
+        Check(ResolveBlock(0, 5, 0.5f, 1.0f, 100.0f).stamina == 0.0f, "a blow that did no damage costs nothing");
+
+        // Each tier blocks better and for less.
+        int shields = 0;
+        bool better = true, cheaper = true;
+        float last_block = 0.0f, last_cost = 2.0f;
+        for (const TierDef& t : items.Tiers()) {
+            const ItemDef* d = items.Get(items.TierPiece(t.id, "shield"));
+            if (!d) continue;
+            ++shields;
+            better  &= d->block > last_block;
+            cheaper &= d->block_stamina < last_cost;
+            last_block = d->block;
+            last_cost = d->block_stamina;
+        }
+        Check(shields == 12, "every tier makes a shield that blocks");
+        Check(better, "each tier's shield turns aside more of a blow than the last");
+        Check(cheaper, "and each one costs less stamina to block with");
+        if (const ItemDef* wood = items.Get("wooden_shield"))
+            Check(std::fabs(wood->block - 0.5f) < 0.001f && std::fabs(wood->block_stamina - 1.0f) < 0.001f,
+                  "a wooden shield stops half, at full cost");
+        if (const ItemDef* top = items.Get(items.TierPiece("enchanted", "shield")))
+            Check(top->block >= 0.95f && top->block_stamina < 0.1f,
+                  "an enchanted shield stops nineteen parts in twenty for under a tenth of the cost");
+        if (const ItemDef* lamp = items.Get("lantern"))
+            Check(lamp->slot == SLOT_SHIELD && lamp->block == 0.0f, "a lantern in the off hand is not a shield");
+
+        Check(InFrontOf(FACE_RIGHT, 30.0f, 0.0f) && InFrontOf(FACE_RIGHT, 20.0f, 20.0f),
+              "a blow from ahead, or ahead and to one side, is in front");
+        Check(!InFrontOf(FACE_RIGHT, -30.0f, 0.0f) && !InFrontOf(FACE_UP, 0.0f, 30.0f),
+              "a blow from behind is not");
+        CombatProfile brute;
+        brute.attack_level = 12; brute.strength_level = 30; brute.defence_level = 20;
+        Check(CombatLevelOf(brute) == 30, "an attacker's level is the highest of its combat levels");
+
+        // --- played through ----------------------------------------------------
+        Input input;
+        std::mt19937 rng(11);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the guard");
+        w.enemies.clear();
+        w.player.y -= 200.0f;                 // open road, clear of the town gate
+        {
+            LevelUp up;
+            w.player.skills.AddXp(SKILL_HITPOINTS, 20000, up);
+            w.player.Rest();
+        }
+        w.player.facing = FACE_RIGHT;
+        const auto frames = [&](int n) {
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+        };
+
+        key(SDLK_H, true);
+        frames(6);
+        Check(!w.player.Blocking(), "with no shield there is no guard to raise");
+        w.player.equipment.Equip(SLOT_SHIELD, "lantern");
+        frames(6);
+        Check(!w.player.Blocking(), "nor with a lantern");
+        w.player.equipment.Equip(SLOT_SHIELD, "wooden_shield");
+        frames(6);
+        Check(w.player.Blocking(), "holding the button with a shield raises the guard");
+        Check(w.player.sprite.current == "block", "and the character holds the shield up");
+
+        // Pressed the way a real key arrives: after the input's frame begins.
+        input.Update(1.0f / 60.0f);
+        key(SDLK_J, true);
+        w.Update(1.0f / 60.0f, ctx);
+        frames(2);
+        key(SDLK_J, false);
+        frames(2);
+        Check(!w.player.Attacking(), "a swing does not start from behind a raised shield");
+
+        CombatProfile grunt;
+        grunt.attack_level = 5; grunt.strength_level = 5;
+        const int   hp0 = w.player.hp;
+        const float st0 = w.player.Stamina();
+        const int   xp0 = w.player.skills.Xp(SKILL_DEFENCE);
+        int taken = w.HitPlayer(6, grunt, w.player.x + 30.0f, w.player.y);
+        Check(taken == 3 && w.player.hp == hp0 - 3, "a wooden shield turns aside half of a blow from the front");
+        Check(std::fabs(st0 - w.player.Stamina() - 30.0f) < 0.01f, "for 6 x 5 = 30 stamina");
+        Check(w.player.skills.Xp(SKILL_DEFENCE) - xp0 >= 12 + 3,
+              "stopping it trains Defence, on top of what the blow that got through does");
+
+        const int hp1 = w.player.hp;
+        taken = w.HitPlayer(4, grunt, w.player.x - 30.0f, w.player.y);
+        Check(taken == 4 && w.player.hp == hp1 - 4, "a blow from behind is not blocked");
+
+        CombatProfile dragon;
+        dragon.attack_level = 60; dragon.strength_level = 64;
+        const float before_break = w.player.Stamina();
+        taken = w.HitPlayer(6, dragon, w.player.x + 30.0f, w.player.y);
+        Check(w.player.Stamina() == 0.0f && before_break > 0.0f, "a dragon's blow empties the bar");
+        Check(w.player.GuardBroken() && !w.player.Blocking(), "and breaks the guard");
+        frames(10);
+        Check(!w.player.Blocking(), "a broken guard does not come straight back up");
+        frames(4 * 60);
+        Check(!w.player.GuardBroken() && w.player.Blocking(),
+              "it comes back once the bar has refilled far enough");
+
+        // A better shield takes the same blow for far less.
+        w.player.Rest();
+        w.player.equipment.Equip(SLOT_SHIELD, items.TierPiece("enchanted", "shield"));
+        frames(2);
+        const float st2 = w.player.Stamina();
+        taken = w.HitPlayer(6, grunt, w.player.x + 30.0f, w.player.y);
+        Check(taken == 0, "an enchanted shield stops all of a small blow");
+        Check(st2 - w.player.Stamina() < 3.0f, "for under a tenth of what the wooden one paid");
+
+        // A raised guard is a slow step.
+        const auto walk = [&](bool guard) {
+            w.player.Rest();
+            key(SDLK_H, guard);
+            key(SDLK_D, true);
+            frames(4);
+            const float x0 = w.player.x;
+            frames(60);
+            key(SDLK_D, false);
+            key(SDLK_H, false);
+            frames(4);
+            return w.player.x - x0;
+        };
+        const float open_walk = walk(false);
+        const float guarded   = walk(true);
+        Check(guarded > 1.0f && guarded < open_walk * 0.6f, "walking with the guard up is a slow step");
     }
 
     // --- sprinting ------------------------------------------------------------------
@@ -2461,6 +2947,8 @@ int main(int argc, char** argv) {
                             clip.first == "gather") continue;
                         // A spear strikes with the thrust and nothing else does.
                         if (clip.first == (spear ? "attack" : "thrust")) continue;
+                        // Rushing Strike is a melee move; a bow or a staff never leaps.
+                        if (clip.first == "rush" && (string(kind) == "bow" || string(kind) == "staff")) continue;
                         const string path = "assets/characters/player_hero/layers/" + clip.first +
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
@@ -2565,7 +3053,11 @@ int main(int argc, char** argv) {
         bool shape = true, milestones = true, techniques = true;
         for (int st = 0; st < 3; ++st) {
             const TalentTree& t = trees.Tree(static_cast<AttackStyle>(st));
-            if (t.nodes.size() != 15 || t.branches.size() != 3) shape = false;
+            // Three full branches five deep. The melee tree also has Footwork,
+            // a fourth branch for moves made on the run, which is not counted.
+            size_t core = 0;
+            for (const TalentNode& n : t.nodes) core += n.branch < 3 ? 1 : 0;
+            if (core != 15 || t.branches.size() < 3) shape = false;
             int tech = 0;
             for (int b = 0; b < 3; ++b)
                 for (int r = 0; r < 5; ++r) {
@@ -2580,6 +3072,16 @@ int main(int argc, char** argv) {
             if (tech != 3) techniques = false;
         }
         Check(shape, "each style has a tree of three branches five nodes deep");
+        {
+            const TalentTree& melee = trees.Tree(AttackStyle::Melee);
+            const TalentNode* rush = melee.At(3, 1);
+            Check(melee.BranchCount() == 4 && melee.branches.size() == 4 && melee.branches[3] == "Footwork",
+                  "the melee tree has a fourth branch, Footwork");
+            Check(rush && rush->id == "rushing_strike" && rush->level == 15 &&
+                  rush->effects.count("rushing_strike"), "Rushing Strike is in it, at Attack 15");
+            Check(trees.Tree(AttackStyle::Ranged).BranchCount() == 3 && trees.Tree(AttackStyle::Magic).BranchCount() == 3,
+                  "the ranged and magic trees keep their three");
+        }
         Check(milestones, "every row is one milestone level, rising down the tree");
         Check(techniques, "each tree teaches three techniques, and every other node does something");
         Check(trees.Tree(AttackStyle::Melee).skill == SKILL_ATTACK && trees.Tree(AttackStyle::Ranged).skill == SKILL_RANGED &&
@@ -2669,9 +3171,25 @@ int main(int argc, char** argv) {
                 World w;
                 if (!fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge", "flurry", "whirlwind"},
                              with_technique ? "whirlwind" : nullptr)) return 0;
-                vector<Enemy*> ring = {spawn(w, "deer", 30, 0), spawn(w, "deer", -30, 0),
-                                       spawn(w, "deer", 0, 28), spawn(w, "deer", 0, -28)};
-                charged(w);
+                // One in front and three behind: straight back and over each
+                // shoulder. A plain charged swing is 58 pixels wide, which is
+                // wide enough to catch a deer standing level with the player
+                // 28 pixels above or below -- so those two were inside the
+                // "in front" arc all along, and the check only passed when they
+                // had wandered out of it. Behind the player, only a spin reaches.
+                const float marks[4][2] = {{30, 0}, {-30, 0}, {-22, 22}, {-22, -22}};
+                vector<Enemy*> ring;
+                for (const auto& m : marks) ring.push_back(spawn(w, "deer", m[0], m[1]));
+                // Held for a full charge, the deer are put back on their marks
+                // before the release. Idle deer amble, and in the eighty frames
+                // of a charge one could wander thirty pixels into the arc in
+                // front -- which is a test of where a deer went, not of what the
+                // swing reaches, and it passed or failed on the random numbers.
+                input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                frames(w, 80);
+                for (size_t i = 0; i < ring.size(); ++i)
+                    if (ring[i]) { ring[i]->x = w.player.x + marks[i][0]; ring[i]->y = w.player.y + marks[i][1]; }
+                input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
                 frames(w, 40);
                 int struck = 0;
                 for (Enemy* e : ring) if (e && e->HealthBarVisible()) ++struck;
@@ -5926,6 +6444,51 @@ int main(int argc, char** argv) {
                         Check(IMG_SavePNG(pixels, (string("bin/previews/") + view.name + ".png").c_str()),
                               string(view.name) + " preview saves");
                         SDL_DestroySurface(pixels);
+                    }
+                }
+
+                // A Warchief caught at three points of his heavy's wind-up, side
+                // by side: the bar over his head filling and the red glow
+                // growing, which is the whole warning the player gets.
+                {
+                    std::mt19937 prng(3);
+                    GameContext pctx = ctx;
+                    pctx.rng = &prng;
+                    EnemyDef chief = *enemy_db.Get("orc3");
+                    chief.heavy.opening = 0.0f;
+                    const float stops[] = {0.25f, 0.6f, 0.95f};
+                    for (int i = 0; i < 3; ++i) {
+                        World world;
+                        world.player.Init(pctx, "player_hero");
+                        if (!world.LoadMap("overworld", "start", pctx)) break;
+                        world.enemies.clear();
+                        world.clock.Set(1, 12.0f);
+                        world.player.y -= 200.0f;
+                        {
+                            LevelUp up;
+                            world.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(90), up);
+                            world.player.Rest();
+                        }
+                        EnemySpawnDef def;
+                        def.type = "orc3"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                        def.x = world.player.x + 40.0f; def.y = world.player.y;
+                        auto e = std::make_unique<Enemy>();
+                        e->Init(&chief, def, pctx);
+                        Enemy* orc = e.get();
+                        world.enemies.push_back(std::move(e));
+                        orc->RevealHealthBar();
+                        for (int f = 0; f < 400 && orc->HeavyCharge() < stops[i]; ++f)
+                            world.Update(1.0f / 60.0f, pctx);
+                        world.camera.SetViewport(1280, 720);
+                        world.camera.SetZoom(3.0f);
+                        world.camera.SnapTo(world.player.x + 20.0f, world.player.y - 20.0f);
+                        world.Render(renderer, cache);
+                        SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
+                        if (pixels) {
+                            const string name = "bin/previews/heavy_charge_" + std::to_string(i) + ".png";
+                            Check(IMG_SavePNG(pixels, name.c_str()), "the heavy wind-up preview saves");
+                            SDL_DestroySurface(pixels);
+                        }
                     }
                 }
             }

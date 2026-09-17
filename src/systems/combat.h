@@ -96,6 +96,38 @@ int   MaxHitFor(const CombatProfile& p, AttackStyle style, float damage_mult);
 float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
                    AttackStyle style);
 
+// --- blocking ----------------------------------------------------------------
+//
+// Holding a shield up in front of a blow. What is stopped depends on the
+// shield: each tier turns aside a larger share of a hit. What it costs is
+// stamina, and the cost is the blow itself:
+//
+//     stamina = incoming damage x the attacker's combat level x the shield's
+//               stamina multiplier
+//
+// so a rat's nip is nothing to catch and a dragon's bite empties the bar, and a
+// better shield makes the same blow cheaper to take. When there is not enough
+// stamina left to pay for it, the block holds for the share that was paid and
+// the guard breaks.
+struct BlockOutcome {
+    int   taken   = 0;      // what still gets through
+    int   blocked = 0;      // what the shield stopped
+    float stamina = 0.0f;   // what it cost
+    bool  broke   = false;  // ran out of stamina paying for it
+};
+
+BlockOutcome ResolveBlock(int damage, int attacker_level, float mitigation,
+                          float stamina_mult, float stamina_available);
+
+// A combatant's level for the purposes of blocking: the highest of its combat
+// levels, which is the "effective level" the monster table in the README gives.
+int CombatLevelOf(const CombatProfile& p);
+
+// Whether a blow coming from (dx, dy) relative to the defender is in front of
+// them. A little over a half circle, so a monster standing at a diagonal to a
+// four-way facing is still in front of the shield rather than beside it.
+bool InFrontOf(Facing facing, float dx, float dy);
+
 // The rectangle a swing sweeps, in front of the attacker.
 SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,
                        float reach_scale = 1.0f);

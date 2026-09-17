@@ -74,6 +74,13 @@ $clipRules = @{
     run    = @{ fps = 13; loop = $true  }
     sprint = @{ fps = 16; loop = $true  }
     attack = @{ fps = 16; loop = $false }
+    # A spear's strike is a one-shot swing like any other. It was missing here
+    # and fell through to the default, which loops.
+    thrust = @{ fps = 16; loop = $false }
+    # Rushing Strike's leap: eight frames over roughly half a second.
+    rush   = @{ fps = 15; loop = $false }
+    # A held guard breathes slowly.
+    block  = @{ fps = 6;  loop = $true  }
     chop   = @{ fps = 10; loop = $true  }
     mine   = @{ fps = 9;  loop = $true  }
     fish   = @{ fps = 6;  loop = $true  }

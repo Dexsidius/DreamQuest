@@ -63,6 +63,18 @@ bool EnemyDatabase::Load(const string& path) {
                       static_cast<Uint8>(o["tint"][1].get<int>()),
                       static_cast<Uint8>(o["tint"][2].get<int>()), 255};
 
+        if (o.contains("heavy") && o["heavy"].is_object()) {
+            const json& h = o["heavy"];
+            d.heavy.enabled   = true;
+            d.heavy.windup    = std::max(0.3f, h.value("windup", d.heavy.windup));
+            d.heavy.damage    = h.value("damage", d.heavy.damage);
+            d.heavy.reach     = h.value("reach", d.heavy.reach);
+            d.heavy.width     = h.value("width", d.heavy.width);
+            d.heavy.cooldown  = h.value("cooldown", d.heavy.cooldown);
+            d.heavy.opening   = h.value("opening", d.heavy.opening);
+            d.heavy.knockback = h.value("knockback", d.heavy.knockback);
+        }
+
         d.foot_box = BoxFromJson(o.contains("foot_box") ? o["foot_box"] : json(), d.foot_box);
         d.body_box = BoxFromJson(o.contains("body_box") ? o["body_box"] : json(), d.body_box);
 
@@ -119,13 +131,41 @@ CombatProfile Enemy::Profile() const {
     return p;
 }
 
+float Enemy::HeavyCharge() const {
+    if (state != State::Heavy || !def || heavy_landed) return 0.0f;
+    return std::clamp(state_timer / std::max(0.001f, def->heavy.windup), 0.0f, 1.0f);
+}
+
+SDL_FRect Enemy::HeavyHitbox() const {
+    AttackProfile p = ProfileFor(AttackType::Strong);
+    if (def) {
+        p.reach = std::max(40.0f, def->attack_range * def->heavy.reach);
+        p.width = std::max(44.0f, body_box.w * def->heavy.width);
+    }
+    return AttackHitbox(x, y, facing, p, 1.0f);
+}
+
+int Enemy::HeavyDamage(std::mt19937* rng) const {
+    if (!def) return 1;
+    // Near the top of the monster's range every time: after a wind-up that
+    // long, a blow that rolls low reads as the game letting you off.
+    std::uniform_real_distribution<float> roll(0.8f, 1.0f);
+    const float r = rng ? roll(*rng) : 0.9f;
+    return std::max(1, static_cast<int>(std::lround(MaxHit(Profile(), 1.0f) * def->heavy.damage * r)));
+}
+
 void Enemy::SetState(State s) {
     if (state == s) return;
+    // The first heavy of a fight waits for its opening, so a leader walks in
+    // swinging like anything else before it starts to wind up.
+    if (s == State::Chase && (state == State::Idle || state == State::Return) && def && def->heavy.enabled)
+        heavy_timer = std::max(heavy_timer, def->heavy.opening);
     state = s;
     state_timer = 0.0f;
     switch (s) {
         case State::Idle:   sprite.Play("idle"); break;
         case State::Chase:  sprite.Play("walk"); break;
+        case State::Heavy:  heavy_landed = false; sprite.Play("idle", true); break;
         case State::Attack: sprite.Play("attack", true); break;
         case State::Hurt:   sprite.Play("hurt", true); break;
         case State::Dead:   sprite.Play("death", true); break;
@@ -180,6 +220,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
     state_timer += dt;
     if (attack_timer > 0.0f) attack_timer -= dt;
+    if (heavy_timer > 0.0f && state != State::Heavy) heavy_timer = std::max(0.0f, heavy_timer - dt);
 
     // --- health bar trail ---------------------------------------------------------
     // The fill is always exactly hp / max_hp; this only moves the lighter band
@@ -221,6 +262,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     const float home_dist = Length(x - home_x, y - home_y);
 
     // --- knockback ------------------------------------------------------------
+    // Braced while winding up a heavy: knocked about, it would drift out of
+    // the reach it is charging into and the blow would go wide of what the
+    // bar promised.
+    if (state == State::Heavy) { knock_x *= 0.2f; knock_y *= 0.2f; }
     if (fabsf(knock_x) > 1.0f || fabsf(knock_y) > 1.0f) {
         const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), knock_x * dt, knock_y * dt);
         x = p.x - foot_box.x;
@@ -241,9 +286,19 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // Drift around the post so a field of monsters is not a still life.
             wander_timer -= dt;
             if (wander_timer <= 0.0f) {
-                wander_timer = 1.6f + (rand() % 100) / 40.0f;
-                if (rand() % 3 == 0) {
-                    const float angle = (rand() % 628) / 100.0f;
+                // From the game's own generator, not the C library's. rand()
+                // is one hidden sequence shared by everything, unseeded, so
+                // where a monster ambled depended on how many numbers anything
+                // else had drawn first -- which made every fight with a
+                // monster that had been idle for a moment impossible to replay,
+                // and a self-test of a swing's arc pass or fail depending on
+                // which tests had run before it.
+                const auto roll = [&](int n) {
+                    return ctx.rng ? static_cast<int>((*ctx.rng)() % static_cast<unsigned>(n)) : rand() % n;
+                };
+                wander_timer = 1.6f + roll(100) / 40.0f;
+                if (roll(3) == 0) {
+                    const float angle = roll(628) / 100.0f;
                     wander_dx = cosf(angle);
                     wander_dy = sinf(angle);
                 } else {
@@ -262,6 +317,14 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             if (player.IsDead() || home_dist > leash) { SetState(State::Return); break; }
             if (dist > def->aggro_range * 1.6f)        { SetState(State::Return); break; }
 
+            // A leader with its heavy rested winds it up instead of a swing,
+            // from a little further out -- the blow reaches further too.
+            if (def->heavy.enabled && heavy_timer <= 0.0f &&
+                dist <= std::max(40.0f, def->attack_range * def->heavy.reach) * 0.9f) {
+                SetState(State::Heavy);
+                Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.8f, 0.55f);
+                break;
+            }
             if (dist <= def->attack_range && attack_timer <= 0.0f) {
                 SetState(State::Attack);
                 Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.8f);
@@ -300,15 +363,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     if (r.hit && r.damage <= 0) {
                         world.AddText("0", player.x, player.y - 44.0f, {120, 160, 220, 255});
                     } else if (r.hit) {
-                        player.Damage(r.damage);
-                        player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
                         const float len = std::max(1.0f, dist);
-                        player.knock_x += (dx / len) * 55.0f;
-                        player.knock_y += (dy / len) * 55.0f;
-                        world.AddText(std::to_string(r.damage), player.x, player.y - 44.0f,
-                                      {235, 70, 70, 255});
-                        // Taking a hit trains Defence, as it does in OSRS.
-                        player.GrantXp(SKILL_DEFENCE, std::max(1, r.damage));
+                        world.HitPlayer(r.damage, Profile(), x, y,
+                                        (dx / len) * 55.0f, (dy / len) * 55.0f);
                     } else {
                         world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                     }
@@ -317,6 +374,38 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             if (swing_timer >= ProfileFor(AttackType::Strong).Total()) {
                 swinging = false;
                 attack_timer = def->attack_cooldown;
+                SetState(State::Chase);
+            }
+            break;
+        }
+
+        case State::Heavy: {
+            // The wind-up: rooted, turning to follow the player for most of
+            // it and then committed to that facing for the rest. That last
+            // stretch is the tell -- step out of the line now and it lands on
+            // nothing.
+            if (player.IsDead()) { SetState(State::Chase); break; }
+            const float windup = def->heavy.windup;
+            if (!heavy_landed && state_timer < windup * HEAVY_LOCK) {
+                if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;
+                else                       facing = (dy > 0) ? FACE_DOWN  : FACE_UP;
+            }
+            if (!heavy_landed && state_timer >= windup) {
+                heavy_landed = true;
+                sprite.Play("attack", true);
+                Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.55f);
+                if (RectsOverlap(HeavyHitbox(), player.BodyBox())) {
+                    const float len = std::max(1.0f, dist);
+                    world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
+                                         (dx / len) * def->heavy.knockback,
+                                         (dy / len) * def->heavy.knockback);
+                } else {
+                    world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
+                }
+            }
+            if (heavy_landed && state_timer >= windup + HEAVY_RECOVER) {
+                heavy_timer = def->heavy.cooldown;
+                attack_timer = std::max(attack_timer, def->attack_cooldown * 0.5f);
                 SetState(State::Chase);
             }
             break;
@@ -377,6 +466,24 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
     SDL_Color tint{255, 255, 255, CorpseAlpha()};
     if (def) tint = {def->tint.r, def->tint.g, def->tint.b, tint.a};
     if (hurt_flash > 0.0f) tint = {255, 110, 110, tint.a};
+
+    // Winding up a heavy, it glows red. Two parts: a halo -- its own frame in
+    // flat red, a little larger, drawn behind it -- and its own colours pulled
+    // towards red. Adding red light on top of the sprite was tried first; on a
+    // green orc that comes out beige, not red. Both grow as the charge fills
+    // and throb faster as it nears the end.
+    const float charge = HeavyCharge();
+    if (charge > 0.0f) {
+        const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        const float pulse = 0.6f + 0.4f * sinf(t * (8.0f + 18.0f * charge));
+        const Uint8 halo_a = static_cast<Uint8>(std::clamp((70.0f + 170.0f * charge) * pulse, 0.0f, 255.0f));
+        const float grow = 1.06f + 0.06f * charge * pulse;
+        sprite.Draw(r, cache, cam, x, y - draw_lift, {255, 36, 20, halo_a}, SDL_BLENDMODE_BLEND, grow);
+        const float k = 0.25f + 0.5f * charge * pulse;
+        tint = {tint.r,
+                static_cast<Uint8>(tint.g * (1.0f - k)),
+                static_cast<Uint8>(tint.b * (1.0f - k)), tint.a};
+    }
     // Lifted by the ground under it, as the player and NPCs are. This drew at
     // the raw feet position, so a monster up on a ledge sank into the cliff --
     // and a health bar placed from the terrain height would have floated off it.
