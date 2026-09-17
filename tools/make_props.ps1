@@ -94,34 +94,58 @@ $sizes = @{
 if ($Objects) {
     $sizes = @{}
     foreach ($i in 0..9) {
-        $sizes["tree_{0:d2}" -f $i] = 128
-        $sizes["treesmall_{0:d2}" -f $i] = 64
+        $sizes["tree_" + $i.ToString("d2")] = 128
+        $sizes["treesmall_" + $i.ToString("d2")] = 64
     }
     foreach ($i in 0..7) {
-        $sizes["rock_{0:d2}" -f $i] = 64
-        $sizes["rocksmall_{0:d2}" -f $i] = 32
-        $sizes["bush_{0:d2}" -f $i] = 64
-        $sizes["bushsmall_{0:d2}" -f $i] = 32
+        $sizes["rock_" + $i.ToString("d2")] = 64
+        $sizes["rocksmall_" + $i.ToString("d2")] = 32
+        $sizes["bush_" + $i.ToString("d2")] = 64
+        $sizes["bushsmall_" + $i.ToString("d2")] = 32
     }
     $mush = @(128, 64, 32, 128, 64, 64)
-    foreach ($i in 0..5) { $sizes["mushroom_{0:d2}" -f $i] = $mush[$i] }
-    foreach ($i in 0..2) { $sizes["fungus_{0:d2}" -f $i] = 32 }
+    foreach ($i in 0..5) { $sizes["mushroom_" + $i.ToString("d2")] = $mush[$i] }
+    foreach ($i in 0..2) { $sizes["fungus_" + $i.ToString("d2")] = 32 }
+
+    # Buildings, the guild hall's furniture, and the small things that stand on
+    # the ground: the rest of what used to come out of the packs.
+    $sizes += @{
+        building_house_a = 144; building_house_b = 160; building_shop = 128
+        building_guild   = 160; sign_guild       = 72
+        chest = 32; chest_open = 32; door = 32; door_open = 32
+        campfire = 48; arrow = 24
+        guild_noticeboard = 48; guild_couch = 56; guild_bench = 48
+        guild_settle = 48; guild_chair = 24; guild_table = 56
+        guild_desk = 56; guild_cabinet = 56; guild_bookshelf = 56
+        guild_bookshelf_b = 56; guild_chest = 32; guild_rug = 72
+        guild_banner = 48; guild_weapon_rack = 48; guild_armour_rack = 56
+        guild_rack = 48; guild_plant = 36; guild_door = 40
+    }
 }
 
 # Every name the scenery family owns, so a run of one family stays quiet about
 # renders belonging to the other.
 $SCENERY_NAMES = New-Object System.Collections.Generic.HashSet[string]
 foreach ($i in 0..9) {
-    [void]$SCENERY_NAMES.Add("tree_{0:d2}" -f $i)
-    [void]$SCENERY_NAMES.Add("treesmall_{0:d2}" -f $i)
+    [void]$SCENERY_NAMES.Add("tree_" + $i.ToString("d2"))
+    [void]$SCENERY_NAMES.Add("treesmall_" + $i.ToString("d2"))
 }
 foreach ($i in 0..7) {
     foreach ($fam in "rock", "rocksmall", "bush", "bushsmall") {
-        [void]$SCENERY_NAMES.Add("{0}_{1:d2}" -f $fam, $i)
+        [void]$SCENERY_NAMES.Add($fam + "_" + $i.ToString("d2"))
     }
 }
-foreach ($i in 0..5) { [void]$SCENERY_NAMES.Add("mushroom_{0:d2}" -f $i) }
-foreach ($i in 0..2) { [void]$SCENERY_NAMES.Add("fungus_{0:d2}" -f $i) }
+foreach ($i in 0..5) { [void]$SCENERY_NAMES.Add("mushroom_" + $i.ToString("d2")) }
+foreach ($i in 0..2) { [void]$SCENERY_NAMES.Add("fungus_" + $i.ToString("d2")) }
+foreach ($n in "building_house_a", "building_house_b", "building_shop", "building_guild",
+               "sign_guild", "chest", "chest_open", "door", "door_open", "campfire", "arrow",
+               "guild_noticeboard", "guild_couch", "guild_bench", "guild_settle", "guild_chair",
+               "guild_table", "guild_desk", "guild_cabinet", "guild_bookshelf",
+               "guild_bookshelf_b", "guild_chest", "guild_rug", "guild_banner",
+               "guild_weapon_rack", "guild_armour_rack", "guild_rack", "guild_plant",
+               "guild_door") {
+    [void]$SCENERY_NAMES.Add($n)
+}
 
 if (-not $SkipRender) {
     if (-not (Test-Path $Blender)) {

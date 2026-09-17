@@ -97,8 +97,8 @@
                                               "h":  16
                                           },
                    "tiles/dungeon_wall":  {
-                                              "w":  16,
-                                              "h":  16
+                                              "w":  32,
+                                              "h":  32
                                           },
                    "tiles/forge_brick":  {
                                              "w":  32,
@@ -364,6 +364,14 @@
                                        "w":  16,
                                        "h":  16
                                    },
+                   "tiles/water_1":  {
+                                         "w":  16,
+                                         "h":  16
+                                     },
+                   "tiles/water_2":  {
+                                         "w":  16,
+                                         "h":  16
+                                     },
                    "decor/crack_0":  {
                                          "w":  28,
                                          "h":  16,
@@ -574,106 +582,6 @@
                                                       58
                                                   ]
                                       },
-                   "decor/roadpiece1_00":  {
-                                               "w":  55,
-                                               "h":  59,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           106,
-                                                           144,
-                                                           154
-                                                       ]
-                                           },
-                   "decor/roadpiece1_01":  {
-                                               "w":  57,
-                                               "h":  62,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           106,
-                                                           144,
-                                                           153
-                                                       ]
-                                           },
-                   "decor/roadpiece1_02":  {
-                                               "w":  54,
-                                               "h":  60,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           106,
-                                                           145,
-                                                           154
-                                                       ]
-                                           },
-                   "decor/roadpiece1_03":  {
-                                               "w":  216,
-                                               "h":  318,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           106,
-                                                           144,
-                                                           153
-                                                       ]
-                                           },
-                   "decor/roadpiece3_00":  {
-                                               "w":  54,
-                                               "h":  54,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           123,
-                                                           140,
-                                                           161
-                                                       ]
-                                           },
-                   "decor/roadpiece3_01":  {
-                                               "w":  54,
-                                               "h":  54,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           123,
-                                                           140,
-                                                           162
-                                                       ]
-                                           },
-                   "decor/roadpiece3_02":  {
-                                               "w":  53,
-                                               "h":  54,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           123,
-                                                           140,
-                                                           162
-                                                       ]
-                                           },
-                   "decor/roadpiece3_03":  {
-                                               "w":  214,
-                                               "h":  341,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           124,
-                                                           139,
-                                                           162
-                                                       ]
-                                           },
-                   "decor/roadpiece3_04":  {
-                                               "w":  66,
-                                               "h":  32,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           122,
-                                                           142,
-                                                           163
-                                                       ]
-                                           },
-                   "decor/roadpiece3_05":  {
-                                               "w":  131,
-                                               "h":  32,
-                                               "family":  "water",
-                                               "rgb":  [
-                                                           122,
-                                                           139,
-                                                           161
-                                                       ]
-                                           },
                    "decor/sedge_0":  {
                                          "w":  20,
                                          "h":  18,
@@ -805,24 +713,24 @@
                                                      ]
                                          },
                    "objects/arrow":  {
-                                         "w":  7,
-                                         "h":  25
+                                         "w":  24,
+                                         "h":  24
                                      },
                    "objects/building_guild":  {
-                                                  "w":  144,
-                                                  "h":  111
+                                                  "w":  160,
+                                                  "h":  160
                                               },
                    "objects/building_house_a":  {
-                                                    "w":  136,
-                                                    "h":  149
+                                                    "w":  144,
+                                                    "h":  144
                                                 },
                    "objects/building_house_b":  {
-                                                    "w":  133,
-                                                    "h":  184
+                                                    "w":  160,
+                                                    "h":  160
                                                 },
                    "objects/building_shop":  {
-                                                 "w":  110,
-                                                 "h":  72
+                                                 "w":  128,
+                                                 "h":  128
                                              },
                    "objects/bush_00":  {
                                            "w":  64,
@@ -921,76 +829,76 @@
                                              "h":  32
                                          },
                    "objects/guild_armour_rack":  {
-                                                     "w":  47,
-                                                     "h":  51
+                                                     "w":  56,
+                                                     "h":  56
                                                  },
                    "objects/guild_banner":  {
-                                                "w":  45,
-                                                "h":  42
+                                                "w":  48,
+                                                "h":  48
                                             },
                    "objects/guild_bench":  {
-                                               "w":  47,
-                                               "h":  23
+                                               "w":  48,
+                                               "h":  48
                                            },
                    "objects/guild_bookshelf":  {
-                                                   "w":  46,
-                                                   "h":  58
+                                                   "w":  56,
+                                                   "h":  56
                                                },
                    "objects/guild_bookshelf_b":  {
-                                                     "w":  46,
-                                                     "h":  58
+                                                     "w":  56,
+                                                     "h":  56
                                                  },
                    "objects/guild_cabinet":  {
-                                                 "w":  47,
-                                                 "h":  58
+                                                 "w":  56,
+                                                 "h":  56
                                              },
                    "objects/guild_chair":  {
-                                               "w":  12,
-                                               "h":  22
+                                               "w":  24,
+                                               "h":  24
                                            },
                    "objects/guild_chest":  {
-                                               "w":  23,
-                                               "h":  20
+                                               "w":  32,
+                                               "h":  32
                                            },
                    "objects/guild_couch":  {
-                                               "w":  52,
-                                               "h":  41
+                                               "w":  56,
+                                               "h":  56
                                            },
                    "objects/guild_desk":  {
                                               "w":  56,
-                                              "h":  33
+                                              "h":  56
                                           },
                    "objects/guild_door":  {
-                                              "w":  32,
-                                              "h":  32
+                                              "w":  40,
+                                              "h":  40
                                           },
                    "objects/guild_noticeboard":  {
-                                                     "w":  41,
-                                                     "h":  49
+                                                     "w":  48,
+                                                     "h":  48
                                                  },
                    "objects/guild_plant":  {
-                                               "w":  18,
-                                               "h":  33
+                                               "w":  36,
+                                               "h":  36
                                            },
                    "objects/guild_rack":  {
-                                              "w":  45,
-                                              "h":  45
+                                              "w":  48,
+                                              "h":  48
                                           },
                    "objects/guild_rug":  {
-                                             "w":  65,
-                                             "h":  69
+                                             "w":  72,
+                                             "h":  72
                                          },
                    "objects/guild_settle":  {
-                                                "w":  47,
-                                                "h":  25
+                                                "w":  48,
+                                                "h":  48
                                             },
                    "objects/guild_table":  {
                                                "w":  56,
-                                               "h":  28
+                                               "h":  56
                                            },
                    "objects/guild_weapon_rack":  {
                                                      "w":  48,
-                                                     "h":  42
+                                                     "h":  48
                                                  },
                    "objects/mushroom_00":  {
                                                "w":  128,
@@ -1082,7 +990,7 @@
                                             },
                    "objects/sign_guild":  {
                                               "w":  72,
-                                              "h":  26
+                                              "h":  72
                                           },
                    "objects/tree_00":  {
                                            "w":  128,
@@ -1911,18 +1819,6 @@
                                    "tuft_dark_0",
                                    "tuft_dark_1",
                                    "tuft_dark_2"
-                               ],
-                     "water":  [
-                                   "roadpiece1_00",
-                                   "roadpiece1_01",
-                                   "roadpiece1_02",
-                                   "roadpiece1_03",
-                                   "roadpiece3_00",
-                                   "roadpiece3_01",
-                                   "roadpiece3_02",
-                                   "roadpiece3_03",
-                                   "roadpiece3_04",
-                                   "roadpiece3_05"
                                ]
                  }
 }

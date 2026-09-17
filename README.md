@@ -80,27 +80,36 @@ had to be dealt with explicitly:
 
 ## Assets
 
-The art is [CraftPix](https://craftpix.net) free content. That licence permits
-using the assets in a game but not redistributing the files, so **no art is
-committed here**. `tools/import_assets.ps1` rebuilds `assets/` from the `.zip`
-packs you downloaded:
+**Clone it and run it.** Every image the game loads is its own — modelled,
+rendered or drawn by the tools in `tools/` — so `assets/` is committed and
+there is nothing to download first.
 
-1. Unpacks each pack into `assets/_raw/`
-2. Copies the character animation sheets under short, stable names
-3. Cuts the flat ground fills out of the packed tilesets with `tilecut`
-4. Cuts buildings, decorations and item icons out of the packed sheets
-5. Copies the individually-shipped props (trees, rocks, bushes)
-6. Regenerates `data/sprites.json` and `data/asset_manifest.json` to match
+| What | Made by |
+| --- | --- |
+| Characters, their armour layers and the town NPCs | `blender_character.py` |
+| Every monster | `blender_creatures.py` |
+| Props, scenery, buildings, chests, doors | `blender_props.py` |
+| Ores, bars, weapons, armour icons, the weapon in hand | `blender_tiers.py` |
+| 93 ground and interior tiles | `make_ground.ps1` |
+| Ground decals, item icons, the HUD | `make_decals.ps1`, `make_icons.ps1`, `make_ui.ps1` |
 
-Everything lands on the exact paths the committed data and maps refer to, so
-the game runs as soon as it finishes. The packs used are listed in
-[docs/ASSETS.md](docs/ASSETS.md).
+The game began on free [CraftPix](https://craftpix.net) packs, whose licence
+permits using the art in a game but not passing the files on — which meant the
+repository could not carry its own art and a clone was a game with no pictures
+in it. Everything has since been replaced, piece by piece; `docs/ASSETS.md`
+records what makes what, and what each replacement had to get right.
+
+Four optional CraftPix icon packs are still supported for painted equipment
+art, and `tools/import_assets.ps1` exists to import those and nothing else. The
+game plays identically without them.
+
+No font is bundled either: `src/ui/ui.cpp` falls back through Consolas, Segoe
+UI, Arial and DejaVu Sans, so text renders the same anywhere.
 
 ### Title art
 
-One folder is the exception: `art/` is the game's own, not CraftPix content, so
-it **is** committed and a fresh checkout has a title screen before any pack is
-imported.
+`art/` holds the cover painting and the icons made from it — see
+[Title art](#title-art-1) below.
 
 | File | What it is |
 | --- | --- |

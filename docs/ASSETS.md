@@ -1,54 +1,47 @@
 # Assets
 
-Some of what the game draws is its own -- modelled and rendered by the tools in
-`tools/`, and free to travel with the repository. The rest still comes from free
-[CraftPix](https://craftpix.net) asset packs, whose file licence
-(<https://craftpix.net/file-licenses/>) allows using the assets in a game but
-not redistributing the files themselves, so **none of those are committed
-here**. `tools/import_assets.ps1` rebuilds `assets/` from the `.zip` packs on
-your own machine.
+**Every image the game loads is its own.** It is modelled, rendered or drawn by
+the tools in `tools/`, it lives in `assets/`, and it is committed -- so a clone
+of this repository runs as it stands, with nothing to download and no account
+to sign up for.
 
-## The game's own art
+It did not start that way. The game was built on free
+[CraftPix](https://craftpix.net) packs, whose file licence
+(<https://craftpix.net/file-licenses/>) covers using the art in a game but not
+passing the files on, which meant `assets/` could not be committed and a clone
+was a game with no pictures in it. Everything has since been replaced.
 
-Nothing below needs a pack. Every one of these is generated from source in this
-repository, so it can be redistributed with it.
+## What makes what
 
 | What | Made by |
 | --- | --- |
-| The three playable characters, and the town NPCs | `tools/blender_character.py` (`make_character.ps1`) |
-| Every monster, including the orcs, and the woodland animals | `tools/blender_creatures.py` (`make_creatures.ps1`) |
-| Every prop -- furniture, buildings, herbs, gravestones, the well | `tools/blender_props.py` (`make_props.ps1`) |
-| The scenery -- trees, rocks, bushes, mushrooms | `tools/blender_props.py` (`make_props.ps1 -Objects`) |
-| Every ore, bar, weapon and armour icon, and the weapon layers in hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
-| All ground and interior tiles | `tools/make_ground.ps1` |
+| The three playable characters, their armour layers, and the town NPCs | `tools/blender_character.py` (`make_character.ps1`) |
+| Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`) |
+| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`) |
+| The scenery and buildings -- trees, rocks, bushes, mushrooms, houses, the guild hall, chests, doors, the campfire | `tools/blender_props.py` (`make_props.ps1 -Objects`) |
+| Every ore, bar, weapon and armour icon, and the weapon in the hero's hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
+| All 93 ground and interior tiles | `tools/make_ground.ps1` |
 | Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
-| Hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
-| HUD fittings and the minimap bezel | `tools/make_ui.ps1` |
+| The hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
+| The minimap bezel and the HUD fittings | `tools/make_ui.ps1` |
 | The title painting, the window icon and the .exe icon | `art/`, see the README |
 
-## What still comes from a pack
+Rebuilding the modelled art needs [Blender](https://www.blender.org) 5.2; the
+tiles, decals, icons and HUD are pure PowerShell and need nothing at all.
 
-The list below is what remains, and it is also the to-do list for making the
-repository fully self-contained. `Path and Road` is in it only for the ten road
-pieces the ground decals use; the flat fills it once supplied are generated now.
+## The font
 
-| Pack | Used for |
-| --- | --- |
-| Top-Down Pixel Art Guild Hall | The guild hall inside and out, and its sign |
-| Glassblower's Workshop Top-Down | The houses, the inn and the forge |
-| Path and Road Top-Down Tileset | Ground palette fills, roads, ground decals |
-| 2D Top-Down Pixel Dungeon | Dungeon floors and walls, chests, doors, fire |
-| Cursed Land Top-Down Tileset | The Cursed Reach ground |
-| Undead Tileset Top-Down | The Mire ground |
-| Basic Pixel Art UI for RPG | Item icons |
-
-Three more packs (bridges, dungeon props, dungeon objects) are unpacked by the
-importer and are available to build on, but nothing in the current maps uses
-them yet.
+None is bundled. `src/ui/ui.cpp` falls back through Consolas, Segoe UI, Arial
+and DejaVu Sans, so the game renders the same on any machine that has any of
+them. Drop a `.ttf` at `assets/fonts/dreamquest.ttf` to override it; that path
+is ignored by git, because a font copied out of a system folder is not ours to
+pass on either.
 
 ## Optional: equipment icon packs
 
-Four further CraftPix freebies are supported but not required:
+Four CraftPix freebies are still supported, and are the only thing
+`tools/import_assets.ps1` still imports. They are **not required**: without them
+the game runs exactly as it does with them, minus a wardrobe of painted armour.
 
 | Pack | Used for |
 | --- | --- |

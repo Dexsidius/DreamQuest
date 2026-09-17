@@ -3377,6 +3377,326 @@ def _scenery_table():
 SCENERY = _scenery_table()
 
 
+# =============================================================================
+#  Buildings, the guild's furniture, and the small things on the ground
+#
+#  The last of the pack art: four buildings, the guild hall's insides, the
+#  chests and doors a dungeon needs, a campfire and an arrow. Most of the
+#  guild's furniture is furniture this file already builds -- a bench is a
+#  bench -- so those entries are aliases rather than new models, which also
+#  keeps the hall matching the inn it stands across the square from.
+# =============================================================================
+PALETTE.update({
+    "wall_daub":   (0.78, 0.71, 0.58), "wall_daub_dk": (0.64, 0.57, 0.46),
+    "beam":        (0.36, 0.25, 0.17), "beam_dk": (0.26, 0.18, 0.12),
+    "roof_tile":   (0.44, 0.29, 0.25), "roof_tile_dk": (0.33, 0.21, 0.19),
+    "guild_stone": (0.52, 0.51, 0.52), "guild_stone_dk": (0.38, 0.37, 0.39),
+    "awning_red":  (0.58, 0.24, 0.22), "awning_cream": (0.83, 0.79, 0.68),
+    "flame_hot":   (1.00, 0.82, 0.32), "flame_mid": (0.95, 0.52, 0.16),
+    "cushion":     (0.45, 0.24, 0.26), "cushion_dk": (0.33, 0.17, 0.19),
+    "paper":       (0.88, 0.85, 0.76),
+})
+
+
+def _timber_frame(W, D, H, beams=4):
+    """Daub panels between upright beams, with a sill and a top plate: the
+    front of every ordinary building in the Hollowmarch."""
+    blk("walls", (W, D, H), (0, 0, H / 2), "wall_daub", bev=0.02)
+    blk("sill", (W + 0.08, D + 0.08, 0.10), (0, 0, 0.05), "beam_dk")
+    blk("plate", (W + 0.06, D + 0.06, 0.10), (0, 0, H - 0.05), "beam")
+    for i in range(beams):
+        x = -W / 2 + (i + 0.5) * W / beams
+        blk("post_%d" % i, (0.10, D + 0.02, H), (x, 0, H / 2), "beam")
+    for sx in (-1, 1):
+        blk("corner_%d" % sx, (0.12, D + 0.04, H), (sx * (W / 2 - 0.05), 0, H / 2), "beam")
+
+
+def _door(W, D, z=0.0, h=0.95):
+    blk("door", (0.62, 0.10, h), (0, -D / 2 - 0.02, z + h / 2), "oak")
+    for k in (0.25, 0.72):
+        blk("door_plank_%.2f" % k, (0.52, 0.02, 0.05), (0, -D / 2 - 0.08, z + h * k), "oak_light")
+    blk("knob", (0.06, 0.05, 0.06), (0.20, -D / 2 - 0.09, z + h * 0.48), "brass", metal=0.8)
+    blk("step", (0.86, 0.30, 0.08), (0, -D / 2 - 0.20, 0.04), "stone_pale")
+
+
+def prop_building_house_a():
+    """A cottage: one storey of timber frame under a steep tiled roof, with a
+    chimney. The door is centred at the front because the map hangs its portal
+    there."""
+    W, D, H = 2.30, 1.70, 1.15
+    _timber_frame(W, D, H, beams=3)
+    _door(W, D)
+    window("win_l", -0.76, -D / 2 - 0.02, 0.72, w=0.42, h=0.42)
+    window("win_r", 0.76, -D / 2 - 0.02, 0.72, w=0.42, h=0.42)
+    gable_roof("roof", W + 0.36, D + 0.36, H, 42, "roof_tile", thick=0.10, overhang=0.20)
+    blk("chimney", (0.30, 0.30, 0.95), (W / 2 - 0.42, 0.34, H + 0.48), "stone")
+    blk("chimney_cap", (0.38, 0.38, 0.10), (W / 2 - 0.42, 0.34, H + 0.98), "stone_pale")
+    return 3.1
+
+
+def prop_building_house_b():
+    """A townhouse: two storeys, the upper one jettied out over the street, a
+    steeper roof and two chimneys. Taller than the cottage so a street of them
+    is not a row of the same shape."""
+    W, D = 2.10, 1.60
+    G, U = 1.15, 1.00
+    _timber_frame(W, D, G, beams=3)
+    _door(W, D)
+    window("gwin", 0.70, -D / 2 - 0.02, 0.70, w=0.40, h=0.40)
+    # The jetty: the upper storey hangs forward on a moulded bressumer.
+    JET = 0.16
+    blk("bressumer", (W + 0.10, D + JET + 0.10, 0.12), (0, -JET / 2, G + 0.06), "beam")
+    blk("upper", (W + 0.02, D + JET, U), (0, -JET / 2, G + U / 2 + 0.10), "wall_daub", bev=0.02)
+    for i in range(3):
+        x = -W / 2 + (i + 0.5) * W / 3
+        blk("upost_%d" % i, (0.09, D + JET + 0.02, U), (x, -JET / 2, G + U / 2 + 0.10), "beam")
+    window("uwin_l", -0.58, -D / 2 - JET - 0.02, G + 0.62, w=0.40, h=0.42)
+    window("uwin_r", 0.58, -D / 2 - JET - 0.02, G + 0.62, w=0.40, h=0.42)
+    gable_roof("roof", W + 0.40, D + JET + 0.40, G + U + 0.12, 46, "roof_tile",
+               thick=0.10, overhang=0.20)
+    for sx in (-1, 1):
+        blk("chimney_%d" % sx, (0.26, 0.26, 0.85), (sx * (W / 2 - 0.30), 0.30, G + U + 0.52), "stone")
+    return 3.8
+
+
+def prop_building_shop():
+    """A shopfront: low and wide, with a striped awning over an open counter
+    and the shutters folded down. Reads as somewhere to buy something rather
+    than somewhere to live."""
+    W, D, H = 2.20, 1.40, 1.05
+    _timber_frame(W, D, H, beams=3)
+    _door(W, D, h=0.90)
+    # The open front: a counter under a striped awning, to the right of the door.
+    blk("counter", (0.95, 0.18, 0.12), (0.62, -D / 2 - 0.14, 0.62), "oak_light")
+    blk("counter_front", (0.95, 0.06, 0.55), (0.62, -D / 2 - 0.20, 0.34), "oak")
+    blk("shutter", (1.00, 0.06, 0.40), (0.62, -D / 2 - 0.30, 0.86),
+        "oak_light", rot=(math.radians(-24), 0, 0))
+    stripes = 5
+    for i in range(stripes):
+        x = 0.62 - 0.55 + (i + 0.5) * 1.10 / stripes
+        blk("awning_%d" % i, (1.10 / stripes + 0.005, 0.62, 0.05), (x, -D / 2 - 0.30, 1.02),
+            ("awning_red", "awning_cream")[i % 2], rot=(math.radians(-18), 0, 0), bev=0.004)
+    window("win_l", -0.72, -D / 2 - 0.02, 0.66, w=0.38, h=0.38)
+    gable_roof("roof", W + 0.34, D + 0.34, H, 34, "shingle", thick=0.09, overhang=0.22)
+    return 2.9
+
+
+def prop_building_guild():
+    """The guild hall: stone rather than timber, wider than it is tall, with a
+    porch on two columns and a banner over the door."""
+    W, D, H = 2.90, 1.90, 1.35
+    import random
+    rng = random.Random(58)
+    course = 0.24
+    for row in range(int(H / course)):
+        z = course / 2 + row * course
+        x = -W / 2 + (0.20 if row % 2 else 0.0)
+        while x < W / 2 - 0.05:
+            w = 0.44 * (0.75 + rng.random() * 0.5)
+            w = min(w, W / 2 - x)
+            cx = x + w / 2
+            if not (abs(cx) < 0.42 and z < 1.00):
+                blk("stone_%d_%.2f" % (row, x), (w - 0.03, 0.10, course - 0.03),
+                    (cx, -D / 2, z), ("guild_stone", "guild_stone_dk")[rng.randrange(2)], bev=0.02)
+            x += w
+    blk("core", (W - 0.02, D - 0.10, H), (0, 0.04, H / 2), "guild_stone", bev=0)
+    blk("plinth", (W + 0.12, D + 0.12, 0.12), (0, 0, 0.06), "stone_pale")
+    _door(W, D, h=1.00)
+    for sx in (-1, 1):
+        cyl("column_%d" % sx, 0.11, 1.10, (sx * 0.60, -D / 2 - 0.30, 0.55), "stone_pale", verts=12)
+        cyl("capital_%d" % sx, 0.14, 0.10, (sx * 0.60, -D / 2 - 0.30, 1.14), "stone_pale", verts=12)
+    blk("porch", (1.60, 0.70, 0.12), (0, -D / 2 - 0.30, 1.24), "shingle", bev=0.02)
+    blk("banner", (0.46, 0.05, 0.62), (0, -D / 2 - 0.09, 1.02), "cloth_red")
+    blk("banner_trim", (0.46, 0.06, 0.08), (0, -D / 2 - 0.10, 0.74), "brass", metal=0.7)
+    window("win_l", -1.02, -D / 2 - 0.02, 0.80, w=0.46, h=0.52)
+    window("win_r", 1.02, -D / 2 - 0.02, 0.80, w=0.46, h=0.52)
+    gable_roof("roof", W + 0.40, D + 0.40, H, 32, "shingle", thick=0.12, overhang=0.22)
+    return 3.6
+
+
+def prop_sign_guild():
+    """A hanging sign on a bracket: the board is what carries, so it is wide
+    and plain with a painted device on it."""
+    cyl("post", 0.05, 1.10, (-0.62, 0, 0.55), "oak", verts=8)
+    blk("arm", (1.05, 0.06, 0.07), (-0.10, 0, 1.02), "oak")
+    blk("brace", (0.34, 0.05, 0.05), (-0.42, 0, 0.84), "oak", rot=(0, math.radians(-40), 0))
+    for x in (-0.48, 0.26):
+        cyl("ring_%.2f" % x, 0.035, 0.03, (x, 0, 0.96), "iron", rot=(math.pi / 2, 0, 0),
+            verts=10, metal=0.7)
+    blk("board", (0.86, 0.07, 0.44), (-0.11, 0, 0.70), "oak_light", bev=0.02)
+    blk("board_edge", (0.90, 0.05, 0.05), (-0.11, 0, 0.90), "oak")
+    blk("device", (0.26, 0.04, 0.26), (-0.11, -0.05, 0.70), "cloth_red")
+    blk("device_bar", (0.30, 0.03, 0.06), (-0.11, -0.06, 0.70), "brass", metal=0.7)
+    return 1.5
+
+
+def _chest(open_lid):
+    """A banded chest. The open one has its lid back and a little gold showing,
+    because an open chest the player has already looted should read as looted
+    from across the room."""
+    blk("body", (0.66, 0.44, 0.34), (0, 0, 0.17), "oak", bev=0.02)
+    blk("band_l", (0.06, 0.46, 0.36), (-0.22, 0, 0.18), "iron", metal=0.6)
+    blk("band_r", (0.06, 0.46, 0.36), (0.22, 0, 0.18), "iron", metal=0.6)
+    blk("lock", (0.12, 0.05, 0.12), (0, -0.23, 0.30), "brass", metal=0.8)
+    if open_lid:
+        blk("lid", (0.68, 0.40, 0.10), (0, 0.20, 0.52), "oak_light",
+            rot=(math.radians(-72), 0, 0), bev=0.02)
+        for k, (x, y) in enumerate(((-0.14, -0.02), (0.10, 0.06), (0.0, -0.10))):
+            sphere("coin_%d" % k, 0.055, (x, y, 0.36), "brass")
+    else:
+        blk("lid", (0.68, 0.46, 0.14), (0, 0, 0.41), "oak_light", bev=0.03)
+        blk("lid_band", (0.06, 0.48, 0.16), (-0.22, 0, 0.41), "iron", metal=0.6)
+        blk("lid_band_r", (0.06, 0.48, 0.16), (0.22, 0, 0.41), "iron", metal=0.6)
+    return 1.15
+
+
+def prop_chest():
+    return _chest(False)
+
+
+def prop_chest_open():
+    return _chest(True)
+
+
+def _door_panel(is_open):
+    """A door in a frame, seen from the front. The open one swings inward and
+    shows the dark of whatever is behind it."""
+    blk("frame_l", (0.10, 0.16, 1.20), (-0.44, 0, 0.60), "beam")
+    blk("frame_r", (0.10, 0.16, 1.20), (0.44, 0, 0.60), "beam")
+    blk("lintel", (1.00, 0.16, 0.12), (0, 0, 1.22), "beam")
+    blk("dark", (0.78, 0.06, 1.16), (0, 0.06, 0.58), "coal", bev=0)
+    if is_open:
+        blk("leaf", (0.74, 0.08, 1.14), (-0.30, 0.30, 0.57), "oak",
+            rot=(0, 0, math.radians(-64)), bev=0.02)
+    else:
+        blk("leaf", (0.76, 0.08, 1.16), (0, -0.04, 0.58), "oak", bev=0.02)
+        for k in (0.30, 0.86):
+            blk("brace_%.2f" % k, (0.66, 0.03, 0.06), (0, -0.09, 1.16 * k), "oak_light")
+        blk("ring", (0.10, 0.04, 0.10), (0.24, -0.10, 0.56), "iron", metal=0.7)
+    return 1.5
+
+
+def prop_door():
+    return _door_panel(False)
+
+
+def prop_door_open():
+    # The leaf swings out past the frame, so this one needs more room.
+    return _door_panel(True) * 1.18
+
+
+def prop_campfire():
+    """A lit fire: stones round a stack of burning wood. The flame is emissive
+    so it survives the night's light map."""
+    import random
+    rng = random.Random(12)
+    for k in range(9):
+        a = k / 9 * math.tau
+        r = 0.44
+        sphere("stone_%d" % k, rng.uniform(0.09, 0.13),
+               (math.cos(a) * r, math.sin(a) * r, 0.06), ("stone", "stone_pale")[k % 2])
+    for k in range(5):
+        a = k / 5 * math.tau + 0.3
+        cyl("log_%d" % k, 0.055, 0.62, (math.cos(a) * 0.10, math.sin(a) * 0.10, 0.20),
+            "log_dk", rot=(math.radians(58), 0, a), verts=8)
+    sphere("ember", 0.17, (0, 0, 0.16), "flame_mid", emit=1.6)
+    sphere("flame", 0.15, (0, 0, 0.34), "flame_hot", emit=2.4)
+    sphere("flame_tip", 0.085, (0.02, -0.02, 0.50), "flame_hot", emit=2.6)
+    return 1.3
+
+
+def prop_arrow():
+    """An arrow in flight, pointing away from the archer -- up the screen, so
+    the game turns it to whatever direction it was loosed in."""
+    cyl("shaft", 0.028, 1.05, (0, 0, 0.10), "twig", rot=(math.radians(90), 0, 0), verts=8)
+    cone("head", 0.075, 0.26, (0, -0.62, 0.10), "iron", rot=(math.radians(-90), 0, 0),
+         verts=8)
+    for sx in (-1, 1):
+        blk("fletch_%d" % sx, (0.02, 0.22, 0.14), (sx * 0.03, 0.42, 0.12), "cloth_cream",
+            rot=(0, math.radians(sx * 14), 0), bev=0.004)
+    return 1.45
+
+
+def prop_guild_noticeboard():
+    """A board on two posts with notices pinned to it, some of them crooked."""
+    import random
+    rng = random.Random(77)
+    for sx in (-1, 1):
+        cyl("post_%d" % sx, 0.055, 1.00, (sx * 0.52, 0.06, 0.50), "oak", verts=8)
+    blk("board", (1.24, 0.08, 0.78), (0, 0, 0.78), "oak_light", bev=0.02)
+    blk("board_frame", (1.32, 0.06, 0.08), (0, -0.02, 1.16), "oak")
+    blk("board_sill", (1.32, 0.10, 0.08), (0, -0.02, 0.40), "oak")
+    for k in range(5):
+        x = -0.44 + (k % 3) * 0.44
+        z = 0.62 + (k // 3) * 0.30
+        blk("note_%d" % k, (0.26, 0.02, 0.20), (x, -0.05, z), "paper",
+            rot=(0, 0, rng.uniform(-0.12, 0.12)), bev=0.004)
+    gable_roof("hood", 1.44, 0.44, 1.20, 26, "shingle", thick=0.06, overhang=0.10)
+    return 1.9
+
+
+def prop_guild_couch():
+    """A padded couch: a frame, two cushions and a rolled arm at each end."""
+    blk("frame", (1.30, 0.66, 0.16), (0, 0, 0.26), "oak")
+    for sx in (-1, 1):
+        blk("leg_f_%d" % sx, (0.09, 0.09, 0.20), (sx * 0.56, -0.24, 0.10), "oak_dk" if "oak_dk" in PALETTE else "oak")
+        blk("leg_b_%d" % sx, (0.09, 0.09, 0.20), (sx * 0.56, 0.24, 0.10), "oak_dk" if "oak_dk" in PALETTE else "oak")
+        cyl("arm_%d" % sx, 0.15, 0.62, (sx * 0.60, 0, 0.44), "cushion",
+            rot=(math.radians(90), 0, 0), verts=12)
+    blk("seat", (1.16, 0.60, 0.16), (0, 0, 0.42), "cushion", bev=0.04)
+    blk("back", (1.16, 0.18, 0.44), (0, 0.26, 0.64), "cushion", bev=0.04)
+    for sx in (-1, 1):
+        blk("cushion_%d" % sx, (0.52, 0.48, 0.12), (sx * 0.28, -0.04, 0.53), "cushion_dk", bev=0.05)
+    return 1.9
+
+
+def _wider(builder, factor):
+    """The same prop framed with more room round it. The builders return the
+    width of square the camera should frame, so a factor above one zooms out;
+    four of the aliases below were touching the top of their frame."""
+    def build():
+        return builder() * factor
+    return build
+
+
+STRUCTURES = {
+    # Buildings.
+    "building_house_a": (prop_building_house_a, 144),
+    "building_house_b": (prop_building_house_b, 160),
+    "building_shop":    (prop_building_shop,    128),
+    "building_guild":   (prop_building_guild,   160),
+    "sign_guild":       (prop_sign_guild,        72),
+    # The small things.
+    "chest":      (prop_chest,      32),
+    "chest_open": (prop_chest_open, 32),
+    "door":       (prop_door,       32),
+    "door_open":  (prop_door_open,  32),
+    "campfire":   (prop_campfire,   48),
+    "arrow":      (prop_arrow,      24),
+    # The guild hall's insides. Most of it is furniture this file already
+    # builds, so the hall matches the inn across the square.
+    "guild_noticeboard": (prop_guild_noticeboard, 48),
+    "guild_couch":       (prop_guild_couch,       56),
+    "guild_bench":       (prop_bench,             48),
+    "guild_settle":      (prop_tavern_bench,      48),
+    "guild_chair":       (_wider(prop_chair, 1.18),    24),
+    "guild_table":       (prop_table_round,       56),
+    "guild_desk":        (prop_writing_desk,      56),
+    "guild_cabinet":     (prop_wardrobe,          56),
+    "guild_bookshelf":   (_wider(prop_bookshelf, 1.12), 56),
+    "guild_bookshelf_b": (prop_cottage_bookshelf, 56),
+    "guild_chest":       (prop_travel_chest,      32),
+    "guild_rug":         (prop_rug,               72),
+    "guild_banner":      (prop_banner,            48),
+    "guild_weapon_rack": (prop_weapon_rack,       48),
+    "guild_armour_rack": (prop_armour_stand,      56),
+    "guild_rack":        (prop_tool_rack,         48),
+    "guild_plant":       (prop_herb_pots,         36),
+    "guild_door":        (prop_room_door,         40),
+}
+SCENERY.update(STRUCTURES)
+
+
 PROPS = {
     "signpost":    (prop_signpost,    56),
     "table_long":  (prop_long_table,  96),

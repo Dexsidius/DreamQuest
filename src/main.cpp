@@ -46,9 +46,9 @@ int main(int argc, char* args[]) {
             SDL_MESSAGEBOX_ERROR, "DreamQuest",
             "Could not find the game's data files.\n\n"
             "DreamQuest looks for data/ and assets/ beside the executable or "
-            "one directory above it. If this is a fresh checkout, run "
-            "tools/import_assets.ps1 first to build assets/ from the CraftPix "
-            "packs.", nullptr);
+            "one directory above it. Both are part of the repository, so a "
+            "clone has them; if this is a copy of bin/ on its own, bring the "
+            "rest of the folder with it.", nullptr);
         return -1;
     }
 

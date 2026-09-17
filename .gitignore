@@ -8,13 +8,23 @@ DreamQuest.x86_64
 .claude/
 
 # --- art ---------------------------------------------------------------------
-# The art is CraftPix free content. Its licence covers using the assets in a
-# game but not redistributing the files themselves, so the packs are not in the
-# repository. Rebuild assets/ from your own downloads with:
+# assets/ is the game's own art -- modelled, rendered and drawn by the tools in
+# tools/ -- so it travels with the repository and a fresh clone runs as it
+# stands. docs/ASSETS.md records what makes what.
 #
-#     .\tools\import_assets.ps1 -GameAssets "path\to\the\craftpix\zips"
-#
-assets/
+# Four things under it are not ours to pass on, or are build scratch:
+#   _raw            unpacked copies of whatever packs were downloaded
+#   _render         Blender's full-size renders, rebuilt on demand
+#   _cut_buildings  tilecut scratch output
+#   fonts           a system font copied locally; the game falls back to one
+#   icons/armour    the optional CraftPix equipment icon packs
+# A trailing comment on a pattern line is part of the pattern, not a comment,
+# which is why these are listed above rather than beside.
+assets/_raw/
+assets/_render/
+assets/_cut_buildings/
+assets/fonts/
+assets/icons/armour/
 
 # Both written by the importer from the optional equipment icon packs, so
 # data/items.json never refers to art that may not be installed. Generated

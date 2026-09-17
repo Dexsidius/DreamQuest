@@ -423,4 +423,71 @@ foreach ($t in @(@{ name = "hell_floor";      rgb = @(88, 62, 56);  mortar = @(1
     $made++
 }
 
+# --- the last eight ----------------------------------------------------------------
+# These were the only tiles still cut from a pack: the dungeon and guild walls,
+# the guild's floor, open water, two Mire fills, the cursed sand and the void
+# behind a dungeon's walls. With them generated, assets/tiles/ is entirely the
+# game's own.
+$script:seed = 20260917
+
+# Walls are masonry with a tight course, so a wall reads as courses of stone
+# rather than as flagstones stood on end.
+$Size = 32
+foreach ($t in @(@{ name = "dungeon_wall"; rgb = @(74, 76, 92);   mortar = @(38, 38, 50); course = 8; unit = 16; jitter = 0.26 },
+                 @{ name = "guild_wall";   rgb = @(126, 112, 92); mortar = @(74, 64, 52); course = 8; unit = 16; jitter = 0.22 })) {
+    $bmp = New-Masonry 32 $t.rgb $t.mortar $t.course $t.unit $t.jitter $true "half"
+    $bmp.Save((Join-Path $tiles "$($t.name).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# The guild hall's floor: wide boards, a shade redder than the inn's, laid the
+# same way -- masonry with one long unit per course and scattered joints.
+$bmp = New-Masonry 32 @(132, 96, 62) @(76, 52, 34) 8 32 0.05 $true "scatter"
+$bmp.Save((Join-Path $tiles "guild_floor.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# Open water: deeper and bluer than the bog, with ripples across it. The pond,
+# the mill race and the lake all draw from this one.
+$Size = 16
+$deep = [System.Drawing.Color]::FromArgb(255, 52, 96, 138)
+for ($v = 0; $v -lt 3; $v++) {
+    $bmp = New-Tile $deep
+    Add-Speckle $bmp $deep 26 0.05 0.10
+    Add-Ripples $bmp $deep 6
+    $name = if ($v -eq 0) { "water" } else { "water_$v" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# Two more Mire fills and the sand of the Cursed Reach. "marsh_dark" was a
+# patch of black cliff face in the pack it came from, which is how a third of
+# the swamp ended up a streaked void; here it is simply wet peat.
+foreach ($f in @(
+    @{ name = "marsh_dark";  rgb = @( 62,  62,  48); kind = "earth" },
+    @{ name = "marsh_stone"; rgb = @( 96,  98,  88); kind = "earth" },
+    @{ name = "cursed_sand"; rgb = @(118, 104, 100); kind = "sand"  }
+)) {
+    $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])
+    $bmp = New-Tile $base
+    switch ($f.kind) {
+        "earth" { Add-Speckle $bmp $base 62 0.08 0.12; Add-Grit $bmp $base 8 2 }
+        "sand"  { Add-Speckle $bmp $base 78 0.07 0.08; Add-Grit $bmp $base 3 1 }
+    }
+    $bmp.Save((Join-Path $tiles "$($f.name).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# And the void behind a dungeon's walls: not quite black, so the edge of the
+# map reads as unlit rock rather than as a hole in the screen.
+$void = [System.Drawing.Color]::FromArgb(255, 18, 18, 24)
+$bmp = New-Tile $void
+Add-Speckle $bmp $void 20 0.04 0.06
+$bmp.Save((Join-Path $tiles "dungeon_void.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green
