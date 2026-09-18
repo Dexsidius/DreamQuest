@@ -869,16 +869,27 @@ void World::DrawSwing(SDL_Renderer* r) const {
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
 
     const bool thrust = atk.move == ComboMove::None && player.AttackClip() == "thrust";
+    // Every stroke is laid over a dark one two pixels wider, so the pale
+    // crescent reads on the forest floor and the mine's flags as well as on
+    // grass: on dark ground a light line alone was as good as invisible.
+    const auto stroke = [&](SDL_FPoint a, SDL_FPoint b, float alpha_here) {
+        SDL_SetRenderDrawColor(r, 12, 10, 16, static_cast<Uint8>(150.0f * std::clamp(alpha_here, 0.0f, 1.0f)));
+        for (int dy = -1; dy <= 2; ++dy)
+            for (int dx = -1; dx <= 2; ++dx)
+                if (dx == -1 || dx == 2 || dy == -1 || dy == 2)
+                    SDL_RenderLine(r, a.x + dx, a.y + dy, b.x + dx, b.y + dy);
+        SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * std::clamp(alpha_here, 0.0f, 1.0f)));
+        SDL_RenderLine(r, a.x, a.y, b.x, b.y);
+        SDL_RenderLine(r, a.x + 1.0f, a.y, b.x + 1.0f, b.y);
+        SDL_RenderLine(r, a.x, a.y + 1.0f, b.x, b.y + 1.0f);
+        SDL_RenderLine(r, a.x + 1.0f, a.y + 1.0f, b.x + 1.0f, b.y + 1.0f);
+    };
+
     if (thrust) {
-        // A line driven out along the facing, thickest at the point.
+        // A line driven out along the facing.
         const float len = reach * sweep;
         const float dx = cosf(base), dy = sinf(base) * 0.6f;
-        for (int k = -1; k <= 1; ++k) {
-            const SDL_FPoint a = at(cx - dy * k * 1.5f, cy + dx * k * 1.5f);
-            const SDL_FPoint b = at(cx + dx * len - dy * k * 1.5f, cy + dy * len + dx * k * 1.5f);
-            SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * alpha * (k == 0 ? 1.0f : 0.5f)));
-            SDL_RenderLine(r, a.x, a.y, b.x, b.y);
-        }
+        stroke(at(cx, cy), at(cx + dx * len, cy + dy * len), alpha);
         return;
     }
 
@@ -887,29 +898,23 @@ void World::DrawSwing(SDL_Renderer* r) const {
     // above, so the arc is an ellipse.
     constexpr int N = 18;
     const float a0 = base - half, a1 = base - half + 2.0f * half * sweep;
-    for (int ring = -1; ring <= 1; ++ring) {
-        const float rad = reach + ring * 2.0f;
-        const float ring_alpha = ring == 0 ? 1.0f : 0.45f;
+    // One bright crescent on its dark ground, rising toward the head of the
+    // sweep, with a fainter ring just outside it.
+    for (int ring = 0; ring <= 1; ++ring) {
+        const float rad = reach + ring * 3.0f;
+        const float ring_alpha = ring == 0 ? 1.0f : 0.4f;
         SDL_FPoint prev = at(cx + cosf(a0) * rad, cy + sinf(a0) * rad * 0.6f);
         for (int i = 1; i <= N; ++i) {
             const float a = a0 + (a1 - a0) * i / N;
             const SDL_FPoint pt = at(cx + cosf(a) * rad, cy + sinf(a) * rad * 0.6f);
-            const float seg = alpha * ring_alpha * (0.3f + 0.7f * i / N);
-            SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * std::clamp(seg, 0.0f, 1.0f)));
-            // Two screen pixels thick, whatever the zoom: a one-pixel line is
-            // lost against the ground at the zooms the game is played at.
-            SDL_RenderLine(r, prev.x, prev.y, pt.x, pt.y);
-            SDL_RenderLine(r, prev.x + 1.0f, prev.y, pt.x + 1.0f, pt.y);
-            SDL_RenderLine(r, prev.x, prev.y + 1.0f, pt.x, pt.y + 1.0f);
+            stroke(prev, pt, alpha * ring_alpha * (0.35f + 0.65f * i / N));
             prev = pt;
         }
     }
     if (atk.move == ComboMove::Crush) {
         // The overhead: a streak down the middle of the arc as it lands.
-        const SDL_FPoint a = at(cx + cosf(base) * reach * 0.25f, cy - 24.0f);
-        const SDL_FPoint b = at(cx + cosf(base) * reach * sweep, cy + sinf(base) * reach * 0.6f * sweep);
-        SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * alpha));
-        SDL_RenderLine(r, a.x, a.y, b.x, b.y);
+        stroke(at(cx + cosf(base) * reach * 0.25f, cy - 24.0f),
+               at(cx + cosf(base) * reach * sweep, cy + sinf(base) * reach * 0.6f * sweep), alpha);
     }
 }
 

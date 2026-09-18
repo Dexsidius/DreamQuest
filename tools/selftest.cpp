@@ -7938,20 +7938,22 @@ int main(int argc, char** argv) {
                         e.type = SDL_EVENT_KEY_UP; pin.HandleEvent(e);
                         w.Update(1.0f / 60.0f, pctx);
                     };
-                    for (int which = 0; which < 2; ++which) {
+                    for (int which = 0; which < 3; ++which) {
                         World world;
                         world.player.Init(pctx, "player_hero");
-                        if (!world.LoadMap("overworld", "start", pctx)) break;
+                        // The third is the same Cleave on the mine's dark floor.
+                        if (!world.LoadMap(which == 2 ? "dungeon_emberfell_1" : "overworld",
+                                           which == 2 ? "entrance" : "start", pctx)) break;
                         world.enemies.clear();
                         world.clock.Set(1, 12.0f);
-                        world.player.y -= 200.0f;
+                        if (which == 2) world.player.y += 48.0f; else world.player.y -= 200.0f;
                         world.player.facing = FACE_RIGHT;
                         world.player.sprite.facing = FACE_RIGHT;
                         world.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
                         const auto settle = [&]() {
                             for (int f = 0; f < 120 && !world.player.CanAttack(); ++f) { pin.Update(1.0f / 60.0f); world.Update(1.0f / 60.0f, pctx); }
                         };
-                        if (which == 1) { press(world, SDLK_J); settle(); press(world, SDLK_J); settle(); }
+                        if (which >= 1) { press(world, SDLK_J); settle(); press(world, SDLK_J); settle(); }
                         press(world, which == 0 ? SDLK_J : SDLK_K);
                         // To the middle of the active frames.
                         const AttackProfile& pr = world.player.Attack().profile;
@@ -7963,7 +7965,8 @@ int main(int argc, char** argv) {
                         world.Render(renderer, cache);
                         SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
                         if (pixels) {
-                            const string name = string("bin/previews/") + (which == 0 ? "swing_light" : "swing_cleave") + ".png";
+                            const string name = string("bin/previews/") +
+                                (which == 0 ? "swing_light" : which == 1 ? "swing_cleave" : "swing_dark") + ".png";
                             Check(IMG_SavePNG(pixels, name.c_str()), "the swing preview saves");
                             SDL_DestroySurface(pixels);
                         }
