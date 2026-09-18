@@ -145,6 +145,18 @@ AttackStyle Player::AffinityFor(const string& character_id) {
     return AttackStyle::Melee;
 }
 
+vector<string> Player::StartingKit(const string& character_id) {
+    switch (AffinityFor(character_id)) {
+        // A bow takes both hands, so the warden's second piece is the boots a
+        // ranger would wear to keep the distance rather than a shield they
+        // could not raise.
+        case AttackStyle::Ranged: return {"oak_shortbow", "wood_body", "hide_boots"};
+        // A staff is held in one hand, so the shield stays.
+        case AttackStyle::Magic:  return {"wood_staff", "wood_body", "wooden_shield"};
+        default:                  return {"wood_sword", "wood_body", "wooden_shield"};
+    }
+}
+
 const char* Player::AffinityName(AttackStyle style) {
     switch (style) {
         case AttackStyle::Ranged: return "the bow";

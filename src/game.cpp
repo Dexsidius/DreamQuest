@@ -144,10 +144,13 @@ void Game::NewGame(const string& character, int slot) {
     world.player = Player();
     world.player.Init(ctx, character);
 
-    // Starting kit: a few coins, a wooden sword, a bit of food, and something
-    // to put between yourself and the first boar. Everything else -- the rest
-    // of a set, a bow or a staff, the tools to work the land, a bedroll -- is
-    // bought, found or made.
+    // Starting kit: a few coins, a bit of food, the wood tier's weapon of the
+    // character's affinity -- a sword for the hero, a bow for the warden, a
+    // staff for the wayfarer -- and something to put between yourself and the
+    // first boar. Everything else -- the rest of a set, the tools to work the
+    // land, a bedroll -- is bought, found or made. Every character used to
+    // start with the sword, which sent the warden and the wayfarer into their
+    // first fight with the one weapon their affinity does nothing for.
     //
     // The cuirass and the shield are not generosity. Accuracy here is
     // (level + 8) x (bonus + 64) on both sides, so at level 1 the bonus from
@@ -155,10 +158,9 @@ void Game::NewGame(const string& character, int slot) {
     // character 60% of the time and an orc 65%, while they hit back at about
     // 42%. Twenty-six points of defence bonus brings that to 45% and 48%, and
     // the opening hour stops feeling arranged against you.
+    const vector<string> kit = Player::StartingKit(character);
     world.player.inventory.Add("coins", 25);
-    world.player.inventory.Add(STARTING_WEAPON, 1);
-    world.player.inventory.Add("wood_body", 1);
-    world.player.inventory.Add("wooden_shield", 1);
+    for (const string& id : kit) world.player.inventory.Add(id, 1);
     world.player.inventory.Add("cooked_meat", 3);
     // Marked, so loading this character never hands them the tools a character
     // from before gathering needed tools is given.
@@ -167,7 +169,7 @@ void Game::NewGame(const string& character, int slot) {
     // Worn straight away: a new player should not have to find the bag screen
     // before the first fight to benefit from what they were given.
     string why;
-    for (const char* worn : {STARTING_WEAPON, "wood_body", "wooden_shield"})
+    for (const string& worn : kit)
         for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
             if (world.player.inventory.Slot(slot).id == worn)
                 world.player.EquipFromInventory(slot, why);

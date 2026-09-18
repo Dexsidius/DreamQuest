@@ -1755,10 +1755,16 @@ them somewhere else. Once, on a new game only; a load puts the player back
 mid-story.
 
 
-A new character starts with **25 coins, a Wooden Sword, a Barkwood Cuirass and
-a Wooden Shield, all worn, and three cooked meat**. Nothing else: the rest of a
-set, a bow or a staff, and a bedroll are bought from the traders, found or made.
-The tools are lent, by the three people in Havenbrook who work with them.
+A new character starts with **25 coins, three cooked meat, and the wood tier's
+weapon of their affinity, worn with a Barkwood Cuirass**: the hero a Wooden
+Sword and a Wooden Shield, the wayfarer a Wood Staff and the same shield, and
+the warden an Oak Shortbow and a pair of Hide Boots, because a bow takes both
+hands and a shield they could not raise is no use to them. The character card
+says which. Nothing else: the rest of a set and a bedroll are bought from the
+traders, found or made. The tools are lent, by the three people in Havenbrook
+who work with them. Every character used to start with the sword, which sent
+two of the three into their first fight with the one weapon their affinity
+does nothing for.
 
 The two pieces of armour are not generosity, they are the accuracy formula.
 Defence is `(level + 8) x (bonus + 64)`, so at level 1 the bonus from what you
@@ -2574,7 +2580,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15528 checks** covering:
+and checks all of it — currently **15537 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed

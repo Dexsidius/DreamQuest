@@ -6966,6 +6966,41 @@ int main(int argc, char** argv) {
             Check(hero.Profile().attack_bonus == wayfarer.Profile().attack_bonus + Player::AFFINITY_BONUS &&
                   wayfarer.Profile().magic_bonus == hero.Profile().magic_bonus + Player::AFFINITY_BONUS,
                   "each carries a little more accuracy with their own style");
+
+            // And each sets out with the weapon of it, in the wood tier, and
+            // armour it can actually wear alongside.
+            const auto kit_of = [&](const char* who, WeaponKind kind, const char* weapon) {
+                const vector<string> kit = Player::StartingKit(who);
+                const ItemDef* w = kit.empty() ? nullptr : items.Get(kit.front());
+                bool wearable = !kit.empty();
+                int defence = 0;
+                for (const string& id : kit) {
+                    const ItemDef* d = items.Get(id);
+                    wearable &= d && d->slot != SLOT_NONE && d->requirements.empty();
+                    if (d) defence += d->defence_bonus;
+                }
+                Check(w && w->id == weapon && w->slot == SLOT_WEAPON && w->kind == kind && w->tier == "wood",
+                      string(who) + " sets out with the " + (w ? w->name : string("?")));
+                Check(wearable, string(who) + "'s kit is all wearable at level 1");
+                return defence;
+            };
+            const int hero_def = kit_of("player_hero", WeaponKind::Melee, "wood_sword");
+            const int warden_def = kit_of("player_warden", WeaponKind::Bow, "oak_shortbow");
+            const int wayfarer_def = kit_of("player_wayfarer", WeaponKind::Staff, "wood_staff");
+            Check(hero_def == 26 && wayfarer_def == 26, "the hero and the wayfarer wear the cuirass and the shield, 26 points");
+            Check(warden_def >= 18 && warden_def < hero_def, "the warden, whose bow takes both hands, wears boots instead (" +
+                  std::to_string(warden_def) + ")");
+            {
+                Inventory bag(&items);
+                Equipment worn(&items);
+                bool fits = true;
+                for (const string& id : Player::StartingKit("player_warden")) {
+                    const ItemDef* d = items.Get(id);
+                    if (!d) { fits = false; break; }
+                    fits &= worn.Equip(d->slot, id).empty();
+                }
+                Check(fits && worn.InSlot(SLOT_SHIELD).empty(), "and nothing in the warden's kit fights the bow for a hand");
+            }
         }
 
         // --- the ancient magic: data ------------------------------------------------------------

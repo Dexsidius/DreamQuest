@@ -196,7 +196,11 @@ void Game::DrawCharacterSelect() {
                 aff == AttackStyle::Ranged ? SDL_Color{150, 210, 130, 255}
                 : aff == AttackStyle::Magic ? SDL_Color{170, 150, 240, 255}
                                             : SDL_Color{236, 176, 96, 255}, Align::Center);
-        ui.Text("hits harder and truer with it", card.x + card.w / 2.0f, card.y + card.h - 20.0f,
+        // And what they set out with, since it is the weapon of that affinity.
+        const vector<string> kit = Player::StartingKit(kCharacterIds[i]);
+        const ItemDef* first = kit.empty() ? nullptr : items.Get(kit.front());
+        ui.Text(first ? "starts with a " + first->name : string("hits harder and truer with it"),
+                card.x + card.w / 2.0f, card.y + card.h - 20.0f,
                 TextSize::Small, Palette::TextDim, Align::Center);
     }
 

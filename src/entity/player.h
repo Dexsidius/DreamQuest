@@ -155,6 +155,10 @@ public:
     static AttackStyle AffinityFor(const string& character_id);
     static const char* AffinityName(AttackStyle style);    // "the blade", "the bow", "the staff"
     AttackStyle Affinity() const { return AffinityFor(sprite_id); }
+    // What a new character of this look is handed and wears from the first
+    // step: the wood tier's weapon of their affinity, a cuirass, and a shield
+    // where the weapon leaves a hand for one. The weapon is first in the list.
+    static vector<string> StartingKit(const string& character_id);
     // The technique a charged attack with the current weapon comes out as, or
     // empty for a plain charged attack.
     const string& ActiveTechnique() const { return talents.Technique(Style()); }
