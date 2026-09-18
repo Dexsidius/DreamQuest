@@ -123,7 +123,28 @@ public:
     Map     map;
     Camera  camera{1280.0f, 720.0f};
     Ambience ambience;
+    // The seat at this machine: whose camera, targeting, interact prompt and
+    // bag the world's are. Alone, the only player there is.
     Player  player;
+    // Everyone else who is here. On the host these are friends' characters,
+    // stepped by StepGuest with the inputs their machines send; on a client
+    // they are puppets, posed from snapshots. Kept across a map change: until
+    // the co-op plan's M4 the host leads, and everyone goes through the door
+    // together.
+    vector<std::unique_ptr<Player>> guests;
+    Player* AddGuest(uint8_t seat, const string& name, const string& look, const GameContext& ctx);
+    void    RemoveGuest(uint8_t seat);
+    Player* Guest(uint8_t seat);
+    // One step of a friend's character, by their own hands and their own
+    // clock: the same Player::Update their machine ran to predict it.
+    void    StepGuest(Player& guest, const PlayerInput& hands, float dt, const GameContext& ctx);
+    // `player` and then every guest.
+    vector<Player*> Players();
+    // Whoever is nearest a point, never null: alone, that is `player`.
+    Player& NearestPlayer(float x, float y);
+    // A world a guest is looking through has no monsters of its own: they are
+    // the host's, and arrive with the plan's M2. Set before LoadMap.
+    bool    visiting = false;
     // Who the player is fighting; see targeting.h.
     Targeting targeting;
     // The time of day; see clock.h.

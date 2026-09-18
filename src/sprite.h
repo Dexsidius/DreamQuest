@@ -162,6 +162,15 @@ public:
     bool Finished() const { return finished; }
     // 0..1 through the current clip.
     float Progress() const;
+    // The frame showing, and a way to put the clip on one: for a figure posed
+    // from outside rather than played -- a friend, drawn from what the server
+    // says. Clamped to the frames the facing has.
+    int  Frame() const { return frame; }
+    void SetFrame(int f) {
+        const int count = FrameCount();
+        frame = count > 0 ? std::clamp(f, 0, count - 1) : 0;
+        timer = 0.0f;
+    }
     // Frames available for the direction currently being faced.
     int FrameCount() const;
     // Side of one animation frame, in source pixels.

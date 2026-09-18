@@ -51,6 +51,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     player.StopGathering();
 
     SpawnEntitiesFromMap(ctx);
+    if (visiting) enemies.clear();
     PlaceCampObjects();
 
     SDL_FPoint p;
@@ -58,6 +59,12 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     player.x = p.x;
     player.y = p.y;
     player.knock_x = player.knock_y = 0.0f;
+    // Everyone arrives where the host does.
+    for (auto& g : guests) {
+        g->x = p.x;
+        g->y = p.y;
+        g->knock_x = g->knock_y = 0.0f;
+    }
     portals_armed = false;
     arrival_released = false;
 
@@ -106,6 +113,58 @@ void World::RequestTransition(const string& id, const string& spawn) {
     fade_speed = FADE_SPEED;
     fade_caption.clear();
     fade_dir   = 1;
+}
+
+// -----------------------------------------------------------------------------
+//  Other players
+// -----------------------------------------------------------------------------
+
+Player* World::AddGuest(uint8_t seat, const string& name, const string& look, const GameContext& ctx) {
+    RemoveGuest(seat);
+    auto g = std::make_unique<Player>();
+    g->Init(ctx, look.empty() ? string(Player::kDefaultCharacter) : look);
+    g->local = false;
+    g->seat = seat;
+    g->name = name;
+    g->x = player.x;
+    g->y = player.y;
+    guests.push_back(std::move(g));
+    return guests.back().get();
+}
+
+void World::RemoveGuest(uint8_t seat) {
+    guests.erase(std::remove_if(guests.begin(), guests.end(),
+                                [&](const std::unique_ptr<Player>& g) { return g->seat == seat; }),
+                 guests.end());
+}
+
+Player* World::Guest(uint8_t seat) {
+    for (auto& g : guests) if (g->seat == seat) return g.get();
+    return nullptr;
+}
+
+void World::StepGuest(Player& guest, const PlayerInput& hands, float dt, const GameContext& ctx) {
+    if (guest.puppet || !map.Loaded()) return;
+    guest.hands = hands;
+    guest.hands_external = true;
+    guest.Update(dt, *this, ctx);
+}
+
+vector<Player*> World::Players() {
+    vector<Player*> all{&player};
+    for (auto& g : guests) all.push_back(g.get());
+    return all;
+}
+
+Player& World::NearestPlayer(float px, float py) {
+    Player* best = &player;
+    float best_d = Length(player.x - px, player.y - py);
+    for (auto& g : guests) {
+        if (g->IsDead()) continue;
+        const float d = Length(g->x - px, g->y - py);
+        if (d < best_d || best->IsDead()) { best = g.get(); best_d = d; }
+    }
+    return *best;
 }
 
 // -----------------------------------------------------------------------------
@@ -472,10 +531,15 @@ void World::Update(float dt, const GameContext& ctx) {
     const bool locked_by_game = player.input_locked;
     player.input_locked = locked_by_game || frozen;
 
+    // The hands of the seat at this machine, from the device -- unless the
+    // co-op client is filling them, with what it is also sending the host.
+    if (!player.hands_external)
+        player.hands = ctx.input ? PlayerInput::FromDevice(*ctx.input) : PlayerInput{};
+
     // Targeting first, so a swing or a shot starting this frame knows who it
     // is for.
     {
-        const bool cycle = !player.input_locked && ctx.input && ctx.input->Pressed(Action::Target);
+        const bool cycle = !player.input_locked && player.hands.Pressed(PlayerInput::Target);
         switch (targeting.Update(player, enemies, map, cycle)) {
             case Targeting::Change::Locked:
             case Targeting::Change::Switched: Audio::Play(Sfx::UiMove, 0.8f, 0.8f); break;
@@ -541,7 +605,7 @@ void World::Update(float dt, const GameContext& ctx) {
         // too late leaves you on top of the way back, and arming it there
         // bounced you just the same.
         if (!portals_armed) {
-            if (!ctx.input || Length(ctx.input->MoveAxis().x, ctx.input->MoveAxis().y) < 0.01f)
+            if (Length(player.hands.move.x, player.hands.move.y) < 0.01f)
                 arrival_released = true;
             if (arrival_released && !map.PortalAt(player.Bounds()))
                 portals_armed = true;
@@ -1965,12 +2029,15 @@ void World::UpdateElevation() {
     if (!map.HasElevation()) {
         // A hop on flat ground still leaves the ground.
         player.draw_lift = player.IsJumping() ? player.JumpLift() : player.RushLift();
+        for (auto& g : guests) g->draw_lift = g->IsJumping() ? g->JumpLift() : g->RushLift();
         for (auto& e : enemies) e->draw_lift = 0.0f;
         for (auto& n : npcs)    n->draw_lift = 0.0f;
         return;
     }
     player.draw_lift = player.IsJumping() ? player.JumpLift()
                                           : map.HeightAt(player.x, player.y) + player.RushLift();
+    for (auto& g : guests)
+        g->draw_lift = g->IsJumping() ? g->JumpLift() : map.HeightAt(g->x, g->y) + g->RushLift();
     for (auto& e : enemies) e->draw_lift = map.HeightAt(e->x, e->y);
     for (auto& n : npcs)    n->draw_lift = map.HeightAt(n->x, n->y);
 }
@@ -2405,6 +2472,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     }
     if (!player.IsDead() || player.DeathTimer() > 0.0f)
         queue.push_back({player.SortY(), 1, &player});
+    for (const auto& g : guests)
+        if (RectsOverlap(g->BodyBox(), view)) queue.push_back({g->SortY(), 1, g.get()});
 
     std::stable_sort(queue.begin(), queue.end(),
                      [](const Item& a, const Item& b) { return a.sort_y < b.sort_y; });

@@ -224,7 +224,7 @@ bool Player::StartRush(const World& world) {
     // At whatever is being fought, when it is close enough to leap at;
     // otherwise on along the way the character was already running.
     float dx = move_axis.x, dy = move_axis.y;
-    if (const Enemy* t = world.targeting.Current()) {
+    if (const Enemy* t = CurrentTarget(world)) {
         const float tx = t->x - x, ty = t->y - y;
         if (Length(tx, ty) <= RUSH_SEEK) { dx = tx; dy = ty; }
     }
@@ -402,7 +402,7 @@ void Player::FacePoint(float tx, float ty) {
 }
 
 void Player::TurnToTarget(const World& world) {
-    const Enemy* t = world.targeting.Current();
+    const Enemy* t = CurrentTarget(world);
     if (!t) return;
     const SDL_FPoint a = Targeting::AimPoint(*t);
     if (Style() == AttackStyle::Melee &&
@@ -517,13 +517,31 @@ ComboMove Player::NextCombo(bool light) const {
     return combo == 0 ? ComboMove::Crush : ComboMove::Cleave;
 }
 
-void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
+const Enemy* Player::CurrentTarget(const World& world) const {
+    return local ? world.targeting.Current() : nullptr;
+}
+
+const Enemy* Player::LockedTarget(const World& world) const {
+    return local ? world.targeting.Locked() : nullptr;
+}
+
+void Player::Pose(float px, float py, Facing face, const string& clip, int frame, const ItemDatabase* db) {
+    x = px;
+    y = py;
+    facing = face;
+    sprite.facing = face;
+    sprite.style = BuildLayerStyle(db);
+    sprite.Play(clip.empty() ? string("idle") : clip);
+    sprite.SetFrame(frame);
+}
+
+void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& world) {
     const float speed = WeaponSpeed();
     // The combos read the same with every weapon; what comes out of them is
     // the weapon's own. So nothing here asks what is in hand.
     const bool  melee = true;
-    const bool  raw_light  = in.Pressed(Action::LightAttack);
-    const bool  raw_strong = in.Pressed(Action::StrongAttack);
+    const bool  raw_light  = in.Pressed(PlayerInput::Light);
+    const bool  raw_strong = in.Pressed(PlayerInput::Strong);
 
     // A press during a swing, or in the gap after it, is kept for a moment
     // and used the instant the next swing may start, so a chain does not hang
@@ -613,7 +631,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
             // A heavy inside the chain comes out on the press, with no hold:
             // the Crushing Blow after one light, the Cleave after two.
             StartCombo(combo == 0 ? ComboMove::Crush : ComboMove::Cleave, AttackType::Strong, world);
-        } else if (!in.Down(Action::StrongAttack)) {
+        } else if (!in.Down(PlayerInput::Strong)) {
             // Pressed and let go again inside the last swing: a plain strong,
             // now, rather than a hold that has already ended.
             FireStrong(false, 0.0f, world);
@@ -626,12 +644,12 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
         }
     }
 
-    if (strong_armed && in.Down(Action::StrongAttack)) {
+    if (strong_armed && in.Down(PlayerInput::Strong)) {
         charge_held += dt * (1.0f + talents.Global("charge"));
         if (charge_held >= CHARGE_HOLD_THRESHOLD) charging = true;
     }
 
-    if (strong_armed && in.Released(Action::StrongAttack)) {
+    if (strong_armed && in.Released(PlayerInput::Strong)) {
         const bool was_charged = charging && charge_held >= CHARGE_HOLD_THRESHOLD;
         FireStrong(was_charged, ChargeRatio(charge_held), world);
         strong_armed = false;
@@ -640,7 +658,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
     }
 
     // Releasing off-screen or with the button remapped mid-hold: fail safe.
-    if (strong_armed && !in.Down(Action::StrongAttack) && !in.Released(Action::StrongAttack)) {
+    if (strong_armed && !in.Down(PlayerInput::Strong) && !in.Released(PlayerInput::Strong)) {
         strong_armed = false;
         charging = false;
         charge_held = 0.0f;
@@ -888,18 +906,19 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // --- input ---------------------------------------------------------------
     Vec2 move{0, 0};
     moving = false;
-    if (!input_locked && ctx.input) {
-        move = ctx.input->MoveAxis();
+    // The hands, never the device: see player_input.h.
+    if (!input_locked) {
+        move = hands.move;
         moving = Length(move.x, move.y) > 0.3f;
         move_axis = move;
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
-        blocking = ctx.input->Down(Action::Block) && CanBlock();
+        blocking = hands.Down(PlayerInput::Block) && CanBlock();
         if (blocking) {
             strong_armed = charging = false;
             charge_held = 0.0f;
         } else {
-            HandleAttackInput(*ctx.input, dt, world);
+            HandleAttackInput(hands, dt, world);
         }
 
         // Which way a jump would go: where you are steering, or failing that
@@ -919,7 +938,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         if (plan.ok && plan.levels != 0 && Length(move.x, move.y) > 0.3f)
             climb_hint = plan.levels > 0 ? "Climb up" : "Drop down";
 
-        if (ctx.input->Pressed(Action::Jump) && !attack.Active() && !charging) {
+        if (hands.Pressed(PlayerInput::Jump) && !attack.Active() && !charging) {
             jumping      = true;
             sprinting    = false;
             jump_timer   = 0.0f;
@@ -952,7 +971,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // Sprinting: the button held, a real push on the stick, and nothing else
     // going on. A light tilt stays a walk however hard the button is held.
-    sprinting = !input_locked && ctx.input && ctx.input->Down(Action::Sprint) &&
+    sprinting = !input_locked && hands.Down(PlayerInput::Sprint) &&
                 Length(move.x, move.y) >= RUN_THRESHOLD &&
                 !attack.Active() && !charging && !strong_armed && !blocking &&
                 sprint_lockout <= 0.0f && !winded && stamina > 0.0f;
@@ -987,7 +1006,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // lock on, face the locked monster, so the next shot does not have to turn.
     // Behind a shield, keep it between you and whatever you are fighting while
     // you step: turning to walk away would turn the guard away with you.
-    const Enemy* guard_target = blocking ? world.targeting.Current() : nullptr;
+    const Enemy* guard_target = blocking ? CurrentTarget(world) : nullptr;
     if (guard_target) {
         const SDL_FPoint a = Targeting::AimPoint(*guard_target);
         FacePoint(a.x, a.y);
@@ -995,7 +1014,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         if (fabsf(move.x) > fabsf(move.y)) facing = (move.x > 0) ? FACE_RIGHT : FACE_LEFT;
         else                               facing = (move.y > 0) ? FACE_DOWN  : FACE_UP;
     } else if (!attack.Active()) {
-        if (const Enemy* t = world.targeting.Locked()) {
+        if (const Enemy* t = LockedTarget(world)) {
             const SDL_FPoint a = Targeting::AimPoint(*t);
             FacePoint(a.x, a.y);
         }

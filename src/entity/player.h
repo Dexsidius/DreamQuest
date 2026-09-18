@@ -1,6 +1,7 @@
 #pragma once
 #include "entity.h"
 #include "../input.h"
+#include "player_input.h"
 #include "../systems/skills.h"
 #include "../systems/items.h"
 #include "../systems/combat.h"
@@ -280,11 +281,36 @@ public:
     // Set by the world when input should not drive the player (dialogue, menus).
     bool input_locked = false;
 
+    // --- seats -----------------------------------------------------------------
+    // What this character's hands are doing this step; see player_input.h.
+    // The world fills it from the device for the seat this machine drives,
+    // unless `hands_external` says someone else is filling it: the co-op
+    // client, which quantises it first so it predicts with what it sends.
+    PlayerInput hands;
+    bool hands_external = false;
+    // The seat at this machine, whose targeting and camera the world's are.
+    // False for everyone in World::guests. A guest does not turn to face the
+    // host's target.
+    bool local = true;
+    // A guest drawn from what the server says rather than stepped here: a
+    // friend, as a client sees them. Never updated, only posed.
+    bool puppet = false;
+    uint8_t seat = 0;
+    string  name;
+    // Poses a puppet: where, which way, which clip and which frame of it.
+    void Pose(float px, float py, Facing face, const string& clip, int frame, const ItemDatabase* db);
+    // The clip playing and the frame it is on, for the server to tell.
+    const string& Clip() const { return sprite.current; }
+    int ClipFrame() const { return sprite.Frame(); }
+
     json ToJson() const;
     void FromJson(const json& j, const GameContext& ctx);
 
 private:
-    void HandleAttackInput(const Input& in, float dt, const World& world);
+    void HandleAttackInput(const PlayerInput& in, float dt, const World& world);
+    // What this seat is fighting, or null: only the local seat has targeting.
+    const class Enemy* CurrentTarget(const World& world) const;
+    const class Enemy* LockedTarget(const World& world) const;
     // An attack starting turns to face the target: always for a bow or a
     // staff, and for a sword when the target is within reach of a swing.
     void TurnToTarget(const World& world);

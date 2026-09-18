@@ -1,4 +1,23 @@
 #include "input.h"
+#include "entity/player_input.h"
+
+PlayerInput PlayerInput::FromDevice(const Input& in) {
+    PlayerInput out;
+    out.move = in.MoveAxis();
+    const auto take = [&](Button b, Action a) {
+        if (in.Down(a))     out.down     |= b;
+        if (in.Pressed(a))  out.pressed  |= b;
+        if (in.Released(a)) out.released |= b;
+    };
+    take(Light,    Action::LightAttack);
+    take(Strong,   Action::StrongAttack);
+    take(Block,    Action::Block);
+    take(Sprint,   Action::Sprint);
+    take(Jump,     Action::Jump);
+    take(Interact, Action::Interact);
+    take(Target,   Action::Target);
+    return out;
+}
 
 static constexpr float STICK_DEADZONE = 0.25f;
 static constexpr float REPEAT_DELAY   = 0.35f;
