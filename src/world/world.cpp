@@ -134,33 +134,71 @@ void World::PlaceCampObjects() {
     map.AddObject(fire);
 }
 
-bool World::TrySleep(const GameContext& ctx) {
-    (void)ctx;
-    if (InDream() || transition_pending || player.IsDead()) return false;
-
-    const auto refuse = [&](const string& why) {
-        AddText(why, player.x, player.y - 54.0f, {210, 200, 240, 255}, 1.8f);
-        Audio::Play(Sfx::UiError);
-        return false;
-    };
+string World::SleepRefusal() const {
     if (!clock.CanSleep())
-        return refuse("Not tired yet. Sleep comes after dusk.");
+        return "Not tired yet. Sleep comes after dusk.";
     for (const auto& e : enemies) {
         if (!Targeting::Targetable(*e) || !e->Def() || e->Def()->aggro_range <= 0.0f) continue;
         if (Length(e->x - player.x, e->y - player.y) < SLEEP_SAFE_RANGE || e->Engaged())
-            return refuse("You cannot sleep with enemies nearby.");
+            return "You cannot sleep with enemies nearby.";
+    }
+    return "";
+}
+
+bool World::AskToSleep(const string& title) {
+    if (InDream() || transition_pending || player.IsDead()) return false;
+    const string why = SleepRefusal();
+    if (!why.empty()) {
+        AddText(why, player.x, player.y - 54.0f, {210, 200, 240, 255}, 1.8f);
+        Audio::Play(Sfx::UiError);
+        return false;
+    }
+    WorldRequest r;
+    r.type  = WorldRequest::Type::Sleep;
+    r.title = title;
+    requests.push_back(r);
+    return true;
+}
+
+bool World::Sleep(SleepChoice how, const GameContext& ctx) {
+    (void)ctx;
+    if (InDream() || transition_pending || player.IsDead()) return false;
+
+    // Asked again, not trusted from the prompt: the panel pauses the world,
+    // but this is also what a request from another machine will come through.
+    const string why = SleepRefusal();
+    if (!why.empty()) {
+        AddText(why, player.x, player.y - 54.0f, {210, 200, 240, 255}, 1.8f);
+        Audio::Play(Sfx::UiError);
+        return false;
     }
 
-    dream.active = true;
-    dream.map = map_id;
-    dream.x = player.x;
-    dream.y = player.y;
     player.Rest();
     targeting.Clear();
-
-    RequestTransition(DREAM_MAP, "arrival");
     fade_speed = SLEEP_FADE_SPEED;
-    fade_caption = "You drift off to sleep...";
+
+    if (how == SleepChoice::Reverie) {
+        dream.active = true;
+        dream.map = map_id;
+        dream.x = player.x;
+        dream.y = player.y;
+        RequestTransition(DREAM_MAP, "arrival");
+        fade_speed = SLEEP_FADE_SPEED;
+        fade_caption = "You drift off to sleep...";
+    } else {
+        // The same map and the same spot, on the other side of the night. It
+        // is a transition like waking from a dream is, so the morning finds
+        // the place as any arrival would: monsters back where they live, and
+        // whatever was dropped on the floor gone.
+        const float x = player.x, y = player.y;
+        RequestTransition(map_id, "");
+        next_has_point = true;
+        next_x = x;
+        next_y = y;
+        fade_speed = SLEEP_FADE_SPEED;
+        fade_caption = "You sleep the night through...";
+        waking = WakeReason::Slept;
+    }
     Audio::Play(Sfx::Sleep);
     return true;
 }
@@ -364,7 +402,10 @@ void World::ApplyTransition(const GameContext& ctx) {
             // Back where you lay down, rested -- or, from a nightmare, alive.
             if (player.IsDead()) player.Respawn(player.x, player.y);
             player.Rest();
-            if (why == WakeReason::Nightmare) clock.SkipToDawn();
+            // A nightmare costs the rest of the night; a night slept through
+            // is the rest of the night.
+            if (why == WakeReason::Nightmare || why == WakeReason::Slept) clock.SkipToDawn();
+            if (why == WakeReason::Slept) fade_caption = "Dawn breaks.";
             dream = {};
             woke = why;
             Audio::Play(Sfx::Wake);
@@ -420,7 +461,7 @@ void World::Update(float dt, const GameContext& ctx) {
         if (!was_night && clock.IsNight() && !InDream()) {
             WorldRequest r;
             r.type = WorldRequest::Type::Toast;
-            r.text = "Night falls. A bed or a camp will let you dream.";
+            r.text = "Night falls. A bed or a camp will see you through it, or into a dream.";
             requests.push_back(r);
         }
     }
@@ -1128,7 +1169,7 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         } else if (o.type == "sign") {
             label = "Read sign";
         } else if (o.type == "bed") {
-            label = clock.CanSleep() ? "Sleep until dawn" : "Bed  -  you can sleep after dusk";
+            label = clock.CanSleep() ? "Go to bed" : "Bed  -  you can sleep after dusk";
         } else if (o.type == "campsite") {
             label = clock.CanSleep() ? "Sleep by the fire" : "Campsite  -  you can sleep after dusk";
         } else if (o.type == "camp") {
@@ -1284,10 +1325,10 @@ void World::TryInteract(const GameContext& ctx) {
                     ctx.quests->Notify(e, player.inventory);
                 }
             } else if (o.type == "bed" || o.type == "campsite") {
-                TrySleep(ctx);
+                AskToSleep(!o.title.empty() ? o.title : string(o.type == "bed" ? "A bed for the night" : "By the fire"));
             } else if (o.type == "camp") {
                 if (clock.CanSleep()) {
-                    TrySleep(ctx);
+                    AskToSleep("Your camp");
                 } else if (player.inventory.Full()) {
                     AddText("No room in your pack for the bedroll.", player.x, player.y - 54.0f,
                             {255, 170, 150, 255}, 1.6f);

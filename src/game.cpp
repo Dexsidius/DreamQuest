@@ -280,6 +280,7 @@ bool Game::InGameplayState() const {
         case GameState::Dialogue:
         case GameState::Board:
         case GameState::Note:
+        case GameState::SleepPrompt:
         case GameState::Crafting:
         case GameState::Enchanting:
         case GameState::Shop:
@@ -407,6 +408,7 @@ void Game::Update(float dt) {
         case GameState::Dialogue:        UpdateDialogue(dt); break;
         case GameState::Board:           UpdateBoard(); break;
         case GameState::Note:            UpdateNote(); break;
+        case GameState::SleepPrompt:     UpdateSleepPrompt(); break;
         case GameState::Crafting:        UpdateCrafting(); break;
         case GameState::Enchanting:      UpdateEnchanting(); break;
         case GameState::Shop:            UpdateShop(); break;
@@ -478,7 +480,8 @@ void Game::UpdatePlay(float dt) {
                      input.PromptFor(Action::Skills) + " your skills, " +
                      input.PromptFor(Action::QuestLog) + " your journal, " +
                      input.PromptFor(Action::WorldMap) + " the map.\n\n"
-                     "Rest at an inn or a camp after dusk, and the night will take you somewhere else. "
+                     "Rest at an inn or a camp after dusk: sleep the night through, or let it take you "
+                     "somewhere else. "
                      "Go carefully, and go far.";
         note_quest.clear();
         OpenPanel(GameState::Note);
@@ -506,6 +509,9 @@ void Game::UpdatePlay(float dt) {
             break;
         case World::WakeReason::Stone:
             PushToast("You wake before dawn, rested.", Palette::Highlight);
+            break;
+        case World::WakeReason::Slept:
+            PushToast("You slept the night through, and wake rested.", Palette::Highlight);
             break;
         default: break;
     }
@@ -616,6 +622,11 @@ void Game::HandleWorldRequests() {
                 craft_station = CraftStationFromName(r.text);
                 craft_cursor  = 0;
                 OpenPanel(GameState::Crafting);
+                break;
+
+            case WorldRequest::Type::Sleep:
+                sleep_title = r.title;
+                OpenPanel(GameState::SleepPrompt);
                 break;
 
             case WorldRequest::Type::Enchant:
@@ -819,6 +830,7 @@ void Game::Render() {
         case GameState::Dialogue:        DrawDialogue(); break;
         case GameState::Board:           DrawBoard(); break;
         case GameState::Note:            DrawNote(); break;
+        case GameState::SleepPrompt:     DrawSleepPrompt(); break;
         case GameState::Crafting:        DrawCrafting(); break;
         case GameState::Enchanting:      DrawEnchanting(); break;
         case GameState::Shop:            DrawShop(); break;

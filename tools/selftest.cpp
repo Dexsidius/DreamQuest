@@ -4061,6 +4061,20 @@ int main(int argc, char** argv) {
             }
             return done();
         };
+        // Uses whatever bed is underfoot and says whether it asked its
+        // question: a Sleep request, and nothing begun until it is answered.
+        const auto asks = [&](World& w) {
+            w.TakeRequests();
+            w.TryInteract(ctx); frames(w, 1);
+            bool asked = false;
+            for (const WorldRequest& r : w.TakeRequests())
+                asked |= r.type == WorldRequest::Type::Sleep && !r.title.empty();
+            return asked && !w.TransitionPending();
+        };
+        // And answers it, the way the panel does.
+        const auto lie_down = [&](World& w, World::SleepChoice how) {
+            return asks(w) && w.Sleep(how, ctx);
+        };
         // The inn's first guest room, standing at the foot of the bed.
         const auto at_inn_bed = [&](World& w) -> const MapObject* {
             w.player = Player();
@@ -4086,17 +4100,22 @@ int main(int argc, char** argv) {
                 Check(w.player.interact.kind == InteractTarget::Object &&
                       w.player.interact.label.find("after dusk") != string::npos,
                       "by day the bed says you can sleep after dusk");
-                w.TryInteract(ctx); frames(w, 1);
+                Check(!asks(w), "and by day it does not ask how you would spend the night");
                 frames(w, 90);
                 Check(!w.InDream() && !w.TransitionPending(), "and by day it will not let you sleep");
+                Check(!w.Sleep(World::SleepChoice::Through, ctx) && !w.Sleep(World::SleepChoice::Reverie, ctx) &&
+                      !w.TransitionPending(), "either way");
 
                 w.clock.Set(1, 21.0f);
                 w.player.Damage(4);
                 frames(w, 1);
-                Check(w.player.interact.label == "Sleep until dawn", "at night the bed offers sleep");
+                Check(w.player.interact.label == "Go to bed", "at night the bed offers itself");
                 const float bx = w.player.x, by = w.player.y;
-                w.TryInteract(ctx); frames(w, 1);
-                Check(w.TransitionPending() && !w.FadeCaption().empty(), "pressing E at night starts to fall asleep");
+                Check(asks(w), "pressing E at night asks the question, and nothing has begun");
+                Check(w.player.hp < w.player.max_hp && w.clock.IsNight() && w.MapId() == "house_inn_upper",
+                      "backing out of it leaves the evening as it was");
+                Check(lie_down(w, World::SleepChoice::Reverie) && w.TransitionPending() && !w.FadeCaption().empty(),
+                      "choosing the Reverie starts to fall asleep");
                 Check(until(w, 5.0f, [&] { return w.InDream() && !w.TransitionPending(); }),
                       "and the player arrives in the dreamworld");
                 Check(w.MapId() == "dreamworld" && w.Dream().active && w.Dream().map == "house_inn_upper" &&
@@ -4118,7 +4137,7 @@ int main(int argc, char** argv) {
                 // Dying in a dream is a rude awakening, not a death.
                 w.clock.Set(2, 22.0f);
                 frames(w, 1);
-                w.TryInteract(ctx); frames(w, 1);
+                lie_down(w, World::SleepChoice::Reverie);
                 until(w, 5.0f, [&] { return w.InDream() && !w.TransitionPending(); });
                 const bool dreaming = w.InDream();
                 w.player.Damage(9999);
@@ -4135,7 +4154,7 @@ int main(int argc, char** argv) {
                 // The waking stone wakes you sooner.
                 w.clock.Set(3, 21.0f);
                 frames(w, 1);
-                w.TryInteract(ctx); frames(w, 1);
+                lie_down(w, World::SleepChoice::Reverie);
                 until(w, 5.0f, [&] { return w.InDream() && !w.TransitionPending(); });
                 for (const MapObject& o : w.CurrentMap().Objects())
                     if (o.type == "dream_wake") { w.player.x = o.x; w.player.y = o.y + 20.0f; }
@@ -4145,6 +4164,54 @@ int main(int argc, char** argv) {
                 Check(until(w, 6.0f, [&] { return !w.InDream() && !w.TransitionPending(); }) &&
                       w.clock.IsNight() && w.TakeWake() == World::WakeReason::Stone,
                       "touching the waking stone wakes the player in the night");
+            }
+        }
+
+        // --- the other answer: sleeping the night through -------------------------------
+        {
+            World w;
+            const MapObject* bed = at_inn_bed(w);
+            if (bed) {
+                w.clock.Set(4, 21.5f);
+                w.player.Damage(6);
+                w.player.SpendMana(w.player.Mana());
+                frames(w, 1);
+                const float bx = w.player.x, by = w.player.y;
+                const int quest_day = w.clock.QuestDay();
+                w.TakeWake();
+                Check(lie_down(w, World::SleepChoice::Through) && w.TransitionPending() &&
+                      w.FadeCaption() == "You sleep the night through...",
+                      "choosing to sleep the night through lies down too");
+                Check(!w.Dream().active, "with no dream to come back from");
+                bool dreamt = false;
+                const bool up = until(w, 6.0f, [&] {
+                    dreamt |= w.InDream();
+                    return !w.TransitionPending() && w.FadeAmount() <= 0.0f;
+                });
+                Check(up && !dreamt && w.MapId() == "house_inn_upper", "the night passes without ever leaving the room");
+                Check(fabsf(w.player.x - bx) < 1.0f && fabsf(w.player.y - by) < 1.0f,
+                      "and the player wakes where they lay down");
+                // A second or two of fade has passed since dawn, so allow a few minutes.
+                Check(w.clock.Day() == 5 && w.clock.Hours() >= WorldClock::NIGHT_END &&
+                      w.clock.Hours() < WorldClock::NIGHT_END + 0.2f && !w.clock.IsNight(),
+                      "at dawn of the next day (" + w.clock.TimeText() + ", day " + std::to_string(w.clock.Day()) + ")");
+                Check(w.clock.QuestDay() == quest_day + 1, "which turns the quest day over");
+                Check(w.player.hp == w.player.max_hp && w.player.Mana() == w.player.MaxMana() && w.player.MaxMana() > 0,
+                      "rested: health and mana are whole");
+                Check(w.TakeWake() == World::WakeReason::Slept && w.TakeWake() == World::WakeReason::None,
+                      "waking is reported as a night slept through, once");
+                Check(w.FadeCaption().empty(), "and the caption is gone with the dark");
+                Check(w.player.interact.label.find("after dusk") != string::npos,
+                      "the bed, in the morning, is a bed for after dusk again");
+
+                // After midnight the dawn is today's, not tomorrow's.
+                w.clock.Set(7, 2.0f);
+                frames(w, 1);
+                Check(lie_down(w, World::SleepChoice::Through) &&
+                      until(w, 6.0f, [&] { return !w.TransitionPending() && w.FadeAmount() <= 0.0f; }) &&
+                      w.clock.Day() == 7 && w.clock.Hours() >= WorldClock::NIGHT_END,
+                      "gone to bed after midnight, the dawn is the same day's");
+                w.TakeWake();
             }
         }
 
@@ -4163,9 +4230,13 @@ int main(int argc, char** argv) {
                     e->Init(stats, def, ctx);
                     w.enemies.push_back(std::move(e));
                 }
-                Check(!w.TrySleep(ctx) && !w.TransitionPending(), "you cannot sleep with a monster nearby");
+                Check(!w.AskToSleep("A bed") && w.TakeRequests().empty(),
+                      "a bed does not ask with a monster nearby");
+                Check(!w.Sleep(World::SleepChoice::Reverie, ctx) && !w.Sleep(World::SleepChoice::Through, ctx) &&
+                      !w.TransitionPending(), "you cannot sleep with a monster nearby, either way");
                 w.enemies.clear();
-                Check(w.TrySleep(ctx), "and once it is gone, you can");
+                Check(w.AskToSleep("A bed") && w.TakeRequests().size() == 1, "and once it is gone, it asks");
+                Check(w.Sleep(World::SleepChoice::Through, ctx), "and you can");
             }
         }
 
@@ -4208,6 +4279,14 @@ int main(int argc, char** argv) {
                 w.clock.Set(1, 21.0f);
                 frames(w, 30);
                 Check(w.player.interact.label == "Sleep at your camp", "at night the camp offers sleep");
+                {
+                    w.TakeRequests();
+                    w.TryInteract(ctx); frames(w, 1);
+                    const vector<WorldRequest> reqs = w.TakeRequests();
+                    Check(reqs.size() == 1 && reqs.front().type == WorldRequest::Type::Sleep &&
+                          reqs.front().title == "Your camp" && w.PlayerCamp().pitched,
+                          "and asks the same question a bed does, without packing up");
+                }
                 w.clock.Set(1, 12.0f);
                 frames(w, 1);
                 Check(w.player.interact.label == "Pack up your camp", "by day it offers to be packed up");

@@ -33,6 +33,7 @@ enum class GameState {
     Dialogue,
     Board,
     Note,
+    SleepPrompt,       // a bed after dusk: sleep the night through, or dream
     Crafting,
     Enchanting,
     Shop,
@@ -101,6 +102,7 @@ private:
     void UpdateDialogue(float dt);
     void UpdateBoard();
     void UpdateNote();
+    void UpdateSleepPrompt();
     void UpdateCrafting();
     void UpdateEnchanting();
     void UpdateShop();
@@ -124,6 +126,7 @@ private:
     void DrawDialogue();
     void DrawBoard();
     void DrawNote();
+    void DrawSleepPrompt();
     void DrawCrafting();
     void DrawEnchanting();
     void DrawShop();
@@ -209,6 +212,11 @@ private:
 
     // Board / note payloads handed over by the world.
     string   note_title, note_text, note_quest;
+    // The bed's question: what is being slept on, and which of the two answers
+    // the cursor is on. It stays where it was left, so someone who always
+    // dreams, or never does, is one press from it.
+    string   sleep_title;
+    int      sleep_cursor = 0;
     string   board_title;
     string   craft_title;
     CraftStation craft_station = CraftStation::Workbench;

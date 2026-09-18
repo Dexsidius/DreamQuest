@@ -16,7 +16,7 @@
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
 struct WorldRequest {
-    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant } type = Type::Toast;
+    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant, Sleep } type = Type::Toast;
     string id;            // npc id / object id / shop id
     string title;
     string text;          // note body, toast message, dialogue root node
@@ -132,11 +132,20 @@ public:
     ShopLedger shops;
 
     // --- sleep and dreams --------------------------------------------------------
-    // After dusk, a bed, a campsite or the player's own camp puts them to
-    // sleep, and sleep is a journey: to the dreamworld, for as long as the
-    // night lasts. Dawn brings them back to exactly where they lay down. So
-    // does dying in the dream, which costs the rest of the night and nothing
-    // else, and so does the waking stone, for anyone who has had enough.
+    // After dusk, a bed, a campsite or the player's own camp asks how the
+    // night is to be spent, and the answer is the sleeper's own:
+    //
+    //   Sleep through the night   the clock goes to dawn and they wake where
+    //                             they lay down, rested, with no dream.
+    //   Go into the Reverie       sleep is a journey: to the dreamworld, for as
+    //                             long as the night lasts. Dawn brings them
+    //                             back to exactly where they lay down. So does
+    //                             dying in the dream, which costs the rest of
+    //                             the night and nothing else, and so does the
+    //                             waking stone, for anyone who has had enough.
+    //
+    // A bed used to do only the second. The world asks by raising a Sleep
+    // request; the game shows the two rows and calls Sleep() with the answer.
     static constexpr float SLEEP_FADE_SPEED = 0.9f;
     static constexpr float SLEEP_SAFE_RANGE = 260.0f;   // no sleeping with a monster this close
     static inline const char* DREAM_MAP = "dreamworld";
@@ -153,7 +162,9 @@ public:
         string map;
         float  x = 0.0f, y = 0.0f;
     };
-    enum class WakeReason { None, Dawn, Nightmare, Stone };
+    // Slept is a night slept through; the other three end a dream.
+    enum class WakeReason { None, Dawn, Nightmare, Stone, Slept };
+    enum class SleepChoice { Through, Reverie };
 
     bool InDream() const { return map.Ambient() == "dream"; }
     const DreamReturn& Dream() const { return dream; }
@@ -162,9 +173,16 @@ public:
     // Takes effect on the next map load.
     void SetCamp(const Camp& c) { camp = c; }
 
-    // Lies down if the night and the neighbourhood allow it; says why not in
-    // the world if they do not. True when the player is falling asleep.
-    bool TrySleep(const GameContext& ctx);
+    // Why nobody could lie down here right now, or empty if they could: the
+    // hour, or a monster too near.
+    string SleepRefusal() const;
+    // A bed has been used. Raises the Sleep request if the night and the
+    // neighbourhood allow it; says why not in the world if they do not. True
+    // when the question has been asked. `title` names what is being slept on.
+    bool AskToSleep(const string& title);
+    // Lies down, the way chosen, under the same conditions. True when the
+    // player is falling asleep.
+    bool Sleep(SleepChoice how, const GameContext& ctx);
     // Pitches the bedroll in this inventory slot as a camp in front of the
     // player. Empty on success, otherwise the reason it could not be done.
     string PitchCamp(int slot, const GameContext& ctx);

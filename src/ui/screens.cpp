@@ -2132,6 +2132,74 @@ void Game::DrawNote() {
             {96, 74, 44, 255}, Align::Center);
 }
 
+// =============================================================================
+//  The bed's question
+// =============================================================================
+//
+// Two rows on the parchment a note is read on. The wording is the same alone
+// and in company: in co-op each player answers for themselves.
+
+namespace {
+struct SleepRow { const char* name; const char* what; };
+constexpr SleepRow kSleepRows[2] = {
+    {"Sleep through the night", "Wake here at dawn, rested. No dream."},
+    {"Go into the Reverie",     "Dream until dawn. What you find there, you keep."},
+};
+}
+
+void Game::UpdateSleepPrompt() {
+    MoveCursor(sleep_cursor, 2);
+
+    if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+        const World::SleepChoice how = sleep_cursor == 0 ? World::SleepChoice::Through
+                                                         : World::SleepChoice::Reverie;
+        SetState(GameState::Play);
+        world.Sleep(how, ctx);
+        return;
+    }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
+        SetState(GameState::Play);
+}
+
+void Game::DrawSleepPrompt() {
+    ui.Dim(0.55f);
+    const SDL_FRect panel = CenteredPanel(ui, 520.0f, 300.0f);
+
+    ui.Fill({panel.x + 3.0f, panel.y + 4.0f, panel.w, panel.h}, Palette::Shadow);
+    ui.Fill(panel, {214, 197, 158, 250});
+    ui.Outline(panel, {120, 96, 58, 255}, 2.0f);
+
+    ui.Text(sleep_title.empty() ? string("A bed for the night") : sleep_title,
+            panel.x + panel.w / 2.0f, panel.y + 24.0f, TextSize::Large, {68, 48, 28, 255}, Align::Center);
+    ui.Fill({panel.x + 40.0f, panel.y + 64.0f, panel.w - 80.0f, 1.0f}, {140, 116, 78, 255});
+
+    // How much night is left to spend, which is what the choice is about.
+    const float to_dawn = world.clock.SecondsToDawn() / WorldClock::SECONDS_PER_HOUR;
+    const int hours_left = std::max(1, static_cast<int>(to_dawn + 0.5f));
+    ui.Text("It is " + world.clock.TimeText() + ". Dawn is " + std::to_string(hours_left) +
+            (hours_left == 1 ? " hour off." : " hours off."),
+            panel.x + panel.w / 2.0f, panel.y + 76.0f, TextSize::Small, {96, 74, 44, 255}, Align::Center);
+
+    for (int i = 0; i < 2; ++i) {
+        const SDL_FRect row = {panel.x + 40.0f, panel.y + 108.0f + i * 66.0f, panel.w - 80.0f, 56.0f};
+        const bool on = (i == sleep_cursor);
+        if (on) {
+            ui.Fill(row, {236, 222, 184, 255});
+            ui.Outline(row, {120, 96, 58, 255}, 2.0f);
+        } else {
+            ui.Outline(row, {170, 148, 108, 255}, 1.0f);
+        }
+        ui.Text(kSleepRows[i].name, row.x + 16.0f, row.y + 8.0f, TextSize::Body,
+                on ? SDL_Color{52, 34, 16, 255} : SDL_Color{88, 68, 42, 255});
+        ui.Text(kSleepRows[i].what, row.x + 16.0f, row.y + 31.0f, TextSize::Small,
+                on ? SDL_Color{96, 74, 44, 255} : SDL_Color{128, 106, 74, 255});
+    }
+
+    ui.Text(input.PromptFor(Action::Confirm) + " lie down     " + input.PromptFor(Action::Back) + " stay up",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small,
+            {96, 74, 44, 255}, Align::Center);
+}
+
 
 // =============================================================================
 //  Crafting

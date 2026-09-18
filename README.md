@@ -1499,11 +1499,26 @@ Outdoors the birds fall quiet as it gets dark and the crickets start.
 
 ### Sleep and the dreamworld
 
-From **seven in the evening until four in the morning** you can sleep, and
-sleeping is a journey: the screen fades, "You drift off to sleep...", and you
-wake up somewhere else -- **the Reverie**, the dreamworld, for as long as the
-night lasts. Earlier than seven, a bed tells you it is for after dusk. You cannot
-sleep with a hostile monster nearby.
+From **seven in the evening until four in the morning** you can sleep, and a
+bed asks how you would spend the night. It is a two-row panel on the parchment
+a note is read on, headed with what you are lying down on and how far off dawn
+is:
+
+| Choice | What happens |
+|---|---|
+| **Sleep through the night** | The screen fades on "You sleep the night through...", the clock goes to five in the morning, and you wake where you lay down: "Dawn breaks." No dream. |
+| **Go into the Reverie** | Sleeping is a journey: the screen fades, "You drift off to sleep...", and you wake up somewhere else -- **the Reverie**, the dreamworld, for as long as the night lasts. |
+
+`Esc` stays up and nothing has happened. The cursor stays on whichever you chose
+last. Either way you lie down rested -- health, mana and breath are full -- and
+either way dawn turns the quest day over, so the boards post new notices and
+the traders restock. A night slept through finds the room as any arrival
+would: the monsters of the map are back where they live, and anything left
+lying on the floor is gone. A bed used to do only the second of these, which
+made the dream the price of a night's rest.
+
+Earlier than seven, a bed tells you it is for after dusk. You cannot sleep with
+a hostile monster nearby, and the bed does not ask.
 
 There are three kinds of place to sleep:
 
@@ -1514,12 +1529,14 @@ There are three kinds of place to sleep:
 - **Your own camp.** A **Bedroll** is sold at the general stores and made at a
   workbench from 2 waxed thread and 2 raw hide. Use it from the bag
   under open sky and it pitches a tent and a fire where you stand. After dusk it
-  offers "Sleep at your camp"; by day, "Pack up your camp" puts the bedroll back
+  offers "Sleep at your camp" and asks the same question a bed does; by day,
+  "Pack up your camp" puts the bedroll back
   in your bag. There is one camp at a time -- pitching another packs the first
   away -- and it stays where you left it, on its map, across saves. Not indoors,
   not in the mines, not on uneven ground and not on top of a way out.
 
-Going to sleep restores health, mana and stamina.
+Going to sleep restores health, mana and stamina, whichever way the night is
+spent.
 
 **The Reverie** is five cloud islands over a starry void, joined by plank
 bridges to the one you arrive on. It is lit a dream's violet, wisps of light
@@ -2584,7 +2601,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15539 checks** covering:
+and checks all of it — currently **15557 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -2909,10 +2926,16 @@ and checks all of it — currently **15539 checks** covering:
 - there are beds indoors and campsites outdoors, the dreamworld has an arrival
   point, one waking stone, dream crystals, tinted nightmares and no portals, and
   the bedroll, dream shard and dreamcatcher resolve with icons and recipes
-- by day the inn's bed refuses; at night it puts the player to sleep, the dream
-  remembers exactly where, health is restored, dawn wakes them in that spot,
-  dying in the dream wakes them alive and costs the night, and the waking stone
-  wakes them in the dark; nobody sleeps with an orc nearby
+- by day the inn's bed refuses and does not ask; at night it asks, and backing
+  out leaves the evening as it was; choosing the Reverie puts the player to
+  sleep, the dream remembers exactly where, health is restored, dawn wakes them
+  in that spot, dying in the dream wakes them alive and costs the night, and the
+  waking stone wakes them in the dark
+- choosing to sleep the night through never leaves the room: the player wakes
+  where they lay down, at dawn of the next day (or the same day, after
+  midnight), with the quest day turned over, health and mana whole, and the
+  waking reported once as a night slept through; nobody sleeps with an orc
+  nearby, either way, and a camp asks the same question without packing up
 - a bedroll pitches a tent and a fire, the camp stays on its own map, offers
   sleep at night and packing up by day, and cannot be pitched indoors
 - noon is untinted, midnight dark and blue, sunset warm; the player carries a
