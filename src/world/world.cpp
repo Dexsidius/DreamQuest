@@ -173,6 +173,12 @@ void World::StepGuest(Player& guest, const PlayerInput& hands, float dt, const G
     AsSeat(guest, ctx, [&](const GameContext& theirs) {
         UpdateSeat(dt, theirs);
         CollectPickups(dt, theirs);
+        // Someone looking through this seat at this machine: their camera
+        // follows them, on whatever map this is.
+        if (seat_states[player.seat].viewed) {
+            camera.SetBounds(map.Width(), map.Height());
+            camera.Follow(player.x + player.LookAhead().x, player.y + player.LookAhead().y, dt);
+        }
     });
 }
 
@@ -219,8 +225,31 @@ void World::HandOver(World& to) {
     to.PlaceCampObjects();
 }
 
+void World::BeginActing(Player& who) {
+    if (acting || &who == &player) return;
+    SeatState& s = seat_states[who.seat];
+    SwapSeat(who, s);
+    acting = &who;
+    acting_flags = &s.private_flags;
+    acting_flags_rw = &s.private_flags;
+    if (s.own_journal) quest_log = s.own_journal;
+}
+
+void World::EndActing() {
+    if (!acting) return;
+    Player& who = *acting;
+    // The seat number travelled with the swap: it is `player`'s now.
+    SeatState& s = seat_states[player.seat];
+    acting = nullptr;
+    acting_flags = nullptr;
+    acting_flags_rw = nullptr;
+    quest_log = host_quests;
+    SwapSeat(who, s);
+}
+
 void World::SwapSeat(Player& who, SeatState& s) {
     std::swap(player, who);
+    if (s.viewed) std::swap(camera, s.camera);
     std::swap(targeting, s.targeting);
     std::swap(gather_index, s.gather_index);
     std::swap(gather_timer, s.gather_timer);
@@ -271,8 +300,11 @@ void World::FlushKills(const GameContext& ctx) {
     (void)ctx;
     for (const QuestEvent& e : kill_log) {
         if (host_quests && !player.absent) host_quests->Notify(e, player.inventory);
-        for (auto& g : guests)
-            if (!g->puppet) seat_states[g->seat].journal.Notify(e, g->inventory);
+        for (auto& g : guests) {
+            if (g->puppet) continue;
+            SeatState& seat = seat_states[g->seat];
+            (seat.own_journal ? *seat.own_journal : seat.journal).Notify(e, g->inventory);
+        }
     }
     kill_log.clear();
 }
@@ -534,6 +566,20 @@ vector<Light> World::CollectLights() const {
     // A little light of your own, so the player is never lost in the dark: a
     // warm glow outdoors, a pale one in a dream. Underground it is only what
     // is in your hand -- and with nothing in it, barely an arm's length.
+    // Friends carry theirs too: in a window, on the other half of the screen,
+    // or on a map the host is not on, nobody walks in the dark unlit.
+    for (const auto& g : guests) {
+        if (g->IsDead()) continue;
+        const float lamp = g->equipment.LightRadius();
+        if (map.IsDark())
+            lights.push_back({g->x, g->y - 16.0f, lamp > 0.0f ? lamp : 44.0f,
+                              lamp > 0.0f ? SDL_Color{255, 226, 168, 255} : SDL_Color{180, 186, 210, 255}, lamp > 0.0f ? 1.0f : 0.55f});
+        else if (dreaming)
+            lights.push_back({g->x, g->y - 16.0f, 120.0f, {236, 226, 255, 255}, 0.75f});
+        else
+            lights.push_back({g->x, g->y - 16.0f, std::max(80.0f, lamp * 0.8f), {255, 236, 200, 255},
+                              (lamp > 0.0f ? 0.6f : 0.42f) * dark});
+    }
     if (!player.IsDead() || player.DeathTimer() > 0.0f) {
         const float lamp = player.equipment.LightRadius();
         if (map.IsDark()) {

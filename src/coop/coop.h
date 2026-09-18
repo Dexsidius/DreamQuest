@@ -94,6 +94,22 @@ public:
     void Update(float dt, net::Server& server, World& home, const GameContext& ctx, bool in_world);
     void Reset(World& home);
 
+    // --- someone at this machine who is not the host ----------------------------
+    // Player Two, in split screen. They are a seat in the realm like a friend
+    // across the wire -- they can go their own way, sleep, fall and get up --
+    // but there is no wire: their hands are given each frame, their character
+    // is the one standing in the world, their journal is a real one, and their
+    // seat has a camera, because someone here is looking through it. The seat
+    // number comes from net::Server::ReserveSeat. `character` is a kept
+    // Player::ToJson, or null for someone new.
+    void AddLocal(uint8_t seat_no, const string& name, const string& look, QuestLog* journal, const json& character);
+    void RemoveLocal(uint8_t seat_no);
+    void FeedLocal(uint8_t seat_no, const PlayerInput& hands);
+    bool IsLocal(uint8_t seat_no) const;
+    // E, a bed answered, getting up after a fall: done for them, here.
+    void LocalAct(uint8_t seat_no, const net::Action& a, const GameContext& ctx);
+    Player*  PlayerOf(uint8_t seat);
+
     World*   WorldOf(uint8_t seat);
     size_t   Worlds() const { return away.size() + 1; }
     uint32_t LastApplied(uint8_t seat) const;
@@ -119,6 +135,11 @@ private:
         uint16_t aim_id = 0;
         bool     aim_locked = false;
         net::Delta tell;                    // what is theirs to hear next
+        // Someone at this machine: no wire.
+        bool        local = false;
+        PlayerInput hands;
+        QuestLog*   journal = nullptr;
+        json        character;
     };
     struct Place { string map; float x = 0, y = 0; };
     struct Gone  { uint8_t seat = 0; World* where = nullptr; float left = RECONNECT_GRACE; };

@@ -87,9 +87,7 @@ void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx) {
     }
 }
 
-bool PrivateFlag(const string& key) {
-    return key.rfind("recipe:", 0) == 0 || key.rfind("visited:", 0) == 0 || key.rfind("starter_", 0) == 0;
-}
+bool PrivateFlag(const string& key) { return World::PrivateFlag(key); }
 
 namespace {
 
@@ -218,6 +216,52 @@ size_t Host::Queued(uint8_t seat) const {
     return it == seats.end() ? 0 : it->second.queue.size();
 }
 
+void Host::AddLocal(uint8_t seat_no, const string& name, const string& look, QuestLog* journal, const json& character) {
+    Seat s;
+    s.name = name;
+    s.look = look;
+    s.local = true;
+    s.journal = journal;
+    s.character = character;
+    seats[seat_no] = std::move(s);
+}
+
+void Host::RemoveLocal(uint8_t seat_no) {
+    auto it = seats.find(seat_no);
+    if (it == seats.end() || !it->second.local) return;
+    if (it->second.where) it->second.where->RemoveGuest(seat_no);
+    seats.erase(it);
+}
+
+void Host::FeedLocal(uint8_t seat_no, const PlayerInput& hands) {
+    auto it = seats.find(seat_no);
+    if (it != seats.end() && it->second.local) it->second.hands = hands;
+}
+
+bool Host::IsLocal(uint8_t seat_no) const {
+    auto it = seats.find(seat_no);
+    return it != seats.end() && it->second.local;
+}
+
+void Host::LocalAct(uint8_t seat_no, const net::Action& a, const GameContext& ctx) {
+    auto it = seats.find(seat_no);
+    if (it == seats.end() || !it->second.local || !it->second.where) return;
+    World& w = *it->second.where;
+    Player* g = w.Guest(seat_no);
+    if (!g) return;
+    if (a.kind == net::Action::Interact) {
+        // What E would do is what their own seat's prompt found.
+        w.AsSeat(*g, ctx, [&](const GameContext& theirs) { w.TryInteract(theirs); });
+        return;
+    }
+    Act(seat_no, it->second, a, ctx);
+}
+
+Player* Host::PlayerOf(uint8_t seat) {
+    World* w = WorldOf(seat);
+    return w ? w->Guest(seat) : nullptr;
+}
+
 World* Host::WorldOf(uint8_t seat) {
     auto it = seats.find(seat);
     return it == seats.end() ? nullptr : it->second.where;
@@ -303,7 +347,11 @@ void Host::Update(float dt, net::Server& server, World& home, const GameContext&
         w.clock = home.clock;
         w.company = true;
         ear_world = &w;
-        Audio::SetMuted(2);              // not the host's map: not the host's to hear
+        // Not the host's map, so not the host's to hear -- unless someone at
+        // this machine is on it, looking at the other half of the screen.
+        bool watched = false;
+        for (const auto& [seat_no, s] : seats) watched |= s.local && s.where == &w;
+        Audio::SetMuted(watched ? 0 : 2);
         w.Update(dt, quiet);
         Audio::SetMuted(0);
         w.clock = home.clock;
@@ -346,7 +394,7 @@ void Host::SyncRoster(net::Server& server, World& home, const GameContext& ctx, 
     // Gone: the line dropped, or they left. Their character stands where it
     // was for a while, out of the fight, in case they come back.
     for (auto it = seats.begin(); it != seats.end();) {
-        if (present.count(it->first)) { ++it; continue; }
+        if (present.count(it->first) || it->second.local) { ++it; continue; }
         Seat& s = it->second;
         if (s.where) {
             if (Player* g = s.where->Guest(it->first)) {
@@ -370,9 +418,21 @@ void Host::SyncRoster(net::Server& server, World& home, const GameContext& ctx, 
         it = seats.erase(it);
     }
 
+    // Whoever is at this machine arrives and leaves the world with the host.
+    for (auto& [seat_no, s] : seats) {
+        if (!s.local) continue;
+        if (!in_world) {
+            if (s.where) s.where->RemoveGuest(seat_no);
+            s.where = nullptr;
+        } else if (!s.where) {
+            Arrive(seat_no, s, server, home, ctx);
+        }
+    }
+
     for (const net::SeatInfo& info : server.Roster()) {
         if (info.host) continue;
         auto found = seats.find(info.seat);
+        if (found != seats.end() && found->second.local) continue;
         if (found == seats.end()) {
             Seat fresh;
             fresh.name = info.name;
@@ -433,6 +493,33 @@ void Host::Arrive(uint8_t seat_no, Seat& s, net::Server& server, World& home, co
         }
     }
     Player* g = w->AddGuest(seat_no, s.name, s.look, ctx);
+    if (s.local) {
+        // Their own character, whole, as it was kept; and a seat that is looked
+        // through, with their real journal behind it.
+        if (s.character.is_object()) {
+            g->Init(ctx, s.character.value("sprite", s.look));
+            g->FromJson(s.character, ctx);
+            g->local = false;
+            g->seat = seat_no;
+            g->name = s.name;
+        } else {
+            for (const string& id : Player::StartingKit(g->sprite_id)) {
+                g->inventory.Add(id, 1);
+                if (const ItemDef* def = ctx.items ? ctx.items->Get(id) : nullptr)
+                    if (def->slot != SLOT_NONE) g->equipment.Equip(def->slot, id);
+            }
+            g->inventory.Add("coins", 25);
+            g->inventory.Add("cooked_meat", 3);
+        }
+        g->x = x; g->y = y;
+        SeatState& state = w->SeatOf(seat_no);
+        state.own_journal = s.journal;
+        state.viewed = true;
+        state.camera.SetBounds(w->CurrentMap().Width(), w->CurrentMap().Height());
+        state.camera.SnapTo(x, y);
+        s.where = w;
+        return;
+    }
     g->x = x; g->y = y;
     if (!s.sheet.empty()) {
         try { g->ApplySheet(json::parse(s.sheet).value("player", json::object()), ctx); } catch (const std::exception&) {}
@@ -642,6 +729,16 @@ void Host::StepSeats(float dt, const GameContext& ctx) {
         Player* g = w.Guest(seat_no);
         if (!g) continue;
 
+        // Someone at this machine: their hands were read this frame, their
+        // clock is ours, and what their step sounds like is for these speakers.
+        if (s.local) {
+            Audio::SetMuted(0);
+            ear_world = &w;
+            ear_seat = seat_no;
+            w.StepGuest(*g, s.hands, dt, ctx);
+            continue;
+        }
+
         // What their step sounds like is theirs to hear; the host hears only
         // what has a place, and only on its own map.
         ear_world = &w;
@@ -823,7 +920,9 @@ void Host::Night(World& home) {
 // --- what is theirs to hear -------------------------------------------------------------------------
 
 void Host::Gather(uint8_t seat_no, Seat& s) {
-    if (!s.where) return;
+    // Someone at this machine has no copy to reconcile: their bag is the bag,
+    // their journal is the journal, and the game opens their panels itself.
+    if (!s.where || s.local) return;
     Player* g = s.where->Guest(seat_no);
     if (!g) return;
     SeatState& state = s.where->SeatOf(seat_no);
@@ -926,6 +1025,20 @@ void Host::Tell(float dt, net::Server& server, World& home) {
         }
     }
     for (auto& [seat_no, s] : seats) {
+        if (s.local) {
+            // They saw and heard it all first-hand. What they wear is told to
+            // friends across the wire, as the host's own is.
+            s.tell = net::Delta();
+            if (const Player* g = s.where ? s.where->Guest(seat_no) : nullptr) {
+                const net::Outfit now = OutfitOf(*g, seat_no);
+                if (!s.has_outfit || !SameOutfit(now, s.outfit)) {
+                    s.outfit = now;
+                    s.has_outfit = true;
+                    server.SendToGuests(net::Channel::Reliable, net::Encode(now));
+                }
+            }
+            continue;
+        }
         if (s.tell.Empty()) continue;
         server.SendToSeat(seat_no, net::Channel::Reliable, net::Encode(s.tell));
         s.tell = net::Delta();
@@ -936,7 +1049,7 @@ void Host::Tell(float dt, net::Server& server, World& home) {
     since_snapshot = std::fmod(since_snapshot, SNAPSHOT_INTERVAL);
 
     for (auto& [seat_no, s] : seats) {
-        if (!s.where) continue;
+        if (!s.where || s.local) continue;
         World& w = *s.where;
         const Player* me = w.Guest(seat_no);
         if (!me) continue;

@@ -186,8 +186,35 @@ void Server::Broadcast(const Bytes& bytes) {
         if (c.stage == Stage::Seated) SendTo(c, bytes);
 }
 
+int Server::ReserveSeat(const std::string& name, const std::string& look) {
+    const int seat = FreeSeat();
+    if (seat < 0) return -1;
+    SeatInfo info;
+    info.seat = static_cast<uint8_t>(seat);
+    info.name = UniqueName(CleanLine(name, MAX_NAME).empty() ? std::string("Player Two") : CleanLine(name, MAX_NAME));
+    info.look = CleanLine(look, MAX_LOOK);
+    reserved.push_back(info);
+    RebuildRoster();
+    Broadcast(Encode(net::Roster{roster}));
+    Announce(info.name + " joined.");
+    return seat;
+}
+
+void Server::ReleaseSeat(uint8_t seat) {
+    for (auto it = reserved.begin(); it != reserved.end(); ++it) {
+        if (it->seat != seat) continue;
+        const std::string name = it->name;
+        reserved.erase(it);
+        RebuildRoster();
+        Broadcast(Encode(net::Roster{roster}));
+        Announce(name + " left.");
+        return;
+    }
+}
+
 void Server::RebuildRoster() {
     roster.clear();
+    for (const SeatInfo& r : reserved) roster.push_back(r);
     for (const Connection& c : connections)
         if (c.stage == Stage::Seated) roster.push_back(c.info);
     std::sort(roster.begin(), roster.end(),
@@ -202,9 +229,10 @@ Server::Connection* Server::Find(size_t transport, PeerId peer) {
 
 int Server::FreeSeat() const {
     for (int seat = 0; seat < config.max_seats; ++seat) {
-        const bool taken = std::any_of(connections.begin(), connections.end(), [&](const Connection& c) {
+        bool taken = std::any_of(connections.begin(), connections.end(), [&](const Connection& c) {
             return c.stage == Stage::Seated && c.info.seat == seat;
         });
+        for (const SeatInfo& r : reserved) taken = taken || r.seat == seat;
         if (!taken) return seat;
     }
     return -1;
@@ -212,6 +240,7 @@ int Server::FreeSeat() const {
 
 std::string Server::UniqueName(const std::string& wanted) const {
     const auto taken = [&](const std::string& name) {
+        for (const SeatInfo& r : reserved) if (r.name == name) return true;
         return std::any_of(connections.begin(), connections.end(), [&](const Connection& c) {
             return c.stage == Stage::Seated && c.info.name == name;
         });

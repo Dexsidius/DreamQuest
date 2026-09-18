@@ -112,6 +112,10 @@ Playing together, up to four of you, over Tailscale:
     your skills and your journal. A bed after dusk asks how you would spend
     the night; dawn comes at once when everyone is abed or dreaming.
 
+    Two of you at one machine: plug in a controller, Esc, "Player Two
+    joins". The screen splits; Player Two plays on the controller with their
+    own character, and you can go your separate ways.
+
     DreamQuestServer.exe is the same world with nobody at the keyboard, for
     a machine that is always on. Run it and everyone joins it; nobody hosts.
 

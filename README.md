@@ -172,7 +172,8 @@ whatever size the window happens to be.
 
 ## Playing together
 
-**Up to four friends in one Hollowmarch, over a tailnet.** One machine runs
+**Up to four friends in one Hollowmarch, over a tailnet -- or two of you on
+one couch, in [split screen](#split-screen-two-at-one-machine).** One machine runs
 the world -- a friend's own game, or the headless server on a machine that is
 always on -- and the others are windows onto it. You fight the same monsters,
 open the same chests and fell the same trees, go your separate ways across
@@ -215,6 +216,48 @@ Co-op* plan, built milestone by milestone:
 
 From a shortcut or a terminal: `DreamQuest.exe --host`,
 `DreamQuest.exe --join subzero:7777 --name Oona --password barley`.
+
+### Split screen: two at one machine
+
+**Esc, then *Player Two joins*.** The screen splits in two, side by side, and a
+second player plays on a controller: their own character, their own bag and
+journal, their own half of the screen. With two controllers plugged in,
+pressing **Start on the second one** does the same without the menu.
+
+- **Who holds what.** With one controller, it is Player Two's and the keyboard
+  is Player One's. With two, each has a controller and the keyboard stays with
+  Player One. Neither hears the other's.
+- **Who Player Two is.** Left and right on the row choose who they arrive as
+  the first time -- the hero, the warden or the wayfarer. After that they are
+  their own kept character, in `saves/characters/<p2_name>.json`, written
+  whenever the game saves and when they leave. `p2_name`, `p2_look` and
+  `split_stacked` (one half above the other instead of side by side) are in
+  `settings.json`.
+- **It is the same co-op.** Player Two is a seat in the same realm friends
+  across the wire sit in, with no wire: the same monsters, shared chests and
+  trees, each to their own journal with kills counted in both, things changing
+  hands by being dropped, one night for both -- and **you can go your separate
+  ways**: through a door on your own, and the halves show different maps. It
+  works while hosting, too: friends online see Player Two like anyone else.
+  (A guest in someone else's world plays alone: their window is the host's.)
+- **Panels are whoever opened them.** Their bag, skills, journal, the shops
+  and conversations are the same panels, served to Player Two, with their
+  controller's prompts and a line saying whose it is. A panel takes the whole
+  screen and stops the game for both, as a panel always has.
+- **Falling.** Player Two, fallen, reads the same screen and is got up in
+  Havenbrook; Player One is wherever they were.
+
+How: the game serves one seat at a time. Everything in `Game` is written for
+"the player" -- `world->player`, `quests`, `input`. `ServeSeat(1)` points
+those at Player Two (the world they are on, acting as them through
+`World::BeginActing`; their journal; their controller through `Input::Borrow`)
+and everything written for the player works for them, the HUD and every panel
+included. Each half is drawn into a texture of its own size and then placed,
+rather than through a viewport on the window, because the night's light map,
+the dream's stars and the HUD all ask how big the output is. It lives in
+`src/ui/splitscreen.cpp`; `--p2` sits Player Two down at launch without a
+controller and `--hold2 left 2 3.5` holds one of their buttons, for checking
+the halves without a second pair of hands.
 
 ### What is shared, and what is yours
 
@@ -2815,7 +2858,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15786 checks** covering:
+and checks all of it — currently **15812 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -3278,6 +3321,23 @@ and checks all of it — currently **15786 checks** covering:
   clothes and journal, a travelling one in one file and a world's own in
   another, and the sheet leaves out where she stands and how hurt she is
 
+- split screen: the keyboard is Player One's and Player Two's input does not
+  hear it; a press on Player Two's controller is theirs alone, with a
+  controller's prompts; borrowing answers every question from the other
+  player's hands and giving them back restores it; a controller that is neither
+  player's is heard by neither; someone on the host's couch has a seat in the
+  roster with no line, a friend across the wire sees who they are, and the seat
+  is free again when they get up; Player Two arrives beside Player One as a new
+  character, dressed and provisioned, with a seat that is looked through and a
+  real journal; their hands move them and nobody else, and their own camera
+  follows them within their half; serving Player Two, `player` is Player Two,
+  and handing back everyone is themselves again; a recipe they learn is theirs
+  and not Player One's, a chest they open is open for both; a kill counts in
+  both journals; Player One going into the inn leaves Player Two in Havenbrook
+  on a map of their own, walking on with their camera; when both lie down it is
+  dawn for both; fallen, Player Two is got up in Havenbrook, whole; and sitting
+  down again with their kept character they are who they were
+
 It exits with the number of failures, so CI can use it directly.
 
 ---
@@ -3301,7 +3361,8 @@ src/
                         projectiles and elements, spells, the clock,
                         material tiers (items.cpp), skill trees (talents.cpp),
                         tools, fishing and foraging (gathering.cpp), and traders (shop.cpp)
-  ui/                   drawing helpers and every screen; lobby.cpp is Play Together
+  ui/                   drawing helpers and every screen; lobby.cpp is Play Together,
+                        splitscreen.cpp is two at one machine
   coop/                 co-op: where the wire meets the world -- the host's half
                         and the guest's
   net/                  co-op: the transport (ENet, and an in-process loopback),

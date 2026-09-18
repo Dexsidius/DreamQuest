@@ -98,7 +98,7 @@ if ($Test -or $Tools) {
     # The self-test drives the game's systems directly, so it links everything
     # except the files that own main() and the Game class's own screen code.
     $testSources = $gameSources | Where-Object {
-        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp', 'lobby.cpp')
+        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp', 'lobby.cpp', 'splitscreen.cpp')
     }
     Write-Host "  CC  tools/selftest.cpp"
     & g++ @flags -O1 tools\selftest.cpp @testSources -o bin\selftest.exe @libs
@@ -109,7 +109,7 @@ if ($Server) {
     # The headless server: the same world and the same door, with no window.
     # It links what the self-test links -- everything but the Game class.
     $serverSources = $gameSources | Where-Object {
-        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp', 'lobby.cpp')
+        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp', 'lobby.cpp', 'splitscreen.cpp')
     }
     Write-Host "  CC  tools/server_main.cpp"
     & g++ @flags -O2 tools\server_main.cpp @serverSources -o bin\DreamQuestServer.exe @libs

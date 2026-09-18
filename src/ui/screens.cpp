@@ -355,7 +355,7 @@ void Game::UpdateOptions() {
                 break;
             case 1:
                 settings.zoom = std::clamp(settings.zoom + step * 0.25f, 1.5f, 4.0f);
-                world.camera.SetZoom(settings.zoom);
+                world->camera.SetZoom(settings.zoom);
                 break;
             case 2:
                 settings.fullscreen = !settings.fullscreen;
@@ -447,17 +447,25 @@ void Game::DrawOptions() {
 // =============================================================================
 
 void Game::UpdatePaused() {
-    static const char* kRows[] = {"Resume", "Save Game", "Play Together", "Options", "Quit to Main Menu"};
-    constexpr int ROWS = 5;
+    static const char* kRows[] = {"Resume", "Save Game", "Play Together", "Player Two", "Options", "Quit to Main Menu"};
+    constexpr int ROWS = 6;
     MoveCursor(cursor, ROWS);
+    // Who Player Two arrives as, the first time: left and right on their row.
+    if (cursor == 3 && !split_active && (input.MenuLeft() || input.MenuRight()))
+        CycleSplitLook(input.MenuRight() ? 1 : -1);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         switch (cursor) {
             case 0: SetState(GameState::Play); break;
             case 1: slot_purpose = 1; SetState(GameState::SlotSelect); break;
             case 2: OpenMultiplayer(); break;
-            case 3: OpenPanel(GameState::Options); break;
-            case 4:
+            case 3:
+                if (split_active) LeaveSplit(); else JoinSplit();
+                ServeSeat(0);
+                SetState(GameState::Play);
+                break;
+            case 4: OpenPanel(GameState::Options); break;
+            case 5:
                 if (guest_session) {
                     // The character is kept; the world is the host's.
                     SaveGuestCharacter();
@@ -466,7 +474,8 @@ void Game::UpdatePaused() {
                     break;
                 }
                 // Save before leaving, so quitting never costs progress.
-                if (!never_save) SaveSystem::Save(active_slot, world, quests, playtime);
+                if (!never_save) WriteSlot(active_slot);
+                LeaveSplit();
                 has_session = false;
                 SetState(GameState::MainMenu);
                 break;
@@ -479,14 +488,15 @@ void Game::UpdatePaused() {
 
 void Game::DrawPaused() {
     ui.Dim(0.55f);
-    const SDL_FRect panel = CenteredPanel(ui, 340.0f, 324.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 380.0f, 368.0f);
     ui.Panel(panel);
 
-    ui.Text("Paused", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
+    ui.Text(serving == 1 ? "Paused  -  Player Two" : "Paused", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
-    static const char* kRows[] = {"Resume", "Save Game", "Play Together", "Options", "Quit to Main Menu"};
-    for (int i = 0; i < 5; ++i) {
+    const string split_row = SplitRowLabel();
+    const string kRows[] = {"Resume", "Save Game", "Play Together", split_row, "Options", "Quit to Main Menu"};
+    for (int i = 0; i < 6; ++i) {
         const SDL_FRect row = {panel.x + 16.0f, panel.y + 66.0f + i * 44.0f,
                                panel.w - 32.0f, 40.0f};
         ui.MenuItem(row, kRows[i], i == cursor);
@@ -504,9 +514,9 @@ void Game::DrawPaused() {
 void Game::DrawWorldText() {
     if (!settings.damage_numbers) return;
 
-    for (const FloatingText& t : world.texts) {
+    for (const FloatingText& t : world->texts) {
         const float progress = 1.0f - (t.life / t.max_life);
-        const SDL_FPoint p = world.camera.ToScreen(t.x, t.y - t.rise * progress);
+        const SDL_FPoint p = world->camera.ToScreen(t.x, t.y - t.rise * progress);
         SDL_Color c = t.color;
         // Fade out over the last third of the life.
         c.a = static_cast<Uint8>(255 * std::clamp((t.life / t.max_life) * 3.0f, 0.0f, 1.0f));
@@ -523,7 +533,7 @@ static constexpr float kMinimapGlass = 62.0f;
 static constexpr float kHudRightTop  = kHudMargin + kMinimapRing + 24.0f;
 
 void Game::DrawHud() {
-    const Player& p = world.player;
+    const Player& p = world->player;
 
     // --- vitals --------------------------------------------------------------
     // Health and mana in brass plates, each with a glyph at the left end, so
@@ -621,7 +631,7 @@ void Game::DrawHud() {
     // --- minimap -------------------------------------------------------------
     // Top right, with the bezel hung on the corner; everything else that used
     // to live in that corner now stacks below it.
-    minimap.Draw(renderer, *textures, ui, world,
+    (serving == 1 ? minimap_two : minimap).Draw(renderer, *textures, ui, (*world),
                  ui.ViewWidth() - kHudMargin - kMinimapRing / 2.0f,
                  kHudMargin + kMinimapRing / 2.0f, kMinimapGlass);
 
@@ -634,14 +644,14 @@ void Game::DrawHud() {
     // A sun or a moon and the hour, under the vitals. In a dream it counts
     // down to dawn instead, which is when the dream ends.
     {
-        const WorldClock& c = world.clock;
+        const WorldClock& c = world->clock;
         const float y = meta_y + line_h + 4.0f;
-        const bool moon = world.InDream() || c.IsNight() || string(c.Phase()) == "Dusk";
+        const bool moon = world->InDream() || c.IsNight() || string(c.Phase()) == "Dusk";
         glyph_plate({18.0f, y - 2.0f, glyph, line_h + 4.0f},
                     moon ? "assets/icons/hud_moon.png" : "assets/icons/hud_sun.png");
         char line[96];
         SDL_Color col = Palette::TextDim;
-        if (world.InDream()) {
+        if (world->InDream()) {
             const int s = static_cast<int>(c.SecondsToDawn());
             SDL_snprintf(line, sizeof(line), "Dreaming    dawn in %d:%02d", s / 60, s % 60);
             col = {206, 186, 250, 255};
@@ -668,7 +678,7 @@ void Game::DrawHud() {
             const float total = box * 5 + gap * 4;
             const float x0 = ui.ViewWidth() / 2.0f - total / 2.0f;
             const float y0 = ui.ViewHeight() - 62.0f;
-            const vector<string> arcane_known = world.KnownArcane(spells);
+            const vector<string> arcane_known = world->KnownArcane(spells);
 
             for (int i = 0; i < 5; ++i) {
                 const bool on = (kOrder[i] == p.SelectedElement());
@@ -775,8 +785,8 @@ void Game::DrawHud() {
     // with a red frame and a LOCKED tag while the lock is on. Out of combat
     // there is no target, and nothing is drawn.
     if (live) {
-        if (const Enemy* t = world.targeting.Current(); t && t->Def()) {
-            const bool lock = world.targeting.IsLocked();
+        if (const Enemy* t = world->targeting.Current(); t && t->Def()) {
+            const bool lock = world->targeting.IsLocked();
             const float w = 280.0f, cx = ui.ViewWidth() / 2.0f;
             const SDL_FRect box = {roundf(cx - w / 2.0f), 12.0f, w, 48.0f};
             ui.Fill(box, {14, 11, 9, 200});
@@ -795,7 +805,7 @@ void Game::DrawHud() {
     // --- charge meter --------------------------------------------------------
     if (live && p.IsCharging()) {
         const float t = p.ChargeProgress();
-        const SDL_FPoint anchor = world.camera.ToScreen(p.x, p.y + 10.0f);
+        const SDL_FPoint anchor = world->camera.ToScreen(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 34.0f, anchor.y + 8.0f, 68.0f, 8.0f};
         // Turns bright at full charge, so the release timing is readable.
         const SDL_Color fill = (t >= 1.0f) ? SDL_Color{255, 236, 150, 255} : Palette::Charge;
@@ -813,7 +823,7 @@ void Game::DrawHud() {
     // bar in the middle of a fight.
     if (live && !p.IsCharging() && p.CooldownProgress() > 0.0f) {
         const float t = p.CooldownProgress();
-        const SDL_FPoint anchor = world.camera.ToScreen(p.x, p.y + 10.0f);
+        const SDL_FPoint anchor = world->camera.ToScreen(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 20.0f, anchor.y + 9.0f, 40.0f, 3.0f};
         ui.Bar(bar, t, SDL_Color{188, 170, 140, 190}, {26, 22, 18, 150});
     }
@@ -832,14 +842,14 @@ void Game::DrawHud() {
     }
 
     // --- gathering -----------------------------------------------------------
-    if (live && world.Gathering()) {
-        const SDL_FPoint anchor = world.camera.ToScreen(p.x, p.y + 10.0f);
+    if (live && world->Gathering()) {
+        const SDL_FPoint anchor = world->camera.ToScreen(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 34.0f, anchor.y + 8.0f, 68.0f, 8.0f};
-        ui.Bar(bar, world.GatherProgress(), Palette::Xp, {20, 30, 20, 220});
+        ui.Bar(bar, world->GatherProgress(), Palette::Xp, {20, 30, 20, 220});
     }
 
     // --- interact prompt -----------------------------------------------------
-    if (live && p.interact.kind != InteractTarget::None && !world.Gathering()) {
+    if (live && p.interact.kind != InteractTarget::None && !world->Gathering()) {
         const string prompt = "[" + input.PromptFor(Action::Interact) + "]  " + p.interact.label;
         const SDL_FPoint size = ui.Measure(prompt, TextSize::Body);
         const SDL_FRect box = {ui.ViewWidth() / 2.0f - size.x / 2.0f - 14.0f,
@@ -853,8 +863,8 @@ void Game::DrawHud() {
     // --- the ways out ---------------------------------------------------------
     // An exit at the edge of an outdoor map is a gap in the trees, and easy to
     // walk straight past. Near one, say where it goes and which way.
-    if (live && !world.CurrentMap().IsInterior()) {
-        const Map& mp = world.CurrentMap();
+    if (live && !world->CurrentMap().IsInterior()) {
+        const Map& mp = world->CurrentMap();
         for (const Portal& portal : mp.Portals()) {
             if (portal.requires_interact) continue;
             const float px = portal.rect.x + portal.rect.w / 2.0f;
@@ -873,7 +883,7 @@ void Game::DrawHud() {
             else if (nearest == to_t) { text = "^ " + portal.label; ny = -1.0f; }
             else                      { text = "v " + portal.label; ny =  1.0f; }
 
-            SDL_FPoint s = world.camera.ToScreen(px, py);
+            SDL_FPoint s = world->camera.ToScreen(px, py);
             const SDL_FPoint size = ui.Measure(text, TextSize::Small);
             s.x = std::clamp(s.x - nx * 90.0f, size.x / 2.0f + 12.0f, ui.ViewWidth() - size.x / 2.0f - 12.0f);
             s.y = std::clamp(s.y - ny * 70.0f, 40.0f, ui.ViewHeight() - 60.0f);
@@ -934,7 +944,7 @@ void Game::DrawHud() {
     }
 
     // --- quest tracker -------------------------------------------------------
-    const vector<string> active = quests.Active();
+    const vector<string> active = quests->Active();
     if (!active.empty()) {
         const float right = ui.ViewWidth() - 18.0f;
         // Sits below the minimap, and below however many toasts are stacked.
@@ -946,9 +956,9 @@ void Game::DrawHud() {
         {
             float widest = ui.Measure("QUESTS", TextSize::Small).x;
             for (size_t i = 0; i < shown; ++i) {
-                if (const QuestDef* d = quests.Definition(active[i])) {
+                if (const QuestDef* d = quests->Definition(active[i])) {
                     widest = std::max(widest, ui.Measure(d->name, TextSize::Small).x);
-                    widest = std::max(widest, ui.Measure(quests.CurrentObjectiveText(active[i]),
+                    widest = std::max(widest, ui.Measure(quests->CurrentObjectiveText(active[i]),
                                                          TextSize::Small).x);
                 }
             }
@@ -962,11 +972,11 @@ void Game::DrawHud() {
 
         // Show at most three so the tracker never crowds the view.
         for (size_t i = 0; i < shown; ++i) {
-            const QuestDef* d = quests.Definition(active[i]);
+            const QuestDef* d = quests->Definition(active[i]);
             if (!d) continue;
             ui.TextShadowed(d->name, right, y, TextSize::Small, Palette::Text, Align::Right);
             y += 18.0f;
-            ui.TextShadowed(quests.CurrentObjectiveText(active[i]), right, y,
+            ui.TextShadowed(quests->CurrentObjectiveText(active[i]), right, y,
                             TextSize::Small, Palette::TextDim, Align::Right);
             y += 24.0f;
         }
@@ -992,7 +1002,9 @@ void Game::DrawHud() {
                         input.PromptFor(Action::QuestLog) + " quests    " +
                         input.PromptFor(Action::WorldMap) + " map    " +
                         input.PromptFor(Action::Pause) + " menu";
-    ui.TextShadowed(hint, 18.0f, ui.ViewHeight() - 28.0f, TextSize::Small, Palette::TextDim);
+    // Half a screen has no room for the line, and two players know the keys.
+    if (!split_active)
+        ui.TextShadowed(hint, 18.0f, ui.ViewHeight() - 28.0f, TextSize::Small, Palette::TextDim);
 }
 
 void Game::DrawToasts() {
@@ -1014,7 +1026,7 @@ void Game::DrawToasts() {
 // =============================================================================
 
 void Game::UpdateInventory() {
-    Player& p = world.player;
+    Player& p = world->player;
     constexpr int COLS = 7;
     const int slots = p.inventory.SlotCount();
     if (state_time <= 0.0f) drop_armed = -1;
@@ -1062,12 +1074,12 @@ void Game::UpdateInventory() {
                     const SpellDef* sp = tome ? spells.Get(def->learn.substr(6)) : nullptr;
                     const ItemDef* brew = (charm || tome) ? nullptr : items.Get(def->learn);
                     const string name = ench ? ench->name : sp ? sp->name : brew ? brew->name : def->learn;
-                    if (world.KnowsRecipe(def->learn)) {
+                    if (world->KnowsRecipe(def->learn)) {
                         PushToast(charm ? "You already know the enchantment " + name + "."
                                   : tome ? "You already know " + name + "."
                                          : "You already know how to brew " + name + ".", Palette::TextDim);
                     } else {
-                        world.SetFlag("recipe:" + def->learn);
+                        world->SetFlag("recipe:" + def->learn);
                         p.inventory.RemoveSlot(inventory_cursor, 1);
                         PushToast(charm ? "Enchantment learned: " + name + ". Work it at an enchanting table."
                                   : tome ? "Spell learned: " + name + ". Press " + input.PromptFor(Action::SelectArcane) +
@@ -1101,10 +1113,10 @@ void Game::UpdateInventory() {
                         for (char& c : what) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
                         PushToast("You light the " + what + ".", Palette::Highlight);
                         Audio::Play(Sfx::QuestStart);
-                        quests.RefreshCollectObjectives(p.inventory);
+                        quests->RefreshCollectObjectives(p.inventory);
                     }
                 } else if (def && def->use == "camp") {
-                    const string why = world.PitchCamp(inventory_cursor, ctx);
+                    const string why = world->PitchCamp(inventory_cursor, ctx);
                     if (why.empty()) {
                         PushToast("You pitch camp. After dusk you can sleep here.", Palette::Xp);
                         SetState(GameState::Play);
@@ -1151,11 +1163,11 @@ void Game::UpdateInventory() {
                 const string name = def ? def->name : id;
                 const int qty = s.qty;
                 p.inventory.RemoveSlot(inventory_cursor, qty);
-                world.DropItem(id, qty, p.x, p.y + 4.0f, ctx, true);
+                world->DropItem(id, qty, p.x, p.y + 4.0f, ctx, true);
                 PushToast("Dropped " + (qty > 1 ? std::to_string(qty) + " " : string("")) + name + ".",
                           Palette::TextDim);
                 Audio::Play(Sfx::Pickup, 0.8f, 0.8f);
-                quests.RefreshCollectObjectives(p.inventory);
+                quests->RefreshCollectObjectives(p.inventory);
                 drop_armed = -1;
             }
         }
@@ -1168,7 +1180,7 @@ void Game::UpdateInventory() {
 
 void Game::DrawInventory() {
     ui.Dim(0.5f);
-    Player& p = world.player;
+    Player& p = world->player;
 
     const SDL_FRect panel = CenteredPanel(ui, 700.0f, 470.0f);
     ui.Panel(panel);
@@ -1333,7 +1345,7 @@ void Game::UpdateSkillsPanel() {
 
     const AttackStyle style = static_cast<AttackStyle>(skills_tab - 1);
     const TalentTree& tree = skill_trees.Tree(style);
-    Player& p = world.player;
+    Player& p = world->player;
 
     // Stepping from the melee tree's fourth column to a tree with three.
     const int branches = tree.BranchCount();
@@ -1399,7 +1411,7 @@ void Game::UpdateSkillsPanel() {
 
 void Game::DrawSkillsPanel() {
     ui.Dim(0.5f);
-    const Skills& s = world.player.skills;
+    const Skills& s = world->player.skills;
 
     // A tree with a fourth branch -- melee has Footwork -- widens the panel by
     // a column, so the node descriptions keep the room they had.
@@ -1421,7 +1433,7 @@ void Game::DrawSkillsPanel() {
             ui.Fill(tab, on ? SDL_Color{70, 54, 30, 235} : SDL_Color{30, 24, 20, 200});
             ui.Outline(tab, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
             int free = 0;
-            if (t > 0) free = world.player.talents.PointsFree(static_cast<AttackStyle>(t - 1), s);
+            if (t > 0) free = world->player.talents.PointsFree(static_cast<AttackStyle>(t - 1), s);
             ui.Text(kTabs[t], tab.x + 12.0f, tab.y + 5.0f, TextSize::Body,
                     on ? Palette::Highlight : (free > 0 ? Palette::Xp : Palette::Text));
             tx += w + 6.0f;
@@ -1497,7 +1509,7 @@ void Game::DrawSkillsPanel() {
 void Game::DrawSkillTree(const SDL_FRect& panel) {
     const AttackStyle style = static_cast<AttackStyle>(skills_tab - 1);
     const TalentTree& tree = skill_trees.Tree(style);
-    const Player& p = world.player;
+    const Player& p = world->player;
     const int level = p.skills.Level(tree.skill);
     const int earned = p.talents.PointsEarned(style, p.skills);
     const int free = p.talents.PointsFree(style, p.skills);
@@ -1633,20 +1645,20 @@ const char* Game::QuestTabName(int tab) {
 void Game::QuestList(int tab, vector<string>& out, size_t& active_count,
                      size_t& not_started_count) const {
     const auto belongs = [&](const string& id) {
-        const QuestDef* d = quests.Definition(id);
+        const QuestDef* d = quests->Definition(id);
         if (!d) return false;
         const int home = d->major ? 0 : (d->tutorial ? 1 : 2);
         return home == tab;
     };
     out.clear();
-    for (const string& id : quests.Active()) if (belongs(id)) out.push_back(id);
+    for (const string& id : quests->Active()) if (belongs(id)) out.push_back(id);
     active_count = out.size();
 
     vector<const QuestDef*> ahead;
-    for (const auto& kv : quests.Definitions()) {
+    for (const auto& kv : quests->Definitions()) {
         const QuestDef& d = kv.second;
         if (d.daily || !belongs(kv.first)) continue;
-        if (quests.Status(kv.first) != QuestStatus::NotStarted) continue;
+        if (quests->Status(kv.first) != QuestStatus::NotStarted) continue;
         ahead.push_back(&d);
     }
     // In the order they are meant to be met.
@@ -1658,7 +1670,7 @@ void Game::QuestList(int tab, vector<string>& out, size_t& active_count,
     for (const QuestDef* d : ahead) out.push_back(d->id);
     not_started_count = ahead.size();
 
-    for (const string& id : quests.Completed()) if (belongs(id)) out.push_back(id);
+    for (const string& id : quests->Completed()) if (belongs(id)) out.push_back(id);
 }
 
 // Red for what has not been started, blue for what is in hand, green for what
@@ -1698,7 +1710,7 @@ void Game::UpdateWorldMap() {
 }
 
 void Game::DrawWorldMap() {
-    world_map.Draw(renderer, *textures, ui, world,
+    world_map.Draw(renderer, *textures, ui, (*world),
                    input.PromptFor(Action::WorldMap) + " or " + input.PromptFor(Action::Back) + " close");
 }
 
@@ -1781,7 +1793,7 @@ void Game::DrawQuestPanel() {
                 ui.Fill(row, {58, 46, 28, 200});
                 ui.Outline(row, Palette::Highlight, 1.0f);
             }
-            const QuestDef* d = quests.Definition(list[i]);
+            const QuestDef* d = quests->Definition(list[i]);
             ui.Text(d ? d->name : list[i], row.x + 10.0f, row.y + 5.0f, TextSize::Small,
                     kStateColour[state]);
             if (state == 2)
@@ -1794,7 +1806,7 @@ void Game::DrawQuestPanel() {
                     Palette::TextDim, Align::Right);
 
         const int index = cursor_here;
-        if (const QuestDef* d = quests.Definition(list[index])) {
+        if (const QuestDef* d = quests->Definition(list[index])) {
             const float dx = panel.x + list_w + 40.0f;
             const float dw = panel.w - list_w - 64.0f;
             float y = panel.y + 82.0f;
@@ -1805,7 +1817,7 @@ void Game::DrawQuestPanel() {
             const char* word = state == 0 ? "Not started" : (state == 1 ? "In progress" : "Completed");
             ui.Text(word, dx, y, TextSize::Small, kStateColour[state]);
             ui.Text("Suggested level " + std::to_string(d->recommended_level) +
-                        (d->daily ? "     daily, done " + std::to_string(quests.Completions(list[index])) + "x" : string("")),
+                        (d->daily ? "     daily, done " + std::to_string(quests->Completions(list[index])) + "x" : string("")),
                     dx + dw, y, TextSize::Small, Palette::TextDim, Align::Right);
             y += 24.0f;
             y += ui.TextWrapped(d->summary, dx, y, dw, TextSize::Small, Palette::Text);
@@ -1817,13 +1829,13 @@ void Game::DrawQuestPanel() {
             // first stage stands in for the objective line.
             const string objective = state == 0
                 ? (d->stages.empty() ? string("Nobody has offered this yet.") : d->stages.front().description)
-                : quests.CurrentObjectiveText(list[index]);
+                : quests->CurrentObjectiveText(list[index]);
             y += ui.TextWrapped(objective, dx, y, dw, TextSize::Small,
                                 state == 0 ? Palette::TextDim : Palette::Text);
             y += 14.0f;
             if (state == 0 && d->combat_level > 0) {
                 ui.Text("Needs Combat " + std::to_string(d->combat_level), dx, y, TextSize::Small,
-                        world.player.skills.CombatLevel() >= d->combat_level ? kQuestDone : kQuestNotStarted);
+                        world->player.skills.CombatLevel() >= d->combat_level ? kQuestDone : kQuestNotStarted);
                 y += 20.0f;
             }
 
@@ -1865,7 +1877,7 @@ void Game::UpdateDialogue(float dt) {
     const DialogueContext dctx = MakeDialogueContext();
 
     if (!dialogue.Active()) {
-        for (auto& n : world.npcs) n->talking = false;
+        for (auto& n : world->npcs) n->talking = false;
         SetState(GameState::Play);
         return;
     }
@@ -1888,10 +1900,10 @@ void Game::UpdateDialogue(float dt) {
             if (!pending_orders.empty()) {
                 const string npc = pending_orders;
                 string name = npc;
-                for (auto& n : world.npcs) if (n->Id() == npc) name = n->Name();
+                for (auto& n : world->npcs) if (n->Id() == npc) name = n->Name();
                 pending_orders.clear();
                 dialogue.End();
-                for (auto& n : world.npcs) n->talking = false;
+                for (auto& n : world->npcs) n->talking = false;
                 OpenOrders(npc, name);
                 return;
             }
@@ -1901,15 +1913,15 @@ void Game::UpdateDialogue(float dt) {
                 const string id = pending_shop;
                 pending_shop.clear();
                 dialogue.End();
-                for (auto& n : world.npcs) n->talking = false;
+                for (auto& n : world->npcs) n->talking = false;
                 OpenShop(id);
                 return;
             }
 
-            for (const string& id : quests.TakeJustStarted())
-                if (const QuestDef* d = quests.Definition(id))
+            for (const string& id : quests->TakeJustStarted())
+                if (const QuestDef* d = quests->Definition(id))
                     PushToast("Quest started: " + d->name, Palette::Xp);
-            for (const string& id : quests.TakeJustCompleted())
+            for (const string& id : quests->TakeJustCompleted())
                 GrantQuestRewards(id);
         }
     }
@@ -1981,7 +1993,7 @@ void Game::UpdateBoard() {
     // Only offer what the player can actually take on right now.
     vector<string> available;
     for (const string& id : board_quests)
-        if (quests.CanStart(id, world.player.skills)) available.push_back(id);
+        if (quests->CanStart(id, world->player.skills)) available.push_back(id);
 
     MoveCursor(board_cursor, static_cast<int>(available.size()));
 
@@ -1989,9 +2001,9 @@ void Game::UpdateBoard() {
         !available.empty()) {
         const string& id = available[std::clamp(board_cursor, 0,
                                                 static_cast<int>(available.size()) - 1)];
-        if (quests.Start(id)) {
-            for (const string& started : quests.TakeJustStarted())
-                if (const QuestDef* d = quests.Definition(started))
+        if (quests->Start(id)) {
+            for (const string& started : quests->TakeJustStarted())
+                if (const QuestDef* d = quests->Definition(started))
                     PushToast("Quest started: " + d->name, Palette::Xp);
             board_cursor = 0;
         }
@@ -2011,7 +2023,7 @@ void Game::DrawBoard() {
 
     vector<string> available;
     for (const string& id : board_quests)
-        if (quests.CanStart(id, world.player.skills)) available.push_back(id);
+        if (quests->CanStart(id, world->player.skills)) available.push_back(id);
 
     if (available.empty()) {
         ui.Text(board_orders ? "No orders for you today." : "Nothing new is pinned up today.",
@@ -2034,7 +2046,7 @@ void Game::DrawBoard() {
                 ui.Fill(row, {58, 46, 28, 210});
                 ui.Outline(row, Palette::Highlight, 1.0f);
             }
-            const QuestDef* d = quests.Definition(available[i]);
+            const QuestDef* d = quests->Definition(available[i]);
             ui.Text(d ? d->name : available[i], row.x + 10.0f, row.y + 3.0f,
                     TextSize::Small, selected ? Palette::Highlight : Palette::Text);
             if (d)
@@ -2045,7 +2057,7 @@ void Game::DrawBoard() {
         }
 
         const int index = std::clamp(board_cursor, 0, static_cast<int>(available.size()) - 1);
-        if (const QuestDef* d = quests.Definition(available[index])) {
+        if (const QuestDef* d = quests->Definition(available[index])) {
             const float dx = panel.x + list_w + 40.0f;
             const float dw = panel.w - list_w - 64.0f;
             float y = panel.y + 62.0f;
@@ -2064,7 +2076,7 @@ void Game::DrawBoard() {
                                        d->stages[0].type == ObjectiveType::Collect)) {
                 const QuestStage& st = d->stages[0];
                 const ItemDef* want = items.Get(st.target);
-                const int held = world.player.inventory.Count(st.target);
+                const int held = world->player.inventory.Count(st.target);
                 ui.Text((want ? want->name : st.target) + ": you carry " + std::to_string(held) +
                         " of " + std::to_string(st.count), dx, y, TextSize::Small,
                         held >= st.count ? Palette::Xp : Palette::TextDim);
@@ -2105,12 +2117,12 @@ void Game::DrawBoard() {
 
 void Game::UpdateNote() {
     const bool offers_quest = !note_quest.empty() &&
-                              quests.CanStart(note_quest, world.player.skills);
+                              quests->CanStart(note_quest, world->player.skills);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-        if (offers_quest && quests.Start(note_quest)) {
-            for (const string& started : quests.TakeJustStarted())
-                if (const QuestDef* d = quests.Definition(started))
+        if (offers_quest && quests->Start(note_quest)) {
+            for (const string& started : quests->TakeJustStarted())
+                if (const QuestDef* d = quests->Definition(started))
                     PushToast("Quest started: " + d->name, Palette::Xp);
         }
         SetState(GameState::Play);
@@ -2136,7 +2148,7 @@ void Game::DrawNote() {
                    TextSize::Body, {52, 38, 24, 255});
 
     const bool offers_quest = !note_quest.empty() &&
-                              quests.CanStart(note_quest, world.player.skills);
+                              quests->CanStart(note_quest, world->player.skills);
     ui.Text(offers_quest ? (input.PromptFor(Action::Confirm) + " look into this")
                          : (input.PromptFor(Action::Confirm) + " put it away"),
             panel.x + panel.w / 2.0f, panel.y + panel.h - 34.0f, TextSize::Small,
@@ -2165,7 +2177,7 @@ void Game::UpdateSleepPrompt() {
         const World::SleepChoice how = sleep_cursor == 0 ? World::SleepChoice::Through
                                                          : World::SleepChoice::Reverie;
         SetState(GameState::Play);
-        world.Sleep(how, ctx);
+        world->Sleep(how, ctx);
         return;
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
@@ -2185,9 +2197,9 @@ void Game::DrawSleepPrompt() {
     ui.Fill({panel.x + 40.0f, panel.y + 64.0f, panel.w - 80.0f, 1.0f}, {140, 116, 78, 255});
 
     // How much night is left to spend, which is what the choice is about.
-    const float to_dawn = world.clock.SecondsToDawn() / WorldClock::SECONDS_PER_HOUR;
+    const float to_dawn = world->clock.SecondsToDawn() / WorldClock::SECONDS_PER_HOUR;
     const int hours_left = std::max(1, static_cast<int>(to_dawn + 0.5f));
-    ui.Text("It is " + world.clock.TimeText() + ". Dawn is " + std::to_string(hours_left) +
+    ui.Text("It is " + world->clock.TimeText() + ". Dawn is " + std::to_string(hours_left) +
             (hours_left == 1 ? " hour off." : " hours off."),
             panel.x + panel.w / 2.0f, panel.y + 76.0f, TextSize::Small, {96, 74, 44, 255}, Align::Center);
 
@@ -2224,12 +2236,12 @@ void Game::UpdateCrafting() {
         !recipes.empty()) {
         const ItemDef* recipe = recipes[std::clamp(craft_cursor, 0,
                                                    static_cast<int>(recipes.size()) - 1)];
-        Player& p = world.player;
+        Player& p = world->player;
         const int skill = CraftSkill(craft_station);
 
         const ItemDef* result = items.Get(recipe->craft_result);
         if ((craft_station == CraftStation::Cauldron || (result && result->needs_recipe)) &&
-            !world.KnowsRecipe(recipe->craft_result)) {
+            !world->KnowsRecipe(recipe->craft_result)) {
             PushToast("You have not learned that recipe yet.", {235, 150, 120, 255});
             Audio::Play(Sfx::UiError);
             return;
@@ -2261,7 +2273,7 @@ void Game::UpdateCrafting() {
         PushToast(string(craft_station == CraftStation::Cauldron ? "Brewed " :
                          craft_station == CraftStation::Anvil ? "Smithed " : "Crafted ") +
                   (made ? made->name : recipe->craft_result) + ".", Palette::Xp);
-        quests.RefreshCollectObjectives(p.inventory);
+        quests->RefreshCollectObjectives(p.inventory);
     }
 
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
@@ -2279,7 +2291,7 @@ void Game::DrawCrafting() {
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
-    const Player& p = world.player;
+    const Player& p = world->player;
     ui.Text(string(SkillName(skill)) + " " + std::to_string(p.skills.Level(skill)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
@@ -2318,7 +2330,7 @@ void Game::DrawCrafting() {
         const bool selected = (i == craft_cursor);
         // A brew, or anything else marked as taught rather than worked out.
         const bool taught = cauldron || (made && made->needs_recipe);
-        const bool known = !taught || world.KnowsRecipe(r->craft_result);
+        const bool known = !taught || world->KnowsRecipe(r->craft_result);
         const bool unlocked = known && p.skills.Level(skill) >= r->craft_level;
 
         if (selected) {
@@ -2348,7 +2360,7 @@ void Game::DrawCrafting() {
     ui.Text(made ? made->name : r->craft_result, dx, y, TextSize::Body, Palette::Highlight);
     y += 28.0f;
     const bool taught_here = cauldron || (made && made->needs_recipe);
-    if (taught_here && !world.KnowsRecipe(r->craft_result)) {
+    if (taught_here && !world->KnowsRecipe(r->craft_result)) {
         y += ui.TextWrapped(string(cauldron ? "You have not learned to brew this yet."
                                             : "You have not been shown how to make this yet.") +
                             (made && !made->recipe_from.empty() ? " " + made->recipe_from : string("")),
@@ -2401,7 +2413,7 @@ void Game::DrawCrafting() {
 void Game::UpdateEnchanting() {
     const vector<const EnchantDef*> list = items.Enchantments();
     MoveCursor(enchant_cursor, static_cast<int>(list.size()));
-    Player& p = world.player;
+    Player& p = world->player;
     const EnchantDef* e = list.empty() ? nullptr
         : list[std::clamp(enchant_cursor, 0, static_cast<int>(list.size()) - 1)];
     const vector<int> targets = e ? ::Enchanting::Targets(items, *e, p.inventory) : vector<int>{};
@@ -2416,7 +2428,7 @@ void Game::UpdateEnchanting() {
 
     if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && e) {
         const SDL_Color bad = {235, 150, 120, 255};
-        if (!world.KnowsEnchantment(e->id)) {
+        if (!world->KnowsEnchantment(e->id)) {
             PushToast("You have not learned that enchantment yet.", bad);
             Audio::Play(Sfx::UiError);
         } else if (p.skills.Level(SKILL_MAGIC) < e->level) {
@@ -2431,7 +2443,7 @@ void Game::UpdateEnchanting() {
                 const ItemDef* made = items.Get(items.EnchantedId(piece, e->id));
                 PushToast("Enchanted: " + (made ? made->name : piece) + ".", Palette::Xp);
                 Audio::Play(Sfx::SpellCast);
-                quests.RefreshCollectObjectives(p.inventory);
+                quests->RefreshCollectObjectives(p.inventory);
             } else {
                 PushToast(why, bad);
                 Audio::Play(Sfx::UiError);
@@ -2451,7 +2463,7 @@ void Game::DrawEnchanting() {
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
-    const Player& p = world.player;
+    const Player& p = world->player;
     ui.Text("Magic " + std::to_string(p.skills.Level(SKILL_MAGIC)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
@@ -2480,7 +2492,7 @@ void Game::DrawEnchanting() {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + (i - first) * row_h,
                                list_w, row_h - 4.0f};
         const bool selected = (i == enchant_cursor);
-        const bool known = world.KnowsEnchantment(e->id);
+        const bool known = world->KnowsEnchantment(e->id);
         const bool unlocked = known && p.skills.Level(SKILL_MAGIC) >= e->level;
         if (selected) {
             ui.Fill(row, {58, 46, 28, 210});
@@ -2500,7 +2512,7 @@ void Game::DrawEnchanting() {
     const float dx = panel.x + list_w + 40.0f;
     const float dw = panel.w - list_w - 64.0f;
     float y = panel.y + 62.0f;
-    const bool known = world.KnowsEnchantment(e->id);
+    const bool known = world->KnowsEnchantment(e->id);
 
     ui.Text(known ? e->name : string("Unknown enchantment"), dx, y, TextSize::Body, Palette::Highlight);
     y += 28.0f;
@@ -2571,13 +2583,13 @@ void Game::OpenShop(const string& id) {
     shop_id = id;
     shop_tab = 0;
     shop_cursor = 0;
-    world.shops.SetDay(world.clock.QuestDay());
+    world->shops.SetDay(world->clock.QuestDay());
     SetState(GameState::Shop);
 }
 
 vector<string> Game::ShopSellRows() const {
     vector<string> rows;
-    const Inventory& bag = world.player.inventory;
+    const Inventory& bag = world->player.inventory;
     for (int i = 0; i < bag.SlotCount(); ++i) {
         const ItemStack& s = bag.Slot(i);
         if (s.Empty() || s.id == "coins") continue;
@@ -2599,8 +2611,8 @@ void Game::UpdateShop() {
         Audio::Play(Sfx::UiMove);
     }
 
-    Player& p = world.player;
-    const vector<const ShopStock*> shelf = Trade::Shelf(*shop, &quests);
+    Player& p = world->player;
+    const vector<const ShopStock*> shelf = Trade::Shelf(*shop, quests);
     const vector<string> sell_rows = ShopSellRows();
     const int count = shop_tab == 0 ? static_cast<int>(shelf.size()) : static_cast<int>(sell_rows.size());
     MoveCursor(shop_cursor, count);
@@ -2616,7 +2628,7 @@ void Game::UpdateShop() {
 
     TradeOutcome t;
     if (shop_tab == 0) {
-        t = Trade::Buy(*shop, world.shops, p.inventory, items, &quests, item, many ? 10 : 1);
+        t = Trade::Buy(*shop, world->shops, p.inventory, items, quests, item, many ? 10 : 1);
         if (t.result == TradeResult::Ok)
             PushToast("Bought " + std::to_string(t.qty) + "x " + name + " for " +
                       std::to_string(t.coins) + " coins.", Palette::Xp);
@@ -2629,7 +2641,7 @@ void Game::UpdateShop() {
 
     if (t.result == TradeResult::Ok) {
         Audio::Play(Sfx::Coins);
-        quests.RefreshCollectObjectives(p.inventory);
+        quests->RefreshCollectObjectives(p.inventory);
     } else {
         Audio::Play(Sfx::UiError);
         PushToast(Trade::Message(t.result), {235, 150, 120, 255});
@@ -2639,7 +2651,7 @@ void Game::UpdateShop() {
 void Game::DrawShop() {
     const ShopDef* shop = shop_db.Get(shop_id);
     if (!shop) return;
-    const Player& p = world.player;
+    const Player& p = world->player;
 
     ui.Dim(0.5f);
     const SDL_FRect panel = CenteredPanel(ui, 760.0f, 480.0f);
@@ -2662,7 +2674,7 @@ void Game::DrawShop() {
     ui.Text("< " + string(shop_tab == 0 ? "What is on the shelf" : "What you carry") + " >",
             panel.x + 250.0f, panel.y + 56.0f, TextSize::Small, Palette::TextDim);
 
-    const vector<const ShopStock*> shelf = Trade::Shelf(*shop, &quests);
+    const vector<const ShopStock*> shelf = Trade::Shelf(*shop, quests);
     const vector<string> sell_rows = ShopSellRows();
     const int count = shop_tab == 0 ? static_cast<int>(shelf.size()) : static_cast<int>(sell_rows.size());
 
@@ -2700,7 +2712,7 @@ void Game::DrawShop() {
         SDL_Color right_c = Palette::Text;
         bool dim = false;
         if (shop_tab == 0) {
-            const int left = world.shops.Remaining(*shop, id);
+            const int left = world->shops.Remaining(*shop, id);
             right = d ? std::to_string(Trade::BuyPrice(*shop, *d)) + "c" : "";
             right_c = (d && p.inventory.Coins() >= Trade::BuyPrice(*shop, *d)) ? Palette::Highlight
                                                                                 : SDL_Color{225, 130, 120, 255};
@@ -2745,7 +2757,7 @@ void Game::DrawShop() {
                 ui.Text("Price " + std::to_string(Trade::BuyPrice(*shop, *d)) + " coins", dx, y,
                         TextSize::Small, Palette::Highlight);
                 y += 20.0f;
-                ui.Text(std::to_string(world.shops.Remaining(*shop, id)) + " left today; restocks at dawn",
+                ui.Text(std::to_string(world->shops.Remaining(*shop, id)) + " left today; restocks at dawn",
                         dx, y, TextSize::Small, Palette::TextDim);
             } else {
                 const int offer = Trade::SellPrice(*shop, items, *d);
@@ -2792,14 +2804,25 @@ void Game::UpdateDeath(float dt) {
         if (guest_session) {
             // The host gets them up, in Havenbrook, and says so: the screen
             // stays until it has.
-            world.visitor_acts.push_back({4, "", "", 0});
+            world->visitor_acts.push_back({4, "", "", 0});
+            return;
+        }
+        if (serving == 1) {
+            // Player Two: the realm gets them up, in Havenbrook, on its next
+            // step. Player One is wherever they were.
+            net::Action up;
+            up.kind = net::Action::Respawn;
+            ServeSeat(0);
+            coop_host.LocalAct(p2_seat, up, ctx);
+            SetState(GameState::Play);
+            PushToast(settings.p2_name + " wakes in Havenbrook, aching but alive.", Palette::TextDim);
             return;
         }
         // Respawn at the town, keeping progress, the way a forgiving RPG does.
-        world.player.Respawn(0.0f, 0.0f);
-        if (!world.LoadMap("town_havenbrook", "respawn", ctx))
-            world.LoadMap("overworld", "start", ctx);
-        world.player.Respawn(world.player.x, world.player.y);
+        world->player.Respawn(0.0f, 0.0f);
+        if (!world->LoadMap("town_havenbrook", "respawn", ctx))
+            world->LoadMap("overworld", "start", ctx);
+        world->player.Respawn(world->player.x, world->player.y);
         SetState(GameState::Play);
         PushToast("You wake in Havenbrook, aching but alive.", Palette::TextDim);
     }
@@ -2837,8 +2860,8 @@ void Game::UpdateStorage() {
         return;
     }
 
-    Player& p = world.player;
-    Inventory& chest = world.Storage(storage_id, storage_slots, &items);
+    Player& p = world->player;
+    Inventory& chest = world->Storage(storage_id, storage_slots, &items);
     const int bag_slots = p.inventory.SlotCount();
     const int box_slots = chest.SlotCount();
 
@@ -2894,13 +2917,13 @@ void Game::UpdateStorage() {
                   (moved < want ? "  -  no room for the rest" : ""),
               moved < want ? SDL_Color{235, 200, 120, 255} : Palette::Text);
     Audio::Play(Sfx::Pickup, 0.7f);
-    quests.RefreshCollectObjectives(p.inventory);
+    quests->RefreshCollectObjectives(p.inventory);
 }
 
 void Game::DrawStorage() {
     ui.Dim(0.5f);
-    Player& p = world.player;
-    const Inventory& chest = world.Storage(storage_id, storage_slots, &items);
+    Player& p = world->player;
+    const Inventory& chest = world->Storage(storage_id, storage_slots, &items);
 
     const float cell = 34.0f, gap = 4.0f;
     const float bag_w   = kBagCols * (cell + gap) - gap;

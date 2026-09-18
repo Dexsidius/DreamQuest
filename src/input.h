@@ -28,10 +28,28 @@ public:
     // Called once per frame before gameplay reads any action.
     void Update(float dt);
 
-    bool  Down(Action a) const     { return state[Index(a)].down; }
-    bool  Pressed(Action a) const  { return state[Index(a)].pressed; }
-    bool  Released(Action a) const { return state[Index(a)].released; }
-    float HeldFor(Action a) const  { return state[Index(a)].held_time; }
+    bool  Down(Action a) const     { return Src().state[Index(a)].down; }
+    bool  Pressed(Action a) const  { return Src().state[Index(a)].pressed; }
+    bool  Released(Action a) const { return Src().state[Index(a)].released; }
+    float HeldFor(Action a) const  { return Src().state[Index(a)].held_time; }
+
+    // --- two players at one machine ---------------------------------------------
+    // Which devices are this player's. Alone, everything: the keyboard and
+    // whichever controller is plugged in. In split screen each Input is given
+    // its share -- the keyboard or not, and the nth controller or none -- and
+    // hears nothing from anyone else's.
+    // Alone, a button on any controller counts, as it always has. With
+    // `only_mine` a controller that is not this Input's is somebody else's.
+    void SetDevices(bool keyboard, int pad_rank, bool only_mine = false);
+    bool UsesKeyboard() const { return use_keyboard; }
+    int  PadRank() const { return pad_rank; }
+    static int ConnectedPads();
+    SDL_JoystickID PadId() const { return pad_id; }
+    // While set, every question asked of this Input is answered by another:
+    // how a panel written for "the input" is handed to Player Two.
+    void Borrow(const Input* other) { proxy = other; }
+    // A press from nowhere, for the self-test and the --hold2 flag.
+    void Inject(Action a, bool down) { Set(a, down, true); }
 
     // Normalised movement, analog on a stick and digital on keys.
     Vec2 MoveAxis() const;
@@ -46,9 +64,11 @@ public:
     // controller connected reports the keyboard, because that is what the
     // player is actually using.
     InputMode ActiveDevice() const {
+        if (proxy) return proxy->ActiveDevice();
+        if (!use_keyboard) return InputMode::Controller;
         return (active == InputMode::Controller && !pad) ? InputMode::KeyboardMouse : active;
     }
-    bool HasGamepad() const { return pad != nullptr; }
+    bool HasGamepad() const { return Src().pad != nullptr; }
     const char* GamepadName() const;
 
 
@@ -64,6 +84,11 @@ private:
     };
 
     static int Index(Action a) { return static_cast<int>(a); }
+    const Input& Src() const { return proxy ? *proxy : *this; }
+    const Input* proxy = nullptr;
+    bool use_keyboard = true;
+    int  pad_rank = 0;                     // which connected controller is ours; -1 none
+    bool only_mine = false;
     void Set(Action a, bool value, bool from_pad);
     void OpenGamepad();
     void CloseGamepad();

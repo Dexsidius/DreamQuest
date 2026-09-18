@@ -11,6 +11,10 @@ Game::~Game() {
     // at once rather than finding out from a timeout.
     EndTextEntry();
     if (guest_session) SaveGuestCharacter();
+    ServeSeat(0);
+    SavePlayerTwo();
+    for (SDL_Texture*& t : view_texture) { if (t) SDL_DestroyTexture(t); t = nullptr; }
+    minimap_two.Forget();
     session.Leave();
     // The minimap owns a texture, so it has to let go before the renderer does.
     minimap.Forget();
@@ -47,6 +51,19 @@ int Game::Start(int argc, char** argv) {
             mp_password = argv[++i];
         } else if (arg == "--say" && more) {
             launch_say = argv[++i];
+        } else if (arg == "--p2") {
+            launch_p2 = true;
+        } else if (arg == "--hold2" && i + 3 < argc) {
+            // up, down, left, right, light, strong, interact, jump, sprint, bag
+            const string what = argv[++i];
+            HeldAction h;
+            h.action = what == "up" ? Action::MoveUp : what == "down" ? Action::MoveDown : what == "left" ? Action::MoveLeft
+                     : what == "light" ? Action::LightAttack : what == "strong" ? Action::StrongAttack
+                     : what == "interact" ? Action::Interact : what == "jump" ? Action::Jump
+                     : what == "sprint" ? Action::Sprint : what == "bag" ? Action::Inventory : Action::MoveRight;
+            h.from = static_cast<float>(SDL_atof(argv[++i]));
+            h.to   = static_cast<float>(SDL_atof(argv[++i]));
+            launch_holds_two.push_back(h);
         } else if (arg == "--scratch" && more) {
             launch_scratch = argv[++i];
             never_save = true;
@@ -122,7 +139,7 @@ int Game::Start(int argc, char** argv) {
     ctx.sprites  = &sprites;
     ctx.items    = &items;
     ctx.loot     = &loot;
-    ctx.quests   = &quests;
+    ctx.quests   = quests;
     ctx.dialogue = &dialogue_db;
     ctx.enemies  = &enemy_db;
     ctx.projectiles = &projectile_db;
@@ -147,6 +164,9 @@ int Game::Start(int argc, char** argv) {
             welcome_pending = false;
         }
     }
+    input_two.SetDevices(false, -1, true);
+    LayoutViews();
+    if (launch_p2 && has_session) JoinSplit(true);
     if (launch_host || !launch_join.empty()) {
         if (launch_host) StartHosting(mp_port);
         else { mp_address = launch_join; StartJoining(launch_join); }
@@ -170,7 +190,8 @@ bool Game::LoadContent() {
     ok &= enemy_db.Load("data/enemies.json");
     ok &= loot.Load("data/loot_tables.json");
     loot.Load("data/loot_tables_armour.json", false);   // optional armour drops
-    ok &= quests.LoadDefinitions("data/quests.json");
+    ok &= own_quests.LoadDefinitions("data/quests.json");
+    ok &= quests_two.LoadDefinitions("data/quests.json");
     ok &= dialogue_db.Load("data/dialogue.json");
     ok &= projectile_db.Load("data/projectiles.json");
     ok &= spells.Load("data/spells.json");
@@ -189,7 +210,7 @@ bool Game::LoadContent() {
 
 void Game::ApplySettings() {
     input.SetMode(static_cast<InputMode>(settings.input_mode));
-    world.camera.SetZoom(settings.zoom);
+    world->camera.SetZoom(settings.zoom);
     SDL_SetWindowFullscreen(window, settings.fullscreen);
     SDL_SetRenderVSync(renderer, settings.vsync ? 1 : 0);
     Audio::SetVolumes(settings.master_volume, settings.sfx_volume, settings.ambience_volume);
@@ -204,15 +225,15 @@ void Game::NewGame(const string& character, int slot) {
     banner_time = 0.0f;
     banner_zone.clear();
     banner_seen_map.clear();
-    quests.FromJson(json::object());
-    world.SetFlags({});
-    world.clock.Set(1, 9.0f);
-    world.SetCamp({});
-    world.SetDream({});
-    world.SetPickedHerbs({});
-    world.shops.Clear();
-    world.player = Player();
-    world.player.Init(ctx, character);
+    quests->FromJson(json::object());
+    world->SetFlags({});
+    world->clock.Set(1, 9.0f);
+    world->SetCamp({});
+    world->SetDream({});
+    world->SetPickedHerbs({});
+    world->shops.Clear();
+    world->player = Player();
+    world->player.Init(ctx, character);
 
     // Starting kit: a few coins, a bit of food, the wood tier's weapon of the
     // character's affinity -- a sword for the hero, a bow for the warden, a
@@ -229,35 +250,35 @@ void Game::NewGame(const string& character, int slot) {
     // 42%. Twenty-six points of defence bonus brings that to 45% and 48%, and
     // the opening hour stops feeling arranged against you.
     const vector<string> kit = Player::StartingKit(character);
-    world.player.inventory.Add("coins", 25);
-    for (const string& id : kit) world.player.inventory.Add(id, 1);
-    world.player.inventory.Add("cooked_meat", 3);
+    world->player.inventory.Add("coins", 25);
+    for (const string& id : kit) world->player.inventory.Add(id, 1);
+    world->player.inventory.Add("cooked_meat", 3);
     // Marked, so loading this character never hands them the tools a character
     // from before gathering needed tools is given.
-    world.SetFlag("starter_tools");
+    world->SetFlag("starter_tools");
 
     // Worn straight away: a new player should not have to find the bag screen
     // before the first fight to benefit from what they were given.
     string why;
     for (const string& worn : kit)
-        for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
-            if (world.player.inventory.Slot(slot).id == worn)
-                world.player.EquipFromInventory(slot, why);
+        for (int slot = 0; slot < world->player.inventory.SlotCount(); ++slot)
+            if (world->player.inventory.Slot(slot).id == worn)
+                world->player.EquipFromInventory(slot, why);
 
     active_slot = slot;
     playtime = 0.0f;
     autosave_timer = 0.0f;
 
-    if (!world.LoadMap("overworld", "start", ctx)) {
+    if (!world->LoadMap("overworld", "start", ctx)) {
         SDL_Log("DreamQuest: could not load the starting map");
         SetState(GameState::MainMenu);
         return;
     }
 
     has_session = true;
-    quests.SetDay(world.clock.QuestDay());
-    world.shops.SetDay(world.clock.QuestDay());
-    quest_day_seen = world.clock.QuestDay();
+    quests->SetDay(world->clock.QuestDay());
+    world->shops.SetDay(world->clock.QuestDay());
+    quest_day_seen = world->clock.QuestDay();
     SetState(GameState::Play);
     PushToast("A new journey begins.", Palette::Highlight);
     welcome_pending = true;
@@ -268,27 +289,27 @@ bool Game::LoadGame(int slot) {
     banner_time = 0.0f;
     banner_zone.clear();
     banner_seen_map.clear();
-    if (!SaveSystem::Load(slot, world, quests, ctx, playtime)) {
+    if (!SaveSystem::Load(slot, (*world), (*quests), ctx, playtime)) {
         PushToast("That save could not be loaded.", {235, 120, 120, 255});
         return false;
     }
     active_slot = slot;
     autosave_timer = 0.0f;
     has_session = true;
-    quests.SetDay(world.clock.QuestDay());
-    world.shops.SetDay(world.clock.QuestDay());
-    quest_day_seen = world.clock.QuestDay();
+    quests->SetDay(world->clock.QuestDay());
+    world->shops.SetDay(world->clock.QuestDay());
+    quest_day_seen = world->clock.QuestDay();
     SetState(GameState::Play);
     PushToast("Welcome back.", Palette::Highlight);
 
     // A character from before gathering needed tools has none, and could not
     // chop the logs to make an axe with. Hand them the basic set, once.
-    if (!world.Flagged("starter_tools")) {
-        world.SetFlag("starter_tools");
-        Inventory& bag = world.player.inventory;
+    if (!world->Flagged("starter_tools")) {
+        world->SetFlag("starter_tools");
+        Inventory& bag = world->player.inventory;
         bool given = false;
         for (const char* kind : {"axe", "pickaxe", "rod"})
-            if (!Gathering::BestTool(bag, world.player.equipment, items, world.player.skills, kind)) {
+            if (!Gathering::BestTool(bag, world->player.equipment, items, world->player.skills, kind)) {
                 const char* id = string(kind) == "axe" ? "bronze_axe" : string(kind) == "pickaxe" ? "bronze_pickaxe" : "fishing_rod";
                 if (bag.Add(id, 1) > 0) given = true;
             }
@@ -305,7 +326,7 @@ bool Game::SaveGame(int slot) {
         PushToast("Your character is saved. The world is the host's to keep.", Palette::Xp);
         return true;
     }
-    if (SaveSystem::Save(slot, world, quests, playtime)) {
+    if (WriteSlot(slot)) {
         active_slot = slot;
         PushToast("Game saved to slot " + std::to_string(slot) + ".", Palette::Xp);
         return true;
@@ -333,7 +354,7 @@ void Game::SetState(GameState s) {
     state_time = 0.0f;
     cursor = back_to_menu ? main_menu_cursor : 0;
     // The player only steers during actual gameplay.
-    world.player.input_locked = (s != GameState::Play);
+    world->player.input_locked = (s != GameState::Play);
 }
 
 void Game::OpenPanel(GameState panel) {
@@ -422,6 +443,14 @@ void Game::Process(float dt) {
     // BEFORE new events arrive, so an edge set while polling survives into
     // this frame's Update. Doing it afterwards would wipe every press.
     input.Update(dt);
+    input_two.Update(dt);
+    for (HeldAction& h : launch_holds_two) {
+        const bool want = run_time >= h.from && run_time < h.to;
+        if ((want && h.sent == 0) || (!want && h.sent == 1)) {
+            input_two.Inject(h.action, want);
+            h.sent = want ? 1 : 2;
+        }
+    }
 
     // --hold: a key goes down and comes up when the clock says so.
     for (HeldKey& h : launch_holds) {
@@ -453,14 +482,25 @@ void Game::Process(float dt) {
                 screen_w = event.window.data1;
                 screen_h = event.window.data2;
                 ui.SetViewport(static_cast<float>(screen_w), static_cast<float>(screen_h));
-                world.camera.SetViewport(static_cast<float>(screen_w),
-                                         static_cast<float>(screen_h));
+                LayoutViews();
+                break;
+
+            case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+                // Start, on a controller that is nobody's yet: Player Two sits down.
+                if (event.gbutton.button == SDL_GAMEPAD_BUTTON_START && !split_active && state == GameState::Play &&
+                    has_session && !guest_session && Input::ConnectedPads() >= 2 &&
+                    event.gbutton.which != input.PadId()) {
+                    JoinSplit();
+                    break;
+                }
+                input.HandleEvent(event);
+                input_two.HandleEvent(event);
                 break;
 
             default:
                 // A field being typed into takes its keys before the input
                 // map can read them as actions.
-                if (!TextEntryEvent(event)) input.HandleEvent(event);
+                if (!TextEntryEvent(event)) { input.HandleEvent(event); input_two.HandleEvent(event); }
                 break;
         }
     }
@@ -472,8 +512,13 @@ void Game::Update(float dt) {
     if (guest_session) dt = coop::QuantiseDt(dt);
     state_time += dt;
     run_time += dt;
+    // The realm is stepped with nobody being acted as: a panel of Player
+    // Two's lets go of them for the moment, and takes them back.
+    const int panel_seat = (state != GameState::Play) ? serving : 0;
+    ServeSeat(0);
     UpdateSession(dt);
     UpdateCoop(dt);
+    ServeSeat(panel_seat);
     if (!launch_say.empty() && session.Me().Seated()) {
         session.Me().Say(launch_say);
         launch_say.clear();
@@ -526,10 +571,10 @@ void Game::Update(float dt) {
     // and AdventureQuest Worlds do when you cross into somewhere new. Houses
     // do not announce themselves; dungeon levels, which are their own places,
     // do.
-    if (has_session && InGameplayState() && world.CurrentMap().Loaded() &&
-        world.MapId() != banner_seen_map) {
-        banner_seen_map = world.MapId();
-        const Map& m = world.CurrentMap();
+    if (has_session && InGameplayState() && world->CurrentMap().Loaded() &&
+        world->MapId() != banner_seen_map) {
+        banner_seen_map = world->MapId();
+        const Map& m = world->CurrentMap();
         const bool zone = !m.IsInterior() || m.Ambient() == "dungeon";
         if (!zone) banner_active = false;
         if (zone && m.Id() != banner_zone) {
@@ -547,8 +592,8 @@ void Game::Update(float dt) {
 
     // The birds go quiet as it gets dark, and the crickets start.
     if (has_session && InGameplayState()) {
-        const float night = (world.InDream() || world.CurrentMap().IsInterior())
-                                ? 0.0f : world.clock.Darkness();
+        const float night = (world->InDream() || world->CurrentMap().IsInterior())
+                                ? 0.0f : world->clock.Darkness();
         if (fabsf(night - audio_night) > 0.02f) {
             audio_night = night;
             Audio::SetNight(night);
@@ -558,11 +603,12 @@ void Game::Update(float dt) {
     // Panels pause the world but still show it behind them, so keep the
     // camera settled and let floating text finish.
     if (has_session && state != GameState::Play && InGameplayState())
-        world.camera.Follow(world.player.x + world.player.LookAhead().x,
-                            world.player.y + world.player.LookAhead().y, dt);
+        world->camera.Follow(world->player.x + world->player.LookAhead().x,
+                            world->player.y + world->player.LookAhead().y, dt);
 }
 
 void Game::UpdatePlay(float dt) {
+    ServeSeat(0);
     // The first thing a new character sees: a note of welcome, on the
     // parchment a sign is read on, saying where they are and what the keys
     // do. Once, and only on a new game -- a load puts the player back mid-story.
@@ -592,21 +638,21 @@ void Game::UpdatePlay(float dt) {
 
     // The boards post new dailies when the quest day turns over, at dawn, and
     // the traders restock.
-    quests.SetDay(world.clock.QuestDay());
-    world.shops.SetDay(world.clock.QuestDay());
-    if (quest_day_seen >= 0 && world.clock.QuestDay() > quest_day_seen)
+    quests->SetDay(world->clock.QuestDay());
+    world->shops.SetDay(world->clock.QuestDay());
+    if (quest_day_seen >= 0 && world->clock.QuestDay() > quest_day_seen)
         PushToast("New notices are up, and the traders have restocked.", Palette::Xp);
-    quest_day_seen = world.clock.QuestDay();
+    quest_day_seen = world->clock.QuestDay();
 
     // As a guest, the hands are read here, quantised, and sent as they were
     // used. Alone or hosting, the world reads the device itself.
-    if (guest_session) coop_guest.BeforeStep(world, &input);
-    else               world.player.hands_external = false;
-    world.Update(dt, ctx);
-    if (guest_session) coop_guest.AfterStep(world, session.Me(), dt);
+    if (guest_session) coop_guest.BeforeStep((*world), &input);
+    else               world->player.hands_external = false;
+    world->Update(dt, ctx);
+    if (guest_session) coop_guest.AfterStep((*world), session.Me(), dt);
     HandleWorldRequests();
 
-    switch (world.TakeWake()) {
+    switch (world->TakeWake()) {
         case World::WakeReason::Dawn:
             PushToast("You wake at dawn, rested.", Palette::Highlight);
             break;
@@ -622,14 +668,44 @@ void Game::UpdatePlay(float dt) {
         default: break;
     }
 
+    SeatChores();
+    UpdatePlayerTwo(dt);
+
+    // --- autosave ------------------------------------------------------------
+    // As a guest it is the character that is kept, on this machine; the world
+    // is the host's to keep.
+    if (state != GameState::Play) return;       // a panel has opened: not mid-change
+    if (!never_save) autosave_timer += dt;
+    if (guest_session && autosave_timer >= AUTOSAVE_INTERVAL) {
+        autosave_timer = 0.0f;
+        SaveGuestCharacter();
+    }
+    if (autosave_timer >= AUTOSAVE_INTERVAL) {
+        autosave_timer = 0.0f;
+        if (WriteSlot(active_slot)) PushToast("Autosaved.", Palette::TextDim);
+    }
+}
+
+bool Game::WriteSlot(int slot) {
+    // The slot is Player One's and the home world's, whoever pressed save: a
+    // panel of Player Two's has `world` and `quests` pointing at theirs.
+    const int was = serving;
+    ServeSeat(0);
+    const bool ok = SaveSystem::Save(slot, home_world, own_quests, playtime);
+    SavePlayerTwo();
+    ServeSeat(was);
+    return ok;
+}
+
+void Game::SeatChores() {
     // Collect objectives follow the bag, and the bag changes in more places
     // than are worth chasing individually -- eating, delivering, accepting a
     // quest for something already carried. Only a handful of quests are ever
     // active, so settling them every frame costs nothing.
-    quests.RefreshCollectObjectives(world.player.inventory);
+    quests->RefreshCollectObjectives(world->player.inventory);
 
     // Progression feedback raised by the player during the update.
-    const vector<LevelUp> ups = world.player.TakeLevelUps();
+    const vector<LevelUp> ups = world->player.TakeLevelUps();
     if (!ups.empty()) Audio::Play(Sfx::LevelUp);
     for (const LevelUp& up : ups) {
         PushToast(string(SkillName(up.skill)) + " level " + std::to_string(up.level) + "!",
@@ -642,70 +718,56 @@ void Game::UpdatePlay(float dt) {
                           " to spend it", Palette::Xp);
         }
     }
-    world.player.TakeXpDrops();     // consumed; the HUD shows totals instead
+    world->player.TakeXpDrops();     // consumed; the HUD shows totals instead
 
     // Quests that finished this frame pay out now.
-    for (const string& id : quests.TakeJustStarted())
-        if (const QuestDef* d = quests.Definition(id)) {
+    for (const string& id : quests->TakeJustStarted())
+        if (const QuestDef* d = quests->Definition(id)) {
             PushToast("Quest started: " + d->name, Palette::Xp);
             Audio::Play(Sfx::QuestStart);
         }
 
-    for (const string& id : quests.TakeJustCompleted())
+    for (const string& id : quests->TakeJustCompleted())
         GrantQuestRewards(id);
 
     // Dying in a dream only wakes you; the world handles that.
-    if (world.player.IsDead() && world.player.DeathTimer() <= 0.0f && !world.InDream())
+    if (world->player.IsDead() && world->player.DeathTimer() <= 0.0f && !world->InDream())
         SetState(GameState::Death);
 
     // --- spell selection -----------------------------------------------------
     // The element is chosen, not the spell: Magic level decides which tier of
     // that element actually comes out.
-    if (input.Pressed(Action::SelectFire))  world.player.SelectElement(Element::Fire);
-    if (input.Pressed(Action::SelectWater)) world.player.SelectElement(Element::Water);
-    if (input.Pressed(Action::SelectEarth)) world.player.SelectElement(Element::Earth);
-    if (input.Pressed(Action::SelectAir))   world.player.SelectElement(Element::Air);
+    if (input.Pressed(Action::SelectFire))  world->player.SelectElement(Element::Fire);
+    if (input.Pressed(Action::SelectWater)) world->player.SelectElement(Element::Water);
+    if (input.Pressed(Action::SelectEarth)) world->player.SelectElement(Element::Earth);
+    if (input.Pressed(Action::SelectAir))   world->player.SelectElement(Element::Air);
     if (input.Pressed(Action::SelectArcane)) {
-        const vector<string> known = world.KnownArcane(spells);
+        const vector<string> known = world->KnownArcane(spells);
         if (known.empty()) PushToast("You know no ancient magic yet. The college in Fernhollow teaches it.", Palette::TextDim);
-        else world.player.SelectArcane(known);
+        else world->player.SelectArcane(known);
     }
-    if (input.Pressed(Action::CycleSpell))  world.player.CycleElement(1);
+    if (input.Pressed(Action::CycleSpell))  world->player.CycleElement(1);
 
     // --- panel hotkeys -------------------------------------------------------
-    if (input.Pressed(Action::Interact))   world.TryInteract(ctx);
+    if (input.Pressed(Action::Interact))   world->TryInteract(ctx);
     if (input.Pressed(Action::Inventory))  OpenPanel(GameState::Inventory);
     if (input.Pressed(Action::Skills))     OpenPanel(GameState::SkillsPanel);
     if (input.Pressed(Action::QuestLog))   OpenPanel(GameState::QuestPanel);
     if (input.Pressed(Action::WorldMap))   OpenPanel(GameState::WorldMapPage);
     if (input.Pressed(Action::Pause))      OpenPanel(GameState::Paused);
-
-    // --- autosave ------------------------------------------------------------
-    // As a guest it is the character that is kept, on this machine; the world
-    // is the host's to keep.
-    if (!never_save) autosave_timer += dt;
-    if (guest_session && autosave_timer >= AUTOSAVE_INTERVAL) {
-        autosave_timer = 0.0f;
-        SaveGuestCharacter();
-    }
-    if (autosave_timer >= AUTOSAVE_INTERVAL) {
-        autosave_timer = 0.0f;
-        if (SaveSystem::Save(active_slot, world, quests, playtime))
-            PushToast("Autosaved.", Palette::TextDim);
-    }
 }
 
 void Game::HandleWorldRequests() {
-    for (const WorldRequest& r : world.TakeRequests()) {
+    for (const WorldRequest& r : world->TakeRequests()) {
         switch (r.type) {
             case WorldRequest::Type::Dialogue: {
                 // Freeze the NPC being spoken to.
-                for (auto& n : world.npcs)
+                for (auto& n : world->npcs)
                     if (n->Id() == r.id) n->talking = true;
                 dialogue.Begin(&dialogue_db, r.text, r.id, r.title, MakeDialogueContext());
                 HandleDialogueActions(dialogue.TakeActions());
                 if (dialogue.Active()) OpenPanel(GameState::Dialogue);
-                else                   for (auto& n : world.npcs) n->talking = false;
+                else                   for (auto& n : world->npcs) n->talking = false;
                 break;
             }
             case WorldRequest::Type::Board:
@@ -714,7 +776,7 @@ void Game::HandleWorldRequests() {
                 board_quests = r.list;
                 // Anything whose giver is this board is pinned to it too:
                 // that is how the rotating dailies get posted.
-                for (const auto& kv : quests.Definitions())
+                for (const auto& kv : quests->Definitions())
                     if (kv.second.giver == r.id &&
                         std::find(board_quests.begin(), board_quests.end(), kv.first) == board_quests.end())
                         board_quests.push_back(kv.first);
@@ -767,18 +829,18 @@ void Game::HandleWorldRequests() {
 }
 
 void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
-    Player& p = world.player;
+    Player& p = world->player;
 
     for (const DialogueAction& a : actions) {
         if (!a.start_quest.empty()) {
-            if (quests.CanStart(a.start_quest, p.skills)) quests.Start(a.start_quest);
+            if (quests->CanStart(a.start_quest, p.skills)) quests->Start(a.start_quest);
         }
 
         if (!a.advance_quest.empty()) {
             QuestEvent e;
             e.type   = ObjectiveType::Talk;
             e.target = a.advance_quest;
-            quests.Notify(e, p.inventory);
+            quests->Notify(e, p.inventory);
         }
 
         if (!a.give_item.empty()) {
@@ -787,10 +849,10 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
                 const ItemDef* d = items.Get(a.give_item);
                 PushToast("Received " + std::to_string(added) + "x " +
                           (d ? d->name : a.give_item), Palette::Xp);
-                quests.RefreshCollectObjectives(p.inventory);
+                quests->RefreshCollectObjectives(p.inventory);
             }
             if (added < a.give_qty) {
-                world.DropItem(a.give_item, a.give_qty - added, p.x, p.y + 6.0f, ctx);
+                world->DropItem(a.give_item, a.give_qty - added, p.x, p.y + 6.0f, ctx);
                 PushToast("Your pack is full. The item is at your feet.", {235, 150, 120, 255});
             }
         }
@@ -802,7 +864,7 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
                 e.target    = a.take_item;
                 e.secondary = dialogue.NpcId();
                 e.amount    = a.take_qty;
-                quests.Notify(e, p.inventory);
+                quests->Notify(e, p.inventory);
             }
         }
 
@@ -815,8 +877,8 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
         if (!a.open_shop.empty() && shop_db.Get(a.open_shop)) pending_shop = a.open_shop;
         if (!a.open_orders.empty()) pending_orders = a.open_orders;
 
-        if (!a.learn_recipe.empty() && !world.KnowsRecipe(a.learn_recipe)) {
-            world.SetFlag("recipe:" + a.learn_recipe);
+        if (!a.learn_recipe.empty() && !world->KnowsRecipe(a.learn_recipe)) {
+            world->SetFlag("recipe:" + a.learn_recipe);
             // "enchant:<id>" is a charm for the enchanting table rather than
             // a brew; the flag is the same shape either way.
             if (a.learn_recipe.rfind("enchant:", 0) == 0) {
@@ -836,17 +898,17 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
 
         // Every order the bag can fill for this NPC, at once.
         if (a.hand_in) {
-            for (const string& id : quests.ReadyToDeliver(dialogue.NpcId(), p.inventory)) {
-                const QuestDef* d = quests.Definition(id);
-                const QuestStage& st = d->stages[quests.Stage(id)];
-                const int need = st.count - quests.Counter(id);
+            for (const string& id : quests->ReadyToDeliver(dialogue.NpcId(), p.inventory)) {
+                const QuestDef* d = quests->Definition(id);
+                const QuestStage& st = d->stages[quests->Stage(id)];
+                const int need = st.count - quests->Counter(id);
                 if (need <= 0 || !p.inventory.Remove(st.target, need)) continue;
                 QuestEvent e;
                 e.type      = ObjectiveType::Deliver;
                 e.target    = st.target;
                 e.secondary = dialogue.NpcId();
                 e.amount    = need;
-                quests.Notify(e, p.inventory);
+                quests->Notify(e, p.inventory);
             }
         }
 
@@ -869,7 +931,7 @@ void Game::OpenOrders(const string& npc_id, const string& npc_name) {
     board_orders = true;
     board_title  = npc_name + "'s Orders";
     board_quests.clear();
-    for (const auto& kv : quests.Definitions())
+    for (const auto& kv : quests->Definitions())
         if (kv.second.giver == npc_id && kv.second.daily) board_quests.push_back(kv.first);
     board_cursor = 0;
     SetState(GameState::Board);
@@ -877,19 +939,19 @@ void Game::OpenOrders(const string& npc_id, const string& npc_name) {
 
 DialogueContext Game::MakeDialogueContext() const {
     DialogueContext c;
-    c.quests    = &quests;
-    c.inventory = &world.player.inventory;
-    c.skills    = &world.player.skills;
-    c.flags     = &world.Flags();
-    c.night     = world.clock.IsNight();
+    c.quests    = quests;
+    c.inventory = &world->player.inventory;
+    c.skills    = &world->player.skills;
+    c.flags     = &world->Flags();
+    c.night     = world->clock.IsNight();
     return c;
 }
 
 void Game::GrantQuestRewards(const string& quest_id) {
-    const QuestDef* d = quests.Definition(quest_id);
+    const QuestDef* d = quests->Definition(quest_id);
     if (!d) return;
 
-    Player& p = world.player;
+    Player& p = world->player;
 
     for (const auto& xp : d->rewards.xp) p.GrantXp(xp.first, xp.second);
     if (d->rewards.coins > 0) p.inventory.AddCoins(d->rewards.coins);
@@ -898,13 +960,13 @@ void Game::GrantQuestRewards(const string& quest_id) {
         const int added = p.inventory.Add(item.first, item.second);
         if (added < item.second) {
             // No room: drop it at the player's feet rather than losing it.
-            world.DropItem(item.first, item.second - added, p.x, p.y + 6.0f, ctx);
+            world->DropItem(item.first, item.second - added, p.x, p.y + 6.0f, ctx);
         }
     }
 
     PushToast("Quest complete: " + d->name, Palette::Highlight);
     Audio::Play(Sfx::QuestComplete);
-    quests.RefreshCollectObjectives(p.inventory);
+    quests->RefreshCollectObjectives(p.inventory);
 }
 
 // -----------------------------------------------------------------------------
@@ -914,8 +976,11 @@ void Game::GrantQuestRewards(const string& quest_id) {
 void Game::Render() {
     ui.SetViewport(static_cast<float>(screen_w), static_cast<float>(screen_h));
 
-    if (InGameplayState() && has_session) {
-        world.Render(renderer, *textures);
+    if (InGameplayState() && has_session && split_active) {
+        RenderSplit();
+        DrawParty();
+    } else if (InGameplayState() && has_session) {
+        world->Render(renderer, *textures);
         DrawNameTags();
         DrawWorldText();
         DrawHud();
@@ -954,15 +1019,20 @@ void Game::Render() {
         case GameState::Play:            break;
     }
 
+    // With two at one machine, a panel says whose it is.
+    if (split_active && has_session && InGameplayState() && state != GameState::Play)
+        ui.TextShadowed(serving == 1 ? settings.p2_name + "'s" : string("Player One's"), ui.ViewWidth() / 2.0f, 10.0f,
+                        TextSize::Body, Palette::Highlight, Align::Center);
+
     // Map-change wipe sits above the world but below nothing else.
-    if (has_session && world.FadeAmount() > 0.0f) {
-        ui.Dim(world.FadeAmount());
+    if (has_session && world->FadeAmount() > 0.0f) {
+        ui.Dim(world->FadeAmount());
         // Falling asleep and waking say so while the screen is dark.
-        if (!world.FadeCaption().empty()) {
+        if (!world->FadeCaption().empty()) {
             SDL_Color c = {226, 214, 255, 255};
-            c.a = static_cast<Uint8>(255.0f * std::clamp((world.FadeAmount() - 0.35f) / 0.5f, 0.0f, 1.0f));
+            c.a = static_cast<Uint8>(255.0f * std::clamp((world->FadeAmount() - 0.35f) / 0.5f, 0.0f, 1.0f));
             if (c.a > 0)
-                ui.TextShadowed(world.FadeCaption(), ui.ViewWidth() / 2.0f,
+                ui.TextShadowed(world->FadeCaption(), ui.ViewWidth() / 2.0f,
                                 ui.ViewHeight() / 2.0f - 12.0f, TextSize::Title, c, Align::Center);
         }
     }

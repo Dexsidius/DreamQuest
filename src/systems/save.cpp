@@ -268,6 +268,9 @@ bool Settings::Load(const string& path) {
     player_name     = j.value("player_name", player_name);
     host_password   = j.value("host_password", host_password);
     bring_your_own  = j.value("bring_your_own", bring_your_own);
+    p2_name         = j.value("p2_name", p2_name);
+    p2_look         = j.value("p2_look", p2_look);
+    split_stacked   = j.value("split_stacked", split_stacked);
     recent_hosts.clear();
     if (j.contains("recent_hosts") && j["recent_hosts"].is_array())
         for (const json& h : j["recent_hosts"])
@@ -293,6 +296,9 @@ bool Settings::Save(const string& path) const {
         {"player_name", player_name},
         {"host_password", host_password},
         {"bring_your_own", bring_your_own},
+        {"p2_name", p2_name},
+        {"p2_look", p2_look},
+        {"split_stacked", split_stacked},
         {"recent_hosts", recent_hosts},
     };
     out << j.dump(2);

@@ -67,6 +67,11 @@ struct Settings {
     // world keeps its own.
     string host_password;
     bool   bring_your_own = true;
+    // Split screen: who Player Two is, and whether the halves are side by
+    // side or one above the other.
+    string p2_name = "Player Two";
+    string p2_look = "player_warden";
+    bool   split_stacked = false;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

@@ -53,6 +53,12 @@ public:
     // A line from the world itself, to everyone: "Oona joined."
     void Announce(const std::string& text);
 
+    // A seat for someone who has no line because they need none: Player Two,
+    // on the host's own couch. They are in the roster like anyone, so friends
+    // across the wire see who they are. The seat number, or -1 if all are taken.
+    int  ReserveSeat(const std::string& name, const std::string& look);
+    void ReleaseSeat(uint8_t seat);
+
     // The game's own messages (MsgType::GAME_FIRST and up) are not looked
     // inside here. What seated players have sent is handed over whole, and
     // what the game has to say goes to one seat or to every seat but the
@@ -92,6 +98,7 @@ private:
     std::vector<Way> ways;
     std::vector<Connection> connections;
     std::vector<SeatInfo> roster;
+    std::vector<SeatInfo> reserved;
     std::vector<Inbound> inbound;
     bool reached = false;
 };

@@ -9224,6 +9224,198 @@ int main(int argc, char** argv) {
         fs::remove_all("bin/selftest_net", ec);
     }
 
+
+    // =========================================================================
+    //  Split screen: two players at one machine
+    // =========================================================================
+    Section("split screen: two sets of hands, one realm");
+    {
+        using namespace net;
+        const float dt = 1.0f / 60.0f;
+
+        // --- two devices, no cross-talk -------------------------------------------------------------
+        {
+            Input one, two;
+            one.SetDevices(true, -1, true);
+            two.SetDevices(false, -1, true);
+            const auto key = [](Input& in, SDL_Keycode k, bool down) {
+                SDL_Event e{};
+                e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+                e.key.key = k;
+                return in.HandleEvent(e);
+            };
+            one.Update(dt); two.Update(dt);
+            key(one, SDLK_D, true); key(two, SDLK_D, true);
+            Check(one.Down(::Action::MoveRight) && !two.Down(::Action::MoveRight) && !two.UsesKeyboard(),
+                  "the keyboard is Player One's: Player Two's input does not hear it");
+            two.Inject(::Action::LightAttack, true);
+            Check(two.Pressed(::Action::LightAttack) && two.Down(::Action::LightAttack) && !one.Down(::Action::LightAttack) &&
+                  two.ActiveDevice() == InputMode::Controller && two.PromptFor(::Action::LightAttack) == "(X)",
+                  "a press on Player Two's controller is theirs alone, and their prompts are a controller's");
+            // A panel written for "the input" is handed Player Two's.
+            one.Borrow(&two);
+            Check(one.Down(::Action::LightAttack) && !one.Down(::Action::MoveRight) && one.PromptFor(::Action::Interact) == "(A)",
+                  "borrowing answers every question from the other player's hands");
+            one.Borrow(nullptr);
+            Check(one.Down(::Action::MoveRight) && !one.Down(::Action::LightAttack), "and giving them back, from its own again");
+            key(one, SDLK_D, false);
+            two.Inject(::Action::LightAttack, false);
+            SDL_Event pad{};
+            pad.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+            pad.gbutton.which = 4242;                   // nobody's controller
+            pad.gbutton.button = SDL_GAMEPAD_BUTTON_WEST;
+            one.HandleEvent(pad); two.HandleEvent(pad);
+            Check(!one.Down(::Action::LightAttack) && !two.Down(::Action::LightAttack), "a controller that is neither player's is heard by neither");
+        }
+
+        // --- a seat at the door with no line -----------------------------------------------------------
+        {
+            Server::Config config; config.data_hash = 1; config.maps_hash = 2;
+            LoopbackHub wire;
+            Server server(config);
+            server.Attach(wire.Server());
+            const int couch = server.ReserveSeat("Player Two", "player_warden");
+            Client oona;
+            Hello ho; ho.data_hash = 1; ho.maps_hash = 2; ho.name = "Player Two"; ho.look = "player_hero";
+            oona.Start(wire.Client(), "x", 1, ho);
+            for (int i = 0; i < 6; ++i) { server.Update(dt); oona.Update(dt); }
+            Check(couch == 0 && oona.Seated() && oona.Seat() == 1 && oona.Roster().size() == 2 && oona.Roster()[0].name == "Player Two" &&
+                  oona.Roster()[1].name == "Player Two 2" && !oona.Roster()[0].host,
+                  "someone on the host's couch has a seat in the roster with no line, and a friend across the wire sees who they are");
+            server.ReleaseSeat(static_cast<uint8_t>(couch));
+            for (int i = 0; i < 4; ++i) { server.Update(dt); oona.Update(dt); }
+            Check(oona.Roster().size() == 1 && server.ReserveSeat("Again", "player_hero") == 0, "and when they get up the seat is free again");
+        }
+
+        // --- Player Two in the realm ---------------------------------------------------------------------
+        Input hin;
+        std::mt19937 rng(21);
+        QuestLog one_quests, two_quests;
+        one_quests.LoadDefinitions("data/quests.json");
+        two_quests.LoadDefinitions("data/quests.json");
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &one_quests; ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &hin;         ctx.rng = &rng;
+
+        Server offline{Server::Config{}};
+        World home;
+        home.player.Init(ctx, "player_hero");
+        Check(home.LoadMap("town_havenbrook", "", ctx), "Player One is in Havenbrook");
+        coop::Host realm;
+        realm.kept_dir.clear();
+        const uint8_t seat = static_cast<uint8_t>(offline.ReserveSeat("Player Two", "player_warden"));
+        realm.AddLocal(seat, "Player Two", "player_warden", &two_quests, json());
+        PlayerInput hands;
+        const auto frame = [&] {
+            hin.Update(dt);
+            home.Update(dt, ctx);
+            realm.FeedLocal(seat, hands);
+            realm.Update(dt, offline, home, ctx, true);
+        };
+        const auto frames = [&](int n) { for (int i = 0; i < n; ++i) frame(); };
+        frames(2);
+        Player* two = realm.PlayerOf(seat);
+        Check(two && realm.IsLocal(seat) && realm.WorldOf(seat) == &home && two->sprite_id == "player_warden" &&
+              two->equipment.InSlot(SLOT_WEAPON) == "oak_shortbow" && two->inventory.Count("cooked_meat") == 3 && !two->local,
+              "Player Two arrives beside Player One: a new character, dressed and provisioned as one");
+        Check(home.company && home.SeatOf(seat).viewed && home.SeatOf(seat).own_journal == &two_quests,
+              "their seat is looked through at this machine, and their journal is a real one");
+
+        if (two) {
+            // Their hands move them, and nobody else.
+            const float x0 = two->x, px = home.player.x;
+            hands.move = {1.0f, 0.0f};
+            frames(45);
+            hands = PlayerInput{};
+            frames(5);
+            Check(two->x > x0 + 30.0f && home.player.x == px, "Player Two's hands move Player Two, and not Player One");
+            const SDL_FPoint on_screen = home.SeatOf(seat).camera.ToScreen(two->x, two->y);
+            Check(on_screen.x > 40.0f && on_screen.x < 600.0f && on_screen.y > 40.0f && on_screen.y < 680.0f,
+                  "and their own camera follows them, within their half of the screen");
+
+            // The game serves one seat at a time.
+            two->inventory.Add("logs", 4);
+            const int one_logs = home.player.inventory.Count("logs");
+            home.BeginActing(*two);
+            Check(home.Acting() && home.player.sprite_id == "player_warden" && home.player.inventory.Count("logs") == 4 &&
+                  home.player.seat == seat, "serving Player Two, `player` is Player Two: their bag, their look");
+            home.SetFlag("recipe:nettle_brew");
+            home.SetFlag("chest_opened_by_two");
+            Check(home.KnowsRecipe("nettle_brew"), "what they learn while served, they know");
+            home.EndActing();
+            Check(!home.Acting() && home.player.sprite_id == "player_hero" && home.player.inventory.Count("logs") == one_logs &&
+                  two->inventory.Count("logs") == 4, "and handing back, everyone is themselves again");
+            Check(!home.KnowsRecipe("nettle_brew") && home.SeatOf(seat).private_flags.count("recipe:nettle_brew") == 1 &&
+                  home.Flagged("chest_opened_by_two"),
+                  "a recipe Player Two learned is theirs and not Player One's; a chest they opened is open for both");
+
+            // Each to their own journal; a fight shared is a kill shared.
+            one_quests.Start("q_thin_the_herd");
+            two_quests.Start("q_thin_the_herd");
+            QuestEvent kill;
+            kill.type = ObjectiveType::Kill;
+            kill.target = "boar";
+            kill.map_id = home.MapId();
+            home.CreditKill(kill);
+            frames(1);
+            Check(one_quests.Counter("q_thin_the_herd") == 1 && two_quests.Counter("q_thin_the_herd") == 1,
+                  "a kill counts in both journals, each a real one");
+
+            // Going their separate ways: Player One into the inn, Player Two stays.
+            Check(home.LoadMap("house_inn", "default", ctx), "Player One goes into the inn");
+            frames(3);
+            World* theirs = realm.WorldOf(seat);
+            Check(theirs && theirs != &home && theirs->MapId() == "town_havenbrook" && realm.Worlds() == 2 &&
+                  realm.PlayerOf(seat) == two && home.guests.empty(),
+                  "and Player Two stays in Havenbrook, on a map of their own: the halves show different places");
+            const float y0 = two->y;
+            hands.move = {0.0f, 1.0f};
+            frames(30);
+            hands = PlayerInput{};
+            Check(two->y > y0 + 15.0f && theirs->SeatOf(seat).viewed, "where they go on walking, with their camera");
+
+            // The night is one night for both.
+            home.clock.Set(2, 22.0f);
+            frames(2);
+            Check(home.Sleep(World::SleepChoice::Through, ctx) && home.player.resting && home.clock.Day() == 2,
+                  "Player One lies down, and the clock keeps its pace while Player Two is up");
+            net::Action bed;
+            bed.kind = net::Action::Sleep;
+            bed.n = 0;
+            realm.LocalAct(seat, bed, ctx);
+            frames(3);
+            Check(home.clock.Day() == 3 && !home.clock.IsNight() && !home.player.resting && !two->resting,
+                  "when Player Two lies down too, it is dawn for both");
+
+            // Falling, and getting up.
+            two->Damage(99999);
+            frames(2);
+            net::Action up;
+            up.kind = net::Action::Respawn;
+            realm.LocalAct(seat, up, ctx);
+            frames(3);
+            two = realm.PlayerOf(seat);
+            Check(two && !two->Fallen() && two->hp == two->max_hp && realm.WorldOf(seat) && realm.WorldOf(seat)->MapId() == "town_havenbrook",
+                  "Player Two, fallen, is got up in Havenbrook, whole");
+
+            // A kept character comes back as it was.
+            const json kept = two->ToJson();
+            realm.RemoveLocal(seat);
+            offline.ReleaseSeat(seat);
+            frames(2);
+            Check(realm.PlayerOf(seat) == nullptr && !realm.IsLocal(seat) && offline.Roster().empty(),
+                  "Player Two gets up from the couch, and is gone from the world and the roster");
+            Check(offline.ReserveSeat("Player Two", "player_warden") == seat, "the seat is theirs to take again");
+            realm.AddLocal(seat, "Player Two", "player_hero", &two_quests, kept);
+            frames(2);
+            two = realm.PlayerOf(seat);
+            Check(two && two->sprite_id == "player_warden" && two->inventory.Count("logs") == 4 && realm.WorldOf(seat) == &home,
+                  "and sitting down again with their kept character, they are who they were, beside Player One");
+        }
+    }
+
     // Optional render smoke test. Uses the real world renderer and SDL image
     // loading without creating a window, reading saves, or opening a game.
     if (argc > 1 && string(argv[1]) == "--render-previews") {

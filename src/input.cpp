@@ -101,19 +101,44 @@ Input::Input() {
 Input::~Input() { CloseGamepad(); }
 
 void Input::OpenGamepad() {
-    if (pad) return;
+    if (pad || pad_rank < 0) return;
     int count = 0;
     SDL_JoystickID* ids = SDL_GetGamepads(&count);
     if (ids) {
-        if (count > 0) {
-            pad = SDL_OpenGamepad(ids[0]);
+        // The nth that is plugged in: alone that is the first, and in split
+        // screen each player is told which is theirs.
+        if (count > pad_rank) {
+            pad = SDL_OpenGamepad(ids[pad_rank]);
             if (pad) {
-                pad_id = ids[0];
+                pad_id = ids[pad_rank];
                 SDL_Log("Input: gamepad connected - %s", GamepadName());
             }
         }
         SDL_free(ids);
     }
+}
+
+int Input::ConnectedPads() {
+    int count = 0;
+    SDL_JoystickID* ids = SDL_GetGamepads(&count);
+    if (ids) SDL_free(ids);
+    return std::max(0, count);
+}
+
+void Input::SetDevices(bool keyboard, int rank, bool mine) {
+    if (keyboard == use_keyboard && rank == pad_rank && mine == only_mine) return;
+    use_keyboard = keyboard;
+    pad_rank = rank;
+    only_mine = mine;
+    // Whatever was held on a device that is no longer ours is let go.
+    for (int i = 0; i < ACTION_COUNT; ++i) {
+        if (!use_keyboard && state[i].kb) Set(static_cast<Action>(i), false, false);
+        if (state[i].padbtn) Set(static_cast<Action>(i), false, true);
+    }
+    stick = {0, 0};
+    CloseGamepad();
+    OpenGamepad();
+    if (!use_keyboard) active = InputMode::Controller;
 }
 
 void Input::CloseGamepad() {
@@ -158,6 +183,7 @@ bool Input::HandleEvent(const SDL_Event& e) {
     switch (e.type) {
         case SDL_EVENT_KEY_DOWN:
         case SDL_EVENT_KEY_UP: {
+            if (!use_keyboard) return false;
             if (e.key.repeat) return true;
             if (mode == InputMode::Auto && e.type == SDL_EVENT_KEY_DOWN)
                 active = InputMode::KeyboardMouse;
@@ -173,7 +199,7 @@ bool Input::HandleEvent(const SDL_Event& e) {
 
         case SDL_EVENT_GAMEPAD_ADDED:
             OpenGamepad();
-            return true;
+            return false;          // everyone hears of a controller arriving
 
         case SDL_EVENT_GAMEPAD_REMOVED:
             if (e.gdevice.which == pad_id) {
@@ -182,10 +208,11 @@ bool Input::HandleEvent(const SDL_Event& e) {
                 if (mode == InputMode::Auto) active = InputMode::KeyboardMouse;
                 OpenGamepad();
             }
-            return true;
+            return false;
 
         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
         case SDL_EVENT_GAMEPAD_BUTTON_UP: {
+            if (only_mine && (!pad || e.gbutton.which != pad_id)) return false;      // someone else's controller
             const bool dn = (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
             if (mode == InputMode::Auto && dn) active = InputMode::Controller;
             auto it = padmap.find(e.gbutton.button);
@@ -208,6 +235,7 @@ bool Input::HandleEvent(const SDL_Event& e) {
         }
 
         case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
+            if (only_mine && (!pad || e.gaxis.which != pad_id)) return false;
             const float v = e.gaxis.value / 32767.0f;
             if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) stick.x = v;
             if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY) stick.y = v;
@@ -252,7 +280,7 @@ void Input::Update(float dt) {
 
 // Fires on the initial press and then on each repeat tick while held.
 bool Input::Repeated(Action a) const {
-    const ActionState& s = state[Index(a)];
+    const ActionState& s = Src().state[Index(a)];
     return s.pressed || (s.down && s.repeat_timer <= 0.0f);
 }
 
@@ -262,6 +290,7 @@ bool Input::MenuLeft() const  { return Repeated(Action::MoveLeft); }
 bool Input::MenuRight() const { return Repeated(Action::MoveRight); }
 
 Vec2 Input::MoveAxis() const {
+    if (proxy) return proxy->MoveAxis();
     Vec2 v{0, 0};
 
     if (mode != InputMode::KeyboardMouse && pad) {

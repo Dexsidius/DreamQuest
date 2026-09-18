@@ -125,7 +125,7 @@ net::Session::Identity Game::NetIdentity() const {
     net::Session::Identity who;
     who.name = net::CleanLine(settings.player_name, net::MAX_NAME);
     if (who.name.empty()) who.name = "Traveller";
-    who.look = has_session ? world.player.sprite_id : pending_character;
+    who.look = has_session ? world->player.sprite_id : pending_character;
     who.password = mp_password;
     return who;
 }
@@ -172,17 +172,25 @@ bool Game::StartJoining(const string& address) {
 // -----------------------------------------------------------------------------
 
 void Game::UpdateCoop(float dt) {
+    // Nobody holds the pad while a panel is open.
+    if (split_active && state != GameState::Play) coop_host.FeedLocal(p2_seat, PlayerInput{});
     if (session.Hosting() && session.Hosted()) {
         // A game that is never saved keeps nothing of anyone's.
         if (never_save) coop_host.kept_dir.clear();
-        coop_host.Update(dt, *session.Hosted(), world, ctx, has_session && !guest_session);
+        coop_host.Update(dt, *session.Hosted(), home_world, ctx, has_session && !guest_session);
         return;
     }
-    if (!world.guests.empty() && !guest_session && !session.Active()) coop_host.Reset(world);
+    if (split_active) {
+        // Two at one machine and nobody across the wire: the realm runs with a
+        // door nobody can reach, and stops with the game when a panel opens.
+        if (state == GameState::Play) coop_host.Update(dt, offline_server, home_world, ctx, has_session);
+        return;
+    }
+    if (!home_world.guests.empty() && !guest_session && !session.Active()) coop_host.Reset(home_world);
 
     const bool guest = session.As() == net::Session::Role::Guest;
     if (guest) {
-        coop_guest.Update(dt, session.Me(), world, ctx);
+        coop_guest.Update(dt, session.Me(), (*world), ctx);
         if (coop_guest.HasEnter()) {
             const net::Enter enter = coop_guest.PendingEnter();
             if (enter.map.empty()) EndGuestSession("The host has left the world. You are still seated.");
@@ -202,11 +210,11 @@ string Game::GuestCharacterPath() const {
 void Game::SaveGuestCharacter() {
     if (!guest_session || never_save) return;
     coop::Character c;
-    c.player = world.player.ToJson();
-    c.quests = quests.ToJson();
-    for (const string& key : world.Flags()) if (coop::PrivateFlag(key)) c.flags.push_back(key);
+    c.player = world->player.ToJson();
+    c.quests = quests->ToJson();
+    for (const string& key : world->Flags()) if (coop::PrivateFlag(key)) c.flags.push_back(key);
     c.storage = json::object();
-    for (const auto& kv : world.Storages()) {
+    for (const auto& kv : world->Storages()) {
         const json slots = kv.second.ToJson();
         bool any = false;
         for (const json& sl : slots) any = any || !sl.is_null();
@@ -224,23 +232,23 @@ void Game::EnterAsGuest(const net::Enter& enter) {
         banner_active = false;
         banner_zone.clear();
         banner_seen_map.clear();
-        quests.FromJson(json::object());
-        world.SetFlags({});
-        world.SetCamp({});
-        world.SetDream({});
-        world.SetPickedHerbs({});
-        world.shops.Clear();
-        world.guests.clear();
-        world.visiting = true;
-        world.SetStorages({});
-        world.player = Player();
+        quests->FromJson(json::object());
+        world->SetFlags({});
+        world->SetCamp({});
+        world->SetDream({});
+        world->SetPickedHerbs({});
+        world->shops.Clear();
+        world->guests.clear();
+        world->visiting = true;
+        world->SetStorages({});
+        world->player = Player();
         playtime = 0.0f;
         coop::Character kept;
         if (!never_save && coop::LoadCharacter(GuestCharacterPath(), kept)) {
-            world.player.Init(ctx, kept.player.value("sprite", pending_character));
-            world.player.FromJson(kept.player, ctx);
-            quests.FromJson(kept.quests);
-            for (const string& key : kept.flags) if (coop::PrivateFlag(key)) world.SetFlag(key);
+            world->player.Init(ctx, kept.player.value("sprite", pending_character));
+            world->player.FromJson(kept.player, ctx);
+            quests->FromJson(kept.quests);
+            for (const string& key : kept.flags) if (coop::PrivateFlag(key)) world->SetFlag(key);
             map<string, Inventory> chests;
             if (kept.storage.is_object())
                 for (auto it = kept.storage.begin(); it != kept.storage.end(); ++it) {
@@ -249,35 +257,35 @@ void Game::EnterAsGuest(const net::Enter& enter) {
                     inv.FromJson(it.value());
                     chests.emplace(it.key(), std::move(inv));
                 }
-            world.SetStorages(std::move(chests));
+            world->SetStorages(std::move(chests));
             playtime = kept.playtime;
             PushToast("Welcome back, " + settings.player_name + ".", Palette::Xp);
         } else {
-            world.player.Init(ctx, pending_character);
+            world->player.Init(ctx, pending_character);
             const vector<string> kit = Player::StartingKit(pending_character);
-            world.player.inventory.Add("coins", 25);
-            for (const string& id : kit) world.player.inventory.Add(id, 1);
-            world.player.inventory.Add("cooked_meat", 3);
-            world.SetFlag("starter_tools");
+            world->player.inventory.Add("coins", 25);
+            for (const string& id : kit) world->player.inventory.Add(id, 1);
+            world->player.inventory.Add("cooked_meat", 3);
+            world->SetFlag("starter_tools");
             string why;
             for (const string& worn : kit)
-                for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
-                    if (world.player.inventory.Slot(slot).id == worn)
-                        world.player.EquipFromInventory(slot, why);
+                for (int slot = 0; slot < world->player.inventory.SlotCount(); ++slot)
+                    if (world->player.inventory.Slot(slot).id == worn)
+                        world->player.EquipFromInventory(slot, why);
         }
         autosave_timer = 0.0f;
         quest_day_seen = -1;
         welcome_pending = false;
     }
-    if (!world.LoadMap(enter.map, "", ctx)) {
+    if (!world->LoadMap(enter.map, "", ctx)) {
         session.Leave();
         EndGuestSession("The host is somewhere this game has no map of.");
         return;
     }
-    world.player.x = enter.x;
-    world.player.y = enter.y;
-    world.camera.SnapTo(enter.x, enter.y);
-    coop_guest.Arrived(world);
+    world->player.x = enter.x;
+    world->player.y = enter.y;
+    world->camera.SnapTo(enter.x, enter.y);
+    coop_guest.Arrived((*world));
     // Up from the ground, or from a dream: the screen that was waiting goes.
     if (guest_session && state == GameState::Death) SetState(GameState::Play);
     if (!guest_session) {
@@ -291,9 +299,9 @@ void Game::EnterAsGuest(const net::Enter& enter) {
 
 void Game::EndGuestSession(const string& why) {
     SaveGuestCharacter();
-    coop_guest.Reset(world);
-    world.visiting = false;
-    world.player.hands_external = false;
+    coop_guest.Reset((*world));
+    world->visiting = false;
+    world->player.hands_external = false;
     if (!guest_session) return;
     guest_session = false;
     has_session = false;
@@ -304,9 +312,9 @@ void Game::EndGuestSession(const string& why) {
 
 void Game::DrawNameTags() {
     // Who that is. Over friends only: you know who you are.
-    for (const auto& g : world.guests) {
+    for (const auto& g : world->guests) {
         if (g->name.empty()) continue;
-        const SDL_FPoint p = world.camera.ToScreen(g->x, g->y - g->draw_lift - 58.0f);
+        const SDL_FPoint p = world->camera.ToScreen(g->x, g->y - g->draw_lift - 58.0f);
         ui.TextShadowed(g->name, p.x, p.y, TextSize::Small, {214, 232, 255, 255}, Align::Center);
     }
 }
@@ -318,14 +326,14 @@ void Game::DrawParty() {
     struct Row { string name, where; int hp = 0, max_hp = 0; bool resting = false; };
     vector<Row> rows;
     if (session.Hosting() && session.Hosted()) {
-        for (const coop::Host::Member& m : coop_host.Party(world, *session.Hosted())) {
+        for (const coop::Host::Member& m : coop_host.Party((*world), *session.Hosted())) {
             if (m.seat == session.Me().Seat()) continue;
-            rows.push_back({m.name, m.map == world.MapId() ? string() : m.map, m.hp, m.max_hp, m.resting});
+            rows.push_back({m.name, m.map == world->MapId() ? string() : m.map, m.hp, m.max_hp, m.resting});
         }
     } else {
         for (const net::SeatInfo& info : session.Me().Roster()) {
             if (info.seat == session.Me().Seat()) continue;
-            const Player* g = world.Guest(info.seat);
+            const Player* g = world->Guest(info.seat);
             rows.push_back({info.name, g ? string() : string("elsewhere"), g ? g->hp : 0, g ? g->max_hp : 0, false});
         }
     }
@@ -444,7 +452,13 @@ void Game::UpdateMultiplayer() {
                 else BeginTextEntry(&mp_name, net::MAX_NAME);
                 break;
             case ROW_HOST:
-                if (session.Hosting())     session.Leave();
+                // The door changing is the realm changing: Player Two sits out
+                // and is added again from the pause menu.
+                if (split_active && !session.Active()) {
+                    LeaveSplit();
+                    PushToast("Player Two sat out while the door opened. Add them again from the pause menu.", Palette::TextDim);
+                }
+                if (session.Hosting())     { LeaveSplit(); session.Leave(); }
                 else if (session.Active()) mp_error = "Leave the world you have joined first.";
                 else                       StartHosting(mp_port);
                 break;
@@ -497,7 +511,7 @@ void Game::DrawMultiplayer() {
     };
     const string values[ROW_COUNT] = {
         field(mp_name, text_target == &mp_name, "Traveller"),
-        LookLabel(has_session ? world.player.sprite_id : pending_character),
+        LookLabel(has_session ? world->player.sprite_id : pending_character),
         text_target == &mp_password ? field(mp_password, true, "") : (mp_password.empty() ? string("none") : string(mp_password.size(), '*')),
         hosting ? "UDP " + std::to_string(session.Port()) : "",
         guest ? session.Address() : field(mp_address, text_target == &mp_address, "a friend's machine"),

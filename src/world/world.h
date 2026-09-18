@@ -56,6 +56,13 @@ struct SeatState {
     std::set<string> private_flags;
     // Their journal, listening only; see QuestLog::relay.
     QuestLog journal;
+    // Or, for someone sitting at this machine, their real one: Player Two's
+    // journal is here, not across a wire.
+    QuestLog* own_journal = nullptr;
+    // A seat that is looked through at this machine has a camera of its own,
+    // which follows them whichever world they are in.
+    Camera camera{640.0f, 720.0f};
+    bool   viewed = false;
     SeatState() { journal.relay = true; }
 };
 
@@ -118,7 +125,11 @@ public:
     bool  Flagged(const string& key) const {
         return flags.count(key) > 0 || (acting_flags && acting_flags->count(key) > 0);
     }
-    void  SetFlag(const string& key) { if (flags.insert(key).second && journal) flag_log.push_back(key); }
+    void  SetFlag(const string& key) {
+        // What someone acting here learns is theirs, not the host's.
+        if (acting_flags_rw && PrivateFlag(key)) { acting_flags_rw->insert(key); return; }
+        if (flags.insert(key).second && journal) flag_log.push_back(key);
+    }
     const std::set<string>& Flags() const { return flags; }
     void  SetFlags(const std::set<string>& f) { flags = f; }
 
@@ -192,12 +203,25 @@ public:
         SwapSeat(who, s);
         acting = &who;
         acting_flags = &s.private_flags;
+        acting_flags_rw = &s.private_flags;
         fn();
         acting_flags = nullptr;
+        acting_flags_rw = nullptr;
         acting = nullptr;
         SwapSeat(who, s);
     }
     bool    Acting() const { return acting != nullptr; }
+    // The same, held open across frames: the game serves one seat at a time
+    // -- draws their half of the screen, opens their bag -- and while it is
+    // serving Player Two they stand where `player` does. Nothing else may
+    // step this world meanwhile.
+    void    BeginActing(Player& who);
+    void    EndActing();
+    // Which flags are a player's own -- recipes learned, places seen -- rather
+    // than the world's.
+    static bool PrivateFlag(const string& key) {
+        return key.rfind("recipe:", 0) == 0 || key.rfind("visited:", 0) == 0 || key.rfind("starter_", 0) == 0;
+    }
     // Whoever owns a shot or a patch of burning ground.
     Player& OwnerOf(bool local, uint8_t seat);
     // Someone alive whose body a box touches, or null.
@@ -246,11 +270,12 @@ public:
     // is given the context to use. Kills made meanwhile are handed round.
     template <class Fn> void AsSeat(Player& guest, const GameContext& ctx, Fn&& fn) {
         SeatState& seat = seat_states[guest.seat];
+        QuestLog* journal = seat.own_journal ? seat.own_journal : &seat.journal;
         ActAs(guest, [&] {
             GameContext theirs = ctx;
-            theirs.quests = &seat.journal;
+            theirs.quests = journal;
             theirs.input = nullptr;
-            quest_log = &seat.journal;
+            quest_log = journal;
             fn(theirs);
             quest_log = host_quests;
         });
@@ -355,6 +380,7 @@ private:
     std::map<uint8_t, SeatState> seat_states;
     Player* acting = nullptr;                       // the guest slot holding `player`'s own data meanwhile
     const std::set<string>* acting_flags = nullptr;
+    std::set<string>* acting_flags_rw = nullptr;
     vector<QuestEvent> kill_log;
     class QuestLog* host_quests = nullptr;
     uint32_t next_net_id = 1;

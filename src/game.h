@@ -162,7 +162,10 @@ private:
     ItemDatabase     items;
     EnemyDatabase    enemy_db;
     LootSystem       loot;
-    QuestLog         quests;
+    // The journal of whoever is being served: Player One's own, or in split
+    // screen Player Two's. See ServeSeat.
+    QuestLog         own_quests, quests_two;
+    QuestLog*        quests = &own_quests;
     DialogueDatabase dialogue_db;
     ProjectileDatabase projectile_db;
     SpellBook        spells;
@@ -172,7 +175,12 @@ private:
     std::mt19937     rng;
     GameContext      ctx;
 
-    World world;
+    // The world of whoever is being served. Alone that is always the game's
+    // own; in split screen Player Two may be on another map, which is another
+    // World in the realm, and while their half of the screen is drawn or their
+    // bag is open this points there. See ServeSeat.
+    World  home_world;
+    World* world = &home_world;
 
     // --- state ---------------------------------------------------------------
     GameState state = GameState::MainMenu;
@@ -289,6 +297,41 @@ private:
     // A guest's character is kept on their own machine, so dropping out and
     // coming back another day picks up where they left off: bag, skills,
     // journal, recipes and storage here; where they stood, with the host.
+    // --- split screen: two players at this machine ------------------------------
+    // See ui/splitscreen.cpp. The game serves one seat at a time: `world`,
+    // `quests` and `input` are Player One's unless ServeSeat(1) has pointed
+    // them at Player Two.
+    Input   input_two;
+    Minimap minimap_two;
+    net::Server offline_server{net::Server::Config{}};   // a door nobody can reach: the realm wants one
+    bool    split_active = false;
+    uint8_t p2_seat = 1;
+    bool    p2_arrived = false;
+    vector<string> p2_flags;
+    int     serving = 0;
+    SDL_FRect    view_rect[2] = {{0, 0, 1280, 720}, {0, 0, 0, 0}};
+    SDL_Texture* view_texture[2] = {nullptr, nullptr};
+    void ServeSeat(int seat);
+    net::Server& RealmServer();
+    bool JoinSplit(bool without_a_controller = false);
+    void LeaveSplit();
+    void SavePlayerTwo();
+    string PlayerTwoPath() const;
+    void LayoutViews();
+    void UpdatePlayerTwo(float dt);
+    void RenderSplit();
+    string SplitRowLabel() const;
+    void CycleSplitLook(int step);
+    // What the game does for a player every frame of play, whoever is being
+    // served: the journal, levels gained, the buttons that open their panels.
+    void SeatChores();
+    // The slot is Player One's and the home world's, whoever asked.
+    bool WriteSlot(int slot);
+    // --p2 and --hold2, for checking the halves without a second pair of hands.
+    bool launch_p2 = false;
+    struct HeldAction { Action action = Action::MoveRight; float from = 0.0f, to = 0.0f; int sent = 0; };
+    vector<HeldAction> launch_holds_two;
+
     string characters_dir = "saves/characters";
     string GuestCharacterPath() const;
     void   SaveGuestCharacter();
