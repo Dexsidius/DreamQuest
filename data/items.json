@@ -1156,6 +1156,56 @@
   "learn": "enchant:the_wind",
   "icon": "assets/icons/tiers/enchant_scroll.png"
  },
+ "tome_magic_missile": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Magic Missile",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Magic Missile.",
+  "value": 420,
+  "learn": "spell:magic_missile",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_scorching_ray": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Scorching Ray",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Scorching Ray.",
+  "value": 640,
+  "learn": "spell:scorching_ray",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_hail_of_blades": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Hail of Blades",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Hail of Blades.",
+  "value": 900,
+  "learn": "spell:hail_of_blades",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_cloud_of_daggers": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Cloud of Daggers",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Cloud of Daggers.",
+  "value": 1200,
+  "learn": "spell:cloud_of_daggers",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_thunderwave": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Thunderwave",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Thunderwave.",
+  "value": 1500,
+  "learn": "spell:thunderwave",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
  "spider_silk": {
   "tags": [
    "leather",

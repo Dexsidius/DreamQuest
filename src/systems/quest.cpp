@@ -352,7 +352,14 @@ string QuestLog::CurrentObjectiveText(const string& id) const {
 
     const QuestStage& st = d->stages[p.stage];
     string text = st.description;
-    if (st.count > 1) text += " (" + std::to_string(p.counter) + "/" + std::to_string(st.count) + ")";
+    // A collect stage counts what is carried and completes by itself, so its
+    // counter is worth printing. A deliver stage is the walk back with the
+    // goods: its counter is what has been handed over, which is nothing until
+    // the moment it is everything, and "(0/10)" under "Bring the 10 logs to
+    // Jessa" with ten logs in the bag read as the game having lost count. So
+    // a deliver stage says only what to do.
+    if (st.count > 1 && st.type != ObjectiveType::Deliver)
+        text += " (" + std::to_string(p.counter) + "/" + std::to_string(st.count) + ")";
     return text;
 }
 

@@ -53,11 +53,25 @@ bool Player::SpendMana(int cost) {
 }
 
 void Player::CycleElement(int delta) {
-    // Elements run Fire, Water, Earth, Air; None is not selectable.
-    const int count = static_cast<int>(Element::COUNT) - 1;
+    // Elements run Fire, Water, Earth, Air, then the ancient magic if any is
+    // known; None is not selectable.
+    const int count = static_cast<int>(Element::Arcane) - 1 + (arcane_spell.empty() ? 0 : 1);
     int index = static_cast<int>(selected_element) - 1;
     index = ((index + delta) % count + count) % count;
     selected_element = static_cast<Element>(index + 1);
+}
+
+void Player::SelectArcane(const vector<string>& known) {
+    if (known.empty()) return;
+    if (selected_element != Element::Arcane || arcane_spell.empty()) {
+        // Keep the one chosen before if it is still known; otherwise the first.
+        if (std::find(known.begin(), known.end(), arcane_spell) == known.end()) arcane_spell = known.front();
+        selected_element = Element::Arcane;
+        return;
+    }
+    auto it = std::find(known.begin(), known.end(), arcane_spell);
+    const size_t next = (it == known.end()) ? 0 : (static_cast<size_t>(it - known.begin()) + 1) % known.size();
+    arcane_spell = known[next];
 }
 
 AttackStyle Player::Style() const {
@@ -125,6 +139,20 @@ void Player::SyncHitpoints() {
     hp = std::clamp(skills.Current(SKILL_HITPOINTS), 0, max_hp);
 }
 
+AttackStyle Player::AffinityFor(const string& character_id) {
+    if (character_id == "player_warden")   return AttackStyle::Ranged;
+    if (character_id == "player_wayfarer") return AttackStyle::Magic;
+    return AttackStyle::Melee;
+}
+
+const char* Player::AffinityName(AttackStyle style) {
+    switch (style) {
+        case AttackStyle::Ranged: return "the bow";
+        case AttackStyle::Magic:  return "the staff";
+        default:                  return "the blade";
+    }
+}
+
 CombatProfile Player::Profile() const {
     CombatProfile p;
     p.attack_level   = skills.Current(SKILL_ATTACK);
@@ -137,6 +165,12 @@ CombatProfile Player::Profile() const {
     p.defence_bonus  = equipment.DefenceBonus() + static_cast<int>(talents.Global("defence"));
     p.ranged_bonus   = equipment.RangedBonus();
     p.magic_bonus    = equipment.MagicBonus();
+    // The affinity: a little more accuracy with the character's own style.
+    switch (Affinity()) {
+        case AttackStyle::Ranged: p.ranged_bonus += AFFINITY_BONUS; break;
+        case AttackStyle::Magic:  p.magic_bonus  += AFFINITY_BONUS; break;
+        default:                  p.attack_bonus += AFFINITY_BONUS; break;
+    }
     return p;
 }
 
@@ -412,7 +446,9 @@ string Player::ComboClip(ComboMove move) const {
                      : move == ComboMove::Cleave   ? "cleave"
                      : move == ComboMove::Backhand ? "backhand"
                      : move == ComboMove::CrossCut ? "spin" : "";
-    if (*name && sprite.Def() && sprite.Def()->Find(name)) return name;
+    // A bow or a staff plays its own draw or cast: the sword's combo clips
+    // would swing it like a blade.
+    if (Style() == AttackStyle::Melee && *name && sprite.Def() && sprite.Def()->Find(name)) return name;
     return AttackClip();
 }
 
@@ -433,6 +469,7 @@ void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
     after_strong = false;
     sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
     sprite.Play(ComboClip(move), true);
+    if (Style() != AttackStyle::Melee) return;
     switch (move) {
         case ComboMove::Crush:    Audio::Play(Sfx::SwingHeavy, 0.95f, 0.9f);  break;
         case ComboMove::Cleave:   Audio::Play(Sfx::SwingHeavy, 1.0f,  0.8f);  break;
@@ -442,8 +479,27 @@ void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
     }
 }
 
+void Player::CountChainHit(const string& label) {
+    ++chain_hits;
+    chain_trail.push_back(label);
+    // The HUD has a line's worth of room: the run's count is the number, the
+    // trail is only ever its tail.
+    if (chain_trail.size() > 6) chain_trail.erase(chain_trail.begin());
+    chain_show = CHAIN_HOLD;
+}
+
+void Player::BreakChain() {
+    chain_hits = 0;
+    chain_trail.clear();
+    chain_show = 0.0f;
+}
+
+float Player::ChainFade() const {
+    return std::clamp(chain_show / CHAIN_FADE, 0.0f, 1.0f);
+}
+
 ComboMove Player::NextCombo(bool light) const {
-    if (Style() != AttackStyle::Melee || combo_window <= 0.0f) return ComboMove::None;
+    if (combo_window <= 0.0f) return ComboMove::None;
     if (light) return after_strong ? ComboMove::Backhand : ComboMove::None;
     if (after_strong) return ComboMove::None;
     return combo == 0 ? ComboMove::Crush : ComboMove::Cleave;
@@ -451,7 +507,9 @@ ComboMove Player::NextCombo(bool light) const {
 
 void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
     const float speed = WeaponSpeed();
-    const bool  melee = Style() == AttackStyle::Melee;
+    // The combos read the same with every weapon; what comes out of them is
+    // the weapon's own. So nothing here asks what is in hand.
+    const bool  melee = true;
     const bool  raw_light  = in.Pressed(Action::LightAttack);
     const bool  raw_strong = in.Pressed(Action::StrongAttack);
 
@@ -525,7 +583,7 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
             combo_window = 0.0f;
             after_strong = false;
             // A bow or a staff makes its own noise when the shot leaves.
-            if (melee) Audio::Play(Sfx::Swing, 1.0f, 1.0f + 0.06f * index);
+            if (Style() == AttackStyle::Melee) Audio::Play(Sfx::Swing, 1.0f, 1.0f + 0.06f * index);
         }
     }
 
@@ -698,6 +756,7 @@ float Player::CooldownProgress() const {
 
 float Player::TalentDamage(AttackStyle style, AttackType type) const {
     float mult = 1.0f + talents.Effect("damage", style);
+    if (style == Affinity()) mult += AFFINITY_DAMAGE;
     if (type == AttackType::Charged) mult += talents.Effect("charged_damage", style);
     if (max_hp > 0 && hp * 3 < max_hp) mult += talents.Effect("low_hp_damage", style);
     return mult;
@@ -766,6 +825,10 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         combo_window -= dt;
         if (combo_window <= 0.0f) { combo = 0; after_strong = false; }
     }
+    if (chain_show > 0.0f) {
+        chain_show -= dt;
+        if (chain_show <= 0.0f) BreakChain();
+    }
 
     // --- death ---------------------------------------------------------------
     if (hp <= 0 && !dead) {
@@ -779,6 +842,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         charging = strong_armed = after_strong = false;
         buf_light = buf_strong = combo_window = 0.0f;
         combo = 0;
+        BreakChain();
         jumping = false;
         sprite.Play("death", true);
         Audio::Play(Sfx::PlayerDie);
@@ -1170,6 +1234,7 @@ json Player::ToJson() const {
         {"hp",        hp},
         {"mana",      mana},
         {"element",   ElementName(selected_element)},
+        {"arcane_spell", arcane_spell},
         {"skills",    skills.ToJson()},
         {"inventory", inventory.ToJson()},
         {"equipment", equipment.ToJson()},
@@ -1198,8 +1263,10 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     hp = std::clamp(j.value("hp", max_hp), 1, max_hp);
     SyncMana();
     mana = std::clamp(j.value("mana", max_mana), 0, max_mana);
+    arcane_spell = j.value("arcane_spell", string(""));
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;
+    if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;
     dead = false;
     death_timer = 0.0f;
     sprite.facing = facing;

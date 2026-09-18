@@ -247,6 +247,9 @@ private:
     bool   banner_active = false;
     float playtime = 0.0f;
     float state_time = 0.0f;      // seconds since the last state change
+    // A new character has just arrived: the first frame of play opens a note
+    // welcoming them, once.
+    bool  welcome_pending = false;
     int   quest_day_seen = -1;    // to say so when the boards post new dailies
     float audio_night = -1.0f;    // what the sound was last told about the dark
     float fps = 0.0f;

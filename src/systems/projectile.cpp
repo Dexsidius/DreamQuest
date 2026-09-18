@@ -1,7 +1,7 @@
 #include "projectile.h"
 #include <fstream>
 
-static const char* kElementNames[] = {"none", "fire", "water", "earth", "air"};
+static const char* kElementNames[] = {"none", "fire", "water", "earth", "air", "arcane"};
 
 const char* ElementName(Element e) {
     const int i = static_cast<int>(e);
@@ -23,10 +23,11 @@ Element ElementFromName(const string& name) {
 
 SDL_Color ElementColor(Element e) {
     switch (e) {
-        case Element::Fire:  return {255, 138,  62, 255};
-        case Element::Water: return { 96, 172, 235, 255};
-        case Element::Earth: return {186, 146,  86, 255};
-        case Element::Air:   return {198, 226, 235, 255};
+        case Element::Fire:   return {255, 138,  62, 255};
+        case Element::Water:  return { 96, 172, 235, 255};
+        case Element::Earth:  return {186, 146,  86, 255};
+        case Element::Air:    return {198, 226, 235, 255};
+        case Element::Arcane: return {186, 140, 255, 255};
         default:             return {235, 235, 235, 255};
     }
 }
@@ -43,6 +44,8 @@ Element ElementBeats(Element e) {
 
 float ElementMultiplier(Element attacker, Element defender) {
     if (attacker == Element::None || defender == Element::None) return 1.0f;
+    // The ancient magic stands outside the cycle.
+    if (attacker == Element::Arcane || defender == Element::Arcane) return 1.0f;
     if (attacker == defender)                                   return 0.75f;
     if (ElementBeats(attacker) == defender)                     return 1.60f;
     if (ElementBeats(defender) == attacker)                     return 0.60f;

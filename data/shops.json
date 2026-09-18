@@ -438,6 +438,64 @@
     }
    ]
   },
+  "fernhollow_college": {
+   "name": "The College Copying Room",
+   "type": "college",
+   "keeper": "npc_magister",
+   "town": "fernhollow",
+   "markup": 1.2,
+   "buys": {
+    "dream": 0.7,
+    "gem": 0.6,
+    "herb": 0.5,
+    "staff": 0.6,
+    "potion": 0.6
+   },
+   "sells": [
+    {
+     "item": "novice_staff",
+     "stock": 1
+    },
+    {
+     "item": "apprentice_staff",
+     "stock": 1
+    },
+    {
+     "item": "vial",
+     "stock": 10
+    },
+    {
+     "item": "scroll_mana_tonic",
+     "stock": 1
+    },
+    {
+     "item": "tome_magic_missile",
+     "stock": 1
+    },
+    {
+     "item": "tome_scorching_ray",
+     "stock": 1
+    },
+    {
+     "item": "tome_hail_of_blades",
+     "stock": 1
+    },
+    {
+     "item": "tome_cloud_of_daggers",
+     "stock": 1,
+     "after": [
+      "q_the_water_remembers"
+     ]
+    },
+    {
+     "item": "tome_thunderwave",
+     "stock": 1,
+     "after": [
+      "q_lights_on_the_pond"
+     ]
+    }
+   ]
+  },
   "fernhollow_tackle": {
    "name": "Wendel's Jetty",
    "type": "fishmonger",

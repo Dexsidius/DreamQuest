@@ -98,6 +98,21 @@ public:
     // The link the chain is on, 0 to 2.
     int   ComboLink() const { return combo; }
 
+    // --- the chain counter ------------------------------------------------------
+    // Melee swings that connected one after another, and what each was, for
+    // the HUD. A swing that lands on nothing, a blow taken, or a pause longer
+    // than CHAIN_HOLD after the last hit ends the run; it stays on screen for
+    // that long and fades over the last half second.
+    static constexpr float CHAIN_HOLD = 1.6f;
+    static constexpr float CHAIN_FADE = 0.5f;
+    void  CountChainHit(const string& label);
+    void  BreakChain();
+    int   ChainHits() const { return chain_hits; }
+    // The last few swings of the run, oldest first: "Light", "Cleave", ...
+    const vector<string>& ChainTrail() const { return chain_trail; }
+    // 1 while the run is live, falling to 0 as it fades.
+    float ChainFade() const;
+
     // --- magic ----------------------------------------------------------------
     // Mana comes from the Magic level and refills over time, so a caster gets
     // more casts as well as bigger ones.
@@ -110,8 +125,13 @@ public:
     void  Rest();
 
     Element SelectedElement() const { return selected_element; }
-    void    SelectElement(Element e) { selected_element = e; }
+    void    SelectElement(Element e) { if (e != Element::Arcane || !arcane_spell.empty()) selected_element = e; }
     void    CycleElement(int delta);
+    // The ancient magic: chooses the arcane school with the first spell of
+    // `known` -- the ids learned, in the order they are learned -- or, already
+    // on it, steps to the next one known. Nothing happens with none known.
+    void    SelectArcane(const vector<string>& known);
+    const string& ArcaneSpell() const { return arcane_spell; }
 
     // --- progression ----------------------------------------------------------
     Skills    skills;
@@ -121,8 +141,20 @@ public:
     Talents   talents;
 
     // The talents' damage multiplier for an attack of this style and type,
-    // including the ones that depend on the moment (low health, a charge).
+    // including the ones that depend on the moment (low health, a charge),
+    // and the character's affinity when the style is theirs.
     float TalentDamage(AttackStyle style, AttackType type) const;
+
+    // --- affinity ---------------------------------------------------------------
+    // Each of the three characters favours one way of fighting: the hero the
+    // blade, the warden the bow, the wayfarer the staff. Attacks of that
+    // style hit a tenth harder and carry a little more accuracy, from the
+    // first swing and for good. It is who they are, not something learned.
+    static constexpr float AFFINITY_DAMAGE = 0.10f;
+    static constexpr int   AFFINITY_BONUS  = 8;
+    static AttackStyle AffinityFor(const string& character_id);
+    static const char* AffinityName(AttackStyle style);    // "the blade", "the bow", "the staff"
+    AttackStyle Affinity() const { return AffinityFor(sprite_id); }
     // The technique a charged attack with the current weapon comes out as, or
     // empty for a plain charged attack.
     const string& ActiveTechnique() const { return talents.Technique(Style()); }
@@ -285,6 +317,9 @@ private:
     bool  after_strong = false;
     // Presses made inside a swing, kept for the moment the next may start.
     float buf_light = 0.0f, buf_strong = 0.0f;
+    int   chain_hits = 0;
+    vector<string> chain_trail;
+    float chain_show = 0.0f;
     // Starts one of the combos as the swing in flight.
     void  StartCombo(ComboMove move, AttackType type, const World& world);
     // Fires the strong or charged attack the heavy button's hold decided on.
@@ -319,6 +354,7 @@ private:
     int   mana = 0, max_mana = 0;
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point
     Element selected_element = Element::Fire;
+    string  arcane_spell;                 // the ancient spell chosen with 5
 
     const ItemDatabase* item_db = nullptr;
 

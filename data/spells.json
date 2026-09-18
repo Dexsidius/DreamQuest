@@ -89,5 +89,89 @@
     "damage": 1.4,
     "xp": 48,
     "projectile": "bolt_air_greater"
+  },
+
+  "eldritch_blast": {
+    "name": "Eldritch Blast",
+    "desc": "A beam of crackling force out of the oldest books. It passes through whatever it strikes and throws the rest back.",
+    "school": "arcane",
+    "shape": "bolt",
+    "tier": 1,
+    "level": 10,
+    "mana": 8,
+    "damage": 1.3,
+    "xp": 30,
+    "projectile": "bolt_eldritch",
+    "taught_by": "Magister Orrin teaches it at the college in Fernhollow."
+  },
+
+  "magic_missile": {
+    "name": "Magic Missile",
+    "desc": "Three darts of light that turn after whatever you are fighting. They have never been known to miss.",
+    "school": "arcane",
+    "shape": "darts",
+    "tier": 2,
+    "level": 16,
+    "mana": 9,
+    "damage": 0.55,
+    "xp": 34,
+    "projectile": "dart_arcane",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
+  "scorching_ray": {
+    "name": "Scorching Ray",
+    "desc": "Three rays of heat in a fan, faster than anything the elements throw.",
+    "school": "arcane",
+    "shape": "rays",
+    "tier": 3,
+    "level": 24,
+    "mana": 12,
+    "damage": 0.8,
+    "xp": 44,
+    "projectile": "ray_arcane",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
+  "hail_of_blades": {
+    "name": "Hail of Blades",
+    "desc": "A moment after the word is said, conjured blades come down on whatever you are fighting and everything beside it.",
+    "school": "arcane",
+    "shape": "rain",
+    "tier": 4,
+    "level": 32,
+    "mana": 15,
+    "damage": 1.5,
+    "xp": 56,
+    "projectile": "blade_arcane",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
+  "cloud_of_daggers": {
+    "name": "Cloud of Daggers",
+    "desc": "A slow orb that bursts into a cloud of spinning knives where it lands, and hangs there cutting for a few seconds.",
+    "school": "arcane",
+    "shape": "bolt",
+    "tier": 5,
+    "level": 40,
+    "mana": 16,
+    "damage": 1.0,
+    "xp": 64,
+    "projectile": "cloud_daggers",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
+  "thunderwave": {
+    "name": "Thunderwave",
+    "desc": "A ring of force out of the caster in every direction at once, that throws everything it touches.",
+    "school": "arcane",
+    "shape": "ring",
+    "tier": 6,
+    "level": 48,
+    "mana": 18,
+    "damage": 0.7,
+    "xp": 72,
+    "projectile": "bolt_thunder",
+    "taught_by": "The college in Fernhollow sells the tome."
   }
 }

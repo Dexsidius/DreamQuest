@@ -188,6 +188,7 @@ void Game::NewGame(const string& character, int slot) {
     quest_day_seen = world.clock.QuestDay();
     SetState(GameState::Play);
     PushToast("A new journey begins.", Palette::Highlight);
+    welcome_pending = true;
 }
 
 bool Game::LoadGame(int slot) {
@@ -457,6 +458,30 @@ void Game::Update(float dt) {
 }
 
 void Game::UpdatePlay(float dt) {
+    // The first thing a new character sees: a note of welcome, on the
+    // parchment a sign is read on, saying where they are and what the keys
+    // do. Once, and only on a new game -- a load puts the player back mid-story.
+    if (welcome_pending) {
+        welcome_pending = false;
+        const string J = input.PromptFor(Action::LightAttack), K = input.PromptFor(Action::StrongAttack);
+        note_title = "Welcome to the Hollowmarch";
+        note_text  = "You stand on the road above Havenbrook. The town is south through the gate, "
+                     "and the guild hall there has work for anyone who asks; Elder Maren's letter is the "
+                     "first of it. North, the road runs to the Emberfell mine. East, the trail goes under "
+                     "the trees to Mossvale.\n\n" +
+                     J + " swings. " + K + " strikes hard, and held, charges. Mix the two for combos. "
+                     "Hold " + input.PromptFor(Action::Block) + " behind a shield. " +
+                     input.PromptFor(Action::Interact) + " talks, opens and works. " +
+                     input.PromptFor(Action::Inventory) + " is your pack, " +
+                     input.PromptFor(Action::Skills) + " your skills, " +
+                     input.PromptFor(Action::QuestLog) + " your journal, " +
+                     input.PromptFor(Action::WorldMap) + " the map.\n\n"
+                     "Rest at an inn or a camp after dusk, and the night will take you somewhere else. "
+                     "Go carefully, and go far.";
+        note_quest.clear();
+        OpenPanel(GameState::Note);
+        return;
+    }
     playtime += dt;
 
     // The boards post new dailies when the quest day turns over, at dawn, and
@@ -526,6 +551,11 @@ void Game::UpdatePlay(float dt) {
     if (input.Pressed(Action::SelectWater)) world.player.SelectElement(Element::Water);
     if (input.Pressed(Action::SelectEarth)) world.player.SelectElement(Element::Earth);
     if (input.Pressed(Action::SelectAir))   world.player.SelectElement(Element::Air);
+    if (input.Pressed(Action::SelectArcane)) {
+        const vector<string> known = world.KnownArcane(spells);
+        if (known.empty()) PushToast("You know no ancient magic yet. The college in Fernhollow teaches it.", Palette::TextDim);
+        else world.player.SelectArcane(known);
+    }
     if (input.Pressed(Action::CycleSpell))  world.player.CycleElement(1);
 
     // --- panel hotkeys -------------------------------------------------------
@@ -668,6 +698,10 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
                 const EnchantDef* e = items.Enchantment(a.learn_recipe.substr(8));
                 PushToast("Enchantment learned: " + (e ? e->name : a.learn_recipe.substr(8)) +
                           ". Work it at an enchanting table.", Palette::Highlight);
+            } else if (a.learn_recipe.rfind("spell:", 0) == 0) {
+                const SpellDef* sp = spells.Get(a.learn_recipe.substr(6));
+                PushToast("Spell learned: " + (sp ? sp->name : a.learn_recipe.substr(6)) + ". Press " +
+                          input.PromptFor(Action::SelectArcane) + " with a staff in hand.", Palette::Highlight);
             } else {
                 const ItemDef* d = items.Get(a.learn_recipe);
                 PushToast("Recipe learned: " + (d ? d->name : a.learn_recipe), Palette::Highlight);

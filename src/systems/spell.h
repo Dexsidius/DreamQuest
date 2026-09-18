@@ -23,6 +23,15 @@ struct SpellDef {
     float   damage_mult = 1.0f; // multiplies the magic max hit
     int     xp = 10;            // Magic XP per cast that connects
     string  projectile;         // key into data/projectiles.json
+    // The ancient magic: "arcane" spells are learned one by one -- the
+    // magister teaches the first, tomes the rest -- and chosen by name rather
+    // than by element. Each has a shape: "bolt" (one, at the target), "darts"
+    // (three that seek), "rays" (three in a fan), "rain" (a strike from above
+    // on the target), "ring" (eight, all round the caster). Elemental spells
+    // are all bolts.
+    bool    arcane = false;
+    string  shape = "bolt";
+    string  taught_by;          // where it is learned, for the panel to say
 };
 
 class SpellBook {
@@ -36,6 +45,8 @@ public:
     const SpellDef* NextFor(Element e, int magic_level) const;
 
     const map<string, SpellDef>& All() const { return defs; }
+    // The ancient spells, in the order they are learned.
+    vector<const SpellDef*> Arcane() const;
 
     // Mana scales with Magic so a caster gets more casts as well as bigger
     // ones; a non-caster still has a small pool for the first tier.

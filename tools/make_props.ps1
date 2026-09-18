@@ -71,6 +71,8 @@ $sizes = @{
     cauldron = 48
     # Where charms are worked into worn pieces.
     enchanting_table = 64
+    # The mage college at Fernhollow, and the circle on its floor.
+    mage_college = 176; spell_circle = 96
     # The Emberfell mine's way in, on the overworld.
     mine_adit = 256
     # The swamp, the Ice Spire, the Ashen Path and the inn's cellar.

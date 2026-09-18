@@ -104,6 +104,11 @@ public:
     // and a dialogue's are written "enchant:<id>", so both go through the one
     // flag without knowing what they teach.
     bool  KnowsEnchantment(const string& id) const { return Flagged("recipe:enchant:" + id); }
+    // And the ancient spells, as "recipe:spell:<id>": the magister's lesson
+    // and a tome's `learn` both read "spell:<id>".
+    bool  KnowsSpell(const string& id) const { return Flagged("recipe:spell:" + id); }
+    // The ancient spells learned, in the order the college teaches them.
+    vector<string> KnownArcane(const class SpellBook& book) const;
     // A felled tree or a worked-out seam, until it is back. Kept in `picked`
     // beside the herbs, so it is saved the same way.
     bool  Spent(const MapObject& o) const;
@@ -213,6 +218,11 @@ private:
     // Strikes everything whose body is within a radius of the player's chest:
     // a whirlwind, a ground slam, a Cross Cut. Returns how many it struck.
     int  HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx);
+    // What the swing in flight is called, for the chain counter's trail.
+    string SwingLabel(const GameContext& ctx) const;
+    // The swing itself, drawn: a crescent swept through the arc a melee blow
+    // covers, brightest on its active frames. See the definition.
+    void DrawSwing(SDL_Renderer* r) const;
     // Applies a hit from a projectile or a ground effect to one enemy.
     void HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                   Element element, float damage_mult, float knockback,

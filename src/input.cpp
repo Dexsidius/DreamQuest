@@ -35,6 +35,9 @@ Input::Input() {
         {SDLK_2, Action::SelectWater},
         {SDLK_3, Action::SelectEarth},
         {SDLK_4, Action::SelectAir},
+        // The ancient magic, once any of it is known: 5 chooses it, and 5
+        // again steps through the spells learned.
+        {SDLK_5, Action::SelectArcane},
         {SDLK_R, Action::CycleSpell},
         // G drops the item under the cursor in the bag. Q was the obvious
         // letter, but Q already opens the journal beside P; G sits under the

@@ -16,7 +16,10 @@ class Camera;
 //  image covers every angle rather than needing a frame per facing.
 // -----------------------------------------------------------------------------
 
-enum class Element { None = 0, Fire, Water, Earth, Air, COUNT };
+// Arcane is the ancient magic's school, taught at the college in Fernhollow:
+// outside the four elements' cycle, so it neither beats nor is beaten by any
+// of them, and untyped creatures take it as they take anything.
+enum class Element { None = 0, Fire, Water, Earth, Air, Arcane, COUNT };
 
 const char* ElementName(Element e);
 Element     ElementFromName(const string& name);

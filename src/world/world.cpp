@@ -596,23 +596,39 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     string projectile_id;
     float damage_mult = atk.damage_mult * player.TalentDamage(style, atk.type);
     Element element = Element::None;
+    string shape;
 
     if (style == AttackStyle::Ranged) {
         projectile_id = "arrow";
     } else {
-        const SpellDef* spell = ctx.spells
-            ? ctx.spells->BestFor(player.SelectedElement(),
-                                  player.skills.Level(SKILL_MAGIC))
-            : nullptr;
+        const SpellDef* spell = nullptr;
+        if (ctx.spells) {
+            if (player.SelectedElement() == Element::Arcane) {
+                // The ancient magic: the spell chosen with 5, if it is known
+                // and the Magic level is enough for it.
+                spell = KnowsSpell(player.ArcaneSpell()) ? ctx.spells->Get(player.ArcaneSpell()) : nullptr;
+                if (spell && spell->level > player.skills.Level(SKILL_MAGIC)) {
+                    AddText("Needs Magic " + std::to_string(spell->level), player.x, player.y - 54.0f,
+                            {200, 200, 210, 255});
+                    Audio::Play(Sfx::UiError);
+                    return;
+                }
+            } else {
+                spell = ctx.spells->BestFor(player.SelectedElement(), player.skills.Level(SKILL_MAGIC));
+            }
+        }
         if (!spell) {
             AddText("No spell known", player.x, player.y - 54.0f, {200, 200, 210, 255});
             Audio::Play(Sfx::UiError);
             return;
         }
-        // Techniques cost more than a single bolt; the tree takes a share off.
+        // Techniques and combos cost more than a single bolt; the tree takes
+        // a share off.
         const float technique_cost = technique == "meteor" ? 3.0f : technique.empty() ? 1.0f : 2.0f;
+        const float combo_cost = atk.move == ComboMove::Crush ? 1.5f : atk.move == ComboMove::Cleave ? 1.6f
+                               : atk.move == ComboMove::CrossCut ? 2.0f : 1.0f;
         const int cost = std::max(1, static_cast<int>(std::lround(
-            spell->mana * technique_cost *
+            spell->mana * technique_cost * combo_cost *
             std::max(0.1f, 1.0f - player.talents.Effect("mana_cost", AttackStyle::Magic)))));
         if (!player.SpendMana(cost)) {
             AddText("Out of mana", player.x, player.y - 54.0f, {150, 180, 235, 255});
@@ -622,6 +638,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         projectile_id = spell->projectile;
         damage_mult *= spell->damage_mult;
         element = spell->element;
+        shape = spell->shape;
         // Casting trains Magic whether or not the bolt finds anything.
         player.GrantXp(SKILL_MAGIC, spell->xp);
     }
@@ -632,7 +649,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         // Each element is pitched a little differently.
         const Element el = player.SelectedElement();
         const float pitch = el == Element::Fire ? 0.9f : el == Element::Water ? 1.1f
-                          : el == Element::Earth ? 0.75f : 1.25f;
+                          : el == Element::Earth ? 0.75f : el == Element::Arcane ? 0.6f : 1.25f;
         Audio::Play(Sfx::SpellCast, 1.0f, pitch);
     }
 
@@ -684,6 +701,69 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         AddGroundEffect(g);
     };
 
+    // --- the combos, at range ---------------------------------------------------
+    // The same grammar as the sword's, with the weapon's own move at the end
+    // of it. The profile's damage number is the sword's; a shot's worth is
+    // what a plain one would be, times the move's own.
+    if (atk.move != ComboMove::None) {
+        AddText(ComboNameFor(atk.move, style), player.x, player.y - 58.0f, {255, 232, 150, 255}, 0.8f);
+        const float base = damage_mult / std::max(0.01f, atk.damage_mult);
+        if (style == AttackStyle::Ranged) {
+            switch (atk.move) {
+                case ComboMove::Crush:      // Split Shot: three arrows in a narrow fan
+                    for (float deg : {-9.0f, 0.0f, 9.0f}) {
+                        const Vec2 d = turned(deg);
+                        loose(d.x, d.y, base * 0.7f, deg == 0.0f);
+                    }
+                    break;
+                case ComboMove::Cleave:     // Barbed Shot: one heavy arrow that passes through and throws
+                    if (Projectile* p = loose(aim.x, aim.y, base * 1.6f, true)) {
+                        p->pierce_left += 2;
+                        p->knockback_mult *= 1.8f;
+                        p->vx *= 1.3f;
+                        p->vy *= 1.3f;
+                    }
+                    break;
+                case ComboMove::Backhand:   // Snap Shot: a quick arrow, as good as a drawn one
+                    loose(aim.x, aim.y, base, true);
+                    break;
+                case ComboMove::CrossCut:   // Twin Shot: two arrows at once
+                    for (float deg : {-3.0f, 3.0f}) {
+                        const Vec2 d = turned(deg);
+                        loose(d.x, d.y, base * 0.9f, true);
+                    }
+                    break;
+                default: break;
+            }
+        } else {
+            switch (atk.move) {
+                case ComboMove::Crush:      // Surge: one bolt, bigger and harder
+                    if (Projectile* p = loose(aim.x, aim.y, base * 1.6f, true)) {
+                        p->knockback_mult *= 1.6f;
+                        p->life *= 1.2f;
+                    }
+                    break;
+                case ComboMove::Cleave:     // Cascade: three bolts in a fan
+                    for (float deg : {-14.0f, 0.0f, 14.0f}) {
+                        const Vec2 d = turned(deg);
+                        loose(d.x, d.y, base * 0.8f, deg == 0.0f);
+                    }
+                    break;
+                case ComboMove::Backhand:   // Flicker: a quick bolt
+                    loose(aim.x, aim.y, base, true);
+                    break;
+                case ComboMove::CrossCut:   // Pulse: a ring of six
+                    for (int i = 0; i < 6; ++i) {
+                        const float a = 6.2831853f * i / 6.0f;
+                        loose(cosf(a), sinf(a), base * 0.5f, false);
+                    }
+                    break;
+                default: break;
+            }
+        }
+        return;
+    }
+
     if (technique == "volley") {
         for (float deg : {-20.0f, -10.0f, 0.0f, 10.0f, 20.0f}) {
             const Vec2 d = turned(deg);
@@ -710,8 +790,126 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
                 p->extra_homing += 4.0f;
     } else if (technique == "meteor") {
         strike(58.0f, 0.6f, damage_mult * 1.5f, element);
+    // --- the ancient spells' shapes ----------------------------------------------
+    } else if (shape == "darts") {
+        // Three that seek: the old missile that does not miss.
+        for (float deg : {-8.0f, 0.0f, 8.0f}) {
+            const Vec2 d = turned(deg);
+            if (Projectile* p = loose(d.x, d.y, damage_mult, true)) p->extra_homing += 6.0f;
+        }
+    } else if (shape == "rays") {
+        for (float deg : {-12.0f, 0.0f, 12.0f}) {
+            const Vec2 d = turned(deg);
+            loose(d.x, d.y, damage_mult, deg == 0.0f);
+        }
+    } else if (shape == "rain") {
+        strike(56.0f, 0.45f, damage_mult, element);
+    } else if (shape == "ring") {
+        for (int i = 0; i < 8; ++i) {
+            const float a = 6.2831853f * i / 8.0f;
+            if (Projectile* p = loose(cosf(a), sinf(a), damage_mult, false)) p->knockback_mult *= 2.0f;
+        }
     } else {
         loose(aim.x, aim.y, damage_mult, true);
+    }
+}
+
+vector<string> World::KnownArcane(const SpellBook& book) const {
+    vector<string> out;
+    for (const SpellDef* s : book.Arcane())
+        if (KnowsSpell(s->id)) out.push_back(s->id);
+    return out;
+}
+
+// A melee strike is drawn as well as animated. The character's swing is
+// sixty-four pixels of arm; what the blow actually covers is the hitbox, and
+// until this nothing showed it. So: a pale crescent swept through the arc the
+// profile describes -- as far out as the reach, as wide as the width -- drawn
+// faint through the wind-up, bright and advancing through the active frames,
+// and gone with the recovery. A spear's thrust is a line driven out instead of
+// a crescent; the Crushing Blow adds a streak down the middle of its arc; the
+// Cross Cut's crescent is the whole circle; and each combo has its own tint,
+// so what came out can be told from across the room.
+void World::DrawSwing(SDL_Renderer* r) const {
+    const AttackState& atk = player.Attack();
+    if (!atk.Active() || player.Style() != AttackStyle::Melee || player.Rushing()) return;
+    const AttackProfile& p = atk.profile;
+    const float t = atk.timer;
+
+    float alpha;
+    if (t < p.windup)                 alpha = 0.30f * (t / std::max(0.01f, p.windup));
+    else if (t < p.windup + p.active) alpha = 1.0f;
+    else alpha = std::max(0.0f, 1.0f - (t - p.windup - p.active) / std::max(0.01f, p.recover * 0.6f));
+    if (alpha <= 0.0f) return;
+    // How far round the sweep has got: it starts late in the wind-up and has
+    // covered the whole arc by the end of the active frames.
+    const float from = p.windup * 0.5f;
+    const float sweep = std::clamp((t - from) / std::max(0.01f, p.windup - from + p.active), 0.0f, 1.0f);
+    if (sweep <= 0.0f) return;
+
+    SDL_Color col = {255, 244, 200, 255};
+    switch (atk.move) {
+        case ComboMove::Crush:    col = {255, 200, 120, 255}; break;
+        case ComboMove::Cleave:   col = {255, 168,  90, 255}; break;
+        case ComboMove::Backhand: col = {214, 255, 214, 255}; break;
+        case ComboMove::CrossCut: col = {196, 216, 255, 255}; break;
+        default: break;
+    }
+
+    const float base = player.facing == FACE_RIGHT ? 0.0f : player.facing == FACE_DOWN ? 1.5707963f
+                     : player.facing == FACE_LEFT ? 3.14159265f : -1.5707963f;
+    const float reach = std::max(8.0f, p.reach * atk.reach_scale);
+    float half = atanf((p.width * 0.5f) / reach);
+    if (atk.move == ComboMove::CrossCut) half = 3.14159265f;
+    const float cx = player.x, cy = player.y - 16.0f - player.draw_lift;
+    const auto at = [&](float wx, float wy) {
+        const SDL_FRect s = camera.ToScreenRect({wx, wy, 0.0f, 0.0f});
+        return SDL_FPoint{s.x, s.y};
+    };
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+
+    const bool thrust = atk.move == ComboMove::None && player.AttackClip() == "thrust";
+    if (thrust) {
+        // A line driven out along the facing, thickest at the point.
+        const float len = reach * sweep;
+        const float dx = cosf(base), dy = sinf(base) * 0.6f;
+        for (int k = -1; k <= 1; ++k) {
+            const SDL_FPoint a = at(cx - dy * k * 1.5f, cy + dx * k * 1.5f);
+            const SDL_FPoint b = at(cx + dx * len - dy * k * 1.5f, cy + dy * len + dx * k * 1.5f);
+            SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * alpha * (k == 0 ? 1.0f : 0.5f)));
+            SDL_RenderLine(r, a.x, a.y, b.x, b.y);
+        }
+        return;
+    }
+
+    // The crescent: three rings, the middle one brightest, each a run of short
+    // segments whose alpha rises toward the head of the sweep. Seen from
+    // above, so the arc is an ellipse.
+    constexpr int N = 18;
+    const float a0 = base - half, a1 = base - half + 2.0f * half * sweep;
+    for (int ring = -1; ring <= 1; ++ring) {
+        const float rad = reach + ring * 2.0f;
+        const float ring_alpha = ring == 0 ? 1.0f : 0.45f;
+        SDL_FPoint prev = at(cx + cosf(a0) * rad, cy + sinf(a0) * rad * 0.6f);
+        for (int i = 1; i <= N; ++i) {
+            const float a = a0 + (a1 - a0) * i / N;
+            const SDL_FPoint pt = at(cx + cosf(a) * rad, cy + sinf(a) * rad * 0.6f);
+            const float seg = alpha * ring_alpha * (0.3f + 0.7f * i / N);
+            SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * std::clamp(seg, 0.0f, 1.0f)));
+            // Two screen pixels thick, whatever the zoom: a one-pixel line is
+            // lost against the ground at the zooms the game is played at.
+            SDL_RenderLine(r, prev.x, prev.y, pt.x, pt.y);
+            SDL_RenderLine(r, prev.x + 1.0f, prev.y, pt.x + 1.0f, pt.y);
+            SDL_RenderLine(r, prev.x, prev.y + 1.0f, pt.x, pt.y + 1.0f);
+            prev = pt;
+        }
+    }
+    if (atk.move == ComboMove::Crush) {
+        // The overhead: a streak down the middle of the arc as it lands.
+        const SDL_FPoint a = at(cx + cosf(base) * reach * 0.25f, cy - 24.0f);
+        const SDL_FPoint b = at(cx + cosf(base) * reach * sweep, cy + sinf(base) * reach * 0.6f * sweep);
+        SDL_SetRenderDrawColor(r, col.r, col.g, col.b, static_cast<Uint8>(255.0f * alpha));
+        SDL_RenderLine(r, a.x, a.y, b.x, b.y);
     }
 }
 
@@ -747,15 +945,37 @@ int World::HitAround(float radius, float damage_mult, float knockback, const Gam
     return struck;
 }
 
+string World::SwingLabel(const GameContext& ctx) const {
+    const AttackState& atk = player.Attack();
+    if (atk.move != ComboMove::None) return ComboName(atk.move);
+    if (atk.type == AttackType::Light) return player.Rushing() ? "Rushing Strike" : "Light";
+    if (atk.type == AttackType::Strong) return "Strong";
+    if (atk.type == AttackType::Charged) {
+        const TalentNode* t = (ctx.trees && !player.ActiveTechnique().empty())
+                                  ? ctx.trees->Find(player.ActiveTechnique()) : nullptr;
+        return t ? t->name : "Charged";
+    }
+    return "";
+}
+
 bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
     const AttackState& atk = player.Attack();
     const float mult = atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type);
     const float knock = 1.0f + player.talents.Effect("knockback", AttackStyle::Melee);
+    int struck = 0;
     const auto hit_round = [&](float radius, float damage, float knockback) {
-        return HitAround(radius, damage, knockback * knock, ctx) > 0;
+        struck += HitAround(radius, damage, knockback * knock, ctx);
+        return struck > 0;
     };
+    // The chain counter, for whichever technique this turns out to be. Set
+    // on every way out below, once the technique has struck or not.
+    struct Count {
+        World& w; const GameContext& c; int& n; bool handled = false;
+        ~Count() { if (handled) { if (n > 0) w.player.CountChainHit(w.SwingLabel(c)); else w.player.BreakChain(); } }
+    } count{*this, ctx, struck};
 
     if (technique == "whirlwind") {
+        count.handled = true;
         const float radius = 42.0f * atk.reach_scale;
         hit_round(radius, mult * 0.9f, atk.profile.knockback);
         Burst(player.x, player.y - 10.0f, radius, {236, 236, 255, 255}, 10);
@@ -763,6 +983,7 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
         return true;
     }
     if (technique == "ground_slam") {
+        count.handled = true;
         const float radius = 58.0f * atk.reach_scale;
         hit_round(radius, mult * 0.8f, 170.0f);
         Burst(player.x, player.y, radius, {214, 180, 120, 255}, 14);
@@ -770,6 +991,7 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
         return true;
     }
     if (technique == "lunge") {
+        count.handled = true;
         // A burst of speed along the facing, riding the knockback the player
         // already slides on, and a long strike down the path it covers.
         const float fx = player.facing == FACE_LEFT ? -1.0f : player.facing == FACE_RIGHT ? 1.0f : 0.0f;
@@ -785,6 +1007,7 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
             if (!RectsOverlap(hit, e->BodyBox())) continue;
             HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult,
                      atk.profile.knockback * knock, player.x, player.y, ctx);
+            ++struck;
         }
         for (int i = 0; i < 4; ++i) AddDust(player.x - fx * i * 8.0f, player.y - fy * i * 8.0f, fx, fy);
         Audio::Play(Sfx::SwingHeavy, 1.0f, 1.1f);
@@ -817,7 +1040,8 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
     // player as far as the blade reaches, the way Whirlwind does.
     if (atk.move == ComboMove::CrossCut) {
         const float radius = atk.profile.reach;
-        HitAround(radius, mult, knock, ctx);
+        if (HitAround(radius, mult, knock, ctx) > 0) player.CountChainHit(SwingLabel(ctx));
+        else player.BreakChain();
         Burst(player.x, player.y - 10.0f, radius, {255, 236, 190, 255}, 8);
         return;
     }
@@ -837,6 +1061,11 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         // The Crushing Blow leaves what it lands on reeling.
         if (atk.move == ComboMove::Crush && e->hp < before) e->Stagger(CRUSH_STAGGER);
     }
+
+    // The chain: one more for a swing that met something, and over for one
+    // that met nothing.
+    if (connected) player.CountChainHit(SwingLabel(ctx));
+    else player.BreakChain();
 
     if (!connected && atk.type == AttackType::Charged)
         AddText("whiff", player.x, player.y - 52.0f, {150, 150, 160, 200});
@@ -1824,6 +2053,7 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
     }
     if (b.broke)
         AddText("Guard broken!", player.x, player.y - 72.0f, {255, 176, 96, 255}, 1.6f);
+    if (b.taken > 0) player.BreakChain();
     if (b.taken > 0) {
         player.Damage(b.taken);
         player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
@@ -1839,6 +2069,7 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
 }
 
 int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y) {
+    player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
     float push = 1.0f;
     if (player.GuardFacing(from_x, from_y)) {
@@ -2263,6 +2494,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             }
         }
     }
+
+    // The player's swing, over everything at ground level: it is the one
+    // thing on screen that says where a blow is landing.
+    DrawSwing(r);
 
     // Impact marks last a fifth of a second and are drawn over everything at
     // ground level, because the point of them is to be noticed: without one, a

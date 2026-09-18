@@ -161,6 +161,36 @@ LOOKS = {
         "scarf": False,
         "weapon": True,
     },
+    # The highwaymen on the forest paths: dark leathers, a red neckerchief
+    # for a mask, and a sword. Monsters rather than a character to choose, so
+    # no plate, and only the clips a monster plays.
+    "highwayman": {
+        "palette": {"hair":    (0.13, 0.11, 0.10),
+                    "tunic":   (0.30, 0.22, 0.16),
+                    "trim":    (0.20, 0.15, 0.11),
+                    "belt":    (0.15, 0.12, 0.10),
+                    "trouser": (0.24, 0.22, 0.20),
+                    "boot":    (0.17, 0.14, 0.12),
+                    "scarf":   (0.58, 0.16, 0.14),
+                    "skin":    (0.80, 0.62, 0.48)},
+        "hair": 1.0,
+        "scarf": True,
+        "weapon": True,
+    },
+    # The magister of the college at Fernhollow: a blue robe with a gold hem,
+    # grey hair worn long, and nothing in his hands but his own.
+    "magister": {
+        "palette": {"hair":    (0.80, 0.80, 0.82),
+                    "tunic":   (0.24, 0.26, 0.50),
+                    "trim":    (0.72, 0.62, 0.30),
+                    "belt":    (0.30, 0.26, 0.20),
+                    "trouser": (0.20, 0.20, 0.32),
+                    "boot":    (0.16, 0.14, 0.18),
+                    "skin":    (0.90, 0.74, 0.60)},
+        "hair": 1.3,
+        "scarf": False,
+        "weapon": False,
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),

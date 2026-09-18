@@ -49,6 +49,55 @@
       }
     ]
   },
+  "highwayman": {
+    "rolls": 1,
+    "table": [
+      {
+        "item": "coins",
+        "qty": [
+          12,
+          40
+        ],
+        "weight": 40
+      },
+      {
+        "item": "nothing",
+        "weight": 18
+      },
+      {
+        "item": "thread",
+        "weight": 10
+      },
+      {
+        "item": "hide",
+        "weight": 8
+      },
+      {
+        "item": "cooked_meat",
+        "weight": 8
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 6
+      },
+      {
+        "item": "tinderbox",
+        "weight": 4
+      },
+      {
+        "item": "vial",
+        "weight": 3
+      },
+      {
+        "item": "bronze_sword",
+        "weight": 3
+      }
+    ]
+  },
   "orc_raider": {
     "always": [
       {

@@ -59,6 +59,35 @@
     ],
     "element": "earth"
   },
+  "highwayman": {
+    "name": "Highwayman",
+    "sprite": "highwayman",
+    "hp": 18,
+    "attack": 6,
+    "strength": 6,
+    "defence": 5,
+    "attack_bonus": 6,
+    "strength_bonus": 6,
+    "defence_bonus": 6,
+    "speed": 58,
+    "aggro": 170,
+    "attack_range": 30,
+    "attack_cooldown": 1.5,
+    "loot": "highwayman",
+    "kill_target": "highwayman",
+    "foot_box": [
+      -7,
+      -10,
+      14,
+      10
+    ],
+    "body_box": [
+      -8,
+      -30,
+      16,
+      30
+    ]
+  },
   "orc3": {
     "name": "Orc Warchief",
     "sprite": "orc3",

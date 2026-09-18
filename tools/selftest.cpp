@@ -62,7 +62,7 @@ static const char* kMaps[] = {
     "dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow",
     "well_shallow", "well_deep",
     "whisperwood_trail", "mossvale", "fernhollow",
-    "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage",
+    "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage", "fernhollow_college",
     "dreamworld",
     "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
 };
@@ -439,7 +439,7 @@ int main(int argc, char** argv) {
     for (const char* id : {"overworld", "town_havenbrook",
                            "house_smith", "guild_hall", "house_elder", "house_inn",
                            "house_inn_upper", "mossvale_lodge_hall", "mossvale_herbalist",
-                           "fernhollow_cottage", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld",
+                           "fernhollow_cottage", "fernhollow_college", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
@@ -888,6 +888,8 @@ int main(int argc, char** argv) {
         // following it four times comes back to where it started.
         for (int i = 1; i < static_cast<int>(Element::COUNT); ++i) {
             Element e = static_cast<Element>(i);
+            // The ancient magic is a school, not an element: outside the cycle.
+            if (e == Element::Arcane) continue;
             Element walk = e;
             for (int step = 0; step < 4; ++step) walk = ElementBeats(walk);
             Check(walk == e, string("the ") + ElementName(e) + " cycle closes");
@@ -4300,7 +4302,7 @@ int main(int argc, char** argv) {
             {"town_havenbrook", "havenbrook"}, {"house_smith", "havenbrook"}, {"house_inn", "havenbrook"},
             {"house_inn_upper", "havenbrook"}, {"house_elder", "havenbrook"}, {"guild_hall", "havenbrook"},
             {"mossvale", "mossvale"}, {"mossvale_lodge_hall", "mossvale"}, {"mossvale_herbalist", "mossvale"},
-            {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"},
+            {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"}, {"fernhollow_college", "fernhollow"},
             {"whisperwood_trail", "whisperwood"}, {"dreamworld", "reverie"},
         };
 
@@ -6604,17 +6606,18 @@ int main(int argc, char** argv) {
             }
         }
 
-        // --- a bow has no chain to mix a heavy into ------------------------------------------
+        // --- a bow reads the same grammar, with its own moves at the end of it --------------
         {
             World w;
             if (arena(w, "oak_shortbow")) {
                 input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); w.Update(dt, ctx);
                 input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); w.Update(dt, ctx);
-                Check(w.player.Attack().move == ComboMove::None, "a bow makes no Cross Cut of the two buttons");
+                Check(w.player.Attack().move == ComboMove::CrossCut &&
+                      string(ComboNameFor(ComboMove::CrossCut, AttackStyle::Ranged)) == "Twin Shot",
+                      "a bow makes a Twin Shot of the two buttons");
                 settle(w);
                 tap(w, SDLK_J); settle(w);
-                Check(w.player.NextCombo(false) == ComboMove::None && w.player.NextCombo(true) == ComboMove::None,
-                      "and offers no combo after a shot");
+                Check(w.player.NextCombo(false) == ComboMove::Crush, "and offers a Split Shot after a shot");
             }
         }
 
@@ -6683,6 +6686,510 @@ int main(int argc, char** argv) {
                     Check(orc->Staggered() && fabsf(orc->x - ox) < 2.0f, "where a plain orc reels on the spot");
                 }
             }
+        }
+        input.Update(dt);
+    }
+
+    // --- the chain counter, and the highwaymen -------------------------------------------------
+    Section("the chain counter, and highwaymen on the forest paths");
+    {
+        Input input;
+        std::mt19937 rng(37);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        vector<std::pair<Enemy*, SDL_FPoint>> pins;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) {
+                for (auto& pin : pins) { pin.first->x = pin.second.x; pin.first->y = pin.second.y; pin.first->knock_x = pin.first->knock_y = 0.0f; }
+                input.Update(dt);
+                w.Update(dt, ctx);
+            }
+        };
+        const auto tap = [&](World& w, SDL_Keycode k) {
+            for (auto& pin : pins) { pin.first->x = pin.second.x; pin.first->y = pin.second.y; }
+            input.Update(dt); key(k, true);  w.Update(dt, ctx);
+            input.Update(dt); key(k, false); w.Update(dt, ctx);
+        };
+        const auto arena = [&](World& w, int attack_level) {
+            pins.clear();
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.player.y -= 200.0f;
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            w.player.equipment.Equip(SLOT_WEAPON, "bronze_sword");
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_ATTACK, XpForLevel(attack_level), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(60), lu);
+            w.player.Rest();
+            return true;
+        };
+        // A target that stands there and takes it: an orc grunt that never
+        // notices the player, so nothing it does can break the chain.
+        EnemyDef dummy_def = *enemy_db.Get("orc1");
+        dummy_def.aggro_range = 0.0f;
+        dummy_def.attack_range = 0.0f;
+        dummy_def.hp = 500;      // it has to outlast a long run
+        const auto spawn = [&](World& w, const string& type, float dx, float dy, int level, bool pin) -> Enemy* {
+            const EnemyDef* stats = type == "dummy" ? &dummy_def : enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = level; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            const SDL_FPoint aim = Targeting::AimPoint(*e);
+            const SDL_FPoint muzzle = Targeting::Muzzle(w.player);
+            e->x += (muzzle.x + dx) - aim.x;
+            e->y += (muzzle.y + dy) - aim.y;
+            e->home_x = e->x; e->home_y = e->y;
+            Enemy* raw = e.get();
+            if (pin) pins.push_back({raw, SDL_FPoint{raw->x, raw->y}});
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        const auto settle = [&](World& w) {
+            for (int f = 0; f < 120 && !w.player.CanAttack(); ++f) frames(w, 1);
+        };
+        const auto trail_is = [&](const World& w, std::initializer_list<const char*> want) {
+            const auto& t = w.player.ChainTrail();
+            if (t.size() != want.size()) return false;
+            size_t i = 0;
+            for (const char* s : want) if (t[i++] != s) return false;
+            return true;
+        };
+
+        // --- the counter ---------------------------------------------------------------
+        {
+            World w;
+            if (arena(w, 70)) {
+                Enemy* orc = spawn(w, "dummy", 26.0f, 0.0f, 1, true);
+                frames(w, 2);
+                Check(orc && w.player.ChainHits() == 0 && w.player.ChainTrail().empty(), "a fresh fight has no chain");
+                tap(w, SDLK_J); settle(w);
+                Check(w.player.ChainHits() == 1 && trail_is(w, {"Light"}), "one light that lands is a chain of one");
+                tap(w, SDLK_J); settle(w);
+                tap(w, SDLK_J); settle(w);
+                Check(w.player.ChainHits() == 3 && trail_is(w, {"Light", "Light", "Light"}),
+                      "three that land are three, and the trail says what they were");
+                tap(w, SDLK_J); settle(w);
+                tap(w, SDLK_K); settle(w);
+                Check(w.player.ChainHits() == 5 && trail_is(w, {"Light", "Light", "Light", "Light", "Crushing Blow"}),
+                      "a new chain carries the count on, and a combo is named in the trail");
+                Check(w.player.ChainFade() == 1.0f, "and it is fully shown");
+                for (int f = 0; f < 60 * 3 && w.player.ChainHits() > 0; ++f) frames(w, 1);
+                Check(w.player.ChainHits() == 0 && w.player.ChainTrail().empty() && w.player.ChainFade() == 0.0f,
+                      "left alone, the run ends and the counter clears");
+
+                // Ten of them, to see the tail.
+                for (int i = 0; i < 10; ++i) { tap(w, SDLK_J); settle(w); }
+                Check(w.player.ChainHits() == 10 && w.player.ChainTrail().size() == 6,
+                      "a long run counts every hit and keeps the last six for the trail");
+
+                // A blow taken ends it.
+                w.HitPlayer(3, orc->Profile(), orc->x, orc->y);
+                Check(w.player.ChainHits() == 0, "a blow taken breaks the chain");
+                // And so does a swing at nothing.
+                tap(w, SDLK_J); settle(w);
+                Check(w.player.ChainHits() == 1, "one more lands");
+                pins.clear();
+                orc->x += 400.0f;
+                orc->y += 400.0f;
+                tap(w, SDLK_J); settle(w);
+                Check(w.player.ChainHits() == 0, "and a swing that meets nothing breaks it");
+            }
+            World w2;
+            if (arena(w2, 70)) {
+                spawn(w2, "dummy", 26.0f, 0.0f, 1, true);
+                spawn(w2, "dummy", -26.0f, 0.0f, 1, true);
+                frames(w2, 2);
+                input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); w2.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); w2.Update(dt, ctx);
+                settle(w2);
+                Check(w2.player.ChainHits() == 1 && trail_is(w2, {"Cross Cut"}),
+                      "a Cross Cut that strikes two counts once, by name");
+            }
+        }
+
+        // --- the highwaymen -----------------------------------------------------------------
+        {
+            const EnemyDef* d = enemy_db.Get("highwayman");
+            Check(d && d->name == "Highwayman" && d->sprite == "highwayman", "highwaymen are a monster with art of their own");
+            if (d) {
+                const SpriteDef* sd = sprites.Get(d->sprite);
+                bool clips = sd != nullptr, sheets = true;
+                for (const char* clip : {"idle", "walk", "attack", "hurt", "death"}) {
+                    clips &= sd && sd->Find(clip) != nullptr;
+                    sheets &= fs::exists(string("assets/characters/highwayman/") + clip + ".png");
+                }
+                Check(clips && sheets, "drawn on the hero's rig in a bandit's clothes, with every clip a monster plays");
+                Check(loot.Has(d->loot_table), "they carry loot (" + d->loot_table + ")");
+                Check(d->body_box.h <= 32.0f && d->foot_box.w <= 16.0f, "and are the size of a person");
+                // No tougher than the trail's other company.
+                const EnemyDef* orc1 = enemy_db.Get("orc1");
+                const EnemyDef* orc2 = enemy_db.Get("orc2");
+                const EnemyDef* boar = enemy_db.Get("boar");
+                Check(orc1 && orc2 && boar && d->hp <= 24 && d->hp >= boar->hp && d->attack_level > orc1->attack_level &&
+                      d->attack_level + 4 < orc2->attack_level && d->speed > orc1->speed,
+                      "quicker than an orc grunt, a little tougher, and well short of a raider");
+            }
+
+            // Where they stand: in twos at the trailside, and under the trees
+            // along the Sunken Road.
+            {
+                Map trail;
+                Check(trail.Load("maps/whisperwood_trail.mx"), "the trail loads");
+                int on_trail = 0, by_path = 0, levels_ok = 0, clear = 0;
+                for (const EnemySpawnDef& e : trail.Enemies()) {
+                    if (e.type != "highwayman") continue;
+                    ++on_trail;
+                    if (e.level >= 2 && e.level <= 4) ++levels_ok;
+                    if (!trail.Blocked({e.x - 6.0f, e.y - 6.0f, 12.0f, 6.0f})) ++clear;
+                    bool near_dirt = false;
+                    for (const TileInstance& t : trail.Tiles()) {
+                        if (trail.TexturePath(t).find("dirt") == string::npos) continue;
+                        if (Length(t.rect.x + t.rect.w / 2.0f - e.x, t.rect.y + t.rect.h / 2.0f - e.y) < 100.0f) { near_dirt = true; break; }
+                    }
+                    if (near_dirt) ++by_path;
+                }
+                Check(on_trail >= 6, "highwaymen loiter on the Whisperwood Trail (" + std::to_string(on_trail) + ")");
+                Check(by_path == on_trail && clear == on_trail, "every one of them by the path, on open ground");
+                Check(levels_ok == on_trail, "at levels two to four");
+                Map ow;
+                int on_road = 0;
+                if (ow.Load("maps/overworld.mx"))
+                    for (const EnemySpawnDef& e : ow.Enemies()) if (e.type == "highwayman") ++on_road;
+                Check(on_road >= 4, "and along the trail east of the road, under the trees (" + std::to_string(on_road) + ")");
+            }
+
+            // The daily that sends the player after them.
+            {
+                const QuestDef* q = quests.Definition("q_daily_highwaymen");
+                Check(q && q->giver == "board_mossvale" && q->daily && q->pool == "mossvale",
+                      "the Mossvale board posts a daily against them");
+                Check(q && q->stages.size() == 1 && q->stages[0].type == ObjectiveType::Kill &&
+                      q->stages[0].target == "highwayman" && q->stages[0].map_id == "whisperwood_trail",
+                      "which is to drive them off the trail");
+            }
+
+            // Played through: a traveller who can manage the trail's foxes
+            // can manage one, sword in hand, without a shield.
+            {
+                World w;
+                if (arena(w, 12)) {
+                    LevelUp lu;
+                    w.player.skills.AddXp(SKILL_STRENGTH, XpForLevel(12), lu);
+                    w.player.skills.AddXp(SKILL_DEFENCE, XpForLevel(10), lu);
+                    w.player.skills.SetXp(SKILL_HITPOINTS, XpForLevel(16));
+                    w.player.SyncHitpoints();
+                    w.player.Rest();
+                    Enemy* bandit = spawn(w, "highwayman", 40.0f, 0.0f, 3, false);
+                    const int start_hp = w.player.hp;
+                    int f = 0;
+                    for (; f < 60 * 30 && bandit && !bandit->Dead(); ++f) {
+                        if (w.player.CanAttack()) { input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx); input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx); f += 2; }
+                        else frames(w, 1);
+                    }
+                    Check(bandit && bandit->Dead() && !w.player.IsDead(),
+                          "a level 12 fighter with a bronze sword beats a highwayman (" + std::to_string(f / 60) + "s)");
+                    Check(w.player.hp > start_hp / 3, "and walks away with most of their health (" +
+                          std::to_string(w.player.hp) + " of " + std::to_string(start_hp) + ")");
+                }
+            }
+        }
+        input.Update(dt);
+    }
+
+    // --- the quest tracker's counters, the welcome, affinities, the college --------------------
+    Section("counters that count, affinities, ranged combos, and the college");
+    {
+        // --- the tracker --------------------------------------------------------------
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Inventory inv(&items);
+            log.Start("q_learn_woodcutting");
+            inv.Add("logs", 10);
+            log.RefreshCollectObjectives(inv);
+            const string text = log.CurrentObjectiveText("q_learn_woodcutting");
+            Check(log.Stage("q_learn_woodcutting") == 1, "ten logs in the bag finish the gathering stage");
+            Check(text.find("Bring the 10 logs") != string::npos && text.find("(") == string::npos,
+                  "and the tracker says to bring them back, with no count (" + text + ")");
+            QuestLog fire;
+            fire.LoadDefinitions("data/quests.json");
+            Inventory bag(&items);
+            fire.Start("q_firewood");
+            bag.Add("logs", 5);
+            fire.RefreshCollectObjectives(bag);
+            Check(fire.CurrentObjectiveText("q_firewood").find("(5/12)") != string::npos,
+                  "a gathering stage still counts what is carried");
+            bag.Add("logs", 7);
+            fire.RefreshCollectObjectives(bag);
+            Check(fire.CurrentObjectiveText("q_firewood") == "Complete", "and says Complete once it is");
+        }
+
+        // --- affinities --------------------------------------------------------------------
+        {
+            Check(Player::AffinityFor("player_hero") == AttackStyle::Melee &&
+                  Player::AffinityFor("player_warden") == AttackStyle::Ranged &&
+                  Player::AffinityFor("player_wayfarer") == AttackStyle::Magic,
+                  "the hero favours the blade, the warden the bow, the wayfarer the staff");
+            Check(string(Player::AffinityName(AttackStyle::Melee)) == "the blade" &&
+                  string(Player::AffinityName(AttackStyle::Magic)) == "the staff", "and each is named");
+            Input input;
+            std::mt19937 rng(41);
+            GameContext ctx;
+            ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+            ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+            ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+            ctx.input = &input;       ctx.rng = &rng;
+            Player hero, wayfarer;
+            hero.Init(ctx, "player_hero");
+            wayfarer.Init(ctx, "player_wayfarer");
+            Check(hero.TalentDamage(AttackStyle::Melee, AttackType::Light) >
+                  wayfarer.TalentDamage(AttackStyle::Melee, AttackType::Light) &&
+                  fabsf(hero.TalentDamage(AttackStyle::Melee, AttackType::Light) - 1.0f - Player::AFFINITY_DAMAGE) < 1e-4f,
+                  "the hero's swings hit a tenth harder than the wayfarer's");
+            Check(wayfarer.TalentDamage(AttackStyle::Magic, AttackType::Light) >
+                  hero.TalentDamage(AttackStyle::Magic, AttackType::Light), "and the wayfarer's casts than the hero's");
+            Check(hero.Profile().attack_bonus == wayfarer.Profile().attack_bonus + Player::AFFINITY_BONUS &&
+                  wayfarer.Profile().magic_bonus == hero.Profile().magic_bonus + Player::AFFINITY_BONUS,
+                  "each carries a little more accuracy with their own style");
+        }
+
+        // --- the ancient magic: data ------------------------------------------------------------
+        const auto arcane = spells.Arcane();
+        Check(arcane.size() >= 6, "there are ancient spells to learn (" + std::to_string(arcane.size()) + ")");
+        {
+            bool ok = true;
+            int last = 0;
+            std::set<string> shapes;
+            for (const SpellDef* s : arcane) {
+                ok &= s->arcane && s->element == Element::Arcane && s->level >= last && !s->taught_by.empty() &&
+                      projectiles.Has(s->projectile) && projectiles.Get(s->projectile)->element == Element::Arcane;
+                last = s->level;
+                shapes.insert(s->shape);
+            }
+            Check(ok, "each is arcane, throws something arcane, says where it is learned, and they come in order");
+            Check(shapes.count("bolt") && shapes.count("darts") && shapes.count("rays") && shapes.count("rain") &&
+                  shapes.count("ring"), "and they take every shape there is");
+            Check(spells.Get("eldritch_blast") && spells.Get("hail_of_blades") && spells.Get("magic_missile"),
+                  "Eldritch Blast, Magic Missile and Hail of Blades are among them");
+            Check(ElementMultiplier(Element::Arcane, Element::Fire) == 1.0f &&
+                  ElementMultiplier(Element::Water, Element::Arcane) == 1.0f &&
+                  ElementBeats(Element::Arcane) == Element::None, "the arcane stands outside the elements' cycle");
+            // Tomes for all but the first, sold at the college.
+            ShopDatabase shopdb;
+            shopdb.Load("data/shops.json");
+            const ShopDef* college = shopdb.Get("fernhollow_college");
+            Check(college && college->keeper == "npc_magister" && college->town == "fernhollow",
+                  "the college's copying room is a shop in Fernhollow, kept by the magister");
+            std::set<string> sold;
+            if (college)
+                for (const ShopStock& line : college->sells)
+                    if (const ItemDef* d = items.Get(line.item))
+                        if (d->learn.rfind("spell:", 0) == 0) sold.insert(d->learn.substr(6));
+            for (const SpellDef* s : arcane) {
+                if (s->id == "eldritch_blast") Check(!sold.count(s->id), "Eldritch Blast is taught, not sold");
+                else Check(sold.count(s->id), "the copying room sells the tome of " + s->name);
+            }
+            bool tomes_ok = true;
+            for (const auto& kv : items.All())
+                if (kv.second.learn.rfind("spell:", 0) == 0)
+                    tomes_ok &= spells.Get(kv.second.learn.substr(6)) != nullptr && fs::exists(kv.second.icon);
+            Check(tomes_ok, "every tome names a real spell and has its picture");
+        }
+
+        // --- the magister's lesson --------------------------------------------------------------
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            DialogueRunner r;
+            r.Begin(&dialogue, "magister_root", "npc_magister", "Magister Orrin", dc);
+            int teach = -1;
+            for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                if (r.VisibleOptions()[i]->next == "magister_teach") teach = static_cast<int>(i);
+            Check(teach >= 0, "the magister offers to teach the old magic");
+            if (teach >= 0) {
+                r.MoveSelection(teach - r.Selected());
+                r.Choose(dc);
+                bool learns = false;
+                for (const auto& o : r.VisibleOptions()) if (o->action.learn_recipe == "spell:eldritch_blast") learns = true;
+                Check(learns, "and his lesson is the Eldritch Blast");
+            }
+            flags.insert("recipe:spell:eldritch_blast");
+            DialogueRunner again;
+            again.Begin(&dialogue, "magister_root", "npc_magister", "Magister Orrin", dc);
+            bool offers = false;
+            for (const auto& o : again.VisibleOptions()) offers |= o->next == "magister_teach";
+            Check(!offers, "once");
+        }
+
+        // --- the college, and casting in it ---------------------------------------------------------
+        Input input;
+        std::mt19937 rng(43);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        const auto tap = [&](World& w, SDL_Keycode k) {
+            input.Update(dt); key(k, true);  w.Update(dt, ctx);
+            input.Update(dt); key(k, false); w.Update(dt, ctx);
+        };
+        const auto settle = [&](World& w) {
+            for (int f = 0; f < 120 && !w.player.CanAttack(); ++f) frames(w, 1);
+        };
+        {
+            Map college;
+            Check(college.Load("maps/fernhollow_college.mx") && college.IsInterior(), "the college's hall loads, indoors");
+            bool magister = false, circle = false;
+            for (const NpcDef& n : college.Npcs()) magister |= n.id == "npc_magister" && n.sprite == "magister";
+            std::ifstream in("maps/fernhollow_college.mx");
+            json mx;
+            in >> mx;
+            for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
+                circle |= it.key().find("spell_circle") != string::npos;
+            Check(magister, "Magister Orrin is in it, drawn in his own robes");
+            Check(circle && fs::exists("assets/props/spell_circle.png") && fs::exists("assets/props/mage_college.png") &&
+                  fs::exists("assets/characters/magister/idle.png"),
+                  "the circle is cut into its floor, and the tower, the circle and the magister are drawn");
+            Map fern;
+            bool door = false;
+            if (fern.Load("maps/fernhollow.mx"))
+                for (const Portal& p : fern.Portals()) door |= p.target_map == "fernhollow_college";
+            Check(door, "and Fernhollow has a door into it");
+        }
+
+        // A wayfarer with a staff: 5 does nothing until the magic is known,
+        // then chooses it, and the Eldritch Blast leaves the staff as a bolt
+        // that passes through what it hits.
+        {
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the caster");
+            w.enemies.clear();
+            w.player.y -= 200.0f;
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            w.player.equipment.Equip(SLOT_WEAPON, "novice_staff");
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(20), lu);
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            const auto press5 = [&]() { w.player.SelectArcane(w.KnownArcane(spells)); };
+            press5();
+            Check(w.player.SelectedElement() != Element::Arcane, "with no ancient magic known, 5 chooses nothing");
+            Check(w.KnownArcane(spells).empty(), "and none is known");
+            w.SetFlag("recipe:spell:eldritch_blast");
+            Check(w.KnownArcane(spells) == vector<string>{"eldritch_blast"}, "learned, the Eldritch Blast is known");
+            press5();
+            Check(w.player.SelectedElement() == Element::Arcane && w.player.ArcaneSpell() == "eldritch_blast",
+                  "and 5 chooses it");
+            const int mana = w.player.Mana();
+            w.projectiles.clear();
+            tap(w, SDLK_J);
+            for (int f = 0; f < 60 && w.projectiles.empty(); ++f) frames(w, 1);
+            Check(w.projectiles.size() == 1 && w.projectiles.front().def == projectiles.Get("bolt_eldritch") &&
+                  w.projectiles.front().pierce_left >= 3, "a cast is one bolt of force that passes through three bodies");
+            Check(w.player.Mana() < mana, "for mana");
+            settle(w);
+            // Magic Missile too, and 5 steps between them.
+            w.SetFlag("recipe:spell:magic_missile");
+            press5();
+            Check(w.player.ArcaneSpell() == "magic_missile", "with a second spell learned, 5 again turns the page");
+            w.projectiles.clear();
+            tap(w, SDLK_J);
+            for (int f = 0; f < 60 && w.projectiles.empty(); ++f) frames(w, 1);
+            Check(w.projectiles.size() == 3, "and Magic Missile is three darts (" + std::to_string(w.projectiles.size()) + ")");
+            settle(w);
+            w.SetFlag("recipe:spell:thunderwave");
+            press5();
+            Check(w.player.ArcaneSpell() == "thunderwave", "a third turns to the third");
+            w.projectiles.clear();
+            tap(w, SDLK_J);
+            frames(w, 20);
+            Check(w.projectiles.empty(), "which is refused below its Magic level");
+            w.player.CycleElement(1);
+            Check(w.player.SelectedElement() == Element::Fire, "and R cycles round to fire again");
+            // A save keeps the page.
+            Player back;
+            back.FromJson(w.player.ToJson(), ctx);
+            Check(back.ArcaneSpell() == "thunderwave", "the page chosen survives a save");
+        }
+
+        // --- the combos, at range ---------------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.LoadMap("overworld", "start", ctx);
+            w.enemies.clear();
+            w.player.y -= 200.0f;
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            w.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+            tap(w, SDLK_J); settle(w);
+            Check(w.player.NextCombo(false) == ComboMove::Crush &&
+                  string(ComboNameFor(ComboMove::Crush, AttackStyle::Ranged)) == "Split Shot",
+                  "with a bow, a heavy after a shot would be a Split Shot");
+            w.projectiles.clear();
+            tap(w, SDLK_K);
+            Check(w.player.Attack().move == ComboMove::Crush, "and it is");
+            for (int f = 0; f < 60 && w.projectiles.size() < 3; ++f) frames(w, 1);
+            Check(w.projectiles.size() == 3, "three arrows in a fan (" + std::to_string(w.projectiles.size()) + ")");
+            settle(w);
+            w.projectiles.clear();
+            input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); w.Update(dt, ctx);
+            input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); w.Update(dt, ctx);
+            Check(w.player.Attack().move == ComboMove::CrossCut, "both buttons are a Twin Shot");
+            for (int f = 0; f < 60 && w.projectiles.size() < 2; ++f) frames(w, 1);
+            Check(w.projectiles.size() == 2, "two arrows at once");
+            settle(w);
+            World s;
+            s.player.Init(ctx, "player_wayfarer");
+            s.LoadMap("overworld", "start", ctx);
+            s.enemies.clear();
+            s.player.y -= 200.0f;
+            s.player.facing = FACE_RIGHT;
+            s.player.equipment.Equip(SLOT_WEAPON, "novice_staff");
+            s.player.SyncMana();
+            s.player.RestoreMana();
+            tap(s, SDLK_J); settle(s);
+            tap(s, SDLK_J); settle(s);
+            const int mana = s.player.Mana();
+            s.projectiles.clear();
+            tap(s, SDLK_K);
+            Check(s.player.Attack().move == ComboMove::Cleave &&
+                  string(ComboNameFor(ComboMove::Cleave, AttackStyle::Magic)) == "Cascade",
+                  "with a staff, a heavy after two casts is a Cascade");
+            for (int f = 0; f < 60 && s.projectiles.size() < 3; ++f) frames(s, 1);
+            Check(s.projectiles.size() == 3 && s.player.Mana() < mana, "three bolts in a fan, for more mana");
         }
         input.Update(dt);
     }
@@ -7404,6 +7911,82 @@ int main(int argc, char** argv) {
                         world.camera.SetViewport(1280, 720);
                         world.camera.SetZoom(3.0f);
                         world.camera.SnapTo(at->x, at->y - 10.0f);
+                        world.Render(renderer, cache);
+                        SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
+                        if (pixels) {
+                            const string name = string("bin/previews/") + v.name + ".png";
+                            Check(IMG_SavePNG(pixels, name.c_str()), string(v.name) + " preview saves");
+                            SDL_DestroySurface(pixels);
+                        }
+                    }
+                }
+
+                // The swing, drawn: a light attack and a Cleave caught on their
+                // active frames, the crescent swept through what they cover.
+                {
+                    std::mt19937 prng(8);
+                    Input pin;
+                    GameContext pctx = ctx;
+                    pctx.rng = &prng;
+                    pctx.input = &pin;
+                    const auto press = [&](World& w, SDL_Keycode k) {
+                        SDL_Event e{};
+                        pin.Update(1.0f / 60.0f);
+                        e.type = SDL_EVENT_KEY_DOWN; e.key.key = k; pin.HandleEvent(e);
+                        w.Update(1.0f / 60.0f, pctx);
+                        pin.Update(1.0f / 60.0f);
+                        e.type = SDL_EVENT_KEY_UP; pin.HandleEvent(e);
+                        w.Update(1.0f / 60.0f, pctx);
+                    };
+                    for (int which = 0; which < 2; ++which) {
+                        World world;
+                        world.player.Init(pctx, "player_hero");
+                        if (!world.LoadMap("overworld", "start", pctx)) break;
+                        world.enemies.clear();
+                        world.clock.Set(1, 12.0f);
+                        world.player.y -= 200.0f;
+                        world.player.facing = FACE_RIGHT;
+                        world.player.sprite.facing = FACE_RIGHT;
+                        world.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
+                        const auto settle = [&]() {
+                            for (int f = 0; f < 120 && !world.player.CanAttack(); ++f) { pin.Update(1.0f / 60.0f); world.Update(1.0f / 60.0f, pctx); }
+                        };
+                        if (which == 1) { press(world, SDLK_J); settle(); press(world, SDLK_J); settle(); }
+                        press(world, which == 0 ? SDLK_J : SDLK_K);
+                        // To the middle of the active frames.
+                        const AttackProfile& pr = world.player.Attack().profile;
+                        const int to = static_cast<int>((pr.windup + pr.active * 0.8f) * 60.0f);
+                        for (int f = 2; f < to; ++f) { pin.Update(1.0f / 60.0f); world.Update(1.0f / 60.0f, pctx); }
+                        world.camera.SetViewport(1280, 720);
+                        world.camera.SetZoom(4.0f);
+                        world.camera.SnapTo(world.player.x + 10.0f, world.player.y - 16.0f);
+                        world.Render(renderer, cache);
+                        SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
+                        if (pixels) {
+                            const string name = string("bin/previews/") + (which == 0 ? "swing_light" : "swing_cleave") + ".png";
+                            Check(IMG_SavePNG(pixels, name.c_str()), "the swing preview saves");
+                            SDL_DestroySurface(pixels);
+                        }
+                    }
+                }
+
+                // The college at Fernhollow from its doorstep, and its hall.
+                {
+                    std::mt19937 prng(6);
+                    GameContext pctx = ctx;
+                    pctx.rng = &prng;
+                    struct Spot { const char* name; const char* map; const char* spawn; float dx, dy; };
+                    for (const Spot& v : {Spot{"mage_college", "fernhollow", "from_fernhollow_college", 0.0f, -70.0f},
+                                          Spot{"college_hall", "fernhollow_college", "entrance", 0.0f, -110.0f}}) {
+                        World world;
+                        world.player.Init(pctx, "player_wayfarer");
+                        if (!world.LoadMap(v.map, v.spawn, pctx)) continue;
+                        world.enemies.clear();
+                        world.clock.Set(1, 12.0f);
+                        world.Update(1.0f / 60.0f, pctx);
+                        world.camera.SetViewport(1280, 720);
+                        world.camera.SetZoom(3.0f);
+                        world.camera.SnapTo(world.player.x + v.dx, world.player.y + v.dy);
                         world.Render(renderer, cache);
                         SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
                         if (pixels) {

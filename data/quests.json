@@ -757,6 +757,35 @@
   },
   "completion": "Sela chalks another quiet day on the gate board."
  },
+ "q_daily_highwaymen": {
+  "name": "Road Toll",
+  "source": "board",
+  "giver": "board_mossvale",
+  "level": 6,
+  "summary": "Highwaymen are stopping carts on the Whisperwood Trail and taking a toll nobody set. Sela wants them moved on, and they keep coming back.",
+  "prereq": [
+   "q_clear_the_trail"
+  ],
+  "repeat": "daily",
+  "pool": "mossvale",
+  "stages": [
+   {
+    "desc": "Drive highwaymen off the Whisperwood Trail",
+    "type": "kill",
+    "target": "highwayman",
+    "map": "whisperwood_trail",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 260,
+    "Defence": 200
+   },
+   "coins": 160
+  },
+  "completion": "Sela pins the toll board they left beside the notices, upside down."
+ },
  "q_daily_hides": {
   "name": "Tannery Stock",
   "source": "board",

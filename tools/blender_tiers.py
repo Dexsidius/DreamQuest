@@ -1269,6 +1269,31 @@ def build_hide_boots(parent):
     return parts
 
 
+bc.PALETTE.update({
+    "tome_cover": (0.28, 0.18, 0.44), "tome_cover_dk": (0.18, 0.11, 0.30),
+    "tome_page": (0.90, 0.84, 0.68), "tome_clasp": (0.80, 0.62, 0.24),
+})
+
+
+def build_spell_tome(parent):
+    """A closed book in violet leather with a brass clasp and a lit rune on
+    the cover: an ancient spell, bound. Seen a little from above and to the
+    side, so the pages show along one edge."""
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("cover", mesh_box(0.28, 0.09, 0.22), "tome_cover", parent, loc=(0, 0, 0))
+    add("pages", mesh_box(0.25, 0.07, 0.19), "tome_page", parent, loc=(0.02, 0, 0))
+    add("spine", mesh_box(0.03, 0.10, 0.23), "tome_cover_dk", parent, loc=(-0.14, 0, 0))
+    add("clasp", mesh_box(0.05, 0.03, 0.06), "tome_clasp", parent, loc=(0.135, -0.04, 0))
+    for a in (45, 135, 225, 315):
+        r = math.radians(a)
+        parts.append(bc.spike("stroke", (0.0 + math.cos(r) * 0.015, -0.05, math.sin(r) * 0.015),
+                              (0.0 + math.cos(r) * 0.07, -0.05, math.sin(r) * 0.07),
+                              0.012, "rune_glow", parent, r_tip=0.012))
+    add("eye", bc.mesh_ellipsoid(0.02, 0.018, 0.02), "rune_glow", parent, loc=(0, -0.052, 0))
+    return parts
+
+
 def build_enchant_scroll(parent):
     """A recipe scroll with a rune on it rather than lines of writing, and a
     blue seal: a charm's page, told from a brew's at a glance."""
@@ -1322,6 +1347,9 @@ def brewing_icons(only=None):
         count += 1
     if not only or "hide_boots" in only:
         render_icon("hide_boots", lambda t, p: build_hide_boots(p), "wood", 0, 0, 0.9)
+        count += 1
+    if not only or "spell_tome" in only:
+        render_icon("spell_tome", lambda t, p: build_spell_tome(p), "wood", 20, -30, 0.9)
         count += 1
     print("icons %d brewing" % count)
 

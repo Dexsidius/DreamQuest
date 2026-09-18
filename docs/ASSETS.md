@@ -104,6 +104,11 @@ The woodland zones added a set of their own:
   Mira's stones in Fernhollow and one by the candles in the Reverie.
 - **`stump`**, **`stumpsmall`** (48, 32) -- what a felled oak or sapling
   leaves, in `assets/objects/` with the trees, until it grows back.
+- **`mage_college`** (176) -- the college at Fernhollow: a round stone tower
+  under a cone of slate, a lit window over an oak door, a lantern, an annex,
+  and a crystal on the finial.
+- **`spell_circle`** (96) -- the circle cut into the college's floor, its
+  runes lit, laid as an overlay like a rug.
 
 Two icons are built the same way as the potions in `tools/blender_tiers.py`:
 `hide_boots`, and `enchant_scroll`, a recipe scroll with a rune and a blue

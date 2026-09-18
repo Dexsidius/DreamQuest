@@ -47,6 +47,28 @@ const char* ComboName(ComboMove move) {
     }
 }
 
+const char* ComboNameFor(ComboMove move, AttackStyle style) {
+    if (style == AttackStyle::Ranged) {
+        switch (move) {
+            case ComboMove::Crush:    return "Split Shot";
+            case ComboMove::Cleave:   return "Barbed Shot";
+            case ComboMove::Backhand: return "Snap Shot";
+            case ComboMove::CrossCut: return "Twin Shot";
+            default:                  return "";
+        }
+    }
+    if (style == AttackStyle::Magic) {
+        switch (move) {
+            case ComboMove::Crush:    return "Surge";
+            case ComboMove::Cleave:   return "Cascade";
+            case ComboMove::Backhand: return "Flicker";
+            case ComboMove::CrossCut: return "Pulse";
+            default:                  return "";
+        }
+    }
+    return ComboName(move);
+}
+
 const AttackProfile& ProfileFor(AttackType type, int combo_index) {
     switch (type) {
         case AttackType::Light:   return kLight[std::clamp(combo_index, 0, 2)];

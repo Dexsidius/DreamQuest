@@ -188,6 +188,16 @@ void Game::DrawCharacterSelect() {
         ui.Text(kCharacterLabels[i], card.x + card.w / 2.0f, card.y + card.h - 58.0f,
                 TextSize::Body, i == cursor ? Palette::Highlight : Palette::Text,
                 Align::Center);
+        // What each favours: the one thing that tells the three apart in a
+        // fight, said before the choice is made.
+        const AttackStyle aff = Player::AffinityFor(kCharacterIds[i]);
+        ui.Text(string("Affinity: ") + Player::AffinityName(aff), card.x + card.w / 2.0f,
+                card.y + card.h - 36.0f, TextSize::Small,
+                aff == AttackStyle::Ranged ? SDL_Color{150, 210, 130, 255}
+                : aff == AttackStyle::Magic ? SDL_Color{170, 150, 240, 255}
+                                            : SDL_Color{236, 176, 96, 255}, Align::Center);
+        ui.Text("hits harder and truer with it", card.x + card.w / 2.0f, card.y + card.h - 20.0f,
+                TextSize::Small, Palette::TextDim, Align::Center);
     }
 
     ui.TextShadowed("Left / Right to choose   " + input.PromptFor(Action::Confirm) +
@@ -637,19 +647,22 @@ void Game::DrawHud() {
     if (live) {
         const AttackStyle style = p.Style();
         if (style == AttackStyle::Magic) {
-            static const Element kOrder[4] = {Element::Fire, Element::Water,
-                                              Element::Earth, Element::Air};
+            static const Element kOrder[5] = {Element::Fire, Element::Water,
+                                              Element::Earth, Element::Air, Element::Arcane};
             const float box = 30.0f, gap = 5.0f;
-            const float total = box * 4 + gap * 3;
+            const float total = box * 5 + gap * 4;
             const float x0 = ui.ViewWidth() / 2.0f - total / 2.0f;
             const float y0 = ui.ViewHeight() - 62.0f;
+            const vector<string> arcane_known = world.KnownArcane(spells);
 
-            for (int i = 0; i < 4; ++i) {
+            for (int i = 0; i < 5; ++i) {
                 const bool on = (kOrder[i] == p.SelectedElement());
                 const SDL_FRect r = {x0 + i * (box + gap), y0, box, box};
                 const SDL_Color c = ElementColor(kOrder[i]);
-                const SpellDef* known = spells.BestFor(kOrder[i],
-                                                       p.skills.Level(SKILL_MAGIC));
+                // The fifth box is lit once any ancient spell is known.
+                const SpellDef* known = kOrder[i] == Element::Arcane
+                    ? (arcane_known.empty() ? nullptr : spells.Get(arcane_known.front()))
+                    : spells.BestFor(kOrder[i], p.skills.Level(SKILL_MAGIC));
 
                 ui.Fill(r, {static_cast<Uint8>(c.r / (on ? 2 : 5)),
                             static_cast<Uint8>(c.g / (on ? 2 : 5)),
@@ -665,19 +678,24 @@ void Game::DrawHud() {
                         Align::Center);
             }
 
-            const SpellDef* current = spells.BestFor(p.SelectedElement(),
-                                                     p.skills.Level(SKILL_MAGIC));
+            const bool arcane_on = p.SelectedElement() == Element::Arcane;
+            const SpellDef* current = arcane_on ? spells.Get(p.ArcaneSpell())
+                                                : spells.BestFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
             string line;
-            if (current) {
+            if (current && arcane_on && current->level > p.skills.Level(SKILL_MAGIC)) {
+                line = current->name + "   needs Magic " + std::to_string(current->level);
+            } else if (current) {
                 line = current->name + "   " + std::to_string(current->mana) + " mana";
+                if (arcane_on && arcane_known.size() > 1)
+                    line += "   " + input.PromptFor(Action::SelectArcane) + " again: next";
                 // A staff's technique rides on the same line as the spell.
                 if (const TalentNode* t = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique()))
                     line += "     hold " + input.PromptFor(Action::StrongAttack) + ": " + t->name;
             } else {
-                const SpellDef* next = spells.NextFor(p.SelectedElement(),
-                                                      p.skills.Level(SKILL_MAGIC));
+                const SpellDef* next = arcane_on ? nullptr
+                                     : spells.NextFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
                 line = next ? ("Magic " + std::to_string(next->level) + " for " + next->name)
-                            : "Nothing known";
+                            : arcane_on ? "No ancient magic known" : "Nothing known";
             }
             ui.TextShadowed(line, ui.ViewWidth() / 2.0f, y0 + box + 4.0f,
                             TextSize::Small,
@@ -694,10 +712,10 @@ void Game::DrawHud() {
             // moment the window lasts.
             string line;
             if (next_light != ComboMove::None)
-                line += input.PromptFor(Action::LightAttack) + ": " + ComboName(next_light);
+                line += input.PromptFor(Action::LightAttack) + ": " + ComboNameFor(next_light, style);
             if (next_heavy != ComboMove::None)
                 line += (line.empty() ? string("") : string("     ")) +
-                        input.PromptFor(Action::StrongAttack) + ": " + ComboName(next_heavy);
+                        input.PromptFor(Action::StrongAttack) + ": " + ComboNameFor(next_heavy, style);
             ui.TextShadowed(line, ui.ViewWidth() / 2.0f, ui.ViewHeight() - 46.0f, TextSize::Small,
                             {255, 224, 140, 255}, Align::Center);
         } else if (tech && style != AttackStyle::Magic) {
@@ -709,6 +727,32 @@ void Game::DrawHud() {
                             ui.ViewHeight() - 46.0f, TextSize::Small,
                             Palette::TextDim, Align::Center);
         }
+    }
+
+    // --- the chain -------------------------------------------------------------
+    // Melee swings landed one after another, under the target frame: the
+    // count large, and what each swing was on a line beneath it. It holds
+    // for a moment after the last hit and fades; a swing that lands on
+    // nothing or a blow taken ends it. From two, so a single hit is not an
+    // announcement.
+    if (live && p.ChainHits() >= 2 && p.ChainFade() > 0.0f) {
+        const float fade = p.ChainFade();
+        const int hits = p.ChainHits();
+        // Pale, then amber, then ember as the run grows.
+        SDL_Color col = hits >= 8 ? SDL_Color{255, 128, 72, 255}
+                      : hits >= 5 ? SDL_Color{255, 204, 96, 255}
+                                  : SDL_Color{240, 236, 220, 255};
+        col.a = static_cast<Uint8>(255.0f * fade);
+        const float cx = ui.ViewWidth() / 2.0f, y = 70.0f;
+        ui.TextShadowed(std::to_string(hits), cx - 6.0f, y, TextSize::Large, col, Align::Right);
+        ui.TextShadowed("HITS", cx + 4.0f, y + ui.LineHeight(TextSize::Large) - ui.LineHeight(TextSize::Small) - 2.0f,
+                        TextSize::Small, col, Align::Left);
+        const auto& t = p.ChainTrail();
+        string trail;
+        for (size_t i = 0; i < t.size(); ++i) trail += (i ? "  >  " : "") + t[i];
+        if (hits > static_cast<int>(t.size())) trail = "...  >  " + trail;
+        const SDL_Color dim = {col.r, col.g, col.b, static_cast<Uint8>(215.0f * fade)};
+        ui.TextShadowed(trail, cx, y + ui.LineHeight(TextSize::Large) + 2.0f, TextSize::Small, dim, Align::Center);
     }
 
     // --- target frame ----------------------------------------------------------
@@ -998,17 +1042,22 @@ void Game::UpdateInventory() {
                     // A recipe scroll: a brew, or -- when it reads
                     // "enchant:<id>" -- a charm for the enchanting table.
                     const bool charm = def->learn.rfind("enchant:", 0) == 0;
+                    const bool tome  = def->learn.rfind("spell:", 0) == 0;
                     const EnchantDef* ench = charm ? items.Enchantment(def->learn.substr(8)) : nullptr;
-                    const ItemDef* brew = charm ? nullptr : items.Get(def->learn);
-                    const string name = ench ? ench->name : brew ? brew->name : def->learn;
+                    const SpellDef* sp = tome ? spells.Get(def->learn.substr(6)) : nullptr;
+                    const ItemDef* brew = (charm || tome) ? nullptr : items.Get(def->learn);
+                    const string name = ench ? ench->name : sp ? sp->name : brew ? brew->name : def->learn;
                     if (world.KnowsRecipe(def->learn)) {
                         PushToast(charm ? "You already know the enchantment " + name + "."
-                                        : "You already know how to brew " + name + ".", Palette::TextDim);
+                                  : tome ? "You already know " + name + "."
+                                         : "You already know how to brew " + name + ".", Palette::TextDim);
                     } else {
                         world.SetFlag("recipe:" + def->learn);
                         p.inventory.RemoveSlot(inventory_cursor, 1);
                         PushToast(charm ? "Enchantment learned: " + name + ". Work it at an enchanting table."
-                                        : "Recipe learned: " + name + ". Brew it at a cauldron.", Palette::Highlight);
+                                  : tome ? "Spell learned: " + name + ". Press " + input.PromptFor(Action::SelectArcane) +
+                                           " with a staff in hand."
+                                         : "Recipe learned: " + name + ". Brew it at a cauldron.", Palette::Highlight);
                         Audio::Play(Sfx::QuestStart);
                     }
                 } else if (def && def->use == "light") {

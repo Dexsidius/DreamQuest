@@ -93,6 +93,11 @@ struct CombatProfile {
 // so a bow does nothing for a character who never trained Ranged.
 enum class AttackStyle { Melee, Ranged, Magic };
 
+// The combos have the same grammar with every weapon and a different move
+// at the end of it: a bow's Light, Heavy is a Split Shot where a sword's is
+// the Crushing Blow, a staff's a Surge. ComboName alone is the sword's.
+const char* ComboNameFor(ComboMove move, AttackStyle style);
+
 struct DamageResult {
     bool hit = false;
     int  damage = 0;

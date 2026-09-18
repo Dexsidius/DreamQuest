@@ -147,6 +147,7 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Skills | `O` | RB |
 | Quest journal | `P` or `Q` | Back |
 | Select element | `1` `2` `3` `4` | — |
+| The ancient magic, and its next page | `5` | — |
 | Cycle element | `R` | Right stick click |
 | Drop what the cursor is on (in the bag) | `G` | Y (north) |
 | Pause | `Esc` | Start |
@@ -292,6 +293,40 @@ Two things fell out of building it:
   frame-perfect tap. The two buttons are kept apart, so two presses inside one
   swing still read as together.
 
+**The same grammar with every weapon.** A bow and a staff read the presses
+the same way and put their own move at the end of them:
+
+| Pressed | Sword | Bow | Staff |
+| --- | --- | --- | --- |
+| Light, Heavy | Crushing Blow | **Split Shot**: three arrows in a narrow fan, 0.7x each | **Surge**: one bolt at 1.6x that throws, for half again the mana |
+| Light, Light, Heavy | Cleave | **Barbed Shot**: one heavy arrow at 1.6x that passes through two bodies and throws hard | **Cascade**: three bolts in a fan, 0.8x each |
+| Heavy, Light | Backhand | **Snap Shot**: an arrow at once, as good as a drawn one | **Flicker**: a bolt at once |
+| Light + Heavy | Cross Cut | **Twin Shot**: two arrows at once, 0.9x each | **Pulse**: a ring of six bolts, 0.5x each, for twice the mana |
+
+A bow or a staff plays its own draw or cast rather than the sword's combo
+clips, and sounds when the shot leaves. The name still floats up, and the HUD
+names the move for the weapon in hand.
+
+**The swing is drawn.** The character's swing is sixty-four pixels of arm;
+what a blow actually covers is its hitbox, and nothing used to show it. Now a
+pale crescent is swept through the arc the profile describes -- as far out as
+the reach, as wide as the width -- faint through the wind-up, bright and
+advancing through the active frames, and gone with the recovery. A spear's
+thrust is a line driven out instead; the Crushing Blow adds a streak down the
+middle; the Cross Cut's crescent is the whole circle; and each combo has its
+own tint, so what came out can be told from across the room
+(`World::DrawSwing`).
+
+**The chain counter.** Under the target frame, every melee swing that lands
+one after another is counted -- the number large, and beneath it what each
+swing was: "Light > Light > Light > Crushing Blow". It shows from the second
+hit, holds for a moment and a half after the last and fades, and turns amber at
+five and ember at eight. A swing that meets nothing ends it, and so does a blow
+taken -- so a shield raised at the right moment keeps a run alive. A whirlwind
+or a Cross Cut that strikes three monsters is one hit of the chain, named for
+what it was. It is `Player::ChainHits` and `ChainTrail`, counted by the world
+where a swing is resolved.
+
 "Together" is the two buttons within about five frames of each other, either
 way round: a light already started is taken back before its active frames,
 and a heavy's hold is taken back before it has begun to charge. It costs
@@ -375,6 +410,41 @@ is a reward for paying attention rather than a tax for not.
 
 Monsters are aligned in `data/enemies.json`: orcs and boar are earth, foxes
 are air, the Warchief is fire.
+
+### The ancient magic
+
+The four elements are what the land lends a caster. **The ancient magic is
+what people wrote down before they had the elements to lean on**, and it is
+taught at the **mage college in Fernhollow**: a round stone tower south-east
+of the pond, older than the hamlet round it, with a circle cut into the floor
+of its hall (`mage_college` and `spell_circle` in `tools/blender_props.py`;
+the hall is `fernhollow_college`, with the college's own floor and walls).
+Magister Orrin keeps it, on the hero's rig in a blue robe (`magister` in
+`LOOKS`), and teaches the first spell to anyone who asks; the rest are
+**tomes** sold in the copying room, the last two only once the pond has
+spoken to the player. A tome is read from the pack like a recipe scroll, and
+what is learned lives in the flags as `recipe:spell:<id>`.
+
+The spells are a fifth school, **arcane**, beside the elements rather than
+among them: it neither beats nor is beaten by any of them. `5` chooses it once
+any of it is known, and `5` again turns the page to the next spell learned, so
+the school is chosen by name where an element is chosen by strength. `R`
+cycles round to it too. The old books, and D&D's, are where the names come
+from:
+
+| Spell | Magic | Mana | Shape |
+| --- | --- | --- | --- |
+| Eldritch Blast | 10 | 8 | one bolt of force at 1.3x that passes through three bodies and throws the rest back |
+| Magic Missile | 16 | 9 | three darts at 0.55x that turn after the target; they do not miss |
+| Scorching Ray | 24 | 12 | three rays of heat in a fan at 0.8x, faster than anything the elements throw |
+| Hail of Blades | 32 | 15 | a moment later, blades come down on the target and everything beside it, at 1.5x |
+| Cloud of Daggers | 40 | 16 | a slow orb that bursts into a cloud of knives where it lands and cuts for four seconds |
+| Thunderwave | 48 | 18 | a ring of force out of the caster in every direction, at 0.7x, that throws everything it touches |
+
+Every spell has a shape in `data/spells.json` -- `bolt`, `darts`, `rays`,
+`rain`, `ring` -- and the world casts by shape, so a new spell is a line of
+data and a projectile. The combos work with the ancient magic as they do with
+the elements.
 
 ### Mana
 
@@ -1053,6 +1123,16 @@ character loosing arrows with a shield on the other arm. A weapon that brings it
 sword layers, and is mirrored when the character faces right so it is not held
 backwards.
 
+### Affinities
+
+Each of the three characters favours one way of fighting, and says so on the
+card at character select: **the hero the blade, the warden the bow, the
+wayfarer the staff.** Attacks of that style hit a tenth harder and carry eight
+points more accuracy, from the first swing and for good. It is who they are
+rather than something learned, so it sits under the skill trees and the
+equipment rather than among them (`Player::Affinity`, `AFFINITY_DAMAGE`,
+`AFFINITY_BONUS`).
+
 ### On using icon packs as armour
 
 CraftPix icon packs (fantasy knight armour, RPG boots, mage outfits, daggers)
@@ -1455,6 +1535,9 @@ stack of one-pixel strips, each as wide as the circle at that height. That
 keeps the map round without a mask or a shader and pixel-for-pixel crisp; the
 game still holds its 72 fps cap.
 
+The **chain counter** sits under the target frame while melee swings are
+landing one after another; see "Combos" above.
+
 ### The world map
 
 **M** opens the whole Hollowmarch on one screen, from anywhere -- the point of
@@ -1622,6 +1705,14 @@ smith an iron one, Halda posts orders for iron spears, and lizardmen now and
 then leave a bronze one behind.
 
 ## Starting out
+
+The first thing a new character sees, before the first step, is **a note of
+welcome** on the parchment a sign is read on: where they are standing, where
+the town, the mine and the trail are, what every key does -- named for the
+device in use, so a pad shows its buttons -- and that the night will take
+them somewhere else. Once, on a new game only; a load puts the player back
+mid-story.
+
 
 A new character starts with **25 coins, a Wooden Sword, a Barkwood Cuirass and
 a Wooden Shield, all worn, and three cooked meat**. Nothing else: the rest of a
@@ -2250,6 +2341,26 @@ A monster's `scale` in `data/enemies.json` now actually draws it bigger -- it wa
 read and never used -- so a broodmother, a chief, the matriarch and the Pit Lord
 are the same art as their kin, only larger and tinted.
 
+### Highwaymen
+
+The forest paths have bandits on them. **Highwaymen loiter in twos at the
+trailside** -- two pairs before the fork on the Whisperwood Trail and two past
+it, one either side of the path, and four more pairs along the trail east of
+the Sunken Road under the Hollowmarch's trees -- where a cart has to pass them. They are people, drawn on the hero's own rig in
+dark leathers with a red neckerchief pulled up for a mask and a sword in hand
+(`highwayman` in `LOOKS`, `tools/blender_character.py`, rendered with only the
+five clips a monster plays and no plate).
+
+They are made to be handled by whoever is already handling the trail: 18
+hitpoints, Attack and Strength 6 with a bonus of 6, Defence 5 -- quicker on
+their feet than an orc grunt and a little tougher, and well short of an orc
+raider -- at levels two to four on the trail and three on the road. The
+self-test fights one with a level 12 sword-and-no-shield character and checks
+they win it with most of their health. They drop coins, and now and then what
+a bandit would have on him: thread, a hide, a meal, a tinderbox, a vial, or
+the sword. The Mossvale board posts a daily, **Road Toll**, to drive four of
+them off the trail, once the trail has been cleared the first time.
+
 ### Heavy attacks
 
 Leaders -- the Orc Warchief, the Broodmother, the Lizardman Chief, the Wyvern
@@ -2422,7 +2533,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15235 checks** covering:
+and checks all of it — currently **15528 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -2617,6 +2728,32 @@ and checks all of it — currently **15235 checks** covering:
   is none; a bow has no combos; a press inside a swing comes out the moment
   the swing ends; a hold past its window is a charge that ignores a light; and
   a braced Warchief shrugs a stagger off where a plain orc reels on the spot
+- the chain counter: a fresh fight has none, three lights that land are
+  three with the trail saying so, a combo is named in it, a long run keeps the
+  last six for the trail, and a blow taken, a swing that meets nothing, or a
+  pause ends it; a Cross Cut that strikes two counts once
+- highwaymen: a monster with art of their own and every clip a monster plays,
+  the size of a person, quicker than an orc grunt and well short of a raider;
+  at least six loiter by the path on the Whisperwood Trail at levels two to
+  four, on open ground, and more along the Sunken Road; the Mossvale board
+  posts a daily against them; and a level 12 fighter with a bronze sword beats
+  one with most of their health left
+- the quest tracker counts what is carried on a gathering stage, says
+  Complete once it is, and says only to bring the goods back on a deliver
+  stage, with no count
+- affinities: the hero favours the blade, the warden the bow and the wayfarer
+  the staff, a tenth harder and eight points truer with it
+- the ancient magic: six spells that come in order and take every shape,
+  outside the elements' cycle; Eldritch Blast is taught by the magister once
+  and the rest are tomes the copying room sells; the college's hall loads with
+  the magister and the circle in it and Fernhollow has a door into it; 5 does
+  nothing until the magic is known, then chooses it and turns its pages; the
+  Eldritch Blast is one bolt that passes through three bodies, Magic Missile
+  three darts, and a spell above the caster's level is refused; the page
+  chosen survives a save
+- the combos at range: with a bow a heavy after a shot is a Split Shot of
+  three arrows and both buttons a Twin Shot of two; with a staff a heavy after
+  two casts is a Cascade of three bolts, for more mana
 - inventory, equipment, skills and quest progress survive a save round-trip
 - the hero has every clip including sprint, each split into shadow, body and
   head with its sheets on disk, and its head and feet sit where the CraftPix

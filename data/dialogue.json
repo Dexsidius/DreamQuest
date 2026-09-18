@@ -1354,6 +1354,81 @@
    }
   ]
  },
+ "magister_root": {
+  "speaker": "Magister Orrin",
+  "text": "Mind the circle. It is older than the floor it is cut into, and it does not care for boots.\n\nThe college is three of us and a copying room now, but the books remember when it was more.",
+  "options": [
+   {
+    "text": "Could you teach me the old magic?",
+    "next": "magister_teach",
+    "if": {
+     "no_flag": "recipe:spell:eldritch_blast"
+    }
+   },
+   {
+    "text": "About the ancient spells.",
+    "next": "magister_more",
+    "if": {
+     "flag": "recipe:spell:eldritch_blast"
+    }
+   },
+   {
+    "text": "What is this place?",
+    "next": "magister_about"
+   },
+   {
+    "text": "What does the copying room sell?",
+    "next": "end",
+    "action": {
+     "shop": "fernhollow_college"
+    }
+   },
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "magister_teach": {
+  "speaker": "Magister Orrin",
+  "text": "The elements are what the land lends you. The old magic is what people wrote down before they had the elements to lean on, and it lends nothing: it takes.\n\nStand in the circle. Hold the staff as if it were heavier than it is. The word is not said so much as let go of -- there. That was an Eldritch Blast, and every other page in the library starts from it.",
+  "options": [
+   {
+    "text": "Let go of the word.",
+    "next": "magister_more",
+    "action": {
+     "learn": "spell:eldritch_blast"
+    }
+   }
+  ]
+ },
+ "magister_more": {
+  "speaker": "Magister Orrin",
+  "text": "It sits beside the elements, not among them: the fifth mark under your hand, and the same mark again to turn the page. Nothing resists it and nothing fears it.\n\nThe rest are in the copying room, at a price that keeps the roof on. Some of them I will not sell to anyone the pond has not spoken to.",
+  "options": [
+   {
+    "text": "Show me the copying room.",
+    "next": "end",
+    "action": {
+     "shop": "fernhollow_college"
+    }
+   },
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "magister_about": {
+  "speaker": "Magister Orrin",
+  "text": "A college, on paper. The tower was here when Fernhollow was three houses; the hamlet grew up round it the way moss grows up a stone. We teach whoever climbs the trail with a staff and the patience for it, which is not many.\n\nThe lights on the pond are not ours, whatever Hesper says.",
+  "options": [
+   {
+    "text": "I see.",
+    "next": "end"
+   }
+  ]
+ },
  "hadley_root": {
   "speaker": "Reeve Hadley",
   "text": "Reeve Hadley. If you are here about the tanner's debts, I am not in. If you are here about work, the notices are by the well.",

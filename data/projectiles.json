@@ -152,5 +152,125 @@
     "bounces": 3,
     "bounce_damping": 0.14,
     "impact_size": 11
+  },
+
+  "bolt_eldritch": {
+    "sprite": "assets/icons/rune.png",
+    "speed": 460,
+    "life": 1.4,
+    "radius": 6,
+    "scale": 0.7,
+    "spin": true,
+    "pierce": 3,
+    "knockback": 70,
+    "homing": 3.0,
+    "element": "arcane",
+    "tint": [
+      200,
+      150,
+      255
+    ],
+    "impact_size": 9
+  },
+
+  "dart_arcane": {
+    "sprite": "assets/icons/star.png",
+    "speed": 380,
+    "life": 1.6,
+    "radius": 5,
+    "scale": 0.5,
+    "spin": true,
+    "pierce": 0,
+    "knockback": 14,
+    "homing": 8.0,
+    "element": "arcane",
+    "tint": [
+      220,
+      190,
+      255
+    ],
+    "impact_size": 6
+  },
+
+  "ray_arcane": {
+    "sprite": "assets/icons/spark.png",
+    "speed": 520,
+    "life": 1.1,
+    "radius": 5,
+    "scale": 0.6,
+    "spin": true,
+    "pierce": 0,
+    "knockback": 20,
+    "homing": 2.0,
+    "element": "arcane",
+    "tint": [
+      255,
+      170,
+      120
+    ],
+    "impact_size": 8
+  },
+
+  "blade_arcane": {
+    "sprite": "assets/icons/star.png",
+    "speed": 400,
+    "life": 1.0,
+    "radius": 5,
+    "scale": 0.6,
+    "spin": true,
+    "pierce": 0,
+    "knockback": 30,
+    "homing": 2.0,
+    "element": "arcane",
+    "tint": [
+      230,
+      230,
+      255
+    ],
+    "impact_size": 7
+  },
+
+  "cloud_daggers": {
+    "sprite": "assets/icons/dream_shard.png",
+    "speed": 220,
+    "life": 1.6,
+    "radius": 7,
+    "scale": 0.8,
+    "spin": true,
+    "pierce": 0,
+    "knockback": 10,
+    "homing": 3.0,
+    "element": "arcane",
+    "tint": [
+      210,
+      170,
+      255
+    ],
+    "patch": {
+      "time": 4.0,
+      "radius": 28,
+      "damage": 4,
+      "tick": 0.4
+    },
+    "impact_size": 10
+  },
+
+  "bolt_thunder": {
+    "sprite": "assets/icons/spark.png",
+    "speed": 340,
+    "life": 0.45,
+    "radius": 7,
+    "scale": 0.8,
+    "spin": true,
+    "pierce": 1,
+    "knockback": 90,
+    "homing": 0.0,
+    "element": "arcane",
+    "tint": [
+      190,
+      210,
+      255
+    ],
+    "impact_size": 9
   }
 }

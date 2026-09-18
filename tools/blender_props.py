@@ -2557,6 +2557,105 @@ HERB_PROPS["enchanting_table"] = (prop_enchanting_table, 64)
 
 
 # -----------------------------------------------------------------------------
+#  The mage college at Fernhollow, and the circle cut into its floor
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "slate":        (0.300, 0.320, 0.400),
+    "slate_dk":     (0.210, 0.225, 0.290),
+    "circle_stone": (0.360, 0.350, 0.400),
+})
+
+
+def prop_mage_college():
+    """A round stone tower under a cone of slate, with a lit arched window
+    over an oak door, a lantern on a bracket beside it, a low stone annex
+    with its own roof, and a crystal on the finial throwing a pale light.
+    Older than the hamlet, so the stone is darker and the courses uneven."""
+    import random
+    rng = random.Random(41)
+    R, H = 1.25, 2.70
+    base = 0.14
+    front = -R
+    cyl("plinth", R + 0.16, base, (0, 0, base / 2), "stone_pale", verts=28)
+    cyl("tower", R, H, (0, 0, base + H / 2), "stone", verts=28, rough=0.9)
+    # Courses, uneven: every other one a shade paler, and a few stones proud.
+    for k in range(6):
+        z = base + 0.32 + k * 0.42
+        cyl("course_%d" % k, R + 0.015, 0.05, (0, 0, z), ("stone_pale", "stone")[k % 2], verts=28)
+    for k in range(14):
+        a = rng.uniform(0.3, 2.85) + (0 if k % 2 else math.pi)
+        z = base + 0.25 + rng.uniform(0, H - 0.5)
+        blk("stone_%d" % k, (0.22, 0.08, 0.12), (math.cos(a) * R, math.sin(a) * R, z), "stone_pale",
+            rot=(0, 0, a), bev=0.01)
+    # The door, arched with a lintel, and the step.
+    blk("door", (0.62, 0.10, 1.00), (0, front + 0.06, base + 0.50), "log_dk")
+    for i in range(3):
+        blk("door_plank_%d" % i, (0.02, 0.02, 0.94), (-0.17 + i * 0.17, front + 0.02, base + 0.50), "log", bev=0)
+    cyl("arch", 0.36, 0.14, (0, front + 0.07, base + 1.00), "stone_pale", rot=(math.radians(90), 0, 0), verts=20)
+    blk("step", (0.90, 0.34, 0.08), (0, front - 0.18, 0.04), "stone_pale")
+    sphere("knob", 0.045, (0.20, front - 0.02, base + 0.48), "brass")
+    # A lantern on a bracket beside the door.
+    blk("bracket", (0.06, 0.20, 0.06), (0.62, front - 0.06, base + 1.34), "iron")
+    blk("lantern", (0.16, 0.16, 0.22), (0.62, front - 0.16, base + 1.20), "candle_glow", emit=1.3, bev=0.03)
+    # Windows: a tall lit one over the door and two smaller round the sides.
+    window("win_front", 0, front + 0.02, base + 1.90, w=0.34, h=0.50, lit=True, shutters=False)
+    for side in (-1, 1):
+        a = math.radians(90 + side * 52)
+        x, y = math.cos(a) * R * -side * 0 + side * R * 0.80, -R * 0.60
+        window("win_%d" % side, x, y, base + 1.35, w=0.26, h=0.34, lit=(side > 0), shutters=False)
+    # The cone of slate, in bands, and a finial with a crystal in it.
+    roof_z = base + H
+    # The cone is kept short enough that the crystal on its finial stays
+    # inside the frame; the first one lost its point off the top.
+    cone("roof", R + 0.34, 1.55, (0, 0, roof_z + 0.77), "slate", verts=28)
+    for k in range(4):
+        t = 0.15 + k * 0.22
+        cone("band_%d" % k, (R + 0.34) * (1 - t) + 0.02, 0.07, (0, 0, roof_z + t * 1.55), "slate_dk", verts=28)
+    cyl("finial", 0.06, 0.30, (0, 0, roof_z + 1.55 + 0.13), "iron", verts=8)
+    cone("crystal", 0.11, 0.36, (0, 0, roof_z + 1.55 + 0.44), "crystal", verts=6)
+    bpy.context.active_object.data.materials[0] = material("crystal_top", "crystal", 0.35, 0.0, 0.9)
+    # The annex: a low square wing on the right with a gable roof.
+    ax = R + 0.55
+    blk("annex", (1.10, 1.30, 1.10), (ax, 0.10, base + 0.55), "stone", bev=0.03)
+    pitch = math.radians(38)
+    half = 0.65 + 0.18
+    slab = half / math.cos(pitch)
+    rise = half * math.tan(pitch)
+    for side in (-1, 1):
+        blk("annex_roof_%d" % side, (1.10 + 0.36, slab, 0.12),
+            (ax, 0.10 + side * half / 2, base + 1.10 + rise / 2), "slate",
+            rot=(-side * pitch, 0, 0), bev=0.03)
+    cyl("annex_ridge", 0.06, 1.10 + 0.40, (ax, 0.10, base + 1.10 + rise + 0.02), "slate_dk",
+        rot=(0, math.radians(90), 0), verts=10)
+    window("win_annex", ax, 0.10 - 0.65 + 0.02, base + 0.62, w=0.30, h=0.30, lit=True, shutters=False)
+    return (5.0, BUILDING_ELEVATION)
+
+
+def prop_spell_circle():
+    """The circle cut into the college's floor: two rings of pale stone, the
+    runes between them lit from below, and a star of lines at the middle.
+    Drawn flat, to lie on the floor as an overlay."""
+    cyl("outer", 0.90, 0.02, (0, 0, 0.01), "circle_stone", verts=36)
+    cyl("inner_dark", 0.80, 0.022, (0, 0, 0.011), "stone", verts=36)
+    cyl("inner", 0.56, 0.024, (0, 0, 0.012), "circle_stone", verts=36)
+    cyl("core", 0.48, 0.026, (0, 0, 0.013), "stone", verts=36)
+    for k in range(12):
+        a = k / 12 * math.tau
+        blk("rune_%d" % k, (0.12, 0.06, 0.02), (math.cos(a) * 0.68, math.sin(a) * 0.68, 0.03),
+            "rune_glow", rot=(0, 0, a), emit=1.8, bev=0)
+    for k in range(3):
+        a = k / 3 * math.pi
+        blk("line_%d" % k, (0.92, 0.035, 0.018), (0, 0, 0.03), "rune_glow", rot=(0, 0, a), emit=1.4, bev=0)
+    sphere("eye", 0.07, (0, 0, 0.03), "rune_glow", emit=2.2)
+    return (2.0, 62.0)
+
+
+HERB_PROPS["mage_college"] = (prop_mage_college, 176)
+HERB_PROPS["spell_circle"] = (prop_spell_circle, 96)
+
+
+# -----------------------------------------------------------------------------
 #  The swamp, the Ice Spire, the Ashen Path and the inn's cellar
 # -----------------------------------------------------------------------------
 

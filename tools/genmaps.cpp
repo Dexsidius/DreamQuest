@@ -1199,9 +1199,11 @@ static void BuildOverworld() {
                 if (r < 0.09f)       { m.Enemy("orc2", x, y, 8); ++spawned; }
             }
 
-            // The Sunken Road is where the orc contract is actually filled.
+            // The Sunken Road is where the orc contract is actually filled --
+            // and, under the trees along it, where the highwaymen wait.
             if (b != WATER && road_gap > 2.0f && road_gap < 6.0f && cy > 24 && cy < 74) {
                 if (r > 0.90f) { m.Enemy("orc1", x, y, 3, 24.0f, 200.0f); ++spawned; }
+                else if (r > 0.84f && b == GREENWOOD) { m.Enemy("highwayman", x, y, 3, 40.0f, 200.0f); ++spawned; }
             }
         }
     }
@@ -1368,6 +1370,19 @@ static void BuildOverworld() {
                  "To the Whisperwood", false);
         MarkWorld("path", "Whisperwood Trail", OW_PX_W - 40, ey);
         m.Spawn("from_whisperwood", OW_PX_W - 96, static_cast<int>(TrailY(OW_W - 4) * OW_CELL) + 16);
+
+        // Highwaymen along the trail east of the road, in twos under the
+        // trees, the way they stand on the Whisperwood side of it.
+        {
+            int n = 0;
+            for (int cx = static_cast<int>(RoadX(TRAIL_JUNCTION_CY) + 12.0f); cx < OW_W - 5; cx += 17)
+                for (int side : {-1, 1}) {
+                    const int tx = cx + (side < 0 ? 0 : 2);
+                    const int ty = static_cast<int>(TrailY(static_cast<float>(tx)) + side * 2.4f);
+                    if (BiomeAt(tx, ty) == WATER || !m.Clear(tx * OW_CELL + 16, ty * OW_CELL + 16)) continue;
+                    m.Enemy("highwayman", tx * OW_CELL + 16, ty * OW_CELL + 16, 2 + (n++ % 2), 40.0f, 200.0f);
+                }
+        }
     }
 
     // --- the lizardmen's camp ------------------------------------------------------
@@ -3282,6 +3297,24 @@ static void BuildWhisperwood() {
             else if (r < 0.68f) m.Enemy("hare", x, y, 2);
         }
 
+    // --- highwaymen ---------------------------------------------------------------
+    // Bandits loitering at the trailside in twos, where a cart has to pass
+    // them: two pairs before the fork and two past it, one either side of the
+    // path. Quicker than an orc and no tougher than a boar, so a traveller
+    // who can manage the foxes can manage them. They keep to the verge, and
+    // stroll off it only to chase.
+    {
+        int n = 0;
+        for (int lx : {24, 40, 64, 78})
+            for (int side : {-1, 1}) {
+                const int cx = lx + (side < 0 ? 0 : 2);
+                const int cy = static_cast<int>(TrailY(static_cast<float>(cx)) + side * 2.4f);
+                if (Stream(cx, cy) || in_camp(cx, cy) || on_camp_path(cx, cy)) continue;
+                if (!m.Clear(cx * CELL + 16, cy * CELL + 16)) continue;
+                m.Enemy("highwayman", cx * CELL + 16, cy * CELL + 16, 2 + (n++ % 3), 45.0f, 180.0f);
+            }
+    }
+
     // --- the ways out -------------------------------------------------------------
     const int wy = static_cast<int>(TrailY(0.0f) * CELL) + 16;
     m.Portal(0, wy - 72, 24, 144, "overworld", "from_whisperwood", "To the Hollowmarch", false);
@@ -3585,6 +3618,7 @@ static void BuildFernhollow() {
         if (cx >= 3 && cx <= 10 && cy >= 21 && cy <= 28) return true;    // shrine
         if (cx >= 16 && cx <= 24 && cy >= 23 && cy <= 29) return true;   // camp
         if (cx >= 15 && cx <= 21 && cy >= 17 && cy <= 21) return true;   // Nell's cart
+        if (cx >= 30 && cx <= 44 && cy >= 23 && cy <= 34) return true;   // the college, and its doorstep
         return false;
     };
 
@@ -3628,6 +3662,12 @@ static void BuildFernhollow() {
     PlaceBuilding(m, "building_house_a", gate_col * CELL + 16, 11 * CELL, 136, 147,
                   "fernhollow_cottage", "entrance", "Enter the ferry cottage",
                   "from_fernhollow_cottage");
+
+    // The mage college: a stone tower south-east of the pond, older than the
+    // hamlet, where the ancient magic is taught. Its own model, in props.
+    PlaceBuilding(m, "mage_college", 37 * CELL, 31 * CELL, 150, 176,
+                  "fernhollow_college", "entrance", "Enter the college",
+                  "from_fernhollow_college", "props");
 
     // The shrine: standing stones in a ring round a candle, and the one thing
     // anyone in Fernhollow will tell you about the pond.
@@ -3898,6 +3938,44 @@ static void BuildWoodlandInteriors() {
         piece("tavern_chair", 10 * CELL,     7 * CELL + 10, 16, 8);
         piece("travel_chest", 13 * CELL + 8, 9 * CELL,      28, 12);
         m.Npc("npc_hesper", "Hesper", "citizen2", 11 * CELL, 5 * CELL + 10, "hesper_root", 0);
+        m.Write("maps");
+    }
+
+    // The college's hall: a round of stone under the tower, the circle cut
+    // into the floor at its middle, shelves of the library along the back
+    // wall, the magister's lectern, and the copying room's chalk board.
+    {
+        const int CELL = 32, cols = 20, rows = 14;
+        MapBuilder m("fernhollow_college", "The College", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Subtitle("Older than the hamlet round it");
+        m.Background(16, 14, 24);
+        RoomShell(m, cols, rows, CELL, "cellar_floor", "forge_wall", cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "fernhollow", "from_fernhollow_college",
+                 "Step outside", false);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        // The circle, on the floor at the middle of the hall.
+        m.Overlay("props", "spell_circle", dx, 7 * CELL + 16);
+        for (int i = 0; i < 4; ++i) piece("bookshelf", (3 + i * 3) * CELL + 16, 3 * CELL + 4, 44, 14);
+        piece("cottage_bookshelf", 16 * CELL + 16, 3 * CELL + 4, 40, 14);
+        piece("lectern",      dx - 16,          5 * CELL + 8,  28, 10);
+        piece("chalk_board",  17 * CELL,        6 * CELL + 4,  30, 10);
+        piece("table_round",  3 * CELL + 16,    9 * CELL + 8,  40, 12);
+        piece("tavern_chair", 2 * CELL + 16,    9 * CELL + 10, 16, 8);
+        piece("candlestand",  6 * CELL,         6 * CELL + 8,  16, 8);
+        piece("candlestand",  14 * CELL,        6 * CELL + 8,  16, 8);
+        piece("candlestand",  6 * CELL,         10 * CELL + 8, 16, 8);
+        piece("candlestand",  14 * CELL,        10 * CELL + 8, 16, 8);
+        piece("travel_chest", 17 * CELL + 8,    10 * CELL,     28, 12);
+        piece("writing_desk", 3 * CELL,         6 * CELL + 4,  40, 14);
+        m.Npc("npc_magister", "Magister Orrin", "magister", dx + 40, 6 * CELL + 8, "magister_root", 0)["shop"] = "fernhollow_college";
         m.Write("maps");
     }
 }

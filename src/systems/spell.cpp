@@ -29,6 +29,10 @@ bool SpellBook::Load(const string& path) {
         d.damage_mult = o.value("damage", 1.0f);
         d.xp          = o.value("xp", 10);
         d.projectile  = o.value("projectile", string(""));
+        d.arcane      = o.value("school", string("elemental")) == "arcane";
+        d.shape       = o.value("shape", string("bolt"));
+        d.taught_by   = o.value("taught_by", string(""));
+        if (d.arcane) d.element = Element::Arcane;
         defs[d.id] = d;
     }
 
@@ -49,6 +53,16 @@ const SpellDef* SpellBook::BestFor(Element e, int magic_level) const {
         if (!best || s.tier > best->tier) best = &s;
     }
     return best;
+}
+
+vector<const SpellDef*> SpellBook::Arcane() const {
+    vector<const SpellDef*> out;
+    for (const auto& kv : defs) if (kv.second.arcane) out.push_back(&kv.second);
+    std::sort(out.begin(), out.end(), [](const SpellDef* a, const SpellDef* b) {
+        if (a->level != b->level) return a->level < b->level;
+        return a->name < b->name;
+    });
+    return out;
 }
 
 const SpellDef* SpellBook::NextFor(Element e, int magic_level) const {

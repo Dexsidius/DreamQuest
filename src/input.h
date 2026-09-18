@@ -8,7 +8,7 @@ enum class Action {
     MoveUp, MoveDown, MoveLeft, MoveRight,
     LightAttack, StrongAttack, Interact, Jump, Sprint, Target, Block,
     Inventory, QuestLog, Skills, WorldMap, Pause,
-    SelectFire, SelectWater, SelectEarth, SelectAir, CycleSpell,
+    SelectFire, SelectWater, SelectEarth, SelectAir, SelectArcane, CycleSpell,
     // Drops what the bag's cursor is on. Read only by the inventory panel.
     Drop,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
