@@ -57,6 +57,11 @@ struct Settings {
     float master_volume   = 0.8f;
     float sfx_volume      = 1.0f;
     float ambience_volume = 0.7f;
+    // Playing together: what friends see you as, and the last five hosts
+    // dialled, newest first. An empty name is filled in from the machine's
+    // user name the first time the game starts.
+    string player_name;
+    vector<string> recent_hosts;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

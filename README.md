@@ -40,11 +40,15 @@ step, on a machine that has never seen either:
 1. Install **MSYS2** from [msys2.org](https://www.msys2.org) (the default
    `C:\msys64` is where `build.ps1` looks; pass `-Msys` if it is elsewhere).
 2. Open the **MSYS2 UCRT64** shell from the Start menu -- not the MSYS or
-   MINGW64 one -- and install the compiler and the three SDL libraries:
+   MINGW64 one -- and install the compiler, the three SDL libraries and ENet:
 
    ```bash
-   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-sdl3-image mingw-w64-ucrt-x86_64-sdl3-ttf
+   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-sdl3-image mingw-w64-ucrt-x86_64-sdl3-ttf mingw-w64-ucrt-x86_64-enet
    ```
+
+   ENet is the networking library [playing together](#playing-together) runs
+   on. If you built the game before co-op began, that last package is the one
+   you are missing, and `build.ps1` says so.
 
    That is the only time the MSYS2 shell is needed; the build itself runs from
    Windows.
@@ -71,7 +75,7 @@ that the game needs.
 
 ### Linux / macOS
 
-Install SDL3, SDL3_image and SDL3_ttf, then:
+Install SDL3, SDL3_image, SDL3_ttf and ENet (`libenet-dev`, `enet`), then:
 
 ```bash
 ./compile_and_run.sh
@@ -162,6 +166,109 @@ UI, Arial and DejaVu Sans, so text renders the same anywhere.
 after replacing the painting. There is no pre-scaled background file to keep in
 step with anything, because the menu crops and scales the painting itself at
 whatever size the window happens to be.
+
+---
+
+## Playing together
+
+Co-op is being built in milestones, and the plan -- *Hollowmarch Co-op*: up to
+four friends in one Hollowmarch over a tailnet, with one machine running the
+world and the others windows onto it -- is an ordered list of them. **Milestone
+0 is in: the wire, the door and a chat line.** No world is shared yet. What
+works today is everything the later milestones stand on: two copies of the game
+find each other, check they are the same game, take seats, agree on who is
+there, and carry a typed line to the other screen.
+
+| Milestone | What it adds | State |
+|---|---|---|
+| **M0** Skeleton | ENet, the transport, `--host` / `--join`, the greeting with version and data hashes, a chat line | **done** |
+| M1 Two bodies | several players in one `World`, inputs, the server tick, prediction, remote players drawn | next |
+| M2 One fight, shared | entity ids; monsters, projectiles and loot replicated; the melee rewind | |
+| M3 Everything you can press E on | requests for chests, shops, crafting, quests; per-player journals | |
+| M4 Splitting up | one world per occupied map; portals move players between them | |
+| M5 Keeping it | the world / character save split; reconnecting; "everyone in bed skips the night" | |
+| M6 The tailscale box | a headless server that runs with nobody hosting | |
+| M7 Polish | name tags, the party strip, tuning against real latency | |
+
+### Hosting and joining
+
+**Play Together** is on the title screen and the pause menu.
+
+- **Host a world** starts listening on UDP 7777 and seats you in your own
+  world. The screen then says what your friends should type: this machine's
+  name and its tailnet address (the `100.x.y.z` one, which Tailscale gives
+  every machine). Tailscale's MagicDNS name for a machine is its name unless
+  it was renamed in the admin page; the address always works. Windows Firewall
+  asks once -- allow DreamQuest on **private networks**, which is what the
+  Tailscale adapter is. A small light under the address turns green the first
+  time anybody reaches the machine from outside, refused or not; if a friend
+  cannot connect and it stays dark, the firewall is eating the port.
+- **Join** takes a name or an address, with `:port` if the host is not on 7777.
+  `Ctrl+V` pastes. Left and right step through the last five hosts dialled,
+  so a controller, which cannot type, can still rejoin. Nobody answering is
+  given up on after eight seconds, with the three usual reasons listed.
+- **Say** types a line to everyone; `Enter` sends it and keeps typing, `Esc`
+  stops. Away from this screen -- a host out in the meadow -- what is said
+  arrives as a toast.
+- **Name** is what friends see you as, sixteen characters, remembered in
+  `settings.json`. It starts as the machine's user name.
+
+The door closes behind nobody: a host can go and play, and is playing alone
+with the door open. Up to four seats. Two friends with the same name are *Sam*
+and *Sam 2*.
+
+From a shortcut or a terminal:
+
+```bash
+DreamQuest.exe --host
+```
+
+```bash
+DreamQuest.exe --join subzero:7777 --name Oona
+```
+
+`--host` takes an optional port. Both land on the Play Together screen with
+the thing already under way, so whatever goes wrong is said where it can be
+read. Two more exist for checking the screens without a pair of hands:
+`--say "a line"` sends one line as soon as there is a seat to say it from, and
+`--shot file.png 5` writes the frame to a PNG after five seconds and quits.
+
+### The door
+
+A friend on yesterday's build has an orc with different hit points and a map
+with a wall somewhere else, and nothing about that shows until a fight goes
+differently on two screens. So the first thing said on a new line is a
+greeting carrying the protocol version and a hash each of `data/*.json` and
+`maps/*.mx`, and the server checks, in order: that it is DreamQuest knocking
+at all, the protocol version, the data, the maps, and whether a seat is free.
+The first failure is sent back as a sentence a player can act on -- *"Your
+data/ folder differs from the host's (9f3a61c2 against 1b7d02e4). Both of you
+need the same build."* -- and the line is dropped once that has gone out. The
+same eight digits are in the corner of the Play Together screen, to read to
+each other. Carriage returns are skipped by the hash, so a clone with git's
+`autocrlf` on and a zip from one with it off still agree. Someone who connects
+and never says hello is dropped after five seconds.
+
+### How it is built
+
+Everything is in `src/net/`, and none of it includes SDL or the game, so the
+headless server of M6 can use it as it stands.
+
+| File | What it is |
+|---|---|
+| `transport.h` | The wire and nothing else: `Connect`, `Disconnect`, `Send`, `Poll`, `Peers`, over two channels -- reliable-ordered and unreliable-sequenced. |
+| `transport_enet.cpp` | ENet over UDP. The only file that includes ENet, and with it `<windows.h>`. Linked statically, so co-op adds no DLL to ship. |
+| `transport_loopback.*` | The same promises with no sockets: one process, one thread. The host's own client reaches its server through one, so playing as host runs the same code a friend's machine does; the self-test plays a server and a handful of clients against each other on one. It can be made slow and lossy on purpose. |
+| `protocol.*` | `ByteWriter` / `ByteReader` -- little-endian, explicit widths, every read checked, every string limited -- and one `Encode` / `Decode` per message: `Hello`, `Welcome`, `Refuse`, `Roster`, `Say`, `Chat`. |
+| `datahash.*` | The FNV-1a hashes of `data/` and `maps/`. |
+| `server.*` | The door, the seats and the chat line. Listens on any number of transports at once. |
+| `client.*` | Knocking, being seated or refused, the roster, the chat log. |
+| `session.*` | What the game holds: offline, hosting (a server on ENet plus its own client on a loopback) or a guest (a client on ENet). |
+
+The screen itself is `src/ui/lobby.cpp`. Typing is the one thing in the game
+that is not an `Action`: while a field is being typed into, key presses go to
+it instead of the input map, or `J` would confirm, `K` would back out and WASD
+would walk the cursor away in the middle of a name.
 
 ---
 
@@ -2601,7 +2708,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15557 checks** covering:
+and checks all of it — currently **15663 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -2978,6 +3085,40 @@ and checks all of it — currently **15557 checks** covering:
   each ambience, the dream's and a night outdoors included, is audible, stays
   in the background and fades out when cleared; forty hits at once are
   voice-capped and never exceed full scale
+- co-op M0, bytes: a writer writes exactly the widths asked for, little-endian;
+  reading past the end fails and yields zero; a string past its limit is
+  refused, not truncated, and a length that lies is caught; every message
+  round-trips, no truncation of any of them decodes, nor does one with a byte
+  left over, and none decodes as another; a greeting from another protocol
+  version still reads far enough to be refused by number; a chat line is
+  trimmed, loses its control characters and is never cut through a UTF-8
+  character; addresses split into a host and a port, and nonsense is refused
+- co-op M0, data: `data/` and `maps/` are found and hash the same twice; line
+  endings do not change a hash, and one hit point, a renamed file or an extra
+  file does
+- co-op M0, the loopback transport: dialling nobody is answered with a
+  disconnect; packets arrive in order, from who sent them, on their channel; a
+  disconnect arrives after what was sent before it and both ends are told; a
+  delayed hub holds packets back and a lossy one loses unreliable packets and
+  never reliable ones
+- co-op M0, the door: the host's own client knocks like anyone else and is
+  given the first seat, marked as host; a friend is seated beside them and
+  both screens say who is connected, the same as the server does; a typed line
+  appears on the other screen with the right name, and comes back to its
+  writer as the server saw it; another protocol version, different data,
+  different maps and something that is not DreamQuest are each refused by
+  name and seen by nobody inside; speaking before the greeting is refused and
+  then dropped; a silent connection is dropped after five seconds and not
+  before; four friends get four seats, two Sams are Sam and Sam 2, a fifth is
+  told the world is full, and a seat given up is the next one given; chat
+  survives a delayed, lossy line; when the host stops every friend is told;
+  a door that never answers is given up on after eight seconds
+- co-op M0, over real UDP on 127.0.0.1: hosting listens and seats the host
+  over the loopback; a second host on the same port is refused and says why; a
+  guest is seated over UDP, both rosters agree and the host's reachable light
+  comes on; a line crosses the wire each way; different data is refused with
+  the reason delivered before the line drops; a guest who leaves is off the
+  roster at once, not after a timeout; and the port is free to host on again
 
 It exits with the number of failures, so CI can use it directly.
 
@@ -3002,7 +3143,11 @@ src/
                         projectiles and elements, spells, the clock,
                         material tiers (items.cpp), skill trees (talents.cpp),
                         tools, fishing and foraging (gathering.cpp), and traders (shop.cpp)
-  ui/                   drawing helpers and every screen
+  ui/                   drawing helpers and every screen; lobby.cpp is Play Together
+  net/                  co-op: the transport (ENet, and an in-process loopback),
+                        the protocol, the data hashes, the server's door and
+                        seats, the client, and the session the game holds.
+                        Includes nothing of SDL's or the game's.
 tools/
   import_assets.ps1     rebuilds assets/ from the CraftPix zips
   tilecut.cpp           cuts atlases into individual tiles and sprites

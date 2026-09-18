@@ -7,6 +7,10 @@ static constexpr float MAX_FRAME_DT      = 0.05f;   // clamp after a stall
 Game::Game() : rng(std::random_device{}()) {}
 
 Game::~Game() {
+    // Say goodbye while there is still a frame to say it in: friends are told
+    // at once rather than finding out from a timeout.
+    EndTextEntry();
+    session.Leave();
     // The minimap owns a texture, so it has to let go before the renderer does.
     minimap.Forget();
     world_map.Forget();
@@ -20,7 +24,31 @@ Game::~Game() {
 }
 
 int Game::Start(int argc, char** argv) {
-    (void)argc; (void)argv;
+    // Playing together, from a shortcut or a terminal:
+    //   --host [port]        open the door as soon as the game is up
+    //   --join name[:port]   dial a host
+    //   --name "Oona"        what friends see you as (remembered)
+    string launch_name;
+    for (int i = 1; i < argc; ++i) {
+        const string arg = argv[i];
+        const bool more = i + 1 < argc && argv[i + 1][0] != '-';
+        if (arg == "--host") {
+            launch_host = true;
+            if (more) {
+                const int p = SDL_atoi(argv[++i]);
+                if (p > 0 && p < 65536) mp_port = static_cast<uint16_t>(p);
+            }
+        } else if (arg == "--join" && more) {
+            launch_join = argv[++i];
+        } else if (arg == "--name" && more) {
+            launch_name = argv[++i];
+        } else if (arg == "--say" && more) {
+            launch_say = argv[++i];
+        } else if (arg == "--shot" && more) {
+            shot_path = argv[++i];
+            if (i + 1 < argc && argv[i + 1][0] != '-') shot_after = static_cast<float>(SDL_atof(argv[++i]));
+        }
+    }
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         SDL_Log("DreamQuest: SDL_Init failed: %s", SDL_GetError());
@@ -32,6 +60,15 @@ int Game::Start(int argc, char** argv) {
     }
 
     settings.Load();
+    // A name to be known by, without being asked for one: whoever is logged in
+    // to the machine. It can be changed on the Play Together screen.
+    if (!launch_name.empty()) settings.player_name = launch_name;
+    if (net::CleanLine(settings.player_name, net::MAX_NAME).empty()) {
+        const char* user = SDL_getenv("USERNAME");
+        if (!user || !*user) user = SDL_getenv("USER");
+        settings.player_name = net::CleanLine(user ? user : "", net::MAX_NAME);
+        if (settings.player_name.empty()) settings.player_name = "Traveller";
+    }
     // Silence is a fine fallback: a machine with no output device still plays.
     Audio::Init();
 
@@ -84,6 +121,14 @@ int Game::Start(int argc, char** argv) {
 
     ApplySettings();
     SetState(GameState::MainMenu);
+
+    // --host and --join land on the Play Together screen with the thing
+    // already under way, so whatever goes wrong is said where it can be read.
+    if (launch_host || !launch_join.empty()) {
+        if (launch_host) StartHosting(mp_port);
+        else { mp_address = launch_join; StartJoining(launch_join); }
+        OpenMultiplayer();
+    }
     return 1;
 }
 
@@ -251,7 +296,7 @@ void Game::SetState(GameState s) {
     if (s == GameState::MainMenu && !has_session) Audio::SetAmbience("menu", false);
     const bool back_to_menu = (s == GameState::MainMenu) &&
         (state == GameState::Options || state == GameState::LoadMenu ||
-         state == GameState::CharacterSelect);
+         state == GameState::CharacterSelect || state == GameState::Multiplayer);
 
     state = s;
     state_time = 0.0f;
@@ -370,7 +415,9 @@ void Game::Process(float dt) {
                 break;
 
             default:
-                input.HandleEvent(event);
+                // A field being typed into takes its keys before the input
+                // map can read them as actions.
+                if (!TextEntryEvent(event)) input.HandleEvent(event);
                 break;
         }
     }
@@ -378,6 +425,12 @@ void Game::Process(float dt) {
 
 void Game::Update(float dt) {
     state_time += dt;
+    run_time += dt;
+    UpdateSession(dt);
+    if (!launch_say.empty() && session.Me().Seated()) {
+        session.Me().Say(launch_say);
+        launch_say.clear();
+    }
     for (auto& t : toasts) t.life -= dt;
     toasts.erase(std::remove_if(toasts.begin(), toasts.end(),
                                 [](const Toast& t) { return t.life <= 0.0f; }),
@@ -399,6 +452,7 @@ void Game::Update(float dt) {
         case GameState::SlotSelect:      UpdateSlotSelect(); break;
         case GameState::LoadMenu:        UpdateLoadMenu(); break;
         case GameState::Options:         UpdateOptions(); break;
+        case GameState::Multiplayer:     UpdateMultiplayer(); break;
         case GameState::Play:            UpdatePlay(dt); break;
         case GameState::Paused:          UpdatePaused(); break;
         case GameState::Inventory:       UpdateInventory(); break;
@@ -822,6 +876,7 @@ void Game::Render() {
         case GameState::SlotSelect:      DrawSlotSelect(); break;
         case GameState::LoadMenu:        DrawLoadMenu(); break;
         case GameState::Options:         DrawOptions(); break;
+        case GameState::Multiplayer:     DrawMultiplayer(); break;
         case GameState::Paused:          DrawPaused(); break;
         case GameState::Inventory:       DrawInventory(); break;
         case GameState::SkillsPanel:     DrawSkillsPanel(); break;
@@ -860,6 +915,15 @@ void Game::Render() {
         // Bottom right: the top right corner belongs to the minimap now.
         ui.TextShadowed(buf, ui.ViewWidth() - 10.0f, ui.ViewHeight() - 22.0f,
                         TextSize::Small, Palette::TextDim, Align::Right);
+    }
+
+    if (!shot_path.empty() && run_time >= shot_after) {
+        if (SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr)) {
+            IMG_SavePNG(pixels, shot_path.c_str());
+            SDL_DestroySurface(pixels);
+        }
+        shot_path.clear();
+        running = false;
     }
 
     SDL_RenderPresent(renderer);

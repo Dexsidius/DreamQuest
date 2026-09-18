@@ -39,6 +39,7 @@ vector<string> MainMenuOptions(bool any_save) {
     if (any_save) options.push_back("Continue");
     options.push_back("New Game");
     options.push_back("Load Game");
+    options.push_back("Play Together");
     options.push_back("Options");
     options.push_back("Quit");
     return options;
@@ -83,6 +84,8 @@ void Game::UpdateMainMenu() {
             SetState(GameState::CharacterSelect);
         } else if (choice == "Load Game") {
             SetState(GameState::LoadMenu);
+        } else if (choice == "Play Together") {
+            OpenMultiplayer();
         } else if (choice == "Options") {
             OpenPanel(GameState::Options);
         } else if (choice == "Quit") {
@@ -444,16 +447,17 @@ void Game::DrawOptions() {
 // =============================================================================
 
 void Game::UpdatePaused() {
-    static const char* kRows[] = {"Resume", "Save Game", "Options", "Quit to Main Menu"};
-    constexpr int ROWS = 4;
+    static const char* kRows[] = {"Resume", "Save Game", "Play Together", "Options", "Quit to Main Menu"};
+    constexpr int ROWS = 5;
     MoveCursor(cursor, ROWS);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         switch (cursor) {
             case 0: SetState(GameState::Play); break;
             case 1: slot_purpose = 1; SetState(GameState::SlotSelect); break;
-            case 2: OpenPanel(GameState::Options); break;
-            case 3:
+            case 2: OpenMultiplayer(); break;
+            case 3: OpenPanel(GameState::Options); break;
+            case 4:
                 // Save before leaving, so quitting never costs progress.
                 SaveSystem::Save(active_slot, world, quests, playtime);
                 has_session = false;
@@ -468,14 +472,14 @@ void Game::UpdatePaused() {
 
 void Game::DrawPaused() {
     ui.Dim(0.55f);
-    const SDL_FRect panel = CenteredPanel(ui, 340.0f, 280.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 340.0f, 324.0f);
     ui.Panel(panel);
 
     ui.Text("Paused", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
-    static const char* kRows[] = {"Resume", "Save Game", "Options", "Quit to Main Menu"};
-    for (int i = 0; i < 4; ++i) {
+    static const char* kRows[] = {"Resume", "Save Game", "Play Together", "Options", "Quit to Main Menu"};
+    for (int i = 0; i < 5; ++i) {
         const SDL_FRect row = {panel.x + 16.0f, panel.y + 66.0f + i * 44.0f,
                                panel.w - 32.0f, 40.0f};
         ui.MenuItem(row, kRows[i], i == cursor);

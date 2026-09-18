@@ -265,6 +265,11 @@ bool Settings::Load(const string& path) {
     master_volume   = std::clamp(j.value("master_volume", master_volume), 0.0f, 1.0f);
     sfx_volume      = std::clamp(j.value("sfx_volume", sfx_volume), 0.0f, 1.0f);
     ambience_volume = std::clamp(j.value("ambience_volume", ambience_volume), 0.0f, 1.0f);
+    player_name     = j.value("player_name", player_name);
+    recent_hosts.clear();
+    if (j.contains("recent_hosts") && j["recent_hosts"].is_array())
+        for (const json& h : j["recent_hosts"])
+            if (h.is_string() && recent_hosts.size() < 5) recent_hosts.push_back(h.get<string>());
     return true;
 }
 
@@ -283,6 +288,8 @@ bool Settings::Save(const string& path) const {
         {"master_volume", master_volume},
         {"sfx_volume", sfx_volume},
         {"ambience_volume", ambience_volume},
+        {"player_name", player_name},
+        {"recent_hosts", recent_hosts},
     };
     out << j.dump(2);
     return out.good();

@@ -93,6 +93,14 @@ you touch):
     Space           jump / climb
     E               talk, open, work
 
+Playing together (an early step: the door and a chat line, no shared world yet):
+
+    "Play Together" on the title screen. One of you chooses Host a world; the
+    screen then says what the others should type -- the host's machine name
+    on your tailnet, or its 100.x address. The others choose Join, type that,
+    and press Enter. Windows Firewall asks the host once: allow DreamQuest on
+    private networks. Everyone needs the same zip; the door says so if not.
+
 The full manual is README.md in the source repository:
 https://github.com/Dexsidius/DreamQuest
 "@

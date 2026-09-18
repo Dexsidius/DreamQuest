@@ -1,7 +1,8 @@
 # DreamQuest - Windows build (MSYS2 UCRT64 toolchain)
 #
 #   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-sdl3 `
-#             mingw-w64-ucrt-x86_64-sdl3-image mingw-w64-ucrt-x86_64-sdl3-ttf
+#             mingw-w64-ucrt-x86_64-sdl3-image mingw-w64-ucrt-x86_64-sdl3-ttf `
+#             mingw-w64-ucrt-x86_64-enet
 #
 # Usage:
 #   .\build.ps1              build the game
@@ -32,7 +33,12 @@ New-Item -ItemType Directory -Force -Path bin, obj | Out-Null
 
 $flags = @('-std=c++20', '-Isrc', '-Wall')
 if ($Debug) { $flags += @('-g', '-O0') } else { $flags += @('-O2') }
-$libs = @('-lSDL3', '-lSDL3_image', '-lSDL3_ttf')
+# ENet is linked statically (-l:libenet.a), so co-op adds no DLL to ship; it
+# needs Winsock and the multimedia timer from Windows itself.
+$libs = @('-lSDL3', '-lSDL3_image', '-lSDL3_ttf', '-l:libenet.a', '-lws2_32', '-lwinmm')
+if (-not (Test-Path "$Msys\include\enet\enet.h")) {
+    throw "ENet is not installed. In the MSYS2 UCRT64 shell: pacman -S mingw-w64-ucrt-x86_64-enet"
+}
 
 # Any header change rebuilds everything; the tree is small enough that this is
 # cheaper than tracking real dependencies.
@@ -42,7 +48,7 @@ $newestHeader = (Get-ChildItem -Path src -Recurse -Include *.h, *.hpp -File |
 
 $gameSources = @(
     Get-ChildItem -Path src -Filter *.cpp -File
-    Get-ChildItem -Path src\world, src\entity, src\systems, src\ui -Filter *.cpp -File
+    Get-ChildItem -Path src\world, src\entity, src\systems, src\ui, src\net -Filter *.cpp -File
 ) | Select-Object -ExpandProperty FullName
 
 function Compile-Set($sources) {
@@ -90,7 +96,7 @@ if ($Test -or $Tools) {
     # The self-test drives the game's systems directly, so it links everything
     # except the files that own main() and the Game class's own screen code.
     $testSources = $gameSources | Where-Object {
-        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp')
+        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp', 'lobby.cpp')
     }
     Write-Host "  CC  tools/selftest.cpp"
     & g++ @flags -O1 tools\selftest.cpp @testSources -o bin\selftest.exe @libs

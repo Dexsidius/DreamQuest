@@ -31,6 +31,7 @@
 #include "../src/ui/minimap.h"
 #include "../src/ui/worldmap.h"
 #include "../src/ui/titlescreen.h"
+#include "../src/net/session.h"
 
 #include <fstream>
 #include <set>
@@ -7900,6 +7901,488 @@ int main(int argc, char** argv) {
         Check(log.TakeJustCompleted().size() == 1, "the journey rewards are queued once");
         Check(world.LoadMap("fernhollow", "default", ctx), "revisit Fernhollow");
         Check(log.TakeJustCompleted().empty(), "revisiting cannot duplicate the journey reward");
+    }
+
+
+    // =========================================================================
+    //  Co-op, milestone 0: the wire, the door and the chat line
+    // =========================================================================
+    //
+    // No world is shared yet. What is checked here is everything the later
+    // milestones stand on: bytes that mean the same on two machines, a
+    // transport that keeps its promises, a door that turns away the wrong
+    // build by name, seats, a roster everyone agrees on, and a typed line
+    // arriving on the other screen. A server and its clients run in this one
+    // process over the loopback transport, and then once more over real UDP
+    // on 127.0.0.1.
+    Section("co-op M0: bytes on the wire");
+    {
+        using namespace net;
+        ByteWriter w;
+        w.U8(0xAB); w.U16(0x1234); w.U32(0x11223344u); w.U64(0x0102030405060708ull);
+        w.I16(-2); w.I8(-3); w.Bool(true); w.Str("oak", 8);
+        const Bytes b = w.Take();
+        Check(b.size() == 1 + 2 + 4 + 8 + 2 + 1 + 1 + 2 + 3, "a writer writes exactly the widths asked for");
+        Check(b[1] == 0x34 && b[2] == 0x12 && b[3] == 0x44 && b[6] == 0x11 && b[7] == 0x08 && b[14] == 0x01,
+              "little-endian, whatever the machine");
+        ByteReader r(b);
+        Check(r.U8() == 0xAB && r.U16() == 0x1234 && r.U32() == 0x11223344u &&
+              r.U64() == 0x0102030405060708ull && r.I16() == -2 && r.I8() == -3 && r.Bool() &&
+              r.Str(8) == "oak" && r.Done(), "and a reader reads them back");
+        Check(r.U8() == 0 && !r.Ok() && !r.Done(), "reading past the end fails and yields zero");
+
+        ByteWriter longer;
+        longer.Str("a very long name indeed", 64);
+        const Bytes lb = longer.Take();
+        ByteReader strict(lb);
+        Check(strict.Str(8).empty() && !strict.Ok(), "a string past the reader's limit is refused, not truncated");
+        ByteWriter cut;
+        cut.Str("a very long name indeed", 6);
+        const Bytes cb = cut.Take();
+        ByteReader cr(cb);
+        Check(cr.Str(6) == "a very" && cr.Done(), "a writer cuts to the limit so it never writes what would be refused");
+        Bytes lying = {5, 0, 'a', 'b'};     // says five, carries two
+        ByteReader lr(lying);
+        Check(lr.Str(16).empty() && !lr.Ok(), "a length that lies about what follows is caught");
+
+        // Every message, there and back, and every truncation of it refused.
+        const auto survives = [&](const char* name, const Bytes& bytes, const std::function<bool(const Bytes&)>& decode) {
+            Check(decode(bytes), string(name) + " round-trips");
+            bool any_short = false;
+            for (size_t n = 0; n < bytes.size(); ++n)
+                any_short |= decode(Bytes(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(n)));
+            Check(!any_short, string(name) + ": no truncation of it decodes");
+            Bytes padded = bytes; padded.push_back(0);
+            Check(!decode(padded), string(name) + ": nor does it with a byte left over");
+        };
+        Hello hello; hello.data_hash = 0xDEADBEEFCAFEF00Dull; hello.maps_hash = 7; hello.name = "Oona"; hello.look = "player_warden";
+        survives("Hello", Encode(hello), [&](const Bytes& x) {
+            Hello o; return Decode(x, o) && o.magic == PROTOCOL_MAGIC && o.version == PROTOCOL_VERSION &&
+                            o.data_hash == hello.data_hash && o.maps_hash == 7 && o.name == "Oona" && o.look == "player_warden"; });
+        Welcome welcome; welcome.seat = 2; welcome.world_name = "Hollowmarch";
+        welcome.roster = {{0, "Dada", "player_hero", true}, {2, "Oona", "player_warden", false}};
+        survives("Welcome", Encode(welcome), [&](const Bytes& x) {
+            Welcome o; return Decode(x, o) && o.seat == 2 && o.max_seats == MAX_SEATS && o.tick_rate == 60 &&
+                              o.world_name == "Hollowmarch" && o.roster.size() == 2 && o.roster[0].host &&
+                              o.roster[1].name == "Oona" && o.roster[1].seat == 2 && !o.roster[1].host; });
+        survives("Refuse", Encode(Refuse{RefuseReason::Data, "differs"}), [&](const Bytes& x) {
+            Refuse o; return Decode(x, o) && o.reason == RefuseReason::Data && o.text == "differs"; });
+        survives("Roster", Encode(Roster{welcome.roster}), [&](const Bytes& x) {
+            Roster o; return Decode(x, o) && o.seats.size() == 2 && o.seats[1].look == "player_warden"; });
+        survives("Say", Encode(Say{"to the mine?"}), [&](const Bytes& x) {
+            Say o; return Decode(x, o) && o.text == "to the mine?"; });
+        survives("Chat", Encode(Chat{1, "aye"}), [&](const Bytes& x) {
+            Chat o; return Decode(x, o) && o.seat == 1 && o.text == "aye"; });
+        {
+            Say wrong;
+            Check(!Decode(Encode(Chat{1, "aye"}), wrong), "a message is not decoded as another");
+            Hello other = hello; other.version = PROTOCOL_VERSION + 1;
+            Bytes future = Encode(other);
+            future.resize(7);           // a later version may lay the rest out differently
+            Hello seen;
+            Check(Decode(future, seen) && seen.version == PROTOCOL_VERSION + 1,
+                  "a Hello from another version still reads far enough to be refused by number");
+        }
+
+        Check(CleanLine("  to the\tmine?\n", 64) == "to the mine?", "a line is trimmed and its control characters dropped");
+        Check(CleanLine("\x1b[31m\r\n", 64) == "[31m" && CleanLine(" \n\t ", 64).empty(), "and an empty one is empty");
+        const string accented = "caf\xC3\xA9";      // five bytes, four characters
+        Check(CleanLine(accented, 4) == "caf" && CleanLine(accented, 5) == accented,
+              "a cut never leaves half a UTF-8 character");
+
+        string host; uint16_t port = 0;
+        Check(SplitAddress("dada-pc", host, port) && host == "dada-pc" && port == DEFAULT_PORT, "a bare name dials the default port");
+        Check(SplitAddress(" dada-pc.tail1234.ts.net:7800 ", host, port) && host == "dada-pc.tail1234.ts.net" && port == 7800,
+              "a MagicDNS name with a port splits");
+        Check(SplitAddress("100.101.102.103", host, port) && host == "100.101.102.103" && port == DEFAULT_PORT, "a tailnet address");
+        Check(SplitAddress("[fd7a:115c::1]:7801", host, port) && host == "fd7a:115c::1" && port == 7801, "a bracketed IPv6 literal");
+        Check(!SplitAddress("", host, port) && !SplitAddress("   ", host, port) && !SplitAddress("pc:", host, port) &&
+              !SplitAddress("pc:70000", host, port) && !SplitAddress("pc:0", host, port) && !SplitAddress("pc:77x7", host, port) &&
+              !SplitAddress(":7777", host, port), "and nonsense is refused");
+    }
+
+    Section("co-op M0: both ends read the same data");
+    {
+        using namespace net;
+        const DataHashes here = ComputeDataHashes(".");
+        Check(here.data_files >= 10 && here.map_files >= 20, "data/ and maps/ are found (" +
+              std::to_string(here.data_files) + " and " + std::to_string(here.map_files) + " files)");
+        const DataHashes again = ComputeDataHashes(".");
+        Check(here.data == again.data && here.maps == again.maps && here.data != here.maps, "hashing twice gives the same answer");
+        Check(ShortHash(0x9F3A61C200000000ull) == "9f3a61c2", "a hash reads aloud as eight hex digits");
+
+        // A clone with autocrlf on and a zip from one with it off must agree,
+        // and any real difference must not.
+        const fs::path scratch = fs::path("bin") / "selftest_net";
+        std::error_code ec;
+        fs::remove_all(scratch, ec);
+        const auto write = [&](const char* folder, const char* file, const string& text) {
+            fs::create_directories(scratch / folder, ec);
+            std::ofstream out(scratch / folder / file, std::ios::binary);
+            out << text;
+        };
+        write("lf",   "a.json", "{\n \"hp\": 40\n}\n");   write("lf",   "b.json", "[1,\n2]\n");
+        write("crlf", "a.json", "{\r\n \"hp\": 40\r\n}\r\n"); write("crlf", "b.json", "[1,\r\n2]\r\n");
+        write("hp",   "a.json", "{\n \"hp\": 41\n}\n");   write("hp",   "b.json", "[1,\n2]\n");
+        write("name", "a.json", "{\n \"hp\": 40\n}\n");   write("name", "c.json", "[1,\n2]\n");
+        write("more", "a.json", "{\n \"hp\": 40\n}\n");   write("more", "b.json", "[1,\n2]\n"); write("more", "z.json", "");
+        write("more", "notes.txt", "not data");
+        const auto hash = [&](const char* folder, int* n = nullptr) { return HashFolder((scratch / folder).string(), ".json", n); };
+        int lf_files = 0, more_files = 0;
+        const uint64_t lf = hash("lf", &lf_files);
+        Check(lf_files == 2 && lf == hash("crlf"), "line endings do not change the hash");
+        Check(lf != hash("hp"), "one hit point does");
+        Check(lf != hash("name"), "a renamed file does");
+        Check(lf != hash("more", &more_files) && more_files == 3, "an extra file does, and only files of the kind are counted");
+        int none = -1;
+        HashFolder((scratch / "nowhere").string(), ".json", &none);
+        Check(none == 0, "a missing folder is no files, not a crash");
+        fs::remove_all(scratch, ec);
+    }
+
+    Section("co-op M0: the loopback transport keeps ENet's promises");
+    {
+        using namespace net;
+        const auto kinds = [](const vector<Packet>& ps) {
+            string s;
+            for (const Packet& p : ps) s += p.type == Packet::Type::Connected ? 'C' : p.type == Packet::Type::Disconnected ? 'D' : 'm';
+            return s;
+        };
+        {
+            LoopbackHub hub;
+            auto lonely = hub.Client();
+            Check(lonely->Connect("anyone", 7777) && kinds(lonely->Poll()) == "D" && lonely->Peers().empty(),
+                  "dialling a hub nobody listens on is answered with a disconnect");
+        }
+        LoopbackHub hub;
+        auto server = hub.Server();
+        Check(server && !hub.Server(), "a hub has one listening end");
+        Check(!server->Connect("x", 1), "which does not dial");
+        auto a = hub.Client();
+        auto b = hub.Client();
+        Check(a->Connect("ignored", 0) && b->Connect("ignored", 0), "two clients dial it");
+        const vector<Packet> arrivals = server->Poll();
+        Check(kinds(arrivals) == "CC" && arrivals[0].peer != arrivals[1].peer && server->Peers().size() == 2,
+              "and the server sees two different peers arrive");
+        Check(kinds(a->Poll()) == "C" && a->Peers() == vector<PeerId>{LOOPBACK_SERVER}, "each client sees the server");
+        b->Poll();
+        const PeerId pa = arrivals[0].peer, pb = arrivals[1].peer;
+
+        for (uint8_t i = 1; i <= 5; ++i) a->Send(LOOPBACK_SERVER, Channel::Reliable, Bytes{i});
+        b->Send(LOOPBACK_SERVER, Channel::Unreliable, Bytes{9});
+        const vector<Packet> got = server->Poll();
+        bool ordered = got.size() == 6;
+        for (size_t i = 0; ordered && i < 5; ++i) ordered = got[i].peer == pa && got[i].data == Bytes{static_cast<uint8_t>(i + 1)};
+        Check(ordered && got[5].peer == pb && got[5].channel == Channel::Unreliable, "packets arrive in order, from who sent them, on their channel");
+        server->Send(pb, Channel::Reliable, Bytes{42});
+        Check(a->Poll().empty() && b->Poll().size() == 1, "and a reply goes to the one it was sent to");
+
+        // A refusal has to be able to say why before the line drops.
+        server->Send(pa, Channel::Reliable, Bytes{7});
+        server->Disconnect(pa);
+        Check(kinds(a->Poll()) == "mD" && a->Peers().empty(), "a disconnect arrives after what was sent before it");
+        Check(kinds(server->Poll()) == "D" && server->Peers() == vector<PeerId>{pb}, "and the end that hung up is told too");
+        a->Send(LOOPBACK_SERVER, Channel::Reliable, Bytes{1});
+        Check(server->Poll().empty(), "nothing is heard from a closed line");
+
+        hub.SetDelay(3);
+        b->Send(LOOPBACK_SERVER, Channel::Reliable, Bytes{1});
+        int polls = 0;
+        while (polls < 10 && server->Poll().empty()) ++polls;
+        Check(polls == 3, "a delayed hub holds a packet back that many polls (" + std::to_string(polls) + ")");
+        hub.SetDelay(0);
+        hub.DropUnreliable(3);
+        for (int i = 0; i < 9; ++i) b->Send(LOOPBACK_SERVER, Channel::Unreliable, Bytes{1});
+        for (int i = 0; i < 9; ++i) b->Send(LOOPBACK_SERVER, Channel::Reliable, Bytes{2});
+        size_t lost = 0, kept = 0;
+        for (const Packet& p : server->Poll()) (p.channel == Channel::Unreliable ? lost : kept)++;
+        Check(lost == 6 && kept == 9, "a lossy hub loses unreliable packets and never reliable ones");
+        hub.DropUnreliable(0);
+
+        b.reset();
+        Check(kinds(server->Poll()) == "D" && server->Peers().empty(), "a client that goes away is a disconnect");
+        auto c = hub.Client();
+        c->Connect("x", 0); c->Poll();
+        server.reset();
+        Check(kinds(c->Poll()) == "D", "and so is a server that does");
+    }
+
+    Section("co-op M0: the door, the seats and the chat line");
+    {
+        using namespace net;
+        Server::Config config;
+        config.world_name = "Hollowmarch";
+        config.data_hash = 0xAAAA; config.maps_hash = 0xBBBB;
+        const auto greeting = [&](const string& name, const string& look = "player_hero") {
+            Hello h; h.data_hash = config.data_hash; h.maps_hash = config.maps_hash; h.name = name; h.look = look;
+            return h;
+        };
+        const float dt = 1.0f / 60.0f;
+
+        LoopbackHub local, tailnet;          // the host's own way in, and everyone else's
+        Server server(config);
+        server.Attach(local.Server(), true);
+        server.Attach(tailnet.Server());
+        vector<Client*> everyone;
+        const auto tick = [&](int frames = 4) {
+            for (int f = 0; f < frames; ++f) {
+                server.Update(dt);
+                for (Client* c : everyone) c->Update(dt);
+            }
+        };
+        const auto same_roster = [](const vector<SeatInfo>& l, const vector<SeatInfo>& r) {
+            if (l.size() != r.size()) return false;
+            for (size_t i = 0; i < l.size(); ++i)
+                if (l[i].seat != r[i].seat || l[i].name != r[i].name || l[i].look != r[i].look || l[i].host != r[i].host) return false;
+            return true;
+        };
+
+        Client dada, oona;
+        everyone = {&dada, &oona};
+        Check(dada.Start(local.Client(), "loopback", 0, greeting("Dada")) && dada.Busy(), "the host's own client knocks like anyone else");
+        tick();
+        Check(dada.Seated() && dada.Seat() == 0 && dada.WorldName() == "Hollowmarch", "and is given the first seat");
+        Check(server.Roster().size() == 1 && server.Roster()[0].host && !server.ReachedFromOutside(),
+              "marked as the host; nobody has reached the door from outside yet");
+
+        Check(oona.Start(tailnet.Client(), "dada-pc", 7777, greeting("  Oona\n", "player_warden")), "a friend dials");
+        tick();
+        Check(oona.Seated() && oona.Seat() == 1 && server.ReachedFromOutside(), "and is seated beside them; the door has been reached");
+        Check(server.Roster().size() == 2 && server.Roster()[1].name == "Oona" && server.Roster()[1].look == "player_warden" &&
+              !server.Roster()[1].host, "the server knows them by a cleaned name and their look");
+        Check(same_roster(dada.Roster(), server.Roster()) && same_roster(oona.Roster(), server.Roster()),
+              "and both screens say who is connected, the same as the server does");
+        {
+            const auto lines = dada.TakeNewLines();
+            Check(lines.size() == 2 && lines[0].seat == SERVER_SEAT && lines[0].text == "Dada joined." &&
+                  lines[1].text == "Oona joined." && dada.TakeNewLines().empty(),
+                  "the host is told who came in, once");
+            const auto theirs = oona.TakeNewLines();
+            Check(theirs.size() == 1 && theirs[0].text == "Oona joined.", "a newcomer hears of their own arrival, not of earlier ones");
+        }
+
+        // The M0 gate: a typed line appears on the other screen.
+        oona.Say("  to the mine?\t");
+        tick();
+        {
+            const auto at_host = dada.TakeNewLines(), at_oona = oona.TakeNewLines();
+            Check(at_host.size() == 1 && at_host[0].seat == 1 && at_host[0].name == "Oona" && at_host[0].text == "to the mine?",
+                  "a line typed by the friend appears on the host's screen, with her name");
+            Check(at_oona.size() == 1 && at_oona[0].text == "to the mine?" && at_oona[0].name == "Oona",
+                  "and comes back to her own as the server saw it");
+        }
+        dada.Say("aye");
+        oona.Say(" \n ");
+        oona.Say(string(400, 'x'));
+        tick();
+        {
+            const auto at_oona = oona.TakeNewLines();
+            Check(at_oona.size() == 2 && at_oona[0].name == "Dada" && at_oona[0].text == "aye" &&
+                  at_oona[1].text.size() == MAX_CHAT, "and the other way; an empty line is not sent and a long one is cut");
+            Check(dada.Log().size() == 5 && dada.Log().back().text.size() == MAX_CHAT, "the log keeps what was said");
+            dada.TakeNewLines();
+        }
+
+        // --- the door ----------------------------------------------------------------
+        const auto knock = [&](Hello h, RefuseReason want, const char* must_say, const char* what) {
+            Client c;
+            everyone.push_back(&c);
+            c.Start(tailnet.Client(), "dada-pc", 7777, h);
+            tick(6);
+            everyone.pop_back();
+            Check(c.Where() == Client::State::Refused && c.WhyRefused() == want &&
+                  c.Reason().find(must_say) != string::npos && c.Roster().empty(),
+                  string(what) + " (" + RefuseReasonName(c.WhyRefused()) + ": " + c.Reason() + ")");
+        };
+        { Hello h = greeting("Old"); h.version = PROTOCOL_VERSION + 1;
+          knock(h, RefuseReason::Version, "protocol", "another protocol version is refused, with both numbers"); }
+        { Hello h = greeting("Modder"); h.data_hash ^= 1;
+          knock(h, RefuseReason::Data, "data/", "a different data/ is refused by name"); }
+        { Hello h = greeting("Mapper"); h.maps_hash ^= 1;
+          knock(h, RefuseReason::Maps, "maps/", "a different maps/ is refused by name"); }
+        { Hello h = greeting("Stranger"); h.magic = 0x12345678;
+          knock(h, RefuseReason::NotDreamQuest, "DreamQuest", "something that is not DreamQuest is refused"); }
+        Check(server.Roster().size() == 2 && same_roster(dada.Roster(), server.Roster()) && dada.TakeNewLines().empty(),
+              "none of which was seated, announced, or seen by anyone inside");
+
+        // Someone who talks before saying hello, and someone who never talks.
+        {
+            auto rude = tailnet.Client();
+            rude->Connect("dada-pc", 7777);
+            tick(2);
+            rude->Send(LOOPBACK_SERVER, Channel::Reliable, Encode(Say{"let me in"}));
+            tick(3);
+            bool refused = false, dropped = false;
+            for (const Packet& p : rude->Poll()) {
+                Refuse r;
+                if (p.type == Packet::Type::Data && Decode(p.data, r)) refused = r.reason == RefuseReason::Malformed;
+                if (p.type == Packet::Type::Disconnected) dropped = refused;      // in that order
+            }
+            Check(refused && dropped, "speaking before the greeting is refused and then dropped");
+
+            auto silent = tailnet.Client();
+            silent->Connect("dada-pc", 7777);
+            tick(2);
+            silent->Poll();
+            for (int f = 0; f < static_cast<int>(Server::HELLO_TIMEOUT * 60.0f) - 30; ++f) server.Update(dt);
+            bool early = false;
+            for (const Packet& p : silent->Poll()) early |= p.type == Packet::Type::Disconnected;
+            for (int f = 0; f < 60; ++f) server.Update(dt);
+            bool late = false;
+            for (const Packet& p : silent->Poll()) late |= p.type == Packet::Type::Disconnected;
+            Check(!early && late, "a connection that never says hello is dropped after five seconds, not before");
+            dada.TakeNewLines(); oona.TakeNewLines();
+        }
+
+        // --- seats ----------------------------------------------------------------------
+        Client sam, sam2, fifth;
+        everyone = {&dada, &oona, &sam, &sam2};
+        sam.Start(tailnet.Client(), "dada-pc", 7777, greeting("Sam", "player_wayfarer"));
+        tick();
+        sam2.Start(tailnet.Client(), "dada-pc", 7777, greeting("Sam"));
+        tick();
+        Check(sam.Seated() && sam.Seat() == 2 && sam2.Seated() && sam2.Seat() == 3, "four friends, four seats");
+        Check(server.Roster().size() == 4 && server.Roster()[2].name == "Sam" && server.Roster()[3].name == "Sam 2",
+              "two friends called Sam are Sam and Sam 2");
+        Check(same_roster(sam2.Roster(), server.Roster()) && same_roster(dada.Roster(), server.Roster()),
+              "and all four screens agree");
+        everyone.push_back(&fifth);
+        fifth.Start(tailnet.Client(), "dada-pc", 7777, greeting("Late"));
+        tick(6);
+        Check(fifth.Where() == Client::State::Refused && fifth.WhyRefused() == RefuseReason::Full &&
+              fifth.Reason().find("4 seats") != string::npos, "a fifth is told the world is full");
+
+        dada.TakeNewLines();
+        oona.Leave();
+        tick();
+        Check(!oona.Seated() && oona.Where() == Client::State::Idle && server.Roster().size() == 3 &&
+              same_roster(dada.Roster(), server.Roster()), "a friend who leaves is gone from every roster");
+        {
+            const auto lines = dada.TakeNewLines();
+            Check(lines.size() == 1 && lines[0].seat == SERVER_SEAT && lines[0].text == "Oona left.", "and the others are told");
+        }
+        fifth.Start(tailnet.Client(), "dada-pc", 7777, greeting("Late"));
+        tick();
+        Check(fifth.Seated() && fifth.Seat() == 1, "the seat they left is the next one given");
+
+        // A slow, lossy line changes when things arrive, not what arrives.
+        tailnet.SetDelay(5);
+        tailnet.DropUnreliable(2);
+        sam.Say("still here");
+        tick(20);
+        bool heard = false;
+        for (const auto& line : fifth.TakeNewLines()) heard |= line.name == "Sam" && line.text == "still here";
+        Check(heard, "chat survives a delayed, lossy line: it is sent reliably");
+        tailnet.SetDelay(0);
+        tailnet.DropUnreliable(0);
+
+        // The host goes. Everyone is told, and nobody is left waiting.
+        everyone = {&dada, &sam, &sam2, &fifth};
+        server.Shutdown();
+        for (int f = 0; f < 4; ++f) for (Client* c : everyone) c->Update(dt);
+        Check(sam.Where() == Client::State::Lost && sam2.Where() == Client::State::Lost && !sam.Reason().empty() &&
+              sam.Roster().empty(), "when the host stops, every friend is told the line was lost");
+
+        // Nobody home at all.
+        {
+            LoopbackHub empty;
+            Client c;
+            Check(c.Start(empty.Client(), "nobody", 7777, greeting("Hopeful")), "dialling an empty hub is an attempt");
+            c.Update(dt); c.Update(dt);
+            Check(c.Where() == Client::State::Lost && !c.Reason().empty(), "that ends in 'nobody answered'");
+            // And a line that connects but is never answered gives up on its own.
+            LoopbackHub mute;
+            auto deaf = mute.Server();          // listening, but nothing reads it
+            Client waiting;
+            waiting.Start(mute.Client(), "mute", 7777, greeting("Patient"));
+            for (int f = 0; f < static_cast<int>(Client::CONNECT_TIMEOUT * 60.0f) - 30; ++f) waiting.Update(dt);
+            const bool still = waiting.Busy();
+            for (int f = 0; f < 60; ++f) waiting.Update(dt);
+            Check(still && waiting.Where() == Client::State::Lost, "a door that never answers is given up on after eight seconds");
+        }
+    }
+
+    Section("co-op M0: a session over real UDP, on this machine");
+    {
+        using namespace net;
+        const uint16_t port = 47813;          // not 7777: a game may be hosting while this runs
+        const auto spin = [&](vector<Session*> all, const std::function<bool()>& done, int ms = 3000) {
+            for (int i = 0; i < ms; ++i) {
+                for (Session* s : all) s->Update(0.001f);
+                if (done()) return true;
+                SDL_Delay(1);
+            }
+            return done();
+        };
+        Session host, guest;
+        string error;
+        const DataHashes& hashes = host.Hashes(".");
+        Check(hashes.data_files > 0 && hashes.map_files > 0, "a session hashes the game's own data");
+        const bool hosting = host.Host(port, {"Dada", "player_hero"}, "Hollowmarch", error, "127.0.0.1");
+        Check(hosting && host.Hosting() && host.Port() == port, "hosting listens on the port" + (error.empty() ? string() : " (" + error + ")"));
+        if (hosting) {
+            Check(spin({&host}, [&] { return host.Me().Seated(); }, 200) && host.Me().Seat() == 0 &&
+                  host.Hosted() && host.Hosted()->Roster().size() == 1 && host.Hosted()->Roster()[0].host,
+                  "and the host is seated in their own world, over the loopback");
+            {
+                Session second;
+                string why;
+                Check(!second.Host(port, {"Twin", "player_hero"}, "Other", why, "127.0.0.1") && !why.empty() && !second.Active(),
+                      "a second host on the same port is refused, and says why (" + why + ")");
+            }
+            Check(guest.Join("127.0.0.1:" + std::to_string(port), {"Oona", "player_warden"}, error) && guest.Me().Busy(),
+                  "a guest dials it");
+            Check(spin({&host, &guest}, [&] { return guest.Me().Seated(); }) && guest.Me().Seat() == 1 &&
+                  guest.As() == Session::Role::Guest, "and is seated, over UDP");
+            Check(spin({&host, &guest}, [&] { return host.Me().Roster().size() == 2; }) &&
+                  host.Me().Roster()[1].name == "Oona" && guest.Me().Roster().size() == 2 && guest.Me().Roster()[0].host &&
+                  host.Hosted()->ReachedFromOutside(), "both screens say who is connected, and the host's light is on");
+            host.Me().TakeNewLines(); guest.Me().TakeNewLines();
+            guest.Me().Say("can you hear me?");
+            Check(spin({&host, &guest}, [&] { return !host.Me().Log().empty() && host.Me().Log().back().text == "can you hear me?"; }) &&
+                  host.Me().Log().back().name == "Oona", "a typed line crosses the wire to the host");
+            host.Me().Say("loud and clear");
+            Check(spin({&host, &guest}, [&] { return !guest.Me().Log().empty() && guest.Me().Log().back().text == "loud and clear"; }) &&
+                  guest.Me().Log().back().name == "Dada", "and one comes back");
+
+            // A guest with another build's data is turned away over the real wire too.
+            {
+                // Reached the only way a test can: a client of our own making.
+                Client c;
+                Hello h; h.data_hash = hashes.data ^ 1; h.maps_hash = hashes.maps; h.name = "Modder";
+                string why;
+                auto wire = DialEnet(why);
+                Check(wire != nullptr, "a second socket opens");
+                if (wire) {
+                    c.Start(std::move(wire), "127.0.0.1", port, h);
+                    for (int i = 0; i < 3000 && c.Busy(); ++i) { host.Update(0.001f); c.Update(0.001f); SDL_Delay(1); }
+                    Check(c.Where() == Client::State::Refused && c.WhyRefused() == RefuseReason::Data,
+                          "different data is refused over UDP, with the reason delivered before the line drops");
+                }
+            }
+
+            guest.Leave();
+            Check(!guest.Active() && spin({&host}, [&] { return host.Me().Roster().size() == 1; }),
+                  "a guest who leaves is off the host's roster at once, not after a timeout");
+            host.Leave();
+            Check(!host.Active() && host.Hosted() == nullptr && !host.Me().Seated(), "and a host who stops is offline");
+            Session again;
+            Check(again.Host(port, {"Dada", "player_hero"}, "Hollowmarch", error, "127.0.0.1"), "the port is free to host on again");
+        }
+        {
+            Session nowhere;
+            string why;
+            Check(!nowhere.Join("pc:notaport", {"Oona", "player_warden"}, why) && !why.empty() && !nowhere.Active(),
+                  "an address that is not one is refused before anything is dialled");
+        }
+        const vector<LocalAddress> mine = LocalAddresses();
+        bool sorted = true, no_loopback = true;
+        for (size_t i = 0; i < mine.size(); ++i) {
+            no_loopback &= mine[i].ip.rfind("127.", 0) != 0;
+            if (i > 0) sorted &= mine[i - 1].tailnet || !mine[i].tailnet;
+        }
+        Check(sorted && no_loopback, "this machine's addresses list the tailnet's first and never loopback (" +
+              std::to_string(mine.size()) + " found)");
     }
 
     // Optional render smoke test. Uses the real world renderer and SDL image

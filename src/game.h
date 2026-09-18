@@ -17,6 +17,7 @@
 #include "ui/minimap.h"
 #include "ui/worldmap.h"
 #include "ui/titlescreen.h"
+#include "net/session.h"
 
 enum class GameState {
     MainMenu,
@@ -24,6 +25,7 @@ enum class GameState {
     SlotSelect,        // used for both starting and saving
     LoadMenu,
     Options,
+    Multiplayer,       // Play Together: host, join, who is here, the chat line
     Play,
     Paused,
     Inventory,
@@ -88,6 +90,7 @@ private:
     void UpdateSlotSelect();
     void UpdateLoadMenu();
     void UpdateOptions();
+    void UpdateMultiplayer();
     void UpdatePlay(float dt);
     void UpdatePaused();
     void UpdateInventory();
@@ -115,6 +118,7 @@ private:
     void DrawSlotSelect();
     void DrawLoadMenu();
     void DrawOptions();
+    void DrawMultiplayer();
     void DrawHud();
     void DrawWorldText();          // floating damage / pickup text
     void DrawPaused();
@@ -243,6 +247,40 @@ private:
     vector<string> ShopSellRows() const;
 
     vector<Toast> toasts;
+
+    // --- playing together ------------------------------------------------------
+    // The session outlives the screen that started it: a host who goes off to
+    // play keeps the door open, and is pumped every frame whatever the state.
+    // See ui/lobby.cpp.
+    net::Session session;
+    uint16_t mp_port = net::DEFAULT_PORT;
+    string   mp_name, mp_address, mp_say, mp_error;
+    string   mp_hostname;                       // this machine, as friends dial it
+    vector<net::LocalAddress> mp_addresses;
+    // What --host and --join asked for, acted on once the game has started.
+    bool     launch_host = false;
+    string   launch_join;
+    // For checking the screens without a pair of hands: --say sends one line
+    // as soon as there is a seat to say it from, and --shot writes the frame
+    // to a PNG after a number of seconds and quits.
+    string   launch_say, shot_path;
+    float    shot_after = 3.0f, run_time = 0.0f;
+    void OpenMultiplayer();
+    void UpdateSession(float dt);
+    bool StartHosting(uint16_t port);
+    bool StartJoining(const string& address);
+    net::Session::Identity NetIdentity() const;
+
+    // Typing into a field. While `text_target` is set, key presses are fed to
+    // it rather than to the input map; commit, cancel and nav are what the
+    // field's owner reads, once, on its next update.
+    string* text_target = nullptr;
+    size_t  text_limit = 0;
+    bool    text_commit = false, text_cancel = false;
+    int     text_nav = 0;
+    void BeginTextEntry(string* target, size_t limit);
+    void EndTextEntry();
+    bool TextEntryEvent(const SDL_Event& e);   // true if the field took it
 
     // The name of a place, put on screen as you walk into it. banner_zone is
     // the last outdoor zone announced, so stepping into a house and back out
