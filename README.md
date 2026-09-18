@@ -18,16 +18,56 @@ and the maps are authored in the format exported by
 
 ## Building
 
-### Windows (MSYS2 UCRT64)
+### Playing without building
 
-```bash
-pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-sdl3-image mingw-w64-ucrt-x86_64-sdl3-ttf
-```
+Nobody has to compile anything to play. `package.cmd` builds the game and packs
+it into a zip in `dist\` -- the exe, the eighteen runtime libraries it needs,
+and every data, map and art file the repository tracks, about 20 MB. Send the
+zip. **Unpack it anywhere and double-click `DreamQuest.exe`.** The game finds
+its data beside the exe, so it runs from a Desktop folder, a USB stick or a
+network share, and writes its saves and settings next to itself. `PLAY.txt`
+inside the zip says the same and lists the controls.
 
-```powershell
-.\tools\import_assets.ps1 -GameAssets "E:\Game Assets"   # once, to build assets/
-.\build.ps1 -Run
-```
+The first run shows Windows' "protected your PC" screen, because the program is
+not signed: *More info*, then *Run anyway*, once. To update, unpack the newer
+zip over the old folder; saves are not in the zip, so they are kept.
+
+### Building it yourself, on Windows
+
+The game is plain C++20 on SDL3, built with the MSYS2 UCRT64 toolchain. Step by
+step, on a machine that has never seen either:
+
+1. Install **MSYS2** from [msys2.org](https://www.msys2.org) (the default
+   `C:\msys64` is where `build.ps1` looks; pass `-Msys` if it is elsewhere).
+2. Open the **MSYS2 UCRT64** shell from the Start menu -- not the MSYS or
+   MINGW64 one -- and install the compiler and the three SDL libraries:
+
+   ```bash
+   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-sdl3-image mingw-w64-ucrt-x86_64-sdl3-ttf
+   ```
+
+   That is the only time the MSYS2 shell is needed; the build itself runs from
+   Windows.
+3. Clone the repository. Everything the game loads is in it: `assets/` is the
+   game's own art and travels with the clone.
+4. **Double-click `build.cmd`**, or from any prompt in the folder:
+
+   ```powershell
+   .\build.cmd -Run
+   ```
+
+   The exe lands in `bin\` with its libraries beside it, and `-Run` starts it.
+
+If you ran `.\build.ps1` directly and Windows said *running scripts is disabled
+on this system*, that is PowerShell's execution policy refusing every `.ps1`
+on a fresh machine, and it is the wall most people hit first. `build.cmd`
+exists to get past it: it runs the same script with the policy bypassed for
+that one command. The equivalent by hand is
+`powershell -ExecutionPolicy Bypass -File build.ps1 -Run`.
+
+`tools\import_assets.ps1` is only for regenerating `assets/` from the art
+packs and is not part of building; a clone already has everything it produces
+that the game needs.
 
 ### Linux / macOS
 
@@ -47,6 +87,7 @@ Install SDL3, SDL3_image and SDL3_ttf, then:
 | `.\build.ps1 -Test` | Build and run the self-test |
 | `.\build.ps1 -Maps` | Regenerate `maps/*.mx` |
 | `.\build.ps1 -Tools` | Build `tilecut`, `genmaps` and `selftest` |
+| `.\package.cmd` | Build, then zip a playable copy into `dist\` |
 
 `./compile.sh test`, `./compile.sh maps` and `./compile.sh tools` do the same on
 Linux.

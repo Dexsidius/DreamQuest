@@ -1,0 +1,106 @@
+# DreamQuest - makes a zip that anyone can unpack and play. No compiler, no
+# MSYS2, no PowerShell policy to change: unpack, double-click DreamQuest.exe.
+#
+#   .\package.ps1               build, then package into dist\
+#   .\package.ps1 -SkipBuild    package what bin\ already holds
+#
+# What goes in the zip is exactly what a fresh clone has plus the built exe:
+# the exe, every runtime DLL build.ps1 put beside it, and every file under
+# assets\, art\, maps\ and data\ that git tracks. The things git does not
+# track are not shipped on purpose -- the raw art packs that are not ours to
+# pass on, the armour icon packs, Blender's render scratch, and this machine's
+# saves and settings. The game finds its data beside the exe (see
+# src/main.cpp), so the layout inside the zip is the layout it runs from.
+
+param(
+    [switch]$SkipBuild,
+    [string]$Msys = "C:\msys64\ucrt64"
+)
+
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+if (-not $SkipBuild) {
+    & .\build.ps1 -Msys $Msys
+    if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw "The build failed; nothing packaged." }
+}
+if (-not (Test-Path "bin\DreamQuest.exe")) { throw "bin\DreamQuest.exe is missing. Run .\build.ps1 first." }
+
+# --- what ships -----------------------------------------------------------------
+# git knows what is ours: it respects .gitignore, so the excluded folders never
+# have to be listed here and cannot drift out of step with it.
+$git = Get-Command git -ErrorAction SilentlyContinue
+if (-not $git) { throw "git is needed to decide what ships (it reads .gitignore). Install Git for Windows." }
+$files = & git ls-files assets art maps data
+if (-not $files -or $files.Count -lt 100) { throw "git ls-files returned too little; is this a clone of the repository?" }
+
+$version = (& git describe --tags --always 2>$null)
+if (-not $version) { $version = Get-Date -Format "yyyyMMdd" }
+$name  = "DreamQuest-win64-$version"
+$stage = Join-Path "dist" $name
+$zip   = Join-Path "dist" "$name.zip"
+
+Write-Host "Packaging $name ..." -ForegroundColor Cyan
+if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+# The program and its libraries, at the root of the package.
+Copy-Item "bin\DreamQuest.exe" $stage
+$dlls = Get-ChildItem "bin" -Filter *.dll -File
+foreach ($dll in $dlls) { Copy-Item $dll.FullName $stage }
+
+# The game's data, keeping the tree.
+$copied = 0
+foreach ($rel in $files) {
+    $dest = Join-Path $stage ($rel -replace '/', '\')
+    $dir  = Split-Path $dest -Parent
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    Copy-Item $rel $dest
+    $copied++
+}
+
+# The note that answers the questions a friend will have before playing.
+$play = @"
+DREAMQUEST  ($version)
+==========
+
+To play:  double-click DreamQuest.exe. That is all.
+
+    Windows may say "Windows protected your PC" the first time, because the
+    program is not signed. Click "More info", then "Run anyway". That is a
+    once-only prompt for an unsigned program, not a virus warning.
+
+    Keep this folder together. The game finds its pictures, maps and data in
+    the folders beside DreamQuest.exe, so move or copy the whole folder, not
+    the exe on its own.
+
+Your saves and settings are written next to the exe, in saves\ and
+settings.json. They are not in the zip, so unpacking a newer version over this
+folder keeps them.
+
+Controls (keyboard; a controller works too, and the game switches to whichever
+you touch):
+
+    WASD / arrows   move                 I or Tab   inventory
+    J               light attack          O          skills
+    K               heavy attack; hold    P or Q     quest journal
+                    to charge             M          map
+    J+K, and heavy  combos: see the       G          drop (in the bag)
+    mixed into      journal's tutorials   1 2 3 4    choose an element
+    the chain                             5          the ancient magic
+    H (hold)        block, with a shield  R          cycle elements
+    Shift (hold)    sprint                Esc        pause
+    Space           jump / climb
+    E               talk, open, work
+
+The full manual is README.md in the source repository:
+https://github.com/Dexsidius/DreamQuest
+"@
+Set-Content -Path (Join-Path $stage "PLAY.txt") -Value $play -Encoding utf8
+
+# --- the zip ----------------------------------------------------------------------
+if (Test-Path $zip) { Remove-Item -Force $zip }
+Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -CompressionLevel Optimal
+$size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
+Write-Host ("Packaged {0} data files and {1} libraries into {2} ({3} MB)" -f $copied, $dlls.Count, $zip, $size) -ForegroundColor Green
+Write-Host "Send the zip. Unpack anywhere, double-click DreamQuest.exe."
