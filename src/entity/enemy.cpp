@@ -173,6 +173,16 @@ void Enemy::SetState(State s) {
     }
 }
 
+void Enemy::Stagger(float seconds) {
+    if (state == State::Dead || state == State::Heavy) return;
+    hurt_for = std::max(hurt_for, seconds);
+    swinging = false;
+    swing_landed = false;
+    SetState(State::Hurt);
+    // A second blow starts the reel again rather than adding to it.
+    state_timer = 0.0f;
+}
+
 void Enemy::TickRespawn(float dt) {
     if (state == State::Dead && respawn_at > 0.0f)
         respawn_at = std::max(0.0f, respawn_at - dt);
@@ -279,7 +289,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
 
     switch (state) {
         case State::Hurt:
-            if (state_timer >= HURT_STAGGER) SetState(dist < def->aggro_range ? State::Chase : State::Idle);
+            if (state_timer >= std::max(HURT_STAGGER, hurt_for)) {
+                hurt_for = 0.0f;
+                SetState(dist < def->aggro_range ? State::Chase : State::Idle);
+            }
             break;
 
         case State::Idle: {

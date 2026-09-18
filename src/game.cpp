@@ -96,6 +96,7 @@ bool Game::LoadContent() {
     // present. Absent is normal, not an error.
     items.Load("data/items_armour.json", false);
     ok &= items.LoadTiers("data/tiers.json");
+    ok &= items.LoadEnchantments("data/enchantments.json");
     ok &= enemy_db.Load("data/enemies.json");
     ok &= loot.Load("data/loot_tables.json");
     loot.Load("data/loot_tables_armour.json", false);   // optional armour drops
@@ -277,6 +278,7 @@ bool Game::InGameplayState() const {
         case GameState::Board:
         case GameState::Note:
         case GameState::Crafting:
+        case GameState::Enchanting:
         case GameState::Shop:
         case GameState::Storage:
         case GameState::Death:
@@ -403,6 +405,7 @@ void Game::Update(float dt) {
         case GameState::Board:           UpdateBoard(); break;
         case GameState::Note:            UpdateNote(); break;
         case GameState::Crafting:        UpdateCrafting(); break;
+        case GameState::Enchanting:      UpdateEnchanting(); break;
         case GameState::Shop:            UpdateShop(); break;
         case GameState::Storage:         UpdateStorage(); break;
         case GameState::Death:           UpdateDeath(dt); break;
@@ -583,6 +586,12 @@ void Game::HandleWorldRequests() {
                 OpenPanel(GameState::Crafting);
                 break;
 
+            case WorldRequest::Type::Enchant:
+                craft_title    = r.title;
+                enchant_cursor = enchant_target = 0;
+                OpenPanel(GameState::Enchanting);
+                break;
+
             case WorldRequest::Type::Storage:
                 storage_id     = r.id;
                 storage_title  = r.title;
@@ -653,8 +662,16 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
 
         if (!a.learn_recipe.empty() && !world.KnowsRecipe(a.learn_recipe)) {
             world.SetFlag("recipe:" + a.learn_recipe);
-            const ItemDef* d = items.Get(a.learn_recipe);
-            PushToast("Recipe learned: " + (d ? d->name : a.learn_recipe), Palette::Highlight);
+            // "enchant:<id>" is a charm for the enchanting table rather than
+            // a brew; the flag is the same shape either way.
+            if (a.learn_recipe.rfind("enchant:", 0) == 0) {
+                const EnchantDef* e = items.Enchantment(a.learn_recipe.substr(8));
+                PushToast("Enchantment learned: " + (e ? e->name : a.learn_recipe.substr(8)) +
+                          ". Work it at an enchanting table.", Palette::Highlight);
+            } else {
+                const ItemDef* d = items.Get(a.learn_recipe);
+                PushToast("Recipe learned: " + (d ? d->name : a.learn_recipe), Palette::Highlight);
+            }
             Audio::Play(Sfx::QuestStart);
         }
 
@@ -767,6 +784,7 @@ void Game::Render() {
         case GameState::Board:           DrawBoard(); break;
         case GameState::Note:            DrawNote(); break;
         case GameState::Crafting:        DrawCrafting(); break;
+        case GameState::Enchanting:      DrawEnchanting(); break;
         case GameState::Shop:            DrawShop(); break;
         case GameState::Storage:         DrawStorage(); break;
         case GameState::Death:           DrawDeath(); break;

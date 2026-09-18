@@ -63,4 +63,10 @@ float ForageExtraChance(int level, int plant_level);
 // The lowest level any fish at a spot can be caught at.
 int SpotLevel(const vector<string>& fish, const ItemDatabase& db);
 
+// --- depletion ------------------------------------------------------------------------
+// Whether a tree comes down or a seam gives out on this log or ore: a plain
+// dice roll against the node's own chance, for a uniform roll in [0, 1). A
+// node with no chance never runs out.
+bool Depletes(float chance, float roll);
+
 }

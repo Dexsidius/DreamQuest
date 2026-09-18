@@ -99,6 +99,15 @@ The woodland zones added a set of their own:
 - **`well`**, **`market_stall`**, **`palisade`**, **`log_pile`**, **`tent`**,
   **`campfire_ring`** -- village and camp furniture. The campfire ring also
   replaced Havenbrook's cooking-range sprite outdoors.
+- **`enchanting_table`** (64) -- a slab of stone with a lit ring of runes, an
+  open book and a crystal, where charms are worked into worn pieces; one by
+  Mira's stones in Fernhollow and one by the candles in the Reverie.
+- **`stump`**, **`stumpsmall`** (48, 32) -- what a felled oak or sapling
+  leaves, in `assets/objects/` with the trees, until it grows back.
+
+Two icons are built the same way as the potions in `tools/blender_tiers.py`:
+`hide_boots`, and `enchant_scroll`, a recipe scroll with a rune and a blue
+seal so a charm's page is told from a brew's at a glance.
 
 ## How the import works
 

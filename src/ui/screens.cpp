@@ -688,7 +688,19 @@ void Game::DrawHud() {
         // The technique a held heavy attack will come out as, from the tree --
         // on the line under the prompts, where the bow says it is drawn.
         const TalentNode* tech = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique());
-        if (tech && style != AttackStyle::Magic) {
+        const ComboMove next_light = p.NextCombo(true), next_heavy = p.NextCombo(false);
+        if (next_light != ComboMove::None || next_heavy != ComboMove::None) {
+            // The chain is open: what each button would come out as, for the
+            // moment the window lasts.
+            string line;
+            if (next_light != ComboMove::None)
+                line += input.PromptFor(Action::LightAttack) + ": " + ComboName(next_light);
+            if (next_heavy != ComboMove::None)
+                line += (line.empty() ? string("") : string("     ")) +
+                        input.PromptFor(Action::StrongAttack) + ": " + ComboName(next_heavy);
+            ui.TextShadowed(line, ui.ViewWidth() / 2.0f, ui.ViewHeight() - 46.0f, TextSize::Small,
+                            {255, 224, 140, 255}, Align::Center);
+        } else if (tech && style != AttackStyle::Magic) {
             ui.TextShadowed("Hold " + input.PromptFor(Action::StrongAttack) + ": " + tech->name,
                             ui.ViewWidth() / 2.0f, ui.ViewHeight() - 46.0f, TextSize::Small,
                             {236, 150, 110, 255}, Align::Center);
@@ -946,6 +958,7 @@ void Game::UpdateInventory() {
     Player& p = world.player;
     constexpr int COLS = 7;
     const int slots = p.inventory.SlotCount();
+    if (state_time <= 0.0f) drop_armed = -1;
 
     if (inventory_on_equipment) {
         MoveCursor(equipment_cursor, SLOT_COUNT);
@@ -965,6 +978,7 @@ void Game::UpdateInventory() {
         if (input.MenuDown())  inventory_cursor = std::min(inventory_cursor + COLS, slots - 1);
         if (input.MenuUp())    inventory_cursor = std::max(inventory_cursor - COLS, 0);
         if (inventory_cursor != grid_before || inventory_on_equipment) Audio::Play(Sfx::UiMove);
+        if (inventory_cursor != grid_before) drop_armed = -1;
 
         if (input.Pressed(Action::Confirm)) {
             const ItemStack& s = p.inventory.Slot(inventory_cursor);
@@ -981,14 +995,20 @@ void Game::UpdateInventory() {
                         PushToast(why, Palette::TextDim);
                     }
                 } else if (def && !def->learn.empty()) {
-                    const ItemDef* brew = items.Get(def->learn);
-                    const string name = brew ? brew->name : def->learn;
+                    // A recipe scroll: a brew, or -- when it reads
+                    // "enchant:<id>" -- a charm for the enchanting table.
+                    const bool charm = def->learn.rfind("enchant:", 0) == 0;
+                    const EnchantDef* ench = charm ? items.Enchantment(def->learn.substr(8)) : nullptr;
+                    const ItemDef* brew = charm ? nullptr : items.Get(def->learn);
+                    const string name = ench ? ench->name : brew ? brew->name : def->learn;
                     if (world.KnowsRecipe(def->learn)) {
-                        PushToast("You already know how to brew " + name + ".", Palette::TextDim);
+                        PushToast(charm ? "You already know the enchantment " + name + "."
+                                        : "You already know how to brew " + name + ".", Palette::TextDim);
                     } else {
                         world.SetFlag("recipe:" + def->learn);
                         p.inventory.RemoveSlot(inventory_cursor, 1);
-                        PushToast("Recipe learned: " + name + ". Brew it at a cauldron.", Palette::Highlight);
+                        PushToast(charm ? "Enchantment learned: " + name + ". Work it at an enchanting table."
+                                        : "Recipe learned: " + name + ". Brew it at a cauldron.", Palette::Highlight);
                         Audio::Play(Sfx::QuestStart);
                     }
                 } else if (def && def->use == "light") {
@@ -1041,6 +1061,38 @@ void Game::UpdateInventory() {
                 } else {
                     PushToast("Nothing happens.", Palette::TextDim);
                 }
+            }
+        }
+
+        // The drop key: what the cursor is on goes on the ground at the
+        // player's feet, where it can be picked back up once they have
+        // stepped off it, and lies for a few minutes. A stack asks to be
+        // pressed twice, so a purse of coins is not one slip from the floor.
+        // Leaving the map loses it, which is as close to destroying a thing
+        // as the game gets.
+        if (input.Pressed(Action::Drop)) {
+            const ItemStack& s = p.inventory.Slot(inventory_cursor);
+            const ItemDef* def = s.Empty() ? nullptr : items.Get(s.id);
+            if (s.Empty()) {
+                drop_armed = -1;
+            } else if (def && def->keep) {
+                PushToast("You had better hold on to that.", Palette::TextDim);
+                Audio::Play(Sfx::UiError);
+            } else if (s.qty > 1 && drop_armed != inventory_cursor) {
+                drop_armed = inventory_cursor;
+                PushToast("Press " + input.PromptFor(Action::Drop) + " again to drop all " +
+                          std::to_string(s.qty) + " " + (def ? def->name : s.id) + ".", Palette::Highlight);
+            } else {
+                const string id = s.id;
+                const string name = def ? def->name : id;
+                const int qty = s.qty;
+                p.inventory.RemoveSlot(inventory_cursor, qty);
+                world.DropItem(id, qty, p.x, p.y + 4.0f, ctx, true);
+                PushToast("Dropped " + (qty > 1 ? std::to_string(qty) + " " : string("")) + name + ".",
+                          Palette::TextDim);
+                Audio::Play(Sfx::Pickup, 0.8f, 0.8f);
+                quests.RefreshCollectObjectives(p.inventory);
+                drop_armed = -1;
             }
         }
     }
@@ -1131,6 +1183,13 @@ void Game::DrawInventory() {
     bonus_cell("Defence",  p.equipment.DefenceBonus(),  eq_x,   bonus_y + 16.0f);
     bonus_cell("Ranged",   p.equipment.RangedBonus(),   col2_x, bonus_y + 16.0f);
     bonus_cell("Magic",    p.equipment.MagicBonus(),    eq_x,   bonus_y + 32.0f);
+    // Boots and charms that quicken the step, as the percentage they add.
+    if (p.equipment.MoveSpeed() != 0.0f) {
+        char walk[48];
+        SDL_snprintf(walk, sizeof(walk), "Walk +%d%%",
+                     static_cast<int>(std::lround(p.equipment.MoveSpeed() * 100.0f)));
+        ui.Text(walk, col2_x, bonus_y + 32.0f, TextSize::Small, Palette::Xp);
+    }
 
     char bonus[128];
 
@@ -1180,6 +1239,7 @@ void Game::DrawInventory() {
     }
 
     ui.Text(input.PromptFor(Action::Confirm) + " use / equip     " +
+            input.PromptFor(Action::Drop) + " drop     " +
             input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
@@ -2191,6 +2251,180 @@ void Game::DrawCrafting() {
             Palette::TextDim);
 
     ui.Text(input.PromptFor(Action::Confirm) + (cauldron ? " brew     " : anvil ? " smith     " : " craft     ") +
+            input.PromptFor(Action::Back) + " close",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
+            Palette::TextDim, Align::Center);
+}
+
+// =============================================================================
+//  Enchanting
+//
+//  Like the crafting panel, but the thing made is not on a list: it is one of
+//  the player's own pieces, with a charm worked into it. So the left-hand list
+//  is the charms, and the right-hand side says what the chosen one does, what
+//  it costs, and which piece in the bag it would go into -- stepped through
+//  with left and right, since a bag can hold three rings.
+// =============================================================================
+
+void Game::UpdateEnchanting() {
+    const vector<const EnchantDef*> list = items.Enchantments();
+    MoveCursor(enchant_cursor, static_cast<int>(list.size()));
+    Player& p = world.player;
+    const EnchantDef* e = list.empty() ? nullptr
+        : list[std::clamp(enchant_cursor, 0, static_cast<int>(list.size()) - 1)];
+    const vector<int> targets = e ? ::Enchanting::Targets(items, *e, p.inventory) : vector<int>{};
+    const int n = static_cast<int>(targets.size());
+    if (n > 0) {
+        if (input.MenuRight()) { enchant_target = (enchant_target + 1) % n; Audio::Play(Sfx::UiMove); }
+        if (input.MenuLeft())  { enchant_target = (enchant_target + n - 1) % n; Audio::Play(Sfx::UiMove); }
+        enchant_target = std::clamp(enchant_target, 0, n - 1);
+    } else {
+        enchant_target = 0;
+    }
+
+    if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && e) {
+        const SDL_Color bad = {235, 150, 120, 255};
+        if (!world.KnowsEnchantment(e->id)) {
+            PushToast("You have not learned that enchantment yet.", bad);
+            Audio::Play(Sfx::UiError);
+        } else if (p.skills.Level(SKILL_MAGIC) < e->level) {
+            PushToast("Needs Magic " + std::to_string(e->level) + ".", bad);
+            Audio::Play(Sfx::UiError);
+        } else {
+            string why;
+            const int slot = n > 0 ? targets[enchant_target] : -1;
+            const string piece = slot >= 0 ? p.inventory.Slot(slot).id : string();
+            if (::Enchanting::Work(items, *e, p.inventory, slot, why)) {
+                p.GrantXp(SKILL_MAGIC, e->xp);
+                const ItemDef* made = items.Get(items.EnchantedId(piece, e->id));
+                PushToast("Enchanted: " + (made ? made->name : piece) + ".", Palette::Xp);
+                Audio::Play(Sfx::SpellCast);
+                quests.RefreshCollectObjectives(p.inventory);
+            } else {
+                PushToast(why, bad);
+                Audio::Play(Sfx::UiError);
+            }
+        }
+    }
+
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
+        SetState(GameState::Play);
+}
+
+void Game::DrawEnchanting() {
+    ui.Dim(0.5f);
+    const SDL_FRect panel = CenteredPanel(ui, 660.0f, 450.0f);
+    ui.Panel(panel);
+    ui.Text(craft_title.empty() ? "Enchanting Table" : craft_title,
+            panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
+            Palette::Highlight, Align::Center);
+
+    const Player& p = world.player;
+    ui.Text("Magic " + std::to_string(p.skills.Level(SKILL_MAGIC)),
+            panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
+            Palette::TextDim, Align::Right);
+    ui.Text("A charm worked into a worn piece, for Magic. Each has to be learned before it can be worked.",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
+            Palette::TextDim, Align::Center);
+
+    const vector<const EnchantDef*> list = items.Enchantments();
+    if (list.empty()) {
+        ui.Text("Nothing to work here.", panel.x + panel.w / 2.0f,
+                panel.y + panel.h / 2.0f, TextSize::Body, Palette::TextDim, Align::Center);
+        return;
+    }
+
+    const float list_w = 250.0f, row_h = 34.0f;
+    constexpr int SHOWN = 9;
+    const int count = static_cast<int>(list.size());
+    const int first = std::clamp(enchant_cursor - SHOWN / 2, 0, std::max(0, count - SHOWN));
+    if (first > 0)
+        ui.Text("^", panel.x + 20.0f + list_w / 2.0f, panel.y + 46.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    if (first + SHOWN < count)
+        ui.Text("v", panel.x + 20.0f + list_w / 2.0f, panel.y + 62.0f + SHOWN * row_h - 2.0f,
+                TextSize::Small, Palette::TextDim, Align::Center);
+    for (int i = first; i < count && i < first + SHOWN; ++i) {
+        const EnchantDef* e = list[i];
+        const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + (i - first) * row_h,
+                               list_w, row_h - 4.0f};
+        const bool selected = (i == enchant_cursor);
+        const bool known = world.KnowsEnchantment(e->id);
+        const bool unlocked = known && p.skills.Level(SKILL_MAGIC) >= e->level;
+        if (selected) {
+            ui.Fill(row, {58, 46, 28, 210});
+            ui.Outline(row, Palette::Highlight, 1.0f);
+        }
+        ui.Text(known ? e->name : string("Unknown enchantment"), row.x + 10.0f, row.y + 5.0f,
+                TextSize::Small,
+                !unlocked ? SDL_Color{120, 110, 100, 255}
+                          : (selected ? Palette::Highlight : Palette::Text));
+        ui.Text("Lv " + std::to_string(e->level), row.x + row.w - 8.0f,
+                row.y + 5.0f, TextSize::Small, Palette::TextDim, Align::Right);
+    }
+
+    // The chosen charm: what it does, what it fits, what it costs, and the
+    // piece it would go into.
+    const EnchantDef* e = list[std::clamp(enchant_cursor, 0, count - 1)];
+    const float dx = panel.x + list_w + 40.0f;
+    const float dw = panel.w - list_w - 64.0f;
+    float y = panel.y + 62.0f;
+    const bool known = world.KnowsEnchantment(e->id);
+
+    ui.Text(known ? e->name : string("Unknown enchantment"), dx, y, TextSize::Body, Palette::Highlight);
+    y += 28.0f;
+    if (!known)
+        y += ui.TextWrapped("You have not learned this yet." + (e->from.empty() ? string("") : " " + e->from),
+                            dx, y, dw, TextSize::Small, {235, 150, 120, 255}) + 8.0f;
+    if (!e->text.empty())
+        y += ui.TextWrapped(e->text, dx, y, dw, TextSize::Small, Palette::TextDim) + 8.0f;
+    {
+        string fits = "Fits: ";
+        for (size_t i = 0; i < e->slots.size(); ++i)
+            fits += string(i ? ", " : "") + EquipSlotName(e->slots[i]);
+        ui.Text(fits, dx, y, TextSize::Small, Palette::Text);
+        y += 22.0f;
+    }
+
+    ui.Text("Materials", dx, y, TextSize::Small, Palette::Highlight);
+    y += 20.0f;
+    for (const auto& in : e->inputs) {
+        const ItemDef* mat = items.Get(in.first);
+        const int held = p.inventory.Count(in.first);
+        char line[128];
+        SDL_snprintf(line, sizeof(line), "%s  %d / %d",
+                     (mat ? mat->name.c_str() : in.first.c_str()), held, in.second);
+        ui.Text(line, dx, y, TextSize::Small,
+                held >= in.second ? Palette::Xp : SDL_Color{225, 130, 120, 255});
+        y += 18.0f;
+    }
+    y += 10.0f;
+    ui.Text(std::to_string(e->xp) + " Magic XP", dx, y, TextSize::Small, Palette::TextDim);
+    y += 26.0f;
+
+    const vector<int> targets = ::Enchanting::Targets(items, *e, p.inventory);
+    if (targets.empty()) {
+        ui.TextWrapped("Nothing in your pack takes this enchantment.", dx, y, dw, TextSize::Small, Palette::TextDim);
+    } else {
+        const int n = static_cast<int>(targets.size());
+        const int which = std::clamp(enchant_target, 0, n - 1);
+        const ItemStack& s = p.inventory.Slot(targets[which]);
+        const ItemDef* d = items.Get(s.id);
+        ui.Text("Work it into", dx, y, TextSize::Small, Palette::Highlight);
+        y += 20.0f;
+        char line[160];
+        if (n > 1)
+            SDL_snprintf(line, sizeof(line), "<  %s  >   %d of %d", d ? d->name.c_str() : s.id.c_str(), which + 1, n);
+        else
+            SDL_snprintf(line, sizeof(line), "%s", d ? d->name.c_str() : s.id.c_str());
+        if (d && !d->icon.empty())
+            if (SDL_Texture* tex = textures->Get(d->icon)) {
+                const SDL_FRect ic = {dx, y - 2.0f, 22.0f, 22.0f};
+                SDL_RenderTexture(renderer, tex, nullptr, &ic);
+            }
+        ui.Text(line, dx + 28.0f, y, TextSize::Small, Palette::Xp);
+    }
+
+    ui.Text(input.PromptFor(Action::Confirm) + " enchant     left / right choose the piece     " +
             input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);

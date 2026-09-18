@@ -120,8 +120,13 @@ struct MapObject {
     string yield;            // item a gathering node produces
     int    yield_xp = 0;
     float  gather_time = 2.6f;
-    // Herbs: game hours before a picked plant grows back.
+    // Herbs: game hours before a picked plant grows back. Trees and seams
+    // use it too, for how long a felled tree or a worked-out seam is gone.
     float  regrow_hours = 6.0f;
+    // Trees and seams: the chance, on each log or ore, that the node is spent
+    // -- the tree comes down, the seam gives out -- and stays so for
+    // `regrow_hours`. Zero is a node that never runs out.
+    float  deplete = 0.0f;
     string title;
     string station;          // crafting objects: "workbench" or "anvil"
     // A storage chest: how many slots it holds. What is in it is the player's

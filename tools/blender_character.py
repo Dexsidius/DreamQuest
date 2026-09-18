@@ -753,6 +753,7 @@ def build_shadow():
 #   skirt      tunic skirt swing
 #   blink      eyes closed 0..1
 #   sword      extra pitch of the grip, degrees
+#   turn       yaw of the whole body, degrees: a spin
 # `t` runs 0..1 across the clip and wraps for loops, so a cycle is a sine.
 
 def pose_idle(t):
@@ -978,6 +979,113 @@ def pose_rush(t):
     return dict(keys[-1][1])
 
 
+def _keyed(keys, t):
+    """A pose read off a list of (t, values) keys, eased between them."""
+    for (t0, a), (t1, b) in zip(keys, keys[1:]):
+        if t <= t1:
+            k = (t - t0) / max(1e-6, t1 - t0)
+            k = k * k * (3 - 2 * k)
+            names = set(a) | set(b)
+            return {n: a.get(n, 0.0) + (b.get(n, 0.0) - a.get(n, 0.0)) * k for n in names}
+    return dict(keys[-1][1])
+
+
+def pose_crush(t):
+    """Crushing Blow: a heavy mixed in after one light. The blade goes up over
+    the head with the body leaning back off it, then comes straight down with
+    a stride in behind it and the whole body following, and holds there a
+    beat, driven into the ground. Overhead rather than round, so it reads as
+    a different swing from the chain's."""
+    return _keyed([
+        (0.00, dict(lean=2, arm_r=20, elbow_r=40, flare_r=16, sword=10,
+                    arm_l=-10, elbow_l=36, flare_l=14, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
+        # Raised up and in front of the face rather than straight overhead:
+        # straight up, the blade passes behind the head and is cut out of
+        # the frame, and the wind-up read as a flinch with empty hands.
+        (0.35, dict(lean=-12, twist=8, nod=-8, arm_r=136, elbow_r=22, flare_r=14, sword=-30,
+                    arm_l=-24, elbow_l=40, flare_l=18, leg_l=-8, leg_r=6, knee_l=18, knee_r=16,
+                    lunge=-0.03, scarf=8, scarf2=6, hair=-4)),
+        (0.55, dict(lean=30, twist=-4, nod=18, arm_r=-34, elbow_r=8, flare_r=12, sword=46,
+                    arm_l=26, elbow_l=30, flare_l=16, leg_l=22, leg_r=-16, knee_l=18, knee_r=14,
+                    lunge=0.11, scarf=44, scarf2=30, hair=12, bob=-0.03)),
+        (0.72, dict(lean=26, twist=-4, nod=14, arm_r=-30, elbow_r=10, flare_r=12, sword=44,
+                    arm_l=22, elbow_l=30, flare_l=16, leg_l=20, leg_r=-14, knee_l=16, knee_r=12,
+                    lunge=0.10, scarf=30, scarf2=22, hair=6, bob=-0.03)),
+        (1.00, dict(lean=6, arm_r=4, elbow_r=30, flare_r=14, sword=14,
+                    arm_l=0, elbow_l=34, flare_l=14, leg_l=8, leg_r=-6, knee_l=12, knee_r=10,
+                    lunge=0.03, scarf=16, scarf2=12)),
+    ], t)
+
+
+def pose_cleave(t):
+    """Cleave: the heavy that ends a chain of two. The chest coils away from
+    the blade with the arm held out wide and the blade level, then the whole
+    body turns through the sweep, the arm crossing from far out on one side
+    to across the chest on the other with a stride in, and it settles out of
+    the follow-through. Level and wide, where the chain's swing is a cut."""
+    return _keyed([
+        (0.00, dict(lean=4, twist=10, arm_r=40, elbow_r=30, flare_r=30, sword=50,
+                    arm_l=-6, elbow_l=36, flare_l=16, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
+        (0.30, dict(lean=2, twist=44, nod=-4, arm_r=52, elbow_r=18, flare_r=72, sword=70,
+                    arm_l=-28, elbow_l=40, flare_l=24, leg_l=-6, leg_r=8, knee_l=16, knee_r=14,
+                    lunge=-0.02, scarf=10, scarf2=8, hair=-4)),
+        (0.48, dict(lean=12, twist=-10, nod=4, arm_r=62, elbow_r=8, flare_r=20, sword=72,
+                    arm_l=10, elbow_l=34, flare_l=20, leg_l=18, leg_r=-12, knee_l=16, knee_r=12,
+                    lunge=0.07, scarf=36, scarf2=26, hair=8)),
+        (0.62, dict(lean=16, twist=-56, nod=8, arm_r=64, elbow_r=6, flare_r=-52, sword=70,
+                    arm_l=34, elbow_l=30, flare_l=22, leg_l=24, leg_r=-18, knee_l=18, knee_r=12,
+                    lunge=0.11, scarf=46, scarf2=32, hair=12, bob=-0.02)),
+        (0.80, dict(lean=14, twist=-44, nod=6, arm_r=50, elbow_r=14, flare_r=-36, sword=54,
+                    arm_l=26, elbow_l=32, flare_l=18, leg_l=20, leg_r=-14, knee_l=16, knee_r=12,
+                    lunge=0.09, scarf=30, scarf2=22, hair=6)),
+        (1.00, dict(lean=6, twist=-8, arm_r=14, elbow_r=30, flare_r=12, sword=16,
+                    arm_l=2, elbow_l=34, flare_l=14, leg_l=8, leg_r=-6, knee_l=12, knee_r=10,
+                    lunge=0.03, scarf=16, scarf2=12)),
+    ], t)
+
+
+def pose_backhand(t):
+    """Backhand: the light that follows a heavy. The blade is already across
+    the body from the heavy's follow-through, and it comes straight back out
+    the other way -- no wind-up, a short whip of the arm and a half step --
+    and is level again at once, ready for the chain to go on."""
+    return _keyed([
+        (0.00, dict(lean=10, twist=-30, arm_r=30, elbow_r=44, flare_r=-36, sword=36,
+                    arm_l=14, elbow_l=34, flare_l=18, leg_l=8, leg_r=-6, knee_l=14, knee_r=12,
+                    lunge=0.02, scarf=20, scarf2=14)),
+        (0.40, dict(lean=12, twist=30, nod=2, arm_r=44, elbow_r=12, flare_r=66, sword=62,
+                    arm_l=-14, elbow_l=36, flare_l=16, leg_l=16, leg_r=-12, knee_l=14, knee_r=10,
+                    lunge=0.07, scarf=34, scarf2=24, hair=6)),
+        (0.65, dict(lean=10, twist=22, arm_r=36, elbow_r=18, flare_r=50, sword=50,
+                    arm_l=-8, elbow_l=36, flare_l=16, leg_l=14, leg_r=-10, knee_l=14, knee_r=10,
+                    lunge=0.06, scarf=26, scarf2=18, hair=4)),
+        (1.00, dict(lean=6, twist=4, arm_r=12, elbow_r=30, flare_r=14, sword=16,
+                    arm_l=0, elbow_l=34, flare_l=14, leg_l=8, leg_r=-6, knee_l=12, knee_r=10,
+                    lunge=0.03, scarf=16, scarf2=12)),
+    ], t)
+
+
+def pose_spin(t):
+    """Cross Cut: both attack buttons together. A full turn on the spot with
+    the blade held out level at arm's length, crouched into it, the free arm
+    out for balance and the scarf streaming. The turn is the pose's own, so
+    the one clip shows the character pass through every facing; the world
+    strikes everything round them at its middle."""
+    k = t * t * (3 - 2 * t)
+    turn = 360.0 * k
+    # Lowest and fastest through the middle of the turn.
+    mid = math.sin(t * math.pi)
+    return {
+        "turn": turn,
+        "arm_r": 56 + 10 * mid, "elbow_r": 8, "flare_r": 62 + 10 * mid, "sword": 74,
+        "arm_l": 30 + 16 * mid, "elbow_l": 24, "flare_l": 44 + 14 * mid,
+        "lean": 8 + 8 * mid, "nod": 4 * mid,
+        "leg_l": 14 * mid, "leg_r": -12 * mid, "knee_l": 14 + 12 * mid, "knee_r": 12 + 10 * mid,
+        "bob": -0.05 * mid, "scarf": 20 + 40 * mid, "scarf2": 14 + 26 * mid, "hair": 12 * mid,
+        "skirt": -10 * mid, "blink": 1.0 if 0.35 < t < 0.55 else 0.0,
+    }
+
+
 def pose_block(t):
     # Guard up: the shield arm raised across the front of the chest, the
     # weapon drawn back low and ready, feet staggered and knees bent, and a
@@ -1104,6 +1212,12 @@ CLIPS = {
     "thrust": (pose_thrust, 6,  False),
     # Rushing Strike, from the melee tree: a running leap into a downward blow.
     "rush":   (pose_rush,   8,  False),
+    # The combos: a heavy mixed into the light chain, a light after a heavy,
+    # and both buttons at once. See README, "Combos".
+    "crush":    (pose_crush,    6, False),
+    "cleave":   (pose_cleave,   8, False),
+    "backhand": (pose_backhand, 5, False),
+    "spin":     (pose_spin,     8, False),
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
     # Holding a shield up. Looped: a guard lasts as long as the button is held.
@@ -1157,7 +1271,9 @@ def apply_pose(joints, extras, v):
     joints["grip"].rotation_euler = Euler((rad(get("elbow_r") * 0.8 - 8 - get("sword")), rad(18), 0), "XYZ")
 
     joints["move"].location = Vector((0, -get("lunge"), get("bob")))
-    joints["move"].rotation_euler = Euler((rad(-get("tip")), 0, 0), "XYZ")
+    # `turn` yaws the whole body about its own centre: a spin is the one
+    # pose that turns through every facing inside a single clip.
+    joints["move"].rotation_euler = Euler((rad(-get("tip")), 0, rad(get("turn"))), "XYZ")
 
     shut = get("blink")
     for eye in extras["eyes"]:

@@ -69,6 +69,8 @@ $sizes = @{
 
     # Herbs for Foraging, growing and picked, and the brewing cauldron.
     cauldron = 48
+    # Where charms are worked into worn pieces.
+    enchanting_table = 64
     # The Emberfell mine's way in, on the overworld.
     mine_adit = 256
     # The swamp, the Ice Spire, the Ashen Path and the inn's cellar.
@@ -107,6 +109,9 @@ if ($Objects) {
     $mush = @(128, 64, 32, 128, 64, 64)
     foreach ($i in 0..5) { $sizes["mushroom_" + $i.ToString("d2")] = $mush[$i] }
     foreach ($i in 0..2) { $sizes["fungus_" + $i.ToString("d2")] = 32 }
+    # What a felled tree leaves, at each size of tree.
+    $sizes["stump"] = 48
+    $sizes["stumpsmall"] = 32
 
     # Buildings, the guild hall's furniture, and the small things that stand on
     # the ground: the rest of what used to come out of the packs.
@@ -138,6 +143,8 @@ foreach ($i in 0..7) {
 }
 foreach ($i in 0..5) { [void]$SCENERY_NAMES.Add("mushroom_" + $i.ToString("d2")) }
 foreach ($i in 0..2) { [void]$SCENERY_NAMES.Add("fungus_" + $i.ToString("d2")) }
+[void]$SCENERY_NAMES.Add("stump")
+[void]$SCENERY_NAMES.Add("stumpsmall")
 foreach ($n in "building_house_a", "building_house_b", "building_shop", "building_guild",
                "sign_guild", "chest", "chest_open", "door", "door_open", "campfire", "arrow",
                "guild_noticeboard", "guild_couch", "guild_bench", "guild_settle", "guild_chair",

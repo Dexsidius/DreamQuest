@@ -84,6 +84,11 @@ struct Pickup {
     float  bob = 0.0f;        // animation phase
     float  life = 0.0f;       // seconds since it landed
     bool   collected = false;
+    // Put down by the player from the bag. It is not picked straight back up:
+    // it waits until they have stepped clear of it once, and it does not lie
+    // there for ever.
+    bool   dropped = false;
+    bool   cleared = false;
     string icon;              // resolved image path, may be empty
 
     SDL_FRect Bounds() const { return {x - 8.0f, y - 8.0f, 16.0f, 16.0f}; }

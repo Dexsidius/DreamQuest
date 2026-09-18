@@ -1255,6 +1255,20 @@
     }
    },
    {
+    "text": "Could you teach me the shrine's craft?",
+    "next": "mira_enchant_teach",
+    "if": {
+     "no_flag": "recipe:enchant:swiftness"
+    }
+   },
+   {
+    "text": "About enchanting.",
+    "next": "mira_enchant_more",
+    "if": {
+     "flag": "recipe:enchant:swiftness"
+    }
+   },
+   {
     "text": "Farewell.",
     "next": "end"
    }
@@ -1313,6 +1327,29 @@
   "options": [
    {
     "text": "Or both.",
+    "next": "end"
+   }
+  ]
+ },
+ "mira_enchant_teach": {
+  "speaker": "Mira of the Shrine",
+  "text": "The stones remember. A thing can be made to remember too, if it is asked properly.\n\nLay a pair of boots on the table by the stones, with a shard of dream and two sprigs of brookmint, and tell them what you want of them. They will carry you quicker after. That is Swiftness, and every other charm starts from knowing how to ask.",
+  "options": [
+   {
+    "text": "A shard, two sprigs of mint, and ask.",
+    "next": "mira_enchant_more",
+    "action": {
+     "learn": "enchant:swiftness"
+    }
+   }
+  ]
+ },
+ "mira_enchant_more": {
+  "speaker": "Mira of the Shrine",
+  "text": "Every charm past the first is written down somewhere, the way the brews are. Oona has the one for warding. The traders in Havenbrook and Mossvale keep others, and the strangest are only sold where you go when you sleep.\n\nWork them here, at the table by the stones, or at the one the dream keeps by its candles. A charm asks for Magic, and a piece will only take the one.",
+  "options": [
+   {
+    "text": "Thank you.",
     "next": "end"
    }
   ]

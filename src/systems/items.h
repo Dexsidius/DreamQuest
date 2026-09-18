@@ -90,6 +90,15 @@ struct ItemDef {
     // that is not a shield -- a lantern is not something to stop a sword with.
     float block = 0.0f;
     float block_stamina = 1.0f;
+    // How much quicker the wearer walks, as a fraction: hide boots are 0.05,
+    // a twentieth. Summed over everything worn.
+    float move_speed = 0.0f;
+    // Cannot be dropped from the bag: keys, letters, seals -- anything a
+    // quest handed over exactly once and could not hand over again.
+    bool  keep = false;
+    // An enchanted piece: which enchantment it carries, and the plain piece
+    // it was worked into. Both empty on everything else. See EnchantDef.
+    string enchant, base_item;
 
     map<int, int> requirements;       // SkillId -> level needed to equip
 
@@ -162,6 +171,24 @@ struct ItemDef {
     bool      worn_facings[4] = {true, true, true, true};
 };
 
+// An enchantment: a charm worked into a worn piece at an enchanting table,
+// with Magic, from data/enchantments.json. Every piece it fits gets an
+// enchanted twin built at load -- "copper_ring+keenness", the Copper Ring of
+// Keenness -- so an enchanted ring is an item like any other: carried, worn,
+// sold and saved by its id, and nothing else in the game needs to know.
+struct EnchantDef {
+    string id, name, suffix, text;      // "Keenness", "of Keenness", what it does
+    vector<EquipSlot> slots;            // what it can be worked into
+    int   level = 1;                    // Magic level to work it
+    int   xp = 0;                       // Magic XP for working it
+    int   value = 0;                    // added to the piece's worth
+    int   attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
+    int   ranged_bonus = 0, magic_bonus = 0;
+    float move_speed = 0.0f;
+    map<string, int> inputs;            // item id -> quantity
+    string from;                        // where it is learned, for the table to say
+};
+
 // One material tier, in order from wood to demonrite.
 struct TierDef {
     string id, name;
@@ -204,12 +231,31 @@ public:
     // What a recipe's materials are worth, in coins.
     int  InputValue(const ItemDef& recipe) const;
 
+    // --- enchantments -------------------------------------------------------------
+    // Reads data/enchantments.json and builds the enchanted twin of every
+    // piece each one fits. Call after every item file and the tiers, so the
+    // twins are built from everything there is.
+    bool LoadEnchantments(const string& path);
+    // Every enchantment, cheapest first.
+    vector<const EnchantDef*> Enchantments() const;
+    const EnchantDef* Enchantment(const string& id) const;
+    // Whether this piece can take this enchantment: it goes in a slot the
+    // enchantment fits, it carries none yet, and an off-hand piece is a
+    // shield rather than a lantern.
+    bool Takes(const ItemDef& piece, const EnchantDef& e) const;
+    // The enchanted twin's id, "<piece>+<enchantment>", or empty if there is none.
+    string EnchantedId(const string& piece, const string& enchant) const;
+
 private:
     map<string, ItemDef> defs;
     // Recipes that are not an item's own: one ingot makes seven things, and an
     // item can only carry one "craft".
     vector<ItemDef> recipes;
+    // And the odd extra recipe an item file lists under "crafts", for when a
+    // material already carries its one "craft": hide makes a jerkin, and boots.
+    vector<ItemDef> data_recipes;
     vector<TierDef> tiers;
+    vector<EnchantDef> enchants;
     map<string, string> tier_pieces;       // "iron/sword" -> "iron_sword"
 };
 
@@ -273,6 +319,9 @@ public:
     int AttackBonus() const, StrengthBonus() const, DefenceBonus() const;
     int RangedBonus() const, MagicBonus() const;
     float AttackSpeed() const;
+    // How much quicker everything worn makes the wearer walk, summed: 0.05
+    // for hide boots alone.
+    float MoveSpeed() const;
     // The weapon in hand, or null.
     const ItemDef* Weapon() const;
     // True when something worn carries this passive.
@@ -296,3 +345,17 @@ private:
     string slots[SLOT_COUNT];
     const ItemDatabase* db;
 };
+
+// Working an enchantment into a piece from the bag. The panel at the table
+// and the self-test both come through here, so what it costs and what it
+// makes are decided once.
+namespace Enchanting {
+// The bag slots holding something this enchantment could be worked into,
+// in bag order.
+vector<int> Targets(const ItemDatabase& db, const EnchantDef& e, const Inventory& bag);
+// Works it into the piece in `slot`: takes the materials and the piece, and
+// puts the enchanted piece back. Says why it could not, otherwise. Whether
+// the enchantment is known and whether the Magic level is enough are the
+// caller's to check: neither lives in a bag.
+bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why);
+}

@@ -1240,6 +1240,56 @@ def build_drowned_boots(parent):
     return parts
 
 
+bc.PALETTE.update({
+    "hide_tan": (0.64, 0.46, 0.28), "hide_dk": (0.44, 0.30, 0.18), "hide_sole": (0.30, 0.22, 0.15),
+    "hide_lace": (0.82, 0.74, 0.56),
+    "rune_seal": (0.26, 0.44, 0.90), "rune_glow": (0.56, 0.78, 1.00),
+})
+
+
+def build_hide_boots(parent):
+    """Soft boar-hide boots, laid out the way the drowned king's are -- side
+    on, one behind the other -- in tan leather with a darker turned-down cuff,
+    a lace criss-crossed up the front and a plain sole."""
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    for x, y, main, dark in ((-0.10, 0.06, "hide_tan", "hide_dk"), (0.06, -0.04, "hide_dk", "hide_tan")):
+        top = 0.36
+        add("shaft", bc.mesh_ellipsoid(0.075, 0.05, 0.13), main, parent, loc=(x, y, top - 0.13))
+        add("cuff", bc.mesh_ellipsoid(0.09, 0.056, 0.035), dark, parent, loc=(x, y, top))
+        add("ankle", bc.mesh_ellipsoid(0.07, 0.05, 0.05), main, parent, loc=(x, y, top - 0.25))
+        add("foot", bc.mesh_ellipsoid(0.125, 0.05, 0.048), main, parent, loc=(x + 0.06, y, top - 0.31))
+        add("toe", bc.mesh_ellipsoid(0.05, 0.045, 0.04), dark, parent, loc=(x + 0.16, y, top - 0.31))
+        add("sole", bc.mesh_ellipsoid(0.135, 0.05, 0.016), "hide_sole", parent, loc=(x + 0.06, y, top - 0.35))
+        add("heel", bc.mesh_ellipsoid(0.035, 0.045, 0.03), "hide_sole", parent, loc=(x - 0.05, y, top - 0.34))
+        for b in range(3):
+            add("lace", mesh_box(0.10, 0.055, 0.014), "hide_lace", parent,
+                loc=(x + 0.01, y - 0.005, top - 0.08 - b * 0.06),
+                rot=(0, math.radians(18 if b % 2 else -18), 0))
+    return parts
+
+
+def build_enchant_scroll(parent):
+    """A recipe scroll with a rune on it rather than lines of writing, and a
+    blue seal: a charm's page, told from a brew's at a glance."""
+    parts = []
+    parts.append(bc.part("sheet", mesh_box(0.30, 0.02, 0.24), "parchment", parent, loc=(0, 0, 0)))
+    for z in (0.13, -0.13):
+        parts.append(bc.part("roll", bc.mesh_capsule(0.035, 0.035, 0.34), "parchment_dk", parent,
+                             loc=(0.17, 0, z), rot=(0, math.radians(90), 0)))
+        for x in (-0.19, 0.19):
+            parts.append(bc.part("knob", bc.mesh_ellipsoid(0.02, 0.02, 0.03), "rod_wood", parent, loc=(x, 0, z)))
+    # The rune: four strokes from a centre, and the centre itself.
+    for a in (45, 135, 225, 315):
+        r = math.radians(a)
+        parts.append(bc.spike("stroke", (-0.03 + math.cos(r) * 0.02, -0.012, math.sin(r) * 0.02),
+                              (-0.03 + math.cos(r) * 0.085, -0.012, math.sin(r) * 0.085),
+                              0.013, "rune_glow", parent, r_tip=0.013))
+    parts.append(bc.part("eye", bc.mesh_ellipsoid(0.022, 0.02, 0.022), "rune_seal", parent, loc=(-0.03, -0.014, 0)))
+    parts.append(bc.part("seal", bc.mesh_ellipsoid(0.045, 0.03, 0.045), "rune_seal", parent, loc=(0.10, -0.02, -0.08)))
+    return parts
+
+
 HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
               "emberbloom", "moonpetal", "starlily"]
 
@@ -1266,6 +1316,12 @@ def brewing_icons(only=None):
         count += 1
     if not only or "recipe_scroll" in only:
         render_icon("recipe_scroll", lambda t, p: build_recipe_scroll(p), "wood", 0, 0, 0.92)
+        count += 1
+    if not only or "enchant_scroll" in only:
+        render_icon("enchant_scroll", lambda t, p: build_enchant_scroll(p), "wood", 0, 0, 0.92)
+        count += 1
+    if not only or "hide_boots" in only:
+        render_icon("hide_boots", lambda t, p: build_hide_boots(p), "wood", 0, 0, 0.9)
         count += 1
     print("icons %d brewing" % count)
 
@@ -1349,7 +1405,11 @@ def main():
         kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",),
                  "attack": ("sword", "bow", "staff"), "thrust": ("spear",),
                  # The leap is a melee move: a bow or a staff never makes it.
-                 "rush": ("sword", "spear")}.get(clip, ("sword", "spear", "bow", "staff"))
+                 "rush": ("sword", "spear"),
+                 # And so are the combos.
+                 "crush": ("sword", "spear"), "cleave": ("sword", "spear"),
+                 "backhand": ("sword", "spear"), "spin": ("sword", "spear")}.get(
+                     clip, ("sword", "spear", "bow", "staff"))
         every = ["rod"] if kinds == ("rod",) else ["%s_%s" % (k, t) for t in tiers for k in kinds]
         if chosen:
             return [m for m in chosen if m.split("_", 1)[0] in kinds]

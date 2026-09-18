@@ -16,7 +16,7 @@
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
 struct WorldRequest {
-    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage } type = Type::Toast;
+    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant } type = Type::Toast;
     string id;            // npc id / object id / shop id
     string title;
     string text;          // note body, toast message, dialogue root node
@@ -63,7 +63,12 @@ public:
     int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y);
 
     void SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx);
-    void DropItem(const string& item_id, int qty, float x, float y, const GameContext& ctx);
+    // Puts an item on the ground. `by_player` is one dropped from the bag,
+    // which waits for them to step away before it can be picked up again and
+    // is gone after DROP_LIFE seconds -- leaving the map loses it sooner.
+    static constexpr float DROP_LIFE = 180.0f;
+    void DropItem(const string& item_id, int qty, float x, float y, const GameContext& ctx,
+                  bool by_player = false);
     void AddText(const string& text, float x, float y, SDL_Color color, float life = 0.9f);
 
     vector<WorldRequest> TakeRequests();
@@ -95,6 +100,13 @@ public:
     double GameHours() const { return clock.Day() * 24.0 + clock.Hours(); }
     // Recipes the player has learned to brew live in the flags as "recipe:<id>".
     bool  KnowsRecipe(const string& id) const { return Flagged("recipe:" + id); }
+    // Enchantments the same way, as "recipe:enchant:<id>": a scroll's `learn`
+    // and a dialogue's are written "enchant:<id>", so both go through the one
+    // flag without knowing what they teach.
+    bool  KnowsEnchantment(const string& id) const { return Flagged("recipe:enchant:" + id); }
+    // A felled tree or a worked-out seam, until it is back. Kept in `picked`
+    // beside the herbs, so it is saved the same way.
+    bool  Spent(const MapObject& o) const;
 
     // Gathering (Woodcutting / Mining) in progress, 0..1 for the HUD bar.
     float GatherProgress() const;
@@ -198,6 +210,9 @@ private:
     void Burst(float x, float y, float radius, SDL_Color color, int count);
     // At the target in combat, along the facing out of it.
     Vec2 PlayerAim() const;
+    // Strikes everything whose body is within a radius of the player's chest:
+    // a whirlwind, a ground slam, a Cross Cut. Returns how many it struck.
+    int  HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx);
     // Applies a hit from a projectile or a ground effect to one enemy.
     void HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                   Element element, float damage_mult, float knockback,

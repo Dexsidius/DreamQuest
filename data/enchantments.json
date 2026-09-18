@@ -1,0 +1,166 @@
+{
+ "_comment": "Enchantments: charms worked into worn pieces at an enchanting table, for Magic. 'slots' is what each fits, 'level' the Magic level to work it, 'xp' what it pays, 'inputs' what it costs, and 'value' what it adds to the piece's worth. The game builds an enchanted twin of every piece each one fits -- copper_ring+keenness, the Copper Ring of Keenness -- so an enchanted piece is an item like any other (see ItemDatabase::LoadEnchantments). Every charm has to be learned first: Mira teaches the first, the rest are scrolls, read from the pack like a brew's. 'from' is what the table says about an unlearned one.",
+ "enchantments": {
+  "swiftness": {
+   "name": "Swiftness",
+   "suffix": "of Swiftness",
+   "text": "You walk an eighth quicker.",
+   "slots": [
+    "feet"
+   ],
+   "level": 5,
+   "xp": 120,
+   "value": 260,
+   "move_speed": 0.125,
+   "inputs": {
+    "dream_shard": 1,
+    "brookmint": 2
+   },
+   "from": "Mira of the Shrine, in Fernhollow, teaches it to anyone who asks."
+  },
+  "warding": {
+   "name": "Warding",
+   "suffix": "of Warding",
+   "text": "Defence +8.",
+   "slots": [
+    "head",
+    "body",
+    "hands",
+    "legs",
+    "feet"
+   ],
+   "level": 10,
+   "xp": 180,
+   "value": 320,
+   "bonus": {
+    "defence": 8
+   },
+   "inputs": {
+    "dream_shard": 1,
+    "nettle": 2
+   },
+   "from": "Oona sells the scroll in Mossvale."
+  },
+  "keenness": {
+   "name": "Keenness",
+   "suffix": "of Keenness",
+   "text": "Attack +8.",
+   "slots": [
+    "ring",
+    "amulet"
+   ],
+   "level": 15,
+   "xp": 240,
+   "value": 380,
+   "bonus": {
+    "attack": 8
+   },
+   "inputs": {
+    "dream_shard": 2,
+    "glowcap": 1
+   },
+   "from": "Tobin's General Store in Havenbrook sells the scroll."
+  },
+  "might": {
+   "name": "Might",
+   "suffix": "of Might",
+   "text": "Strength +8.",
+   "slots": [
+    "ring",
+    "amulet",
+    "hands"
+   ],
+   "level": 20,
+   "xp": 300,
+   "value": 420,
+   "bonus": {
+    "strength": 8
+   },
+   "inputs": {
+    "dream_shard": 2,
+    "nettle": 2
+   },
+   "from": "Garrow the smith sells the scroll in Mossvale."
+  },
+  "hawks_eye": {
+   "name": "Hawk's Eye",
+   "suffix": "of the Hawk's Eye",
+   "text": "Ranged +10.",
+   "slots": [
+    "amulet",
+    "hands",
+    "head"
+   ],
+   "level": 25,
+   "xp": 360,
+   "value": 460,
+   "bonus": {
+    "ranged": 10
+   },
+   "inputs": {
+    "dream_shard": 2,
+    "glowcap": 2
+   },
+   "from": "Hunter Ivo sells the scroll in Havenbrook."
+  },
+  "insight": {
+   "name": "Insight",
+   "suffix": "of Insight",
+   "text": "Magic +10.",
+   "slots": [
+    "ring",
+    "amulet",
+    "head"
+   ],
+   "level": 30,
+   "xp": 440,
+   "value": 520,
+   "bonus": {
+    "magic": 10
+   },
+   "inputs": {
+    "dream_shard": 3,
+    "moonpetal": 1
+   },
+   "from": "The Night Pedlar sells the scroll in the Reverie."
+  },
+  "fortitude": {
+   "name": "Fortitude",
+   "suffix": "of Fortitude",
+   "text": "Defence +14.",
+   "slots": [
+    "body",
+    "legs",
+    "shield"
+   ],
+   "level": 40,
+   "xp": 560,
+   "value": 700,
+   "bonus": {
+    "defence": 14
+   },
+   "inputs": {
+    "dream_shard": 3,
+    "mountain_sage": 2
+   },
+   "from": "The Collector sells the scroll in the Reverie."
+  },
+  "the_wind": {
+   "name": "Wind",
+   "suffix": "of the Wind",
+   "text": "You walk a fifth quicker.",
+   "slots": [
+    "feet"
+   ],
+   "level": 50,
+   "xp": 720,
+   "value": 900,
+   "move_speed": 0.2,
+   "inputs": {
+    "dream_shard": 4,
+    "starlily": 1
+   },
+   "from": "The Collector sells the scroll in the Reverie, once the lights on the pond are seen to."
+  }
+ }
+}

@@ -75,6 +75,8 @@ bool ItemDatabase::Load(const string& path, bool required) {
         // itself; anything that does not say is not a shield.
         d.block         = o.value("block", 0.0f);
         d.block_stamina = o.value("block_stamina", 1.0f);
+        d.move_speed    = o.value("move_speed", 0.0f);
+        d.keep          = o.value("keep", false);
 
         if (o.contains("tint")) {
             const json& t = o["tint"];
@@ -141,16 +143,31 @@ bool ItemDatabase::Load(const string& path, bool required) {
             d.fish_xp    = o["fish"].value("xp", 10);
         }
 
-        if (o.contains("craft")) {
-            const json& c = o["craft"];
-            d.craft_result = c.value("result", string(""));
-            d.craft_qty    = c.value("qty", 1);
-            d.craft_xp     = c.value("xp", 0);
-            d.craft_level  = c.value("level", 1);
+        const auto read_craft = [](ItemDef& into, const json& c) {
+            into.craft_result = c.value("result", string(""));
+            into.craft_qty    = c.value("qty", 1);
+            into.craft_xp     = c.value("xp", 0);
+            into.craft_level  = c.value("level", 1);
+            into.craft_inputs.clear();
             if (c.contains("inputs"))
                 for (auto i = c["inputs"].begin(); i != c["inputs"].end(); ++i)
-                    d.craft_inputs[i.key()] = i.value().get<int>();
-        }
+                    into.craft_inputs[i.key()] = i.value().get<int>();
+        };
+        if (o.contains("craft")) read_craft(d, o["craft"]);
+        // A material that makes more than one thing lists the rest under
+        // "crafts"; each is a recipe of its own, filed like a tier's.
+        if (o.contains("crafts") && o["crafts"].is_array())
+            for (const json& c : o["crafts"]) {
+                ItemDef r;
+                read_craft(r, c);
+                if (r.craft_result.empty()) continue;
+                r.id = "recipe_" + r.craft_result;
+                r.name = r.craft_result;
+                data_recipes.erase(std::remove_if(data_recipes.begin(), data_recipes.end(),
+                                                  [&](const ItemDef& x) { return x.id == r.id; }),
+                                   data_recipes.end());
+                data_recipes.push_back(r);
+            }
 
         // Anything you can wear or eat only makes sense one at a time.
         if (d.slot != SLOT_NONE) d.stackable = false;
@@ -437,6 +454,7 @@ vector<const ItemDef*> ItemDatabase::Recipes() const {
     for (const auto& kv : defs)
         if (!kv.second.craft_result.empty()) out.push_back(&kv.second);
     for (const ItemDef& r : recipes) out.push_back(&r);
+    for (const ItemDef& r : data_recipes) out.push_back(&r);
     std::sort(out.begin(), out.end(), [](const ItemDef* a, const ItemDef* b) {
         if (a->craft_level != b->craft_level) return a->craft_level < b->craft_level;
         return a->name < b->name;
@@ -589,6 +607,14 @@ float Equipment::AttackSpeed() const {
     return 1.0f;
 }
 
+float Equipment::MoveSpeed() const {
+    if (!db) return 0.0f;
+    float total = 0.0f;
+    for (const auto& id : slots)
+        if (const ItemDef* d = id.empty() ? nullptr : db->Get(id)) total += d->move_speed;
+    return total;
+}
+
 const ItemDef* Equipment::Weapon() const {
     return db ? db->Get(slots[SLOT_WEAPON]) : nullptr;
 }
@@ -692,4 +718,172 @@ void Equipment::FromJson(const json& j) {
     if (!j.is_object()) return;
     for (int i = 0; i < SLOT_COUNT; ++i)
         if (j.contains(kSlotNames[i])) slots[i] = j[kSlotNames[i]].get<string>();
+}
+
+// --- enchantments -----------------------------------------------------------------
+
+bool ItemDatabase::LoadEnchantments(const string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        SDL_Log("ItemDatabase: cannot open '%s'", path.c_str());
+        return false;
+    }
+    json root;
+    try {
+        in >> root;
+    } catch (const std::exception& e) {
+        SDL_Log("ItemDatabase: bad JSON in '%s': %s", path.c_str(), e.what());
+        return false;
+    }
+    if (!root.contains("enchantments") || !root["enchantments"].is_object()) return false;
+
+    // Twins from an earlier load go first, so a second load does not enchant
+    // an enchanted piece.
+    for (auto it = defs.begin(); it != defs.end();)
+        it = it->second.enchant.empty() ? std::next(it) : defs.erase(it);
+    enchants.clear();
+
+    const json& all = root["enchantments"];
+    for (auto it = all.begin(); it != all.end(); ++it) {
+        const json& o = it.value();
+        EnchantDef e;
+        e.id     = it.key();
+        e.name   = o.value("name", e.id);
+        e.suffix = o.value("suffix", "of " + e.name);
+        e.text   = o.value("text", string(""));
+        e.level  = std::clamp(o.value("level", 1), 1, MAX_SKILL_LEVEL);
+        e.xp     = o.value("xp", 0);
+        e.value  = o.value("value", 0);
+        e.from   = o.value("from", string(""));
+        e.move_speed = o.value("move_speed", 0.0f);
+        if (o.contains("bonus")) {
+            const json& b = o["bonus"];
+            e.attack_bonus   = b.value("attack", 0);
+            e.strength_bonus = b.value("strength", 0);
+            e.defence_bonus  = b.value("defence", 0);
+            e.ranged_bonus   = b.value("ranged", 0);
+            e.magic_bonus    = b.value("magic", 0);
+        }
+        if (o.contains("slots"))
+            for (const json& s : o["slots"]) {
+                const int slot = EquipSlotFromName(s.get<string>());
+                if (slot != SLOT_NONE) e.slots.push_back(static_cast<EquipSlot>(slot));
+            }
+        if (o.contains("inputs"))
+            for (auto i = o["inputs"].begin(); i != o["inputs"].end(); ++i)
+                e.inputs[i.key()] = i.value().get<int>();
+        enchants.push_back(e);
+    }
+    std::sort(enchants.begin(), enchants.end(), [](const EnchantDef& a, const EnchantDef& b) {
+        if (a.level != b.level) return a.level < b.level;
+        return a.name < b.name;
+    });
+
+    // The twins. Built from a list of the plain pieces taken first, since
+    // adding to the map while walking it is asking for trouble.
+    vector<string> plain;
+    for (const auto& kv : defs) if (kv.second.slot != SLOT_NONE) plain.push_back(kv.first);
+    int twins = 0;
+    for (const EnchantDef& e : enchants)
+        for (const string& id : plain) {
+            const ItemDef& base = defs.at(id);
+            if (!Takes(base, e)) continue;
+            ItemDef v = base;
+            v.id        = id + "+" + e.id;
+            v.name      = base.name + " " + e.suffix;
+            v.enchant   = e.id;
+            v.base_item = id;
+            v.value     = base.value + e.value;
+            v.attack_bonus   += e.attack_bonus;
+            v.strength_bonus += e.strength_bonus;
+            v.defence_bonus  += e.defence_bonus;
+            v.ranged_bonus   += e.ranged_bonus;
+            v.magic_bonus    += e.magic_bonus;
+            v.move_speed     += e.move_speed;
+            // What it does, printed where a legendary piece prints its own.
+            const string line = e.name + ": " + e.text;
+            v.passive_text = base.passive_text.empty() ? line : base.passive_text + "\n" + line;
+            // A twin is not a recipe, is not taught, and is nobody's quest item.
+            v.craft_result.clear();
+            v.craft_inputs.clear();
+            v.needs_recipe = false;
+            v.recipe_from.clear();
+            v.tags.push_back("enchanted");
+            defs[v.id] = v;
+            ++twins;
+        }
+    SDL_Log("ItemDatabase: %d enchantments, %d enchanted pieces (%s)",
+            static_cast<int>(enchants.size()), twins, path.c_str());
+    return !enchants.empty();
+}
+
+vector<const EnchantDef*> ItemDatabase::Enchantments() const {
+    vector<const EnchantDef*> out;
+    for (const EnchantDef& e : enchants) out.push_back(&e);
+    return out;
+}
+
+const EnchantDef* ItemDatabase::Enchantment(const string& id) const {
+    for (const EnchantDef& e : enchants) if (e.id == id) return &e;
+    return nullptr;
+}
+
+bool ItemDatabase::Takes(const ItemDef& piece, const EnchantDef& e) const {
+    if (piece.slot == SLOT_NONE || !piece.enchant.empty()) return false;
+    if (std::find(e.slots.begin(), e.slots.end(), piece.slot) == e.slots.end()) return false;
+    // Only a shield takes a shield's charm: a lantern is worn in the same
+    // hand and is not one.
+    if (piece.slot == SLOT_SHIELD && piece.block <= 0.0f) return false;
+    return true;
+}
+
+string ItemDatabase::EnchantedId(const string& piece, const string& enchant) const {
+    const string id = piece + "+" + enchant;
+    return defs.count(id) ? id : string();
+}
+
+namespace Enchanting {
+
+vector<int> Targets(const ItemDatabase& db, const EnchantDef& e, const Inventory& bag) {
+    vector<int> out;
+    for (int i = 0; i < bag.SlotCount(); ++i) {
+        const ItemStack& s = bag.Slot(i);
+        if (s.Empty()) continue;
+        const ItemDef* d = db.Get(s.id);
+        if (d && db.Takes(*d, e)) out.push_back(i);
+    }
+    return out;
+}
+
+bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why) {
+    why.clear();
+    if (slot < 0 || slot >= bag.SlotCount() || bag.Slot(slot).Empty()) {
+        why = "Nothing in your pack takes this enchantment.";
+        return false;
+    }
+    const string piece = bag.Slot(slot).id;
+    const ItemDef* d = db.Get(piece);
+    if (!d || !db.Takes(*d, e)) {
+        why = d && !d->enchant.empty() ? "It already carries an enchantment."
+                                       : "This enchantment does not fit that.";
+        return false;
+    }
+    const string made = db.EnchantedId(piece, e.id);
+    if (made.empty()) {
+        why = "This enchantment does not fit that.";
+        return false;
+    }
+    for (const auto& in : e.inputs)
+        if (!bag.Has(in.first, in.second)) {
+            why = "You are missing materials.";
+            return false;
+        }
+    for (const auto& in : e.inputs) bag.Remove(in.first, in.second);
+    // The piece leaves the bag before its twin arrives, so the twin lands in
+    // the slot it left and the bag never needs a spare one.
+    bag.RemoveSlot(slot, 1);
+    bag.Add(made, 1);
+    return true;
+}
+
 }

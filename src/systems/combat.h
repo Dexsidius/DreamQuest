@@ -20,6 +20,32 @@
 
 enum class AttackType { None, Light, Strong, Charged };
 
+// The combos. What the last swing was decides what the next press means:
+//
+//   Light, Heavy          Crushing Blow  an overhead that leaves what it hits
+//                                        reeling for a moment
+//   Light, Light, Heavy   Cleave         a wide level sweep that ends the chain
+//                                        and throws everything in it back
+//   Heavy, Light          Backhand       an instant cut off the heavy's
+//                                        follow-through, standing in for the
+//                                        first two links of a chain
+//   Light + Heavy at once Cross Cut      a turn on the spot striking everything
+//                                        round the player, for stamina
+//
+// Each is a swing of its own -- its own shape, timing and gap -- and rides the
+// same state machine as the rest, as a Light or a Strong with a move on it.
+enum class ComboMove { None, Crush, Cleave, Backhand, CrossCut };
+const char* ComboName(ComboMove move);
+
+// Seconds the Crushing Blow leaves a monster reeling.
+static constexpr float CRUSH_STAGGER     = 1.0f;
+// What the Cross Cut costs, out of a hundred.
+static constexpr float CROSS_CUT_STAMINA = 25.0f;
+// The two buttons within this of each other are "together".
+static constexpr float TOGETHER_WINDOW   = 0.08f;
+// A press during a swing is kept this long, for the moment a swing may start.
+static constexpr float BUFFER_WINDOW     = 0.25f;
+
 // Timing and geometry for one swing, in seconds and world pixels.
 struct AttackProfile {
     float windup   = 0.10f;   // before the hitbox exists
@@ -41,6 +67,7 @@ struct AttackProfile {
 };
 
 const AttackProfile& ProfileFor(AttackType type, int combo_index = 0);
+const AttackProfile& ProfileForCombo(ComboMove move);
 
 // Charge tuning, shared by the player HUD so the meter matches the maths.
 static constexpr float CHARGE_HOLD_THRESHOLD = 0.22f;  // hold before charging starts
@@ -149,6 +176,8 @@ struct AttackState {
     float      damage_mult = 1.0f;
     float      reach_scale = 1.0f;
     int        combo = 0;
+    // Which combo this swing is, or None for a plain attack.
+    ComboMove  move = ComboMove::None;
     bool       consumed = false;   // hitbox already applied this swing
     AttackProfile profile;
 
@@ -159,5 +188,5 @@ struct AttackState {
                timer < profile.windup + profile.active;
     }
     bool Finished() const { return Active() && timer >= profile.Total(); }
-    void Clear() { type = AttackType::None; timer = 0.0f; consumed = false; }
+    void Clear() { type = AttackType::None; move = ComboMove::None; timer = 0.0f; consumed = false; }
 };

@@ -86,6 +86,7 @@ int main(int argc, char** argv) {
     Check(items.Load("data/items.json"),            "data/items.json loads");
     items.Load("data/items_armour.json", false);   // optional armour pack
     Check(items.LoadTiers("data/tiers.json"),       "data/tiers.json loads");
+    Check(items.LoadEnchantments("data/enchantments.json"), "data/enchantments.json loads");
     Check(enemy_db.Load("data/enemies.json"),       "data/enemies.json loads");
     Check(loot.Load("data/loot_tables.json"),       "data/loot_tables.json loads");
     loot.Load("data/loot_tables_armour.json", false);  // optional armour drops
@@ -2948,7 +2949,10 @@ int main(int argc, char** argv) {
                         // A spear strikes with the thrust and nothing else does.
                         if (clip.first == (spear ? "attack" : "thrust")) continue;
                         // Rushing Strike is a melee move; a bow or a staff never leaps.
-                        if (clip.first == "rush" && (string(kind) == "bow" || string(kind) == "staff")) continue;
+                        // Nor do they make the combos.
+                        const bool melee_only = clip.first == "rush" || clip.first == "crush" || clip.first == "cleave" ||
+                                                clip.first == "backhand" || clip.first == "spin";
+                        if (melee_only && (string(kind) == "bow" || string(kind) == "staff")) continue;
                         const string path = "assets/characters/player_hero/layers/" + clip.first +
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
@@ -3518,8 +3522,15 @@ int main(int argc, char** argv) {
                 Check(!w.Gathering(), "an iron pickaxe is no use at Mining 1");
                 w.player.inventory.Add("bronze_pickaxe", 1);
                 frames(w, 1);
+                // The animation is read while the work is going: an outcrop
+                // can give out on its very first ore, and then there is none.
+                w.TryInteract(ctx);
+                frames(w, 2);
+                const bool mining = w.player.GatherClip() == "mine";
+                w.TryInteract(ctx);
+                frames(w, 2);
                 const float t = time_to_first(w, "copper_ore", 12.0f);
-                Check(t > 0.0f && w.player.GatherClip() == "mine", "a bronze pickaxe mines copper, with the mining animation");
+                Check(t > 0.0f && mining, "a bronze pickaxe mines copper, with the mining animation");
                 w.player.x += 200.0f;
                 frames(w, 3);
                 Check(!w.Gathering() && w.player.GatherClip().empty(), "walking away stops the work");
@@ -5800,6 +5811,882 @@ int main(int argc, char** argv) {
         }
     }
 
+    // --- nodes that run out --------------------------------------------------------------
+    Section("trees come down and seams give out");
+    {
+        Check(!Gathering::Depletes(0.0f, 0.0f) && Gathering::Depletes(0.125f, 0.10f) && !Gathering::Depletes(0.125f, 0.20f),
+              "a node runs out on a roll under its chance, and never with no chance");
+
+        // Every tree and seam on every map can run out, says how long for,
+        // and a tree has a stump to be drawn as.
+        int tree_count = 0, seam_count = 0, never = 0, greedy = 0;
+        std::set<string> stumps;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) {
+                if ((o.type != "tree" && o.type != "rock") || o.skill.empty()) continue;
+                if (o.deplete <= 0.0f || o.regrow_hours <= 0.0f) { ++never; continue; }
+                if (o.deplete > 0.5f) ++greedy;
+                if (o.type == "tree") { ++tree_count; stumps.insert(o.sprite_open); }
+                else ++seam_count;
+            }
+        }
+        Check(tree_count >= 50 && seam_count >= 20 && never == 0,
+              "every tree and seam can run out (" + std::to_string(tree_count) + " trees, " + std::to_string(seam_count) + " seams)");
+        Check(greedy == 0, "and none of them on most strokes");
+        Check(stumps.size() == 2 && !stumps.count(""), "a felled tree is drawn as a stump, one for each size of tree");
+        for (const string& s : stumps) if (!s.empty()) Check(fs::exists(s), "the stump art exists: " + s);
+
+        Input input;
+        std::mt19937 rng(11);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+        };
+        // Stands the player on clear ground beside the first node `pick`
+        // likes, close enough that the prompt names it.
+        const auto stand_by = [&](World& w, const std::function<bool(const MapObject&)>& pick) -> const MapObject* {
+            const auto& objects = w.CurrentMap().Objects();
+            for (size_t i = 0; i < objects.size(); ++i) {
+                const MapObject& o = objects[i];
+                if (!pick(o)) continue;
+                for (float a = 1.57f; a < 1.57f + 6.28f; a += 0.3f)
+                    for (float d = 14.0f; d <= 44.0f; d += 6.0f) {
+                        const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                        if (w.CurrentMap().Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) continue;
+                        w.player.x = px;
+                        w.player.y = py;
+                        frames(w, 2);
+                        if (w.player.interact.kind == InteractTarget::Object &&
+                            w.player.interact.index == static_cast<int>(i)) return &o;
+                    }
+            }
+            return nullptr;
+        };
+
+        // Played through: an oak chopped until it comes down, then the count
+        // of how long one stands.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the woodcutter");
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_WOODCUTTING, XpForLevel(99), lu);
+            w.player.inventory.Add("platinum_axe", 1);
+            const MapObject* oak = stand_by(w, [](const MapObject& o) {
+                return o.type == "tree" && o.skill_level <= 1 && o.deplete > 0.0f && o.title == "oak";
+            });
+            Check(oak != nullptr, "there is an oak to chop");
+            if (oak) {
+                const string key = "overworld:" + oak->id;
+                int logs = 0, falls = 0, run = 0;
+                bool stopped = true, silent = true, written = true;
+                while (falls < 25 && run < 60 * 60 * 6) {
+                    if (!w.Gathering() && !w.Spent(*oak)) w.TryInteract(ctx);
+                    const int before = w.player.inventory.Count("logs");
+                    frames(w, 1);
+                    ++run;
+                    logs += w.player.inventory.Count("logs") - before;
+                    if (!w.Spent(*oak)) continue;
+                    ++falls;
+                    stopped &= !w.Gathering() && w.player.GatherClip().empty();
+                    written &= w.PickedHerbs().count(key) > 0;
+                    frames(w, 2);
+                    silent &= !(w.player.interact.kind == InteractTarget::Object &&
+                                &w.CurrentMap().Objects()[w.player.interact.index] == oak);
+                    if (falls == 1) {
+                        // Its time passes, and it is back.
+                        const double now = w.GameHours();
+                        w.clock.Set(1, static_cast<float>(now - 24.0 + oak->regrow_hours - 0.1));
+                        Check(w.Spent(*oak), "a felled oak is still down just short of its time");
+                        w.clock.Set(1, static_cast<float>(now - 24.0 + oak->regrow_hours + 0.1));
+                        Check(!w.Spent(*oak), "and back once it has passed");
+                    } else {
+                        // Straight back, so the count does not wait on the clock.
+                        w.SetPickedHerbs({});
+                    }
+                }
+                Check(falls == 25, "an oak comes down (" + std::to_string(falls) + " times in " +
+                      std::to_string(run / 60) + "s of chopping)");
+                Check(stopped, "when it comes down the work stops");
+                Check(silent, "and the stump offers nothing to chop");
+                Check(written, "a felled tree is written down beside the picked herbs, so it is saved");
+                Check(falls > 0 && logs / std::max(1, falls) >= 4 && logs / std::max(1, falls) <= 16,
+                      "an oak gives about eight logs before it comes down (" +
+                      std::to_string(logs) + " logs over " + std::to_string(falls) + " falls)");
+            }
+        }
+
+        // And a copper outcrop, which gives out sooner and is drawn dull
+        // rather than replaced.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.LoadMap("overworld", "start", ctx);
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_MINING, XpForLevel(99), lu);
+            w.player.inventory.Add("platinum_pickaxe", 1);
+            const MapObject* rock = stand_by(w, [](const MapObject& o) {
+                return o.type == "rock" && o.yield == "copper_ore" && o.skill_level <= 1 && o.deplete > 0.0f &&
+                       o.title.find("outcrop") != string::npos;
+            });
+            Check(rock != nullptr, "there is a copper outcrop to mine");
+            if (rock) {
+                Check(rock->sprite_open.empty(), "a worked-out seam is the same rock drawn dull, not a picture of its own");
+                Check(rock->deplete > 0.2f && rock->regrow_hours < 2.0f, "an outcrop gives out sooner than an oak and is back within the hour");
+                int ores = 0, run = 0;
+                w.TryInteract(ctx);
+                while (!w.Spent(*rock) && run < 60 * 60 * 2) {
+                    if (!w.Gathering()) w.TryInteract(ctx);
+                    const int before = w.player.inventory.Count("copper_ore");
+                    frames(w, 1);
+                    ++run;
+                    ores += w.player.inventory.Count("copper_ore") - before;
+                }
+                Check(w.Spent(*rock) && !w.Gathering(), "the outcrop gives out and the work stops (" +
+                      std::to_string(ores) + " ore)");
+            }
+        }
+        input.Update(1.0f / 60.0f);
+    }
+
+    // --- dropping things --------------------------------------------------------------------
+    Section("dropping things from the bag");
+    {
+        Input input;
+        {
+            SDL_Event e{};
+            e.type = SDL_EVENT_KEY_DOWN;
+            e.key.key = SDLK_G;
+            input.HandleEvent(e);
+            Check(input.Pressed(Action::Drop) && input.PromptFor(Action::Drop) == "G", "G is the drop key, and the bag says so");
+            e.type = SDL_EVENT_KEY_UP;
+            input.HandleEvent(e);
+            input.Update(1.0f / 60.0f);
+            Check(!input.Pressed(Action::Drop) && !input.Down(Action::Drop), "and lets go");
+            SDL_Event b{};
+            b.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+            b.gbutton.button = SDL_GAMEPAD_BUTTON_NORTH;
+            input.HandleEvent(b);
+            Check(input.Pressed(Action::Drop) && input.Pressed(Action::StrongAttack), "on a pad, Y drops in the bag as well as swinging in a fight");
+            b.type = SDL_EVENT_GAMEPAD_BUTTON_UP;
+            input.HandleEvent(b);
+            input.Update(1.0f / 60.0f);
+        }
+
+        // What cannot be dropped: handed over once, by someone who could not
+        // hand it over again.
+        bool kept = true;
+        for (const char* id : {"mossvale_house_key", "rusted_key", "elder_letter", "barrow_seal", "torn_page", "warchief_totem"})
+            kept &= items.Get(id) && items.Get(id)->keep;
+        Check(kept, "keys, letters and seals cannot be dropped");
+        Check(items.Get("logs") && !items.Get("logs")->keep && items.Get("iron_sword") && !items.Get("iron_sword")->keep &&
+              items.Get("coins") && !items.Get("coins")->keep, "ordinary things can be");
+
+        std::mt19937 rng(5);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+        };
+
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the drop");
+        w.enemies.clear();
+        w.player.y -= 200.0f;
+        const float px = w.player.x, py = w.player.y;
+
+        // On the ground at the feet, and not straight back into the bag.
+        w.player.inventory.Add("logs", 5);
+        w.player.inventory.Remove("logs", 5);
+        w.DropItem("logs", 5, px, py + 4.0f, ctx, true);
+        frames(w, 90);
+        Check(w.player.inventory.Count("logs") == 0 && w.pickups.size() == 1,
+              "a dropped stack lies at the feet and is not scooped straight back up by the feet that dropped it");
+        w.player.x = px + 70.0f;
+        frames(w, 5);
+        w.player.x = px;
+        w.player.y = py;
+        frames(w, 30);
+        Check(w.player.inventory.Count("logs") == 5 && w.pickups.empty(), "step away and back, and it is picked up again");
+
+        // It does not lie there for ever.
+        w.player.inventory.Remove("logs", 5);
+        w.DropItem("logs", 5, px, py + 4.0f, ctx, true);
+        w.player.x = px + 70.0f;
+        frames(w, static_cast<int>(World::DROP_LIFE * 60.0f) + 120);
+        Check(w.pickups.empty() && w.player.inventory.Count("logs") == 0, "and is gone after three minutes");
+
+        // What a monster leaves is not on a clock, and is taken at once.
+        w.DropItem("bones", 1, px + 70.0f, py + 4.0f, ctx);
+        frames(w, static_cast<int>(World::DROP_LIFE * 60.0f) + 120);
+        Check(w.player.inventory.Count("bones") == 1 && w.pickups.empty(), "what a monster drops is taken at once, and would have waited");
+        input.Update(1.0f / 60.0f);
+    }
+
+    // --- hide boots ----------------------------------------------------------------------------
+    Section("hide boots");
+    {
+        const ItemDef* boots = items.Get("hide_boots");
+        Check(boots && boots->slot == SLOT_FEET && boots->move_speed > 0.0f && boots->move_speed <= 0.1f,
+              "hide boots are worn on the feet and quicken the step a little");
+        Check(boots && boots->defence_bonus > 0 && boots->defence_bonus < items.Get("leather_legs")->defence_bonus,
+              "and turn a little aside, less than the chaps");
+        Check(boots && !boots->icon.empty() && fs::exists(boots->icon), "with a picture of their own");
+
+        const ItemDef* recipe = nullptr;
+        bool jerkin = false;
+        for (const ItemDef* r : items.Recipes()) {
+            if (r->craft_result == "hide_boots") recipe = r;
+            if (r->craft_result == "leather_body") jerkin = true;
+        }
+        Check(recipe && items.StationFor(*recipe) == CraftStation::Workbench && recipe->craft_inputs.count("hide") &&
+              recipe->craft_inputs.count("thread") && recipe->craft_level <= 8,
+              "made at a workbench from hide and thread, early in Crafting");
+        Check(jerkin, "and hide still makes a jerkin as well");
+        Check(recipe && boots && boots->value >= items.InputValue(*recipe) * ItemDatabase::CRAFT_VALUE_ADD - 1,
+              "worth more than the hide that went into them");
+        {
+            ShopDatabase shopdb;
+            shopdb.Load("data/shops.json");
+            const ShopDef* ivo = shopdb.Get("havenbrook_bowyer");
+            bool sells = false;
+            if (ivo) for (const ShopStock& line : ivo->sells) sells |= line.item == "hide_boots";
+            Check(sells, "Hunter Ivo sells a pair");
+        }
+        {
+            Equipment eq(&items);
+            Check(eq.MoveSpeed() == 0.0f, "nothing worn, nothing quicker");
+            eq.Equip(SLOT_FEET, "hide_boots");
+            Check(fabsf(eq.MoveSpeed() - 0.05f) < 1e-4f, "hide boots are a twentieth quicker");
+            eq.Equip(SLOT_FEET, "drowned_king_boots");
+            Check(eq.MoveSpeed() == 0.0f && eq.HasPassive(Player::PASSIVE_MARSHSTRIDE),
+                  "the Drowned King's boots keep their own stride instead");
+        }
+
+        // Worn, the player covers more ground in the same time.
+        Input input;
+        std::mt19937 rng(9);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for a walk");
+        w.enemies.clear();
+        w.player.y -= 200.0f;
+        const float x0 = w.player.x, y0 = w.player.y;
+        const auto walk = [&](int n) {
+            w.player.x = x0;
+            w.player.y = y0;
+            key(SDLK_D, true);
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+            key(SDLK_D, false);
+            input.Update(1.0f / 60.0f);
+            w.Update(1.0f / 60.0f, ctx);
+            return w.player.x - x0;
+        };
+        const float plain = walk(60);
+        w.player.equipment.Equip(SLOT_FEET, "hide_boots");
+        const float shod = walk(60);
+        Check(plain > 40.0f && shod > plain * 1.03f && shod < plain * 1.08f,
+              "in hide boots the player covers a twentieth more ground in a second (" +
+              std::to_string(static_cast<int>(plain)) + " to " + std::to_string(static_cast<int>(shod)) + " px)");
+        input.Update(1.0f / 60.0f);
+    }
+
+    // --- enchanting -----------------------------------------------------------------------------
+    Section("enchanting");
+    {
+        const auto all = items.Enchantments();
+        Check(all.size() >= 8, "there are enchantments to learn (" + std::to_string(all.size()) + ")");
+        bool levels_rise = true, fits = true, mats = true, said = true, paid = true;
+        int last = 0;
+        std::set<int> covered;
+        for (const EnchantDef* e : all) {
+            levels_rise &= e->level >= last;
+            last = e->level;
+            fits &= !e->slots.empty();
+            for (EquipSlot s : e->slots) { covered.insert(s); fits &= s != SLOT_WEAPON; }
+            mats &= !e->inputs.empty() && e->inputs.count("dream_shard") > 0;
+            for (const auto& in : e->inputs) mats &= items.Has(in.first) && in.second > 0;
+            said &= !e->from.empty() && !e->text.empty();
+            paid &= e->xp > 0 && e->value > 0;
+        }
+        Check(levels_rise, "listed cheapest first");
+        Check(fits, "each fits at least one slot, and never a weapon");
+        Check(covered.count(SLOT_RING) && covered.count(SLOT_AMULET) && covered.count(SLOT_FEET) &&
+              covered.count(SLOT_BODY) && covered.count(SLOT_HEAD) && covered.count(SLOT_SHIELD),
+              "between them they cover rings, amulets, boots and armour");
+        Check(mats, "every one costs real materials, a shard of dream among them");
+        Check(said && paid, "every one says what it does and where it is learned, pays Magic XP and adds to the piece's worth");
+
+        // Every charm but the first is a scroll someone sells; Mira teaches the first.
+        ShopDatabase shopdb;
+        shopdb.Load("data/shops.json");
+        std::set<string> sold;
+        bool no_twin_sold = true;
+        for (const auto& kv : shopdb.All())
+            for (const ShopStock& line : kv.second.sells) {
+                if (const ItemDef* d = items.Get(line.item))
+                    if (d->learn.rfind("enchant:", 0) == 0) sold.insert(d->learn.substr(8));
+                no_twin_sold &= line.item.find('+') == string::npos;
+            }
+        for (const EnchantDef* e : all) {
+            if (e->id == "swiftness") Check(!sold.count(e->id), "Swiftness is taught, not sold");
+            else Check(sold.count(e->id), "someone sells the scroll for " + e->name);
+        }
+        Check(no_twin_sold, "no shop sells an enchanted piece ready made");
+        bool scrolls_ok = true;
+        int scrolls = 0;
+        for (const auto& kv : items.All())
+            if (kv.second.learn.rfind("enchant:", 0) == 0) {
+                ++scrolls;
+                scrolls_ok &= items.Enchantment(kv.second.learn.substr(8)) != nullptr && fs::exists(kv.second.icon) &&
+                              kv.second.icon != items.Get("scroll_nettle_brew")->icon;
+            }
+        Check(scrolls >= 7 && scrolls_ok, "every charm scroll names a real enchantment and is told from a brew's at a glance");
+
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            DialogueRunner r;
+            r.Begin(&dialogue, "mira_root", "npc_mira", "Mira", dc);
+            int teach = -1;
+            for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                if (r.VisibleOptions()[i]->next == "mira_enchant_teach") teach = static_cast<int>(i);
+            Check(teach >= 0, "Mira offers to teach a new character the shrine's craft");
+            if (teach >= 0) {
+                r.MoveSelection(teach - r.Selected());
+                r.Choose(dc);
+                bool learns = false;
+                for (const auto& o : r.VisibleOptions()) if (o->action.learn_recipe == "enchant:swiftness") learns = true;
+                Check(learns, "and her lesson teaches Swiftness");
+            }
+            flags.insert("recipe:enchant:swiftness");
+            DialogueRunner again;
+            again.Begin(&dialogue, "mira_root", "npc_mira", "Mira", dc);
+            bool offers = false, more = false;
+            for (const auto& o : again.VisibleOptions()) {
+                offers |= o->next == "mira_enchant_teach";
+                more   |= o->next == "mira_enchant_more";
+            }
+            Check(!offers && more, "and does not offer the lesson twice, only to talk about it");
+        }
+
+        // The twins: an enchanted piece is an item like any other.
+        const ItemDef* ring = items.Get("copper_ring");
+        const ItemDef* keen = items.Get("copper_ring+keenness");
+        const EnchantDef* keenness = items.Enchantment("keenness");
+        Check(ring && keen && keenness, "the Copper Ring has a twin of Keenness");
+        if (ring && keen && keenness) {
+            Check(keen->name == "Copper Ring of Keenness", "named for it (" + keen->name + ")");
+            Check(keen->slot == SLOT_RING && keen->icon == ring->icon && !keen->stackable &&
+                  keen->attack_bonus == ring->attack_bonus + keenness->attack_bonus &&
+                  keen->value == ring->value + keenness->value &&
+                  keen->enchant == "keenness" && keen->base_item == "copper_ring",
+                  "worn in the same slot with the same picture, the ring's bonuses plus the charm's, and worth both");
+            Check(keen->passive_text.find("Keenness") != string::npos, "and the bag says what it does");
+            Check(!items.Takes(*keen, *keenness) && !items.Takes(*keen, *items.Enchantment("insight")),
+                  "and takes no second charm");
+            Check(items.EnchantedId("copper_ring", "keenness") == "copper_ring+keenness" &&
+                  items.EnchantedId("copper_ring", "swiftness").empty(), "a ring is not worked with Swiftness");
+        }
+        {
+            const ItemDef* helm = items.Get(items.TierPiece("iron", "helm"));
+            const ItemDef* warded = helm ? items.Get(helm->id + "+warding") : nullptr;
+            Check(helm && warded && warded->defence_bonus == helm->defence_bonus + 8 &&
+                  warded->armour_layer == helm->armour_layer && warded->tint.r == helm->tint.r,
+                  "an iron helm takes Warding, for eight more Defence, and is drawn as the same helm");
+            const ItemDef* shield = items.Get(items.TierPiece("wood", "shield"));
+            const ItemDef* lantern = items.Get("lantern");
+            const EnchantDef* fortitude = items.Enchantment("fortitude");
+            Check(shield && lantern && fortitude && items.Takes(*shield, *fortitude) && !items.Takes(*lantern, *fortitude),
+                  "a shield takes Fortitude and a lantern, worn in the same hand, does not");
+            const ItemDef* sword = items.Get(items.TierPiece("iron", "sword"));
+            bool sword_takes = false;
+            for (const EnchantDef* e : all) sword_takes |= sword && items.Takes(*sword, *e);
+            Check(sword && !sword_takes, "a sword takes nothing: weapons are not enchanted");
+        }
+        {
+            int twins = 0;
+            bool clean = true;
+            for (const auto& kv : items.All())
+                if (!kv.second.enchant.empty()) {
+                    ++twins;
+                    clean &= kv.second.craft_result.empty() && kv.second.learn.empty() &&
+                             kv.second.id == kv.second.base_item + "+" + kv.second.enchant;
+                }
+            for (const ItemDef* r : items.Recipes()) clean &= r->craft_result.find('+') == string::npos;
+            Check(twins >= 150 && clean, std::to_string(twins) + " enchanted pieces exist, and none is a recipe or a scroll");
+        }
+
+        // Working one.
+        {
+            Inventory bag(&items);
+            bag.Add("copper_ring", 1);
+            bag.Add("dream_shard", 2);
+            bag.Add("glowcap", 1);
+            const auto targets = ::Enchanting::Targets(items, *keenness, bag);
+            Check(targets.size() == 1 && bag.Slot(targets[0]).id == "copper_ring", "the table finds the ring in the bag");
+            string why;
+            Check(!targets.empty() && ::Enchanting::Work(items, *keenness, bag, targets[0], why) &&
+                  bag.Count("copper_ring+keenness") == 1 && bag.Count("copper_ring") == 0 &&
+                  bag.Count("dream_shard") == 0 && bag.Count("glowcap") == 0,
+                  "and works Keenness into it, for the shards and the cap");
+            Check(::Enchanting::Targets(items, *keenness, bag).empty(), "the enchanted ring is not offered again");
+            bag.Add("copper_ring", 1);
+            const auto again = ::Enchanting::Targets(items, *keenness, bag);
+            Check(!again.empty() && !::Enchanting::Work(items, *keenness, bag, again[0], why) &&
+                  why == "You are missing materials." && bag.Count("copper_ring") == 1,
+                  "without materials nothing is taken, and it says why");
+            Check(!::Enchanting::Work(items, *keenness, bag, -1, why) && !why.empty(), "nor with nothing to work into");
+
+            Equipment eq(&items);
+            eq.Equip(SLOT_RING, "copper_ring+keenness");
+            Check(eq.AttackBonus() == ring->attack_bonus + 8, "worn, the charm's bonus counts");
+            Equipment shod(&items);
+            shod.Equip(SLOT_FEET, "hide_boots+swiftness");
+            Check(fabsf(shod.MoveSpeed() - 0.175f) < 1e-4f, "hide boots of Swiftness quicken the step by both");
+            Equipment back(&items);
+            back.FromJson(shod.ToJson());
+            Check(back.InSlot(SLOT_FEET) == "hide_boots+swiftness" && back.MoveSpeed() == shod.MoveSpeed(),
+                  "and an enchanted piece survives a save");
+        }
+
+        // The tables in the world, and standing at one.
+        {
+            std::set<string> where;
+            bool drawn = true;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const MapObject& o : m.Objects())
+                    if (o.type == "altar") { where.insert(id); drawn &= fs::exists(o.sprite); }
+            }
+            Check(where.count("fernhollow") && where.count("dreamworld") && drawn,
+                  "there is a table by Mira's stones and one in the Reverie, and both are drawn");
+
+            Input input;
+            std::mt19937 rng(3);
+            GameContext ctx;
+            ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+            ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+            ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+            ctx.input = &input;       ctx.rng = &rng;
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("fernhollow", "", ctx), "Fernhollow loads");
+            w.enemies.clear();
+            const auto& objects = w.CurrentMap().Objects();
+            bool stood = false;
+            for (size_t i = 0; i < objects.size() && !stood; ++i) {
+                const MapObject& o = objects[i];
+                if (o.type != "altar") continue;
+                for (float a = 0.0f; a < 6.28f && !stood; a += 0.3f)
+                    for (float d = 20.0f; d <= 50.0f && !stood; d += 6.0f) {
+                        const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                        if (w.CurrentMap().Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) continue;
+                        w.player.x = px;
+                        w.player.y = py;
+                        for (int f = 0; f < 2; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                        stood = w.player.interact.kind == InteractTarget::Object &&
+                                w.player.interact.index == static_cast<int>(i);
+                    }
+            }
+            Check(stood && w.player.interact.label == "Use the enchanting table",
+                  "standing at the table, the prompt offers it (" + w.player.interact.label + ")");
+            w.TryInteract(ctx);
+            const auto reqs = w.TakeRequests();
+            Check(reqs.size() == 1 && reqs[0].type == WorldRequest::Type::Enchant,
+                  "and pressing the button asks for the enchanting panel");
+        }
+    }
+
+    // --- combos ---------------------------------------------------------------------------------
+    Section("combos: a heavy in the chain, a light after a heavy, and both at once");
+    {
+        // The shapes.
+        const AttackProfile& l0 = ProfileFor(AttackType::Light, 0);
+        const AttackProfile& l2 = ProfileFor(AttackType::Light, 2);
+        const AttackProfile& strong = ProfileFor(AttackType::Strong);
+        const AttackProfile& crush = ProfileForCombo(ComboMove::Crush);
+        const AttackProfile& cleave = ProfileForCombo(ComboMove::Cleave);
+        const AttackProfile& backhand = ProfileForCombo(ComboMove::Backhand);
+        const AttackProfile& cross = ProfileForCombo(ComboMove::CrossCut);
+        Check(crush.damage_mult > strong.damage_mult && crush.windup < strong.windup,
+              "a Crushing Blow hits harder than a strong attack and comes out sooner");
+        Check(cleave.damage_mult > crush.damage_mult && cleave.width > 2.0f * l2.width &&
+              cleave.knockback > l2.knockback && cleave.cooldown > l2.cooldown,
+              "a Cleave hits harder still, twice as wide as the finisher, throws, and ends the chain");
+        Check(backhand.windup < l0.windup && backhand.damage_mult > l0.damage_mult && backhand.cooldown <= l0.cooldown,
+              "a Backhand is quicker than an opening light, hits harder, and leaves a light's gap");
+        Check(cross.damage_mult > l2.damage_mult && cross.cooldown > strong.cooldown && CROSS_CUT_STAMINA > 0.0f,
+              "a Cross Cut hits harder than the finisher, costs stamina, and leaves the longest gap");
+        bool named = true;
+        for (ComboMove m : {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut})
+            named &= ProfileForCombo(m).cooldown > 0.0f && string(ComboName(m)).size() > 3;
+        Check(named && string(ComboName(ComboMove::None)).empty(),
+              "each combo has a gap and a name, and a plain swing has no name");
+
+        // The art: each has a clip of its own, with every tier's sword and
+        // spear drawn in the hand for it.
+        {
+            const SpriteDef* hero = sprites.Get("player_hero");
+            bool clips = true;
+            int layers = 0;
+            for (const char* clip : {"crush", "cleave", "backhand", "spin"}) {
+                clips &= hero && hero->Find(clip) != nullptr;
+                for (const TierDef& t : items.Tiers())
+                    for (const char* w : {"sword", "spear"})
+                        if (fs::exists("assets/characters/player_hero/layers/" + string(clip) + "_4_weapon_" +
+                                       w + "_" + t.id + ".png")) ++layers;
+            }
+            Check(clips, "the hero has a clip for each combo");
+            Check(layers == 4 * 2 * static_cast<int>(items.Tiers().size()),
+                  "and every tier's sword and spear are drawn in the hand for each (" + std::to_string(layers) + ")");
+        }
+
+        Input input;
+        std::mt19937 rng(31);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        // Monsters held where they were put, so a swing's arc is measured
+        // against something that stands still for it.
+        vector<std::pair<Enemy*, SDL_FPoint>> pins;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) {
+                for (auto& pin : pins) { pin.first->x = pin.second.x; pin.first->y = pin.second.y; pin.first->knock_x = pin.first->knock_y = 0.0f; }
+                input.Update(dt);
+                w.Update(dt, ctx);
+            }
+        };
+        const auto tap = [&](World& w, SDL_Keycode k) {
+            for (auto& pin : pins) { pin.first->x = pin.second.x; pin.first->y = pin.second.y; }
+            input.Update(dt); key(k, true);  w.Update(dt, ctx);
+            input.Update(dt); key(k, false); w.Update(dt, ctx);
+        };
+        // The overworld start, up the road on open ground, facing right with
+        // a bronze sword: sure of hitting and too weak to kill.
+        const auto arena = [&](World& w, const string& weapon) {
+            pins.clear();
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.player.y -= 200.0f;
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_ATTACK, XpForLevel(70), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(60), lu);
+            w.player.Rest();
+            return true;
+        };
+        // A monster whose body's middle is dx, dy from the player's chest,
+        // pinned there.
+        const auto spawn = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            const SDL_FPoint aim = Targeting::AimPoint(*e);
+            const SDL_FPoint muzzle = Targeting::Muzzle(w.player);
+            e->x += (muzzle.x + dx) - aim.x;
+            e->y += (muzzle.y + dy) - aim.y;
+            e->home_x = e->x; e->home_y = e->y;
+            Enemy* raw = e.get();
+            pins.push_back({raw, SDL_FPoint{raw->x, raw->y}});
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        // Waits for the swing in flight to end and its gap to pass.
+        const auto settle = [&](World& w) {
+            for (int f = 0; f < 120 && !w.player.CanAttack(); ++f) frames(w, 1);
+        };
+
+        // --- the chain ends at three ----------------------------------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                tap(w, SDLK_J); settle(w);
+                Check(w.player.ComboOpen() && w.player.NextCombo(false) == ComboMove::Crush &&
+                      w.player.NextCombo(true) == ComboMove::None,
+                      "after one light the window is open and a heavy would be a Crushing Blow");
+                tap(w, SDLK_J);
+                Check(w.player.Attack().combo == 1 && w.player.Attack().move == ComboMove::None, "a second light is the second link");
+                settle(w);
+                Check(w.player.NextCombo(false) == ComboMove::Cleave, "and after two a heavy would be a Cleave");
+                tap(w, SDLK_J);
+                Check(w.player.Attack().combo == 2, "a third is the finisher");
+                settle(w);
+                Check(!w.player.ComboOpen() && w.player.NextCombo(false) == ComboMove::None,
+                      "and after the finisher the window is closed");
+                tap(w, SDLK_J);
+                Check(w.player.Attack().combo == 0, "so a fourth light opens a new chain rather than repeating the finisher");
+            }
+        }
+
+        // --- Light, Heavy: the Crushing Blow, and the reel it leaves ------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                Enemy* orc = spawn(w, "orc1", 26.0f, 0.0f);
+                frames(w, 2);
+                tap(w, SDLK_J); settle(w);
+                tap(w, SDLK_K);
+                Check(w.player.Attack().move == ComboMove::Crush && w.player.Attack().type == AttackType::Strong &&
+                      !w.player.IsCharging(), "a heavy after one light is a Crushing Blow, out on the press with no hold");
+                Check(fabsf(w.player.Attack().damage_mult - crush.damage_mult) < 1e-4f, "at the blow's own damage");
+                const int hp_before = orc ? orc->hp : 0;
+                for (int f = 0; f < 60 && orc && !orc->Staggered(); ++f) frames(w, 1);
+                Check(orc && orc->Staggered() && orc->hp < hp_before, "it lands, and the orc reels");
+                int reeling = 0;
+                const int player_hp = w.player.hp;
+                for (int f = 0; f < 120 && orc && orc->Staggered(); ++f) { frames(w, 1); ++reeling; }
+                Check(reeling >= 45 && reeling <= 75, "for about a second (" + std::to_string(reeling) + " frames)");
+                Check(w.player.hp == player_hp, "during which it does not swing back");
+                Check(orc && !orc->Staggered(), "and then it is back on its feet");
+            }
+        }
+
+        // --- Light, Light, Heavy: the Cleave, wide enough for a second monster ----------
+        {
+            const auto side_struck = [&](bool cleave) {
+                World w;
+                if (!arena(w, "bronze_sword")) return false;
+                Enemy* front = spawn(w, "orc1", 26.0f, 0.0f);
+                Enemy* side  = spawn(w, "orc1", 24.0f, 44.0f);
+                frames(w, 2);
+                tap(w, SDLK_J); settle(w);
+                tap(w, SDLK_J); settle(w);
+                tap(w, cleave ? SDLK_K : SDLK_J);
+                if (cleave && w.player.Attack().move != ComboMove::Cleave) return false;
+                settle(w);
+                return front && side && front->HealthBarVisible() && side->HealthBarVisible();
+            };
+            Check(!side_struck(false), "the finisher's arc does not reach a monster standing off to the side");
+            Check(side_struck(true), "the Cleave's does: a heavy after two lights sweeps wide");
+        }
+
+        // --- Heavy, Light: the Backhand, and the chain goes on from it --------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                tap(w, SDLK_K);
+                Check(w.player.Attack().type == AttackType::Strong && w.player.Attack().move == ComboMove::None,
+                      "a heavy on its own is a plain strong attack");
+                settle(w);
+                Check(w.player.ComboOpen() && w.player.NextCombo(true) == ComboMove::Backhand &&
+                      w.player.NextCombo(false) == ComboMove::None,
+                      "after it a light would be a Backhand, and another heavy nothing special");
+                tap(w, SDLK_J);
+                Check(w.player.Attack().move == ComboMove::Backhand && w.player.Attack().type == AttackType::Light,
+                      "and a light on its heels is the Backhand");
+                settle(w);
+                tap(w, SDLK_J);
+                Check(w.player.Attack().combo == 2, "which stands in for two links: the next light is the finisher");
+            }
+            World w2;
+            if (arena(w2, "bronze_sword")) {
+                tap(w2, SDLK_K); settle(w2);
+                tap(w2, SDLK_J); settle(w2);
+                tap(w2, SDLK_K);
+                Check(w2.player.Attack().move == ComboMove::Cleave, "or the next heavy the Cleave");
+            }
+        }
+
+        // --- both at once: the Cross Cut ---------------------------------------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                Enemy* front  = spawn(w, "orc1", 26.0f, 0.0f);
+                Enemy* behind = spawn(w, "orc1", -26.0f, 0.0f);
+                frames(w, 2);
+                const float stamina = w.player.Stamina();
+                for (auto& pin : pins) { pin.first->x = pin.second.x; pin.first->y = pin.second.y; }
+                input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); w.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); w.Update(dt, ctx);
+                Check(w.player.Attack().move == ComboMove::CrossCut, "both buttons on one frame are a Cross Cut");
+                Check(fabsf(stamina - w.player.Stamina() - CROSS_CUT_STAMINA) < 0.5f, "which costs its stamina");
+                settle(w);
+                Check(front && behind && front->HealthBarVisible() && behind->HealthBarVisible(),
+                      "and strikes the monster behind the player as well as the one in front");
+            }
+            World plain;
+            if (arena(plain, "bronze_sword")) {
+                Enemy* front  = spawn(plain, "orc1", 26.0f, 0.0f);
+                Enemy* behind = spawn(plain, "orc1", -26.0f, 0.0f);
+                frames(plain, 2);
+                tap(plain, SDLK_J); settle(plain);
+                Check(front && behind && front->HealthBarVisible() && !behind->HealthBarVisible(),
+                      "where a plain light reaches only the one in front");
+            }
+            // A few frames apart still counts, whichever came first.
+            World jk;
+            if (arena(jk, "bronze_sword")) {
+                input.Update(dt); key(SDLK_J, true); jk.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); jk.Update(dt, ctx);
+                Check(jk.player.Attack().type == AttackType::Light && jk.player.Attack().move == ComboMove::None,
+                      "a light pressed first comes out as a light");
+                input.Update(dt); key(SDLK_K, true); jk.Update(dt, ctx);
+                input.Update(dt); key(SDLK_K, false); jk.Update(dt, ctx);
+                Check(jk.player.Attack().move == ComboMove::CrossCut, "and a heavy two frames later turns it into the Cross Cut");
+            }
+            World kj;
+            if (arena(kj, "bronze_sword")) {
+                input.Update(dt); key(SDLK_K, true); kj.Update(dt, ctx);
+                input.Update(dt); kj.Update(dt, ctx);
+                Check(!kj.player.Attacking(), "a heavy pressed first is a hold, with nothing out yet");
+                input.Update(dt); key(SDLK_J, true); kj.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); kj.Update(dt, ctx);
+                Check(kj.player.Attack().move == ComboMove::CrossCut, "and a light two frames into it is the Cross Cut");
+            }
+            // Winded, the presses mean what they mean alone.
+            World tired;
+            if (arena(tired, "bronze_sword")) {
+                key(SDLK_LSHIFT, true); key(SDLK_D, true);
+                for (int f = 0; f < 60 * 8 && !tired.player.Winded(); ++f) frames(tired, 1);
+                key(SDLK_LSHIFT, false); key(SDLK_D, false);
+                frames(tired, 3);
+                input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); tired.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); tired.Update(dt, ctx);
+                Check(tired.player.Winded() && tired.player.Attack().move != ComboMove::CrossCut,
+                      "winded, there is no Cross Cut to be had");
+            }
+        }
+
+        // --- a bow has no chain to mix a heavy into ------------------------------------------
+        {
+            World w;
+            if (arena(w, "oak_shortbow")) {
+                input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); w.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); w.Update(dt, ctx);
+                Check(w.player.Attack().move == ComboMove::None, "a bow makes no Cross Cut of the two buttons");
+                settle(w);
+                tap(w, SDLK_J); settle(w);
+                Check(w.player.NextCombo(false) == ComboMove::None && w.player.NextCombo(true) == ComboMove::None,
+                      "and offers no combo after a shot");
+            }
+        }
+
+        // --- a press inside a swing is kept -----------------------------------------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                tap(w, SDLK_J);
+                frames(w, 6);
+                Check(w.player.Attacking() && !w.player.CanAttack(), "six frames into a light the hands are busy");
+                tap(w, SDLK_J);
+                Check(w.player.Attack().combo == 0, "a second press then starts nothing yet");
+                int waited = 0;
+                while (waited < 60 && !(w.player.Attacking() && w.player.Attack().combo == 1)) { frames(w, 1); ++waited; }
+                Check(w.player.Attacking() && w.player.Attack().combo == 1,
+                      "but the second link comes out by itself the moment the first is over (" + std::to_string(waited) + " frames)");
+            }
+            World w2;
+            if (arena(w2, "bronze_sword")) {
+                tap(w2, SDLK_J);
+                frames(w2, 6);
+                tap(w2, SDLK_K);
+                int waited = 0;
+                while (waited < 60 && !(w2.player.Attacking() && w2.player.Attack().move == ComboMove::Crush)) { frames(w2, 1); ++waited; }
+                Check(w2.player.Attack().move == ComboMove::Crush, "and a heavy pressed inside the light is the Crushing Blow when it ends");
+            }
+        }
+
+        // --- a hold is a hold ------------------------------------------------------------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                frames(w, 24);
+                Check(w.player.IsCharging() && !w.player.Attacking(), "the heavy button held past its window is a charge");
+                tap(w, SDLK_J);
+                Check(!w.player.Attacking() && w.player.IsCharging(), "and a light pressed during it does nothing");
+                input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+                Check(w.player.Attack().type == AttackType::Charged, "the release is the charged attack");
+            }
+        }
+
+        // --- a braced leader shrugs a stagger off -------------------------------------------------
+        {
+            World w;
+            if (arena(w, "bronze_sword")) {
+                Enemy* orc = spawn(w, "orc1", 26.0f, 0.0f);
+                EnemyDef chief_def = *enemy_db.Get("orc3");
+                chief_def.heavy.opening = 0.0f;
+                EnemySpawnDef def;
+                def.type = "orc3"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                def.x = w.player.x + 40.0f; def.y = w.player.y + 60.0f;
+                auto e = std::make_unique<Enemy>();
+                e->Init(&chief_def, def, ctx);
+                Enemy* chief = e.get();
+                w.enemies.push_back(std::move(e));
+                for (int f = 0; f < 120 && !chief->ChargingHeavy(); ++f) frames(w, 1);
+                Check(chief->ChargingHeavy(), "a Warchief winds up");
+                chief->Stagger(CRUSH_STAGGER);
+                Check(!chief->Staggered() && chief->ChargingHeavy(), "and braced in it, a stagger does nothing to him");
+                if (orc) {
+                    const float ox = orc->x;
+                    pins.clear();
+                    orc->Stagger(CRUSH_STAGGER);
+                    frames(w, 40);
+                    Check(orc->Staggered() && fabsf(orc->x - ox) < 2.0f, "where a plain orc reels on the spot");
+                }
+            }
+        }
+        input.Update(dt);
+    }
+
     Section("order books");
     {
         ShopDatabase shops;
@@ -6487,6 +7374,41 @@ int main(int argc, char** argv) {
                         if (pixels) {
                             const string name = "bin/previews/heavy_charge_" + std::to_string(i) + ".png";
                             Check(IMG_SavePNG(pixels, name.c_str()), "the heavy wind-up preview saves");
+                            SDL_DestroySurface(pixels);
+                        }
+                    }
+                }
+
+                // The enchanting table by Mira's stones, and a felled oak's
+                // stump on the overworld, drawn in the world.
+                {
+                    std::mt19937 prng(5);
+                    GameContext pctx = ctx;
+                    pctx.rng = &prng;
+                    struct View { const char* name; const char* map; const char* type; };
+                    for (const View& v : {View{"enchanting_table", "fernhollow", "altar"},
+                                          View{"felled_oak", "overworld", "tree"}}) {
+                        World world;
+                        world.player.Init(pctx, "player_hero");
+                        if (!world.LoadMap(v.map, "", pctx)) continue;
+                        world.enemies.clear();
+                        world.clock.Set(1, 12.0f);
+                        const MapObject* at = nullptr;
+                        for (const MapObject& o : world.CurrentMap().Objects())
+                            if (o.type == v.type && (o.type != "tree" || o.title == "oak")) { at = &o; break; }
+                        if (!at) continue;
+                        if (at->type == "tree") world.Pick(*at);
+                        world.player.x = at->x + 34.0f;
+                        world.player.y = at->y + 22.0f;
+                        world.Update(1.0f / 60.0f, pctx);
+                        world.camera.SetViewport(1280, 720);
+                        world.camera.SetZoom(3.0f);
+                        world.camera.SnapTo(at->x, at->y - 10.0f);
+                        world.Render(renderer, cache);
+                        SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
+                        if (pixels) {
+                            const string name = string("bin/previews/") + v.name + ".png";
+                            Check(IMG_SavePNG(pixels, name.c_str()), string(v.name) + " preview saves");
                             SDL_DestroySurface(pixels);
                         }
                     }

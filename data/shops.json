@@ -58,6 +58,10 @@
     {
      "item": "scroll_nettle_brew",
      "stock": 1
+    },
+    {
+     "item": "scroll_enchant_keenness",
+     "stock": 1
     }
    ]
   },
@@ -211,6 +215,14 @@
     {
      "item": "scroll_hunters_focus",
      "stock": 1
+    },
+    {
+     "item": "hide_boots",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_hawks_eye",
+     "stock": 1
     }
    ]
   },
@@ -329,6 +341,10 @@
     {
      "item": "scroll_stoneskin_draught",
      "stock": 1
+    },
+    {
+     "item": "scroll_enchant_might",
+     "stock": 1
     }
    ]
   },
@@ -363,6 +379,10 @@
     },
     {
      "item": "scroll_mana_tonic",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_warding",
      "stock": 1
     }
    ]
@@ -581,6 +601,10 @@
     {
      "item": "scroll_moonlit_draught",
      "stock": 1
+    },
+    {
+     "item": "scroll_enchant_insight",
+     "stock": 1
     }
    ]
   },
@@ -646,6 +670,17 @@
     },
     {
      "item": "scroll_starlily_panacea",
+     "stock": 1,
+     "after": [
+      "q_lights_on_the_pond"
+     ]
+    },
+    {
+     "item": "scroll_enchant_fortitude",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_the_wind",
      "stock": 1,
      "after": [
       "q_lights_on_the_pond"

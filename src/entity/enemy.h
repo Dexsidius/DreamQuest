@@ -96,6 +96,13 @@ public:
     static constexpr float HEAVY_RECOVER = 0.7f;   // standing after the blow
     static constexpr float HEAVY_LOCK    = 0.7f;   // share of the wind-up it keeps turning to follow
 
+    // --- staggering -------------------------------------------------------------
+    // Reeling from a blow -- the Crushing Blow's -- for this long: no moving,
+    // no swinging. A leader braced in its heavy's wind-up shrugs it off, and
+    // the dead are past it.
+    void  Stagger(float seconds);
+    bool  Staggered() const { return state == State::Hurt; }
+
     // --- health bar -------------------------------------------------------------
     // Hidden until the player first attacks this monster -- a hit, a miss or a
     // hit for nothing all count -- then drawn over its head until the corpse
@@ -131,6 +138,7 @@ private:
     float leash = 220.0f;
     float attack_timer = 0.0f;
     float state_timer = 0.0f;
+    float hurt_for = 0.0f;         // how long the current reel lasts, past the usual flinch
     float respawn_delay = 25.0f;
     float respawn_at = 0.0f;
     float wander_timer = 0.0f;

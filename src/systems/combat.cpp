@@ -15,6 +15,38 @@ static const AttackProfile kStrong  = { 0.16f, 0.13f, 0.30f, 1.45f, 36.0f, 44.0f
 static const AttackProfile kCharged = { 0.14f, 0.17f, 0.38f, 1.00f, 46.0f, 58.0f, 105.0f, 0.08f, 0.55f };
 static const AttackProfile kNone;
 
+// The combos. The Crushing Blow is a strong that comes out quicker and hits
+// harder, and what it does beyond that -- the stagger -- is the world's. The
+// Cleave is the finisher's finisher: slower, much wider, and it throws. The
+// Backhand has almost no wind-up and a light's gap, so the chain goes on from
+// it. The Cross Cut is a light's cost in time for a strong's damage all
+// round, paid for in stamina; its reach is the radius of the turn.
+//   windup active recover  mult  reach width  knock  move  cooldown
+static const AttackProfile kCrush    = { 0.10f, 0.12f, 0.26f, 1.60f, 34.0f, 36.0f, 30.0f, 0.10f, 0.32f };
+static const AttackProfile kCleave   = { 0.12f, 0.14f, 0.30f, 1.90f, 38.0f, 88.0f, 95.0f, 0.10f, 0.48f };
+static const AttackProfile kBackhand = { 0.03f, 0.10f, 0.12f, 1.00f, 32.0f, 36.0f, 30.0f, 0.40f, 0.05f };
+static const AttackProfile kCrossCut = { 0.10f, 0.16f, 0.30f, 1.25f, 40.0f, 40.0f, 80.0f, 0.05f, 0.55f };
+
+const AttackProfile& ProfileForCombo(ComboMove move) {
+    switch (move) {
+        case ComboMove::Crush:    return kCrush;
+        case ComboMove::Cleave:   return kCleave;
+        case ComboMove::Backhand: return kBackhand;
+        case ComboMove::CrossCut: return kCrossCut;
+        default:                  return kNone;
+    }
+}
+
+const char* ComboName(ComboMove move) {
+    switch (move) {
+        case ComboMove::Crush:    return "Crushing Blow";
+        case ComboMove::Cleave:   return "Cleave";
+        case ComboMove::Backhand: return "Backhand";
+        case ComboMove::CrossCut: return "Cross Cut";
+        default:                  return "";
+    }
+}
+
 const AttackProfile& ProfileFor(AttackType type, int combo_index) {
     switch (type) {
         case AttackType::Light:   return kLight[std::clamp(combo_index, 0, 2)];

@@ -99,6 +99,10 @@ string PickFish(const vector<string>& fish, int level, const ItemDatabase& db, s
     return open.back()->id;
 }
 
+bool Depletes(float chance, float roll) {
+    return chance > 0.0f && roll < chance;
+}
+
 int SpotLevel(const vector<string>& fish, const ItemDatabase& db) {
     int lowest = 0;
     for (const string& id : fish)

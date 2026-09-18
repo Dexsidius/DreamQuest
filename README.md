@@ -148,6 +148,7 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Quest journal | `P` or `Q` | Back |
 | Select element | `1` `2` `3` `4` | — |
 | Cycle element | `R` | Right stick click |
+| Drop what the cursor is on (in the bag) | `G` | Y (north) |
 | Pause | `Esc` | Start |
 
 In menus the fighting keys double up the way a controller's face buttons do:
@@ -223,6 +224,22 @@ to 35%. That threshold is what stops an empty bar being tapped into a
 stuttering sprint. Respawning restores it; it is not saved, because it is back
 to full within seconds of any load anyway.
 
+### Dropping things
+
+In the bag, `G` -- Y on a controller, which only swings outside it -- drops
+what the cursor is on at your feet. A single thing goes at once; a stack asks
+for a second press ("Press G again to drop all 30 Logs"), so a purse of coins
+is not one slip of a finger from the floor. What is dropped lies where it fell
+and can be picked back up, but not by the feet that dropped it: you have to
+step clear of it first, or the bag would scoop it straight back. It lies there
+for three minutes, and leaving the map loses it sooner -- which is as close to
+destroying a thing as the game gets, and all the destroying a thing needs.
+
+Keys, letters and seals cannot be dropped ("You had better hold on to that").
+Each was handed over exactly once by somebody who could not hand it over
+again, and a house key on the floor of a map you have left is a house you can
+never get into. An item says so with `"keep": true` in `data/items.json`.
+
 ### What the attack buttons do
 
 The buttons never change; the weapon in your hand decides what comes out of
@@ -238,6 +255,52 @@ same attack state machine, so the charge mechanic works for every style.
   swing starts charging and a meter appears under your feet; it turns bright
   when it is full. Release to fire. A full charge is worth roughly three times
   a normal strong hit and reaches further, but it roots you while it winds up.
+
+### Combos
+
+With a melee weapon, **what the last swing was decides what the next press
+means.** A light attack leaves a window of about four tenths of a second open;
+so does a plain strong attack. Inside it:
+
+| Pressed | Comes out as | What it does |
+| --- | --- | --- |
+| Light, Light, Light | the chain | three cuts, each a little harder than the last |
+| Light, **Heavy** | **Crushing Blow** | an overhead, out on the press with no hold: 1.6x a light's damage, and what it lands on **reels for a second** -- no moving, no swinging |
+| Light, Light, **Heavy** | **Cleave** | a level sweep more than twice as wide as the finisher, 1.9x, that throws everything in it back and ends the chain |
+| Heavy, **Light** | **Backhand** | an instant cut off the heavy's follow-through, 1.0x, that stands in for the first two links: the next light is the finisher and the next heavy the Cleave |
+| **Light + Heavy together** | **Cross Cut** | a turn on the spot that strikes everything round you as far as the blade reaches, 1.25x, for 25 stamina |
+
+Each is a swing of its own with its own shape, timing and gap, and its own
+sound, and says its name over the player's head as it comes out. Each has its
+own clip too -- `crush`, an overhead; `cleave`, a level sweep with the chest
+turning through it; `backhand`, a cut straight back out from across the body;
+and `spin`, a full turn on the spot, the one pose that yaws the whole rig --
+rendered for every character, armour cut, and tier sword and spear by
+`make_character.ps1` and `make_tiers.ps1`, like the leap's. The HUD prints what the buttons would do while a window is open
+("K: Crushing Blow", "J: Backhand"), on the line where a held heavy's
+technique is named. A heavy pressed inside the chain never charges: it is the
+combo, on the press. A heavy pressed from nothing is the plain strong, or the
+charge if held.
+
+Two things fell out of building it:
+
+- **The finisher now ends the chain.** It used to leave the window open, so a
+  fourth light was another finisher, and a fifth. Now a light after it opens
+  a new chain from the top, which is what "a three-hit chain" always meant.
+- **Presses inside a swing are kept** for a quarter of a second and used the
+  moment the next swing may start, so a chain no longer hangs on a
+  frame-perfect tap. The two buttons are kept apart, so two presses inside one
+  swing still read as together.
+
+"Together" is the two buttons within about five frames of each other, either
+way round: a light already started is taken back before its active frames,
+and a heavy's hold is taken back before it has begun to charge. It costs
+stamina, so winded there is no Cross Cut to be had and the presses mean what
+they mean alone. Leaders braced in their heavy's wind-up shrug the Crushing
+Blow's reel off; everything else stops where it stands. The profiles are
+`kCrush`, `kCleave`, `kBackhand` and `kCrossCut` in `src/systems/combat.cpp`,
+the grammar is `Player::HandleAttackInput`, and what they do beyond a swing
+is `World::ApplyPlayerAttack`.
 
 ### Targeting
 
@@ -556,7 +619,7 @@ brewed at a cauldron**, with Brewing. **Anything that
 needs metal is smithed at an anvil**, with Smithing -- in Halda's forge in Havenbrook, or
 beside the workbench in Mossvale: every bar, every metal tier's pieces, and the
 Copper Ring. **Everything else is made at a workbench**, in Havenbrook or
-Mossvale, with Crafting: the wooden tier, the Leather Jerkin, the Fishing Rod, the Bedroll and the Dreamcatcher.
+Mossvale, with Crafting: the wooden tier, the Leather Jerkin, the Hide Boots, the Fishing Rod, the Bedroll and the Dreamcatcher.
 The two used to share one list, so a village workbench could smith an iron
 shield.
 
@@ -567,6 +630,18 @@ crafting object in a map names the station it is with `"station"`; the
 self-test checks every recipe against its materials, and that every station in
 the world is drawn as what it works as. Each station's screen says what is made
 at the other, so a missing recipe reads as elsewhere rather than gone.
+
+### Hide boots
+
+The first thing worth making from hide after the jerkin: **Hide Boots**, two
+hides and a waxed thread at a workbench (Crafting 4), also sold by Hunter Ivo.
+Worn on the feet they turn a little aside and **you walk a twentieth quicker**
+in them; the bag prints it as "Walk +5%" beside the bonuses. That is a field
+any worn item can carry, `move_speed`, a fraction added to walking speed and
+summed over everything worn, so an enchantment adds to it (see Enchanting).
+The Drowned King's boots keep their own Marshstride instead. An item carries
+one `craft`, and hide already made the jerkin, so its second recipe is listed
+under `crafts`; anything that makes several things can do the same.
 
 ---
 
@@ -608,6 +683,31 @@ instead of the weapon: a two-handed swing round from the shoulder into the
 trunk, a pick lifted high and driven down into the rock, and the rod held out
 over the water with a slow bob and the odd twitch of the wrist. Walking,
 attacking or jumping stops the work.
+
+### Trees come down and seams give out
+
+A tree does not stand there giving logs for ever. **On every log there is a
+chance the tree comes down**, and on every ore a chance the seam gives out;
+then the work stops, a stump stands where the tree was (a seam is the same
+rock, drawn dark and dull), the prompt offers nothing, and after a while it is
+back. The roll is a plain one against the node's own chance, so a better axe
+fells a tree no sooner; it only gets the logs out faster.
+
+| Node | Chance on each | Back after |
+| --- | --- | --- |
+| Oak | 1 in 8 | 1.5 game hours |
+| Sapling | 1 in 4 | 1 game hour |
+| Ore seam | 1 in 6 | 1 game hour, a little more for deeper ore |
+| Ore outcrop | 1 in 3 | 0.75 of a game hour, likewise |
+| Dream crystal | 1 in 4 | 0.5 of a game hour |
+
+A game hour is half a real minute, so an oak is back in under a minute of play.
+What is down is written into the save beside the picked herbs, so a stump is
+still a stump after a reload, and sleeping through the night brings everything
+back. A node's chance and its time are `deplete` and `regrow` on the object in
+the map, set by `tools/genmaps.cpp`; a tree's stump is its `sprite_open`,
+rendered by `tools/blender_props.py` (`stump`, `stumpsmall`) with the rest of
+the scenery.
 
 ### Fishing
 
@@ -704,6 +804,52 @@ modelled in `tools/blender_props.py` and rendered with `make_props.ps1`; the
 herb, vial, potion and recipe-scroll icons are built in `tools/blender_tiers.py`
 beside the fish (`.\tools\make_tiers.ps1 -What brewing`); the kneel-and-pick
 `gather` clip is in `tools/blender_character.py`.
+
+### Enchanting
+
+**Enchanting** works a charm into a worn piece -- a ring, an amulet, boots, or
+a piece of armour -- at an **enchanting table**, for Magic. There is one by
+Mira's stones in Fernhollow and one by the candles in the Reverie. Weapons take
+nothing.
+
+A charm has to be **learned** first, like a brew. The table lists every charm,
+but one not yet learned shows as "Unknown enchantment" and says where to learn
+it. Mira teaches the first -- ask her "Could you teach me the shrine's craft?"
+-- and the rest are **charm scrolls**, read from the pack, sold by traders
+around the world. Learned charms are saved as world flags
+(`recipe:enchant:<id>`); a charm scroll's `learn` reads `"enchant:<id>"`, and
+a dialogue line teaches one the same way.
+
+| Charm | Magic | Fits | Does | Costs | Scroll from |
+| --- | --- | --- | --- | --- | --- |
+| Swiftness | 5 | boots | walk an eighth quicker | 1 dream shard, 2 brookmint | Mira teaches it |
+| Warding | 10 | helm, body, gloves, legs, boots | Defence +8 | 1 dream shard, 2 nettle | Oona |
+| Keenness | 15 | ring, amulet | Attack +8 | 2 dream shards, glowcap | Tobin's General Store |
+| Might | 20 | ring, amulet, gloves | Strength +8 | 2 dream shards, 2 nettle | Garrow's Smithy |
+| Hawk's Eye | 25 | amulet, gloves, helm | Ranged +10 | 2 dream shards, 2 glowcap | Ivo's Bows and Hides |
+| Insight | 30 | ring, amulet, helm | Magic +10 | 3 dream shards, moonpetal | the Night Pedlar |
+| Fortitude | 40 | body, legs, shield | Defence +14 | 3 dream shards, 2 mountain sage | the Collector |
+| Wind | 50 | boots | walk a fifth quicker | 4 dream shards, starlily | the Collector, after Lights on the Pond |
+
+Every charm costs shards of dream, mined from the crystals in the Reverie, and
+a herb, so Magic, Foraging and the nights spent asleep climb together. At the
+table, up and down pick the charm, left and right pick which piece in the bag
+it goes into (a bag can hold three rings), and use works it: the materials and
+the piece go, the enchanted piece comes back in the same slot, and Magic is
+paid. A piece takes one charm and no more, and a lantern, worn in the shield
+hand, takes none.
+
+**An enchanted piece is an item like any other.** The game builds, at load, an
+enchanted twin of every piece each charm fits -- `copper_ring+keenness`, the
+Copper Ring of Keenness -- with the piece's bonuses plus the charm's, the
+piece's picture, tint and armour layer, and both their worths added, so it is
+carried, worn, sold, stored and saved by its id and nothing else in the game
+had to learn what an enchantment was. 168 twins come out of the eight
+charms; none is a recipe and no shop sells one ready made. The charms are
+`data/enchantments.json`; see `ItemDatabase::LoadEnchantments`. The table is
+`enchanting_table` in `tools/blender_props.py`, an object of type `altar` in
+the maps; the charm scroll and the hide boots are drawn beside the potions in
+`tools/blender_tiers.py`.
 
 ---
 
@@ -2257,10 +2403,12 @@ To rebuild the world from scratch: `.\build.ps1 -Maps`.
 Three slots, plus an autosave every two minutes and one on quitting to the main
 menu. A save records the map, your exact position and facing, HP, every skill's
 XP, inventory, worn equipment, quest progress, and the one-shot world flags —
-which chests you have opened and which notes you have read — plus the day and
-the hour, where your camp is pitched, what every trader has sold today, and, for
-a save made asleep, where you are dreaming from — so loading puts
-you back exactly where you left off. Saves are written to a temporary file and
+which chests you have opened, which notes you have read, and what you have
+learned to brew and to enchant — plus the day and the hour, where your camp is
+pitched, what every trader has sold today, which herbs are picked and which
+trees are down and seams worked out, and, for a save made asleep, where you are
+dreaming from — so loading puts you back exactly where you left off. What lies
+on the ground is not saved: a dropped item is gone when you leave. Saves are written to a temporary file and
 renamed, so an interrupted write cannot destroy the previous one.
 
 ---
@@ -2274,7 +2422,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **12730 checks** covering:
+and checks all of it — currently **15235 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -2436,6 +2584,39 @@ and checks all of it — currently **12730 checks** covering:
   it turns to follow early in the wind-up and is committed late in it, and a
   player who steps out of the line takes nothing; and a charging leader is braced
   against knockback and keeps charging when hit
+- trees come down and seams give out: every tree and seam on every map can
+  run out and says how long for, a felled tree has a stump to be drawn as, and
+  played through an oak comes down about every eight logs, the work stops, the
+  stump offers nothing, it is written down for the save, and it is back once
+  its time has passed; a copper outcrop gives out sooner
+- dropping things: G and Y are the drop key, keys and letters cannot be
+  dropped, and a dropped stack lies at the feet without being scooped straight
+  back up, comes back once the player has stepped clear, and is gone after
+  three minutes, while a monster's drop is not
+- hide boots: made at a workbench from hide and thread, sold by Ivo, a
+  twentieth quicker on the feet -- measured as ground covered in a second --
+  and the Drowned King's boots keep their own stride
+- enchanting: eight charms listed cheapest first that between them cover rings,
+  amulets, boots and armour and never a weapon; every one but the first is a
+  scroll someone sells and Mira teaches the first once; the Copper Ring of
+  Keenness is the ring's bonuses plus the charm's and worth both, takes no
+  second charm, and is drawn as the ring; a shield takes Fortitude and a lantern
+  does not; every enchanted twin is neither recipe nor scroll; working a charm
+  takes the materials and the piece and gives the enchanted piece back, and
+  refuses without them; a worn charm counts and survives a save; and standing
+  at the table by Mira's stones offers it and opens the panel
+- combos: the profiles order as they should and the hero has a clip and
+  every tier's sword and spear for each; played through with a bronze sword
+  against pinned orcs: the chain ends at three and a fourth light opens a new
+  one; a heavy after one light is the Crushing Blow, out on the press, and the
+  orc reels for about a second and does not swing back; the Cleave's sweep
+  reaches a monster off to the side the finisher does not; a light after a
+  strong is the Backhand and the chain goes on from it; both buttons on one
+  frame, or two frames apart either way round, are the Cross Cut, which costs
+  its stamina and strikes the monster behind as well as in front; winded there
+  is none; a bow has no combos; a press inside a swing comes out the moment
+  the swing ends; a hold past its window is a charge that ignores a light; and
+  a braced Warchief shrugs a stagger off where a plain orc reels on the spot
 - inventory, equipment, skills and quest progress survive a save round-trip
 - the hero has every clip including sprint, each split into shadow, body and
   head with its sheets on disk, and its head and feet sit where the CraftPix

@@ -384,41 +384,168 @@ string Player::AttackClip() const {
     return "attack";
 }
 
-void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
-    // A swing already under way locks out new input until it recovers, except
-    // for buffering the next link of a light chain.
+void Player::FireStrong(bool charged, float ratio, const World& world) {
     const float speed = WeaponSpeed();
+    attack.type    = charged ? AttackType::Charged : AttackType::Strong;
+    attack.move    = ComboMove::None;
+    attack.profile = ScaleForSpeed(ProfileFor(attack.type), speed);
+    ShapeForWeapon(attack.profile);
+    attack.rate    = speed;
+    attack.damage_mult = charged ? ChargeMultiplier(ratio) : attack.profile.damage_mult;
+    // A fuller charge also swings wider.
+    attack.reach_scale = charged ? (1.0f + 0.35f * ratio) : 1.0f;
+    attack.combo    = 0;
+    attack.timer    = 0.0f;
+    attack.consumed = false;
+    TurnToTarget(world);
+    sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
+    sprite.Play(AttackClip(), true);
+    if (Style() == AttackStyle::Melee)
+        Audio::Play(Sfx::SwingHeavy, charged ? 1.0f : 0.85f, charged ? 0.85f : 1.0f);
+    combo        = 0;
+    combo_window = 0.0f;
+    after_strong = false;
+}
 
-    // At a run, with Rushing Strike learned and rested, the light attack is a
-    // leap. Only as an opener: mid-chain it stays the next link.
-    const bool rushed = in.Pressed(Action::LightAttack) && CanAttack() && combo_window <= 0.0f &&
-                        Length(move_axis.x, move_axis.y) >= RUN_THRESHOLD && StartRush(world);
-    if (!rushed && in.Pressed(Action::LightAttack) && CanAttack()) {
-        const int index = (combo_window > 0.0f) ? std::min(combo + 1, 2) : 0;
-        combo = index;
-        attack.type        = AttackType::Light;
-        attack.profile     = ScaleForSpeed(ProfileFor(AttackType::Light, index), speed);
-        ShapeForWeapon(attack.profile);
-        attack.rate        = speed;
-        attack.damage_mult = attack.profile.damage_mult;
-        attack.reach_scale = 1.0f;
-        attack.combo       = index;
-        attack.timer       = 0.0f;
-        attack.consumed    = false;
-        TurnToTarget(world);
-        sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-        sprite.Play(AttackClip(), true);
-        combo_window = 0.0f;
-        // A bow or a staff makes its own noise when the shot leaves.
-        if (Style() == AttackStyle::Melee) Audio::Play(Sfx::Swing, 1.0f, 1.0f + 0.06f * index);
+string Player::ComboClip(ComboMove move) const {
+    const char* name = move == ComboMove::Crush    ? "crush"
+                     : move == ComboMove::Cleave   ? "cleave"
+                     : move == ComboMove::Backhand ? "backhand"
+                     : move == ComboMove::CrossCut ? "spin" : "";
+    if (*name && sprite.Def() && sprite.Def()->Find(name)) return name;
+    return AttackClip();
+}
+
+void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
+    const float speed = WeaponSpeed();
+    attack.type        = type;
+    attack.move        = move;
+    attack.profile     = ScaleForSpeed(ProfileForCombo(move), speed);
+    ShapeForWeapon(attack.profile);
+    attack.rate        = speed;
+    attack.damage_mult = attack.profile.damage_mult;
+    attack.reach_scale = 1.0f;
+    attack.combo       = combo;
+    attack.timer       = 0.0f;
+    attack.consumed    = false;
+    TurnToTarget(world);
+    combo_window = 0.0f;
+    after_strong = false;
+    sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
+    sprite.Play(ComboClip(move), true);
+    switch (move) {
+        case ComboMove::Crush:    Audio::Play(Sfx::SwingHeavy, 0.95f, 0.9f);  break;
+        case ComboMove::Cleave:   Audio::Play(Sfx::SwingHeavy, 1.0f,  0.8f);  break;
+        case ComboMove::Backhand: Audio::Play(Sfx::Swing,      1.0f,  1.15f); break;
+        case ComboMove::CrossCut: Audio::Play(Sfx::SwingHeavy, 1.0f,  1.2f);  break;
+        default: break;
+    }
+}
+
+ComboMove Player::NextCombo(bool light) const {
+    if (Style() != AttackStyle::Melee || combo_window <= 0.0f) return ComboMove::None;
+    if (light) return after_strong ? ComboMove::Backhand : ComboMove::None;
+    if (after_strong) return ComboMove::None;
+    return combo == 0 ? ComboMove::Crush : ComboMove::Cleave;
+}
+
+void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
+    const float speed = WeaponSpeed();
+    const bool  melee = Style() == AttackStyle::Melee;
+    const bool  raw_light  = in.Pressed(Action::LightAttack);
+    const bool  raw_strong = in.Pressed(Action::StrongAttack);
+
+    // A press during a swing, or in the gap after it, is kept for a moment
+    // and used the instant the next swing may start, so a chain does not hang
+    // on a frame-perfect tap. The two buttons are kept apart, so two presses
+    // inside one swing still read as "together".
+    if (raw_light  && !CanAttack()) buf_light  = BUFFER_WINDOW;
+    if (raw_strong && !CanAttack()) buf_strong = BUFFER_WINDOW;
+    if (buf_light  > 0.0f) buf_light  = std::max(0.0f, buf_light  - dt);
+    if (buf_strong > 0.0f) buf_strong = std::max(0.0f, buf_strong - dt);
+    bool light_press = raw_light, strong_press = raw_strong;
+    if (CanAttack()) {
+        if (buf_light  > 0.0f) light_press  = true;
+        if (buf_strong > 0.0f) strong_press = true;
+        buf_light = buf_strong = 0.0f;
     }
 
-    // Strong and charged share a button: press starts the hold, release
-    // decides which one actually comes out.
-    if (in.Pressed(Action::StrongAttack) && CanAttack()) {
-        strong_armed = true;
+    // --- both at once: the Cross Cut ---------------------------------------------
+    // The two buttons inside a few frames of each other. Whichever came first
+    // has already started something -- a light swing, or the hold a strong
+    // begins with -- and it is taken back: the swing has not reached its
+    // active frames and the hold has barely begun. It costs stamina, so with
+    // none left the presses mean what they mean on their own.
+    const bool fresh_light = attack.type == AttackType::Light && attack.move == ComboMove::None &&
+                             !rushing && attack.timer <= TOGETHER_WINDOW;
+    const bool fresh_hold  = strong_armed && charge_held <= TOGETHER_WINDOW;
+    const bool together = melee && !jumping && stamina > 0.0f && !winded &&
+        ((light_press && strong_press && CanAttack()) ||
+         (raw_strong && fresh_light) ||
+         (raw_light && fresh_hold && CanAttack()));
+    if (together) {
+        strong_armed = charging = false;
         charge_held  = 0.0f;
-        charging     = false;
+        StartCombo(ComboMove::CrossCut, AttackType::Strong, world);
+        stamina = std::max(0.0f, stamina - CROSS_CUT_STAMINA);
+        stamina_delay = STAMINA_DELAY;
+        return;
+    }
+
+    // --- the light button ------------------------------------------------------
+    // At a run, with Rushing Strike learned and rested, the light attack is a
+    // leap. Only as an opener: mid-chain it stays the next link. While the
+    // heavy button is held past the "together" window, the hold owns the
+    // hands and a light does nothing.
+    const bool rushed = light_press && CanAttack() && !strong_armed && combo_window <= 0.0f &&
+                        Length(move_axis.x, move_axis.y) >= RUN_THRESHOLD && StartRush(world);
+    if (!rushed && light_press && CanAttack() && !strong_armed) {
+        if (melee && after_strong && combo_window > 0.0f) {
+            // A light on the heels of a heavy: the Backhand. It stands in for
+            // the first two links, so the chain goes on from it -- the next
+            // light is the finisher, the next heavy the Cleave.
+            combo = 1;
+            StartCombo(ComboMove::Backhand, AttackType::Light, world);
+        } else {
+            const int index = (combo_window > 0.0f) ? std::min(combo + 1, 2) : 0;
+            combo = index;
+            attack.type        = AttackType::Light;
+            attack.move        = ComboMove::None;
+            attack.profile     = ScaleForSpeed(ProfileFor(AttackType::Light, index), speed);
+            ShapeForWeapon(attack.profile);
+            attack.rate        = speed;
+            attack.damage_mult = attack.profile.damage_mult;
+            attack.reach_scale = 1.0f;
+            attack.combo       = index;
+            attack.timer       = 0.0f;
+            attack.consumed    = false;
+            TurnToTarget(world);
+            sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
+            sprite.Play(AttackClip(), true);
+            combo_window = 0.0f;
+            after_strong = false;
+            // A bow or a staff makes its own noise when the shot leaves.
+            if (melee) Audio::Play(Sfx::Swing, 1.0f, 1.0f + 0.06f * index);
+        }
+    }
+
+    // --- the heavy button ------------------------------------------------------
+    if (strong_press && CanAttack() && !strong_armed) {
+        if (melee && combo_window > 0.0f && !after_strong) {
+            // A heavy inside the chain comes out on the press, with no hold:
+            // the Crushing Blow after one light, the Cleave after two.
+            StartCombo(combo == 0 ? ComboMove::Crush : ComboMove::Cleave, AttackType::Strong, world);
+        } else if (!in.Down(Action::StrongAttack)) {
+            // Pressed and let go again inside the last swing: a plain strong,
+            // now, rather than a hold that has already ended.
+            FireStrong(false, 0.0f, world);
+        } else {
+            // Strong and charged share the button: press starts the hold,
+            // release decides which one actually comes out.
+            strong_armed = true;
+            charge_held  = 0.0f;
+            charging     = false;
+        }
     }
 
     if (strong_armed && in.Down(Action::StrongAttack)) {
@@ -428,30 +555,10 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
 
     if (strong_armed && in.Released(Action::StrongAttack)) {
         const bool was_charged = charging && charge_held >= CHARGE_HOLD_THRESHOLD;
-        const float ratio = ChargeRatio(charge_held);
-
-        attack.type    = was_charged ? AttackType::Charged : AttackType::Strong;
-        attack.profile = ScaleForSpeed(ProfileFor(attack.type), speed);
-        ShapeForWeapon(attack.profile);
-        attack.rate    = speed;
-        attack.damage_mult = was_charged ? ChargeMultiplier(ratio)
-                                         : attack.profile.damage_mult;
-        // A fuller charge also swings wider.
-        attack.reach_scale = was_charged ? (1.0f + 0.35f * ratio) : 1.0f;
-        attack.combo    = 0;
-        attack.timer    = 0.0f;
-        attack.consumed = false;
-        TurnToTarget(world);
-        sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-        sprite.Play(AttackClip(), true);
-        if (Style() == AttackStyle::Melee)
-            Audio::Play(Sfx::SwingHeavy, was_charged ? 1.0f : 0.85f, was_charged ? 0.85f : 1.0f);
-
+        FireStrong(was_charged, ChargeRatio(charge_held), world);
         strong_armed = false;
         charging     = false;
         charge_held  = 0.0f;
-        combo        = 0;
-        combo_window = 0.0f;
     }
 
     // Releasing off-screen or with the button remapped mid-hold: fail safe.
@@ -477,10 +584,26 @@ void Player::UpdateAttack(float dt) {
     }
     attack.timer += dt;
     if (attack.Finished()) {
-        // Only light attacks leave a window open to continue the chain -- and
-        // not a leap, which is an opener that nothing follows on from.
-        combo_window = (attack.type == AttackType::Light && !rushing) ? COMBO_WINDOW : 0.0f;
-        if (attack.type != AttackType::Light || rushing) combo = 0;
+        // What the next press means is decided here. A light that was not the
+        // finisher leaves the window open to go on with the chain; a plain
+        // strong leaves one for a Backhand; everything else -- the finisher,
+        // the leap, a charged attack, any of the combos -- closes it, so the
+        // next chain starts from the top. The finisher used to leave it open
+        // too, and a fourth light was another finisher.
+        const bool light = attack.type == AttackType::Light && !rushing;
+        const bool plain_strong = attack.type == AttackType::Strong && attack.move == ComboMove::None;
+        if (light && combo < 2) {
+            combo_window = COMBO_WINDOW;
+            after_strong = false;
+        } else if (plain_strong) {
+            combo_window = COMBO_WINDOW;
+            after_strong = true;
+            combo = 0;
+        } else {
+            combo_window = 0.0f;
+            after_strong = false;
+            combo = 0;
+        }
         rushing = false;
         attack_cooldown = attack.profile.cooldown;
         cooldown_total  = std::max(0.0001f, attack.profile.cooldown);
@@ -641,7 +764,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (rush_cooldown > 0.0f) rush_cooldown = std::max(0.0f, rush_cooldown - dt);
     if (combo_window > 0.0f) {
         combo_window -= dt;
-        if (combo_window <= 0.0f) combo = 0;
+        if (combo_window <= 0.0f) { combo = 0; after_strong = false; }
     }
 
     // --- death ---------------------------------------------------------------
@@ -653,7 +776,9 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         attack.Clear();
         attack_cooldown = 0.0f;
         sprite.speed_scale = 1.0f;
-        charging = strong_armed = false;
+        charging = strong_armed = after_strong = false;
+        buf_light = buf_strong = combo_window = 0.0f;
+        combo = 0;
         jumping = false;
         sprite.Play("death", true);
         Audio::Play(Sfx::PlayerDie);
@@ -796,6 +921,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // --- movement ------------------------------------------------------------
     float speed = move_speed * (1.0f + talents.Global("move_speed"));
     if (Passive(PASSIVE_MARSHSTRIDE)) speed *= MARSHSTRIDE_SPEED;
+    // Boots and charms: hide boots are a twentieth, an enchantment more.
+    speed *= 1.0f + equipment.MoveSpeed();
     if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk

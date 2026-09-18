@@ -79,6 +79,11 @@ $clipRules = @{
     thrust = @{ fps = 16; loop = $false }
     # Rushing Strike's leap: eight frames over roughly half a second.
     rush   = @{ fps = 15; loop = $false }
+    # The combos, each a one-shot swing of its own.
+    crush    = @{ fps = 15; loop = $false }
+    cleave   = @{ fps = 16; loop = $false }
+    backhand = @{ fps = 18; loop = $false }
+    spin     = @{ fps = 16; loop = $false }
     # A held guard breathes slowly.
     block  = @{ fps = 6;  loop = $true  }
     chop   = @{ fps = 10; loop = $true  }

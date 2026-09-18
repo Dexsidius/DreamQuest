@@ -250,6 +250,7 @@ bool Map::Load(const string& path) {
             m.yield_xp     = o.value("yield_xp", 0);
             m.gather_time  = o.value("gather_time", 2.6f);
             m.regrow_hours = o.value("regrow", 6.0f);
+            m.deplete      = o.value("deplete", 0.0f);
             m.title        = o.value("title", string(""));
             m.station      = o.value("station", string("workbench"));
             m.capacity     = o.value("capacity", 0);

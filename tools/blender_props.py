@@ -2503,6 +2503,60 @@ HERB_PROPS["mine_adit"] = (prop_mine_adit, 256)
 
 
 # -----------------------------------------------------------------------------
+#  The enchanting table -- where charms are worked into worn pieces
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "altar_stone":    (0.470, 0.478, 0.530),
+    "altar_stone_dk": (0.300, 0.310, 0.360),
+    "rune_glow":      (0.420, 0.700, 1.000),
+    "crystal":        (0.640, 0.840, 1.000),
+    "book_leather":   (0.360, 0.160, 0.140),
+    "page":           (0.920, 0.880, 0.760),
+    "candle":         (0.920, 0.900, 0.800),
+    "flame":          (1.000, 0.820, 0.400),
+})
+
+
+def prop_enchanting_table():
+    """A slab of grey stone on a squat plinth, a ring of runes cut into its top
+    and lit from below, an open book at the front, two candles, and a crystal
+    standing at the back throwing pale blue light. The glow is the whole
+    identity: without it, a table."""
+    blk("plinth", (1.10, 0.70, 0.30), (0, 0, 0.15), "altar_stone_dk", bev=0.02)
+    blk("slab", (1.56, 0.98, 0.16), (0, 0, 0.38), "altar_stone", bev=0.02)
+    # The ring of runes, sunk into the slab and lit.
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.32, minor_radius=0.03, location=(0.02, 0.06, 0.462),
+                                     major_segments=24, minor_segments=8)
+    ring = bpy.context.active_object
+    ring.name = "rune_ring"
+    ring.data.materials.append(material("rune_ring", "rune_glow", 0.5, 0.0, 2.2))
+    for k in range(4):
+        a = k / 4 * math.tau + math.tau / 8
+        blk("rune_%d" % k, (0.09, 0.05, 0.02), (0.02 + math.cos(a) * 0.20, 0.06 + math.sin(a) * 0.20, 0.468),
+            "rune_glow", rot=(0, 0, a), emit=2.0, bev=0)
+    sphere("eye", 0.045, (0.02, 0.06, 0.47), "rune_glow", emit=2.4)
+    # The book, open, lying at the front.
+    blk("book_cover", (0.52, 0.36, 0.05), (-0.42, -0.24, 0.485), "book_leather", rot=(0, 0, 0.22), bev=0.008)
+    blk("pages", (0.46, 0.30, 0.05), (-0.42, -0.24, 0.525), "page", rot=(0, 0, 0.22), bev=0.006)
+    blk("spine", (0.02, 0.30, 0.07), (-0.42, -0.24, 0.53), "book_leather", rot=(0, 0, 0.22), bev=0)
+    # The crystal at the back, and a smaller one leaning on it.
+    # Lit, but not so brightly it burns out to white: it has to stay blue.
+    cone("crystal", 0.12, 0.66, (0.40, 0.26, 0.46 + 0.33), "crystal", verts=6)
+    bpy.context.active_object.data.materials[0] = material("crystal_lit", "crystal", 0.35, 0.0, 0.7)
+    cone("crystal_b", 0.075, 0.38, (0.55, 0.12, 0.46 + 0.17), "crystal", rot=(0, math.radians(20), 0), verts=6)
+    bpy.context.active_object.data.materials[0] = material("crystal_lit", "crystal", 0.35, 0.0, 0.7)
+    # Two candles on the left, one taller than the other.
+    for k, (x, y, h) in enumerate(((-0.58, 0.30, 0.24), (-0.66, 0.10, 0.16))):
+        cyl("candle_%d" % k, 0.038, h, (x, y, 0.46 + h / 2), "candle", verts=8)
+        sphere("flame_%d" % k, 0.05, (x, y, 0.46 + h + 0.05), "flame", emit=3.0)
+    return 2.0
+
+
+HERB_PROPS["enchanting_table"] = (prop_enchanting_table, 64)
+
+
+# -----------------------------------------------------------------------------
 #  The swamp, the Ice Spire, the Ashen Path and the inn's cellar
 # -----------------------------------------------------------------------------
 
@@ -3336,6 +3390,34 @@ def scenery_tree(seed, big=True):
     return (2.6 if big else 1.8)
 
 
+PALETTE.update({
+    "cut_wood":    (0.780, 0.620, 0.380),
+    "cut_wood_dk": (0.580, 0.420, 0.240),
+})
+
+
+def scenery_stump(seed, big=True):
+    """What is left when a tree comes down: a short length of trunk cut flat
+    with its rings showing, the root flare, a splinter the axe left standing,
+    and a chip or two on the ground. Small enough that the ground around it
+    reads as cleared."""
+    rng = _rng(seed)
+    r = 0.14 if big else 0.10
+    h = 0.34 if big else 0.24
+    lean = rng.uniform(-0.05, 0.05)
+    cyl("trunk", r, h, (lean * 0.5, 0, h / 2), "bark", rot=(0, lean, 0), verts=10)
+    cyl("root", r * 1.6, 0.09, (0, 0, 0.045), "bark_dk", verts=10)
+    cyl("cut", r * 0.92, 0.024, (lean * h, 0, h + 0.006), "cut_wood", verts=10)
+    cyl("rings", r * 0.55, 0.014, (lean * h, 0, h + 0.022), "cut_wood_dk", verts=10)
+    cyl("heart", r * 0.2, 0.014, (lean * h, 0, h + 0.03), "cut_wood", verts=8)
+    cone("splinter", r * 0.32, 0.18, (lean * h + r * 0.55, 0.0, h + 0.07), "bark", verts=5)
+    for k in range(2):
+        a = rng.uniform(0, math.tau)
+        blk("chip_%d" % k, (0.09, 0.045, 0.02), (math.cos(a) * r * 2.2, math.sin(a) * r * 2.2, 0.01),
+            "cut_wood", rot=(0, 0, a), bev=0)
+    return (0.95 if big else 0.68)
+
+
 def scenery_bush(seed, big=True):
     """Three or four low blobs with a few berries, which is all a bush is at
     thirty pixels."""
@@ -3437,6 +3519,9 @@ def _scenery_table():
         out["mushroom_%02d" % i] = ((lambda s=i: scenery_mushroom(1000 + s, s in (0, 3))), px)
     for i in range(3):
         out["fungus_%02d" % i] = ((lambda s=i: scenery_fungus(1100 + s)), 32)
+    # What a felled tree leaves, at each size of tree.
+    out["stump"] = ((lambda: scenery_stump(1200, True)), 48)
+    out["stumpsmall"] = ((lambda: scenery_stump(1201, False)), 32)
     return out
 
 

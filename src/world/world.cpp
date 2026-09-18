@@ -15,6 +15,8 @@ static constexpr float INTERACT_RANGE = 58.0f;
 static constexpr float HAZARD_TICK = 0.5f;
 static constexpr float PICKUP_RANGE   = 18.0f;
 static constexpr float PICKUP_ARM     = 0.35f;   // no instant re-collect
+// A dropped item is left alone until the player is this far from it.
+static constexpr float DROP_CLEAR     = PICKUP_RANGE + 10.0f;
 
 // -----------------------------------------------------------------------------
 //  Map loading and transitions
@@ -730,25 +732,27 @@ void World::Burst(float x, float y, float radius, SDL_Color color, int count) {
     }
 }
 
+int World::HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx) {
+    const float cx = player.x, cy = player.y - 16.0f;
+    int struck = 0;
+    for (auto& e : enemies) {
+        if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+        const SDL_FPoint a = Targeting::AimPoint(*e);
+        const SDL_FRect b = e->BodyBox();
+        if (Length(a.x - cx, a.y - cy) > radius + std::max(b.w, b.h) * 0.5f) continue;
+        HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, damage_mult,
+                 knockback, player.x, player.y, ctx);
+        ++struck;
+    }
+    return struck;
+}
+
 bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
     const AttackState& atk = player.Attack();
     const float mult = atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type);
     const float knock = 1.0f + player.talents.Effect("knockback", AttackStyle::Melee);
-    const float cx = player.x, cy = player.y - 16.0f;
-
-    // Everything whose body is within a radius of the player.
     const auto hit_round = [&](float radius, float damage, float knockback) {
-        bool any = false;
-        for (auto& e : enemies) {
-            if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
-            const SDL_FPoint a = Targeting::AimPoint(*e);
-            const SDL_FRect b = e->BodyBox();
-            if (Length(a.x - cx, a.y - cy) > radius + std::max(b.w, b.h) * 0.5f) continue;
-            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, damage,
-                     knockback * knock, player.x, player.y, ctx);
-            any = true;
-        }
-        return any;
+        return HitAround(radius, damage, knockback * knock, ctx) > 0;
     };
 
     if (technique == "whirlwind") {
@@ -802,6 +806,22 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
     if (atk.type == AttackType::Charged && MeleeTechnique(player.ActiveTechnique(), ctx))
         return;
 
+    const float mult  = atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type);
+    const float knock = atk.profile.knockback * (1.0f + player.talents.Effect("knockback", AttackStyle::Melee));
+
+    // A combo says its name over the player as it comes out.
+    if (atk.move != ComboMove::None)
+        AddText(ComboName(atk.move), player.x, player.y - 58.0f, {255, 232, 150, 255}, 0.8f);
+
+    // The Cross Cut is a turn on the spot: it strikes everything round the
+    // player as far as the blade reaches, the way Whirlwind does.
+    if (atk.move == ComboMove::CrossCut) {
+        const float radius = atk.profile.reach;
+        HitAround(radius, mult, knock, ctx);
+        Burst(player.x, player.y - 10.0f, radius, {255, 236, 190, 255}, 8);
+        return;
+    }
+
     const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing,
                                        atk.profile, atk.reach_scale);
     bool connected = false;
@@ -811,10 +831,11 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         if (!RectsOverlap(hit, e->BodyBox())) continue;
 
         connected = true;
-        HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None,
-                 atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type),
-                 atk.profile.knockback * (1.0f + player.talents.Effect("knockback", AttackStyle::Melee)),
+        const int before = e->hp;
+        HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult, knock,
                  player.x, player.y, ctx);
+        // The Crushing Blow leaves what it lands on reeling.
+        if (atk.move == ComboMove::Crush && e->hp < before) e->Stagger(CRUSH_STAGGER);
     }
 
     if (!connected && atk.type == AttackType::Charged)
@@ -887,6 +908,10 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
                                           : o.title;
             noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
             label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
+        } else if (o.type == "altar") {
+            string noun = o.title.empty() ? string("enchanting table") : o.title;
+            noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
+            label = "Use the " + noun;
         } else if (o.type == "herb") {
             // A picked plant offers nothing until it has grown back.
             if (!Picked(o)) {
@@ -895,7 +920,9 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
                 else
                     label = "Pick " + o.title;
             }
-        } else if (!o.skill.empty()) {
+        // A felled tree or a worked-out seam offers nothing either, until it
+        // is back.
+        } else if (!o.skill.empty() && !Spent(o)) {
             const int s = SkillFromName(o.skill);
             const bool fishing = o.skill == "Fishing";
             if (s >= 0 && player.skills.Level(s) < o.skill_level) {
@@ -1056,6 +1083,12 @@ void World::TryInteract(const GameContext& ctx) {
                 r.text  = o.station;
                 r.title = o.title.empty() ? (o.station == "anvil" ? "Anvil" : "Workbench") : o.title;
                 requests.push_back(r);
+            } else if (o.type == "altar") {
+                WorldRequest r;
+                r.type  = WorldRequest::Type::Enchant;
+                r.id    = o.id;
+                r.title = o.title.empty() ? "Enchanting Table" : o.title;
+                requests.push_back(r);
             } else if (o.type == "note" || o.type == "sign") {
                 // Reading something can be what a quest asks for.
                 if (ctx.quests) {
@@ -1101,6 +1134,7 @@ void World::TryInteract(const GameContext& ctx) {
             } else if (!o.skill.empty()) {
                 const int s = SkillFromName(o.skill);
                 if (s < 0 || !ctx.items) break;
+                if (Spent(o)) break;
                 if (player.skills.Level(s) < o.skill_level) {
                     AddText("Level too low", o.x, o.y - 34.0f, {255, 140, 140, 255});
                     Audio::Play(Sfx::UiError);
@@ -1240,6 +1274,10 @@ void World::Pick(const MapObject& o) {
         it = (GameHours() >= it->second) ? picked.erase(it) : std::next(it);
 }
 
+bool World::Spent(const MapObject& o) const {
+    return o.deplete > 0.0f && Picked(o);
+}
+
 void World::UpdateGathering(float dt, const GameContext& ctx) {
     if (gather_index < 0) return;
 
@@ -1325,6 +1363,22 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
             if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
         } else {
             AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
+            gather_index = -1;
+            return;
+        }
+    }
+
+    // The dice roll. A tree does not stand there giving logs for ever: on
+    // each one there is a chance it comes down, and on each ore a chance the
+    // seam gives out. Then it is gone for a while and the work stops.
+    if (o.deplete > 0.0f && ctx.rng) {
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        if (Gathering::Depletes(o.deplete, unit(*ctx.rng))) {
+            Pick(o);
+            const bool tree = o.type == "tree";
+            AddText(tree ? "The tree comes down." : "The seam is worked out.",
+                    o.x, o.y - 30.0f, {220, 220, 200, 255}, 1.8f);
+            Audio::PlayAt(tree ? Sfx::Land : Sfx::Mine, o.x, o.y, 1.0f, 0.6f);
             gather_index = -1;
             return;
         }
@@ -1820,11 +1874,12 @@ void World::SpawnLoot(const string& table_id, float x, float y, const GameContex
 }
 
 void World::DropItem(const string& item_id, int qty, float x, float y,
-                     const GameContext& ctx) {
+                     const GameContext& ctx, bool by_player) {
     if (item_id.empty() || qty <= 0) return;
     Pickup p;
     p.item_id = item_id;
     p.qty     = qty;
+    p.dropped = by_player;
     p.x = x;
     p.y = y;
     if (const ItemDef* d = ctx.items ? ctx.items->Get(item_id) : nullptr) p.icon = d->icon;
@@ -1838,7 +1893,18 @@ void World::UpdatePickups(float dt, const GameContext& ctx) {
 
         if (p.collected || p.life < PICKUP_ARM) continue;
         if (player.IsDead()) continue;
-        if (Length(p.x - player.x, p.y - player.y) > PICKUP_RANGE) continue;
+        const float dist = Length(p.x - player.x, p.y - player.y);
+        if (p.dropped) {
+            // Something put down on purpose. It is not scooped straight back
+            // up by the feet that dropped it: the player has to step clear of
+            // it first. And it does not lie there for ever.
+            if (p.life > DROP_LIFE) { p.collected = true; continue; }
+            if (!p.cleared) {
+                if (dist > DROP_CLEAR) p.cleared = true;
+                continue;
+            }
+        }
+        if (dist > PICKUP_RANGE) continue;
 
         const int added = player.inventory.Add(p.item_id, p.qty);
         if (added <= 0) {
@@ -2169,8 +2235,12 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             }
             case 3: {
                 const MapObject* o = static_cast<const MapObject*>(it.ptr);
-                const bool used = !o->sprite_open.empty() &&
-                                  (o->type == "herb" ? Picked(*o) : Flagged(o->id));
+                // A picked plant, a felled tree, a worked-out seam: drawn as
+                // their after-picture when they have one. A seam has none --
+                // it is still a rock -- so it is drawn dark and dull instead.
+                const bool spent = (o->type == "herb" || o->deplete > 0.0f) ? Picked(*o) : Flagged(o->id);
+                const bool used = !o->sprite_open.empty() && spent;
+                const bool dulled = spent && o->sprite_open.empty();
                 SDL_Texture* tex = cache.Get(used ? o->sprite_open : o->sprite);
                 if (!tex) break;
                 float tw = 0, th = 0;
@@ -2185,7 +2255,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                                         ? 110 : 255;
 
                 SDL_SetTextureAlphaMod(tex, alpha);
+                if (dulled) SDL_SetTextureColorMod(tex, 118, 112, 108);
                 SDL_RenderTexture(r, tex, nullptr, &dst);
+                if (dulled) SDL_SetTextureColorMod(tex, 255, 255, 255);
                 SDL_SetTextureAlphaMod(tex, 255);
                 break;
             }

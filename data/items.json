@@ -96,6 +96,25 @@
    78
   ]
  },
+ "hide_boots": {
+  "tags": [
+   "leather"
+  ],
+  "name": "Hide Boots",
+  "desc": "Boar hide sewn with the grain and greased against the wet. Light on the foot: you walk a twentieth quicker in them.",
+  "slot": "feet",
+  "value": 70,
+  "bonus": {
+   "defence": 5
+  },
+  "move_speed": 0.05,
+  "icon": "assets/icons/tiers/hide_boots.png",
+  "tint": [
+   162,
+   118,
+   78
+  ]
+ },
  "bone_amulet": {
   "tags": [
    "bones"
@@ -223,7 +242,19 @@
     "thread": 1
    }
   },
-  "icon": "assets/icons/hide.png"
+  "icon": "assets/icons/hide.png",
+  "crafts": [
+   {
+    "result": "hide_boots",
+    "qty": 1,
+    "xp": 60,
+    "level": 4,
+    "inputs": {
+     "hide": 2,
+     "thread": 1
+    }
+   }
+  ]
  },
  "thread": {
   "tags": [
@@ -286,28 +317,32 @@
   "desc": "Folded twice, sealed with grey wax. Addressed to the guild.",
   "stack": false,
   "value": 0,
-  "icon": "assets/icons/scroll.png"
+  "icon": "assets/icons/scroll.png",
+  "keep": true
  },
  "rusted_key": {
   "name": "Rusted Key",
   "desc": "Long teeth, orange with age. It opens something in Emberfell.",
   "stack": false,
   "value": 0,
-  "icon": "assets/icons/key.png"
+  "icon": "assets/icons/key.png",
+  "keep": true
  },
  "mossvale_house_key": {
   "name": "Mossvale House Key",
   "desc": "Wrapped in oilcloth and left under a stone. It opens the empty house at the bottom of Mossvale, which is yours now.",
   "stack": false,
   "value": 0,
-  "icon": "assets/icons/key.png"
+  "icon": "assets/icons/key.png",
+  "keep": true
  },
  "warchief_totem": {
   "name": "Warchief's Totem",
   "desc": "Bound bone and red cord. Taken from the thing that carried it.",
   "stack": false,
   "value": 0,
-  "icon": "assets/icons/star.png"
+  "icon": "assets/icons/star.png",
+  "keep": true
  },
  "ember_shard": {
   "tags": [
@@ -324,14 +359,16 @@
   "desc": "A clay disc pressed with a name nobody in town will read aloud.",
   "stack": false,
   "value": 0,
-  "icon": "assets/icons/seal.png"
+  "icon": "assets/icons/seal.png",
+  "keep": true
  },
  "torn_page": {
   "name": "Torn Page",
   "desc": "Half a survey of the Sunken Road, in a careful, frightened hand.",
   "stack": false,
   "value": 0,
-  "icon": "assets/icons/torn_page.png"
+  "icon": "assets/icons/torn_page.png",
+  "keep": true
  },
  "training_bow": {
   "name": "Training Bow",
@@ -1048,6 +1085,76 @@
   "value": 428,
   "learn": "starlily_panacea",
   "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "scroll_enchant_warding": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Warding",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of Warding, worked at an enchanting table.",
+  "value": 150,
+  "learn": "enchant:warding",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_keenness": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Keenness",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of Keenness, worked at an enchanting table.",
+  "value": 190,
+  "learn": "enchant:keenness",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_might": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Might",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of Might, worked at an enchanting table.",
+  "value": 230,
+  "learn": "enchant:might",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_hawks_eye": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Hawk's Eye",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of the Hawk's Eye, worked at an enchanting table.",
+  "value": 270,
+  "learn": "enchant:hawks_eye",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_insight": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Insight",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of Insight, worked at an enchanting table.",
+  "value": 340,
+  "learn": "enchant:insight",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_fortitude": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Fortitude",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of Fortitude, worked at an enchanting table.",
+  "value": 460,
+  "learn": "enchant:fortitude",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_the_wind": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Wind",
+  "desc": "A rune drawn out stroke by stroke, and the words to say over it. Read it to learn the enchantment of the Wind, worked at an enchanting table.",
+  "value": 620,
+  "learn": "enchant:the_wind",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
  },
  "spider_silk": {
   "tags": [

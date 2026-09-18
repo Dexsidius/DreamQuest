@@ -476,6 +476,12 @@ static void PlaceTree(MapBuilder& m, std::mt19937& rng, int index,
     o["yield_xp"]    = big ? 65 : 25;
     o["gather_time"] = big ? 3.0f : 2.2f;
     o["title"]       = big ? "oak" : "sapling";
+    // Not for ever: on each log there is a chance the tree comes down, and
+    // then a stump stands there for a while. A sapling goes sooner than an
+    // oak and is back sooner.
+    o["deplete"]     = big ? 0.125f : 0.25f;
+    o["regrow"]      = big ? 1.5f : 1.0f;
+    o["sprite_open"] = ObjPath(big ? "stump" : "stumpsmall");
 
     m.Collision(x - 9, y - 9, 18, 9);
 }
@@ -502,6 +508,10 @@ static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
         {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonite_ore", "demonite"}};
     const auto name = kOre.find(yield);
     o["title"]       = (name == kOre.end() ? string("ore") : name->second) + (big ? " seam" : " outcrop");
+    // And on each ore a chance the seam gives out. A seam holds more than an
+    // outcrop, and deeper ore takes longer to show again.
+    o["deplete"]     = big ? 0.167f : 0.333f;
+    o["regrow"]      = (big ? 1.0f : 0.75f) + level * 0.02f;
 
     m.Collision(x - 14, y - 12, 28, 12);
 }
@@ -607,6 +617,16 @@ static void PlaceCauldron(MapBuilder& m, const string& obj_id, int x, int y) {
     o["title"]   = "Cauldron";
     o["station"] = "cauldron";
     m.Collision(x - 16, y - 12, 32, 12);
+}
+
+// An enchanting table: where charms are worked into worn pieces, for Magic.
+// Its own object type rather than a crafting station, because what it makes
+// is not on any list -- it is one of the player's own pieces.
+static void PlaceEnchantingTable(MapBuilder& m, const string& obj_id, int x, int y) {
+    json& o = m.Object(obj_id, "altar", x, y);
+    o["sprite"] = "assets/props/enchanting_table.png";
+    o["title"]  = "Enchanting table";
+    m.Collision(x - 22, y - 14, 44, 14);
 }
 
 // Buildings are drawn bottom-centre. Collision runs along the lower wall but
@@ -3629,6 +3649,8 @@ static void BuildFernhollow() {
                       "Fresh flowers at its foot, and a coin.";
         m.Collision(sx + 70 - 14, sy, 28, 10);
         m.Npc("npc_mira", "Mira of the Shrine", "citizen1", sx + 20, sy + 64, "mira_root", 0);
+        // The table by the stones, where Mira's charms are worked.
+        PlaceEnchantingTable(m, "altar_fernhollow", sx - 72, sy + 14);
     }
 
     // A traveller's camp by the path.
@@ -3998,6 +4020,9 @@ static void BuildDreamworld() {
     // of the things only dreams leave behind.
     m.Npc("npc_night_pedlar", "The Night Pedlar", "citizen1", ax - 150, ay + 40, "night_pedlar_root", 0)["shop"] = "reverie_general";
     m.Npc("npc_collector", "The Collector", "fighter2", ax + 150, ay + 40, "collector_root", 0)["shop"] = "reverie_curios";
+    // And the table the dream keeps by its candles, south-east of them and
+    // clear of the bridges, for the charms whose scrolls are only sold here.
+    PlaceEnchantingTable(m, "altar_reverie", ax + 90, ay + 84);
 
     // A slate the dream writes its own requests on: the Reverie's board, where
     // its daily quests are posted, off to the north-east of the candles and
@@ -4069,6 +4094,10 @@ static void BuildDreamworld() {
             o["yield_xp"]    = 40;
             o["gather_time"] = 3.0f;
             o["title"]       = "dream crystal";
+            // A crystal gives out like a seam, and grows back quickly: a
+            // dream only lasts the night.
+            o["deplete"]     = 0.25f;
+            o["regrow"]      = 0.5f;
             m.Collision(x - 14, y - 12, 28, 12);
         }
         m.Enemy("nightmare_shade", px(e.cx + 1), px(e.cy - 1), 5, 40.0f, 200.0f);

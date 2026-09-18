@@ -36,6 +36,10 @@ Input::Input() {
         {SDLK_3, Action::SelectEarth},
         {SDLK_4, Action::SelectAir},
         {SDLK_R, Action::CycleSpell},
+        // G drops the item under the cursor in the bag. Q was the obvious
+        // letter, but Q already opens the journal beside P; G sits under the
+        // left hand next to the movement keys and nothing else wanted it.
+        {SDLK_G, Action::Drop},
 
         // In menus the fighting keys double up, the way a controller's face
         // buttons do: J or E or Space to confirm, K to back out. Gameplay never
@@ -172,6 +176,10 @@ bool Input::HandleEvent(const SDL_Event& e) {
                 // Gameplay never reads Back, so the two never collide; every
                 // other button a thumb can reach was already an attack.
                 if (a == Action::Back) Set(Action::Block, dn, true);
+                // And the strong attack drops things in the bag. No menu
+                // reads the strong attack and the game never reads Drop, so
+                // Y means one thing in a fight and another over the bag.
+                if (a == Action::StrongAttack) Set(Action::Drop, dn, true);
                 return true;
             }
             return false;
@@ -274,6 +282,7 @@ string Input::PromptFor(Action a) const {
             case Action::Jump:         return "LS";
             case Action::Sprint:       return "LT";
             case Action::Target:       return "RT";
+            case Action::Drop:         return "(Y)";
             default:                   return "";
         }
     }
@@ -293,6 +302,7 @@ string Input::PromptFor(Action a) const {
         case Action::CycleSpell:   return "R";
         case Action::Jump:         return "Space";
         case Action::Sprint:       return "Shift";
+        case Action::Drop:         return "G";
         default:                   return "";
     }
 }

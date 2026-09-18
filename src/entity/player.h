@@ -87,6 +87,17 @@ public:
     string AttackClip() const;
     bool  IsCharging() const { return charging; }
 
+    // --- combos ---------------------------------------------------------------
+    // See ComboMove in combat.h. What a press of the light or the heavy
+    // button would come out as right now, or None for a plain attack -- the
+    // HUD prints it while the chain is open. Only with a melee weapon: a bow
+    // or a staff has no chain to mix a heavy into.
+    ComboMove NextCombo(bool light) const;
+    // True while the last swing has left a window to go on from.
+    bool  ComboOpen() const { return combo_window > 0.0f; }
+    // The link the chain is on, 0 to 2.
+    int   ComboLink() const { return combo; }
+
     // --- magic ----------------------------------------------------------------
     // Mana comes from the Magic level and refills over time, so a caster gets
     // more casts as well as bigger ones.
@@ -269,6 +280,17 @@ private:
     bool  charging = false;
     float charge_held = 0.0f;
     bool  strong_armed = false;   // strong button is down, decide on release
+    // The last swing was a plain strong, so a light inside the window is a
+    // Backhand and a heavy is a fresh hold rather than a combo.
+    bool  after_strong = false;
+    // Presses made inside a swing, kept for the moment the next may start.
+    float buf_light = 0.0f, buf_strong = 0.0f;
+    // Starts one of the combos as the swing in flight.
+    void  StartCombo(ComboMove move, AttackType type, const World& world);
+    // Fires the strong or charged attack the heavy button's hold decided on.
+    void  FireStrong(bool charged, float ratio, const World& world);
+    // The clip a combo plays: its own, or the plain swing on a rig without it.
+    string ComboClip(ComboMove move) const;
 
     bool  dead = false;
     float death_timer = 0.0f;

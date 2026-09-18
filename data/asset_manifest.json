@@ -992,6 +992,14 @@
                                               "w":  72,
                                               "h":  72
                                           },
+                   "objects/stump":  {
+                                         "w":  48,
+                                         "h":  48
+                                     },
+                   "objects/stumpsmall":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
                    "objects/tree_00":  {
                                            "w":  128,
                                            "h":  128
@@ -1188,6 +1196,10 @@
                                                    "w":  96,
                                                    "h":  96
                                                },
+                   "props/enchanting_table":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
                    "props/forge":  {
                                        "w":  96,
                                        "h":  96

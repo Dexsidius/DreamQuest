@@ -34,6 +34,7 @@ enum class GameState {
     Board,
     Note,
     Crafting,
+    Enchanting,
     Shop,
     Storage,
     Death,
@@ -104,6 +105,7 @@ private:
     void UpdateBoard();
     void UpdateNote();
     void UpdateCrafting();
+    void UpdateEnchanting();
     void UpdateShop();
     void UpdateStorage();
     void UpdateDeath(float dt);
@@ -126,6 +128,7 @@ private:
     void DrawBoard();
     void DrawNote();
     void DrawCrafting();
+    void DrawEnchanting();
     void DrawShop();
     void DrawStorage();
     void DrawDeath();
@@ -183,6 +186,13 @@ private:
     int  quest_cursor[kQuestTabs] = {0, 0, 0};
     int  board_cursor = 0;
     int  craft_cursor = 0;
+    // The enchanting table: which enchantment, and which of the pieces in
+    // the bag that take it.
+    int  enchant_cursor = 0, enchant_target = 0;
+    // The bag slot the drop key was pressed on once, when it held more than
+    // one: a stack goes on a second press, so a whole purse of coins is not
+    // one slip of a finger from the floor.
+    int  drop_armed = -1;
     // The skills panel: 0 is the level list, 1..3 the melee, ranged and magic
     // trees, with a cursor on a branch and a row in whichever tree is open.
     int  skills_tab = 0;
