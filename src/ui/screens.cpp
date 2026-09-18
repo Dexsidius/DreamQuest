@@ -458,8 +458,14 @@ void Game::UpdatePaused() {
             case 2: OpenMultiplayer(); break;
             case 3: OpenPanel(GameState::Options); break;
             case 4:
+                if (guest_session) {
+                    // Nothing of a guest's to save; hang up and go.
+                    session.Leave();
+                    EndGuestSession("");
+                    break;
+                }
                 // Save before leaving, so quitting never costs progress.
-                SaveSystem::Save(active_slot, world, quests, playtime);
+                if (!never_save) SaveSystem::Save(active_slot, world, quests, playtime);
                 has_session = false;
                 SetState(GameState::MainMenu);
                 break;
@@ -2782,6 +2788,12 @@ void Game::UpdateDeath(float dt) {
     // Give the screen a moment so it is read, not skipped by the last swing.
     if (state_time < 0.8f) return;
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+        if (guest_session) {
+            // A guest gets up where they fell: the map is the host's to choose.
+            world.player.Respawn(world.player.x, world.player.y);
+            SetState(GameState::Play);
+            return;
+        }
         // Respawn at the town, keeping progress, the way a forgiving RPG does.
         world.player.Respawn(0.0f, 0.0f);
         if (!world.LoadMap("town_havenbrook", "respawn", ctx))

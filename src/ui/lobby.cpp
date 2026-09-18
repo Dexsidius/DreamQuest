@@ -18,7 +18,7 @@
 
 namespace {
 
-enum Row { ROW_NAME = 0, ROW_HOST, ROW_JOIN, ROW_SAY, ROW_BACK, ROW_COUNT };
+enum Row { ROW_NAME = 0, ROW_LOOK, ROW_HOST, ROW_JOIN, ROW_SAY, ROW_BACK, ROW_COUNT };
 
 constexpr size_t kAddressLimit = 64;
 
@@ -156,6 +156,101 @@ bool Game::StartJoining(const string& address) {
     return true;
 }
 
+// -----------------------------------------------------------------------------
+//  The world, shared
+// -----------------------------------------------------------------------------
+
+void Game::UpdateCoop(float dt) {
+    if (session.Hosting() && session.Hosted()) {
+        coop_host.Update(dt, *session.Hosted(), world, ctx, has_session && !guest_session);
+        return;
+    }
+    if (!world.guests.empty() && !guest_session && !session.Active()) coop_host.Reset(world);
+
+    const bool guest = session.As() == net::Session::Role::Guest;
+    if (guest) {
+        coop_guest.Update(dt, session.Me(), world, ctx);
+        if (coop_guest.HasEnter()) {
+            const net::Enter enter = coop_guest.PendingEnter();
+            if (enter.map.empty()) EndGuestSession("The host has left the world. You are still seated.");
+            else                   EnterAsGuest(enter);
+        }
+    } else if (guest_session) {
+        // The line is gone: the reason is on the Play Together screen.
+        EndGuestSession(session.Me().Reason());
+    }
+}
+
+void Game::EnterAsGuest(const net::Enter& enter) {
+    if (!guest_session) {
+        // A visitor's character: new, dressed as one, and nobody's save.
+        banner_active = false;
+        banner_zone.clear();
+        banner_seen_map.clear();
+        quests.FromJson(json::object());
+        world.SetFlags({});
+        world.SetCamp({});
+        world.SetDream({});
+        world.SetPickedHerbs({});
+        world.shops.Clear();
+        world.guests.clear();
+        world.visiting = true;
+        world.player = Player();
+        world.player.Init(ctx, pending_character);
+        const vector<string> kit = Player::StartingKit(pending_character);
+        for (const string& id : kit) world.player.inventory.Add(id, 1);
+        world.player.inventory.Add("cooked_meat", 3);
+        world.SetFlag("starter_tools");
+        string why;
+        for (const string& worn : kit)
+            for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
+                if (world.player.inventory.Slot(slot).id == worn)
+                    world.player.EquipFromInventory(slot, why);
+        playtime = 0.0f;
+        autosave_timer = 0.0f;
+        quest_day_seen = -1;
+        welcome_pending = false;
+    }
+    if (!world.LoadMap(enter.map, "", ctx)) {
+        session.Leave();
+        EndGuestSession("The host is somewhere this game has no map of.");
+        return;
+    }
+    world.player.x = enter.x;
+    world.player.y = enter.y;
+    world.camera.SnapTo(enter.x, enter.y);
+    world.clock.Set(enter.day, enter.hours);
+    coop_guest.Arrived(world);
+    if (!guest_session) {
+        guest_session = true;
+        has_session = true;
+        EndTextEntry();
+        SetState(GameState::Play);
+        PushToast("You are in " + session.Me().WorldName() + ".", Palette::Highlight);
+    }
+}
+
+void Game::EndGuestSession(const string& why) {
+    coop_guest.Reset(world);
+    world.visiting = false;
+    world.player.hands_external = false;
+    if (!guest_session) return;
+    guest_session = false;
+    has_session = false;
+    SetState(GameState::MainMenu);
+    if (!why.empty()) mp_error = why;
+    OpenMultiplayer();
+}
+
+void Game::DrawNameTags() {
+    // Who that is. Over friends only: you know who you are.
+    for (const auto& g : world.guests) {
+        if (g->name.empty()) continue;
+        const SDL_FPoint p = world.camera.ToScreen(g->x, g->y - g->draw_lift - 58.0f);
+        ui.TextShadowed(g->name, p.x, p.y, TextSize::Small, {214, 232, 255, 255}, Align::Center);
+    }
+}
+
 void Game::UpdateSession(float dt) {
     session.Update(dt);
     // Away from the lobby, what is said arrives as a toast, so a host out in
@@ -232,8 +327,19 @@ void Game::UpdateMultiplayer() {
         Audio::Play(Sfx::UiMove);
     }
 
+    // Who to arrive as. Fixed once there is a world to be in, or a seat.
+    if (cursor == ROW_LOOK && !session.Active() && !has_session && (input.MenuLeft() || input.MenuRight())) {
+        int at = 0;
+        for (int i = 0; i < kCharacterCount; ++i) if (pending_character == kCharacterIds[i]) at = i;
+        at = ((at + (input.MenuRight() ? 1 : -1)) % kCharacterCount + kCharacterCount) % kCharacterCount;
+        pending_character = kCharacterIds[at];
+        Audio::Play(Sfx::UiMove);
+    }
+
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         switch (cursor) {
+            case ROW_LOOK:
+                break;
             case ROW_NAME:
                 if (session.Active()) mp_error = "Your name is fixed while you are connected.";
                 else BeginTextEntry(&mp_name, net::MAX_NAME);
@@ -246,6 +352,7 @@ void Game::UpdateMultiplayer() {
             case ROW_JOIN:
                 if (session.As() == net::Session::Role::Guest) session.Leave();
                 else if (session.Hosting()) mp_error = "Stop hosting first.";
+                else if (has_session) mp_error = "Join from the title screen: a guest's game replaces the one running.";
                 else BeginTextEntry(&mp_address, kAddressLimit);
                 break;
             case ROW_SAY:
@@ -282,6 +389,7 @@ void Game::DrawMultiplayer() {
     const float top = panel.y + 62.0f;
     const string labels[ROW_COUNT] = {
         "Name",
+        "Character",
         hosting ? "Stop hosting" : "Host a world",
         guest ? "Leave" : "Join",
         "Say",
@@ -289,13 +397,14 @@ void Game::DrawMultiplayer() {
     };
     const string values[ROW_COUNT] = {
         field(mp_name, text_target == &mp_name, "Traveller"),
+        LookLabel(has_session ? world.player.sprite_id : pending_character),
         hosting ? "UDP " + std::to_string(session.Port()) : "",
         guest ? session.Address() : field(mp_address, text_target == &mp_address, "a friend's machine"),
         "",
         "",
     };
     const bool enabled[ROW_COUNT] = {
-        !session.Active(), !guest, !hosting, me.Seated(), true,
+        !session.Active(), !session.Active() && !has_session, !guest, !hosting && (!has_session || guest), me.Seated(), true,
     };
     for (int i = 0; i < ROW_COUNT; ++i) {
         const SDL_FRect row = {panel.x + 16.0f, top + i * row_h, left_w, row_h - 4.0f};
@@ -326,12 +435,17 @@ void Game::DrawMultiplayer() {
         switch (cursor) {
             case ROW_NAME: help = session.Active() ? "Your name is fixed while you are connected."
                                                    : "What friends see you as. Up to sixteen characters."; break;
+            case ROW_LOOK: help = has_session ? "The character you are playing."
+                                : session.Active() ? "Fixed while you are connected."
+                                : "Left and right: who you arrive as in a friend's world. Hosting, you are whoever your own game says.";
+                           break;
             case ROW_HOST: help = hosting ? "Lets everyone go and closes the door."
                                 : guest   ? "Leave the world you have joined first."
-                                          : "Opens this machine to friends on your tailnet. You can go on playing; "
-                                            "the door stays open behind you."; break;
+                                          : "Opens this machine to friends on your tailnet. Whoever joins walks "
+                                            "into the game you are playing, on the map you are on."; break;
             case ROW_JOIN: help = guest   ? "Hangs up."
                                 : hosting ? "Stop hosting first."
+                                : has_session ? "Join from the title screen: a guest's game replaces the one running."
                                           : "Type the host's machine name from Tailscale, or their 100.x address. "
                                             "Left and right step through the last five."; break;
             case ROW_SAY:  help = me.Seated() ? "Enter sends the line and keeps typing. Esc stops."

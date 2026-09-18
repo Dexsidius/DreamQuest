@@ -146,6 +146,128 @@ bool Decode(const Bytes& b, Chat& out) {
     return r.Done();
 }
 
+Bytes Encode(const InputFrames& m) {
+    ByteWriter w;
+    w.U8(static_cast<uint8_t>(MsgType::InputFrames));
+    w.U32(m.first_seq);
+    const size_t n = m.steps.size() < MAX_INPUT_STEPS ? m.steps.size() : MAX_INPUT_STEPS;
+    w.U8(static_cast<uint8_t>(n));
+    for (size_t i = 0; i < n; ++i) {
+        const InputStep& s = m.steps[i];
+        w.U16(s.dt_us);
+        w.I8(s.move_x); w.I8(s.move_y);
+        w.U8(s.down); w.U8(s.pressed); w.U8(s.released);
+    }
+    return w.Take();
+}
+
+bool Decode(const Bytes& b, InputFrames& out) {
+    ByteReader r(b);
+    if (!Open(r, MsgType::InputFrames)) return false;
+    out.first_seq = r.U32();
+    const uint8_t n = r.U8();
+    if (!r.Ok() || n > MAX_INPUT_STEPS) return false;
+    out.steps.clear();
+    for (uint8_t i = 0; i < n; ++i) {
+        InputStep s;
+        s.dt_us = r.U16();
+        s.move_x = r.I8(); s.move_y = r.I8();
+        s.down = r.U8(); s.pressed = r.U8(); s.released = r.U8();
+        if (s.dt_us > MAX_STEP_US) s.dt_us = MAX_STEP_US;
+        out.steps.push_back(s);
+    }
+    return r.Done();
+}
+
+Bytes Encode(const Snapshot& m) {
+    ByteWriter w;
+    w.U8(static_cast<uint8_t>(MsgType::Snapshot));
+    w.U32(m.time_ms);
+    w.U32(m.ack_seq);
+    w.U16(m.day);
+    w.F32(m.hours);
+    const size_t n = m.players.size() < static_cast<size_t>(MAX_SEATS) ? m.players.size() : MAX_SEATS;
+    w.U8(static_cast<uint8_t>(n));
+    for (size_t i = 0; i < n; ++i) {
+        const PlayerState& p = m.players[i];
+        w.U8(p.seat);
+        w.F32(p.x); w.F32(p.y); w.F32(p.lift);
+        w.U8(p.facing); w.U8(p.flags); w.U8(p.frame);
+        w.I16(p.hp); w.I16(p.max_hp);
+        w.Str(p.clip, MAX_CLIP);
+    }
+    return w.Take();
+}
+
+bool Decode(const Bytes& b, Snapshot& out) {
+    ByteReader r(b);
+    if (!Open(r, MsgType::Snapshot)) return false;
+    out.time_ms = r.U32();
+    out.ack_seq = r.U32();
+    out.day = r.U16();
+    out.hours = r.F32();
+    const uint8_t n = r.U8();
+    if (!r.Ok() || n > MAX_SEATS) return false;
+    out.players.clear();
+    for (uint8_t i = 0; i < n; ++i) {
+        PlayerState p;
+        p.seat = r.U8();
+        p.x = r.F32(); p.y = r.F32(); p.lift = r.F32();
+        p.facing = r.U8(); p.flags = r.U8(); p.frame = r.U8();
+        p.hp = r.I16(); p.max_hp = r.I16();
+        p.clip = r.Str(MAX_CLIP);
+        if (!r.Ok()) return false;
+        out.players.push_back(std::move(p));
+    }
+    return r.Done();
+}
+
+Bytes Encode(const Enter& m) {
+    ByteWriter w;
+    w.U8(static_cast<uint8_t>(MsgType::Enter));
+    w.Str(m.map, MAX_MAP_ID);
+    w.F32(m.x); w.F32(m.y);
+    w.U16(m.day);
+    w.F32(m.hours);
+    return w.Take();
+}
+
+bool Decode(const Bytes& b, Enter& out) {
+    ByteReader r(b);
+    if (!Open(r, MsgType::Enter)) return false;
+    out.map = r.Str(MAX_MAP_ID);
+    out.x = r.F32(); out.y = r.F32();
+    out.day = r.U16();
+    out.hours = r.F32();
+    return r.Done();
+}
+
+Bytes Encode(const Outfit& m) {
+    ByteWriter w;
+    w.U8(static_cast<uint8_t>(MsgType::Outfit));
+    w.U8(m.seat);
+    w.Str(m.look, MAX_LOOK);
+    const size_t n = m.worn.size() < MAX_WORN ? m.worn.size() : MAX_WORN;
+    w.U8(static_cast<uint8_t>(n));
+    for (size_t i = 0; i < n; ++i) w.Str(m.worn[i], MAX_ITEM_ID);
+    return w.Take();
+}
+
+bool Decode(const Bytes& b, Outfit& out) {
+    ByteReader r(b);
+    if (!Open(r, MsgType::Outfit)) return false;
+    out.seat = r.U8();
+    out.look = r.Str(MAX_LOOK);
+    const uint8_t n = r.U8();
+    if (!r.Ok() || n > MAX_WORN) return false;
+    out.worn.clear();
+    for (uint8_t i = 0; i < n; ++i) {
+        out.worn.push_back(r.Str(MAX_ITEM_ID));
+        if (!r.Ok()) return false;
+    }
+    return r.Done();
+}
+
 std::string CleanLine(const std::string& text, size_t limit) {
     std::string out;
     out.reserve(text.size());

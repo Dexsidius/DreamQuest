@@ -104,8 +104,17 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
     }
 }
 
-void World::RequestTransition(const string& id, const string& spawn) {
-    if (transition_pending) return;
+bool World::RequestTransition(const string& id, const string& spawn) {
+    if (transition_pending) return false;
+    if (visiting) {
+        // Until the co-op plan's M4 there is one world on the host, the
+        // host's own map: a guest cannot go where it is not.
+        if (gate_note_timer <= 0.0f) {
+            AddText("The host leads the way, for now.", player.x, player.y - 52.0f, {214, 232, 255, 255}, 2.2f);
+            gate_note_timer = 2.5f;
+        }
+        return false;
+    }
     transition_pending = true;
     next_map   = id;
     next_spawn = spawn;
@@ -113,6 +122,7 @@ void World::RequestTransition(const string& id, const string& spawn) {
     fade_speed = FADE_SPEED;
     fade_caption.clear();
     fade_dir   = 1;
+    return true;
 }
 
 // -----------------------------------------------------------------------------
@@ -194,6 +204,8 @@ void World::PlaceCampObjects() {
 }
 
 string World::SleepRefusal() const {
+    if (visiting)
+        return "The night is the host's to sleep through, for now.";
     if (!clock.CanSleep())
         return "Not tired yet. Sleep comes after dusk.";
     for (const auto& e : enemies) {
@@ -621,8 +633,7 @@ void World::Update(float dt, const GameContext& ctx) {
                             Audio::Play(Sfx::Locked);
                             gate_note_timer = 2.5f;
                         }
-                    } else {
-                        RequestTransition(p->target_map, p->target_spawn);
+                    } else if (RequestTransition(p->target_map, p->target_spawn)) {
                         Audio::Play(Sfx::Portal);
                     }
                 }
@@ -1519,8 +1530,7 @@ void World::TryInteract(const GameContext& ctx) {
                 Audio::Play(Sfx::Locked);
                 break;
             }
-            RequestTransition(p->target_map, p->target_spawn);
-            Audio::Play(Sfx::Door);
+            if (RequestTransition(p->target_map, p->target_spawn)) Audio::Play(Sfx::Door);
             break;
         }
 
@@ -2029,7 +2039,8 @@ void World::UpdateElevation() {
     if (!map.HasElevation()) {
         // A hop on flat ground still leaves the ground.
         player.draw_lift = player.IsJumping() ? player.JumpLift() : player.RushLift();
-        for (auto& g : guests) g->draw_lift = g->IsJumping() ? g->JumpLift() : g->RushLift();
+        // A puppet's lift is what the host said it was.
+        for (auto& g : guests) if (!g->puppet) g->draw_lift = g->IsJumping() ? g->JumpLift() : g->RushLift();
         for (auto& e : enemies) e->draw_lift = 0.0f;
         for (auto& n : npcs)    n->draw_lift = 0.0f;
         return;
@@ -2037,7 +2048,7 @@ void World::UpdateElevation() {
     player.draw_lift = player.IsJumping() ? player.JumpLift()
                                           : map.HeightAt(player.x, player.y) + player.RushLift();
     for (auto& g : guests)
-        g->draw_lift = g->IsJumping() ? g->JumpLift() : map.HeightAt(g->x, g->y) + g->RushLift();
+        if (!g->puppet) g->draw_lift = g->IsJumping() ? g->JumpLift() : map.HeightAt(g->x, g->y) + g->RushLift();
     for (auto& e : enemies) e->draw_lift = map.HeightAt(e->x, e->y);
     for (auto& n : npcs)    n->draw_lift = map.HeightAt(n->x, n->y);
 }

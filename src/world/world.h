@@ -28,8 +28,10 @@ class World {
 public:
     // Maps live in maps/<id>.mx. Passing an empty spawn uses the map default.
     bool LoadMap(const string& map_id, const string& spawn, const GameContext& ctx);
-    // Queued from a portal; applied at the top of the next frame.
-    void RequestTransition(const string& map_id, const string& spawn);
+    // Queued from a portal; applied at the top of the next frame. False if
+    // it was not: one is already under way, or this world is a guest's window
+    // and the host leads the way.
+    bool RequestTransition(const string& map_id, const string& spawn);
     bool TransitionPending() const { return transition_pending; }
     // Screen-wipe progress, 0 = clear, 1 = fully black.
     float FadeAmount() const { return fade; }

@@ -91,7 +91,12 @@ void Client::Handle(const Packet& packet) {
                     fresh.push_back(std::move(line));
                     break;
                 }
-                default: break;      // a later milestone's message, or a stray
+                default:
+                    if (Seated() && IsGameMessage(PeekType(packet.data))) {
+                        if (inbound.size() >= 1024) inbound.erase(inbound.begin(), inbound.begin() + 256);
+                        inbound.push_back(packet.data);
+                    }
+                    break;
             }
             break;
         }
@@ -126,6 +131,16 @@ std::string Client::NameOf(uint8_t s) const {
     for (const SeatInfo& info : roster)
         if (info.seat == s) return info.name;
     return "Seat " + std::to_string(static_cast<int>(s) + 1);
+}
+
+std::vector<Bytes> Client::TakeGameMessages() {
+    std::vector<Bytes> out;
+    out.swap(inbound);
+    return out;
+}
+
+void Client::SendGame(Channel channel, const Bytes& bytes) {
+    if (Seated() && transport) transport->Send(server, channel, bytes);
 }
 
 std::vector<Client::ChatLine> Client::TakeNewLines() {

@@ -18,6 +18,7 @@
 #include "ui/worldmap.h"
 #include "ui/titlescreen.h"
 #include "net/session.h"
+#include "coop/coop.h"
 
 enum class GameState {
     MainMenu,
@@ -265,6 +266,27 @@ private:
     // to a PNG after a number of seconds and quits.
     string   launch_say, shot_path;
     float    shot_after = 3.0f, run_time = 0.0f;
+    // --scratch <character> starts a game that is never written anywhere, so
+    // a host can be stood in a world without a save slot being touched; and
+    // --hold <key> <from> <to> holds a key down between two moments, which is
+    // a pair of hands for a screenshot. While `never_save` is set nothing is
+    // saved, by any route.
+    string   launch_scratch;
+    bool     never_save = false;
+    struct HeldKey { SDL_Keycode key = 0; float from = 0.0f, to = 0.0f; int sent = 0; };
+    vector<HeldKey> launch_holds;
+    // The world, shared (see coop/coop.h). Hosting, friends' characters are
+    // stepped in this machine's world. As a guest, this machine's world is a
+    // window onto the host's: `guest_session` is a game with no save slot, no
+    // autosave and no monsters of its own, begun when the host says which map
+    // to load and over when the line drops or the host leaves the world.
+    coop::Host  coop_host;
+    coop::Guest coop_guest;
+    bool guest_session = false;
+    void UpdateCoop(float dt);
+    void EnterAsGuest(const net::Enter& enter);
+    void EndGuestSession(const string& why);
+    void DrawNameTags();
     void OpenMultiplayer();
     void UpdateSession(float dt);
     bool StartHosting(uint16_t port);

@@ -48,7 +48,7 @@ $newestHeader = (Get-ChildItem -Path src -Recurse -Include *.h, *.hpp -File |
 
 $gameSources = @(
     Get-ChildItem -Path src -Filter *.cpp -File
-    Get-ChildItem -Path src\world, src\entity, src\systems, src\ui, src\net -Filter *.cpp -File
+    Get-ChildItem -Path src\world, src\entity, src\systems, src\ui, src\net, src\coop -Filter *.cpp -File
 ) | Select-Object -ExpandProperty FullName
 
 function Compile-Set($sources) {

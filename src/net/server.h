@@ -50,6 +50,15 @@ public:
     bool ReachedFromOutside() const { return reached; }
     // A line from the world itself, to everyone: "Oona joined."
     void Announce(const std::string& text);
+
+    // The game's own messages (MsgType::GAME_FIRST and up) are not looked
+    // inside here. What seated players have sent is handed over whole, and
+    // what the game has to say goes to one seat or to every seat but the
+    // host's own, who is looking at the real thing.
+    struct Inbound { uint8_t seat = 0; Channel channel = Channel::Reliable; Bytes data; };
+    std::vector<Inbound> TakeGameMessages();
+    void SendToSeat(uint8_t seat, Channel channel, const Bytes& bytes);
+    void SendToGuests(Channel channel, const Bytes& bytes, int except_seat = -1);
     // Lets everybody go and stops listening.
     void Shutdown();
 
@@ -81,6 +90,7 @@ private:
     std::vector<Way> ways;
     std::vector<Connection> connections;
     std::vector<SeatInfo> roster;
+    std::vector<Inbound> inbound;
     bool reached = false;
 };
 

@@ -174,16 +174,16 @@ whatever size the window happens to be.
 Co-op is being built in milestones, and the plan -- *Hollowmarch Co-op*: up to
 four friends in one Hollowmarch over a tailnet, with one machine running the
 world and the others windows onto it -- is an ordered list of them. **Milestone
-0 is in: the wire, the door and a chat line.** No world is shared yet. What
-works today is everything the later milestones stand on: two copies of the game
-find each other, check they are the same game, take seats, agree on who is
-there, and carry a typed line to the other screen.
+0 and 1 are in.** Two copies of the game find each other, check they are the
+same game, take seats and pass a typed line; and a friend who joins walks into
+the host's game and the two see each other move. Monsters, loot and quests are
+not shared yet: that is M2 and M3.
 
 | Milestone | What it adds | State |
 |---|---|---|
 | **M0** Skeleton | ENet, the transport, `--host` / `--join`, the greeting with version and data hashes, a chat line | **done** |
-| M1 Two bodies | several players in one `World`, inputs, the server tick, prediction, remote players drawn | next |
-| M2 One fight, shared | entity ids; monsters, projectiles and loot replicated; the melee rewind | |
+| **M1** Two bodies | several players in one `World`, inputs by the step, prediction and correction, remote players drawn in their own clothes | **done** |
+| M2 One fight, shared | entity ids; monsters, projectiles and loot replicated; the melee rewind | next |
 | M3 Everything you can press E on | requests for chests, shops, crafting, quests; per-player journals | |
 | M4 Splitting up | one world per occupied map; portals move players between them | |
 | M5 Keeping it | the world / character save split; reconnecting; "everyone in bed skips the night" | |
@@ -213,8 +213,8 @@ there, and carry a typed line to the other screen.
 - **Name** is what friends see you as, sixteen characters, remembered in
   `settings.json`. It starts as the machine's user name.
 
-The door closes behind nobody: a host can go and play, and is playing alone
-with the door open. Up to four seats. Two friends with the same name are *Sam*
+The door closes behind nobody: a host can go and play, and whoever joins
+walks into that game. Up to four seats. Two friends with the same name are *Sam*
 and *Sam 2*.
 
 From a shortcut or a terminal:
@@ -232,6 +232,80 @@ the thing already under way, so whatever goes wrong is said where it can be
 read. Two more exist for checking the screens without a pair of hands:
 `--say "a line"` sends one line as soon as there is a seat to say it from, and
 `--shot file.png 5` writes the frame to a PNG after five seconds and quits.
+
+### Two bodies (M1)
+
+**A friend who joins walks into the game the host is playing**, on the map the
+host is on, as a new character of the look chosen on the Play Together screen
+(*Character*, left and right). Each sees the other move, turn, jump, swing and
+block, in the right clothes with the right weapon in hand, under a name tag.
+The host plays exactly as before; hosting from the pause menu opens the door
+on the game already running.
+
+What is and is not shared yet, plainly:
+
+- **Shared:** where everyone is and what they are doing, what they wear, the
+  map, and the clock -- one day for everyone.
+- **Not yet:** monsters, loot, chests, shops and quests. A guest's world is a
+  *window*: the host's map with its people but no monsters of its own, because
+  the monsters are the host's and arrive with M2. A guest's bag, journal and
+  skills are their own and local.
+- **The host leads, until M4.** There is one world on the host -- the map the
+  host is on -- so when the host goes through a door everyone goes, and a
+  guest who walks into one is told *"The host leads the way, for now."* A
+  guest cannot sleep the host's night away either.
+- **A guest's character is not kept.** It is never saved, by any route;
+  characters that travel with their player are M5. Joining is from the title
+  screen, because a guest's game replaces the one running.
+- If the host leaves the world for the title screen, guests go back to the
+  Play Together screen, still seated, and are brought back in when the host
+  returns.
+
+How it works, in the order a step takes:
+
+1. **Hands, not the keyboard.** `Player::Update` reads a `PlayerInput`
+   (`src/entity/player_input.h`): the move axis and three bytes of buttons --
+   held, just pressed, just released. The seat at this machine has it filled
+   from the device; a friend's character on the host has it filled from what
+   their machine sent. The edges travel with the state, so a tap shorter than
+   a frame is not lost.
+2. **The step carries its own clock.** The plan drew a fixed 60 Hz tick on
+   both ends. The game's loop runs at the display's rate (72 Hz on the machine
+   this was written on), so a step is sent with its own `dt`, in whole
+   microseconds, the way Quake's `usercmd` is. A guest steps its world with
+   that quantised `dt` and that quantised axis the instant the keys are read,
+   and the host steps its copy of their character with the very same numbers
+   when they arrive. Same code, same inputs: the self-test walks six hundred
+   uneven steps both ways and the two agree to the last bit -- place, facing,
+   clip and frame.
+3. **Every packet repeats the last eight steps**, seven bytes each, on the
+   unreliable channel. One that is lost costs nothing.
+4. **Twenty times a second the host says where everyone is**, and which of
+   the receiver's steps it has taken. The guest looks up where it was after
+   that step. If the two differ by more than two pixels, the difference is
+   added to where the character is *now*, and to the remembered path: at once
+   if small, over a few snapshots if it would show, and as a snap if it is a
+   teleport. (The plan has the client rewind and replay. A `Player` carries
+   its bag and its skills as well as its feet, so the whole object cannot be
+   rolled back without undoing a level gained in between, and the offset is
+   the same answer wherever movement does not depend on position.)
+5. **Everyone else is a puppet**, drawn a tenth of a second in the past,
+   between the two snapshots that bracket that moment, in the clip and frame
+   the host said. An *outfit* -- the look and what is in each slot -- is sent
+   when it changes; a seat speaks only for itself, and only items that exist,
+   in the slot they belong to, are worn.
+
+| File | What it is |
+|---|---|
+| `src/entity/player_input.h` | A player's hands for one step. |
+| `src/world/world.*` | `guests`, `AddGuest`, `StepGuest`, `NearestPlayer`, and `visiting`: a guest's window. |
+| `src/net/protocol.*` | `InputFrames`, `Snapshot`, `Enter`, `Outfit`; protocol version 2. The net layer hands these to the game whole. |
+| `src/coop/coop.*` | Where the wire meets the world: `coop::Host` beside the host's world, `coop::Guest` beside a friend's. |
+
+Two more flags exist for checking all this without a second pair of hands:
+`--scratch hero` starts a game that is never written anywhere (so a host can
+be stood in a world without a save slot being touched), and
+`--hold D 2 3.5` holds a key down between two moments.
 
 ### The door
 
@@ -251,8 +325,9 @@ and never says hello is dropped after five seconds.
 
 ### How it is built
 
-Everything is in `src/net/`, and none of it includes SDL or the game, so the
-headless server of M6 can use it as it stands.
+The wire is in `src/net/`, and none of it includes SDL or the game, so the
+headless server of M6 can use it as it stands. (`src/coop/`, above, is where
+it meets the world.)
 
 | File | What it is |
 |---|---|
@@ -2708,7 +2783,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15663 checks** covering:
+and checks all of it — currently **15723 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -3113,6 +3188,35 @@ and checks all of it — currently **15663 checks** covering:
   told the world is full, and a seat given up is the next one given; chat
   survives a delayed, lossy line; when the host stops every friend is told;
   a door that never answers is given up on after eight seconds
+- co-op M1, hands: a player's hands are read off the device, and a tap shorter
+  than a frame is pressed and released with nothing held; an axis and a step
+  cross the wire as exactly the numbers they were taken with; six hundred
+  uneven steps of wandering, sprinting, swinging and jumping leave a guest
+  stepped by a host and the same character played locally in the same place,
+  facing, clip and frame, to the last bit, and the host, whose hands were
+  empty, where he was; the world says who is nearest a point; a guest is kept
+  across a map change and arrives where the host does; a guest's window has
+  the map and its people and no monsters, does not go through doors on its
+  own and does not sleep the host's night away
+- co-op M1, messages: input frames (seven bytes a step, clamped on arrival),
+  snapshots, enters and outfits round-trip exactly, and no truncation of any
+  of them decodes
+- co-op M1, a host and a guest: a friend who is seated is told which map to
+  load and loads it; the host's world has her character in it and hers has
+  him as a puppet, each with the right look and the right weapon in hand; she
+  walks on her own screen the frame she presses the key, every step is sent,
+  taken and acknowledged, and the host's copy ends exactly where she did with
+  nothing to put right; the host's puppet trails him by about a tenth of a
+  second in the clip he is playing and comes to rest where he is; a swing
+  crosses the wire, and so does a jump tapped inside one frame; on a line that
+  loses a third of its packets and delays the rest, the repeats carry every
+  step across and both ends still agree; a small disagreement is put right at
+  once and a larger one closed over a few snapshots; changing a weapon changes
+  it on the other screen, and an outfit speaks only for its own seat and wears
+  only items that exist; when the host goes through a door she follows; when
+  he leaves the world she is sent back to the lobby, still seated, and brought
+  back when he returns; a friend who leaves is gone from the host's world, and
+  whoever takes the seat next is a new character
 - co-op M0, over real UDP on 127.0.0.1: hosting listens and seats the host
   over the loopback; a second host on the same port is refused and says why; a
   guest is seated over UDP, both rosters agree and the host's reachable light
@@ -3144,6 +3248,8 @@ src/
                         material tiers (items.cpp), skill trees (talents.cpp),
                         tools, fishing and foraging (gathering.cpp), and traders (shop.cpp)
   ui/                   drawing helpers and every screen; lobby.cpp is Play Together
+  coop/                 co-op: where the wire meets the world -- the host's half
+                        and the guest's
   net/                  co-op: the transport (ENet, and an in-process loopback),
                         the protocol, the data hashes, the server's door and
                         seats, the client, and the session the game holds.

@@ -32,6 +32,7 @@
 #include "../src/ui/worldmap.h"
 #include "../src/ui/titlescreen.h"
 #include "../src/net/session.h"
+#include "../src/coop/coop.h"
 
 #include <fstream>
 #include <set>
@@ -8383,6 +8384,382 @@ int main(int argc, char** argv) {
         }
         Check(sorted && no_loopback, "this machine's addresses list the tailnet's first and never loopback (" +
               std::to_string(mine.size()) + " found)");
+    }
+
+
+    // =========================================================================
+    //  Co-op, milestone 1: two bodies
+    // =========================================================================
+    Section("co-op M1: hands, not the keyboard");
+    {
+        Input input;
+        std::mt19937 rng(7);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        input.Update(dt);
+        key(SDLK_D, true); key(SDLK_J, true); key(SDLK_SPACE, true); key(SDLK_SPACE, false);
+        const PlayerInput hands = PlayerInput::FromDevice(input);
+        Check(hands.move.x > 0.9f && fabsf(hands.move.y) < 0.01f && hands.Down(PlayerInput::Light) &&
+              hands.Pressed(PlayerInput::Light) && !hands.Released(PlayerInput::Light),
+              "a player's hands are read off the device: the axis, what is held, what was just pressed");
+        Check(hands.Pressed(PlayerInput::Jump) && hands.Released(PlayerInput::Jump) && !hands.Down(PlayerInput::Jump),
+              "a tap shorter than a frame is pressed and released with nothing held, and is not lost");
+        key(SDLK_D, false); key(SDLK_J, false);
+        input.Update(dt);
+
+        PlayerInput diagonal; diagonal.move = {0.70710678f, -0.70710678f};
+        const PlayerInput q = diagonal.Quantised();
+        Check(fabsf(q.move.x - diagonal.move.x) < 0.005f && q.move.x == PlayerInput::FromWire(PlayerInput::ToWire(q.move.x)) &&
+              q.Quantised().move.x == q.move.x, "quantising an axis is within half a percent, and quantising twice changes nothing");
+        const float qdt = coop::QuantiseDt(1.0f / 72.0f);
+        const net::InputStep step = coop::ToStep(q, qdt);
+        Check(coop::StepSeconds(step) == qdt && coop::ToHands(step).move.x == q.move.x && coop::ToHands(step).move.y == q.move.y,
+              "a step crosses the wire as exactly the numbers it was taken with");
+        Check(coop::QuantiseDt(0.2f) == 0.05f && coop::QuantiseDt(-1.0f) == 0.0f, "and no step is longer than the frame clamp");
+
+        // The foundation of prediction: the same hands and the same clock give
+        // the same walk, whether the character is the seat at this machine or
+        // a guest stepped by the host. Two worlds, one walk.
+        World mine, theirs;
+        mine.player.Init(ctx, "player_warden");
+        theirs.player.Init(ctx, "player_hero");
+        Check(mine.LoadMap("town_havenbrook", "", ctx) && theirs.LoadMap("town_havenbrook", "", ctx), "Havenbrook loads twice");
+        mine.player.hands_external = true;
+        Player* guest = theirs.AddGuest(1, "Oona", "player_warden", ctx);
+        Check(guest && !guest->local && guest->seat == 1 && theirs.guests.size() == 1 && theirs.Guest(1) == guest &&
+              guest->x == theirs.player.x, "a guest joins the world beside the host");
+        const float host_x = theirs.player.x, host_y = theirs.player.y;
+        bool same = true;
+        float worst = 0.0f;
+        std::mt19937 script(99);
+        PlayerInput h;
+        for (int f = 0; f < 600; ++f) {
+            // A wandering, swinging, jumping, sprinting script at an uneven frame rate.
+            if (f % 23 == 0) {
+                const float a = (script() % 628) / 100.0f;
+                h.move = (script() % 5 == 0) ? Vec2{0.0f, 0.0f} : Vec2{cosf(a), sinf(a)};
+                h.down = (script() % 3 == 0) ? PlayerInput::Sprint : 0;
+            }
+            h.pressed = h.released = 0;
+            if (f % 41 == 7)  h.pressed |= PlayerInput::Light;
+            if (f % 97 == 50) h.pressed |= PlayerInput::Jump;
+            if (f % 131 == 60) { h.pressed |= PlayerInput::Strong; h.released |= PlayerInput::Strong; }
+            const PlayerInput sent = h.Quantised();
+            const float step_dt = coop::QuantiseDt(1.0f / (55.0f + static_cast<float>(script() % 40)));
+            mine.player.hands = sent;
+            mine.Update(step_dt, ctx);
+            theirs.StepGuest(*guest, sent, step_dt, ctx);
+            const float d = Length(mine.player.x - guest->x, mine.player.y - guest->y);
+            worst = std::max(worst, d);
+            same &= d == 0.0f && mine.player.facing == guest->facing && mine.player.Clip() == guest->Clip() &&
+                    mine.player.ClipFrame() == guest->ClipFrame();
+        }
+        Check(Length(mine.player.x - host_x, mine.player.y - host_y) > 40.0f, "the walk went somewhere");
+        Check(same, "six hundred uneven steps, and the guest's walk is the local one to the last bit: place, facing, clip and frame (worst " +
+              std::to_string(worst) + " px)");
+        Check(theirs.player.x == host_x && theirs.player.y == host_y, "and the host, whose hands were empty, has not moved");
+        Check(&theirs.NearestPlayer(guest->x, guest->y) == guest && &theirs.NearestPlayer(host_x, host_y) == &theirs.player &&
+              theirs.Players().size() == 2 && &mine.NearestPlayer(0, 0) == &mine.player,
+              "the world can say who is nearest a point, and alone that is always the player");
+
+        // Everyone goes through the door together, until M4.
+        Check(theirs.LoadMap("house_inn", "default", ctx) && theirs.guests.size() == 1 &&
+              guest->x == theirs.player.x && guest->y == theirs.player.y, "a guest is kept across a map change and arrives where the host does");
+        theirs.RemoveGuest(1);
+        Check(theirs.guests.empty() && theirs.Guest(1) == nullptr, "and leaves when told");
+
+        World window;
+        window.visiting = true;
+        window.player.Init(ctx, "player_hero");
+        World full;
+        full.player.Init(ctx, "player_hero");
+        Check(window.LoadMap("overworld", "start", ctx) && full.LoadMap("overworld", "start", ctx) &&
+              window.enemies.empty() && !full.enemies.empty(),
+              "a world a guest looks through has no monsters of its own");
+        Check(window.LoadMap("town_havenbrook", "", ctx) && !window.npcs.empty() && window.CurrentMap().Loaded(),
+              "but it has the map, and the people who live on it");
+        window.clock.Set(1, 22.0f);
+        Check(!window.RequestTransition("overworld", "start") && !window.TransitionPending() && window.MapId() == "town_havenbrook",
+              "a guest's window does not go through doors on its own: the host leads, until M4");
+        Check(!window.SleepRefusal().empty() && !window.AskToSleep("A bed") && !window.Sleep(World::SleepChoice::Through, ctx),
+              "nor sleep the host's night away");
+        Check(full.RequestTransition("town_havenbrook", "") && full.TransitionPending(), "a world of one's own still does");
+    }
+
+    Section("co-op M1: messages");
+    {
+        using namespace net;
+        const auto survives = [&](const char* name, const Bytes& bytes, const std::function<bool(const Bytes&)>& decode) {
+            Check(decode(bytes), string(name) + " round-trips");
+            bool any_short = false;
+            for (size_t n = 0; n < bytes.size(); ++n)
+                any_short |= decode(Bytes(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(n)));
+            Bytes padded = bytes; padded.push_back(0);
+            Check(!any_short && !decode(padded), string(name) + ": no truncation of it decodes, nor one with a byte left over");
+        };
+        InputFrames frames; frames.first_seq = 1000;
+        frames.steps = {{13889, 127, -90, 9, 1, 0}, {16667, 0, 0, 0, 0, 1}};
+        survives("InputFrames", Encode(frames), [&](const Bytes& x) {
+            InputFrames o; return Decode(x, o) && o.first_seq == 1000 && o.steps.size() == 2 && o.steps[0].dt_us == 13889 &&
+                                  o.steps[0].move_x == 127 && o.steps[0].move_y == -90 && o.steps[0].down == 9 &&
+                                  o.steps[0].pressed == 1 && o.steps[1].released == 1; });
+        Check(Encode(frames).size() == 1 + 4 + 1 + 2 * 7, "a step is seven bytes on the wire");
+        { InputFrames slow; slow.steps = {{65000, 0, 0, 0, 0, 0}}; InputFrames o;
+          Check(Decode(Encode(slow), o) && o.steps[0].dt_us == MAX_STEP_US, "a step longer than the frame clamp is clamped on arrival"); }
+        Snapshot snap; snap.time_ms = 123456; snap.ack_seq = 77; snap.day = 3; snap.hours = 21.25f;
+        PlayerState ps; ps.seat = 1; ps.x = 1234.5678f; ps.y = -0.125f; ps.lift = 6.5f; ps.facing = 2; ps.flags = PlayerState::Jumping;
+        ps.frame = 5; ps.hp = 31; ps.max_hp = 40; ps.clip = "attack_light_2";
+        snap.players = {ps, ps};
+        survives("Snapshot", Encode(snap), [&](const Bytes& x) {
+            Snapshot o; return Decode(x, o) && o.time_ms == 123456 && o.ack_seq == 77 && o.day == 3 && o.hours == 21.25f &&
+                               o.players.size() == 2 && o.players[1].x == 1234.5678f && o.players[1].y == -0.125f &&
+                               o.players[1].lift == 6.5f && o.players[1].clip == "attack_light_2" && o.players[1].frame == 5 &&
+                               o.players[1].hp == 31 && o.players[1].flags == PlayerState::Jumping; });
+        Enter enter; enter.map = "town_havenbrook"; enter.x = 640.25f; enter.y = 512.0f; enter.day = 9; enter.hours = 6.5f;
+        survives("Enter", Encode(enter), [&](const Bytes& x) {
+            Enter o; return Decode(x, o) && o.map == "town_havenbrook" && o.x == 640.25f && o.y == 512.0f && o.day == 9 && o.hours == 6.5f; });
+        Outfit outfit; outfit.seat = 2; outfit.look = "player_wayfarer"; outfit.worn = {"wood_staff", "", "wood_body"};
+        survives("Outfit", Encode(outfit), [&](const Bytes& x) {
+            Outfit o; return Decode(x, o) && o.seat == 2 && o.look == "player_wayfarer" && o.worn.size() == 3 &&
+                             o.worn[0] == "wood_staff" && o.worn[1].empty() && o.worn[2] == "wood_body"; });
+        Check(IsGameMessage(PeekType(Encode(snap))) && !IsGameMessage(PeekType(Encode(Say{"hi"}))),
+              "the game's messages are told from the door's by their number");
+    }
+
+    Section("co-op M1: a host, a guest, and the line between them");
+    {
+        using namespace net;
+        Input hin, gin;
+        std::mt19937 hrng(1), grng(2);
+        QuestLog guest_quests;
+        GameContext hctx;
+        hctx.sprites = &sprites;   hctx.items = &items;       hctx.loot = &loot;
+        hctx.quests = &quests;     hctx.dialogue = &dialogue; hctx.enemies = &enemy_db;
+        hctx.projectiles = &projectiles; hctx.spells = &spells;
+        hctx.input = &hin;         hctx.rng = &hrng;
+        GameContext gctx = hctx;
+        gctx.quests = &guest_quests; gctx.input = &gin; gctx.rng = &grng;
+        const auto press = [](Input& in, SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            in.HandleEvent(e);
+        };
+
+        Server::Config config;
+        config.world_name = "Dada's Hollowmarch"; config.data_hash = 1; config.maps_hash = 2;
+        LoopbackHub local, wire;
+        Server server(config);
+        server.Attach(local.Server(), true);
+        server.Attach(wire.Server());
+        Client dada, oona;
+        Hello hd; hd.data_hash = 1; hd.maps_hash = 2; hd.name = "Dada"; hd.look = "player_hero";
+        Hello ho = hd; ho.name = "Oona"; ho.look = "player_warden";
+
+        World hw, gw;
+        gw.visiting = true;
+        hw.player.Init(hctx, "player_hero");
+        for (const string& id : Player::StartingKit("player_hero"))
+            if (const ItemDef* d = items.Get(id)) hw.player.equipment.Equip(d->slot, id);
+        Check(hw.LoadMap("town_havenbrook", "", hctx), "the host is in Havenbrook");
+        coop::Host host;
+        coop::Guest guest;
+        bool in_world = true, guest_in = false;
+        int enters = 0;
+        // Keys held on each side, applied every frame after the input's own update.
+        std::set<SDL_Keycode> hkeys, gkeys, gtaps;
+        const float hdt = 1.0f / 60.0f;           // the host's display
+        const float gdt = coop::QuantiseDt(1.0f / 72.0f);   // the guest's
+        const auto frame = [&] {
+            // --- the host's machine
+            hin.Update(hdt);
+            for (SDL_Keycode k : {SDLK_W, SDLK_A, SDLK_S, SDLK_D}) press(hin, k, hkeys.count(k) > 0);
+            if (in_world) hw.Update(hdt, hctx);
+            server.Update(hdt);
+            dada.Update(hdt);
+            host.Update(hdt, server, hw, hctx, in_world);
+            // --- the guest's
+            oona.Update(gdt);
+            guest.Update(gdt, oona, gw, gctx);
+            if (guest.HasEnter()) {
+                const Enter e = guest.PendingEnter();
+                ++enters;
+                if (e.map.empty()) { guest_in = false; guest.Reset(gw); }
+                else {
+                    if (!guest_in) {
+                        gw.player = Player();
+                        gw.player.Init(gctx, "player_warden");
+                        for (const string& id : Player::StartingKit("player_warden"))
+                            if (const ItemDef* d = items.Get(id)) gw.player.equipment.Equip(d->slot, id);
+                    }
+                    guest_in = gw.LoadMap(e.map, "", gctx);
+                    gw.player.x = e.x; gw.player.y = e.y;
+                    gw.clock.Set(e.day, e.hours);
+                    guest.Arrived(gw);
+                }
+            }
+            if (guest_in) {
+                gin.Update(gdt);
+                for (SDL_Keycode k : {SDLK_W, SDLK_A, SDLK_S, SDLK_D, SDLK_LSHIFT}) press(gin, k, gkeys.count(k) > 0);
+                for (SDL_Keycode k : gtaps) { press(gin, k, true); press(gin, k, false); }
+                gtaps.clear();
+                guest.BeforeStep(gw, &gin);
+                gw.Update(gdt, gctx);
+                guest.AfterStep(gw, oona, gdt);
+            }
+        };
+        const auto frames = [&](int n) { for (int i = 0; i < n; ++i) frame(); };
+
+        dada.Start(local.Client(), "loopback", 0, hd);
+        frames(4);
+        Check(dada.Seated() && hw.guests.empty(), "the host hosts, alone in the world");
+        hw.clock.Set(4, 15.5f);
+        oona.Start(wire.Client(), "dada-pc", 7777, ho);
+        frames(8);
+        Check(oona.Seated() && guest_in && gw.MapId() == "town_havenbrook" && enters == 1,
+              "a friend who is seated is told which map to load, and loads it");
+        Check(hw.guests.size() == 1 && hw.Guest(1) && hw.Guest(1)->sprite_id == "player_warden" && hw.Guest(1)->name == "Oona" &&
+              !hw.Guest(1)->puppet && !hw.Guest(1)->local, "and the host's world has her character in it, to be stepped");
+        Check(gw.enemies.empty() && gw.clock.Day() == 4 && fabsf(gw.clock.Hours() - 15.5f) < 0.1f,
+              "her world is a window: no monsters of its own, and the host's clock");
+        Check(fabsf(gw.player.x - hw.Guest(1)->x) < 0.01f && fabsf(gw.player.y - hw.Guest(1)->y) < 0.01f,
+              "she stands where the host's copy of her stands");
+        frames(20);
+        Check(gw.guests.size() == 1 && gw.Guest(0) && gw.Guest(0)->puppet && gw.Guest(0)->name == "Dada" &&
+              gw.Guest(0)->sprite_id == "player_hero" && gw.Guest(0)->equipment.InSlot(SLOT_WEAPON) == "wood_sword",
+              "and the host is there on her screen, as a puppet, with the right look and the right sword in hand");
+        Check(hw.Guest(1)->equipment.InSlot(SLOT_WEAPON) == "oak_shortbow", "as she is on his, with her bow");
+
+        // --- she walks ---------------------------------------------------------------------
+        const float start_x = gw.player.x;
+        gkeys = {SDLK_D};
+        frames(90);
+        gkeys.clear();
+        frames(30);
+        const Player& copy = *hw.Guest(1);
+        Check(gw.player.x > start_x + 60.0f, "the guest walks on her own screen the frame she presses the key");
+        Check(host.LastApplied(1) > 100 && guest.Acked() > 100 && guest.Sent() >= guest.Acked(),
+              "every step she took was sent, taken by the host, and acknowledged (" + std::to_string(guest.Sent()) + " sent, " +
+              std::to_string(guest.Acked()) + " acked)");
+        Check(fabsf(copy.x - gw.player.x) < 0.01f && fabsf(copy.y - gw.player.y) < 0.01f && copy.facing == gw.player.facing,
+              "and the host's copy of her ended exactly where she did: the prediction was right");
+        Check(guest.Corrections() == 0 && guest.LastError() <= coop::RECONCILE_THRESHOLD,
+              "so nothing had to be put right (last error " + std::to_string(guest.LastError()) + " px)");
+
+        // --- he walks, and she sees it, a tenth of a second ago ------------------------------
+        const float hx0 = hw.player.x;
+        hkeys = {SDLK_A};
+        frames(60);
+        const float mid_lag = gw.Guest(0)->x - hw.player.x;      // he is moving left, so she sees him to the right of where he is
+        const bool walking_clip = gw.Guest(0)->Clip() == hw.player.Clip() && gw.Guest(0)->facing == FACE_LEFT;
+        hkeys.clear();
+        frames(40);
+        Check(hw.player.x < hx0 - 40.0f && mid_lag > 1.0f && mid_lag < 40.0f,
+              "while the host walks, his puppet trails him by about a tenth of a second (" + std::to_string(mid_lag) + " px)");
+        Check(walking_clip, "in the clip he is playing, facing the way he faces");
+        Check(fabsf(gw.Guest(0)->x - hw.player.x) < 0.5f && fabsf(gw.Guest(0)->y - hw.player.y) < 0.5f,
+              "and once he stops, it comes to rest where he is");
+
+        // --- a swing and a jump cross the wire -------------------------------------------------
+        gtaps = {SDLK_J};
+        frames(6);
+        Check(gw.player.Attacking() && copy.Attacking() && copy.Clip() == gw.player.Clip(), "she swings, and the host's copy of her swings");
+        frames(60);
+        gtaps = {SDLK_SPACE};
+        frames(5);
+        Check(gw.player.IsJumping() && copy.IsJumping(), "a jump tapped inside one frame -- pressed and released together -- is still a jump on the host");
+        frames(60);
+
+        // --- a bad line ----------------------------------------------------------------------
+        // Every third unreliable packet lost, and everything five polls late.
+        wire.DropUnreliable(3);
+        wire.SetDelay(5);
+        const int corrections_before = guest.Corrections();
+        const uint32_t applied_before = host.LastApplied(1);
+        gkeys = {SDLK_S, SDLK_LSHIFT};
+        frames(30);
+        gtaps = {SDLK_SPACE};
+        frames(90);
+        gkeys.clear();
+        frames(60);
+        Check(host.LastApplied(1) - applied_before >= 170, "on a line that loses a third of its packets, the repeats carry every step across (" +
+              std::to_string(host.LastApplied(1) - applied_before) + " of 180 taken)");
+        Check(fabsf(copy.x - gw.player.x) < 0.01f && fabsf(copy.y - gw.player.y) < 0.01f && guest.Corrections() == corrections_before,
+              "and both ends still agree where she is, with nothing to put right");
+        wire.DropUnreliable(0);
+        wire.SetDelay(0);
+        frames(20);
+
+        // --- being put right --------------------------------------------------------------------
+        // The host's copy is shoved: a knock from something her window cannot see.
+        hw.Guest(1)->x += 5.0f;
+        frames(12);
+        Check(guest.Corrections() > corrections_before && fabsf(gw.player.x - copy.x) < 0.01f,
+              "a small disagreement is put right at once, to the host's answer");
+        hw.Guest(1)->x -= 40.0f;
+        frames(3);
+        const float half_way = fabsf(gw.player.x - copy.x);
+        frames(30);
+        Check(half_way > 1.0f && half_way < 39.0f && fabsf(gw.player.x - copy.x) < 0.01f,
+              "a larger one is closed over a few snapshots rather than in a jump (" + std::to_string(half_way) + " px left after the first)");
+
+        // --- what she wears ----------------------------------------------------------------------
+        gw.player.equipment.Unequip(SLOT_WEAPON);
+        gw.player.equipment.Equip(SLOT_WEAPON, "wood_staff");
+        frames(8);
+        Check(hw.Guest(1)->equipment.InSlot(SLOT_WEAPON) == "wood_staff", "changing what she holds changes what the host's copy holds");
+        hw.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
+        frames(8);
+        Check(gw.Guest(0)->equipment.InSlot(SLOT_WEAPON) == "iron_sword", "and the host's new sword is in his puppet's hand");
+        {
+            Outfit liar; liar.seat = 0; liar.look = "player_hero"; liar.worn = {"not_an_item", "wood_body", "iron_sword"};
+            oona.SendGame(Channel::Reliable, Encode(liar));
+            frames(6);
+            Check(hw.player.equipment.InSlot(SLOT_WEAPON) == "iron_sword" && hw.Guest(1)->equipment.InSlot(SLOT_WEAPON).empty(),
+                  "an outfit speaks only for the seat that sent it, and only items that exist, in the slot they belong to, are worn");
+            gw.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+            frames(8);
+        }
+
+        // --- the host goes through a door -----------------------------------------------------------
+        Check(hw.LoadMap("house_inn", "default", hctx), "the host goes into the inn");
+        frames(10);
+        Check(enters == 2 && gw.MapId() == "house_inn" && hw.guests.size() == 1, "and she is told to follow, and does");
+        frames(30);
+        Check(fabsf(gw.player.x - copy.x) < 0.01f && fabsf(gw.player.y - copy.y) < 0.01f && gw.Guest(0) &&
+              fabsf(gw.Guest(0)->x - hw.player.x) < 0.5f, "both of them where the other thinks they are, on the new map");
+
+        // --- the host leaves the world, and comes back ------------------------------------------------
+        in_world = false;
+        frames(10);
+        Check(!guest_in && hw.guests.empty() && gw.guests.empty() && oona.Seated(),
+              "when the host leaves the world she is sent back to the lobby, still seated");
+        in_world = true;
+        frames(10);
+        Check(guest_in && gw.MapId() == "house_inn" && hw.guests.size() == 1, "and brought back in when he returns");
+
+        // --- she goes ------------------------------------------------------------------------------------
+        oona.Leave();
+        frames(6);
+        Check(hw.guests.empty(), "a friend who leaves is gone from the host's world");
+        Client sam;
+        Hello hs = hd; hs.name = "Sam"; hs.look = "player_wayfarer";
+        sam.Start(wire.Client(), "dada-pc", 7777, hs);
+        for (int i = 0; i < 8; ++i) { frame(); sam.Update(hdt); }
+        Check(hw.guests.size() == 1 && hw.Guest(1) && hw.Guest(1)->name == "Sam" && hw.Guest(1)->sprite_id == "player_wayfarer" &&
+              hw.Guest(1)->equipment.InSlot(SLOT_WEAPON) == "wood_staff",
+              "and whoever takes the seat next is a new character, dressed as one");
     }
 
     // Optional render smoke test. Uses the real world renderer and SDL image

@@ -62,6 +62,10 @@ public:
     // Lines that have arrived since the last call, for toasts.
     std::vector<ChatLine> TakeNewLines();
 
+    // The game's own messages, handed over whole and sent whole.
+    std::vector<Bytes> TakeGameMessages();
+    void SendGame(Channel channel, const Bytes& bytes);
+
 private:
     void Handle(const Packet& packet);
     void Finish(State end, const std::string& why);
@@ -80,6 +84,7 @@ private:
     std::string world_name;
     std::vector<SeatInfo> roster;
     std::vector<ChatLine> log, fresh;
+    std::vector<Bytes> inbound;
 };
 
 } // namespace net

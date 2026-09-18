@@ -56,6 +56,7 @@ public:
     const Client& Me() const { return client; }
     // The server being hosted, or null.
     const Server* Hosted() const { return server.get(); }
+    Server*       Hosted()       { return server.get(); }
 
 private:
     Hello MakeHello(const Identity& who);

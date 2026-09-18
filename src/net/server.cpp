@@ -59,6 +59,10 @@ void Server::Handle(size_t transport, const Packet& packet) {
                 else RefuseAndDrop(*c, RefuseReason::Malformed, "The server expected a greeting first.");
             } else if (type == static_cast<uint8_t>(MsgType::Say)) {
                 HandleSay(*c, packet.data);
+            } else if (IsGameMessage(type)) {
+                // Kept short: a client that floods is dropped from the front.
+                if (inbound.size() >= 1024) inbound.erase(inbound.begin(), inbound.begin() + 256);
+                inbound.push_back({c->info.seat, packet.channel, packet.data});
             }
             // Anything else from a seated player is a message from a later
             // milestone or a stray, and is let go by.
@@ -122,6 +126,24 @@ void Server::HandleSay(Connection& c, const Bytes& bytes) {
     const std::string text = CleanLine(say.text, MAX_CHAT);
     if (text.empty()) return;
     Broadcast(Encode(Chat{c.info.seat, text}));
+}
+
+std::vector<Server::Inbound> Server::TakeGameMessages() {
+    std::vector<Inbound> out;
+    out.swap(inbound);
+    return out;
+}
+
+void Server::SendToSeat(uint8_t seat, Channel channel, const Bytes& bytes) {
+    for (const Connection& c : connections)
+        if (c.stage == Stage::Seated && c.info.seat == seat)
+            ways[c.transport].transport->Send(c.peer, channel, bytes);
+}
+
+void Server::SendToGuests(Channel channel, const Bytes& bytes, int except_seat) {
+    for (const Connection& c : connections)
+        if (c.stage == Stage::Seated && !c.local && c.info.seat != except_seat)
+            ways[c.transport].transport->Send(c.peer, channel, bytes);
 }
 
 void Server::Announce(const std::string& text) {

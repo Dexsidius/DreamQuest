@@ -44,6 +44,15 @@ int Game::Start(int argc, char** argv) {
             launch_name = argv[++i];
         } else if (arg == "--say" && more) {
             launch_say = argv[++i];
+        } else if (arg == "--scratch" && more) {
+            launch_scratch = argv[++i];
+            never_save = true;
+        } else if (arg == "--hold" && i + 3 < argc) {
+            HeldKey h;
+            h.key  = SDL_GetKeyFromName(argv[++i]);
+            h.from = static_cast<float>(SDL_atof(argv[++i]));
+            h.to   = static_cast<float>(SDL_atof(argv[++i]));
+            if (h.key != SDLK_UNKNOWN) launch_holds.push_back(h);
         } else if (arg == "--shot" && more) {
             shot_path = argv[++i];
             if (i + 1 < argc && argv[i + 1][0] != '-') shot_after = static_cast<float>(SDL_atof(argv[++i]));
@@ -124,10 +133,23 @@ int Game::Start(int argc, char** argv) {
 
     // --host and --join land on the Play Together screen with the thing
     // already under way, so whatever goes wrong is said where it can be read.
+    if (!launch_scratch.empty()) {
+        // A game nobody keeps: "hero", "warden", "wayfarer", or a full id.
+        string who = launch_scratch;
+        if (who.rfind("player_", 0) != 0) who = "player_" + who;
+        if (!sprites.Has(who)) who = Player::kDefaultCharacter;
+        pending_character = who;
+        if (launch_host || launch_join.empty()) {
+            NewGame(who, active_slot);
+            welcome_pending = false;
+        }
+    }
     if (launch_host || !launch_join.empty()) {
         if (launch_host) StartHosting(mp_port);
         else { mp_address = launch_join; StartJoining(launch_join); }
-        OpenMultiplayer();
+        // A host already in a world stays in it; everyone else lands on the
+        // Play Together screen, where whatever goes wrong can be read.
+        if (!has_session) OpenMultiplayer();
     }
     return 1;
 }
@@ -274,6 +296,11 @@ bool Game::LoadGame(int slot) {
 
 bool Game::SaveGame(int slot) {
     if (!has_session) return false;
+    if (never_save) return false;
+    if (guest_session) {
+        PushToast("A guest's game is not saved yet: the world is the host's to keep.", Palette::TextDim);
+        return false;
+    }
     if (SaveSystem::Save(slot, world, quests, playtime)) {
         active_slot = slot;
         PushToast("Game saved to slot " + std::to_string(slot) + ".", Palette::Xp);
@@ -392,6 +419,18 @@ void Game::Process(float dt) {
     // this frame's Update. Doing it afterwards would wipe every press.
     input.Update(dt);
 
+    // --hold: a key goes down and comes up when the clock says so.
+    for (HeldKey& h : launch_holds) {
+        const bool want = run_time >= h.from && run_time < h.to;
+        if ((want && h.sent == 0) || (!want && h.sent == 1)) {
+            SDL_Event e{};
+            e.type = want ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = h.key;
+            input.HandleEvent(e);
+            h.sent = want ? 1 : 2;
+        }
+    }
+
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_EVENT_QUIT:
@@ -424,9 +463,13 @@ void Game::Process(float dt) {
 }
 
 void Game::Update(float dt) {
+    // A guest steps its world with the dt it will send, to the microsecond, so
+    // the host steps its copy of their character with the very same number.
+    if (guest_session) dt = coop::QuantiseDt(dt);
     state_time += dt;
     run_time += dt;
     UpdateSession(dt);
+    UpdateCoop(dt);
     if (!launch_say.empty() && session.Me().Seated()) {
         session.Me().Say(launch_say);
         launch_say.clear();
@@ -551,7 +594,12 @@ void Game::UpdatePlay(float dt) {
         PushToast("New notices are up, and the traders have restocked.", Palette::Xp);
     quest_day_seen = world.clock.QuestDay();
 
+    // As a guest, the hands are read here, quantised, and sent as they were
+    // used. Alone or hosting, the world reads the device itself.
+    if (guest_session) coop_guest.BeforeStep(world, &input);
+    else               world.player.hands_external = false;
     world.Update(dt, ctx);
+    if (guest_session) coop_guest.AfterStep(world, session.Me(), dt);
     HandleWorldRequests();
 
     switch (world.TakeWake()) {
@@ -629,7 +677,9 @@ void Game::UpdatePlay(float dt) {
     if (input.Pressed(Action::Pause))      OpenPanel(GameState::Paused);
 
     // --- autosave ------------------------------------------------------------
-    autosave_timer += dt;
+    // Not as a guest: the character is a visitor's, and the world is the
+    // host's to keep. (Characters that travel with their player are M5.)
+    if (!guest_session && !never_save) autosave_timer += dt;
     if (autosave_timer >= AUTOSAVE_INTERVAL) {
         autosave_timer = 0.0f;
         if (SaveSystem::Save(active_slot, world, quests, playtime))
@@ -858,6 +908,7 @@ void Game::Render() {
 
     if (InGameplayState() && has_session) {
         world.Render(renderer, *textures);
+        DrawNameTags();
         DrawWorldText();
         DrawHud();
     } else if (!has_session) {

@@ -12,11 +12,11 @@ CXX=${CXX:-c++}
 FLAGS="-std=c++20 -O2 -Isrc -Wall"
 LIBS="-lSDL3 -lSDL3_image -lSDL3_ttf -lenet"
 
-GAME_SRC="src/*.cpp src/world/*.cpp src/entity/*.cpp src/systems/*.cpp src/ui/*.cpp src/net/*.cpp"
+GAME_SRC="src/*.cpp src/world/*.cpp src/entity/*.cpp src/systems/*.cpp src/ui/*.cpp src/net/*.cpp src/coop/*.cpp"
 # Everything except the two files that own main(), for the self-test.
 TEST_SRC="src/camera.cpp src/input.cpp src/sprite.cpp src/texturecache.cpp \
           src/ui/ui.cpp src/ui/minimap.cpp src/world/*.cpp src/entity/*.cpp src/systems/*.cpp \
-          src/net/*.cpp"
+          src/net/*.cpp src/coop/*.cpp"
 
 mkdir -p bin
 
