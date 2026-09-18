@@ -223,7 +223,8 @@ public:
 
     // --- Rushing Strike -------------------------------------------------------
     // Learned in the melee tree's Footwork branch. A light attack started at a
-    // run, with a melee weapon, is a leap: the character springs at whatever
+    // sprint -- the sprint button held and the character actually running --
+    // with a melee weapon, is a leap: the character springs at whatever
     // they are fighting -- or on along the way they were running -- and brings
     // the weapon down as they land, for 1.4 times the damage of the light
     // attack it replaced. Then it rests for three seconds, during which a

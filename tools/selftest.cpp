@@ -1962,8 +1962,17 @@ int main(int argc, char** argv) {
             key(k, false);
             w.Update(1.0f / 60.0f, ctx);
         };
-        // Running right and pressing the light attack.
+        // Sprinting right and pressing the light attack: the leap is made at a
+        // sprint, with the button held, not at a walk.
         const auto running_light = [&]() {
+            w.player.Rest();
+            key(SDLK_LSHIFT, true);
+            key(SDLK_D, true);
+            frames(12);
+            tap(SDLK_J);
+        };
+        // The same at a walk: the stick pushed as far, and no sprint.
+        const auto walking_light = [&]() {
             w.player.Rest();
             key(SDLK_D, true);
             frames(12);
@@ -1971,6 +1980,7 @@ int main(int argc, char** argv) {
         };
         const auto stop = [&]() {
             key(SDLK_D, false);
+            key(SDLK_LSHIFT, false);
             frames(50);
         };
 
@@ -1990,6 +2000,14 @@ int main(int argc, char** argv) {
         // Standing still it is the ordinary attack.
         tap(SDLK_J);
         Check(!w.player.Rushing() && w.player.Attacking(), "standing still, the light attack does not leap");
+        frames(50);
+        // Walking, with the leap learned and rested: an ordinary light attack.
+        // On a keyboard a walk pushes the stick as far as a run does, and this
+        // used to leap.
+        walking_light();
+        Check(!w.player.Rushing() && w.player.Attacking() && w.player.RushCooldown() <= 0.0f,
+              "walking, with the leap ready, the light attack is an ordinary one");
+        stop();
         frames(50);
 
         const float x0 = w.player.x;
@@ -2014,6 +2032,18 @@ int main(int argc, char** argv) {
         frames(3 * 60);
         running_light();
         Check(w.player.Rushing(), "after three seconds it leaps again");
+        stop();
+        // And having leapt, a walk is still a walk: rested again, without the
+        // sprint button, every light attack is an ordinary one.
+        frames(static_cast<int>(Player::RUSH_COOLDOWN * 60.0f) + 30);
+        bool leapt_walking = false;
+        for (int i = 0; i < 3; ++i) {
+            walking_light();
+            leapt_walking |= w.player.Rushing();
+            stop();
+        }
+        Check(!leapt_walking && w.player.RushCooldown() <= 0.0f,
+              "having leapt once, walking light attacks never leap, however rested");
         stop();
 
         // Only with something to swing.

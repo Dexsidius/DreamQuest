@@ -602,8 +602,12 @@ will do ("Hold K: Whirlwind").
 The melee tree has a fourth branch, **Footwork**, for moves made on the run. Its
 first is **Rushing Strike**, at Attack 15, with nothing above it to learn first.
 
-With it learned and a melee weapon in hand, **a light attack made at a run is a
-leap**: the character springs at whatever they are fighting -- if it is within
+With it learned and a melee weapon in hand, **a light attack made at a sprint
+is a leap** -- `Shift` held and the character actually running, with breath to
+spend. It used to ask only that the stick was pushed past the run threshold,
+which a controller's walk is not and every step on a keyboard is, so once the
+move was learned any light attack made while walking leapt whenever its three
+seconds were up. The leap: the character springs at whatever they are fighting -- if it is within
 leaping distance, otherwise on along the way they were running -- and brings the
 weapon down as they land. It covers about 86 pixels through a short arc, hits for
 **1.4 times a light attack's damage**, and trains Attack the way a light attack
@@ -2580,7 +2584,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15537 checks** covering:
+and checks all of it — currently **15539 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed

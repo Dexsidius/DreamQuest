@@ -563,12 +563,20 @@ void Player::HandleAttackInput(const Input& in, float dt, const World& world) {
     }
 
     // --- the light button ------------------------------------------------------
-    // At a run, with Rushing Strike learned and rested, the light attack is a
-    // leap. Only as an opener: mid-chain it stays the next link. While the
+    // At a sprint, with Rushing Strike learned and rested, the light attack is
+    // a leap. Only as an opener: mid-chain it stays the next link. While the
     // heavy button is held past the "together" window, the hold owns the
     // hands and a light does nothing.
+    //
+    // A sprint, not a push on the stick. This used to ask only that the stick
+    // was past the run threshold, which a controller's walk is not and every
+    // step on a keyboard is: so with the move learned, any light attack made
+    // while walking leapt whenever the three seconds were up, sprint button
+    // or no. `sprinting` is last frame's answer -- this runs before it is
+    // worked out again -- and already means the button held, a real push,
+    // breath to spend and no lockout.
     const bool rushed = light_press && CanAttack() && !strong_armed && combo_window <= 0.0f &&
-                        Length(move_axis.x, move_axis.y) >= RUN_THRESHOLD && StartRush(world);
+                        sprinting && StartRush(world);
     if (!rushed && light_press && CanAttack() && !strong_armed) {
         if (melee && after_strong && combo_window > 0.0f) {
             // A light on the heels of a heavy: the Backhand. It stands in for
