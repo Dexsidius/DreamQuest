@@ -45,6 +45,9 @@ public:
     Change Update(const Player& player, const vector<std::unique_ptr<Enemy>>& enemies,
                   const Map& map, bool cycle);
     void   Clear() { combat = locked = nullptr; }
+    // Who a friend's machine says they are fighting: the host takes its word,
+    // so their swings turn to the same monster on both screens.
+    void   Force(Enemy* e, bool lock) { combat = e; locked = lock ? e : nullptr; }
 
     // The lock if there is one, otherwise the combat target; null out of combat.
     Enemy* Current() const  { return locked ? locked : combat; }

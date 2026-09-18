@@ -1281,6 +1281,26 @@ json Player::ToJson() const {
     };
 }
 
+void Player::ApplySheet(const json& j, const GameContext& ctx) {
+    item_db = ctx.items;
+    inventory.SetDatabase(ctx.items);
+    equipment.SetDatabase(ctx.items);
+    talents.SetDatabase(ctx.trees);
+    talents.FromJson(j.value("talents", json::object()));
+    if (j.contains("skills"))    skills.FromJson(j["skills"]);
+    if (j.contains("inventory")) inventory.FromJson(j["inventory"]);
+    if (j.contains("equipment")) equipment.FromJson(j["equipment"]);
+    const int was = hp;
+    SyncHitpoints();
+    hp = std::clamp(was, 0, max_hp);
+    skills.SetCurrent(SKILL_HITPOINTS, hp);
+    SyncMana();
+    arcane_spell = j.value("arcane_spell", string(""));
+    selected_element = ElementFromName(j.value("element", string("fire")));
+    if (selected_element == Element::None) selected_element = Element::Fire;
+    if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;
+}
+
 void Player::FromJson(const json& j, const GameContext& ctx) {
     sprite_id = j.value("sprite", string(kDefaultCharacter));
     item_db = ctx.items;

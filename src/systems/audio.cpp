@@ -664,8 +664,14 @@ void Shutdown() {
 
 bool Enabled() { return g.enabled; }
 
+namespace { Tap g_tap; int g_muted = 0; }
+void SetTap(Tap tap) { g_tap = std::move(tap); }
+void SetMuted(int level) { g_muted = level; }
+
 void Play(Sfx s, float volume, float pitch) {
-    if (!g.enabled || s >= Sfx::Count) return;
+    if (s >= Sfx::Count) return;
+    if (g_tap) g_tap(s, false, 0.0f, 0.0f, volume, pitch);
+    if (!g.enabled || g_muted >= 1) return;
     Lock lock;
     // Menu sounds are exact; everything else varies a touch so a run of the
     // same hit does not sound like a machine.
@@ -676,7 +682,9 @@ void Play(Sfx s, float volume, float pitch) {
 }
 
 void PlayAt(Sfx s, float x, float y, float volume, float pitch) {
-    if (!g.enabled) return;
+    if (s >= Sfx::Count) return;
+    if (g_tap) g_tap(s, true, x, y, volume, pitch);
+    if (!g.enabled || g_muted >= 2) return;
     const float dx = x - g.listener_x, dy = y - g.listener_y;
     const float d = std::sqrt(dx * dx + dy * dy);
     const float fall = std::clamp(1.0f - (d - 90.0f) / 420.0f, 0.0f, 1.0f);

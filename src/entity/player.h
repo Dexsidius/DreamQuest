@@ -183,7 +183,16 @@ public:
 
     // --- state ----------------------------------------------------------------
     void  Respawn(float sx, float sy);
-    bool  IsDead() const { return dead; }
+    // Nobody to fight: fallen, or not there at all. `absent` is the seat at a
+    // machine that has no player of its own -- the headless server, or a map
+    // only friends are on. `away` is a friend whose line has dropped, standing
+    // where they were for a while in case they come back.
+    bool  IsDead() const { return dead || absent || away; }
+    bool  Fallen() const { return dead; }
+    bool  absent = false, away = false;
+    // Lying down for the night, in company: out of the fight until dawn or
+    // until they get up.
+    bool  resting = false;
     float DeathTimer() const { return death_timer; }
 
     const ItemDatabase* ItemDb() const { return item_db; }
@@ -275,6 +284,7 @@ public:
     void StartGathering(const string& clip, const string& tool_model, float tx, float ty);
     void StopGathering();
     const string& GatherClip() const { return gather_clip; }
+    const string& GatherModel() const { return gather_model; }
     // True while the stick or keys are pushing the player somewhere.
     bool Moving() const { return moving; }
 
@@ -305,6 +315,12 @@ public:
 
     json ToJson() const;
     void FromJson(const json& j, const GameContext& ctx);
+    // The character sheet alone -- skills, bag, equipment, talents, the spell
+    // chosen -- laid over a character that is up and about: where they stand,
+    // what they are doing and how hurt they are is left as it is. This is how
+    // the host keeps its copy of a friend's character up to date.
+    void ApplySheet(const json& j, const GameContext& ctx);
+    void SetMana(int v) { mana = std::clamp(v, 0, max_mana); }
 
 private:
     void HandleAttackInput(const PlayerInput& in, float dt, const World& world);

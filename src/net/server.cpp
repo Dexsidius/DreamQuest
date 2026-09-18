@@ -92,6 +92,11 @@ void Server::HandleHello(Connection& c, const Bytes& bytes) {
             "Your maps/ folder differs from the host's (" + ShortHash(hello.maps_hash) + " against " +
             ShortHash(config.maps_hash) + "). Both of you need the same build.");
 
+    if (!config.password.empty() && hello.password != config.password)
+        return RefuseAndDrop(c, RefuseReason::Password,
+            hello.password.empty() ? "This world has a password. Ask the host for it."
+                                   : "That is not this world's password.");
+
     const int seat = FreeSeat();
     if (seat < 0)
         return RefuseAndDrop(c, RefuseReason::Full,
@@ -109,6 +114,7 @@ void Server::HandleHello(Connection& c, const Bytes& bytes) {
     Welcome welcome;
     welcome.seat = c.info.seat;
     welcome.max_seats = static_cast<uint8_t>(config.max_seats);
+    welcome.bring_your_own = config.bring_your_own;
     welcome.world_name = config.world_name;
     welcome.roster = roster;
     SendTo(c, Encode(welcome));

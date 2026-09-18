@@ -32,6 +32,16 @@ bool InitOffline();     // builds the sounds with no device, for the self-test
 void Shutdown();
 bool Enabled();
 
+// Co-op. Every sound asked for is also told to the tap -- whether or not
+// there is a device, so the headless server can pass on what it cannot play
+// -- with where it was, if it had a where. And the host can be spared what
+// is not its to hear: 1 silences sounds with no place (a friend's pickup
+// would otherwise ring in the host's ear), 2 silences everything (a map the
+// host is not on).
+using Tap = std::function<void(Sfx s, bool placed, float x, float y, float volume, float pitch)>;
+void SetTap(Tap tap);
+void SetMuted(int level);
+
 void Play(Sfx s, float volume = 1.0f, float pitch = 1.0f);
 // Quieter and panned the further it is from the listener; silent off-screen.
 void PlayAt(Sfx s, float x, float y, float volume = 1.0f, float pitch = 1.0f);

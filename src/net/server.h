@@ -32,6 +32,8 @@ public:
         std::string world_name = "Hollowmarch";
         uint64_t    data_hash = 0, maps_hash = 0;
         int         max_seats = MAX_SEATS;
+        std::string password;               // empty: the tailnet's ACL is the door
+        bool        bring_your_own = true;  // characters travel here with their players
     };
 
     explicit Server(Config config);

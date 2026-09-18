@@ -6,6 +6,7 @@
 #   ./compile.sh tools    also build tilecut, genmaps and selftest
 #   ./compile.sh test     build and run the self-test
 #   ./compile.sh maps     rebuild maps/*.mx
+#   ./compile.sh server   build the headless co-op server
 set -e
 
 CXX=${CXX:-c++}
@@ -30,6 +31,9 @@ build_tools() {
 }
 
 case "${1:-}" in
+    server) echo "  CC  tools/server_main.cpp"
+            $CXX $FLAGS tools/server_main.cpp $TEST_SRC -o bin/DreamQuestServer $LIBS
+            echo "Built bin/DreamQuestServer"; exit 0 ;;
     tools) build_tools; exit 0 ;;
     test)  build_tools; exec ./bin/selftest ;;
     maps)  build_tools; exec ./bin/genmaps ;;

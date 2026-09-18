@@ -128,6 +128,24 @@ public:
     int   level = 1;
     float home_x = 0, home_y = 0;
 
+    // --- co-op ------------------------------------------------------------------
+    // Whose it is after: the seat number, kept from frame to frame so two
+    // friends standing either side of a boar do not have it spinning.
+    int   target_seat = -1;
+    // Drawn from what the host says rather than thought about here: a monster
+    // as a friend's machine sees it. Never updated, only posed.
+    bool  puppet = false;
+    struct Posed {
+        float x = 0, y = 0;
+        uint8_t facing = 0, state = 0, frame = 0, heavy = 0, alpha = 255;
+        bool  hurt = false, bar = false;
+        int   hp = 0;
+        string clip;
+    };
+    void Pose(const Posed& p);
+    // The same, the other way: what the host tells.
+    Posed Told() const;
+
 private:
     void SetState(State s);
 

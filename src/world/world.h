@@ -24,6 +24,41 @@ struct WorldRequest {
     int    count = 0;     // how many slots a storage chest holds
 };
 
+// Everything the world keeps about one player that is not in the Player: who
+// they are fighting, the log they are chopping, the door they are halfway
+// through, the dream they will wake from. Alone there is one set of these and
+// it is the world's own members. With friends there is one per friend, and
+// World::ActAs swaps a friend's into place -- with their Player -- so that
+// every line written for "the player" works on them unchanged.
+struct SeatState {
+    Targeting targeting;
+    int    gather_index = -1;
+    float  gather_timer = 0.0f, gather_needed = 0.0f;
+    float  hazard_timer = 0.0f, gate_note_timer = 0.0f, lifesteal_bank = 0.0f;
+    bool   portals_armed = true, arrival_released = true;
+    // A way through a door, asked for and not yet taken. For a friend the
+    // host takes them through it: see coop::Host.
+    bool   transition_pending = false;
+    string next_map, next_spawn;
+    bool   next_has_point = false;
+    float  next_x = 0.0f, next_y = 0.0f;
+    int    waking = 0;
+    float  fade = 0.0f, fade_speed = 3.2f;
+    int    fade_dir = 0;
+    string fade_caption;
+    bool   dream_active = false;
+    string dream_map;
+    float  dream_x = 0.0f, dream_y = 0.0f;
+    // Panels asked for while acting as them: theirs to open, not the host's.
+    vector<WorldRequest> requests;
+    // What their machine has told the host that is theirs alone: the recipes
+    // and spells they know. The world's own flags are everybody's.
+    std::set<string> private_flags;
+    // Their journal, listening only; see QuestLog::relay.
+    QuestLog journal;
+    SeatState() { journal.relay = true; }
+};
+
 class World {
 public:
     // Maps live in maps/<id>.mx. Passing an empty spawn uses the map default.
@@ -80,8 +115,10 @@ public:
     // False for an object whose quest is not being done right now; such an
     // object is not drawn, not lit and cannot be used.
     bool  ObjectPresent(const MapObject& o) const;
-    bool  Flagged(const string& key) const { return flags.count(key) > 0; }
-    void  SetFlag(const string& key) { flags.insert(key); }
+    bool  Flagged(const string& key) const {
+        return flags.count(key) > 0 || (acting_flags && acting_flags->count(key) > 0);
+    }
+    void  SetFlag(const string& key) { if (flags.insert(key).second && journal) flag_log.push_back(key); }
     const std::set<string>& Flags() const { return flags; }
     void  SetFlags(const std::set<string>& f) { flags = f; }
 
@@ -117,7 +154,10 @@ public:
 
     // Gathering (Woodcutting / Mining) in progress, 0..1 for the HUD bar.
     float GatherProgress() const;
-    bool  Gathering() const { return gather_index >= 0; }
+    bool  Gathering() const { return visiting ? shown_gather > 0.0f : gather_index >= 0; }
+    // In a guest's window the log is the host's to fell: this is what the
+    // host says of it, for the bar and the axe in hand.
+    void  ShowGather(float progress, const string& clip, const string& model);
 
     const Map& CurrentMap() const { return map; }
     const string& MapId() const { return map_id; }
@@ -138,15 +178,86 @@ public:
     void    RemoveGuest(uint8_t seat);
     Player* Guest(uint8_t seat);
     // One step of a friend's character, by their own hands and their own
-    // clock: the same Player::Update their machine ran to predict it.
+    // clock: everything the frame does for the seat at this machine -- the
+    // same Player::Update their machine ran to predict it, and then their
+    // swing landing, their axe biting, the coin at their feet -- done acting
+    // as them.
     void    StepGuest(Player& guest, const PlayerInput& hands, float dt, const GameContext& ctx);
+    SeatState& SeatOf(uint8_t seat) { return seat_states[seat]; }
+    // Runs `fn` with `who` standing where `player` does, and their seat's
+    // state where the world's own is. For `player` itself it just runs it.
+    template <class Fn> void ActAs(Player& who, Fn&& fn) {
+        if (&who == &player || acting) { fn(); return; }
+        SeatState& s = seat_states[who.seat];
+        SwapSeat(who, s);
+        acting = &who;
+        acting_flags = &s.private_flags;
+        fn();
+        acting_flags = nullptr;
+        acting = nullptr;
+        SwapSeat(who, s);
+    }
+    bool    Acting() const { return acting != nullptr; }
+    // Whoever owns a shot or a patch of burning ground.
+    Player& OwnerOf(bool local, uint8_t seat);
+    // Someone alive whose body a box touches, or null.
+    Player* PlayerTouching(const SDL_FRect& box);
+    bool    AnyPlayerNear(float x, float y, float range);
+    // A kill, to be credited to everyone here when the frame's acting is done.
+    void    CreditKill(const QuestEvent& e) { kill_log.push_back(e); }
+    void    FlushKills(const GameContext& ctx);
+    // Picks up what is lying at `player`'s feet. Once a frame for each seat.
+    void    CollectPickups(float dt, const GameContext& ctx);
+    // A panel to open, from outside: what the host said to open, on a guest's
+    // machine.
+    void    PushRequest(const WorldRequest& r) { requests.push_back(r); }
+
+    // While set, what the world shows and marks is also written down, for the
+    // host to tell friends: floating text, flags newly set, herbs picked and
+    // trees felled. Drained by coop::Host.
+    bool    journal = false;
+    vector<FloatingText> text_log;
+    vector<string>       flag_log;
+    vector<pair<string, double>> picked_log;
     // `player` and then every guest.
     vector<Player*> Players();
     // Whoever is nearest a point, never null: alone, that is `player`.
     Player& NearestPlayer(float x, float y);
-    // A world a guest is looking through has no monsters of its own: they are
-    // the host's, and arrive with the plan's M2. Set before LoadMap.
+    // A world a guest is looking through decides nothing: its monsters are
+    // puppets posed from what the host says, and what its player does to the
+    // place -- E on a chest, a thing dropped, a bed chosen -- is written down
+    // here for coop::Guest to send, instead of being done. Set before LoadMap.
     bool    visiting = false;
+    struct VisitorAct { int kind = 0; string a, b; int n = 0; };   // kinds are net::Action's
+    vector<VisitorAct> visitor_acts;
+    // True while anyone else is in the realm, on this map or another. A night
+    // slept through then waits for everyone: see Sleep.
+    bool    company = false;
+    // Called as the map is about to be replaced, and when the new one is in:
+    // how coop::Host leaves friends behind on the old map, in a world of
+    // their own, and finds the ones already on the new.
+    std::function<void(World&)> before_unload, after_load;
+    // Gives the place and everything in it -- monsters, loot, shots, friends
+    // and their seats -- to another world. What is the player's stays.
+    void    HandOver(World& to);
+    // A herb picked or a tree felled elsewhere in the realm.
+    void    SetPicked(const string& key, double when) { picked[key] = when; }
+    // Acts as a friend with their own journal in place of the host's: `fn`
+    // is given the context to use. Kills made meanwhile are handed round.
+    template <class Fn> void AsSeat(Player& guest, const GameContext& ctx, Fn&& fn) {
+        SeatState& seat = seat_states[guest.seat];
+        ActAs(guest, [&] {
+            GameContext theirs = ctx;
+            theirs.quests = &seat.journal;
+            theirs.input = nullptr;
+            quest_log = &seat.journal;
+            fn(theirs);
+            quest_log = host_quests;
+        });
+        FlushKills(ctx);
+    }
+    // E, pressed on something by whoever `player` is.
+    void    InteractWith(int kind, int index, const GameContext& ctx);
     // Who the player is fighting; see targeting.h.
     Targeting targeting;
     // The time of day; see clock.h.
@@ -236,6 +347,18 @@ public:
     void AddDust(float x, float y, float dir_x, float dir_y);
 
 private:
+    // The frame, in two parts: what is done for one seat, and what is done
+    // once for the place.
+    void UpdateSeat(float dt, const GameContext& ctx);
+    void UpdateShared(float dt, const GameContext& ctx);
+    void SwapSeat(Player& who, SeatState& s);
+    std::map<uint8_t, SeatState> seat_states;
+    Player* acting = nullptr;                       // the guest slot holding `player`'s own data meanwhile
+    const std::set<string>* acting_flags = nullptr;
+    vector<QuestEvent> kill_log;
+    class QuestLog* host_quests = nullptr;
+    uint32_t next_net_id = 1;
+    float shown_gather = 0.0f;
     void UpdateDust(float dt);
     void SpawnEntitiesFromMap(const GameContext& ctx);
     void ApplyPlayerAttack(const GameContext& ctx);

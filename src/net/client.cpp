@@ -63,6 +63,7 @@ void Client::Handle(const Packet& packet) {
                     if (!Decode(packet.data, w)) break;
                     seat = w.seat;
                     world_name = w.world_name;
+                    bring_your_own = w.bring_your_own;
                     roster = w.roster;
                     state = State::Seated;
                     break;

@@ -10,6 +10,7 @@ Game::~Game() {
     // Say goodbye while there is still a frame to say it in: friends are told
     // at once rather than finding out from a timeout.
     EndTextEntry();
+    if (guest_session) SaveGuestCharacter();
     session.Leave();
     // The minimap owns a texture, so it has to let go before the renderer does.
     minimap.Forget();
@@ -42,6 +43,8 @@ int Game::Start(int argc, char** argv) {
             launch_join = argv[++i];
         } else if (arg == "--name" && more) {
             launch_name = argv[++i];
+        } else if (arg == "--password" && more) {
+            mp_password = argv[++i];
         } else if (arg == "--say" && more) {
             launch_say = argv[++i];
         } else if (arg == "--scratch" && more) {
@@ -298,8 +301,9 @@ bool Game::SaveGame(int slot) {
     if (!has_session) return false;
     if (never_save) return false;
     if (guest_session) {
-        PushToast("A guest's game is not saved yet: the world is the host's to keep.", Palette::TextDim);
-        return false;
+        SaveGuestCharacter();
+        PushToast("Your character is saved. The world is the host's to keep.", Palette::Xp);
+        return true;
     }
     if (SaveSystem::Save(slot, world, quests, playtime)) {
         active_slot = slot;
@@ -677,9 +681,13 @@ void Game::UpdatePlay(float dt) {
     if (input.Pressed(Action::Pause))      OpenPanel(GameState::Paused);
 
     // --- autosave ------------------------------------------------------------
-    // Not as a guest: the character is a visitor's, and the world is the
-    // host's to keep. (Characters that travel with their player are M5.)
-    if (!guest_session && !never_save) autosave_timer += dt;
+    // As a guest it is the character that is kept, on this machine; the world
+    // is the host's to keep.
+    if (!never_save) autosave_timer += dt;
+    if (guest_session && autosave_timer >= AUTOSAVE_INTERVAL) {
+        autosave_timer = 0.0f;
+        SaveGuestCharacter();
+    }
     if (autosave_timer >= AUTOSAVE_INTERVAL) {
         autosave_timer = 0.0f;
         if (SaveSystem::Save(active_slot, world, quests, playtime))
@@ -911,6 +919,7 @@ void Game::Render() {
         DrawNameTags();
         DrawWorldText();
         DrawHud();
+        DrawParty();
     } else if (!has_session) {
         // The front end: the cover painting and its night sky, rather than a
         // flat colour. Only without a session -- a panel opened mid-game draws

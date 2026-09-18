@@ -131,6 +131,41 @@ CombatProfile Enemy::Profile() const {
     return p;
 }
 
+void Enemy::Pose(const Posed& p) {
+    x = p.x;
+    y = p.y;
+    facing = static_cast<Facing>(std::min<uint8_t>(p.facing, 3));
+    sprite.facing = facing;
+    hp = std::clamp(p.hp, 0, max_hp);
+    const State was = state;
+    state = static_cast<State>(std::min<uint8_t>(p.state, static_cast<uint8_t>(State::Heavy)));
+    if (state != was) state_timer = 0.0f;
+    heavy_landed = false;
+    if (state == State::Heavy && def) state_timer = (p.heavy / 255.0f) * def->heavy.windup;
+    if (state == State::Dead) corpse_timer = CORPSE_HOLD + (1.0f - p.alpha / 255.0f) * CORPSE_FADE;
+    else corpse_timer = 0.0f;
+    hurt_flash = p.hurt ? std::max(hurt_flash, 0.08f) : 0.0f;
+    bar_revealed = p.bar;
+    bar_trail = std::max(HealthFraction(), bar_trail - 0.02f);
+    sprite.Play(p.clip.empty() ? string("idle") : p.clip);
+    sprite.SetFrame(p.frame);
+}
+
+Enemy::Posed Enemy::Told() const {
+    Posed p;
+    p.x = x; p.y = y;
+    p.facing = static_cast<uint8_t>(facing);
+    p.state = static_cast<uint8_t>(state);
+    p.frame = static_cast<uint8_t>(std::clamp(sprite.Frame(), 0, 255));
+    p.heavy = static_cast<uint8_t>(std::lround(HeavyCharge() * 255.0f));
+    p.alpha = CorpseAlpha();
+    p.hurt = hurt_flash > 0.0f;
+    p.bar = bar_revealed;
+    p.hp = hp;
+    p.clip = sprite.current;
+    return p;
+}
+
 float Enemy::HeavyCharge() const {
     if (state != State::Heavy || !def || heavy_landed) return 0.0f;
     return std::clamp(state_timer / std::max(0.001f, def->heavy.windup), 0.0f, 1.0f);
@@ -222,11 +257,16 @@ void Enemy::OnKilled(World& world, const GameContext& ctx) {
         e.target = def->kill_target;
         e.amount = 1;
         e.map_id = world.MapId();
-        ctx.quests->Notify(e, world.player.inventory);
+        // To everyone who is here, not only whoever struck the blow: a fight
+        // shared is a kill shared. The world hands it round once the frame's
+        // acting-as is over.
+        world.CreditKill(e);
+        (void)ctx;
     }
 }
 
 void Enemy::Update(float dt, World& world, const GameContext& ctx) {
+    if (puppet) return;
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
     state_timer += dt;
     if (attack_timer > 0.0f) attack_timer -= dt;

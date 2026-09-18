@@ -286,7 +286,15 @@ private:
     void UpdateCoop(float dt);
     void EnterAsGuest(const net::Enter& enter);
     void EndGuestSession(const string& why);
+    // A guest's character is kept on their own machine, so dropping out and
+    // coming back another day picks up where they left off: bag, skills,
+    // journal, recipes and storage here; where they stood, with the host.
+    string characters_dir = "saves/characters";
+    string GuestCharacterPath() const;
+    void   SaveGuestCharacter();
+    string mp_password;                 // what to say at a door that asks
     void DrawNameTags();
+    void DrawParty();
     void OpenMultiplayer();
     void UpdateSession(float dt);
     bool StartHosting(uint16_t port);

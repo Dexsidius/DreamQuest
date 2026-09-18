@@ -8484,16 +8484,29 @@ int main(int argc, char** argv) {
         window.player.Init(ctx, "player_hero");
         World full;
         full.player.Init(ctx, "player_hero");
-        Check(window.LoadMap("overworld", "start", ctx) && full.LoadMap("overworld", "start", ctx) &&
-              window.enemies.empty() && !full.enemies.empty(),
-              "a world a guest looks through has no monsters of its own");
+        bool unseen = window.LoadMap("overworld", "start", ctx) && full.LoadMap("overworld", "start", ctx);
+        unseen = unseen && window.enemies.size() == full.enemies.size() && !full.enemies.empty();
+        for (const auto& e : window.enemies) unseen = unseen && e->puppet && e->CorpseGone() && !Targeting::Targetable(*e);
+        Check(unseen, "a world a guest looks through has every monster the map has, as puppets nobody has spoken of yet: out of sight");
+        {
+            const float ex = window.enemies.front()->x;
+            for (int f = 0; f < 120; ++f) window.Update(dt, ctx);
+            Check(window.enemies.front()->x == ex && window.enemies.front()->CorpseGone(), "and they think nothing and go nowhere on their own");
+        }
         Check(window.LoadMap("town_havenbrook", "", ctx) && !window.npcs.empty() && window.CurrentMap().Loaded(),
               "but it has the map, and the people who live on it");
         window.clock.Set(1, 22.0f);
         Check(!window.RequestTransition("overworld", "start") && !window.TransitionPending() && window.MapId() == "town_havenbrook",
               "a guest's window does not go through doors on its own: the host leads, until M4");
-        Check(!window.SleepRefusal().empty() && !window.AskToSleep("A bed") && !window.Sleep(World::SleepChoice::Through, ctx),
-              "nor sleep the host's night away");
+        window.visitor_acts.clear();
+        Check(window.Sleep(World::SleepChoice::Reverie, ctx) && window.visitor_acts.size() == 1 && window.visitor_acts[0].kind == 5 &&
+              window.visitor_acts[0].n == 1 && !window.TransitionPending() && window.clock.IsNight(),
+              "and a bed chosen in it is written down for the host, not slept in");
+        window.TryInteract(ctx);
+        window.DropItem("logs", 3, 0, 0, ctx, true);
+        Check(window.visitor_acts.size() == 3 && window.visitor_acts[1].kind == 1 && window.visitor_acts[2].kind == 2 &&
+              window.visitor_acts[2].a == "logs" && window.visitor_acts[2].n == 3 && window.pickups.empty(),
+              "as is E, and a thing dropped: the window decides nothing");
         Check(full.RequestTransition("town_havenbrook", "") && full.TransitionPending(), "a world of one's own still does");
     }
 
@@ -8514,7 +8527,7 @@ int main(int argc, char** argv) {
             InputFrames o; return Decode(x, o) && o.first_seq == 1000 && o.steps.size() == 2 && o.steps[0].dt_us == 13889 &&
                                   o.steps[0].move_x == 127 && o.steps[0].move_y == -90 && o.steps[0].down == 9 &&
                                   o.steps[0].pressed == 1 && o.steps[1].released == 1; });
-        Check(Encode(frames).size() == 1 + 4 + 1 + 2 * 7, "a step is seven bytes on the wire");
+        Check(Encode(frames).size() == 1 + 4 + 2 + 1 + 2 + 1 + 2 * 7, "a step is seven bytes on the wire");
         { InputFrames slow; slow.steps = {{65000, 0, 0, 0, 0, 0}}; InputFrames o;
           Check(Decode(Encode(slow), o) && o.steps[0].dt_us == MAX_STEP_US, "a step longer than the frame clamp is clamped on arrival"); }
         Snapshot snap; snap.time_ms = 123456; snap.ack_seq = 77; snap.day = 3; snap.hours = 21.25f;
@@ -8574,6 +8587,7 @@ int main(int argc, char** argv) {
             if (const ItemDef* d = items.Get(id)) hw.player.equipment.Equip(d->slot, id);
         Check(hw.LoadMap("town_havenbrook", "", hctx), "the host is in Havenbrook");
         coop::Host host;
+        host.kept_dir = "bin/selftest_net/kept";
         coop::Guest guest;
         bool in_world = true, guest_in = false;
         int enters = 0;
@@ -8714,45 +8728,151 @@ int main(int argc, char** argv) {
         Check(half_way > 1.0f && half_way < 39.0f && fabsf(gw.player.x - copy.x) < 0.01f,
               "a larger one is closed over a few snapshots rather than in a jump (" + std::to_string(half_way) + " px left after the first)");
 
-        // --- what she wears ----------------------------------------------------------------------
+        // --- what she wears, and what she carries --------------------------------------------------
+        // Her character is hers, on her machine; the host keeps a copy from the
+        // sheet she sends when it changes.
         gw.player.equipment.Unequip(SLOT_WEAPON);
         gw.player.equipment.Equip(SLOT_WEAPON, "wood_staff");
-        frames(8);
+        gw.player.inventory.Add("cooked_meat", 3);
+        gw.player.inventory.Add("bronze_axe", 1);
+        frames(30);
         Check(hw.Guest(1)->equipment.InSlot(SLOT_WEAPON) == "wood_staff", "changing what she holds changes what the host's copy holds");
+        Check(hw.Guest(1)->inventory.Count("cooked_meat") == 3 && hw.Guest(1)->inventory.Count("bronze_axe") == 1 &&
+              gw.player.inventory.Count("cooked_meat") == 3, "and what is in her bag is in the copy's, with nothing sent back as a gift");
         hw.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
         frames(8);
         Check(gw.Guest(0)->equipment.InSlot(SLOT_WEAPON) == "iron_sword", "and the host's new sword is in his puppet's hand");
+        gw.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+        frames(30);
+
+        // --- a thing dropped changes hands ----------------------------------------------------------
+        gw.player.inventory.Remove("cooked_meat", 1);
+        gw.DropItem("cooked_meat", 1, gw.player.x, gw.player.y, gctx, true);
+        frames(12);
+        Check(hw.pickups.size() == 1 && hw.pickups[0].item_id == "cooked_meat" && hw.pickups[0].dropped &&
+              gw.pickups.size() == 1 && gw.pickups[0].item_id == "cooked_meat", "what she drops lies on the ground in the host's world, and in her window");
+        frames(60);
+        Check(gw.player.inventory.Count("cooked_meat") == 2 && hw.pickups.size() == 1, "standing on it, she does not scoop it straight back up");
         {
-            Outfit liar; liar.seat = 0; liar.look = "player_hero"; liar.worn = {"not_an_item", "wood_body", "iron_sword"};
-            oona.SendGame(Channel::Reliable, Encode(liar));
-            frames(6);
-            Check(hw.player.equipment.InSlot(SLOT_WEAPON) == "iron_sword" && hw.Guest(1)->equipment.InSlot(SLOT_WEAPON).empty(),
-                  "an outfit speaks only for the seat that sent it, and only items that exist, in the slot they belong to, are worn");
-            gw.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
-            frames(8);
+            const int had = hw.player.inventory.Count("cooked_meat");
+            const float hx = hw.player.x, hy = hw.player.y;
+            hw.player.x = hw.pickups[0].x; hw.player.y = hw.pickups[0].y;
+            frames(10);
+            Check(hw.player.inventory.Count("cooked_meat") == had + 1 && hw.pickups.empty() && gw.pickups.empty(),
+                  "but the host, walking over it, has it: that is how things change hands");
+            hw.player.x = hx; hw.player.y = hy;
         }
 
-        // --- the host goes through a door -----------------------------------------------------------
+        // --- E, pressed on someone --------------------------------------------------------------------
+        {
+            const Npc& maren = *hw.npcs.front();
+            hw.Guest(1)->x = gw.player.x = maren.x;
+            hw.Guest(1)->y = gw.player.y = maren.y + 22.0f;
+            frames(4);
+            hw.TakeRequests(); gw.TakeRequests();
+            Check(gw.player.interact.kind == InteractTarget::Npc, "in her window the prompt finds who she is standing by");
+            gw.TryInteract(gctx);
+            frames(8);
+            bool hers = false, his = false;
+            for (const WorldRequest& r : gw.TakeRequests()) hers |= r.type == WorldRequest::Type::Dialogue && r.id == maren.Id();
+            for (const WorldRequest& r : hw.TakeRequests()) his |= r.type == WorldRequest::Type::Dialogue;
+            Check(hers && !his, "E on someone opens the conversation on her screen, and not on the host's");
+        }
+
+        // --- the host goes through a door, and she does not ---------------------------------------------
+        const int enters_before = enters;
         Check(hw.LoadMap("house_inn", "default", hctx), "the host goes into the inn");
         frames(10);
-        Check(enters == 2 && gw.MapId() == "house_inn" && hw.guests.size() == 1, "and she is told to follow, and does");
-        frames(30);
-        Check(fabsf(gw.player.x - copy.x) < 0.01f && fabsf(gw.player.y - copy.y) < 0.01f && gw.Guest(0) &&
-              fabsf(gw.Guest(0)->x - hw.player.x) < 0.5f, "both of them where the other thinks they are, on the new map");
+        Check(host.Worlds() == 2 && host.WorldOf(1) && host.WorldOf(1) != &hw && host.WorldOf(1)->MapId() == "town_havenbrook" &&
+              hw.guests.empty() && enters == enters_before && gw.MapId() == "town_havenbrook",
+              "she stays in Havenbrook, in a world of her own, and is not told to go anywhere");
+        {
+            const uint32_t acked = guest.Acked();
+            const float gx = gw.player.x;
+            gkeys = {SDLK_A};
+            frames(60);
+            gkeys.clear();
+            frames(20);
+            const Player* there = host.WorldOf(1)->Guest(1);
+            Check(guest.Acked() > acked + 50 && gw.player.x < gx - 30.0f && there && fabsf(there->x - gw.player.x) < 0.01f,
+                  "where she goes on walking, stepped by the host as before");
+            frames(70);
+            Check(gw.Guest(0) == nullptr, "and the host, who is somewhere else, is no longer in her window");
+        }
+
+        // --- she goes through one herself -----------------------------------------------------------------
+        {
+            World& havenbrook = *host.WorldOf(1);
+            const Portal* gate = nullptr;
+            for (const Portal& p : havenbrook.CurrentMap().Portals())
+                if (!p.requires_interact && p.locked_by.empty() && p.min_combat == 0 && !gate) gate = &p;
+            Check(gate != nullptr, "Havenbrook has a way out that is walked through");
+            if (gate) {
+                const string to = gate->target_map;
+                havenbrook.Guest(1)->x = gw.player.x = gate->rect.x + gate->rect.w / 2.0f;
+                havenbrook.Guest(1)->y = gw.player.y = gate->rect.y + gate->rect.h / 2.0f;
+                frames(20);
+                Check(gw.MapId() == to && host.WorldOf(1) && host.WorldOf(1)->MapId() == to && enters == enters_before + 1 &&
+                      host.Worlds() == 3, "walking into it takes her through, to a third map, and her window follows");
+                frames(30);
+                const Player* there = host.WorldOf(1)->Guest(1);
+                Check(there && fabsf(there->x - gw.player.x) < 0.01f && fabsf(there->y - gw.player.y) < 0.01f &&
+                      gw.RequestTransition("town_havenbrook", "") == false, "she is where the host has her, and her window still opens no doors of its own");
+
+                // The host follows her there, and finds the place as she has it.
+                const float gx = there->x, gy = there->y;
+                Check(hw.LoadMap(to, "", hctx), "the host comes out to the same map");
+                frames(30);
+                Check(host.WorldOf(1) == &hw && hw.guests.size() == 1 && fabsf(hw.Guest(1)->x - gx) < 0.01f && fabsf(hw.Guest(1)->y - gy) < 0.01f &&
+                      host.Worlds() == 2 && gw.Guest(0) != nullptr,
+                      "and they are in one world again, she where she stood, each on the other's screen");
+            }
+        }
 
         // --- the host leaves the world, and comes back ------------------------------------------------
         in_world = false;
         frames(10);
-        Check(!guest_in && hw.guests.empty() && gw.guests.empty() && oona.Seated(),
+        Check(!guest_in && hw.guests.empty() && gw.guests.empty() && oona.Seated() && host.Worlds() == 1,
               "when the host leaves the world she is sent back to the lobby, still seated");
         in_world = true;
         frames(10);
-        Check(guest_in && gw.MapId() == "house_inn" && hw.guests.size() == 1, "and brought back in when he returns");
+        Check(guest_in && hw.guests.size() == 1, "and brought back in when he returns");
 
-        // --- she goes ------------------------------------------------------------------------------------
+        // --- she drops out, and comes back ------------------------------------------------------------
+        const string where_map = host.WorldOf(1)->MapId();
+        const float where_x = hw.Guest(1)->x, where_y = hw.Guest(1)->y;
         oona.Leave();
+        guest.Reset(gw);
+        guest_in = false;
         frames(6);
-        Check(hw.guests.empty(), "a friend who leaves is gone from the host's world");
+        Check(hw.guests.size() == 1 && hw.guests[0]->away && hw.guests[0]->IsDead() && !hw.guests[0]->Fallen() &&
+              hw.PlayerTouching(hw.guests[0]->BodyBox()) != hw.guests[0].get(),
+              "a friend whose line drops stands where they were, out of the fight, for a while");
+        Check(fs::exists("bin/selftest_net/kept/Oona.json"), "and the host keeps a copy of her character, and where she stood");
+        Check(hw.LoadMap("house_inn", "default", hctx), "the host wanders off meanwhile");
+        frames(4);
+        oona.Start(wire.Client(), "dada-pc", 7777, ho);
+        frames(12);
+        {
+            World* back = host.WorldOf(1);
+            const Player* her = back ? back->Guest(1) : nullptr;
+            Check(oona.Seated() && guest_in && back && back->MapId() == where_map && her && !her->away &&
+                  fabsf(her->x - where_x) < 0.5f && fabsf(her->y - where_y) < 0.5f && back->guests.size() == 1 && gw.MapId() == where_map,
+                  "coming back, she is put where she left off -- not beside the host, who is elsewhere -- and the stand-in is gone");
+        }
+        oona.Leave();
+        guest.Reset(gw);
+        guest_in = false;
+        frames(4);
+        for (int i = 0; i < 32; ++i) host.Update(1.0f, server, hw, hctx, true);
+        {
+            bool anyone = !hw.guests.empty();
+            for (int seat = 0; seat < 4; ++seat) anyone |= host.WorldOf(static_cast<uint8_t>(seat)) != nullptr;
+            Check(!anyone, "and if she does not come back, the stand-in is let go when the grace is up");
+        }
+        for (int i = 0; i < 70; ++i) host.Update(1.0f, server, hw, hctx, true);
+        Check(host.Worlds() == 1, "as is a map nobody is on, after a minute");
+
         Client sam;
         Hello hs = hd; hs.name = "Sam"; hs.look = "player_wayfarer";
         sam.Start(wire.Client(), "dada-pc", 7777, hs);
@@ -8760,6 +8880,348 @@ int main(int argc, char** argv) {
         Check(hw.guests.size() == 1 && hw.Guest(1) && hw.Guest(1)->name == "Sam" && hw.Guest(1)->sprite_id == "player_wayfarer" &&
               hw.Guest(1)->equipment.InSlot(SLOT_WEAPON) == "wood_staff",
               "and whoever takes the seat next is a new character, dressed as one");
+    }
+
+
+    // =========================================================================
+    //  Co-op, milestones 2 to 5: one fight, one world, one night
+    // =========================================================================
+    Section("co-op M2-M5: a fight shared, the world shared, the night shared");
+    {
+        using namespace net;
+        std::error_code ec;
+        fs::remove_all("bin/selftest_net", ec);
+        Input hin, gin;
+        std::mt19937 hrng(11), grng(12);
+        QuestLog host_quests, guest_quests;
+        host_quests.LoadDefinitions("data/quests.json");
+        guest_quests.LoadDefinitions("data/quests.json");
+        GameContext hctx;
+        hctx.sprites = &sprites;   hctx.items = &items;       hctx.loot = &loot;
+        hctx.quests = &host_quests; hctx.dialogue = &dialogue; hctx.enemies = &enemy_db;
+        hctx.projectiles = &projectiles; hctx.spells = &spells;
+        hctx.input = &hin;         hctx.rng = &hrng;
+        GameContext gctx = hctx;
+        gctx.quests = &guest_quests; gctx.input = &gin; gctx.rng = &grng;
+        const auto press = [](Input& in, SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            in.HandleEvent(e);
+        };
+
+        Server::Config config;
+        config.world_name = "Dada's Hollowmarch"; config.data_hash = 1; config.maps_hash = 2;
+        config.password = "barley";
+        LoopbackHub local, wire;
+        Server server(config);
+        server.Attach(local.Server(), true);
+        server.Attach(wire.Server());
+        Client dada, oona;
+        Hello hd; hd.data_hash = 1; hd.maps_hash = 2; hd.name = "Dada"; hd.look = "player_hero"; hd.password = "barley";
+        Hello ho = hd; ho.name = "Oona";
+
+        World hw, gw;
+        gw.visiting = true;
+        hw.player.Init(hctx, "player_hero");
+        for (const string& id : Player::StartingKit("player_hero"))
+            if (const ItemDef* d = items.Get(id)) hw.player.equipment.Equip(d->slot, id);
+        Check(hw.LoadMap("overworld", "start", hctx), "the host is out on the road");
+        coop::Host host;
+        host.kept_dir = "bin/selftest_net/kept";
+        coop::Guest guest;
+        bool guest_in = false;
+        int enters = 0, woke = 0;
+        vector<string> toasts;
+        size_t most_texts = 0;
+        std::set<SDL_Keycode> gkeys, gtaps;
+        const float hdt = 1.0f / 60.0f;
+        const float gdt = coop::QuantiseDt(1.0f / 72.0f);
+        const auto frame = [&] {
+            hin.Update(hdt);
+            hw.Update(hdt, hctx);
+            server.Update(hdt);
+            dada.Update(hdt);
+            host.Update(hdt, server, hw, hctx, true);
+            oona.Update(gdt);
+            guest.Update(gdt, oona, gw, gctx);
+            if (guest.HasEnter()) {
+                const Enter e = guest.PendingEnter();
+                ++enters;
+                woke += e.woke ? 1 : 0;
+                if (e.map.empty()) { guest_in = false; guest.Reset(gw); }
+                else {
+                    if (!guest_in) {
+                        gw.player = Player();
+                        gw.player.Init(gctx, "player_hero");
+                        for (const string& id : Player::StartingKit("player_hero"))
+                            if (const ItemDef* d = items.Get(id)) gw.player.equipment.Equip(d->slot, id);
+                    }
+                    guest_in = gw.LoadMap(e.map, "", gctx);
+                    gw.player.x = e.x; gw.player.y = e.y;
+                    guest.Arrived(gw);
+                }
+            }
+            if (guest_in) {
+                gin.Update(gdt);
+                for (SDL_Keycode k : {SDLK_W, SDLK_A, SDLK_S, SDLK_D}) press(gin, k, gkeys.count(k) > 0);
+                for (SDL_Keycode k : gtaps) { press(gin, k, true); press(gin, k, false); }
+                gtaps.clear();
+                if (gw.player.Fallen()) {}
+                guest.BeforeStep(gw, &gin);
+                gw.Update(gdt, gctx);
+                guest.AfterStep(gw, oona, gdt);
+            }
+            most_texts = std::max(most_texts, gw.texts.size());
+            for (const WorldRequest& r : gw.TakeRequests()) if (r.type == WorldRequest::Type::Toast) toasts.push_back(r.text);
+        };
+        const auto frames = [&](int n) { for (int i = 0; i < n; ++i) frame(); };
+        const auto her = [&]() -> Player* { World* w = host.WorldOf(1); return w ? w->Guest(1) : nullptr; };
+
+        // --- the door has a word ----------------------------------------------------------------------
+        dada.Start(local.Client(), "loopback", 0, hd);
+        frames(4);
+        {
+            Client stranger;
+            Hello wrong = ho; wrong.password = "oats";
+            stranger.Start(wire.Client(), "dada-pc", 7777, wrong);
+            for (int i = 0; i < 8; ++i) { frame(); stranger.Update(hdt); }
+            Check(stranger.Where() == Client::State::Refused && stranger.WhyRefused() == RefuseReason::Password && hw.guests.empty(),
+                  "a world with a password turns away whoever does not have it (" + stranger.Reason() + ")");
+        }
+        oona.Start(wire.Client(), "dada-pc", 7777, ho);
+        frames(10);
+        Check(oona.Seated() && guest_in && her() && gw.MapId() == "overworld", "and lets in whoever does");
+
+        // --- a boar, put between them ----------------------------------------------------------------------
+        int bi = -1;
+        for (size_t i = 0; i < hw.enemies.size() && bi < 0; ++i)
+            if (hw.enemies[i]->TypeId().find("boar") != string::npos) bi = static_cast<int>(i);
+        Check(bi >= 0, "the meadow has a boar");
+        if (bi >= 0 && her()) {
+            // She is strong, so the fight is short; her machine says so in her sheet.
+            for (int skill : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE, SKILL_HITPOINTS}) gw.player.GrantXp(skill, 400000);
+            gw.player.TakeLevelUps(); gw.player.TakeXpDrops();
+            gw.player.Rest();
+            host_quests.Start("q_thin_the_herd");
+            guest_quests.Start("q_thin_the_herd");
+            frames(30);
+            Check(her()->skills.Level(SKILL_ATTACK) == gw.player.skills.Level(SKILL_ATTACK) && her()->skills.Level(SKILL_ATTACK) > 50 &&
+                  her()->max_hp == gw.player.max_hp, "the host's copy of her has her levels: its rolls are hers");
+
+            Enemy& boar = *hw.enemies[bi];
+            hw.player.x = her()->x - 320.0f;                 // the host stands well off
+            boar.x = boar.home_x = her()->x + 34.0f;
+            boar.y = boar.home_y = her()->y;
+            frames(20);
+            const Enemy& seen = *gw.enemies[bi];
+            Check(seen.puppet && !seen.CorpseGone() && fabsf(seen.x - boar.x) < 6.0f && fabsf(seen.y - boar.y) < 6.0f && seen.hp == boar.hp,
+                  "the host's boar is in her window, where the host has it, with its health");
+            Check(boar.target_seat == 1, "and it goes for her, who is nearest, not for the host");
+            int others = 0;
+            for (const auto& e : gw.enemies) others += (!e->CorpseGone() && Length(e->x - gw.player.x, e->y - gw.player.y) > coop::RELEVANCE_RADIUS + 64.0f) ? 1 : 0;
+            Check(others == 0, "nothing beyond the relevance radius is told to her");
+
+            // She fights it. Every blow is rolled by the host, for her.
+            const int xp_before = gw.player.skills.Xp(SKILL_STRENGTH) + gw.player.skills.Xp(SKILL_ATTACK) + gw.player.skills.Xp(SKILL_DEFENCE);
+            const int hp_full = boar.hp;
+            gkeys = {SDLK_D};
+            frames(3);
+            gkeys.clear();
+            bool aimed = false;
+            for (int f = 0; f < 900 && boar.CurrentState() != Enemy::State::Dead; ++f) {
+                if (f % 22 == 0) gtaps = {SDLK_J};
+                frame();
+                aimed |= gw.targeting.Current() == gw.enemies[bi].get();
+            }
+            Check(boar.CurrentState() == Enemy::State::Dead && boar.hp <= 0 && hp_full > 0, "her swings, made on her machine, land on the host's boar and kill it");
+            Check(aimed, "her window's targeting found it, and her swings were aimed at it");
+            frames(25);        // her window is a tenth of a second behind
+            Check(gw.enemies[bi]->CurrentState() == Enemy::State::Dead, "in her window it is dead too");
+            Check(most_texts > 0, "the numbers over its head were on her screen");
+            const int xp_after = gw.player.skills.Xp(SKILL_STRENGTH) + gw.player.skills.Xp(SKILL_ATTACK) + gw.player.skills.Xp(SKILL_DEFENCE);
+            Check(xp_after > xp_before, "the experience is hers, on her own character (" + std::to_string(xp_after - xp_before) + ")");
+            Check(guest_quests.Counter("q_thin_the_herd") == 1 && host_quests.Counter("q_thin_the_herd") == 1,
+                  "and the kill counts in her journal and in the host's: a fight shared is a kill shared");
+            Check(gw.player.hp == her()->hp && gw.player.hp > 0, "how hurt she is is what the host says (" + std::to_string(gw.player.hp) + ")");
+
+            // What it dropped is the host's pickup, and hers for the taking.
+            Check(!hw.pickups.empty() && gw.pickups.size() == hw.pickups.size(), "what it dropped lies in the host's world and in her window");
+            if (!hw.pickups.empty()) {
+                const string what = hw.pickups[0].item_id;
+                const int had = gw.player.inventory.Count(what);
+                her()->x = gw.player.x = hw.pickups[0].x;
+                her()->y = gw.player.y = hw.pickups[0].y;
+                frames(40);
+                Check(gw.player.inventory.Count(what) > had && her()->inventory.Count(what) == gw.player.inventory.Count(what),
+                      "walking over it puts it in her real bag, and the copy's agrees (" + what + ")");
+            }
+
+            // Food is eaten on her machine; the host hears of it.
+            const int whole = gw.player.hp;
+            her()->Damage(4);
+            frames(8);
+            const int hurt = gw.player.hp;
+            Check(hurt == her()->hp && hurt == whole - 4, "a wound the host deals is a wound on her screen");
+            gw.player.Heal(3);
+            frames(12);
+            Check(her()->hp == hurt + 3 && gw.player.hp == hurt + 3, "and what she eats heals the host's copy of her too");
+
+            // A shot of hers flies in both worlds.
+            gw.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+            frames(30);
+            gtaps = {SDLK_J};
+            bool flew_there = false, flew_here = false, hers = false;
+            for (int f = 0; f < 90; ++f) {
+                frame();
+                for (const Projectile& p : hw.projectiles) { flew_there = true; hers |= !p.owner_local && p.owner_seat == 1; }
+                flew_here |= !gw.projectiles.empty();
+            }
+            Check(flew_there && hers && flew_here, "an arrow she looses is the host's arrow, marked as hers, and is seen in her window");
+        }
+
+        // --- a tree, felled for everyone ---------------------------------------------------------------------
+        {
+            const MapObject* tree = nullptr;
+            int tree_index = -1;
+            const auto& objects = hw.CurrentMap().Objects();
+            for (size_t i = 0; i < objects.size() && !tree; ++i)
+                if (objects[i].skill == "Woodcutting" && objects[i].skill_level <= 1 && !hw.Spent(objects[i]) &&
+                    Length(objects[i].x - hw.player.x, objects[i].y - hw.player.y) < 900.0f) { tree = &objects[i]; tree_index = static_cast<int>(i); }
+            Check(tree != nullptr && her() != nullptr, "there is a tree near the road");
+            if (tree && her()) {
+                gw.player.equipment.Equip(SLOT_WEAPON, "wood_sword");
+                gw.player.inventory.Add("bronze_axe", 1);
+                her()->x = gw.player.x = tree->x;
+                her()->y = gw.player.y = tree->y + 18.0f;
+                frames(30);
+                const int logs = gw.player.inventory.Count("logs");
+                const int wc = gw.player.skills.Xp(SKILL_WOODCUTTING);
+                Check(gw.player.interact.kind == InteractTarget::Object && gw.player.interact.index == tree_index, "her window's prompt finds the tree");
+                gw.TryInteract(gctx);
+                bool chopping = false, bar = false;
+                for (int f = 0; f < 60 * 14 && gw.player.inventory.Count("logs") == logs; ++f) {
+                    frame();
+                    chopping |= gw.player.GatherClip() == "chop";
+                    bar |= gw.Gathering() && gw.GatherProgress() > 0.0f;
+                }
+                Check(chopping && bar, "she is seen to chop on her own screen, with the bar filling");
+                Check(gw.player.inventory.Count("logs") > logs && gw.player.skills.Xp(SKILL_WOODCUTTING) > wc,
+                      "and the logs and the Woodcutting are hers");
+                gw.TryInteract(gctx);
+                frames(10);
+            }
+        }
+
+        // --- a chest, opened for everyone ---------------------------------------------------------------------
+        {
+            const auto& objects = hw.CurrentMap().Objects();
+            int chest = -1;
+            for (size_t i = 0; i < objects.size() && chest < 0; ++i)
+                if (objects[i].type == "chest" && objects[i].needs_quest.empty() && !hw.Flagged(objects[i].id)) chest = static_cast<int>(i);
+            Check(chest >= 0 && her() != nullptr, "the overworld has a chest nobody has opened");
+            if (chest >= 0 && her()) {
+                const MapObject& o = objects[chest];
+                her()->x = gw.player.x = o.x;
+                her()->y = gw.player.y = o.y + 20.0f;
+                frames(30);
+                Check(!gw.Flagged(o.id) && gw.player.interact.kind == InteractTarget::Object, "she stands at it, and it is shut on her screen too");
+                gw.TryInteract(gctx);
+                frames(12);
+                Check(hw.Flagged(o.id) && gw.Flagged(o.id), "opened by her, it is open in the host's world and in her window: first come, first served");
+            }
+        }
+
+        // --- she falls, and gets up in Havenbrook ----------------------------------------------------------------
+        if (her()) {
+            her()->Damage(99999);
+            frames(8);
+            Check(gw.player.Fallen() && her()->Fallen(), "if the host's copy of her falls, she falls");
+            const int enters_before = enters, woke_before = woke;
+            gw.visitor_acts.push_back({net::Action::Respawn, "", "", 0});
+            frames(12);
+            Check(enters == enters_before + 1 && woke == woke_before + 1 && gw.MapId() == "town_havenbrook" && !gw.player.Fallen() &&
+                  gw.player.hp == gw.player.max_hp && her() && !her()->Fallen() && host.WorldOf(1) != &hw && host.Worlds() == 2,
+                  "and having read the screen she is got up in Havenbrook, whole, while the host is still out on the road");
+        }
+
+        // --- the night --------------------------------------------------------------------------------------------
+        if (her()) {
+            hw.clock.Set(3, 21.0f);
+            hw.enemies.clear();
+            frames(4);
+            Check(hw.company && hw.Sleep(World::SleepChoice::Through, hctx) && hw.player.resting && !hw.TransitionPending() && hw.clock.IsNight(),
+                  "in company, sleeping the night through is lying down: the clock keeps its pace");
+            frames(30);
+            Check(hw.clock.Day() == 3 && hw.player.resting, "and dawn does not come while a friend is up");
+            toasts.clear();
+            gw.Sleep(World::SleepChoice::Through, gctx);
+            frames(12);
+            Check(hw.clock.Day() == 4 && !hw.clock.IsNight() && !hw.player.resting && !her()->resting && !guest.Resting(),
+                  "when she lies down too, it is dawn for both at once");
+            bool told = false;
+            for (const string& t : toasts) told |= t.find("Dawn breaks") != string::npos;
+            Check(told && gw.clock.Day() == 4, "and she is told so, on her own clock");
+
+            // One dreams while the other sleeps.
+            hw.clock.Set(5, 22.0f);
+            frames(4);
+            const float bed_x = her()->x, bed_y = her()->y;
+            const int enters_before = enters;
+            gw.Sleep(World::SleepChoice::Reverie, gctx);
+            frames(12);
+            Check(gw.MapId() == "dreamworld" && host.WorldOf(1) && host.WorldOf(1)->InDream() && enters == enters_before + 1 && hw.clock.IsNight(),
+                  "choosing the Reverie takes her to the dream, which is a map like any other, while the host's evening goes on");
+            Check(hw.Sleep(World::SleepChoice::Through, hctx) && hw.player.resting, "the host lies down");
+            frames(30);
+            Check(hw.clock.Day() == 6 && !hw.clock.IsNight() && !hw.player.resting, "and with one abed and one dreaming, the night is over");
+            Check(gw.MapId() == "town_havenbrook" && her() && fabsf(her()->x - bed_x) < 1.0f && fabsf(her()->y - bed_y) < 1.0f && woke >= 2,
+                  "dawn wakes the dreamer where she lay down");
+            // Up, the host's getting up is one press.
+            hw.clock.Set(7, 22.0f);
+            hw.Sleep(World::SleepChoice::Through, hctx);
+            frames(2);
+            press(hin, SDLK_D, true);
+            frames(2);
+            press(hin, SDLK_D, false);
+            Check(!hw.player.resting && hw.clock.Day() == 7, "and a sleeper who is bored gets up with one press, the night still to come");
+        }
+
+        // --- a character, kept ------------------------------------------------------------------------------------
+        {
+            coop::Character c;
+            c.player = gw.player.ToJson();
+            c.quests = guest_quests.ToJson();
+            c.flags = {"recipe:nettle_brew", "chest_someone_elses"};
+            c.storage = json::object();
+            c.playtime = 321.0f;
+            const string own = coop::CharacterPath("bin/selftest_net/characters", "Oona", "Dada's Hollowmarch", true);
+            const string here = coop::CharacterPath("bin/selftest_net/characters", "Oona", "Dada's Hollowmarch", false);
+            Check(own != here && own.find("Oona.json") != string::npos && here.find("Oona@Dada_s_Hollowmarch.json") != string::npos,
+                  "a character that travels is one file; one a world keeps is a file for that world");
+            Check(coop::SaveCharacter(own, c), "her character is written to her own machine");
+            coop::Character back;
+            Check(coop::LoadCharacter(own, back) && back.playtime == 321.0f && back.flags.size() == 2, "and read back");
+            Player again;
+            again.Init(gctx, back.player.value("sprite", string("player_hero")));
+            again.FromJson(back.player, gctx);
+            QuestLog journal;
+            journal.LoadDefinitions("data/quests.json");
+            journal.FromJson(back.quests);
+            Check(again.skills.Level(SKILL_ATTACK) == gw.player.skills.Level(SKILL_ATTACK) &&
+                  again.inventory.Count("logs") == gw.player.inventory.Count("logs") &&
+                  again.equipment.InSlot(SLOT_WEAPON) == gw.player.equipment.InSlot(SLOT_WEAPON) &&
+                  journal.Counter("q_thin_the_herd") == 1,
+                  "with her levels, her bag, what she wears and her journal: she picks up where she left off");
+            coop::Character none;
+            Check(!coop::LoadCharacter("bin/selftest_net/characters/Nobody.json", none), "someone who has never been out has no file");
+            Check(coop::PrivateFlag("recipe:nettle_brew") && coop::PrivateFlag("visited:overworld") && !coop::PrivateFlag("chest_hollowrest"),
+                  "what she has learned and seen is hers; what is opened is everyone's");
+            const string sheet = coop::Guest::MakeSheet(gw, &guest_quests);
+            Check(sheet.find("\"x\"") == string::npos && sheet.find("\"hp\"") == string::npos && sheet.find("q_thin_the_herd") != string::npos,
+                  "the sheet she sends leaves out where she stands and how hurt she is, which the host knows better");
+        }
+        fs::remove_all("bin/selftest_net", ec);
     }
 
     // Optional render smoke test. Uses the real world renderer and SDL image

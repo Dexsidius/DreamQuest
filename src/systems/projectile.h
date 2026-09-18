@@ -104,6 +104,11 @@ struct Projectile {
     AttackStyle style = AttackStyle::Ranged;
     Element element = Element::None;
     bool  from_player = true;
+    // Which player: the seat at this machine, or a friend's by number. What
+    // it hits is theirs -- the experience, the chain, the kill.
+    bool    owner_local = true;
+    uint8_t owner_seat = 0;
+    uint32_t net_id = 0;
     int   pierce_left = 0;
     int   bounces_left = 0;
     bool  finished = false;
@@ -151,6 +156,8 @@ struct GroundEffect {
     Element element = Element::None;
     CombatProfile owner;
     bool  from_player = true;
+    bool    owner_local = true;
+    uint8_t owner_seat = 0;
     bool  burst = false;         // one big hit rather than damage over time
     // A technique's strike: resolved as this style at this damage multiplier,
     // rather than as a spell scaled by damage. Negative for the old behaviour.

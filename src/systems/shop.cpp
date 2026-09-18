@@ -73,7 +73,9 @@ int ShopLedger::Remaining(const ShopDef& shop, const string& item) const {
 }
 
 void ShopLedger::Record(const string& shop, const string& item, int qty) {
-    if (qty > 0) sold[shop][item] += qty;
+    if (qty <= 0) return;
+    sold[shop][item] += qty;
+    if (journal) sales.push_back({shop, item, qty});
 }
 
 json ShopLedger::ToJson() const {

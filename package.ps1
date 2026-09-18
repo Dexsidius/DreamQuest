@@ -21,7 +21,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 if (-not $SkipBuild) {
-    & .\build.ps1 -Msys $Msys
+    & .\build.ps1 -Server -Msys $Msys
     if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw "The build failed; nothing packaged." }
 }
 if (-not (Test-Path "bin\DreamQuest.exe")) { throw "bin\DreamQuest.exe is missing. Run .\build.ps1 first." }
@@ -46,6 +46,8 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
 # The program and its libraries, at the root of the package.
 Copy-Item "bin\DreamQuest.exe" $stage
+# The headless co-op server, for a machine that is always on. Same libraries.
+if (Test-Path "bin\DreamQuestServer.exe") { Copy-Item "bin\DreamQuestServer.exe" $stage }
 $dlls = Get-ChildItem "bin" -Filter *.dll -File
 foreach ($dll in $dlls) { Copy-Item $dll.FullName $stage }
 
@@ -93,16 +95,25 @@ you touch):
     Space           jump / climb
     E               talk, open, work
 
-Playing together (early: you see each other walk and fight the air; monsters,
-loot and quests are not shared yet, and a guest's character is not kept):
+Playing together, up to four of you, over Tailscale:
 
     The host starts or loads a game, then Esc, "Play Together", Host a world.
     The screen says what the others should type -- the host's machine name on
     your tailnet, or its 100.x address. The others choose "Play Together" on
     the title screen, pick a Character, choose Join, type that, and press
-    Enter: they walk into the host's game. The host leads through doors.
-    Windows Firewall asks the host once: allow DreamQuest on private
-    networks. Everyone needs the same zip; the door says so if not.
+    Enter: they walk into the host's game. Windows Firewall asks the host
+    once: allow DreamQuest on private networks. Everyone needs the same zip;
+    the door says so if not.
+
+    You fight the same monsters, share the chests and the trees, and can go
+    your separate ways: each map someone is on keeps running. Your character
+    is your own, kept on your own machine in saves\characters\ -- drop out,
+    come back another day, and you are where you left off, with your bag,
+    your skills and your journal. A bed after dusk asks how you would spend
+    the night; dawn comes at once when everyone is abed or dreaming.
+
+    DreamQuestServer.exe is the same world with nobody at the keyboard, for
+    a machine that is always on. Run it and everyone joins it; nobody hosts.
 
 The full manual is README.md in the source repository:
 https://github.com/Dexsidius/DreamQuest

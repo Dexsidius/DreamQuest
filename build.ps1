@@ -11,6 +11,7 @@
 #   .\build.ps1 -Tools       also build tilecut, genmaps and selftest
 #   .\build.ps1 -Test        build and run the self-test, then stop
 #   .\build.ps1 -Maps        rebuild maps/*.mx from tools/genmaps.cpp
+#   .\build.ps1 -Server      also build DreamQuestServer.exe, the headless co-op server
 
 param(
     [switch]$Run,
@@ -18,6 +19,7 @@ param(
     [switch]$Tools,
     [switch]$Test,
     [switch]$Maps,
+    [switch]$Server,
     [string]$Msys = "C:\msys64\ucrt64"
 )
 
@@ -101,6 +103,18 @@ if ($Test -or $Tools) {
     Write-Host "  CC  tools/selftest.cpp"
     & g++ @flags -O1 tools\selftest.cpp @testSources -o bin\selftest.exe @libs
     if ($LASTEXITCODE -ne 0) { throw "Could not build selftest." }
+}
+
+if ($Server) {
+    # The headless server: the same world and the same door, with no window.
+    # It links what the self-test links -- everything but the Game class.
+    $serverSources = $gameSources | Where-Object {
+        (Split-Path $_ -Leaf) -notin @('main.cpp', 'game.cpp', 'screens.cpp', 'lobby.cpp')
+    }
+    Write-Host "  CC  tools/server_main.cpp"
+    & g++ @flags -O2 tools\server_main.cpp @serverSources -o bin\DreamQuestServer.exe @libs
+    if ($LASTEXITCODE -ne 0) { throw "Could not build the server." }
+    Write-Host "Built bin\DreamQuestServer.exe" -ForegroundColor Green
 }
 
 if ($Test) {

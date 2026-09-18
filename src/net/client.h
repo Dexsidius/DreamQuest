@@ -57,6 +57,7 @@ public:
 
     uint8_t Seat() const { return seat; }
     const std::string& WorldName() const { return world_name; }
+    bool BringYourOwn() const { return bring_your_own; }
     const std::vector<SeatInfo>& Roster() const { return roster; }
     const std::vector<ChatLine>& Log() const { return log; }
     // Lines that have arrived since the last call, for toasts.
@@ -81,6 +82,7 @@ private:
     RefuseReason refused = RefuseReason::None;
 
     uint8_t seat = 0;
+    bool    bring_your_own = true;
     std::string world_name;
     std::vector<SeatInfo> roster;
     std::vector<ChatLine> log, fresh;

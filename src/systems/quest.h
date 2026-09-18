@@ -115,7 +115,16 @@ public:
     QuestStatus Status(const string& id) const;
     int  Stage(const string& id) const;
     int  Counter(const string& id) const;
-    bool IsActive(const string& id) const { return Status(id) == QuestStatus::Active; }
+    bool IsActive(const string& id) const {
+        return relay ? relay_active.count(id) > 0 : Status(id) == QuestStatus::Active;
+    }
+
+    // A friend's journal is on their own machine. What the host keeps in its
+    // place only listens: events are kept to be sent on, and "is this quest
+    // being done" is answered from the list their machine last sent.
+    bool relay = false;
+    vector<QuestEvent> relayed;
+    std::set<string>   relay_active;
     bool IsComplete(const string& id) const { return Status(id) == QuestStatus::Complete; }
 
     // True when every prerequisite and skill requirement is met and the quest

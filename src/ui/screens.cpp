@@ -459,7 +459,8 @@ void Game::UpdatePaused() {
             case 3: OpenPanel(GameState::Options); break;
             case 4:
                 if (guest_session) {
-                    // Nothing of a guest's to save; hang up and go.
+                    // The character is kept; the world is the host's.
+                    SaveGuestCharacter();
                     session.Leave();
                     EndGuestSession("");
                     break;
@@ -2789,9 +2790,9 @@ void Game::UpdateDeath(float dt) {
     if (state_time < 0.8f) return;
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         if (guest_session) {
-            // A guest gets up where they fell: the map is the host's to choose.
-            world.player.Respawn(world.player.x, world.player.y);
-            SetState(GameState::Play);
+            // The host gets them up, in Havenbrook, and says so: the screen
+            // stays until it has.
+            world.visitor_acts.push_back({4, "", "", 0});
             return;
         }
         // Respawn at the town, keeping progress, the way a forgiving RPG does.

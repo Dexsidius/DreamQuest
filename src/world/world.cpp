@@ -33,6 +33,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
         SDL_Log("World: invalid destination '%s': %s", id.c_str(), e.what());
         return false;
     }
+    // Friends on the map being left stay on it, in a world of their own.
+    if (before_unload && map.Loaded()) before_unload(*this);
     map = std::move(arriving);
 
     map_id = id;
@@ -51,7 +53,14 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     player.StopGathering();
 
     SpawnEntitiesFromMap(ctx);
-    if (visiting) enemies.clear();
+    if (visiting) {
+        // Every monster the map has, as a puppet nobody has spoken of yet:
+        // out of sight until the host says where it is. The nth is number n.
+        Enemy::Posed unseen;
+        unseen.state = static_cast<uint8_t>(Enemy::State::Dead);
+        unseen.alpha = 0;
+        for (auto& e : enemies) { e->puppet = true; unseen.x = e->x; unseen.y = e->y; e->Pose(unseen); }
+    }
     PlaceCampObjects();
 
     SDL_FPoint p;
@@ -80,6 +89,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
         e.map_id = map_id;
         ctx.quests->Notify(e, player.inventory);
     }
+    if (after_load) after_load(*this);
     return true;
 }
 
@@ -143,6 +153,9 @@ Player* World::AddGuest(uint8_t seat, const string& name, const string& look, co
 }
 
 void World::RemoveGuest(uint8_t seat) {
+    // Nothing may go on pointing at who is about to be gone.
+    auto it = seat_states.find(seat);
+    if (it != seat_states.end()) { it->second.targeting.Clear(); seat_states.erase(it); }
     guests.erase(std::remove_if(guests.begin(), guests.end(),
                                 [&](const std::unique_ptr<Player>& g) { return g->seat == seat; }),
                  guests.end());
@@ -154,10 +167,114 @@ Player* World::Guest(uint8_t seat) {
 }
 
 void World::StepGuest(Player& guest, const PlayerInput& hands, float dt, const GameContext& ctx) {
-    if (guest.puppet || !map.Loaded()) return;
+    if (guest.puppet || guest.away || !map.Loaded()) return;
     guest.hands = hands;
     guest.hands_external = true;
-    guest.Update(dt, *this, ctx);
+    AsSeat(guest, ctx, [&](const GameContext& theirs) {
+        UpdateSeat(dt, theirs);
+        CollectPickups(dt, theirs);
+    });
+}
+
+void World::InteractWith(int kind, int index, const GameContext& ctx) {
+    // Only what is really there, and near: a friend's machine says what E was
+    // pressed on, and the host looks for itself whether it could have been.
+    float tx = player.x, ty = player.y;
+    if (kind == InteractTarget::Npc) {
+        if (index < 0 || index >= static_cast<int>(npcs.size())) return;
+        tx = npcs[index]->x; ty = npcs[index]->y;
+    } else if (kind == InteractTarget::Object) {
+        if (index < 0 || index >= static_cast<int>(map.Objects().size())) return;
+        tx = map.Objects()[index].x; ty = map.Objects()[index].y;
+    } else if (kind != InteractTarget::PortalDoor && kind != InteractTarget::None) {
+        return;
+    }
+    if (Length(tx - player.x, ty - player.y) > 160.0f) return;
+    player.interact.kind = static_cast<InteractTarget::Kind>(kind);
+    player.interact.index = index;
+    TryInteract(ctx);
+}
+
+void World::HandOver(World& to) {
+    if (!to.map.Loaded() || to.map_id != map_id) {
+        to.map = std::move(map);
+        to.map_id = map_id;
+        to.camera.SetBounds(to.map.Width(), to.map.Height());
+    }
+    to.enemies = std::move(enemies);
+    to.npcs = std::move(npcs);
+    to.pickups = std::move(pickups);
+    to.projectiles = std::move(projectiles);
+    to.ground_effects = std::move(ground_effects);
+    to.impacts = std::move(impacts);
+    for (auto& g : guests) to.guests.push_back(std::move(g));
+    for (auto& [seat, state] : seat_states) to.seat_states[seat] = std::move(state);
+    to.next_net_id = std::max(to.next_net_id, next_net_id);
+    enemies.clear(); npcs.clear(); pickups.clear(); projectiles.clear();
+    ground_effects.clear(); impacts.clear(); guests.clear(); seat_states.clear();
+    // Whoever either host seat was fighting has changed hands.
+    targeting.Clear();
+    to.targeting.Clear();
+    gather_index = -1;
+    to.PlaceCampObjects();
+}
+
+void World::SwapSeat(Player& who, SeatState& s) {
+    std::swap(player, who);
+    std::swap(targeting, s.targeting);
+    std::swap(gather_index, s.gather_index);
+    std::swap(gather_timer, s.gather_timer);
+    std::swap(gather_needed, s.gather_needed);
+    std::swap(hazard_timer, s.hazard_timer);
+    std::swap(gate_note_timer, s.gate_note_timer);
+    std::swap(lifesteal_bank, s.lifesteal_bank);
+    std::swap(portals_armed, s.portals_armed);
+    std::swap(arrival_released, s.arrival_released);
+    std::swap(transition_pending, s.transition_pending);
+    std::swap(next_map, s.next_map);
+    std::swap(next_spawn, s.next_spawn);
+    std::swap(next_has_point, s.next_has_point);
+    std::swap(next_x, s.next_x);
+    std::swap(next_y, s.next_y);
+    int w = static_cast<int>(waking); waking = static_cast<WakeReason>(s.waking); s.waking = w;
+    std::swap(fade, s.fade);
+    std::swap(fade_speed, s.fade_speed);
+    std::swap(fade_dir, s.fade_dir);
+    std::swap(fade_caption, s.fade_caption);
+    std::swap(dream.active, s.dream_active);
+    std::swap(dream.map, s.dream_map);
+    std::swap(dream.x, s.dream_x);
+    std::swap(dream.y, s.dream_y);
+    std::swap(requests, s.requests);
+}
+
+Player& World::OwnerOf(bool local, uint8_t seat) {
+    if (local) return player;
+    if (Player* g = Guest(seat)) return *g;
+    return player;
+}
+
+Player* World::PlayerTouching(const SDL_FRect& box) {
+    for (Player* p : Players())
+        if (!p->IsDead() && !p->puppet && !p->resting && RectsOverlap(box, p->BodyBox())) return p;
+    return nullptr;
+}
+
+bool World::AnyPlayerNear(float px, float py, float range) {
+    for (Player* p : Players())
+        if (!p->IsDead() && Length(p->x - px, p->y - py) < range) return true;
+    return false;
+}
+
+void World::FlushKills(const GameContext& ctx) {
+    if (kill_log.empty() || acting) return;
+    (void)ctx;
+    for (const QuestEvent& e : kill_log) {
+        if (host_quests && !player.absent) host_quests->Notify(e, player.inventory);
+        for (auto& g : guests)
+            if (!g->puppet) seat_states[g->seat].journal.Notify(e, g->inventory);
+    }
+    kill_log.clear();
 }
 
 vector<Player*> World::Players() {
@@ -204,8 +321,6 @@ void World::PlaceCampObjects() {
 }
 
 string World::SleepRefusal() const {
-    if (visiting)
-        return "The night is the host's to sleep through, for now.";
     if (!clock.CanSleep())
         return "Not tired yet. Sleep comes after dusk.";
     for (const auto& e : enemies) {
@@ -233,6 +348,11 @@ bool World::AskToSleep(const string& title) {
 
 bool World::Sleep(SleepChoice how, const GameContext& ctx) {
     (void)ctx;
+    if (visiting) {
+        // The bed is the host's: say which way, and wait to be told.
+        visitor_acts.push_back({5, "", "", how == SleepChoice::Reverie ? 1 : 0});
+        return true;
+    }
     if (InDream() || transition_pending || player.IsDead()) return false;
 
     // Asked again, not trusted from the prompt: the panel pauses the world,
@@ -256,6 +376,17 @@ bool World::Sleep(SleepChoice how, const GameContext& ctx) {
         RequestTransition(DREAM_MAP, "arrival");
         fade_speed = SLEEP_FADE_SPEED;
         fade_caption = "You drift off to sleep...";
+    } else if (company) {
+        // In company the night is everyone's. Lie down: out of the fight,
+        // nothing can hurt you, and the clock keeps its own pace until every
+        // one of you is abed or dreaming -- then it is dawn for all at once.
+        // Any key gets up. coop::Host watches for the moment.
+        player.resting = true;
+        WorldRequest r;
+        r.type = WorldRequest::Type::Toast;
+        r.text = "You lie down. Dawn comes when everyone is abed or dreaming; move to get up.";
+        requests.push_back(r);
+        return true;
     } else {
         // The same map and the same spot, on the other side of the night. It
         // is a transition like waking from a dream is, so the morning finds
@@ -292,6 +423,8 @@ void World::Wake(WakeReason why) {
 
 string World::PitchCamp(int slot, const GameContext& ctx) {
     (void)ctx;
+    if (visiting || acting)
+        return "A camp is the host's to pitch, for now.";
     if (slot < 0 || slot >= player.inventory.SlotCount() || player.inventory.Slot(slot).Empty())
         return "There is nothing there to pitch.";
     if (InDream())
@@ -511,6 +644,7 @@ bool World::ObjectPresent(const MapObject& o) const {
 
 void World::Update(float dt, const GameContext& ctx) {
     quest_log = ctx.quests;
+    host_quests = ctx.quests;
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
         fade += fade_dir * fade_speed * dt;
@@ -536,6 +670,21 @@ void World::Update(float dt, const GameContext& ctx) {
             requests.push_back(r);
         }
     }
+    // The seat at this machine, and then the place. A friend's seat is done
+    // by StepGuest, to their own clock, acting as them.
+    if (!player.absent) UpdateSeat(dt, ctx);
+    UpdateShared(dt, ctx);
+    if (!visiting && !player.absent) CollectPickups(dt, ctx);
+    FlushKills(ctx);
+
+    if (!player.absent) {
+        camera.Follow(player.x + player.LookAhead().x, player.y + player.LookAhead().y, dt);
+        ambience.Update(dt, camera);
+        Audio::SetListener(player.x, player.y);
+    }
+}
+
+void World::UpdateSeat(float dt, const GameContext& ctx) {
     // Movement stays frozen while the screen is covered, but only for as long
     // as it is covered: Game owns input_locked for open panels, so borrow it
     // and hand it back rather than latching it on.
@@ -547,6 +696,12 @@ void World::Update(float dt, const GameContext& ctx) {
     // co-op client is filling them, with what it is also sending the host.
     if (!player.hands_external)
         player.hands = ctx.input ? PlayerInput::FromDevice(*ctx.input) : PlayerInput{};
+    // Lying down for the night, the hands are still -- until they move.
+    if (player.resting) {
+        if (player.hands.pressed != 0 || Length(player.hands.move.x, player.hands.move.y) > 0.5f)
+            player.resting = false;
+        player.hands = PlayerInput{};
+    }
 
     // Targeting first, so a swing or a shot starting this frame knows who it
     // is for.
@@ -566,6 +721,16 @@ void World::Update(float dt, const GameContext& ctx) {
 
     // A dream lasts as long as the night. Dying in one ends it early, a moment
     // into the fall, before the game can treat it as a real death.
+    // What follows decides things -- a swing landing, a log falling, a door
+    // opening -- and in a guest's window those are the host's to decide. The
+    // window only finds what E would do, so the prompt can say so.
+    if (visiting) {
+        if (gate_note_timer > 0.0f) gate_note_timer -= dt;
+        if (!player.IsDead()) ResolveInteractTarget(ctx);
+        else player.interact = {};
+        return;
+    }
+
     if (InDream() && !transition_pending) {
         if (player.IsDead()) {
             if (player.DeathTimer() < 1.6f) Wake(WakeReason::Nightmare);
@@ -642,24 +807,72 @@ void World::Update(float dt, const GameContext& ctx) {
         player.interact = {};
         gather_index = -1;
     }
+}
 
-    for (auto& e : enemies) {
-        if (e->CurrentState() == Enemy::State::Dead) {
-            e->TickRespawn(dt);
-            // Not while the player is standing on its spawn point. A boar
+void World::UpdateShared(float dt, const GameContext& ctx) {
+    if (visiting) {
+        // A window: the monsters, the shots and what lies on the ground are
+        // posed by coop::Guest from what the host says. Only what is for
+        // show runs here.
+        for (auto& n : npcs) n->Update(dt, *this, ctx);
+        UpdateImpacts(dt);
+        UpdateDust(dt);
+        UpdateElevation();
+        for (auto& p : pickups) p.bob += dt * 3.4f;
+        UpdateTexts(dt);
+        return;
+    }
+
+    // Who each monster is after: whoever is nearest, but it takes a clear
+    // margin to turn one away from whoever it already has.
+    const bool company = !guests.empty();
+    if (company) {
+        for (auto& e : enemies) {
+            Player* best = nullptr;
+            float best_d = 1e9f;
+            for (Player* p : Players()) {
+                if (p->IsDead() || p->puppet || p->resting) continue;
+                float d = Length(p->x - e->x, p->y - e->y);
+                if (static_cast<int>(p->seat) == e->target_seat) d *= 0.7f;
+                if (d < best_d) { best_d = d; best = p; }
+            }
+            e->target_seat = best ? static_cast<int>(best->seat) : -1;
+        }
+    }
+    const auto think = [&](Enemy& e) {
+        if (e.CurrentState() == Enemy::State::Dead) {
+            e.TickRespawn(dt);
+            // Not while anyone is standing on its spawn point. A boar
             // killed where it grazed came back in the same spot a minute later,
             // already inside its aggro range, and a player who had stopped to
             // open their bag was dead before they closed it. Wait until they
             // are clear of where it would start chasing them.
-            const float clearance = e->Def() ? std::max(192.0f, e->Def()->aggro_range + 64.0f)
-                                             : 192.0f;
-            const bool player_near = !player.IsDead() &&
-                Length(e->home_x - player.x, e->home_y - player.y) < clearance;
-            if (e->ReadyToRespawn() && !player_near) e->Revive();
-            else                     e->Update(dt, *this, ctx);
-            continue;
+            const float clearance = e.Def() ? std::max(192.0f, e.Def()->aggro_range + 64.0f)
+                                            : 192.0f;
+            if (e.ReadyToRespawn() && !AnyPlayerNear(e.home_x, e.home_y, clearance)) e.Revive();
+            else                                                                     e.Update(dt, *this, ctx);
+            return;
         }
-        e->Update(dt, *this, ctx);
+        e.Update(dt, *this, ctx);
+    };
+    if (!company) {
+        for (auto& e : enemies) think(*e);
+    } else {
+        // One acting-as per player, with every monster after them thought
+        // about inside it, rather than one per monster.
+        for (Player* p : Players()) {
+            bool any = false;
+            for (auto& e : enemies) any |= e->target_seat == static_cast<int>(p->seat);
+            const bool nobody = p == &player;      // and the ones after no one, with the host
+            if (!any && !nobody) continue;
+            // Read before acting as them: inside, the slot `p` points at
+            // holds the host.
+            const int seat = static_cast<int>(p->seat);
+            ActAs(*p, [&] {
+                for (auto& e : enemies)
+                    if (e->target_seat == seat || (nobody && e->target_seat < 0)) think(*e);
+            });
+        }
     }
 
     for (auto& n : npcs) n->Update(dt, *this, ctx);
@@ -671,10 +884,6 @@ void World::Update(float dt, const GameContext& ctx) {
     UpdateElevation();
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
-
-    camera.Follow(player.x + player.LookAhead().x, player.y + player.LookAhead().y, dt);
-    ambience.Update(dt, camera);
-    Audio::SetListener(player.x, player.y);
 }
 
 // -----------------------------------------------------------------------------
@@ -1313,6 +1522,13 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
 
 void World::TryInteract(const GameContext& ctx) {
     if (player.IsDead() || transition_pending) return;
+    if (visiting) {
+        // The host does it, and says what came of it.
+        visitor_acts.push_back({1, std::to_string(static_cast<int>(player.interact.kind)), "", player.interact.index});
+        return;
+    }
+    // Lying down, E gets up.
+    if (player.resting) { player.resting = false; return; }
 
     // Interrupting a gather is what the button does while one is running.
     if (gather_index >= 0) { gather_index = -1; return; }
@@ -1617,6 +1833,7 @@ bool World::Picked(const MapObject& o) const {
 
 void World::Pick(const MapObject& o) {
     picked[map_id + ":" + o.id] = GameHours() + o.regrow_hours;
+    if (journal) picked_log.push_back({map_id + ":" + o.id, GameHours() + o.regrow_hours});
     // Anything already grown back is dropped, so the save does not keep
     // every herb ever picked.
     for (auto it = picked.begin(); it != picked.end();)
@@ -1737,7 +1954,22 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     gather_timer = 0.0f;
 }
 
+void World::ShowGather(float progress, const string& clip, const string& model) {
+    if (clip.empty()) {
+        if (shown_gather > 0.0f || !player.GatherClip().empty()) player.StopGathering();
+        shown_gather = 0.0f;
+        return;
+    }
+    if (player.GatherClip() != clip) {
+        const float dx = player.facing == FACE_LEFT ? -1.0f : player.facing == FACE_RIGHT ? 1.0f : 0.0f;
+        const float dy = player.facing == FACE_UP ? -1.0f : player.facing == FACE_DOWN ? 1.0f : 0.0f;
+        player.StartGathering(clip, model, player.x + dx * 24.0f, player.y + dy * 24.0f);
+    }
+    shown_gather = std::max(0.001f, progress);
+}
+
 float World::GatherProgress() const {
+    if (visiting) return std::clamp(shown_gather, 0.0f, 1.0f);
     if (gather_index < 0 || gather_needed <= 0.0f) return 0.0f;
     return std::clamp(gather_timer / gather_needed, 0.0f, 1.0f);
 }
@@ -1847,6 +2079,9 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
     p.element = def->element;
     p.damage_mult = damage_mult;
     p.from_player = from_player;
+    p.owner_local = player.local;
+    p.owner_seat = player.seat;
+    p.net_id = next_net_id++;
     p.pierce_left  = def->pierce;
     p.bounces_left = def->bounces;
     projectiles.push_back(p);
@@ -1854,6 +2089,8 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
 
 void World::AddGroundEffect(const GroundEffect& effect) {
     ground_effects.push_back(effect);
+    ground_effects.back().owner_local = player.local;
+    ground_effects.back().owner_seat = player.seat;
 }
 
 void World::UpdateProjectiles(float dt, const GameContext& ctx) {
@@ -1961,22 +2198,25 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                         continue;
                     p.already_hit.push_back(key);
 
-                    HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
-                             p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
+                    ActAs(OwnerOf(p.owner_local, p.owner_seat), [&] {
+                        HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
+                                 p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
+                    });
 
                     if (p.pierce_left > 0) --p.pierce_left;
                     else                    p.finished = true;
                 }
-            } else if (!player.IsDead() &&
-                       RectsOverlap(box, player.BodyBox())) {
-                DamageResult r = RollAttack(p.owner, player.Profile(), p.style,
-                                            p.damage_mult, *ctx.rng);
-                if (r.hit && r.damage > 0) {
-                    // Where the shot came from is back along its flight.
-                    HitPlayer(r.damage, p.owner, p.x - p.vx, p.y - p.vy);
-                } else {
-                    AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
-                }
+            } else if (Player* struck = PlayerTouching(box)) {
+                ActAs(*struck, [&] {
+                    DamageResult r = RollAttack(p.owner, player.Profile(), p.style,
+                                                p.damage_mult, *ctx.rng);
+                    if (r.hit && r.damage > 0) {
+                        // Where the shot came from is back along its flight.
+                        HitPlayer(r.damage, p.owner, p.x - p.vx, p.y - p.vy);
+                    } else {
+                        AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
+                    }
+                });
                 p.finished = true;
             }
         }
@@ -2143,20 +2383,28 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
                                 g.radius * 2, g.radius * 2};
 
         if (g.from_player) {
-            for (auto& e : enemies) {
-                if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
-                if (!RectsOverlap(area, e->BodyBox())) continue;
-                if (g.hit_mult >= 0.0f)
-                    HitEnemy(*e, g.owner, g.style, g.element, g.hit_mult, g.knockback, g.x, g.y, ctx);
-                else
-                    HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
-                             static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
+            ActAs(OwnerOf(g.owner_local, g.owner_seat), [&] {
+                for (auto& e : enemies) {
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+                    if (!RectsOverlap(area, e->BodyBox())) continue;
+                    if (g.hit_mult >= 0.0f)
+                        HitEnemy(*e, g.owner, g.style, g.element, g.hit_mult, g.knockback, g.x, g.y, ctx);
+                    else
+                        HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
+                                 static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
+                }
+            });
+        } else {
+            // Everyone standing in it, not only the first.
+            for (Player* who : Players()) {
+                if (who->IsDead() || who->puppet || who->resting || !RectsOverlap(area, who->BodyBox())) continue;
+                ActAs(*who, [&] {
+                    player.Damage(std::max(1, g.damage));
+                    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+                    AddText(std::to_string(g.damage), player.x, player.y - 44.0f,
+                            {235, 90, 70, 255});
+                });
             }
-        } else if (!player.IsDead() && RectsOverlap(area, player.BodyBox())) {
-            player.Damage(std::max(1, g.damage));
-            player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
-            AddText(std::to_string(g.damage), player.x, player.y - 44.0f,
-                    {235, 90, 70, 255});
         }
     }
 
@@ -2167,7 +2415,7 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
 
 int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
                      float knock_x, float knock_y) {
-    if (damage <= 0 || player.IsDead()) return 0;
+    if (damage <= 0 || player.IsDead() || player.resting) return 0;
     const BlockOutcome b = player.TryBlock(damage, CombatLevelOf(attacker), from_x, from_y);
 
     if (b.blocked > 0) {
@@ -2193,6 +2441,7 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
 }
 
 int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y) {
+    if (player.resting) return 0;
     player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
     float push = 1.0f;
@@ -2231,7 +2480,13 @@ void World::SpawnLoot(const string& table_id, float x, float y, const GameContex
 void World::DropItem(const string& item_id, int qty, float x, float y,
                      const GameContext& ctx, bool by_player) {
     if (item_id.empty() || qty <= 0) return;
+    if (visiting) {
+        if (by_player) visitor_acts.push_back({2, item_id, "", qty});
+        return;
+    }
     Pickup p;
+    p.net_id = next_net_id++;
+    p.dropper_seat = player.seat;
     p.item_id = item_id;
     p.qty     = qty;
     p.dropped = by_player;
@@ -2242,22 +2497,28 @@ void World::DropItem(const string& item_id, int qty, float x, float y,
 }
 
 void World::UpdatePickups(float dt, const GameContext& ctx) {
+    (void)ctx;
     for (auto& p : pickups) {
         p.life += dt;
         p.bob  += dt * 3.4f;
+        if (p.dropped && p.life > DROP_LIFE) p.collected = true;
+    }
+    pickups.erase(std::remove_if(pickups.begin(), pickups.end(),
+                                 [](const Pickup& p) { return p.collected; }),
+                  pickups.end());
+}
 
+void World::CollectPickups(float dt, const GameContext& ctx) {
+    for (auto& p : pickups) {
         if (p.collected || p.life < PICKUP_ARM) continue;
         if (player.IsDead()) continue;
         const float dist = Length(p.x - player.x, p.y - player.y);
-        if (p.dropped) {
-            // Something put down on purpose. It is not scooped straight back
-            // up by the feet that dropped it: the player has to step clear of
-            // it first. And it does not lie there for ever.
-            if (p.life > DROP_LIFE) { p.collected = true; continue; }
-            if (!p.cleared) {
-                if (dist > DROP_CLEAR) p.cleared = true;
-                continue;
-            }
+        if (p.dropped && !p.cleared && p.dropper_seat == player.seat) {
+            // Whoever put it down steps clear of it once before it can be
+            // theirs again. Anyone else may have it: that is how things
+            // change hands.
+            if (dist > DROP_CLEAR) p.cleared = true;
+            continue;
         }
         if (dist > PICKUP_RANGE) continue;
 
@@ -2292,6 +2553,7 @@ void World::AddText(const string& text, float x, float y, SDL_Color color, float
     t.life = t.max_life = life;
     t.color = color;
     texts.push_back(t);
+    if (journal) text_log.push_back(t);
 }
 
 void World::UpdateTexts(float dt) {

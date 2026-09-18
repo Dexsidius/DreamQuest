@@ -62,6 +62,11 @@ struct Settings {
     // user name the first time the game starts.
     string player_name;
     vector<string> recent_hosts;
+    // Hosting: a word friends must give at the door (empty: the tailnet is
+    // the door), and whether their characters travel here with them or this
+    // world keeps its own.
+    string host_password;
+    bool   bring_your_own = true;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

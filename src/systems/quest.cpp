@@ -265,6 +265,7 @@ void QuestLog::AdvanceStage(const string& id, const Inventory& inv) {
 }
 
 void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
+    if (relay) { relayed.push_back(e); return; }
     for (auto& kv : progress) {
         QuestProgress& p = kv.second;
         if (p.status != QuestStatus::Active) continue;
@@ -283,6 +284,7 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
 }
 
 void QuestLog::RefreshCollectObjectives(const Inventory& inv) {
+    if (relay) return;
     // Copy the ids first: AdvanceStage mutates the map it would iterate.
     vector<string> active;
     for (const auto& kv : progress)

@@ -56,6 +56,11 @@ public:
     int  Remaining(const ShopDef& shop, const string& item) const;
     void Record(const string& shop, const string& item, int qty);
     void Clear() { sold.clear(); day = -1; }
+    // While set, every sale is also written down, for a guest's machine to
+    // tell the host what it bought of a shelf everyone shares.
+    bool journal = false;
+    struct Sale { string shop, item; int qty = 0; };
+    vector<Sale> sales;
 
     json ToJson() const;
     void FromJson(const json& j);

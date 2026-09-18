@@ -266,6 +266,8 @@ bool Settings::Load(const string& path) {
     sfx_volume      = std::clamp(j.value("sfx_volume", sfx_volume), 0.0f, 1.0f);
     ambience_volume = std::clamp(j.value("ambience_volume", ambience_volume), 0.0f, 1.0f);
     player_name     = j.value("player_name", player_name);
+    host_password   = j.value("host_password", host_password);
+    bring_your_own  = j.value("bring_your_own", bring_your_own);
     recent_hosts.clear();
     if (j.contains("recent_hosts") && j["recent_hosts"].is_array())
         for (const json& h : j["recent_hosts"])
@@ -289,6 +291,8 @@ bool Settings::Save(const string& path) const {
         {"sfx_volume", sfx_volume},
         {"ambience_volume", ambience_volume},
         {"player_name", player_name},
+        {"host_password", host_password},
+        {"bring_your_own", bring_your_own},
         {"recent_hosts", recent_hosts},
     };
     out << j.dump(2);

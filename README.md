@@ -91,7 +91,8 @@ Install SDL3, SDL3_image, SDL3_ttf and ENet (`libenet-dev`, `enet`), then:
 | `.\build.ps1 -Test` | Build and run the self-test |
 | `.\build.ps1 -Maps` | Regenerate `maps/*.mx` |
 | `.\build.ps1 -Tools` | Build `tilecut`, `genmaps` and `selftest` |
-| `.\package.cmd` | Build, then zip a playable copy into `dist\` |
+| `.\package.cmd` | Build, then zip a playable copy into `dist\`, the co-op server included |
+| `.\build.ps1 -Server` | Also build `DreamQuestServer.exe`, the headless co-op server |
 
 `./compile.sh test`, `./compile.sh maps` and `./compile.sh tools` do the same on
 Linux.
@@ -171,141 +172,172 @@ whatever size the window happens to be.
 
 ## Playing together
 
-Co-op is being built in milestones, and the plan -- *Hollowmarch Co-op*: up to
-four friends in one Hollowmarch over a tailnet, with one machine running the
-world and the others windows onto it -- is an ordered list of them. **Milestone
-0 and 1 are in.** Two copies of the game find each other, check they are the
-same game, take seats and pass a typed line; and a friend who joins walks into
-the host's game and the two see each other move. Monsters, loot and quests are
-not shared yet: that is M2 and M3.
+**Up to four friends in one Hollowmarch, over a tailnet.** One machine runs
+the world -- a friend's own game, or the headless server on a machine that is
+always on -- and the others are windows onto it. You fight the same monsters,
+open the same chests and fell the same trees, go your separate ways across
+maps, keep your own character, and share one clock. This is the *Hollowmarch
+Co-op* plan, built milestone by milestone:
 
 | Milestone | What it adds | State |
 |---|---|---|
 | **M0** Skeleton | ENet, the transport, `--host` / `--join`, the greeting with version and data hashes, a chat line | **done** |
 | **M1** Two bodies | several players in one `World`, inputs by the step, prediction and correction, remote players drawn in their own clothes | **done** |
-| M2 One fight, shared | entity ids; monsters, projectiles and loot replicated; the melee rewind | next |
-| M3 Everything you can press E on | requests for chests, shops, crafting, quests; per-player journals | |
-| M4 Splitting up | one world per occupied map; portals move players between them | |
-| M5 Keeping it | the world / character save split; reconnecting; "everyone in bed skips the night" | |
-| M6 The tailscale box | a headless server that runs with nobody hosting | |
-| M7 Polish | name tags, the party strip, tuning against real latency | |
+| **M2** One fight, shared | monsters, shots, burning ground and loot told to every machine; monsters go for whoever is nearest; a friend's swing rolled by the host, against where the monster was when they saw it | **done** |
+| **M3** Everything you can press E on | E, a thing dropped, a bed chosen are sent as actions; panels, the bag, experience and journal lines come back as deltas; chests and trees are everyone's, journals are each player's | **done** |
+| **M4** Splitting up | one world per occupied map; doors move a friend between them; a map nobody is on is let go after a minute | **done** |
+| **M5** Keeping it | a friend's character kept on their own machine; their place kept by the host; a stand-in for a dropped line; dawn when everyone is abed or dreaming | **done** |
+| **M6** The tailscale box | `DreamQuestServer.exe`: the same world with nobody at the keyboard; a password at the door | **done** |
+| **M7** Polish | name tags, the party strip, sounds passed on | **done**; tuning against a real relayed line is yours to do |
 
 ### Hosting and joining
 
 **Play Together** is on the title screen and the pause menu.
 
-- **Host a world** starts listening on UDP 7777 and seats you in your own
-  world. The screen then says what your friends should type: this machine's
-  name and its tailnet address (the `100.x.y.z` one, which Tailscale gives
-  every machine). Tailscale's MagicDNS name for a machine is its name unless
-  it was renamed in the admin page; the address always works. Windows Firewall
-  asks once -- allow DreamQuest on **private networks**, which is what the
-  Tailscale adapter is. A small light under the address turns green the first
-  time anybody reaches the machine from outside, refused or not; if a friend
-  cannot connect and it stays dark, the firewall is eating the port.
-- **Join** takes a name or an address, with `:port` if the host is not on 7777.
-  `Ctrl+V` pastes. Left and right step through the last five hosts dialled,
-  so a controller, which cannot type, can still rejoin. Nobody answering is
-  given up on after eight seconds, with the three usual reasons listed.
-- **Say** types a line to everyone; `Enter` sends it and keeps typing, `Esc`
-  stops. Away from this screen -- a host out in the meadow -- what is said
-  arrives as a toast.
-- **Name** is what friends see you as, sixteen characters, remembered in
-  `settings.json`. It starts as the machine's user name.
+- **Host a world**: start or load your own game first, then host from the
+  pause menu -- whoever joins walks into that game. It listens on UDP 7777. The
+  screen says what your friends should type: this machine's name and its
+  tailnet address (the `100.x.y.z` one). Windows Firewall asks once -- allow
+  DreamQuest on **private networks**, which is what the Tailscale adapter is. A
+  light under the address turns green the first time anybody reaches the
+  machine from outside; if a friend cannot connect and it stays dark, the
+  firewall is eating the port.
+- **Join**, from the title screen, takes a name or an address, with `:port` if
+  the host is not on 7777. `Ctrl+V` pastes. Left and right step through the
+  last five hosts dialled. Nobody answering is given up on after eight seconds.
+- **Character** is who you arrive as the first time. After that your kept
+  character arrives as who they are.
+- **Password**: hosting, a word friends must give at the door; joining, the
+  word the host gave you. Empty, and the tailnet is the door.
+- **Say** types a line to everyone; away from this screen what is said arrives
+  as a toast. **Name** is what friends see you as, remembered in
+  `settings.json`.
 
-The door closes behind nobody: a host can go and play, and whoever joins
-walks into that game. Up to four seats. Two friends with the same name are *Sam*
-and *Sam 2*.
+From a shortcut or a terminal: `DreamQuest.exe --host`,
+`DreamQuest.exe --join subzero:7777 --name Oona --password barley`.
 
-From a shortcut or a terminal:
+### What is shared, and what is yours
+
+- **The world is the host's**, and only the host rolls dice over it: monsters
+  and their health, shots in the air, burning ground, what lies on the floor,
+  chests opened, levers thrown, trees felled and seams worked out, the clock,
+  and what the traders have sold today. A chest opened is opened for everyone;
+  first come, first served. Monsters go for whoever is nearest, with a margin
+  so two friends either side of a boar do not have it spinning. A kill counts
+  in the journal of everyone on the map. No friendly fire.
+- **Your character is yours**: bag, equipment, skills, talents, journal,
+  recipes and spells learned, your storage chest. It lives on your own machine.
+  The host keeps a copy (your *sheet*, sent when it changes) so that its rolls
+  use your numbers, and tells you what the world added or took -- a coin picked
+  up, logs chopped, raw meat cooked, experience, a line in your journal. So
+  every panel in the game works for a guest exactly as it does alone, with no
+  round trip: the bag, the skill trees, the journal, shops, crafting, the
+  enchanting table, storage, dialogue, the boards.
+- **Things change hands by being dropped.** Whoever drops a thing must step
+  clear of it before it can be theirs again; a friend standing by can pick it
+  straight up.
+- **Dropping out and coming back.** Your character is written to
+  `saves/characters/<name>.json` on the autosave, when you save, when you quit,
+  and when the line drops. Join again, today or next month, and you have your
+  bag, your levels and your journal, and the host puts you back on the map and
+  the spot where you left off -- not beside the host. If the line drops mid-fight
+  your character stands where it was, out of the fight and unhurt, for thirty
+  seconds in case you come straight back. The host also keeps a copy of every
+  friend's character as it last saw it, under `saves/characters/kept/`, in case
+  their own machine loses theirs. A world made with `bring_your_own: false` in
+  `settings.json` (or `--start-here` on the server) keeps its own characters:
+  one made there stays there, in `<name>@<world>.json`.
+- **Splitting up.** Every map someone is on keeps running, on the host; a door
+  moves you between them. When the host walks out of a map friends are on, they
+  stay, in a world of their own; when the host walks into one, it finds the
+  place as they have it -- the boar half dead, the coins on the ground. A map
+  nobody is on is let go after a minute; what happened there that matters is
+  in the world's flags.
+- **The night.** A bed asks how you would spend it, and each of you answers
+  for yourself. *Go into the Reverie* takes you to the dream, which is a map
+  like any other, while the others keep the evening. *Sleep through the night*,
+  in company, is lying down: out of the fight, nothing can hurt you, and the
+  clock keeps its pace until **everyone is abed or dreaming** -- then it is
+  dawn for all at once, and dreamers wake where they lay down. Any key gets up.
+- **Falling.** A guest who falls reads the same screen and is got up in
+  Havenbrook, whole, wherever everyone else is.
+
+### The server on the tailscale box
+
+`DreamQuestServer.exe` is the same `World`, the same door and the same co-op
+host with no window, no renderer and no sound, so nobody has to host. It has no
+player of its own: everyone who joins is a guest. `build.ps1 -Server` builds
+it, `package.cmd` puts it in the zip, and it needs `data/` and `maps/` beside
+it, not `assets/`.
 
 ```bash
-DreamQuest.exe --host
+DreamQuestServer.exe --name "The Hollowmarch" --password barley
 ```
 
-```bash
-DreamQuest.exe --join subzero:7777 --name Oona
-```
+`--port 7777`, `--map town_havenbrook` (where newcomers arrive), `--world
+saves/server_world.json` (the world's one-shots, the clock and the traders'
+day, written every two minutes and on Ctrl+C), `--kept <dir>`, `--start-here`.
+It prints the addresses friends should dial and who is here as they come and
+go. Run it as a scheduled task or a service on the always-on machine.
 
-`--host` takes an optional port. Both land on the Play Together screen with
-the thing already under way, so whatever goes wrong is said where it can be
-read. Two more exist for checking the screens without a pair of hands:
-`--say "a line"` sends one line as soon as there is a seat to say it from, and
-`--shot file.png 5` writes the frame to a PNG after five seconds and quits.
+### How it works
 
-### Two bodies (M1)
-
-**A friend who joins walks into the game the host is playing**, on the map the
-host is on, as a new character of the look chosen on the Play Together screen
-(*Character*, left and right). Each sees the other move, turn, jump, swing and
-block, in the right clothes with the right weapon in hand, under a name tag.
-The host plays exactly as before; hosting from the pause menu opens the door
-on the game already running.
-
-What is and is not shared yet, plainly:
-
-- **Shared:** where everyone is and what they are doing, what they wear, the
-  map, and the clock -- one day for everyone.
-- **Not yet:** monsters, loot, chests, shops and quests. A guest's world is a
-  *window*: the host's map with its people but no monsters of its own, because
-  the monsters are the host's and arrive with M2. A guest's bag, journal and
-  skills are their own and local.
-- **The host leads, until M4.** There is one world on the host -- the map the
-  host is on -- so when the host goes through a door everyone goes, and a
-  guest who walks into one is told *"The host leads the way, for now."* A
-  guest cannot sleep the host's night away either.
-- **A guest's character is not kept.** It is never saved, by any route;
-  characters that travel with their player are M5. Joining is from the title
-  screen, because a guest's game replaces the one running.
-- If the host leaves the world for the title screen, guests go back to the
-  Play Together screen, still seated, and are brought back in when the host
-  returns.
-
-How it works, in the order a step takes:
-
-1. **Hands, not the keyboard.** `Player::Update` reads a `PlayerInput`
-   (`src/entity/player_input.h`): the move axis and three bytes of buttons --
-   held, just pressed, just released. The seat at this machine has it filled
-   from the device; a friend's character on the host has it filled from what
-   their machine sent. The edges travel with the state, so a tap shorter than
-   a frame is not lost.
-2. **The step carries its own clock.** The plan drew a fixed 60 Hz tick on
-   both ends. The game's loop runs at the display's rate (72 Hz on the machine
-   this was written on), so a step is sent with its own `dt`, in whole
-   microseconds, the way Quake's `usercmd` is. A guest steps its world with
-   that quantised `dt` and that quantised axis the instant the keys are read,
-   and the host steps its copy of their character with the very same numbers
-   when they arrive. Same code, same inputs: the self-test walks six hundred
-   uneven steps both ways and the two agree to the last bit -- place, facing,
-   clip and frame.
-3. **Every packet repeats the last eight steps**, seven bytes each, on the
-   unreliable channel. One that is lost costs nothing.
-4. **Twenty times a second the host says where everyone is**, and which of
-   the receiver's steps it has taken. The guest looks up where it was after
-   that step. If the two differ by more than two pixels, the difference is
-   added to where the character is *now*, and to the remembered path: at once
-   if small, over a few snapshots if it would show, and as a snap if it is a
-   teleport. (The plan has the client rewind and replay. A `Player` carries
-   its bag and its skills as well as its feet, so the whole object cannot be
-   rolled back without undoing a level gained in between, and the offset is
-   the same answer wherever movement does not depend on position.)
-5. **Everyone else is a puppet**, drawn a tenth of a second in the past,
-   between the two snapshots that bracket that moment, in the clip and frame
-   the host said. An *outfit* -- the look and what is in each slot -- is sent
-   when it changes; a seat speaks only for itself, and only items that exist,
-   in the slot they belong to, are worn.
+1. **Hands, not the keyboard.** `Player::Update` reads a `PlayerInput`: the
+   move axis and three bytes of buttons -- held, just pressed, just released.
+   The seat at this machine has it filled from the device; a friend's
+   character on the host has it filled from what their machine sent.
+2. **The step carries its own clock.** The game's loop runs at the display's
+   rate (72 Hz on the machine this was written on), so rather than put a fixed
+   tick under single-player, a step is sent with its own `dt` in whole
+   microseconds and a quantised axis, the way Quake's `usercmd` is. A guest
+   steps with those numbers the instant the keys are read and the host steps
+   its copy with the very same ones: the self-test walks six hundred uneven
+   steps both ways and the two agree to the last bit. Every packet repeats the
+   last eight steps, seven bytes each, so a lost one costs nothing.
+3. **Acting as.** Everything the single-player game does is written for "the
+   player". `World::ActAs` swaps a friend's `Player`, and the world's state
+   about them (`SeatState`: who they are fighting, the log they are chopping,
+   the door they are halfway through, their dream, their journal), into the
+   place of the host's -- so their swing landing, their axe biting, the coin at
+   their feet, the orc that hits them and the chest they open are the same
+   lines of code, unchanged. `World::Update` is `UpdateSeat` for whoever is at
+   this machine and `UpdateShared` for the place; `StepGuest` is `UpdateSeat`
+   acting as a friend, to their clock.
+4. **Twenty times a second** the host tells each friend who and what is within
+   a thousand pixels of them: players, monsters (twelve bytes each -- a monster
+   is the nth of the map's own list, so nothing else about it need be said),
+   loot, shots, burning ground. A window poses them a tenth of a second in the
+   past, between the two snapshots that bracket that moment.
+5. **Putting right, not rolling back.** When the host says where a step really
+   ended and it differs by more than two pixels, the difference is added to
+   where the character is now and to the remembered path: at once if small,
+   over a few snapshots if it would show, as a snap if it is a teleport. A
+   `Player` carries its bag and skills as well as its feet, so it cannot be
+   rewound without undoing a level gained in between.
+6. **Actions up, deltas down.** A guest's window decides nothing: E, a thing
+   dropped, a bed chosen, food eaten, a purchase from a shared shelf are sent
+   as `Action`s; what comes of them comes back in a `Delta` -- floating text,
+   flags, a panel to open, bag changes, experience, journal events, the chain
+   counter, sounds, the traders' ledger.
+7. **The rewind.** A friend sees monsters a little in the past, so while their
+   swing is resolved the monsters stand where they were 150 ms ago.
 
 | File | What it is |
 |---|---|
 | `src/entity/player_input.h` | A player's hands for one step. |
-| `src/world/world.*` | `guests`, `AddGuest`, `StepGuest`, `NearestPlayer`, and `visiting`: a guest's window. |
-| `src/net/protocol.*` | `InputFrames`, `Snapshot`, `Enter`, `Outfit`; protocol version 2. The net layer hands these to the game whole. |
-| `src/coop/coop.*` | Where the wire meets the world: `coop::Host` beside the host's world, `coop::Guest` beside a friend's. |
+| `src/world/world.*` | `guests`, `SeatState`, `ActAs` / `AsSeat`, `UpdateSeat` / `UpdateShared`, `StepGuest`, `HandOver`, and `visiting`: a guest's window. |
+| `src/net/protocol.*` | Protocol version 3: `InputFrames`, `Snapshot`, `Enter`, `Outfit`, `Sheet`, `Action`, `Delta`. The net layer hands these to the game whole. |
+| `src/coop/coop.*` | Where the wire meets the world: `coop::Host` (the realm), `coop::Guest` (the window), and the character file. |
+| `tools/server_main.cpp` | The headless server. |
 
-Two more flags exist for checking all this without a second pair of hands:
-`--scratch hero` starts a game that is never written anywhere (so a host can
-be stood in a world without a save slot being touched), and
-`--hold D 2 3.5` holds a key down between two moments.
+Flags for checking all this without a second pair of hands: `--scratch hero`
+starts a game that is never written anywhere, `--hold D 2 3.5` holds a key
+down between two moments, `--say "a line"`, and `--shot file.png 5`.
+
+What is still plain: a friend's chopping shows the swing without the axe in
+hand on other screens; camps are the host's to pitch; and a line relayed
+through Tailscale's DERP has not been tried -- `tailscale ping` says which you
+have, and the constants at the top of `coop.h` are the ones to tune.
 
 ### The door
 
@@ -2783,7 +2815,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15723 checks** covering:
+and checks all of it — currently **15786 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -3207,22 +3239,44 @@ and checks all of it — currently **15723 checks** covering:
   walks on her own screen the frame she presses the key, every step is sent,
   taken and acknowledged, and the host's copy ends exactly where she did with
   nothing to put right; the host's puppet trails him by about a tenth of a
-  second in the clip he is playing and comes to rest where he is; a swing
-  crosses the wire, and so does a jump tapped inside one frame; on a line that
-  loses a third of its packets and delays the rest, the repeats carry every
-  step across and both ends still agree; a small disagreement is put right at
-  once and a larger one closed over a few snapshots; changing a weapon changes
-  it on the other screen, and an outfit speaks only for its own seat and wears
-  only items that exist; when the host goes through a door she follows; when
-  he leaves the world she is sent back to the lobby, still seated, and brought
-  back when he returns; a friend who leaves is gone from the host's world, and
-  whoever takes the seat next is a new character
-- co-op M0, over real UDP on 127.0.0.1: hosting listens and seats the host
-  over the loopback; a second host on the same port is refused and says why; a
-  guest is seated over UDP, both rosters agree and the host's reachable light
-  comes on; a line crosses the wire each way; different data is refused with
-  the reason delivered before the line drops; a guest who leaves is off the
-  roster at once, not after a timeout; and the port is free to host on again
+  second and comes to rest where he is; a swing crosses the wire, and so does
+  a jump tapped inside one frame; on a line that loses a third of its packets
+  and delays the rest, the repeats carry every step across; a small
+  disagreement is put right at once and a larger one closed over a few
+  snapshots; what she wears and carries reaches the host's copy through her
+  sheet, with nothing sent back as a gift
+- co-op M3 and M4, in the same town: what she drops lies in the host's world
+  and her window, she does not scoop it straight back up, and the host walking
+  over it has it; E on someone opens the conversation on her screen and not
+  the host's; when the host goes through a door she stays, in a world of her
+  own, stepped as before, and he leaves her window; walking into a way out
+  takes her through to a third map; the host following finds her where she
+  stood, in one world again; when the host leaves the world she is sent to the
+  lobby and brought back when he returns
+- co-op M5, dropping out: a friend whose line drops stands where they were,
+  out of the fight, and the host keeps a copy of her character and her place;
+  coming back she is put where she left off, not beside the host, and the
+  stand-in goes; if she does not come back it is let go when the grace is up,
+  as is a map nobody is on after a minute
+- co-op M2 to M5, out on the road: a world with a password turns away whoever
+  does not have it; the host's copy of her has her levels; the host's boar is
+  in her window where the host has it, goes for her who is nearest, and
+  nothing beyond the relevance radius is told; her swings, made on her
+  machine, kill the host's boar, aimed by her window's targeting; the numbers
+  were on her screen, the experience is on her own character, and the kill
+  counts in her journal and the host's; how hurt she is is what the host says,
+  a wound the host deals shows on her screen and what she eats heals the
+  host's copy; what the boar dropped lies in both and walking over it puts it
+  in her real bag; an arrow she looses is the host's arrow, marked as hers; she
+  is seen to chop, with the bar filling, and the logs and the Woodcutting are
+  hers; a chest she opens is open for everyone; if the host's copy of her falls
+  she falls, and is got up in Havenbrook, whole; in company sleeping through is
+  lying down and dawn does not come while a friend is up, comes for both at
+  once when she lies down too, and comes when one is abed and one dreaming, the
+  dreamer waking where she lay down; a bored sleeper gets up with one press; a
+  character is written to its own file and read back with its levels, bag,
+  clothes and journal, a travelling one in one file and a world's own in
+  another, and the sheet leaves out where she stands and how hurt she is
 
 It exits with the number of failures, so CI can use it directly.
 
@@ -3255,6 +3309,7 @@ src/
                         seats, the client, and the session the game holds.
                         Includes nothing of SDL's or the game's.
 tools/
+  server_main.cpp       DreamQuestServer: the co-op world with no window
   import_assets.ps1     rebuilds assets/ from the CraftPix zips
   tilecut.cpp           cuts atlases into individual tiles and sprites
   genmaps.cpp           builds the world into maps/*.mx

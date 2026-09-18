@@ -18,7 +18,7 @@
 
 namespace {
 
-enum Row { ROW_NAME = 0, ROW_LOOK, ROW_HOST, ROW_JOIN, ROW_SAY, ROW_BACK, ROW_COUNT };
+enum Row { ROW_NAME = 0, ROW_LOOK, ROW_PASS, ROW_HOST, ROW_JOIN, ROW_SAY, ROW_BACK, ROW_COUNT };
 
 constexpr size_t kAddressLimit = 64;
 
@@ -126,11 +126,14 @@ net::Session::Identity Game::NetIdentity() const {
     who.name = net::CleanLine(settings.player_name, net::MAX_NAME);
     if (who.name.empty()) who.name = "Traveller";
     who.look = has_session ? world.player.sprite_id : pending_character;
+    who.password = mp_password;
     return who;
 }
 
 bool Game::StartHosting(uint16_t port) {
-    const net::Session::Identity who = NetIdentity();
+    net::Session::Identity who = NetIdentity();
+    session.bring_your_own = settings.bring_your_own;
+    if (settings.host_password != mp_password) { settings.host_password = mp_password; settings.Save(); }
     mp_error.clear();
     if (!session.Host(port, who, who.name + "'s Hollowmarch", mp_error)) {
         mp_error = "Could not host: " + mp_error + ".";
@@ -144,7 +147,15 @@ bool Game::StartHosting(uint16_t port) {
 
 bool Game::StartJoining(const string& address) {
     mp_error.clear();
-    if (!session.Join(address, NetIdentity(), mp_error)) return false;
+    net::Session::Identity who = NetIdentity();
+    // A character kept from another day arrives as who they are, whatever
+    // the Character row says.
+    {
+        coop::Character kept;
+        if (coop::LoadCharacter(coop::CharacterPath(characters_dir, who.name, "", true), kept))
+            who.look = kept.player.value("sprite", who.look);
+    }
+    if (!session.Join(address, who, mp_error)) return false;
     // Remembered whether or not anyone answers: a mistyped name is one
     // Backspace from right, and the last five are kept.
     const string clean = net::CleanLine(address, kAddressLimit);
@@ -162,6 +173,8 @@ bool Game::StartJoining(const string& address) {
 
 void Game::UpdateCoop(float dt) {
     if (session.Hosting() && session.Hosted()) {
+        // A game that is never saved keeps nothing of anyone's.
+        if (never_save) coop_host.kept_dir.clear();
         coop_host.Update(dt, *session.Hosted(), world, ctx, has_session && !guest_session);
         return;
     }
@@ -181,9 +194,33 @@ void Game::UpdateCoop(float dt) {
     }
 }
 
+string Game::GuestCharacterPath() const {
+    return coop::CharacterPath(characters_dir, net::CleanLine(settings.player_name, net::MAX_NAME),
+                               session.Me().WorldName(), session.Me().BringYourOwn());
+}
+
+void Game::SaveGuestCharacter() {
+    if (!guest_session || never_save) return;
+    coop::Character c;
+    c.player = world.player.ToJson();
+    c.quests = quests.ToJson();
+    for (const string& key : world.Flags()) if (coop::PrivateFlag(key)) c.flags.push_back(key);
+    c.storage = json::object();
+    for (const auto& kv : world.Storages()) {
+        const json slots = kv.second.ToJson();
+        bool any = false;
+        for (const json& sl : slots) any = any || !sl.is_null();
+        if (any) c.storage[kv.first] = slots;
+    }
+    c.playtime = playtime;
+    if (!coop::SaveCharacter(GuestCharacterPath(), c))
+        PushToast("Could not write your character file.", {235, 120, 120, 255});
+}
+
 void Game::EnterAsGuest(const net::Enter& enter) {
     if (!guest_session) {
-        // A visitor's character: new, dressed as one, and nobody's save.
+        // Their own character, from their own machine, if they have been out
+        // before; otherwise a new one, dressed as one.
         banner_active = false;
         banner_zone.clear();
         banner_seen_map.clear();
@@ -195,18 +232,39 @@ void Game::EnterAsGuest(const net::Enter& enter) {
         world.shops.Clear();
         world.guests.clear();
         world.visiting = true;
+        world.SetStorages({});
         world.player = Player();
-        world.player.Init(ctx, pending_character);
-        const vector<string> kit = Player::StartingKit(pending_character);
-        for (const string& id : kit) world.player.inventory.Add(id, 1);
-        world.player.inventory.Add("cooked_meat", 3);
-        world.SetFlag("starter_tools");
-        string why;
-        for (const string& worn : kit)
-            for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
-                if (world.player.inventory.Slot(slot).id == worn)
-                    world.player.EquipFromInventory(slot, why);
         playtime = 0.0f;
+        coop::Character kept;
+        if (!never_save && coop::LoadCharacter(GuestCharacterPath(), kept)) {
+            world.player.Init(ctx, kept.player.value("sprite", pending_character));
+            world.player.FromJson(kept.player, ctx);
+            quests.FromJson(kept.quests);
+            for (const string& key : kept.flags) if (coop::PrivateFlag(key)) world.SetFlag(key);
+            map<string, Inventory> chests;
+            if (kept.storage.is_object())
+                for (auto it = kept.storage.begin(); it != kept.storage.end(); ++it) {
+                    if (!it.value().is_array()) continue;
+                    Inventory inv(nullptr, static_cast<int>(it.value().size()));
+                    inv.FromJson(it.value());
+                    chests.emplace(it.key(), std::move(inv));
+                }
+            world.SetStorages(std::move(chests));
+            playtime = kept.playtime;
+            PushToast("Welcome back, " + settings.player_name + ".", Palette::Xp);
+        } else {
+            world.player.Init(ctx, pending_character);
+            const vector<string> kit = Player::StartingKit(pending_character);
+            world.player.inventory.Add("coins", 25);
+            for (const string& id : kit) world.player.inventory.Add(id, 1);
+            world.player.inventory.Add("cooked_meat", 3);
+            world.SetFlag("starter_tools");
+            string why;
+            for (const string& worn : kit)
+                for (int slot = 0; slot < world.player.inventory.SlotCount(); ++slot)
+                    if (world.player.inventory.Slot(slot).id == worn)
+                        world.player.EquipFromInventory(slot, why);
+        }
         autosave_timer = 0.0f;
         quest_day_seen = -1;
         welcome_pending = false;
@@ -219,8 +277,9 @@ void Game::EnterAsGuest(const net::Enter& enter) {
     world.player.x = enter.x;
     world.player.y = enter.y;
     world.camera.SnapTo(enter.x, enter.y);
-    world.clock.Set(enter.day, enter.hours);
     coop_guest.Arrived(world);
+    // Up from the ground, or from a dream: the screen that was waiting goes.
+    if (guest_session && state == GameState::Death) SetState(GameState::Play);
     if (!guest_session) {
         guest_session = true;
         has_session = true;
@@ -231,6 +290,7 @@ void Game::EnterAsGuest(const net::Enter& enter) {
 }
 
 void Game::EndGuestSession(const string& why) {
+    SaveGuestCharacter();
     coop_guest.Reset(world);
     world.visiting = false;
     world.player.hands_external = false;
@@ -251,6 +311,40 @@ void Game::DrawNameTags() {
     }
 }
 
+void Game::DrawParty() {
+    // Who else is in the realm, and how they are doing: a name and a bar each,
+    // under the vitals. A friend on another map is named, and the map.
+    if (!session.Me().Seated() || session.Me().Roster().size() < 2) return;
+    struct Row { string name, where; int hp = 0, max_hp = 0; bool resting = false; };
+    vector<Row> rows;
+    if (session.Hosting() && session.Hosted()) {
+        for (const coop::Host::Member& m : coop_host.Party(world, *session.Hosted())) {
+            if (m.seat == session.Me().Seat()) continue;
+            rows.push_back({m.name, m.map == world.MapId() ? string() : m.map, m.hp, m.max_hp, m.resting});
+        }
+    } else {
+        for (const net::SeatInfo& info : session.Me().Roster()) {
+            if (info.seat == session.Me().Seat()) continue;
+            const Player* g = world.Guest(info.seat);
+            rows.push_back({info.name, g ? string() : string("elsewhere"), g ? g->hp : 0, g ? g->max_hp : 0, false});
+        }
+    }
+    float y = 128.0f;
+    for (const Row& r : rows) {
+        ui.TextShadowed(r.name, 20.0f, y, TextSize::Small, {214, 232, 255, 255});
+        if (r.max_hp > 0 && r.where.empty()) {
+            ui.Bar({20.0f, y + 18.0f, 120.0f, 7.0f}, std::clamp(static_cast<float>(r.hp) / r.max_hp, 0.0f, 1.0f),
+                   Palette::Health, Palette::HealthBack);
+            if (r.resting) ui.TextShadowed("abed", 146.0f, y + 12.0f, TextSize::Small, Palette::TextDim);
+        } else {
+            string where = r.where;
+            for (char& c : where) if (c == '_') c = ' ';
+            ui.TextShadowed(where.empty() ? string("...") : where, 20.0f, y + 14.0f, TextSize::Small, Palette::TextDim);
+        }
+        y += 34.0f;
+    }
+}
+
 void Game::UpdateSession(float dt) {
     session.Update(dt);
     // Away from the lobby, what is said arrives as a toast, so a host out in
@@ -268,6 +362,7 @@ void Game::UpdateSession(float dt) {
 
 void Game::OpenMultiplayer() {
     mp_name = settings.player_name;
+    if (mp_password.empty()) mp_password = settings.host_password;
     if (mp_address.empty() && !settings.recent_hosts.empty()) mp_address = settings.recent_hosts.front();
     OpenPanel(GameState::Multiplayer);
     // On the row that is the next thing to do. With a session under way that
@@ -340,6 +435,10 @@ void Game::UpdateMultiplayer() {
         switch (cursor) {
             case ROW_LOOK:
                 break;
+            case ROW_PASS:
+                if (session.Active()) mp_error = "The password is fixed while you are connected.";
+                else BeginTextEntry(&mp_password, net::MAX_PASSWORD);
+                break;
             case ROW_NAME:
                 if (session.Active()) mp_error = "Your name is fixed while you are connected.";
                 else BeginTextEntry(&mp_name, net::MAX_NAME);
@@ -390,6 +489,7 @@ void Game::DrawMultiplayer() {
     const string labels[ROW_COUNT] = {
         "Name",
         "Character",
+        "Password",
         hosting ? "Stop hosting" : "Host a world",
         guest ? "Leave" : "Join",
         "Say",
@@ -398,13 +498,14 @@ void Game::DrawMultiplayer() {
     const string values[ROW_COUNT] = {
         field(mp_name, text_target == &mp_name, "Traveller"),
         LookLabel(has_session ? world.player.sprite_id : pending_character),
+        text_target == &mp_password ? field(mp_password, true, "") : (mp_password.empty() ? string("none") : string(mp_password.size(), '*')),
         hosting ? "UDP " + std::to_string(session.Port()) : "",
         guest ? session.Address() : field(mp_address, text_target == &mp_address, "a friend's machine"),
         "",
         "",
     };
     const bool enabled[ROW_COUNT] = {
-        !session.Active(), !session.Active() && !has_session, !guest, !hosting && (!has_session || guest), me.Seated(), true,
+        !session.Active(), !session.Active() && !has_session, !session.Active(), !guest, !hosting && (!has_session || guest), me.Seated(), true,
     };
     for (int i = 0; i < ROW_COUNT; ++i) {
         const SDL_FRect row = {panel.x + 16.0f, top + i * row_h, left_w, row_h - 4.0f};
@@ -438,6 +539,9 @@ void Game::DrawMultiplayer() {
             case ROW_LOOK: help = has_session ? "The character you are playing."
                                 : session.Active() ? "Fixed while you are connected."
                                 : "Left and right: who you arrive as in a friend's world. Hosting, you are whoever your own game says.";
+                           break;
+            case ROW_PASS: help = "Hosting: a word friends must give at the door. Joining: the word the host "
+                                  "gave you. Leave it empty and the tailnet is the door.";
                            break;
             case ROW_HOST: help = hosting ? "Lets everyone go and closes the door."
                                 : guest   ? "Leave the world you have joined first."

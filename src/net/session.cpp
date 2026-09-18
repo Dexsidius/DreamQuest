@@ -17,6 +17,7 @@ Hello Session::MakeHello(const Identity& who) {
     hello.maps_hash = h.maps;
     hello.name = CleanLine(who.name, MAX_NAME);
     hello.look = CleanLine(who.look, MAX_LOOK);
+    hello.password = who.password;
     return hello;
 }
 
@@ -36,6 +37,8 @@ bool Session::Host(uint16_t on_port, const Identity& who, const std::string& wor
     config.world_name = CleanLine(world_name, MAX_NAME * 2);
     config.data_hash = h.data;
     config.maps_hash = h.maps;
+    config.password = who.password;
+    config.bring_your_own = bring_your_own;
     server = std::make_unique<Server>(config);
     server->Attach(std::move(wire));
 

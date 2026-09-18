@@ -28,7 +28,10 @@ public:
     struct Identity {
         std::string name = "Traveller";
         std::string look = "player_hero";
+        std::string password;       // joining: the world's; hosting: the one to ask for
     };
+    // Hosting: whether friends' characters travel here with them.
+    bool bring_your_own = true;
 
     // Hashes data/ and maps/ under `root`, once; every Host and Join after
     // that uses the answer. Cheap to call again.

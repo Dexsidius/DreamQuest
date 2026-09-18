@@ -37,6 +37,13 @@ struct GameContext {
 // Base for anything that lives in the world and sorts against the decor layer.
 class Entity {
 public:
+    // A virtual destructor would quietly take the moves away with it, and
+    // World::ActAs swaps whole players: say that they are wanted.
+    Entity() = default;
+    Entity(const Entity&) = default;
+    Entity(Entity&&) = default;
+    Entity& operator=(const Entity&) = default;
+    Entity& operator=(Entity&&) = default;
     virtual ~Entity() = default;
 
     virtual void Update(float dt, World& world, const GameContext& ctx) = 0;
@@ -89,6 +96,11 @@ struct Pickup {
     // there for ever.
     bool   dropped = false;
     bool   cleared = false;
+    // Who put it down, so it is they who must step clear of it: a friend
+    // standing by can pick it straight up, which is how things change hands.
+    uint8_t dropper_seat = 0;
+    // A name that survives the vector shifting, for the wire.
+    uint32_t net_id = 0;
     string icon;              // resolved image path, may be empty
 
     SDL_FRect Bounds() const { return {x - 8.0f, y - 8.0f, 16.0f, 16.0f}; }
