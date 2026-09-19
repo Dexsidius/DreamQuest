@@ -3,6 +3,7 @@
 #
 #      .\tools\make_tiers.ps1                       # icons and weapon layers
 #      .\tools\make_tiers.ps1 -What icons           # just the inventory icons
+#      .\tools\make_tiers.ps1 -What sets            # the hide and robe sets, their hides and dyes
 #      .\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
 #
 #  tools/blender_tiers.py models every tier's ore, bar, weapons and armour from

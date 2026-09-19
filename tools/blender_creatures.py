@@ -107,6 +107,11 @@ bc.PALETTE.update({
     "hare_fur": (0.68, 0.54, 0.37), "hare_fur_dk": (0.51, 0.39, 0.27),
     "hare_belly": (0.92, 0.88, 0.80), "hare_ear_in": (0.82, 0.63, 0.57),
     "beast_eye": (0.10, 0.08, 0.07),
+    # The Westwold's wolves and the Brackenwood's bears.
+    "wolf_fur": (0.56, 0.55, 0.54), "wolf_fur_dk": (0.36, 0.35, 0.36),
+    "wolf_belly": (0.86, 0.84, 0.80), "wolf_nose": (0.14, 0.12, 0.12),
+    "bear_fur": (0.40, 0.27, 0.17), "bear_fur_dk": (0.27, 0.18, 0.12),
+    "bear_muzzle": (0.66, 0.52, 0.37), "bear_claw": (0.88, 0.85, 0.76),
     # Elder Vask, and the chair he has not got out of in some years
     "vask_robe": (0.42, 0.40, 0.36), "vask_robe_dk": (0.30, 0.29, 0.26),
     "vask_shawl": (0.45, 0.33, 0.28), "vask_blanket": (0.38, 0.30, 0.34),
@@ -1672,6 +1677,111 @@ def hound_death(t):
             "fore_l": fwd(36 * k), "hind_l": fwd(30 * k), "tail1": (0, 0, 26 * k)}
 
 
+def build_wolf():
+    """A hound's frame with a living animal's coat: a ruff at the neck, a pale
+    belly and muzzle, pricked ears and a brush of a tail carried low. Joints
+    are the hound's, so it moves the way the hound does."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.44), rest=(-2, 0, 0))
+    r.add("chest", E(0.145, 0.18, 0.15), "wolf_fur", "body", loc=(0, -0.14, 0.02))
+    r.add("belly", E(0.115, 0.20, 0.105), "wolf_belly", "body", loc=(0, 0.04, -0.04))
+    r.add("hips", E(0.125, 0.13, 0.125), "wolf_fur", "body", loc=(0, 0.22, 0.02))
+    r.add("saddle", E(0.10, 0.26, 0.06), "wolf_fur_dk", "body", loc=(0, 0.02, 0.11))
+    for sx, side in ((-1, "l"), (1, "r")):
+        for tag, y in (("fore", -0.16), ("hind", 0.20)):
+            j = tag + "_" + side
+            r.joint(j, (sx * 0.10, y, -0.06), "body", rest=(8 if tag == "hind" else 4, 0, 0))
+            r.limb("thigh", (0, 0, 0), (0, 0.02 if tag == "hind" else -0.02, -0.18), 0.046, "wolf_fur", j,
+                   r_tip=0.032)
+            r.joint(j + "_knee", (0, 0.02 if tag == "hind" else -0.02, -0.18), j, rest=(-18, 0, 0))
+            r.limb("shin", (0, 0, 0), (0, 0, -0.18), 0.030, "wolf_fur_dk", j + "_knee", r_tip=0.022)
+            r.add("paw", E(0.04, 0.06, 0.03), "wolf_fur_dk", j + "_knee", loc=(0, -0.02, -0.19))
+    r.joint("neck", (0, -0.26, 0.06), "body", rest=(14, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, -0.10, 0.04), 0.068, "wolf_fur", "neck", r_tip=0.055)
+    r.add("ruff", E(0.095, 0.075, 0.095), "wolf_belly", "neck", loc=(0, -0.03, -0.035))
+    r.joint("head", (0, -0.10, 0.04), "neck", rest=(-10, 0, 0))
+    r.add("skull", E(0.080, 0.092, 0.078), "wolf_fur", "head")
+    r.add("muzzle", E(0.046, 0.105, 0.042), "wolf_belly", "head", loc=(0, -0.13, -0.022))
+    r.add("nose", E(0.022, 0.020, 0.020), "wolf_nose", "head", loc=(0, -0.235, -0.012))
+    for sx in (-1, 1):
+        r.limb("ear", (sx * 0.050, 0.025, 0.055), (sx * 0.066, 0.040, 0.150), 0.030, "wolf_fur_dk", "head",
+               r_tip=0.006)
+        r.add("eye", E(0.020, 0.016, 0.018), "beast_eye", "head", loc=(sx * 0.046, -0.072, 0.030))
+    r.joint("tail1", (0, 0.32, 0.04), "body", rest=(34, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.20), 0.040, "wolf_fur", "tail1", r_tip=0.046)
+    r.joint("tail2", (0, 0, -0.20), "tail1", rest=(10, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.17), 0.044, "wolf_fur_dk", "tail2", r_tip=0.010)
+    r.pose.scale = (1.5, 1.5, 1.5)
+    return r
+
+
+def build_bear():
+    """A boulder on four posts: more shoulder than the boar and twice the
+    size, a hump over the forelegs, a broad head carried low, round ears and a
+    pale muzzle. What it does is stand up."""
+    r = Rig()
+    _quadruped(r, "bear_fur", "bear_fur_dk", 0.46,
+               chest=(0.245, 0.27, 0.235), hips=(0.235, 0.25, 0.225),
+               leg_len=0.34, leg_r=0.086, fore_y=-0.16, hind_y=0.22, hip_x=0.145)
+    r.add("hump", E(0.20, 0.17, 0.13), "bear_fur", "body", loc=(0, -0.13, 0.17))
+    r.add("rump", E(0.20, 0.16, 0.15), "bear_fur_dk", "body", loc=(0, 0.26, 0.06))
+    for sx, side in ((-1, "l"), (1, "r")):
+        # Claws on the forepaws: the one detail worth pixels.
+        for k in (-1, 0, 1):
+            r.limb("claw", (sx * 0.0 + k * 0.030, -0.085, -0.335), (k * 0.034, -0.150, -0.350),
+                   0.012, "bear_claw", "fore_" + side + "_knee", r_tip=0.003)
+    r.joint("neck", (0, -0.30, 0.08), "body", rest=(18, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, -0.10, 0.01), 0.125, "bear_fur", "neck", r_tip=0.105)
+    r.joint("head", (0, -0.12, 0.0), "neck", rest=(-14, 0, 0))
+    r.add("skull", E(0.135, 0.130, 0.120), "bear_fur", "head")
+    r.add("muzzle", E(0.070, 0.105, 0.062), "bear_muzzle", "head", loc=(0, -0.145, -0.035))
+    r.add("nose", E(0.034, 0.026, 0.028), "wolf_nose", "head", loc=(0, -0.245, -0.020))
+    for sx in (-1, 1):
+        r.add("ear", E(0.044, 0.026, 0.044), "bear_fur_dk", "head", loc=(sx * 0.100, 0.035, 0.105))
+        r.add("eye", E(0.020, 0.016, 0.020), "beast_eye", "head", loc=(sx * 0.066, -0.098, 0.040))
+    r.joint("tail1", (0, 0.40, 0.10), "body", rest=(30, 0, 0))
+    r.add("tail", E(0.040, 0.040, 0.040), "bear_fur_dk", "tail1")
+    r.pose.scale = (1.72, 1.72, 1.72)
+    return r
+
+
+def bear_idle(t):
+    s = sn(t)
+    return {"_z": 0.012 * s, "body": X(1.5 * s), "neck": X(4 * sn(t, 0.3)),
+            "head": (0, 0, 6 * sn(t, 0.2))}
+
+
+def bear_walk(t):
+    # A lumber: the whole barrel rolls side to side over the stepping foot.
+    s = sn(t)
+    return {"fore_l": fwd(22 * s), "hind_r": fwd(20 * s), "fore_r": fwd(-22 * s), "hind_l": fwd(-20 * s),
+            "fore_l_knee": X(16 * max(0.0, -s)), "fore_r_knee": X(16 * max(0.0, s)),
+            "hind_l_knee": X(18 * max(0.0, s)), "hind_r_knee": X(18 * max(0.0, -s)),
+            "_z": 0.026 * abs(s), "body": (0, 5 * s, 4 * s), "neck": X(6), "head": (0, 0, -5 * s)}
+
+
+def bear_attack(t):
+    # Up on its hind legs, both forepaws high, and then all of it comes down.
+    i, k = phases(t, 0.40, 0.58, 1.0)
+    rear = {"body": X(-46), "_z": 0.26, "_y": 0.10, "neck": X(30), "head": X(16),
+            "fore_l": fwd(74), "fore_r": fwd(62), "fore_l_knee": X(-30), "fore_r_knee": X(-24),
+            "hind_l": fwd(-40), "hind_r": fwd(-38), "hind_l_knee": X(30), "hind_r_knee": X(30)}
+    maul = {"body": X(18), "_y": -0.34, "_z": 0.02, "neck": X(24), "head": X(22),
+            "fore_l": fwd(-28), "fore_r": fwd(-34), "hind_l": fwd(18), "hind_r": fwd(16)}
+    return [mix({}, rear, k), mix(rear, maul, k), mix(maul, {}, k), {}][i]
+
+
+def bear_hurt(t):
+    k = math.sin(t * math.pi)
+    return {"body": X(-10 * k), "_y": 0.10 * k, "neck": X(-18 * k), "head": (0, 0, 16 * k)}
+
+
+def bear_death(t):
+    k = ease(t * 1.1)
+    return {"_roll_to_camera": True, "_roll": 74 * k, "_z": -0.26 * k, "neck": X(26 * k), "head": X(20 * k),
+            "fore_l": fwd(32 * k), "hind_l": fwd(28 * k)}
+
+
 def build_ankou():
     """The grave's own coachman: a tall black robe, a skull in the hood, and a
     scythe it does not need to swing hard."""
@@ -2297,6 +2407,8 @@ CREATURES = {
     "hound":     (build_hound,     64, (hound_idle, hound_walk, hound_attack, hound_hurt, hound_death),  0.34),
     "ankou":     (build_ankou,     80, (ankou_idle, ankou_walk, ankou_attack, ankou_hurt, ankou_death),  0.30),
     "banshee":   (build_banshee,   72, (banshee_idle, banshee_walk, banshee_attack, banshee_hurt, banshee_death), 0.26),
+    "wolf":      (build_wolf,      64, (hound_idle, hound_walk, hound_attack, hound_hurt, hound_death),  0.34),
+    "bear":      (build_bear,      96, (bear_idle, bear_walk, bear_attack, bear_hurt, bear_death),       0.62),
 }
 CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False),
                ("death", 6, False), ("run", 6, True)]
@@ -2320,7 +2432,8 @@ CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hur
 FRAME_DROP = {"orc3": 8}
 
 RUNNERS = {"orc1": 1.45, "orc2": 1.45, "orc3": 1.40,
-           "boar": 1.20, "deer": 1.18, "fox": 1.20, "hare": 1.20}
+           "boar": 1.20, "deer": 1.18, "fox": 1.20, "hare": 1.20,
+           "wolf": 1.22, "bear": 1.15}
 FACINGS = bc.FACINGS
 
 

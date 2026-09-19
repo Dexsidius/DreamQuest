@@ -1354,6 +1354,224 @@ def brewing_icons(only=None):
     print("icons %d brewing" % count)
 
 
+# --- the sets that are not metal (icons) ----------------------------------------------------------
+# The ranger's hides and the mage's robes, a hood, a jerkin and chaps or a hat, a
+# robe and a skirt for every tier, in the colour data/tiers.json gives the set
+# at that tier -- the same colour the game paints the worn layer with, so what
+# is in the bag is what goes on the character. And what they are made of: the
+# hides something has to be killed for, flax, a bolt of cloth, and the dyes.
+
+def _set_colours():
+    import json
+    with open(os.path.join(bc.ROOT, "data", "tiers.json"), encoding="utf-8") as f:
+        sets = json.load(f).get("sets", {})
+    out = {}
+    for kind, block in sets.items():
+        for tier, entry in block.get("tiers", {}).items():
+            c = entry.get("colour", [160, 160, 160])
+            out[(kind, tier)] = (c[0] / 255.0, c[1] / 255.0, c[2] / 255.0)
+    return out
+
+
+def _use_colour(rgb):
+    """The three shades a set piece is modelled in, from its one colour."""
+    bc.PALETTE["set_main"] = rgb
+    bc.PALETTE["set_dark"] = tuple(v * 0.62 for v in rgb)
+    bc.PALETTE["set_light"] = tuple(min(1.0, v * 1.22 + 0.06) for v in rgb)
+    bc.PALETTE["set_fur"] = (0.88, 0.84, 0.76)
+    bc.PALETTE["set_fur_dk"] = (0.62, 0.57, 0.49)
+
+
+def build_coif(tier, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("hood", bc.mesh_ellipsoid(0.27, 0.27, 0.26), "set_main", parent, loc=(0, 0.02, 0.04))
+    add("drape", bc.mesh_ellipsoid(0.24, 0.16, 0.20), "set_dark", parent, loc=(0, 0.12, -0.16))
+    add("brow_fur", bc.mesh_torus(0.235, 0.055), "set_fur", parent, loc=(0, -0.04, -0.06),
+        rot=(math.radians(18), 0, 0))
+    add("face", bc.mesh_ellipsoid(0.16, 0.05, 0.13), "set_dark", parent, loc=(0, -0.23, -0.10))
+    parts.append(bc.spike("peak", (0, 0.10, 0.24), (0, 0.30, 0.34), 0.09, "set_main", parent, r_tip=0.02))
+    return parts
+
+
+def build_jerkin(tier, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("torso", bc.mesh_capsule(0.25, 0.20, 0.27, squash_y=0.7), "set_main", parent, loc=(0, 0, 0.16))
+    add("collar", bc.mesh_torus(0.15, 0.055), "set_fur", parent, loc=(0, 0, 0.27))
+    add("belt", bc.mesh_ellipsoid(0.235, 0.165, 0.04), "set_dark", parent, loc=(0, 0, -0.19))
+    add("buckle", mesh_box(0.06, 0.03, 0.05), "set_light", parent, loc=(0, -0.16, -0.19))
+    for z in (0.12, 0.03, -0.06):
+        add("lace", mesh_box(0.10, 0.02, 0.018), "set_light", parent, loc=(0, -0.155, z))
+    for side in (-1, 1):
+        add("shoulder_fur", bc.mesh_ellipsoid(0.12, 0.12, 0.07), "set_fur_dk", parent, loc=(side * 0.26, 0, 0.19))
+        add("strap", bc.mesh_capsule(0.075, 0.065, 0.12), "set_dark", parent, loc=(side * 0.30, 0, 0.10))
+    return parts
+
+
+def build_chaps(tier, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("waist", bc.mesh_ellipsoid(0.24, 0.14, 0.06), "set_dark", parent, loc=(0, 0, 0.30))
+    for side in (-1, 1):
+        add("thigh", bc.mesh_capsule(0.10, 0.09, 0.20), "set_main", parent, loc=(side * 0.11, 0, 0.26))
+        add("wrap", bc.mesh_capsule(0.088, 0.078, 0.20), "set_dark", parent, loc=(side * 0.11, 0, -0.04))
+        add("cuff", bc.mesh_torus(0.088, 0.034), "set_fur", parent, loc=(side * 0.11, 0, -0.02))
+        add("boot", bc.mesh_ellipsoid(0.09, 0.13, 0.06), "set_main", parent, loc=(side * 0.11, -0.04, -0.30))
+    return parts
+
+
+def build_hat(tier, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("brim", bc.mesh_ellipsoid(0.36, 0.36, 0.035), "set_dark", parent, loc=(0, 0, -0.16))
+    parts.append(bc.spike("cone", (0, 0, -0.16), (0.10, 0.06, 0.40), 0.23, "set_main", parent, r_tip=0.025))
+    add("band", bc.mesh_torus(0.205, 0.035), "set_light", parent, loc=(0.005, 0.003, -0.10))
+    add("buckle", mesh_box(0.07, 0.03, 0.06), "platinum_accent", parent, loc=(0, -0.21, -0.10))
+    return parts
+
+
+def build_robe_top(tier, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("torso", bc.mesh_capsule(0.24, 0.26, 0.40, squash_y=0.7), "set_main", parent, loc=(0, 0, 0.22))
+    add("mantle", bc.mesh_torus(0.17, 0.065), "set_light", parent, loc=(0, 0, 0.26))
+    add("sash", bc.mesh_ellipsoid(0.255, 0.18, 0.04), "set_dark", parent, loc=(0, 0, -0.04))
+    add("trim", mesh_box(0.05, 0.02, 0.34), "set_light", parent, loc=(0, -0.185, 0.02))
+    for side in (-1, 1):
+        parts.append(bc.spike("sleeve", (side * 0.22, 0, 0.20), (side * 0.40, 0, -0.10), 0.075, "set_main",
+                              parent, r_tip=0.12))
+        add("cuff", bc.mesh_torus(0.115, 0.022), "set_light", parent, loc=(side * 0.405, 0, -0.105),
+            rot=(0, math.radians(side * 32), 0))
+    return parts
+
+
+def build_skirt(tier, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("waist", bc.mesh_ellipsoid(0.20, 0.14, 0.045), "set_dark", parent, loc=(0, 0, 0.30))
+    add("skirt", bc.mesh_frustum(0.19, 0.34, 0.58, squash_y=0.7), "set_main", parent, loc=(0, 0, 0.30))
+    add("band", bc.mesh_torus(0.27, 0.02), "set_dark", parent, loc=(0, 0, 0.0))
+    add("hem", bc.mesh_torus(0.335, 0.03), "set_light", parent, loc=(0, 0, -0.27))
+    for g in parts[-2:]:
+        g.scale = (1.0, 0.7, 1.0)
+    return parts
+
+
+def build_dye(tier, parent):
+    """A stoppered pot of it, and a drip down the side so the colour shows."""
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("pot", bc.mesh_ellipsoid(0.17, 0.15, 0.15), "pot_clay", parent, loc=(0, 0, -0.06))
+    add("neck", bc.mesh_capsule(0.10, 0.11, 0.07), "pot_clay_dk", parent, loc=(0, 0, 0.12))
+    add("surface", bc.mesh_ellipsoid(0.095, 0.085, 0.03), "set_main", parent, loc=(0, 0, 0.135))
+    add("label", bc.mesh_ellipsoid(0.10, 0.03, 0.07), "set_main", parent, loc=(0, -0.135, -0.06))
+    parts.append(bc.spike("drip", (0.07, -0.10, 0.10), (0.10, -0.13, -0.12), 0.026, "set_light", parent, r_tip=0.012))
+    return parts
+
+
+PELTS = {
+    #                   hide                  fur                   how shaggy
+    "wolf_pelt":      ((0.50, 0.49, 0.48), (0.72, 0.71, 0.70), 1.0),
+    "bear_hide":      ((0.38, 0.25, 0.16), (0.27, 0.18, 0.12), 1.2),
+    "demon_hide":     ((0.52, 0.14, 0.12), (0.20, 0.08, 0.08), 0.0),
+    "greatwolf_pelt": ((0.80, 0.83, 0.90), (0.97, 0.98, 1.00), 1.2),
+    "dire_bear_hide": ((0.26, 0.24, 0.27), (0.40, 0.38, 0.42), 1.4),
+    "dread_hide":     ((0.42, 0.26, 0.62), (0.70, 0.52, 0.92), 0.6),
+    "dragonhide":     ((0.70, 0.80, 0.88), (0.93, 0.97, 1.00), 0.0),
+}
+
+
+def build_pelt(name, parent):
+    hide, fur, shag = PELTS[name]
+    bc.PALETTE["pelt_hide"] = hide
+    bc.PALETTE["pelt_fur"] = fur
+    parts = [bc.part("hide", mesh_box(0.44, 0.04, 0.32), "pelt_hide", parent, rot=(0, 0.12, 0)),
+             bc.part("fold", mesh_box(0.44, 0.055, 0.07), "pelt_fur", parent, loc=(0, -0.02, -0.13))]
+    for side in (-1, 1):
+        # The legs of it, splayed at the corners the way a pelt is pegged out.
+        parts.append(bc.part("leg", mesh_box(0.10, 0.04, 0.10), "pelt_hide", parent,
+                             loc=(side * 0.24, 0, 0.17), rot=(0, side * 0.5, 0)))
+    if shag > 0.0:
+        for k in range(6):
+            parts.append(bc.spike("fur", (-0.19 + k * 0.076, -0.03, 0.10), (-0.21 + k * 0.076, -0.03, 0.10 + 0.13 * shag),
+                                  0.036, "pelt_fur", parent, r_tip=0.01))
+    else:
+        # Scale or bare skin: rows of plates instead of a coat.
+        for row in range(2):
+            for k in range(4):
+                parts.append(bc.part("scale", bc.mesh_ellipsoid(0.05, 0.02, 0.045), "pelt_fur", parent,
+                                     loc=(-0.15 + k * 0.10 + row * 0.05, -0.03, 0.06 - row * 0.10)))
+    return parts
+
+
+def build_flax(tier, parent):
+    parts = []
+    for k, x in enumerate((-0.12, -0.04, 0.05, 0.13)):
+        top = (x + (k - 1.5) * 0.04, 0, 0.30 - abs(k - 1.5) * 0.04)
+        _sprig(parent, parts, (x * 0.4, 0, -0.30), top, colour="flax_stalk", r=0.012)
+        parts.append(bc.part("flower", bc.mesh_ellipsoid(0.042, 0.03, 0.042), "flax_flower", parent, loc=top))
+    parts.append(bc.part("tie", bc.mesh_torus(0.05, 0.016), "flax_tie", parent, loc=(0, 0, -0.16)))
+    return parts
+
+
+def build_bolt(tier, parent):
+    parts = [bc.part("roll", bc.mesh_capsule(0.13, 0.13, 0.40), "cloth_plain", parent, loc=(-0.20, 0, 0.0),
+                     rot=(0, math.radians(90), 0)),
+             bc.part("core", bc.mesh_ellipsoid(0.03, 0.06, 0.06), "cloth_plain_dk", parent, loc=(0.215, 0, 0.0)),
+             bc.part("flap", mesh_box(0.36, 0.20, 0.02), "cloth_plain", parent, loc=(0.0, -0.14, -0.125))]
+    for x in (-0.10, 0.06):
+        parts.append(bc.part("band", bc.mesh_torus(0.133, 0.012), "cloth_plain_dk", parent, loc=(x, 0, 0),
+                             rot=(0, math.radians(90), 0)))
+    return parts
+
+
+bc.PALETTE.update({
+    "pot_clay": (0.62, 0.42, 0.30), "pot_clay_dk": (0.44, 0.29, 0.21),
+    "flax_stalk": (0.62, 0.64, 0.34), "flax_flower": (0.44, 0.58, 0.94), "flax_tie": (0.50, 0.36, 0.22),
+    "cloth_plain": (0.86, 0.82, 0.72), "cloth_plain_dk": (0.64, 0.59, 0.49),
+})
+
+
+def set_icons(only_tiers, only=None):
+    import json
+    colours = _set_colours()
+    with open(os.path.join(bc.ROOT, "data", "tiers.json"), encoding="utf-8") as f:
+        sets = json.load(f).get("sets", {})
+    count = 0
+    jobs = {"hide": (("head", build_coif, 0.88), ("body", build_jerkin, 0.9), ("legs", build_chaps, 0.88)),
+            "robe": (("head", build_hat, 0.92), ("body", build_robe_top, 0.92), ("legs", build_skirt, 0.9))}
+    for tier in only_tiers:
+        for kind, pieces in jobs.items():
+            if (kind, tier) not in colours:
+                continue
+            for piece, builder, fill in pieces:
+                name = "%s_%s_%s" % (kind, piece, tier)
+                if only and name not in only:
+                    continue
+                _use_colour(colours[(kind, tier)])
+                render_icon(name, builder, tier, 0, 16, fill)
+                count += 1
+            dye = sets.get(kind, {}).get("tiers", {}).get(tier, {}).get("dye")
+            if dye and (not only or dye["id"] in only):
+                _use_colour(colours[(kind, tier)])
+                render_icon(dye["id"], build_dye, tier, 0, 0, 0.86)
+                count += 1
+    if len(only_tiers) == len(TIERS) or only:
+        for name in PELTS:
+            if only and name not in only:
+                continue
+            render_icon(name, lambda t, p, n=name: build_pelt(n, p), "wood", 0, 0, 0.9)
+            count += 1
+        if not only or "flax" in only:
+            render_icon("flax", build_flax, "wood", 0, 0, 0.92)
+            count += 1
+        if not only or "bolt_cloth" in only:
+            render_icon("bolt_cloth", build_bolt, "wood", 0, 20, 0.9)
+            count += 1
+    print("icons %d sets" % count)
+
+
 # --- weapon layers on the hero --------------------------------------------------------------
 
 def weapon_layers(clip_name, models, out_dir):
@@ -1442,7 +1660,7 @@ def main():
         if chosen:
             return [m for m in chosen if m.split("_", 1)[0] in kinds]
         return every
-    wanted = set(args) or {"icons", "layers"}
+    wanted = set(args) or {"icons", "layers", "sets"}
 
     os.makedirs(ICON_DIR, exist_ok=True)
     if "icons" in wanted:
@@ -1452,6 +1670,8 @@ def main():
             pass
         else:
             brewing_icons(set(names) if names else None)
+    if "sets" in wanted:
+        set_icons(tiers, set(names) if names else None)
     if "layers" in wanted:
         for clip in clips:
             wanted_models = models_for(clip)

@@ -121,11 +121,22 @@ struct AnimClip {
 struct SpriteDef {
     string name;
     map<string, AnimClip> clips;
+    // Where this character's own folder is, and the folder the weapon in hand
+    // is drawn from. The three playable characters are one rig in three sets
+    // of clothes, so every tier's sword, bow, staff and spear is rendered once,
+    // in the hero's hand, and the warden and the wayfarer hold the same
+    // sheets: "weapons_from" in sprites.json names whose. Empty is their own.
+    string dir, weapon_dir;
     int   rows = 4;            // facings in the sheet; 1 means non-directional
     float anchor_y = 54.0f;    // where the feet sit inside the frame
     float scale = 1.0f;
 
     const AnimClip* Find(const string& clip) const;
+    // The sheet that draws `model` ("bow_wood", "sword_iron") in hand over a
+    // generic weapon layer: layers/attack_4_weapon_front.png becomes
+    // layers/attack_4_weapon_sword_iron.png, in `weapon_dir` if there is one.
+    // Empty if the layer is not a weapon layer.
+    string WeaponSheet(const string& generic_sheet, const string& model) const;
 };
 
 // Loads and owns every SpriteDef, keyed by id (e.g. "player_male", "orc1").

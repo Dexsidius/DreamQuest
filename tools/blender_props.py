@@ -65,6 +65,12 @@ PALETTE = {
     "bottle":     (0.263, 0.451, 0.286),
     "bottle_br":  (0.494, 0.318, 0.157),
     "straw":      (0.816, 0.702, 0.408),
+    # The Westwold's steadings and the Brackenwood's den.
+    "hide_tan":   (0.640, 0.440, 0.280), "hide_pale":  (0.820, 0.690, 0.520),
+    "hay":        (0.800, 0.660, 0.300), "hay_lt":     (0.900, 0.780, 0.420), "hay_dk": (0.600, 0.470, 0.200),
+    "earth_dk":   (0.300, 0.230, 0.170), "void":       (0.040, 0.035, 0.045),
+    "rock":       (0.500, 0.490, 0.480), "rock_dk":    (0.350, 0.340, 0.350),
+    "bone":       (0.890, 0.855, 0.769),
     "clay":       (0.694, 0.408, 0.286),
     "wool_green": (0.365, 0.498, 0.318),
     "chalk":      (0.188, 0.200, 0.192),
@@ -1907,6 +1913,73 @@ def prop_log_pile():
     return 2.0
 
 
+def prop_tanning_rack():
+    """A hide laced into a pole frame to dry, leaning back on a prop, with a
+    scraping beam beside it. What a tannery is, from a distance."""
+    for x in (-0.62, 0.62):
+        cyl("post_%s" % x, 0.045, 1.50, (x, 0.10, 0.74), "log_dk", rot=(math.radians(-9), 0, 0), verts=10)
+    for z, y in ((0.12, 0.0), (1.42, 0.21)):
+        cyl("rail_%s" % z, 0.040, 1.40, (0, y, z), "log", rot=(0, math.radians(90), 0), verts=10)
+    blk("hide", (0.98, 0.03, 1.02), (0, 0.10, 0.76), "hide_tan", rot=(math.radians(-9), 0, 0), bev=0.02)
+    blk("hide_belly", (0.46, 0.035, 0.62), (0, 0.085, 0.74), "hide_pale", rot=(math.radians(-9), 0, 0), bev=0.02)
+    # The lacing: short thongs from the hide's edge out to the frame.
+    for i in range(5):
+        z = 0.30 + i * 0.23
+        for sx in (-1, 1):
+            blk("lace_%d_%d" % (i, sx), (0.14, 0.015, 0.015), (sx * 0.55, 0.06 + i * 0.035, z), "straw", bev=0)
+    cyl("prop", 0.035, 1.30, (0, 0.62, 0.60), "log_dk", rot=(math.radians(38), 0, 0), verts=8)
+    cyl("beam", 0.10, 1.10, (1.10, -0.10, 0.34), "log", rot=(0, math.radians(68), 0), verts=12)
+    for sx in (-1, 1):
+        cyl("beam_leg_%d" % sx, 0.03, 0.46, (1.40, -0.10 + sx * 0.14, 0.20), "log_dk", verts=8)
+    return 2.3
+
+
+def prop_hay_rick():
+    """A rick of hay thatched to a point, a pitchfork stood in its side."""
+    cyl("base", 0.74, 0.70, (0, 0, 0.35), "hay", verts=16)
+    cone("top", 0.82, 0.86, (0, 0, 1.12), "hay_lt", verts=16)
+    cyl("band", 0.76, 0.06, (0, 0, 0.62), "hay_dk", verts=16)
+    cyl("cap", 0.07, 0.20, (0, 0, 1.60), "log_dk", verts=8)
+    blk("fork_haft", (0.04, 0.04, 1.10), (0.78, -0.30, 0.56), "oak_light", rot=(0, math.radians(-14), 0), bev=0.01)
+    for k in (-1, 0, 1):
+        blk("tine_%d" % k, (0.02, 0.02, 0.26), (0.66 + k * 0.06, -0.30, 1.20), "iron_light",
+            rot=(0, math.radians(-14), 0), bev=0)
+    return 1.9
+
+
+def prop_rail_fence():
+    """A length of split-rail fence: three posts and two rails. Laid end to end
+    it is a field's edge."""
+    for x in (-0.92, 0.0, 0.92):
+        blk("post_%s" % x, (0.11, 0.11, 0.78), (x, 0, 0.39), "log_dk", bev=0.02)
+    for z in (0.30, 0.60):
+        blk("rail_%s" % z, (1.96, 0.06, 0.09), (0, -0.02, z), "log", bev=0.02)
+    return 2.0
+
+
+def prop_bear_den():
+    """The Den Mother's: a mouth of dark under a lintel of fallen slabs, banked
+    with earth and bracken, claw-raked trunks either side and bones at the
+    door. Scenery, not a way in -- she comes out to you."""
+    blk("bank", (3.4, 1.8, 1.10), (0, 0.55, 0.55), "earth_dk", bev=0.30)
+    blk("bank_top", (2.9, 1.5, 0.40), (0, 0.60, 1.20), "moss", bev=0.18)
+    blk("mouth", (1.30, 0.30, 0.92), (0, -0.30, 0.46), "void", bev=0.10, rough=1.0)
+    blk("lintel", (2.0, 0.60, 0.34), (0, -0.20, 1.06), "rock", rot=(0, math.radians(4), 0), bev=0.08)
+    blk("jamb_l", (0.44, 0.56, 1.00), (-0.86, -0.22, 0.50), "rock_dk", rot=(0, math.radians(-6), 0), bev=0.08)
+    blk("jamb_r", (0.48, 0.56, 0.96), (0.88, -0.22, 0.48), "rock", rot=(0, math.radians(7), 0), bev=0.08)
+    for i, (x, y, r) in enumerate(((-1.35, 0.1, 0.30), (1.30, 0.2, 0.26), (-0.4, 0.9, 0.34), (0.7, 1.0, 0.28))):
+        sphere("fern_%d" % i, r, (x, y, 1.20 + r * 0.4), ("leaf", "moss_lt")[i % 2])
+    for sx in (-1, 1):
+        cyl("trunk_%d" % sx, 0.17, 1.9, (sx * 1.85, 0.0, 0.95), "log_dk", verts=12)
+        for k in range(3):
+            blk("rake_%d_%d" % (sx, k), (0.03, 0.02, 0.50), (sx * 1.85 + (k - 1) * 0.07, -0.17, 1.00),
+                "log_end", rot=(0, math.radians(sx * 8), 0), bev=0)
+    for i, (x, y) in enumerate(((-0.5, -0.80), (0.35, -0.95), (0.0, -0.70))):
+        cyl("bone_%d" % i, 0.035, 0.36, (x, y, 0.05), "bone", rot=(math.radians(90), 0, math.radians(30 + i * 50)), verts=8)
+    sphere("skull", 0.11, (0.62, -0.78, 0.10), "bone")
+    return 4.0
+
+
 def prop_tent():
     """A canvas tent with its flap tied back, pegged out on guy ropes. The
     dark opening is what makes it a tent and not a roof on the ground.
@@ -2054,6 +2127,10 @@ WOODLAND_PROPS = {
     "market_stall": (prop_market_stall, 80),
     "palisade":     (prop_palisade,     64),
     "log_pile":     (prop_log_pile,     48),
+    "tanning_rack": (prop_tanning_rack, 64),
+    "hay_rick":     (prop_hay_rick,     56),
+    "rail_fence":   (prop_rail_fence,   64),
+    "bear_den":     (prop_bear_den,     144),
     "tent":         (prop_tent,         72),
     "campfire_ring": (prop_campfire_ring, 48),
 }
@@ -2079,6 +2156,9 @@ PALETTE.update({
     "herb_leaf_dk":  (0.192, 0.337, 0.157),
     "herb_leaf_lt":  (0.482, 0.671, 0.290),
     "stub":          (0.557, 0.600, 0.341),
+    "flax_stalk":    (0.640, 0.650, 0.340),
+    "flax_blue":     (0.420, 0.560, 0.940),
+    "flax_eye":      (0.930, 0.900, 0.560),
     "marigold":      (0.973, 0.557, 0.106),
     "marigold_dk":   (0.839, 0.345, 0.078),
     "mint":          (0.380, 0.749, 0.478),
@@ -2160,6 +2240,24 @@ def herb_marigold(picked):
         sphere("bloom_%d" % i, 0.075, top, "marigold")
         sphere("bloom_c_%d" % i, 0.045, (top[0], top[1] - 0.03, top[2] + 0.04), "marigold_dk")
         leaf("sl_%d" % i, 0.12, 0.05, (x, y, h * 0.5), rng.random() * 360, 20, "herb_leaf_lt")
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_flax(picked):
+    """Thin straw-green stalks in a loose sheaf, a blue flower at the top of
+    each. It grows at the edge of a ploughed field, which is where it is put."""
+    import random
+    rng = random.Random(23)
+    ground_tuft(rng, 7, 0.20, "flax_stalk", 0.20, 0.05)
+    if picked:
+        stubs(rng, 6, 0.14, colour="flax_stalk")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h) in enumerate(((-0.14, 0.0, 0.40), (-0.05, 0.08, 0.46), (0.05, -0.04, 0.44),
+                                   (0.13, 0.06, 0.38), (0.0, -0.10, 0.34))):
+        top = stem("stem_%d" % i, h, (x, y, 0.02), colour="flax_stalk", radius=0.011,
+                   lean=((i - 2) * 0.05, 0.0))
+        sphere("bloom_%d" % i, 0.052, top, "flax_blue")
+        sphere("bloom_c_%d" % i, 0.024, (top[0], top[1] - 0.03, top[2] + 0.02), "flax_eye")
     return (HERB_SPAN, HERB_ELEVATION)
 
 
@@ -2361,7 +2459,7 @@ def prop_cauldron():
 
 
 HERBS = ("marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
-         "emberbloom", "moonpetal", "starlily")
+         "emberbloom", "moonpetal", "starlily", "flax")
 HERB_PROPS = {"cauldron": (prop_cauldron, 48)}
 for _name in HERBS:
     _builder = globals()["herb_" + _name]

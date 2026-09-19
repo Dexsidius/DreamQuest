@@ -107,6 +107,8 @@ $slotNames = @{
     'swing'       = 'effect'
 }
 
+$weaponsFrom = @{ 'player_warden' = 'player_hero'; 'player_wayfarer' = 'player_hero' }
+
 $out = [ordered]@{}
 $ragged = 0
 $layered = 0
@@ -181,6 +183,11 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
         scale    = 1.0
         clips    = $clips
     }
+    # The three playable characters are one rig in three sets of clothes, and
+    # make_tiers.ps1 renders every tier's weapon once, in the hero's hand. The
+    # other two hold the same sheets rather than a second and third copy of
+    # six hundred files.
+    if ($weaponsFrom.ContainsKey($dir.Name)) { $out[$dir.Name]['weapons_from'] = $weaponsFrom[$dir.Name] }
 }
 
 New-Item -ItemType Directory -Force -Path "data" | Out-Null

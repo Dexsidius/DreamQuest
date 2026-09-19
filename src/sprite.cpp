@@ -57,6 +57,8 @@ bool SpriteLibrary::Load(const string& json_path) {
         const json& o = it.value();
 
         const string dir = o.value("dir", string(""));
+        d.dir        = dir;
+        d.weapon_dir = o.value("weapons_from", string(""));     // a sprite id for now; a folder once all are read
         d.rows     = o.value("rows", 4);
         d.anchor_y = o.value("anchor_y", 54.0f);
         d.scale    = o.value("scale", 1.0f);
@@ -85,8 +87,35 @@ bool SpriteLibrary::Load(const string& json_path) {
         defs[d.name] = d;
     }
 
+    // "weapons_from" named a sprite; what is wanted is that sprite's folder.
+    for (auto& kv : defs) {
+        if (kv.second.weapon_dir.empty()) continue;
+        const auto from = defs.find(kv.second.weapon_dir);
+        if (from == defs.end()) {
+            SDL_Log("SpriteLibrary: '%s' takes its weapons from '%s', which is not a sprite",
+                    kv.first.c_str(), kv.second.weapon_dir.c_str());
+            kv.second.weapon_dir.clear();
+        } else {
+            kv.second.weapon_dir = from->second.dir;
+        }
+    }
+
     SDL_Log("SpriteLibrary: loaded %d sprite definitions", static_cast<int>(defs.size()));
     return true;
+}
+
+string SpriteDef::WeaponSheet(const string& generic_sheet, const string& model) const {
+    const size_t at = generic_sheet.rfind("weapon_front");
+    if (at == string::npos || model.empty()) return "";
+    string path = generic_sheet;
+    path.replace(at, 12, "weapon_" + model);
+    // The warden and the wayfarer hold the hero's sheets: one rig, one set of
+    // weapon renders. Asking for them in their own folders found nothing, fell
+    // back to the plain tinted blade -- so a bow and a staff were both drawn as
+    // a sword -- and said so in the log once for every weapon and every clip.
+    if (!weapon_dir.empty() && !dir.empty() && path.rfind(dir, 0) == 0)
+        path = weapon_dir + path.substr(dir.size());
+    return path;
 }
 
 const SpriteDef* SpriteLibrary::Get(const string& id) const {
@@ -239,10 +268,8 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         bool model_sheet = false;
         if (layer.slot == LayerSlot::WeaponFront && !style.weapon_model.empty()) {
             // layers/attack_4_weapon_front.png -> layers/attack_4_weapon_sword_iron.png
-            const size_t at = layer.sheet.rfind("weapon_front");
-            if (at != string::npos) {
-                string path = layer.sheet;
-                path.replace(at, 12, "weapon_" + style.weapon_model);
+            const string path = def->WeaponSheet(layer.sheet, style.weapon_model);
+            if (!path.empty()) {
                 tex = cache.Get(path);
                 model_sheet = tex != nullptr;
             }

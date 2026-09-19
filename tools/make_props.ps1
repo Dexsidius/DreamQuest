@@ -91,6 +91,9 @@ $sizes = @{
     herb_emberbloom = 40; herb_emberbloom_picked = 40
     herb_moonpetal = 40; herb_moonpetal_picked = 40
     herb_starlily = 40; herb_starlily_picked = 40
+    herb_flax = 40; herb_flax_picked = 40
+    # The Westwold's steadings and the Brackenwood's den.
+    tanning_rack = 64; hay_rick = 56; rail_fence = 64; bear_den = 144
 }
 
 # The scenery sizes, built to the same names the maps already use. Ten trees and

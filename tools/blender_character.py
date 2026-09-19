@@ -452,7 +452,17 @@ ARMOUR_GROUPS = (ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD)
 #   light   wood, bronze, iron -- hide and mail: a cap, a jerkin, no pauldrons
 #   plate   steel to platinum  -- the full harness
 #   ornate  demonite and above -- horned helm, winged pauldrons, a heavier skirt
-ARMOUR_STYLES = ("light", "plate", "ornate")
+#
+# And two that are not metal at all, worn by whoever does not fight with a
+# blade. They are a set of three -- head, body, legs -- so only those groups are
+# rendered for them:
+#
+#   hide    the ranger's leathers -- a fur-lined hood, a jerkin with a fur
+#           collar and a quiver on the back, bracers, wrapped legs, soft boots
+#   robe    the mage's -- a pointed hat with a brim, a mantled robe with bell
+#           sleeves, and a skirt to the ankle
+ARMOUR_STYLES = ("light", "plate", "ornate", "hide", "robe")
+SOFT_STYLES = ("hide", "robe")
 ARMOUR_STYLE = "plate"
 
 
@@ -593,7 +603,9 @@ def build_character():
     # pose without a second rig. Each piece is a little larger than the part it
     # covers: at this size armour has to sit *outside* the silhouette or it
     # simply disappears into it.
-    if ARMOUR_ON:
+    if ARMOUR_ON and ARMOUR_STYLE in SOFT_STYLES:
+        build_soft_armour(g, joints, chest, skirt, head_tilt, head_c)
+    elif ARMOUR_ON:
         light = ARMOUR_STYLE == "light"
         ornate = ARMOUR_STYLE == "ornate"
         # Cuirass: a breastplate over the torso, a gorget at the throat, a
@@ -760,6 +772,127 @@ def build_character():
         "grip": grip,
     })
     return joints, g, {"eyes": eyes}
+
+
+def build_soft_armour(g, joints, chest, skirt, head_tilt, head_c):
+    """The two sets that are not metal: the ranger's hides and the mage's robes.
+    Rendered pale like the plate and painted by the piece at draw time, so the
+    three shades -- plate, plate_dk, plate_lt -- are all the colour there is:
+    the light one is fur on the hides and trim on the robes."""
+    hide = ARMOUR_STYLE == "hide"
+
+    if hide:
+        # --- jerkin: leather over the tunic, fur at the throat and shoulders,
+        # tassets off the belt, bracers, and a quiver slung across the back.
+        g[ARM_BODY] += [
+            part("jerkin", mesh_capsule(0.146, 0.168, 0.158, squash_y=0.80), "plate", chest,
+                 loc=(0, 0, 0.178)),
+            part("fur_collar", mesh_torus(0.116, 0.040), "plate_lt", chest, loc=(0, 0.005, 0.272)),
+            part("jerkin_belt", mesh_ellipsoid(0.172, 0.138, 0.034), "plate_dk", chest,
+                 loc=(0, 0, 0.040)),
+            part("tassets", mesh_frustum(0.165, 0.202, 0.090, squash_y=0.82), "plate_dk", skirt,
+                 loc=(0, 0, 0.012)),
+            part("quiver", mesh_capsule(0.050, 0.044, 0.200), "plate_dk", chest,
+                 loc=(0.075, 0.150, 0.330), rot=(rad(-14), rad(22), 0)),
+            part("fletching_a", mesh_ellipsoid(0.020, 0.020, 0.040), "plate_lt", chest,
+                 loc=(0.060, 0.165, 0.400)),
+            part("fletching_b", mesh_ellipsoid(0.020, 0.020, 0.040), "plate_lt", chest,
+                 loc=(0.100, 0.150, 0.390)),
+        ]
+        for side in ("r", "l"):
+            sh = joints["shoulder_" + side]
+            el = joints["elbow_" + side]
+            g[ARM_BODY] += [
+                part("fur_shoulder_" + side, mesh_ellipsoid(0.088, 0.084, 0.052), "plate_lt", sh,
+                     loc=(0, 0, 0.030)),
+                part("bracer_" + side, mesh_capsule(0.058, 0.054, 0.060), "plate_dk", el,
+                     loc=(0, 0, -0.014)),
+            ]
+        # --- legs: a thigh guard, wraps to the knee, a fur cuff and a soft boot.
+        for side in ("r", "l"):
+            hp = joints["hip_" + side]
+            kn = joints["knee_" + side]
+            g[ARM_LEGS] += [
+                part("thigh_guard_" + side, mesh_capsule(0.078, 0.070, 0.075), "plate_dk", hp,
+                     loc=(0, 0, -0.015)),
+                part("wrap_" + side, mesh_capsule(0.078, 0.074, 0.080), "plate", kn,
+                     loc=(0, 0, -0.046)),
+                part("fur_cuff_" + side, mesh_torus(0.076, 0.024), "plate_lt", kn,
+                     loc=(0, 0, -0.040)),
+                part("soft_boot_" + side, mesh_ellipsoid(0.082, 0.116, 0.060), "plate_dk", kn,
+                     loc=(0, -0.038, -0.152)),
+            ]
+        # --- hood: a cap set back on the skull with a fur-lined brow, a drape
+        # behind and a peak. Like the helm it is not cut by the head, so nothing
+        # of it may come below the brow at the front.
+        g[ARM_HEAD] += [
+            part("hood", mesh_ellipsoid(0.302, 0.232, 0.112), "plate", head_tilt,
+                 loc=(0, 0.062, head_c + 0.206)),
+            part("hood_fur", mesh_torus(0.288, 0.030), "plate_lt", head_tilt,
+                 loc=(0, 0.016, head_c + 0.066)),
+            part("hood_drape", mesh_ellipsoid(0.235, 0.100, 0.150), "plate", head_tilt,
+                 loc=(0, 0.200, head_c + 0.070)),
+            part("hood_peak", mesh_ellipsoid(0.070, 0.105, 0.062), "plate_dk", head_tilt,
+                 loc=(0, 0.215, head_c + 0.250)),
+        ]
+        return
+
+    # --- the robe: a top with a mantle over the shoulders and sleeves that
+    # open out to the wrist, a sash, and a flare below it for whoever wears the
+    # top without the skirt.
+    g[ARM_BODY] += [
+        part("robe_top", mesh_capsule(0.150, 0.170, 0.165, squash_y=0.82), "plate", chest,
+             loc=(0, 0, 0.182)),
+        part("mantle", mesh_torus(0.140, 0.044), "plate_lt", chest, loc=(0, 0.004, 0.262)),
+        part("sash", mesh_ellipsoid(0.174, 0.140, 0.036), "plate_dk", chest, loc=(0, 0, 0.034)),
+        part("sash_knot", mesh_ellipsoid(0.040, 0.030, 0.050), "plate_lt", chest,
+             loc=(0.060, -0.128, 0.010)),
+        part("robe_flare", mesh_frustum(0.166, 0.218, 0.130, squash_y=0.84), "plate", skirt,
+             loc=(0, 0, 0.012)),
+    ]
+    for side in ("r", "l"):
+        sh = joints["shoulder_" + side]
+        el = joints["elbow_" + side]
+        g[ARM_BODY] += [
+            part("sleeve_upper_" + side, mesh_capsule(0.070, 0.076, 0.105), "plate", sh),
+            # Wider at the wrist than at the elbow: the bell of the sleeve.
+            part("sleeve_bell_" + side, mesh_capsule(0.064, 0.094, 0.098), "plate", el),
+            part("sleeve_trim_" + side, mesh_torus(0.090, 0.017), "plate_lt", el,
+                 loc=(0, 0, -0.100)),
+        ]
+    # --- the skirt: a cone from the hips to the ankle. It hangs from the hips
+    # rather than from the legs, so a walk swings the feet out from under the
+    # hem instead of bending the cloth at the knee.
+    g[ARM_LEGS] += [
+        part("robe_skirt", mesh_frustum(0.172, 0.272, 0.360, squash_y=0.86), "plate", skirt,
+             loc=(0, 0, 0.0)),
+        part("robe_hem", mesh_torus(0.262, 0.022), "plate_lt", skirt, loc=(0, 0, -0.350)),
+        part("robe_band", mesh_torus(0.222, 0.014), "plate_dk", skirt, loc=(0, 0, -0.180)),
+    ]
+    for side in ("r", "l"):
+        kn = joints["knee_" + side]
+        g[ARM_LEGS].append(
+            part("slipper_" + side, mesh_ellipsoid(0.076, 0.112, 0.052), "plate_dk", kn,
+                 loc=(0, -0.040, -0.156)))
+    # --- the hat: a dome on the crown, a brim, and a cone leaning back. A
+    # capsule hangs down from where it is put, so half a turn about Y stands it
+    # up, and the turn about X before that leans the point backwards. The brim
+    # is set back and kept narrow at the front: the hat is not cut by the head,
+    # and a brim as wide in front as it is behind came down over the eyes.
+    g[ARM_HEAD] += [
+        # Seen from the side the near half of anything round the head drops
+        # down the screen by most of its radius, so the dome and the brim are
+        # kept close to the skull and set high, and the height is all in a
+        # narrow cone: a wider hat was a purple ball where the face should be.
+        part("hat_dome", mesh_ellipsoid(0.268, 0.210, 0.078), "plate", head_tilt,
+             loc=(0, 0.055, head_c + 0.222)),
+        part("hat_brim", mesh_ellipsoid(0.312, 0.292, 0.022), "plate_dk", head_tilt,
+             loc=(0, 0.045, head_c + 0.140)),
+        part("hat_cone", mesh_capsule(0.158, 0.020, 0.430), "plate", head_tilt,
+             loc=(0, 0.055, head_c + 0.262), rot=(rad(20), rad(180), 0)),
+        part("hat_band", mesh_torus(0.168, 0.024), "plate_lt", head_tilt,
+             loc=(0, 0.056, head_c + 0.262)),
+    ]
 
 
 def build_shadow():
@@ -1537,6 +1670,9 @@ def build_sheet(clip_name, out_dir):
     suffix = "_" + ARMOUR_STYLE if alt else ""
     if alt:
         order = [(l, i) for l, i in order if l in ARMOUR_GROUPS]
+    # Hides and robes are head, body and legs: there is no hide gauntlet to draw.
+    if ARMOUR_STYLE in SOFT_STYLES:
+        order = [(l, i) for l, i in order if l in (ARM_LEGS, ARM_BODY, ARM_HEAD)]
 
     written = []
     for layer, index in order:
