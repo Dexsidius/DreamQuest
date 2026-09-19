@@ -1,529 +1,896 @@
 {
- "_comment": "One tree per combat style. A tree earns a point at every fifth level of its skill; each node costs one, needs its milestone level in that skill, and needs the node above it in its branch. A node with a 'technique' teaches a move that replaces the charged heavy attack with that style's weapon once it is chosen as the active technique. Effects are fractions unless noted: damage 0.06 is +6%. The melee tree has a fourth branch, Footwork, for moves made on the run; it is not a full column and its nodes need nothing above them.",
- "melee": {
-  "name": "Melee",
-  "skill": "Attack",
-  "branches": [
-   "Blade",
-   "Brawn",
-   "Guard",
-   "Footwork"
-  ],
-  "nodes": [
-   {
-    "id": "keen_edge",
-    "name": "Keen Edge",
-    "branch": 0,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "damage": 0.06
-    },
-    "desc": "Melee attacks deal 6% more damage."
-   },
-   {
-    "id": "flurry",
-    "name": "Flurry",
-    "branch": 0,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "speed": 0.08
-    },
-    "desc": "Melee attacks are 8% faster."
-   },
-   {
-    "id": "whirlwind",
-    "name": "Whirlwind",
-    "branch": 0,
-    "row": 2,
-    "level": 30,
-    "technique": "whirlwind",
-    "desc": "Technique. A charged heavy attack spins, striking everything around you."
-   },
-   {
-    "id": "executioner",
-    "name": "Executioner",
-    "branch": 0,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "crit": 0.08
-    },
-    "desc": "Melee attacks have an 8% chance to critically strike for half again the damage."
-   },
-   {
-    "id": "bloodlust",
-    "name": "Bloodlust",
-    "branch": 0,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "lifesteal": 0.06
-    },
-    "desc": "Melee damage you deal heals you for 6% of it."
-   },
-   {
-    "id": "heavy_hand",
-    "name": "Heavy Hand",
-    "branch": 1,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "charge": 0.15
-    },
-    "desc": "Charged attacks wind up 15% faster, whatever you are holding."
-   },
-   {
-    "id": "bruiser",
-    "name": "Bruiser",
-    "branch": 1,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "knockback": 0.3,
-     "damage": 0.04
-    },
-    "desc": "Melee attacks knock back 30% harder and deal 4% more damage."
-   },
-   {
-    "id": "ground_slam",
-    "name": "Ground Slam",
-    "branch": 1,
-    "row": 2,
-    "level": 30,
-    "technique": "ground_slam",
-    "desc": "Technique. A charged heavy attack slams the ground, hitting and throwing back everything nearby."
-   },
-   {
-    "id": "brute_force",
-    "name": "Brute Force",
-    "branch": 1,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "damage": 0.1
-    },
-    "desc": "Melee attacks deal 10% more damage."
-   },
-   {
-    "id": "titan",
-    "name": "Titan",
-    "branch": 1,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "charged_damage": 0.2
-    },
-    "desc": "Charged melee attacks and techniques deal 20% more damage."
-   },
-   {
-    "id": "thick_skin",
-    "name": "Thick Skin",
-    "branch": 2,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "defence": 6
-    },
-    "desc": "+6 Defence bonus, with any weapon."
-   },
-   {
-    "id": "second_wind",
-    "name": "Second Wind",
-    "branch": 2,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "stamina_regen": 0.25
-    },
-    "desc": "Stamina refills 25% faster."
-   },
-   {
-    "id": "lunge",
-    "name": "Lunge",
-    "branch": 2,
-    "row": 2,
-    "level": 30,
-    "technique": "lunge",
-    "desc": "Technique. A charged heavy attack dashes forward, striking everything in the way."
-   },
-   {
-    "id": "iron_will",
-    "name": "Iron Will",
-    "branch": 2,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "defence": 12
-    },
-    "desc": "+12 Defence bonus, with any weapon."
-   },
-   {
-    "id": "last_stand",
-    "name": "Last Stand",
-    "branch": 2,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "low_hp_damage": 0.25
-    },
-    "desc": "Below a third of your health, melee attacks deal 25% more damage."
-   },
-   {
-    "id": "rushing_strike",
-    "name": "Rushing Strike",
-    "branch": 3,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "rushing_strike": 1
-    },
-    "desc": "A light attack made at a run becomes a leap: you spring at your target and bring your weapon down as you land, for 1.4 times the damage of a light attack. Rests for 3 seconds after use. Melee weapons only."
-   }
-  ]
- },
- "ranged": {
-  "name": "Ranged",
-  "skill": "Ranged",
-  "branches": [
-   "Marksman",
-   "Skirmisher",
-   "Hunter"
-  ],
-  "nodes": [
-   {
-    "id": "steady_aim",
-    "name": "Steady Aim",
-    "branch": 0,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "damage": 0.06
-    },
-    "desc": "Arrows deal 6% more damage."
-   },
-   {
-    "id": "eagle_eye",
-    "name": "Eagle Eye",
-    "branch": 0,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "projectile_speed": 0.15,
-     "crit": 0.04
-    },
-    "desc": "Arrows fly 15% faster and have a 4% chance to critically strike."
-   },
-   {
-    "id": "piercing_shot",
-    "name": "Piercing Shot",
-    "branch": 0,
-    "row": 2,
-    "level": 30,
-    "technique": "piercing_shot",
-    "desc": "Technique. A charged shot looses one heavy arrow that flies fast and passes through everything in its path."
-   },
-   {
-    "id": "deadly_aim",
-    "name": "Deadly Aim",
-    "branch": 0,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "crit": 0.08
-    },
-    "desc": "Arrows have another 8% chance to critically strike."
-   },
-   {
-    "id": "deadeye",
-    "name": "Deadeye",
-    "branch": 0,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "crit_damage": 0.5
-    },
-    "desc": "Critical arrows deal double damage instead of half again."
-   },
-   {
-    "id": "quick_draw",
-    "name": "Quick Draw",
-    "branch": 1,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "speed": 0.08
-    },
-    "desc": "You draw and loose 8% faster."
-   },
-   {
-    "id": "fleet_foot",
-    "name": "Fleet Foot",
-    "branch": 1,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "move_speed": 0.06
-    },
-    "desc": "You move 6% faster, with any weapon."
-   },
-   {
-    "id": "volley",
-    "name": "Volley",
-    "branch": 1,
-    "row": 2,
-    "level": 30,
-    "technique": "volley",
-    "desc": "Technique. A charged shot looses a fan of five arrows."
-   },
-   {
-    "id": "rapid_fire",
-    "name": "Rapid Fire",
-    "branch": 1,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "speed": 0.1
-    },
-    "desc": "You draw and loose another 10% faster."
-   },
-   {
-    "id": "hail",
-    "name": "Hail",
-    "branch": 1,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "pierce": 1
-    },
-    "desc": "Every arrow passes through one more enemy."
-   },
-   {
-    "id": "trail_legs",
-    "name": "Trail Legs",
-    "branch": 2,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "stamina": 0.15
-    },
-    "desc": "15% more stamina, with any weapon."
-   },
-   {
-    "id": "broadheads",
-    "name": "Broadheads",
-    "branch": 2,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "knockback": 0.3,
-     "damage": 0.04
-    },
-    "desc": "Arrows knock back 30% harder and deal 4% more damage."
-   },
-   {
-    "id": "arrow_rain",
-    "name": "Arrow Rain",
-    "branch": 2,
-    "row": 2,
-    "level": 30,
-    "technique": "arrow_rain",
-    "desc": "Technique. A charged shot calls a storm of arrows down on your target a moment later."
-   },
-   {
-    "id": "predator",
-    "name": "Predator",
-    "branch": 2,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "damage": 0.1
-    },
-    "desc": "Arrows deal 10% more damage."
-   },
-   {
-    "id": "bloodletting",
-    "name": "Bloodletting",
-    "branch": 2,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "lifesteal": 0.05
-    },
-    "desc": "Arrow damage you deal heals you for 5% of it."
-   }
-  ]
- },
- "magic": {
-  "name": "Magic",
-  "skill": "Magic",
-  "branches": [
-   "Evoker",
-   "Channeler",
-   "Warden"
-  ],
-  "nodes": [
-   {
-    "id": "potency",
-    "name": "Potency",
-    "branch": 0,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "damage": 0.06
-    },
-    "desc": "Spells deal 6% more damage."
-   },
-   {
-    "id": "focus",
-    "name": "Focus",
-    "branch": 0,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "mana_cost": 0.1
-    },
-    "desc": "Spells cost 10% less mana."
-   },
-   {
-    "id": "nova",
-    "name": "Nova",
-    "branch": 0,
-    "row": 2,
-    "level": 30,
-    "technique": "nova",
-    "desc": "Technique. A charged cast bursts outward in a ring of eight bolts of your element, for twice the mana."
-   },
-   {
-    "id": "amplify",
-    "name": "Amplify",
-    "branch": 0,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "damage": 0.1
-    },
-    "desc": "Spells deal 10% more damage."
-   },
-   {
-    "id": "archmage",
-    "name": "Archmage",
-    "branch": 0,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "mana_cost": 0.25,
-     "damage": 0.1
-    },
-    "desc": "Spells cost another 25% less mana and deal 10% more damage."
-   },
-   {
-    "id": "flow",
-    "name": "Flow",
-    "branch": 1,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "mana_regen": 0.2
-    },
-    "desc": "Mana refills 20% faster."
-   },
-   {
-    "id": "swift_casting",
-    "name": "Swift Casting",
-    "branch": 1,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "speed": 0.08
-    },
-    "desc": "You cast 8% faster."
-   },
-   {
-    "id": "barrage",
-    "name": "Barrage",
-    "branch": 1,
-    "row": 2,
-    "level": 30,
-    "technique": "barrage",
-    "desc": "Technique. A charged cast looses four seeking bolts of your element at once, for twice the mana."
-   },
-   {
-    "id": "wellspring",
-    "name": "Wellspring",
-    "branch": 1,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "mana_regen": 0.3
-    },
-    "desc": "Mana refills another 30% faster."
-   },
-   {
-    "id": "overflow",
-    "name": "Overflow",
-    "branch": 1,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "crit": 0.1
-    },
-    "desc": "Spells have a 10% chance to critically strike."
-   },
-   {
-    "id": "ward",
-    "name": "Ward",
-    "branch": 2,
-    "row": 0,
-    "level": 5,
-    "effects": {
-     "defence": 6
-    },
-    "desc": "+6 Defence bonus, with any weapon."
-   },
-   {
-    "id": "seeker",
-    "name": "Seeker",
-    "branch": 2,
-    "row": 1,
-    "level": 15,
-    "effects": {
-     "homing": 2.5
-    },
-    "desc": "Every spell steers after its target, even water and earth."
-   },
-   {
-    "id": "meteor",
-    "name": "Meteor",
-    "branch": 2,
-    "row": 2,
-    "level": 30,
-    "technique": "meteor",
-    "desc": "Technique. A charged cast brings your element crashing down on your target a moment later, for three times the mana."
-   },
-   {
-    "id": "siphon",
-    "name": "Siphon",
-    "branch": 2,
-    "row": 3,
-    "level": 50,
-    "effects": {
-     "lifesteal": 0.04
-    },
-    "desc": "Spell damage you deal heals you for 4% of it."
-   },
-   {
-    "id": "mastery",
-    "name": "Elemental Mastery",
-    "branch": 2,
-    "row": 4,
-    "level": 70,
-    "effects": {
-     "elemental": 0.2
-    },
-    "desc": "Spells that are strong against a creature's element deal another 20% more damage."
-   }
-  ]
- }
+  "_comment": "One tree per combat style, and a character has one: their path's -- the hero the blade, the warden the bow, the wayfarer the staff. A tree earns a point at every third level of its skill. A node needs its milestone level in that skill and at least one rank of the node above it in its branch; each rank costs a point, and 'effects' is what one rank gives (fractions unless noted: damage 0.04 is +4%). Eight rows, at 5, 15, 30, 40, 47, 54, 62 and 70 -- closer together as levels come slower: two passives of three ranks, a technique (a move that replaces the charged heavy attack once chosen), an ability (a move of its own with a cooldown and a cost, carried in one of three slots: guard + light, guard + heavy, guard + lock on), a passive of two ranks that asks when, a second ability, a second passive of two, and a capstone. Forty-two ranks a tree against thirty-three points by level 99. The melee tree has a fourth branch, Footwork, for moves made on the run; it is not a full column and its nodes need nothing above them.",
+  "melee": {
+    "name": "Melee",
+    "skill": "Attack",
+    "branches": [
+      "Blade",
+      "Brawn",
+      "Guard",
+      "Footwork"
+    ],
+    "nodes": [
+      {
+        "id": "keen_edge",
+        "name": "Keen Edge",
+        "branch": 0,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "A better edge and the wrist to use it. Melee damage +4% a rank.",
+        "effects": {
+          "damage": 0.04
+        }
+      },
+      {
+        "id": "flurry",
+        "name": "Flurry",
+        "branch": 0,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Less wasted motion between blows. Melee attacks are 3% faster a rank.",
+        "effects": {
+          "speed": 0.03
+        }
+      },
+      {
+        "id": "whirlwind",
+        "name": "Whirlwind",
+        "branch": 0,
+        "row": 2,
+        "level": 30,
+        "technique": "whirlwind",
+        "desc": "Technique. The charged attack becomes a full turn that strikes everything around you.",
+        "effects": {}
+      },
+      {
+        "id": "sunder",
+        "name": "Sunder",
+        "branch": 0,
+        "row": 3,
+        "level": 40,
+        "ability": "sunder",
+        "cooldown": 14,
+        "stamina": 20,
+        "desc": "Ability. A blow aimed at the straps and seams: a hard hit on what you are fighting, and for ten seconds its defence is down by a third -- for everyone who strikes it.",
+        "effects": {}
+      },
+      {
+        "id": "momentum",
+        "name": "Momentum",
+        "branch": 0,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "A chain feeds itself. Every hit in an unbroken chain adds 1.5% damage a rank to the next, up to ten hits.",
+        "effects": {
+          "momentum": 0.015
+        }
+      },
+      {
+        "id": "frenzy",
+        "name": "Frenzy",
+        "branch": 0,
+        "row": 5,
+        "level": 54,
+        "ability": "frenzy",
+        "cooldown": 25,
+        "stamina": 20,
+        "desc": "Ability. For six seconds the blade does not stop: melee attacks are 30% faster, and the chain does not lapse between blows.",
+        "effects": {}
+      },
+      {
+        "id": "open_wounds",
+        "name": "Open Wounds",
+        "branch": 0,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "A chain of three or more leaves wounds that stay open: every blow after that bleeds for 10% a rank of itself again, over four seconds.",
+        "effects": {
+          "bleed": 0.1
+        }
+      },
+      {
+        "id": "executioner",
+        "name": "Executioner",
+        "branch": 0,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. +10% to strike a critical blow, and anything below a quarter of its health is always struck critically.",
+        "effects": {
+          "crit": 0.1,
+          "execute": 0.25
+        }
+      },
+      {
+        "id": "heavy_hand",
+        "name": "Heavy Hand",
+        "branch": 1,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "A heavy attack is drawn back 8% faster a rank.",
+        "effects": {
+          "charge": 0.08
+        }
+      },
+      {
+        "id": "bruiser",
+        "name": "Bruiser",
+        "branch": 1,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Blows land like a door. Knockback +12% and melee damage +2% a rank.",
+        "effects": {
+          "knockback": 0.12,
+          "damage": 0.02
+        }
+      },
+      {
+        "id": "ground_slam",
+        "name": "Ground Slam",
+        "branch": 1,
+        "row": 2,
+        "level": 30,
+        "technique": "ground_slam",
+        "desc": "Technique. The charged attack comes down on the ground, striking and throwing back everything near.",
+        "effects": {}
+      },
+      {
+        "id": "war_cry",
+        "name": "War Cry",
+        "branch": 1,
+        "row": 3,
+        "level": 40,
+        "ability": "war_cry",
+        "cooldown": 30,
+        "stamina": 25,
+        "desc": "Ability. A shout that staggers everything near you and leaves you hitting 25% harder for eight seconds.",
+        "effects": {}
+      },
+      {
+        "id": "brute_force",
+        "name": "Brute Force",
+        "branch": 1,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "Charged attacks, and the techniques that replace them, hit 10% harder a rank.",
+        "effects": {
+          "charged_damage": 0.1
+        }
+      },
+      {
+        "id": "shockwave",
+        "name": "Shockwave",
+        "branch": 1,
+        "row": 5,
+        "level": 54,
+        "ability": "shockwave",
+        "cooldown": 16,
+        "stamina": 25,
+        "desc": "Ability. The weapon comes down and the ground goes with it: a line of force straight ahead, a heavy blow on everything it reaches, thrown back and left reeling.",
+        "effects": {}
+      },
+      {
+        "id": "punish",
+        "name": "Punish",
+        "branch": 1,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "What is reeling cannot brace. +12% damage a rank against anything staggered.",
+        "effects": {
+          "punish": 0.12
+        }
+      },
+      {
+        "id": "titan",
+        "name": "Titan",
+        "branch": 1,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Melee damage +15%, and every kill gives back fifteen stamina.",
+        "effects": {
+          "damage": 0.15,
+          "kill_stamina": 15
+        }
+      },
+      {
+        "id": "thick_skin",
+        "name": "Thick Skin",
+        "branch": 2,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Scar tissue. Defence +4 a rank, whatever is in hand.",
+        "effects": {
+          "defence": 4
+        }
+      },
+      {
+        "id": "second_wind",
+        "name": "Second Wind",
+        "branch": 2,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Breath comes back sooner. Stamina returns 10% faster a rank.",
+        "effects": {
+          "stamina_regen": 0.1
+        }
+      },
+      {
+        "id": "lunge",
+        "name": "Lunge",
+        "branch": 2,
+        "row": 2,
+        "level": 30,
+        "technique": "lunge",
+        "desc": "Technique. The charged attack becomes a long step and a thrust that carries you through the line.",
+        "effects": {}
+      },
+      {
+        "id": "bash",
+        "name": "Bash",
+        "branch": 2,
+        "row": 3,
+        "level": 40,
+        "ability": "bash",
+        "cooldown": 8,
+        "stamina": 15,
+        "desc": "Ability. Shoulder and shield into whatever is in front of you: a light blow that staggers for over a second. A leader braced for a heavy blow shrugs it off.",
+        "effects": {}
+      },
+      {
+        "id": "riposte",
+        "name": "Riposte",
+        "branch": 2,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "A blow caught is a blow owed. For three seconds after you block, your next hit lands 30% harder a rank.",
+        "effects": {
+          "riposte": 0.3
+        }
+      },
+      {
+        "id": "stand_fast",
+        "name": "Stand Fast",
+        "branch": 2,
+        "row": 5,
+        "level": 54,
+        "ability": "stand_fast",
+        "cooldown": 35,
+        "stamina": 20,
+        "desc": "Ability. Feet set. For six seconds you take 40% less, nothing moves you, and everything near turns on you instead of your friends.",
+        "effects": {}
+      },
+      {
+        "id": "bulwark",
+        "name": "Bulwark",
+        "branch": 2,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "The shield arm learns. A blow caught costs 20% less breath a rank.",
+        "effects": {
+          "block_cost": 0.2
+        }
+      },
+      {
+        "id": "last_stand",
+        "name": "Last Stand",
+        "branch": 2,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Below a third of your health you hit 25% harder, and every blow you land gives back 5% of it as health.",
+        "effects": {
+          "low_hp_damage": 0.25,
+          "lifesteal": 0.05
+        }
+      },
+      {
+        "id": "rushing_strike",
+        "name": "Rushing Strike",
+        "branch": 3,
+        "row": 1,
+        "level": 15,
+        "desc": "Move. A light attack made at a sprint is a leap: further, harder, and on a short cooldown of its own.",
+        "effects": {
+          "rushing_strike": 1
+        }
+      }
+    ]
+  },
+  "ranged": {
+    "name": "Ranged",
+    "skill": "Ranged",
+    "branches": [
+      "Marksman",
+      "Skirmisher",
+      "Hunter"
+    ],
+    "nodes": [
+      {
+        "id": "steady_aim",
+        "name": "Steady Aim",
+        "branch": 0,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Ranged damage +4% a rank.",
+        "effects": {
+          "damage": 0.04
+        }
+      },
+      {
+        "id": "eagle_eye",
+        "name": "Eagle Eye",
+        "branch": 0,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Arrows fly 6% faster and are 2% likelier to strike critically, a rank.",
+        "effects": {
+          "projectile_speed": 0.06,
+          "crit": 0.02
+        }
+      },
+      {
+        "id": "piercing_shot",
+        "name": "Piercing Shot",
+        "branch": 0,
+        "row": 2,
+        "level": 30,
+        "technique": "piercing_shot",
+        "desc": "Technique. The charged shot goes through everything in its line.",
+        "effects": {}
+      },
+      {
+        "id": "hunters_mark",
+        "name": "Hunter's Mark",
+        "branch": 0,
+        "row": 3,
+        "level": 40,
+        "ability": "hunters_mark",
+        "cooldown": 20,
+        "stamina": 10,
+        "desc": "Ability. Marks what you are fighting for twelve seconds: it takes 25% more from every blow, yours or a friend's.",
+        "effects": {}
+      },
+      {
+        "id": "long_shot",
+        "name": "Long Shot",
+        "branch": 0,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "The far shot is the sure one. +8% damage a rank to anything more than six paces off.",
+        "effects": {
+          "long_shot": 0.08
+        }
+      },
+      {
+        "id": "take_aim",
+        "name": "Take Aim",
+        "branch": 0,
+        "row": 5,
+        "level": 54,
+        "ability": "take_aim",
+        "cooldown": 18,
+        "stamina": 15,
+        "desc": "Ability. A breath held. Your next shot within six seconds always strikes critically, and hits half as hard again.",
+        "effects": {}
+      },
+      {
+        "id": "weak_point",
+        "name": "Weak Point",
+        "branch": 0,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "The same place, again. Each shot in a row on one target adds 5% a rank, up to four shots; another target starts again.",
+        "effects": {
+          "weak_point": 0.05
+        }
+      },
+      {
+        "id": "deadeye",
+        "name": "Deadeye",
+        "branch": 0,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Critical shots do half as much again, and come 6% more often.",
+        "effects": {
+          "crit_damage": 0.5,
+          "crit": 0.06
+        }
+      },
+      {
+        "id": "quick_draw",
+        "name": "Quick Draw",
+        "branch": 1,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Ranged attacks are 3% faster a rank.",
+        "effects": {
+          "speed": 0.03
+        }
+      },
+      {
+        "id": "fleet_foot",
+        "name": "Fleet Foot",
+        "branch": 1,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "You move 2.5% faster a rank.",
+        "effects": {
+          "move_speed": 0.025
+        }
+      },
+      {
+        "id": "volley",
+        "name": "Volley",
+        "branch": 1,
+        "row": 2,
+        "level": 30,
+        "technique": "volley",
+        "desc": "Technique. The charged shot becomes five arrows in a fan.",
+        "effects": {}
+      },
+      {
+        "id": "tumble",
+        "name": "Tumble",
+        "branch": 1,
+        "row": 3,
+        "level": 40,
+        "ability": "tumble",
+        "cooldown": 6,
+        "stamina": 20,
+        "desc": "Ability. A roll the way you are moving -- or back, if you are standing still. Nothing can touch you until you are on your feet.",
+        "effects": {}
+      },
+      {
+        "id": "hit_and_run",
+        "name": "Hit and Run",
+        "branch": 1,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "For three seconds after a shot lands you move 6% faster a rank.",
+        "effects": {
+          "hit_run": 0.06
+        }
+      },
+      {
+        "id": "rapid_fire",
+        "name": "Rapid Fire",
+        "branch": 1,
+        "row": 5,
+        "level": 54,
+        "ability": "rapid_fire",
+        "cooldown": 25,
+        "stamina": 20,
+        "desc": "Ability. For five seconds the bow is 40% faster.",
+        "effects": {}
+      },
+      {
+        "id": "slippery",
+        "name": "Slippery",
+        "branch": 1,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "Hard to hit on the move: while you are moving, 6% a rank of blows miss you outright.",
+        "effects": {
+          "evade": 0.06
+        }
+      },
+      {
+        "id": "hail",
+        "name": "Hail",
+        "branch": 1,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Every arrow goes through one more enemy, and the bow is 5% faster.",
+        "effects": {
+          "pierce": 1,
+          "speed": 0.05
+        }
+      },
+      {
+        "id": "trail_legs",
+        "name": "Trail Legs",
+        "branch": 2,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Maximum stamina +6% a rank.",
+        "effects": {
+          "stamina": 0.06
+        }
+      },
+      {
+        "id": "broadheads",
+        "name": "Broadheads",
+        "branch": 2,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Wide heads that shove. Knockback +10% and ranged damage +2% a rank.",
+        "effects": {
+          "knockback": 0.1,
+          "damage": 0.02
+        }
+      },
+      {
+        "id": "arrow_rain",
+        "name": "Arrow Rain",
+        "branch": 2,
+        "row": 2,
+        "level": 30,
+        "technique": "arrow_rain",
+        "desc": "Technique. The charged shot falls as a rain of arrows on where you are aiming.",
+        "effects": {}
+      },
+      {
+        "id": "caltrops",
+        "name": "Caltrops",
+        "branch": 2,
+        "row": 3,
+        "level": 40,
+        "ability": "caltrops",
+        "cooldown": 18,
+        "stamina": 15,
+        "desc": "Ability. Scatters iron at your feet. For six seconds anything crossing it is cut and stopped short.",
+        "effects": {}
+      },
+      {
+        "id": "first_blood",
+        "name": "First Blood",
+        "branch": 2,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "The shot they did not see. +20% damage a rank against anything at full health.",
+        "effects": {
+          "first_blood": 0.2
+        }
+      },
+      {
+        "id": "snare",
+        "name": "Snare",
+        "branch": 2,
+        "row": 5,
+        "level": 54,
+        "ability": "snare",
+        "cooldown": 22,
+        "stamina": 15,
+        "desc": "Ability. A trap set at your feet, for twenty seconds. The first thing to step in it is held fast for three seconds, and hurt.",
+        "effects": {}
+      },
+      {
+        "id": "trapper",
+        "name": "Trapper",
+        "branch": 2,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "What cannot move cannot dodge. +12% damage a rank against anything staggered or held.",
+        "effects": {
+          "punish": 0.12
+        }
+      },
+      {
+        "id": "predator",
+        "name": "Predator",
+        "branch": 2,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Ranged damage +10%, and every shot that lands gives back 5% of it as health.",
+        "effects": {
+          "damage": 0.1,
+          "lifesteal": 0.05
+        }
+      }
+    ]
+  },
+  "magic": {
+    "name": "Magic",
+    "skill": "Magic",
+    "branches": [
+      "Evoker",
+      "Channeler",
+      "Warden"
+    ],
+    "nodes": [
+      {
+        "id": "potency",
+        "name": "Potency",
+        "branch": 0,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Spell damage +4% a rank.",
+        "effects": {
+          "damage": 0.04
+        }
+      },
+      {
+        "id": "focus",
+        "name": "Focus",
+        "branch": 0,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Spells cost 5% less mana a rank.",
+        "effects": {
+          "mana_cost": 0.05
+        }
+      },
+      {
+        "id": "nova",
+        "name": "Nova",
+        "branch": 0,
+        "row": 2,
+        "level": 30,
+        "technique": "nova",
+        "desc": "Technique. The charged cast bursts outward from you in a ring.",
+        "effects": {}
+      },
+      {
+        "id": "arcane_pulse",
+        "name": "Arcane Pulse",
+        "branch": 0,
+        "row": 3,
+        "level": 40,
+        "ability": "arcane_pulse",
+        "cooldown": 14,
+        "mana": 8,
+        "desc": "Ability. Ten bolts of the element you have chosen, thrown outward in a ring.",
+        "effects": {}
+      },
+      {
+        "id": "attunement",
+        "name": "Attunement",
+        "branch": 0,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "Staying with one element deepens it. Each cast of the same element in a row adds 3% damage a rank, up to five.",
+        "effects": {
+          "attunement": 0.03
+        }
+      },
+      {
+        "id": "overload",
+        "name": "Overload",
+        "branch": 0,
+        "row": 5,
+        "level": 54,
+        "ability": "overload",
+        "cooldown": 20,
+        "mana": 4,
+        "desc": "Ability. Your next spell within six seconds costs nothing and hits twice as hard.",
+        "effects": {}
+      },
+      {
+        "id": "spell_echo",
+        "name": "Spell Echo",
+        "branch": 0,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "8% a rank that a bolt is followed by a second, for nothing.",
+        "effects": {
+          "echo": 0.08
+        }
+      },
+      {
+        "id": "archmage",
+        "name": "Archmage",
+        "branch": 0,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Spells cost 15% less and hit 10% harder.",
+        "effects": {
+          "mana_cost": 0.15,
+          "damage": 0.1
+        }
+      },
+      {
+        "id": "flow",
+        "name": "Flow",
+        "branch": 1,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Mana returns 10% faster a rank.",
+        "effects": {
+          "mana_regen": 0.1
+        }
+      },
+      {
+        "id": "swift_casting",
+        "name": "Swift Casting",
+        "branch": 1,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Casting is 3% faster a rank.",
+        "effects": {
+          "speed": 0.03
+        }
+      },
+      {
+        "id": "barrage",
+        "name": "Barrage",
+        "branch": 1,
+        "row": 2,
+        "level": 30,
+        "technique": "barrage",
+        "desc": "Technique. The charged cast becomes a quick string of bolts.",
+        "effects": {}
+      },
+      {
+        "id": "blink",
+        "name": "Blink",
+        "branch": 1,
+        "row": 3,
+        "level": 40,
+        "ability": "blink",
+        "cooldown": 8,
+        "mana": 5,
+        "desc": "Ability. You are somewhere else: a short step through the air the way you are moving or facing, past anything that is not a wall.",
+        "effects": {}
+      },
+      {
+        "id": "surge",
+        "name": "Surge",
+        "branch": 1,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "A critical cast gives back 2 mana a rank.",
+        "effects": {
+          "crit_mana": 2
+        }
+      },
+      {
+        "id": "invoke",
+        "name": "Invoke",
+        "branch": 1,
+        "row": 5,
+        "level": 54,
+        "ability": "invoke",
+        "cooldown": 40,
+        "stamina": 20,
+        "desc": "Ability. Draw it back in: half your mana returns over four seconds.",
+        "effects": {}
+      },
+      {
+        "id": "deep_well",
+        "name": "Deep Well",
+        "branch": 1,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "Maximum mana +10% a rank.",
+        "effects": {
+          "max_mana": 0.1
+        }
+      },
+      {
+        "id": "overflow",
+        "name": "Overflow",
+        "branch": 1,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. +10% to cast critically, and mana returns 20% faster.",
+        "effects": {
+          "crit": 0.1,
+          "mana_regen": 0.2
+        }
+      },
+      {
+        "id": "ward",
+        "name": "Ward",
+        "branch": 2,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Defence +4 a rank, whatever is in hand.",
+        "effects": {
+          "defence": 4
+        }
+      },
+      {
+        "id": "seeker",
+        "name": "Seeker",
+        "branch": 2,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Bolts bend toward what you are fighting a little more with each rank.",
+        "effects": {
+          "homing": 1.0
+        }
+      },
+      {
+        "id": "meteor",
+        "name": "Meteor",
+        "branch": 2,
+        "row": 2,
+        "level": 30,
+        "technique": "meteor",
+        "desc": "Technique. The charged cast calls a stone down on where you are aiming.",
+        "effects": {}
+      },
+      {
+        "id": "mana_shield",
+        "name": "Mana Shield",
+        "branch": 2,
+        "row": 3,
+        "level": 40,
+        "ability": "mana_shield",
+        "cooldown": 25,
+        "mana": 6,
+        "desc": "Ability. For ten seconds half of every blow you take is paid in mana instead of blood, two mana a point, while there is mana to pay with.",
+        "effects": {}
+      },
+      {
+        "id": "siphon",
+        "name": "Siphon",
+        "branch": 2,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "Every spell that lands gives back 2.5% of it as health, a rank.",
+        "effects": {
+          "lifesteal": 0.025
+        }
+      },
+      {
+        "id": "repulse",
+        "name": "Repulse",
+        "branch": 2,
+        "row": 5,
+        "level": 54,
+        "ability": "repulse",
+        "cooldown": 16,
+        "mana": 6,
+        "desc": "Ability. A wall of force in your element: everything near is struck, thrown back hard and left reeling.",
+        "effects": {}
+      },
+      {
+        "id": "resolve",
+        "name": "Resolve",
+        "branch": 2,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "Pain is a kind of fuel. A blow that draws blood gives back 3 mana a rank.",
+        "effects": {
+          "hurt_mana": 3
+        }
+      },
+      {
+        "id": "mastery",
+        "name": "Mastery",
+        "branch": 2,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. A spell of the element a creature fears does 25% more again.",
+        "effects": {
+          "elemental": 0.25
+        }
+      }
+    ]
+  }
 }

@@ -375,7 +375,9 @@ go. Run it as a scheduled task or a service on the always-on machine.
 
 Flags for checking all this without a second pair of hands: `--scratch hero`
 starts a game that is never written anywhere, `--hold D 2 3.5` holds a key
-down between two moments, `--say "a line"`, and `--shot file.png 5`.
+down between two moments, `--say "a line"`, and `--shot file.png 5`. A scratch
+game can start anywhere and in anything: `--map brackenwood from_westwold`,
+`--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`.
 
 What is still plain: a friend's chopping shows the swing without the axe in
 hand on other screens; camps are the host's to pitch; and a line relayed
@@ -438,6 +440,7 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Heavy / charged attack | `K` (hold to charge) | Y (north) |
 | Lock on / next target | `L` | Right trigger |
 | Block (hold, with a shield) | `H` | B (east) |
+| Abilities, once learned in the skill tree | `H`+`J`, `H`+`K`, `H`+`L` | B + X, B + Y, B + right trigger |
 | Sprint (hold) | `Shift` | Left trigger |
 | Jump / climb | `Space` | Left stick click |
 | Interact | `E` | A (south) |
@@ -635,6 +638,49 @@ Blow's reel off; everything else stops where it stands. The profiles are
 the grammar is `Player::HandleAttackInput`, and what they do beyond a swing
 is `World::ApplyPlayerAttack`.
 
+### Where a blow lands
+
+**On the ground, as a sector out from whoever swings it** -- as far as the
+swing's reach, as wide either side of the facing as its width makes it at that
+reach -- against **where the other stands**: the middle of their feet, and half
+their width round it (`StrikeArc`, `ArcFor`, `ArcHits` in `combat.h`;
+`Entity::GroundCentre`). And what is drawn is that sector, because the arc on
+screen and the test both ask `AttackProfile::HalfAngle` and cannot disagree.
+Everything round -- Whirlwind, the Cross Cut, Ground Slam, a war cry, a repulse,
+burning ground, a Meteor -- is a circle on the same ground (`CircleHits`).
+
+It was not, and a friend playing it said so: wide swings did not hit what they
+looked like they hit. Three things were wrong at once.
+
+- **The swing was a rectangle; the arc drawn was squashed to six tenths of its
+  height.** Ground is drawn square here -- a tile is as tall as it is wide, and
+  a character walks as fast up the screen as across it -- so a reach is as long
+  up the screen as across it, and squashing the arc only made it lie. A Cleave,
+  eighty-eight wide, struck forty-four pixels above and below a character
+  facing east while the arc on screen covered seventeen; facing north it
+  stopped fifteen pixels short of what it hit.
+- **It was tested against the box a sprite fills**, which is as tall as the art
+  and hangs *up* from the feet. So a swing reached further south than north,
+  and a Meteor's fifty-eight pixel square caught something standing eighty
+  pixels south of it because its head was in the square. Shots still test the
+  sprite's box: an arrow flies at chest height and what it looks like it
+  touches is what it touches.
+- **A monster's swing reached thirty-two pixels whatever its attack range was.**
+  Anything that swings from further than about forty-five -- a wyvern (54), a
+  demon (46), an ankou (52), the Pit Lord (56), the frost dragon (78) -- began
+  its attack in range, and then could not reach whoever it was swinging at.
+  Only their heavies ever landed. A swing now reaches the range it was begun
+  from, so one begun in range lands on whoever stands still, and stepping back
+  out of it is still the way to make it miss.
+
+The Cleave is a true sweep now, ninety-five degrees either side -- shoulder to
+shoulder, and only what is behind is out of it -- with its reach lengthened to
+what its old rectangle's half-width was, so it still catches what it caught at
+the character's side. A width is a chord, and the angle a chord subtends stops
+short of a right angle however long it is, so a profile may say its sweep in
+degrees (`sweep_deg`). And a blade does not reach **up or down a cliff two
+levels high**, either way.
+
 ### Targeting
 
 Nothing is aimed by hand. Where a shot goes depends on whether you are in a
@@ -812,35 +858,50 @@ were got wrong first time:
 
 ### Skill trees
 
-Each combat style has a tree, opened from the Skills panel (`O`) with `I` and
-`O` to step between the tabs -- Skills, Melee, Ranged, Magic -- or the shoulder
-buttons on a pad. A tree is three branches, five nodes deep:
+**A character has one path, and one tree: their path's.** The hero's is the
+blade's (Melee), the warden's the bow's (Ranged), the wayfarer's the staff's
+(Magic) -- the same affinity that gives them their starting weapon and their
+edge with it. The other two trees belong to other characters and cannot be
+learned from, whatever the levels. It is opened from the Skills panel (`O`);
+`I` and `O`, or the shoulder buttons on a pad, step between the level list and
+the tree. A save from before the paths keeps what it had bought in its own tree
+and loses the rest.
 
-| Tree | Earned by | Branches |
-| --- | --- | --- |
-| Melee | Attack | Blade, Brawn, Guard, and Footwork |
-| Ranged | Ranged | Marksman, Skirmisher, Hunter |
-| Magic | Magic | Evoker, Channeler, Warden |
+| Tree | Whose | Earned by | Branches |
+| --- | --- | --- | --- |
+| Melee | the hero | Attack | Blade, Brawn, Guard, and Footwork |
+| Ranged | the warden | Ranged | Marksman, Skirmisher, Hunter |
+| Magic | the wayfarer | Magic | Evoker, Channeler, Warden |
 
-**Every fifth level of the tree's skill is a point**, and a node costs one. The
-rows are milestones -- **levels 5, 15, 30, 50 and 70** -- and a node also needs
-the one above it in its branch. So the first point is a choice of direction, a
-level 70 character has most of one branch and some of the others, and a whole
-tree takes until level 75. `J` learns the node under the cursor; `L` twice
-unlearns the whole tree and gives the points back, for anyone who wants to try
-another way to fight.
+A tree is three branches, eight rows deep, and every branch has the same shape:
 
-Most nodes are passive: more damage, faster attacks, critical strikes (half
-again the damage, marked with a `*`), healing on hit, knockback, defence,
-stamina, mana cost and regeneration, spells that seek their target. A few apply
-whatever you hold -- defence, stamina, move speed, mana regeneration, faster
-charging -- and the rest only to attacks of their own style.
+| Row | Level | What it is | Ranks |
+| --- | --- | --- | --- |
+| 1 | 5 | a passive | 3 |
+| 2 | 15 | a passive | 3 |
+| 3 | 30 | a **technique**: a move that replaces the charged heavy attack | 1 |
+| 4 | 40 | an **ability**: a move of its own, on its own buttons | 1 |
+| 5 | 47 | a passive that asks *when*: a chain, a block, a long shot | 2 |
+| 6 | 54 | a second **ability** | 1 |
+| 7 | 62 | a second passive that asks when | 2 |
+| 8 | 70 | the branch's capstone | 1 |
 
-**The middle of every branch, at level 30, is a technique**: a new move. Once
-learned, `J` on it makes it that style's charged attack, so holding and
-releasing `K` with that style's weapon comes out as the technique instead of a
-plain charged hit. No new buttons, and the HUD says what a held heavy attack
-will do ("Hold K: Whirlwind").
+**The rows come closer together as they go down**, because the levels come
+slower: a level in the fifties is several times the work of one in the teens,
+and the tree used to go from 40 to 55 to 70 with nothing between. Past the
+first ability no row is more than eight levels after the one before.
+
+**Every third level of the tree's skill is a point**, a rank costs one, and a
+node needs at least one rank of the node above it. That is **thirty-three
+points by level 99 against forty-two ranks a tree** (forty-three for the hero,
+with Rushing Strike): two branches to the bottom and a little of the third, or
+all three most of the way. A build, not a checklist. `J` on a
+node buys its next rank; `L` twice unlearns the whole tree and gives every point
+back, for anyone who wants to fight another way.
+
+**Techniques** are as they were: once learned, `J` on one makes it the charged
+attack, so holding and releasing `K` comes out as the technique, and the HUD
+says what a held heavy attack will do ("Hold K: Whirlwind").
 
 | Style | Technique | What it does |
 | --- | --- | --- |
@@ -853,6 +914,104 @@ will do ("Hold K: Whirlwind").
 | Magic | **Nova** | A ring of eight bolts of your element, for twice the mana |
 | Magic | **Barrage** | Four seeking bolts at once, for twice the mana |
 | Magic | **Meteor** | Your element crashes down on your target, for three times the mana |
+
+A strike from above -- Arrow Rain, Meteor, the ancient rain -- **lands once**,
+the moment it goes off. It used to land a second time a frame later, on the
+effect's first tick, so each was quietly two; the numbers above are now what
+they say.
+
+#### Abilities
+
+**Hold the guard (`H`, or `(B)`) and press light, heavy or lock on.** A tree
+teaches six abilities and **three are carried at once**: slot one on guard +
+light (`H`+`J`), slot two on guard + heavy (`H`+`K`), slot three on guard +
+lock on (`H`+`L`, or B + the right trigger). The guard button is the shift key
+whether or not there is a shield to raise, and the press is the ability's: not
+a swing, and with an ability in the third slot not a change of target either.
+Each has a cooldown and a cost, shown on the HUD at the bottom left with a bar
+that refills as it comes back, and what is running -- a frenzy, a held breath,
+an overload -- is named beside them. A newly learned ability goes straight
+into a free slot; `J` on a learned one in the tree moves it on to the next slot
+(changing places with whatever is there) and from the last puts it away. Which
+three of the six to carry is part of the build.
+
+| Whose | Ability | Every | Costs | What it does |
+| --- | --- | --- | --- | --- |
+| Hero | **Sunder** (Blade) | 14 s | 20 stamina | A hard blow on what you are fighting, and for ten seconds its defence is down by a third -- for everyone who strikes it |
+| Hero | **War Cry** (Brawn) | 30 s | 25 stamina | Staggers everything near you; you hit 25% harder for eight seconds |
+| Hero | **Bash** (Guard) | 8 s | 15 stamina | A light blow on whatever is in front that staggers for over a second |
+| Hero | **Frenzy** (Blade) | 25 s | 20 stamina | For six seconds melee attacks are 30% faster, and the chain does not lapse between blows |
+| Hero | **Shockwave** (Brawn) | 16 s | 25 stamina | A line of force straight ahead, three swings long: a heavy blow on everything in it, thrown back and left reeling. The blow can miss; the throw cannot |
+| Hero | **Stand Fast** (Guard) | 35 s | 20 stamina | For six seconds you take 40% less and nothing moves you -- and in co-op everything near turns on you and leaves your friends alone |
+| Warden | **Hunter's Mark** (Marksman) | 20 s | 10 stamina | Marks what you are fighting for twelve seconds: it takes 25% more from every blow, yours or a friend's |
+| Warden | **Tumble** (Skirmisher) | 6 s | 20 stamina | A roll the way you are moving, or back if you are standing still. Nothing can touch you until you are up |
+| Warden | **Caltrops** (Hunter) | 18 s | 15 stamina | Iron on the ground for six seconds: what crosses it is cut and stopped short |
+| Warden | **Take Aim** (Marksman) | 18 s | 15 stamina | Your next shot within six seconds always strikes critically and hits half as hard again -- every arrow of it, if it is a Volley |
+| Warden | **Rapid Fire** (Skirmisher) | 25 s | 20 stamina | For five seconds the bow is 40% faster |
+| Warden | **Snare** (Hunter) | 22 s | 15 stamina | A trap at your feet for twenty seconds. The first thing to step in it is held for three seconds, and hurt; then it is sprung |
+| Wayfarer | **Arcane Pulse** (Evoker) | 14 s | 8 mana | Ten bolts of your chosen element, thrown outward in a ring |
+| Wayfarer | **Blink** (Channeler) | 8 s | 5 mana | A short step through the air, past anything that is not a wall. With nowhere to land it does not happen and costs nothing |
+| Wayfarer | **Mana Shield** (Warden) | 25 s | 6 mana | For ten seconds half of every blow is paid in mana instead of blood, two mana a point |
+| Wayfarer | **Overload** (Evoker) | 20 s | 4 mana | Your next spell within six seconds costs nothing and hits twice as hard -- a Meteor included |
+| Wayfarer | **Invoke** (Channeler) | 40 s | 20 stamina | Half of all your mana comes back over four seconds. With nothing to draw back it does not happen and costs nothing |
+| Wayfarer | **Repulse** (Warden) | 16 s | 6 mana | A wall of force in your element: everything near is struck, thrown back hard and left reeling |
+
+An ability is a decision, not a cancel: it does not come out of the middle of a
+swing -- except the roll and the blink, which getting out is what they are
+for. Sunder and Hunter's Mark are on the monster, not on whoever made them, so
+in co-op a friend's blows gain from them too.
+
+#### Passives that ask when
+
+The first two rows are the steady kind -- damage, speed, defence, stamina, mana
+-- three ranks each. The fifth and seventh rows, two ranks each, and the
+capstones change how the style is played:
+
+| Whose | Passive | What it does |
+| --- | --- | --- |
+| Hero | **Momentum** (2) | Every hit in an unbroken chain adds 1.5% a rank to the next, up to ten hits: the chain counter is damage now |
+| Hero | **Brute Force** (2) | Charged attacks and techniques hit 10% harder a rank |
+| Hero | **Riposte** (2) | For three seconds after a block, the next hit lands 30% harder a rank. "Riposte ready" shows on the HUD |
+| Hero | **Open Wounds** (2) | Once a chain is three deep, every blow bleeds for 10% a rank of itself again, over four seconds |
+| Hero | **Punish** (2) | +12% a rank against anything staggered: after a Bash, a War Cry, a Ground Slam, a Shockwave |
+| Hero | **Bulwark** (2) | A blow caught on the shield costs 20% less breath a rank |
+| Hero | *Executioner* | +10% critical, and anything below a quarter of its health is always struck critically |
+| Hero | *Titan* | +15% damage; every kill gives back fifteen stamina |
+| Hero | *Last Stand* | Below a third of your health: +25% damage, and 5% of what you deal comes back as health |
+| Warden | **Long Shot** (2) | +8% a rank against anything more than six paces off |
+| Warden | **Hit and Run** (2) | For three seconds after a shot lands you move 6% faster a rank |
+| Warden | **First Blood** (2) | +20% a rank against anything at full health |
+| Warden | **Weak Point** (2) | Each shot in a row on one target adds 5% a rank, up to four shots; another target starts again |
+| Warden | **Slippery** (2) | While you are moving, 6% a rank of blows miss you outright |
+| Warden | **Trapper** (2) | +12% a rank against anything staggered or held: on your caltrops, in your snare |
+| Warden | *Deadeye* | Critical shots do half as much again, 6% more often |
+| Warden | *Hail* | Every arrow goes through one more enemy; the bow is 5% faster |
+| Warden | *Predator* | +10% damage; 5% of it comes back as health |
+| Wayfarer | **Attunement** (2) | Each cast of the same element in a row adds 3% a rank, up to five; changing element starts again |
+| Wayfarer | **Surge** (2) | A critical cast gives back 2 mana a rank |
+| Wayfarer | **Siphon** (2) | 2.5% of every spell that lands comes back as health, a rank |
+| Wayfarer | **Spell Echo** (2) | 8% a rank that a plain bolt is followed by a second, for nothing |
+| Wayfarer | **Deep Well** (2) | Maximum mana +10% a rank |
+| Wayfarer | **Resolve** (2) | A blow that draws blood gives back 3 mana a rank |
+| Wayfarer | *Archmage* | Spells cost 15% less and hit 10% harder |
+| Wayfarer | *Overflow* | +10% critical; mana returns 20% faster |
+| Wayfarer | *Mastery* | A spell of the element a creature fears does 25% more again |
+
+Critical strikes are half again the damage, marked with a `*`. A few effects
+apply whatever is in hand -- defence, stamina, move speed, mana regeneration,
+faster charging -- and the rest only to attacks of the tree's own style, so a
+hero's Momentum does nothing for a bow in the hero's hand. Every one of them is
+decided where every hit is: `World::HitEnemy`, and what lands on the player in
+`World::HitPlayer`. A held breath and an overload are spent by the shot they go
+into at the moment it is let go, in `Player::UpdateAttack` rather than in the
+world, so a friend's window -- where the world decides nothing -- spends them
+when the host does. The whole tree is data, in
+`data/skill_trees.json` (`ranks`, `technique`, `ability` with `cooldown`,
+`stamina` and `mana`, and `effects` per rank), and ranks and slots are saved
+with the character -- so in co-op they travel in the sheet, a friend's machine
+predicts their own roll and blink, and the host does what an ability does to
+the world. `--level 60` starts a `--scratch` character with their path's skill
+at that level, for looking at a tree without playing forty hours first.
 
 #### Rushing Strike
 
@@ -878,10 +1037,6 @@ attack's place and can be used alongside Whirlwind, Ground Slam or Lunge. The le
 has its own clip, `rush`, rendered for every character, armour cut, and tier sword
 and spear -- a bow or a staff never makes it.
 
-The capstones at level 70 are Bloodlust, Titan and Last Stand for melee;
-Deadeye, Hail and Bloodletting for ranged; Archmage, Overflow and Elemental
-Mastery for magic. The whole tree is data, in `data/skill_trees.json`, and the
-nodes are saved with the character.
 
 ---
 
@@ -907,6 +1062,65 @@ Weapons and armour come in twelve tiers, in this order:
 The last two tiers have no ore of their own. They are smelted from the tier
 below and something the player already brings back, so the end of the game asks
 for a trophy rather than another vein of rock.
+
+### Three kinds of armour, one for each way of fighting
+
+Every tier has **three sets**, and each helps only its own style:
+
+| Set | Pieces | Needs | Adds to | Keeps out | Made from |
+| --- | --- | --- | --- | --- | --- |
+| **Plate** (the metal tiers' own) | helm, cuirass, greaves, shield | Defence | Attack and Strength | the most | the tier's bars, at an anvil |
+| **Hides** | coif, jerkin, chaps | Ranged | Ranged | about seven tenths of plate | the tier's hide and thread, at a workbench |
+| **Robes** | hat, robe, skirt | Magic | Magic -- the most of the three | under half of plate | bolts of cloth, the tier's dye and thread, at a workbench |
+
+A set piece's defence is the tier's armour power times the piece's share, and
+what it adds to its style is the tier's *weapon* power times its share -- a full
+set of plate is about four tenths of a sword's Attack and a third of its
+Strength, a full set of hides a little under half a bow, a full set of robes a
+little over half a staff -- so
+the sets line up with the twelve tiers of weapon and keep pace with them. None
+of them adds anything to either of the other two styles, and a hide or a robe
+needs its tier's level in **Ranged** or **Magic** where plate asks for Defence:
+the warden's wardrobe is the warden's. They are in `data/tiers.json` beside the
+metal (`style_bonus` on the plate pieces, and a `sets` block), built by the
+same loader, so there are seventy-two new pieces and no list of them anywhere.
+
+**Hides have to be killed for**, and each tier's is a different animal's:
+
+| Tier | Set | Hide | Off |
+| --- | --- | --- | --- |
+| Wood | Rawhide | raw hide | deer, boar, fox, hare |
+| Bronze | Wolfskin | wolf pelt | the Westwold's wolves |
+| Iron | Lizardscale | lizard scale | the Mire's lizardmen |
+| Steel | Bearskin | bear hide | the Brackenwood's bears |
+| Azuryte | Trollhide | troll hide | ice trolls |
+| Damascus | Wyvernscale | wyvern scale | frost wyverns |
+| Orichalcum | Demonhide | demon hide | imps, rarely; demons |
+| Diamond | Greatwolf | greatwolf pelt | the greatwolves of the Howling Fells |
+| Platinum | Direbear | dire bear hide | the Old Growth's dire bears |
+| Demonite | Dreadhide | dread hide | dread boars and the Nightmare Brute, in the Reverie |
+| Dracon | Dragonhide | dragonhide | the frost dragon |
+| Enchanted | Dreamhide | dragonhide, and dream shards | -- |
+
+Two hides make a coif, four a jerkin, three a pair of chaps. The last tier has
+no beast of its own, the way the last two metals have no ore: it is dragonhide
+steeped in the Reverie.
+
+**Robes are cloth, dyed.** A **bolt of cloth** is three stalks of **flax** --
+foraged at Foraging 3 from the headlands of the Westwold's fields, or bought
+from Isolde -- or two skeins of spider silk, at a workbench. A **dye** is two of
+a herb and a vial in a cauldron, at the Brewing level the herb is foraged at,
+and it is the one thing brewed that nobody has to be taught (`untaught`): a dye
+is a flower boiled in water. The herb decides the grade -- marigold, brookmint,
+nettle, bogbean, mountain sage, glowcap, emberbloom, moonpetal, starlily, and
+then the three that are not only a herb: moonpetal and dream shards, a dragon's
+fang and emberbloom, starlily and dream shards. A hat is a bolt and a dye, a
+robe three bolts and a dye, a skirt two and a dye, and thread for all of them.
+
+On the character they are two more **cuts** of the armour layers (see
+[Worn equipment](#worn-equipment)), painted in the set's own colour at that
+tier, and the icons are modelled and rendered by `make_tiers.ps1 -What sets` in
+the same colours.
 
 Every tier makes the same eight pieces -- a **sword, spear, bow, staff, shield,
 helm, cuirass and greaves** -- and every piece needs its tier's level in the
@@ -1250,6 +1464,8 @@ kind of shop.
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
+| Hidewater, in the Westwold | -- | **Orla's Tannery**: the best price for a hide anywhere, thread, and the Rawhide and Wolfskin sets; **Isolde's Loom**: flax, cloth, vials, the first two dyes, and the Homespun and Novice's robes |
+| The Brackenwood | -- | Hale's Packs, at the trapper's camp: hides bought, and the Lizardscale set |
 
 ### Prices
 
@@ -1347,6 +1563,17 @@ the tier:
 | `light` | wood, bronze, iron | a leather cap with no crest or nasal, a strap and a bracer instead of pauldrons, no knee cops, a small buckler, everything a shade darker |
 | `plate` | steel to platinum | the full harness: crested helm, pauldrons, poleyns, a round shield |
 | `ornate` | demonite, dracon, enchanted | horns off the brow band, a taller crest, a swept wing and a spike on each pauldron, a knee spike, a deeper fauld, a spiked shield |
+| `hide` | every tier's hides | a fur-lined hood with a drape and a peak, a jerkin with a fur collar and shoulders and a quiver slung behind, bracers, tassets, wrapped legs with a fur cuff, soft boots |
+| `robe` | every tier's robes | a pointed hat with a brim, a mantled robe with bell sleeves and a sash, and a skirt to the ankle that hangs from the hips, so a walk swings the feet out from under the hem instead of bending the cloth at the knee |
+
+The last two are chosen by the *piece*, not the tier, and are head, body and
+legs only -- there is no hide gauntlet -- so only those three groups are
+rendered for them (`make_character.ps1 -Style hide,robe`, about ten seconds a
+clip). The hat is the hard one: a helm is the one layer the head does not cut,
+and seen from the side the near half of anything round the head drops down the
+screen by most of its radius, so a wide-brimmed hat was a purple ball where the
+face should be. The dome and brim are kept close to the skull and set high,
+and the height is all in a narrow cone leaning back.
 
 Plate is the cut the sheets are named after, so it carries no suffix; the other
 two are rendered as `<clip>_<n>_armour_<slot>_<cut>.png` beside them, and the
@@ -1397,6 +1624,15 @@ result rather than by reasoning about it:
   index and only the one in hand is drawn -- they were all being drawn at once,
   and the character went about holding a sword, a spear, a bow and a staff
   together.
+- **One set of weapon sheets, three characters.** Every tier's sword, bow,
+  staff and spear is rendered once, in the hero's hand, and the warden and the
+  wayfarer hold the same sheets: the three are one rig in three sets of
+  clothes, and their weapon layers differ by a few pixels in a hundred.
+  `"weapons_from": "player_hero"` in `data/sprites.json` says so
+  (`SpriteDef::WeaponSheet`), written by `make_sprites_json.ps1`. They used to
+  be asked for sheets of their own, which do not exist, so the warden's bow and
+  the wayfarer's staff were both drawn as the rig's plain tinted blade, and the
+  terminal said `could not load` once for every weapon and clip.
 - **Pack pieces can still overlay.** A worn piece may carry a `worn` overlay:
   art drawn on top of the character, positioned by a rectangle given in **frame
   pixels** so it lands on the rig correctly at any camera zoom. A piece with
@@ -1433,7 +1669,9 @@ wayfarer the staff.** Attacks of that style hit a tenth harder and carry eight
 points more accuracy, from the first swing and for good. It is who they are
 rather than something learned, so it sits under the skill trees and the
 equipment rather than among them (`Player::Affinity`, `AFFINITY_DAMAGE`,
-`AFFINITY_BONUS`).
+`AFFINITY_BONUS`). It is also **which skill tree is theirs**: the
+hero's is Melee, the warden's Ranged, the wayfarer's Magic, and the other two
+stay shut (see [Skill trees](#skill-trees)).
 
 ### On using icon packs as armour
 
@@ -1658,6 +1896,26 @@ something would read that did not:
 
 Still to do: the faces are drawn procedurally, and dedicated cliff-edge art
 would look considerably better than a textured rectangle with a lip on it.
+
+### Everything on the ground is lifted by it
+
+Characters, monsters and scenery were lifted by the terrain under them. Nothing
+else was: an arrow loosed on the third terrace flew forty-two pixels below the
+archer's hands and "hit" a monster whose feet it never came near; damage numbers
+appeared at the knees of whatever took the damage, or under it; loot lay in
+mid-air below the ledge the monster died on; burning ground burned a level down
+from the fire. That is what read as the elevation throwing the y-axis off.
+`World::LiftAt` is asked by everything drawn in the world now -- shots (each at
+the height it was loosed from, all the way, so it does not drop a level crossing
+a bank), floating text, pickups, ground effects, impacts and dust -- and what is
+lifted is only ever the picture: where things *are*, for collision and for a
+blow, is the ground plane it always was.
+
+Walking up a flight of steps crosses from one level's cell to the next in a
+single pixel, and the lift used to go with it, a whole level at once. It closes
+on the ground's height instead, a level in about a tenth of a second
+(`World::UpdateElevation`), so a climb is a climb -- for the player, friends,
+monsters and townsfolk alike.
 
 ### Getting up and down
 
@@ -2371,6 +2629,43 @@ with the Whisperwood trail leaving from the east.
 | `ice_spire_peak` | North off the foothills, Combat 30: a climb through trolls to the wyverns' summit |
 | `ashen_path` | East off the Hollowmarch below the Cursed Reach, Combat 40: a burnt road across rivers of lava |
 | `dungeon_infernal` | The Infernal Pit, through the hellgate at the Ashen Path's end: imps, demons and the Pit Lord |
+| `westwold` | The Westwold, out of Havenbrook's west gate, Combat 5: open downs, Hidewater steading, the river Wend, wolves, and the Howling Fells in the west |
+| `brackenwood` | The Brackenwood, north off the Westwold's fork, Combat 20: old forest, bears, the Den Mother, and the Old Growth |
+
+### The Westwold and the Brackenwood
+
+Havenbrook's cross street always ran west into the fence and stopped. It runs
+out of a **west gate** now, onto the largest two maps in the game after the
+Hollowmarch itself.
+
+**The Westwold** (4800 x 3328) is open downs. Just outside the gate is
+**Hidewater steading** -- drying frames with hides laced into them, Orla the
+Tanner, who pays more for a hide than anyone and sells the first two hide sets,
+and Isolde the Weaver at her wheel, who sells flax, cloth and the first two
+robes; a workbench, a dye vat and a fire, so both new kinds of armour can be
+made where their makings are sold. Past it the road is a cart track between
+ploughed fields with **flax** along their headlands and Farmer Aldous walking
+between them, down to the river **Wend** and its plank bridge, where the
+highwaymen wait. East of the river it is a walk in the fields: hares, deer,
+foxes, boar. **West of it the wolves run in twos and threes.** Then a fork:
+north to the Brackenwood, and west up onto the **Howling Fells**, where the
+ground turns to rock and then to snow and the wolves are **greatwolves**, the
+size of a pony, Combat 55 and not alone. A sign says so. Seven standing stones
+south of the road have a chest among them.
+
+**The Brackenwood** (4160 x 3520) is old forest with a trail through it, the
+way the Whisperwood is, and **bears**. Wolves on the way in; Hale the Trapper's
+camp at the second bend, with a fire, a bed for the night and a fair price for
+hides; bears along the inner trails and in the glades the side trails end in;
+and in the middle of it **the den** -- a mouth of dark under fallen slabs,
+claw-raked trunks either side -- where the **Den Mother** and her two grown cubs
+are. She is a leader: she rears up, and all of it comes down at once. North of
+her the trail climbs into **the Old Growth**, where the **dire bears** are,
+twice the size with a hide that turns a spear, Combat 65.
+
+Between them the two maps give a hide for four of the twelve tiers, which is
+why they go where they go: wolf for bronze, bear for steel, greatwolf for
+diamond, dire bear for platinum.
 
 ### The Whisperwood
 
@@ -2387,6 +2682,36 @@ five-quest woodland chain (clear the trail, carry word to Fernhollow, hides for
 Mossvale, the trail wardens, and an offering at the shrine), with kill stages
 tied to the map they belong on so a wolf in the Mire does not count toward the
 Whisperwood.
+
+### People with somewhere to be
+
+Havenbrook's streets had people standing in them. Eight of them walk now:
+Wenna fetches water up from the mill pond, the well being what it is; Old
+Perrin does the rounds of the stall, the board and the fire; Watchman Brask
+walks the streets gate to gate; Tam carries logs from the sawpit to the forge;
+Dace fishes off the end of the jetty; Pip runs the guild's notices; Hollis the
+Carter comes in at the south gate and goes out at the west; and Sorrel, a
+ranger in off the downs, sells her pelts to Ivo and leaves again. Each has a
+line or two to say, and Aldous does the same between his fields.
+
+**Where someone is on their round is worked out from the world's clock and
+nothing else** (`Npc::PlaceAt`): a round is a list of stops with a wait at
+each, laid out in time, and the clock says how far into it they are. No state
+is carried from frame to frame, so every machine in a co-op game puts the same
+villager in the same place without a word being said about it -- and the host,
+asked whether a friend could really have spoken to them, looks in the right
+spot. A round may begin only inside the villager's hours and always ends where
+it began, at a door or a gate, so **at night everyone but the watch goes in**
+and nobody appears or vanishes in the middle of the road. Spoken to, they stop;
+let go, they hurry along their round until they are back where the clock has
+them, rather than being put there. The generator keeps the village's greenery
+off every round, and the self-test walks each one a quarter of a second at a
+time and fails if any step of it is inside a wall -- which is how Old Perrin
+was found walking through Tobin's stall.
+
+A round is data on the NPC in the map: `"path": [[x, y, seconds, facing], ...]`,
+`"ping_pong"`, `"speed"`, `"phase"`, `"hours": [from, to]` and a `"tint"`, since
+there are only so many villagers' faces.
 
 ### Havenbrook's gate
 
@@ -2619,6 +2944,11 @@ and their chief.
 
 | Monster | Where | Effective level | Leaves |
 | --- | --- | --- | --- |
+| Grey Wolf | the Westwold west of the Wend, the Brackenwood's south | 8-12 | bones, a **wolf pelt** |
+| Brown Bear | the Brackenwood | 22-24 | bones, meat, **bear hide** |
+| The Den Mother | the den, in the middle of the Brackenwood | 34, a leader | four to six bear hides, and better |
+| Greatwolf | the Howling Fells, in the Westwold's west | 56-58 | bones, a **greatwolf pelt** |
+| Dire Bear | the Old Growth, in the Brackenwood's north | 72-73, a leader's heavy | bones, meat, **dire bear hide** |
 | Cellar Rat | the inn's cellar | 1 | bones, raw meat, a few coins |
 | Cellar Spider | the inn's cellar | 3-4 | spider silk |
 | Broodmother | the back of the inn's cellar | 7 | silk, coins, a tonic or a copper ring |
@@ -2858,7 +3188,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **15812 checks** covering:
+and checks all of it — currently **24205 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -3337,6 +3667,83 @@ and checks all of it — currently **15812 checks** covering:
   on a map of their own, walking on with their camera; when both lie down it is
   dawn for both; fallen, Player Two is got up in Havenbrook, whole; and sitting
   down again with their kept character they are who they were
+
+- every character holds the weapon they are holding: the warden and the
+  wayfarer take the weapon in hand from the hero's renders, and every sheet the
+  game will ask for -- each starting weapon and what they might pick up,
+  through every clip played with it -- is on disk
+- skill trees, the path: each tree is three branches eight deep -- two passives
+  of three ranks, a technique, an ability with a cooldown and a cost, a passive
+  of two, a second ability, a second passive of two and a capstone, forty-two
+  ranks against thirty-three points by level 99; past the first ability no row
+  is more than eight levels after the one before; every effect a node names is
+  one the game reads; a rank is a point, two ranks are twice one, a full node takes no more,
+  ranks survive a save and a save from before ranks has one of each; a
+  character's path opens one tree and nothing can be learned from another's,
+  and a save from before the paths keeps what is its path's and loses the rest;
+  a learned ability goes into the first slot with room, then the second, the
+  third, then away, survives a save, and unlearning the tree empties the slots
+- abilities in the world: guard and light bashes what is in front, costs breath
+  and starts its cooldown, the press is the ability's and not a swing, pressed
+  again too soon nothing is spent, and without the guard held the button still
+  swings; Sunder leaves a monster's defence down by a third; a war cry staggers
+  what is near and adds a quarter to melee damage for eight seconds; Riposte is
+  owed for three seconds after a block, and only to a hero who has learned it;
+  a tumble is untouchable and a blow mid-roll lands on nothing, and standing
+  still it goes back; Hunter's Mark marks what is in reach; caltrops lie for
+  six seconds stopping what crosses them; a blink lands somewhere that can be
+  stood on, and with nowhere to land does not happen and costs nothing; an
+  arcane pulse is ten bolts of the wayfarer's own; a mana shield pays half a
+  blow in mana, two a point, and with none to pay all of it is blood;
+  Attunement deepens to five and starts again with another element
+- the deeper rows: a strike from above lands once on what it lands on; frenzied,
+  the blade is a third faster and the chain does not lapse, for six seconds; a
+  wound bleeds what it owes over four seconds, and a chain three deep opens one
+  and not before; a shockwave reaches what is straight ahead, near and far, and
+  nothing beside or behind; guard and lock on is the third slot and the target
+  stays who it was; feet set, a blow of twenty is a blow of twelve and moves
+  nobody, for six seconds; what is called out is after whoever called it until
+  it wears off; a held breath goes into the next shot -- critical, half as hard
+  again -- is spent by it, and the one after is plain; Weak Point counts to four
+  and starts again on another target; rapid fire is two fifths faster for five
+  seconds; standing still nothing slips past and on the move about one blow in
+  eight does; a snare holds the first thing into it and is sprung; overloaded,
+  the next spell costs nothing and hits twice as hard; with no Spell Echo a bolt
+  is one bolt and with it about one in six is two; Invoke with nothing to draw
+  back costs nothing, and with mana spent returns half of it over four seconds;
+  Deep Well is a fifth more mana; a repulse leaves everything near reeling and
+  thrown back, and nothing far; Resolve gives back three mana a rank
+- where a blow lands: a swing reaches as far as its reach and half the width of
+  what it meets, and no further; not what stands beside the character, or
+  behind; as far up the screen as down it and as far as across; the Cleave from
+  shoulder to shoulder and not behind; the arc drawn and the arc struck ask the
+  same question; a full turn reaches behind; every monster's swing lands on
+  whoever stands still at the range it swung from; a burst on the ground
+  strikes what stands inside its circle and not the corners of a square round
+  it; a blade does not reach up or down a cliff two levels high
+- the ground lifts everything on it: a number over someone's head, and what is
+  drawn there; stepping up a level the lift closes on the ground's rather than
+  jumping to it, and is there within a third of a second; a friend's window is
+  told where the host already put it
+- people with somewhere to be: Havenbrook has people walking its streets; every
+  round ends where it began, and no step of any round is inside a wall; two
+  machines put the watchman in the same place, and he walks; spoken to he
+  stands still, let go he is not flung to where the clock has him but hurries
+  until he is back on his round; at night the streets are the watch's, and
+  nobody who has gone in can be spoken to
+- three kinds of armour: every tier has a ranger's hides and a mage's robes,
+  seventy-two pieces; plate adds to a blade, hides to a bow and robes to a
+  staff, and none of them to anything else; plate keeps out the most and robes
+  the least; each has its icon and its own cut; hides are cut from the tier's
+  hide and robes from cloth and the tier's dye, at a workbench, at the tier's
+  level; eleven hides and something drops every one; a bolt of cloth from flax
+  or from spider silk; there is a dye for every tier of robe, brewed at the
+  level of its herb with no teaching and not for drinking; and both cuts are
+  drawn on all three characters
+- the Westwold and the Brackenwood: they load, take every check every other map
+  takes, and neither is small; wolves on the downs and greatwolves in the Fells;
+  bears, one Den Mother, and dire bears in the Old Growth; Havenbrook has a west
+  gate and the road comes back to it
 
 It exits with the number of failures, so CI can use it directly.
 

@@ -21,6 +21,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <array>
 #include <map>
 #include <algorithm>
 #include <fstream>
@@ -1235,6 +1236,9 @@ static void BuildOverworld() {
     m.Portal(gate_x - 36, gate_y + 6, 72, 44, "town_havenbrook", "from_field",
              "Enter Havenbrook", false);
     MarkWorld("town", "Havenbrook", gate_x, gate_y + 16, "havenbrook");
+    // The Westwold is out of the town's west gate, not off this map's edge, so
+    // it is marked where that gate would be.
+    MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 5)", gate_x - 150, gate_y + 40);
     // The well is inside the town, so its mark sits just under the town's.
     MarkWorld("dungeon", "The Dry Well, in Havenbrook", gate_x - 26, gate_y + 92);
 
@@ -1616,9 +1620,23 @@ static void BuildTown() {
         if (abs(cx - 28) > 2) m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
         m.Collision(cx * CELL, 0, CELL, CELL);
     }
+    // And the west gate, where the cross street runs out: the road to the
+    // Westwold. It ran into the fence for as long as there was nothing beyond it.
     for (int cy = 0; cy < H; ++cy) {
-        m.Collision(0, cy * CELL, CELL, CELL);
+        if (abs(cy - 22) > 1) m.Collision(0, cy * CELL, CELL, CELL);
         m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+    m.Portal(0, 21 * CELL - 8, 24, 3 * CELL + 16, "westwold", "from_havenbrook", "To the Westwold", false);
+    m.Danger(5);
+    m.Spawn("from_westwold", 3 * CELL, 22 * CELL + 16);
+    {
+        json& sign = m.Object("sign_west_gate", "sign", 3 * CELL + 8, 20 * CELL + 20);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "West Gate";
+        sign["text"]   = "THE WESTWOLD ROAD\n\nHidewater steading, half a mile. The river Wend, two. "
+                         "Beyond the fork: the Brackenwood, north; the Howling Fells, west.\n\n"
+                         "Nailed under it, in a tanner's hand: WOLVES ON THE DOWNS. Pelts bought at Hidewater.";
+        m.Collision(3 * CELL + 8 - 16, 20 * CELL + 10, 32, 10);
     }
 
     m.Spawn("from_field", 28 * CELL + 16, (H - 3) * CELL);
@@ -1830,10 +1848,95 @@ static void BuildTown() {
         m.Npc("npc_angler", "Angler Sula", "citizen1", 42 * CELL + 16, 36 * CELL + 20, "angler_root", 0);
     }
 
+    // --- foot traffic -------------------------------------------------------------------
+    // People with somewhere to be. Each walks a round by the world's clock --
+    // see Npc -- out of a door or in at a gate, along the streets to where
+    // their day takes them, a while stood at each place, and back; and all but
+    // the watch go in at night. A stop is {x, y, seconds stood, facing}.
+    struct Walk { int x, y; float pause; int facing; };
+    vector<vector<Walk>> rounds;
+    const auto walker = [&](const string& npc_id, const string& name, const string& sprite,
+                            const string& dialogue, const vector<Walk>& stops, bool there_and_back,
+                            float speed, float phase, float from_hour, float to_hour,
+                            std::array<int, 3> tint) {
+        json& n = m.Npc(npc_id, name, sprite, stops.front().x, stops.front().y, dialogue, 0);
+        json path = json::array();
+        for (const Walk& w : stops) path.push_back({w.x, w.y, w.pause, w.facing});
+        n["path"] = path;
+        n["ping_pong"] = there_and_back;
+        n["speed"] = speed;
+        n["phase"] = phase;
+        if (from_hour != to_hour) n["hours"] = {from_hour, to_hour};
+        n["tint"] = {tint[0], tint[1], tint[2]};
+        rounds.push_back(stops);
+    };
+    // Facings: 0 down, 1 left, 2 right, 3 up.
+    // Wenna fetches water from the mill pond, the well being what it is.
+    walker("npc_wenna", "Wenna", "citizen1", "wenna_root",
+           {{13 * CELL, 19 * CELL + 6, 10.0f, 0}, {13 * CELL, 22 * CELL + 12, 0, 0}, {38 * CELL + 14, 22 * CELL + 12, 0, 0},
+            {38 * CELL + 14, 37 * CELL, 0, 0}, {41 * CELL, 38 * CELL + 20, 9.0f, 2}},
+           true, 30.0f, 0.0f, 6.0f, 19.0f, {255, 236, 224});
+    // Old Perrin does the rounds of the square: the stall, the board, the fire.
+    walker("npc_perrin", "Old Perrin", "citizen2", "perrin_root",
+           // Round the stall rather than through it: down its east side to the
+           // front, west past the barrel to the board, and back under it to the fire.
+           {{44 * CELL, 19 * CELL + 6, 12.0f, 0}, {44 * CELL, 22 * CELL + 8, 0, 0}, {37 * CELL + 26, 22 * CELL + 8, 0, 0},
+            {37 * CELL + 26, 28 * CELL + 6, 0, 0}, {35 * CELL, 28 * CELL + 6, 10.0f, 3}, {31 * CELL + 8, 28 * CELL + 6, 0, 0},
+            {31 * CELL + 8, 25 * CELL + 4, 0, 0}, {33 * CELL, 25 * CELL + 4, 7.0f, 3}, {31 * CELL + 8, 25 * CELL + 4, 0, 0},
+            {31 * CELL + 8, 29 * CELL + 2, 0, 0}, {38 * CELL + 24, 31 * CELL + 10, 8.0f, 2},
+            {38 * CELL + 24, 23 * CELL, 0, 0}, {44 * CELL, 22 * CELL + 8, 0, 0}},
+           false, 24.0f, 40.0f, 8.0f, 18.0f, {232, 232, 255});
+    // The watch walks the streets, gate to gate, day and night.
+    walker("npc_brask", "Watchman Brask", "fighter2", "brask_root",
+           {{27 * CELL + 8, 41 * CELL, 8.0f, 0}, {27 * CELL + 8, 23 * CELL, 0, 0}, {3 * CELL + 16, 23 * CELL, 9.0f, 1},
+            {27 * CELL + 8, 23 * CELL, 0, 0}, {27 * CELL + 8, 17 * CELL, 6.0f, 3}, {27 * CELL + 8, 21 * CELL + 10, 0, 0},
+            {52 * CELL, 21 * CELL + 10, 9.0f, 2}, {29 * CELL + 20, 21 * CELL + 10, 0, 0}, {29 * CELL + 20, 41 * CELL, 0, 0}},
+           false, 34.0f, 0.0f, 0.0f, 0.0f, {255, 255, 255});
+    // Tam carries cut logs from the sawpit down to the forge.
+    walker("npc_tam", "Tam", "citizen2", "tam_root",
+           {{12 * CELL + 8, 11 * CELL, 9.0f, 1}, {17 * CELL, 11 * CELL, 0, 0}, {17 * CELL, 23 * CELL, 0, 0},
+            {17 * CELL, 35 * CELL, 0, 0}, {15 * CELL, 35 * CELL, 8.0f, 3}},
+           true, 32.0f, 25.0f, 7.0f, 17.0f, {255, 244, 214});
+    // Dace fishes off the end of the jetty, and drinks at the inn after.
+    walker("npc_dace", "Dace", "citizen1", "dace_root",
+           {{45 * CELL + 10, 19 * CELL + 6, 8.0f, 0}, {45 * CELL + 10, 23 * CELL + 4, 0, 0}, {38 * CELL + 14, 23 * CELL + 4, 0, 0},
+            {38 * CELL + 14, 37 * CELL + 18, 0, 0}, {46 * CELL + 8, 37 * CELL + 18, 24.0f, 2}},
+           true, 28.0f, 90.0f, 9.0f, 20.0f, {220, 240, 255});
+    // Pip runs the guild's notices: the hall, the board, the south gate.
+    walker("npc_pip", "Pip", "citizen2", "pip_root",
+           {{28 * CELL + 16, 15 * CELL, 6.0f, 0}, {28 * CELL + 16, 22 * CELL, 0, 0}, {32 * CELL, 24 * CELL + 24, 5.0f, 2},
+            {28 * CELL + 16, 24 * CELL + 24, 0, 0}, {28 * CELL + 16, 40 * CELL, 5.0f, 0}, {28 * CELL + 16, 22 * CELL, 0, 0}},
+           false, 50.0f, 10.0f, 7.0f, 19.0f, {236, 255, 230});
+    // A carter on the new road: in at the south gate, out at the west, and back.
+    walker("npc_carter", "Hollis the Carter", "citizen1", "carter_root",
+           {{28 * CELL + 16, 42 * CELL, 14.0f, 3}, {28 * CELL + 16, 22 * CELL + 16, 0, 0}, {2 * CELL, 22 * CELL + 16, 14.0f, 1}},
+           true, 30.0f, 140.0f, 8.0f, 17.0f, {255, 226, 200});
+    // A ranger in off the Westwold, selling pelts to Ivo and gone again.
+    walker("npc_ranger", "Sorrel", "player_warden", "sorrel_root",
+           {{2 * CELL, 21 * CELL + 16, 10.0f, 2}, {38 * CELL + 14, 21 * CELL + 16, 0, 0}, {38 * CELL + 14, 28 * CELL + 4, 0, 0},
+            {45 * CELL, 28 * CELL + 16, 16.0f, 2}},
+           true, 36.0f, 60.0f, 10.0f, 16.0f, {255, 255, 255});
+
+    // Whether a point is on somebody's round, so nothing is planted in the way.
+    const auto on_a_round = [&](int x, int y) {
+        for (const auto& stops : rounds)
+            for (size_t i = 0; i + 1 < stops.size(); ++i) {
+                const float ax = static_cast<float>(stops[i].x), ay = static_cast<float>(stops[i].y);
+                const float bx = static_cast<float>(stops[i + 1].x), by = static_cast<float>(stops[i + 1].y);
+                const float dx = bx - ax, dy = by - ay;
+                const float len2 = std::max(1.0f, dx * dx + dy * dy);
+                const float t = std::clamp(((x - ax) * dx + (y - ay) * dy) / len2, 0.0f, 1.0f);
+                const float px = ax + dx * t - x, py = ay + dy * t - y;
+                if (px * px + py * py < 46.0f * 46.0f) return true;
+            }
+        return false;
+    };
+
     // Greenery so the village is not a bare field.
     for (int i = 0; i < 26; ++i) {
         const int x = 2 * CELL + static_cast<int>(rng() % ((W - 4) * CELL));
         const int y = 3 * CELL + static_cast<int>(rng() % ((H - 6) * CELL));
+        if (on_a_round(x, y)) continue;
         if (abs(y - 22 * CELL) < 80 || abs(x - 28 * CELL) < 80) continue;
         if (abs(x - 35 * CELL) < 120 && abs(y - 27 * CELL) < 90) continue;   // the stall
         // And out of the sawpit's stand of timber, the gravel pit and the pond.
@@ -3348,6 +3451,556 @@ static void BuildWhisperwood() {
     m.Write("maps");
 }
 
+// --- the Westwold and the Brackenwood ---------------------------------------------
+//
+// West of Havenbrook, out of the gate the cross street always pointed at. The
+// Westwold is open downs: Hidewater steading just outside the gate, where
+// hides are bought and cloth is woven; ploughed fields with flax at their
+// edges; the river Wend and its bridge; wolves on the far side of it; and in
+// the west the ground climbs into the Howling Fells, which are not for anyone
+// who has only just bought a bow. The Brackenwood is north of the fork: bears.
+
+namespace wold {
+struct Pt { float x, y; };
+
+// How far a cell is from a road laid as a run of points, in cells.
+static float Gap(const vector<Pt>& road, float cx, float cy) {
+    float best = 1e9f;
+    for (size_t i = 0; i + 1 < road.size(); ++i) {
+        const float dx = road[i + 1].x - road[i].x, dy = road[i + 1].y - road[i].y;
+        const float len2 = std::max(0.001f, dx * dx + dy * dy);
+        const float t = std::clamp(((cx - road[i].x) * dx + (cy - road[i].y) * dy) / len2, 0.0f, 1.0f);
+        const float px = road[i].x + dx * t - cx, py = road[i].y + dy * t - cy;
+        best = std::min(best, sqrtf(px * px + py * py));
+    }
+    return best;
+}
+static float Gap(const vector<vector<Pt>>& roads, float cx, float cy) {
+    float best = 1e9f;
+    for (const auto& r : roads) best = std::min(best, Gap(r, cx, cy));
+    return best;
+}
+
+// A length of split-rail fence along a line of cells, with a gap left for a gate.
+static void Fence(MapBuilder& m, int CELL, int cx0, int cx1, int cy, int gate_cx = -999) {
+    for (int cx = cx0; cx < cx1; cx += 2) {
+        if (abs(cx - gate_cx) <= 1) continue;
+        const int x = cx * CELL + CELL, y = cy * CELL + 20;
+        m.Prop("props", "rail_fence", x, y);
+        m.Collision(x - 30, y - 8, 60, 8);
+    }
+}
+}   // namespace wold
+
+static void BuildWestwold() {
+    using namespace wold;
+    const int CELL = 32, W = 150, H = 104;
+    MapBuilder m("westwold", "The Westwold", W * CELL, H * CELL);
+    m.Ambient("overworld");
+    m.Subtitle("Open downs west of Havenbrook, and the road across them");
+    m.Background(52, 70, 46);
+    std::mt19937 rng(6161u);
+
+    // The road in from Havenbrook, over the Wend and on to the fork; from the
+    // fork north to the Brackenwood, and west up into the Fells.
+    const vector<Pt> main_road = {{149, 52}, {130, 50}, {112, 54}, {94, 50}, {78, 52}, {62, 56}, {44, 50}};
+    const vector<Pt> north_road = {{44, 50}, {42, 36}, {39, 18}, {40, 0}};
+    const vector<Pt> fell_road = {{44, 50}, {32, 46}, {20, 41}, {8, 35}};
+    const vector<Pt> steading_path = {{128, 50}, {128, 43}};
+    const vector<vector<Pt>> roads = {main_road, north_road, fell_road, steading_path};
+
+    const auto river_x = [](float cy) { return 71.0f + sinf(cy * 0.11f) * 3.0f + sinf(cy * 0.043f + 0.7f) * 2.0f; };
+    const auto river = [&](int cx, int cy) { return fabsf(cx - river_x(static_cast<float>(cy))) < 1.6f; };
+    // Where the downs give way to rock: west of a wandering line.
+    const auto fells = [](int cx, int cy) { return cx < 27.0f + sinf(cy * 0.13f) * 4.0f + sinf(cy * 0.047f) * 3.0f; };
+    const auto high_fells = [](int cx, int cy) { return cx < 13.0f + sinf(cy * 0.17f) * 3.0f; };
+
+    // Hidewater steading, north of the road a little way out of the gate, and
+    // two fields either side of the road further on.
+    const int st_cx = 128, st_cy = 40;
+    const auto steading = [&](int cx, int cy) { return abs(cx - st_cx) <= 8 && abs(cy - st_cy) <= 5; };
+    struct Field { int x0, y0, x1, y1; };
+    const Field fields[] = {{96, 36, 110, 45}, {100, 59, 116, 67}, {84, 60, 94, 66}};
+    const auto in_field = [&](int cx, int cy) {
+        for (const Field& f : fields) if (cx >= f.x0 && cx < f.x1 && cy >= f.y0 && cy < f.y1) return true;
+        return false;
+    };
+    const auto near_field = [&](int cx, int cy, int by) {
+        for (const Field& f : fields)
+            if (cx >= f.x0 - by && cx < f.x1 + by && cy >= f.y0 - by && cy < f.y1 + by) return true;
+        return false;
+    };
+    // The standing stones, on a rise south of the road past the river.
+    const int stones_cx = 54, stones_cy = 72;
+
+    // --- ground -----------------------------------------------------------------
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float gap = Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+            const float v = Fbm(cx * 0.16f, cy * 0.16f, 515);
+            const float copse = Fbm(cx * 0.07f, cy * 0.07f, 929);
+            string tile;
+            if (river(cx, cy)) {
+                const bool bridge = gap < 2.0f;
+                tile = bridge ? VariantOf("plank_floor", cx, cy) : "water";
+                if (!bridge) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            } else if (gap < 1.2f) {
+                // Cobbles as far as the town's own gate keeps them up, and a
+                // cart track after that.
+                tile = VariantOf(cx > 140 ? "road" : fells(cx, cy) ? "dirt_dark" : v > 0.55f ? "dirt_dark" : "dirt", cx, cy);
+            } else if (in_field(cx, cy)) {
+                // Ploughed in strips, two furrows and a ridge.
+                tile = VariantOf(cy % 3 == 0 ? "dirt_dark" : "dirt", cx, cy);
+            } else if (steading(cx, cy)) {
+                tile = VariantOf(v > 0.55f ? "dirt" : "grass_light", cx, cy);
+            } else if (high_fells(cx, cy)) {
+                tile = VariantOf(v > 0.62f ? "snow" : v > 0.40f ? "frost_rock" : "crag", cx, cy);
+            } else if (fells(cx, cy)) {
+                tile = VariantOf(v > 0.60f ? "crag" : v > 0.36f ? "grass_olive" : "dirt_dark", cx, cy);
+            } else if (copse > 0.62f && gap > 3.0f) {
+                tile = VariantOf(v > 0.5f ? "grass_dark" : "grass", cx, cy);
+            } else {
+                tile = VariantOf(v > 0.62f ? "grass_light" : v > 0.30f ? "grass" : "grass_olive", cx, cy);
+            }
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+        }
+
+    // The edges, open only where a road leaves.
+    for (int cx = 0; cx < W; ++cx) {
+        if (abs(cx - 40) > 2) m.Collision(cx * CELL, 0, CELL, CELL);
+        m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+    }
+    for (int cy = 0; cy < H; ++cy) {
+        m.Collision(0, cy * CELL, CELL, CELL);
+        if (abs(cy - 52) > 2) m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    // --- what grows -----------------------------------------------------------------
+    int tree_i = 7000, rock_i = 7000, herb_i = 0;
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            if (river(cx, cy) || in_field(cx, cy) || steading(cx, cy)) continue;
+            const float gap = Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+            if (gap < 2.4f) continue;
+            if (abs(cx - stones_cx) <= 4 && abs(cy - stones_cy) <= 4) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            const float r = Hash2(cx, cy, 4141);
+            const float copse = Fbm(cx * 0.07f, cy * 0.07f, 929);
+            const bool edge = (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4);
+            const float bank = fabsf(cx - river_x(static_cast<float>(cy)));
+
+            // Flax along the headlands, where the plough does not reach.
+            if (near_field(cx, cy, 2) && !near_field(cx, cy, 1)) {
+                if (Hash2(cx, cy, 2323) < 0.42f) PlaceHerb(m, "flax", x, y + 4, herb_i);
+                continue;
+            }
+            if (near_field(cx, cy, 1)) continue;          // the fence line
+            if (bank < 3.2f) {
+                if (bank > 1.8f && Hash2(cx, cy, 8383) < 0.22f) PlaceHerb(m, "brookmint", x, y + 4, herb_i);
+                else if (bank > 1.7f && r < 0.10f) m.Prop("props", "reeds", x, y + 4);
+                continue;
+            }
+            if (fells(cx, cy)) {
+                // Rock, scree and the odd pine; ore in the high ground.
+                if (r < (edge ? 0.5f : 0.10f)) {
+                    m.Prop("objects", kRocks[(cx * 3 + cy) % 8], x, y);
+                    m.Collision(x - 18, y - 10, 36, 10);
+                } else if (r < 0.15f) {
+                    m.Prop("props", "snow_pine", x, y);
+                    m.Collision(x - 8, y - 8, 16, 8);
+                } else if (high_fells(cx, cy) && r > 0.965f) {
+                    PlaceRock(m, rng, rock_i++, x, y, true, 40, "damascus_ore");
+                } else if (r > 0.95f) {
+                    PlaceRock(m, rng, rock_i++, x, y, (cx + cy) % 2 == 0, 20, "coal");
+                } else if (Hash2(cx, cy, 7171) < 0.03f) {
+                    PlaceHerb(m, "mountain_sage", x, y, herb_i);
+                }
+                continue;
+            }
+            if (edge && r < 0.6f) { PlaceForestTree(m, rng, x, y, true); continue; }
+            if (copse > 0.62f) {
+                // A copse: oak to fell, bushes under it, nettles at its edge.
+                if (r < 0.20f) {
+                    if (Hash2(cx, cy, 1212) < 0.35f) PlaceTree(m, rng, tree_i++, x, y, true, 15, "oak_logs");
+                    else PlaceForestTree(m, rng, x, y, true);
+                } else if (r < 0.30f) {
+                    PlaceForestTree(m, rng, x, y, false);
+                } else if (r < 0.38f) {
+                    m.Prop("objects", Pick(kBushes, rng), x, y);
+                } else if (Hash2(cx, cy, 8181) < 0.06f) {
+                    PlaceHerb(m, "nettle", x, y, herb_i);
+                }
+                continue;
+            }
+            // Open down: a bush here and there, marigolds, a lone tree.
+            if (r < 0.018f)      PlaceForestTree(m, rng, x, y, r < 0.008f);
+            else if (r < 0.045f) m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+            else if (r < 0.055f) { m.Prop("objects", kSmallRocks[(cx + cy) % 4], x, y); }
+            else if (Hash2(cx, cy, 5151) < 0.035f) PlaceHerb(m, "marigold", x, y, herb_i);
+        }
+
+    // --- the fields ---------------------------------------------------------------------
+    // Fenced, a gate on the road side, a rick in one corner.
+    {
+        int n = 0;
+        for (const Field& f : fields) {
+            const bool north_of_road = f.y1 < 52;
+            const int gate = (f.x0 + f.x1) / 2;
+            Fence(m, CELL, f.x0 - 1, f.x1 + 1, f.y0 - 1, north_of_road ? -999 : gate);
+            Fence(m, CELL, f.x0 - 1, f.x1 + 1, f.y1, north_of_road ? gate : -999);
+            // The ends, as posts of collision: the fence art runs east-west.
+            m.Collision((f.x0 - 1) * CELL + 8, (f.y0 - 1) * CELL + 12, 8, (f.y1 - f.y0 + 1) * CELL);
+            m.Collision(f.x1 * CELL + 16, (f.y0 - 1) * CELL + 12, 8, (f.y1 - f.y0 + 1) * CELL);
+            const int rx = (f.x1 - 2) * CELL, ry = (f.y0 + 2) * CELL;
+            m.Prop("props", "hay_rick", rx, ry);
+            m.Collision(rx - 22, ry - 14, 44, 14);
+            if (n++ == 0) {
+                m.Prop("props", "hay_rick", rx - 3 * CELL, ry + CELL);
+                m.Collision(rx - 3 * CELL - 22, ry + CELL - 14, 44, 14);
+            }
+        }
+    }
+
+    // --- Hidewater steading ---------------------------------------------------------------
+    {
+        const int sx = st_cx * CELL, sy = st_cy * CELL;
+        // Drying frames along the north side, hides on every one.
+        for (int k = 0; k < 4; ++k) {
+            const int x = sx - 170 + k * 84, y = sy - 96;
+            m.Prop("props", "tanning_rack", x, y);
+            m.Collision(x - 24, y - 10, 48, 10);
+        }
+        m.Prop("props", "tent", sx - 196, sy + 10);
+        m.Collision(sx - 196 - 30, sy + 10 - 16, 60, 16);
+        m.Prop("props", "tent", sx + 200, sy - 30);
+        m.Collision(sx + 200 - 30, sy - 30 - 16, 60, 16);
+        PlaceCampsite(m, "campsite_hidewater", sx + 200, sy + 40);
+
+        // The tanner's bench, where hides become leathers.
+        {
+            json& o = m.Object("bench_hidewater", "workbench", sx - 60, sy + 6);
+            o["sprite"]  = "assets/props/workbench.png";
+            o["title"]   = "Tanner's bench";
+            o["station"] = "workbench";
+            m.Collision(sx - 60 - 34, sy + 6 - 18, 67, 18);
+        }
+        // The dye vat, and a fire to cook on.
+        PlaceCauldron(m, "cauldron_hidewater", sx + 40, sy + 10);
+        {
+            json& o = m.Object("range_hidewater", "range", sx + 110, sy + 60);
+            o["sprite"] = "assets/props/campfire_ring.png";
+            o["title"]  = "Cooking fire";
+            m.Collision(sx + 110 - 16, sy + 60 - 12, 32, 12);
+        }
+        // The weaver's stall, her wheel beside it.
+        m.Prop("props", "market_stall", sx + 120, sy - 40);
+        m.Collision(sx + 120 - 32, sy - 40 - 14, 64, 14);
+        m.Prop("props", "spinning_wheel", sx + 60, sy - 50);
+        m.Collision(sx + 60 - 14, sy - 50 - 10, 28, 10);
+        m.Prop("props", "crates_sacks", sx - 130, sy + 52);
+        m.Collision(sx - 130 - 18, sy + 52 - 10, 36, 10);
+        m.Prop("props", "barrel", sx + 4, sy - 60);
+        m.Collision(sx + 4 - 14, sy - 60 - 10, 28, 10);
+
+        m.Npc("npc_orla", "Orla the Tanner", "citizen2", sx - 96, sy + 40, "orla_root", 0)["shop"] = "westwold_tanner";
+        m.Npc("npc_isolde", "Isolde the Weaver", "citizen1", sx + 84, sy - 22, "isolde_root", 0)["shop"] = "westwold_weaver";
+
+        json& sign = m.Object("sign_hidewater", "sign", st_cx * CELL + 40, 47 * CELL);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "Hidewater";
+        sign["text"]   = "HIDEWATER STEADING\n\nHides bought, any beast, any size. Leathers cut to order.\n\n"
+                         "Below, in a neater hand: cloth woven and dyed. Bring flax, or buy it.";
+        m.Collision(st_cx * CELL + 40 - 16, 47 * CELL - 10, 32, 10);
+    }
+
+    // A farmer on his round between the fields, by the clock: see Npc.
+    {
+        json& n = m.Npc("npc_aldous", "Farmer Aldous", "citizen2", 103 * CELL, 47 * CELL, "aldous_root", 0);
+        n["path"] = json::array({json::array({103 * CELL, 47 * CELL, 12.0f, 3}),
+                                 json::array({103 * CELL, 52 * CELL, 0.0f, 0}),
+                                 json::array({108 * CELL, 56 * CELL + 16, 0.0f, 0}),
+                                 json::array({108 * CELL, 58 * CELL, 14.0f, 0}),
+                                 json::array({90 * CELL, 57 * CELL, 0.0f, 0}),
+                                 json::array({89 * CELL, 59 * CELL, 12.0f, 0})});
+        n["ping_pong"] = true;
+        n["speed"] = 26.0f;
+        n["hours"] = {6.0f, 19.0f};
+    }
+
+    // --- the standing stones ---------------------------------------------------------------
+    {
+        const int cx0 = stones_cx * CELL + 16, cy0 = stones_cy * CELL + 16;
+        for (int k = 0; k < 7; ++k) {
+            const float a = 6.2831853f * k / 7.0f;
+            const int x = cx0 + static_cast<int>(cosf(a) * 84.0f), y = cy0 + static_cast<int>(sinf(a) * 60.0f);
+            m.Prop("objects", kRocks[(k * 3) % 8], x, y);
+            m.Collision(x - 16, y - 10, 32, 10);
+        }
+        json& o = m.Object("waystone_shepherds", "sign", cx0, cy0 + 8);
+        o["sprite"] = ObjPath("rock_05");
+        o["title"]  = "The Shepherds' Ring";
+        o["text"]   = "Seven stones, and older than the road.\n\nCut into the tallest, the marks of a tally nobody "
+                      "keeps any more: sheep out, sheep back. The second column stops short.";
+        m.Collision(cx0 - 14, cy0 - 2, 28, 10);
+        PlaceChest(m, "chest_shepherds_ring", cx0 + 40, cy0 + 30, "chest_common");
+    }
+
+    // --- signs --------------------------------------------------------------------------------
+    {
+        json& o = m.Object("sign_westwold_fork", "sign", 46 * CELL, 47 * CELL);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "The fork";
+        o["text"]   = "THE BRACKENWOOD, north. Bears. Do not leave food by the path.\n"
+                      "THE HOWLING FELLS, west. Do not.\n"
+                      "HAVENBROOK, east, and supper.";
+        m.Collision(46 * CELL - 16, 47 * CELL - 10, 32, 10);
+    }
+    {
+        json& o = m.Object("sign_fells", "sign", 29 * CELL, 43 * CELL);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A warning, nailed to a post";
+        o["text"]   = "THE HOWLING FELLS\n\nGreatwolves hunt the high ground. They are the size of a pony and they "
+                      "are not afraid of you.\n\nCombat 55, and company, or turn round.";
+        m.Collision(29 * CELL - 16, 43 * CELL - 10, 32, 10);
+    }
+
+    // --- wildlife -------------------------------------------------------------------------------
+    // East of the Wend it is a walk in the fields; west of it the wolves run in
+    // twos and threes; and in the Fells the wolves are something else.
+    for (int cy = 4; cy < H - 4; cy += 6)
+        for (int cx = 4; cx < W - 6; cx += 7) {
+            if (river(cx, cy) || in_field(cx, cy) || near_field(cx, cy, 2) || steading(cx, cy)) continue;
+            if (Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) < 2.0f) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (!m.Clear(x, y)) continue;
+            const float r = Hash2(cx, cy, 3737);
+            if (high_fells(cx, cy)) {
+                if (r < 0.55f) m.Enemy("greatwolf", x, y, 1 + static_cast<int>(r * 6.0f) % 3, 60.0f, 320.0f);
+            } else if (fells(cx, cy)) {
+                if (r < 0.30f) m.Enemy("greatwolf", x, y, 1, 60.0f, 320.0f);
+            } else if (cx < river_x(static_cast<float>(cy)) - 3.0f) {
+                if (r < 0.34f) {
+                    m.Enemy("wolf", x, y, 2 + static_cast<int>(r * 20.0f) % 3, 35.0f, 300.0f);
+                    if (r < 0.20f && m.Clear(x + 40, y + 24)) m.Enemy("wolf", x + 40, y + 24, 2, 35.0f, 300.0f);
+                } else if (r < 0.46f) m.Enemy("boar", x, y, 5);
+                else if (r < 0.56f)   m.Enemy("deer", x, y, 4);
+            } else if (cx < 140) {
+                if (r < 0.14f)      m.Enemy("hare", x, y, 2);
+                else if (r < 0.28f) m.Enemy("deer", x, y, 3);
+                else if (r < 0.40f) m.Enemy("fox", x, y, 3);
+                else if (r < 0.50f) m.Enemy("boar", x, y, 3);
+                else if (r < 0.55f && cx < 96) m.Enemy("wolf", x, y, 1, 35.0f, 300.0f);
+            }
+        }
+    // Highwaymen either end of the bridge, where a cart has to slow.
+    {
+        int n = 0;
+        for (int lx : {66, 76})
+            for (int side : {-1, 1}) {
+                const int cy = (lx == 66 ? 55 : 52) + side * 3;
+                if (!m.Clear(lx * CELL + 16, cy * CELL + 16)) continue;
+                m.Enemy("highwayman", lx * CELL + 16, cy * CELL + 16, 3 + (n++ % 3), 45.0f, 180.0f);
+            }
+    }
+
+    // Fishing on the Wend, away from the bridge.
+    {
+        int n = 0;
+        for (int cy : {14, 30, 70, 88})
+            // The east edge of the water on that row, cast at from the bank.
+            for (int cx = W - 2; cx > 1; --cx) {
+                if (!river(cx, cy)) continue;
+                PlaceFishingSpot(m, "fish_wend_" + std::to_string(n++), cx * CELL + CELL - 8, cy * CELL + CELL / 2,
+                                 "stream", {"raw_minnow", "raw_trout", "raw_pike"}, 1);
+                break;
+            }
+    }
+
+    // --- the ways out ------------------------------------------------------------------------------
+    m.Portal(W * CELL - 24, 52 * CELL - 72, 24, 144, "town_havenbrook", "from_westwold", "To Havenbrook", false);
+    m.Spawn("from_havenbrook", W * CELL - 96, 52 * CELL + 16);
+    m.Spawn("default",         W * CELL - 96, 52 * CELL + 16);
+    m.Portal(40 * CELL - 72, 0, 144, 24, "brackenwood", "from_westwold", "To the Brackenwood", false);
+    m.Danger(20);
+    m.Spawn("from_brackenwood", 40 * CELL + 16, 3 * CELL);
+
+    m.Write("maps");
+}
+
+static void BuildBrackenwood() {
+    using namespace wold;
+    const int CELL = 32, W = 130, H = 110;
+    MapBuilder m("brackenwood", "The Brackenwood", W * CELL, H * CELL);
+    m.Ambient("forest");
+    m.Subtitle("Old forest north of the Westwold. It has bears in it");
+    m.Background(18, 28, 20);
+    std::mt19937 rng(8282u);
+
+    const vector<Pt> trail = {{64, 109}, {62, 94}, {70, 80}, {60, 66}, {66, 52}, {64, 40}, {64, 33}};
+    const vector<Pt> west_trail = {{60, 66}, {44, 62}, {32, 54}, {24, 44}};
+    const vector<Pt> east_trail = {{70, 80}, {88, 74}, {102, 62}, {108, 50}};
+    const vector<Pt> old_trail = {{64, 33}, {72, 20}, {86, 12}, {104, 9}};
+    const vector<vector<Pt>> trails = {trail, west_trail, east_trail, old_trail};
+
+    // Clearings: the trapper's camp, the den, and where the side trails end.
+    struct Glade { int cx, cy, r; };
+    const Glade camp = {53, 68, 5}, den = {64, 29, 8}, west_glade = {22, 42, 6}, east_glade = {109, 48, 6},
+                old_glade = {106, 9, 6};
+    const Glade glades[] = {camp, den, west_glade, east_glade, old_glade};
+    const auto in_glade = [&](int cx, int cy) {
+        for (const Glade& g : glades) {
+            const int dx = cx - g.cx, dy = cy - g.cy;
+            if (dx * dx + dy * dy * 2 < g.r * g.r) return true;
+        }
+        return false;
+    };
+    const auto old_growth = [](int cx, int cy) { return cy < 22.0f + sinf(cx * 0.11f) * 3.0f; };
+
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float gap = Gap(trails, static_cast<float>(cx), static_cast<float>(cy));
+            const float v = Fbm(cx * 0.18f, cy * 0.18f, 77);
+            string tile;
+            if (gap < 1.2f)                       tile = VariantOf(v > 0.55f ? "dirt_dark" : "dirt", cx, cy);
+            else if (gap < 3.2f || in_glade(cx, cy)) tile = VariantOf(v > 0.5f ? "grass" : "grass_dark", cx, cy);
+            else if (old_growth(cx, cy))          tile = VariantOf(v > 0.5f ? "moss" : "peat", cx, cy);
+            else                                  tile = VariantOf(v > 0.58f ? "moss" : "grass_dark", cx, cy);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+        }
+
+    for (int cx = 0; cx < W; ++cx) {
+        m.Collision(cx * CELL, 0, CELL, CELL);
+        if (abs(cx - 64) > 2) m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+    }
+    for (int cy = 0; cy < H; ++cy) {
+        m.Collision(0, cy * CELL, CELL, CELL);
+        m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+
+    // --- the forest -------------------------------------------------------------------
+    int tree_i = 8000, herb_i = 0;
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            if (in_glade(cx, cy)) continue;
+            const float gap = Gap(trails, static_cast<float>(cx), static_cast<float>(cy));
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            const float r = Hash2(cx, cy, 6262);
+            if (gap < 3.2f) {
+                if (gap > 2.0f) {
+                    if (r < 0.06f)      m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+                    else if (r < 0.09f) m.Prop("objects", Pick(kFungus, rng), x, y);
+                    else if (Hash2(cx, cy, 8181) < 0.07f) PlaceHerb(m, "nettle", x, y, herb_i);
+                }
+                continue;
+            }
+            if (gap < 6.5f && r >= 0.46f && Hash2(cx, cy, 8282) < (old_growth(cx, cy) ? 0.14f : 0.07f)) {
+                PlaceHerb(m, "glowcap", x, y, herb_i);
+                continue;
+            }
+            const bool edge = (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4);
+            const float dense = old_growth(cx, cy) ? 0.30f : 0.25f;
+            if (r < (edge ? 0.58f : dense)) {
+                if (!edge && Hash2(cx, cy, 1212) < 0.16f)
+                    PlaceTree(m, rng, tree_i++, x, y, true, old_growth(cx, cy) ? 30 : 15, "oak_logs");
+                else
+                    PlaceForestTree(m, rng, x, y, true);
+            } else if (r < dense + 0.08f) {
+                PlaceForestTree(m, rng, x, y, false);
+            } else if (r < dense + 0.17f) {
+                m.Prop("objects", Pick(kBushes, rng), x, y);
+            } else if (r < dense + 0.22f) {
+                m.Prop("objects", Pick(kFungus, rng), x, y);
+            }
+        }
+
+    // --- the trapper's camp -----------------------------------------------------------------
+    {
+        const int cx0 = camp.cx * CELL + 16, cy0 = camp.cy * CELL + 16;
+        PlaceCampsite(m, "campsite_brackenwood", cx0 - 70, cy0 - 12);
+        m.Collision(cx0 - 70 - 30, cy0 - 12 - 16, 60, 16);
+        {
+            json& o = m.Object("range_brackenwood", "range", cx0 + 6, cy0 + 30);
+            o["sprite"] = "assets/props/campfire_ring.png";
+            o["title"]  = "Camp fire";
+            m.Collision(cx0 + 6 - 16, cy0 + 30 - 10, 32, 10);
+        }
+        m.Prop("props", "tanning_rack", cx0 + 84, cy0 - 20);
+        m.Collision(cx0 + 84 - 24, cy0 - 30, 48, 10);
+        m.Prop("props", "log_pile", cx0 - 10, cy0 - 60);
+        m.Collision(cx0 - 10 - 16, cy0 - 70, 32, 10);
+        m.Npc("npc_hale", "Hale the Trapper", "player_warden", cx0 + 40, cy0 + 8, "hale_root", 0)["shop"] = "brackenwood_trapper";
+    }
+
+    // --- the den ---------------------------------------------------------------------------------
+    {
+        const int dx0 = den.cx * CELL + 16, dy0 = (den.cy - 3) * CELL;
+        m.Prop("props", "bear_den", dx0, dy0);
+        m.Collision(dx0 - 66, dy0 - 44, 132, 44);
+        m.Enemy("den_mother", dx0, dy0 + 96, 1, 600.0f, 300.0f);
+        m.Enemy("bear", dx0 - 130, dy0 + 120, 2, 50.0f, 260.0f);
+        m.Enemy("bear", dx0 + 140, dy0 + 100, 2, 50.0f, 260.0f);
+        json& o = m.Object("sign_den", "sign", den.cx * CELL + 16 - 120, (den.cy + 5) * CELL);
+        o["sprite"] = ObjPath("rock_05");
+        o["title"]  = "Claw marks, as high as you can reach";
+        o["text"]   = "Four furrows down the face of the stone, a hand deep.\n\n"
+                      "Whatever made them stood up to do it.";
+        m.Collision(den.cx * CELL + 16 - 134, (den.cy + 5) * CELL - 10, 28, 10);
+    }
+
+    // --- signs -----------------------------------------------------------------------------------
+    {
+        json& o = m.Object("sign_brackenwood", "sign", 66 * CELL + 16, 104 * CELL);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "The Brackenwood";
+        o["text"]   = "THE BRACKENWOOD\n\nKeep to the trail. A bear that has not seen you is a bear you can walk round.\n\n"
+                      "Hale the trapper camps at the second bend and buys what you bring out.";
+        m.Collision(66 * CELL, 104 * CELL - 10, 32, 10);
+    }
+    {
+        json& o = m.Object("sign_old_growth", "sign", 67 * CELL, 25 * CELL);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A board, split down the middle";
+        o["text"]   = "THE OLD GROWTH\n\nThe bears past here are not the bears behind you. Dire bears: twice the size, "
+                      "and the hide turns a spear.\n\nCombat 65, or go home.";
+        m.Collision(67 * CELL - 16, 25 * CELL - 10, 32, 10);
+    }
+    PlaceChest(m, "chest_brackenwood_west", west_glade.cx * CELL, west_glade.cy * CELL - 30, "chest_common");
+    PlaceChest(m, "chest_old_growth", old_glade.cx * CELL + 30, old_glade.cy * CELL, "chest_dungeon");
+
+    // --- what lives here ---------------------------------------------------------------------------
+    // Wolves on the way in, bears in the glades and along the inner trails,
+    // and the dire bears in the Old Growth.
+    for (const Glade& g : {west_glade, east_glade}) {
+        m.Enemy("bear", g.cx * CELL - 60, g.cy * CELL + 10, 1, 50.0f, 260.0f);
+        m.Enemy("bear", g.cx * CELL + 70, g.cy * CELL + 40, 3, 50.0f, 260.0f);
+    }
+    m.Enemy("dire_bear", old_glade.cx * CELL - 40, old_glade.cy * CELL + 40, 2, 120.0f, 300.0f);
+    for (int cy = 3; cy < H - 3; cy += 3)
+        for (int cx = 4; cx < W - 4; cx += 4) {
+            const float gap = Gap(trails, static_cast<float>(cx), static_cast<float>(cy));
+            if (gap < 1.6f || gap > 5.5f || in_glade(cx, cy)) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (!m.Clear(x, y)) continue;
+            const float r = Hash2(cx, cy, 9393);
+            if (old_growth(cx, cy)) {
+                if (r < 0.55f) m.Enemy("dire_bear", x, y, 1, 120.0f, 300.0f);
+            } else if (cy > 84) {
+                if (r < 0.45f)      m.Enemy("wolf", x, y, 3 + static_cast<int>(r * 10.0f) % 3, 35.0f, 300.0f);
+                else if (r < 0.60f) m.Enemy("boar", x, y, 6);
+            } else {
+                if (r < 0.34f)      m.Enemy("bear", x, y, 1 + static_cast<int>(r * 10.0f) % 3, 50.0f, 260.0f);
+                else if (r < 0.48f) m.Enemy("wolf", x, y, 4, 35.0f, 300.0f);
+                else if (r < 0.58f) m.Enemy("deer", x, y, 5);
+            }
+        }
+
+    m.Portal(64 * CELL - 72, H * CELL - 24, 144, 24, "westwold", "from_brackenwood", "To the Westwold", false);
+    m.Spawn("from_westwold", 64 * CELL + 16, (H - 4) * CELL);
+    m.Spawn("default",       64 * CELL + 16, (H - 4) * CELL);
+
+    m.Write("maps");
+}
+
 // --- Mossvale ------------------------------------------------------------------
 
 static void BuildMossvale() {
@@ -4226,6 +4879,8 @@ int main() {
     BuildTown();
     BuildInteriors();
     BuildWhisperwood();
+    BuildWestwold();
+    BuildBrackenwood();
     BuildMossvale();
     BuildFernhollow();
     BuildWoodlandInteriors();

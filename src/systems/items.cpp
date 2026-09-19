@@ -349,6 +349,19 @@ bool ItemDatabase::LoadTiers(const string& path) {
                 d.ranged_bonus   = scaled("ranged");
                 d.magic_bonus    = scaled("magic");
             }
+            // Plate is the melee set: what a piece adds to a blow, as a share of
+            // the tier's weapon power rather than its armour's. Hides do the
+            // same for a bow and robes for a staff; see "sets" below.
+            if (pj.contains("style_bonus")) {
+                const json& b = pj["style_bonus"];
+                const float wp = tj.value("weapon_power", 10.0f);
+                const auto share = [&](const char* k) {
+                    const float f = b.value(k, 0.0f);
+                    return f > 0.0f ? std::max(1, static_cast<int>(std::lround(wp * f))) : 0;
+                };
+                d.attack_bonus   += share("attack");
+                d.strength_bonus += share("strength");
+            }
             if (t.level > 1) {
                 const int s = SkillFromName(pj.value("skill", string("")));
                 if (s >= 0) d.requirements[s] = t.level;
@@ -375,6 +388,105 @@ bool ItemDatabase::LoadTiers(const string& path) {
             if (!inputs.empty())
                 add_recipe(d.id, t.wood ? t.level + pj.value("craft_offset", 0) : t.level,
                            (12 + index * 14) * std::max(1, amount), inputs);
+        }
+
+        // --- the sets that are not metal -----------------------------------------
+        // The ranger's hides and the mage's robes: head, body and legs for every
+        // tier, drawn in their own cut, needing the tier's level in the set's
+        // skill and adding only to that style. Hides are cut from the tier's own
+        // hide; robes from bolts of cloth and the tier's dye, which is brewed.
+        if (root.contains("sets")) {
+            static const char* kSetPieces[] = {"head", "body", "legs"};
+            for (auto set_it = root["sets"].begin(); set_it != root["sets"].end(); ++set_it) {
+                const string set_id = set_it.key();
+                const json& sj = set_it.value();
+                if (!sj.is_object() || !sj.contains("tiers") || !sj["tiers"].contains(t.id)) continue;
+                const json& st = sj["tiers"][t.id];
+                const string style = sj.value("style", string(""));
+                const int skill = SkillFromName(sj.value("skill", string("")));
+                SDL_Color colour = t.colour;
+                if (st.contains("colour") && st["colour"].size() >= 3)
+                    colour = {static_cast<Uint8>(st["colour"][0].get<int>()),
+                              static_cast<Uint8>(st["colour"][1].get<int>()),
+                              static_cast<Uint8>(st["colour"][2].get<int>()), 255};
+
+                // The dye, where the set has one: an item and the brew that makes it.
+                string dye_id;
+                if (st.contains("dye")) {
+                    const json& dj = st["dye"];
+                    dye_id = dj.value("id", string(""));
+                    ItemDef dye;
+                    dye.id = dye_id;
+                    dye.name = dj.value("name", dye_id);
+                    dye.description = "A vat's worth, boiled down. It is what makes " + st.value("name", t.name) +
+                                      " cloth the colour it is.";
+                    dye.stackable = true;
+                    dye.untaught = true;
+                    dye.value = 5 * value_mult;
+                    dye.icon = icon_for(dye_id);
+                    dye.tier = t.id;
+                    dye.tier_index = index;
+                    dye.piece = "dye";
+                    dye.tint = colour;
+                    dye.tags = {"dye", "cloth"};
+                    defs[dye.id] = dye;
+                    map<string, int> brew;
+                    if (dj.contains("inputs"))
+                        for (auto i = dj["inputs"].begin(); i != dj["inputs"].end(); ++i)
+                            brew[i.key()] = i.value().get<int>();
+                    // Brewed at the Foraging level of its rarest herb, the way
+                    // every potion is: whoever can pick it can boil it.
+                    int herb_level = 1;
+                    for (const auto& in : brew)
+                        if (const ItemDef* mat = Get(in.first)) herb_level = std::max(herb_level, mat->forage_level);
+                    add_recipe(dye.id, herb_level, 16 + index * 10, brew);
+                }
+
+                for (const char* piece_name : kSetPieces) {
+                    if (!sj.contains("pieces") || !sj["pieces"].contains(piece_name)) continue;
+                    const json& pj = sj["pieces"][piece_name];
+                    const string piece = set_id + "_" + piece_name;
+
+                    ItemDef d;
+                    d.id = t.id + "_" + piece;
+                    d.name = st.value("name", t.name) + " " + pj.value("noun", string(piece_name));
+                    const string set_flavour = st.value("flavour", string(""));
+                    d.description = set_flavour.empty() ? pj.value("desc", string(""))
+                                                        : set_flavour + " " + pj.value("desc", string(""));
+                    d.slot = static_cast<EquipSlot>(EquipSlotFromName(pj.value("slot", string("none"))));
+                    d.value = pj.value("value", 10) * value_mult;
+                    d.icon = icon_for(piece + "_" + t.id);
+                    d.tier = t.id;
+                    d.tier_index = index;
+                    d.piece = piece;
+                    d.tint = colour;
+                    d.armour_layer = pj.value("layer", string(""));
+                    d.armour_cut = sj.value("cut", string(""));
+                    d.tags = {set_id == "robe" ? "cloth" : "leather"};
+                    d.defence_bonus = std::max(1, static_cast<int>(std::lround(
+                        tj.value("armour_power", 10.0f) * pj.value("defence", 0.5f))));
+                    const int boost = std::max(1, static_cast<int>(std::lround(
+                        tj.value("weapon_power", 10.0f) * pj.value("style", 0.2f))));
+                    if (style == "ranged") d.ranged_bonus = boost;
+                    else if (style == "magic") d.magic_bonus = boost;
+                    if (t.level > 1 && skill >= 0) d.requirements[skill] = t.level;
+                    defs[d.id] = d;
+                    tier_pieces[t.id + "/" + piece] = d.id;
+
+                    map<string, int> inputs;
+                    const string material = st.value("material", sj.value("material", string("")));
+                    const int amount = pj.value("material", 1);
+                    if (!material.empty()) inputs[material] = amount;
+                    if (st.contains("extra"))
+                        for (auto i = st["extra"].begin(); i != st["extra"].end(); ++i)
+                            inputs[i.key()] += i.value().get<int>();
+                    const string thread = sj.value("thread", string(""));
+                    if (!thread.empty() && pj.value("thread", 0) > 0) inputs[thread] += pj.value("thread", 0);
+                    if (!dye_id.empty() && pj.value("dye", 0) > 0) inputs[dye_id] += pj.value("dye", 0);
+                    add_recipe(d.id, t.level > 1 ? t.level : t.level + pj.value("craft_offset", 0),
+                               (12 + index * 14) * std::max(1, amount), inputs);
+                }
+            }
         }
 
         tiers.push_back(t);

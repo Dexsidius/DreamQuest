@@ -1105,5 +1105,184 @@
       235
     ],
     "boss": true
+  },
+  "wolf": {
+    "name": "Grey Wolf",
+    "sprite": "wolf",
+    "hp": 22,
+    "attack": 8,
+    "strength": 8,
+    "defence": 6,
+    "attack_bonus": 7,
+    "strength_bonus": 8,
+    "defence_bonus": 6,
+    "speed": 74,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.4,
+    "loot": "wolf",
+    "kill_target": "wolf",
+    "foot_box": [
+      -10,
+      -8,
+      20,
+      8
+    ],
+    "body_box": [
+      -16,
+      -30,
+      32,
+      30
+    ],
+    "element": "air"
+  },
+  "bear": {
+    "name": "Brown Bear",
+    "sprite": "bear",
+    "hp": 70,
+    "attack": 18,
+    "strength": 22,
+    "defence": 17,
+    "attack_bonus": 17,
+    "strength_bonus": 22,
+    "defence_bonus": 18,
+    "speed": 48,
+    "aggro": 150,
+    "attack_range": 42,
+    "attack_cooldown": 2.0,
+    "loot": "bear",
+    "kill_target": "bear",
+    "foot_box": [
+      -18,
+      -12,
+      36,
+      12
+    ],
+    "body_box": [
+      -28,
+      -50,
+      56,
+      50
+    ],
+    "element": "earth"
+  },
+  "den_mother": {
+    "name": "The Den Mother",
+    "sprite": "bear",
+    "hp": 300,
+    "attack": 28,
+    "strength": 34,
+    "defence": 26,
+    "attack_bonus": 27,
+    "strength_bonus": 34,
+    "defence_bonus": 28,
+    "speed": 50,
+    "aggro": 210,
+    "attack_range": 50,
+    "attack_cooldown": 1.9,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.2,
+      "cooldown": 9.0
+    },
+    "loot": "den_mother",
+    "kill_target": "bear",
+    "foot_box": [
+      -23,
+      -15,
+      46,
+      15
+    ],
+    "body_box": [
+      -36,
+      -64,
+      72,
+      64
+    ],
+    "element": "earth",
+    "scale": 1.3,
+    "tint": [
+      226,
+      206,
+      190
+    ],
+    "boss": true
+  },
+  "greatwolf": {
+    "name": "Greatwolf",
+    "sprite": "wolf",
+    "hp": 170,
+    "attack": 54,
+    "strength": 56,
+    "defence": 48,
+    "attack_bonus": 52,
+    "strength_bonus": 56,
+    "defence_bonus": 48,
+    "speed": 84,
+    "aggro": 230,
+    "attack_range": 42,
+    "attack_cooldown": 1.3,
+    "loot": "greatwolf",
+    "kill_target": "wolf",
+    "foot_box": [
+      -14,
+      -11,
+      28,
+      11
+    ],
+    "body_box": [
+      -22,
+      -42,
+      44,
+      42
+    ],
+    "element": "air",
+    "scale": 1.4,
+    "tint": [
+      226,
+      232,
+      250
+    ]
+  },
+  "dire_bear": {
+    "name": "Dire Bear",
+    "sprite": "bear",
+    "hp": 320,
+    "attack": 62,
+    "strength": 72,
+    "defence": 58,
+    "attack_bonus": 60,
+    "strength_bonus": 72,
+    "defence_bonus": 60,
+    "speed": 52,
+    "aggro": 200,
+    "attack_range": 54,
+    "attack_cooldown": 2.0,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.0,
+      "cooldown": 11.0
+    },
+    "loot": "dire_bear",
+    "kill_target": "bear",
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -38,
+      -68,
+      76,
+      68
+    ],
+    "element": "earth",
+    "scale": 1.36,
+    "tint": [
+      150,
+      140,
+      152
+    ]
   }
 }

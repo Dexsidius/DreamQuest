@@ -146,6 +146,79 @@ public:
     // and the character's affinity when the style is theirs.
     float TalentDamage(AttackStyle style, AttackType type) const;
 
+    // --- abilities --------------------------------------------------------------
+    // Moves of their own, learned in the character's tree -- six to a tree --
+    // and three carried at once: guard held and the light button, the heavy
+    // button, or lock on.
+    // Each has a cooldown and a cost. What an ability does to the player --
+    // the roll, the step through the air, the shout's strength -- happens here,
+    // so a friend's machine predicts it; what it does to the world is left in
+    // `pending_ability` for the world to do, which on a friend's machine is
+    // the host.
+    static constexpr float TUMBLE_SPEED    = 820.0f;   // px/s, spent in a third of a second
+    static constexpr float TUMBLE_TIME     = 0.34f;    // untouchable this long
+    static constexpr float BLINK_DISTANCE  = 116.0f;
+    static constexpr float WAR_CRY_TIME    = 8.0f;
+    static constexpr float WAR_CRY_DAMAGE  = 0.25f;
+    static constexpr float MANA_SHIELD_TIME = 10.0f;
+    static constexpr int   MANA_PER_HP     = 2;
+    static constexpr float RIPOSTE_WINDOW  = 3.0f;
+    static constexpr float HIT_RUN_TIME    = 3.0f;
+    static constexpr int   ATTUNE_MAX      = 5;
+    static constexpr int   MOMENTUM_MAX    = 10;
+    static constexpr float FRENZY_TIME     = 6.0f;
+    static constexpr float FRENZY_SPEED    = 0.30f;    // off the time a swing takes
+    static constexpr float STAND_FAST_TIME = 6.0f;
+    static constexpr float STAND_FAST_SHARE = 0.60f;   // of a blow still taken
+    static constexpr float AIM_WINDOW      = 6.0f;
+    static constexpr float AIM_DAMAGE      = 1.5f;
+    static constexpr float RAPID_TIME      = 5.0f;
+    static constexpr float RAPID_SPEED     = 0.40f;
+    static constexpr float OVERLOAD_WINDOW = 6.0f;
+    static constexpr float OVERLOAD_DAMAGE = 2.0f;
+    static constexpr float INVOKE_TIME     = 4.0f;
+    static constexpr float INVOKE_SHARE    = 0.5f;     // of all the mana there is
+    static constexpr int   WEAK_POINT_MAX  = 4;
+    static constexpr int   BLEED_CHAIN     = 3;        // hits into a chain before wounds stay open
+    bool  TryAbility(int slot, World& world);
+    float AbilityCooldown(int slot) const { return ability_cd[std::clamp(slot, 0, SkillTrees::ABILITY_SLOTS - 1)]; }
+    // The ability begun this step, once, for the world to finish.
+    string TakeAbility() { string a; a.swap(pending_ability); return a; }
+    bool  Untouchable() const { return tumble_timer > 0.0f; }
+    bool  WarCry() const { return war_cry_timer > 0.0f; }
+    bool  ManaShield() const { return mana_shield_timer > 0.0f; }
+    float ManaShieldLeft() const { return mana_shield_timer; }
+    float WarCryLeft() const { return war_cry_timer; }
+    bool  Frenzied() const { return frenzy_timer > 0.0f; }
+    float FrenzyLeft() const { return frenzy_timer; }
+    bool  StandingFast() const { return stand_fast_timer > 0.0f; }
+    float StandFastLeft() const { return stand_fast_timer; }
+    bool  RapidFire() const { return rapid_timer > 0.0f; }
+    float RapidFireLeft() const { return rapid_timer; }
+    bool  Invoking() const { return invoke_timer > 0.0f; }
+    // Waiting for the shot or the spell they go into, which spends them the
+    // moment it is let go -- in Player::UpdateAttack, so a friend's window
+    // spends them when the host does.
+    bool  Aiming() const { return aim_timer > 0.0f; }
+    bool  Overloaded() const { return overload_timer > 0.0f; }
+    // Weak Point: shots in a row on one target. `who` is only ever compared.
+    int   NoteShotOn(const void* who);
+    int   WeakPointStacks() const { return weak_stacks; }
+    // Half of a blow paid in mana, while the shield is up and there is mana
+    // to pay with. Returns what is left to take in blood.
+    int   AbsorbWithMana(int damage);
+    // A blow caught on the shield: Riposte is owed.
+    void  NoteBlock();
+    bool  RiposteReady() const { return riposte_timer > 0.0f; }
+    void  SpendRiposte() { riposte_timer = 0.0f; }
+    // A shot that landed: Hit and Run.
+    void  NoteRangedHit() { hit_run_timer = HIT_RUN_TIME; }
+    // A spell cast: Attunement counts casts of one element in a row.
+    void  NoteCast(Element e);
+    int   AttuneStacks() const { return attune_stacks; }
+    void  GainStamina(float amount) { stamina = std::min(MaxStamina(), stamina + std::max(0.0f, amount)); }
+    void  GainMana(int amount) { mana = std::clamp(mana + std::max(0, amount), 0, max_mana); }
+
     // --- affinity ---------------------------------------------------------------
     // Each of the three characters favours one way of fighting: the hero the
     // blade, the warden the bow, the wayfarer the staff. Attacks of that
@@ -250,6 +323,9 @@ public:
     float RushCooldown() const { return rush_cooldown; }
     // Screen lift through the leap, like JumpLift for a jump.
     float RushLift() const;
+    // How far the ground under the feet lifts the character, settled toward the
+    // terrain's height a little each frame: see World::UpdateElevation.
+    float ground_lift = 0.0f;
 
     // --- blocking -------------------------------------------------------------
     // Held, with a shield in the off hand. The guard stops blows from in front
@@ -396,6 +472,17 @@ private:
     float stamina_delay = 0.0f;
     bool  winded = false;
     Vec2  look_ahead{0, 0};
+
+    float ability_cd[SkillTrees::ABILITY_SLOTS] = {};
+    string pending_ability;
+    float frenzy_timer = 0.0f, stand_fast_timer = 0.0f, aim_timer = 0.0f, rapid_timer = 0.0f;
+    float overload_timer = 0.0f, invoke_timer = 0.0f, invoke_bank = 0.0f;
+    const void* weak_target = nullptr;
+    int   weak_stacks = 0;
+    float tumble_timer = 0.0f, war_cry_timer = 0.0f, mana_shield_timer = 0.0f;
+    float riposte_timer = 0.0f, hit_run_timer = 0.0f;
+    int   attune_stacks = 0;
+    Element attune_element = Element::None;
 
     float boost_timer = 0.0f;
     int   mana = 0, max_mana = 0;

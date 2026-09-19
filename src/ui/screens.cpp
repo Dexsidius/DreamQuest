@@ -7,6 +7,11 @@
 
 namespace {
 
+// The button an ability slot is on, with the guard held: light, heavy, lock on.
+Action AbilityButton(int slot) {
+    return slot == 0 ? Action::LightAttack : slot == 1 ? Action::StrongAttack : Action::Target;
+}
+
 SDL_FRect CenteredPanel(const UI& ui, float w, float h) {
     return {(ui.ViewWidth() - w) / 2.0f, (ui.ViewHeight() - h) / 2.0f, w, h};
 }
@@ -982,6 +987,48 @@ void Game::DrawHud() {
         }
     }
 
+    // --- abilities -----------------------------------------------------------
+    // The ones carried, bottom left, stacked up from the hint line: the keys,
+    // the name, and a bar that refills as it comes back. What is running -- a
+    // war cry, a mana shield -- beside.
+    {
+        const Player& me = world->player;
+        int carrying = 0;
+        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) carrying += me.talents.Ability(slot) ? 1 : 0;
+        const float ay = ui.ViewHeight() - 40.0f - 30.0f * static_cast<float>(std::max(1, carrying));
+        int drawn = 0;
+        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
+            const TalentNode* carried = me.talents.Ability(slot);
+            if (!carried) continue;
+            const SDL_FRect box = {18.0f, ay + static_cast<float>(drawn++) * 30.0f, 214.0f, 26.0f};
+            const float left = me.AbilityCooldown(slot);
+            const float ready = carried->cooldown > 0.0f ? 1.0f - std::clamp(left / carried->cooldown, 0.0f, 1.0f) : 1.0f;
+            const bool afford = (carried->stamina_cost <= 0 || me.Stamina() >= carried->stamina_cost) &&
+                                (carried->mana_cost <= 0 || me.Mana() >= carried->mana_cost);
+            ui.Fill(box, {18, 15, 13, 190});
+            ui.Fill({box.x, box.y, box.w * ready, box.h}, left > 0.0f ? SDL_Color{52, 66, 88, 210}
+                                                         : afford ? SDL_Color{46, 84, 120, 225} : SDL_Color{88, 52, 46, 215});
+            ui.Outline(box, left > 0.0f ? Palette::BorderDim : SDL_Color{130, 190, 240, 255}, 1.0f);
+            ui.Text(input.PromptFor(Action::Block) + "+" + input.PromptFor(AbilityButton(slot)),
+                    box.x + 6.0f, box.y + 4.0f, TextSize::Small, Palette::TextDim);
+            ui.Text(carried->name, box.x + 62.0f, box.y + 4.0f, TextSize::Small, left > 0.0f ? Palette::TextDim : Palette::Text);
+            if (left > 0.0f)
+                ui.Text(std::to_string(static_cast<int>(std::ceil(left))), box.x + box.w - 8.0f, box.y + 4.0f,
+                        TextSize::Small, Palette::TextDim, Align::Right);
+        }
+        string running;
+        if (me.WarCry())     running += "War Cry " + std::to_string(static_cast<int>(std::ceil(me.WarCryLeft()))) + "   ";
+        if (me.ManaShield()) running += "Mana Shield " + std::to_string(static_cast<int>(std::ceil(me.ManaShieldLeft()))) + "   ";
+        if (me.Frenzied())     running += "Frenzy " + std::to_string(static_cast<int>(std::ceil(me.FrenzyLeft()))) + "   ";
+        if (me.StandingFast()) running += "Stand Fast " + std::to_string(static_cast<int>(std::ceil(me.StandFastLeft()))) + "   ";
+        if (me.RapidFire())    running += "Rapid Fire " + std::to_string(static_cast<int>(std::ceil(me.RapidFireLeft()))) + "   ";
+        if (me.Aiming())       running += "Aim held   ";
+        if (me.Overloaded())   running += "Overloaded   ";
+        if (me.Invoking())     running += "Invoking   ";
+        if (me.RiposteReady()) running += "Riposte ready   ";
+        if (!running.empty()) ui.TextShadowed(running, 240.0f, ay + 6.0f, TextSize::Small, {255, 214, 140, 255});
+    }
+
     // --- controls hint -------------------------------------------------------
     if (!live) return;
     string spell_hint;
@@ -1011,7 +1058,16 @@ void Game::DrawToasts() {
     // Under the minimap while a game is running; at the top on the menus,
     // where there is no minimap to clear.
     float y = InGameplayState() ? kHudRightTop : 18.0f;
-    const float right = ui.ViewWidth() - 18.0f;
+    float right = ui.ViewWidth() - 18.0f;
+    // With the skill tree open they are about what was just bought, and where
+    // they usually go is where the tree says what a node does. Inside the
+    // panel instead, in the gap under the description.
+    if (state == GameState::SkillsPanel && skills_tab > 0) {
+        const AttackStyle mine = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
+        const float tree_w = 860.0f + 172.0f * (skill_trees.Tree(mine).BranchCount() - SkillTrees::BRANCHES);
+        y = ui.ViewHeight() / 2.0f + 8.0f;
+        right = ui.ViewWidth() / 2.0f + tree_w / 2.0f - 24.0f;
+    }
 
     for (const Toast& t : toasts) {
         SDL_Color c = t.color;
@@ -1329,8 +1385,10 @@ void Game::UpdateSkillsPanel() {
     if (state_time <= 0.0f) tree_reset_armed = false;
 
     // I and O (the shoulder buttons on a pad) step between the level list and
-    // the three trees; the panel closes with Back.
-    const int tabs = 4;
+    // the character's tree -- their path's, the only one they have; the panel
+    // closes with Back.
+    const int tabs = 2;
+    skills_tab = std::clamp(skills_tab, 0, tabs - 1);
     if (input.Pressed(Action::Inventory)) { skills_tab = (skills_tab + tabs - 1) % tabs; tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
     if (input.Pressed(Action::Skills))    { skills_tab = (skills_tab + 1) % tabs;        tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
@@ -1343,9 +1401,9 @@ void Game::UpdateSkillsPanel() {
         return;
     }
 
-    const AttackStyle style = static_cast<AttackStyle>(skills_tab - 1);
-    const TalentTree& tree = skill_trees.Tree(style);
     Player& p = world->player;
+    const AttackStyle style = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const TalentTree& tree = skill_trees.Tree(style);
 
     // Stepping from the melee tree's fourth column to a tree with three.
     const int branches = tree.BranchCount();
@@ -1360,19 +1418,43 @@ void Game::UpdateSkillsPanel() {
     const TalentNode* node = tree.At(tree_branch, tree_row);
     if (node && input.Pressed(Action::Confirm)) {
         tree_reset_armed = false;
-        if (p.talents.Has(node->id)) {
-            if (!node->technique.empty() && p.talents.ToggleTechnique(node->id)) {
+        const Talents::Why why = p.talents.CanLearn(node->id, p.skills);
+        if (p.talents.Has(node->id) && !node->technique.empty()) {
+            if (p.talents.ToggleTechnique(node->id)) {
                 const bool on = p.talents.Technique(style) == node->technique;
                 PushToast(on ? node->name + " is your charged attack now."
                              : "Back to a plain charged attack.", Palette::Xp);
                 Audio::Play(Sfx::Equip);
             }
+        } else if (p.talents.Has(node->id) && !node->ability.empty()) {
+            // The first slot with room, then on down them, then put away.
+            const int slot = p.talents.CycleAbility(node->id);
+            const string keys = input.PromptFor(Action::Block) + " + " + input.PromptFor(AbilityButton(std::max(0, slot)));
+            PushToast(slot >= 0 ? node->name + " is on " + keys + "." : node->name + " is put away.", Palette::Xp);
+            Audio::Play(Sfx::Equip);
         } else {
-            switch (p.talents.CanLearn(node->id, p.skills)) {
-                case Talents::Why::Ok:
+            switch (why) {
+                case Talents::Why::Ok: {
                     p.talents.Learn(node->id, p.skills);
-                    PushToast("Learned " + node->name + ".", Palette::Highlight);
+                    const int rank = p.talents.Rank(node->id);
+                    PushToast(node->ranks > 1 ? node->name + ", rank " + std::to_string(rank) + " of " + std::to_string(node->ranks) + "."
+                                              : "Learned " + node->name + ".", Palette::Highlight);
                     Audio::Play(Sfx::QuestStart);
+                    p.SyncMana();          // Deep Well is felt at once
+                    // A first ability goes straight into a free slot, so it
+                    // can be used without finding out how first.
+                    if (!node->ability.empty() && rank == 1 && p.talents.SlotOf(node->id) < 0)
+                        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot)
+                            if (!p.talents.Ability(slot)) {
+                                while (p.talents.SlotOf(node->id) != slot) p.talents.CycleAbility(node->id);
+                                PushToast(node->name + " is on " + input.PromptFor(Action::Block) + " + " +
+                                          input.PromptFor(AbilityButton(slot)) + ".", Palette::Xp);
+                                break;
+                            }
+                    break;
+                }
+                case Talents::Why::Learned:
+                    PushToast(node->name + " has every rank it can.", Palette::TextDim);
                     break;
                 case Talents::Why::Level:
                     PushToast("Needs " + string(SkillName(tree.skill)) + " " +
@@ -1416,24 +1498,29 @@ void Game::DrawSkillsPanel() {
     // A tree with a fourth branch -- melee has Footwork -- widens the panel by
     // a column, so the node descriptions keep the room they had.
     float tree_w = 860.0f;
-    if (skills_tab > 0)
-        tree_w += 172.0f * (skill_trees.Tree(static_cast<AttackStyle>(skills_tab - 1)).BranchCount() -
-                            SkillTrees::BRANCHES);
-    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : tree_w, 640.0f);
+    if (skills_tab > 0) {
+        const AttackStyle mine = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
+        tree_w += 172.0f * (skill_trees.Tree(mine).BranchCount() - SkillTrees::BRANCHES);
+    }
+    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : tree_w, skills_tab == 0 ? 640.0f : 690.0f);
     ui.Panel(panel);
 
     // --- tabs ------------------------------------------------------------------
     {
-        static const char* kTabs[4] = {"Skills", "Melee", "Ranged", "Magic"};
+        // One tree a character: their path's. The hero's is the blade's, the
+        // warden's the bow's, the wayfarer's the staff's.
+        const AttackStyle path = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
+        const string tree_tab = skill_trees.Tree(path).name + " tree";
+        const string kTabs[2] = {"Skills", tree_tab};
         float tx = panel.x + 24.0f;
-        for (int t = 0; t < 4; ++t) {
+        for (int t = 0; t < 2; ++t) {
             const float w = ui.Measure(kTabs[t], TextSize::Body).x + 24.0f;
             const SDL_FRect tab = {tx, panel.y + 14.0f, w, 30.0f};
             const bool on = (t == skills_tab);
             ui.Fill(tab, on ? SDL_Color{70, 54, 30, 235} : SDL_Color{30, 24, 20, 200});
             ui.Outline(tab, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
             int free = 0;
-            if (t > 0) free = world->player.talents.PointsFree(static_cast<AttackStyle>(t - 1), s);
+            if (t > 0) free = world->player.talents.PointsFree(path, s);
             ui.Text(kTabs[t], tab.x + 12.0f, tab.y + 5.0f, TextSize::Body,
                     on ? Palette::Highlight : (free > 0 ? Palette::Xp : Palette::Text));
             tx += w + 6.0f;
@@ -1507,9 +1594,9 @@ void Game::DrawSkillsPanel() {
 }
 
 void Game::DrawSkillTree(const SDL_FRect& panel) {
-    const AttackStyle style = static_cast<AttackStyle>(skills_tab - 1);
-    const TalentTree& tree = skill_trees.Tree(style);
     const Player& p = world->player;
+    const AttackStyle style = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const TalentTree& tree = skill_trees.Tree(style);
     const int level = p.skills.Level(tree.skill);
     const int earned = p.talents.PointsEarned(style, p.skills);
     const int free = p.talents.PointsFree(style, p.skills);
@@ -1521,7 +1608,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
 
     // --- the grid ----------------------------------------------------------------
     const float gx = panel.x + 78.0f, gy = panel.y + 112.0f;
-    const float col_w = 172.0f, row_h = 78.0f, box_w = 150.0f, box_h = 48.0f;
+    const float col_w = 172.0f, row_h = 62.0f, box_w = 150.0f, box_h = 44.0f;
 
     for (int b = 0; b < tree.BranchCount(); ++b) {
         const string name = b < static_cast<int>(tree.branches.size()) ? tree.branches[b] : "";
@@ -1531,22 +1618,23 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
     for (int row = 0; row < SkillTrees::ROWS; ++row) {
         const TalentNode* first = tree.At(0, row);
         if (first)
-            ui.Text("Lv " + std::to_string(first->level), panel.x + 24.0f, gy + row * row_h + 15.0f,
+            ui.Text("Lv " + std::to_string(first->level), panel.x + 24.0f, gy + row * row_h + 13.0f,
                     TextSize::Small, level >= first->level ? Palette::Text : Palette::TextDim);
     }
 
     for (const TalentNode& n : tree.nodes) {
         const SDL_FRect box = {gx + n.branch * col_w, gy + n.row * row_h, box_w, box_h};
         const bool learned = p.talents.Has(n.id);
+        const int  rank = p.talents.Rank(n.id);
         const Talents::Why why = p.talents.CanLearn(n.id, p.skills);
         const bool available = why == Talents::Why::Ok;
         const bool selected = n.branch == tree_branch && n.row == tree_row;
-        const bool active = !n.technique.empty() && p.talents.Technique(style) == n.technique;
+        const int  slot = p.talents.SlotOf(n.id);
+        const bool active = (!n.technique.empty() && p.talents.Technique(style) == n.technique) || slot >= 0;
 
         // The line down to the next node in the branch, lit once both ends are.
-        if (n.row + 1 < SkillTrees::ROWS) {
-            const TalentNode* below = tree.At(n.branch, n.row + 1);
-            const bool lit = learned && below && p.talents.Has(below->id);
+        if (const TalentNode* below = n.row + 1 < SkillTrees::ROWS ? tree.At(n.branch, n.row + 1) : nullptr) {
+            const bool lit = learned && p.talents.Has(below->id);
             ui.Fill({box.x + box_w / 2.0f - 1.0f, box.y + box_h, 3.0f, row_h - box_h},
                     lit ? SDL_Color{232, 190, 96, 255} : SDL_Color{70, 60, 50, 255});
         }
@@ -1558,13 +1646,17 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         ui.Fill(box, fill);
         ui.Outline(box, selected ? SDL_Color{255, 255, 255, 255} : edge, selected ? 3.0f : 1.0f);
 
-        ui.Text(n.name, box.x + box_w / 2.0f, box.y + 7.0f, TextSize::Small, text, Align::Center);
+        ui.Text(n.name, box.x + box_w / 2.0f, box.y + 5.0f, TextSize::Small, text, Align::Center);
         // Rushing Strike is neither a charged technique nor a passive: it is a
         // move of its own, made on its own button.
-        const char* kind = !n.technique.empty() ? (active ? "technique - active" : "technique")
-                         : n.effects.count("rushing_strike") ? "move" : "passive";
-        ui.Text(kind, box.x + box_w / 2.0f, box.y + 26.0f, TextSize::Small,
-                !n.technique.empty() ? SDL_Color{236, 150, 110, 255} : Palette::TextDim, Align::Center);
+        string kind = !n.technique.empty() ? string(active ? "technique - active" : "technique")
+                    : !n.ability.empty() ? (slot >= 0 ? "ability - slot " + std::to_string(slot + 1) : string("ability"))
+                    : n.effects.count("rushing_strike") ? string("move")
+                    : n.row == SkillTrees::ROWS - 1 ? string("capstone") : string("passive");
+        if (n.ranks > 1) kind += "  " + std::to_string(rank) + "/" + std::to_string(n.ranks);
+        ui.Text(kind, box.x + box_w / 2.0f, box.y + 23.0f, TextSize::Small,
+                !n.technique.empty() ? SDL_Color{236, 150, 110, 255}
+                : !n.ability.empty() ? SDL_Color{130, 190, 240, 255} : Palette::TextDim, Align::Center);
     }
 
     // --- the chosen node -------------------------------------------------------------
@@ -1575,23 +1667,45 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
     if (n) {
         ui.Text(n->name, dx, y, TextSize::Body, Palette::Highlight);
         y += 28.0f;
+        const string each = n->ranks > 1 ? "a point a rank" : "one point";
         ui.Text(string(SkillName(tree.skill)) + " " + std::to_string(n->level) + ", " +
                 (n->row == 0 || !tree.At(n->branch, n->row - 1)
-                     ? string("one point")
-                     : "one point, after " + tree.At(n->branch, n->row - 1)->name),
+                     ? each
+                     : each + ", after " + tree.At(n->branch, n->row - 1)->name),
                 dx, y, TextSize::Small, level >= n->level ? Palette::TextDim : SDL_Color{225, 130, 120, 255});
         y += 24.0f;
-        y += ui.TextWrapped(n->description, dx, y, dw, TextSize::Small, Palette::Text) + 14.0f;
+        y += ui.TextWrapped(n->description, dx, y, dw, TextSize::Small, Palette::Text) + 10.0f;
+        if (!n->ability.empty()) {
+            string cost = "Every " + std::to_string(static_cast<int>(n->cooldown)) + " seconds";
+            if (n->stamina_cost > 0) cost += ", " + std::to_string(n->stamina_cost) + " stamina";
+            if (n->mana_cost > 0)    cost += ", " + std::to_string(n->mana_cost) + " mana";
+            y += ui.TextWrapped(cost + ". Hold " + input.PromptFor(Action::Block) + " and press " +
+                                input.PromptFor(Action::LightAttack) + ", " + input.PromptFor(Action::StrongAttack) +
+                                " or " + input.PromptFor(Action::Target) + ", whichever slot it is in. Three are carried at once.",
+                                dx, y, dw, TextSize::Small, {130, 190, 240, 255}) + 10.0f;
+        }
 
         string status, action;
         const Talents::Why why = p.talents.CanLearn(n->id, p.skills);
-        if (p.talents.Has(n->id)) {
-            status = "Learned.";
-            if (!n->technique.empty()) {
-                const bool active = p.talents.Technique(style) == n->technique;
-                status = active ? "Your charged attack with this style." : "Learned, not in use.";
-                action = input.PromptFor(Action::Confirm) + (active ? " stop using it" : " use as charged attack");
-            }
+        const int rank = p.talents.Rank(n->id);
+        if (p.talents.Has(n->id) && !n->technique.empty()) {
+            const bool active = p.talents.Technique(style) == n->technique;
+            status = active ? "Your charged attack with this style." : "Learned, not in use.";
+            action = input.PromptFor(Action::Confirm) + (active ? " stop using it" : " use as charged attack");
+        } else if (p.talents.Has(n->id) && !n->ability.empty()) {
+            const int slot = p.talents.SlotOf(n->id);
+            status = slot >= 0 ? "Carried in slot " + std::to_string(slot + 1) + ": " + input.PromptFor(Action::Block) + " + " +
+                                 input.PromptFor(AbilityButton(slot)) + "."
+                               : "Learned, not carried.";
+            action = input.PromptFor(Action::Confirm) +
+                     (slot < 0 ? string(" carry it")
+                      : slot + 1 < SkillTrees::ABILITY_SLOTS ? " move to slot " + std::to_string(slot + 2) : string(" put it away"));
+        } else if (p.talents.Has(n->id) && why != Talents::Why::Ok) {
+            status = n->ranks > 1 ? "Rank " + std::to_string(rank) + " of " + std::to_string(n->ranks) + "." : "Learned.";
+            if (rank < n->ranks && why == Talents::Why::NoPoints) status += " No points for the next.";
+        } else if (why == Talents::Why::Ok && rank > 0) {
+            status = "Rank " + std::to_string(rank) + " of " + std::to_string(n->ranks) + ".";
+            action = input.PromptFor(Action::Confirm) + " learn the next rank";
         } else if (why == Talents::Why::Ok) {
             status = "Ready to learn.";
             action = input.PromptFor(Action::Confirm) + " learn";
@@ -1612,7 +1726,13 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
     for (char& c : shown) if (c == '_') c = ' ';
     if (!shown.empty()) shown[0] = static_cast<char>(toupper(static_cast<unsigned char>(shown[0])));
     ui.Text("Charged attack: " + (shown.empty() ? string("plain") : shown),
-            dx, panel.y + panel.h - 96.0f, TextSize::Small, Palette::TextDim);
+            dx, panel.y + panel.h - 136.0f, TextSize::Small, Palette::TextDim);
+    for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
+        const TalentNode* carried = p.talents.Ability(slot);
+        ui.Text(input.PromptFor(Action::Block) + " + " + input.PromptFor(AbilityButton(slot)) +
+                ": " + (carried ? carried->name : string("nothing carried")),
+                dx, panel.y + panel.h - 114.0f + slot * 20.0f, TextSize::Small, carried ? SDL_Color{130, 190, 240, 255} : Palette::TextDim);
+    }
 
     ui.Text(input.PromptFor(Action::Target) + " twice unlearn tree     " +
             input.PromptFor(Action::Back) + " close",
@@ -2240,7 +2360,9 @@ void Game::UpdateCrafting() {
         const int skill = CraftSkill(craft_station);
 
         const ItemDef* result = items.Get(recipe->craft_result);
-        if ((craft_station == CraftStation::Cauldron || (result && result->needs_recipe)) &&
+        // A dye is brewed but never taught: see ItemDef::untaught.
+        const bool brew_taught = craft_station == CraftStation::Cauldron && !(result && result->untaught);
+        if ((brew_taught || (result && result->needs_recipe)) &&
             !world->KnowsRecipe(recipe->craft_result)) {
             PushToast("You have not learned that recipe yet.", {235, 150, 120, 255});
             Audio::Play(Sfx::UiError);
@@ -2329,7 +2451,7 @@ void Game::DrawCrafting() {
                                list_w, row_h - 4.0f};
         const bool selected = (i == craft_cursor);
         // A brew, or anything else marked as taught rather than worked out.
-        const bool taught = cauldron || (made && made->needs_recipe);
+        const bool taught = (cauldron && !(made && made->untaught)) || (made && made->needs_recipe);
         const bool known = !taught || world->KnowsRecipe(r->craft_result);
         const bool unlocked = known && p.skills.Level(skill) >= r->craft_level;
 
@@ -2359,7 +2481,7 @@ void Game::DrawCrafting() {
 
     ui.Text(made ? made->name : r->craft_result, dx, y, TextSize::Body, Palette::Highlight);
     y += 28.0f;
-    const bool taught_here = cauldron || (made && made->needs_recipe);
+    const bool taught_here = (cauldron && !(made && made->untaught)) || (made && made->needs_recipe);
     if (taught_here && !world->KnowsRecipe(r->craft_result)) {
         y += ui.TextWrapped(string(cauldron ? "You have not learned to brew this yet."
                                             : "You have not been shown how to make this yet.") +

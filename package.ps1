@@ -91,9 +91,15 @@ you touch):
     mixed into      journal's tutorials   1 2 3 4    choose an element
     the chain                             5          the ancient magic
     H (hold)        block, with a shield  R          cycle elements
+    H + J, H + K, H + L   abilities, once learned in your skill tree (O)
     Shift (hold)    sprint                Esc        pause
     Space           jump / climb
     E               talk, open, work
+
+Three kinds of armour, and each helps one way of fighting: metal plate for
+a blade, hides for a bow, robes for a staff. Hides are cut from what you kill
+-- wolves first, out of Havenbrook's west gate -- and robes from cloth and a
+dye; Orla and Isolde at Hidewater, just outside that gate, will tell you how.
 
 Playing together, up to four of you, over Tailscale:
 

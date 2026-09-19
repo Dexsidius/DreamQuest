@@ -88,6 +88,13 @@ struct EnemySpawnDef {
     float  leash = 220.0f;   // how far it will chase from its post
 };
 
+// Somewhere a walking villager stops, and for how long.
+struct NpcStop {
+    float  x = 0, y = 0;
+    float  pause = 0.0f;     // seconds stood here before going on
+    Facing facing = FACE_DOWN;
+};
+
 struct NpcDef {
     string id, name, sprite;
     float  x = 0, y = 0;
@@ -95,6 +102,15 @@ struct NpcDef {
     Facing facing = FACE_DOWN;
     bool   wanders = false;
     string shop;             // shop id, empty when the NPC does not trade
+    // A round walked over and over: see Npc. The first stop is a doorway or a
+    // gate, because that is where they come out in the morning and go in at
+    // night. `hours` is when a round may begin; both zero is all day.
+    vector<NpcStop> path;
+    bool   ping_pong = false;   // there and back, rather than round and round
+    float  speed = 30.0f;       // pixels a second
+    float  phase = 0.0f;        // seconds into the round at midnight of day one
+    float  from_hour = 0.0f, to_hour = 0.0f;
+    SDL_Color tint{255, 255, 255, 255};
 };
 
 struct MapObject {

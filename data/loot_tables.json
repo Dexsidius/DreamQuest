@@ -620,7 +620,11 @@
       },
       {
         "item": "nothing",
-        "weight": 75
+        "weight": 45
+      },
+      {
+        "item": "dread_hide",
+        "weight": 30
       }
     ]
   },
@@ -638,6 +642,13 @@
         "qty": [
           40,
           90
+        ]
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          2,
+          3
         ]
       }
     ],
@@ -1044,6 +1055,10 @@
       {
         "item": "demon_horn",
         "weight": 4
+      },
+      {
+        "item": "demon_hide",
+        "weight": 8
       }
     ]
   },
@@ -1090,6 +1105,14 @@
       {
         "item": "demonite_staff",
         "weight": 1
+      },
+      {
+        "item": "demon_hide",
+        "weight": 24,
+        "qty": [
+          1,
+          2
+        ]
       }
     ]
   },
@@ -1231,6 +1254,13 @@
         "qty": [
           1800,
           2600
+        ]
+      },
+      {
+        "item": "dragonhide",
+        "qty": [
+          5,
+          7
         ]
       }
     ],
@@ -1700,6 +1730,168 @@
       {
         "item": "steel_bar",
         "weight": 14
+      }
+    ]
+  },
+  "wolf": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "wolf_pelt",
+        "weight": 55
+      },
+      {
+        "item": "raw_meat",
+        "weight": 20
+      },
+      {
+        "item": "nothing",
+        "weight": 25
+      }
+    ]
+  },
+  "bear": {
+    "always": [
+      {
+        "item": "bones"
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          2,
+          3
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "bear_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 60
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      },
+      {
+        "table": "rare_drops",
+        "weight": 10
+      }
+    ]
+  },
+  "den_mother": {
+    "always": [
+      {
+        "item": "bear_hide",
+        "qty": [
+          4,
+          6
+        ]
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          3,
+          5
+        ]
+      },
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "table": "rare_drops",
+        "weight": 40
+      },
+      {
+        "item": "steel_bow",
+        "weight": 12
+      },
+      {
+        "item": "coins",
+        "qty": [
+          120,
+          260
+        ],
+        "weight": 30
+      },
+      {
+        "item": "nothing",
+        "weight": 18
+      }
+    ]
+  },
+  "greatwolf": {
+    "always": [
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "greatwolf_pelt",
+        "weight": 55
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "nothing",
+        "weight": 20
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      }
+    ]
+  },
+  "dire_bear": {
+    "always": [
+      {
+        "item": "bones"
+      },
+      {
+        "item": "raw_meat",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dire_bear_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 60
+      },
+      {
+        "item": "nothing",
+        "weight": 25
+      },
+      {
+        "table": "rare_drops",
+        "weight": 15
       }
     ]
   }

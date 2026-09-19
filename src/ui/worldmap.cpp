@@ -56,6 +56,9 @@ const char* WorldMapPanel::ShopGlyph(const string& type) {
     if (type == "herbalist")   return "H";
     if (type == "fishmonger")  return "W";
     if (type == "mill")        return "L";
+    if (type == "tanner")      return "K";
+    if (type == "weaver")      return "C";
+    if (type == "trapper")     return "P";
     if (type == "dream")       return "?";
     return "S";
 }
@@ -68,6 +71,9 @@ const char* WorldMapPanel::ShopName(const string& type) {
     if (type == "herbalist")   return "Herbalist";
     if (type == "fishmonger")  return "Fishmonger";
     if (type == "mill")        return "Lumber mill";
+    if (type == "tanner")      return "Tannery";
+    if (type == "weaver")      return "Weaver";
+    if (type == "trapper")     return "Trapper";
     if (type == "dream")       return "Dream trader";
     return "Trader";
 }

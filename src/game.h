@@ -281,6 +281,9 @@ private:
     // saved, by any route.
     string   launch_scratch;
     bool     never_save = false;
+    // --map <id> [spawn] and --wear a,b,c: where a scratch game starts, and in what.
+    string   launch_map, launch_spawn, launch_wear;
+    int      launch_level = 0;          // --level N: a scratch character starts with its path's skill here
     struct HeldKey { SDL_Keycode key = 0; float from = 0.0f, to = 0.0f; int sent = 0; };
     vector<HeldKey> launch_holds;
     // The world, shared (see coop/coop.h). Hosting, friends' characters are

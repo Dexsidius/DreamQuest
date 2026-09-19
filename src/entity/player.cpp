@@ -33,6 +33,7 @@ void Player::Init(const GameContext& ctx, const string& id) {
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
     talents.SetDatabase(ctx.trees);
+    talents.SetPath(AffinityFor(id));
     sprite.Play("idle");
     SyncHitpoints();
     hp = max_hp;
@@ -41,7 +42,8 @@ void Player::Init(const GameContext& ctx, const string& id) {
 }
 
 void Player::SyncMana() {
-    max_mana = SpellBook::MaxMana(skills.Level(SKILL_MAGIC));
+    max_mana = static_cast<int>(std::lround(SpellBook::MaxMana(skills.Level(SKILL_MAGIC)) *
+                                            (1.0f + talents.Global("max_mana"))));
     mana = std::clamp(mana, 0, max_mana);
 }
 
@@ -307,7 +309,9 @@ BlockOutcome Player::TryBlock(int damage, int attacker_level, float from_x, floa
     // Only what comes at the shield. A blow from behind finds the back.
     if (!InFrontOf(facing, from_x - x, from_y - y)) return none;
 
-    BlockOutcome out = ResolveBlock(damage, attacker_level, shield->block, shield->block_stamina, stamina);
+    // Bulwark: the shield arm learns, and a caught blow costs less breath.
+    const float cost = shield->block_stamina * std::max(0.2f, 1.0f - talents.Global("block_cost"));
+    BlockOutcome out = ResolveBlock(damage, attacker_level, shield->block, cost, stamina);
     stamina = std::max(0.0f, stamina - out.stamina);
     stamina_delay = STAMINA_DELAY;
     // Stopping a blow trains Defence at the rate landing one trains the skill
@@ -420,6 +424,7 @@ void Player::ShapeForWeapon(AttackProfile& p) const {
     if (!w || Style() != AttackStyle::Melee) return;
     p.reach     *= std::max(0.5f, w->reach);
     p.width     *= std::clamp(w->sweep, 0.3f, 2.0f);
+    p.sweep_deg *= std::clamp(w->sweep, 0.3f, 2.0f);      // a spear's cleave is a spear's
     p.knockback *= std::max(0.0f, w->push);
 }
 
@@ -679,6 +684,14 @@ void Player::UpdateAttack(float dt) {
         return;
     }
     attack.timer += dt;
+    // Let go. A breath held or a spell overloaded goes into this one, and is
+    // spent here rather than in the world, so a friend's window -- where the
+    // world decides nothing -- spends it at the same moment the host does.
+    if (!attack.loosed && attack.timer >= attack.profile.windup) {
+        attack.loosed = true;
+        if (Style() == AttackStyle::Ranged && aim_timer > 0.0f)      { attack.empowered = true; aim_timer = 0.0f; }
+        if (Style() == AttackStyle::Magic && overload_timer > 0.0f)  { attack.empowered = true; overload_timer = 0.0f; }
+    }
     if (attack.Finished()) {
         // What the next press means is decided here. A light that was not the
         // finisher leaves the window open to go on with the chain; a plain
@@ -797,13 +810,125 @@ float Player::TalentDamage(AttackStyle style, AttackType type) const {
     if (style == Affinity()) mult += AFFINITY_DAMAGE;
     if (type == AttackType::Charged) mult += talents.Effect("charged_damage", style);
     if (max_hp > 0 && hp * 3 < max_hp) mult += talents.Effect("low_hp_damage", style);
+    // The shout's strength is in the arm, whatever it holds.
+    if (war_cry_timer > 0.0f && style == AttackStyle::Melee) mult += WAR_CRY_DAMAGE;
     return mult;
+}
+
+// -----------------------------------------------------------------------------
+//  Abilities
+// -----------------------------------------------------------------------------
+
+bool Player::TryAbility(int slot, World& world) {
+    const TalentNode* node = talents.Ability(slot);
+    if (!node || slot < 0 || slot >= SkillTrees::ABILITY_SLOTS) return false;
+    if (dead || jumping || resting || ability_cd[slot] > 0.0f) return false;
+    // Not out of a swing: an ability is a decision, not a cancel. The roll and
+    // the blink are the exceptions -- getting out is what they are for.
+    const bool escape = node->ability == "tumble" || node->ability == "blink";
+    if (!escape && (attack.Active() || charging)) return false;
+    if (node->stamina_cost > 0 && (winded || stamina < static_cast<float>(node->stamina_cost))) return false;
+    if (node->mana_cost > 0 && mana < node->mana_cost) return false;
+
+    // Which way: where the stick is pushed, or failing that the facing.
+    float dx = move_axis.x, dy = move_axis.y;
+    const bool steering = Length(dx, dy) > 0.3f;
+    if (!steering) {
+        dx = (facing == FACE_LEFT) ? -1.0f : (facing == FACE_RIGHT ? 1.0f : 0.0f);
+        dy = (facing == FACE_UP)   ? -1.0f : (facing == FACE_DOWN  ? 1.0f : 0.0f);
+    }
+    const float len = std::max(0.001f, Length(dx, dy));
+    dx /= len; dy /= len;
+
+    if (node->ability == "blink") {
+        // As far as there is somewhere to stand, on the level being stood on:
+        // through a monster or across a gap, not through a wall or up a cliff.
+        const int level = world.map.LevelAt(x, y);
+        float best = 0.0f;
+        for (float d = BLINK_DISTANCE; d >= 12.0f; d -= 8.0f) {
+            SDL_FRect there = Bounds();
+            there.x += dx * d;
+            there.y += dy * d;
+            if (world.map.Blocked(there) || world.map.LevelAt(x + dx * d, y + dy * d) != level) continue;
+            best = d;
+            break;
+        }
+        if (best <= 0.0f) return false;          // nowhere to go: nothing is spent
+        x += dx * best;
+        y += dy * best;
+        knock_x = knock_y = 0.0f;
+    } else if (node->ability == "tumble") {
+        // Standing still, a roll goes back the way you came.
+        const float sign = steering ? 1.0f : -1.0f;
+        knock_x = dx * sign * TUMBLE_SPEED;
+        knock_y = dy * sign * TUMBLE_SPEED;
+        tumble_timer = TUMBLE_TIME;
+        attack.Clear();
+        strong_armed = charging = false;
+        charge_held = 0.0f;
+    } else if (node->ability == "war_cry") {
+        war_cry_timer = WAR_CRY_TIME;
+    } else if (node->ability == "mana_shield") {
+        mana_shield_timer = MANA_SHIELD_TIME;
+    } else if (node->ability == "frenzy") {
+        frenzy_timer = FRENZY_TIME;
+    } else if (node->ability == "stand_fast") {
+        stand_fast_timer = STAND_FAST_TIME;
+        knock_x = knock_y = 0.0f;
+    } else if (node->ability == "take_aim") {
+        aim_timer = AIM_WINDOW;
+    } else if (node->ability == "rapid_fire") {
+        rapid_timer = RAPID_TIME;
+    } else if (node->ability == "overload") {
+        overload_timer = OVERLOAD_WINDOW;
+    } else if (node->ability == "invoke") {
+        if (mana >= max_mana) return false;       // nothing to draw back: nothing is spent
+        invoke_timer = INVOKE_TIME;
+        invoke_bank = 0.0f;
+    }
+
+    if (node->stamina_cost > 0) {
+        stamina = std::max(0.0f, stamina - static_cast<float>(node->stamina_cost));
+        stamina_delay = STAMINA_DELAY;
+    }
+    if (node->mana_cost > 0) SpendMana(node->mana_cost);
+    ability_cd[slot] = node->cooldown;
+    pending_ability = node->ability;
+    Audio::Play(node->mana_cost > 0 ? Sfx::SpellCast : Sfx::SwingHeavy, 0.9f, 0.8f);
+    return true;
+}
+
+int Player::AbsorbWithMana(int damage) {
+    if (mana_shield_timer <= 0.0f || damage <= 1 || mana < MANA_PER_HP) return damage;
+    const int want = damage / 2;
+    const int paid = std::min(want, mana / MANA_PER_HP);
+    mana -= paid * MANA_PER_HP;
+    return damage - paid;
+}
+
+void Player::NoteBlock() {
+    if (talents.Effect("riposte", AttackStyle::Melee) > 0.0f) riposte_timer = RIPOSTE_WINDOW;
+}
+
+int Player::NoteShotOn(const void* who) {
+    if (who == weak_target) weak_stacks = std::min(WEAK_POINT_MAX, weak_stacks + 1);
+    else { weak_target = who; weak_stacks = 0; }
+    return weak_stacks;
+}
+
+void Player::NoteCast(Element e) {
+    if (e == Element::None) return;
+    if (e == attune_element) attune_stacks = std::min(ATTUNE_MAX, attune_stacks + 1);
+    else { attune_element = e; attune_stacks = 0; }
 }
 
 float Player::WeaponSpeed() const {
     const float base = item_db ? equipment.AttackSpeed() : 1.0f;
     // Below one is faster, so a speed talent takes a share off the time.
-    return std::max(0.35f, base * (1.0f - talents.Effect("speed", Style())));
+    float time = base * (1.0f - talents.Effect("speed", Style()));
+    if (frenzy_timer > 0.0f && Style() == AttackStyle::Melee) time *= 1.0f - FRENZY_SPEED;
+    if (rapid_timer > 0.0f && Style() == AttackStyle::Ranged) time *= 1.0f - RAPID_SPEED;
+    return std::max(0.3f, time);
 }
 
 void Player::UpdateAnimation(const Vec2& move) {
@@ -848,6 +973,28 @@ void Player::UpdateAnimation(const Vec2& move) {
 }
 
 void Player::Update(float dt, World& world, const GameContext& ctx) {
+    // What abilities and their passives leave running.
+    for (float& cd : ability_cd) cd = std::max(0.0f, cd - dt);
+    tumble_timer      = std::max(0.0f, tumble_timer - dt);
+    war_cry_timer     = std::max(0.0f, war_cry_timer - dt);
+    mana_shield_timer = std::max(0.0f, mana_shield_timer - dt);
+    riposte_timer     = std::max(0.0f, riposte_timer - dt);
+    hit_run_timer     = std::max(0.0f, hit_run_timer - dt);
+    frenzy_timer      = std::max(0.0f, frenzy_timer - dt);
+    stand_fast_timer  = std::max(0.0f, stand_fast_timer - dt);
+    aim_timer         = std::max(0.0f, aim_timer - dt);
+    rapid_timer       = std::max(0.0f, rapid_timer - dt);
+    overload_timer    = std::max(0.0f, overload_timer - dt);
+    if (invoke_timer > 0.0f) {
+        // Half of all the mana there is, over the four seconds.
+        const float step = std::min(dt, invoke_timer);
+        invoke_timer -= step;
+        invoke_bank += static_cast<float>(max_mana) * INVOKE_SHARE * step / INVOKE_TIME;
+        const int whole = static_cast<int>(invoke_bank);
+        if (whole > 0) { invoke_bank -= static_cast<float>(whole); GainMana(whole); }
+    }
+    // Frenzy: the chain does not lapse between blows.
+    if (frenzy_timer > 0.0f && chain_hits > 0) chain_show = std::max(chain_show, CHAIN_HOLD);
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
     // Every source of damage lowers hp; listening for that catches them all.
     if (heard_hp >= 0 && hp < heard_hp && hp > 0) {
@@ -914,11 +1061,23 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
         blocking = hands.Down(PlayerInput::Block) && CanBlock();
+        // Guard held and an attack button: an ability, if one is carried
+        // there. With a shield up or without one -- the guard button is the
+        // shift key either way -- and the press is the ability's, not a swing.
+        PlayerInput for_attacks = hands;
+        if (hands.Down(PlayerInput::Block)) {
+            for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
+                const uint8_t button = slot == 0 ? PlayerInput::Light : slot == 1 ? PlayerInput::Strong : PlayerInput::Target;
+                if (!talents.Ability(slot)) continue;
+                if (hands.Pressed(static_cast<PlayerInput::Button>(button))) TryAbility(slot, world);
+                for_attacks.pressed &= static_cast<uint8_t>(~button);
+            }
+        }
         if (blocking) {
             strong_armed = charging = false;
             charge_held = 0.0f;
         } else {
-            HandleAttackInput(hands, dt, world);
+            HandleAttackInput(for_attacks, dt, world);
         }
 
         // Which way a jump would go: where you are steering, or failing that
@@ -1023,6 +1182,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- movement ------------------------------------------------------------
     float speed = move_speed * (1.0f + talents.Global("move_speed"));
+    if (hit_run_timer > 0.0f) speed *= 1.0f + talents.Effect("hit_run", AttackStyle::Ranged);
     if (Passive(PASSIVE_MARSHSTRIDE)) speed *= MARSHSTRIDE_SPEED;
     // Boots and charms: hide boots are a twentieth, an enchantment more.
     speed *= 1.0f + equipment.MoveSpeed();
@@ -1286,6 +1446,7 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
     talents.SetDatabase(ctx.trees);
+    talents.SetPath(AffinityFor(sprite_id));
     talents.FromJson(j.value("talents", json::object()));
     if (j.contains("skills"))    skills.FromJson(j["skills"]);
     if (j.contains("inventory")) inventory.FromJson(j["inventory"]);
@@ -1308,6 +1469,9 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
     talents.SetDatabase(ctx.trees);
+    // One path, one tree: a save from before that was so loses what it had
+    // bought in the other two.
+    talents.SetPath(AffinityFor(sprite_id));
     talents.FromJson(j.value("talents", json::object()));
 
     x = j.value("x", 0.0f);

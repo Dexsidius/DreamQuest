@@ -225,6 +225,26 @@ bool Map::Load(const string& path) {
             d.facing   = static_cast<Facing>(n.value("facing", 0));
             d.wanders  = n.value("wanders", false);
             d.shop     = n.value("shop", string(""));
+            if (n.contains("path"))
+                for (const auto& stop : n["path"]) {
+                    if (!stop.is_array() || stop.size() < 2) continue;
+                    NpcStop s;
+                    s.x = stop[0].get<float>();
+                    s.y = stop[1].get<float>();
+                    if (stop.size() > 2) s.pause = stop[2].get<float>();
+                    if (stop.size() > 3) s.facing = static_cast<Facing>(stop[3].get<int>());
+                    d.path.push_back(s);
+                }
+            d.ping_pong = n.value("ping_pong", false);
+            d.speed     = n.value("speed", 30.0f);
+            d.phase     = n.value("phase", 0.0f);
+            if (n.contains("hours") && n["hours"].size() >= 2) {
+                d.from_hour = n["hours"][0].get<float>();
+                d.to_hour   = n["hours"][1].get<float>();
+            }
+            if (n.contains("tint") && n["tint"].size() >= 3)
+                d.tint = {static_cast<Uint8>(n["tint"][0].get<int>()), static_cast<Uint8>(n["tint"][1].get<int>()),
+                          static_cast<Uint8>(n["tint"][2].get<int>()), 255};
             npcs.push_back(d);
         }
 

@@ -62,8 +62,19 @@ struct AttackProfile {
     // being a thing you hold down. Mid-combo links have almost none, which is
     // what makes continuing a chain quicker than starting a new one.
     float cooldown = 0.14f;
+    // How far round the swing goes either side of the facing, in degrees, for
+    // a move that sweeps wider than any width can say: a width is a chord, and
+    // the angle it subtends stops short of a right angle however long it is.
+    // Zero leaves it to the width.
+    float sweep_deg = 0.0f;
 
     float Total() const { return windup + active + recover; }
+    // Half the angle the swing covers, at this reach. What is drawn and what
+    // is struck both ask this, so they cannot disagree.
+    float HalfAngle(float at_reach) const {
+        if (sweep_deg > 0.0f) return sweep_deg * 3.14159265f / 180.0f;
+        return atanf((width * 0.5f) / std::max(1.0f, at_reach));
+    }
 };
 
 const AttackProfile& ProfileFor(AttackType type, int combo_index = 0);
@@ -161,6 +172,40 @@ int CombatLevelOf(const CombatProfile& p);
 bool InFrontOf(Facing facing, float dx, float dy);
 
 // The rectangle a swing sweeps, in front of the attacker.
+// ---------------------------------------------------------------------------
+//  Where a blow lands
+//
+//  On the ground, as a sector out from whoever swings it: as far as the reach,
+//  and as wide either side of the facing as the width makes it at that reach.
+//  What it is tested against is where the other stands -- the middle of their
+//  feet, and half their width round it -- and never the box their sprite fills,
+//  which is as tall as the art and leans north of where anyone is standing.
+//
+//  The swing used to be a rectangle tested against that box, and drawn as an
+//  arc squashed to six tenths of its height. So a Cleave, eighty-eight wide,
+//  struck forty-four pixels above and below a character facing east while the
+//  arc on screen covered seventeen; struck further south than north, because a
+//  box hangs up from the feet; and a monster's own swing reached thirty-two
+//  pixels whatever its attack range was, so a wyvern that bit from fifty-four
+//  away and a dragon from seventy-eight never landed one. The arc drawn is this
+//  sector now, unsquashed, and everything round -- Whirlwind, the Cross Cut, a
+//  slam, burning ground -- is a circle on the same ground.
+// ---------------------------------------------------------------------------
+struct StrikeArc {
+    float x = 0.0f, y = 0.0f;           // whoever swings, at their feet
+    float dir_x = 1.0f, dir_y = 0.0f;   // the way they face
+    float reach = 0.0f;
+    float half_angle = 0.0f;            // either side of the facing, radians
+    bool  all_round = false;            // a full turn
+};
+StrikeArc ArcFor(float x, float y, Facing facing, const AttackProfile& p, float reach_scale = 1.0f);
+// Whether someone standing at (tx, ty), `radius` wide, is inside it.
+bool ArcHits(const StrikeArc& arc, float tx, float ty, float radius);
+inline bool CircleHits(float cx, float cy, float reach, float tx, float ty, float radius) {
+    return Length(tx - cx, ty - cy) <= reach + radius;
+}
+
+// The old rectangle, kept for what still measures with it.
 SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,
                        float reach_scale = 1.0f);
 
@@ -184,6 +229,9 @@ struct AttackState {
     // Which combo this swing is, or None for a plain attack.
     ComboMove  move = ComboMove::None;
     bool       consumed = false;   // hitbox already applied this swing
+    // Let go: the wind-up is over. And what it was let go with -- Take Aim, or
+    // Overload -- which the shot spends at that moment.
+    bool       loosed = false, empowered = false;
     AttackProfile profile;
 
     bool Active() const { return type != AttackType::None; }
@@ -193,5 +241,8 @@ struct AttackState {
                timer < profile.windup + profile.active;
     }
     bool Finished() const { return Active() && timer >= profile.Total(); }
-    void Clear() { type = AttackType::None; move = ComboMove::None; timer = 0.0f; consumed = false; }
+    void Clear() {
+        type = AttackType::None; move = ComboMove::None; timer = 0.0f;
+        consumed = loosed = empowered = false;
+    }
 };

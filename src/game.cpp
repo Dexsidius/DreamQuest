@@ -67,6 +67,15 @@ int Game::Start(int argc, char** argv) {
         } else if (arg == "--scratch" && more) {
             launch_scratch = argv[++i];
             never_save = true;
+        } else if (arg == "--level" && more) {
+            launch_level = std::clamp(SDL_atoi(argv[++i]), 1, 99);
+        } else if (arg == "--map" && more) {
+            // With --scratch: start on this map, at this spawn if one is named.
+            launch_map = argv[++i];
+            if (i + 1 < argc && argv[i + 1][0] != '-') launch_spawn = argv[++i];
+        } else if (arg == "--wear" && more) {
+            // With --scratch: put these on, comma separated.
+            launch_wear = argv[++i];
         } else if (arg == "--hold" && i + 3 < argc) {
             HeldKey h;
             h.key  = SDL_GetKeyFromName(argv[++i]);
@@ -162,6 +171,31 @@ int Game::Start(int argc, char** argv) {
         if (launch_host || launch_join.empty()) {
             NewGame(who, active_slot);
             welcome_pending = false;
+            // A scratch character with some levels behind them, for looking
+            // at a skill tree without playing forty hours first.
+            if (launch_level > 1) {
+                LevelUp up;
+                Player& p = world->player;
+                p.skills.AddXp(skill_trees.Tree(p.Affinity()).skill, XpForLevel(launch_level), up);
+                p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(std::max(10, launch_level)), up);
+                p.SyncHitpoints();
+                p.SyncMana();
+                p.Rest();
+                p.TakeLevelUps(); p.TakeXpDrops();
+            }
+            // Dressed for the look of it: requirements are not asked, because
+            // what is being looked at is the art.
+            if (!launch_wear.empty()) {
+                size_t from = 0;
+                while (from <= launch_wear.size()) {
+                    const size_t comma = launch_wear.find(',', from);
+                    const string id = launch_wear.substr(from, comma == string::npos ? string::npos : comma - from);
+                    if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_NONE) world->player.equipment.Equip(d->slot, id);
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+            }
+            if (!launch_map.empty()) world->LoadMap(launch_map, launch_spawn.empty() ? "default" : launch_spawn, ctx);
         }
     }
     input_two.SetDevices(false, -1, true);
@@ -710,9 +744,11 @@ void Game::SeatChores() {
     for (const LevelUp& up : ups) {
         PushToast(string(SkillName(up.skill)) + " level " + std::to_string(up.level) + "!",
                   Palette::Highlight);
-        // Every fifth level of a tree's skill is a point to spend in it.
+        // Every fourth level of the skill their tree grows from is a point to
+        // spend in it. The other two trees are other characters'.
         for (int t = 0; t < 3; ++t) {
             const TalentTree& tree = skill_trees.Tree(static_cast<AttackStyle>(t));
+            if (!world->player.talents.Open(static_cast<AttackStyle>(t))) continue;
             if (tree.skill == up.skill && up.level % SkillTrees::LEVELS_PER_POINT == 0)
                 PushToast(tree.name + " skill point  -  " + input.PromptFor(Action::Skills) +
                           " to spend it", Palette::Xp);

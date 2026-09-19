@@ -745,6 +745,169 @@
      ]
     }
    ]
+  },
+  "westwold_tanner": {
+   "name": "Orla's Tannery",
+   "type": "tanner",
+   "keeper": "npc_orla",
+   "town": "westwold",
+   "markup": 1.15,
+   "buys": {
+    "leather": 0.85,
+    "trophy": 0.7,
+    "bones": 0.55,
+    "raw": 0.5
+   },
+   "sells": [
+    {
+     "item": "thread",
+     "stock": 20
+    },
+    {
+     "item": "wood_hide_head",
+     "stock": 1
+    },
+    {
+     "item": "wood_hide_body",
+     "stock": 1
+    },
+    {
+     "item": "wood_hide_legs",
+     "stock": 1
+    },
+    {
+     "item": "bronze_hide_head",
+     "stock": 1
+    },
+    {
+     "item": "bronze_hide_body",
+     "stock": 1
+    },
+    {
+     "item": "bronze_hide_legs",
+     "stock": 1
+    },
+    {
+     "item": "hide_boots",
+     "stock": 1
+    },
+    {
+     "item": "leather_body",
+     "stock": 1
+    }
+   ]
+  },
+  "westwold_weaver": {
+   "name": "Isolde's Loom",
+   "type": "weaver",
+   "keeper": "npc_isolde",
+   "town": "westwold",
+   "markup": 1.2,
+   "buys": {
+    "cloth": 0.8,
+    "fibre": 0.8,
+    "dye": 0.7,
+    "herb": 0.5,
+    "staff": 0.6
+   },
+   "sells": [
+    {
+     "item": "flax",
+     "stock": 20
+    },
+    {
+     "item": "bolt_cloth",
+     "stock": 8
+    },
+    {
+     "item": "thread",
+     "stock": 15
+    },
+    {
+     "item": "vial",
+     "stock": 12
+    },
+    {
+     "item": "dye_marigold",
+     "stock": 3
+    },
+    {
+     "item": "dye_brookmint",
+     "stock": 2
+    },
+    {
+     "item": "wood_robe_head",
+     "stock": 1
+    },
+    {
+     "item": "wood_robe_body",
+     "stock": 1
+    },
+    {
+     "item": "wood_robe_legs",
+     "stock": 1
+    },
+    {
+     "item": "bronze_robe_head",
+     "stock": 1
+    },
+    {
+     "item": "bronze_robe_body",
+     "stock": 1
+    },
+    {
+     "item": "bronze_robe_legs",
+     "stock": 1
+    }
+   ]
+  },
+  "brackenwood_trapper": {
+   "name": "Hale's Packs",
+   "type": "trapper",
+   "keeper": "npc_hale",
+   "town": "brackenwood",
+   "markup": 1.25,
+   "buys": {
+    "leather": 0.8,
+    "trophy": 0.75,
+    "raw": 0.55,
+    "bones": 0.6,
+    "bow": 0.65
+   },
+   "sells": [
+    {
+     "item": "thread",
+     "stock": 10
+    },
+    {
+     "item": "cooked_boar",
+     "stock": 4
+    },
+    {
+     "item": "tinderbox",
+     "stock": 1
+    },
+    {
+     "item": "bedroll",
+     "stock": 1
+    },
+    {
+     "item": "iron_bow",
+     "stock": 1
+    },
+    {
+     "item": "iron_hide_head",
+     "stock": 1
+    },
+    {
+     "item": "iron_hide_body",
+     "stock": 1
+    },
+    {
+     "item": "iron_hide_legs",
+     "stock": 1
+    }
+   ]
   }
  }
 }

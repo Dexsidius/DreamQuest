@@ -56,6 +56,12 @@ public:
     virtual SDL_FRect BodyBox() const;
 
     float SortY() const { return y; }
+    // Where it stands, for everything that is decided on the ground -- a swing,
+    // a slam, burning earth: the middle of its feet, and half its width.
+    SDL_FPoint GroundCentre() const {
+        return {x + foot_box.x + foot_box.w * 0.5f, y + foot_box.y + foot_box.h * 0.5f};
+    }
+    float GroundRadius() const { return std::max(foot_box.w, body_box.w) * 0.5f; }
 
     // How far the terrain under this entity lifts it on screen, in pixels.
     // Set once a frame by the world, because an entity has no idea what map it

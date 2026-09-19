@@ -9,6 +9,12 @@
       "y": 2832
     },
     {
+      "kind": "path",
+      "label": "The Westwold, by Havenbrook's west gate  (Combat 5)",
+      "x": 2522,
+      "y": 2856
+    },
+    {
       "kind": "dungeon",
       "label": "The Dry Well, in Havenbrook",
       "x": 2646,

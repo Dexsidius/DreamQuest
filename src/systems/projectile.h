@@ -123,6 +123,10 @@ struct Projectile {
     // whose own data has none.
     float knockback_mult = 1.0f;
     float extra_homing = 0.0f;
+    bool  sure_crit = false;     // loosed with Take Aim: it strikes critically, whatever the dice say
+    // How far the ground it was loosed from lifts it on screen; found the first
+    // time it is drawn, which is why drawing may write it.
+    mutable float lift = -1.0f;
     // Entities already struck, so one shot cannot hit the same target twice.
     vector<const void*> already_hit;
 
@@ -164,6 +168,9 @@ struct GroundEffect {
     AttackStyle style = AttackStyle::Magic;
     float hit_mult = -1.0f;
     float knockback = 8.0f;
+    float stagger = 0.0f;        // seconds each tick staggers what it cuts: caltrops
+    bool  once = false;          // a snare: it takes the first thing to step in it, and is sprung
+    bool  sure_crit = false;     // loosed with Take Aim
     bool  finished = false;
 
     bool Active() const { return delay <= 0.0f; }

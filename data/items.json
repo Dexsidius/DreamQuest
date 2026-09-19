@@ -1215,7 +1215,18 @@
   "desc": "A sticky skein from a cellar spider. Weavers pay for it.",
   "stack": true,
   "value": 14,
-  "icon": "assets/icons/tiers/spider_silk.png"
+  "icon": "assets/icons/tiers/spider_silk.png",
+  "crafts": [
+   {
+    "result": "bolt_cloth",
+    "qty": 1,
+    "xp": 22,
+    "level": 8,
+    "inputs": {
+     "spider_silk": 2
+    }
+   }
+  ]
  },
  "lizard_scale": {
   "tags": [
@@ -1373,5 +1384,118 @@
   "value": 180,
   "light": 210,
   "icon": "assets/icons/tiers/lantern.png"
+ },
+ "wolf_pelt": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Wolf Pelt",
+  "desc": "Grey, thick and still burred from the Westwold. A tanner wants it.",
+  "stack": true,
+  "value": 22,
+  "icon": "assets/icons/tiers/wolf_pelt.png"
+ },
+ "bear_hide": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Bear Hide",
+  "desc": "It took two hands to drag this out of the Brackenwood.",
+  "stack": true,
+  "value": 70,
+  "icon": "assets/icons/tiers/bear_hide.png"
+ },
+ "demon_hide": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Demon Hide",
+  "desc": "Red-black and still warm. It does not like being folded.",
+  "stack": true,
+  "value": 420,
+  "icon": "assets/icons/tiers/demon_hide.png"
+ },
+ "greatwolf_pelt": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Greatwolf Pelt",
+  "desc": "White as the Fells it came off, and the size of a blanket.",
+  "stack": true,
+  "value": 520,
+  "icon": "assets/icons/tiers/greatwolf_pelt.png"
+ },
+ "dire_bear_hide": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Dire Bear Hide",
+  "desc": "Grizzled nearly black, a finger thick. The Old Growth's own.",
+  "stack": true,
+  "value": 760,
+  "icon": "assets/icons/tiers/dire_bear_hide.png"
+ },
+ "dread_hide": {
+  "tags": [
+   "leather",
+   "trophy",
+   "dream"
+  ],
+  "name": "Dread Hide",
+  "desc": "The skin of something that was only ever dreamed. It came back with you anyway.",
+  "stack": true,
+  "value": 900,
+  "icon": "assets/icons/tiers/dread_hide.png"
+ },
+ "dragonhide": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Dragonhide",
+  "desc": "Frost-pale scale on hide like sailcloth. There is not much of this in the world.",
+  "stack": true,
+  "value": 1600,
+  "icon": "assets/icons/tiers/dragonhide.png"
+ },
+ "flax": {
+  "tags": [
+   "fibre",
+   "cloth"
+  ],
+  "name": "Flax",
+  "desc": "Blue-flowered stalks from the Westwold's field edges. Retted and spun, it is linen.",
+  "stack": true,
+  "value": 3,
+  "forage": {
+   "level": 3,
+   "xp": 12,
+   "grows": "field"
+  },
+  "icon": "assets/icons/tiers/flax.png",
+  "craft": {
+   "result": "bolt_cloth",
+   "qty": 1,
+   "xp": 14,
+   "level": 3,
+   "inputs": {
+    "flax": 3
+   }
+  }
+ },
+ "bolt_cloth": {
+  "tags": [
+   "cloth"
+  ],
+  "name": "Bolt of Cloth",
+  "desc": "Plain weave, a yard wide. What every robe starts as.",
+  "stack": true,
+  "value": 14,
+  "icon": "assets/icons/tiers/bolt_cloth.png"
  }
 }

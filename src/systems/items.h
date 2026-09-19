@@ -140,6 +140,9 @@ struct ItemDef {
 
     // A material that has to be worked hot, at an anvil.
     bool metal = false;
+    // Brewed at a cauldron, but nobody has to be shown how: a dye is a herb
+    // boiled in water, and every other brew is a recipe somebody guards.
+    bool untaught = false;
 
     // Crafting: what this turns into, at the station its materials call for.
     string craft_result;

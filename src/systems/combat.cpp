@@ -23,7 +23,11 @@ static const AttackProfile kNone;
 // round, paid for in stamina; its reach is the radius of the turn.
 //   windup active recover  mult  reach width  knock  move  cooldown
 static const AttackProfile kCrush    = { 0.10f, 0.12f, 0.26f, 1.60f, 34.0f, 36.0f, 30.0f, 0.10f, 0.32f };
-static const AttackProfile kCleave   = { 0.12f, 0.14f, 0.30f, 1.90f, 38.0f, 88.0f, 95.0f, 0.10f, 0.48f };
+// The Cleave goes from shoulder to shoulder: ninety-five degrees either side,
+// so what stands beside the character is in it, and only what is behind is not.
+// Its reach is what its old rectangle's half-width was, so it still catches
+// what it caught at the character's side.
+static const AttackProfile kCleave   = { 0.12f, 0.14f, 0.30f, 1.90f, 46.0f, 88.0f, 95.0f, 0.10f, 0.48f, 95.0f };
 static const AttackProfile kBackhand = { 0.03f, 0.10f, 0.12f, 1.00f, 32.0f, 36.0f, 30.0f, 0.40f, 0.05f };
 static const AttackProfile kCrossCut = { 0.10f, 0.16f, 0.30f, 1.25f, 40.0f, 40.0f, 80.0f, 0.05f, 0.55f };
 
@@ -226,6 +230,29 @@ SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,
         case FACE_RIGHT: return {x,                cy - width / 2.0f, reach, width};
     }
     return {x, cy, width, reach};
+}
+
+StrikeArc ArcFor(float x, float y, Facing facing, const AttackProfile& p, float reach_scale) {
+    StrikeArc arc;
+    arc.x = x;
+    arc.y = y;
+    arc.dir_x = facing == FACE_LEFT ? -1.0f : facing == FACE_RIGHT ? 1.0f : 0.0f;
+    arc.dir_y = facing == FACE_UP   ? -1.0f : facing == FACE_DOWN  ? 1.0f : 0.0f;
+    arc.reach = std::max(1.0f, p.reach * reach_scale);
+    arc.half_angle = p.HalfAngle(arc.reach);
+    return arc;
+}
+
+bool ArcHits(const StrikeArc& arc, float tx, float ty, float radius) {
+    const float dx = tx - arc.x, dy = ty - arc.y;
+    const float dist = Length(dx, dy);
+    if (dist > arc.reach + radius) return false;
+    // Standing on the attacker's feet is inside any swing.
+    if (arc.all_round || dist <= radius + 4.0f) return true;
+    const float along = std::clamp((dx * arc.dir_x + dy * arc.dir_y) / dist, -1.0f, 1.0f);
+    // Someone wide is caught by an arc that only reaches their shoulder.
+    const float allowance = asinf(std::clamp(radius / dist, 0.0f, 1.0f));
+    return acosf(along) <= arc.half_angle + allowance;
 }
 
 // --- blocking ----------------------------------------------------------------

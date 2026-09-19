@@ -1,5 +1,5 @@
 {
- "_comment": "Material tiers. Every tier makes the same pieces, and the game builds the items and their recipes from this file: see ItemDatabase::LoadTiers. A piece's stats are its tier's power times the piece's factors; its requirement is the tier's level in the piece's skill. 'ids' and 'names' keep the items that existed before tiers under their old ids, so saves, quests and loot tables still find them. Axes and pickaxes are tools rather than gear: carried, not worn, needing the tier's level in Woodcutting or Mining, and each tier works faster by its 'tool_speed'.",
+ "_comment": "Material tiers. Every tier makes the same pieces, and the game builds the items and their recipes from this file: see ItemDatabase::LoadTiers. A piece's stats are its tier's power times the piece's factors; its requirement is the tier's level in the piece's skill. 'ids' and 'names' keep the items that existed before tiers under their old ids, so saves, quests and loot tables still find them. Axes and pickaxes are tools rather than gear: carried, not worn, needing the tier's level in Woodcutting or Mining, and each tier works faster by its 'tool_speed'. Three kinds of armour, one for each way of fighting, and each helps only its own: a tier's metal helm, cuirass and greaves carry 'style_bonus' -- Attack and Strength, scaled by the tier's weapon power -- and 'sets' are the two that are not metal, the ranger's hides and the mage's robes, built for every tier by the same loader. A set piece's defence is the tier's armour power times its 'defence', its Ranged or Magic bonus the tier's weapon power times its 'style', and it needs the tier's level in the set's skill. Hides are cut from the tier's own hide, which something has to be killed for; robes from bolts of cloth and the tier's dye, which is brewed from the herb named.",
  "pieces": {
   "sword": {
    "slot": "weapon",
@@ -111,7 +111,11 @@
    "extra": {},
    "craft_offset": 0,
    "desc": "Narrow eye slit. You get used to it.",
-   "layer": "head"
+   "layer": "head",
+   "style_bonus": {
+    "attack": 0.1,
+    "strength": 0.12
+   }
   },
   "body": {
    "slot": "body",
@@ -126,7 +130,11 @@
    "extra": {},
    "craft_offset": 4,
    "desc": "Plate over a padded backing.",
-   "layer": "body"
+   "layer": "body",
+   "style_bonus": {
+    "attack": 0.2,
+    "strength": 0.25
+   }
   },
   "legs": {
    "slot": "legs",
@@ -141,7 +149,11 @@
    "extra": {},
    "craft_offset": 3,
    "desc": "Shin and thigh plates, strapped over the hose.",
-   "layer": "legs"
+   "layer": "legs",
+   "style_bonus": {
+    "attack": 0.12,
+    "strength": 0.15
+   }
   },
   "axe": {
    "slot": "none",
@@ -544,5 +556,435 @@
    },
    "flavour": "Quenched in the Reverie, and it has not entirely come back."
   }
- ]
+ ],
+ "sets": {
+  "hide": {
+   "_about": "The ranger's. Needs Ranged, adds to Ranged, and keeps out about seven tenths of what plate does.",
+   "cut": "hide",
+   "skill": "Ranged",
+   "style": "ranged",
+   "thread": "thread",
+   "pieces": {
+    "head": {
+     "noun": "Coif",
+     "slot": "head",
+     "layer": "head",
+     "defence": 0.42,
+     "style": 0.2,
+     "material": 2,
+     "thread": 1,
+     "value": 22,
+     "craft_offset": 0,
+     "desc": "A hood, fur at the brow. It does not catch on a bowstring."
+    },
+    "body": {
+     "noun": "Jerkin",
+     "slot": "body",
+     "layer": "body",
+     "defence": 0.85,
+     "style": 0.4,
+     "material": 4,
+     "thread": 2,
+     "value": 48,
+     "craft_offset": 3,
+     "desc": "Cut close, so nothing fouls the draw, with a quiver slung behind."
+    },
+    "legs": {
+     "noun": "Chaps",
+     "slot": "legs",
+     "layer": "legs",
+     "defence": 0.52,
+     "style": 0.25,
+     "material": 3,
+     "thread": 1,
+     "value": 32,
+     "craft_offset": 2,
+     "desc": "Wrapped to the knee and soft underfoot."
+    }
+   },
+   "tiers": {
+    "wood": {
+     "name": "Rawhide",
+     "material": "hide",
+     "colour": [
+      150,
+      110,
+      74
+     ],
+     "flavour": "Uncured hide, laced with sinew. It smells, and it turns a tooth."
+    },
+    "bronze": {
+     "name": "Wolfskin",
+     "material": "wolf_pelt",
+     "colour": [
+      138,
+      136,
+      134
+     ],
+     "flavour": "A Westwold wolf's grey pelt, fur side out."
+    },
+    "iron": {
+     "name": "Lizardscale",
+     "material": "lizard_scale",
+     "colour": [
+      88,
+      140,
+      84
+     ],
+     "flavour": "Mire lizard scale sewn over leather, green as the water it came out of."
+    },
+    "steel": {
+     "name": "Bearskin",
+     "material": "bear_hide",
+     "colour": [
+      112,
+      76,
+      48
+     ],
+     "flavour": "Brackenwood bear, thick enough to stop a knife and warm enough to sleep in."
+    },
+    "azuryte": {
+     "name": "Trollhide",
+     "material": "troll_hide",
+     "colour": [
+      176,
+      194,
+      210
+     ],
+     "flavour": "An ice troll's pale hide. It never quite warms up."
+    },
+    "damascus": {
+     "name": "Wyvernscale",
+     "material": "wyvern_scale",
+     "colour": [
+      84,
+      120,
+      176
+     ],
+     "flavour": "Frost wyvern scale, blue as deep ice and lighter than it has any right to be."
+    },
+    "orichalcum": {
+     "name": "Demonhide",
+     "material": "demon_hide",
+     "colour": [
+      150,
+      52,
+      44
+     ],
+     "flavour": "Cut from something out of the Pit. It is still warm."
+    },
+    "diamond": {
+     "name": "Greatwolf",
+     "material": "greatwolf_pelt",
+     "colour": [
+      206,
+      214,
+      232
+     ],
+     "flavour": "The white pelt of a greatwolf of the Howling Fells."
+    },
+    "platinum": {
+     "name": "Direbear",
+     "material": "dire_bear_hide",
+     "colour": [
+      86,
+      78,
+      84
+     ],
+     "flavour": "Old Growth dire bear, grizzled nearly black. A spear point skates off it."
+    },
+    "demonite": {
+     "name": "Dreadhide",
+     "material": "dread_hide",
+     "colour": [
+      132,
+      84,
+      190
+     ],
+     "flavour": "The hide of a thing from a bad dream. It came back with you, and it should not have."
+    },
+    "dracon": {
+     "name": "Dragonhide",
+     "material": "dragonhide",
+     "colour": [
+      196,
+      214,
+      226
+     ],
+     "flavour": "A frost dragon's hide. Very little gets through it, and nothing gets through it twice."
+    },
+    "enchanted": {
+     "name": "Dreamhide",
+     "material": "dragonhide",
+     "colour": [
+      176,
+      140,
+      236
+     ],
+     "flavour": "Dragonhide steeped in the Reverie until it is only partly here.",
+     "extra": {
+      "dream_shard": 3
+     }
+    }
+   }
+  },
+  "robe": {
+   "_about": "The mage's. Needs Magic, adds the most to it, and keeps out less than half of what plate does.",
+   "cut": "robe",
+   "skill": "Magic",
+   "style": "magic",
+   "thread": "thread",
+   "material": "bolt_cloth",
+   "pieces": {
+    "head": {
+     "noun": "Hat",
+     "slot": "head",
+     "layer": "head",
+     "defence": 0.27,
+     "style": 0.25,
+     "material": 1,
+     "thread": 1,
+     "dye": 1,
+     "value": 20,
+     "craft_offset": 0,
+     "desc": "Pointed, with a brim. It keeps the rain off a book."
+    },
+    "body": {
+     "noun": "Robe",
+     "slot": "body",
+     "layer": "body",
+     "defence": 0.54,
+     "style": 0.5,
+     "material": 3,
+     "thread": 2,
+     "dye": 1,
+     "value": 46,
+     "craft_offset": 3,
+     "desc": "A mantle over the shoulders and sleeves wide enough to lose a wand in."
+    },
+    "legs": {
+     "noun": "Skirt",
+     "slot": "legs",
+     "layer": "legs",
+     "defence": 0.34,
+     "style": 0.3,
+     "material": 2,
+     "thread": 1,
+     "dye": 1,
+     "value": 30,
+     "craft_offset": 2,
+     "desc": "To the ankle. Walking in it is a skill, and not one of the listed ones."
+    }
+   },
+   "tiers": {
+    "wood": {
+     "name": "Homespun",
+     "colour": [
+      206,
+      176,
+      96
+     ],
+     "dye": {
+      "id": "dye_marigold",
+      "name": "Marigold Dye",
+      "inputs": {
+       "marigold": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Undyed flax, near enough: the marigold barely takes."
+    },
+    "bronze": {
+     "name": "Novice's",
+     "colour": [
+      104,
+      176,
+      132
+     ],
+     "dye": {
+      "id": "dye_brookmint",
+      "name": "Brookmint Dye",
+      "inputs": {
+       "brookmint": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "The green every first-year at the college wears."
+    },
+    "iron": {
+     "name": "Apprentice's",
+     "colour": [
+      70,
+      112,
+      72
+     ],
+     "dye": {
+      "id": "dye_nettle",
+      "name": "Nettle Dye",
+      "inputs": {
+       "nettle": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Nettle green, fast and dark. It has seen some use."
+    },
+    "steel": {
+     "name": "Journeyman's",
+     "colour": [
+      150,
+      136,
+      170
+     ],
+     "dye": {
+      "id": "dye_bogbean",
+      "name": "Bogbean Dye",
+      "inputs": {
+       "bogbean": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "The grey-violet bogbean gives, worn by those trusted to travel alone."
+    },
+    "azuryte": {
+     "name": "Adept's",
+     "colour": [
+      70,
+      128,
+      224
+     ],
+     "dye": {
+      "id": "dye_sage",
+      "name": "Mountain Sage Dye",
+      "inputs": {
+       "mountain_sage": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Sage and a mordant of azuryte dust: the blue of someone who knows what they are doing."
+    },
+    "damascus": {
+     "name": "Sage's",
+     "colour": [
+      96,
+      190,
+      186
+     ],
+     "dye": {
+      "id": "dye_glowcap",
+      "name": "Glowcap Dye",
+      "inputs": {
+       "glowcap": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Glowcap teal. In the dark it is just possible to see the wearer by it."
+    },
+    "orichalcum": {
+     "name": "Magister's",
+     "colour": [
+      204,
+      84,
+      52
+     ],
+     "dye": {
+      "id": "dye_emberbloom",
+      "name": "Emberbloom Dye",
+      "inputs": {
+       "emberbloom": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Emberbloom red, warm to the touch for as long as the cloth lasts."
+    },
+    "diamond": {
+     "name": "Luminous",
+     "colour": [
+      168,
+      190,
+      244
+     ],
+     "dye": {
+      "id": "dye_moonpetal",
+      "name": "Moonpetal Dye",
+      "inputs": {
+       "moonpetal": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Dyed with a flower that only grows in dreams. It is never quite the same blue twice."
+    },
+    "platinum": {
+     "name": "Astral",
+     "colour": [
+      240,
+      230,
+      190
+     ],
+     "dye": {
+      "id": "dye_starlily",
+      "name": "Starlily Dye",
+      "inputs": {
+       "starlily": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Starlily gold-white. The cloth holds a little light of its own."
+    },
+    "demonite": {
+     "name": "Nightweave",
+     "colour": [
+      84,
+      40,
+      92
+     ],
+     "dye": {
+      "id": "dye_nightshade",
+      "name": "Nightmare Dye",
+      "inputs": {
+       "moonpetal": 2,
+       "dream_shard": 3,
+       "vial": 1
+      }
+     },
+     "flavour": "The colour of the hour before a bad dream ends."
+    },
+    "dracon": {
+     "name": "Dragonweave",
+     "colour": [
+      214,
+      120,
+      44
+     ],
+     "dye": {
+      "id": "dye_dragonsblood",
+      "name": "Dragonsblood Dye",
+      "inputs": {
+       "dragon_fang": 1,
+       "emberbloom": 2,
+       "vial": 1
+      }
+     },
+     "flavour": "Ground fang in the vat. The cloth does not burn."
+    },
+    "enchanted": {
+     "name": "Dreamweave",
+     "colour": [
+      176,
+      126,
+      244
+     ],
+     "dye": {
+      "id": "dye_dream",
+      "name": "Dream Dye",
+      "inputs": {
+       "starlily": 2,
+       "dream_shard": 4,
+       "vial": 1
+      }
+     },
+     "flavour": "Woven awake and dyed asleep. It moves when the wearer does not."
+    }
+   }
+  }
+ }
 }

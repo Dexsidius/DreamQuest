@@ -3050,5 +3050,324 @@
     "next": "end"
    }
   ]
+ },
+ "orla_root": {
+  "speaker": "Orla the Tanner",
+  "text": "Hides go in stinking and come out worth wearing. Put it on the rail and I will tell you what it is worth.",
+  "options": [
+   {
+    "text": "What do you buy?",
+    "next": "orla_buys"
+   },
+   {
+    "text": "What can be made of them?",
+    "next": "orla_sets"
+   },
+   {
+    "text": "Let me see what you have.",
+    "next": "end",
+    "action": {
+     "shop": "westwold_tanner"
+    }
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_buys": {
+  "speaker": "Orla the Tanner",
+  "text": "Anything that had a skin. Rawhide off the deer and boar this side of the Wend. Wolf pelts from the far bank: that is your first proper set. Lizard scale out of the Mire, bear from the Brackenwood. After that you are into things I have had across this bench twice in my life: troll, wyvern, and worse than wyvern.",
+  "options": [
+   {
+    "text": "And what are they for?",
+    "next": "orla_sets"
+   },
+   {
+    "text": "I will bring what I find.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_sets": {
+  "speaker": "Orla the Tanner",
+  "text": "A coif, a jerkin and chaps, cut at any workbench. Mine is there. Two hides, four and three, and thread to sew them. Hide will not stop what plate stops. It does not foul a bowstring either. It is an archer's wear, and it puts weight behind an arrow the way plate does behind a sword arm. It does nothing at all for a swordsman.",
+  "options": [
+   {
+    "text": "What do you buy?",
+    "next": "orla_buys"
+   },
+   {
+    "text": "Understood.",
+    "next": "end"
+   }
+  ]
+ },
+ "isolde_root": {
+  "speaker": "Isolde the Weaver",
+  "text": "Mind the wheel, it bites. You have the look of someone who wants a robe and does not know what goes into one.",
+  "options": [
+   {
+    "text": "How is a robe made?",
+    "next": "isolde_robes"
+   },
+   {
+    "text": "Where does flax grow?",
+    "next": "isolde_flax"
+   },
+   {
+    "text": "Show me your cloth.",
+    "next": "end",
+    "action": {
+     "shop": "westwold_weaver"
+    }
+   },
+   {
+    "text": "Just passing.",
+    "next": "end"
+   }
+  ]
+ },
+ "isolde_robes": {
+  "speaker": "Isolde the Weaver",
+  "text": "Three things. Cloth: three stalks of flax to the bolt at any bench, or two skeins of spider silk if you have a cellar to clear. Dye: a herb and a vial, in the vat there. Nobody needs teaching to boil a flower. Then cut and sew: a hat, a robe and a skirt. The herb decides the grade. Marigold is homespun, brookmint is what novices wear, and it goes on up to flowers that only open in dreams. A robe keeps out very little, and it carries a spell further than anything else you can put on.",
+  "options": [
+   {
+    "text": "Where does flax grow?",
+    "next": "isolde_flax"
+   },
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "isolde_flax": {
+  "speaker": "Isolde the Weaver",
+  "text": "Field edges. Aldous ploughs right up to the fence and the flax takes the strip he cannot reach. Blue flowers, knee high. You cannot miss it, though the sheep manage.",
+  "options": [
+   {
+    "text": "How is a robe made?",
+    "next": "isolde_robes"
+   },
+   {
+    "text": "I will look.",
+    "next": "end"
+   }
+  ]
+ },
+ "aldous_root": {
+  "speaker": "Farmer Aldous",
+  "text": "Three ewes since the new moon. They come over the Wend at night, and the fence is for sheep, not for wolves.",
+  "options": [
+   {
+    "text": "Wolves?",
+    "next": "aldous_wolves"
+   },
+   {
+    "text": "I am sorry to hear it.",
+    "next": "end"
+   }
+  ]
+ },
+ "aldous_wolves": {
+  "speaker": "Farmer Aldous",
+  "text": "Grey ones, in twos and threes, all along the far bank. Orla pays for the pelts, so they are worth your while. Do not follow them west, mind. What lives up in the Fells is a wolf the way I am a farmhand.",
+  "options": [
+   {
+    "text": "I will keep to this side of the fork.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_root": {
+  "speaker": "Hale the Trapper",
+  "text": "Walk soft and keep downwind. They hear better than you and they smell better than both of us.",
+  "options": [
+   {
+    "text": "Tell me about the bears.",
+    "next": "hale_bears"
+   },
+   {
+    "text": "What is up the trail?",
+    "next": "hale_den"
+   },
+   {
+    "text": "What have you got?",
+    "next": "end",
+    "action": {
+     "shop": "brackenwood_trapper"
+    }
+   },
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_bears": {
+  "speaker": "Hale the Trapper",
+  "text": "A bear on all fours is thinking about it. A bear that stands up has decided: get out from under, because all of it comes down at once. The hide is worth the trouble. Orla cuts it into the best leathers a working archer can afford, and I pay fair if you would rather not carry it to Hidewater.",
+  "options": [
+   {
+    "text": "What is up the trail?",
+    "next": "hale_den"
+   },
+   {
+    "text": "Good to know.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_den": {
+  "speaker": "Hale the Trapper",
+  "text": "The den. The old sow has had it longer than I have had this camp, and she has two grown cubs that never left. Past her the trail climbs into the Old Growth, and I do not set traps there. The bears are twice the size and they are not shy. Dire bears, my father called them. He had the limp to show he had met one.",
+  "options": [
+   {
+    "text": "Tell me about the bears.",
+    "next": "hale_bears"
+   },
+   {
+    "text": "I will be careful.",
+    "next": "end"
+   }
+  ]
+ },
+ "wenna_root": {
+  "speaker": "Wenna",
+  "text": "Eleven years I have carried water up from the mill pond. Four hundred buckets a day that well gave, and now there is a board over it and a sign that says do not go down.",
+  "options": [
+   {
+    "text": "What is down there?",
+    "next": "wenna_well"
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "wenna_well": {
+  "speaker": "Wenna",
+  "text": "Ask Bess at the inn, she will tell you for the price of a drink. I only know my arms ache.",
+  "options": [
+   {
+    "text": "I will ask her.",
+    "next": "end"
+   }
+  ]
+ },
+ "perrin_root": {
+  "speaker": "Old Perrin",
+  "text": "Tobin has put his onions up a penny. A penny! I remember when the board had one notice on it and it was about a lost pig.",
+  "options": [
+   {
+    "text": "And now?",
+    "next": "perrin_now"
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "perrin_now": {
+  "speaker": "Old Perrin",
+  "text": "Now it is orcs and wells and a west gate that opens. Wolves on the downs, they say, and a tannery paying for the pelts. In my day the wolves paid us. No, that is not right either. Good day to you.",
+  "options": [
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_root": {
+  "speaker": "Watchman Brask",
+  "text": "South gate, west gate, guild hall, and round again. Corrin stands still and I walk. We have agreed it is fair.",
+  "options": [
+   {
+    "text": "Anything to watch for?",
+    "next": "brask_watch"
+   },
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_watch": {
+  "speaker": "Watchman Brask",
+  "text": "The west road, since they opened it. The Westwold is sheep and wolves as far as the river, and wolves without the sheep after it. North of the fork is the Brackenwood, and nobody goes there for the scenery.",
+  "options": [
+   {
+    "text": "Thanks for the warning.",
+    "next": "end"
+   }
+  ]
+ },
+ "tam_root": {
+  "speaker": "Tam",
+  "text": "Logs down to the forge, charcoal back up, logs down to the forge. Jessa says it builds character. Halda says it builds the fire.",
+  "options": [
+   {
+    "text": "Keep at it.",
+    "next": "end"
+   }
+  ]
+ },
+ "dace_root": {
+  "speaker": "Dace",
+  "text": "Pike at the end of the jetty, if you are patient, and minnow if you are not. Sula will lend you a rod. She lent me this one in the spring.",
+  "options": [
+   {
+    "text": "Tight lines.",
+    "next": "end"
+   }
+  ]
+ },
+ "pip_root": {
+  "speaker": "Pip",
+  "text": "Cannot stop! Notices for the board, a message for the gate, and Master Orlend wants it all done before it was asked for.",
+  "options": [
+   {
+    "text": "Off you go.",
+    "next": "end"
+   }
+  ]
+ },
+ "carter_root": {
+  "speaker": "Hollis the Carter",
+  "text": "Hides out of Hidewater, cloth back. It is a better road than it was, now the gate is open, but I do not stop at the bridge for anybody. There are men there who would like me to.",
+  "options": [
+   {
+    "text": "Safe road.",
+    "next": "end"
+   }
+  ]
+ },
+ "sorrel_root": {
+  "speaker": "Sorrel",
+  "text": "Wolf pelts for Ivo, and then I am back out before the light goes. If you are heading west, cross the Wend in daylight and do not camp on the far bank.",
+  "options": [
+   {
+    "text": "What is past the river?",
+    "next": "sorrel_west"
+   },
+   {
+    "text": "I will remember.",
+    "next": "end"
+   }
+  ]
+ },
+ "sorrel_west": {
+  "speaker": "Sorrel",
+  "text": "Downs, and wolves on them. Then a fork. North is bear country. West the ground climbs and turns white, and the wolves up there stand as high as my shoulder. I have seen one. I did not stay to see two.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
  }
 }

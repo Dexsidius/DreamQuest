@@ -114,6 +114,9 @@ public:
     void DropItem(const string& item_id, int qty, float x, float y, const GameContext& ctx,
                   bool by_player = false);
     void AddText(const string& text, float x, float y, SDL_Color color, float life = 0.9f);
+    // How far the ground lifts what is drawn at a point: a shot, a drop, a
+    // number over someone's head. See UpdateElevation.
+    float LiftAt(float x, float y) const { return map.HasElevation() ? map.HeightAt(x, y) : 0.0f; }
 
     vector<WorldRequest> TakeRequests();
 
@@ -388,13 +391,15 @@ private:
     void UpdateDust(float dt);
     void SpawnEntitiesFromMap(const GameContext& ctx);
     void ApplyPlayerAttack(const GameContext& ctx);
+    // What an ability begun this step does to the place: see Player::TryAbility.
+    void ApplyPlayerAbility(const GameContext& ctx);
     void ResolveInteractTarget(const GameContext& ctx);
     void UpdatePickups(float dt, const GameContext& ctx);
     void UpdateProjectiles(float dt, const GameContext& ctx);
     void UpdateGroundEffects(float dt, const GameContext& ctx);
     void UpdateImpacts(float dt);
     // Tells every entity how far the terrain under it lifts it on screen.
-    void UpdateElevation();
+    void UpdateElevation(float dt);
     // Marks a wall where a projectile struck it, facing back along the normal.
     void AddImpact(const Projectile& p, float nx, float ny);
     void FirePlayerProjectile(const GameContext& ctx);
@@ -408,6 +413,9 @@ private:
     // Strikes everything whose body is within a radius of the player's chest:
     // a whirlwind, a ground slam, a Cross Cut. Returns how many it struck.
     int  HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx);
+    // Whether the player's blade can reach it at all: alive, and not up or
+    // down more than one level of cliff from where they stand.
+    bool Strikeable(const Enemy& e) const;
     // What the swing in flight is called, for the chain counter's trail.
     string SwingLabel(const GameContext& ctx) const;
     // The swing itself, drawn: a crescent swept through the arc a melee blow
@@ -456,6 +464,12 @@ private:
     const class QuestLog* quest_log = nullptr;
 
     float lifesteal_bank = 0.0f;  // healing on hit, in fractions of a point
+    // The next HitEnemy strikes critically whatever the dice say: a shot
+    // loosed with Take Aim, set by whatever carries it just before it lands.
+    bool  crit_next = false;
+    // Whether a blow slips past someone on the move. HitPlayer is handed no
+    // dice, and only ever decides anything on the host.
+    std::mt19937 evade_dice{0x51199u};
     std::map<string, double> picked;
     int   gather_index = -1;      // index into map objects
     float gather_timer = 0.0f;

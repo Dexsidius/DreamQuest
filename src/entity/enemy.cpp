@@ -128,6 +128,10 @@ CombatProfile Enemy::Profile() const {
     p.attack_bonus   = def->attack_bonus;
     p.strength_bonus = def->strength_bonus;
     p.defence_bonus  = def->defence_bonus;
+    if (sundered > 0.0f) {
+        p.defence_level = static_cast<int>(p.defence_level * SUNDER_SHARE);
+        p.defence_bonus = static_cast<int>(p.defence_bonus * SUNDER_SHARE);
+    }
     return p;
 }
 
@@ -180,6 +184,26 @@ SDL_FRect Enemy::HeavyHitbox() const {
     return AttackHitbox(x, y, facing, p, 1.0f);
 }
 
+StrikeArc Enemy::SwingArc() const {
+    AttackProfile p = ProfileFor(AttackType::Strong);
+    // As far as the range it swings from, less the width of whoever it is
+    // swinging at, which ArcHits gives back; and as wide as it is itself.
+    p.reach = std::max(p.reach * 0.9f, def ? def->attack_range - 6.0f : 0.0f);
+    p.width = std::max(p.width, body_box.w * 0.9f);
+    const SDL_FPoint g = GroundCentre();
+    return ArcFor(g.x, g.y, facing, p, 1.0f);
+}
+
+StrikeArc Enemy::HeavyArc() const {
+    AttackProfile p = ProfileFor(AttackType::Strong);
+    if (def) {
+        p.reach = std::max(40.0f, def->attack_range * def->heavy.reach);
+        p.width = std::max(44.0f, body_box.w * def->heavy.width);
+    }
+    const SDL_FPoint g = GroundCentre();
+    return ArcFor(g.x, g.y, facing, p, 1.0f);
+}
+
 int Enemy::HeavyDamage(std::mt19937* rng) const {
     if (!def) return 1;
     // Near the top of the monster's range every time: after a wind-up that
@@ -216,6 +240,13 @@ void Enemy::Stagger(float seconds) {
     SetState(State::Hurt);
     // A second blow starts the reel again rather than adding to it.
     state_timer = 0.0f;
+}
+
+void Enemy::Bleed(float damage) {
+    if (damage <= 0.0f || state == State::Dead) return;
+    const float owed = bleed_rate * bleed_left + damage;
+    bleed_left = BLEED_TIME;
+    bleed_rate = owed / BLEED_TIME;
 }
 
 void Enemy::TickRespawn(float dt) {
@@ -267,6 +298,22 @@ void Enemy::OnKilled(World& world, const GameContext& ctx) {
 
 void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     if (puppet) return;
+    marked   = std::max(0.0f, marked - dt);
+    sundered = std::max(0.0f, sundered - dt);
+    taunted  = std::max(0.0f, taunted - dt);
+    if (state == State::Dead) marked = sundered = taunted = bleed_left = bleed_bank = 0.0f;
+    if (bleed_left > 0.0f && hp > 0) {
+        const float step = std::min(dt, bleed_left);
+        bleed_left -= step;
+        bleed_bank += bleed_rate * step;
+        const int whole = static_cast<int>(bleed_bank);
+        if (whole > 0) {
+            bleed_bank -= static_cast<float>(whole);
+            Damage(whole);
+            world.AddText(std::to_string(whole), x + 10.0f, y - 38.0f, {200, 60, 70, 255}, 0.7f);
+        }
+        if (bleed_left <= 0.0f) bleed_rate = bleed_bank = 0.0f;
+    }
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
     state_timer += dt;
     if (attack_timer > 0.0f) attack_timer -= dt;
@@ -410,8 +457,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // so there is a window to step out of it.
             if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
                 swing_landed = true;
-                const SDL_FRect hit = AttackHitbox(x, y, facing, ProfileFor(AttackType::Strong), 0.9f);
-                if (!player.IsDead() && RectsOverlap(hit, player.BodyBox())) {
+                // On the ground, and not up or down a cliff: see StrikeArc.
+                const SDL_FPoint at = player.GroundCentre();
+                const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
+                if (!player.IsDead() && level && ArcHits(SwingArc(), at.x, at.y, player.GroundRadius())) {
                     DamageResult r = RollMelee(Profile(), player.Profile(), 1.0f, *ctx.rng);
                     if (r.hit && r.damage <= 0) {
                         world.AddText("0", player.x, player.y - 44.0f, {120, 160, 220, 255});
@@ -447,7 +496,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 heavy_landed = true;
                 sprite.Play("attack", true);
                 Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.55f);
-                if (RectsOverlap(HeavyHitbox(), player.BodyBox())) {
+                const SDL_FPoint at = player.GroundCentre();
+                const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
+                if (level && ArcHits(HeavyArc(), at.x, at.y, player.GroundRadius())) {
                     const float len = std::max(1.0f, dist);
                     world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
                                          (dx / len) * def->heavy.knockback,

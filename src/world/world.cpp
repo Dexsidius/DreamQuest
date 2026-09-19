@@ -187,7 +187,7 @@ void World::InteractWith(int kind, int index, const GameContext& ctx) {
     // pressed on, and the host looks for itself whether it could have been.
     float tx = player.x, ty = player.y;
     if (kind == InteractTarget::Npc) {
-        if (index < 0 || index >= static_cast<int>(npcs.size())) return;
+        if (index < 0 || index >= static_cast<int>(npcs.size()) || npcs[index]->Away()) return;
         tx = npcs[index]->x; ty = npcs[index]->y;
     } else if (kind == InteractTarget::Object) {
         if (index < 0 || index >= static_cast<int>(map.Objects().size())) return;
@@ -752,7 +752,11 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     // Targeting first, so a swing or a shot starting this frame knows who it
     // is for.
     {
-        const bool cycle = !player.input_locked && player.hands.Pressed(PlayerInput::Target);
+        // With the guard held and an ability carried there, lock on is that
+        // ability's button and the target stays who it was.
+        const bool third = player.hands.Down(PlayerInput::Block) &&
+                           player.talents.Ability(SkillTrees::ABILITY_SLOTS - 1) != nullptr;
+        const bool cycle = !player.input_locked && !third && player.hands.Pressed(PlayerInput::Target);
         switch (targeting.Update(player, enemies, map, cycle)) {
             case Targeting::Change::Locked:
             case Targeting::Change::Switched: Audio::Play(Sfx::UiMove, 0.8f, 0.8f); break;
@@ -812,6 +816,7 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
 
     if (!player.IsDead()) {
         ApplyPlayerAttack(ctx);
+        ApplyPlayerAbility(ctx);
         ResolveInteractTarget(ctx);
         UpdateGathering(dt, ctx);
         if (gather_index < 0 && !player.GatherClip().empty()) player.StopGathering();
@@ -863,7 +868,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         for (auto& n : npcs) n->Update(dt, *this, ctx);
         UpdateImpacts(dt);
         UpdateDust(dt);
-        UpdateElevation();
+        UpdateElevation(dt);
         for (auto& p : pickups) p.bob += dt * 3.4f;
         UpdateTexts(dt);
         return;
@@ -880,6 +885,8 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
                 if (p->IsDead() || p->puppet || p->resting) continue;
                 float d = Length(p->x - e->x, p->y - e->y);
                 if (static_cast<int>(p->seat) == e->target_seat) d *= 0.7f;
+                // Stand Fast: it is after whoever called it out, however far.
+                if (static_cast<int>(p->seat) == e->TauntedBy()) d = 0.0f;
                 if (d < best_d) { best_d = d; best = p; }
             }
             e->target_seat = best ? static_cast<int>(best->seat) : -1;
@@ -927,7 +934,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
     UpdateGroundEffects(dt, ctx);
     UpdateImpacts(dt);
     UpdateDust(dt);
-    UpdateElevation();
+    UpdateElevation(dt);
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
 }
@@ -998,7 +1005,8 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         const float technique_cost = technique == "meteor" ? 3.0f : technique.empty() ? 1.0f : 2.0f;
         const float combo_cost = atk.move == ComboMove::Crush ? 1.5f : atk.move == ComboMove::Cleave ? 1.6f
                                : atk.move == ComboMove::CrossCut ? 2.0f : 1.0f;
-        const int cost = std::max(1, static_cast<int>(std::lround(
+        // Overloaded: this one is already paid for.
+        const int cost = atk.empowered ? 0 : std::max(1, static_cast<int>(std::lround(
             spell->mana * technique_cost * combo_cost *
             std::max(0.1f, 1.0f - player.talents.Effect("mana_cost", AttackStyle::Magic)))));
         if (!player.SpendMana(cost)) {
@@ -1009,6 +1017,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         projectile_id = spell->projectile;
         damage_mult *= spell->damage_mult;
         element = spell->element;
+        player.NoteCast(spell->element);      // Attunement: the same element, again
         shape = spell->shape;
         // Casting trains Magic whether or not the bolt finds anything.
         player.GrantXp(SKILL_MAGIC, spell->xp);
@@ -1024,6 +1033,15 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         Audio::Play(Sfx::SpellCast, 1.0f, pitch);
     }
 
+    // Let go with a breath held, or overloaded: the whole of what comes out
+    // hits harder, and an aimed shot strikes critically whatever the dice say.
+    const bool aimed_shot = atk.empowered && style == AttackStyle::Ranged;
+    if (atk.empowered) {
+        damage_mult *= aimed_shot ? Player::AIM_DAMAGE : Player::OVERLOAD_DAMAGE;
+        AddText(aimed_shot ? "Aimed" : "Overload", player.x, player.y - 58.0f,
+                aimed_shot ? SDL_Color{255, 232, 150, 255} : SDL_Color{190, 170, 255, 255}, 0.9f);
+    }
+
     const SDL_FPoint muzzle = Targeting::Muzzle(player);
     const Enemy* target = targeting.Current();
 
@@ -1035,6 +1053,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         if (projectiles.size() == before) return nullptr;
         Projectile& p = projectiles.back();
         if (aimed) p.target = target;
+        p.sure_crit = aimed_shot;
         p.knockback_mult = 1.0f + player.talents.Effect("knockback", style);
         p.extra_homing = player.talents.Effect("homing", style);
         if (style == AttackStyle::Ranged) {
@@ -1069,6 +1088,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.style = style;
         g.hit_mult = mult;
         g.knockback = 60.0f;
+        g.sure_crit = aimed_shot;
         AddGroundEffect(g);
     };
 
@@ -1182,6 +1202,14 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         }
     } else {
         loose(aim.x, aim.y, damage_mult, true);
+        // Spell Echo: a plain bolt is sometimes followed by a second, for
+        // nothing, a little off the line of the first.
+        const float echo = style == AttackStyle::Magic ? player.talents.Effect("echo", style) : 0.0f;
+        if (echo > 0.0f && ctx.rng && std::uniform_real_distribution<float>(0.0f, 1.0f)(*ctx.rng) < echo) {
+            const Vec2 d = turned(7.0f);
+            loose(d.x, d.y, damage_mult, true);
+            AddText("Echo", player.x, player.y - 58.0f, {190, 170, 255, 255}, 0.7f);
+        }
     }
 }
 
@@ -1230,7 +1258,7 @@ void World::DrawSwing(SDL_Renderer* r) const {
     const float base = player.facing == FACE_RIGHT ? 0.0f : player.facing == FACE_DOWN ? 1.5707963f
                      : player.facing == FACE_LEFT ? 3.14159265f : -1.5707963f;
     const float reach = std::max(8.0f, p.reach * atk.reach_scale);
-    float half = atanf((p.width * 0.5f) / reach);
+    float half = p.HalfAngle(reach);
     if (atk.move == ComboMove::CrossCut) half = 3.14159265f;
     const float cx = player.x, cy = player.y - 16.0f - player.draw_lift;
     const auto at = [&](float wx, float wy) {
@@ -1259,14 +1287,16 @@ void World::DrawSwing(SDL_Renderer* r) const {
     if (thrust) {
         // A line driven out along the facing.
         const float len = reach * sweep;
-        const float dx = cosf(base), dy = sinf(base) * 0.6f;
+        const float dx = cosf(base), dy = sinf(base);
         stroke(at(cx, cy), at(cx + dx * len, cy + dy * len), alpha);
         return;
     }
 
     // The crescent: three rings, the middle one brightest, each a run of short
-    // segments whose alpha rises toward the head of the sweep. Seen from
-    // above, so the arc is an ellipse.
+    // segments whose alpha rises toward the head of the sweep. A true arc:
+    // the ground is drawn square -- a tile is as tall as it is wide -- and the
+    // swing reaches as far up the screen as across it. Squashed to six tenths
+    // it stopped short of what it struck above and below.
     constexpr int N = 18;
     const float a0 = base - half, a1 = base - half + 2.0f * half * sweep;
     // One bright crescent on its dark ground, rising toward the head of the
@@ -1274,10 +1304,10 @@ void World::DrawSwing(SDL_Renderer* r) const {
     for (int ring = 0; ring <= 1; ++ring) {
         const float rad = reach + ring * 3.0f;
         const float ring_alpha = ring == 0 ? 1.0f : 0.4f;
-        SDL_FPoint prev = at(cx + cosf(a0) * rad, cy + sinf(a0) * rad * 0.6f);
+        SDL_FPoint prev = at(cx + cosf(a0) * rad, cy + sinf(a0) * rad);
         for (int i = 1; i <= N; ++i) {
             const float a = a0 + (a1 - a0) * i / N;
-            const SDL_FPoint pt = at(cx + cosf(a) * rad, cy + sinf(a) * rad * 0.6f);
+            const SDL_FPoint pt = at(cx + cosf(a) * rad, cy + sinf(a) * rad);
             stroke(prev, pt, alpha * ring_alpha * (0.35f + 0.65f * i / N));
             prev = pt;
         }
@@ -1285,7 +1315,7 @@ void World::DrawSwing(SDL_Renderer* r) const {
     if (atk.move == ComboMove::Crush) {
         // The overhead: a streak down the middle of the arc as it lands.
         stroke(at(cx + cosf(base) * reach * 0.25f, cy - 24.0f),
-               at(cx + cosf(base) * reach * sweep, cy + sinf(base) * reach * 0.6f * sweep), alpha);
+               at(cx + cosf(base) * reach * sweep, cy + sinf(base) * reach * sweep), alpha);
     }
 }
 
@@ -1294,7 +1324,7 @@ void World::Burst(float x, float y, float radius, SDL_Color color, int count) {
         const float a = 6.2831853f * i / count;
         Impact im;
         im.x = x + cosf(a) * radius;
-        im.y = y + sinf(a) * radius * 0.6f;
+        im.y = y + sinf(a) * radius;
         im.nx = cosf(a);
         im.ny = sinf(a);
         im.radius = 4.0f;
@@ -1306,14 +1336,21 @@ void World::Burst(float x, float y, float radius, SDL_Color color, int count) {
     }
 }
 
+bool World::Strikeable(const Enemy& e) const {
+    if (e.Dead() || e.CurrentState() == Enemy::State::Dead) return false;
+    return std::abs(map.LevelAt(e.x, e.y) - map.LevelAt(player.x, player.y)) <= 1;
+}
+
 int World::HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx) {
-    const float cx = player.x, cy = player.y - 16.0f;
+    // A circle on the ground round the player's feet. It used to be measured
+    // to the middle of the monster's body, which is half its height north of
+    // where it stands, so a turn reached further south than north.
+    const SDL_FPoint c = player.GroundCentre();
     int struck = 0;
     for (auto& e : enemies) {
-        if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
-        const SDL_FPoint a = Targeting::AimPoint(*e);
-        const SDL_FRect b = e->BodyBox();
-        if (Length(a.x - cx, a.y - cy) > radius + std::max(b.w, b.h) * 0.5f) continue;
+        if (!Strikeable(*e)) continue;
+        const SDL_FPoint a = e->GroundCentre();
+        if (!CircleHits(c.x, c.y, radius, a.x, a.y, e->GroundRadius())) continue;
         HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, damage_mult,
                  knockback, player.x, player.y, ctx);
         ++struck;
@@ -1377,10 +1414,12 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
         AttackProfile long_reach = atk.profile;
         long_reach.reach = 82.0f;
         long_reach.width = atk.profile.width + 10.0f;
-        const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing, long_reach, 1.0f);
+        const SDL_FPoint from = player.GroundCentre();
+        const StrikeArc hit = ArcFor(from.x, from.y, player.facing, long_reach, 1.0f);
         for (auto& e : enemies) {
-            if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
-            if (!RectsOverlap(hit, e->BodyBox())) continue;
+            if (!Strikeable(*e)) continue;
+            const SDL_FPoint a = e->GroundCentre();
+            if (!ArcHits(hit, a.x, a.y, e->GroundRadius())) continue;
             HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult,
                      atk.profile.knockback * knock, player.x, player.y, ctx);
             ++struck;
@@ -1390,6 +1429,176 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
         return true;
     }
     return false;
+}
+
+void World::ApplyPlayerAbility(const GameContext& ctx) {
+    const string ability = player.TakeAbility();
+    if (ability.empty()) return;
+    const float px = player.x, py = player.y;
+    const auto say = [&](const string& text, SDL_Color c) { AddText(text, px, py - 60.0f, c, 1.2f); };
+
+    if (ability == "sunder" || ability == "hunters_mark") {
+        // On what is being fought; failing that, the nearest thing in reach.
+        Enemy* target = targeting.Current();
+        const float reach = ability == "sunder" ? 78.0f : 520.0f;
+        if (!target || Length(target->x - px, target->y - py) > reach) {
+            target = nullptr;
+            float best = reach;
+            for (auto& e : enemies) {
+                if (!Targeting::Targetable(*e)) continue;
+                const float d = Length(e->x - px, e->y - py);
+                if (d < best) { best = d; target = e.get(); }
+            }
+        }
+        if (!target) { say("Nothing in reach", {200, 200, 210, 255}); return; }
+        if (ability == "sunder") {
+            target->Sunder(10.0f);
+            HitEnemy(*target, player.Profile(), AttackStyle::Melee, Element::None,
+                     1.5f * player.TalentDamage(AttackStyle::Melee, AttackType::Strong), 70.0f, px, py, ctx);
+            AddText("Sundered", target->x, target->y - 64.0f, {255, 190, 110, 255}, 1.4f);
+            Burst(target->x, target->y - 16.0f, 26.0f, {255, 190, 110, 255}, 10);
+        } else {
+            target->Mark(12.0f);
+            target->RevealHealthBar();
+            AddText("Marked", target->x, target->y - 64.0f, {255, 120, 120, 255}, 1.4f);
+            Burst(target->x, target->y - 16.0f, 30.0f, {255, 120, 120, 255}, 12);
+        }
+    } else if (ability == "war_cry") {
+        say("War Cry!", {255, 210, 120, 255});
+        Burst(px, py - 16.0f, 96.0f, {255, 210, 120, 255}, 22);
+        for (auto& e : enemies)
+            if (Targeting::Targetable(*e) && Length(e->x - px, e->y - py) < 120.0f) e->Stagger(0.8f);
+    } else if (ability == "bash") {
+        int struck = 0;
+        for (auto& e : enemies) {
+            if (!Targeting::Targetable(*e)) continue;
+            const float dx = e->x - px, dy = e->y - py;
+            if (Length(dx, dy) > 60.0f || !InFrontOf(player.facing, dx, dy)) continue;
+            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None,
+                     0.6f * player.TalentDamage(AttackStyle::Melee, AttackType::Light), 110.0f, px, py, ctx);
+            e->Stagger(1.2f);
+            ++struck;
+        }
+        Burst(px, py - 16.0f, 34.0f, {230, 230, 240, 255}, struck > 0 ? 12 : 5);
+    } else if (ability == "caltrops") {
+        GroundEffect g;
+        g.x = px; g.y = py;
+        g.radius = 46.0f;
+        g.life = g.max_life = 6.0f;
+        g.tick_interval = 0.5f;
+        g.damage = std::max(1, player.skills.Level(SKILL_RANGED) / 8);
+        g.element = Element::Earth;
+        g.owner = player.Profile();
+        g.from_player = true;
+        g.style = AttackStyle::Ranged;
+        g.hit_mult = 0.3f * player.TalentDamage(AttackStyle::Ranged, AttackType::Light);
+        g.knockback = 0.0f;
+        g.stagger = 0.45f;
+        AddGroundEffect(g);
+        say("Caltrops", {200, 190, 160, 255});
+    } else if (ability == "arcane_pulse") {
+        // Ten bolts of the chosen element, in a ring.
+        const SpellDef* spell = ctx.spells
+            ? ctx.spells->BestFor(player.SelectedElement() == Element::Arcane ? Element::Fire : player.SelectedElement(),
+                                  player.skills.Level(SKILL_MAGIC))
+            : nullptr;
+        if (!spell) return;
+        const float mult = 0.7f * spell->damage_mult * player.TalentDamage(AttackStyle::Magic, AttackType::Light);
+        for (int i = 0; i < 10; ++i) {
+            const float a = 6.2831853f * (static_cast<float>(i) / 10.0f);
+            SpawnProjectile(spell->projectile, px, py - 14.0f, cosf(a), sinf(a), player.Profile(),
+                            AttackStyle::Magic, mult, true, ctx);
+        }
+        player.NoteCast(spell->element);
+    } else if (ability == "blink") {
+        Burst(px, py - 16.0f, 30.0f, {190, 170, 255, 255}, 14);
+    } else if (ability == "tumble") {
+        if (!map.IsInterior()) AddDust(px, py, -player.knock_x, -player.knock_y);
+    } else if (ability == "mana_shield") {
+        say("Mana Shield", {130, 170, 255, 255});
+        Burst(px, py - 16.0f, 36.0f, {130, 170, 255, 255}, 16);
+    } else if (ability == "frenzy") {
+        say("Frenzy!", {255, 150, 110, 255});
+        Burst(px, py - 16.0f, 34.0f, {255, 150, 110, 255}, 14);
+    } else if (ability == "shockwave") {
+        // A corridor straight ahead, as wide as a swing and three times as long.
+        const float fx = player.facing == FACE_LEFT ? -1.0f : player.facing == FACE_RIGHT ? 1.0f : 0.0f;
+        const float fy = player.facing == FACE_UP ? -1.0f : player.facing == FACE_DOWN ? 1.0f : 0.0f;
+        constexpr float LENGTH = 190.0f, HALF_WIDTH = 38.0f;
+        const float mult = 1.3f * player.TalentDamage(AttackStyle::Melee, AttackType::Strong);
+        for (auto& e : enemies) {
+            if (!Targeting::Targetable(*e)) continue;
+            const float dx = e->x - px, dy = e->y - py;
+            const float along = dx * fx + dy * fy;
+            const float across = fabsf(dx * fy - dy * fx);
+            if (along < 0.0f || along > LENGTH || across > HALF_WIDTH) continue;
+            // The blow can miss; the ground going out from under it cannot.
+            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult, 0.0f, px, py, ctx);
+            e->knock_x += fx * 240.0f;
+            e->knock_y += fy * 240.0f;
+            e->Stagger(0.7f);
+        }
+        for (int i = 1; i <= 5; ++i) {
+            const float d = LENGTH * static_cast<float>(i) / 5.0f;
+            Burst(px + fx * d, py + fy * d, 22.0f, {225, 205, 170, 255}, 6);
+            if (!map.IsInterior()) AddDust(px + fx * d, py + fy * d, fx, fy);
+        }
+        Audio::PlayAt(Sfx::SwingHeavy, px, py, 1.0f, 0.7f);
+    } else if (ability == "stand_fast") {
+        say("Stand Fast", {170, 200, 240, 255});
+        Burst(px, py - 16.0f, 40.0f, {170, 200, 240, 255}, 16);
+        // Everything near turns on whoever set their feet, and leaves their
+        // friends alone for as long as it lasts.
+        for (auto& e : enemies)
+            if (Targeting::Targetable(*e) && Length(e->x - px, e->y - py) < 260.0f)
+                e->Taunt(static_cast<int>(player.seat), Player::STAND_FAST_TIME);
+    } else if (ability == "take_aim") {
+        say("Take Aim", {255, 232, 150, 255});
+    } else if (ability == "rapid_fire") {
+        say("Rapid Fire", {190, 230, 190, 255});
+        Burst(px, py - 16.0f, 30.0f, {190, 230, 190, 255}, 12);
+    } else if (ability == "snare") {
+        GroundEffect g;
+        g.x = px; g.y = py;
+        g.radius = 22.0f;
+        g.life = g.max_life = 20.0f;
+        g.tick_interval = 0.1f;
+        g.damage = 1;
+        g.element = Element::Earth;
+        g.owner = player.Profile();
+        g.from_player = true;
+        g.style = AttackStyle::Ranged;
+        g.hit_mult = 1.2f * player.TalentDamage(AttackStyle::Ranged, AttackType::Light);
+        g.knockback = 0.0f;
+        g.stagger = 3.0f;
+        g.once = true;
+        AddGroundEffect(g);
+        say("Snare set", {200, 190, 160, 255});
+    } else if (ability == "overload") {
+        say("Overload", {190, 170, 255, 255});
+        Burst(px, py - 16.0f, 32.0f, {190, 170, 255, 255}, 14);
+    } else if (ability == "invoke") {
+        say("Invoke", {130, 170, 255, 255});
+        Burst(px, py - 16.0f, 44.0f, {130, 170, 255, 255}, 18);
+    } else if (ability == "repulse") {
+        const SpellDef* spell = ctx.spells
+            ? ctx.spells->BestFor(player.SelectedElement() == Element::Arcane ? Element::Fire : player.SelectedElement(),
+                                  player.skills.Level(SKILL_MAGIC))
+            : nullptr;
+        const Element element = spell ? spell->element : Element::None;
+        const float mult = 0.6f * (spell ? spell->damage_mult : 1.0f) * player.TalentDamage(AttackStyle::Magic, AttackType::Light);
+        for (auto& e : enemies) {
+            if (!Targeting::Targetable(*e) || Length(e->x - px, e->y - py) > 116.0f) continue;
+            // The bolt in it can miss; the wall cannot.
+            HitEnemy(*e, player.Profile(), AttackStyle::Magic, element, mult, 0.0f, px, py, ctx);
+            const float away = std::max(1.0f, Length(e->x - px, e->y - py));
+            e->knock_x += (e->x - px) / away * 300.0f;
+            e->knock_y += (e->y - py) / away * 300.0f;
+            e->Stagger(0.7f);
+        }
+        if (spell) player.NoteCast(spell->element);
+        Burst(px, py - 16.0f, 116.0f, element == Element::None ? SDL_Color{190, 170, 255, 255} : ElementColor(element), 26);
+    }
 }
 
 void World::ApplyPlayerAttack(const GameContext& ctx) {
@@ -1422,13 +1631,15 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         return;
     }
 
-    const SDL_FRect hit = AttackHitbox(player.x, player.y, player.facing,
-                                       atk.profile, atk.reach_scale);
+    // The sector DrawSwing draws, on the ground: see StrikeArc.
+    const SDL_FPoint from = player.GroundCentre();
+    const StrikeArc hit = ArcFor(from.x, from.y, player.facing, atk.profile, atk.reach_scale);
     bool connected = false;
 
     for (auto& e : enemies) {
-        if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
-        if (!RectsOverlap(hit, e->BodyBox())) continue;
+        if (!Strikeable(*e)) continue;
+        const SDL_FPoint a = e->GroundCentre();
+        if (!ArcHits(hit, a.x, a.y, e->GroundRadius())) continue;
 
         connected = true;
         const int before = e->hp;
@@ -1465,7 +1676,7 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
     };
 
     for (size_t i = 0; i < npcs.size(); ++i)
-        consider(InteractTarget::Npc, static_cast<int>(i),
+        if (!npcs[i]->Away()) consider(InteractTarget::Npc, static_cast<int>(i),
                  "Talk to " + npcs[i]->Name() + (npcs[i]->Shop().empty() ? "" : "  -  trades"),
                  npcs[i]->x, npcs[i]->y);
 
@@ -2032,8 +2243,35 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     // The player's talents. Everything that reaches this function is the
     // player hitting something, so they apply to all of it.
     std::uniform_real_distribution<float> unit(0.0f, 1.0f);
-    const bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style);
+    bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style);
+    if (crit_next) crit = true;             // loosed with Take Aim
+    // Executioner: what is nearly down is always struck critically.
+    const float execute = player.talents.Effect("execute", style);
+    if (execute > 0.0f && e.HealthFraction() < execute) crit = true;
     if (crit) damage_mult *= 1.5f + player.talents.Effect("crit_damage", style);
+
+    // The passives that ask where, when and on what. Each is its tree's, so a
+    // hero's Momentum does nothing for a bow in the hero's hand.
+    if (style == AttackStyle::Melee) {
+        damage_mult *= 1.0f + player.talents.Effect("momentum", style) *
+                              static_cast<float>(std::min(Player::MOMENTUM_MAX, player.ChainHits()));
+        if (player.RiposteReady()) damage_mult *= 1.0f + player.talents.Effect("riposte", style);
+    }
+    if (style == AttackStyle::Ranged) {
+        if (Length(e.x - player.x, e.y - player.y) > 180.0f) damage_mult *= 1.0f + player.talents.Effect("long_shot", style);
+        if (e.hp >= e.max_hp) damage_mult *= 1.0f + player.talents.Effect("first_blood", style);
+        // Weak Point: the same place, again. Counted whether or not it is
+        // learned, so learning it mid-fight starts from where the fight is.
+        const float weak = player.talents.Effect("weak_point", style);
+        const int shots = player.NoteShotOn(&e);
+        if (weak > 0.0f) damage_mult *= 1.0f + weak * static_cast<float>(shots);
+    }
+    // Punish, and the Trapper: what is reeling cannot brace.
+    if (e.Staggered()) damage_mult *= 1.0f + player.talents.Effect("punish", style);
+    if (style == AttackStyle::Magic)
+        damage_mult *= 1.0f + player.talents.Effect("attunement", style) * static_cast<float>(player.AttuneStacks());
+    // A mark is on the monster, not on whoever made it: a friend's blow too.
+    if (e.Marked()) damage_mult *= 1.0f + Enemy::MARK_DAMAGE;
     if (style == AttackStyle::Magic && ElementMultiplier(element, e.ElementOf()) > 1.05f)
         damage_mult *= 1.0f + player.talents.Effect("elemental", style);
 
@@ -2068,6 +2306,16 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
 
     e.Damage(damage);
     player.AwardCombatXp(damage, AttackType::Light);
+
+    // What a blow that landed pays back.
+    if (style == AttackStyle::Melee && player.RiposteReady()) player.SpendRiposte();
+    if (style == AttackStyle::Ranged && player.talents.Effect("hit_run", style) > 0.0f) player.NoteRangedHit();
+    if (crit) player.GainMana(static_cast<int>(player.talents.Effect("crit_mana", style)));
+    if (e.hp <= 0) player.GainStamina(player.talents.Effect("kill_stamina", style));
+    // Open Wounds: a chain three deep leaves them open. The chain is counted
+    // after the swing has landed on everything, so this is the hits before it.
+    if (style == AttackStyle::Melee && e.hp > 0 && player.ChainHits() + 1 >= Player::BLEED_CHAIN)
+        e.Bleed(static_cast<float>(damage) * player.talents.Effect("bleed", style));
 
     const float steal = player.talents.Effect("lifesteal", style);
     if (steal > 0.0f && !player.IsDead()) {
@@ -2245,8 +2493,10 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                     p.already_hit.push_back(key);
 
                     ActAs(OwnerOf(p.owner_local, p.owner_seat), [&] {
+                        crit_next = p.sure_crit;
                         HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
                                  p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
+                        crit_next = false;
                     });
 
                     if (p.pierce_left > 0) --p.pierce_left;
@@ -2318,7 +2568,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                       projectiles.end());
 }
 
-void World::UpdateElevation() {
+void World::UpdateElevation(float dt) {
     // One pass a frame rather than a lookup inside every draw call: the height
     // grid is a hash and a clamp, but Render is called from a sorted queue that
     // may visit the same entity's bounds several times.
@@ -2331,12 +2581,26 @@ void World::UpdateElevation() {
         for (auto& n : npcs)    n->draw_lift = 0.0f;
         return;
     }
-    player.draw_lift = player.IsJumping() ? player.JumpLift()
-                                          : map.HeightAt(player.x, player.y) + player.RushLift();
-    for (auto& g : guests)
-        if (!g->puppet) g->draw_lift = g->IsJumping() ? g->JumpLift() : map.HeightAt(g->x, g->y) + g->RushLift();
-    for (auto& e : enemies) e->draw_lift = map.HeightAt(e->x, e->y);
-    for (auto& n : npcs)    n->draw_lift = map.HeightAt(n->x, n->y);
+    // Walking up a flight of steps crosses from one level's cell to the next
+    // in a single pixel, and the lift used to go with it: a whole level, all at
+    // once. It closes on the ground's height instead, a level in about a tenth
+    // of a second, so a climb is a climb. Anything more than two levels off --
+    // a map just loaded, someone just arrived -- is simply put there.
+    const auto settle = [&](float& lift, float want) {
+        const float gap = want - lift;
+        const float step = ELEVATION_RISE * 9.0f * std::max(0.0f, dt);
+        if (dt <= 0.0f || fabsf(gap) > ELEVATION_RISE * 2.5f || fabsf(gap) <= step) lift = want;
+        else lift += gap > 0.0f ? step : -step;
+    };
+    const auto walker = [&](Player& p) {
+        if (p.IsJumping()) { p.ground_lift = p.JumpLift(); p.draw_lift = p.ground_lift; return; }
+        settle(p.ground_lift, map.HeightAt(p.x, p.y));
+        p.draw_lift = p.ground_lift + p.RushLift();
+    };
+    walker(player);
+    for (auto& g : guests) if (!g->puppet) walker(*g);
+    for (auto& e : enemies) settle(e->draw_lift, map.HeightAt(e->x, e->y));
+    for (auto& n : npcs)    settle(n->draw_lift, map.HeightAt(n->x, n->y));
 }
 
 void World::AddImpact(const Projectile& p, float nx, float ny) {
@@ -2412,10 +2676,14 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
 
         bool apply = false;
         if (g.burst) {
-            // An eruption hits once, the moment it goes off.
+            // An eruption hits once, the moment it goes off -- and only then.
+            // What is left of its life is for show: the tick timer starts at
+            // nothing, so it used to land a second time a frame later, and
+            // every Meteor and Arrow Rain was two.
             apply = true;
             g.burst = false;
             g.finished = false;
+            g.tick_timer = 1.0e9f;
         } else {
             g.tick_timer -= dt;
             if (g.tick_timer <= 0.0f) {
@@ -2425,25 +2693,39 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         }
         if (!apply) continue;
 
-        const SDL_FRect area = {g.x - g.radius, g.y - g.radius,
-                                g.radius * 2, g.radius * 2};
+        // A circle on the ground, against where things stand. It was a square
+        // against the box a sprite fills, drawn as a flattened disc: a Meteor
+        // fifty-eight across caught what stood eighty pixels south of it.
+        const auto inside = [&](const Entity& who) {
+            const SDL_FPoint at = who.GroundCentre();
+            return CircleHits(g.x, g.y, g.radius, at.x, at.y, who.GroundRadius());
+        };
 
         if (g.from_player) {
             ActAs(OwnerOf(g.owner_local, g.owner_seat), [&] {
                 for (auto& e : enemies) {
                     if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
-                    if (!RectsOverlap(area, e->BodyBox())) continue;
+                    if (!inside(*e)) continue;
+                    if (g.finished && g.once) break;      // a snare holds one thing
+                    crit_next = g.sure_crit;
                     if (g.hit_mult >= 0.0f)
                         HitEnemy(*e, g.owner, g.style, g.element, g.hit_mult, g.knockback, g.x, g.y, ctx);
                     else
                         HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
                                  static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
+                    crit_next = false;
+                    if (g.stagger > 0.0f) e->Stagger(g.stagger);
+                    if (g.once) {
+                        g.finished = true;
+                        AddText("Snared", e->x, e->y - 64.0f, {200, 190, 160, 255}, 1.4f);
+                        Burst(g.x, g.y, g.radius, {200, 190, 160, 255}, 10);
+                    }
                 }
             });
         } else {
             // Everyone standing in it, not only the first.
             for (Player* who : Players()) {
-                if (who->IsDead() || who->puppet || who->resting || !RectsOverlap(area, who->BodyBox())) continue;
+                if (who->IsDead() || who->puppet || who->resting || !inside(*who)) continue;
                 ActAs(*who, [&] {
                     player.Damage(std::max(1, g.damage));
                     player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
@@ -2461,21 +2743,41 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
 
 int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
                      float knock_x, float knock_y) {
-    if (damage <= 0 || player.IsDead() || player.resting) return 0;
+    if (damage <= 0 || player.IsDead() || player.resting || player.Untouchable()) return 0;
+    // Slippery: on the move, some of them simply miss.
+    const float evade = player.talents.Global("evade");
+    if (evade > 0.0f && player.Moving() && !player.Blocking() &&
+        std::uniform_real_distribution<float>(0.0f, 1.0f)(evade_dice) < evade) {
+        AddText("slipped", player.x, player.y - 58.0f, {190, 230, 190, 255});
+        return 0;
+    }
+    // Stand Fast: feet set, less of it gets through and none of it moves you.
+    if (player.StandingFast()) {
+        damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
+        knock_x = knock_y = 0.0f;
+    }
     const BlockOutcome b = player.TryBlock(damage, CombatLevelOf(attacker), from_x, from_y);
 
     if (b.blocked > 0) {
         AddText("blocked " + std::to_string(b.blocked), player.x, player.y - 58.0f,
                 {150, 196, 240, 255});
         Audio::PlayAt(Sfx::Block, player.x, player.y);
+        player.NoteBlock();          // a blow caught is a blow owed: Riposte
     }
     if (b.broke)
         AddText("Guard broken!", player.x, player.y - 72.0f, {255, 176, 96, 255}, 1.6f);
     if (b.taken > 0) player.BreakChain();
     if (b.taken > 0) {
-        player.Damage(b.taken);
+        // A mana shield pays half of it in mana, while there is mana to pay.
+        const int in_blood = player.AbsorbWithMana(b.taken);
+        if (in_blood < b.taken)
+            AddText("-" + std::to_string((b.taken - in_blood) * Player::MANA_PER_HP) + " mana", player.x, player.y - 58.0f,
+                    {130, 170, 255, 255});
+        player.Damage(in_blood);
         player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
-        AddText(std::to_string(b.taken), player.x, player.y - 44.0f, {235, 70, 70, 255});
+        AddText(std::to_string(in_blood), player.x, player.y - 44.0f, {235, 70, 70, 255});
+        // Resolve: pain is a kind of fuel.
+        if (in_blood > 0 && !player.IsDead()) player.GainMana(static_cast<int>(player.talents.Global("hurt_mana")));
         // Taking a hit trains Defence, as it does in OSRS.
         player.GrantXp(SKILL_DEFENCE, std::max(1, b.taken));
     }
@@ -2487,16 +2789,20 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
 }
 
 int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y) {
-    if (player.resting) return 0;
+    if (player.resting || player.Untouchable()) return 0;
     player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
     float push = 1.0f;
+    if (player.StandingFast()) {
+        damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
+        push = 0.0f;
+    }
     if (player.GuardFacing(from_x, from_y)) {
         // Met with a shield: it goes straight through, and takes the guard
         // and the breath with it.
         damage = static_cast<int>(std::lround(damage * HEAVY_BLOCK_PUNISH));
         player.ShatterGuard();
-        push = 1.6f;
+        push = player.StandingFast() ? 0.0f : 1.6f;
         AddText("Guard shattered!", player.x, player.y - 72.0f, {255, 120, 80, 255}, 1.8f);
         Audio::PlayAt(Sfx::Block, player.x, player.y, 1.0f, 0.6f);
     }
@@ -2595,7 +2901,10 @@ void World::AddText(const string& text, float x, float y, SDL_Color color, float
     FloatingText t;
     t.text = text;
     t.x = x;
-    t.y = y;
+    // Lifted with whoever it is about. Text is put forty-odd pixels over
+    // someone's feet, so the ground asked about is the ground under those. A
+    // guest's window is told where the host already put it.
+    t.y = visiting ? y : y - LiftAt(x, y + 46.0f);
     t.life = t.max_life = life;
     t.color = color;
     texts.push_back(t);
@@ -2647,9 +2956,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     };
 
     for (const GroundEffect& g : ground_effects) {
-        const SDL_FPoint centre = camera.ToScreen(g.x, g.y);
+        // As round as what it burns, and on the ground it lies on.
+        const SDL_FPoint centre = camera.ToScreen(g.x, g.y - LiftAt(g.x, g.y));
         const float rx = g.radius * camera.zoom;
-        const float ry = g.radius * 0.55f * camera.zoom;
+        const float ry = g.radius * camera.zoom;
         const SDL_Color c = ElementColor(g.element);
 
         if (g.delay > 0.0f) {
@@ -2705,7 +3015,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     for (const Dust& d : dust) {
         const float t = std::clamp(d.life / d.max_life, 0.0f, 1.0f);
         const float size = roundf(d.size * (1.6f - 0.6f * t)) * camera.zoom;
-        const SDL_FPoint p = camera.ToScreen(d.x, d.y);
+        const SDL_FPoint p = camera.ToScreen(d.x, d.y - LiftAt(d.x, d.y));
         const float px = roundf(p.x / camera.zoom) * camera.zoom - size / 2.0f;
         const float py = roundf(p.y / camera.zoom) * camera.zoom - size / 2.0f;
         SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
@@ -2786,7 +3096,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         queue.push_back({e->SortY(), 1, e.get()});
     }
     for (const auto& n : npcs) {
-        if (!RectsOverlap(n->BodyBox(), view)) continue;
+        if (n->Away() || !RectsOverlap(n->BodyBox(), view)) continue;
         queue.push_back({n->SortY(), 1, n.get()});
     }
     if (!player.IsDead() || player.DeathTimer() > 0.0f)
@@ -2850,7 +3160,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 const Pickup* p = static_cast<const Pickup*>(it.ptr);
                 const float bob = sinf(p->bob) * 2.0f;
                 SDL_Texture* tex = p->icon.empty() ? nullptr : cache.Get(p->icon);
-                SDL_FRect world = {p->x - 8.0f, p->y - 14.0f + bob, 16.0f, 16.0f};
+                SDL_FRect world = {p->x - 8.0f, p->y - 14.0f + bob - LiftAt(p->x, p->y), 16.0f, 16.0f};
                 SDL_FRect dst = camera.ToScreenRect(world);
                 if (tex) {
                     SDL_RenderTexture(r, tex, nullptr, &dst);
@@ -2878,7 +3188,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 aw *= p->def->scale;
                 ah *= p->def->scale;
 
-                const SDL_FRect world = {p->x - aw / 2.0f, p->y - ah / 2.0f, aw, ah};
+                // At the height it was loosed from, all the way: looked up
+                // under it each frame it would drop a level crossing a bank.
+                if (p->lift < 0.0f) p->lift = LiftAt(p->x, p->y);
+                const SDL_FRect world = {p->x - aw / 2.0f, p->y - ah / 2.0f - p->lift, aw, ah};
                 const SDL_FRect dst = camera.ToScreenRect(world);
 
                 if (tex) {
@@ -2940,7 +3253,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     for (const Impact& im : impacts) {
         const float t = std::clamp(im.life / std::max(0.01f, im.max_life), 0.0f, 1.0f);
-        const SDL_FPoint centre = camera.ToScreen(im.x, im.y);
+        const SDL_FPoint centre = camera.ToScreen(im.x, im.y - LiftAt(im.x, im.y));
 
         // A flash that opens outwards as it fades.
         const float rad = im.radius * camera.zoom * (1.0f + (1.0f - t) * 1.4f);

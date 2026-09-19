@@ -64,6 +64,7 @@ static const char* kMaps[] = {
     "dungeon_emberfell_1", "dungeon_emberfell_2", "dungeon_barrow",
     "well_shallow", "well_deep",
     "whisperwood_trail", "mossvale", "fernhollow",
+    "westwold", "brackenwood",
     "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage", "fernhollow_college",
     "dreamworld",
     "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
@@ -3089,27 +3090,56 @@ int main(int argc, char** argv) {
     Section("skill trees");
     {
         bool shape = true, milestones = true, techniques = true;
+        bool ranks_ok = true, gaps = true, effects_known = true;
         for (int st = 0; st < 3; ++st) {
             const TalentTree& t = trees.Tree(static_cast<AttackStyle>(st));
-            // Three full branches five deep. The melee tree also has Footwork,
+            // Three full branches eight deep. The melee tree also has Footwork,
             // a fourth branch for moves made on the run, which is not counted.
             size_t core = 0;
             for (const TalentNode& n : t.nodes) core += n.branch < 3 ? 1 : 0;
-            if (core != 15 || t.branches.size() < 3) shape = false;
+            if (core != 24 || t.branches.size() < 3) shape = false;
             int tech = 0;
+            int abilities = 0;
             for (int b = 0; b < 3; ++b)
-                for (int r = 0; r < 5; ++r) {
+                for (int r = 0; r < SkillTrees::ROWS; ++r) {
                     const TalentNode* n = t.At(b, r);
                     if (!n) { shape = false; continue; }
                     const TalentNode* row0 = t.At(0, r);
                     if (row0 && row0->level != n->level) milestones = false;
                     if (r > 0 && t.At(b, r - 1) && t.At(b, r - 1)->level >= n->level) milestones = false;
                     if (!n->technique.empty()) { ++tech; if (r != 2) techniques = false; }
-                    if (n->technique.empty() && n->effects.empty()) techniques = false;
+                    if (!n->ability.empty()) { ++abilities; if ((r != 3 && r != 5) || n->cooldown <= 0.0f || (n->stamina_cost <= 0 && n->mana_cost <= 0)) techniques = false; }
+                    if (n->Passive() && n->effects.empty()) techniques = false;
+                    if (n->Passive() && (r == 0 || r == 1) && n->ranks != 3) ranks_ok = false;
+                    if (n->Passive() && (r == 4 || r == 6) && n->ranks != 2) ranks_ok = false;
+                    if ((r == 4 || r == 6) && !n->Passive()) ranks_ok = false;
+                    if (!n->Passive() && n->ranks != 1) ranks_ok = false;
+                    if (r == SkillTrees::ROWS - 1 && (n->ranks != 1 || !n->Passive())) ranks_ok = false;
                 }
-            if (tech != 3) techniques = false;
+            if (tech != 3 || abilities != 6) techniques = false;
+            int total = 0;
+            for (const TalentNode& n : t.nodes) total += n.ranks;
+            if (total < 42 || total > 43) ranks_ok = false;
+            // Levels come slower the higher they are, so the rows come closer:
+            // nothing past the first ability is more than eight levels on.
+            for (int r = 4; r < SkillTrees::ROWS; ++r)
+                if (t.At(0, r) && t.At(0, r - 1) && t.At(0, r)->level - t.At(0, r - 1)->level > 8) gaps = false;
+            // Every effect a node names is one the game reads.
+            static const std::set<string> known = {
+                "damage", "speed", "crit", "crit_damage", "execute", "momentum", "charge", "knockback", "charged_damage",
+                "kill_stamina", "defence", "stamina_regen", "riposte", "low_hp_damage", "lifesteal", "rushing_strike",
+                "projectile_speed", "long_shot", "move_speed", "hit_run", "pierce", "stamina", "first_blood", "mana_cost",
+                "attunement", "mana_regen", "crit_mana", "homing", "elemental",
+                "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana"};
+            for (const TalentNode& n : t.nodes)
+                for (const auto& [effect, amount] : n.effects)
+                    if (!known.count(effect)) { effects_known = false; SDL_Log("  unknown effect '%s' on %s", effect.c_str(), n.id.c_str()); }
         }
-        Check(shape, "each style has a tree of three branches five nodes deep");
+        Check(shape, "each style has a tree of three branches eight nodes deep");
+        Check(ranks_ok, "two passives of three ranks, a technique, an ability, a passive of two, a second ability, a second passive of two and a capstone: forty-two ranks a tree");
+        Check(99 / SkillTrees::LEVELS_PER_POINT == 33, "against thirty-three points by level 99: a build, not a checklist");
+        Check(gaps, "past the first ability no row is more than eight levels after the one before");
+        Check(effects_known, "every effect a node names is one the game reads");
         {
             const TalentTree& melee = trees.Tree(AttackStyle::Melee);
             const TalentNode* rush = melee.At(3, 1);
@@ -3121,7 +3151,7 @@ int main(int argc, char** argv) {
                   "the ranged and magic trees keep their three");
         }
         Check(milestones, "every row is one milestone level, rising down the tree");
-        Check(techniques, "each tree teaches three techniques, and every other node does something");
+        Check(techniques, "each tree teaches three techniques and six abilities, each ability with a cooldown and a cost, and every other node does something");
         Check(trees.Tree(AttackStyle::Melee).skill == SKILL_ATTACK && trees.Tree(AttackStyle::Ranged).skill == SKILL_RANGED &&
               trees.Tree(AttackStyle::Magic).skill == SKILL_MAGIC, "melee, ranged and magic are earned by Attack, Ranged and Magic");
 
@@ -3131,20 +3161,98 @@ int main(int argc, char** argv) {
         Check(t.PointsEarned(AttackStyle::Melee, sk) == 0, "a level 1 character has no points");
         LevelUp up;
         sk.AddXp(SKILL_ATTACK, XpForLevel(17), up);
-        Check(t.PointsEarned(AttackStyle::Melee, sk) == 3 && t.PointsEarned(AttackStyle::Ranged, sk) == 0,
-              "Attack 17 earns three melee points and no ranged ones");
+        Check(t.PointsEarned(AttackStyle::Melee, sk) == 5 && t.PointsEarned(AttackStyle::Ranged, sk) == 0,
+              "Attack 17 earns five melee points, one every three levels, and no ranged ones");
         Check(t.CanLearn("flurry", sk) == Talents::Why::Prerequisite, "a node needs the one above it");
         Check(t.CanLearn("whirlwind", sk) == Talents::Why::Level, "and its milestone level");
-        Check(t.Learn("keen_edge", sk) && t.Learn("flurry", sk) && t.Learn("heavy_hand", sk),
-              "three points learn three nodes");
+        Check(t.Learn("keen_edge", sk) && t.Learn("flurry", sk) && t.Learn("heavy_hand", sk) && t.Learn("keen_edge", sk) &&
+              t.Learn("flurry", sk), "five points buy three nodes and a second rank of two of them");
+        Check(t.Rank("keen_edge") == 2 && t.Rank("flurry") == 2 && t.PointsSpent(AttackStyle::Melee) == 5, "a rank is a point");
         Check(t.CanLearn("thick_skin", sk) == Talents::Why::NoPoints, "and then there are none left");
-        Check(fabsf(t.Effect("damage", AttackStyle::Melee) - 0.06f) < 1e-4f && t.Effect("damage", AttackStyle::Ranged) == 0.0f,
-              "a melee damage node helps melee and not the bow");
-        Check(fabsf(t.Global("charge") - 0.15f) < 1e-4f, "a global node applies whatever is held");
+        Check(fabsf(t.Effect("damage", AttackStyle::Melee) - 0.08f) < 1e-4f && t.Effect("damage", AttackStyle::Ranged) == 0.0f,
+              "two ranks of a melee damage node are twice one, and help melee and not the bow");
+        Check(fabsf(t.Global("charge") - 0.08f) < 1e-4f, "a global node applies whatever is held");
+        {
+            Skills high;
+            LevelUp lu;
+            high.AddXp(SKILL_ATTACK, XpForLevel(60), lu);
+            Talents full;
+            full.SetDatabase(&trees);
+            full.Learn("keen_edge", high); full.Learn("keen_edge", high); full.Learn("keen_edge", high);
+            Check(full.Rank("keen_edge") == 3 && full.CanLearn("keen_edge", high) == Talents::Why::Learned && !full.Learn("keen_edge", high),
+                  "a node with every rank bought takes no more");
+            const json saved = full.ToJson();
+            Talents back;
+            back.SetDatabase(&trees);
+            back.FromJson(saved);
+            Check(back.Rank("keen_edge") == 3, "ranks survive a save");
+            Talents old;
+            old.SetDatabase(&trees);
+            old.FromJson(json{{"learned", {"keen_edge", "flurry", "bloodlust"}}});
+            Check(old.Rank("keen_edge") == 1 && old.Rank("flurry") == 1 && !old.Has("bloodlust"),
+                  "a save from before ranks has one of each, and a node that has left the tree is let go");
+        }
         Check(!t.ToggleTechnique("whirlwind"), "an unlearned technique cannot be chosen");
         t.Reset(AttackStyle::Melee);
-        Check(t.PointsSpent(AttackStyle::Melee) == 0 && t.PointsFree(AttackStyle::Melee, sk) == 3,
+        Check(t.PointsSpent(AttackStyle::Melee) == 0 && t.PointsFree(AttackStyle::Melee, sk) == 5,
               "unlearning a tree gives every point back");
+
+        // --- one path, one tree ------------------------------------------------------------
+        {
+            Skills all;
+            LevelUp lu;
+            for (int skill : {SKILL_ATTACK, SKILL_RANGED, SKILL_MAGIC}) all.AddXp(skill, XpForLevel(50), lu);
+            Talents hero;
+            hero.SetDatabase(&trees);
+            hero.SetPath(AttackStyle::Melee);
+            Check(hero.HasPath() && hero.Open(AttackStyle::Melee) && !hero.Open(AttackStyle::Ranged) && !hero.Open(AttackStyle::Magic),
+                  "the hero's path is the blade, and only its tree is open");
+            Check(hero.CanLearn("keen_edge", all) == Talents::Why::Ok && hero.CanLearn("steady_aim", all) == Talents::Why::OtherPath &&
+                  hero.CanLearn("potency", all) == Talents::Why::OtherPath && !hero.Learn("steady_aim", all),
+                  "nothing can be learned from a tree that is another character's, whatever the levels");
+            // A save from before the paths: a hero who had bought into the bow.
+            Talents before;
+            before.SetDatabase(&trees);
+            before.SetPath(AttackStyle::Melee);
+            before.FromJson(json{{"learned", {"keen_edge", "steady_aim", "eagle_eye", "volley"}}, {"technique", {{"ranged", "volley"}, {"melee", ""}}}});
+            Check(before.Has("keen_edge") && !before.Has("steady_aim") && !before.Has("volley") && before.Technique(AttackStyle::Ranged).empty() &&
+                  before.PointsSpent(AttackStyle::Ranged) == 0,
+                  "a save from before the paths keeps what is its path's and loses the rest");
+            for (const char* who : {"player_hero", "player_warden", "player_wayfarer"}) {
+                Player p;
+                GameContext pc;
+                pc.sprites = &sprites; pc.items = &items; pc.trees = &trees;
+                p.Init(pc, who);
+                Check(p.talents.HasPath() && p.talents.Path() == Player::AffinityFor(who),
+                      string(who) + "'s tree is the tree of their affinity");
+            }
+        }
+
+        // --- abilities: learned, carried, put away ----------------------------------------------
+        {
+            Skills high;
+            LevelUp lu;
+            high.AddXp(SKILL_ATTACK, XpForLevel(60), lu);
+            Talents a;
+            a.SetDatabase(&trees);
+            a.SetPath(AttackStyle::Melee);
+            Check(a.CycleAbility("bash") == -1 && a.Ability(0) == nullptr, "an ability that is not learned cannot be carried");
+            for (const char* id : {"thick_skin", "second_wind", "lunge", "bash", "keen_edge", "flurry", "whirlwind", "sunder"}) a.Learn(id, high);
+            Check(a.Has("bash") && a.Has("sunder") && a.CycleAbility("bash") == 0 && a.Ability(0) && a.Ability(0)->ability == "bash",
+                  "a learned ability goes into the first slot");
+            Check(a.CycleAbility("bash") == 1 && a.Ability(0) == nullptr && a.SlotOf("bash") == 1, "then the second");
+            Check(SkillTrees::ABILITY_SLOTS == 3 && a.CycleAbility("bash") == 2 && a.SlotOf("bash") == 2, "then the third");
+            Check(a.CycleAbility("sunder") == 0 && a.CycleAbility("bash") == -1 && a.SlotOf("bash") == -1 && a.SlotOf("sunder") == 0,
+                  "then away; and another takes a slot of its own");
+            const json saved = a.ToJson();
+            Talents back;
+            back.SetDatabase(&trees);
+            back.SetPath(AttackStyle::Melee);
+            back.FromJson(saved);
+            Check(back.SlotOf("sunder") == 0 && back.Ability(0) && back.Ability(0)->cooldown > 0.0f, "what is carried survives a save");
+            a.Reset(AttackStyle::Melee);
+            Check(a.Ability(0) == nullptr && a.PointsSpent(AttackStyle::Melee) == 0, "and unlearning the tree empties the slots");
+        }
 
         // --- in the world ---------------------------------------------------------------
         Input input;
@@ -3167,7 +3275,8 @@ int main(int argc, char** argv) {
         // A character with a weapon, a skill at a level, and the nodes named.
         const auto fighter = [&](World& w, const string& weapon, int skill, int level,
                                  std::initializer_list<const char*> nodes, const char* technique) {
-            w.player.Init(ctx, "player_hero");
+            // Whoever's tree it is: the bow's nodes are the warden's to learn.
+            w.player.Init(ctx, skill == SKILL_RANGED ? "player_warden" : skill == SKILL_MAGIC ? "player_wayfarer" : "player_hero");
             if (!w.LoadMap("overworld", "start", ctx)) return false;
             w.enemies.clear();
             w.clock.Set(1, 12.0f);
@@ -3246,7 +3355,7 @@ int main(int argc, char** argv) {
                 frames(w, 40);
                 Check(w.player.x - x0 > 35.0f, "a lunge carries the player forward (" +
                       std::to_string(static_cast<int>(w.player.x - x0)) + " px)");
-                Check(w.player.Profile().defence_bonus >= 6, "thick skin adds defence");
+                Check(w.player.Profile().defence_bonus >= 4, "thick skin adds defence");
             }
         }
         // Volley and piercing shot.
@@ -3280,7 +3389,7 @@ int main(int argc, char** argv) {
                     for (const GroundEffect& g : w3.ground_effects) if (g.hit_mult >= 0.0f) rain = true;
                 }
                 Check(rain, "arrow rain calls a strike down ahead of the player");
-                Check(w3.player.MaxStamina() > Player::MAX_STAMINA * 1.1f, "trail legs adds stamina");
+                Check(w3.player.MaxStamina() > Player::MAX_STAMINA * 1.05f, "trail legs adds stamina");
             }
         }
         // Nova and barrage, and what they cost.
@@ -3295,7 +3404,7 @@ int main(int argc, char** argv) {
                 for (int f = 0; f < 60; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
                 Check(most == 8, "a nova bursts into eight bolts (" + std::to_string(most) + ")");
                 const int spent = mana0 - w.player.Mana();
-                const int expect = spell ? static_cast<int>(std::lround(spell->mana * 2 * 0.9f)) : -1;
+                const int expect = spell ? static_cast<int>(std::lround(spell->mana * 2 * 0.95f)) : -1;
                 Check(spell && spent >= expect - 1 && spent <= expect + 1,
                       "for twice a bolt's mana, less focus (" + std::to_string(spent) + " of " + std::to_string(expect) + ")");
             }
@@ -3330,6 +3439,736 @@ int main(int argc, char** argv) {
                 Check(back.talents.Has("keen_edge") && back.talents.Has("flurry") && !back.talents.Has("whirlwind"),
                       "learned nodes survive a save");
             }
+        }
+
+        // --- abilities, in the world ---------------------------------------------------------------
+        // Guard held and an attack button. H is the guard, J the light, K the heavy.
+        const auto ability = [&](World& w, SDL_Keycode button) {
+            input.Update(dt); key(SDLK_H, true); w.Update(dt, ctx);
+            input.Update(dt); key(button, true); w.Update(dt, ctx);
+            input.Update(dt); key(button, false); key(SDLK_H, false); w.Update(dt, ctx);
+        };
+        const auto carry = [&](World& w, const char* node, int slot) {
+            while (w.player.talents.SlotOf(node) != slot && w.player.talents.Has(node)) w.player.talents.CycleAbility(node);
+            return w.player.talents.SlotOf(node) == slot;
+        };
+        // Bash and Sunder: the hero.
+        {
+            World w;
+            if (fighter(w, "bronze_sword", SKILL_ATTACK, 60,
+                        {"thick_skin", "second_wind", "lunge", "bash", "keen_edge", "flurry", "whirlwind", "sunder"}, nullptr)) {
+                Check(carry(w, "bash", 0) && carry(w, "sunder", 1), "the hero carries Bash on the light button and Sunder on the heavy");
+                Enemy* boar = spawn(w, "boar", 34, 0);
+                const float stamina = w.player.Stamina();
+                const int hp = boar ? boar->hp : 0;
+                ability(w, SDLK_J);
+                Check(boar && boar->Staggered() && w.player.AbilityCooldown(0) > 7.0f && w.player.Stamina() < stamina - 10.0f,
+                      "guard and light: the bash staggers what is in front, costs breath and starts its cooldown");
+                Check(!w.player.Attacking(), "and the press was the ability's, not a swing");
+                const float cd = w.player.AbilityCooldown(0);
+                const float after = w.player.Stamina();
+                ability(w, SDLK_J);
+                Check(w.player.AbilityCooldown(0) <= cd && w.player.Stamina() >= after - 0.01f, "pressed again before it is back, nothing happens and nothing is spent");
+                if (boar) {
+                    boar->hp = boar->max_hp;
+                    const int defence = boar->Profile().defence_level + boar->Profile().defence_bonus;
+                    w.player.GainStamina(100.0f);
+                    frames(w, 40);
+                    boar->x = w.player.x + 34.0f; boar->y = w.player.y;
+                    ability(w, SDLK_K);
+                    const int sundered = boar->Profile().defence_level + boar->Profile().defence_bonus;
+                    Check(boar->Sundered() && sundered < defence && w.player.AbilityCooldown(1) > 10.0f,
+                          "guard and heavy: Sunder leaves its defence down by a third (" + std::to_string(defence) + " to " + std::to_string(sundered) + ")");
+                    (void)hp;
+                }
+                input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+                Check(w.player.Attacking(), "without the guard held, the light button is still a swing");
+            }
+        }
+        // War Cry, and the passives that ask when.
+        {
+            World w;
+            if (fighter(w, "bronze_sword", SKILL_ATTACK, 60, {"heavy_hand", "bruiser", "ground_slam", "war_cry", "thick_skin", "second_wind", "lunge", "bash", "riposte"}, nullptr)) {
+                carry(w, "war_cry", 0);
+                Enemy* near = spawn(w, "boar", 60, 0);
+                const float before = w.player.TalentDamage(AttackStyle::Melee, AttackType::Light);
+                ability(w, SDLK_J);
+                Check(w.player.WarCry() && fabsf(w.player.TalentDamage(AttackStyle::Melee, AttackType::Light) - before - Player::WAR_CRY_DAMAGE) < 1e-4f &&
+                      near && near->Staggered(), "a war cry staggers what is near and leaves the hero hitting a quarter harder");
+                frames(w, static_cast<int>(Player::WAR_CRY_TIME * 60.0f) + 10);
+                Check(!w.player.WarCry() && fabsf(w.player.TalentDamage(AttackStyle::Melee, AttackType::Light) - before) < 1e-4f, "for eight seconds");
+                Check(!w.player.RiposteReady(), "no riposte is owed until a blow is caught");
+                w.player.NoteBlock();
+                Check(w.player.RiposteReady(), "a blow caught on the shield owes one");
+                frames(w, static_cast<int>(Player::RIPOSTE_WINDOW * 60.0f) + 5);
+                Check(!w.player.RiposteReady(), "for three seconds");
+                World plain;
+                if (fighter(plain, "bronze_sword", SKILL_ATTACK, 60, {"keen_edge"}, nullptr)) {
+                    plain.player.NoteBlock();
+                    Check(!plain.player.RiposteReady(), "and a hero who has not learned Riposte is owed nothing");
+                }
+            }
+        }
+        // Tumble, Hunter's Mark and Caltrops: the warden.
+        {
+            World w;
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley", "tumble", "steady_aim", "eagle_eye", "piercing_shot", "hunters_mark"}, nullptr)) {
+                carry(w, "tumble", 0); carry(w, "hunters_mark", 1);
+                const float x0 = w.player.x;
+                w.player.facing = FACE_RIGHT;
+                ability(w, SDLK_J);
+                Check(w.player.Untouchable(), "a tumble is untouchable while it lasts");
+                Check(w.HitPlayer(9, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0, "a blow that lands mid-roll lands on nothing");
+                frames(w, 40);
+                Check(!w.player.Untouchable() && x0 - w.player.x > 45.0f, "standing still, the roll goes back the way the warden came (" +
+                      std::to_string(static_cast<int>(x0 - w.player.x)) + " px)");
+                Enemy* deer = spawn(w, "deer", 120, 0);
+                frames(w, 2);
+                ability(w, SDLK_K);
+                Check(deer && deer->Marked() && !deer->Sundered(), "Hunter's Mark marks what is in reach");
+                World w2;
+                if (fighter(w2, "oak_shortbow", SKILL_RANGED, 60, {"trail_legs", "broadheads", "arrow_rain", "caltrops"}, nullptr)) {
+                    carry(w2, "caltrops", 0);
+                    ability(w2, SDLK_J);
+                    bool iron = false;
+                    for (const GroundEffect& g : w2.ground_effects) iron |= g.stagger > 0.0f && g.from_player && g.max_life > 5.0f;
+                    Check(iron, "caltrops lie on the ground for six seconds, stopping what crosses them");
+                }
+            }
+        }
+        // Blink, Arcane Pulse and Mana Shield: the wayfarer.
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 60, {"flow", "swift_casting", "barrage", "blink", "potency", "focus", "nova", "arcane_pulse"}, nullptr)) {
+                carry(w, "blink", 0); carry(w, "arcane_pulse", 1);
+                w.player.facing = FACE_RIGHT;
+                const float x0 = w.player.x;
+                const int mana = w.player.Mana();
+                ability(w, SDLK_J);
+                Check(w.player.x - x0 > 60.0f && w.player.Mana() < mana && !w.CurrentMap().Blocked(w.player.Bounds()),
+                      "a blink is a step through the air, to somewhere that can be stood on (" + std::to_string(static_cast<int>(w.player.x - x0)) + " px)");
+                w.projectiles.clear();
+                ability(w, SDLK_K);
+                Check(w.projectiles.size() == 10, "an arcane pulse is ten bolts in a ring (" + std::to_string(w.projectiles.size()) + ")");
+                bool wayfarers = !w.projectiles.empty();
+                for (const Projectile& p : w.projectiles) wayfarers &= p.from_player && p.owner_local;
+                Check(wayfarers, "and they are the wayfarer's own");
+
+                World w2;
+                if (fighter(w2, "novice_staff", SKILL_MAGIC, 60, {"ward", "seeker", "meteor", "mana_shield"}, nullptr)) {
+                    carry(w2, "mana_shield", 0);
+                    ability(w2, SDLK_J);
+                    const int hp = w2.player.hp, mp = w2.player.Mana();
+                    Check(w2.player.ManaShield(), "a mana shield is up for ten seconds");
+                    Check(w2.player.AbsorbWithMana(10) == 5 && w2.player.Mana() == mp - 5 * Player::MANA_PER_HP,
+                          "half of a blow is paid in mana, two a point");
+                    w2.player.SetMana(1);
+                    Check(w2.player.AbsorbWithMana(10) == 10 && w2.player.hp == hp, "and with no mana to pay with, all of it is blood");
+                }
+                // Attunement: the same element, again.
+                w.player.NoteCast(Element::Water);
+                for (int i = 0; i < 9; ++i) w.player.NoteCast(Element::Water);
+                Check(w.player.AttuneStacks() == Player::ATTUNE_MAX, "casting one element over and over deepens it, up to five");
+                w.player.NoteCast(Element::Fire);
+                Check(w.player.AttuneStacks() == 0, "and changing element starts again");
+            }
+        }
+        // --- the deeper rows ---------------------------------------------------------------------
+        // A technique's strike lands once, the moment it goes off. It landed a
+        // second time a frame later, on the effect's first tick.
+        {
+            World w;
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 30, {"trail_legs"}, nullptr)) {
+                Enemy* deer = spawn(w, "deer", 90, 0);
+                if (deer) {
+                    deer->max_hp = deer->hp = 5000;
+                    GroundEffect g;
+                    g.x = deer->x; g.y = deer->y;
+                    g.radius = 50.0f;
+                    g.life = g.max_life = 0.35f;
+                    g.burst = true;
+                    g.owner = w.player.Profile();
+                    g.style = AttackStyle::Ranged;
+                    g.hit_mult = 1.0f;
+                    w.AddGroundEffect(g);
+                    const size_t before = w.texts.size();
+                    frames(w, 6);
+                    Check(w.texts.size() == before + 1, "a strike from above lands once on what it lands on (" +
+                          std::to_string(w.texts.size() - before) + ")");
+                }
+            }
+        }
+        // One shot or one cast: how many came out, and what the first carried.
+        const auto loose_one = [&](World& w, float& mult, bool& sure, int settle) {
+            w.projectiles.clear();
+            input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+            input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+            for (int f = 0; f < 90 && w.projectiles.empty(); ++f) { input.Update(dt); w.Update(dt, ctx); }
+            const int n = static_cast<int>(w.projectiles.size());
+            if (n > 0) { mult = w.projectiles.front().damage_mult; sure = w.projectiles.front().sure_crit; }
+            frames(w, settle);
+            return n;
+        };
+        // The hero: Frenzy, Open Wounds, Shockwave, Stand Fast, and the third slot.
+        {
+            World w;
+            if (fighter(w, "bronze_sword", SKILL_ATTACK, 70,
+                        {"keen_edge", "flurry", "whirlwind", "sunder", "momentum", "frenzy", "open_wounds", "open_wounds"}, nullptr)) {
+                carry(w, "frenzy", 0);
+                const float plain = w.player.WeaponSpeed();
+                ability(w, SDLK_J);
+                Check(w.player.Frenzied() && w.player.WeaponSpeed() < plain * 0.75f, "frenzied, the blade is a third faster");
+                w.player.CountChainHit("Light");
+                frames(w, static_cast<int>((Player::CHAIN_HOLD + 1.0f) * 60.0f));
+                Check(w.player.ChainHits() == 1, "and the chain does not lapse between blows");
+                frames(w, static_cast<int>((Player::FRENZY_TIME + Player::CHAIN_HOLD) * 60.0f));
+                Check(!w.player.Frenzied() && fabsf(w.player.WeaponSpeed() - plain) < 1e-4f && w.player.ChainHits() == 0,
+                      "for six seconds");
+
+                // A wound bleeds out what it owes over four seconds.
+                Enemy* deer = spawn(w, "deer", 200, 0);
+                if (deer) {
+                    deer->max_hp = deer->hp = 5000;
+                    deer->Bleed(40.0f);
+                    Check(deer->Bleeding(), "a wound left open bleeds");
+                    frames(w, static_cast<int>((Enemy::BLEED_TIME + 0.3f) * 60.0f));
+                    Check(!deer->Bleeding() && deer->hp <= 5000 - 39 && deer->hp >= 5000 - 41,
+                          "for what it owes, over four seconds (" + std::to_string(5000 - deer->hp) + ")");
+                    // And a chain three deep opens one.
+                    bool opened = false;
+                    int hits_in = 0;
+                    for (int swing = 0; swing < 14 && !opened; ++swing) {
+                        deer->x = w.player.x + 30.0f; deer->y = w.player.y;
+                        deer->knock_x = deer->knock_y = 0.0f;
+                        w.player.facing = FACE_RIGHT;
+                        input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+                        input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+                        for (int f = 0; f < 26; ++f) {
+                            deer->x = w.player.x + 30.0f; deer->y = w.player.y;
+                            input.Update(dt); w.Update(dt, ctx);
+                        }
+                        opened = deer->Bleeding();
+                        hits_in = w.player.ChainHits();
+                    }
+                    Check(opened && hits_in >= Player::BLEED_CHAIN, "Open Wounds: a chain three deep leaves them open, and not before (" +
+                          std::to_string(hits_in) + " hits in)");
+                }
+            }
+        }
+        {
+            World w;
+            if (fighter(w, "bronze_sword", SKILL_ATTACK, 70,
+                        {"heavy_hand", "bruiser", "ground_slam", "war_cry", "brute_force", "shockwave",
+                         "thick_skin", "second_wind", "lunge", "bash", "riposte", "stand_fast"}, nullptr)) {
+                carry(w, "bash", 0); carry(w, "shockwave", 1);
+                Check(carry(w, "stand_fast", 2), "a third ability is carried on the lock-on button");
+                Enemy* ahead = spawn(w, "deer", 60, 0);
+                Enemy* far_ahead = spawn(w, "deer", 170, 0);
+                Enemy* beside = spawn(w, "deer", 60, 90);
+                Enemy* behind = spawn(w, "deer", -60, 0);
+                for (Enemy* e : {ahead, far_ahead, beside, behind}) if (e) e->max_hp = e->hp = 5000;
+                w.player.facing = FACE_RIGHT;
+                ability(w, SDLK_K);
+                Check(ahead && far_ahead && ahead->Staggered() && far_ahead->Staggered(),
+                      "a shockwave reaches what is straight ahead, near and far, and leaves it reeling");
+                Check(beside && behind && !beside->Staggered() && !behind->Staggered(), "and nothing beside or behind");
+
+                // Guard and lock on: the third slot, and the target stays who it was.
+                input.Update(dt); key(SDLK_L, true); w.Update(dt, ctx);
+                input.Update(dt); key(SDLK_L, false); w.Update(dt, ctx);
+                const Enemy* locked = w.targeting.Current();
+                ability(w, SDLK_L);
+                Check(w.player.StandingFast() && w.player.AbilityCooldown(2) > 30.0f, "guard and lock on: Stand Fast");
+                Check(locked && w.targeting.Current() == locked, "and the press was the ability's: the target is who it was");
+                w.player.hp = w.player.max_hp;
+                w.player.knock_x = w.player.knock_y = 0.0f;
+                const int taken = w.HitPlayer(20, CombatProfile{}, w.player.x - 20.0f, w.player.y, 200.0f, 0.0f);
+                Check(taken == static_cast<int>(std::lround(20 * Player::STAND_FAST_SHARE)) && w.player.knock_x == 0.0f,
+                      "feet set, a blow of twenty is a blow of twelve and moves nobody");
+                frames(w, static_cast<int>(Player::STAND_FAST_TIME * 60.0f) + 5);
+                w.player.hp = w.player.max_hp;
+                Check(!w.player.StandingFast() && w.HitPlayer(20, CombatProfile{}, w.player.x - 20.0f, w.player.y, 200.0f, 0.0f) == 20,
+                      "for six seconds");
+                if (ahead) {
+                    ahead->Taunt(2, 1.0f);
+                    Check(ahead->TauntedBy() == 2, "what is called out is after whoever called it");
+                    frames(w, 70);
+                    Check(ahead->TauntedBy() == -1, "until it wears off");
+                }
+            }
+        }
+        // The warden: Take Aim, Weak Point, Rapid Fire, Slippery, Snare.
+        {
+            World w;
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 70,
+                        {"steady_aim", "eagle_eye", "piercing_shot", "hunters_mark", "long_shot", "take_aim", "weak_point"}, nullptr)) {
+                carry(w, "take_aim", 0);
+                float plain = 0.0f, aimed = 0.0f;
+                bool sure = false;
+                Check(loose_one(w, plain, sure, 120) == 1 && !sure, "a plain shot is a plain shot");
+                ability(w, SDLK_J);
+                Check(w.player.Aiming(), "a breath held");
+                Check(loose_one(w, aimed, sure, 120) == 1 && sure && fabsf(aimed - plain * Player::AIM_DAMAGE) < 1e-3f,
+                      "goes into the next shot: it will strike critically, and half as hard again");
+                Check(!w.player.Aiming(), "and is spent by it");
+                Check(loose_one(w, aimed, sure, 10) == 1 && !sure, "the one after is a plain shot again");
+                int a = 0, b = 0;
+                for (int i = 0; i < 6; ++i) w.player.NoteShotOn(&a);
+                Check(w.player.WeakPointStacks() == Player::WEAK_POINT_MAX, "Weak Point: shots in a row on one target count up to four");
+                w.player.NoteShotOn(&b);
+                Check(w.player.WeakPointStacks() == 0, "and another target starts again");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 70,
+                        {"quick_draw", "fleet_foot", "volley", "tumble", "hit_and_run", "rapid_fire", "slippery", "slippery"}, nullptr)) {
+                carry(w, "rapid_fire", 0);
+                const float plain = w.player.WeaponSpeed();
+                ability(w, SDLK_J);
+                Check(w.player.RapidFire() && w.player.WeaponSpeed() < plain * 0.65f, "rapid fire: the bow is two fifths faster");
+                frames(w, static_cast<int>(Player::RAPID_TIME * 60.0f) + 5);
+                Check(!w.player.RapidFire() && fabsf(w.player.WeaponSpeed() - plain) < 1e-4f, "for five seconds");
+
+                int slipped = 0;
+                for (int i = 0; i < 100; ++i) {
+                    w.player.hp = w.player.max_hp;
+                    if (w.HitPlayer(1, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0) ++slipped;
+                }
+                Check(slipped == 0, "Slippery: standing still, nothing misses");
+                input.Update(dt); key(SDLK_D, true); w.Update(dt, ctx);
+                frames(w, 3);
+                for (int i = 0; i < 300; ++i) {
+                    w.player.hp = w.player.max_hp;
+                    if (w.HitPlayer(1, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0) ++slipped;
+                }
+                input.Update(dt); key(SDLK_D, false); w.Update(dt, ctx);
+                Check(slipped > 10 && slipped < 90, "on the move, about one blow in eight does (" + std::to_string(slipped) + " of 300)");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 70, {"trail_legs", "broadheads", "arrow_rain", "caltrops", "first_blood", "snare"}, nullptr)) {
+                carry(w, "snare", 0);
+                ability(w, SDLK_J);
+                bool set = false;
+                for (const GroundEffect& g : w.ground_effects) set |= g.once && g.stagger > 2.5f && g.max_life > 15.0f;
+                Check(set, "a snare lies where it was set, for twenty seconds");
+                Enemy* first = spawn(w, "deer", 0, 0);
+                Enemy* second = spawn(w, "deer", 4, 0);
+                for (Enemy* e : {first, second}) if (e) e->max_hp = e->hp = 5000;
+                frames(w, 12);
+                const int held = (first && first->Staggered() ? 1 : 0) + (second && second->Staggered() ? 1 : 0);
+                bool still = false;
+                for (const GroundEffect& g : w.ground_effects) still |= g.once;
+                Check(held == 1 && !still, "the first thing to step in it is held, and the snare is sprung (" + std::to_string(held) + " held)");
+            }
+        }
+        // The wayfarer: Overload, Spell Echo, Invoke, Deep Well, Repulse, Resolve.
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 70,
+                        {"potency", "focus", "nova", "arcane_pulse", "attunement", "overload"}, nullptr)) {
+                carry(w, "overload", 0);
+                float plain = 0.0f, loaded = 0.0f;
+                bool sure = false;
+                w.player.RestoreMana();
+                const int full = w.player.Mana();
+                Check(loose_one(w, plain, sure, 0) == 1 && w.player.Mana() < full, "a plain cast costs mana");
+                frames(w, 120);
+                ability(w, SDLK_J);
+                Check(w.player.Overloaded(), "overloaded");
+                w.player.RestoreMana();
+                Check(loose_one(w, loaded, sure, 0) == 1 && w.player.Mana() == full && fabsf(loaded - plain * Player::OVERLOAD_DAMAGE) < 1e-3f,
+                      "the next spell costs nothing and hits twice as hard");
+                Check(!w.player.Overloaded(), "and that is the one it was for");
+                int echoes = 0;
+                for (int i = 0; i < 40; ++i) { w.player.RestoreMana(); if (loose_one(w, plain, sure, 40) >= 2) ++echoes; }
+                Check(echoes == 0, "with no Spell Echo, a bolt is one bolt");
+                w.player.talents.Learn("spell_echo", w.player.skills);
+                w.player.talents.Learn("spell_echo", w.player.skills);
+                for (int i = 0; i < 70; ++i) { w.player.RestoreMana(); if (loose_one(w, plain, sure, 40) >= 2) ++echoes; }
+                Check(echoes >= 2 && echoes < 35, "with it, about one in six is followed by a second (" + std::to_string(echoes) + " of 70)");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 70, {"flow", "swift_casting", "barrage", "blink", "surge", "invoke"}, nullptr)) {
+                carry(w, "invoke", 0);
+                const float breath = w.player.Stamina();
+                ability(w, SDLK_J);
+                Check(!w.player.Invoking() && w.player.AbilityCooldown(0) == 0.0f && w.player.Stamina() >= breath - 0.01f,
+                      "with nothing to draw back, Invoke does not happen and costs nothing");
+                w.player.SetMana(0);
+                ability(w, SDLK_J);
+                Check(w.player.Invoking(), "with mana spent, it does");
+                frames(w, static_cast<int>(Player::INVOKE_TIME * 60.0f) + 5);
+                Check(!w.player.Invoking() && w.player.Mana() >= w.player.MaxMana() / 2 - 1,
+                      "and half of all the mana there is comes back over four seconds (" + std::to_string(w.player.Mana()) + " of " +
+                      std::to_string(w.player.MaxMana()) + ")");
+                const int before = w.player.MaxMana();
+                w.player.talents.Learn("deep_well", w.player.skills);
+                w.player.talents.Learn("deep_well", w.player.skills);
+                w.player.SyncMana();
+                Check(w.player.MaxMana() == static_cast<int>(std::lround(before * 1.2f)), "Deep Well: a fifth more mana at two ranks (" +
+                      std::to_string(before) + " to " + std::to_string(w.player.MaxMana()) + ")");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 70, {"ward", "seeker", "meteor", "mana_shield", "siphon", "repulse", "resolve", "resolve"}, nullptr)) {
+                carry(w, "repulse", 0);
+                Enemy* near_a = spawn(w, "deer", 50, 0);
+                Enemy* near_b = spawn(w, "deer", -40, 30);
+                Enemy* far_off = spawn(w, "deer", 300, 0);
+                for (Enemy* e : {near_a, near_b, far_off}) if (e) e->max_hp = e->hp = 5000;
+                const float x0 = near_a ? near_a->x : 0.0f;
+                ability(w, SDLK_J);
+                Check(near_a && near_b && near_a->Staggered() && near_b->Staggered() && far_off && !far_off->Staggered(),
+                      "a repulse leaves everything near reeling, and nothing far");
+                frames(w, 20);
+                Check(near_a && near_a->x > x0 + 20.0f, "and throws it back (" + std::to_string(near_a ? static_cast<int>(near_a->x - x0) : 0) + " px)");
+                w.player.SetMana(0);
+                w.player.hp = w.player.max_hp;
+                w.HitPlayer(8, CombatProfile{}, w.player.x + 20.0f, w.player.y);
+                Check(w.player.Mana() == 6, "Resolve: a blow that draws blood gives back three mana a rank (" + std::to_string(w.player.Mana()) + ")");
+            }
+        }
+        // A blink with nowhere to go spends nothing.
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 60, {"flow", "swift_casting", "barrage", "blink"}, nullptr)) {
+                carry(w, "blink", 0);
+                // Walled in: find a spot hard against something solid on the right.
+                bool found = false;
+                for (float step = 0.0f; step < 1200.0f && !found; step += 16.0f) {
+                    SDL_FRect probe = w.player.Bounds();
+                    probe.x += step;
+                    bool open_here = !w.CurrentMap().Blocked(probe);
+                    bool all_blocked = open_here;
+                    for (float d = 12.0f; d <= Player::BLINK_DISTANCE && all_blocked; d += 8.0f) {
+                        SDL_FRect there = probe; there.x += d;
+                        all_blocked = w.CurrentMap().Blocked(there);
+                    }
+                    if (all_blocked) { w.player.x += step; found = true; }
+                }
+                if (found) {
+                    w.player.facing = FACE_RIGHT;
+                    const float x0 = w.player.x;
+                    const int mana = w.player.Mana();
+                    ability(w, SDLK_J);
+                    Check(w.player.x == x0 && w.player.Mana() == mana && w.player.AbilityCooldown(0) == 0.0f,
+                          "a blink with nowhere to land does not happen, and costs nothing");
+                }
+            }
+        }
+        // --- where a blow lands ------------------------------------------------------------------
+        // A sector on the ground out from whoever swings, against where the other
+        // stands; and what is drawn is that sector. See StrikeArc.
+        {
+            const AttackProfile& light = ProfileFor(AttackType::Light, 0);
+            const AttackProfile& cleave = ProfileForCombo(ComboMove::Cleave);
+            const StrikeArc east = ArcFor(0.0f, 0.0f, FACE_RIGHT, light);
+            Check(ArcHits(east, light.reach + 8.0f, 0.0f, 12.0f) && !ArcHits(east, light.reach + 14.0f, 0.0f, 12.0f),
+                  "a swing reaches as far as its reach and half the width of what it meets, and no further");
+            Check(!ArcHits(east, 0.0f, 34.0f, 12.0f) && !ArcHits(east, -30.0f, 0.0f, 12.0f),
+                  "a light swing does not reach what stands beside the character, or behind");
+            const StrikeArc north = ArcFor(0.0f, 0.0f, FACE_UP, light), south = ArcFor(0.0f, 0.0f, FACE_DOWN, light);
+            bool even = true;
+            for (float d = 20.0f; d < 60.0f; d += 2.0f)
+                even &= ArcHits(north, 0.0f, -d, 12.0f) == ArcHits(south, 0.0f, d, 12.0f) &&
+                        ArcHits(north, 0.0f, -d, 12.0f) == ArcHits(east, d, 0.0f, 12.0f);
+            Check(even, "and reaches as far up the screen as down it, and as far as across: it hung from the sprite's box, and did not");
+            const StrikeArc wide = ArcFor(0.0f, 0.0f, FACE_RIGHT, cleave);
+            Check(ArcHits(wide, 0.0f, 40.0f, 12.0f) && ArcHits(wide, 0.0f, -40.0f, 12.0f) && !ArcHits(wide, -40.0f, 0.0f, 12.0f),
+                  "the Cleave goes from shoulder to shoulder, and not behind");
+            Check(fabsf(light.HalfAngle(light.reach) - atanf(light.width * 0.5f / light.reach)) < 1e-5f &&
+                  fabsf(cleave.HalfAngle(cleave.reach) - 95.0f * 3.14159265f / 180.0f) < 1e-4f,
+                  "the arc drawn and the arc struck ask the same question of the same swing");
+            StrikeArc round = east;
+            round.all_round = true;
+            Check(ArcHits(round, -30.0f, 0.0f, 12.0f), "a full turn reaches behind");
+
+            // A monster's swing reaches the range it swings from. It reached
+            // thirty-two pixels whatever that was: a wyvern never landed a bite.
+            bool lands = true;
+            string short_one;
+            for (const char* id : {"boar", "wolf", "bear", "hound", "ice_troll", "wyvern", "wyvern_matriarch", "demon",
+                                   "pit_lord", "frost_dragon", "ankou", "dire_bear", "greatwolf", "lizardman_chief"}) {
+                const EnemyDef* stats = enemy_db.Get(id);
+                if (!stats) { lands = false; short_one = id; continue; }
+                EnemySpawnDef at;
+                at.type = id; at.level = 1; at.x = 0; at.y = 0;
+                Enemy e;
+                e.Init(stats, at, ctx);
+                e.facing = FACE_RIGHT;
+                const SDL_FPoint from = e.GroundCentre();
+                // Someone stood still at the edge of its range, where it began the swing.
+                if (!ArcHits(e.SwingArc(), from.x + stats->attack_range, from.y, 13.0f)) { lands = false; short_one = id; }
+            }
+            Check(lands, "every monster's swing lands on whoever stands still at the range it swung from" +
+                  (short_one.empty() ? string() : " (" + short_one + ")"));
+        }
+        // On the ground, a burst is a circle against where things stand -- not a
+        // square against the box a sprite fills.
+        {
+            World w;
+            if (fighter(w, "novice_staff", SKILL_MAGIC, 30, {"potency"}, nullptr)) {
+                const float r = 58.0f;
+                Enemy* inside = spawn(w, "deer", 300, 0);
+                Enemy* corner = spawn(w, "deer", 300, 0);
+                Enemy* below = spawn(w, "deer", 300, 0);
+                if (inside && corner && below) {
+                    const float gx = w.player.x + 300.0f, gy = w.player.y;
+                    inside->x = gx + r * 0.8f;  inside->y = gy;
+                    corner->x = gx + r * 0.92f; corner->y = gy + r * 0.92f;      // in the old square, outside the circle
+                    below->x = gx;              below->y = gy + r + 40.0f;       // its sprite reaches up into the old square
+                    for (Enemy* e : {inside, corner, below}) e->max_hp = e->hp = 5000;
+                    GroundEffect g;
+                    g.x = gx; g.y = gy; g.radius = r;
+                    g.life = g.max_life = 0.35f;
+                    g.burst = true;
+                    g.owner = w.player.Profile();
+                    g.style = AttackStyle::Magic;
+                    g.hit_mult = 1.0f;
+                    w.AddGroundEffect(g);
+                    frames(w, 3);
+                    Check(inside->HealthBarVisible() && !corner->HealthBarVisible() && !below->HealthBarVisible(),
+                          "a burst on the ground strikes what stands inside its circle, and not the corners of a square round it");
+                }
+            }
+        }
+
+        // --- the ground lifts everything on it -----------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx) && w.map.HasElevation()) {
+                w.enemies.clear();
+                // Somewhere raised, clear to stand on, with level ground beside it.
+                float hx = -1.0f, hy = -1.0f;
+                const float cell = w.map.ElevationCell();
+                for (float y = cell * 2.5f; y < w.map.Height() - cell * 2 && hx < 0.0f; y += cell)
+                    for (float x = cell * 2.5f; x < w.map.Width() - cell * 2; x += cell)
+                        if (w.map.LevelAt(x, y) >= 2 && !w.map.Blocked({x - 8.0f, y - 10.0f, 16.0f, 10.0f})) { hx = x; hy = y; break; }
+                Check(hx > 0.0f, "the Hollowmarch has high ground to stand on");
+                if (hx > 0.0f) {
+                    const float lift = w.map.HeightAt(hx, hy);
+                    w.player.x = hx; w.player.y = hy;
+                    w.texts.clear();
+                    w.AddText("12", hx, hy - 46.0f, {255, 255, 255, 255});
+                    Check(!w.texts.empty() && fabsf(w.texts.back().y - (hy - 46.0f - lift)) < 0.01f,
+                          "a number over someone's head is lifted with the ground they stand on (" +
+                          std::to_string(static_cast<int>(lift)) + " px)");
+                    Check(fabsf(w.LiftAt(hx, hy) - lift) < 0.01f && lift >= ELEVATION_RISE * 2.0f,
+                          "and so is what is drawn there: a shot, a drop, burning ground");
+                    // A walker's lift closes on the ground's rather than snapping to it.
+                    w.player.ground_lift = lift - ELEVATION_RISE;
+                    w.player.draw_lift = w.player.ground_lift;
+                    input.Update(dt); w.Update(dt, ctx);
+                    const float after_one = w.player.draw_lift;
+                    Check(after_one > lift - ELEVATION_RISE + 0.5f && after_one < lift - 0.5f,
+                          "stepping up a level, the lift closes on the ground's rather than jumping to it");
+                    frames(w, 20);
+                    Check(fabsf(w.player.draw_lift - lift) < 0.01f, "and is there within a third of a second");
+                    w.visiting = true;
+                    w.AddText("12", hx, hy - 46.0f, {255, 255, 255, 255});
+                    Check(fabsf(w.texts.back().y - (hy - 46.0f)) < 0.01f, "a friend's window is told where the host already put it");
+                    w.visiting = false;
+                }
+                // Not up or down a cliff: two levels apart, a blade does not reach.
+                float cx0 = -1.0f, cy0 = -1.0f;
+                for (float y = cell * 2.5f; y < w.map.Height() - cell * 2 && cx0 < 0.0f; y += cell)
+                    for (float x = cell * 1.0f; x < w.map.Width() - cell * 3; x += cell) {
+                        const float edge = (floorf(x / cell) + 1.0f) * cell;
+                        if (abs(w.map.LevelAt(edge + 10.0f, y) - w.map.LevelAt(edge - 10.0f, y)) >= 2) { cx0 = edge; cy0 = y; break; }
+                    }
+                if (cx0 > 0.0f) {
+                    w.player.equipment.Equip(SLOT_WEAPON, "bronze_sword");
+                    w.player.x = cx0 - 10.0f; w.player.y = cy0;
+                    w.player.facing = FACE_RIGHT;
+                    Enemy* up = spawn(w, "deer", 20.0f, 0.0f);
+                    if (up) {
+                        up->max_hp = up->hp = 5000;
+                        for (int k = 0; k < 3; ++k) {
+                            up->x = cx0 + 10.0f; up->y = cy0;
+                            input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+                            input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+                            for (int f = 0; f < 24; ++f) { up->x = cx0 + 10.0f; up->y = cy0; input.Update(dt); w.Update(dt, ctx); }
+                        }
+                        Check(!up->HealthBarVisible(), "a blade does not reach up or down a cliff two levels high");
+                    }
+                }
+            }
+        }
+
+        // --- people with somewhere to be -------------------------------------------------------------
+        {
+            const auto find = [](World& w, const string& id) -> Npc* {
+                for (auto& n : w.npcs) if (n->Id() == id) return n.get();
+                return nullptr;
+            };
+            World a, b;
+            a.player.Init(ctx, "player_hero");
+            b.player.Init(ctx, "player_hero");
+            if (a.LoadMap("town_havenbrook", "default", ctx) && b.LoadMap("town_havenbrook", "default", ctx)) {
+                int walkers = 0;
+                bool clear = true;
+                string blocked_at;
+                for (auto& n : a.npcs) {
+                    if (!n->Walks()) continue;
+                    ++walkers;
+                    // Every step of every round is somewhere that can be stood on.
+                    for (float t = 0.0f; t < n->RoundTime(); t += 0.25f) {
+                        const SDL_FPoint at = n->PlaceAt(t);
+                        if (a.map.Blocked({at.x - 6.0f, at.y - 8.0f, 12.0f, 8.0f})) {
+                            clear = false;
+                            blocked_at = n->Id() + " at " + std::to_string(static_cast<int>(at.x)) + "," + std::to_string(static_cast<int>(at.y));
+                            break;
+                        }
+                    }
+                    const SDL_FPoint first = n->PlaceAt(0.0f), last = n->PlaceAt(n->RoundTime() - 0.01f);
+                    Check(Length(first.x - last.x, first.y - last.y) < 2.0f, n->Id() + "'s round ends where it began");
+                }
+                Check(walkers >= 8, "Havenbrook has people walking its streets (" + std::to_string(walkers) + ")");
+                Check(clear, "and nobody's round takes them through a wall" + (blocked_at.empty() ? string() : ": " + blocked_at));
+
+                a.clock.Set(1, 10.5f);
+                b.clock.Set(1, 10.5f);
+                frames(a, 1);
+                input.Update(dt); b.Update(dt, ctx);
+                Npc* brask = find(a, "npc_brask");
+                Npc* brask_b = find(b, "npc_brask");
+                Check(brask && brask_b && !brask->Away() && Length(brask->x - brask_b->x, brask->y - brask_b->y) < 1.5f,
+                      "where someone is on their round is the clock's to say: two machines put the watchman in the same place");
+                if (brask) {
+                    const float x0 = brask->x, y0 = brask->y;
+                    frames(a, 120);
+                    Check(Length(brask->x - x0, brask->y - y0) > 20.0f, "and he walks");
+                    brask->talking = true;
+                    const float tx = brask->x, ty = brask->y;
+                    frames(a, 180);
+                    Check(Length(brask->x - tx, brask->y - ty) < 0.01f, "spoken to, he stands still");
+                    brask->talking = false;
+                    frames(a, 1);
+                    Check(Length(brask->x - tx, brask->y - ty) < 6.0f, "let go, he is not flung to where the clock has him");
+                    frames(a, 60 * 12);
+                    // The other machine, where nobody spoke to him, for as long.
+                    input.Update(dt);
+                    for (int f = 0; f < 120 + 180 + 1 + 60 * 12; ++f) b.Update(dt, ctx);
+                    Check(brask_b && Length(brask->x - brask_b->x, brask->y - brask_b->y) < 3.0f,
+                          "but hurries along his round until he is back on it");
+                }
+                a.clock.Set(1, 23.5f);
+                frames(a, 2);
+                Npc* wenna = find(a, "npc_wenna");
+                Check(wenna && wenna->Away() && brask && !brask->Away(), "at night the streets are the watch's: everyone else has gone in");
+                if (wenna) {
+                    a.player.x = wenna->x; a.player.y = wenna->y + 20.0f;
+                    frames(a, 2);
+                    Check(a.player.interact.kind != InteractTarget::Npc, "and nobody who has gone in can be spoken to");
+                }
+            }
+        }
+
+        // --- three kinds of armour, one for each way of fighting -----------------------------------------
+        {
+            int pieces = 0;
+            bool only_its_own = true, ordered = true, made = true, drawn = true, got = true;
+            string wrong;
+            json loot_tables;
+            { std::ifstream f("data/loot_tables.json"); f >> loot_tables; }
+            const string loot_text = loot_tables.dump();
+            for (const TierDef& t : items.Tiers()) {
+                const ItemDef* plate[3] = {items.Get(items.TierPiece(t.id, "helm")), items.Get(items.TierPiece(t.id, "body")),
+                                           items.Get(items.TierPiece(t.id, "legs"))};
+                const char* slots[3] = {"head", "body", "legs"};
+                for (int i = 0; i < 3; ++i) {
+                    const ItemDef* hide = items.Get(items.TierPiece(t.id, string("hide_") + slots[i]));
+                    const ItemDef* robe = items.Get(items.TierPiece(t.id, string("robe_") + slots[i]));
+                    if (!hide || !robe || !plate[i]) { only_its_own = false; wrong = t.id + " is missing a piece"; continue; }
+                    pieces += 2;
+                    // Each helps only its own style.
+                    if (!(hide->ranged_bonus > 0 && hide->magic_bonus == 0 && hide->attack_bonus == 0 && hide->strength_bonus == 0) ||
+                        !(robe->magic_bonus > 0 && robe->ranged_bonus == 0 && robe->attack_bonus == 0 && robe->strength_bonus == 0) ||
+                        !(plate[i]->attack_bonus > 0 && plate[i]->strength_bonus > 0 && plate[i]->ranged_bonus == 0 && plate[i]->magic_bonus == 0)) {
+                        only_its_own = false; wrong = t.id + " " + slots[i];
+                    }
+                    // Plate keeps out the most, robes the least -- and carry the most.
+                    if (!(plate[i]->defence_bonus > hide->defence_bonus && hide->defence_bonus > robe->defence_bonus &&
+                          robe->magic_bonus >= hide->ranged_bonus)) { ordered = false; wrong = t.id + " " + slots[i]; }
+                    // Worn at the tier's level in the set's own skill, and drawn in its own cut.
+                    if (t.level > 1 && (hide->requirements.count(SKILL_RANGED) == 0 || hide->requirements.at(SKILL_RANGED) != t.level ||
+                                        robe->requirements.count(SKILL_MAGIC) == 0 || robe->requirements.at(SKILL_MAGIC) != t.level)) {
+                        only_its_own = false; wrong = t.id + " requirement";
+                    }
+                    if (hide->armour_cut != "hide" || robe->armour_cut != "robe" || hide->armour_layer != slots[i] ||
+                        !fs::exists(hide->icon) || !fs::exists(robe->icon)) { drawn = false; wrong = hide->id; }
+                }
+            }
+            // How they are made: a hide piece from its tier's hide at a bench, a
+            // robe from cloth and its tier's dye at a bench, and the dye in a pot.
+            std::set<string> hides;
+            for (const ItemDef* r : items.Recipes()) {
+                const ItemDef* out = items.Get(r->craft_result);
+                if (!out || out->armour_cut.empty() || (out->armour_cut != "hide" && out->armour_cut != "robe")) continue;
+                if (items.StationFor(*r) != CraftStation::Workbench || !r->craft_inputs.count("thread")) { made = false; wrong = out->id; }
+                if (out->armour_cut == "robe") {
+                    bool dyed = false;
+                    for (const auto& in : r->craft_inputs) if (const ItemDef* m = items.Get(in.first)) dyed |= m->untaught && m->tier == out->tier;
+                    if (!dyed || !r->craft_inputs.count("bolt_cloth")) { made = false; wrong = out->id; }
+                } else {
+                    for (const auto& in : r->craft_inputs) if (in.first != "thread" && in.first != "dream_shard") hides.insert(in.first);
+                }
+                if (out->tier_index >= 2 && r->craft_level != items.Tiers()[out->tier_index].level) { made = false; wrong = out->id + " level"; }
+            }
+            for (const string& h : hides)
+                if (loot_text.find("\"" + h + "\"") == string::npos) { got = false; wrong = h; }
+            Check(pieces == 72, "every tier has a ranger's hides and a mage's robes: head, body and legs (" + std::to_string(pieces) + ")");
+            Check(only_its_own, "plate adds to a blade, hides to a bow and robes to a staff, and none of them to anything else" +
+                  (only_its_own ? string() : ": " + wrong));
+            Check(ordered, "plate keeps out the most and robes the least, and robes carry a spell furthest" + (ordered ? string() : ": " + wrong));
+            Check(drawn, "each piece has its icon and is drawn in its own cut" + (drawn ? string() : ": " + wrong));
+            Check(made, "hides are cut from the tier's hide and robes from cloth and the tier's dye, at a workbench, at the tier's level" +
+                  (made ? string() : ": " + wrong));
+            Check(hides.size() == 11 && got, "eleven hides, one a tier and the last two tiers sharing the dragon's, and something drops every one (" +
+                  std::to_string(hides.size()) + ")" + (got ? string() : ": nothing drops " + wrong));
+            const ItemDef* bolt = items.Get("bolt_cloth");
+            int weaves = 0;
+            for (const ItemDef* r : items.Recipes())
+                if (r->craft_result == "bolt_cloth" && items.StationFor(*r) == CraftStation::Workbench) ++weaves;
+            Check(bolt && weaves == 2, "a bolt of cloth is woven at a workbench, from flax or from spider silk");
+            // The cuts are rendered for all three characters.
+            bool sheets = true;
+            for (const char* look : {"player_hero", "player_warden", "player_wayfarer"})
+                for (const char* cut : {"hide", "robe"})
+                    for (const char* clip : {"idle", "walk", "attack", "block", "death"})
+                        for (const char* layer : {"6_armour_legs", "7_armour_body", "9_armour_head"}) {
+                            const string file = string("assets/characters/") + look + "/layers/" + clip + "_" + layer + "_" + cut + ".png";
+                            if (!fs::exists(file)) { sheets = false; wrong = file; }
+                        }
+            Check(sheets, "hides and robes are drawn on all three characters" + (sheets ? string() : ": " + wrong));
+        }
+
+        // --- the Westwold and the Brackenwood ---------------------------------------------------------------
+        {
+            std::map<string, int> wold, bracken;
+            Map west, wood, town;
+            Check(west.Load("maps/westwold.mx") && wood.Load("maps/brackenwood.mx") && town.Load("maps/town_havenbrook.mx"),
+                  "the Westwold and the Brackenwood load");
+            for (const auto& e : west.Enemies()) ++wold[e.type];
+            for (const auto& e : wood.Enemies()) ++bracken[e.type];
+            Check(wold["wolf"] >= 12 && wold["greatwolf"] >= 6, "wolves run on the Westwold, and greatwolves in its Fells (" +
+                  std::to_string(wold["wolf"]) + ", " + std::to_string(wold["greatwolf"]) + ")");
+            Check(bracken["bear"] >= 12 && bracken["den_mother"] == 1 && bracken["dire_bear"] >= 4,
+                  "bears in the Brackenwood, one Den Mother, and dire bears in the Old Growth (" +
+                  std::to_string(bracken["bear"]) + ", " + std::to_string(bracken["dire_bear"]) + ")");
+            bool gate = false, back = false;
+            for (const auto& p : town.Portals()) gate |= p.target_map == "westwold" && p.rect.x < 64.0f;
+            for (const auto& p : west.Portals()) back |= p.target_map == "town_havenbrook";
+            Check(gate && back, "Havenbrook has a west gate, and the road comes back to it");
+            Check(west.Width() >= 4000.0f && wood.Width() >= 4000.0f, "and neither of them is small");
         }
         input.Update(dt);
     }
@@ -4415,6 +5254,7 @@ int main(int argc, char** argv) {
             {"mossvale", "mossvale"}, {"mossvale_lodge_hall", "mossvale"}, {"mossvale_herbalist", "mossvale"},
             {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"}, {"fernhollow_college", "fernhollow"},
             {"whisperwood_trail", "whisperwood"}, {"dreamworld", "reverie"},
+            {"westwold", "westwold"}, {"brackenwood", "brackenwood"},
         };
 
         // Every trader on every map.
@@ -5627,7 +6467,9 @@ int main(int argc, char** argv) {
         for (const ItemDef* h : herbs) {
             levels.insert(h->forage_level);
             Check(!h->grows.empty() && h->forage_xp > 0, h->id + " says where it grows and what it is worth");
-            Check(std::find(h->tags.begin(), h->tags.end(), "brewing") != h->tags.end(), h->id + " goes in a brew");
+            const bool brewed = std::find(h->tags.begin(), h->tags.end(), "brewing") != h->tags.end();
+            const bool woven = std::find(h->tags.begin(), h->tags.end(), "fibre") != h->tags.end();
+            Check(brewed != woven, h->id + (woven ? " goes on a loom, and not in a brew" : " goes in a brew"));
             for (const char* art : {"assets/props/herb_%s.png", "assets/props/herb_%s_picked.png"}) {
                 char path[128];
                 SDL_snprintf(path, sizeof(path), art, h->id.c_str());
@@ -5841,8 +6683,22 @@ int main(int argc, char** argv) {
                 if (line.item == "vial" && kv.second.General()) sold.insert("vial@" + kv.second.town);
         for (const char* town : {"havenbrook", "mossvale", "fernhollow", "whisperwood", "reverie"})
             Check(sold.count(string("vial@") + town), string("the general store in ") + town + " sells vials");
+        int dyes = 0;
         for (const ItemDef* r : brews) {
             const ItemDef* potion = items.Get(r->craft_result);
+            // A dye is boiled in the same pot and is nobody's secret: no scroll,
+            // no teacher, nothing to drink. It is still brewed at the Foraging
+            // level of its rarest herb, and into one vial.
+            if (potion && potion->untaught) {
+                ++dyes;
+                int herb = 1;
+                for (const auto& in : r->craft_inputs)
+                    if (const ItemDef* mat = items.Get(in.first)) herb = std::max(herb, mat->forage_level);
+                Check(!potion->consumable && r->craft_level == herb && r->craft_inputs.count("vial") &&
+                      fs::exists(potion->icon),
+                      potion->id + " is a dye: brewed at Brewing " + std::to_string(r->craft_level) + " with no teaching, and not for drinking");
+                continue;
+            }
             Check(potion && potion->consumable && !potion->icon.empty(), r->craft_result + " is a potion you can drink");
             if (!potion) continue;
             Check(potion->heal > 0 || potion->mana > 0 || potion->stamina || !potion->boosts.empty(),
@@ -5859,6 +6715,7 @@ int main(int argc, char** argv) {
                 Check(sold.count(potion->id), "someone sells the recipe for " + potion->id);
             }
         }
+        Check(dyes == 12, "there is a dye for every tier of robe (" + std::to_string(dyes) + ")");
         {
             // Oona teaches the first one, once.
             QuestLog log;
@@ -7904,6 +8761,49 @@ int main(int argc, char** argv) {
         Check(log.TakeJustCompleted().empty(), "revisiting cannot duplicate the journey reward");
     }
 
+
+    Section("every character holds the weapon they are holding");
+    {
+        // The three playable characters are one rig in three sets of clothes,
+        // and every tier's weapon is rendered once, in the hero's hand. The
+        // warden and the wayfarer used to be asked for sheets of their own,
+        // which do not exist: a bow and a staff were both drawn as the plain
+        // tinted blade, and the log said so once for every weapon and clip.
+        const SpriteDef* hero = sprites.Get("player_hero");
+        Check(hero && hero->weapon_dir.empty() && hero->dir == "assets/characters/player_hero/", "the hero's weapons are the hero's own");
+        for (const char* who : {"player_hero", "player_warden", "player_wayfarer"}) {
+            const SpriteDef* def = sprites.Get(who);
+            Check(def && (string(who) == "player_hero" || def->weapon_dir == "assets/characters/player_hero/"),
+                  string(who) + " takes the weapon in hand from the hero's renders");
+            if (!def) continue;
+            // What each sets out with, and what they might pick up, through
+            // every clip they play with it in hand.
+            int asked = 0, missing = 0;
+            string first;
+            for (const char* model : {"sword_wood", "bow_wood", "staff_wood", "sword_bronze", "spear_iron", "bow_enchanted", "staff_dracon"})
+                for (const char* played : {"idle", "walk", "run", "sprint", "jump", "attack", "block", "hurt", "death"}) {
+                    // A spear is thrust, not swung: it has no sheet for a clip it never plays.
+                    const string clip = (string(played) == "attack" && string(model).rfind("spear", 0) == 0) ? "thrust" : played;
+                    const AnimClip* c = def->Find(clip);
+                    if (!c) continue;
+                    for (const AnimLayer& layer : c->layers) {
+                        const string sheet = def->WeaponSheet(layer.sheet, model);
+                        if (layer.slot != LayerSlot::WeaponFront || sheet.empty()) continue;
+                        ++asked;
+                        if (!fs::exists(sheet)) { ++missing; if (first.empty()) first = sheet; }
+                    }
+                }
+            Check(asked >= 60 && missing == 0, string(who) + ": every weapon sheet the game will ask for is on disk (" +
+                  std::to_string(asked) + " asked" + (first.empty() ? string() : ", first missing " + first) + ")");
+        }
+        const SpriteDef* wayfarer = sprites.Get("player_wayfarer");
+        if (wayfarer)
+            Check(wayfarer->WeaponSheet("assets/characters/player_wayfarer/layers/idle_4_weapon_front.png", "staff_wood") ==
+                      "assets/characters/player_hero/layers/idle_4_weapon_staff_wood.png" &&
+                  wayfarer->WeaponSheet("assets/characters/player_wayfarer/layers/idle_3_body.png", "staff_wood").empty() &&
+                  wayfarer->WeaponSheet("assets/characters/player_wayfarer/layers/idle_4_weapon_front.png", "").empty(),
+                  "the wayfarer's staff is the hero's render of it; a layer that is not a weapon, or no weapon, asks for nothing");
+    }
 
     // =========================================================================
     //  Co-op, milestone 0: the wire, the door and the chat line

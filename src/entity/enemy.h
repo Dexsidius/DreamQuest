@@ -89,6 +89,10 @@ public:
     // The rectangle the blow lands in, from where the monster stands facing
     // the way it is facing. Wider and longer than an ordinary swing.
     SDL_FRect HeavyHitbox() const;
+    // Where its blows land: see StrikeArc. A swing reaches as far as the range
+    // it was begun from, so one begun in range lands on whoever stands still.
+    StrikeArc SwingArc() const;
+    StrikeArc HeavyArc() const;
     // The damage it will do before any punishment for blocking it.
     int   HeavyDamage(std::mt19937* rng) const;
     // How long until the next one may start.
@@ -101,7 +105,26 @@ public:
     // no swinging. A leader braced in its heavy's wind-up shrugs it off, and
     // the dead are past it.
     void  Stagger(float seconds);
+    // What a player's abilities leave on it. Marked, it takes a quarter more
+    // from every blow, whoever's. Sundered, its defence is down by a third.
+    static constexpr float MARK_DAMAGE = 0.25f, SUNDER_SHARE = 0.67f;
+    void  Mark(float seconds)   { marked = std::max(marked, seconds); }
+    void  Sunder(float seconds) { sundered = std::max(sundered, seconds); }
+    bool  Marked() const   { return marked > 0.0f; }
+    bool  Sundered() const { return sundered > 0.0f; }
+    float marked = 0.0f, sundered = 0.0f;
     bool  Staggered() const { return state == State::Hurt; }
+    // A wound left open: this much more, bled out over BLEED_TIME. A second
+    // wound adds to what is left rather than starting over.
+    static constexpr float BLEED_TIME = 4.0f;
+    void  Bleed(float damage);
+    bool  Bleeding() const { return bleed_left > 0.0f; }
+    // Stand Fast: for this long it is after that seat and nobody else.
+    void  Taunt(int seat, float seconds) { taunt_seat = seat; taunted = seconds; }
+    int   TauntedBy() const { return taunted > 0.0f ? taunt_seat : -1; }
+    float bleed_left = 0.0f, bleed_rate = 0.0f, bleed_bank = 0.0f;
+    float taunted = 0.0f;
+    int   taunt_seat = -1;
 
     // --- health bar -------------------------------------------------------------
     // Hidden until the player first attacks this monster -- a hit, a miss or a
