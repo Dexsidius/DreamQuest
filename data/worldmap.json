@@ -16,9 +16,26 @@
       "name": "The Brackenwood"
     },
     "dreamworld": {
-      "exits": [],
+      "exits": [
+        "dreamworld_2"
+      ],
       "kind": "land",
       "name": "The Reverie"
+    },
+    "dreamworld_2": {
+      "exits": [
+        "dreamworld",
+        "dreamworld_3"
+      ],
+      "kind": "land",
+      "name": "The Deep Reverie"
+    },
+    "dreamworld_3": {
+      "exits": [
+        "dreamworld_2"
+      ],
+      "kind": "land",
+      "name": "The Dreaming Dark"
     },
     "dungeon_barrow": {
       "exits": [

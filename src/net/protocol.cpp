@@ -233,7 +233,7 @@ Bytes Encode(const Snapshot& m) {
     for (size_t i = 0, c = count(m.patches.size(), MAX_PATCHES_TOLD); i < c; ++i) {
         const PatchState& g = m.patches[i];
         w.I16(g.x); w.I16(g.y); w.U16(g.radius); w.U8(g.element); w.U8(g.life); w.U8(g.max_life);
-        w.Bool(g.active); w.Bool(g.from_player);
+        w.Bool(g.active); w.Bool(g.from_player); w.U8(g.kind);
     }
     return w.Take();
 }
@@ -295,7 +295,7 @@ bool Decode(const Bytes& b, Snapshot& out) {
     for (uint16_t i = 0; i < c; ++i) {
         PatchState g;
         g.x = r.I16(); g.y = r.I16(); g.radius = r.U16(); g.element = r.U8(); g.life = r.U8(); g.max_life = r.U8();
-        g.active = r.Bool(); g.from_player = r.Bool();
+        g.active = r.Bool(); g.from_player = r.Bool(); g.kind = r.U8();
         out.patches.push_back(g);
     }
     return r.Done();

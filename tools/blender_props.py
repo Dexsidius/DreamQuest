@@ -1940,6 +1940,74 @@ def prop_palisade_side():
     return 2.2
 
 
+# -----------------------------------------------------------------------------
+#  The Reverie goes down. Between one depth of the dream and the next there is
+#  a ladder: a hole worn through the cloud with the top of a ladder standing up
+#  out of it, and, underneath, the same ladder climbing away into the dark
+#  overhead until there is no more of it to see.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "cloud_rim":   (0.905, 0.895, 0.960), "cloud_rim_dk": (0.700, 0.670, 0.820),
+    "dream_void":  (0.050, 0.030, 0.110), "dream_deep":   (0.160, 0.100, 0.300),
+    "ladder_wood": (0.560, 0.430, 0.300), "ladder_dk":    (0.380, 0.280, 0.200),
+    "dream_glow":  (0.700, 0.560, 1.000),
+})
+
+
+def _ladder(x, y, z0, z1, lean=0.0, prefix="l", fade_from=None):
+    """Two rails and their rungs from z0 up to z1, leaning back by `lean` a
+    metre. Above `fade_from` the rungs thin out and darken, so a ladder going
+    up ends in nothing rather than in a sawn-off top."""
+    h = z1 - z0
+    mid = (z0 + z1) / 2.0
+    tilt = math.atan2(lean * h, h)
+    for sx in (-1, 1):
+        blk("dl_%s_rail_%d" % (prefix, sx), (0.07, 0.07, h), (x + sx * 0.23, y + lean * h / 2.0, mid), "ladder_dk",
+            rot=(-tilt, 0, 0), bev=0.015)
+    n = max(2, int(h / 0.26))
+    for k in range(n):
+        z = z0 + 0.16 + k * (h - 0.24) / (n - 1)
+        if fade_from is not None and z > fade_from and k % 2:
+            continue
+        tone = "ladder_wood" if fade_from is None or z <= fade_from else "ladder_dk"
+        blk("dl_%s_rung_%d_%s" % (prefix, k, tone), (0.46, 0.055, 0.055), (x, y + lean * (z - z0), z), tone, bev=0.012)
+
+
+def prop_dream_ladder_down():
+    """The way deeper into the dream: a hole through the cloud, its rim puffed
+    up round it, violet dark underneath, and the top of a ladder standing out
+    of it on the far side where you would step onto it."""
+    cyl("dl_hole", 0.62, 0.02, (0, 0, 0.012), "dream_void", verts=20)
+    cyl("dl_hole_glow", 0.40, 0.02, (0, 0.04, 0.016), "dream_deep", verts=18, emit=0.6)
+    # The rim: a ring of cloud, lumpier than a circle.
+    for k in range(12):
+        a = k / 12.0 * 2.0 * math.pi
+        r = 0.72 + (0.05 if k % 3 == 0 else 0.0)
+        sphere("dl_rim_%d" % k, 0.19 + (0.04 if k % 2 else 0.0), (math.cos(a) * r, math.sin(a) * r * 0.92, 0.07),
+               "cloud_rim" if k % 4 else "cloud_rim_dk")
+    # The ladder's top, standing up out of the far side and leaning back.
+    _ladder(0.0, 0.34, -0.30, 0.92, lean=0.10, prefix="top")
+    # A rung or two seen going down inside the hole.
+    for k in range(3):
+        blk("dl_in_rung_%d" % k, (0.44, 0.05, 0.05), (0, 0.30 - k * 0.04, -0.10 - k * 0.12), "ladder_dk", bev=0.01)
+    return (2.3, 58.0)
+
+
+def prop_dream_ladder_up():
+    """The same ladder from underneath: standing on the cloud and climbing away
+    into the dark overhead, where it thins out and is gone, with a wisp of the
+    cloud it came through still round it."""
+    _ladder(0.0, 0.0, 0.0, 2.70, lean=0.05, prefix="up", fade_from=1.9)
+    # A little cloud at its foot, so it stands in something.
+    for k, (x, y, r) in enumerate(((-0.30, -0.06, 0.17), (0.30, -0.04, 0.16), (0.0, -0.14, 0.19), (0.0, 0.16, 0.15))):
+        sphere("dl_foot_%d" % k, r, (x, y, 0.05), "cloud_rim" if k % 2 else "cloud_rim_dk")
+    # And the wisp it disappears into.
+    for k, (x, z, r) in enumerate(((-0.26, 2.52, 0.20), (0.24, 2.60, 0.22), (0.0, 2.74, 0.26), (-0.10, 2.40, 0.14))):
+        sphere("dl_wisp_%d" % k, r, (x, 0.12, z), "dream_deep", emit=0.35)
+    return 3.3
+
+
 def prop_log_pile():
     """Split firewood stacked with its end grain toward the path, and an axe
     leaning on it. Woodcutting country."""
@@ -2172,6 +2240,8 @@ WOODLAND_PROPS = {
     "market_stall": (prop_market_stall, 80),
     "palisade":     (prop_palisade,     64),
     "gate_tower":   (prop_gate_tower,   104),
+    "dream_ladder_down": (prop_dream_ladder_down, 80),
+    "dream_ladder_up":   (prop_dream_ladder_up,   104),
     "palisade_side": (prop_palisade_side, 64),
     "log_pile":     (prop_log_pile,     48),
     "tanning_rack": (prop_tanning_rack, 64),

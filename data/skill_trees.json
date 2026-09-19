@@ -536,7 +536,7 @@
         "row": 2,
         "level": 30,
         "technique": "arrow_rain",
-        "desc": "Technique. The charged shot falls as a rain of arrows on where you are aiming.",
+        "desc": "Technique. The charged shot becomes a rain of arrows on where you are aiming: it comes down for over two seconds, a volley every beat, on whatever is under it then.",
         "effects": {}
       },
       {

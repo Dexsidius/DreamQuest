@@ -106,6 +106,12 @@ The bag is 28 slots, and four bags -- satchel, pack, rucksack, haversack --
 add a row of seven each. They take a great many hides at a workbench, or a
 lucky chest. Use one from the inventory to put it on; one of each.
 
+The Reverie -- where you go if you choose to dream at a bed -- is never the
+same two nights running, and it goes down: behind the brute there is a
+ladder, and another below that. Each depth is harder, and everything in it
+leaves one more dream shard than it would a ladder up. Combat 25, then 50,
+advised; nothing in a dream can kill you.
+
 Playing together, up to four of you, over Tailscale:
 
     The host starts or loads a game, then Esc, "Play Together", Host a world.

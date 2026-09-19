@@ -369,6 +369,21 @@ public:
         dq["enemies"].push_back(e);
     }
 
+    // A post that is not kept by the same thing every day: one of `pool`, the
+    // same one for every post in `group`, at `level` to `level + spread`. Which,
+    // is the game's to say as the map is walked into -- World::ResolveSpawn.
+    void EnemyPool(const vector<string>& pool, const string& group, int x, int y, int level, int spread,
+                   float respawn = 28.0f, float leash = 260.0f) {
+        Enemy(pool.front(), x, y, level, respawn, leash);
+        json& e = dq["enemies"].back();
+        e["pool"]   = pool;
+        e["group"]  = group;
+        e["spread"] = spread;
+    }
+
+    // How far down the Reverie a map is: see World::DreamBonus.
+    void DreamDepth(int depth) { dq["dream_depth"] = depth; }
+
     // Returns the NPC so a trader can be given its shop: m.Npc(...)["shop"] = id.
     json& Npc(const string& npc_id, const string& name, const string& sprite,
               int x, int y, const string& dialogue, int facing = 0,
@@ -4782,83 +4797,229 @@ static void BuildWoodlandInteriors() {
 
 // --- the dreamworld ----------------------------------------------------------
 //
-// Where the player goes when they sleep. Five islands hang over a starry void,
-// joined to the one you arrive on by plank bridges: a grove of shades to the
-// north, dread boars grazing to the west, crystals worth mining to the east,
-// and to the south the brute that the other nightmares keep away from.
+// Where the player goes when they sleep: the Reverie, and it goes down. Three
+// depths, a ladder between each, every one of them islands hung over a starry
+// void and joined by plank bridges.
+//
+//   dreamworld      The Reverie           where a sleeper arrives: the candles, the
+//                                         traders, shades and dread boars, and the
+//                                         brute on the far plateau, who has the
+//                                         ladder behind him
+//   dreamworld_2    The Deep Reverie      what the middle of the map is afraid of,
+//                                         and the Sleepless
+//   dreamworld_3    The Dreaming Dark     what the end of it is afraid of, and the
+//                                         Unwaking
+//
+// Each is harder than the one above it and darker, and there is one more dream
+// shard in every kill, crystal and chest for each ladder climbed down: the map
+// says how deep it is ("dream_depth") and the game does the rest.
+//
+// Nothing here is the same two nights running. A platform's posts share a pool
+// of the depth's monsters and a group, and which of the pool keeps them is
+// settled by the day as the map is walked into (World::ResolveSpawn): shades in
+// the grove tonight, wolves tomorrow. Only the three that guard something keep
+// their posts every night, because a quest that says "the brute" has to be able
+// to find him.
 //
 // It is built from the waking world's own art. Snow reads as cloud once the
-// dream's violet light is over it, the scenery is the forest's toadstools and
-// saplings, and the nightmares are orcs and boars in a bad night's colours.
-// The void is not drawn at all: the game paints stars behind where there is
-// no ground, and it is solid, so nobody walks off an edge.
+// dream's violet light is over it, and frost-rock and cursed ground as the
+// storm cloud underneath; the scenery is the forest's toadstools and saplings;
+// the nightmares are the waking world's monsters in a bad night's colours. The
+// void is not drawn at all: the game paints stars behind where there is no
+// ground, and it is solid, so nobody walks off an edge.
+
+struct DreamIsle { float cx, cy, rx, ry; };
+
+// The islands of one depth and the bridges between them, and the questions
+// every builder asks of them.
+struct DreamField {
+    int W = 0, H = 0, CELL = 32;
+    vector<DreamIsle> isles;
+    vector<std::pair<int, int>> bridges;
+    int wobble_seed = 91;
+
+    // How far inside an island a cell is: below 1 is ground. The rim wobbles,
+    // so no island is a perfect ellipse.
+    float Depth(int i, float cx, float cy) const {
+        const float dx = (cx - isles[i].cx) / isles[i].rx;
+        const float dy = (cy - isles[i].cy) / isles[i].ry;
+        const float wobble = (Fbm(cx * 0.35f, cy * 0.35f, wobble_seed + i) - 0.5f) * 0.55f;
+        return (dx * dx + dy * dy) / (1.0f + wobble);
+    }
+    int Which(int cx, int cy) const {
+        for (size_t i = 0; i < isles.size(); ++i)
+            if (Depth(static_cast<int>(i), cx + 0.5f, cy + 0.5f) < 1.0f) return static_cast<int>(i);
+        return -1;
+    }
+    // Distance, in cells, from a point to the nearest bridge's centre line.
+    float BridgeDist(float cx, float cy) const {
+        float best = 1.0e9f;
+        for (const auto& b : bridges) {
+            const float ax = isles[b.first].cx, ay = isles[b.first].cy;
+            const float vx = isles[b.second].cx - ax, vy = isles[b.second].cy - ay;
+            const float t = std::clamp(((cx - ax) * vx + (cy - ay) * vy) / (vx * vx + vy * vy), 0.0f, 1.0f);
+            const float px = ax + vx * t - cx, py = ay + vy * t - cy;
+            best = std::min(best, sqrtf(px * px + py * py));
+        }
+        return best;
+    }
+    bool OnBridge(int cx, int cy) const { return BridgeDist(cx + 0.5f, cy + 0.5f) < 1.05f; }
+    bool NearBridge(int cx, int cy, float cells) const { return BridgeDist(cx + 0.5f, cy + 0.5f) < cells; }
+    // A cell back from every rim, so nothing stood there hangs over the void.
+    bool DeepInside(int cx, int cy) const {
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx)
+                if (Which(cx + dx, cy + dy) < 0) return false;
+        return true;
+    }
+    int Px(float cells) const { return static_cast<int>(cells * CELL); }
+
+    // Cloud where there is island, planks where there is bridge, and nothing
+    // -- solid nothing -- everywhere else. `rim`, if it is not empty, is what
+    // the outermost ring of an island is made of: in the dark of the third
+    // depth an edge has to be paler than what it is the edge of to be seen.
+    void Lay(MapBuilder& m, const string& cloud, const string& patch, const string& rim, const string& planks) const {
+        for (int cy = 0; cy < H; ++cy)
+            for (int cx = 0; cx < W; ++cx) {
+                if (Which(cx, cy) >= 0) {
+                    string tile = cloud;
+                    if (!rim.empty() && !DeepInside(cx, cy)) tile = rim;
+                    else if (!patch.empty() && Fbm(cx * 0.3f, cy * 0.3f, wobble_seed + 40) > 0.68f) tile = patch;
+                    m.Ground(VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
+                } else if (OnBridge(cx, cy)) {
+                    m.Ground(VariantOf(planks, cx, cy), cx * CELL, cy * CELL, CELL);
+                } else {
+                    m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+                }
+            }
+    }
+
+    // Toadstools, saplings and bushes, kept off the bridges, off the middle of
+    // every island -- where the fighting is -- and back from the rims; and the
+    // dream's two herbs, starlily on the islands named and moonpetal on the rest.
+    void Scatter(MapBuilder& m, std::mt19937& rng, int& herb_i, const std::set<int>& bare,
+                 const std::set<int>& starlily, int salt) const {
+        for (int cy = 1; cy < H - 1; ++cy)
+            for (int cx = 1; cx < W - 1; ++cx) {
+                const int isle = Which(cx, cy);
+                if (isle < 0 || !DeepInside(cx, cy) || NearBridge(cx, cy, 2.6f)) continue;
+                const float to_centre = std::hypot(cx + 0.5f - isles[isle].cx, cy + 0.5f - isles[isle].cy);
+                if (to_centre < (bare.count(isle) ? 5.5f : 3.0f)) continue;
+                const float r = Hash2(cx, cy, 313 + salt);
+                const int x = cx * CELL + 16, y = cy * CELL + 26;
+                const float hr = Hash2(cx, cy, 515 + salt);
+                if (r >= 0.20f && starlily.count(isle) && hr < 0.22f) { PlaceHerb(m, "starlily", x, y, herb_i); continue; }
+                if (r >= 0.20f && !starlily.count(isle) && !bare.count(isle) && hr < 0.12f) {
+                    PlaceHerb(m, "moonpetal", x, y, herb_i);
+                    continue;
+                }
+                if (r < 0.09f) {
+                    m.Prop("objects", Pick(kFungus, rng), x, y);
+                    m.Collision(x - 8, y - 6, 16, 6);
+                } else if (r < 0.14f) {
+                    m.Prop("objects", Pick(kSmallTrees, rng), x, y);
+                    m.Collision(x - 8, y - 8, 16, 8);
+                } else if (r < 0.20f) {
+                    m.Prop("objects", Pick(kSmallBushes, rng), x, y);
+                }
+            }
+    }
+};
+
+// A dream crystal: shards to mine. It gives out like a seam, and grows back
+// quickly -- a dream only lasts the night. Deeper ones ask more of the miner,
+// and the depth itself puts more shards in each.
+static void PlaceDreamCrystal(MapBuilder& m, std::mt19937& rng, const string& id, int x, int y, int mining, int xp) {
+    json& o = m.Object(id, "rock", x, y);
+    o["sprite"]      = ObjPath(Pick(kRocks, rng));
+    o["skill"]       = "Mining";
+    o["skill_level"] = mining;
+    o["yield"]       = "dream_shard";
+    o["yield_xp"]    = xp;
+    o["gather_time"] = 3.0f;
+    o["title"]       = "dream crystal";
+    o["deplete"]     = 0.25f;
+    o["regrow"]      = 0.5f;
+    m.Collision(x - 14, y - 12, 28, 12);
+}
+
+// The way down: a hole through the cloud with the top of a ladder standing out
+// of it. (x, y) is the near lip of the hole. Whoever comes up it arrives just
+// south of that, as `arrive`.
+static void PlaceLadderDown(MapBuilder& m, int x, int y, const string& to, const string& label, int advised,
+                            const string& arrive) {
+    m.Prop("props", "dream_ladder_down", x, y);
+    m.Collision(x - 24, y - 42, 48, 30);
+    m.Portal(x - 34, y - 56, 68, 66, to, "from_above", label, true);
+    m.Danger(advised);
+    m.Spawn(arrive, x, y + 26);
+}
+
+// And the other end of it: a ladder standing on the cloud and climbing out of
+// sight. Whoever comes down it arrives just south of its foot.
+static void PlaceLadderUp(MapBuilder& m, int x, int y, const string& to, const string& label) {
+    m.Prop("props", "dream_ladder_up", x, y);
+    m.Collision(x - 14, y - 10, 28, 10);
+    m.Portal(x - 26, y - 40, 52, 52, to, "from_below", label, true);
+    m.Spawn("from_above", x, y + 28);
+    m.Spawn("default", x, y + 28);
+}
+
+// A waking stone: the dream can be left from any depth of it.
+static void PlaceWakingStone(MapBuilder& m, const string& id, int x, int y) {
+    json& o = m.Object(id, "dream_wake", x, y);
+    o["sprite"] = ObjPath("rock_02");
+    o["title"]  = "Waking stone";
+    m.Collision(x - 14, y - 10, 28, 10);
+}
+
+// The posts on one island: `spots` are cells from its middle, all in one group,
+// so whichever of the pool comes tonight comes as a pack.
+static void DreamPack(MapBuilder& m, const DreamField& f, int isle, const string& group,
+                      const vector<string>& pool, const vector<std::pair<float, float>>& spots,
+                      int level, int spread, float leash = 200.0f) {
+    const DreamIsle& i = f.isles[isle];
+    for (const auto& sp : spots)
+        m.EnemyPool(pool, group, f.Px(i.cx + sp.first), f.Px(i.cy + sp.second), level, spread, 40.0f, leash);
+}
+
+static const vector<string> kDreamFirst  = {"nightmare_shade", "dread_boar", "gloom_spider", "pale_stag", "dusk_wolf"};
+static const vector<string> kDreamSecond = {"dream_wolf", "dream_lizardman", "dream_wraith", "dream_bat", "dream_skeleton"};
+static const vector<string> kDreamThird  = {"dream_bear", "dream_hound", "dream_demon", "dream_banshee", "dream_wyvern",
+                                            "dream_ankou"};
 
 static void BuildDreamworld() {
-    const int CELL = 32, W = 72, H = 56;
+    DreamField f;
+    f.W = 72; f.H = 56;
+    const int CELL = f.CELL, W = f.W, H = f.H;
     MapBuilder m("dreamworld", "The Reverie", W * CELL, H * CELL);
     m.Ambient("dream");
+    m.DreamDepth(1);
     m.Subtitle("Where the Hollowmarch goes when it sleeps");
     m.Background(14, 10, 30);
     std::mt19937 rng(9191u);
 
-    struct Isle { float cx, cy, rx, ry; };
-    const Isle isles[] = {
+    f.isles = {
         {36.0f, 28.0f, 7.0f, 6.0f},    // 0: arrival
-        {36.0f,  9.0f, 9.0f, 5.0f},    // 1: the shade grove
+        {36.0f,  9.0f, 9.0f, 5.0f},    // 1: the grove
         {60.0f, 28.0f, 8.0f, 7.0f},    // 2: the crystal field
-        {12.0f, 28.0f, 8.0f, 8.0f},    // 3: the boar meadow
+        {12.0f, 28.0f, 8.0f, 8.0f},    // 3: the meadow
         {36.0f, 47.0f, 9.0f, 6.0f},    // 4: the brute's plateau
+        // Further out, and only reached across two bridges: a night's worth of
+        // somewhere else to go.
+        {57.0f,  9.0f, 5.0f, 4.0f},    // 5: the north-east shelf, and its crystals
+        {14.0f,  9.0f, 5.0f, 4.0f},    // 6: the north-west shelf
+        {13.0f, 46.0f, 5.0f, 4.0f},    // 7: the south-west shelf
+        {59.0f, 47.0f, 5.0f, 4.0f},    // 8: the ladder, behind the brute
     };
-    const int ISLES = 5;
+    // The first four are the ones there always were, out from where you arrive.
+    // The rest make a ring of it -- and one spur, which only the brute's plateau
+    // leads to.
+    f.bridges = {{0, 1}, {0, 2}, {0, 3}, {0, 4}, {1, 5}, {2, 5}, {1, 6}, {3, 6}, {3, 7}, {4, 7}, {4, 8}};
+    f.Lay(m, "snow", "", "", "plank_floor");
 
-    // How far inside an island a cell is: below 1 is ground. The rim wobbles,
-    // so no island is a perfect ellipse.
-    auto isle_depth = [&](int i, float cx, float cy) {
-        const float dx = (cx - isles[i].cx) / isles[i].rx;
-        const float dy = (cy - isles[i].cy) / isles[i].ry;
-        const float wobble = (Fbm(cx * 0.35f, cy * 0.35f, 91 + i) - 0.5f) * 0.55f;
-        return (dx * dx + dy * dy) / (1.0f + wobble);
-    };
-    auto which_isle = [&](int cx, int cy) {
-        for (int i = 0; i < ISLES; ++i)
-            if (isle_depth(i, cx + 0.5f, cy + 0.5f) < 1.0f) return i;
-        return -1;
-    };
-    // Distance, in cells, from a cell to the bridge running from the arrival
-    // island to island i.
-    auto bridge_dist = [&](int i, float cx, float cy) {
-        const float ax = isles[0].cx, ay = isles[0].cy, bx = isles[i].cx, by = isles[i].cy;
-        const float vx = bx - ax, vy = by - ay;
-        const float t = std::clamp(((cx - ax) * vx + (cy - ay) * vy) / (vx * vx + vy * vy), 0.0f, 1.0f);
-        const float px = ax + vx * t - cx, py = ay + vy * t - cy;
-        return sqrtf(px * px + py * py);
-    };
-    auto on_bridge = [&](int cx, int cy) {
-        for (int i = 1; i < ISLES; ++i)
-            if (bridge_dist(i, cx + 0.5f, cy + 0.5f) < 1.05f) return true;
-        return false;
-    };
-    auto near_bridge = [&](int cx, int cy, float cells) {
-        for (int i = 1; i < ISLES; ++i)
-            if (bridge_dist(i, cx + 0.5f, cy + 0.5f) < cells) return true;
-        return false;
-    };
-
-    for (int cy = 0; cy < H; ++cy)
-        for (int cx = 0; cx < W; ++cx) {
-            const int isle = which_isle(cx, cy);
-            if (isle >= 0) {
-                // All cloud: patches of grass on it read as squares cut out of
-                // the dream rather than as anything growing there.
-                m.Ground(VariantOf("snow", cx, cy), cx * CELL, cy * CELL, CELL);
-            } else if (on_bridge(cx, cy)) {
-                m.Ground(VariantOf("plank_floor", cx, cy), cx * CELL, cy * CELL, CELL);
-            } else {
-                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
-            }
-        }
-
-    auto px = [&](float cells) { return static_cast<int>(cells * CELL); };
+    auto px = [&](float cells) { return f.Px(cells); };
+    const auto& isles = f.isles;
     const int ax = px(isles[0].cx + 0.5f), ay = px(isles[0].cy + 1.0f);
     m.Spawn("arrival", ax, ay);
     m.Spawn("default", ax, ay);
@@ -4873,12 +5034,7 @@ static void BuildDreamworld() {
         m.Prop("props", "candlestand", cx, cy);
         m.Collision(cx - 5, cy - 5, 10, 5);
     }
-    {
-        json& o = m.Object("dream_waking_stone", "dream_wake", ax - 64, ay - 56);
-        o["sprite"] = ObjPath("rock_02");
-        o["title"]  = "Waking stone";
-        m.Collision(ax - 64 - 14, ay - 56 - 10, 28, 10);
-    }
+    PlaceWakingStone(m, "dream_waking_stone", ax - 64, ay - 56);
     {
         json& o = m.Object("dream_voice", "sign", ax + 64, ay - 56);
         o["sprite"] = ObjPath("rocksmall_02");
@@ -4889,7 +5045,9 @@ static void BuildDreamworld() {
                       "the waking stone.\n\n"
                       "Nothing that happens here can kill you. A nightmare that bests you "
                       "only throws you awake -- but it takes the rest of the night with it.\n\n"
-                      "The shards the nightmares leave behind are real. They come back with you.";
+                      "The shards the nightmares leave behind are real. They come back with you.\n\n"
+                      "It is never the same dream twice. And it goes down: past the brute, "
+                      "there is a ladder.";
         m.Collision(ax + 64 - 10, ay - 56 - 8, 20, 8);
     }
 
@@ -4917,99 +5075,274 @@ static void BuildDreamworld() {
     PlaceCauldron(m, "cauldron_reverie", ax - 170, ay - 70);
 
     // --- scenery ----------------------------------------------------------------
-    // Toadstools, saplings and bushes on the islands, kept off the bridges, off
-    // the plaza you arrive in, and a cell back from every rim so nothing hangs
-    // over the void.
-    auto deep_inside = [&](int cx, int cy) {
-        for (int dy = -1; dy <= 1; ++dy)
-            for (int dx = -1; dx <= 1; ++dx)
-                if (which_isle(cx + dx, cy + dy) < 0) return false;
-        return true;
-    };
     int herb_i = 0;
-    for (int cy = 1; cy < H - 1; ++cy)
-        for (int cx = 1; cx < W - 1; ++cx) {
-            const int isle = which_isle(cx, cy);
-            if (isle < 0 || !deep_inside(cx, cy) || near_bridge(cx, cy, 2.6f)) continue;
-            const float to_centre = std::hypot(cx + 0.5f - isles[isle].cx, cy + 0.5f - isles[isle].cy);
-            if (to_centre < (isle == 0 ? 5.5f : 3.0f)) continue;
-            const float r = Hash2(cx, cy, 313);
-            const int x = cx * CELL + 16, y = cy * CELL + 26;
-            // Starlily only in the crystal field; moonpetal on every other island
-            // but the arrival plaza.
-            const float hr = Hash2(cx, cy, 515);
-            if (r >= 0.20f && isle == 2 && hr < 0.22f) {
-                PlaceHerb(m, "starlily", x, y, herb_i);
-                continue;
-            }
-            if (r >= 0.20f && isle != 2 && isle != 0 && hr < 0.12f) {
-                PlaceHerb(m, "moonpetal", x, y, herb_i);
-                continue;
-            }
-            if (r < 0.09f) {
-                m.Prop("objects", Pick(kFungus, rng), x, y);
-                m.Collision(x - 8, y - 6, 16, 6);
-            } else if (r < 0.14f) {
-                m.Prop("objects", Pick(kSmallTrees, rng), x, y);
-                m.Collision(x - 8, y - 8, 16, 8);
-            } else if (r < 0.20f) {
-                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
-            }
-        }
+    f.Scatter(m, rng, herb_i, {0, 8}, {2}, 0);
 
     // --- the crystal field: dream shards to mine ---------------------------------
     {
-        const Isle& e = isles[2];
+        const DreamIsle& e = isles[2];
         const float spots[][2] = {{-4, -3}, {3, -4}, {5, 1}, {-2, 3}, {2, 4}, {-5, 1}};
         int n = 0;
-        for (const auto& sp : spots) {
-            const int x = px(e.cx + sp[0]), y = px(e.cy + sp[1]);
-            json& o = m.Object("dream_crystal_" + std::to_string(n++), "rock", x, y);
-            o["sprite"]      = ObjPath(Pick(kRocks, rng));
-            o["skill"]       = "Mining";
-            o["skill_level"] = 1;
-            o["yield"]       = "dream_shard";
-            o["yield_xp"]    = 40;
-            o["gather_time"] = 3.0f;
-            o["title"]       = "dream crystal";
-            // A crystal gives out like a seam, and grows back quickly: a
-            // dream only lasts the night.
-            o["deplete"]     = 0.25f;
-            o["regrow"]      = 0.5f;
-            m.Collision(x - 14, y - 12, 28, 12);
-        }
-        m.Enemy("nightmare_shade", px(e.cx + 1), px(e.cy - 1), 5, 40.0f, 200.0f);
-        m.Enemy("nightmare_shade", px(e.cx - 1), px(e.cy + 5), 5, 40.0f, 200.0f);
+        for (const auto& sp : spots)
+            PlaceDreamCrystal(m, rng, "dream_crystal_" + std::to_string(n++), px(e.cx + sp[0]), px(e.cy + sp[1]), 1, 40);
+        DreamPack(m, f, 2, "field", {"nightmare_shade", "pale_stag", "gloom_spider"}, {{1, -1}, {-1, 5}}, 5, 0);
     }
 
-    // --- the shade grove and the boar meadow -------------------------------------
+    // --- the grove and the meadow --------------------------------------------------
+    // Shades in the grove and boars in the meadow was every night. It is some
+    // nights now.
     {
-        const Isle& n = isles[1];
+        const DreamIsle& n = isles[1];
         const float spots[][2] = {{-5, -1}, {-1, -2}, {3, -1}, {6, 1}};
         int lv = 3;
         for (const auto& sp : spots)
-            m.Enemy("nightmare_shade", px(n.cx + sp[0]), px(n.cy + sp[1]), lv++, 40.0f, 200.0f);
+            m.EnemyPool({"nightmare_shade", "gloom_spider", "dusk_wolf"}, "grove", px(n.cx + sp[0]), px(n.cy + sp[1]),
+                        lv++, 0, 40.0f, 200.0f);
     }
     {
-        const Isle& w = isles[3];
+        const DreamIsle& w = isles[3];
         const float spots[][2] = {{-4, -4}, {3, -3}, {-3, 4}, {4, 3}};
         int i = 0;
         for (const auto& sp : spots)
-            m.Enemy("dread_boar", px(w.cx + sp[0]), px(w.cy + sp[1]), 3 + (i++ % 2), 40.0f, 200.0f);
+            m.EnemyPool({"dread_boar", "pale_stag", "dusk_wolf"}, "meadow", px(w.cx + sp[0]), px(w.cy + sp[1]),
+                        3 + (i++ % 2), 0, 40.0f, 200.0f);
     }
+
+    // --- the shelves ---------------------------------------------------------------------
+    DreamPack(m, f, 5, "north_east", kDreamFirst, {{-2, 0}, {2, 1}}, 5, 2, 160.0f);
+    PlaceDreamCrystal(m, rng, "dream_crystal_ne_0", px(isles[5].cx - 3), px(isles[5].cy - 1.5f), 1, 40);
+    PlaceDreamCrystal(m, rng, "dream_crystal_ne_1", px(isles[5].cx + 3), px(isles[5].cy - 1.5f), 1, 40);
+    DreamPack(m, f, 6, "north_west", kDreamFirst, {{-2, -1}, {2, 0}, {0, 2}}, 4, 2, 160.0f);
+    DreamPack(m, f, 7, "south_west", kDreamFirst, {{-2, 0}, {2, -1}, {0, 2}}, 5, 2, 160.0f);
 
     // --- the brute's plateau ---------------------------------------------------------
     {
-        const Isle& s = isles[4];
+        const DreamIsle& s = isles[4];
+        // Himself, every night: two quests send people to him by name.
         m.Enemy("nightmare_brute", px(s.cx + 1), px(s.cy + 2), 10, 90.0f, 220.0f);
-        m.Enemy("nightmare_shade", px(s.cx - 5), px(s.cy), 6, 40.0f, 200.0f);
-        m.Enemy("nightmare_shade", px(s.cx + 6), px(s.cy - 1), 6, 40.0f, 200.0f);
+        m.EnemyPool({"nightmare_shade", "dusk_wolf"}, "plateau", px(s.cx - 5), px(s.cy), 6, 0, 40.0f, 200.0f);
+        m.EnemyPool({"nightmare_shade", "dusk_wolf"}, "plateau", px(s.cx + 6), px(s.cy - 1), 6, 0, 40.0f, 200.0f);
         PlaceChest(m, "chest_dream", px(s.cx + 1), px(s.cy + 4), "chest_dream");
         // Demonite: black glass with a red heat inside, found nowhere but here.
         const float seams[][2] = {{-4, 3}, {5, 3}, {-1, -3}};
         int k = 0;
         for (const auto& sp : seams)
             PlaceRock(m, rng, 950 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 80, "demonite_ore");
+    }
+
+    // --- the ladder ------------------------------------------------------------------------
+    {
+        const DreamIsle& l = isles[8];
+        // East of the middle: the bridge comes in from the west, to the middle.
+        const int lx = px(l.cx + 1.5f), ly = px(l.cy + 0.5f);
+        PlaceLadderDown(m, lx, ly, "dreamworld_2", "Climb down, deeper into the dream", 25, "from_below");
+        json& o = m.Object("dream_voice_ladder", "sign", lx - 96, ly - 50);
+        o["sprite"] = ObjPath("rocksmall_02");
+        o["title"]  = "A voice in the dream";
+        o["text"]   = "The dream is deeper than this.\n\n"
+                      "What is down the ladder is not what is up here: it is what you were afraid of "
+                      "later, when you were older. Dawn finds you there as it finds you here, and so "
+                      "does the waking stone.\n\n"
+                      "There is more of the dream the further down you go. Everything that leaves a "
+                      "shard leaves one more for each ladder you have climbed down.";
+        m.Collision(lx - 96 - 10, ly - 50 - 8, 20, 8);
+    }
+
+    m.Write("maps");
+}
+
+// The second depth. Eleven islands and sixteen bridges, and nothing on them
+// that the first depth would recognise.
+static void BuildDreamDeep() {
+    DreamField f;
+    f.W = 84; f.H = 64;
+    f.wobble_seed = 191;
+    const int CELL = f.CELL;
+    MapBuilder m("dreamworld_2", "The Deep Reverie", f.W * CELL, f.H * CELL);
+    m.Ambient("dream");
+    m.DreamDepth(2);
+    m.Subtitle("Further down than sleep usually goes");
+    m.Background(10, 7, 24);
+    std::mt19937 rng(9292u);
+
+    f.isles = {
+        {42.0f,  8.0f,  6.0f, 5.0f},   // 0: the foot of the ladder
+        {22.0f, 14.0f,  7.0f, 6.0f},   // 1: the west shelf
+        {62.0f, 14.0f,  7.0f, 6.0f},   // 2: the east shelf
+        {42.0f, 26.0f,  8.0f, 6.0f},   // 3: the crossing
+        {13.0f, 32.0f,  7.0f, 7.0f},   // 4: the far west, and its crystals
+        {71.0f, 32.0f,  7.0f, 7.0f},   // 5: the far east, and its starlilies
+        {26.0f, 44.0f,  7.0f, 6.0f},   // 6: south-west
+        {58.0f, 44.0f,  7.0f, 6.0f},   // 7: south-east
+        {42.0f, 54.0f, 10.0f, 6.0f},   // 8: the Sleepless's plateau
+        {72.0f, 56.0f,  5.0f, 4.0f},   // 9: the ladder, behind it
+        { 8.0f, 53.0f,  5.0f, 4.0f},   // 10: a shelf at the end of two long bridges, for whoever goes looking
+    };
+    f.bridges = {{0, 1}, {0, 2}, {0, 3}, {1, 3}, {2, 3}, {1, 4}, {2, 5}, {3, 6}, {3, 7}, {4, 6}, {5, 7},
+                 {6, 8}, {7, 8}, {8, 9}, {4, 10}, {6, 10}};
+    // One kind of cloud, as above: a patch of another reads as a square cut out
+    // of the dream, not as weather.
+    f.Lay(m, "frost_rock", "", "", "plank_floor_dark");
+
+    auto px = [&](float cells) { return f.Px(cells); };
+    const auto& isles = f.isles;
+
+    // --- the foot of the ladder ---------------------------------------------------------
+    const int lx = px(isles[0].cx + 0.5f), ly = px(isles[0].cy - 0.5f);
+    PlaceLadderUp(m, lx, ly, "dreamworld", "Climb up, toward waking");
+    PlaceWakingStone(m, "dream_waking_stone_2", lx - 80, ly + 30);
+    for (int side = -1; side <= 1; side += 2) {
+        m.Prop("props", "candlestand", lx + side * 46, ly + 8);
+        m.Collision(lx + side * 46 - 5, ly + 3, 10, 5);
+    }
+    {
+        json& o = m.Object("dream_voice_2", "sign", lx + 80, ly + 30);
+        o["sprite"] = ObjPath("rocksmall_02");
+        o["title"]  = "A voice in the dream";
+        o["text"]   = "The Deep Reverie.\n\n"
+                      "Wolves that were never whelped, things that walk in their sleep, the terrors "
+                      "that come at three in the morning. They are not the same from one night to the "
+                      "next, and neither is where they stand.\n\n"
+                      "One of them is always here. It does not sleep, and it has the next ladder "
+                      "behind it, on the far side of the southern plateau.";
+        m.Collision(lx + 80 - 10, ly + 30 - 8, 20, 8);
+    }
+
+    int herb_i = 0;
+    f.Scatter(m, rng, herb_i, {0, 9}, {5}, 200);
+
+    // --- who is here tonight ---------------------------------------------------------------
+    DreamPack(m, f, 1, "west_shelf", kDreamSecond, {{-3, -1}, {2, -2}, {0, 3}}, 1, 3);
+    DreamPack(m, f, 2, "east_shelf", kDreamSecond, {{3, -1}, {-2, -2}, {0, 3}}, 1, 3);
+    DreamPack(m, f, 3, "crossing", kDreamSecond, {{-4, -1}, {4, -1}, {-2, 3}, {3, 3}}, 2, 3);
+    DreamPack(m, f, 4, "far_west", kDreamSecond, {{-2, -3}, {3, 0}, {-1, 4}}, 2, 3);
+    DreamPack(m, f, 5, "far_east", kDreamSecond, {{2, -3}, {-3, 0}, {1, 4}}, 2, 3);
+    DreamPack(m, f, 6, "south_west", kDreamSecond, {{-3, 0}, {2, -2}, {1, 3}}, 3, 3);
+    DreamPack(m, f, 7, "south_east", kDreamSecond, {{3, 0}, {-2, -2}, {-1, 3}}, 3, 3);
+    DreamPack(m, f, 10, "end_shelf", kDreamSecond, {{-1, -1}, {2, 1}}, 4, 2, 150.0f);
+
+    // --- crystals: the far west, and more of them at the end of the long bridges ----
+    {
+        const float spots[][2] = {{-4, -1}, {-1, -5}, {4, -3}, {4, 3}, {-3, 4}};
+        int n = 0;
+        for (const auto& sp : spots)
+            PlaceDreamCrystal(m, rng, "deep_crystal_" + std::to_string(n++), px(isles[4].cx + sp[0]),
+                              px(isles[4].cy + sp[1]), 20, 70);
+        const float far[][2] = {{-3, 0}, {0, -2.5f}, {3, -0.5f}};
+        for (const auto& sp : far)
+            PlaceDreamCrystal(m, rng, "deep_crystal_" + std::to_string(n++), px(isles[10].cx + sp[0]),
+                              px(isles[10].cy + sp[1]), 20, 70);
+    }
+
+    // --- the Sleepless ----------------------------------------------------------------------------
+    {
+        const DreamIsle& s = isles[8];
+        m.Enemy("nightmare_troll", px(s.cx), px(s.cy + 1), 1, 120.0f, 260.0f);
+        m.EnemyPool(kDreamSecond, "plateau", px(s.cx - 6), px(s.cy - 1), 4, 2, 40.0f, 200.0f);
+        m.EnemyPool(kDreamSecond, "plateau", px(s.cx + 6), px(s.cy - 1), 4, 2, 40.0f, 200.0f);
+        PlaceChest(m, "chest_dream_deep", px(s.cx), px(s.cy + 4), "chest_dream_deep");
+        const float seams[][2] = {{-6, 3}, {6, 3}};
+        int k = 0;
+        for (const auto& sp : seams)
+            PlaceRock(m, rng, 960 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 80, "demonite_ore");
+    }
+
+    // --- and the ladder behind it ---------------------------------------------------------------
+    PlaceLadderDown(m, px(isles[9].cx + 1.5f), px(isles[9].cy + 0.5f), "dreamworld_3",
+                    "Climb down, to the bottom of the dream", 50, "from_below");
+
+    m.Write("maps");
+}
+
+// The third, and the last: thirteen islands in the dark, and at the far end of
+// them the thing the dream is about.
+static void BuildDreamDark() {
+    DreamField f;
+    f.W = 92; f.H = 72;
+    f.wobble_seed = 291;
+    const int CELL = f.CELL;
+    MapBuilder m("dreamworld_3", "The Dreaming Dark", f.W * CELL, f.H * CELL);
+    m.Ambient("dream");
+    m.DreamDepth(3);
+    m.Subtitle("Where the nightmares come up from");
+    m.Background(7, 4, 18);
+    std::mt19937 rng(9393u);
+
+    f.isles = {
+        {46.0f,  8.0f,  6.0f, 5.0f},   // 0: the foot of the ladder
+        {26.0f, 12.0f,  6.0f, 5.0f},   // 1
+        {66.0f, 12.0f,  6.0f, 5.0f},   // 2
+        {11.0f, 25.0f,  7.0f, 6.0f},   // 3
+        {35.0f, 25.0f,  7.0f, 5.0f},   // 4
+        {58.0f, 26.0f,  7.0f, 5.0f},   // 5
+        {81.0f, 25.0f,  7.0f, 6.0f},   // 6
+        {22.0f, 41.0f,  8.0f, 6.0f},   // 7
+        {46.0f, 41.0f,  7.0f, 6.0f},   // 8
+        {70.0f, 42.0f,  8.0f, 6.0f},   // 9
+        { 9.0f, 57.0f,  6.0f, 5.0f},   // 10: crystals, down a dead end
+        {83.0f, 58.0f,  6.0f, 5.0f},   // 11: starlilies, down another
+        {46.0f, 60.0f, 11.0f, 7.0f},   // 12: the Unwaking's plateau
+    };
+    f.bridges = {{0, 1}, {0, 2}, {0, 4}, {1, 3}, {1, 4}, {2, 5}, {2, 6}, {4, 5}, {3, 7}, {4, 8}, {5, 8}, {5, 9},
+                 {6, 9}, {7, 8}, {8, 9}, {7, 10}, {9, 11}, {7, 12}, {8, 12}, {9, 12}};
+    f.Lay(m, "cursed_ground", "crag", "frost_rock", "plank_floor_dark");
+
+    auto px = [&](float cells) { return f.Px(cells); };
+    const auto& isles = f.isles;
+
+    const int lx = px(isles[0].cx + 0.5f), ly = px(isles[0].cy - 0.5f);
+    PlaceLadderUp(m, lx, ly, "dreamworld_2", "Climb up, toward waking");
+    PlaceWakingStone(m, "dream_waking_stone_3", lx - 80, ly + 30);
+    for (int side = -1; side <= 1; side += 2) {
+        m.Prop("props", "candlestand", lx + side * 46, ly + 8);
+        m.Collision(lx + side * 46 - 5, ly + 3, 10, 5);
+    }
+    {
+        json& o = m.Object("dream_voice_3", "sign", lx + 80, ly + 30);
+        o["sprite"] = ObjPath("rocksmall_02");
+        o["title"]  = "A voice in the dream";
+        o["text"]   = "The Dreaming Dark. There is nothing under this.\n\n"
+                      "Everything here was somebody's worst night: the bear that was in the room, the "
+                      "hound on the road behind you, the wings. They change. What is at the far end "
+                      "does not: it has never once woken, and it is what the rest of them are dreams of.\n\n"
+                      "You cannot die here either. It only feels as though you could.";
+        m.Collision(lx + 80 - 10, ly + 30 - 8, 20, 8);
+    }
+
+    int herb_i = 0;
+    f.Scatter(m, rng, herb_i, {0}, {11}, 400);
+
+    DreamPack(m, f, 1, "one", kDreamThird, {{-2, -1}, {2, 1}}, 1, 2);
+    DreamPack(m, f, 2, "two", kDreamThird, {{2, -1}, {-2, 1}}, 1, 2);
+    DreamPack(m, f, 3, "three", kDreamThird, {{-3, -1}, {2, -2}, {0, 3}}, 1, 3);
+    DreamPack(m, f, 4, "four", kDreamThird, {{-3, 0}, {3, -1}, {0, 2.5f}}, 1, 3);
+    DreamPack(m, f, 5, "five", kDreamThird, {{3, 0}, {-3, -1}, {0, 2.5f}}, 2, 3);
+    DreamPack(m, f, 6, "six", kDreamThird, {{3, -1}, {-2, -2}, {0, 3}}, 2, 3);
+    DreamPack(m, f, 7, "seven", kDreamThird, {{-4, 0}, {3, -2}, {1, 3}}, 2, 3);
+    DreamPack(m, f, 8, "eight", kDreamThird, {{-3, -2}, {3, -2}, {0, 3}}, 3, 3);
+    DreamPack(m, f, 9, "nine", kDreamThird, {{4, 0}, {-3, -2}, {-1, 3}}, 3, 3);
+    DreamPack(m, f, 10, "ten", kDreamThird, {{-2, -2}, {2, 1}}, 4, 2, 160.0f);
+    DreamPack(m, f, 11, "eleven", kDreamThird, {{2, -2}, {-2, 1}}, 4, 2, 160.0f);
+
+    {
+        const float spots[][2] = {{-3, 0}, {0, -3}, {3, -1}, {-1, 3}, {3, 2.5f}};
+        int n = 0;
+        for (const auto& sp : spots)
+            PlaceDreamCrystal(m, rng, "dark_crystal_" + std::to_string(n++), px(isles[10].cx + sp[0]),
+                              px(isles[10].cy + sp[1]), 45, 110);
+    }
+
+    // --- the Unwaking -----------------------------------------------------------------------------
+    {
+        const DreamIsle& s = isles[12];
+        m.Enemy("nightmare_dragon", px(s.cx), px(s.cy + 1), 1, 180.0f, 300.0f);
+        m.EnemyPool(kDreamThird, "plateau", px(s.cx - 7), px(s.cy - 2), 4, 2, 40.0f, 200.0f);
+        m.EnemyPool(kDreamThird, "plateau", px(s.cx + 7), px(s.cy - 2), 4, 2, 40.0f, 200.0f);
+        PlaceChest(m, "chest_dream_dark", px(s.cx), px(s.cy + 5), "chest_dream_dark");
+        const float seams[][2] = {{-7, 3}, {7, 3}, {-4, 5}, {4, 5}};
+        int k = 0;
+        for (const auto& sp : seams)
+            PlaceRock(m, rng, 970 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 80, "demonite_ore");
     }
 
     m.Write("maps");
@@ -5032,6 +5365,8 @@ int main() {
     BuildFernhollow();
     BuildWoodlandInteriors();
     BuildDreamworld();
+    BuildDreamDeep();
+    BuildDreamDark();
     BuildIceSpire();
     BuildAshenPath();
 

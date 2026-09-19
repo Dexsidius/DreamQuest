@@ -69,6 +69,11 @@ int Game::Start(int argc, char** argv) {
             never_save = true;
         } else if (arg == "--level" && more) {
             launch_level = std::clamp(SDL_atoi(argv[++i]), 1, 99);
+        } else if (arg == "--learn" && more) {
+            // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
+            launch_learn = argv[++i];
+        } else if (arg == "--hour" && more) {
+            launch_hour = std::clamp(static_cast<float>(SDL_atof(argv[++i])), 0.0f, 23.99f);
         } else if (arg == "--map" && more) {
             // With --scratch: start on this map, at this spawn if one is named.
             launch_map = argv[++i];
@@ -185,6 +190,17 @@ int Game::Start(int argc, char** argv) {
             }
             // Dressed for the look of it: requirements are not asked, because
             // what is being looked at is the art.
+            if (!launch_learn.empty()) {
+                Player& p = world->player;
+                size_t from = 0;
+                while (from <= launch_learn.size()) {
+                    const size_t comma = launch_learn.find(',', from);
+                    const string id = launch_learn.substr(from, comma == string::npos ? string::npos : comma - from);
+                    if (p.talents.Learn(id, p.skills)) p.talents.ToggleTechnique(id);
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+            }
             if (!launch_wear.empty()) {
                 size_t from = 0;
                 while (from <= launch_wear.size()) {
@@ -204,6 +220,9 @@ int Game::Start(int argc, char** argv) {
                     from = comma + 1;
                 }
             }
+            // The hour before the map: who keeps a dream's platforms is settled
+            // by the day as it loads, and a dream walked into by daylight is over.
+            if (launch_hour >= 0.0f) world->clock.Set(world->clock.Day(), launch_hour);
             if (!launch_map.empty()) world->LoadMap(launch_map, launch_spawn.empty() ? "default" : launch_spawn, ctx);
         }
     }

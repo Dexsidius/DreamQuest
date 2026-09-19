@@ -171,7 +171,22 @@ struct GroundEffect {
     float stagger = 0.0f;        // seconds each tick staggers what it cuts: caltrops
     bool  once = false;          // a snare: it takes the first thing to step in it, and is sprung
     bool  sure_crit = false;     // loosed with Take Aim
+    // Arrow Rain: arrows keep coming down on the circle for as long as it
+    // lasts, a volley every tick, and are drawn falling into it and standing in
+    // the ground afterwards. It was one hit and a disc that faded in a third of
+    // a second, which is a thump and not a rain.
+    bool  rain = false;
+    int   volleys = 0;           // how many have landed: the self-test counts them
     bool  finished = false;
 
     bool Active() const { return delay <= 0.0f; }
+
+    // Arrow Rain's numbers, in one place: how long it comes down for, how often
+    // a volley lands, and what each is worth of the charged shot it was. Seven
+    // volleys at a third each is a little over twice the shot for something
+    // that stands in all of it, and most things do not.
+    static constexpr float RAIN_TIME = 2.4f, RAIN_EVERY = 0.4f, RAIN_SHARE = 0.32f, RAIN_RADIUS = 56.0f;
+    // And after the last volley, the arrows that are standing in the ground
+    // get to finish fading before the effect is taken away.
+    static constexpr float RAIN_LINGER = 0.55f;
 };

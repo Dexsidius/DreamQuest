@@ -93,8 +93,35 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     return true;
 }
 
+EnemySpawnDef World::ResolveSpawn(const EnemySpawnDef& def, const string& map_id, int day, int index) {
+    EnemySpawnDef out = def;
+    if (def.pool.empty() && def.spread <= 0) return out;
+    // FNV-1a over the things that should change the answer, and nothing else.
+    auto mix = [](uint32_t h, const string& s) {
+        for (char c : s) h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+        return h;
+    };
+    auto stir = [](uint32_t h) { h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16; return h; };
+    uint32_t h = mix(2166136261u, map_id);
+    h = (h ^ static_cast<uint32_t>(day)) * 16777619u;
+    // Who: by the group, so a platform agrees with itself.
+    const uint32_t who = stir(def.group.empty() ? (h ^ static_cast<uint32_t>(index)) * 16777619u : mix(h, def.group));
+    if (!def.pool.empty()) out.type = def.pool[who % def.pool.size()];
+    // How strong: by the post, so a pack is not all one size.
+    const uint32_t how = stir((h ^ (static_cast<uint32_t>(index) + 977u)) * 16777619u);
+    if (def.spread > 0) out.level = def.level + static_cast<int>(how % static_cast<uint32_t>(def.spread + 1));
+    return out;
+}
+
+int World::DreamBonus(const string& item_id) const {
+    if (item_id != "dream_shard" || !InDream()) return 0;
+    return std::max(0, map.DreamDepth() - 1);
+}
+
 void World::SpawnEntitiesFromMap(const GameContext& ctx) {
-    for (const auto& def : map.Enemies()) {
+    int post = 0;
+    for (const auto& written : map.Enemies()) {
+        const EnemySpawnDef def = ResolveSpawn(written, map_id, clock.QuestDay(), post++);
         // A monster already killed this session stays dead until its timer
         // brings it back; flags cover the permanent ones.
         const EnemyDef* stats = ctx.enemies ? ctx.enemies->Get(def.type) : nullptr;
@@ -504,7 +531,14 @@ SDL_Color World::AmbientLight() const {
     // rather than as a cellar.
     if (map.IsDark()) return {26, 24, 32, 255};
     if (map.Ambient() == "dungeon") return white;
-    if (InDream()) return {156, 124, 214, 255};
+    if (InDream()) {
+        // Violet where you arrive, and less of it each ladder down.
+        switch (map.DreamDepth()) {
+            case 2:  return {126, 100, 196, 255};
+            case 3:  return {100, 76, 170, 255};
+            default: return {156, 124, 214, 255};
+        }
+    }
 
     float dark = clock.Darkness();
     float warm = clock.Warmth() * (1.0f - dark * 0.7f);
@@ -562,6 +596,17 @@ vector<Light> World::CollectLights() const {
         if (charge <= 0.0f) continue;
         lights.push_back({e->x, e->y - 20.0f, 50.0f + 60.0f * charge, {255, 50, 30, 255}, 0.4f + 0.6f * charge});
     }
+
+    // Below the first depth a dream is dark enough to lose a dark thing in, so
+    // what lives there is lit from inside, faintly: a Gloomwing is a shape with
+    // a glow round it, and not a hole in the floor. Only those near enough to
+    // be on anybody's screen.
+    if (dreaming && map.DreamDepth() >= 2)
+        for (const auto& e : enemies) {
+            if (!Targeting::Targetable(*e)) continue;
+            if (fabsf(e->x - player.x) > 780.0f || fabsf(e->y - player.y) > 480.0f) continue;
+            lights.push_back({e->x, e->y - 14.0f, 60.0f, {206, 176, 255, 255}, 0.5f});
+        }
 
     // A little light of your own, so the player is never lost in the dark: a
     // warm glow outdoors, a pale one in a dream. Underground it is only what
@@ -1171,7 +1216,31 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             p->life *= 1.3f;
         }
     } else if (technique == "arrow_rain") {
-        strike(50.0f, 0.5f, damage_mult * 1.1f, Element::None);
+        // Not one strike: a rain. It comes down on the circle for two seconds
+        // and more, a volley every tick, each its own roll to hit on whatever
+        // is under it then -- so something that walks out gets out, and
+        // something that walks in gets wet.
+        const SDL_FPoint at = strike_point();
+        GroundEffect g;
+        g.x = at.x;
+        g.y = at.y + 8.0f;
+        g.radius = GroundEffect::RAIN_RADIUS;
+        g.delay = 0.35f;
+        g.life = g.max_life = GroundEffect::RAIN_TIME + GroundEffect::RAIN_LINGER;
+        g.tick_interval = GroundEffect::RAIN_EVERY;
+        g.tick_timer = 0.0f;                  // the first volley lands as the telegraph closes
+        g.rain = true;
+        g.from_player = true;
+        g.owner = player.Profile();
+        g.element = Element::None;
+        g.style = style;
+        g.hit_mult = damage_mult * GroundEffect::RAIN_SHARE;
+        // Arrows pin; they do not throw. A shove from the middle would push
+        // everything out of the rain on the first volley.
+        g.knockback = 4.0f;
+        g.stagger = 0.10f;
+        g.sure_crit = aimed_shot;
+        AddGroundEffect(g);
     } else if (technique == "nova") {
         for (int i = 0; i < 8; ++i) {
             const float a = 6.2831853f * i / 8.0f;
@@ -1220,6 +1289,95 @@ vector<string> World::KnownArcane(const SpellBook& book) const {
     for (const SpellDef* s : book.Arcane())
         if (KnowsSpell(s->id)) out.push_back(s->id);
     return out;
+}
+
+// Arrow Rain, falling. Each rain keeps a few dozen arrows on the go, and every
+// one of them is worked out from the clock and its own number rather than kept
+// anywhere: where it lands in the circle, when it started down, how far along
+// it is. It comes in steep from up and to the left, takes a fifth of a second
+// over it, and then stands in the ground where it struck for half a second
+// before it fades. Nothing is stored, so a guest's screen -- which is only told
+// that there is a rain here, and how long it has left -- draws its own, and it
+// does not matter that they are not the same arrows.
+void World::DrawArrowRain(SDL_Renderer* r) const {
+    bool any = false;
+    for (const GroundEffect& g : ground_effects) any |= g.rain;
+    if (!any) return;
+
+    const float z = camera.zoom;
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // A line of art-sized pixels from a to b, snapped to the sprite grid.
+    const auto pixels = [&](float ax, float ay, float bx, float by, SDL_Color c) {
+        const int n = std::max(1, static_cast<int>(std::max(fabsf(bx - ax), fabsf(by - ay)) / z));
+        SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+        for (int i = 0; i <= n; ++i) {
+            const float t = static_cast<float>(i) / n;
+            const SDL_FRect px = {roundf((ax + (bx - ax) * t) / z) * z, roundf((ay + (by - ay) * t) / z) * z, z, z};
+            SDL_RenderFillRect(r, &px);
+        }
+    };
+    const auto unit = [](uint32_t h) {
+        h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16;
+        return static_cast<float>(h & 0xffffff) / static_cast<float>(0x1000000);
+    };
+
+    constexpr int   LANES = 44;            // arrows a rain has on the go
+    constexpr float CYCLE = 0.78f;         // a lane's arrow: down, stood, gone, and the next
+    constexpr float FALL = 0.20f, STAND = 0.50f;
+    constexpr float FROM_X = -46.0f, FROM_Y = -150.0f;   // where it comes from, off where it lands
+    constexpr float SHAFT = 16.0f;
+
+    for (const GroundEffect& g : ground_effects) {
+        if (!g.rain) continue;
+        // In flight before the first volley lands, and stopping as the last does.
+        if (g.delay > FALL) continue;
+        const float lift = LiftAt(g.x, g.y);
+        const uint32_t seed = static_cast<uint32_t>(static_cast<int>(g.x) * 73856093) ^ static_cast<uint32_t>(static_cast<int>(g.y) * 19349663);
+        for (int lane = 0; lane < LANES; ++lane) {
+            const float phase = unit(seed + lane * 7919u);
+            const float clock = now / CYCLE + phase;
+            const uint32_t shot = static_cast<uint32_t>(clock);
+            const float t = (clock - static_cast<float>(shot)) * CYCLE;          // seconds into this arrow
+            if (t > FALL + STAND) continue;
+            // None that set off after the rain stopped; the ones already down finish fading.
+            if (g.life < GroundEffect::RAIN_LINGER && t < GroundEffect::RAIN_LINGER - g.life) continue;
+            // Where in the circle, evenly by area.
+            const float a = unit(seed ^ (shot * 2654435761u + lane * 40503u)) * 6.2831853f;
+            const float d = sqrtf(unit(seed + shot * 97u + lane * 31337u)) * g.radius * 0.94f;
+            const float lx = g.x + cosf(a) * d, ly = g.y + sinf(a) * d - lift;
+            const float dirx = -FROM_X, diry = -FROM_Y;
+            const float len = sqrtf(dirx * dirx + diry * diry);
+            const float ux = dirx / len, uy = diry / len;
+            if (t < FALL) {
+                // Coming down: a pale streak with a dark head, the length of an arrow and a half.
+                const float k = t / FALL;
+                const float hx = lx + FROM_X * (1.0f - k), hy = ly + FROM_Y * (1.0f - k);
+                const SDL_FPoint head = camera.ToScreen(hx, hy);
+                const SDL_FPoint tail = camera.ToScreen(hx - ux * SHAFT * 1.5f, hy - uy * SHAFT * 1.5f);
+                pixels(tail.x + z, tail.y, head.x + z, head.y, {52, 40, 34, 170});
+                pixels(tail.x, tail.y, head.x, head.y, {250, 240, 208, 255});
+                const SDL_FPoint tip = camera.ToScreen(hx - ux * 4.0f, hy - uy * 4.0f);
+                pixels(tip.x, tip.y, head.x, head.y, {60, 54, 52, 255});
+            } else {
+                // Stood in the ground at the angle it came in at, fletching up, fading.
+                const float k = (t - FALL) / STAND;
+                const Uint8 alpha = static_cast<Uint8>(255.0f * std::clamp(1.6f - k * 1.6f, 0.0f, 1.0f));
+                const SDL_FPoint foot = camera.ToScreen(lx, ly);
+                const SDL_FPoint top  = camera.ToScreen(lx - ux * SHAFT, ly - uy * SHAFT);
+                pixels(foot.x + z, foot.y, top.x + z, top.y, {46, 34, 28, static_cast<Uint8>(alpha * 0.6f)});
+                pixels(foot.x, foot.y, top.x, top.y, {168, 122, 74, alpha});
+                const SDL_FPoint fl = camera.ToScreen(lx - ux * (SHAFT - 5.0f), ly - uy * (SHAFT - 5.0f));
+                pixels(fl.x, fl.y, top.x, top.y, {250, 248, 240, alpha});
+                // The puff it lands in, for the first moment.
+                if (k < 0.18f) {
+                    SDL_SetRenderDrawColor(r, 232, 220, 190, static_cast<Uint8>(170.0f * (1.0f - k / 0.18f)));
+                    const SDL_FRect puff = {roundf((foot.x - 2.0f * z) / z) * z, roundf((foot.y - 0.5f * z) / z) * z, 4.0f * z, z};
+                    SDL_RenderFillRect(r, &puff);
+                }
+            }
+        }
+    }
 }
 
 // A melee strike is drawn as well as animated. The character's swing is
@@ -2181,10 +2339,11 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     if (skill >= 0 && o.yield_xp > 0) player.GrantXp(skill, o.yield_xp);
 
     if (!o.yield.empty()) {
-        if (player.inventory.Add(o.yield, 1) > 0) {
+        const int got = player.inventory.Add(o.yield, 1 + DreamBonus(o.yield));
+        if (got > 0) {
             const ItemDef* d = ctx.items ? ctx.items->Get(o.yield) : nullptr;
-            AddText("+ " + (d ? d->name : o.yield), player.x, player.y - 54.0f,
-                    {200, 255, 200, 255});
+            AddText("+ " + (got > 1 ? std::to_string(got) + " " : string("")) + (d ? d->name : o.yield),
+                    player.x, player.y - 54.0f, {200, 255, 200, 255});
             if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
         } else {
             AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
@@ -2695,7 +2854,14 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
                 apply = true;
             }
         }
+        // The end of a rain is its arrows standing in the ground: nothing lands.
+        if (g.rain && g.life < GroundEffect::RAIN_LINGER - 0.1f) apply = false;
         if (!apply) continue;
+        if (g.rain) {
+            ++g.volleys;
+            Audio::PlayAt(Sfx::Impact, g.x, g.y, 0.45f, 1.30f + 0.06f * (g.volleys % 3));
+            Burst(g.x, g.y, g.radius * 0.8f, {226, 210, 172, 255}, 4);
+        }
 
         // A circle on the ground, against where things stand. It was a square
         // against the box a sprite fills, drawn as a flattened disc: a Meteor
@@ -2726,6 +2892,9 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
                     }
                 }
             });
+            // Take Aim is one sure shot, and a rain of them is seven: the first
+            // volley has it and the rest are arrows.
+            if (g.rain) g.sure_crit = false;
         } else {
             // Everyone standing in it, not only the first.
             for (Player* who : Players()) {
@@ -2822,6 +2991,10 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
 void World::SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx) {
     if (!ctx.loot) return;
     vector<LootDrop> drops = ctx.loot->Roll(table_id);
+    // Deeper in the dream there is more of it: once for whatever this was, on
+    // the first of its shards, not once a stack.
+    for (auto& d : drops)
+        if (const int more = DreamBonus(d.item)) { d.qty += more; break; }
 
     int index = 0;
     for (const auto& d : drops) {
@@ -2971,6 +3144,23 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             const float t = 1.0f - std::clamp(g.delay / 0.5f, 0.0f, 1.0f);
             fill_disc(centre.x, centre.y, rx * (0.55f + 0.45f * t), ry * (0.55f + 0.45f * t),
                       {c.r, c.g, c.b, static_cast<Uint8>(40 + 90 * t)});
+        } else if (g.rain) {
+            // Where it is raining: a faint floor and a dotted rim, steady for as
+            // long as the arrows come and gone quickly once they stop. The
+            // arrows themselves are drawn over the fighters: see DrawArrowRain.
+            const float ending = std::clamp((g.life - GroundEffect::RAIN_LINGER) / 0.3f, 0.0f, 1.0f);
+            fill_disc(centre.x, centre.y, rx, ry, {40, 30, 24, static_cast<Uint8>(46 * ending)});
+            const float z = camera.zoom;
+            const int dots = 72;
+            const float turn = static_cast<float>(SDL_GetTicks()) / 1000.0f * 0.5f;
+            SDL_SetRenderDrawColor(r, 255, 236, 170, static_cast<Uint8>(235 * ending));
+            // Dashes, three dots on and one off, walking slowly round.
+            for (int i = 0; i < dots; ++i) {
+                if (i % 4 == 3) continue;
+                const float a = 6.2831853f * i / dots + turn;
+                const SDL_FRect dot = {roundf((centre.x + cosf(a) * rx) / z) * z, roundf((centre.y + sinf(a) * ry) / z) * z, z, z};
+                SDL_RenderFillRect(r, &dot);
+            }
         } else {
             const float t = std::clamp(g.life / std::max(0.01f, g.max_life), 0.0f, 1.0f);
             // A brighter core inside a wider glow.
@@ -3249,6 +3439,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     // The player's swing, over everything at ground level: it is the one
     // thing on screen that says where a blow is landing.
     DrawSwing(r);
+    DrawArrowRain(r);
 
     // Impact marks last a fifth of a second and are drawn over everything at
     // ground level, because the point of them is to be noticed: without one, a

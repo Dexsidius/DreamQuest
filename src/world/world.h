@@ -329,6 +329,26 @@ public:
     enum class SleepChoice { Through, Reverie };
 
     bool InDream() const { return map.Ambient() == "dream"; }
+    // The Reverie goes down: three depths, a ladder between each. Everything
+    // a dream is -- dawn ends it, nothing in it kills you, the waking stone --
+    // is true at every depth, because all of that asks InDream() and not
+    // which map. What the depth changes is how hard it is, how dark, and how
+    // many shards there are in it: one more from every kill, crystal and
+    // chest for each ladder climbed down.
+    int  DreamBonus(const string& item_id) const;
+
+    // Which monster keeps a post tonight, and at what level. A post with a
+    // pool is kept by one of the pool, chosen by the day, the map and the
+    // post's group -- or its place in the file if it has none -- so that:
+    //   - it is the same all night, up and down the ladders and across a
+    //     reload, since QuestDay does not turn over until dawn;
+    //   - it is different the next night;
+    //   - posts in a group agree, so a platform holds a pack and not a zoo;
+    //   - a guest's machine, which builds its own monsters from the map file
+    //     and is only told where they are, comes to the same answer as the
+    //     host from the day it was already being sent.
+    // Pure, and static, so the self-test can ask it about any night.
+    static EnemySpawnDef ResolveSpawn(const EnemySpawnDef& def, const string& map_id, int day, int index);
     const DreamReturn& Dream() const { return dream; }
     void SetDream(const DreamReturn& d) { dream = d; }
     const Camp& PlayerCamp() const { return camp; }
@@ -421,6 +441,7 @@ private:
     // The swing itself, drawn: a crescent swept through the arc a melee blow
     // covers, brightest on its active frames. See the definition.
     void DrawSwing(SDL_Renderer* r) const;
+    void DrawArrowRain(SDL_Renderer* r) const;
     // Applies a hit from a projectile or a ground effect to one enemy.
     void HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                   Element element, float damage_mult, float knockback,

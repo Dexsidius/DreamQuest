@@ -285,6 +285,8 @@ private:
     // --map <id> [spawn] and --wear a,b,c: where a scratch game starts, and in what.
     string   launch_map, launch_spawn, launch_wear;
     int      launch_level = 0;          // --level N: a scratch character starts with its path's skill here
+    float    launch_hour = -1.0f;       // --hour H: and at this time of day, for looking at the night or a dream
+    string   launch_learn;              // --learn a,b,c: with these skill-tree nodes bought, techniques switched on
     struct HeldKey { SDL_Keycode key = 0; float from = 0.0f, to = 0.0f; int sent = 0; };
     vector<HeldKey> launch_holds;
     // The world, shared (see coop/coop.h). Hosting, friends' characters are

@@ -66,7 +66,7 @@ static const char* kMaps[] = {
     "whisperwood_trail", "mossvale", "fernhollow",
     "westwold", "brackenwood",
     "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage", "fernhollow_college",
-    "dreamworld",
+    "dreamworld", "dreamworld_2", "dreamworld_3",
     "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
 };
 
@@ -443,6 +443,7 @@ int main(int argc, char** argv) {
                            "house_smith", "guild_hall", "house_elder", "house_inn",
                            "house_inn_upper", "mossvale_lodge_hall", "mossvale_herbalist",
                            "fernhollow_cottage", "fernhollow_college", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld",
+                           "dreamworld_2", "dreamworld_3",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
@@ -3391,6 +3392,104 @@ int main(int argc, char** argv) {
                 Check(rain, "arrow rain calls a strike down ahead of the player");
                 Check(w3.player.MaxStamina() > Player::MAX_STAMINA * 1.05f, "trail legs adds stamina");
             }
+            // And it is a rain, not a thump. It used to be one hit and a disc
+            // that was gone in a third of a second.
+            World w4;
+            if (fighter(w4, "oak_shortbow", SKILL_RANGED, 30, {"trail_legs", "broadheads", "arrow_rain"}, "arrow_rain")) {
+                // Three deer that will not die of it and are held where they are
+                // put: one under the middle of where a charged shot comes down,
+                // one well outside it, and one that walks in late.
+                struct Mark { Enemy* who; float x, y; int hp_at_start = 0, hits = 0, last_hp = 0; };
+                vector<Mark> marks;
+                const float cx = w4.player.x + 110.0f, cy = w4.player.y + 8.0f;
+                for (const auto& at : {std::pair<float, float>{0.0f, 0.0f}, {GroundEffect::RAIN_RADIUS + 60.0f, 0.0f},
+                                       {0.0f, GroundEffect::RAIN_RADIUS + 90.0f}}) {
+                    Enemy* e = spawn(w4, "deer", 0, 0);
+                    if (!e) continue;
+                    e->hp = e->max_hp = 5000;
+                    marks.push_back({e, cx + at.first, cy + at.second});
+                }
+                const auto hold = [&] {
+                    for (Mark& m : marks) { m.who->x = m.x; m.who->y = m.y; }
+                };
+                Check(marks.size() == 3, "three deer to rain on");
+                if (marks.size() == 3) {
+                    hold();
+                    input.Update(dt); key(SDLK_K, true); w4.Update(dt, ctx);
+                    for (int f = 0; f < 80; ++f) { frames(w4, 1); hold(); }
+                    input.Update(dt); key(SDLK_K, false); w4.Update(dt, ctx);
+                    for (Mark& m : marks) m.hp_at_start = m.last_hp = m.who->hp;
+
+                    float raining = 0.0f, seen = 0.0f, telegraph = 0.0f;
+                    int volleys = 0, hp_when_it_stopped = -1;
+                    bool found = false, right_shape = true, walked_in = false;
+                    for (int f = 0; f < 60 * 6; ++f) {
+                        frames(w4, 1);
+                        hold();
+                        const GroundEffect* rain = nullptr;
+                        for (const GroundEffect& g : w4.ground_effects) if (g.rain) rain = &g;
+                        if (rain) {
+                            found = true;
+                            seen += dt;
+                            right_shape &= rain->radius == GroundEffect::RAIN_RADIUS && rain->hit_mult > 0.0f &&
+                                           rain->knockback < 10.0f && rain->from_player;
+                            if (!rain->Active()) telegraph += dt;
+                            else if (rain->life > GroundEffect::RAIN_LINGER) raining += dt;
+                            else if (hp_when_it_stopped < 0 && rain->life < GroundEffect::RAIN_LINGER - 0.12f)
+                                hp_when_it_stopped = marks[0].who->hp;
+                            volleys = std::max(volleys, rain->volleys);
+                            // Half way through, the third deer walks in under it.
+                            if (!walked_in && rain->Active() && rain->max_life - rain->life > 1.2f) {
+                                walked_in = true;
+                                Check(marks[2].who->hp == marks[2].hp_at_start, "a deer that is not under it yet has not been touched");
+                                marks[2].x = cx + 20.0f; marks[2].y = cy;
+                                hold();
+                            }
+                        }
+                        for (Mark& m : marks) {
+                            if (m.who->hp < m.last_hp) ++m.hits;
+                            m.last_hp = m.who->hp;
+                        }
+                        if (found && !rain) break;
+                    }
+                    Check(found && right_shape, "a charged shot with Arrow Rain is a rain: a wide circle, the player's, that pins and does not throw");
+                    Check(telegraph > 0.2f && telegraph < 0.6f, "it is seen coming");
+                    Check(raining >= 2.0f, "and it comes down for two seconds and more (" + std::to_string(raining) + "s)");
+                    Check(volleys == 7, "in seven volleys (" + std::to_string(volleys) + ")");
+                    Check(marks[0].hits >= 4 && marks[0].hits <= volleys,
+                          "what stands under it is hit again and again, a volley at a time (" + std::to_string(marks[0].hits) + ")");
+                    Check(marks[1].hits == 0 && marks[1].who->hp == marks[1].hp_at_start, "what stands outside it is not hit at all");
+                    Check(walked_in && marks[2].hits >= 1 && marks[2].hits < marks[0].hits,
+                          "what walks in half way through catches the rest of it, and only the rest");
+                    Check(hp_when_it_stopped >= 0 && marks[0].who->hp == hp_when_it_stopped,
+                          "and when the arrows stop, they stop: the last half second is the ones standing in the ground");
+                    Check(seen < GroundEffect::RAIN_TIME + GroundEffect::RAIN_LINGER + 0.8f && w4.ground_effects.empty(),
+                          "then it is gone");
+                }
+
+                // Take Aim makes one sure shot, not seven.
+                GroundEffect aimed;
+                aimed.x = cx; aimed.y = cy; aimed.radius = GroundEffect::RAIN_RADIUS;
+                aimed.life = aimed.max_life = 1.5f; aimed.tick_interval = 0.4f; aimed.rain = true; aimed.sure_crit = true;
+                aimed.hit_mult = 0.3f; aimed.style = AttackStyle::Ranged; aimed.owner = w4.player.Profile();
+                w4.AddGroundEffect(aimed);
+                frames(w4, 2);
+                bool first_only = !w4.ground_effects.empty();
+                for (const GroundEffect& g : w4.ground_effects) first_only &= g.volleys == 1 && !g.sure_crit;
+                Check(first_only, "a rain loosed with Take Aim has its sure hit in the first volley, and the rest are arrows");
+
+                // A friend's screen is told it is a rain, so it can draw one.
+                Check(net::PROTOCOL_VERSION >= 4, "the line knows patches come in kinds");
+                net::Snapshot told;
+                net::PatchState patch;
+                patch.x = 120; patch.y = -40; patch.radius = 56; patch.life = 21; patch.max_life = 29; patch.kind = 1;
+                told.patches.push_back(patch);
+                told.patches.push_back(net::PatchState{});
+                net::Snapshot heard;
+                Check(net::Decode(net::Encode(told), heard) && heard.patches.size() == 2 && heard.patches[0].kind == 1 &&
+                      heard.patches[0].life == 21 && heard.patches[1].kind == 0,
+                      "and a rain crosses it as a rain, beside a patch that is only a patch");
+            }
         }
         // Nova and barrage, and what they cost.
         {
@@ -4956,7 +5055,12 @@ int main(int argc, char** argv) {
                     Check(wake == 1, "the dream has one waking stone");
                     Check(crystals >= 5, "the dream has dream crystals to mine");
                     Check(nightmares >= 8, "the dream is full of nightmares in their own colours");
-                    Check(m.Portals().empty(), "there is no walking out of a dream");
+                    bool only_deeper = !m.Portals().empty();
+                    for (const Portal& out : m.Portals()) {
+                        Map beyond;
+                        only_deeper &= beyond.Load("maps/" + out.target_map + ".mx") && beyond.Ambient() == "dream";
+                    }
+                    Check(only_deeper, "there is no walking out of a dream: its one way on is a ladder, further in");
                 }
             }
             Check(beds >= 6, "there are beds in the houses and the inn");
@@ -8983,6 +9087,317 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("the Reverie goes down, and is never the same twice");
+    {
+        Input input;
+        std::mt19937 rng(20260919);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto until = [&](World& w, float seconds, const std::function<bool()>& done) {
+            for (int f = 0; f < static_cast<int>(seconds * 60.0f); ++f) {
+                if (done()) return true;
+                input.Update(dt); w.Update(dt, ctx);
+            }
+            return done();
+        };
+
+        const char* kDepths[] = {"dreamworld", "dreamworld_2", "dreamworld_3"};
+        Map depth[3];
+        bool loaded = true;
+        for (int i = 0; i < 3; ++i) loaded &= depth[i].Load(string("maps/") + kDepths[i] + ".mx");
+        Check(loaded, "all three depths of the dream load");
+
+        // --- three depths, a ladder between each --------------------------------------------------------
+        for (int i = 0; i < 3 && loaded; ++i) {
+            const Map& m = depth[i];
+            const string name = kDepths[i];
+            Check(m.Ambient() == "dream" && m.DreamDepth() == i + 1, name + " is a dream, and knows how deep it is");
+            int down = 0, up = 0, stones = 0, crystals = 0, chests = 0;
+            for (const Portal& o : m.Portals()) {
+                Check(o.requires_interact, name + ": a ladder is climbed on purpose, not walked into");
+                if (i < 2 && o.target_map == kDepths[i + 1] && o.target_spawn == "from_above") {
+                    ++down;
+                    Check(o.danger_level > (i == 0 ? 15 : 35), name + ": the ladder down says what it is a ladder down to");
+                }
+                if (i > 0 && o.target_map == kDepths[i - 1] && o.target_spawn == "from_below") ++up;
+            }
+            Check(down == (i < 2 ? 1 : 0) && up == (i > 0 ? 1 : 0),
+                  name + (i == 0 ? " has a ladder down and none up" : i == 1 ? " has a ladder each way" : " has a ladder up, and is the bottom"));
+            SDL_FPoint at;
+            if (i > 0) Check(m.Spawn("from_above", at), name + ": there is somewhere to arrive from above");
+            if (i < 2) Check(m.Spawn("from_below", at), name + ": there is somewhere to arrive from below");
+            for (const MapObject& o : m.Objects()) {
+                if (o.type == "dream_wake") ++stones;
+                if (o.type == "chest") ++chests;
+                if (o.yield == "dream_shard" && o.skill == "Mining") ++crystals;
+            }
+            Check(stones == 1, name + " can be woken from, without climbing back up");
+            Check(chests == 1 && crystals >= 5, name + " has a chest and crystals of its own");
+            Check(m.Width() * m.Height() > (i == 0 ? 0.0f : depth[i - 1].Width() * depth[i - 1].Height()),
+                  name + (i == 0 ? " is somewhere" : " is bigger than the one above it"));
+        }
+
+        // More platforms and more bridges the further down. A platform is a
+        // patch of ground; count them by flooding the walkable cells with the
+        // planks taken out.
+        auto platforms = [&](const Map& m) {
+            constexpr float C = 32.0f;
+            const int cols = static_cast<int>(m.Width() / C), rows = static_cast<int>(m.Height() / C);
+            vector<char> ground(static_cast<size_t>(cols) * rows, 0);
+            for (const TileInstance& t : m.Tiles()) {
+                if (t.layer != LAYER_GROUND || m.TexturePath(t).find("plank") != string::npos) continue;
+                const int cx = static_cast<int>(t.rect.x / C), cy = static_cast<int>(t.rect.y / C);
+                if (cx >= 0 && cy >= 0 && cx < cols && cy < rows) ground[static_cast<size_t>(cy) * cols + cx] = 1;
+            }
+            int count = 0;
+            for (int start = 0; start < cols * rows; ++start) {
+                if (ground[start] != 1) continue;
+                ++count;
+                vector<int> todo{start};
+                ground[start] = 2;
+                while (!todo.empty()) {
+                    const int c = todo.back(); todo.pop_back();
+                    const int cx = c % cols, cy = c / cols;
+                    const int next[4][2] = {{cx + 1, cy}, {cx - 1, cy}, {cx, cy + 1}, {cx, cy - 1}};
+                    for (const auto& n : next) {
+                        if (n[0] < 0 || n[1] < 0 || n[0] >= cols || n[1] >= rows) continue;
+                        char& g = ground[static_cast<size_t>(n[1]) * cols + n[0]];
+                        if (g == 1) { g = 2; todo.push_back(n[1] * cols + n[0]); }
+                    }
+                }
+            }
+            return count;
+        };
+        if (loaded) {
+            const int p1 = platforms(depth[0]), p2 = platforms(depth[1]), p3 = platforms(depth[2]);
+            Check(p1 == 9, "the Reverie is nine platforms now, not five (" + std::to_string(p1) + ")");
+            Check(p2 > p1 && p3 > p2, "and there are more of them at every depth (" + std::to_string(p2) + ", " + std::to_string(p3) + ")");
+        }
+
+        // --- harder, the further down -----------------------------------------------------------------------
+        auto weight = [&](const string& type, int level) {
+            const EnemyDef* d = enemy_db.Get(type);
+            return d ? (d->attack_level + d->strength_level + d->defence_level + 3 * (level - 1)) : 0;
+        };
+        int hardest_regular[3] = {0, 0, 0}, easiest_regular[3] = {9999, 9999, 9999}, guardian[3] = {0, 0, 0};
+        std::set<string> seen_types[3];
+        for (int i = 0; i < 3 && loaded; ++i) {
+            for (const EnemySpawnDef& e : depth[i].Enemies()) {
+                if (e.pool.empty()) {
+                    const EnemyDef* d = enemy_db.Get(e.type);
+                    Check(d && d->is_boss == (i > 0) && d->tint.r != 255, string(kDepths[i]) + ": " + e.type + " keeps its post every night, and is a nightmare");
+                    guardian[i] = std::max(guardian[i], weight(e.type, e.level));
+                    continue;
+                }
+                Check(e.pool.size() >= 2 && !e.group.empty() && e.type == e.pool.front(),
+                      string(kDepths[i]) + ": a post with a pool has a choice, a group, and a fallback");
+                for (const string& type : e.pool) {
+                    const EnemyDef* d = enemy_db.Get(type);
+                    Check(d != nullptr, string(kDepths[i]) + ": " + type + " is a real monster");
+                    if (!d) continue;
+                    seen_types[i].insert(type);
+                    Check(d->tint.r != 255 && d->kill_target == "nightmare" && d->aggro_range > 0.0f,
+                          type + " is a dream's version of something: tinted, hostile, and a nightmare to the slate");
+                    const LootTable* t = loot.Get(d->loot_table);
+                    Check(t && !t->always.empty() && t->always.front().item == "dream_shard", type + " always leaves a shard");
+                    hardest_regular[i] = std::max(hardest_regular[i], weight(type, e.level + e.spread));
+                    easiest_regular[i] = std::min(easiest_regular[i], weight(type, e.level));
+                }
+            }
+            Check(seen_types[i].size() >= 5, string(kDepths[i]) + " has five kinds of thing or more to find in it");
+            Check(guardian[i] > hardest_regular[i], string(kDepths[i]) + ": what guards the way on is worse than anything on the way to it");
+        }
+        if (loaded) {
+            Check(easiest_regular[1] > hardest_regular[0] && easiest_regular[2] > hardest_regular[1],
+                  "the easiest thing at each depth is harder than the hardest thing above it");
+            Check(guardian[1] > guardian[0] && guardian[2] > guardian[1], "and so are the three that do not move");
+            for (const string& t : seen_types[1]) Check(!seen_types[0].count(t) && !seen_types[2].count(t), t + " belongs to the second depth only");
+            Check(enemy_db.Get("nightmare_troll") && enemy_db.Get("nightmare_troll")->name == "The Sleepless" &&
+                  enemy_db.Get("nightmare_dragon") && enemy_db.Get("nightmare_dragon")->name == "The Unwaking",
+                  "the Sleepless has the second ladder behind it, and the Unwaking has nothing behind it at all");
+        }
+
+        // --- never the same twice ------------------------------------------------------------------------------
+        if (loaded) {
+            for (int i = 0; i < 3; ++i) {
+                const Map& m = depth[i];
+                const string name = kDepths[i];
+                std::map<string, std::set<string>> kinds;       // group -> what has kept it, over a month
+                int nights_changed = 0;
+                bool agreed = true, steady = true, in_pool = true, in_range = true;
+                vector<string> last;
+                for (int day = 1; day <= 30; ++day) {
+                    vector<string> tonight;
+                    std::map<string, string> of_group;
+                    int post = 0;
+                    for (const EnemySpawnDef& e : m.Enemies()) {
+                        const EnemySpawnDef a = World::ResolveSpawn(e, name, day, post);
+                        const EnemySpawnDef b = World::ResolveSpawn(e, name, day, post);
+                        steady &= a.type == b.type && a.level == b.level;
+                        ++post;
+                        tonight.push_back(a.type + ":" + std::to_string(a.level));
+                        in_range &= a.level >= e.level && a.level <= e.level + e.spread;
+                        if (e.pool.empty()) { in_pool &= a.type == e.type; continue; }
+                        in_pool &= std::find(e.pool.begin(), e.pool.end(), a.type) != e.pool.end();
+                        kinds[e.group].insert(a.type);
+                        if (!of_group.count(e.group)) of_group[e.group] = a.type;
+                        agreed &= of_group[e.group] == a.type;
+                    }
+                    if (day > 1 && tonight != last) ++nights_changed;
+                    last = tonight;
+                }
+                Check(steady, name + ": asked twice on one night, a post gives one answer");
+                Check(in_pool && in_range, name + ": what comes is from the post's pool, at a level the post allows");
+                Check(agreed, name + ": the posts on a platform agree, so it holds a pack and not one of each");
+                Check(nights_changed >= 27, name + ": it is a different dream nearly every night of a month (" +
+                                            std::to_string(nights_changed) + " of 29)");
+                bool varied = !kinds.empty();
+                for (const auto& kv : kinds) varied &= kv.second.size() >= 2;
+                Check(varied, name + ": every platform has been kept by more than one kind of thing in that month");
+                // The map is not part of the answer by accident: the same group
+                // name at another depth is another roll.
+                EnemySpawnDef probe;
+                probe.pool = {"a", "b", "c", "d", "e", "f", "g"};
+                probe.group = "plateau";
+                int differs = 0;
+                for (int day = 1; day <= 30; ++day)
+                    if (World::ResolveSpawn(probe, name, day, 0).type != World::ResolveSpawn(probe, "somewhere_else", day, 0).type) ++differs;
+                Check(differs >= 15, name + ": and its rolls are its own");
+            }
+            // A post with no pool and no spread is exactly what is written.
+            EnemySpawnDef plain;
+            plain.type = "boar"; plain.level = 4;
+            const EnemySpawnDef same = World::ResolveSpawn(plain, "overworld", 12, 3);
+            Check(same.type == "boar" && same.level == 4, "a post that was never given a pool is what the map says it is, any day");
+        }
+
+        // A world walked into is kept by what that night says, and two machines
+        // that agree what day it is agree who is there -- a guest builds its own
+        // monsters from the map file and is only told where they stand.
+        {
+            auto roster = [&](int day, float hours, const char* map_id) {
+                World w;
+                w.clock.Set(day, hours);
+                w.player.Init(ctx, "player_hero");
+                vector<string> out;
+                if (w.LoadMap(map_id, "", ctx)) for (const auto& e : w.enemies) out.push_back(e->TypeId() + ":" + std::to_string(e->max_hp));
+                return out;
+            };
+            const vector<string> host = roster(7, 22.0f, "dreamworld_2"), guest = roster(7, 22.0f, "dreamworld_2");
+            Check(!host.empty() && host == guest, "the host's Deep Reverie and a guest's are kept by the same things");
+            Check(roster(7, 3.5f, "dreamworld_2") == roster(6, 23.0f, "dreamworld_2"),
+                  "and it is the same dream after midnight that it was before: the night is one night");
+            Check(roster(7, 22.0f, "dreamworld_2") != roster(8, 22.0f, "dreamworld_2"), "and another dream the night after");
+            Check(roster(7, 22.0f, "dreamworld") != roster(8, 22.0f, "dreamworld") &&
+                  roster(7, 22.0f, "dreamworld_3") != roster(8, 22.0f, "dreamworld_3"), "at every depth");
+        }
+
+        // --- one more shard for every ladder down -------------------------------------------------------------
+        for (int i = 0; i < 3; ++i) {
+            World w;
+            w.clock.Set(3, 22.0f);
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap(kDepths[i], "", ctx)) { Check(false, string(kDepths[i]) + " can be walked into"); continue; }
+            const string name = kDepths[i];
+            Check(w.InDream() && w.DreamBonus("dream_shard") == i && w.DreamBonus("coins") == 0,
+                  name + ": " + std::to_string(i) + " more of every shard, and of nothing else");
+
+            // A kill: the shade's table always has one shard in it, and sometimes a second stack.
+            int least = 9999, stacks_lifted = 0, kills = 0;
+            for (int k = 0; k < 40; ++k) {
+                w.pickups.clear();
+                w.SpawnLoot("nightmare_shade", 400.0f, 400.0f, ctx);
+                int shards = 0, big = 0;
+                for (const Pickup& pk : w.pickups) if (pk.item_id == "dream_shard") { shards += pk.qty; if (pk.qty > 2) ++big; }
+                least = std::min(least, shards);
+                stacks_lifted += big;
+                ++kills;
+            }
+            Check(least == 1 + i, name + ": the least a nightmare leaves is " + std::to_string(1 + i));
+            (void)stacks_lifted; (void)kills;
+            // Once for the kill, not once a stack: a table that drops two stacks lifts one of them.
+            w.pickups.clear();
+            for (int k = 0; k < 200; ++k) w.SpawnLoot("nightmare_shade", 400.0f, 400.0f, ctx);
+            int total = 0;
+            for (const Pickup& pk : w.pickups) if (pk.item_id == "dream_shard") total += pk.qty;
+            w.pickups.clear();
+            Check(total >= 200 * (1 + i) && total <= 200 * (1 + i) + 200 * 2,
+                  name + ": and it is one bonus a kill, however many stacks the kill drops");
+
+            // A crystal.
+            int crystal = -1;
+            for (size_t k = 0; k < w.CurrentMap().Objects().size(); ++k) {
+                const MapObject& o = w.CurrentMap().Objects()[k];
+                if (o.yield == "dream_shard" && o.skill == "Mining") { crystal = static_cast<int>(k); break; }
+            }
+            Check(crystal >= 0, name + " has a crystal to try");
+            if (crystal >= 0) {
+                const MapObject& o = w.CurrentMap().Objects()[static_cast<size_t>(crystal)];
+                Check(o.skill_level == (i == 0 ? 1 : i == 1 ? 20 : 45), name + ": its crystals ask Mining " + std::to_string(o.skill_level));
+            }
+        }
+        {
+            // Awake, a shard is a shard.
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("overworld", "start", ctx) && w.DreamBonus("dream_shard") == 0, "and awake there is no bonus to have");
+        }
+
+        // The ladder is a way between depths of one night: the dream a sleeper
+        // is having, and where they will wake, come down it with them.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("house_inn_upper", "default", ctx), "somebody is upstairs at the inn");
+            for (const MapObject& o : w.CurrentMap().Objects())
+                if (o.id == "bed_inn_1") { w.player.x = o.x; w.player.y = o.y + 18.0f; }
+            w.clock.Set(2, 21.0f);
+            until(w, 0.5f, [] { return false; });
+            const float bx = w.player.x, by = w.player.y;
+            Check(w.Sleep(World::SleepChoice::Reverie, ctx), "and goes to sleep, into the Reverie");
+            Check(until(w, 5.0f, [&] { return w.MapId() == "dreamworld" && !w.TransitionPending(); }) && w.InDream(), "they are dreaming");
+            Check(w.RequestTransition("dreamworld_2", "from_above"), "they climb down");
+            Check(until(w, 5.0f, [&] { return w.MapId() == "dreamworld_2" && !w.TransitionPending(); }) && w.InDream() &&
+                  w.Dream().active && w.Dream().map == "house_inn_upper",
+                  "and are still asleep upstairs at the inn, one ladder down");
+            Check(w.AmbientLight().b > w.AmbientLight().g, "where the light is still a dream's");
+            const int second_light = w.AmbientLight().r + w.AmbientLight().g + w.AmbientLight().b;
+            Check(w.RequestTransition("dreamworld_3", "from_above"), "and down again");
+            Check(until(w, 5.0f, [&] { return w.MapId() == "dreamworld_3" && !w.TransitionPending(); }) &&
+                  w.DreamBonus("dream_shard") == 2, "to the bottom, where everything leaves two more");
+            Check(w.AmbientLight().r + w.AmbientLight().g + w.AmbientLight().b < second_light, "and it is darker than it was a ladder up");
+            // Dawn finds them there as it would anywhere in the dream.
+            w.clock.Set(2, WorldClock::NIGHT_END - 0.01f);
+            Check(until(w, 6.0f, [&] { return !w.InDream() && !w.TransitionPending(); }) && w.MapId() == "house_inn_upper" &&
+                  fabsf(w.player.x - bx) < 1.0f && fabsf(w.player.y - by) < 1.0f,
+                  "dawn, at the bottom of the dream, wakes them in the bed they lay down in");
+
+            // And the stone at the bottom does what the one at the top does.
+            w.clock.Set(3, 21.0f);
+            until(w, 0.2f, [] { return false; });
+            Check(w.Sleep(World::SleepChoice::Reverie, ctx) &&
+                  until(w, 5.0f, [&] { return w.MapId() == "dreamworld" && !w.TransitionPending(); }), "another night");
+            w.RequestTransition("dreamworld_3", "from_above");
+            until(w, 5.0f, [&] { return w.MapId() == "dreamworld_3" && !w.TransitionPending(); });
+            for (const MapObject& o : w.CurrentMap().Objects())
+                if (o.type == "dream_wake") { w.player.x = o.x; w.player.y = o.y + 20.0f; }
+            until(w, 0.1f, [] { return false; });
+            Check(w.player.interact.kind == InteractTarget::Object, "the waking stone at the bottom can be reached");
+            w.TryInteract(ctx);
+            Check(until(w, 6.0f, [&] { return !w.InDream() && !w.TransitionPending(); }) && w.clock.IsNight() &&
+                  w.MapId() == "house_inn_upper", "and wakes them, with the night still going");
+        }
+
+        // The bags test knows which chests there are.
+        Check(loot.ChanceOf("chest_dream_deep", "bag_rucksack") > 0.0f && loot.ChanceOf("chest_dream_deep", "bag_rucksack") <= 0.06f &&
+              loot.ChanceOf("chest_dream_dark", "bag_haversack") > 0.0f && loot.ChanceOf("chest_dream_dark", "bag_haversack") <= 0.06f,
+              "the deeper chests have the better bags in them, and as rarely as anywhere");
+    }
+
     Section("save round trip");
     {
         Skills before;
@@ -9896,6 +10311,7 @@ int main(int argc, char** argv) {
                         for (const string& id : Player::StartingKit("player_warden"))
                             if (const ItemDef* d = items.Get(id)) gw.player.equipment.Equip(d->slot, id);
                     }
+                    guest.SetTheDay(gw);
                     guest_in = gw.LoadMap(e.map, "", gctx);
                     gw.player.x = e.x; gw.player.y = e.y;
                     gw.clock.Set(e.day, e.hours);
@@ -10239,6 +10655,7 @@ int main(int argc, char** argv) {
                         for (const string& id : Player::StartingKit("player_hero"))
                             if (const ItemDef* d = items.Get(id)) gw.player.equipment.Equip(d->slot, id);
                     }
+                    guest.SetTheDay(gw);
                     guest_in = gw.LoadMap(e.map, "", gctx);
                     gw.player.x = e.x; gw.player.y = e.y;
                     guest.Arrived(gw);
@@ -10454,6 +10871,19 @@ int main(int argc, char** argv) {
             frames(12);
             Check(gw.MapId() == "dreamworld" && host.WorldOf(1) && host.WorldOf(1)->InDream() && enters == enters_before + 1 && hw.clock.IsNight(),
                   "choosing the Reverie takes her to the dream, which is a map like any other, while the host's evening goes on");
+            {
+                // Her machine built its own nightmares out of the map file, and is
+                // only ever told where they stand: they have to be the same ones.
+                const World* hers = host.WorldOf(1);
+                bool same = hers && hers->enemies.size() == gw.enemies.size() && !gw.enemies.empty();
+                std::set<string> kinds;
+                for (size_t k = 0; same && k < gw.enemies.size(); ++k) {
+                    same = hers->enemies[k]->TypeId() == gw.enemies[k]->TypeId() && hers->enemies[k]->max_hp == gw.enemies[k]->max_hp;
+                    kinds.insert(gw.enemies[k]->TypeId());
+                }
+                Check(same, "what keeps the dream's platforms tonight is the same on her screen as in the host's world");
+                Check(kinds.size() >= 3, "and it is a night's pick of them, not the first of every pool");
+            }
             Check(hw.Sleep(World::SleepChoice::Through, hctx) && hw.player.resting, "the host lies down");
             frames(30);
             Check(hw.clock.Day() == 6 && !hw.clock.IsNight() && !hw.player.resting, "and with one abed and one dreaming, the night is over");

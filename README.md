@@ -377,7 +377,8 @@ Flags for checking all this without a second pair of hands: `--scratch hero`
 starts a game that is never written anywhere, `--hold D 2 3.5` holds a key
 down between two moments, `--say "a line"`, and `--shot file.png 5`. A scratch
 game can start anywhere and in anything: `--map brackenwood from_westwold`,
-`--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`.
+`--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`,
+`--hour 22`, `--learn trail_legs,broadheads,arrow_rain`.
 
 What is still plain: a friend's chopping shows the swing without the axe in
 hand on other screens; camps are the host's to pitch; and a line relayed
@@ -954,15 +955,39 @@ says what a held heavy attack will do ("Hold K: Whirlwind").
 | Melee | **Lunge** | Dashes forward, striking everything in the way |
 | Ranged | **Piercing Shot** | One fast, heavy arrow that passes through everything in its path |
 | Ranged | **Volley** | A fan of five arrows |
-| Ranged | **Arrow Rain** | A storm of arrows comes down on your target a moment later |
+| Ranged | **Arrow Rain** | Arrows rain on a wide circle at your target for over two seconds, a volley every beat |
 | Magic | **Nova** | A ring of eight bolts of your element, for twice the mana |
 | Magic | **Barrage** | Four seeking bolts at once, for twice the mana |
 | Magic | **Meteor** | Your element crashes down on your target, for three times the mana |
 
-A strike from above -- Arrow Rain, Meteor, the ancient rain -- **lands once**,
-the moment it goes off. It used to land a second time a frame later, on the
-effect's first tick, so each was quietly two; the numbers above are now what
-they say.
+A strike from above -- Meteor, the ancient rain -- **lands once**, the moment
+it goes off. It used to land a second time a frame later, on the effect's first
+tick, so each was quietly two; the numbers above are now what they say.
+
+**Arrow Rain is a rain.** It was one of those strikes: a circle, one hit, and a
+disc that was gone in a third of a second, which is a thump. Now the circle is
+seen coming for a third of a second and then it rains on it for **2.4
+seconds**: seven volleys, one every 0.4, each worth about a third of the
+charged shot it was and each its own roll to hit on whatever is under it *then*
+-- so something that walks out gets out, and something that walks in catches
+the rest. Stood in from first to last it is a little over twice the shot; most
+things do not stand in it. Arrows pin rather than throw: a volley staggers for
+a tenth of a second and barely pushes, where a shove from the middle would have
+cleared the circle on the first one. Take Aim makes the first volley its sure
+hit, not all seven. The numbers are `GroundEffect::RAIN_TIME`, `RAIN_EVERY`,
+`RAIN_SHARE` and `RAIN_RADIUS`.
+
+It is drawn as one, too: a shadow on the ground with a dashed rim walking
+slowly round it, and over the fighters forty-odd arrows at a time coming in
+steep from up and to the left, standing in the ground where they struck for
+half a second, and fading; every volley kicks up dust and is heard. Nothing
+about an arrow is stored -- each is worked out from the clock and its own
+number (`World::DrawArrowRain`) -- so a friend's screen, which is only told
+that a patch is a rain and how long it has left (`PatchState::kind`, and the
+protocol goes to 4 for it), draws its own. When the last volley has landed the
+circle goes and the arrows already standing get their half second to fade.
+`--learn trail_legs,broadheads,arrow_rain` with `--scratch warden --level 40`
+is a character who can loose one.
 
 #### Abilities
 
@@ -2097,8 +2122,8 @@ There are three kinds of place to sleep:
 Going to sleep restores health, mana and stamina, whichever way the night is
 spent.
 
-**The Reverie** is five cloud islands over a starry void, joined by plank
-bridges to the one you arrive on. It is lit a dream's violet, wisps of light
+**The Reverie** is cloud islands over a starry void, joined by plank
+bridges. It is lit a dream's violet, wisps of light
 drift up out of the void, and the ambience is a slow shimmering chord with
 chimes far off. A voice on the arrival island explains the rules:
 
@@ -2109,13 +2134,96 @@ chimes far off. A voice on the arrival island explains the rules:
 - **You cannot die in a dream.** A nightmare that bests you throws you awake, in
   your bed, whole -- but the rest of the night goes with it.
 
-The islands are where the night's work is. **Nightmare Shades** haunt the grove
-to the north, **Dread Boars** graze the meadow to the west, the field to the east
-has **dream crystals** to mine (Mining 1), and to the south a **Nightmare Brute**
-guards a chest. They are the waking world's orcs and boars in a bad night's
-colours, and what they drop is real: **dream shards** come back with you, and
-six of them with two thread make a **Dreamcatcher** at a workbench, an amulet
-worth +10 Magic, +8 Ranged and +4 Defence.
+The islands are where the night's work is: a grove to the north, a meadow to
+the west, a field to the east with **dream crystals** to mine (Mining 1), and
+to the south the plateau where the **Nightmare Brute** guards a chest. What
+lives on them is the waking world's monsters in a bad night's colours, and what
+they drop is real: **dream shards** come back with you, and six of them with
+two thread make a **Dreamcatcher** at a workbench, an amulet worth +10 Magic,
++8 Ranged and +4 Defence.
+
+#### It goes down
+
+The Reverie used to be those five islands and nothing else. It is nine now --
+four shelves further out, each at the end of two bridges, so the five are a
+ring and not a star -- and behind the brute's plateau, on a spur only his
+plateau leads to, there is **a ladder down**.
+
+| Depth | Map | | Advised | Kept by |
+| --- | --- | --- | --- | --- |
+| 1 | `dreamworld` | **The Reverie** -- 9 islands, 11 bridges | -- | the Nightmare Brute |
+| 2 | `dreamworld_2` | **The Deep Reverie** -- 11 islands, 16 bridges | Combat 25 | the Sleepless |
+| 3 | `dreamworld_3` | **The Dreaming Dark** -- 13 islands, 20 bridges | Combat 50 | the Unwaking |
+
+Each is bigger than the one above it, darker -- the violet goes out of the
+light a ladder at a time, and the cloud underfoot goes from snow to storm --
+and harder: the easiest thing at a depth is stronger than the hardest thing a
+ladder up. What guards the way on does not move: the brute has the first
+ladder behind him, **the Sleepless** (a troll that has never slept) the second,
+and at the far end of the bottom is **the Unwaking**, which is a dragon, and is
+what the rest of them are dreams of. Each of the three stands over a chest.
+
+**One more shard a ladder.** Everything that leaves a dream shard leaves one
+more for each ladder climbed down: a kill, a crystal, a chest. A nightmare that
+leaves one in the Reverie leaves two in the Deep Reverie and three in the
+Dreaming Dark; a crystal there gives three at a swing. It is once for whatever
+it was, not once a stack -- a kill that drops two stacks of shards has one of
+them made bigger. The map says how deep it is (`"dream_depth"`), and
+`World::DreamBonus` is the whole of the rule. The deeper crystals ask more of
+the miner: Mining 20, then 45.
+
+Everything that is true of a dream is true of all of it, because all of that
+asks whether the map's ambience is a dream's and not which map it is: dawn
+wakes you from the bottom as it does from the top, where you lay down; a
+nightmare that bests you throws you awake and cannot kill you; there is a
+waking stone at the foot of each ladder; and a save made two ladders down
+carries on two ladders down. The ladders are climbed on purpose (`E`), and the
+ones going down say what they are going down to.
+
+#### It is never the same dream twice
+
+Shades in the grove and boars in the meadow was every night. It is some nights
+now. Every platform's posts share a **pool** of the depth's monsters and a
+**group**, and which of the pool keeps them is settled as the map is walked
+into, by the day:
+
+| Depth | Who might be there |
+| --- | --- |
+| 1 | Nightmare Shade, Dread Boar, Gloom Spider, Pale Stag, Dusk Wolf |
+| 2 | Dreamfang (wolf), Sleepwalker (lizardman), Night Terror (wraith), Gloomwing (bat), Hollow Sleeper (skeleton) |
+| 3 | Dread Bear, Nightmare Hound, Dream Fiend (demon), Wailing Dream (banshee), Night Wyvern, Pale Reaper (ankou) |
+
+A platform agrees with itself, so it holds a pack of one kind and not one of
+each, and no two platforms need agree; their levels vary a little as well. It
+is the same all night -- up and down the ladders, across a reload, before and
+after midnight, because the day that settles it is the quest day, which turns
+over at dawn -- and a different dream the next night. All of them count as
+nightmares to the Dreamer's Slate, so "Nightmares Undone" can be done whatever
+came; the brute keeps his post every night because two quests send people to
+him by name.
+
+`World::ResolveSpawn(post, map, day, index)` is the whole of it: a hash of the
+map, the day and the post's group picks from the pool, and another of the
+post's place in the file picks the level. It is pure, so the self-test can ask
+it about any night of any month; and it takes nothing a guest does not already
+have. That matters: a guest's machine builds its own monsters out of the map
+file and is only ever told *where* they are, by number, so host and guest have
+to come to the same answer separately. They are both told the day. (The guest
+is now told it before it loads the map rather than after: `Guest::SetTheDay`.)
+A post with no pool is exactly what the map file says it is, as it always was,
+so nothing outside the dream has changed -- but anywhere could be given one.
+
+Below the first depth the light is low enough to lose a dark thing in, so what
+lives there is lit from inside, faintly: a Gloomwing is a shape with a glow
+round it and not a hole in the floor.
+
+The ladders are `prop_dream_ladder_down` -- a hole worn through the cloud, the
+top of a ladder standing out of it -- and `prop_dream_ladder_up`, the same
+ladder from underneath, climbing until there is no more of it to see. The three
+builders in `tools/genmaps.cpp` share a `DreamField`: the islands, the bridges
+between any two of them, and the questions every builder asks of those.
+`--hour 22` starts a `--scratch` game at night, which a look at
+`--map dreamworld_3 from_above` needs: a dream walked into by daylight is over.
 
 A save made in a dream remembers where you are sleeping, so loading it carries
 on the same dream and wakes you in the same place.
@@ -3352,7 +3460,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **24343 checks** covering:
+and checks all of it — currently **26307 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -3668,7 +3776,12 @@ and checks all of it — currently **24343 checks** covering:
 - in real fights: a whirlwind strikes all four deer round the player where a
   plain charged swing strikes the ones in front, a lunge carries the player
   forward, a volley looses five arrows, a piercing shot passes through a crowd,
-  arrow rain and meteor call strikes down, a nova bursts into eight bolts for
+  arrow rain and meteor call strikes down; an arrow rain is seen coming, comes
+  down for two seconds and more in seven volleys, hits what stands under it
+  again and again and what stands outside it not at all, catches what walks in
+  half way with the rest of it and only the rest, stops when the arrows stop,
+  and is gone; Take Aim is its first volley and not the other six; a rain
+  crosses the line as a rain; a nova bursts into eight bolts for
   twice the mana less Focus, flurry quickens a sword and not a bow, and learned
   nodes survive a save
 - the clock's dusk only darkens, dawn is half light and warm, half a minute is
@@ -3937,6 +4050,25 @@ and checks all of it — currently **24343 checks** covering:
   another character loaded over them does not inherit it; a save from before
   bags loads as it did; all four go on in any order and stop at eight rows; a
   bag named twice in a save counts once
+- the Reverie goes down, and is never the same twice: three depths that each
+  know how deep they are, a ladder each way between them that is climbed on
+  purpose and says what it leads to, a waking stone, a chest and crystals at
+  each; nine platforms, then more, then more again, each map bigger than the
+  last; every post with a pool has a choice, a group and a fallback, and
+  everything in a pool is a real monster, tinted, hostile, a nightmare to the
+  slate, and always leaves a shard; the easiest thing at each depth is harder
+  than the hardest thing above it, what guards the way on is worse than
+  anything on the way to it, and no monster belongs to two depths; asked twice
+  on one night a post gives one answer, from its pool, at a level it allows;
+  the posts on a platform agree; it is a different dream nearly every night of
+  a month and every platform is kept by more than one kind of thing in it; a
+  post never given a pool is what the map says; two machines that agree on the
+  day agree who is there, before midnight and after, and not the night after;
+  a guest's dream is kept by the same things as the host's copy of it; a
+  nightmare leaves one, two and three shards by depth, once a kill and not once
+  a stack, and nothing else is multiplied; awake there is no bonus; a sleeper
+  climbs to the bottom still asleep upstairs at the inn, where it is darker,
+  and dawn or the stone wakes them in their own bed
 - a town entrance is a gate, with someone at it: every road out of Havenbrook,
   Mossvale and Fernhollow is on the test's list; a gatehouse stands across a
   road that leaves by the south and a tower either side of one that leaves by

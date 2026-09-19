@@ -198,6 +198,11 @@ public:
 
     bool HasEnter() const { return pending_enter; }
     const net::Enter& PendingEnter() const { return enter; }
+    // Before the map it names is loaded: what day it is there. Who keeps a
+    // dream's platforms tonight is worked out from the day as a map loads
+    // (World::ResolveSpawn), and the host is only going to say where its
+    // monsters are, not what they are.
+    void SetTheDay(World& world) const;
     // The map is loaded: take in what the Enter said about the world.
     void Arrived(World& world);
     void Reset(World& world);

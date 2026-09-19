@@ -27,7 +27,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 3;
+static constexpr uint16_t PROTOCOL_VERSION = 4;   // 4: a patch says what kind it is
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -242,6 +242,7 @@ struct PatchState {              // burning ground, a rune, a storm
     uint16_t radius = 0;
     uint8_t  element = 0, life = 0, max_life = 0;   // tenths of a second
     bool     active = true, from_player = true;
+    uint8_t  kind = 0;           // 0 a patch of something, 1 Arrow Rain: the guest draws its own arrows
 };
 static constexpr size_t MAX_ENEMIES_TOLD = 160, MAX_PICKUPS_TOLD = 96, MAX_SHOTS_TOLD = 96, MAX_PATCHES_TOLD = 48;
 

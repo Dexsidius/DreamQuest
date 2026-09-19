@@ -86,6 +86,15 @@ struct EnemySpawnDef {
     int    level = 1;
     float  respawn = 25.0f;  // seconds; <= 0 means it stays dead
     float  leash = 220.0f;   // how far it will chase from its post
+    // A post that is not always kept by the same thing. With a `pool`, `type`
+    // is only the first of it: which of them stands here is settled when the
+    // map is walked into, by the day -- see World::ResolveSpawn. Posts that
+    // share a `group` settle it together, so a platform has a pack of one kind
+    // on it and not one of each. `spread` is how many levels over `level` it
+    // may come out at.
+    vector<string> pool;
+    string group;
+    int    spread = 0;
 };
 
 // Somewhere a walking villager stops, and for how long.
@@ -233,6 +242,9 @@ public:
     SDL_FPoint DefaultSpawn() const;
 
     const vector<EnemySpawnDef>& Enemies() const { return enemies; }
+    // How far down the Reverie this is: 1 where a sleeper arrives, 2 and 3
+    // down the ladders, and 0 for anywhere awake.
+    int DreamDepth() const { return dream_depth; }
     const vector<NpcDef>&        Npcs() const { return npcs; }
     const vector<MapObject>&     Objects() const { return objects; }
     const vector<Portal>&        Portals() const { return portals; }
@@ -260,6 +272,7 @@ private:
 
     bool   loaded = false;
     string id, display_name, source_dir, ambient, subtitle;
+    int    dream_depth = 0;
     bool   interior = false;
     bool   dark = false;
     SDL_Color background{24, 20, 32, 255};

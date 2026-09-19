@@ -1938,5 +1938,773 @@
         "weight": 15
       }
     ]
+  },
+  "gloom_spider": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "weight": 25
+      },
+      {
+        "item": "coins",
+        "qty": [
+          4,
+          18
+        ],
+        "weight": 20
+      },
+      {
+        "item": "spider_silk",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 45
+      }
+    ]
+  },
+  "pale_stag": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "weight": 25
+      },
+      {
+        "item": "coins",
+        "qty": [
+          4,
+          18
+        ],
+        "weight": 20
+      },
+      {
+        "item": "hide",
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 45
+      }
+    ]
+  },
+  "dusk_wolf": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "weight": 25
+      },
+      {
+        "item": "coins",
+        "qty": [
+          4,
+          18
+        ],
+        "weight": 20
+      },
+      {
+        "item": "wolf_pelt",
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 45
+      }
+    ]
+  },
+  "dream_wolf": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          20,
+          60
+        ],
+        "weight": 25
+      },
+      {
+        "item": "dread_hide",
+        "weight": 12
+      },
+      {
+        "item": "wolf_pelt",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 23
+      }
+    ]
+  },
+  "dream_lizardman": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          20,
+          60
+        ],
+        "weight": 25
+      },
+      {
+        "item": "dread_hide",
+        "weight": 12
+      },
+      {
+        "item": "lizard_scale",
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 23
+      }
+    ]
+  },
+  "dream_wraith": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          20,
+          60
+        ],
+        "weight": 25
+      },
+      {
+        "item": "dread_hide",
+        "weight": 12
+      },
+      {
+        "item": "moonpetal",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 23
+      }
+    ]
+  },
+  "dream_bat": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          20,
+          60
+        ],
+        "weight": 25
+      },
+      {
+        "item": "dread_hide",
+        "weight": 12
+      },
+      {
+        "item": "moonpetal",
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 23
+      }
+    ]
+  },
+  "dream_skeleton": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          20,
+          60
+        ],
+        "weight": 25
+      },
+      {
+        "item": "dread_hide",
+        "weight": 12
+      },
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "item": "nothing",
+        "weight": 23
+      }
+    ]
+  },
+  "nightmare_troll": {
+    "always": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          6,
+          9
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          150,
+          300
+        ]
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          3,
+          5
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "table": "rare_drops",
+        "weight": 22
+      },
+      {
+        "item": "troll_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 30
+      },
+      {
+        "item": "bag_rucksack",
+        "weight": 3
+      },
+      {
+        "item": "nothing",
+        "weight": 45
+      }
+    ]
+  },
+  "dream_bear": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          160
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "bear_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_hound": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          160
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily",
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_demon": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          160
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "demon_hide",
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_banshee": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          160
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_wyvern": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          160
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "wyvern_scale",
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_ankou": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          160
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "moonpetal",
+        "qty": [
+          2,
+          3
+        ],
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "nightmare_dragon": {
+    "always": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          10,
+          14
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          400,
+          800
+        ]
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          5,
+          8
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "table": "rare_drops",
+        "weight": 34
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          2,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "bag_haversack",
+        "weight": 4
+      },
+      {
+        "item": "nothing",
+        "weight": 32
+      }
+    ]
+  },
+  "chest_dream_deep": {
+    "always": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          5,
+          7
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "coins",
+        "qty": [
+          80,
+          200
+        ],
+        "weight": 50
+      },
+      {
+        "item": "thread",
+        "qty": [
+          3,
+          6
+        ],
+        "weight": 25
+      },
+      {
+        "item": "spider_silk",
+        "qty": [
+          3,
+          6
+        ],
+        "weight": 20
+      },
+      {
+        "item": "bag_rucksack",
+        "weight": 3
+      },
+      {
+        "item": "bag_haversack",
+        "weight": 2
+      }
+    ]
+  },
+  "chest_dream_dark": {
+    "always": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          8,
+          11
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "coins",
+        "qty": [
+          250,
+          600
+        ],
+        "weight": 46
+      },
+      {
+        "item": "dread_hide",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 30
+      },
+      {
+        "item": "starlily",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 20
+      },
+      {
+        "item": "bag_haversack",
+        "weight": 4
+      }
+    ]
   }
 }

@@ -277,6 +277,7 @@ void Game::EnterAsGuest(const net::Enter& enter) {
         quest_day_seen = -1;
         welcome_pending = false;
     }
+    coop_guest.SetTheDay((*world));
     if (!world->LoadMap(enter.map, "", ctx)) {
         session.Leave();
         EndGuestSession("The host is somewhere this game has no map of.");

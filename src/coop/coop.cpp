@@ -1104,6 +1104,7 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             ps.max_life = static_cast<uint8_t>(std::clamp(g.max_life * 10.0f, 0.0f, 255.0f));
             ps.active = g.Active();
             ps.from_player = g.from_player;
+            ps.kind = g.rain ? 1 : 0;
             snap.patches.push_back(ps);
         }
         server.SendToSeat(seat_no, net::Channel::Unreliable, net::Encode(snap));
@@ -1157,6 +1158,10 @@ void Guest::Reset(World& world) {
     world.visitor_acts.clear();
     world.shops.journal = false;
     world.shops.sales.clear();
+}
+
+void Guest::SetTheDay(World& world) const {
+    if (pending_enter && !enter.map.empty()) world.clock.Set(enter.day, enter.hours);
 }
 
 void Guest::Arrived(World& world) {
@@ -1458,6 +1463,7 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         g.max_life = std::max(0.1f, ps.max_life / 10.0f);
         g.delay = ps.active ? 0.0f : 0.1f;
         g.from_player = ps.from_player;
+        g.rain = ps.kind == 1;
         world.ground_effects.push_back(g);
     }
 }

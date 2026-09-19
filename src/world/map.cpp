@@ -82,6 +82,7 @@ bool Map::Load(const string& path) {
     interior   = dq.value("interior", false);
     dark       = dq.value("dark", false);
     ambient    = dq.value("ambient", string("overworld"));
+    dream_depth = dq.value("dream_depth", 0);
     subtitle   = dq.value("subtitle", string(""));
     background = ColorFromJson(dq.contains("background") ? dq["background"] : json(),
                                interior ? SDL_Color{18, 14, 20, 255}
@@ -209,6 +210,10 @@ bool Map::Load(const string& path) {
             d.level   = e.value("level", 1);
             d.respawn = e.value("respawn", 25.0f);
             d.leash   = e.value("leash", 220.0f);
+            if (e.contains("pool") && e["pool"].is_array())
+                for (const auto& t : e["pool"]) if (t.is_string()) d.pool.push_back(t.get<string>());
+            d.group   = e.value("group", string(""));
+            d.spread  = std::max(0, e.value("spread", 0));
             enemies.push_back(d);
         }
 
