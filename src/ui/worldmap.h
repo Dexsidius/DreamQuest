@@ -6,6 +6,8 @@
 class World;
 class Map;
 class ShopDatabase;
+class WaypointIndex;
+struct Waypoint;
 
 // -----------------------------------------------------------------------------
 //  The map screen: where you are, and the Hollowmarch.
@@ -64,8 +66,14 @@ public:
 
     // Draws the whole screen: the page for where the player is, or the
     // Hollowmarch if `overview`. Bakes a page the first time it is asked for.
+    // `waypoint` is where the quest being followed is, and `label` its name. It
+    // is marked on whichever page is showing: where the thing is if that is on
+    // this page, and otherwise on the way out of this page that leads to it.
     void Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& world,
-              const string& close_prompt, const string& turn_prompt, bool overview);
+              const string& close_prompt, const string& turn_prompt, bool overview,
+              const Waypoint* waypoint = nullptr, const string& label = "");
+    // The roads between maps, for putting that mark on the right door.
+    void SetRoads(const WaypointIndex* index) { roads = index; }
 
     void Forget();   // drops the baked pictures; the next draw rebuilds them
 
@@ -111,4 +119,5 @@ private:
     std::map<string, AreaInfo> areas;
     std::map<string, Page> pages;
     const ShopDatabase* shop_db = nullptr;
+    const WaypointIndex* roads = nullptr;
 };

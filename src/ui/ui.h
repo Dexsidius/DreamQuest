@@ -75,6 +75,17 @@ public:
     float ViewWidth() const { return view_w; }
     float ViewHeight() const { return view_h; }
 
+    // --- looking for text that runs off -------------------------------------------
+    // While auditing, every piece of text drawn is checked against the panel it
+    // was drawn on -- the last one opened that it starts inside -- and against
+    // the window. Text that begins on a panel and ends off it, or hangs off the
+    // edge of the window, is written down: what it said, and by how much. It is
+    // how `--audit` walks every menu and says which ones overflow, instead of
+    // somebody having to notice.
+    struct Overflow { string text; float over_right = 0, over_left = 0, over_bottom = 0; bool off_window = false; };
+    void BeginAudit() { auditing = true; audit_panels.clear(); audit_found.clear(); }
+    vector<Overflow> EndAudit() { auditing = false; return std::move(audit_found); }
+
     bool Ready() const { return fonts[0] != nullptr; }
     // Which font file was actually opened, for the startup log.
     const string& FontPath() const { return font_path; }
@@ -92,4 +103,8 @@ private:
     int frame = 0;
 
     float view_w = 1280.0f, view_h = 720.0f;
+
+    bool auditing = false;
+    vector<SDL_FRect> audit_panels;
+    vector<Overflow>  audit_found;
 };

@@ -31,6 +31,9 @@ public:
     AttackStyle Style() const;
     // Layer colours for the paperdoll, from what is currently worn.
     LayerStyle BuildLayerStyle(const ItemDatabase* db) const;
+    // How a character looks holding what they set out with, for a preview that
+    // is not a character yet: the character-select screen's cards.
+    static LayerStyle KitStyle(const string& character_id, const ItemDatabase* db);
     // Called by the world when a swing connects, so the player banks XP for it.
     void AwardCombatXp(int damage, AttackType type);
     void SyncHitpoints();               // keep hp in step with the Hitpoints skill

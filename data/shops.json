@@ -908,6 +908,34 @@
      "stock": 1
     }
    ]
+  },
+  "havenbrook_tannery": {
+   "name": "Nessa's Tannery",
+   "type": "tanner",
+   "keeper": "npc_nessa",
+   "town": "havenbrook",
+   "markup": 1.12,
+   "buys": {
+    "leather": 0.9,
+    "cloth": 0.85,
+    "trophy": 0.75,
+    "raw": 0.5,
+    "bones": 0.55
+   },
+   "sells": [
+    {
+     "item": "thread",
+     "stock": 20
+    },
+    {
+     "item": "hide_boots",
+     "stock": 2
+    },
+    {
+     "item": "leather_legs",
+     "stock": 1
+    }
+   ]
   }
  }
 }

@@ -180,10 +180,14 @@ void Game::DrawCharacterSelect() {
         ui.Panel(card, i == cursor);
         if (i == cursor) ui.Outline(card, Palette::Highlight, 2.0f);
 
-        // Live idle animation as the preview.
+        // Live idle animation as the preview, holding what they set out with:
+        // the warden's bow and the wayfarer's staff, not the rig's own sword,
+        // which is what all three used to be shown with whatever they fight
+        // with. The armour they start in comes with it.
         if (const SpriteDef* def = sprites.Get(kCharacterIds[i])) {
             Sprite preview;
             preview.SetDef(def);
+            preview.style = Player::KitStyle(kCharacterIds[i], &items);
             preview.facing = FACE_DOWN;
             preview.Play("idle");
             preview.Update(static_cast<float>(SDL_GetTicks()) / 1000.0f);
@@ -207,7 +211,8 @@ void Game::DrawCharacterSelect() {
         // And what they set out with, since it is the weapon of that affinity.
         const vector<string> kit = Player::StartingKit(kCharacterIds[i]);
         const ItemDef* first = kit.empty() ? nullptr : items.Get(kit.front());
-        ui.Text(first ? "starts with a " + first->name : string("hits harder and truer with it"),
+        const bool vowel = first && string("AEIOUaeiou").find(first->name[0]) != string::npos;
+        ui.Text(first ? "starts with a" + string(vowel ? "n " : " ") + first->name : string("hits harder and truer with it"),
                 card.x + card.w / 2.0f, card.y + card.h - 20.0f,
                 TextSize::Small, Palette::TextDim, Align::Center);
     }
@@ -342,8 +347,16 @@ void Game::DrawLoadMenu() {
 //  Options
 // =============================================================================
 
+// The rows of the Options screen, by name, so adding one is not a renumbering.
+namespace {
+enum OptionRow {
+    OPT_INPUT, OPT_CONTROLS, OPT_ZOOM, OPT_FULLSCREEN, OPT_VSYNC, OPT_FPS, OPT_DAMAGE, OPT_WAYPOINTS,
+    OPT_MASTER, OPT_SFX, OPT_AMBIENCE, OPT_BACK, OPT_ROWS
+};
+}
+
 void Game::UpdateOptions() {
-    constexpr int ROWS = 10;
+    constexpr int ROWS = OPT_ROWS;
     MoveCursor(cursor, ROWS);
 
     int delta = 0;
@@ -354,36 +367,47 @@ void Game::UpdateOptions() {
     if (delta != 0 || confirm) {
         const int step = (delta != 0) ? delta : 1;
         switch (cursor) {
-            case 0:
+            case OPT_INPUT:
                 settings.input_mode = ((settings.input_mode + step) % 3 + 3) % 3;
                 input.SetMode(static_cast<InputMode>(settings.input_mode));
                 break;
-            case 1:
+            case OPT_CONTROLS:
+                if (confirm) {
+                    // Not OpenPanel: Options still goes back to wherever it came from.
+                    SetState(GameState::Controls);
+                    controls_cursor = 0;
+                    controls_column = input.ActiveDevice() == InputMode::Controller ? 1 : 0;
+                    controls_note.clear();
+                    return;
+                }
+                break;
+            case OPT_ZOOM:
                 settings.zoom = std::clamp(settings.zoom + step * 0.25f, 1.5f, 4.0f);
                 world->camera.SetZoom(settings.zoom);
                 break;
-            case 2:
+            case OPT_FULLSCREEN:
                 settings.fullscreen = !settings.fullscreen;
                 SDL_SetWindowFullscreen(window, settings.fullscreen);
                 break;
-            case 3:
+            case OPT_VSYNC:
                 settings.vsync = !settings.vsync;
                 SDL_SetRenderVSync(renderer, settings.vsync ? 1 : 0);
                 break;
-            case 4: settings.show_fps = !settings.show_fps; break;
-            case 5: settings.damage_numbers = !settings.damage_numbers; break;
-            case 6: case 7: case 8: {
-                float& v = (cursor == 6) ? settings.master_volume
-                         : (cursor == 7) ? settings.sfx_volume : settings.ambience_volume;
+            case OPT_FPS: settings.show_fps = !settings.show_fps; break;
+            case OPT_DAMAGE: settings.damage_numbers = !settings.damage_numbers; break;
+            case OPT_WAYPOINTS: settings.quest_waypoints = !settings.quest_waypoints; break;
+            case OPT_MASTER: case OPT_SFX: case OPT_AMBIENCE: {
+                float& v = (cursor == OPT_MASTER) ? settings.master_volume
+                         : (cursor == OPT_SFX) ? settings.sfx_volume : settings.ambience_volume;
                 // Confirm cycles, wrapping back to silent after full.
                 if (delta != 0) v = std::clamp(roundf((v + delta * 0.1f) * 10.0f) / 10.0f, 0.0f, 1.0f);
                 else            v = (v >= 0.95f) ? 0.0f : roundf((v + 0.1f) * 10.0f) / 10.0f;
                 Audio::SetVolumes(settings.master_volume, settings.sfx_volume,
                                   settings.ambience_volume);
-                Audio::Play(cursor == 8 ? Sfx::Pickup : Sfx::Hit, 0.8f);
+                Audio::Play(cursor == OPT_AMBIENCE ? Sfx::Pickup : Sfx::Hit, 0.8f);
                 break;
             }
-            case 9:
+            case OPT_BACK:
                 if (confirm) {
                     settings.Save();
                     SetState(return_state);
@@ -407,7 +431,10 @@ static string VolumeLabel(float v) {
 
 void Game::DrawOptions() {
     ui.Dim(0.55f);
-    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 552.0f);
+    // Twelve rows now, so they are a little shorter, and shorter again in a
+    // window that is.
+    const float row_h = std::clamp(floorf((ui.ViewHeight() - 40.0f - 130.0f) / OPT_ROWS), 30.0f, 40.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 130.0f + OPT_ROWS * row_h);
     ui.Panel(panel);
 
     ui.Text("Options", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
@@ -420,21 +447,22 @@ void Game::DrawOptions() {
         ? string(input.GamepadName())
         : string("no controller detected");
 
-    const pair<string, string> rows[] = {
+    const pair<string, string> rows[OPT_ROWS] = {
         {"Input Device",   InputModeLabel(settings.input_mode)},
+        {"Controls",       "keys and buttons  >"},
         {"Camera Zoom",    zoom_buf},
         {"Fullscreen",     settings.fullscreen ? "On" : "Off"},
         {"VSync",          settings.vsync ? "On" : "Off"},
         {"Show FPS",       settings.show_fps ? "On" : "Off"},
         {"Damage Numbers", settings.damage_numbers ? "On" : "Off"},
+        {"Quest Waypoints", settings.quest_waypoints ? "On" : "Off"},
         {"Master Volume",  VolumeLabel(settings.master_volume)},
         {"Effects Volume", VolumeLabel(settings.sfx_volume)},
         {"Ambience Volume", VolumeLabel(settings.ambience_volume)},
         {"Back",           ""},
     };
 
-    const float row_h = 42.0f;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < OPT_ROWS; ++i) {
         const SDL_FRect row = {panel.x + 16.0f, panel.y + 62.0f + i * row_h,
                                panel.w - 32.0f, row_h - 4.0f};
         ui.MenuItem(row, rows[i].first, i == cursor, true, rows[i].second);
@@ -445,6 +473,172 @@ void Game::DrawOptions() {
     ui.Text("Left / Right to change     " + input.PromptFor(Action::Back) + " back",
             panel.x + panel.w / 2.0f,
             panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
+// =============================================================================
+//  Controls: which key and which button does what
+// =============================================================================
+//
+// A row an action, a column a device. Confirm on a cell listens for whatever is
+// pressed next and gives the action that; whoever had it takes the one this
+// had, so nothing is ever left without a key and no key ever does two things.
+// Under the actions: put either column back as it shipped, and back.
+
+namespace {
+constexpr int CONTROLS_EXTRA = 3;      // reset keyboard, reset controller, back
+int ControlsRows() { return static_cast<int>(Bindings::Rebindable().size()) + CONTROLS_EXTRA; }
+}
+
+void Game::UpdateControls() {
+    const vector<Action>& actions = Bindings::Rebindable();
+    const int count = static_cast<int>(actions.size());
+    const auto keep = [&](const Bindings& b) {
+        input.SetBindings(b);
+        input_two.SetBindings(b);
+        settings.controls = b.ToJson();
+        settings.Save();
+    };
+
+    // Waiting to be told: everything pressed is an answer, and not a command.
+    if (input.Listening()) {
+        const Input::Heard heard = input.TakeHeard();
+        if (heard.cancelled) {
+            controls_note = "Left as it was.";
+            Audio::Play(Sfx::UiBack);
+        } else if (heard.any) {
+            const Action a = actions[std::clamp(controls_cursor, 0, count - 1)];
+            Bindings b = input.GetBindings();
+            const bool key = heard.button < 0;
+            if (key ? !Bindings::KeyFree(heard.key) : !Bindings::ButtonFree(heard.button)) {
+                controls_note = (key ? Bindings::KeyLabel(heard.key) : Bindings::ButtonLabel(heard.button)) +
+                                " is kept for the menus, and cannot be given away.";
+                Audio::Play(Sfx::UiError);
+            } else {
+                const string label = key ? Bindings::KeyLabel(heard.key) : Bindings::ButtonLabel(heard.button);
+                const Action other = key ? b.BindKey(a, heard.key) : b.BindButton(a, heard.button);
+                controls_note = string(Bindings::Name(a)) + " is on " + label + ".";
+                if (other != Action::COUNT)
+                    controls_note += "  " + string(Bindings::Name(other)) + " takes " +
+                                     (key ? Bindings::KeyLabel(b.Key(other)) : Bindings::ButtonLabel(b.Button(other))) + ".";
+                keep(b);
+                Audio::Play(Sfx::UiConfirm);
+            }
+        }
+        return;
+    }
+
+    MoveCursor(controls_cursor, ControlsRows());
+    if (input.MenuLeft() || input.MenuRight()) {
+        controls_column = 1 - controls_column;
+        Audio::Play(Sfx::UiMove);
+    }
+
+    if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+        if (controls_cursor < count) {
+            const Action a = actions[controls_cursor];
+            if (controls_column == 1 && !Bindings::OnPad(a)) {
+                const bool steering = a == Action::MoveUp || a == Action::MoveDown || a == Action::MoveLeft || a == Action::MoveRight;
+                controls_note = steering ? "A controller steers with its left stick and its d-pad, and those stay put."
+                              : a == Action::Drop ? "On a controller, the heavy attack's button drops things in the bag."
+                                                  : "On a controller the elements are stepped through with Next element.";
+                Audio::Play(Sfx::UiError);
+            } else if (controls_column == 1 && !input.HasGamepad()) {
+                controls_note = "No controller is plugged in to press a button on.";
+                Audio::Play(Sfx::UiError);
+            } else {
+                controls_note.clear();
+                input.Listen(controls_column == 0 ? Input::ListenFor::Key : Input::ListenFor::Button);
+                Audio::Play(Sfx::UiConfirm);
+            }
+        } else if (controls_cursor == count || controls_cursor == count + 1) {
+            Bindings b = input.GetBindings();
+            const Bindings fresh;
+            if (controls_cursor == count) b.keys = fresh.keys; else b.buttons = fresh.buttons;
+            keep(b);
+            controls_note = controls_cursor == count ? "The keyboard is as it shipped." : "The controller is as it shipped.";
+            Audio::Play(Sfx::UiConfirm);
+        } else {
+            SetState(GameState::Options);
+            cursor = OPT_CONTROLS;
+            return;
+        }
+    }
+
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+        SetState(GameState::Options);
+        cursor = OPT_CONTROLS;
+    }
+}
+
+void Game::DrawControls() {
+    ui.Dim(0.55f);
+    const vector<Action>& actions = Bindings::Rebindable();
+    const int count = static_cast<int>(actions.size());
+    const int rows = ControlsRows();
+    const Bindings& b = input.GetBindings();
+
+    // As many rows as the window has room for, scrolled to keep the cursor in.
+    const float row_h = 24.0f;
+    const float chrome = 150.0f;
+    const int fit = std::clamp(static_cast<int>((ui.ViewHeight() - 40.0f - chrome) / row_h), 6, rows);
+    const SDL_FRect panel = CenteredPanel(ui, 640.0f, chrome + fit * row_h);
+    ui.Panel(panel);
+    ui.Text("Controls", panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight, Align::Center);
+
+    const float name_x = panel.x + 32.0f;
+    const float col_x[2] = {panel.x + 330.0f, panel.x + 490.0f};
+    const float head_y = panel.y + 58.0f;
+    const char* heads[2] = {"Keyboard", "Controller"};
+    for (int c = 0; c < 2; ++c) {
+        const bool here = c == controls_column;
+        ui.Text(heads[c], col_x[c], head_y, TextSize::Body, here ? Palette::Highlight : Palette::TextDim, Align::Center);
+        if (here) ui.Fill({col_x[c] - 46.0f, head_y + 22.0f, 92.0f, 2.0f}, Palette::Highlight);
+    }
+
+    const int first = std::clamp(controls_cursor - fit / 2, 0, std::max(0, rows - fit));
+    const float top = panel.y + 92.0f;
+    for (int i = first; i < first + fit && i < rows; ++i) {
+        const float y = top + (i - first) * row_h;
+        const bool on_row = i == controls_cursor;
+        const SDL_FRect row = {panel.x + 16.0f, y - 2.0f, panel.w - 32.0f, row_h - 2.0f};
+        if (on_row) ui.Fill(row, {58, 46, 28, 235});
+        if (i < count) {
+            const Action a = actions[i];
+            ui.Text(Bindings::Name(a), name_x, y, TextSize::Small, on_row ? Palette::Text : Palette::TextDim);
+            for (int c = 0; c < 2; ++c) {
+                const bool cell = on_row && c == controls_column;
+                const bool steering = a == Action::MoveUp || a == Action::MoveDown || a == Action::MoveLeft || a == Action::MoveRight;
+                string label = c == 0 ? Bindings::KeyLabel(b.Key(a))
+                             : Bindings::OnPad(a) ? Bindings::ButtonLabel(b.Button(a))
+                             : steering ? string("stick, d-pad") : string("-");
+                if (cell && input.Listening()) label = c == 0 ? "press a key..." : "press a button...";
+                if (cell) {
+                    const SDL_FRect box = {col_x[c] - 66.0f, y - 2.0f, 132.0f, row_h - 2.0f};
+                    ui.Outline(box, Palette::Highlight, input.Listening() ? 2.0f : 1.0f);
+                }
+                ui.Text(label, col_x[c], y, TextSize::Small,
+                        cell ? Palette::Highlight : (on_row ? Palette::Text : Palette::TextDim), Align::Center);
+            }
+        } else {
+            const char* labels[CONTROLS_EXTRA] = {"Put the keyboard back as it shipped", "Put the controller back as it shipped", "Back"};
+            ui.Text(labels[i - count], name_x, y, TextSize::Small, on_row ? Palette::Highlight : Palette::TextDim);
+        }
+    }
+    // More above or below than is showing.
+    if (first > 0) ui.Text("^", panel.x + panel.w - 28.0f, top - 4.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    if (first + fit < rows)
+        ui.Text("v", panel.x + panel.w - 28.0f, top + (fit - 1) * row_h, TextSize::Small, Palette::TextDim, Align::Center);
+
+    const float foot = panel.y + panel.h - 50.0f;
+    if (!controls_note.empty())
+        ui.Text(controls_note, panel.x + panel.w / 2.0f, foot, TextSize::Small, Palette::Xp, Align::Center);
+    const string help = input.Listening()
+        ? string("Esc, or Start, leaves it as it was")
+        : input.PromptFor(Action::Confirm) + " change     Left / Right keyboard or controller     " +
+          input.PromptFor(Action::Back) + " back";
+    ui.Text(help, panel.x + panel.w / 2.0f, foot + 22.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    ui.Text("Esc and Start pause, Enter and Backspace, the arrows and the d-pad work the menus: those stay put.",
+            panel.x + panel.w / 2.0f, panel.y + panel.h + 8.0f, TextSize::Small, {186, 176, 158, 255}, Align::Center);
 }
 
 // =============================================================================
@@ -537,8 +731,85 @@ static constexpr float kMinimapRing  = 144.0f;
 static constexpr float kMinimapGlass = 62.0f;
 static constexpr float kHudRightTop  = kHudMargin + kMinimapRing + 24.0f;
 
+const Waypoint& Game::CurrentWaypoint() {
+    const int seat = serving == 1 ? 1 : 0;
+    Waypoint& wp = seat_waypoint[seat];
+    const string quest = (settings.quest_waypoints && quests) ? quests->Followed() : string();
+    string key;
+    if (!quest.empty()) {
+        const QuestDef* d = quests->Definition(quest);
+        const int stage = quests->Stage(quest);
+        // A delivery points at the source until the bag holds enough, and at
+        // whoever wants it after: how much is held is part of the question.
+        int held = 0;
+        if (d && stage >= 0 && stage < static_cast<int>(d->stages.size()) && d->stages[stage].type == ObjectiveType::Deliver)
+            held = std::min(world->player.inventory.Count(d->stages[stage].target), d->stages[stage].count);
+        key = quest + "|" + std::to_string(stage) + "|" + world->MapId() + "|" + std::to_string(held);
+    }
+    const Uint64 now = SDL_GetTicks();
+    if (key != seat_waypoint_key[seat] || now - seat_waypoint_at[seat] > 250) {
+        seat_waypoint_key[seat] = key;
+        seat_waypoint_at[seat] = now;
+        wp = quest.empty() ? Waypoint{} : waypoints.Resolve(*quests, quest, *world, &enemy_db, &loot, &items);
+    }
+    return wp;
+}
+
+// The way to the quest, in the world: a gold chevron bobbing over the thing when
+// it is in sight, and when it is not, an arrow at the edge of the view pointing
+// at it with how many paces off it is.
+void Game::DrawWaypoint(const Waypoint& wp) {
+    if (!wp.found) return;
+    const float lift = world->LiftAt(wp.local_x, wp.local_y);
+    // Over a head if it is somebody; over a way out, clear of the prompt that
+    // names it, which is drawn after this and used to sit on top of it.
+    const float up = wp.here ? 54.0f : 50.0f;
+    const SDL_FPoint p = world->camera.ToScreen(wp.local_x, wp.local_y - lift - up);
+    const float w = ui.ViewWidth(), h = ui.ViewHeight();
+    const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    const auto tri = [&](SDL_FPoint a, SDL_FPoint b, SDL_FPoint c, SDL_Color col) {
+        const SDL_FColor fc = {col.r / 255.0f, col.g / 255.0f, col.b / 255.0f, col.a / 255.0f};
+        const SDL_Vertex v[3] = {{a, fc, {0, 0}}, {b, fc, {0, 0}}, {c, fc, {0, 0}}};
+        SDL_RenderGeometry(renderer, nullptr, v, 3, nullptr, 0);
+    };
+    const SDL_Color gold = {255, 214, 96, 255}, edge = {40, 28, 12, 235};
+    const int paces = static_cast<int>(Length(wp.local_x - world->player.x, wp.local_y - world->player.y) / 32.0f);
+
+    const float inset_x = 56.0f, inset_top = 96.0f, inset_bottom = 76.0f;
+    const bool in_view = p.x > inset_x && p.x < w - inset_x && p.y > inset_top && p.y < h - inset_bottom;
+    if (in_view) {
+        // Not over somebody the player is already standing beside: it would sit on their name.
+        if (paces < 2) return;
+        const float bob = roundf(sinf(t * 4.0f) * 4.0f);
+        const SDL_FPoint tip = {roundf(p.x), roundf(p.y + bob)};
+        tri({tip.x - 12.0f, tip.y - 19.0f}, {tip.x + 12.0f, tip.y - 19.0f}, {tip.x, tip.y + 3.0f}, edge);
+        tri({tip.x - 8.0f, tip.y - 16.0f}, {tip.x + 8.0f, tip.y - 16.0f}, {tip.x, tip.y - 1.0f}, gold);
+        return;
+    }
+    // Out of sight: on the line from the middle of the view to it, as far out as the insets allow.
+    const float cx = w / 2.0f, cy = h / 2.0f;
+    float dx = p.x - cx, dy = p.y - cy;
+    const float len = std::max(1.0f, Length(dx, dy));
+    dx /= len; dy /= len;
+    const float reach_x = dx > 0 ? (w - inset_x - cx) : (cx - inset_x);
+    const float reach_y = dy > 0 ? (h - inset_bottom - cy) : (cy - inset_top);
+    const float k = std::min(fabsf(dx) > 0.001f ? reach_x / fabsf(dx) : 1.0e9f, fabsf(dy) > 0.001f ? reach_y / fabsf(dy) : 1.0e9f);
+    const SDL_FPoint at = {roundf(cx + dx * k), roundf(cy + dy * k)};
+    const float nx = -dy, ny = dx;
+    const float grow = 1.0f + 0.12f * sinf(t * 5.0f);
+    const auto arrow = [&](float size, SDL_Color col) {
+        tri({at.x + dx * size, at.y + dy * size},
+            {at.x - dx * size * 0.7f + nx * size * 0.75f, at.y - dy * size * 0.7f + ny * size * 0.75f},
+            {at.x - dx * size * 0.7f - nx * size * 0.75f, at.y - dy * size * 0.7f - ny * size * 0.75f}, col);
+    };
+    arrow(18.0f * grow, edge);
+    arrow(13.0f * grow, gold);
+    ui.TextShadowed(std::to_string(paces), at.x - dx * 30.0f, at.y - dy * 30.0f - 8.0f, TextSize::Small, gold, Align::Center);
+}
+
 void Game::DrawHud() {
     const Player& p = world->player;
+    const Waypoint& waypoint = CurrentWaypoint();
 
     // --- vitals --------------------------------------------------------------
     // Health and mana in brass plates, each with a glyph at the left end, so
@@ -638,7 +909,7 @@ void Game::DrawHud() {
     // to live in that corner now stacks below it.
     (serving == 1 ? minimap_two : minimap).Draw(renderer, *textures, ui, (*world),
                  ui.ViewWidth() - kHudMargin - kMinimapRing / 2.0f,
-                 kHudMargin + kMinimapRing / 2.0f, kMinimapGlass);
+                 kHudMargin + kMinimapRing / 2.0f, kMinimapGlass, &waypoint);
 
     char meta[96];
     SDL_snprintf(meta, sizeof(meta), "Combat %d    %d coins",
@@ -798,8 +1069,8 @@ void Game::DrawHud() {
             ui.Outline(box, lock ? SDL_Color{206, 70, 56, 255} : Palette::BorderDim, lock ? 2.0f : 1.0f);
             ui.TextShadowed(t->Def()->name, box.x + 12.0f, box.y + 5.0f, TextSize::Small,
                             lock ? Palette::Highlight : Palette::Text);
-            ui.TextShadowed(lock ? "LOCKED   Lv " + std::to_string(t->level)
-                                 : input.PromptFor(Action::Target) + " lock   Lv " + std::to_string(t->level),
+            ui.TextShadowed(lock ? "LOCKED   Lv " + std::to_string(t->ShownLevel())
+                                 : input.PromptFor(Action::Target) + " lock   Lv " + std::to_string(t->ShownLevel()),
                             box.x + box.w - 12.0f, box.y + 5.0f, TextSize::Small,
                             lock ? SDL_Color{236, 110, 90, 255} : Palette::TextDim, Align::Right);
             ui.FramedBar({box.x + 12.0f, box.y + 27.0f, box.w - 24.0f, 12.0f}, t->HealthFraction(),
@@ -948,8 +1219,33 @@ void Game::DrawHud() {
         }
     }
 
+    // Where the quest is: over the world and the arrival banner, which dimmed it,
+    // and under the tracker and the bars.
+    if (state == GameState::Play) DrawWaypoint(waypoint);
+
     // --- quest tracker -------------------------------------------------------
-    const vector<string> active = quests->Active();
+    vector<string> active = quests->Active();
+    const string followed = quests->Followed();
+    // The one being followed leads, and says where it is.
+    {
+        const auto it = std::find(active.begin(), active.end(), followed);
+        if (it != active.end()) std::rotate(active.begin(), it, it + 1);
+    }
+    string where_line;
+    if (settings.quest_waypoints && !followed.empty()) {
+        if (waypoint.found && waypoint.here) {
+            const float wx = waypoint.local_x - p.x, wy = waypoint.local_y - p.y;
+            const int paces = static_cast<int>(Length(wx, wy) / 32.0f);
+            static const char* kRose[8] = {"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"};
+            const int point = ((static_cast<int>(roundf(atan2f(wy, wx) / 0.7853982f)) % 8) + 8) % 8;
+            where_line = waypoint.what + (paces < 3 ? string(", right here") : ", " + std::to_string(paces) + " paces " + kRose[point]);
+            if (!waypoint.hint.empty()) where_line = waypoint.hint;
+        } else if (waypoint.found) {
+            where_line = "in " + waypoint.place + "  -  " + (waypoint.via.empty() ? string("this way") : waypoint.via);
+        } else if (!waypoint.hint.empty()) {
+            where_line = waypoint.hint;
+        }
+    }
     if (!active.empty()) {
         const float right = ui.ViewWidth() - 18.0f;
         // Sits below the minimap, and below however many toasts are stacked.
@@ -967,8 +1263,9 @@ void Game::DrawHud() {
                                                          TextSize::Small).x);
                 }
             }
+            if (!where_line.empty()) widest = std::max(widest, ui.Measure(where_line, TextSize::Small).x);
             const SDL_FRect back = {right - widest - 10.0f, y - 6.0f, widest + 20.0f,
-                                    22.0f + shown * 42.0f + 2.0f};
+                                    22.0f + shown * 42.0f + 2.0f + (where_line.empty() ? 0.0f : 18.0f)};
             ui.Fill(back, {14, 11, 9, 150});
         }
 
@@ -979,10 +1276,16 @@ void Game::DrawHud() {
         for (size_t i = 0; i < shown; ++i) {
             const QuestDef* d = quests->Definition(active[i]);
             if (!d) continue;
-            ui.TextShadowed(d->name, right, y, TextSize::Small, Palette::Text, Align::Right);
+            const bool leading = active[i] == followed && settings.quest_waypoints;
+            ui.TextShadowed(d->name, right, y, TextSize::Small,
+                            leading ? SDL_Color{255, 214, 96, 255} : Palette::Text, Align::Right);
             y += 18.0f;
             ui.TextShadowed(quests->CurrentObjectiveText(active[i]), right, y,
                             TextSize::Small, Palette::TextDim, Align::Right);
+            if (leading && !where_line.empty()) {
+                y += 18.0f;
+                ui.TextShadowed(where_line, right, y, TextSize::Small, {226, 196, 120, 255}, Align::Right);
+            }
             y += 24.0f;
         }
     }
@@ -1567,6 +1870,8 @@ void Game::DrawSkillsPanel() {
 
     // With Fishing selected, its milestones: the chance of more than one fish.
     if (cursor == SKILL_FISHING) {
+        // One line if it fits and two if it does not: the six milestones ran
+        // off the side of the panel written out in a row.
         string line = "Catch more than one:";
         for (const auto& m : Gathering::FishingMilestones()) {
             char buf[64];
@@ -1574,8 +1879,10 @@ void Game::DrawSkillsPanel() {
             else                SDL_snprintf(buf, sizeof(buf), "  %d: 2 fish %d%%", m.level, static_cast<int>(m.two * 100 + 0.5f));
             line += buf;
         }
-        ui.Text(line, panel.x + 24.0f, panel.y + panel.h - 76.0f, TextSize::Small,
-                s.Level(SKILL_FISHING) >= 20 ? Palette::Xp : Palette::TextDim);
+        const float wrap = panel.w - 48.0f;
+        const float lines = ui.WrappedHeight(line, wrap, TextSize::Small);
+        ui.TextWrapped(line, panel.x + 24.0f, panel.y + panel.h - 56.0f - lines, wrap, TextSize::Small,
+                       s.Level(SKILL_FISHING) >= 20 ? Palette::Xp : Palette::TextDim);
     }
 
     const float row_h = 32.0f;
@@ -1693,12 +2000,15 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         ui.Text(n->name, dx, y, TextSize::Body, Palette::Highlight);
         y += 28.0f;
         const string each = n->ranks > 1 ? "a point a rank" : "one point";
-        ui.Text(string(SkillName(tree.skill)) + " " + std::to_string(n->level) + ", " +
-                (n->row == 0 || !tree.At(n->branch, n->row - 1)
-                     ? each
-                     : each + ", after " + tree.At(n->branch, n->row - 1)->name),
-                dx, y, TextSize::Small, level >= n->level ? Palette::TextDim : SDL_Color{225, 130, 120, 255});
-        y += 24.0f;
+        // Wrapped, not written straight out: "Attack 47, a point a rank, after
+        // War Cry" is wider than the column the rest of this is written in, and
+        // ran off the side of the panel.
+        y += ui.TextWrapped(string(SkillName(tree.skill)) + " " + std::to_string(n->level) + ", " +
+                            (n->row == 0 || !tree.At(n->branch, n->row - 1)
+                                 ? each
+                                 : each + ", after " + tree.At(n->branch, n->row - 1)->name),
+                            dx, y, dw, TextSize::Small,
+                            level >= n->level ? Palette::TextDim : SDL_Color{225, 130, 120, 255}) + 6.0f;
         y += ui.TextWrapped(n->description, dx, y, dw, TextSize::Small, Palette::Text) + 10.0f;
         if (!n->ability.empty()) {
             string cost = "Every " + std::to_string(static_cast<int>(n->cooldown)) + " seconds";
@@ -1741,9 +2051,9 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         } else if (why == Talents::Why::NoPoints) {
             status = "No points to spend.";
         }
-        ui.Text(status, dx, y, TextSize::Small, p.talents.Has(n->id) ? Palette::Highlight : Palette::TextDim);
-        y += 22.0f;
-        if (!action.empty()) ui.Text(action, dx, y, TextSize::Small, Palette::Xp);
+        y += ui.TextWrapped(status, dx, y, dw, TextSize::Small,
+                            p.talents.Has(n->id) ? Palette::Highlight : Palette::TextDim) + 4.0f;
+        if (!action.empty()) ui.TextWrapped(action, dx, y, dw, TextSize::Small, Palette::Xp);
     }
 
     const string technique = p.talents.Technique(style);
@@ -1839,6 +2149,17 @@ void Game::UpdateQuestPanel() {
 
     QuestList(quest_tab, list, active_count, ahead);
     MoveCursor(quest_cursor[quest_tab], static_cast<int>(list.size()));
+    // Confirm on a quest in hand follows it: the waypoint is that one's until
+    // it is done, or until this is pressed on it again.
+    if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && !list.empty()) {
+        const size_t at = static_cast<size_t>(std::clamp(quest_cursor[quest_tab], 0, static_cast<int>(list.size()) - 1));
+        if (at < active_count) {
+            quests->Follow(list[at]);
+            Audio::Play(Sfx::UiConfirm);
+        } else {
+            Audio::Play(Sfx::UiError);
+        }
+    }
     if (input.Pressed(Action::Back) || input.Pressed(Action::QuestLog) ||
         input.Pressed(Action::Pause))
         SetState(GameState::Play);
@@ -1862,9 +2183,13 @@ void Game::UpdateWorldMap() {
 }
 
 void Game::DrawWorldMap() {
+    const Waypoint& waypoint = CurrentWaypoint();
+    const QuestDef* following = quests ? quests->Definition(quests->Followed()) : nullptr;
+    world_map.SetRoads(&waypoints);
     world_map.Draw(renderer, *textures, ui, (*world),
                    input.PromptFor(Action::WorldMap) + " or " + input.PromptFor(Action::Back) + " close",
-                   input.PromptFor(Action::Confirm) + " turn to", map_overview);
+                   input.PromptFor(Action::Confirm) + " turn to", map_overview,
+                   settings.quest_waypoints ? &waypoint : nullptr, following ? following->name : string());
 }
 
 void Game::DrawQuestPanel() {
@@ -1952,6 +2277,9 @@ void Game::DrawQuestPanel() {
             if (state == 2)
                 ui.Text("done", row.x + row.w - 8.0f, row.y + 5.0f, TextSize::Small,
                         kQuestDone, Align::Right);
+            else if (state == 1 && list[i] == quests->Followed())
+                ui.Text(quests->Chosen() ? "following" : "following (newest)", row.x + row.w - 8.0f, row.y + 5.0f,
+                        TextSize::Small, {255, 214, 96, 255}, Align::Right);
         }
         if (list.size() > visible)
             ui.Text(std::to_string(cursor_here + 1) + "/" + std::to_string(list.size()),
@@ -2015,7 +2343,8 @@ void Game::DrawQuestPanel() {
         }
     }
 
-    ui.Text("Left / Right  switch tab     " + input.PromptFor(Action::Back) + " close",
+    ui.Text(input.PromptFor(Action::Confirm) + " follow: its waypoint is shown     Left / Right  switch tab     " +
+                input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 }
@@ -3137,7 +3466,9 @@ void Game::DrawStorage() {
     const float foot_y = grid_y + grid_h + 16.0f;
     if (const ItemDef* def = sel.Empty() ? nullptr : items.Get(sel.id)) {
         ui.Text(def->name, bag_x, foot_y, TextSize::Body, Palette::Highlight);
-        ui.Text(def->description, bag_x, foot_y + 20.0f, TextSize::Small, Palette::TextDim);
+        // Wrapped to the panel: a bag's description is four lines of prose and
+        // went off the side of the screen.
+        ui.TextWrapped(def->description, bag_x, foot_y + 20.0f, panel.w - 48.0f, TextSize::Small, Palette::TextDim);
     }
     ui.Text(input.PromptFor(Action::Confirm) + " move one   -   hold " +
                 input.PromptFor(Action::Sprint) + " for the stack   -   " +

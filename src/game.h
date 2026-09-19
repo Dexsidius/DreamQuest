@@ -15,6 +15,7 @@
 #include "systems/save.h"
 #include "ui/ui.h"
 #include "ui/minimap.h"
+#include "systems/waypoint.h"
 #include "ui/worldmap.h"
 #include "ui/titlescreen.h"
 #include "net/session.h"
@@ -26,6 +27,7 @@ enum class GameState {
     SlotSelect,        // used for both starting and saving
     LoadMenu,
     Options,
+    Controls,          // which key and which button does what
     Multiplayer,       // Play Together: host, join, who is here, the chat line
     Play,
     Paused,
@@ -91,6 +93,7 @@ private:
     void UpdateSlotSelect();
     void UpdateLoadMenu();
     void UpdateOptions();
+    void UpdateControls();
     void UpdateMultiplayer();
     void UpdatePlay(float dt);
     void UpdatePaused();
@@ -119,6 +122,7 @@ private:
     void DrawSlotSelect();
     void DrawLoadMenu();
     void DrawOptions();
+    void DrawControls();
     void DrawMultiplayer();
     void DrawHud();
     void DrawWorldText();          // floating damage / pickup text
@@ -284,8 +288,31 @@ private:
     bool     never_save = false;
     // --map <id> [spawn] and --wear a,b,c: where a scratch game starts, and in what.
     string   launch_map, launch_spawn, launch_wear;
+    // Where the quest being followed is, for whoever's HUD is being drawn:
+    // worked out a few times a second, and at once when the map, the quest or
+    // its stage changes. See systems/waypoint.h.
+    WaypointIndex waypoints;
+    Waypoint      seat_waypoint[2];
+    string        seat_waypoint_key[2];
+    Uint64        seat_waypoint_at[2] = {0, 0};
+    const Waypoint& CurrentWaypoint();
+    void     DrawWaypoint(const Waypoint& wp);
+
+    // The Controls screen: which row, which column (0 the keyboard, 1 the
+    // controller), and what it last had to say about a change.
+    int      controls_cursor = 0, controls_column = 0;
+    string   controls_note;
+    // Pushes the saved bindings to both players' inputs.
+    void     ApplyBindings();
     int      launch_level = 0;          // --level N: a scratch character starts with its path's skill here
     float    launch_hour = -1.0f;       // --hour H: and at this time of day, for looking at the night or a dream
+    string   launch_quests;             // --quest a,b: with these quests taken
+    string   launch_screen;             // --screen controls|options|map|journal: and this open
+    // --audit: opens every menu in turn at a few window sizes, says which of
+    // them draw text that runs off a panel or off the screen, and quits. See
+    // Game::RunAudit.
+    bool     launch_audit = false;
+    void     RunAudit();
     string   launch_learn;              // --learn a,b,c: with these skill-tree nodes bought, techniques switched on
     struct HeldKey { SDL_Keycode key = 0; float from = 0.0f, to = 0.0f; int sent = 0; };
     vector<HeldKey> launch_holds;

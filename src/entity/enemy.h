@@ -176,7 +176,23 @@ public:
     bool  CorpseGone() const;
     Uint8 CorpseAlpha() const;
 
+    // How much stronger than its kind this one is: 1 is the stat block in
+    // data/enemies.json, and each step above that is the bump Init applies.
+    // It is not what the player is shown -- see ShownLevel.
     int   level = 1;
+
+    // The number over its head, and the one the bestiary prints: what this
+    // thing would be as a Combat level, worked out from the stats it actually
+    // fights with. A dire bear hits like Combat 62 and used to say "Lv 1",
+    // because the spawn's level is a nudge on a stat block and never was a
+    // measure of anything; the Brackenwood is advised at Combat 20 and was
+    // full of things that called themselves level 1 to 3.
+    //
+    // Nothing about a fight changes with this: the same stats, the same
+    // damage, the same hit points. Only the number is honest now.
+    int   ShownLevel() const;
+    static int ShownLevelOf(const EnemyDef& def, int spawn_level);
+
     float home_x = 0, home_y = 0;
 
     // --- co-op ------------------------------------------------------------------

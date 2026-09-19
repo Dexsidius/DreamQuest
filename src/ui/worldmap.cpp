@@ -1,4 +1,5 @@
 #include "worldmap.h"
+#include "../systems/waypoint.h"
 #include "../world/world.h"
 #include "../systems/shop.h"
 #include <fstream>
@@ -301,7 +302,8 @@ WorldMapPanel::Page& WorldMapPanel::PageOf(const string& map_id, SDL_Renderer* r
 }
 
 void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& world,
-                         const string& close_prompt, const string& turn_prompt, bool overview) {
+                         const string& close_prompt, const string& turn_prompt, bool overview,
+                         const Waypoint* waypoint, const string& waypoint_label) {
     ui.Dim(0.62f);
 
     const float view_w = ui.ViewWidth(), view_h = ui.ViewHeight();
@@ -441,11 +443,50 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
             dot(at->second.x, at->second.y, {255, 255, 255, 255}, "you are this way");
     }
 
+    // Where the quest being followed is: the thing itself if it is on this page,
+    // the door to the room it is in if it is in one, and otherwise the way off
+    // this page that starts towards it.
+    bool quest_marked = false;
+    if (waypoint && !waypoint->map.empty() && (waypoint->found || waypoint->hint.empty())) {
+        SDL_FPoint at{0, 0};
+        bool have = false;
+        if (waypoint->map == page_id) {
+            have = waypoint->x != 0.0f || waypoint->y != 0.0f;
+            at = {waypoint->x, waypoint->y};
+        } else if (roads) {
+            const vector<string> road = roads->Route(page_id, waypoint->map);
+            const auto way = road.size() >= 2 ? page.doors.find(road[1]) : page.doors.end();
+            if (way != page.doors.end()) { at = way->second; have = true; }
+        }
+        quest_marked = have;
+        if (have) {
+            const SDL_FPoint p = to_screen(at.x, at.y);
+            const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) / 1000.0f * 4.0f);
+            const SDL_Color gold = {255, static_cast<Uint8>(206 + 30 * pulse), 96, 255};
+            const float half = 8.0f + 3.0f * pulse;
+            ui.Outline({roundf(p.x - half - 1.0f), roundf(p.y - half - 1.0f), half * 2.0f + 2.0f, half * 2.0f + 2.0f}, {0, 0, 0, 200}, 3.0f);
+            ui.Outline({roundf(p.x - half), roundf(p.y - half), half * 2.0f, half * 2.0f}, gold, 2.0f);
+            ui.Fill({roundf(p.x - 2.0f), roundf(p.y - 2.0f), 4.0f, 4.0f}, gold);
+            const string text = waypoint_label.empty() ? waypoint->what : waypoint_label;
+            const SDL_FPoint size = ui.Measure(text, TextSize::Small);
+            ui.Fill({roundf(p.x - size.x / 2.0f - 4.0f), roundf(p.y + half + 5.0f), size.x + 8.0f, 17.0f}, {12, 10, 14, 225});
+            ui.Text(text, p.x, p.y + half + 6.0f, TextSize::Small, gold, Align::Center);
+        }
+    }
+
     // --- the legend ------------------------------------------------------------
     float lx = panel.x + panel.w - legend_w - 16.0f;
     float ly = panel.y + 54.0f;
     ui.Text("Legend", lx, ly, TextSize::Body, Palette::Highlight);
     ly += 26.0f;
+    if (quest_marked) {
+        const SDL_Color gold = {255, 214, 96, 255};
+        const SDL_FRect box = {lx, ly, 16.0f, 16.0f};
+        ui.Outline(box, gold, 2.0f);
+        ui.Fill({box.x + 6.0f, box.y + 6.0f, 4.0f, 4.0f}, gold);
+        ui.Text("The quest you are following", lx + 24.0f, ly + 1.0f, TextSize::Small, gold);
+        ly += 26.0f;
+    }
     // Only what is on this page.
     for (const char* kind : {"town", "door", "trader", "craft", "dungeon", "path", "grave", "camp", "landmark"}) {
         bool on_page = false;

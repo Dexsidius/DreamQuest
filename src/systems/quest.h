@@ -140,6 +140,16 @@ public:
 
     vector<string> Active() const;
     vector<string> Completed() const;
+
+    // --- the quest being followed ----------------------------------------------------
+    // One quest has the waypoint. It is whichever was taken last, unless the
+    // player has chosen one in the journal, and then it is that one until it is
+    // done. Never a quest that is not in hand: with the followed one finished or
+    // gone, it is the newest that still is.
+    string Followed() const;
+    bool   Chosen() const { return chosen && IsActive(followed); }
+    // Follow this one, by choice. Asked of the one already chosen, lets go of it.
+    void   Follow(const string& id);
     // Quests a board or NPC can currently offer.
     vector<string> AvailableFrom(const string& giver, const Skills& skills) const;
 
@@ -163,4 +173,7 @@ private:
     vector<string> just_completed;
     vector<string> just_started;
     int today = 1;
+    string followed;
+    bool   chosen = false;
+    vector<string> taken_order;      // quests in the order they were taken, oldest first
 };

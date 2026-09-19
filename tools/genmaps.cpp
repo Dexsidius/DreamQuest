@@ -171,6 +171,14 @@ struct AreaEntry {
 };
 static vector<AreaEntry> g_areas;
 
+// For quest waypoints: who stands where, what is where and what it yields, what
+// lives where, and which way out leads to which map, for every map there is.
+// The game works out where a quest's next stage is from this and nothing else,
+// so it can point at a map the player has never loaded. Written once at the end
+// as data/waypoints.json; genmaps is the only thing that ever has all of it in
+// one place.
+static json g_waypoint_maps = json::object();
+
 // The overworld is the first thing built and the area list is only complete at
 // the end, so what it asked to have written is kept until then.
 struct WorldMapRequest { string dir; int px_w = 0, px_h = 0, offset_x = 0; bool asked = false; };
@@ -209,6 +217,11 @@ static void FlushWorldMap() {
     }
     root["marks"] = marks;
     fs::create_directories(dir);
+    {
+        std::ofstream ways(dir + "/waypoints.json", std::ios::trunc);
+        ways << json{{"maps", g_waypoint_maps}}.dump();
+        std::printf("  %-24s %5zu maps\n", "waypoints.json", g_waypoint_maps.size());
+    }
     std::ofstream out(dir + "/worldmap.json", std::ios::trunc);
     out << root.dump(2);
     std::printf("  %-24s %6zu marks, %zu areas\n", "worldmap.json", g_world_marks.size(), g_areas.size());
@@ -468,6 +481,34 @@ public:
                         area.exits.push_back(to);
                 }
             g_areas.push_back(area);
+        }
+        {
+            json w;
+            w["name"]  = display;
+            w["dream"] = dq.value("ambient", string("")) == "dream";
+            json exits = json::array(), people = json::array(), things = json::array(), posts = json::array();
+            if (dq.contains("portals"))
+                for (const auto& portal : dq["portals"]) {
+                    if (!portal.contains("rect") || portal.value("target", string("")).empty()) continue;
+                    const auto& r = portal["rect"];
+                    exits.push_back({{"x", r[0].get<float>() + r[2].get<float>() / 2.0f},
+                                     {"y", r[1].get<float>() + r[3].get<float>() / 2.0f},
+                                     {"to", portal["target"]}, {"label", portal.value("label", string(""))}});
+                }
+            for (const auto& n : dq["npcs"])
+                people.push_back({{"id", n["id"]}, {"name", n["name"]}, {"x", n["x"]}, {"y", n["y"]}});
+            for (const auto& o : dq["objects"]) {
+                json t = {{"id", o["id"]}, {"kind", o["type"]}, {"x", o["x"]}, {"y", o["y"]}};
+                if (o.contains("yield")) t["yield"] = o["yield"];
+                if (o.contains("title")) t["title"] = o["title"];
+                things.push_back(t);
+            }
+            for (const auto& e : dq["enemies"]) {
+                json types = e.contains("pool") ? e["pool"] : json::array({e["type"]});
+                posts.push_back({{"types", types}, {"x", e["x"]}, {"y", e["y"]}});
+            }
+            w["exits"] = exits; w["people"] = people; w["things"] = things; w["posts"] = posts;
+            g_waypoint_maps[id] = w;
         }
 
         fs::create_directories(dir);
@@ -1400,7 +1441,7 @@ static void BuildOverworld() {
         m.Portal(mine_x - 18, mouth_floor - 34, 36, 30, "dungeon_emberfell_1", "entrance",
                  "Enter the Emberfell mine");
         MarkWorld("dungeon", "Emberfell Mine", mine_x, mine_y);
-        m.Danger(6);
+        m.Danger(10);      // the mine: orcs at Combat 8-19 past the first room
         // Rock either side of the mouth and behind it, so the only way in is
         // up the rails.
         m.Collision(mine_x - 118, mine_y - 150, 96, 162);
@@ -1443,7 +1484,7 @@ static void BuildOverworld() {
         m.Portal(barrow_x - 18, door_floor - 28, 36, 30, "dungeon_barrow", "entrance",
                  "Enter the barrow");
         MarkWorld("dungeon", "The Barrow", barrow_x, barrow_y);
-        m.Danger(10);
+        m.Danger(20);      // the barrow: its dead are Combat 11-22
         // The mound either side of the door and behind it.
         m.Collision(barrow_x - 100, base - 150, 78, 128);
         m.Collision(barrow_x + 24,  base - 150, 76, 128);
@@ -1862,6 +1903,40 @@ static void BuildTown() {
 
     // A cauldron beside it, for anyone with a brew to make.
     PlaceCauldron(m, "cauldron_town", 43 * CELL, 30 * CELL);
+
+    // --- the tannery ---------------------------------------------------------------
+    // Havenbrook had nowhere to learn a trade with: the Westwold's tannery is
+    // out of the west gate and past the wolves, which is no use to anyone at
+    // Crafting 1. This is the same yard inside the walls -- frames of hide
+    // drying, a vat, a bench to work at -- and Nessa, who keeps an order book
+    // and buys what comes off it.
+    {
+        const int tx = 8 * CELL, ty = 27 * CELL;
+        for (int k = 0; k < 3; ++k) {
+            const int x = tx - 84 + k * 84;
+            m.Prop("props", "tanning_rack", x, ty - 64);
+            m.Collision(x - 24, ty - 74, 48, 10);
+        }
+        m.Prop("props", "log_pile", tx + 120, ty - 60);
+        m.Collision(tx + 120 - 16, ty - 70, 32, 10);
+        {
+            json& o = m.Object("bench_tannery", "workbench", tx + 36, ty + 24);
+            o["sprite"]  = "assets/props/workbench.png";
+            o["title"]   = "Tanner's bench";
+            o["station"] = "workbench";
+            m.Collision(tx + 36 - 34, ty + 24 - 18, 67, 18);
+        }
+        {
+            json& o = m.Object("sign_tannery", "sign", tx - 118, ty + 20);
+            o["sprite"] = "assets/props/signpost.png";
+            o["title"]  = "The Tannery";
+            o["text"]   = "NESSA'S TANNERY\n\nHIDES CURED. THREAD WAXED. LEATHER CUT TO ORDER.\n\n"
+                          "Under it, in a newer hand: WORK WANTED. I PAY FOR WHAT YOU MAKE, NOT FOR "
+                          "WHAT YOU FIND. ASK ME FOR THE BOOK.";
+            m.Collision(tx - 118 - 16, ty + 20 - 10, 32, 10);
+        }
+        m.Npc("npc_nessa", "Nessa the Tanner", "citizen1", tx + 86, ty + 6, "nessa_root", 1)["shop"] = "havenbrook_tannery";
+    }
 
     // A workbench by the forge.
     {

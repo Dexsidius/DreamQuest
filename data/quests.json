@@ -1853,5 +1853,402 @@
    "coins": 0
   },
   "completion": "The hinges complain and the air is stale, but the roof holds and there is a chest by the wall with nothing in it. Yours, then."
+ },
+ "q_order_rawhide_coif": {
+  "name": "Order: Rawhide Coifs",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 1,
+  "summary": "Two rawhide coifs, cut and laced. Every new warden wants one and nobody wants to make them.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 rawhide coifs",
+    "type": "deliver",
+    "target": "wood_hide_head",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 380
+   },
+   "coins": 35
+  },
+  "completion": "Nessa turns one inside out, grunts, and pays."
+ },
+ "q_order_bedroll": {
+  "name": "Order: Bedrolls",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 1,
+  "summary": "Two bedrolls, blanket and groundsheet both, for whoever is next out of the gate at dusk.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 bedrolls",
+    "type": "deliver",
+    "target": "bedroll",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 300
+   },
+   "coins": 64
+  },
+  "completion": "She rolls one out along the bench, looks down it, and rolls it back up."
+ },
+ "q_order_cloth": {
+  "name": "Order: Bolts of Cloth",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 3,
+  "summary": "Four bolts of plain weave. Flax off the riverbank and an afternoon at the wheel.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 4 bolts of cloth",
+    "type": "deliver",
+    "target": "bolt_cloth",
+    "to": "npc_nessa",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 420
+   },
+   "coins": 44
+  },
+  "completion": "She measures one against her arm, twice, and takes the lot.",
+  "req": {
+   "Crafting": 3
+  }
+ },
+ "q_order_rawhide_jerkin": {
+  "name": "Order: Rawhide Jerkins",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 4,
+  "summary": "Two rawhide jerkins for the militia, cut close so nothing fouls a draw.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 rawhide jerkins",
+    "type": "deliver",
+    "target": "wood_hide_body",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 560
+   },
+   "coins": 76
+  },
+  "completion": "They go straight onto the rack by the door.",
+  "req": {
+   "Crafting": 4
+  }
+ },
+ "q_order_leather_jerkin": {
+  "name": "Order: Leather Jerkins",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 8,
+  "summary": "Two boiled leather jerkins. Warmer than they look, and quiet, which is the point.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 leather jerkins",
+    "type": "deliver",
+    "target": "leather_body",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 900
+   },
+   "coins": 144
+  },
+  "completion": "She knocks a knuckle against the chest of one and seems satisfied.",
+  "req": {
+   "Crafting": 8
+  }
+ },
+ "q_order_wolfskin": {
+  "name": "Order: Wolfskin Jerkins",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 4,
+  "summary": "Two wolfskin jerkins. The guild pays her for them and she would rather not sit up sewing.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 wolfskin jerkins",
+    "type": "deliver",
+    "target": "bronze_hide_body",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 1100
+   },
+   "coins": 153
+  },
+  "completion": "She stacks them by the counter for the guild's runner.",
+  "req": {
+   "Crafting": 4
+  }
+ },
+ "q_order_satchel": {
+  "name": "Order: Hide Satchels",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 12,
+  "summary": "A hide satchel, boiled and strapped. The pedlars buy them faster than she can stitch them.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 hide satchel",
+    "type": "deliver",
+    "target": "bag_satchel",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 1400
+   },
+   "coins": 720
+  },
+  "completion": "Nessa holds it up by the strap, shakes it, and pays without haggling.",
+  "req": {
+   "Crafting": 12
+  }
+ },
+ "q_order_boiled_chaps": {
+  "name": "Order: Boiled Chaps",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 10,
+  "summary": "Two pairs of boiled chaps, wrapped to the knee. For the wardens working the Whisperwood.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 pairs of boiled chaps",
+    "type": "deliver",
+    "target": "iron_hide_legs",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 2200
+   },
+   "coins": 307
+  },
+  "completion": "She checks the lacing at the knee, which is where they always give.",
+  "req": {
+   "Crafting": 10
+  }
+ },
+ "q_order_scaled_coif": {
+  "name": "Order: Scaled Coifs",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 20,
+  "summary": "Two scaled coifs. Lizard scale over hide, and it has to lie flat or it catches the string.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 scaled coifs",
+    "type": "deliver",
+    "target": "steel_hide_head",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 3600
+   },
+   "coins": 633
+  },
+  "completion": "Nessa runs her hand over the scales the wrong way and nods at how little moves.",
+  "req": {
+   "Crafting": 20
+  }
+ },
+ "q_order_pack": {
+  "name": "Order: Wolfskin Packs",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 28,
+  "summary": "A wolfskin pack on a frame. The Westwold traders order them two at a time and never wait.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 wolfskin pack",
+    "type": "deliver",
+    "target": "bag_pack",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 4200
+   },
+   "coins": 2880
+  },
+  "completion": "It is on the cart before the coins are in your hand.",
+  "req": {
+   "Crafting": 28
+  }
+ },
+ "q_order_banded_jerkin": {
+  "name": "Order: Banded Jerkins",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 30,
+  "summary": "A banded jerkin, blue-scaled. Somebody in the guild is going up the Ice Spire and wants it by Thursday.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 banded jerkin",
+    "type": "deliver",
+    "target": "azuryte_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 5200
+   },
+   "coins": 1536
+  },
+  "completion": "She writes a name on a tag and ties it to the collar.",
+  "req": {
+   "Crafting": 30
+  }
+ },
+ "q_order_rucksack": {
+  "name": "Order: Bearskin Rucksacks",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 46,
+  "summary": "A bearskin rucksack, silk-sewn. Only one person in the Hollowmarch makes them and it is not Nessa.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 bearskin rucksack",
+    "type": "deliver",
+    "target": "bag_rucksack",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 7000
+   },
+   "coins": 11200
+  },
+  "completion": "She turns every seam over, finds nothing to complain about, and says so.",
+  "req": {
+   "Crafting": 46
+  }
+ },
+ "q_order_hide_boots": {
+  "name": "Order: Hide Boots",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 4,
+  "summary": "Two pairs of hide boots, soft-soled. Nessa sells more of these than of anything else she makes.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "req": {
+   "Crafting": 4
+  },
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 pairs of hide boots",
+    "type": "deliver",
+    "target": "hide_boots",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 340
+   },
+   "coins": 46
+  },
+  "completion": "She ties the pairs together by the laces and hangs them on the hook."
+ },
+ "q_order_thread_wound": {
+  "name": "Order: Bedrolls for the Gate",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 1,
+  "summary": "Three more bedrolls. The watch sleeps at the gate on a cold night and Corrin asked nicely.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 3 bedrolls",
+    "type": "deliver",
+    "target": "bedroll",
+    "to": "npc_nessa",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 420
+   },
+   "coins": 96
+  },
+  "completion": "She counts them twice, which is how Nessa says thank you."
  }
 }

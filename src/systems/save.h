@@ -72,6 +72,11 @@ struct Settings {
     string p2_name = "Player Two";
     string p2_look = "player_warden";
     bool   split_stacked = false;
+    // Which key and which button does what, as Bindings::ToJson wrote it; null
+    // until somebody has changed one, which reads back as the defaults.
+    json   controls;
+    // The marker that says where the quest being followed is.
+    bool   quest_waypoints = true;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

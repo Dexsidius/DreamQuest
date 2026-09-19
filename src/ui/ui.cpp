@@ -130,6 +130,24 @@ void UI::Text(const string& text, float x, float y, TextSize size,
 
     SDL_FRect dst = {roundf(draw_x), roundf(y), c.w, c.h};
     SDL_RenderTexture(renderer, c.texture, nullptr, &dst);
+
+    // A shadow is the same words a pixel over: only the words themselves count.
+    if (auditing && !(color.r == 0 && color.g == 0 && color.b == 0)) {
+        Overflow o;
+        o.text = text;
+        o.off_window = dst.x < -1.0f || dst.y < -1.0f || dst.x + dst.w > view_w + 1.0f || dst.y + dst.h > view_h + 1.0f;
+        // The innermost panel its middle is on.
+        const float mx = dst.x + dst.w / 2.0f, my = dst.y + dst.h / 2.0f;
+        const SDL_FRect* on = nullptr;
+        for (const SDL_FRect& p : audit_panels)
+            if (mx >= p.x && mx <= p.x + p.w && my >= p.y && my <= p.y + p.h) on = &p;
+        if (on) {
+            o.over_left   = std::max(0.0f, (on->x + 4.0f) - dst.x);
+            o.over_right  = std::max(0.0f, (dst.x + dst.w) - (on->x + on->w - 4.0f));
+            o.over_bottom = std::max(0.0f, (dst.y + dst.h) - (on->y + on->h - 2.0f));
+        }
+        if (o.off_window || o.over_left > 0.5f || o.over_right > 0.5f || o.over_bottom > 0.5f) audit_found.push_back(o);
+    }
 }
 
 void UI::TextShadowed(const string& text, float x, float y, TextSize size,
@@ -156,6 +174,22 @@ float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
         std::istringstream words(paragraph);
         string word, line;
         while (words >> word) {
+            // A word too long for the column on its own -- a path, a name with
+            // no spaces in it -- is cut rather than drawn off the end of the
+            // panel. Nothing in the game's own text is this long; something
+            // somebody types can be.
+            while (Measure(word, size).x > wrap_width && word.size() > 1) {
+                size_t fits = 1;
+                while (fits < word.size() && Measure(word.substr(0, fits + 1), size).x <= wrap_width) ++fits;
+                if (!line.empty()) {
+                    if (draw) Text(line, x, cursor_y, size, color);
+                    cursor_y += line_h;
+                    line.clear();
+                }
+                if (draw) Text(word.substr(0, fits), x, cursor_y, size, color);
+                cursor_y += line_h;
+                word = word.substr(fits);
+            }
             const string candidate = line.empty() ? word : line + " " + word;
             if (Measure(candidate, size).x > wrap_width && !line.empty()) {
                 if (draw) Text(line, x, cursor_y, size, color);
@@ -190,6 +224,7 @@ void UI::Outline(const SDL_FRect& r, SDL_Color c, float thickness) {
 }
 
 void UI::Panel(const SDL_FRect& r, bool raised) {
+    if (auditing) audit_panels.push_back(r);
     // Soft drop shadow, body, then a double frame: outer dark, inner gold.
     Fill({r.x + 3.0f, r.y + 4.0f, r.w, r.h}, Palette::Shadow);
     Fill(r, raised ? Palette::Panel : Palette::PanelLight);

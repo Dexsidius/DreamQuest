@@ -4,6 +4,7 @@
 #include "ui.h"
 
 class World;
+struct Waypoint;
 
 // Clips one row of the glass to the edges of the baked image, shifting where it
 // lands by however much came off the left. Returns the width left to draw,
@@ -41,8 +42,11 @@ public:
     static constexpr int SCALE_FINE   = 4;
     static constexpr float FINE_UNDER = 1600.0f;   // maps smaller than this, either way
 
+    // `waypoint`, if there is one, is where the quest being followed is: a gold
+    // mark on the glass, or on its rim pointing the way when it is further off
+    // than the glass can see.
     void Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& world,
-              float cx, float cy, float radius);
+              float cx, float cy, float radius, const Waypoint* waypoint = nullptr);
 
     // Drops the baked image; the next draw rebuilds it. Called when the
     // renderer is going away.

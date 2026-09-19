@@ -1,4 +1,5 @@
 #include "minimap.h"
+#include "../systems/waypoint.h"
 #include "../world/world.h"
 
 // Off the edge of the world, and under the glass before the terrain lands.
@@ -56,7 +57,7 @@ bool Minimap::Build(SDL_Renderer* r, TextureCache& cache, const World& world) {
 }
 
 void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& world,
-                   float cx, float cy, float radius) {
+                   float cx, float cy, float radius, const Waypoint* waypoint) {
     if (built_for != world.MapId() || !terrain) {
         if (!Build(r, cache, world)) return;
     }
@@ -118,6 +119,28 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
     for (const auto& e : world.enemies) {
         if (e->CurrentState() == Enemy::State::Dead) continue;
         blip(e->x, e->y, {214, 72, 60, 255}, 3.0f);
+    }
+
+    // Where the quest is: a gold diamond, bigger than anything else on the
+    // glass. Off the glass it rides the rim in the direction to walk.
+    if (waypoint && waypoint->found) {
+        float ox = (waypoint->local_x - p.x) / scale, oy = (waypoint->local_y - p.y) / scale;
+        const float far = sqrtf(ox * ox + oy * oy);
+        const bool on_rim = far > inner - 2.0f;
+        if (on_rim && far > 0.01f) { ox *= (inner - 2.0f) / far; oy *= (inner - 2.0f) / far; }
+        const float mx = roundf(cx + ox), my = roundf(cy + oy);
+        const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) / 1000.0f * 5.0f);
+        const int half = on_rim ? 2 : 3;
+        for (int pass = 0; pass < 2; ++pass) {
+            if (pass == 0) SDL_SetRenderDrawColor(r, 0, 0, 0, 200);
+            else SDL_SetRenderDrawColor(r, 255, static_cast<Uint8>(200 + 40 * pulse), static_cast<Uint8>(80 + 60 * pulse), 255);
+            const int reach = half + (pass == 0 ? 1 : 0);
+            for (int dy = -reach; dy <= reach; ++dy) {
+                const float w = static_cast<float>(reach - abs(dy)) * 2.0f + 1.0f;
+                const SDL_FRect row = {mx - (w - 1.0f) / 2.0f, my + dy, w, 1.0f};
+                SDL_RenderFillRect(r, &row);
+            }
+        }
     }
 
     // The player last, so nothing is drawn over them, with a nose showing which

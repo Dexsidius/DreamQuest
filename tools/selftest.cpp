@@ -19,6 +19,7 @@
 #include "../src/systems/items.h"
 #include "../src/systems/loot.h"
 #include "../src/systems/quest.h"
+#include "../src/systems/waypoint.h"
 #include "../src/systems/dialogue.h"
 #include "../src/systems/skills.h"
 #include "../src/systems/combat.h"
@@ -9396,6 +9397,696 @@ int main(int argc, char** argv) {
         Check(loot.ChanceOf("chest_dream_deep", "bag_rucksack") > 0.0f && loot.ChanceOf("chest_dream_deep", "bag_rucksack") <= 0.06f &&
               loot.ChanceOf("chest_dream_dark", "bag_haversack") > 0.0f && loot.ChanceOf("chest_dream_dark", "bag_haversack") <= 0.06f,
               "the deeper chests have the better bags in them, and as rarely as anywhere");
+    }
+
+    Section("keys and buttons can be moved, and cannot be lost");
+    {
+        const float dt = 1.0f / 60.0f;
+        const auto key = [](Input& in, SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            return in.HandleEvent(e);
+        };
+        const auto button = [](Input& in, int b, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
+            e.gbutton.button = static_cast<Uint8>(b);
+            return in.HandleEvent(e);
+        };
+        const auto trigger = [](Input& in, bool left, float amount) {
+            SDL_Event e{};
+            e.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+            e.gaxis.axis = left ? SDL_GAMEPAD_AXIS_LEFT_TRIGGER : SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+            e.gaxis.value = static_cast<Sint16>(amount * 32767.0f);
+            return in.HandleEvent(e);
+        };
+        // Pressed for one frame: what came down while it was.
+        const auto tap = [&](Input& in, SDL_Keycode k) {
+            in.Update(dt);
+            key(in, k, true);
+            std::set<Action> down;
+            for (int a = 0; a < ACTION_COUNT; ++a) if (in.Pressed(static_cast<Action>(a))) down.insert(static_cast<Action>(a));
+            key(in, k, false);
+            in.Update(dt);
+            return down;
+        };
+
+        // --- as it ships -----------------------------------------------------------------------------
+        const Bindings shipped;
+        std::set<SDL_Keycode> keys_seen;
+        std::set<int> buttons_seen;
+        std::set<string> ids, names;
+        for (Action a : Bindings::Rebindable()) {
+            Check(shipped.Key(a) != SDLK_UNKNOWN && Bindings::KeyFree(shipped.Key(a)), string(Bindings::Name(a)) + " ships on a key, and one that may be moved");
+            Check(keys_seen.insert(shipped.Key(a)).second, string(Bindings::Name(a)) + " ships on a key of its own");
+            Check(*Bindings::Name(a) && *Bindings::Id(a) && ids.insert(Bindings::Id(a)).second && names.insert(Bindings::Name(a)).second,
+                  string(Bindings::Id(a)) + " has a name for the menu and another for the file, and nothing else has either");
+            if (Bindings::OnPad(a))
+                Check(Bindings::ButtonFree(shipped.Button(a)) && buttons_seen.insert(shipped.Button(a)).second &&
+                      !Bindings::ButtonLabel(shipped.Button(a)).empty(),
+                      string(Bindings::Name(a)) + " ships on a button of its own, with a label");
+        }
+        Check(Bindings::Rebindable().size() >= 20 && !Bindings::OnPad(Action::Drop) && !Bindings::OnPad(Action::SelectFire) &&
+              Bindings::OnPad(Action::Sprint) && shipped.Button(Action::Sprint) == PAD_LEFT_TRIGGER && shipped.Button(Action::Target) == PAD_RIGHT_TRIGGER,
+              "everything a player does is on the list; a trigger is a button like any other, and the pad has none for the bag's drop or for each element");
+        for (SDL_Keycode k : {SDLK_ESCAPE, SDLK_RETURN, SDLK_BACKSPACE, SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT})
+            Check(!Bindings::KeyFree(k), Bindings::KeyLabel(k) + " is kept for the menus");
+        for (int b : {SDL_GAMEPAD_BUTTON_START, SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_LEFT})
+            Check(!Bindings::ButtonFree(b), Bindings::ButtonLabel(b) + " is kept for the menus");
+
+        {
+            Input in;
+            Check(in.PromptFor(Action::LightAttack) == "J" && in.PromptFor(Action::StrongAttack) == "K" && in.PromptFor(Action::Sprint) == "Shift" &&
+                  in.PromptFor(Action::Jump) == "Space" && in.PromptFor(Action::Pause) == "Esc" && in.PromptFor(Action::Confirm) == "J" &&
+                  in.PromptFor(Action::Back) == "K" && in.PromptFor(Action::Drop) == "G" && in.PromptFor(Action::SelectArcane) == "5",
+                  "the prompts read as they always did, and the ancient magic's key has one at last");
+            Check(tap(in, SDLK_J).count(Action::LightAttack) && tap(in, SDLK_J).count(Action::Confirm) && tap(in, SDLK_K).count(Action::Back) &&
+                  tap(in, SDLK_TAB).count(Action::Inventory) && tap(in, SDLK_Q).count(Action::QuestLog) && tap(in, SDLK_RSHIFT).count(Action::Sprint) &&
+                  tap(in, SDLK_UP).count(Action::MoveUp) && tap(in, SDLK_W).count(Action::MoveUp),
+                  "and the keys do what they always did: J swings and confirms, K backs out, Tab and Q and the right Shift are spares, W and Up both go up");
+        }
+
+        // --- a swap, never a loss ------------------------------------------------------------------------
+        {
+            Bindings b;
+            Check(b.BindKey(Action::LightAttack, SDLK_K) == Action::StrongAttack && b.Key(Action::LightAttack) == SDLK_K &&
+                  b.Key(Action::StrongAttack) == SDLK_J, "giving the light attack the heavy attack's key gives the heavy attack the light attack's");
+            Check(b.BindKey(Action::LightAttack, SDLK_K) == Action::COUNT, "asking for the key it has is nothing");
+            Check(b.BindKey(Action::Jump, SDLK_F) == Action::COUNT && b.Key(Action::Jump) == SDLK_F, "a key nobody had is just taken");
+            const Bindings before = b;
+            Check(b.BindKey(Action::Jump, SDLK_ESCAPE) == Action::COUNT && b.BindKey(Action::Jump, SDLK_RETURN) == Action::COUNT &&
+                  b.BindKey(Action::Jump, SDLK_UP) == Action::COUNT && b == before, "Esc, Enter and the arrows cannot be given away");
+            Check(b.BindButton(Action::Jump, SDL_GAMEPAD_BUTTON_START) == Action::COUNT && b.BindButton(Action::Drop, SDL_GAMEPAD_BUTTON_SOUTH) == Action::COUNT &&
+                  b == before, "nor Start, and the bag's drop has no button to move");
+            Check(b.BindButton(Action::Jump, PAD_LEFT_TRIGGER) == Action::Sprint && b.Button(Action::Sprint) == SDL_GAMEPAD_BUTTON_LEFT_STICK,
+                  "a jump on the left trigger puts the sprint on the stick it came off");
+
+            // Any amount of it: every action still has a key and a button of its own.
+            std::mt19937 dice(77);
+            const SDL_Keycode pool[] = {SDLK_A, SDLK_B, SDLK_C, SDLK_F, SDLK_G, SDLK_J, SDLK_K, SDLK_Z, SDLK_X, SDLK_1, SDLK_9, SDLK_TAB,
+                                        SDLK_LCTRL, SDLK_SPACE, SDLK_ESCAPE, SDLK_UP};
+            const int pad_pool[] = {SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH,
+                                    SDL_GAMEPAD_BUTTON_LEFT_PADDLE1, SDL_GAMEPAD_BUTTON_GUIDE, PAD_LEFT_TRIGGER, PAD_RIGHT_TRIGGER,
+                                    SDL_GAMEPAD_BUTTON_START, SDL_GAMEPAD_BUTTON_DPAD_DOWN};
+            const auto& list = Bindings::Rebindable();
+            for (int i = 0; i < 400; ++i) {
+                b.BindKey(list[dice() % list.size()], pool[dice() % std::size(pool)]);
+                b.BindButton(list[dice() % list.size()], pad_pool[dice() % std::size(pad_pool)]);
+            }
+            std::set<SDL_Keycode> k2;
+            std::set<int> b2;
+            bool sound = b.keys.size() == shipped.keys.size() && b.buttons.size() == shipped.buttons.size();
+            for (const auto& kv : b.keys) sound &= Bindings::KeyFree(kv.second) && k2.insert(kv.second).second;
+            for (const auto& kv : b.buttons) sound &= Bindings::ButtonFree(kv.second) && b2.insert(kv.second).second;
+            Check(sound, "after four hundred changes at random every action still has a key and a button, its own, and none of them is Esc");
+
+            // And it comes back out of the file as it went in.
+            Bindings back;
+            back.FromJson(b.ToJson());
+            Check(back == b, "a set of bindings survives being written down");
+            Bindings junk;
+            junk.FromJson(json::parse(R"({"keys": {"jump": "Escape", "light_attack": "No Such Key", "sprint": 7, "nonsense": "Q"}, "buttons": "no"})"));
+            Check(junk == shipped, "and a file of nonsense is the defaults");
+            Bindings twice;
+            twice.FromJson(json::parse(R"({"keys": {"jump": "F", "sprint": "F", "block": "F"}})"));
+            std::set<SDL_Keycode> k3;
+            bool own = true;
+            for (const auto& kv : twice.keys) own &= k3.insert(kv.second).second;
+            Check(own && twice.keys.size() == shipped.keys.size(), "a file that gives three things one key still ends with a key each");
+            Bindings none;
+            none.FromJson(json());
+            Check(none == shipped, "and no file at all is the defaults");
+        }
+
+        // --- moved, a key does the new thing and not the old ---------------------------------------------
+        {
+            Input in;
+            Bindings b;
+            b.BindKey(Action::LightAttack, SDLK_F);       // nobody's
+            b.BindKey(Action::Inventory, SDLK_TAB);       // the spare, claimed
+            b.BindKey(Action::Interact, SDLK_Q);          // and the journal's spare, by something else
+            in.SetBindings(b);
+            Check(tap(in, SDLK_F).count(Action::LightAttack) && tap(in, SDLK_F).count(Action::Confirm) && !tap(in, SDLK_J).count(Action::LightAttack) &&
+                  !tap(in, SDLK_J).count(Action::Confirm), "the light attack on F swings and confirms on F, and J does neither");
+            Check(in.PromptFor(Action::LightAttack) == "F" && in.PromptFor(Action::Confirm) == "F" && in.PromptFor(Action::Interact) == "Q",
+                  "and every prompt that named J names F");
+            Check(tap(in, SDLK_Q).count(Action::Interact) && !tap(in, SDLK_Q).count(Action::QuestLog) && tap(in, SDLK_P).count(Action::QuestLog),
+                  "Q given to Interact stops being the journal's spare, and P still opens it");
+            Check(tap(in, SDLK_TAB).count(Action::Inventory) && !tap(in, SDLK_I).count(Action::Inventory), "Tab given to the bag is the bag's key, and I is nobody's");
+            Check(tap(in, SDLK_RETURN).count(Action::Confirm) && tap(in, SDLK_BACKSPACE).count(Action::Back) && tap(in, SDLK_ESCAPE).count(Action::Pause) &&
+                  tap(in, SDLK_DOWN).count(Action::MoveDown), "Enter, Backspace, Esc and the arrows are where they were");
+
+            // Held across a change, a key is let go: what was holding it may mean something else now.
+            in.Update(dt);
+            key(in, SDLK_H, true);
+            Check(in.Down(Action::Block), "the guard is up");
+            Bindings c = b;
+            c.BindKey(Action::Block, SDLK_C);
+            in.SetBindings(c);
+            Check(!in.Down(Action::Block), "and comes down when the keys are changed under it");
+            key(in, SDLK_H, false);
+        }
+
+        // --- the pad -------------------------------------------------------------------------------------------
+        {
+            Input in;
+            const auto press = [&](int b) {
+                in.Update(dt);
+                button(in, b, true);
+                std::set<Action> down;
+                for (int a = 0; a < ACTION_COUNT; ++a) if (in.Pressed(static_cast<Action>(a))) down.insert(static_cast<Action>(a));
+                button(in, b, false);
+                in.Update(dt);
+                return down;
+            };
+            Check(press(SDL_GAMEPAD_BUTTON_WEST).count(Action::LightAttack) && press(SDL_GAMEPAD_BUTTON_SOUTH).count(Action::Interact) &&
+                  press(SDL_GAMEPAD_BUTTON_SOUTH).count(Action::Confirm) && press(SDL_GAMEPAD_BUTTON_EAST).count(Action::Block) &&
+                  press(SDL_GAMEPAD_BUTTON_EAST).count(Action::Back) && press(SDL_GAMEPAD_BUTTON_NORTH).count(Action::Drop) &&
+                  press(SDL_GAMEPAD_BUTTON_START).count(Action::Pause) && press(SDL_GAMEPAD_BUTTON_DPAD_UP).count(Action::MoveUp),
+                  "as it ships: X swings, A interacts and confirms, B guards and backs out, Y drops in the bag, Start pauses, the d-pad steers");
+            in.Update(dt);
+            trigger(in, true, 0.9f);
+            Check(in.Down(Action::Sprint), "and the left trigger sprints");
+            trigger(in, true, 0.0f);
+            Check(!in.Down(Action::Sprint), "until it is let up");
+
+            Bindings b;
+            b.BindButton(Action::Interact, SDL_GAMEPAD_BUTTON_WEST);      // swaps with the light attack
+            b.BindButton(Action::WorldMap, SDL_GAMEPAD_BUTTON_LEFT_PADDLE1);
+            b.BindButton(Action::Jump, PAD_RIGHT_TRIGGER);                // swaps with the lock
+            in.SetBindings(b);
+            Check(press(SDL_GAMEPAD_BUTTON_WEST).count(Action::Interact) && press(SDL_GAMEPAD_BUTTON_WEST).count(Action::Confirm) &&
+                  press(SDL_GAMEPAD_BUTTON_SOUTH).count(Action::LightAttack) && !press(SDL_GAMEPAD_BUTTON_SOUTH).count(Action::Confirm),
+                  "with Interact moved to X, X confirms and A swings: the menus follow the action and not the button");
+            Check(press(SDL_GAMEPAD_BUTTON_LEFT_PADDLE1).count(Action::WorldMap) && !press(SDL_GAMEPAD_BUTTON_GUIDE).count(Action::WorldMap),
+                  "the map can be put on a back paddle, which is how a Steam Deck gets one: its Guide button is Steam's");
+            in.Update(dt);
+            trigger(in, false, 0.9f);
+            Check(in.Pressed(Action::Jump) && !in.Down(Action::Target), "a jump on the right trigger jumps, and does not lock on");
+            trigger(in, false, 0.0f);
+            Check(press(SDL_GAMEPAD_BUTTON_LEFT_STICK).count(Action::Target), "and the lock is on the stick the jump came off");
+        }
+
+        // --- being told what a key is -----------------------------------------------------------------------
+        {
+            Input in;
+            in.Update(dt);
+            key(in, SDLK_J, true);
+            Check(in.Down(Action::Confirm), "Confirm is held: it is what asked");
+            in.Listen(Input::ListenFor::Key);
+            Check(in.Listening() && !in.Down(Action::Confirm) && !in.Down(Action::LightAttack), "listening lets go of everything first");
+            key(in, SDLK_J, false);
+            in.Update(dt);
+            Check(!in.TakeHeard().any && in.Listening(), "a key coming up is not an answer");
+            key(in, SDLK_G, true);
+            Check(!in.Pressed(Action::Drop) && !in.Down(Action::Drop), "what is pressed while listening does nothing in the game");
+            const Input::Heard heard = in.TakeHeard();
+            Check(heard.any && !heard.cancelled && heard.key == SDLK_G && heard.button < 0 && !in.Listening(), "it is the answer, once, and the listening is over");
+            key(in, SDLK_G, false);
+
+            in.Listen(Input::ListenFor::Key);
+            key(in, SDLK_ESCAPE, true);
+            const Input::Heard off = in.TakeHeard();
+            Check(off.cancelled && !off.any && !in.Pressed(Action::Pause) && !in.Listening(), "Esc calls it off, and does not pause the game doing it");
+            key(in, SDLK_ESCAPE, false);
+
+            in.Listen(Input::ListenFor::Button);
+            key(in, SDLK_F, true);
+            Check(!in.TakeHeard().any && in.Listening(), "a key is not a button");
+            key(in, SDLK_F, false);
+            trigger(in, true, 0.9f);
+            const Input::Heard lt = in.TakeHeard();
+            Check(lt.any && lt.button == PAD_LEFT_TRIGGER && !in.Down(Action::Sprint), "a trigger pulled while listening for a button is one");
+            trigger(in, true, 0.0f);
+            in.Listen(Input::ListenFor::Button);
+            button(in, SDL_GAMEPAD_BUTTON_START, true);
+            Check(in.TakeHeard().cancelled && !in.Pressed(Action::Pause), "and Start calls that off");
+        }
+
+        // --- kept -------------------------------------------------------------------------------------------------
+        {
+            fs::create_directories("bin/selftest_net");
+            const string path = "bin/selftest_net/settings_controls.json";
+            Settings out;
+            Bindings b;
+            b.BindKey(Action::LightAttack, SDLK_F);
+            b.BindButton(Action::WorldMap, SDL_GAMEPAD_BUTTON_LEFT_PADDLE1);
+            out.controls = b.ToJson();
+            out.quest_waypoints = false;
+            Check(out.Save(path), "settings with bindings in them are written");
+            Settings in_again;
+            Check(in_again.Load(path) && !in_again.quest_waypoints, "and read");
+            Bindings back;
+            back.FromJson(in_again.controls);
+            Check(back == b && back.Key(Action::LightAttack) == SDLK_F && back.Button(Action::WorldMap) == SDL_GAMEPAD_BUTTON_LEFT_PADDLE1,
+                  "with the light attack still on F and the map still on the paddle");
+            Settings old;
+            { std::ofstream f(path, std::ios::trunc); f << R"({"zoom": 2.0})"; }
+            Bindings from_old;
+            Check(old.Load(path) && old.quest_waypoints, "settings from before there were bindings load, with waypoints on");
+            from_old.FromJson(old.controls);
+            Check(from_old == shipped, "and are the keys as they shipped");
+            fs::remove(path);
+        }
+    }
+
+    Section("quest waypoints");
+    {
+        WaypointIndex ways;
+        Check(ways.Load("data/waypoints.json"), "data/waypoints.json loads");
+        for (const char* id : kMaps) Check(ways.Areas().count(id) > 0, string(id) + " is in the waypoint index");
+        bool exits_known = true;
+        size_t people = 0, things = 0, posts = 0;
+        for (const auto& kv : ways.Areas()) {
+            for (const auto& e : kv.second.exits) exits_known &= ways.Areas().count(e.to) > 0;
+            people += kv.second.people.size(); things += kv.second.things.size(); posts += kv.second.posts.size();
+        }
+        Check(exits_known, "every way out in it leads to a map in it");
+        Check(people >= 40 && things >= 1000 && posts >= 300, "and it knows who stands where, what is where, and what lives where");
+
+        // --- roads -------------------------------------------------------------------------------------------------
+        const auto road = [&](const string& a, const string& b) { return ways.Route(a, b); };
+        Check(road("overworld", "overworld") == vector<string>{"overworld"}, "the road from somewhere to itself is that place");
+        Check(road("overworld", "town_havenbrook") == (vector<string>{"overworld", "town_havenbrook"}), "Havenbrook is one door from the Hollowmarch");
+        Check(road("town_havenbrook", "mossvale") == (vector<string>{"town_havenbrook", "overworld", "whisperwood_trail", "mossvale"}),
+              "Mossvale is out of the gate, up the road and down the trail");
+        Check(road("house_inn_upper", "fernhollow_college").size() == 7, "from upstairs at the inn to the college is six doors");
+        Check(road("town_havenbrook", "brackenwood") == (vector<string>{"town_havenbrook", "westwold", "brackenwood"}), "the Brackenwood is out of the west gate");
+        Check(road("overworld", "dreamworld").empty() && road("dreamworld_3", "overworld").empty(), "no road leads into a dream, and none out");
+        Check(road("dreamworld", "dreamworld_3").size() == 3, "but the ladders are roads");
+        Check(road("overworld", "nowhere").empty(), "and nowhere is not on any road");
+
+        // --- every stage of every quest can be found -----------------------------------------------------------
+        int stages = 0, located = 0, gathered = 0;
+        for (const auto& kv : quests.Definitions()) {
+            for (size_t i = 0; i < kv.second.stages.size(); ++i) {
+                const QuestStage& st = kv.second.stages[i];
+                ++stages;
+                const string what = kv.first + " stage " + std::to_string(i + 1);
+                if (st.type == ObjectiveType::Reach) {
+                    Check(ways.Areas().count(st.target) > 0, what + ": the place to reach is a place");
+                    ++located;
+                    continue;
+                }
+                // With enough in the bag, and with none.
+                const auto full = ways.SpotsFor(st, st.count, &enemy_db, &loot, &items);
+                const auto empty = ways.SpotsFor(st, 0, &enemy_db, &loot, &items);
+                if (st.type == ObjectiveType::Collect) {
+                    // What is only bought or made has nowhere to point at, and says nothing.
+                    if (!empty.empty()) ++gathered;
+                    continue;
+                }
+                Check(!full.empty() && !empty.empty(), what + " (" + st.target + "): there is somewhere to point");
+                if (!full.empty()) ++located;
+                if (st.type == ObjectiveType::Deliver && !full.empty()) {
+                    bool to_them = true;
+                    for (const auto& spot : full) to_them &= spot.label.find("somewhere") == string::npos;
+                    Check(to_them, what + ": with it in the bag, it points at who wants it");
+                }
+                for (const auto& spot : full) Check(ways.Areas().count(spot.map) > 0, what + ": on a map that exists");
+            }
+        }
+        Check(stages >= 80 && located >= 70 && gathered >= 5, "which is most of what the journal ever asks (" + std::to_string(located) + " of " +
+              std::to_string(stages) + " stages, and " + std::to_string(gathered) + " things to gather)");
+
+        // --- where, for somebody standing somewhere ---------------------------------------------------------------
+        Input input;
+        std::mt19937 rng(20260920);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.quests = &log;
+        World w;
+        w.player.Init(ctx, "player_hero");
+        w.clock.Set(1, 12.0f);
+        Check(w.LoadMap("overworld", "start", ctx), "somebody is standing at Havenbrook's gate");
+        const auto where = [&](const string& quest) { return ways.Resolve(log, quest, w, &enemy_db, &loot, &items); };
+
+        Check(!where("q_marens_letter").found, "a quest not in hand has no waypoint");
+        Check(log.Start("q_marens_letter") && log.Followed() == "q_marens_letter", "taking a quest follows it");
+        {
+            // Stage one: speak to the guild master, who is in the guild hall, in Havenbrook, which is through the gate.
+            const Waypoint wp = where("q_marens_letter");
+            Check(wp.found && !wp.here && wp.map == "guild_hall" && wp.maps_away == 2 && wp.what == "Guild Master Orlend",
+                  "the guild master is two doors away, by name");
+            bool a_door = false;
+            for (const Portal& o : w.CurrentMap().Portals())
+                a_door |= o.target_map == "town_havenbrook" && fabsf(o.rect.x + o.rect.w / 2.0f - wp.local_x) < 1.0f &&
+                          fabsf(o.rect.y + o.rect.h / 2.0f - wp.local_y) < 1.0f;
+            Check(a_door && wp.via == "Enter Havenbrook", "and from the Hollowmarch the thing to walk to is the gate: " + wp.via);
+        }
+        Check(w.LoadMap("town_havenbrook", "from_field", ctx), "through the gate");
+        {
+            const Waypoint wp = where("q_marens_letter");
+            bool guild_door = false;
+            for (const Portal& o : w.CurrentMap().Portals())
+                guild_door |= o.target_map == "guild_hall" && fabsf(o.rect.x + o.rect.w / 2.0f - wp.local_x) < 1.0f;
+            Check(wp.found && !wp.here && wp.maps_away == 1 && guild_door, "in Havenbrook it is the guild hall's door");
+        }
+        Check(w.LoadMap("guild_hall", "entrance", ctx), "and through that");
+        {
+            const Waypoint wp = where("q_marens_letter");
+            const Npc* orlend = nullptr;
+            for (const auto& n : w.npcs) if (n->Id() == "npc_guildmaster") orlend = n.get();
+            Check(wp.found && wp.here && wp.maps_away == 0 && orlend && fabsf(wp.local_x - orlend->x) < 1.0f && fabsf(wp.local_y - orlend->y) < 1.0f,
+                  "inside, it is the man himself, where he is standing");
+        }
+
+        // Somebody on a round is where they are now, not where the map file first put them.
+        {
+            Check(w.LoadMap("town_havenbrook", "default", ctx), "back in the square");
+            const Npc* walker = nullptr;
+            for (const auto& n : w.npcs) if (n->Id() == "npc_brask") walker = n.get();
+            QuestDef find_brask;
+            Check(walker != nullptr, "Brask is on his round");
+            if (walker) {
+                QuestStage st;
+                st.type = ObjectiveType::Talk;
+                st.target = "npc_brask";
+                const auto spots = ways.SpotsFor(st, 0, &enemy_db, &loot, &items);
+                Check(spots.size() == 1 && spots[0].map == "town_havenbrook", "the index knows which town he walks");
+            }
+        }
+
+        // --- a kill: the nearest that is still standing --------------------------------------------------------------
+        Check(w.LoadMap("overworld", "start", ctx) && log.Start("q_thin_the_herd") && log.Followed() == "q_thin_the_herd",
+              "a second quest, taken later, is the one followed");
+        {
+            Waypoint wp = where("q_thin_the_herd");
+            Enemy* nearest = nullptr;
+            float best = 1.0e18f;
+            for (const auto& e : w.enemies) {
+                if (!e->Def() || (e->TypeId() != "boar" && e->Def()->kill_target != "boar")) continue;
+                const float d = Length(e->x - w.player.x, e->y - w.player.y);
+                if (d < best) { best = d; nearest = e.get(); }
+            }
+            Check(wp.found && wp.here && nearest && fabsf(wp.local_x - nearest->x) < 1.0f && fabsf(wp.local_y - nearest->y) < 1.0f,
+                  "thin the herd points at the nearest boar");
+            if (nearest) {
+                nearest->Damage(99999);
+                for (int f = 0; f < 5; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                wp = where("q_thin_the_herd");
+                Check(wp.found && wp.here && (fabsf(wp.local_x - nearest->x) > 1.0f || fabsf(wp.local_y - nearest->y) > 1.0f),
+                      "and, that one dead, at the next");
+            }
+        }
+        // A kill that names its map is only ever there.
+        {
+            QuestStage st;
+            st.type = ObjectiveType::Kill; st.target = "boar"; st.map_id = "whisperwood_trail";
+            bool only_there = true;
+            const auto spots = ways.SpotsFor(st, 0, &enemy_db, &loot, &items);
+            for (const auto& spot : spots) only_there &= spot.map == "whisperwood_trail";
+            Check(!spots.empty() && only_there, "boars on the trail are boars on the trail, not the nearer ones");
+        }
+
+        // --- a delivery: where it comes from, then who wants it ---------------------------------------------------------
+        Check(log.Start("q_daily_logs") || log.IsActive("q_daily_logs") || log.Start("q_firewood"), "an order for logs");
+        {
+            QuestStage st;
+            st.type = ObjectiveType::Deliver; st.target = "logs"; st.deliver_to = "npc_sawyer"; st.count = 10;
+            const auto empty_handed = ways.SpotsFor(st, 0, &enemy_db, &loot, &items);
+            const auto laden = ways.SpotsFor(st, 10, &enemy_db, &loot, &items);
+            Check(empty_handed.size() > 20, "with no logs, it is trees: every one of them");
+            Check(laden.size() == 1 && laden[0].label == "Sawyer Jessa" && laden[0].map == "town_havenbrook", "with ten, it is Jessa");
+            st.target = "raw_minnow";
+            const auto water = ways.SpotsFor(st, 0, &enemy_db, &loot, &items);
+            Check(!water.empty() && water.front().label == "somewhere to fish", "and a fish is wherever there is water to cast at");
+            st.target = "hide";
+            bool a_beast = false;
+            for (const auto& spot : ways.SpotsFor(st, 0, &enemy_db, &loot, &items)) a_beast |= spot.label == "Wild Boar";
+            Check(a_beast, "and a hide is whatever wears one");
+        }
+
+        // --- a dream is not down any road --------------------------------------------------------------------------------
+        {
+            QuestLog dreamer;
+            dreamer.LoadDefinitions("data/quests.json");
+            // Take it the way the game would not let you, to ask about its first stage.
+            Check(dreamer.Start("q_the_water_remembers") || true, "");
+            if (dreamer.IsActive("q_the_water_remembers")) {
+                const Waypoint wp = ways.Resolve(dreamer, "q_the_water_remembers", w, &enemy_db, &loot, &items);
+                Check(!wp.found && wp.hint.find("Reverie") != string::npos && wp.hint.find("bed") != string::npos,
+                      "reach the Reverie: there is nothing to point at, and it says to go to bed");
+            }
+        }
+
+        // --- which quest is followed --------------------------------------------------------------------------------------
+        {
+            QuestLog j;
+            j.LoadDefinitions("data/quests.json");
+            Check(j.Followed().empty() && !j.Chosen(), "with nothing in hand, nothing is followed");
+            j.Start("q_thin_the_herd");
+            j.Start("q_firewood");
+            Check(j.Followed() == "q_firewood" && !j.Chosen(), "the newest is followed");
+            j.Follow("q_thin_the_herd");
+            Check(j.Followed() == "q_thin_the_herd" && j.Chosen(), "until one is chosen");
+            j.Start("q_orc_trouble");
+            Check(j.Followed() == "q_thin_the_herd", "and a quest taken after that does not take it away");
+            j.Follow("q_not_a_quest");
+            j.Follow("q_marens_letter");
+            Check(j.Followed() == "q_thin_the_herd", "nor does asking to follow what is not in hand");
+
+            QuestLog back;
+            back.LoadDefinitions("data/quests.json");
+            back.FromJson(j.ToJson());
+            Check(back.Followed() == "q_thin_the_herd" && back.Chosen() && back.Active().size() == 3 && back.Status("_following") == QuestStatus::NotStarted,
+                  "the choice survives a save, and is not mistaken for a quest");
+
+            j.Follow("q_thin_the_herd");
+            Check(!j.Chosen() && j.Followed() == "q_orc_trouble", "asked again of the chosen one, it lets go, and the newest leads");
+            j.Follow("q_firewood");
+            Inventory bag(&items);
+            bag.Add("logs", 50);
+            j.RefreshCollectObjectives(bag);
+            Check(j.Status("q_firewood") == QuestStatus::Complete && j.Followed() == "q_orc_trouble" && !j.Chosen(),
+                  "and a followed quest that is finished hands over to the newest still in hand");
+
+            QuestLog old;
+            old.LoadDefinitions("data/quests.json");
+            json before = j.ToJson();
+            before.erase("_following");
+            old.FromJson(before);
+            Check(!old.Followed().empty() && old.IsActive(old.Followed()), "a journal saved before any of this follows something that is in hand");
+        }
+    }
+
+    Section("a monster's level is what it fights like");
+    {
+        // The number over a monster's head used to be the spawn's own -- a
+        // nudge on a stat block, 1 to 8 -- so a dire bear that hits like
+        // Combat 62 said "Lv 1" and the Brackenwood, advised at Combat 20, was
+        // full of things calling themselves level 1. Now it is worked out from
+        // the stats it actually fights with, and nothing about the fight
+        // changed with it.
+        // Every kind in data/enemies.json, for the checks that hold for all of them.
+        static const char* kEveryEnemy[] = {
+            "orc1", "orc2", "orc3", "highwayman", "boar", "deer", "fox", "hare", "rat", "spider", "broodmother",
+            "lizardman", "lizardman_chief", "ice_troll", "wyvern", "wyvern_matriarch", "imp", "demon", "pit_lord",
+            "frost_dragon", "zombie", "skeleton", "wraith", "barrow_wight", "slime", "bat", "hound", "ankou",
+            "banshee", "well_warden", "wolf", "bear", "den_mother", "greatwolf", "dire_bear",
+            "nightmare_shade", "dread_boar", "nightmare_brute", "gloom_spider", "pale_stag", "dusk_wolf",
+            "dream_wolf", "dream_lizardman", "dream_wraith", "dream_bat", "dream_skeleton", "nightmare_troll",
+            "dream_bear", "dream_hound", "dream_demon", "dream_banshee", "dream_wyvern", "dream_ankou",
+            "nightmare_dragon",
+        };
+        struct Expect { const char* type; int low, high; };
+        const Expect kExpect[] = {
+            {"hare", 1, 3}, {"deer", 1, 4}, {"boar", 3, 6}, {"orc1", 4, 8}, {"wolf", 8, 13},
+            {"highwayman", 6, 11}, {"orc2", 12, 17}, {"lizardman", 10, 15}, {"bear", 20, 28},
+            {"ice_troll", 28, 35}, {"wyvern", 33, 42}, {"demon", 40, 50}, {"greatwolf", 52, 64},
+            {"dire_bear", 66, 80}, {"frost_dragon", 72, 86}, {"pit_lord", 60, 72},
+        };
+        for (const Expect& x : kExpect) {
+            const EnemyDef* d = enemy_db.Get(x.type);
+            Check(d != nullptr, string(x.type) + " is a monster");
+            if (!d) continue;
+            const int shown = Enemy::ShownLevelOf(*d, 1);
+            Check(shown >= x.low && shown <= x.high,
+                  string(d->name) + " reads as Combat " + std::to_string(shown) + ", which is what it fights like");
+        }
+
+        // Stronger stats, higher number; a stronger spawn of the same thing, higher again.
+        const EnemyDef* boar = enemy_db.Get("boar");
+        const EnemyDef* bear = enemy_db.Get("bear");
+        const EnemyDef* dire = enemy_db.Get("dire_bear");
+        Check(boar && bear && dire &&
+              Enemy::ShownLevelOf(*boar, 1) < Enemy::ShownLevelOf(*bear, 1) &&
+              Enemy::ShownLevelOf(*bear, 1) < Enemy::ShownLevelOf(*dire, 1),
+              "a bear outranks a boar, and a dire bear outranks a bear");
+        Check(bear && Enemy::ShownLevelOf(*bear, 1) < Enemy::ShownLevelOf(*bear, 3) &&
+              Enemy::ShownLevelOf(*bear, 3) < Enemy::ShownLevelOf(*bear, 6),
+              "and a stronger one of the same kind reads higher again");
+        // Every monster there is, not only the ones named above.
+        for (const char* id : kEveryEnemy) {
+            const EnemyDef* d = enemy_db.Get(id);
+            if (!d) continue;
+            const int shown = Enemy::ShownLevelOf(*d, 1);
+            Check(shown >= 1 && shown <= 99, d->name + " reads as a level a character could be");
+            Check(Enemy::ShownLevelOf(*d, 8) > shown, d->name + " reads higher when it is a stronger one");
+        }
+
+        // Nothing about the fight moved: the stats, the hit points and the
+        // damage are the stat block's, whatever number is over its head.
+        {
+            GameContext ctx;
+            std::mt19937 rng(11);
+            ctx.sprites = &sprites; ctx.items = &items; ctx.enemies = &enemy_db; ctx.rng = &rng;
+            EnemySpawnDef def;
+            def.type = "dire_bear"; def.level = 1; def.x = 100.0f; def.y = 100.0f;
+            Enemy beast;
+            beast.Init(enemy_db.Get("dire_bear"), def, ctx);
+            const EnemyDef* d = enemy_db.Get("dire_bear");
+            Check(d && beast.max_hp == d->hp && beast.level == 1 && beast.ShownLevel() > 60,
+                  "a dire bear has its own hit points, is spawn level 1, and says Combat " + std::to_string(beast.ShownLevel()));
+            const CombatProfile p = beast.Profile();
+            Check(d && p.attack_level == d->attack_level && p.strength_level == d->strength_level &&
+                  p.defence_level == d->defence_level, "and fights with exactly the numbers it always did");
+        }
+
+        // Every area's advice matches what is actually in it: the level the
+        // portal warns about is somewhere near the middle of what lives beyond.
+        struct Area { const char* map; int advised; };
+        const Area kAreas[] = {
+            {"westwold", 5}, {"brackenwood", 20}, {"dungeon_emberfell_1", 10}, {"dungeon_barrow", 20},
+            {"ice_spire_peak", 34}, {"dreamworld_2", 25}, {"dreamworld_3", 50},
+        };
+        for (const Area& a : kAreas) {
+            Map m;
+            if (!m.Load(string("maps/") + a.map + ".mx")) { Check(false, string(a.map) + " loads"); continue; }
+            vector<int> levels;
+            for (const EnemySpawnDef& e : m.Enemies())
+                for (const string& type : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                    const EnemyDef* d = enemy_db.Get(type);
+                    if (d && !d->is_boss) levels.push_back(Enemy::ShownLevelOf(*d, e.level));
+                }
+            Check(!levels.empty(), string(a.map) + " has something living in it");
+            if (levels.empty()) continue;
+            std::sort(levels.begin(), levels.end());
+            const int middle = levels[levels.size() / 2];
+            // Within a dozen levels either way: an area is a spread, not a number.
+            Check(std::abs(middle - a.advised) <= 12,
+                  string(a.map) + " is advised at Combat " + std::to_string(a.advised) +
+                      " and the middle of what lives there is " + std::to_string(middle));
+        }
+
+        // And somewhere advised for a beginner holds nothing that reads like a
+        // boss: the first fields are the first fights.
+        {
+            Map field;
+            Check(field.Load("maps/overworld.mx"), "the Hollowmarch loads");
+            int over_twenty = 0, total = 0;
+            for (const EnemySpawnDef& e : field.Enemies())
+                for (const string& type : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                    const EnemyDef* d = enemy_db.Get(type);
+                    if (!d || d->is_boss) continue;
+                    ++total;
+                    if (Enemy::ShownLevelOf(*d, e.level) > 20) ++over_twenty;
+                }
+            Check(total > 50 && over_twenty * 10 < total, "the Hollowmarch is mostly things a new character can fight");
+        }
+    }
+
+    Section("a tannery, and a way to train Crafting");
+    {
+        // Havenbrook had nowhere inside its walls to learn a trade with: the
+        // Westwold's tannery is out of the west gate and past the wolves.
+        Map town;
+        Check(town.Load("maps/town_havenbrook.mx"), "Havenbrook loads");
+        const NpcDef* nessa = nullptr;
+        for (const NpcDef& n : town.Npcs()) if (n.id == "npc_nessa") nessa = &n;
+        Check(nessa != nullptr, "Nessa the Tanner keeps a yard in Havenbrook");
+        Check(nessa && nessa->shop == "havenbrook_tannery", "and a shop");
+        bool bench = false, racks = false;
+        for (const MapObject& o : town.Objects()) {
+            bench |= o.id == "bench_tannery" && o.station == "workbench";
+            racks |= o.id == "sign_tannery";
+        }
+        Check(bench, "with a bench in it to work at, which is the point of a tannery you can reach");
+        Check(racks, "and a sign saying what it is");
+
+        ShopDatabase tannery_shops;
+        Check(tannery_shops.Load("data/shops.json"), "the shops load");
+        const ShopDef* shop = tannery_shops.Get("havenbrook_tannery");
+        Check(shop && shop->town == "havenbrook" && shop->keeper == "npc_nessa", "the tannery is Havenbrook's");
+        if (shop) {
+            Check(shop->buys.count("leather") && shop->buys.count("cloth"), "she buys hide and cloth");
+            for (const ShopStock& row : shop->sells) {
+                const ItemDef* d = items.Get(row.item);
+                Check(d != nullptr, "she sells " + row.item + ", which exists");
+            }
+        }
+
+        // The order book: every order asks for something that can be made, at
+        // the Crafting the recipe itself asks for, and pays in Crafting.
+        vector<const QuestDef*> orders;
+        for (const auto& kv : quests.Definitions())
+            if (kv.second.giver == "npc_nessa") orders.push_back(&kv.second);
+        Check(orders.size() >= 10, "her book has a dozen orders in it (" + std::to_string(orders.size()) + ")");
+        int lowest = 99, highest = 0;
+        for (const QuestDef* d : orders) {
+            Check(d->daily && d->pool == "nessa_orders" && d->posts >= 3,
+                  d->name + " is a daily order, three of them posted a day");
+            Check(d->stages.size() == 1 && d->stages[0].type == ObjectiveType::Deliver &&
+                  d->stages[0].deliver_to == "npc_nessa", d->name + " is a delivery to her");
+            if (d->stages.empty()) continue;
+            const string& what = d->stages[0].target;
+            // It has to be makeable: an order for something nobody can craft is
+            // an order nobody can fill.
+            // The easiest way of making it: cloth comes off flax at Crafting 3
+            // and off spider silk at 8, and an order should ask for the first.
+            const ItemDef* recipe = nullptr;
+            for (const ItemDef* r : items.Recipes())
+                if (r->craft_result == what && (!recipe || r->craft_level < recipe->craft_level)) recipe = r;
+            Check(recipe != nullptr, d->name + " asks for " + what + ", which somebody can make");
+            if (!recipe) continue;
+            Check(items.StationFor(*recipe) == CraftStation::Workbench, what + " is made at a workbench, like the one in her yard");
+            const auto needs = d->requirements.find(SKILL_CRAFTING);
+            const int asked = needs == d->requirements.end() ? 1 : needs->second;
+            Check(asked == recipe->craft_level,
+                  d->name + " asks for Crafting " + std::to_string(asked) + ", which is what the recipe asks for");
+            Check(d->rewards.xp.count(SKILL_CRAFTING) && d->rewards.xp.at(SKILL_CRAFTING) >= 200,
+                  d->name + " pays in Crafting");
+            lowest = std::min(lowest, asked);
+            highest = std::max(highest, asked);
+        }
+        Check(lowest == 1, "there is work in it for somebody who has never made anything");
+        Check(highest >= 40, "and work in it at Crafting " + std::to_string(highest));
+
+        // A day's posting is three, and they are ones the crafter could do.
+        Skills green;
+        const vector<string> today = quests.PoolToday("nessa_orders", &green);
+        Check(today.size() == 3, "three are posted (" + std::to_string(today.size()) + ")");
+        for (const string& id : today) {
+            const QuestDef* d = quests.Definition(id);
+            const bool easy = d && (!d->requirements.count(SKILL_CRAFTING) || d->requirements.at(SKILL_CRAFTING) <= 1);
+            Check(easy,
+                  "a crafter who has never made anything is posted work they can do: " + id);
+        }
+        LevelUp up;
+        Skills master;
+        master.AddXp(SKILL_CRAFTING, XpForLevel(50), up);
+        const vector<string> later = quests.PoolToday("nessa_orders", &master);
+        Check(later.size() == 3 && later != today, "and a master of the trade is posted different work");
+
+        // She takes what she orders, and talks about it.
+        const DialogueNode* root = dialogue.Get("nessa_root");
+        Check(root != nullptr, "she has something to say");
+        bool has_orders = false, has_shop = false, has_hand_in = false, has_teach = false;
+        if (root)
+            for (const DialogueOption& o : root->options) {
+                has_orders |= o.action.open_orders == "npc_nessa";
+                has_shop   |= o.action.open_shop == "havenbrook_tannery";
+                has_hand_in|= o.action.hand_in;
+                has_teach  |= o.next == "nessa_teach";
+            }
+        Check(has_orders && has_shop && has_hand_in && has_teach,
+              "and will show the book, the shelf, take an order in, and say how the trade is learned");
     }
 
     Section("save round trip");

@@ -90,6 +90,28 @@ const EnemyDef* EnemyDatabase::Get(const string& id) const {
     return it == defs.end() ? nullptr : &it->second;
 }
 
+// The same shape as the player's Combat level (Skills::CombatLevel): a quarter
+// of defence and hit points, plus a third of the two attacking stats. A monster
+// has no skill levels, so its stat block stands in for them -- its hit points
+// are a pool rather than a level, so they are read as the level a player with
+// that many would have, which is what makes a 320-hitpoint bear read as the
+// forty-odd-level thing it is.
+int Enemy::ShownLevelOf(const EnemyDef& def, int spawn_level) {
+    const int bump = std::max(0, spawn_level - 1);
+    const float hp = def.hp * (1.0f + 0.12f * bump);
+    // Hitpoints as a level: the player's curve gives about 10 + level*4 at the
+    // low end and flattens after that, and this is the same shape read backwards.
+    const float hp_level = std::clamp(sqrtf(std::max(0.0f, hp - 6.0f)) * 3.4f, 1.0f, 99.0f);
+    const float att = static_cast<float>(def.attack_level + bump);
+    const float str = static_cast<float>(def.strength_level + bump);
+    const float dfn = static_cast<float>(def.defence_level + bump);
+    const float base = 0.25f * (dfn + hp_level);
+    const float melee = 0.325f * (att + str);
+    return std::clamp(static_cast<int>(floorf(base + melee)), 1, 99);
+}
+
+int Enemy::ShownLevel() const { return def ? ShownLevelOf(*def, level) : level; }
+
 void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContext& ctx) {
     def     = d;
     type_id = spawn.type;

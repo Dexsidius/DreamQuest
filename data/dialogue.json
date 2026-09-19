@@ -3431,5 +3431,77 @@
     "next": "end"
    }
   ]
+ },
+ "nessa_root": {
+  "speaker": "Nessa the Tanner",
+  "text": "Mind the vat. If you have hide, pelt or cloth I will buy it, and if you can cut and stitch I will pay you better for what you make of it.",
+  "options": [
+   {
+    "text": "How do I learn the trade?",
+    "next": "nessa_teach"
+   },
+   {
+    "text": "Any orders today?",
+    "next": "end",
+    "action": {
+     "orders": "npc_nessa"
+    }
+   },
+   {
+    "text": "I have an order for you.",
+    "next": "nessa_order_filled",
+    "if": {
+     "order_ready": true
+    },
+    "action": {
+     "hand_in": true
+    }
+   },
+   {
+    "text": "Let me see what is for sale.",
+    "next": "end",
+    "action": {
+     "shop": "havenbrook_tannery"
+    }
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "nessa_teach": {
+  "speaker": "Nessa the Tanner",
+  "text": "The bench is there, and the frames, and you may use both. Hide off anything you kill, thread off me or off Isolde's wheel, and start with coifs -- they are small and nobody minds if the first three are poor.\n\nWhen you can cut one that is not poor, ask me for the book. I post three orders a day and I pay in coin and in what you learn making them.",
+  "options": [
+   {
+    "text": "Let me see the book.",
+    "next": "end",
+    "action": {
+     "orders": "npc_nessa"
+    }
+   },
+   {
+    "text": "I will practise first.",
+    "next": "end"
+   }
+  ]
+ },
+ "nessa_order_filled": {
+  "speaker": "Nessa the Tanner",
+  "text": "Good. That is honest work, and I will say so to anyone who asks.",
+  "options": [
+   {
+    "text": "Anything else needed?",
+    "next": "end",
+    "action": {
+     "orders": "npc_nessa"
+    }
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
  }
 }

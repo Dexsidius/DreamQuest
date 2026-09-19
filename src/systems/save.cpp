@@ -271,6 +271,8 @@ bool Settings::Load(const string& path) {
     p2_name         = j.value("p2_name", p2_name);
     p2_look         = j.value("p2_look", p2_look);
     split_stacked   = j.value("split_stacked", split_stacked);
+    quest_waypoints = j.value("quest_waypoints", quest_waypoints);
+    controls        = j.contains("controls") ? j["controls"] : json();
     recent_hosts.clear();
     if (j.contains("recent_hosts") && j["recent_hosts"].is_array())
         for (const json& h : j["recent_hosts"])
@@ -298,6 +300,8 @@ bool Settings::Save(const string& path) const {
         {"bring_your_own", bring_your_own},
         {"p2_name", p2_name},
         {"p2_look", p2_look},
+        {"quest_waypoints", quest_waypoints},
+        {"controls", controls},
         {"split_stacked", split_stacked},
         {"recent_hosts", recent_hosts},
     };

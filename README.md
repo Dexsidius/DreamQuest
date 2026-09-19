@@ -378,7 +378,17 @@ starts a game that is never written anywhere, `--hold D 2 3.5` holds a key
 down between two moments, `--say "a line"`, and `--shot file.png 5`. A scratch
 game can start anywhere and in anything: `--map brackenwood from_westwold`,
 `--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`,
-`--hour 22`, `--learn trail_legs,broadheads,arrow_rain`.
+`--hour 22`, `--learn trail_legs,broadheads,arrow_rain`, `--quest q_marens_letter`,
+`--screen controls` (or `shop:havenbrook_tannery`, `craft:workbench`,
+`orders:npc_nessa`, `journal`, `map`, `tree`, and the rest).
+
+**`--audit`** opens every menu in the game at three window sizes, walks each
+list's cursor down every row of it, and prints any line of text drawn outside
+the panel it belongs to or off the edge of the window. It is how the skill
+tree's cost line ("Attack 47, a point a rank, after War Cry"), the fishing
+milestones and the storage chest's description were found running off the side;
+run it after touching a panel, because a long name somewhere down a list is not
+something anybody notices by looking.
 
 What is still plain: a friend's chopping shows the swing without the axe in
 hand on other screens; camps are the host's to pitch; and a line relayed
@@ -458,6 +468,49 @@ In menus the fighting keys double up the way a controller's face buttons do:
 `J`, `E`, `Space` or `Enter` confirms, and `K`, `Backspace` or `Esc` backs out.
 A panel's own key closes it again. The death screen ignores input for its first
 moment, so the last swing of a lost fight does not skip straight past it.
+
+### Changing the keys and the buttons
+
+That table is how the game ships, and none of it is fixed. **Options ->
+Controls** lists every action with its key and its button in two columns;
+`Left`/`Right` picks the column, confirm on a cell listens for whatever is
+pressed next, and that is the action's key from then on. The choices are kept
+in `settings.json` (`"controls"`, by SDL's own names for keys and buttons, so
+the file can be read and edited) and Player Two's controller follows the same
+buttons. Two rows at the bottom put either column back as it shipped.
+
+Three rules keep it from being a way to break the game:
+
+- **A change is a swap.** Give the light attack the heavy attack's key and the
+  heavy attack takes the light attack's. Nothing is ever left with no key, and
+  no key ever does two things. The screen says who moved where.
+- **What gets you out of a mistake cannot be moved.** `Esc` and Start pause,
+  `Enter` confirms and `Backspace` backs out, and the arrow keys and the d-pad
+  steer a menu, whatever else has been done. (`Esc`, or Start, is also how
+  listening for a key is called off.) A controller's left stick always steers.
+- **The menus follow the actions, not the keys.** On the keyboard the light
+  attack's key confirms -- with Interact's and Jump's -- and the heavy attack's
+  backs out; on a pad Interact's button confirms, Block's backs out, and the
+  heavy attack's drops things in the bag. Move the attack to `F` and every
+  prompt under every menu says `F`: prompts are read off the bindings
+  (`Input::PromptFor`), never written down.
+
+The triggers are axes, but they are held like buttons and are bound like them,
+so sprint and the lock can be moved off them and anything else onto them. Any
+button SDL reports can be used, which includes a controller's back paddles:
+worth knowing on a **Steam Deck**, where the Guide button is Steam's own and
+never reaches the game, so the map wants putting somewhere else -- `L4`, say,
+once Steam Input is passing the paddles through. The three spare keys (`Tab`
+for the bag, `Q` for the journal, the right `Shift` for sprint) stay spare until
+something else asks for them.
+
+None of the game's own text names a key -- the trainers say "press use" and
+"hold the heavy swing" -- so nothing anybody says goes out of date.
+
+`Bindings` (in `src/input.h`) is the whole of the model; `Input::Listen` and
+`TakeHeard` are how the screen hears a key without the game hearing it too, and
+everything held is let go when listening starts or the bindings change, because
+the key that was holding it may be about to mean something else.
 
 ### Blocking
 
@@ -1528,13 +1581,44 @@ kind of shop.
 
 | Place | General store | Other shops |
 | --- | --- | --- |
-| Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo) |
+| Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo); **Nessa's Tannery**, with the order book |
 | Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies |
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
 | Hidewater, in the Westwold | -- | **Orla's Tannery**: the best price for a hide anywhere, thread, and the Rawhide and Wolfskin sets; **Isolde's Loom**: flax, cloth, vials, the first two dyes, and the Homespun and Novice's robes |
 | The Brackenwood | -- | Hale's Packs, at the trapper's camp: hides bought, and the Lizardscale set |
+
+### Nessa's Tannery, and learning a trade
+
+Havenbrook had nowhere inside its walls to learn a craft with. The Westwold's
+tannery is out of the west gate and past the wolves, which is no use at
+Crafting 1, and the workbench by the forge had nobody standing at it who wanted
+anything made. So the south-west corner of the town, which was empty grass, is a
+tannery yard: frames of hide drying along the wall, a log pile, a bench to work
+at, and **Nessa the Tanner**, who buys hide, pelt and cloth, sells thread and
+boots, and keeps **an order book**.
+
+An order is a daily delivery like Halda's ore or Wendel's pike, with one
+difference that is the whole point of it: **every order asks for something that
+is made, not something that is found.** Three are posted a day out of a pool of
+fourteen, and an order asking more of the crafter than they can do is passed
+over for one they can, so the book always has work in it:
+
+| Crafting | The order | What it is |
+| --- | --- | --- |
+| 1 | Rawhide Coifs, Bedrolls for the Gate, Bedrolls | the first things anybody makes |
+| 3-4 | Bolts of Cloth, Rawhide Jerkins, Hide Boots, Wolfskin Jerkins | |
+| 8-12 | Leather Jerkins, Boiled Chaps, Hide Satchels | |
+| 20-46 | Scaled Coifs, Wolfskin Packs, Banded Jerkins, Bearskin Rucksacks | the bags, and the upper hide sets |
+
+What an order asks for in Crafting is the recipe's own level, worked out from
+the recipe rather than written down twice, and the self-test holds every one of
+them to it -- an order for something nobody can make is an order nobody can
+fill. It also holds each to the older rule that a repeatable order must pay
+**less in coin than buying the same goods would cost**, or an order book is a
+way to turn coins into coins; so the coin is modest and the Crafting XP is the
+reward. Nothing she sells is anything she orders, for the same reason.
 
 ### Prices
 
@@ -2562,6 +2646,66 @@ Quests reach you three ways, all of them live:
 - **Elder Vask**, in the guild hall, has been waiting fifty years for somebody
   who could climb the Ice Spire and kill what is sitting on it.
 
+### Waypoints: where the quest is
+
+A quest says "take Maren's letter to the guild hall", and the game used to leave
+it there: which building that was, in which town, down which road, was the
+player's to remember. Now **the quest being followed is pointed at**:
+
+- **In the world**, a gold chevron bobs over whoever or whatever the stage wants
+  when it is in sight, and when it is not, a gold arrow sits at the edge of the
+  view pointing at it, with how many paces off it is.
+- **On the minimap**, a gold diamond, which rides the rim of the dial in the
+  right direction when the thing is further off than the glass can see.
+- **In the tracker**, the followed quest leads, in gold, with a line under its
+  objective saying where: *Wild Boar, 12 paces north-east*, or *in Havenbrook
+  Guild Hall - Enter Havenbrook*.
+- **On the map screen** (`M`), a pulsing gold mark with the quest's name: on the
+  thing if it is on that page, on the door of the room it is in if it is in one,
+  and otherwise on the way off the page that leads towards it.
+
+If the thing is on another map, all four point at **the way out of this map that
+starts towards it** -- the first door of the shortest road, counted in maps --
+so the marker is always something that is actually here to walk to. From the
+Hollowmarch, Maren's letter points at Havenbrook's gate; inside the gate, at the
+guild hall's door; inside that, at the guild master.
+
+| The stage says | It points at |
+| --- | --- |
+| Talk | the person -- where they are now, if they walk a round |
+| Deliver | whoever wants it, once the bag holds enough; until then, wherever it comes from |
+| Collect | wherever it comes from: what yields it (trees for logs, a seam for ore), water to fish in, or the nearest thing that drops it |
+| Kill | the nearest one still standing, on the map the quest names if it names one |
+| Interact | the thing |
+| Reach | the road to the place |
+
+When there is no road it says why rather than pointing at nothing: the Reverie
+is *"In the Reverie: sleep in a bed after dusk, and choose to dream"*, and a
+villager who has gone in for the night is said to have. What is only bought or
+made has nowhere to point, and says nothing.
+
+**Which quest** is followed is the newest taken, until one is chosen: confirm on
+a quest in hand in the journal follows it (the row says *following*), and it
+stays followed until it is done or confirm is pressed on it again. A finished
+one hands over to the newest still in hand. The choice is kept in the save.
+**Options -> Quest Waypoints** turns the whole thing off.
+
+It works on maps the player has never loaded, because it does not ask the maps.
+`genmaps` writes `data/waypoints.json` as it builds them -- who stands where,
+what is where and what it yields, what lives where (every monster a post might
+be kept by, for the Reverie's nightly rosters), and which way out leads to which
+map -- and `WaypointIndex` (`src/systems/waypoint.h`) answers from that: the
+spots a stage could be done at, the road to each by the fewest doors, and the
+nearest. On the map the player is standing on it looks at what is alive instead,
+so a watchman is where his round has taken him and "the nearest boar" is one
+that is still a boar. Worked out four times a second, and at once when the map,
+the quest, its stage or what the bag holds changes; each half of a split screen
+has its own.
+
+`--quest q_marens_letter,q_thin_the_herd` takes quests for a `--scratch`
+character, and `--screen controls|options|map|journal` opens a screen, for
+looking at all this.
+
 ### The journal's three tabs
 
 The journal is split three ways:
@@ -3180,6 +3324,44 @@ and their chief.
 
 ## Monsters
 
+### A monster's level is what it fights like
+
+The number over a monster's head used to be the spawn's own -- the 1-to-8 nudge
+in the map file that scales a stat block a little -- and it was never a measure
+of anything. A dire bear that hits like Combat 62 said **Lv 1**; the Brackenwood,
+advised at Combat 20, was full of things calling themselves level 1 to 3; every
+Ice Spire wyvern read as level 1 to 4. It read as though the whole world were
+the same difficulty and the player were simply getting worse at it.
+
+`Enemy::ShownLevel` works it out from the stats the thing actually fights with,
+in the same shape as the player's own Combat level -- a quarter of defence and
+hit points, plus a third of the two attacking stats, with hit points read back
+through the player's curve so a 320-hitpoint bear counts for what it is. What
+comes out:
+
+| | reads as | | | reads as |
+| --- | --- | --- | --- | --- |
+| Hare | 1 | | Bear | 24 |
+| Boar | 4 | | Ice Troll | 31 |
+| Orc Grunt | 6 | | Frost Wyvern | 37 |
+| Grey Wolf | 10 | | Demon | 45 |
+| Orc Raider | 14 | | Greatwolf | 58 |
+| Lizardman | 12 | | Dire Bear | 73 |
+
+**No damage changed.** The stat block, the hit points, the hit chance and the
+numbers that come off a swing are exactly what they were: the spawn level still
+does what it always did, and is still what the map file says. Only the number
+shown is honest now, which is what was asked for. A stronger spawn of the same
+creature reads higher than a plain one, so the four ranks of wolf in the
+Westwold still read as four ranks.
+
+Two areas were advised at a level that no longer matched what was in them, and
+say what they hold now: the **Emberfell Mine** at Combat 10 rather than 6, and
+**the Barrow** at 20 rather than 10. The self-test holds every advised area to
+the middle of what actually lives beyond the door, within a dozen levels, and
+holds the Hollowmarch to being mostly things a new character can fight.
+
+
 | Monster | Where | Effective level | Leaves |
 | --- | --- | --- | --- |
 | Grey Wolf | the Westwold west of the Wend, the Brackenwood's south | 8-12 | bones, a **wolf pelt** |
@@ -3460,7 +3642,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **26307 checks** covering:
+and checks all of it — currently **27391 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -4069,6 +4251,47 @@ and checks all of it — currently **26307 checks** covering:
   a stack, and nothing else is multiplied; awake there is no bonus; a sleeper
   climbs to the bottom still asleep upstairs at the inn, where it is darker,
   and dawn or the stone wakes them in their own bed
+- a monster's level is what it fights like: sixteen creatures read within the
+  band their stats put them in, a bear outranks a boar and a dire bear a bear, a
+  stronger spawn reads higher than a plain one, every creature in the game reads
+  as a level a character could be, and a dire bear keeps its own hit points and
+  profile while saying Combat 73; every advised area is within a dozen levels of
+  the middle of what lives there, and the Hollowmarch is mostly things a new
+  character can fight
+- a tannery, and a way to train Crafting: Nessa keeps a yard in Havenbrook with
+  a bench in it and a shop; her book holds a dozen orders, each a daily delivery
+  to her of something that can be made at a workbench, asking the Crafting its
+  own recipe asks and paying in Crafting; there is work in it at Crafting 1 and
+  work at 46; three are posted a day, the beginner is posted three they can do
+  and the master three others; and she will show the book, the shelf, take an
+  order in and say how the trade is learned
+- keys and buttons can be moved, and cannot be lost: every action ships on a key
+  and, if a pad can do it, a button, its own, with a name for the menu and one
+  for the file; Esc, Enter, Backspace, the arrows, Start and the d-pad are kept;
+  the prompts and the keys do what they always did; giving one action another's
+  key swaps them; a reserved key cannot be given away; four hundred changes at
+  random leave every action with a key and a button of its own; bindings survive
+  being written down, a file of nonsense is the defaults, and a file that gives
+  three things one key still ends with a key each; a moved key does the new
+  thing and not the old, the menus and every prompt follow it, a claimed spare
+  stops being a spare; a key held across a change is let go; on a pad the menus
+  follow the action and not the button, a trigger is bound like a button, and
+  the map can go on a back paddle; listening lets go of everything, hears the
+  next key once and nothing else does, Esc or Start calls it off without pausing
+  the game; and settings keep it, with settings from before it loading as shipped
+- quest waypoints: every map is in the index and every way out in it leads to a
+  map in it; the roads between maps are the shortest, there is none into or out
+  of a dream, and the Reverie's ladders are roads; every Talk, Kill, Interact and
+  Deliver stage of every quest has somewhere to point, on a map that exists, and
+  a delivery with the goods in the bag points at who wants them; from the
+  Hollowmarch the guild master is two doors away and the thing to walk to is
+  Havenbrook's gate, inside it the guild hall's door, inside that the man
+  himself where he stands; a kill points at the nearest boar and, that one dead,
+  at the next, and a kill that names its map is only ever there; no logs is
+  trees and ten logs is Jessa, a fish is water to cast at, a hide is what wears
+  one; a quest in a dream points at nothing and says to go to bed; the newest
+  quest is followed until one is chosen, the choice survives a save and is not
+  mistaken for a quest, asking again lets go, and a finished one hands over
 - a town entrance is a gate, with someone at it: every road out of Havenbrook,
   Mossvale and Fernhollow is on the test's list; a gatehouse stands across a
   road that leaves by the south and a tower either side of one that leaves by

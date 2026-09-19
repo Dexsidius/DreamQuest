@@ -69,6 +69,14 @@ int Game::Start(int argc, char** argv) {
             never_save = true;
         } else if (arg == "--level" && more) {
             launch_level = std::clamp(SDL_atoi(argv[++i]), 1, 99);
+        } else if (arg == "--audit") {
+            launch_audit = true;
+            launch_scratch = launch_scratch.empty() ? "hero" : launch_scratch;
+            never_save = true;
+        } else if (arg == "--quest" && more) {
+            launch_quests = argv[++i];
+        } else if (arg == "--screen" && more) {
+            launch_screen = argv[++i];
         } else if (arg == "--learn" && more) {
             // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
             launch_learn = argv[++i];
@@ -164,6 +172,11 @@ int Game::Start(int argc, char** argv) {
 
     ApplySettings();
     SetState(GameState::MainMenu);
+    if (launch_audit) {
+        NewGame("player_hero", active_slot);
+        RunAudit();
+        return 0;
+    }
 
     // --host and --join land on the Play Together screen with the thing
     // already under way, so whatever goes wrong is said where it can be read.
@@ -224,6 +237,40 @@ int Game::Start(int argc, char** argv) {
             // by the day as it loads, and a dream walked into by daylight is over.
             if (launch_hour >= 0.0f) world->clock.Set(world->clock.Day(), launch_hour);
             if (!launch_map.empty()) world->LoadMap(launch_map, launch_spawn.empty() ? "default" : launch_spawn, ctx);
+            if (!launch_quests.empty()) {
+                size_t from = 0;
+                while (from <= launch_quests.size()) {
+                    const size_t comma = launch_quests.find(',', from);
+                    quests->Start(launch_quests.substr(from, comma == string::npos ? string::npos : comma - from));
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+                quests->TakeJustStarted();
+            }
+            // Any panel, for looking at: "shop:<id>", "craft:<station>",
+            // "orders:<npc>", "board:<object id>" and "tree" take what they open.
+            {
+                const size_t colon = launch_screen.find(':');
+                const string what = launch_screen.substr(0, colon);
+                const string arg = colon == string::npos ? string() : launch_screen.substr(colon + 1);
+                if (what == "controls")       { OpenPanel(GameState::Options); SetState(GameState::Controls); }
+                else if (what == "options")   OpenPanel(GameState::Options);
+                else if (what == "map")       OpenPanel(GameState::WorldMapPage);
+                else if (what == "journal")   OpenPanel(GameState::QuestPanel);
+                else if (what == "inventory") OpenPanel(GameState::Inventory);
+                else if (what == "skills")    { skills_tab = 0; OpenPanel(GameState::SkillsPanel); }
+                else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = 1; }
+                else if (what == "pause")     OpenPanel(GameState::Paused);
+                else if (what == "shop")      OpenShop(arg);
+                else if (what == "craft")     { craft_title = arg; craft_station = CraftStationFromName(arg); craft_cursor = 0; OpenPanel(GameState::Crafting); }
+                else if (what == "enchant")   { craft_title = "Enchanting table"; enchant_cursor = enchant_target = 0; OpenPanel(GameState::Enchanting); }
+                else if (what == "storage")   { storage_id = "scratch"; storage_title = "Storage chest"; storage_slots = 100;
+                                                storage_cursor = storage_bag_cursor = 0; storage_on_chest = false; OpenPanel(GameState::Storage); }
+                else if (what == "orders")    OpenOrders(arg, arg);
+                else if (what == "character") SetState(GameState::CharacterSelect);
+                else if (what == "load")      SetState(GameState::LoadMenu);
+                else if (what == "together")  OpenMultiplayer();
+            }
         }
     }
     input_two.SetDevices(false, -1, true);
@@ -262,6 +309,8 @@ bool Game::LoadContent() {
     // The world map's marks; the picture itself is baked the first time it is
     // opened, from maps/overworld.mx.
     ok &= world_map.Load("data/worldmap.json", shop_db);
+    // Not `ok &=`: without it quests are simply not pointed at.
+    waypoints.Load("data/waypoints.json");
 
     if (!ok) {
         SDL_Log("DreamQuest: one or more data files failed to load. "
@@ -270,8 +319,17 @@ bool Game::LoadContent() {
     return ok;
 }
 
+void Game::ApplyBindings() {
+    Bindings b;
+    b.FromJson(settings.controls);
+    input.SetBindings(b);
+    // Player Two's controller is a controller: the same buttons do the same things.
+    input_two.SetBindings(b);
+}
+
 void Game::ApplySettings() {
     input.SetMode(static_cast<InputMode>(settings.input_mode));
+    ApplyBindings();
     world->camera.SetZoom(settings.zoom);
     SDL_SetWindowFullscreen(window, settings.fullscreen);
     SDL_SetRenderVSync(renderer, settings.vsync ? 1 : 0);
@@ -409,7 +467,7 @@ void Game::SetState(GameState s) {
     // The title screen has its own quiet wind; a session hands over to the map.
     if (s == GameState::MainMenu && !has_session) Audio::SetAmbience("menu", false);
     const bool back_to_menu = (s == GameState::MainMenu) &&
-        (state == GameState::Options || state == GameState::LoadMenu ||
+        (state == GameState::Options || state == GameState::Controls || state == GameState::LoadMenu ||
          state == GameState::CharacterSelect || state == GameState::Multiplayer);
 
     state = s;
@@ -606,6 +664,7 @@ void Game::Update(float dt) {
         case GameState::SlotSelect:      UpdateSlotSelect(); break;
         case GameState::LoadMenu:        UpdateLoadMenu(); break;
         case GameState::Options:         UpdateOptions(); break;
+        case GameState::Controls:        UpdateControls(); break;
         case GameState::Multiplayer:     UpdateMultiplayer(); break;
         case GameState::Play:            UpdatePlay(dt); break;
         case GameState::Paused:          UpdatePaused(); break;
@@ -1037,6 +1096,120 @@ void Game::GrantQuestRewards(const string& quest_id) {
 //  Render dispatch
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+//  --audit: every menu, at three window sizes, looking for text that runs off
+// -----------------------------------------------------------------------------
+//
+// Opens each panel in turn, draws one frame of it with UI::BeginAudit on, and
+// prints whatever was drawn outside the panel it was drawn on or off the edge
+// of the window. It is run by hand while working on a menu, and by the
+// self-test's screen pass through bin/DreamQuest.exe --audit, so a panel that
+// somebody adds a long line to says so rather than waiting to be noticed.
+void Game::RunAudit() {
+    struct Screen { const char* name; GameState state; std::function<void()> open; };
+    // A character with everything, because the longest lines are the ones a
+    // finished character sees: every skill at seventy, a full bag, the trees
+    // learned, quests in hand.
+    Player& p = world->player;
+    LevelUp up;
+    for (int s2 = 0; s2 < SKILL_COUNT; ++s2) p.skills.AddXp(s2, XpForLevel(70), up);
+    p.SyncHitpoints(); p.hp = p.max_hp; p.SyncMana(); p.RestoreMana();
+    for (const char* id : {"dragonhide_hide_head", "dragonhide_hide_body", "dragonhide_hide_legs",
+                           "bag_haversack", "bag_rucksack", "greatwolf_pelt", "dream_shard", "starlily_panacea",
+                           "demonite_greatsword", "wyvern_scale", "herbal_tonic", "dire_bear_hide"})
+        if (items.Get(id)) p.inventory.Add(id, 99);
+    for (const auto& kv : quests->Definitions()) quests->Start(kv.first);
+    quests->TakeJustStarted();
+
+    // A toast is drawn over the HUD, not inside a panel, and lands on top of a
+    // full-screen one: it is not a panel's text running off.
+    toasts.clear();
+
+    const std::pair<float, float> sizes[] = {{1280.0f, 720.0f}, {1024.0f, 600.0f}, {1920.0f, 1080.0f}};
+    int found = 0;
+    std::set<string> said;
+    for (const auto& size : sizes) {
+        ui.SetViewport(size.first, size.second);
+        world->camera.SetViewport(size.first, size.second);
+        const Screen screens[] = {
+            {"main menu",      GameState::MainMenu,        [&] { has_session = false; }},
+            {"character",      GameState::CharacterSelect, [] {}},
+            {"load",           GameState::LoadMenu,        [] {}},
+            {"options",        GameState::Options,         [] {}},
+            {"controls",       GameState::Controls,        [&] { controls_cursor = 6; }},
+            {"play together",  GameState::Multiplayer,     [] {}},
+            {"pause",          GameState::Paused,          [&] { has_session = true; }},
+            {"inventory",      GameState::Inventory,       [&] { inventory_cursor = 0; }},
+            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = 0; }},
+            {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = 1; tree_branch = 0; tree_row = 2; }},
+            {"journal",        GameState::QuestPanel,      [&] { quest_tab = 0; quest_cursor[0] = 0; }},
+            {"journal side",   GameState::QuestPanel,      [&] { quest_tab = 2; quest_cursor[2] = 0; }},
+            {"map",            GameState::WorldMapPage,    [&] { map_overview = false; }},
+            {"map overview",   GameState::WorldMapPage,    [&] { map_overview = true; }},
+            {"crafting",       GameState::Crafting,        [&] { craft_title = "Workbench"; craft_station = CraftStation::Workbench; craft_cursor = 0; }},
+            {"smithing",       GameState::Crafting,        [&] { craft_title = "Anvil"; craft_station = CraftStation::Anvil; craft_cursor = 0; }},
+            {"brewing",        GameState::Crafting,        [&] { craft_title = "Cauldron"; craft_station = CraftStation::Cauldron; craft_cursor = 0; }},
+            {"enchanting",     GameState::Enchanting,      [&] { craft_title = "Enchanting table"; enchant_cursor = 0; }},
+            {"storage",        GameState::Storage,         [&] { storage_id = "audit"; storage_title = "Storage chest"; storage_slots = 100; }},
+            {"shop",           GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 0; shop_cursor = 0; }},
+            {"shop sell",      GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 1; shop_cursor = 0; }},
+            {"board",          GameState::Board,           [&] { board_orders = false; board_title = "Notice board"; board_cursor = 0;
+                                                                 board_quests.clear();
+                                                                 for (const auto& kv : quests->Definitions()) board_quests.push_back(kv.first); }},
+            {"note",           GameState::Note,            [&] { note_title = "A torn page"; note_quest.clear();
+                                                                 note_text = string(40, 'M') + "\n\n" + string(400, 'a') + " and a very long unbroken word: " + string(60, 'q'); }},
+            {"sleep",          GameState::SleepPrompt,     [&] { sleep_title = "A bed at the Barley and Bell"; sleep_cursor = 0; }},
+            {"death",          GameState::Death,           [] {}},
+        };
+        for (const Screen& sc : screens) {
+            sc.open();
+            state = sc.state;
+            state_time = 1.0f;
+            // One frame for every row a cursor can be on: what a panel writes is
+            // mostly about whatever is selected, and the longest line in the game
+            // is somewhere down a list nobody scrolled to.
+            int& cursor_row = cursor;
+            int* target = nullptr;
+            int steps = 1;
+            const string name = sc.name;
+            if (name == "inventory")      { target = &inventory_cursor; steps = p.inventory.SlotCount(); }
+            else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
+            else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
+            else if (name == "journal" || name == "journal side") { target = &quest_cursor[quest_tab]; steps = 40; }
+            else if (name == "crafting" || name == "smithing" || name == "brewing") { target = &craft_cursor; steps = 40; }
+            else if (name == "enchanting") { target = &enchant_cursor; steps = 12; }
+            else if (name == "shop" || name == "shop sell") { target = &shop_cursor; steps = 30; }
+            else if (name == "board")     { target = &board_cursor; steps = 30; }
+            else if (name == "controls")  { target = &controls_cursor; steps = 26; }
+            else if (name == "options")   { target = &cursor_row; steps = 12; }
+            else if (name == "character") { target = &cursor_row; steps = 3; }
+            else if (name == "storage")   { target = &storage_bag_cursor; steps = p.inventory.SlotCount(); }
+
+            for (int step = 0; step < steps; ++step) {
+                if (target) *target = step;
+                // Every branch of a tree, too, and both of its tabs.
+                if (name == "skill tree") tree_branch = step % SkillTrees::BRANCHES;
+                ui.BeginAudit();
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+                SDL_RenderClear(renderer);
+                Render();
+                for (const UI::Overflow& o : ui.EndAudit()) {
+                    const string key = string(sc.name) + "|" + o.text;
+                    if (!said.insert(key).second) continue;
+                    ++found;
+                    std::printf("audit %4.0fx%-4.0f %-14s %s%s%s%s  \"%.70s\"\n", size.first, size.second, sc.name,
+                                o.off_window ? "off the window " : "",
+                                o.over_right > 0.5f ? "right " : "", o.over_left > 0.5f ? "left " : "",
+                                o.over_bottom > 0.5f ? "bottom " : "", o.text.c_str());
+                }
+                SDL_RenderPresent(renderer);
+            }
+            if (target) *target = 0;
+        }
+    }
+    std::printf("audit: %d overflowing %s\n", found, found == 1 ? "line" : "lines");
+}
+
 void Game::Render() {
     ui.SetViewport(static_cast<float>(screen_w), static_cast<float>(screen_h));
 
@@ -1065,6 +1238,7 @@ void Game::Render() {
         case GameState::SlotSelect:      DrawSlotSelect(); break;
         case GameState::LoadMenu:        DrawLoadMenu(); break;
         case GameState::Options:         DrawOptions(); break;
+        case GameState::Controls:        DrawControls(); break;
         case GameState::Multiplayer:     DrawMultiplayer(); break;
         case GameState::Paused:          DrawPaused(); break;
         case GameState::Inventory:       DrawInventory(); break;

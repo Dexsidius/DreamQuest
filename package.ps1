@@ -97,6 +97,16 @@ you touch):
     Space           jump / climb
     E               talk, open, work
 
+Any of those can be moved: Options, Controls, for the keyboard and for a
+controller. On a Steam Deck put the map somewhere other than Guide, which is
+Steam's. The quest you are following is pointed at -- a gold arrow, a mark on
+the minimap and the map -- and the journal (P) chooses which quest that is.
+
+Nessa's tannery, in the south-west of Havenbrook, has a bench and an order
+book: three orders a day for things you make rather than things you find,
+which is how Crafting is trained. A monster's level is now what it fights
+like, so "Lv 13" means a Combat 13 character has a fight on their hands.
+
 Three kinds of armour, and each helps one way of fighting: metal plate for
 a blade, hides for a bow, robes for a staff. Hides are cut from what you kill
 -- wolves first, out of Havenbrook's west gate -- and robes from cloth and a

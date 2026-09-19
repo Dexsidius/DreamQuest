@@ -380,6 +380,12 @@ void Sprite::DrawAt(SDL_Renderer* r, TextureCache& cache,
     const int   shown = std::min(frame, clip->FramesForRow(row) - 1);
     const SDL_FRect src = {shown * fw, row * fh, fw, fh};
 
+    // The same stack the world draws, so a character shown in a menu is
+    // holding and wearing what they would be holding and wearing out there:
+    // the character-select cards used to draw the rig's own sheet, which puts
+    // a sword in every hand whatever the character fights with.
+    if (DrawLayers(r, cache, dst, shown, row, tint)) return;
+
     SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
     SDL_SetTextureAlphaMod(tex, tint.a);
     SDL_RenderTexture(r, tex, &src, &dst);

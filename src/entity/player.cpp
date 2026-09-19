@@ -161,6 +161,23 @@ vector<string> Player::StartingKit(const string& character_id) {
     }
 }
 
+LayerStyle Player::KitStyle(const string& character_id, const ItemDatabase* db) {
+    Player dressed;
+    dressed.sprite_id = character_id;
+    dressed.item_db = db;
+    dressed.equipment.SetDatabase(db);
+    dressed.inventory.SetDatabase(db);
+    // The whole kit, because the card is a picture of the character you are
+    // about to play and the line under it already names the weapon: the warden
+    // with the bow, the wayfarer with the staff, each in the barkwood they set
+    // out in. Drawn from the layers rather than the rig's composed sheet, which
+    // has the rig's own sword baked into it whatever the character fights with.
+    for (const string& id : StartingKit(character_id))
+        if (const ItemDef* d = db ? db->Get(id) : nullptr)
+            if (d->slot != SLOT_NONE) dressed.equipment.Equip(d->slot, id);
+    return dressed.BuildLayerStyle(db);
+}
+
 const char* Player::AffinityName(AttackStyle style) {
     switch (style) {
         case AttackStyle::Ranged: return "the bow";

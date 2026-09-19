@@ -220,6 +220,10 @@ bool QuestLog::Start(const string& id) {
     p.counter = 0;
     progress[id] = p;
     just_started.push_back(id);
+    taken_order.erase(std::remove(taken_order.begin(), taken_order.end(), id), taken_order.end());
+    taken_order.push_back(id);
+    // The newest is the one followed, unless the player has said otherwise.
+    if (!Chosen()) { followed = id; chosen = false; }
 
     // A quest whose first stage is already satisfied should not sit there
     // looking stuck.
@@ -377,8 +381,25 @@ vector<string> QuestLog::TakeJustStarted() {
     return out;
 }
 
+string QuestLog::Followed() const {
+    if (!followed.empty() && IsActive(followed)) return followed;
+    for (auto it = taken_order.rbegin(); it != taken_order.rend(); ++it)
+        if (IsActive(*it)) return *it;
+    const vector<string> active = Active();
+    return active.empty() ? string() : active.front();
+}
+
+void QuestLog::Follow(const string& id) {
+    if (!IsActive(id)) return;
+    if (chosen && followed == id) { chosen = false; followed.clear(); return; }
+    followed = id;
+    chosen = true;
+}
+
 json QuestLog::ToJson() const {
     json j = json::object();
+    // Beside the quests, under a name no quest has.
+    j["_following"] = json{{"quest", followed}, {"chosen", chosen}, {"order", taken_order}};
     for (const auto& kv : progress) {
         j[kv.first] = json{
             {"status",  static_cast<int>(kv.second.status)},
@@ -396,7 +417,19 @@ void QuestLog::FromJson(const json& j) {
     just_started.clear();
     if (!j.is_object()) return;
 
+    followed.clear();
+    chosen = false;
+    taken_order.clear();
     for (auto it = j.begin(); it != j.end(); ++it) {
+        if (it.key() == "_following") {
+            if (!it.value().is_object()) continue;
+            followed = it.value().value("quest", string());
+            chosen   = it.value().value("chosen", false);
+            if (it.value().contains("order") && it.value()["order"].is_array())
+                for (const json& q : it.value()["order"]) if (q.is_string()) taken_order.push_back(q.get<string>());
+            continue;
+        }
+        if (!it.value().is_object()) continue;
         QuestProgress p;
         p.status  = static_cast<QuestStatus>(it.value().value("status", 0));
         p.stage   = it.value().value("stage", 0);
