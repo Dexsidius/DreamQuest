@@ -66,6 +66,7 @@ $sizes = @{
     herbalist_cottage = 168
     well = 56; well_dry = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
     town_gate = 160
+    gate_tower = 104; palisade_side = 64
 
     # Herbs for Foraging, growing and picked, and the brewing cauldron.
     cauldron = 48

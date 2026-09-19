@@ -885,7 +885,9 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
                 if (p->IsDead() || p->puppet || p->resting) continue;
                 float d = Length(p->x - e->x, p->y - e->y);
                 if (static_cast<int>(p->seat) == e->target_seat) d *= 0.7f;
-                // Stand Fast: it is after whoever called it out, however far.
+                // Whoever last drew blood is who it is angriest with, for a
+                // few seconds; and Stand Fast outranks that, however far.
+                if (static_cast<int>(p->seat) == e->GrudgeSeat()) d *= 0.25f;
                 if (static_cast<int>(p->seat) == e->TauntedBy()) d = 0.0f;
                 if (d < best_d) { best_d = d; best = p; }
             }
@@ -2305,6 +2307,8 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         Audio::PlayAt(r.max_hit ? Sfx::HitCrit : Sfx::Hit, e.x, e.y);
 
     e.Damage(damage);
+    // It comes for whoever did that, from wherever they did it.
+    e.Provoke(static_cast<int>(player.seat));
     player.AwardCombatXp(damage, AttackType::Light);
 
     // What a blow that landed pays back.

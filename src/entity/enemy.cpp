@@ -242,6 +242,15 @@ void Enemy::Stagger(float seconds) {
     state_timer = 0.0f;
 }
 
+void Enemy::Provoke(int seat) {
+    if (state == State::Dead) return;
+    provoked = true;
+    chase_run = 0.0f;              // a blow taken is a fight: the count starts again
+    if (seat >= 0) { grudge_seat = seat; grudge = GRUDGE_TIME; }
+    // Reeling, swinging or winding up, it carries on with that and comes after.
+    if (state == State::Idle || state == State::Return) SetState(State::Chase);
+}
+
 void Enemy::Bleed(float damage) {
     if (damage <= 0.0f || state == State::Dead) return;
     const float owed = bleed_rate * bleed_left + damage;
@@ -271,6 +280,10 @@ void Enemy::Revive() {
     bar_trail_hold = 0.0f;
     bar_revealed = false;
     corpse_timer = 0.0f;
+    provoked = false;
+    chase_run = 0.0f;
+    grudge = 0.0f;
+    grudge_seat = -1;
     SetState(State::Idle);
     sprite.Play("idle", true);
 }
@@ -322,7 +335,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     // --- health bar trail ---------------------------------------------------------
     // The fill is always exactly hp / max_hp; this only moves the lighter band
     // that shows how much the last hit took, so the loss is readable.
-    if (hp < last_hp) bar_trail_hold = TRAIL_HOLD;
+    grudge = std::max(0.0f, grudge - dt);
+    if (hp < last_hp) {
+        bar_trail_hold = TRAIL_HOLD;
+        // Hurt, from however far and by whatever: it is a fight now.
+        if (hp > 0) Provoke();
+    }
     last_hp = hp;
     {
         const float frac = HealthFraction();
@@ -378,7 +396,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
         case State::Hurt:
             if (state_timer >= std::max(HURT_STAGGER, hurt_for)) {
                 hurt_for = 0.0f;
-                SetState(dist < def->aggro_range ? State::Chase : State::Idle);
+                SetState(provoked || dist < def->aggro_range ? State::Chase : State::Idle);
             }
             break;
 
@@ -409,24 +427,35 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             move_x = wander_dx * def->speed * 0.35f;
             move_y = wander_dy * def->speed * 0.35f;
 
-            if (!player.IsDead() && dist < def->aggro_range) SetState(State::Chase);
+            if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
             break;
         }
 
         case State::Chase: {
-            if (player.IsDead() || home_dist > leash) { SetState(State::Return); break; }
-            if (dist > def->aggro_range * 1.6f)        { SetState(State::Return); break; }
+            // It gives up when there is nobody to chase; when it has run its
+            // budget with nothing happening; or, if all it ever did was see
+            // them, when it has lost sight of them. Not for being far from
+            // home: see the top of enemy.h.
+            const bool lost = !provoked && dist > def->aggro_range * 1.6f;
+            if (player.IsDead() || lost || chase_run >= ChaseBudget()) {
+                provoked = false;
+                chase_run = 0.0f;
+                SetState(State::Return);
+                break;
+            }
 
             // A leader with its heavy rested winds it up instead of a swing,
             // from a little further out -- the blow reaches further too.
             if (def->heavy.enabled && heavy_timer <= 0.0f &&
                 dist <= std::max(40.0f, def->attack_range * def->heavy.reach) * 0.9f) {
                 SetState(State::Heavy);
+                chase_run = 0.0f;              // a blow begun is a fight
                 Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.8f, 0.55f);
                 break;
             }
             if (dist <= def->attack_range && attack_timer <= 0.0f) {
                 SetState(State::Attack);
+                chase_run = 0.0f;
                 Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.8f);
                 swinging = true;
                 swing_landed = false;
@@ -519,9 +548,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             if (home_dist < 8.0f) { SetState(State::Idle); break; }
             move_x = ((home_x - x) / home_dist) * def->speed * 0.8f;
             move_y = ((home_y - y) / home_dist) * def->speed * 0.8f;
-            // Re-engage if the player steps back into range on the way home.
-            if (!player.IsDead() && dist < def->aggro_range * 0.6f && home_dist < leash)
-                SetState(State::Chase);
+            // Re-engage if the player steps back into range on the way home,
+            // wherever on the way that is.
+            if (!player.IsDead() && dist < def->aggro_range * 0.6f) { chase_run = 0.0f; SetState(State::Chase); }
             break;
         }
 
@@ -540,6 +569,11 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
         const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), move_x * dt, move_y * dt);
         x = p.x - foot_box.x;
         y = p.y - foot_box.y;
+        // Every stride toward them is counted, and giving ground in a fight is
+        // not. The stride it meant to take, not the one the map let it: a
+        // monster walking into the foot of a cliff after someone on top of it
+        // is getting nowhere, and tires of that as fast as of a long run.
+        if (state == State::Chase && dist > def->attack_range) chase_run += Length(move_x, move_y) * dt;
     } else if (state == State::Attack || state == State::Chase) {
         // Keep facing the player while swinging.
         if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;

@@ -1695,14 +1695,11 @@ def prop_herbalist_cottage():
     blk("chimney", (0.34, 0.34, rise * 0.90), (cx, -0.20, cbase + rise * 0.45), "stone")
     blk("chimney_cap", (0.44, 0.44, 0.08), (cx, -0.20, cbase + rise * 0.90 + 0.04), "stone_pale")
 
-    # The herb garden, and pots by the door.
-    gx = -1.80
-    for k in range(3):
-        for j in range(4):
-            sphere("bed_%d_%d" % (k, j), 0.09, (gx - 0.10 + j * 0.17, front - 0.50 - k * 0.20, 0.10),
-                   ("leaf", "moss_lt", "wool_green")[(j + k) % 3])
-    blk("wattle_front", (0.84, 0.05, 0.14), (gx + 0.15, front - 0.98, 0.07), "log")
-    blk("wattle_side", (0.05, 0.70, 0.14), (gx - 0.28, front - 0.62, 0.07), "log")
+    # Pots by the door. There was a wattled herb bed out in front as well, a
+    # yard from the wall -- which put most of it below the bottom of the
+    # picture, so what reached the game was the back corner of a fence and two
+    # rows of cabbages, cut off square, lying on the grass by the cottage. A
+    # building's picture ends at its doorstep; a garden is the map's to plant.
     cyl("pot_a", 0.12, 0.18, (1.15, front - 0.40, 0.09), "clay", verts=12)
     sphere("pot_a_herb", 0.12, (1.15, front - 0.40, 0.24), "leaf")
     cyl("pot_b", 0.10, 0.14, (1.42, front - 0.30, 0.07), "clay", verts=12)
@@ -1893,6 +1890,54 @@ def prop_palisade():
             x = -step * (n - 1) / 2 + i * step
             blk("lash_%d_%.2f" % (i, z), (0.05, 0.16, 0.14), (x, -0.13, z), "straw", bev=0)
     return 2.0
+
+
+def prop_gate_tower():
+    """One tower of a gate in a wall that runs north and south, for a road that
+    goes through it east and west: the same stacked logs, cap and shingled roof
+    as Havenbrook's gate, with a lamp on the face toward the road.
+
+    A gate seen from the front is one picture -- prop_town_gate -- because
+    everything that walks through it is in front of all of it. A gate seen from
+    the side cannot be: whoever is on the road is in front of the tower north
+    of it and behind the tower south of it, and one picture can only be sorted
+    once. So this is one tower, placed twice, and the road between them is
+    simply the road."""
+    # The tower itself is the front gate's, log for log, so the two kinds of
+    # gate are plainly the same carpenter's.
+    for k in range(6):
+        z = 0.16 + k * 0.30
+        for row, y in enumerate((-0.32, 0.0, 0.32)):
+            cyl("log_%d_%d" % (k, row), 0.15, 0.84, (0, y, z), ("log", "log_dk")[(k + row) % 2],
+                rot=(0, math.radians(90), 0), verts=10)
+    blk("cap", (1.00, 1.06, 0.12), (0, 0, 1.98), "log_dk", bev=0.03)
+    for rx in (-1, 1):
+        blk("shingle_%d" % rx, (0.66, 1.16, 0.09), (rx * 0.27, 0, 2.12), "shingle",
+            rot=(0, rx * math.radians(32), 0), bev=0.02)
+    blk("ridge", (0.14, 1.20, 0.09), (0, 0, 2.30), "shingle_dk", bev=0.02)
+    # A lamp on the face toward the camera, which for the tower north of a road
+    # is the face toward the road.
+    blk("lamp", (0.17, 0.17, 0.22), (0.30, -0.50, 1.46), "candle_glow", emit=1.5, bev=0.03)
+    blk("lamp_cap", (0.22, 0.22, 0.05), (0.30, -0.50, 1.60), "iron", bev=0.02)
+    blk("lamp_arm", (0.06, 0.20, 0.06), (0.30, -0.42, 1.60), "iron", bev=0.015)
+    # The leaf of the gate, swung back flat against the tower's face.
+    for k in range(4):
+        cyl("bar_%d" % k, 0.034, 1.10, (-0.34 + k * 0.15, -0.50, 0.58), "log", verts=8)
+    for z in (0.28, 0.96):
+        blk("leaf_rail_%.2f" % z, (0.62, 0.08, 0.08), (-0.12, -0.52, z), "log_dk", bev=0.02)
+    return 3.2
+
+
+def prop_palisade_side():
+    """A cell's length of palisade running north and south, seen along its
+    length: three stakes one behind another, and the rail down their side."""
+    for i, y in enumerate((0.34, 0.0, -0.34)):
+        h = 1.20 + (0.10 if i % 2 else 0.0)
+        cyl("stake_%d" % i, 0.13, h, (0, y, h / 2), ("log", "log_dk")[i % 2], verts=10)
+        cone("tip_%d" % i, 0.13, 0.26, (0, y, h + 0.13), "log_end", verts=10)
+    for z in (0.40, 0.92):
+        blk("rail_%.2f" % z, (0.10, 0.98, 0.10), (0.14, 0, z), "log_dk")
+    return 2.2
 
 
 def prop_log_pile():
@@ -2126,6 +2171,8 @@ WOODLAND_PROPS = {
     "well_dry":     (prop_well_dry,     56),
     "market_stall": (prop_market_stall, 80),
     "palisade":     (prop_palisade,     64),
+    "gate_tower":   (prop_gate_tower,   104),
+    "palisade_side": (prop_palisade_side, 64),
     "log_pile":     (prop_log_pile,     48),
     "tanning_rack": (prop_tanning_rack, 64),
     "hay_rick":     (prop_hay_rick,     56),

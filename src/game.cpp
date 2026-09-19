@@ -190,7 +190,16 @@ int Game::Start(int argc, char** argv) {
                 while (from <= launch_wear.size()) {
                     const size_t comma = launch_wear.find(',', from);
                     const string id = launch_wear.substr(from, comma == string::npos ? string::npos : comma - from);
-                    if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_NONE) world->player.equipment.Equip(d->slot, id);
+                    if (const ItemDef* d = items.Get(id)) {
+                        // What is worn is worn; a bag is shouldered; anything
+                        // else just goes in the pack.
+                        if (d->slot != SLOT_NONE) world->player.equipment.Equip(d->slot, id);
+                        else if (world->player.inventory.Add(id, 1) > 0 && d->use == "bag") {
+                            string why;
+                            for (int k = 0; k < world->player.inventory.SlotCount(); ++k)
+                                if (world->player.inventory.Slot(k).id == id) { world->player.WearBag(k, why); break; }
+                        }
+                    }
                     if (comma == string::npos) break;
                     from = comma + 1;
                 }

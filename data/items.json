@@ -1497,5 +1497,100 @@
   "stack": true,
   "value": 14,
   "icon": "assets/icons/tiers/bolt_cloth.png"
+ },
+ "bag_satchel": {
+  "tags": [
+   "leather",
+   "bag"
+  ],
+  "name": "Hide Satchel",
+  "desc": "A satchel of boiled hide on a wide strap, cut to sit under the arm. Put it on and there is another row of room in the bag.",
+  "value": 900,
+  "use": "bag",
+  "bag_slots": 7,
+  "icon": "assets/icons/tiers/bag_satchel.png",
+  "craft": {
+   "result": "bag_satchel",
+   "qty": 1,
+   "xp": 220,
+   "level": 12,
+   "inputs": {
+    "hide": 14,
+    "bolt_cloth": 4,
+    "thread": 8
+   }
+  }
+ },
+ "bag_pack": {
+  "tags": [
+   "leather",
+   "bag"
+  ],
+  "name": "Wolfskin Pack",
+  "desc": "A frame pack in wolf pelt, scaled at the corners where a pack wears through. It rides high and holds more than it looks.",
+  "value": 3600,
+  "use": "bag",
+  "bag_slots": 7,
+  "icon": "assets/icons/tiers/bag_pack.png",
+  "craft": {
+   "result": "bag_pack",
+   "qty": 1,
+   "xp": 520,
+   "level": 28,
+   "inputs": {
+    "wolf_pelt": 12,
+    "lizard_scale": 6,
+    "bolt_cloth": 5,
+    "thread": 10
+   }
+  }
+ },
+ "bag_rucksack": {
+  "tags": [
+   "leather",
+   "bag"
+  ],
+  "name": "Bearskin Rucksack",
+  "desc": "Bear hide over troll, sewn with silk because nothing else would go through it twice. It will outlast whoever carries it.",
+  "value": 14000,
+  "use": "bag",
+  "bag_slots": 7,
+  "icon": "assets/icons/tiers/bag_rucksack.png",
+  "craft": {
+   "result": "bag_rucksack",
+   "qty": 1,
+   "xp": 1100,
+   "level": 46,
+   "inputs": {
+    "bear_hide": 12,
+    "troll_hide": 4,
+    "spider_silk": 10,
+    "thread": 12
+   }
+  }
+ },
+ "bag_haversack": {
+  "tags": [
+   "leather",
+   "bag"
+  ],
+  "name": "Greatwolf Haversack",
+  "desc": "White pelt off the Fells, dire bear at the seams, wyvern scale on the flap, and something from a dream stitched into the lining, where there is more room than there is outside.",
+  "value": 60000,
+  "use": "bag",
+  "bag_slots": 7,
+  "icon": "assets/icons/tiers/bag_haversack.png",
+  "craft": {
+   "result": "bag_haversack",
+   "qty": 1,
+   "xp": 2400,
+   "level": 68,
+   "inputs": {
+    "greatwolf_pelt": 8,
+    "dire_bear_hide": 6,
+    "wyvern_scale": 4,
+    "dream_shard": 12
+   }
+  }
  }
 }

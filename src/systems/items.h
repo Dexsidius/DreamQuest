@@ -137,6 +137,8 @@ struct ItemDef {
     // What using it from the bag does, beyond eating and wearing: "camp"
     // pitches a camp where the player stands.
     string use;
+    // For something with `use` "bag": how many slots putting it on adds.
+    int    bag_slots = 0;
 
     // A material that has to be worked hot, at an anvil.
     bool metal = false;
@@ -270,6 +272,10 @@ struct ItemStack {
 };
 
 static constexpr int INVENTORY_SLOTS = 28;
+// A bag put on adds a row to that, and there are four of them to find or make:
+// eight rows of seven is as much as the inventory screen has room to show.
+static constexpr int BAG_ROW = 7;
+static constexpr int MAX_INVENTORY_SLOTS = INVENTORY_SLOTS + 4 * BAG_ROW;
 
 class Inventory {
 public:

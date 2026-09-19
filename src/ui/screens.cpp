@@ -1085,6 +1085,7 @@ void Game::UpdateInventory() {
     Player& p = world->player;
     constexpr int COLS = 7;
     const int slots = p.inventory.SlotCount();
+    inventory_cursor = std::clamp(inventory_cursor, 0, slots - 1);
     if (state_time <= 0.0f) drop_armed = -1;
 
     if (inventory_on_equipment) {
@@ -1171,6 +1172,17 @@ void Game::UpdateInventory() {
                         Audio::Play(Sfx::QuestStart);
                         quests->RefreshCollectObjectives(p.inventory);
                     }
+                } else if (def && def->use == "bag") {
+                    string why;
+                    const string name = def->name;
+                    if (p.WearBag(inventory_cursor, why)) {
+                        PushToast("You shoulder the " + name + ". Your bag holds " +
+                                  std::to_string(p.inventory.SlotCount()) + " now.", Palette::Highlight);
+                        Audio::Play(Sfx::Equip);
+                    } else {
+                        PushToast(why, Palette::TextDim);
+                        Audio::Play(Sfx::UiError);
+                    }
                 } else if (def && def->use == "camp") {
                     const string why = world->PitchCamp(inventory_cursor, ctx);
                     if (why.empty()) {
@@ -1238,7 +1250,18 @@ void Game::DrawInventory() {
     ui.Dim(0.5f);
     Player& p = world->player;
 
-    const SDL_FRect panel = CenteredPanel(ui, 700.0f, 470.0f);
+    // Four rows of seven, and a row more for every bag put on, up to eight.
+    // The squares stay the size they were for as long as they fit, and the
+    // grid keeps its width, so the worn list beside it does not move.
+    constexpr int COLS = 7;
+    const int rows = std::max(4, (p.inventory.SlotCount() + COLS - 1) / COLS);
+    const float pitch = 58.0f;                                   // a square and its gap, at four rows
+    const float chrome = 470.0f - 4.0f * pitch;                  // the panel, less its grid
+    const float step = std::clamp(std::floor((ui.ViewHeight() - 40.0f - chrome) / rows), 40.0f, pitch);
+    const float gap  = step >= 56.0f ? 6.0f : step >= 48.0f ? 5.0f : 4.0f;
+    const float cell = step - gap;
+    const float grid_h = rows * step;
+    const SDL_FRect panel = CenteredPanel(ui, 700.0f, chrome + grid_h);
     ui.Panel(panel);
     ui.Text("Inventory", panel.x + 24.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight);
 
@@ -1251,9 +1274,10 @@ void Game::DrawInventory() {
             Palette::TextDim, Align::Right);
 
     // --- item grid -----------------------------------------------------------
-    constexpr int COLS = 7;
-    const float cell = 52.0f, gap = 6.0f;
-    const float grid_x = panel.x + 24.0f, grid_y = panel.y + 62.0f;
+    // Centred in the width the four-row grid has, so smaller squares do not
+    // drift left of the text under them.
+    const float grid_x = panel.x + 24.0f + (COLS * pitch - COLS * (cell + gap)) * 0.5f;
+    const float grid_y = panel.y + 62.0f;
 
     for (int i = 0; i < p.inventory.SlotCount(); ++i) {
         const int col = i % COLS, row = i / COLS;
@@ -1280,7 +1304,7 @@ void Game::DrawInventory() {
     }
 
     // --- equipment -----------------------------------------------------------
-    const float eq_x = grid_x + COLS * (cell + gap) + 18.0f;
+    const float eq_x = panel.x + 24.0f + COLS * pitch + 18.0f;
     ui.Text("Worn", eq_x, panel.y + 62.0f, TextSize::Body, Palette::Text);
 
     for (int i = 0; i < SLOT_COUNT; ++i) {
@@ -1350,8 +1374,9 @@ void Game::DrawInventory() {
         : p.inventory.Slot(inventory_cursor).id;
 
     if (const ItemDef* def = sel_id.empty() ? nullptr : items.Get(sel_id)) {
-        const float y = grid_y + 4 * (cell + gap) + 12.0f;
-        ui.Text(def->name, grid_x, y, TextSize::Body, Palette::Highlight);
+        const float y = grid_y + grid_h + 12.0f;
+        const float text_x = panel.x + 24.0f;
+        ui.Text(def->name, text_x, y, TextSize::Body, Palette::Highlight);
         // The tier and what it needs, on the right of the name.
         string tag;
         if (const TierDef* t = def->tier.empty() ? nullptr : items.Tier(def->tier)) tag = t->name + " tier";
@@ -1361,13 +1386,13 @@ void Game::DrawInventory() {
                    " " + std::to_string(rq.second);
         }
         if (!tag.empty())
-            ui.Text(tag, grid_x + COLS * (cell + gap) - 12.0f, y + 4.0f, TextSize::Small, Palette::TextDim, Align::Right);
-        const float desc_h = ui.TextWrapped(def->description, grid_x, y + 24.0f,
-                                            COLS * (cell + gap) - 12.0f, TextSize::Small, Palette::TextDim);
+            ui.Text(tag, text_x + COLS * pitch - 12.0f, y + 4.0f, TextSize::Small, Palette::TextDim, Align::Right);
+        const float desc_h = ui.TextWrapped(def->description, text_x, y + 24.0f,
+                                            COLS * pitch - 12.0f, TextSize::Small, Palette::TextDim);
         // What it does beyond its numbers, in the colour of something rare.
         if (!def->passive_text.empty())
-            ui.TextWrapped(def->passive_text, grid_x, y + 28.0f + desc_h,
-                           COLS * (cell + gap) - 12.0f, TextSize::Small, Palette::Highlight);
+            ui.TextWrapped(def->passive_text, text_x, y + 28.0f + desc_h,
+                           COLS * pitch - 12.0f, TextSize::Small, Palette::Highlight);
     }
 
     ui.Text(input.PromptFor(Action::Confirm) + " use / equip     " +
@@ -1824,6 +1849,13 @@ void Game::UpdateQuestPanel() {
 // =============================================================================
 
 void Game::UpdateWorldMap() {
+    // It opens on where you are. The Hollowmarch is the other side of the page.
+    if (state_time <= 0.0f) map_overview = false;
+    if (world_map.HasOverview(world->MapId()) &&
+        (input.Pressed(Action::Confirm) || input.MenuLeft() || input.MenuRight())) {
+        map_overview = !map_overview;
+        Audio::Play(Sfx::UiMove);
+    }
     if (input.Pressed(Action::Back) || input.Pressed(Action::WorldMap) ||
         input.Pressed(Action::Pause))
         SetState(GameState::Play);
@@ -1831,7 +1863,8 @@ void Game::UpdateWorldMap() {
 
 void Game::DrawWorldMap() {
     world_map.Draw(renderer, *textures, ui, (*world),
-                   input.PromptFor(Action::WorldMap) + " or " + input.PromptFor(Action::Back) + " close");
+                   input.PromptFor(Action::WorldMap) + " or " + input.PromptFor(Action::Back) + " close",
+                   input.PromptFor(Action::Confirm) + " turn to", map_overview);
 }
 
 void Game::DrawQuestPanel() {
@@ -2986,6 +3019,7 @@ void Game::UpdateStorage() {
     Inventory& chest = world->Storage(storage_id, storage_slots, &items);
     const int bag_slots = p.inventory.SlotCount();
     const int box_slots = chest.SlotCount();
+    storage_bag_cursor = std::clamp(storage_bag_cursor, 0, bag_slots - 1);
 
     int& cursor = storage_on_chest ? storage_cursor : storage_bag_cursor;
     const int cols  = storage_on_chest ? kStorageCols : kBagCols;

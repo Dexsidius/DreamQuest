@@ -4170,6 +4170,104 @@ int main(int argc, char** argv) {
             Check(gate && back, "Havenbrook has a west gate, and the road comes back to it");
             Check(west.Width() >= 4000.0f && wood.Width() >= 4000.0f, "and neither of them is small");
         }
+        // --- what starts a fight, and what ends one ---------------------------------------------------
+        {
+            const EnemyDef* boar_stats = enemy_db.Get("boar");
+            // A boar with a leash of its own choosing, some way north of the player.
+            const auto boar_at = [&](World& w, float dy, float leash) -> Enemy* {
+                if (!boar_stats) return nullptr;
+                EnemySpawnDef def;
+                def.type = "boar"; def.level = 1; def.leash = leash; def.respawn = 0.0f;
+                def.x = w.player.x; def.y = w.player.y + dy;
+                auto e = std::make_unique<Enemy>();
+                e->Init(boar_stats, def, ctx);
+                Enemy* raw = e.get();
+                raw->max_hp = raw->hp = 900;
+                w.enemies.push_back(std::move(e));
+                return raw;
+            };
+            {
+                World w;
+                if (fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge"}, nullptr)) {
+                    Enemy* boar = boar_at(w, -320.0f, 400.0f);
+                    frames(w, 40);
+                    Check(boar && !boar->Engaged() && boar_stats->aggro_range < 200.0f,
+                          "a boar does not notice someone three hundred pixels off");
+                    if (boar) {
+                        const float y0 = boar->y;
+                        boar->Damage(3);
+                        frames(w, 60);
+                        Check(boar->Engaged() && boar->Provoked() && boar->y > y0 + 12.0f,
+                              "hurt from out of its sight, it comes for whoever did it (it used to stand and be shot)");
+                    }
+                    Enemy* near = boar_at(w, -60.0f, 400.0f);
+                    frames(w, 10);
+                    Check(near && near->Engaged() && !near->Provoked(), "and someone inside its range is a fight without a blow struck");
+                }
+            }
+            {
+                // Run from, with nothing happening: it gives up after the ground
+                // its leash allows, and not for having left its post.
+                World w;
+                if (fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge"}, nullptr)) {
+                    Enemy* boar = boar_at(w, 120.0f, 200.0f);
+                    if (boar) {
+                        const float budget = boar->ChaseBudget();
+                        frames(w, 2);                 // so the blow is a fall from what it had
+                        boar->Damage(1);
+                        float most = 0.0f;
+                        int gave_up = -1;
+                        bool past_the_ring = false;
+                        for (int f = 0; f < 1200 && gave_up < 0; ++f) {
+                            // Always a hundred and ten pixels ahead of it, going north.
+                            w.player.x = boar->x; w.player.y = boar->y - 110.0f;
+                            input.Update(dt); w.Update(dt, ctx);
+                            most = std::max(most, boar->ChaseRun());
+                            if (boar->Engaged() && boar->ChaseRun() > 200.0f + 10.0f) past_the_ring = true;
+                            if (f > 5 && !boar->Engaged()) gave_up = f;
+                        }
+                        Check(past_the_ring, "a chase does not end for being further from its post than its leash is long");
+                        Check(gave_up > 0 && most >= budget - 4.0f && most <= budget + 4.0f,
+                              "it ends when it has covered its budget with nothing happening (" +
+                              std::to_string(static_cast<int>(most)) + " of " + std::to_string(static_cast<int>(budget)) + " px)");
+                        // On the way home, someone stepping close is a fight again, wherever that is.
+                        w.player.x = boar->x + 18.0f; w.player.y = boar->y;
+                        frames(w, 3);
+                        Check(boar->Engaged(), "and walking home it turns on anyone who steps close, however far from home that is");
+                    }
+                }
+            }
+            {
+                // A fight in it, and the count starts again: a blow taken, or a swing begun.
+                World w;
+                if (fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge"}, nullptr)) {
+                    Enemy* boar = boar_at(w, 120.0f, 200.0f);
+                    if (boar) {
+                        frames(w, 2);
+                        boar->Damage(1);
+                        const int give_up_frames = static_cast<int>(boar->ChaseBudget() / boar_stats->speed * 60.0f);
+                        bool kept_on = true;
+                        for (int f = 0; f < give_up_frames * 2; ++f) {
+                            w.player.x = boar->x; w.player.y = boar->y - 110.0f;
+                            if (f % 120 == 119) boar->Damage(1);
+                            input.Update(dt); w.Update(dt, ctx);
+                            if (f > 5) kept_on &= boar->Engaged() || boar->Staggered();
+                        }
+                        Check(kept_on, "hurt along the way, it keeps coming for twice as long as it would have");
+                        // Let it catch up: the swing it starts is a fight too.
+                        w.player.hp = w.player.max_hp;
+                        w.player.x = boar->x; w.player.y = boar->y - 110.0f;
+                        frames(w, 8);
+                        const bool counting = boar->ChaseRun() > 0.0f;
+                        for (int f = 0; f < 600 && boar->ChaseRun() > 0.0f; ++f) {
+                            w.player.hp = w.player.max_hp;
+                            input.Update(dt); w.Update(dt, ctx);
+                        }
+                        Check(counting && boar->ChaseRun() == 0.0f && boar->Engaged(), "and a swing begun starts the count again");
+                    }
+                }
+            }
+        }
         input.Update(dt);
     }
 
@@ -5902,9 +6000,90 @@ int main(int argc, char** argv) {
                     }
                 Check(found >= 3, town + " shows the trades it keeps (" + std::to_string(found) + ")");
             }
-            for (const char* kind : {"town", "dungeon", "path", "grave", "camp", "landmark"}) {
+            for (const char* kind : {"town", "dungeon", "path", "grave", "camp", "landmark", "door", "trader", "craft"}) {
                 Check(string(WorldMapPanel::KindGlyph(kind)).size() == 1, string(kind) + " has a glyph");
                 Check(string(WorldMapPanel::KindName(kind)) != "", string(kind) + " has a legend line");
+            }
+
+            // --- a page for wherever you are ---------------------------------------------------
+            // The map screen opens on the map of the place the player is in. What
+            // is on a page is read off the map itself; which page a room belongs
+            // to, and which road leads where, come from the list genmaps writes.
+            WorldMapPanel pages;
+            pages.Load("data/worldmap.json", shop_db);
+            bool listed = true;
+            string unlisted;
+            for (const char* id : kMaps) {
+                const auto it = pages.Areas().find(id);
+                const bool ok = it != pages.Areas().end() && !it->second.name.empty() &&
+                                (it->second.kind == "land" || it->second.kind == "dungeon" || it->second.kind == "interior");
+                if (!ok) { listed = false; unlisted = id; }
+            }
+            Check(listed, "every map says what it is called and whether it is country, a dungeon or a room" +
+                  (listed ? string() : ": " + unlisted));
+            string door;
+            Check(pages.PageFor("fernhollow", &door) == "fernhollow" && door.empty() &&
+                  pages.PageFor("ashen_path") == "ashen_path" && pages.PageFor("westwold") == "westwold" &&
+                  pages.PageFor("dungeon_emberfell_2") == "dungeon_emberfell_2" && pages.PageFor("well_deep") == "well_deep",
+                  "open country and dungeons each have a page of their own");
+            Check(pages.PageFor("guild_hall", &door) == "town_havenbrook" && door == "guild_hall",
+                  "a room's page is the place the room is in, with the dot on its door");
+            Check(pages.PageFor("house_inn_upper", &door) == "town_havenbrook" && door == "house_inn",
+                  "and upstairs at the inn is still the inn's door");
+            Check(pages.PageFor("mossvale_herbalist", &door) == "mossvale" && pages.PageFor("fernhollow_college") == "fernhollow",
+                  "in Mossvale and Fernhollow as in Havenbrook");
+            Check(!pages.HasOverview("overworld") && pages.HasOverview("fernhollow") && pages.HasOverview("house_smith"),
+                  "the Hollowmarch is the other side of every page but its own");
+            Check(pages.WayFrom("fernhollow") == "whisperwood_trail" && pages.WayFrom("mossvale") == "whisperwood_trail" &&
+                  pages.WayFrom("brackenwood") == "town_havenbrook" && pages.WayFrom("dungeon_infernal") == "ashen_path" &&
+                  pages.WayFrom("well_deep") == "town_havenbrook",
+                  "from the Hollowmarch, the way to anywhere is the road that starts towards it");
+            Check(pages.WayFrom("dreamworld").empty(), "and no road leads to the Reverie");
+
+            const auto count = [](const vector<WorldMark>& marks, const string& kind) {
+                int n = 0;
+                for (const WorldMark& m : marks) n += m.kind == kind ? 1 : 0;
+                return n;
+            };
+            bool inside = true;
+            string outside;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const WorldMark& mk : pages.MarksOf(m))
+                    if (mk.label.empty() || mk.x < 0.0f || mk.y < 0.0f || mk.x > m.Width() || mk.y > m.Height()) {
+                        inside = false;
+                        outside = string(id) + ": " + mk.label;
+                    }
+            }
+            Check(inside, "everything marked on a page has a name and is on the page" + (inside ? string() : ": " + outside));
+            {
+                Map m;
+                m.Load("maps/fernhollow.mx");
+                const vector<WorldMark> marks = pages.MarksOf(m);
+                bool fishmonger = false;
+                for (const WorldMark& mk : marks)
+                    fishmonger |= mk.kind == "trader" && !mk.shops.empty() && mk.shops[0] == "fishmonger";
+                Check(count(marks, "trader") == 2 && fishmonger && count(marks, "door") == 2 && count(marks, "path") == 1,
+                      "Fernhollow's page: two traders by their trades, two doors, and the way back to the trail");
+            }
+            {
+                Map m;
+                m.Load("maps/town_havenbrook.mx");
+                const vector<WorldMark> marks = pages.MarksOf(m);
+                bool west = false;
+                for (const WorldMark& mk : marks)
+                    west |= mk.kind == "path" && mk.label.find("Westwold") != string::npos && mk.label.find("Combat 5") != string::npos;
+                Check(count(marks, "door") == 4 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
+                      count(marks, "craft") >= 2 && count(marks, "trader") >= 2,
+                      "Havenbrook's: four doors, the well, both gates -- the west one with its warning -- the benches and the traders");
+            }
+            {
+                Map m;
+                m.Load("maps/ashen_path.mx");
+                const vector<WorldMark> marks = pages.MarksOf(m);
+                Check(count(marks, "dungeon") == 1 && count(marks, "path") == 1,
+                      "the Ashen Path's: the way back, and the pit at the end of it");
             }
         }
 
@@ -8604,6 +8783,206 @@ int main(int argc, char** argv) {
               "with everything that was in it");
     }
 
+    Section("bags: a bigger pack, made dear or found by luck");
+    {
+        const char* kBags[] = {"bag_satchel", "bag_pack", "bag_rucksack", "bag_haversack"};
+        const char* kChests[] = {"chest_common", "chest_dungeon", "chest_barrow", "chest_dream", "chest_peak",
+                                 "chest_infernal", "chest_hollowrest", "chest_well"};
+        Check(MAX_INVENTORY_SLOTS == INVENTORY_SLOTS + 4 * BAG_ROW && MAX_INVENTORY_SLOTS == 56,
+              "four bags, a row of seven each: twenty-eight slots can become fifty-six");
+        int last_level = 0, last_value = 0, last_cost = 0;
+        for (const char* id : kBags) {
+            const ItemDef* d = items.Get(id);
+            Check(d && d->use == "bag" && d->bag_slots == BAG_ROW, string(id) + " is a bag, and a row's worth of one");
+            if (!d) continue;
+            Check(!d->icon.empty() && fs::exists(d->icon), d->name + " has a picture");
+            Check(d->slot == SLOT_NONE && !d->consumable && !d->stackable,
+                  d->name + " is not worn in a slot, eaten, or stacked");
+            Check(d->craft_result == id && items.StationFor(*d) == CraftStation::Workbench,
+                  d->name + " is made at a workbench");
+            int pieces = 0, cost = 0;
+            bool known = true;
+            for (const auto& in : d->craft_inputs) {
+                const ItemDef* mat = items.Get(in.first);
+                known &= mat != nullptr;
+                pieces += in.second;
+                if (mat) cost += mat->value * in.second;
+            }
+            Check(known && pieces >= 25, d->name + " takes a great deal of material, all of it real");
+            Check(d->craft_level > last_level && d->value > last_value && cost > last_cost,
+                  d->name + " asks more of the maker than the one before it, and is worth more");
+            last_level = d->craft_level; last_value = d->value; last_cost = cost;
+
+            float best = 0.0f;
+            int where = 0;
+            for (const char* chest : kChests) {
+                const float c = loot.ChanceOf(chest, id);
+                if (c > 0.0f) ++where;
+                best = std::max(best, c);
+            }
+            Check(where > 0, d->name + " can be found in a chest");
+            Check(best > 0.0f && best <= 0.06f, d->name + " is a rare thing to find in one");
+        }
+        Check(loot.ChanceOf("chest_common", "bag_haversack") == 0.0f && loot.ChanceOf("chest_dream", "bag_satchel") == 0.0f,
+              "and the best of them is not in a barrel by the road, nor the least of them at the end of the world");
+
+        // --- putting one on --------------------------------------------------------------------------
+        GameContext ctx;
+        ctx.sprites = &sprites;  ctx.items = &items;  ctx.trees = &trees;
+        Player p;
+        p.Init(ctx, "player_hero");
+        Check(p.inventory.SlotCount() == INVENTORY_SLOTS && p.Bags().empty(), "a new character has the bag they always had");
+        p.inventory.Add("bag_satchel", 1);
+        p.inventory.Add("bag_satchel", 1);
+        p.inventory.Add("iron_sword", 1);
+        string why;
+        Check(!p.WearBag(2, why) && !why.empty() && p.inventory.SlotCount() == INVENTORY_SLOTS,
+              "a sword is not a bag, and says so");
+        Check(p.WearBag(0, why) && why.empty(), "a satchel is put on from the bag it is in");
+        Check(p.inventory.SlotCount() == INVENTORY_SLOTS + BAG_ROW && p.Bags().size() == 1 &&
+              p.inventory.Count("bag_satchel") == 1, "which is a row bigger for it, and one satchel lighter");
+        Check(!p.WearBag(1, why) && !why.empty() && p.inventory.Count("bag_satchel") == 1 &&
+              p.inventory.SlotCount() == INVENTORY_SLOTS + BAG_ROW,
+              "a second satchel is only a satchel: it stays where it is, and the reason is given");
+        Check(p.inventory.Count("iron_sword") == 1, "and nothing else in the bag was disturbed");
+
+        // The new row is real room.
+        p.inventory.Clear();
+        for (int i = 0; i < INVENTORY_SLOTS + BAG_ROW; ++i) p.inventory.Add("iron_sword", 1);
+        Check(p.inventory.Count("iron_sword") == INVENTORY_SLOTS + BAG_ROW && p.inventory.Full() &&
+              p.inventory.Add("iron_sword", 1) == 0, "thirty-five swords go in, and the thirty-sixth does not");
+
+        // --- it is the character's, and goes where they go ----------------------------------------------
+        const json saved = p.ToJson();
+        Check(saved.contains("bags") && saved["bags"].size() == 1 && saved["inventory"].size() == 35,
+              "the save says which bags, and holds every slot");
+        Player back;
+        back.Init(ctx, "player_hero");
+        back.FromJson(saved, ctx);
+        Check(back.inventory.SlotCount() == 35 && back.inventory.Count("iron_sword") == 35 && back.Bags() == p.Bags(),
+              "loaded, the bag is as big as it was and nothing in the last row is lost");
+        Player friend_copy;
+        friend_copy.Init(ctx, "player_warden");
+        friend_copy.ApplySheet(saved, ctx);
+        Check(friend_copy.inventory.SlotCount() == 35 && friend_copy.inventory.Count("iron_sword") == 35,
+              "and a friend's host keeps a copy of them with the same room in it");
+
+        // A smaller character read into the same Player is a smaller bag again.
+        Player fresh;
+        fresh.Init(ctx, "player_hero");
+        back.FromJson(fresh.ToJson(), ctx);
+        Check(back.inventory.SlotCount() == INVENTORY_SLOTS && back.Bags().empty(),
+              "another character loaded over them does not inherit the satchel");
+        // A save from before there were bags has none.
+        json old = saved;
+        old.erase("bags");
+        back.FromJson(old, ctx);
+        Check(back.inventory.SlotCount() == INVENTORY_SLOTS && back.inventory.Count("iron_sword") == INVENTORY_SLOTS,
+              "and a save from before bags loads as it always did");
+
+        // --- all four, in any order, and no further ----------------------------------------------------
+        Player rich;
+        rich.Init(ctx, "player_wayfarer");
+        for (const char* id : {"bag_haversack", "bag_satchel", "bag_rucksack", "bag_pack"}) {
+            rich.inventory.Add(id, 1);
+            bool worn = false;
+            for (int i = 0; i < rich.inventory.SlotCount() && !worn; ++i)
+                if (rich.inventory.Slot(i).id == id) worn = rich.WearBag(i, why);
+            Check(worn, string(id) + " goes on, whatever was put on before it");
+        }
+        Check(rich.inventory.SlotCount() == MAX_INVENTORY_SLOTS && rich.BagSlots() == MAX_INVENTORY_SLOTS,
+              "with all four, the bag is eight rows");
+        Player rich_back;
+        rich_back.Init(ctx, "player_wayfarer");
+        rich_back.FromJson(rich.ToJson(), ctx);
+        Check(rich_back.inventory.SlotCount() == MAX_INVENTORY_SLOTS && rich_back.Bags().size() == 4, "and stays eight rows");
+        // A save that names a bag twice, or a thing that is not one, gets no room for it.
+        json odd = rich.ToJson();
+        odd["bags"] = json::array({"bag_satchel", "bag_satchel", 7, "bag_pack"});
+        rich_back.FromJson(odd, ctx);
+        Check(rich_back.Bags().size() == 2 && rich_back.inventory.SlotCount() == INVENTORY_SLOTS + 2 * BAG_ROW,
+              "a bag named twice in a save counts once");
+    }
+
+    Section("a town entrance is a gate, with someone at it");
+    {
+        struct Way { const char* town; const char* to; bool side; };
+        const Way kWays[] = {
+            {"town_havenbrook", "overworld",         false},
+            {"town_havenbrook", "westwold",          true},
+            {"mossvale",        "whisperwood_trail", true},
+            {"fernhollow",      "whisperwood_trail", false},
+        };
+        const Player walker;
+        auto feet = [&](float x, float y) {
+            return SDL_FRect{x + walker.foot_box.x, y + walker.foot_box.y, walker.foot_box.w, walker.foot_box.h};
+        };
+        for (const Way& way : kWays) {
+            Map town;
+            const string what = string(way.town) + " to " + way.to;
+            if (!town.Load(string("maps/") + way.town + ".mx")) { Check(false, what + ": the town loads"); continue; }
+
+            // Every road out of a town to open country is on this list: a new
+            // one has to come with a gate.
+            int roads = 0;
+            for (const Portal& o : town.Portals())
+                if (!o.requires_interact) {
+                    bool listed = false;
+                    for (const Way& w : kWays) listed |= string(w.town) == way.town && o.target_map == w.to;
+                    Check(listed, string(way.town) + ": the road to " + o.target_map + " is a gate this test knows about");
+                    ++roads;
+                }
+            Check(roads > 0, string(way.town) + " has roads out");
+
+            const Portal* road = nullptr;
+            for (const Portal& o : town.Portals()) if (o.target_map == way.to && !o.requires_interact) road = &o;
+            Check(road != nullptr, what + ": there is a road");
+            if (!road) continue;
+            const float cx = road->rect.x + road->rect.w * 0.5f, cy = road->rect.y + road->rect.h * 0.5f;
+
+            // The gate: a gatehouse across a road seen from the front, a tower
+            // either side of one seen from the side.
+            int houses = 0, north = 0, south = 0;
+            for (const TileInstance& t : town.Tiles()) {
+                const string& tex = town.TexturePath(t);
+                const float bx = t.rect.x + t.rect.w * 0.5f, by = t.rect.y + t.rect.h;
+                if (Length(bx - cx, by - cy) > 170.0f) continue;
+                if (tex.find("town_gate") != string::npos) ++houses;
+                if (tex.find("gate_tower") != string::npos) (by < cy ? north : south)++;
+            }
+            if (way.side) Check(north == 1 && south == 1 && houses == 0, what + ": a gate tower stands either side of the road");
+            else          Check(houses == 1 && north + south == 0, what + ": a gatehouse stands across the road");
+
+            // Someone keeps it, close enough to be at it and not in the way of it.
+            const NpcDef* keeper = nullptr;
+            for (const NpcDef& n : town.Npcs())
+                if (Length(n.x - cx, n.y - cy) <= 130.0f && n.path.empty() &&
+                    (n.name.rfind("Warden", 0) == 0 || n.name.rfind("Watchman", 0) == 0)) keeper = &n;
+            Check(keeper != nullptr, what + ": a warden stands at the gate, and stays there");
+            if (keeper) Check(!town.Blocked(feet(keeper->x, keeper->y)), what + ": " + keeper->name + " is not stood inside a tower");
+
+            // And the way through is a way through: straight in off the road,
+            // down the middle, a hundred and sixty pixels without a bump; and
+            // wide enough that the keeper is not a cork in it.
+            const bool west = road->rect.x <= 1.0f, south_edge = road->rect.y + road->rect.h >= town.Height() - 1.0f;
+            Check(west || south_edge, what + ": the road leaves by the west or the south");
+            bool clear = true;
+            float narrowest = 1.0e9f;
+            for (float d = 12.0f; d <= 160.0f; d += 4.0f) {
+                const float x = west ? road->rect.x + d : cx;
+                const float y = west ? cy : road->rect.y + road->rect.h - d;
+                clear &= !town.Blocked(feet(x, y + (west ? 0.0f : walker.foot_box.h)));
+                // How much room there is across the road at this step.
+                float room_here = 0.0f;
+                for (float off = -80.0f; off <= 80.0f; off += 2.0f)
+                    if (!town.Blocked(SDL_FRect{west ? x : x + off, west ? y + off : y, 2.0f, 2.0f})) room_here += 2.0f;
+                narrowest = std::min(narrowest, room_here);
+            }
+            Check(clear, what + ": the middle of the road is open all the way through the gate");
+            Check(narrowest >= 64.0f, what + ": and the gateway is never narrower than two people");
+        }
+    }
+
     Section("save round trip");
     {
         Skills before;
@@ -9665,9 +10044,12 @@ int main(int argc, char** argv) {
 
         // --- E, pressed on someone --------------------------------------------------------------------
         {
+            // Whoever is first in the file, which is Corrin, at the foot of the
+            // south gate's tower: from the road side of him, since north of him
+            // is the tower and a step south of him is the way out.
             const Npc& maren = *hw.npcs.front();
-            hw.Guest(1)->x = gw.player.x = maren.x;
-            hw.Guest(1)->y = gw.player.y = maren.y + 22.0f;
+            hw.Guest(1)->x = gw.player.x = maren.x - 22.0f;
+            hw.Guest(1)->y = gw.player.y = maren.y;
             frames(4);
             hw.TakeRequests(); gw.TakeRequests();
             Check(gw.player.interact.kind == InteractTarget::Npc, "in her window the prompt finds who she is standing by");

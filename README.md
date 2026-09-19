@@ -542,6 +542,50 @@ Each was handed over exactly once by somebody who could not hand it over
 again, and a house key on the floor of a map you have left is a house you can
 never get into. An item says so with `"keep": true` in `data/items.json`.
 
+### A bigger bag
+
+The bag is four rows of seven, and twenty-eight slots stops being enough at
+about the time there are three kinds of hide to carry. It grows: there are four
+bags, each of which adds a row when it is used from the inventory, to eight rows
+and fifty-six slots with all of them.
+
+| Bag | Crafting | Made of |
+| --- | --- | --- |
+| Hide Satchel | 12 | 14 raw hide, 4 bolts of cloth, 8 waxed thread |
+| Wolfskin Pack | 28 | 12 wolf pelts, 6 lizard scales, 5 bolts of cloth, 10 thread |
+| Bearskin Rucksack | 46 | 12 bear hides, 4 troll hides, 10 spider silk, 12 thread |
+| Greatwolf Haversack | 68 | 8 greatwolf pelts, 6 dire bear hides, 4 wyvern scales, 12 dream shards |
+
+They are dear on purpose. Each is made at a workbench -- nothing in one is
+metal or brewed -- out of the same hides the ranged armour wants, a good deal
+more of them than a jerkin takes, so a bag is a decision about what not to make
+instead. The other way to come by one is luck: every chest table has a bag or
+two in it at a few chances in a hundred, the satchel in the barrels by the road
+and the haversack only at the far end of the world (`data/loot_tables.json`;
+the self-test holds every one of them under six in a hundred a roll). A bag
+found is worth having at any level, since wearing one asks nothing; a bag
+found twice is worth what it sells for.
+
+One of each, in any order: a second satchel is refused ("You already carry a
+Hide Satchel") and stays in the bag. They are not worn in a slot and are never
+taken off, which is what lets the bag only ever grow -- nothing has to decide
+where a row's worth of things goes when the row does.
+
+In the data a bag is `"use": "bag"` with `"bag_slots": 7`. `Player::WearBag`
+takes it out of the inventory and adds its id to `Player::bags`, which is saved
+with the character as `"bags"`; the size of the inventory follows from that
+list (`Player::BagSlots`) and is set before the inventory is read back, so the
+last row of a save has somewhere to go. It is the character's and not the
+world's, so it travels in the sheet a guest sends their host, and the host's
+copy of a friend has the same room in it as the friend does. A save from before
+there were bags has no list and loads at twenty-eight, as it always did.
+
+The inventory screen grows downwards a row at a time, and at eight rows the
+squares shrink a little -- by however much the window's height asks for -- so
+the whole of it still fits. The storage chest's panel already laid the bag out
+by rows and needed nothing. `--wear bag_satchel,...` with `--scratch` shoulders
+bags for a look at it.
+
 ### What the attack buttons do
 
 The buttons never change; the weapon in your hand decides what comes out of
@@ -2115,35 +2159,61 @@ game still holds its 72 fps cap.
 The **chain counter** sits under the target frame while melee swings are
 landing one after another; see "Combos" above.
 
-### The world map
+### The map
 
-**M** opens the whole Hollowmarch on one screen, from anywhere -- the point of
-it is to be readable while you are three rooms deep in a dungeon and have lost
-which way the road runs. The terrain is baked the same way the minimap's dial
-is, but from `maps/overworld.mx` rather than from whatever map is loaded, so it
-works underground; the `Map` it bakes from is thrown away and only the picture
-kept. Where you are shows as a white dot when you are out in it, and as a line
-of text when you are not ("You are in The Barrow Beneath the Mire.").
+**M** opens **the map of wherever you are** -- Fernhollow in Fernhollow, the
+Ashen Path on the Ashen Path, the lower workings in the lower workings -- and
+`J` (or left and right) turns the page to the whole Hollowmarch and back. It
+used to be the Hollowmarch and nothing else, with a line of text to say "you
+are in Mossvale", which is not much of a map of Mossvale.
 
-Every mark is a lettered tile in its own colour with its name beside it, and a
-legend down the right says what each letter means:
+A page is baked the way the minimap's dial is, but from the map's own file
+rather than from whatever is loaded, so any page can be drawn from anywhere;
+the `Map` it bakes from is thrown away and only the picture kept. Ground first;
+then whatever stands on it -- every tree, rock, house and fence -- as a smudge of
+its own colour where its foot is, which is what makes a wood a wood and a
+village a village at a few pixels to the tile. Underground, where the rock and
+the floor cut out of it are much the same grey, what cannot be walked on is
+drawn dark, so the rooms and passages are what is left.
+
+Every mark is a lettered tile in its own colour with its name beside it, and
+the legend down the right lists only what is on the page in front of you:
 
 | | |
 | --- | --- |
-| **T** Town | with a row of chips under it for the trades it keeps |
-| **D** Dungeon | the Emberfell mine, the barrow |
-| **>** Way to another land | labelled, with the Combat level it is closed below: the Whisperwood, the Ice Spire, the Ashen Path |
-| **+** Graveyard | Hollowrest |
-| **!** Enemy camp | the lizardmen |
-| **\*** Landmark | the trailhead |
+| **T** Town | on the Hollowmarch, with a row of chips under it for the trades it keeps |
+| **D** Dungeon | a way down: the mine, the barrow, the well, the pit, the next floor |
+| **>** Way to another land | labelled, with the Combat level advised beyond it |
+| **^** Building | a door you can go in by |
+| **$** Trader | by name, with a chip for their trade |
+| **=** Bench, anvil or cauldron | somewhere to make things |
+| **+** Graveyard, **!** Enemy camp, **\*** Landmark | Hollowrest, the lizardmen, a mission board, a campsite, the storage chest |
 
-A town's chips -- **F** forge, **G** general store, **I** inn kitchen, **B**
-bowyer, and so on -- are **not** written into the map data. They are read from
-the shop database by the town each shop says it belongs to, so a trader added
-to a town appears on the map without anything being written down twice. What
-*is* written down is `data/worldmap.json`, which `genmaps` emits as it places
-things: it knows which portal is a dungeon mouth and which is the road out to
-another zone, where a runtime scan could only guess.
+**Where you are** is a white dot: on the page itself when you are out on it, and
+any friends on the same map are dots in blue with their names. **A room is not
+given a page**: inside the Barley and Bell the map is Havenbrook with the dot on
+the inn's door, and upstairs at the inn is still the inn's door. And on the
+Hollowmarch from somewhere else, the dot is on **the road that starts towards
+wherever that is** -- the Whisperwood trailhead from Fernhollow, Havenbrook's
+gate from the Brackenwood -- unless no road does: the Reverie.
+
+Names are written where they do not lie on each other -- beside the mark, on its
+other side, or a line lower -- since a well, a town and a gate within a few
+pixels of each other were three names in one smear.
+
+What is marked on the Hollowmarch is written down, in `data/worldmap.json`,
+which `genmaps` emits as it places things: it knows which portal is a dungeon
+mouth and which is the road out to another zone, where a runtime scan could
+only guess. What is marked on every other page is read off that map itself
+(`WorldMapPanel::MarksOf`): its ways out, told apart by what the far side is;
+its traders; its benches, boards and camps. What the far side *is* comes from a
+list in the same file, one line a map -- its name, whether it is country, a
+dungeon or a room, and where its ways out lead -- gathered by `genmaps` as each
+map is written, so a new map has a page by being built. A town's chips --
+**F** forge, **G** general store, **I** inn kitchen, **B** bowyer, and so on --
+are never written down anywhere: they are read from the shop database by the
+town each shop says it belongs to, so a trader added to a town appears on the
+map without anything being written down twice.
 
 The bezel is generated by `tools/make_ui.ps1` and the glyphs live in
 `tools/icons.txt`; both run as part of `import_assets.ps1`.
@@ -2727,6 +2797,66 @@ through a gate rather than onto a patch of grass.
 The waymarker that used to stand there now stands on the verge a little north
 of it, saying which way is which.
 
+### If it is the way into a town, it is a gate
+
+That gate was the only one. Inside Havenbrook the same road left through a gap
+in a fence nobody could see, with Watchman Corrin stood four cells short of it
+in the middle of the road; Mossvale's warden and -- once there was one --
+Fernhollow's were the same: somebody standing in a field beside a rectangle.
+Every road out of a town now goes through a gate, and the warden is at it.
+
+| Town | Way out | Gate | Kept by |
+| --- | --- | --- | --- |
+| Havenbrook | south, to the Hollowmarch | gatehouse | Watchman Corrin |
+| Havenbrook | west, to the Westwold | two towers | Watchman Edda |
+| Mossvale | west, to the Whisperwood | two towers | Warden Sela |
+| Fernhollow | south, to the Whisperwood | gatehouse | Warden Ilse |
+
+There are two kinds because there are two ways a road can meet a wall. One that
+runs north or south goes through a gate seen from the front, which is the
+gatehouse Havenbrook already had on its Hollowmarch side: one picture, the road
+under its lintel (`PlaceFrontGate` in `tools/genmaps.cpp`). One that runs east
+or west goes through a gate seen from the side, and that cannot be one picture
+-- whoever is on the road is in front of the tower north of it and behind the
+tower south of it, and a picture is sorted once -- so it is one tower
+(`prop_gate_tower`, the gatehouse's tower log for log, with its lamp and its
+leaf swung back), stood twice (`PlaceSideGate`). The fence is a fence now too:
+a palisade round Havenbrook and Mossvale, along the open south side of
+Fernhollow, and down the east and west sides a palisade seen along its length
+(`prop_palisade_side`).
+
+Inside a town the gatehouse stands two cells in from the edge of the map and
+not on it. From the town side everything just north of a gatehouse is behind
+it, and a warden posted in the gateway showed as a pair of boots under the
+lintel. Set in, there is ground south of it -- outside it, and in front of it
+-- and that is where Corrin and Ilse stand, at the foot of the lamp-side tower,
+where they can be seen and spoken to from the gateway without anyone having to
+leave to do it. Whoever arrives is put down in the road just inside, between
+the towers' roofs. The palisade starts hard against the towers; on the
+Hollowmarch it used to start a stride clear of them, with an invisible wall in
+the gap.
+
+Mossvale's gate is as wide as its street: the gap in the fence there was five
+cells for a road of three. Fernhollow's path used to arrive a cell and a half
+to one side of where the gate was going to be, so it straightens for its last
+few rows. Watchman Brask, who walks Havenbrook gate to gate, turns round in the
+road short of the gatehouse.
+
+The self-test has a list of every road out of a town, and fails on a road that
+is not on it: a new way out has to come with a gate. For each it checks the
+gate is there (a gatehouse across the road, or a tower either side of it), that
+a warden or a watchman with no round to walk stands within a few strides and
+not inside a tower, that the middle of the road is open all the way through,
+and that the gateway is never narrower than two people.
+
+**The manifest.** `genmaps` places a prop at the size `data/asset_manifest.json`
+says its picture is, and takes 32x32 for one the manifest has never heard of.
+The towers first came out the size of a fence post, and so -- it turned out --
+had everything new in the Westwold since it was built: the bear's den, the
+tanning racks, the hay ricks and the rail fences were all placed at 32x32.
+After rendering a new prop, run `tools/make_manifest.ps1` before `build.ps1
+-Maps`.
+
 ### A house of your own
 
 The tanner's house at the bottom of Mossvale has stood empty since he went to
@@ -2996,6 +3126,31 @@ A monster's `scale` in `data/enemies.json` now actually draws it bigger -- it wa
 read and never used -- so a broodmother, a chief, the matriarch and the Pit Lord
 are the same art as their kin, only larger and tinted.
 
+### What starts a fight, and what ends one
+
+**Two things start one.** Someone inside a monster's aggro range: it has seen
+them. Or **taking damage, from any distance and by anything** -- an arrow from
+across a field, a Meteor, a wound still bleeding (`Enemy::Provoke`). It used to
+answer only what it could see, so anything could be shot to death from a step
+outside its range while it grazed. In co-op it comes for whoever drew the
+blood, and stays angriest with them for a few seconds after, unless someone has
+Stood Fast.
+
+**What ends one is the ground it has covered with nothing happening.** It used
+to be how far it had got from its post: a monster fought at the edge of that
+ring turned in the middle of a swing and walked home, and one led a little way
+off simply stopped. Now every stride of a chase is counted, and anything that
+is a fight -- **a blow taken, or a swing begun** -- starts the count again. When
+the count reaches its budget, half as far again as the spawn's `leash`, and
+nothing has happened, it gives up, walks home, and turns on anyone who steps
+close on the way, however far from home that is. So a monster can be led
+anywhere by someone who keeps fighting it, and cannot be led far by someone who
+only runs. A monster that only ever *saw* someone still loses them when they
+get well out of sight; one that has been hurt does not need to see them. The
+stride counted is the one it meant to take, not the one the map allowed, so
+something walking into the foot of a cliff after an archer on top of it tires
+of that as fast as of a long run.
+
 ### Highwaymen
 
 The forest paths have bandits on them. **Highwaymen loiter in twos at the
@@ -3070,7 +3225,16 @@ frame, so `data/sprites.json`'s anchor stands them on their position.
 Two things worth knowing before adding one. About a joint's X axis a positive
 pitch leans a limb built upward *forward* and swings a hanging one *back*; the
 first wyvern had its neck and tail the wrong way round and read as a sitting
-blob. And from this camera, anything behind a head draws above it on screen: the
+blob. The second deer made the same mistake and nobody caught it for a long
+time: its neck leaned back over its shoulders, so its head sat on top of its
+body looking at the sky, and on a shoebox of a body over legs three times as
+long that read from the front as a brown pillar and from the side as a table
+with a stick on it. The red deer stag that replaced it is built in the order
+things matter at this size -- the head out in front of the chest with daylight
+under the jaw, ears that stick out sideways, a rack wider than the shoulders so
+it breaks the silhouette from the front as well, a body longer than it is
+tall, legs dark toward the hoof, and the pale rump -- in a 64-pixel cell, since
+there is more of it to draw than of a boar. And from this camera, anything behind a head draws above it on screen: the
 first ice troll's mane hid its face.
 
 Anything that runs -- the orcs, the boar, the deer, the fox and the hare -- has
@@ -3188,7 +3352,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **24205 checks** covering:
+and checks all of it — currently **24343 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -3744,6 +3908,41 @@ and checks all of it — currently **24205 checks** covering:
   takes, and neither is small; wolves on the downs and greatwolves in the Fells;
   bears, one Den Mother, and dire bears in the Old Growth; Havenbrook has a west
   gate and the road comes back to it
+- what starts a fight and what ends one: a boar does not notice someone three
+  hundred pixels off, and hurt from out of its sight it comes for whoever did
+  it; someone inside its range is a fight without a blow struck; a chase does
+  not end for being further from its post than its leash is long, and does end
+  when it has covered its budget with nothing happening; walking home it turns
+  on anyone who steps close; hurt along the way it keeps coming for twice as
+  long; and a swing begun starts the count again
+- a page for wherever you are: every map says what it is called and whether it
+  is country, a dungeon or a room; open country and dungeons each have a page
+  of their own; a room's page is the place the room is in, with the dot on its
+  door, and upstairs at the inn is still the inn's door; the Hollowmarch is the
+  other side of every page but its own; from the Hollowmarch the way to
+  anywhere is the road that starts towards it, and no road leads to the
+  Reverie; everything marked on a page has a name and is on the page;
+  Fernhollow's page has its two traders by their trades, its two doors and the
+  way back, Havenbrook's its four doors, the well, both gates, the benches and
+  the traders, and the Ashen Path's the way back and the pit
+- bags: four of them, a row of seven each, twenty-eight slots to fifty-six;
+  each is a bag and not worn, eaten or stacked, has a picture, is made at a
+  workbench out of twenty-five things or more that all exist, and asks more
+  than the one before it; each is in a chest somewhere at under six in a
+  hundred, the best not by the road and the least not at the end of the world;
+  a sword is not a bag; a satchel goes on and the bag is a row bigger and a
+  satchel lighter; a second satchel stays where it is and says why; the new row
+  holds things; a save says which bags and holds every slot, loads as big as it
+  was with the last row intact, and so does the copy a friend's host keeps;
+  another character loaded over them does not inherit it; a save from before
+  bags loads as it did; all four go on in any order and stop at eight rows; a
+  bag named twice in a save counts once
+- a town entrance is a gate, with someone at it: every road out of Havenbrook,
+  Mossvale and Fernhollow is on the test's list; a gatehouse stands across a
+  road that leaves by the south and a tower either side of one that leaves by
+  the west; a warden or a watchman with no round to walk stands at it, and not
+  inside a tower; the middle of the road is open all the way through, and the
+  gateway is never narrower than two people
 
 It exits with the number of failures, so CI can use it directly.
 

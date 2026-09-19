@@ -316,7 +316,7 @@
     "deer":  {
                  "dir":  "assets/characters/deer/",
                  "rows":  4,
-                 "anchor_y":  41,
+                 "anchor_y":  54,
                  "scale":  1,
                  "clips":  {
                                "attack":  {

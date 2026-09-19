@@ -242,6 +242,18 @@ public:
     vector<pair<int,int>> TakeXpDrops();     // skill, amount
     void GrantXp(int skill, int amount);
 
+    // --- bags -------------------------------------------------------------------
+    // The bag starts at four rows of seven. A satchel, a pack, a rucksack and a
+    // haversack each add a row when they are put on, once each and in any
+    // order; they are made at a workbench out of a great deal of hide, or found
+    // in a chest by someone lucky. What has been put on is the character's and
+    // is kept with them, and the size of the bag follows from it.
+    const vector<string>& Bags() const { return bags; }
+    int  BagSlots() const;
+    // Puts on the bag in an inventory slot. False, with the reason, if it is
+    // not one, or one like it is already worn.
+    bool WearBag(int slot, string& why_not);
+
     // Consume the item in an inventory slot: food heals, a potion can also
     // restore mana and stamina and boost combat levels. Returns false, with
     // the reason, when it would do nothing.
@@ -473,6 +485,8 @@ private:
     bool  winded = false;
     Vec2  look_ahead{0, 0};
 
+    vector<string> bags;          // bag items put on, in the order they were
+    void  SizeBag();              // makes the inventory as big as `bags` says
     float ability_cd[SkillTrees::ABILITY_SLOTS] = {};
     string pending_ability;
     float frenzy_timer = 0.0f, stand_fast_timer = 0.0f, aim_timer = 0.0f, rapid_timer = 0.0f;

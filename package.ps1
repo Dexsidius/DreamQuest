@@ -86,7 +86,8 @@ you touch):
     WASD / arrows   move                 I or Tab   inventory
     J               light attack          O          skills
     K               heavy attack; hold    P or Q     quest journal
-                    to charge             M          map
+                    to charge             M          map of where you are;
+                                                     J turns to the Hollowmarch
     J+K, and heavy  combos: see the       G          drop (in the bag)
     mixed into      journal's tutorials   1 2 3 4    choose an element
     the chain                             5          the ancient magic
@@ -100,6 +101,10 @@ Three kinds of armour, and each helps one way of fighting: metal plate for
 a blade, hides for a bow, robes for a staff. Hides are cut from what you kill
 -- wolves first, out of Havenbrook's west gate -- and robes from cloth and a
 dye; Orla and Isolde at Hidewater, just outside that gate, will tell you how.
+
+The bag is 28 slots, and four bags -- satchel, pack, rucksack, haversack --
+add a row of seven each. They take a great many hides at a workbench, or a
+lucky chest. Use one from the inventory to put it on; one of each.
 
 Playing together, up to four of you, over Tailscale:
 

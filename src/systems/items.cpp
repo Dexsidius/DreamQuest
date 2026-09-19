@@ -130,6 +130,7 @@ bool ItemDatabase::Load(const string& path, bool required) {
         if (o.contains("tags"))
             for (const json& t : o["tags"]) d.tags.push_back(t.get<string>());
         d.use   = o.value("use", string(""));
+        d.bag_slots = o.value("bag_slots", 0);
         d.model = o.value("model", string(""));
         d.tool  = o.value("tool", string(""));
         d.tool_speed = o.value("tool_speed", 1.0f);

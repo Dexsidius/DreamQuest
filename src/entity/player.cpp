@@ -34,6 +34,8 @@ void Player::Init(const GameContext& ctx, const string& id) {
     equipment.SetDatabase(ctx.items);
     talents.SetDatabase(ctx.trees);
     talents.SetPath(AffinityFor(id));
+    bags.clear();
+    SizeBag();
     sprite.Play("idle");
     SyncHitpoints();
     hp = max_hp;
@@ -1318,6 +1320,39 @@ void Player::Rest() {
     winded = false;
 }
 
+int Player::BagSlots() const {
+    int slots = INVENTORY_SLOTS;
+    for (const string& id : bags) {
+        const ItemDef* def = item_db ? item_db->Get(id) : nullptr;
+        slots += def && def->bag_slots > 0 ? def->bag_slots : BAG_ROW;
+    }
+    return std::min(slots, MAX_INVENTORY_SLOTS);
+}
+
+void Player::SizeBag() {
+    // A bag is never taken off, so in play this only grows. It shrinks when a
+    // different character is read into the same Player, and what is in the bag
+    // then is about to be replaced by theirs.
+    inventory.Resize(BagSlots());
+}
+
+bool Player::WearBag(int slot, string& why_not) {
+    why_not.clear();
+    if (!item_db || slot < 0 || slot >= inventory.SlotCount()) return false;
+    const string id = inventory.Slot(slot).id;
+    const ItemDef* def = id.empty() ? nullptr : item_db->Get(id);
+    if (!def || def->use != "bag") { why_not = "That is not something to carry things in."; return false; }
+    if (std::find(bags.begin(), bags.end(), id) != bags.end()) {
+        why_not = "You already carry a " + def->name + ". A second one is only worth what it sells for.";
+        return false;
+    }
+    if (BagSlots() >= MAX_INVENTORY_SLOTS) { why_not = "You could not carry any more if you had it."; return false; }
+    inventory.RemoveSlot(slot, 1);
+    bags.push_back(id);
+    SizeBag();
+    return true;
+}
+
 bool Player::Eat(int slot) {
     string why;
     return Consume(slot, why);
@@ -1435,6 +1470,7 @@ json Player::ToJson() const {
         {"element",   ElementName(selected_element)},
         {"arcane_spell", arcane_spell},
         {"skills",    skills.ToJson()},
+        {"bags",      bags},
         {"inventory", inventory.ToJson()},
         {"equipment", equipment.ToJson()},
         {"talents",   talents.ToJson()},
@@ -1449,6 +1485,13 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     talents.SetPath(AffinityFor(sprite_id));
     talents.FromJson(j.value("talents", json::object()));
     if (j.contains("skills"))    skills.FromJson(j["skills"]);
+    // The bags first: they say how big a bag there is to put things back into.
+    bags.clear();
+    if (j.contains("bags") && j["bags"].is_array())
+        for (const auto& b : j["bags"])
+            if (b.is_string() && std::find(bags.begin(), bags.end(), b.get<string>()) == bags.end())
+                bags.push_back(b.get<string>());
+    SizeBag();
     if (j.contains("inventory")) inventory.FromJson(j["inventory"]);
     if (j.contains("equipment")) equipment.FromJson(j["equipment"]);
     const int was = hp;
@@ -1479,6 +1522,13 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     facing = static_cast<Facing>(j.value("facing", 0));
 
     if (j.contains("skills"))    skills.FromJson(j["skills"]);
+    // The bags first: they say how big a bag there is to put things back into.
+    bags.clear();
+    if (j.contains("bags") && j["bags"].is_array())
+        for (const auto& b : j["bags"])
+            if (b.is_string() && std::find(bags.begin(), bags.end(), b.get<string>()) == bags.end())
+                bags.push_back(b.get<string>());
+    SizeBag();
     if (j.contains("inventory")) inventory.FromJson(j["inventory"]);
     if (j.contains("equipment")) equipment.FromJson(j["equipment"]);
 

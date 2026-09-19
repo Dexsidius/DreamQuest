@@ -53,8 +53,22 @@ private:
     map<string, EnemyDef> defs;
 };
 
-// Simple, readable monster AI: sit at your post, notice the player, chase
-// within a leash, swing when close enough, and go home when they run away.
+// Simple, readable monster AI: sit at your post; come for whoever walks into
+// range or draws blood, from however far; swing when close enough; and go home
+// once the chase has gone on too long with no fight in it.
+//
+// What starts a fight is either of two things. Someone inside `aggro_range`:
+// it has seen them. Or taking damage -- an arrow from across a field, a wound
+// still bleeding -- which it answers from any distance: it used to stand and be
+// shot by anyone outside the range it could see.
+//
+// What ends one is the ground it has covered since anything last happened. It
+// used to be how far it had got from its post, so a monster fought at the edge
+// of that ring turned in the middle of a swing and walked home. Now every
+// stride of a chase is counted, and anything that is a fight -- a blow taken, a
+// swing begun -- starts the count again; when the count reaches its leash
+// (`ChaseBudget`) and nothing has happened, it gives up. A spawn's `leash` is
+// that budget: how far it will run after you, not how far it may be from home.
 class Enemy : public Entity {
 public:
     // Heavy: a leader winding up and delivering its heavy attack; see
@@ -80,6 +94,20 @@ public:
     State CurrentState() const { return state; }
     // Set while the player is engaged, so the HUD can show a target bar.
     bool  Engaged() const { return state == State::Chase || state == State::Attack || state == State::Heavy; }
+    // Drawing blood: it comes for whoever did it, from wherever they did it.
+    // `seat` is who, for a world with friends in it, or -1 when it cannot be
+    // said -- a wound bleeding out.
+    static constexpr float GRUDGE_TIME = 6.0f;
+    void  Provoke(int seat = -1);
+    bool  Provoked() const { return provoked; }
+    // Whoever it is angriest with just now, or -1.
+    int   GrudgeSeat() const { return grudge > 0.0f ? grudge_seat : -1; }
+    // How far it will run after someone with nothing happening, and how far it
+    // has run: half as far again as its leash, which is about what the old
+    // ring let a straight chase from its post come to, and never so short that
+    // it is no chase at all.
+    float ChaseBudget() const { return std::max(200.0f, leash * 1.5f); }
+    float ChaseRun() const { return chase_run; }
 
     // --- heavy attack -------------------------------------------------------------
     // 0 to 1 through the wind-up, for the bar over its head and the red glow;
@@ -177,6 +205,10 @@ private:
     State  state = State::Idle;
 
     float leash = 220.0f;
+    bool  provoked = false;       // it has been hurt: it does not need to see them
+    float chase_run = 0.0f;       // ground covered in this chase since anything happened
+    float grudge = 0.0f;
+    int   grudge_seat = -1;
     float attack_timer = 0.0f;
     float state_timer = 0.0f;
     float hurt_for = 0.0f;         // how long the current reel lasts, past the usual flinch

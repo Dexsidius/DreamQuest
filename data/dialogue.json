@@ -3369,5 +3369,67 @@
     "next": "end"
    }
   ]
+ },
+ "edda_root": {
+  "speaker": "Watchman Edda",
+  "text": "West gate. It was nailed shut for nine years and now I stand at it all day, which is what they call progress.",
+  "options": [
+   {
+    "text": "What is out there?",
+    "next": "edda_west"
+   },
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "edda_west": {
+  "speaker": "Watchman Edda",
+  "text": "Hidewater, first, where the tanner and the weaver are: decent people, and they pay. Then the river. Past the river it is wolves, and I count everyone out of this gate and I like to count them back in.",
+  "options": [
+   {
+    "text": "I will be back.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_root": {
+  "speaker": "Warden Ilse",
+  "text": "Welcome to Fernhollow. It is a gate, a pond and eleven people, and I am the one who is awake.",
+  "options": [
+   {
+    "text": "What is there to see?",
+    "next": "ilse_see"
+   },
+   {
+    "text": "Quiet post?",
+    "next": "ilse_quiet"
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_see": {
+  "speaker": "Warden Ilse",
+  "text": "Wendel on the jetty sells tackle and buys fish. Nell has her cart by the path. Mira keeps the shrine on the west side, and the old tower past the pond is the college: knock, and mind what you touch.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_quiet": {
+  "speaker": "Warden Ilse",
+  "text": "The foxes on the trail are the worst of it, most nights. I do not mind quiet. Quiet is the job done well.",
+  "options": [
+   {
+    "text": "Fair enough.",
+    "next": "end"
+   }
+  ]
  }
 }

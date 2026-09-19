@@ -118,11 +118,17 @@ struct Manifest {
 
     bool Has(const string& key) const { return size.count(key) > 0; }
 
+    // A picture the manifest has never heard of comes back as the fallback,
+    // and is remembered: a prop placed at 32x32 because nobody ran
+    // make_manifest.ps1 after rendering it looks like a fence post, and did, for
+    // everything new in the Westwold, until the gate towers did it too and were
+    // noticed. main() refuses to finish with any of these outstanding.
     std::pair<int, int> Size(const string& key, int fallback = 32) const {
         auto it = size.find(key);
-        if (it == size.end()) return {fallback, fallback};
+        if (it == size.end()) { unsized.insert(key); return {fallback, fallback}; }
         return it->second;
     }
+    mutable std::set<string> unsized;
 
     const vector<string>& Family(const string& name) const {
         static const vector<string> empty;
@@ -153,10 +159,43 @@ static void MarkWorld(const string& kind, const string& label, int x, int y,
     g_world_marks.push_back({kind, label, x, y, town});
 }
 
+// And what every other map is, for the map screen to draw the one the player is
+// standing in: its name; whether it is open country, a dungeon, or a room in a
+// building; and where its ways out lead, which is how the screen works out that
+// a room is a room *of* somewhere and which road off the Hollowmarch leads to a
+// place three maps away. Gathered as each map is written, so a new map is on
+// the list by being built.
+struct AreaEntry {
+    string id, name, kind;
+    vector<string> exits;
+};
+static vector<AreaEntry> g_areas;
+
+// The overworld is the first thing built and the area list is only complete at
+// the end, so what it asked to have written is kept until then.
+struct WorldMapRequest { string dir; int px_w = 0, px_h = 0, offset_x = 0; bool asked = false; };
+static WorldMapRequest g_world_map;
+
 static void WriteWorldMap(const string& dir, int px_w, int px_h, int offset_x) {
+    g_world_map = {dir, px_w, px_h, offset_x, true};
+}
+
+static void FlushWorldMap() {
+    if (!g_world_map.asked) return;
+    const string& dir = g_world_map.dir;
+    const int px_w = g_world_map.px_w, px_h = g_world_map.px_h, offset_x = g_world_map.offset_x;
     json root;
     root["width"]  = px_w;
     root["height"] = px_h;
+    json areas = json::object();
+    for (const AreaEntry& a : g_areas) {
+        json j;
+        j["name"] = a.name;
+        j["kind"] = a.kind;
+        j["exits"] = a.exits;
+        areas[a.id] = j;
+    }
+    root["areas"] = areas;
     json marks = json::array();
     for (const WorldMark& m : g_world_marks) {
         json j;
@@ -172,7 +211,7 @@ static void WriteWorldMap(const string& dir, int px_w, int px_h, int offset_x) {
     fs::create_directories(dir);
     std::ofstream out(dir + "/worldmap.json", std::ios::trunc);
     out << root.dump(2);
-    std::printf("  %-24s %6zu marks\n", "worldmap.json", g_world_marks.size());
+    std::printf("  %-24s %6zu marks, %zu areas\n", "worldmap.json", g_world_marks.size(), g_areas.size());
 }
 
 // --- map builder -------------------------------------------------------------
@@ -399,6 +438,22 @@ public:
         }
         root["tiles"] = tiles;
         root["dreamquest"] = dq;
+
+        // For the map screen: see AreaEntry.
+        {
+            AreaEntry area;
+            area.id = id;
+            area.name = display;
+            const string ambient = dq.value("ambient", string(""));
+            area.kind = ambient == "dungeon" ? "dungeon" : dq.value("interior", false) ? "interior" : "land";
+            if (dq.contains("portals"))
+                for (const auto& portal : dq["portals"]) {
+                    const string to = portal.value("target", string(""));
+                    if (!to.empty() && std::find(area.exits.begin(), area.exits.end(), to) == area.exits.end())
+                        area.exits.push_back(to);
+                }
+            g_areas.push_back(area);
+        }
 
         fs::create_directories(dir);
         const string path = dir + "/" + id + ".mx";
@@ -653,6 +708,69 @@ static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
 
     // On the step outside, clear of the door, facing the street.
     m.Spawn(exit_spawn, x, y + 22);
+}
+
+// --- town gates ------------------------------------------------------------------
+//
+// If it is the way into a town, it is a gate, with somebody standing at it. A
+// warden posted in the middle of a field beside a gap in an invisible fence is
+// not guarding anything.
+//
+// There are two kinds, because there are two ways a road can meet a wall. One
+// that runs north or south goes through a gate seen from the front: the
+// gatehouse, prop_town_gate, one picture with the road under its lintel. One
+// that runs east or west goes through a gate seen from the side, and that
+// cannot be one picture -- whoever is on the road is in front of the tower north
+// of it and behind the tower south of it, and a picture is sorted once -- so it
+// is one tower, stood twice.
+
+// A gatehouse across a road running north-south. (x, base_y) is the middle of
+// the threshold, at the bottom of the picture. The towers are solid and the way
+// between them is eighty pixels; `lengths` of palisade run off either side,
+// starting hard against the towers -- they used to start a stride clear of
+// them, with a wall nobody could see in the gap -- and stopping at the edge of
+// the map if `map_w` says where that is.
+//
+// Inside a town the gatehouse stands two cells in from the edge the road leaves
+// by, not on it. Seen from the town side everything just north of it is behind
+// it: a warden in the gateway showed as a pair of boots under the lintel. Set
+// in, there is ground south of it, which is in front of it, and that is where
+// the warden stands: see FrontGateKeeper.
+static void PlaceFrontGate(MapBuilder& m, int x, int base_y, int lengths, int map_w = 0) {
+    m.Prop("props", "town_gate", x, base_y);
+    for (int side = -1; side <= 1; side += 2) {
+        m.Collision(x + (side < 0 ? -72 : 40), base_y - 38, 32, 38);
+        for (int k = 0; k < lengths; ++k) {
+            const int px = x + side * (97 + k * 54);
+            if (map_w > 0 && (px < -20 || px > map_w + 20)) break;
+            m.Prop("props", "palisade", px, base_y - 4);
+            m.Collision(px - 27, base_y - 16, 54, 14);
+        }
+    }
+}
+
+// Where whoever keeps a front gate stands: outside it, at the foot of the
+// lamp-side tower, clear of the way through.
+static int FrontGateKeeperX(int x)      { return x + 56; }
+static int FrontGateKeeperY(int base_y) { return base_y + 14; }
+
+// A gate across a road running east-west, in a wall at x: a tower at the
+// road's north edge and another south of it. The southern one stands a little
+// way off the road, because it is drawn up over whatever is north of its foot.
+static void PlaceSideGate(MapBuilder& m, int x, int road_top, int road_bottom) {
+    m.Prop("props", "gate_tower", x, road_top - 2);
+    m.Collision(x - 20, road_top - 26, 40, 24);
+    m.Prop("props", "gate_tower", x, road_bottom + 44);
+    m.Collision(x - 20, road_bottom + 20, 40, 24);
+}
+
+// A palisade down the east or west side of a village, seen along its length,
+// leaving out the rows a gate stands in.
+static void PalisadeSide(MapBuilder& m, int x, int from_y, int to_y, int gap_top = -1, int gap_bottom = -1) {
+    for (int y = from_y; y <= to_y; y += 22) {
+        if (gap_top >= 0 && y > gap_top - 34 && y < gap_bottom + 58) continue;
+        m.Prop("props", "palisade_side", x, y);
+    }
 }
 
 // --- overworld ---------------------------------------------------------------
@@ -1224,21 +1342,13 @@ static void BuildOverworld() {
     // nothing told you that you had arrived anywhere. The palisade runs a few
     // lengths either side and then gives out, the way a village's does -- it
     // is a gate, not a wall around the world.
-    m.Prop("props", "town_gate", gate_x, gate_y + 46);
-    for (int side = -1; side <= 1; side += 2) {
-        m.Collision(gate_x + (side < 0 ? -98 : 40), gate_y + 8, 58, 38);
-        for (int k = 0; k < 4; ++k) {
-            const int px_ = gate_x + side * (126 + k * 54);
-            m.Prop("props", "palisade", px_, gate_y + 42);
-            m.Collision(px_ - 27, gate_y + 30, 54, 14);
-        }
-    }
+    PlaceFrontGate(m, gate_x, gate_y + 46, 4);
     m.Portal(gate_x - 36, gate_y + 6, 72, 44, "town_havenbrook", "from_field",
              "Enter Havenbrook", false);
     MarkWorld("town", "Havenbrook", gate_x, gate_y + 16, "havenbrook");
     // The Westwold is out of the town's west gate, not off this map's edge, so
     // it is marked where that gate would be.
-    MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 5)", gate_x - 150, gate_y + 40);
+    MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 5)", gate_x - 210, gate_y + 96);
     // The well is inside the town, so its mark sits just under the town's.
     MarkWorld("dungeon", "The Dry Well, in Havenbrook", gate_x - 26, gate_y + 92);
 
@@ -1628,6 +1738,15 @@ static void BuildTown() {
     }
     m.Portal(0, 21 * CELL - 8, 24, 3 * CELL + 16, "westwold", "from_havenbrook", "To the Westwold", false);
     m.Danger(5);
+    // Both ways in are gates: the gatehouse across the south road, the same one
+    // that stands on the Hollowmarch side of it, and a pair of towers where the
+    // cross street goes out to the west. And the fence the village always had is
+    // a fence you can see: a palisade all the way round.
+    PlaceFrontGate(m, 28 * CELL + 16, (H - 2) * CELL, 99, W * CELL);
+    PlaceSideGate(m, CELL + 8, 21 * CELL, 24 * CELL);
+    for (int x = 28; x < W * CELL; x += 54) m.Prop("props", "palisade", x, CELL + 6);
+    PalisadeSide(m, 14, 2 * CELL, (H - 2) * CELL - 8, 21 * CELL, 24 * CELL);
+    PalisadeSide(m, W * CELL - 14, 2 * CELL, (H - 2) * CELL - 8);
     m.Spawn("from_westwold", 3 * CELL, 22 * CELL + 16);
     {
         json& sign = m.Object("sign_west_gate", "sign", 3 * CELL + 8, 20 * CELL + 20);
@@ -1639,10 +1758,13 @@ static void BuildTown() {
         m.Collision(3 * CELL + 8 - 16, 20 * CELL + 10, 32, 10);
     }
 
-    m.Spawn("from_field", 28 * CELL + 16, (H - 3) * CELL);
+    // Inside the gate, in the middle of the road: the towers' roofs are drawn
+    // over whoever stands north of a tower, but between them there is only the
+    // lintel, and this is north of that.
+    m.Spawn("from_field", 28 * CELL + 16, (H - 4) * CELL - 8);
     m.Spawn("respawn",    28 * CELL + 16, 26 * CELL);
     m.Spawn("default",    28 * CELL + 16, 26 * CELL);
-    m.Portal(26 * CELL, (H - 1) * CELL - 8, 5 * CELL, 40,
+    m.Portal(26 * CELL, H * CELL - 40, 5 * CELL, 40,
              "overworld", "from_town", "Leave Havenbrook", false);
 
     // Buildings, each with a door that leads somewhere.
@@ -1735,7 +1857,13 @@ static void BuildTown() {
         m.Collision(20 * CELL - 34, 34 * CELL - 18, 67, 18);
     }
 
-    m.Npc("npc_guard",  "Watchman Corrin", "fighter2", 30 * CELL, 39 * CELL, "guard_root", 3);
+    // Corrin has the south gate, from the foot of its tower on the road side,
+    // and Edda the west. He used to stand in the road four cells short of a gap
+    // in nothing.
+    m.Npc("npc_guard",  "Watchman Corrin", "fighter2", FrontGateKeeperX(28 * CELL + 16),
+          FrontGateKeeperY((H - 2) * CELL), "guard_root", 0);
+    m.Npc("npc_edda",   "Watchman Edda",   "fighter2", 2 * CELL + 26, 24 * CELL + 6, "edda_root", 1)["tint"] =
+        json::array({236, 226, 255});
     m.Npc("npc_hunter", "Hunter Ivo",      "citizen2", 46 * CELL, 30 * CELL, "hunter_root", 0, true)["shop"] = "havenbrook_bowyer";
 
     // The general store: a stall on the square east of the crossroads, with
@@ -1888,9 +2016,9 @@ static void BuildTown() {
            false, 24.0f, 40.0f, 8.0f, 18.0f, {232, 232, 255});
     // The watch walks the streets, gate to gate, day and night.
     walker("npc_brask", "Watchman Brask", "fighter2", "brask_root",
-           {{27 * CELL + 8, 41 * CELL, 8.0f, 0}, {27 * CELL + 8, 23 * CELL, 0, 0}, {3 * CELL + 16, 23 * CELL, 9.0f, 1},
-            {27 * CELL + 8, 23 * CELL, 0, 0}, {27 * CELL + 8, 17 * CELL, 6.0f, 3}, {27 * CELL + 8, 21 * CELL + 10, 0, 0},
-            {52 * CELL, 21 * CELL + 10, 9.0f, 2}, {29 * CELL + 20, 21 * CELL + 10, 0, 0}, {29 * CELL + 20, 41 * CELL, 0, 0}},
+           {{27 * CELL + 20, 40 * CELL, 8.0f, 0}, {27 * CELL + 20, 23 * CELL, 0, 0}, {3 * CELL + 16, 23 * CELL, 9.0f, 1},
+            {27 * CELL + 20, 23 * CELL, 0, 0}, {27 * CELL + 20, 17 * CELL, 6.0f, 3}, {27 * CELL + 20, 21 * CELL + 10, 0, 0},
+            {52 * CELL, 21 * CELL + 10, 9.0f, 2}, {29 * CELL + 12, 21 * CELL + 10, 0, 0}, {29 * CELL + 12, 40 * CELL, 0, 0}},
            false, 34.0f, 0.0f, 0.0f, 0.0f, {255, 255, 255});
     // Tam carries cut logs from the sawpit down to the forge.
     walker("npc_tam", "Tam", "citizen2", "tam_root",
@@ -4055,7 +4183,7 @@ static void BuildMossvale() {
         m.Prop("props", "palisade", x, H * CELL - 2);
     }
     for (int cy = 0; cy < H; ++cy) {
-        if (abs(cy - gate_row) > 2) m.Collision(0, cy * CELL, CELL, CELL);
+        if (abs(cy - gate_row) > 1) m.Collision(0, cy * CELL, CELL, CELL);
         m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
     }
 
@@ -4163,8 +4291,15 @@ static void BuildMossvale() {
                 PlaceHerb(m, rows_of[row], (17 + col) * CELL + 16, (33 + row) * CELL + 12, herb_i);
     }
 
+    // The west gate, where the trail comes in, and the palisade down both
+    // sides to meet the one along the top and bottom.
+    PlaceSideGate(m, CELL + 8, (gate_row - 1) * CELL, (gate_row + 2) * CELL);
+    PalisadeSide(m, 14, 3 * CELL, (H - 1) * CELL, (gate_row - 1) * CELL, (gate_row + 2) * CELL);
+    PalisadeSide(m, W * CELL - 14, 3 * CELL, (H - 1) * CELL);
+
     // --- people -------------------------------------------------------------------
-    m.Npc("npc_sela",   "Warden Sela",    "player_wayfarer", 4 * CELL, (gate_row + 3) * CELL, "sela_root", 1);
+    // Sela keeps the gate, from the foot of its south tower.
+    m.Npc("npc_sela",   "Warden Sela",    "player_wayfarer", 2 * CELL + 26, (gate_row + 2) * CELL + 6, "sela_root", 1);
     m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL + 50, 30 * CELL + 6, "pell_root", 0)["shop"] = "mossvale_general";
     // The smith works the village anvil by the workbench, with his bars in a
     // crate at his elbow.
@@ -4234,7 +4369,7 @@ static void BuildMossvale() {
         }
 
     // --- the way in and out -----------------------------------------------------
-    m.Portal(0, (gate_row - 2) * CELL, 24, 5 * CELL, "whisperwood_trail", "from_mossvale",
+    m.Portal(0, (gate_row - 1) * CELL, 24, 3 * CELL, "whisperwood_trail", "from_mossvale",
              "To the Whisperwood", false);
     m.Spawn("from_trail", 80, gate_row * CELL + 16);
     m.Spawn("default", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
@@ -4254,7 +4389,12 @@ static void BuildFernhollow() {
     std::mt19937 rng(4646u);
 
     const int gate_col = 12;
-    auto path_x = [&](float cy) { return gate_col + sinf(cy * 0.21f) * 2.2f; };
+    // The path wanders up through the hamlet, and straightens to go out of
+    // the gate: it used to arrive a cell and a half to one side of it.
+    auto path_x = [&](float cy) {
+        const float settle = std::clamp((H - 6 - cy) / 6.0f, 0.0f, 1.0f);
+        return gate_col + sinf(cy * 0.21f) * 2.2f * settle;
+    };
     const float pcx = 32.0f, pcy = 15.0f, prx = 9.0f, pry = 7.0f;
     auto in_pond = [&](int cx, int cy) {
         const float dx = (cx - pcx) / prx, dy = (cy - pcy) / pry;
@@ -4378,10 +4518,11 @@ static void BuildFernhollow() {
     for (int cy = 1; cy < H - 1; ++cy)
         for (int cx = 1; cx < W - 1; ++cx) {
             if (in_pond(cx, cy) || on_path(cx, cy) || on_jetty(cx, cy) || reserved(cx, cy)) continue;
-            if (abs(cx - gate_col) <= 3 && cy > H - 5) continue;
+            if (abs(cx - gate_col) <= 3 && cy > H - 8) continue;
+            if (cy > H - 5) continue;                                  // the palisade, and the verge outside it
             const bool shore = in_pond(cx + 1, cy) || in_pond(cx - 1, cy) ||
                                in_pond(cx, cy + 1) || in_pond(cx, cy - 1);
-            const bool woods = (cx < 4 || cy < 4 || cx > W - 5 || cy > H - 5);
+            const bool woods = (cx < 4 || cy < 4 || cx > W - 5 || cy > H - 9);
             // Tall things hang up over the tiles above them; keep them off the path.
             bool tall_ok = true;
             for (int dy = -1; dy <= 3 && tall_ok; ++dy)
@@ -4410,9 +4551,15 @@ static void BuildFernhollow() {
     m.Enemy("deer", 36 * CELL, 27 * CELL, 3);
     m.Enemy("fox",  40 * CELL, 30 * CELL, 4);
 
-    m.Portal(gate_col * CELL - 64, H * CELL - 24, 160, 24, "whisperwood_trail", "from_fernhollow",
+    // The way in from the trail is a gate, and Ilse keeps it: a stockade along
+    // the open south side, with the forest doing the rest of the wall.
+    PlaceFrontGate(m, gate_col * CELL + 16, (H - 2) * CELL, 99, W * CELL);
+    m.Npc("npc_ilse", "Warden Ilse", "player_hero", FrontGateKeeperX(gate_col * CELL + 16),
+          FrontGateKeeperY((H - 2) * CELL), "ilse_root", 0)["tint"] = json::array({226, 240, 226});
+
+    m.Portal(gate_col * CELL - 64, H * CELL - 40, 160, 40, "whisperwood_trail", "from_fernhollow",
              "To the Whisperwood", false);
-    m.Spawn("from_trail", gate_col * CELL + 16, (H - 3) * CELL);
+    m.Spawn("from_trail", gate_col * CELL + 16, (H - 4) * CELL - 8);
     m.Spawn("default",    gate_col * CELL + 16, 20 * CELL);
     m.Spawn("respawn",    gate_col * CELL + 16, 20 * CELL);
 
@@ -4957,6 +5104,13 @@ int main() {
                  {{"demonite_ore", 80}, {"platinum_ore", 70}},
                  26);
 
+    FlushWorldMap();
+    if (!g_manifest.unsized.empty()) {
+        for (const string& key : g_manifest.unsized)
+            std::printf("genmaps: no size for assets/%s.png -- it was placed at 32x32\n", key.c_str());
+        std::printf("genmaps: run tools/make_manifest.ps1, then build the maps again\n");
+        return 1;
+    }
     std::printf("genmaps: done\n");
     return 0;
 }

@@ -1108,6 +1108,10 @@
                                               "w":  208,
                                               "h":  208
                                           },
+                   "props/bear_den":  {
+                                          "w":  144,
+                                          "h":  144
+                                      },
                    "props/bed_double":  {
                                             "w":  72,
                                             "h":  72
@@ -1204,6 +1208,10 @@
                                        "w":  96,
                                        "h":  96
                                    },
+                   "props/gate_tower":  {
+                                            "w":  104,
+                                            "h":  104
+                                        },
                    "props/grave_fence":  {
                                              "w":  72,
                                              "h":  72
@@ -1224,6 +1232,10 @@
                                             "w":  48,
                                             "h":  48
                                         },
+                   "props/hay_rick":  {
+                                          "w":  56,
+                                          "h":  56
+                                      },
                    "props/hearth":  {
                                         "w":  80,
                                         "h":  80
@@ -1256,6 +1268,14 @@
                                                         "w":  40,
                                                         "h":  40
                                                     },
+                   "props/herb_flax":  {
+                                           "w":  40,
+                                           "h":  40
+                                       },
+                   "props/herb_flax_picked":  {
+                                                  "w":  40,
+                                                  "h":  40
+                                              },
                    "props/herb_glowcap":  {
                                               "w":  40,
                                               "h":  40
@@ -1396,10 +1416,18 @@
                                           "w":  64,
                                           "h":  64
                                       },
+                   "props/palisade_side":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
                    "props/quench_trough":  {
                                                "w":  56,
                                                "h":  56
                                            },
+                   "props/rail_fence":  {
+                                            "w":  64,
+                                            "h":  64
+                                        },
                    "props/reeds":  {
                                        "w":  48,
                                        "h":  48
@@ -1468,6 +1496,10 @@
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/tanning_rack":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "props/tavern_bench":  {
                                               "w":  56,
                                               "h":  56

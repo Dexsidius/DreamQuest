@@ -389,6 +389,10 @@
       {
         "table": "rare_drops",
         "weight": 10
+      },
+      {
+        "item": "bag_satchel",
+        "weight": 3
       }
     ]
   },
@@ -443,6 +447,14 @@
       {
         "table": "armour_cache",
         "weight": 16
+      },
+      {
+        "item": "bag_satchel",
+        "weight": 4
+      },
+      {
+        "item": "bag_pack",
+        "weight": 2
       }
     ]
   },
@@ -496,6 +508,14 @@
       {
         "table": "armour_cache",
         "weight": 18
+      },
+      {
+        "item": "bag_pack",
+        "weight": 5
+      },
+      {
+        "item": "bag_rucksack",
+        "weight": 2
       }
     ]
   },
@@ -699,6 +719,10 @@
           4
         ],
         "weight": 40
+      },
+      {
+        "item": "bag_haversack",
+        "weight": 2
       }
     ]
   },
@@ -1192,6 +1216,10 @@
       {
         "item": "moonlit_draught",
         "weight": 10
+      },
+      {
+        "item": "bag_rucksack",
+        "weight": 5
       }
     ]
   },
@@ -1230,6 +1258,14 @@
       {
         "item": "starlily_panacea",
         "weight": 6
+      },
+      {
+        "item": "bag_rucksack",
+        "weight": 4
+      },
+      {
+        "item": "bag_haversack",
+        "weight": 2
       }
     ]
   },
@@ -1493,6 +1529,10 @@
       {
         "item": "diamond_ore",
         "weight": 14
+      },
+      {
+        "item": "bag_pack",
+        "weight": 4
       }
     ]
   },
@@ -1730,6 +1770,10 @@
       {
         "item": "steel_bar",
         "weight": 14
+      },
+      {
+        "item": "bag_pack",
+        "weight": 4
       }
     ]
   },

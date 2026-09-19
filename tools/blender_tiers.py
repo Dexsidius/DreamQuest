@@ -1505,6 +1505,47 @@ def build_pelt(name, parent):
     return parts
 
 
+BAGS = {
+    #                 body                  flap                  trim / fur            how big, fur on the flap
+    "bag_satchel":   ((0.56, 0.38, 0.24), (0.44, 0.29, 0.18), (0.80, 0.68, 0.44), 0.84, False),
+    "bag_pack":      ((0.50, 0.49, 0.48), (0.36, 0.35, 0.35), (0.74, 0.73, 0.72), 0.92, True),
+    "bag_rucksack":  ((0.38, 0.25, 0.16), (0.25, 0.17, 0.11), (0.52, 0.40, 0.30), 1.0, True),
+    "bag_haversack": ((0.84, 0.87, 0.93), (0.60, 0.66, 0.78), (0.62, 0.50, 0.92), 1.06, True),
+}
+
+
+def build_bag(name, parent):
+    """A pack stood on its base, flap to the front: the same cut four times, in
+    what each is made of, and a little bigger every time."""
+    body, flap, trim, size, furred = BAGS[name]
+    bc.PALETTE["bag_body"] = body
+    bc.PALETTE["bag_flap"] = flap
+    bc.PALETTE["bag_trim"] = trim
+    s = size
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("sack", bc.mesh_capsule(0.22 * s, 0.25 * s, 0.30 * s, squash_y=0.72), "bag_body", parent, loc=(0, 0, 0.10 * s))
+    add("base", bc.mesh_ellipsoid(0.255 * s, 0.185 * s, 0.07 * s), "bag_flap", parent, loc=(0, 0, -0.27 * s))
+    add("flap", bc.mesh_ellipsoid(0.235 * s, 0.17 * s, 0.13 * s), "bag_flap", parent, loc=(0, -0.035 * s, 0.17 * s))
+    add("strap", mesh_box(0.05 * s, 0.02, 0.26 * s), "bag_trim", parent, loc=(0, -0.185 * s, 0.02 * s))
+    add("buckle", mesh_box(0.085 * s, 0.03, 0.06 * s), "platinum_accent", parent, loc=(0, -0.195 * s, -0.06 * s))
+    add("roll", bc.mesh_capsule(0.07 * s, 0.07 * s, 0.40 * s), "bag_trim", parent, loc=(0.20 * s, 0, 0.34 * s),
+        rot=(0, math.radians(90), 0))
+    for side in (-1, 1):
+        add("pocket", bc.mesh_ellipsoid(0.075 * s, 0.10 * s, 0.11 * s), "bag_body", parent,
+            loc=(side * 0.255 * s, -0.02, -0.10 * s))
+        add("pocket_flap", bc.mesh_ellipsoid(0.08 * s, 0.105 * s, 0.045 * s), "bag_flap", parent,
+            loc=(side * 0.255 * s, -0.025, -0.02 * s))
+        parts.append(bc.spike("shoulder", (side * 0.13 * s, 0.10 * s, 0.30 * s), (side * 0.20 * s, 0.13 * s, -0.22 * s),
+                              0.03 * s, "bag_trim", parent, r_tip=0.03 * s))
+    if furred:
+        for k in range(5):
+            x = (-0.16 + k * 0.08) * s
+            parts.append(bc.spike("fur", (x, -0.15 * s, 0.13 * s), (x * 1.08, -0.19 * s, 0.03 * s), 0.034 * s,
+                                  "bag_trim", parent, r_tip=0.008))
+    return parts
+
+
 def build_flax(tier, parent):
     parts = []
     for k, x in enumerate((-0.12, -0.04, 0.05, 0.13)):
@@ -1562,6 +1603,11 @@ def set_icons(only_tiers, only=None):
             if only and name not in only:
                 continue
             render_icon(name, lambda t, p, n=name: build_pelt(n, p), "wood", 0, 0, 0.9)
+            count += 1
+        for name in BAGS:
+            if only and name not in only:
+                continue
+            render_icon(name, lambda t, p, n=name: build_bag(n, p), "wood", 0, 18, 0.9)
             count += 1
         if not only or "flax" in only:
             render_icon("flax", build_flax, "wood", 0, 0, 0.92)

@@ -1,4 +1,217 @@
 {
+  "areas": {
+    "ashen_path": {
+      "exits": [
+        "overworld",
+        "dungeon_infernal"
+      ],
+      "kind": "land",
+      "name": "The Ashen Path"
+    },
+    "brackenwood": {
+      "exits": [
+        "westwold"
+      ],
+      "kind": "land",
+      "name": "The Brackenwood"
+    },
+    "dreamworld": {
+      "exits": [],
+      "kind": "land",
+      "name": "The Reverie"
+    },
+    "dungeon_barrow": {
+      "exits": [
+        "overworld"
+      ],
+      "kind": "dungeon",
+      "name": "The Barrow Beneath the Mire"
+    },
+    "dungeon_emberfell_1": {
+      "exits": [
+        "overworld",
+        "dungeon_emberfell_2"
+      ],
+      "kind": "dungeon",
+      "name": "Emberfell Mine, Upper Workings"
+    },
+    "dungeon_emberfell_2": {
+      "exits": [
+        "dungeon_emberfell_1"
+      ],
+      "kind": "dungeon",
+      "name": "Emberfell Mine, Lower Workings"
+    },
+    "dungeon_infernal": {
+      "exits": [
+        "ashen_path"
+      ],
+      "kind": "dungeon",
+      "name": "The Infernal Pit"
+    },
+    "fernhollow": {
+      "exits": [
+        "fernhollow_cottage",
+        "fernhollow_college",
+        "whisperwood_trail"
+      ],
+      "kind": "land",
+      "name": "Fernhollow"
+    },
+    "fernhollow_college": {
+      "exits": [
+        "fernhollow"
+      ],
+      "kind": "interior",
+      "name": "The College"
+    },
+    "fernhollow_cottage": {
+      "exits": [
+        "fernhollow"
+      ],
+      "kind": "interior",
+      "name": "The Ferry Cottage"
+    },
+    "guild_hall": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "Havenbrook Guild Hall"
+    },
+    "house_elder": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "Maren's House"
+    },
+    "house_inn": {
+      "exits": [
+        "town_havenbrook",
+        "house_inn_upper",
+        "house_inn_cellar"
+      ],
+      "kind": "interior",
+      "name": "The Barley and Bell"
+    },
+    "house_inn_cellar": {
+      "exits": [
+        "house_inn"
+      ],
+      "kind": "dungeon",
+      "name": "The Inn Cellar"
+    },
+    "house_inn_upper": {
+      "exits": [
+        "house_inn"
+      ],
+      "kind": "interior",
+      "name": "The Barley and Bell, upstairs"
+    },
+    "house_smith": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "Halda's Forge"
+    },
+    "ice_spire_peak": {
+      "exits": [
+        "overworld"
+      ],
+      "kind": "land",
+      "name": "Ice Spire Peak"
+    },
+    "mossvale": {
+      "exits": [
+        "mossvale_lodge_hall",
+        "mossvale_herbalist",
+        "mossvale_cottage",
+        "whisperwood_trail"
+      ],
+      "kind": "land",
+      "name": "Mossvale"
+    },
+    "mossvale_cottage": {
+      "exits": [
+        "mossvale"
+      ],
+      "kind": "interior",
+      "name": "Your House in Mossvale"
+    },
+    "mossvale_herbalist": {
+      "exits": [
+        "mossvale"
+      ],
+      "kind": "interior",
+      "name": "Oona's Cottage"
+    },
+    "mossvale_lodge_hall": {
+      "exits": [
+        "mossvale"
+      ],
+      "kind": "interior",
+      "name": "Mossvale Lodge"
+    },
+    "overworld": {
+      "exits": [
+        "town_havenbrook",
+        "dungeon_emberfell_1",
+        "dungeon_barrow",
+        "whisperwood_trail",
+        "ice_spire_peak",
+        "ashen_path"
+      ],
+      "kind": "land",
+      "name": "The Hollowmarch"
+    },
+    "town_havenbrook": {
+      "exits": [
+        "westwold",
+        "overworld",
+        "guild_hall",
+        "house_elder",
+        "house_inn",
+        "house_smith",
+        "well_shallow"
+      ],
+      "kind": "land",
+      "name": "Havenbrook"
+    },
+    "well_deep": {
+      "exits": [
+        "well_shallow"
+      ],
+      "kind": "dungeon",
+      "name": "The Well, the Deep Cut"
+    },
+    "well_shallow": {
+      "exits": [
+        "town_havenbrook",
+        "well_deep"
+      ],
+      "kind": "dungeon",
+      "name": "The Well, Upper Workings"
+    },
+    "westwold": {
+      "exits": [
+        "town_havenbrook",
+        "brackenwood"
+      ],
+      "kind": "land",
+      "name": "The Westwold"
+    },
+    "whisperwood_trail": {
+      "exits": [
+        "overworld",
+        "mossvale",
+        "fernhollow"
+      ],
+      "kind": "land",
+      "name": "Whisperwood Trail"
+    }
+  },
   "height": 3968,
   "marks": [
     {
@@ -11,8 +224,8 @@
     {
       "kind": "path",
       "label": "The Westwold, by Havenbrook's west gate  (Combat 5)",
-      "x": 2522,
-      "y": 2856
+      "x": 2462,
+      "y": 2912
     },
     {
       "kind": "dungeon",

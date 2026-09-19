@@ -99,8 +99,8 @@ bc.PALETTE.update({
     "boar_hide": (0.36, 0.28, 0.23), "boar_hide_dk": (0.25, 0.19, 0.16),
     "boar_bristle": (0.17, 0.13, 0.12), "boar_snout": (0.45, 0.34, 0.31),
     "boar_tusk": (0.92, 0.90, 0.80),
-    "deer_hide": (0.60, 0.38, 0.23), "deer_hide_dk": (0.45, 0.27, 0.16),
-    "deer_belly": (0.88, 0.79, 0.64), "deer_antler": (0.72, 0.64, 0.48),
+    "deer_hide": (0.66, 0.38, 0.21), "deer_hide_dk": (0.46, 0.25, 0.14),
+    "deer_belly": (0.93, 0.85, 0.70), "deer_antler": (0.86, 0.79, 0.62),
     "deer_hoof": (0.26, 0.20, 0.16),
     "fox_fur": (0.80, 0.41, 0.15), "fox_fur_dk": (0.61, 0.28, 0.10),
     "fox_belly": (0.95, 0.91, 0.85), "fox_sock": (0.21, 0.17, 0.16),
@@ -2032,50 +2032,87 @@ def boar_death(t):
 
 
 def build_deer():
-    """Mostly leg, with the neck carried out in front of the shoulders rather
-    than up out of them.
+    """A red deer stag: a deep barrel carried level on slim legs, a maned neck
+    rising *forward* out of the chest, a long head with big ears, and a rack
+    that spreads wider than the shoulders.
 
-    The first cut put the neck joint over the chest and raised it: from a
-    camera forty-six degrees above the ground that flattens the whole neck into
-    the shoulder and the animal arrives as a lump of fur with antlers in it.
-    The neck starts ahead of the body now and leans forward as it rises, so
-    from the side there is daylight between the head and the back -- which is
-    the shape the eye actually reads as "deer"."""
+    This is the third deer. The first came with the art the project started
+    with, a spotted fawn in another style. The second was mostly leg -- a body
+    the size of a shoebox on stilts three times as long -- and its neck leaned
+    the wrong way: a limb pointing up leans *forward* under a positive turn
+    about X, and it was given a negative one, so the neck went back over the
+    shoulders and the head sat on top of the body looking at the sky. From in
+    front that is a brown pillar; from the side, a table with a stick on it.
+
+    What reads as "deer" at this size, in the order it matters: the head out
+    in front of the chest and above it, with daylight under the jaw; ears that
+    stick out sideways; antlers wide enough to break the silhouette from the
+    front as well as the side; a body longer than it is tall; legs no longer
+    than the body is deep plus a bit, dark toward the hoof; and the pale rump
+    that is the last thing anyone sees of one."""
     r = Rig()
-    _quadruped(r, "deer_hide", "deer_hide_dk", 0.80,
-               chest=(0.105, 0.19, 0.125), hips=(0.10, 0.155, 0.12),
-               leg_len=0.76, leg_r=0.042, fore_y=-0.14, hind_y=0.18, hip_x=0.080)
-    r.add("rump", E(0.088, 0.07, 0.08), "deer_belly", "body", loc=(0, 0.26, 0.02))
-    # Out in front of the chest, and leaning forward as it goes up.
-    r.joint("neck", (0, -0.28, 0.08), "body", rest=(-40, 0, 0))
-    r.limb("neckp", (0, 0, 0), (0, -0.02, 0.40), 0.042, "deer_hide", "neck", r_tip=0.032)
-    r.add("throat", E(0.032, 0.045, 0.15), "deer_belly", "neck", loc=(0, -0.05, 0.19))
-    r.joint("head", (0, -0.02, 0.40), "neck", rest=(52, 0, 0))
-    r.add("skull", E(0.052, 0.070, 0.052), "deer_hide", "head")
-    r.add("muzzle", E(0.038, 0.115, 0.036), "deer_hide", "head", loc=(0, -0.15, -0.030))
-    r.add("nose", E(0.027, 0.022, 0.023), "deer_hoof", "head", loc=(0, -0.255, -0.030))
+    _quadruped(r, "deer_hide", "deer_hide_dk", 0.66,
+               chest=(0.150, 0.215, 0.172), hips=(0.138, 0.188, 0.158),
+               leg_len=0.60, leg_r=0.045, fore_y=-0.17, hind_y=0.20, hip_x=0.094)
+    # Pale underneath, over the frame's dark belly, and the back a shade darker.
+    r.add("underbelly", E(0.118, 0.215, 0.080), "deer_belly", "body", loc=(0, 0.03, -0.105))
+    r.add("saddle", E(0.105, 0.30, 0.060), "deer_hide_dk", "body", loc=(0, 0.04, 0.135))
+    # Shoulder and haunch, so the legs taper out of a body instead of being
+    # pegged into a box.
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.add("shoulder", E(0.070, 0.095, 0.125), "deer_hide", "fore_" + side, loc=(sx * 0.010, 0.0, -0.030))
+        r.add("haunch", E(0.082, 0.120, 0.145), "deer_hide", "hind_" + side, loc=(sx * 0.008, 0.010, -0.035))
+        for tag in ("fore", "hind"):
+            r.add("hoof", E(0.040, 0.050, 0.032), "deer_hoof", tag + "_" + side + "_knee",
+                  loc=(0, -0.014, -0.60 * 0.47))
+    # The rump patch and the tail over it.
+    r.add("rump", E(0.112, 0.055, 0.115), "deer_belly", "body", loc=(0, 0.345, 0.025))
+    r.joint("tail1", (0, 0.375, 0.105), "body", rest=(28, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.10), 0.026, "deer_hide_dk", "tail1", r_tip=0.014)
+
+    # The neck: up out of the front of the chest and leaning forward as it
+    # goes, thick at the base where the mane is.
+    r.joint("neck", (0, -0.265, 0.085), "body", rest=(30, 0, 0))
+    r.limb("neckp", (0, 0, 0), (0, 0, 0.345), 0.082, "deer_hide", "neck", r_tip=0.056)
+    r.add("mane", E(0.092, 0.085, 0.165), "deer_hide_dk", "neck", loc=(0, 0.012, 0.115))
+    r.add("throat", E(0.046, 0.040, 0.130), "deer_belly", "neck", loc=(0, -0.058, 0.215))
+
+    # The head, carried level with the nose a little down.
+    r.joint("head", (0, 0, 0.345), "neck", rest=(-20, 0, 0))
+    r.add("skull", E(0.080, 0.098, 0.080), "deer_hide", "head", loc=(0, -0.025, 0.020))
+    r.add("muzzle", E(0.047, 0.110, 0.045), "deer_hide", "head", loc=(0, -0.160, -0.012))
+    r.add("chin", E(0.036, 0.070, 0.024), "deer_belly", "head", loc=(0, -0.165, -0.046))
+    r.add("nose", E(0.032, 0.026, 0.028), "deer_hoof", "head", loc=(0, -0.262, -0.008))
     for sx in (-1, 1):
-        r.add("ear", E(0.019, 0.034, 0.054), "deer_hide_dk", "head", loc=(sx * 0.052, 0.005, 0.050),
-              rot=(0, sx * -0.6, 0))
-        r.add("eye", E(0.018, 0.016, 0.018), "beast_eye", "head", loc=(sx * 0.043, -0.062, 0.018))
-        # Antlers swept back over the neck rather than straight up: from the
-        # side they read as a rack instead of crowding the skull.
-        r.limb("beam", (sx * 0.028, 0.020, 0.050), (sx * 0.070, 0.135, 0.225), 0.017,
-               "deer_antler", "head", r_tip=0.008)
-        r.limb("tine1", (sx * 0.048, 0.070, 0.130), (sx * 0.120, 0.010, 0.195), 0.012,
-               "deer_antler", "head", r_tip=0.005)
-        r.limb("tine2", (sx * 0.062, 0.110, 0.185), (sx * 0.048, 0.055, 0.300), 0.011,
-               "deer_antler", "head", r_tip=0.004)
-    r.joint("tail1", (0, 0.29, 0.09), "body", rest=(26, 0, 0))
-    r.limb("tail", (0, 0, 0), (0, 0, -0.08), 0.017, "deer_belly", "tail1", r_tip=0.010)
-    r.pose.scale = (1.12, 1.12, 1.12)
+        # Ears out to the side and a little back: from the front they are the
+        # widest thing on the head after the rack.
+        r.limb("ear", (sx * 0.062, 0.030, 0.060), (sx * 0.200, 0.060, 0.120), 0.042, "deer_hide_dk", "head",
+               r_tip=0.014)
+        # Pale inside, facing forward, or from in front they are lost in the mane.
+        r.limb("ear_in", (sx * 0.085, 0.008, 0.070), (sx * 0.178, 0.030, 0.112), 0.024, "deer_belly", "head",
+               r_tip=0.008)
+        r.add("eye", E(0.020, 0.018, 0.020), "beast_eye", "head", loc=(sx * 0.064, -0.078, 0.040))
+        # The rack: a beam up and out, a second length up and in over it, and
+        # three tines -- brow, tray and crown -- thick enough to be a pixel.
+        r.limb("beam", (sx * 0.036, 0.040, 0.085), (sx * 0.225, 0.110, 0.290), 0.027, "deer_antler", "head",
+               r_tip=0.021)
+        r.limb("beam2", (sx * 0.225, 0.110, 0.290), (sx * 0.275, 0.050, 0.500), 0.021, "deer_antler", "head",
+               r_tip=0.010)
+        r.limb("brow", (sx * 0.060, 0.040, 0.120), (sx * 0.135, -0.085, 0.225), 0.016, "deer_antler", "head",
+               r_tip=0.006)
+        r.limb("tray", (sx * 0.160, 0.085, 0.225), (sx * 0.305, 0.010, 0.300), 0.015, "deer_antler", "head",
+               r_tip=0.006)
+        r.limb("crown", (sx * 0.255, 0.085, 0.400), (sx * 0.365, 0.105, 0.470), 0.014, "deer_antler", "head",
+               r_tip=0.005)
+    r.pose.scale = (1.22, 1.22, 1.22)
     return r
 
 
 def deer_idle(t):
+    # Head up, ears working, a flick of the tail: something listening.
     s = sn(t)
-    return {"_z": 0.012 * s, "neck": X(4 * s), "head": (0, 0, 7 * sn(t, 0.28)),
-            "tail1": (0, 0, 18 * sn(t, 0.4))}
+    return {"_z": 0.010 * s, "neck": X(-3 * s), "head": (2 * s, 0, 9 * sn(t, 0.28)),
+            "tail1": (0, 0, 20 * sn(t, 0.4))}
 
 
 def deer_walk(t):
@@ -2083,15 +2120,16 @@ def deer_walk(t):
     return {"fore_l": fwd(26 * s), "hind_r": fwd(24 * s), "fore_r": fwd(-26 * s), "hind_l": fwd(-24 * s),
             "fore_l_knee": X(20 * max(0.0, -s)), "fore_r_knee": X(20 * max(0.0, s)),
             "hind_l_knee": X(22 * max(0.0, s)), "hind_r_knee": X(22 * max(0.0, -s)),
-            "_z": 0.03 * abs(s), "neck": X(5 * s), "head": (0, 0, -4 * s), "tail1": (0, 0, 16 * s)}
+            "_z": 0.03 * abs(s), "neck": X(6 + 4 * s), "head": (-4, 0, -4 * s), "tail1": (0, 0, 16 * s)}
 
 
 def deer_attack(t):
     # It has no attack in the game; this is the warning stamp it gives instead.
     i, k = phases(t, 0.35, 0.6, 1.0)
-    rear = {"_z": 0.10, "body": X(-16), "neck": X(-10), "fore_l": fwd(-40), "fore_r": fwd(-36),
+    rear = {"_z": 0.10, "body": X(-16), "neck": X(-12), "head": X(-8), "fore_l": fwd(-40), "fore_r": fwd(-36),
             "fore_l_knee": X(38), "fore_r_knee": X(34)}
-    down = {"_z": -0.02, "body": X(6), "neck": X(8), "fore_l": fwd(18), "fore_r": fwd(16)}
+    # And down with the rack lowered: the one thing about a stag worth backing away from.
+    down = {"_z": -0.02, "body": X(8), "_y": -0.10, "neck": X(34), "head": X(26), "fore_l": fwd(18), "fore_r": fwd(16)}
     return [mix({}, rear, k), mix(rear, down, k), mix(down, {}, k), {}][i]
 
 
@@ -2385,7 +2423,7 @@ CREATURES = {
     #             builder          frame  clips (idle, walk, attack, hurt, death)                      shadow radius
     "rat":       (build_rat,       48, (rat_idle, rat_walk, rat_attack, rat_hurt, rat_death),              0.34),
     "boar":      (build_boar,      48, (boar_idle, boar_walk, boar_attack, boar_hurt, boar_death),        0.46),
-    "deer":      (build_deer,      48, (deer_idle, deer_walk, deer_attack, deer_hurt, deer_death),        0.34),
+    "deer":      (build_deer,      64, (deer_idle, deer_walk, deer_attack, deer_hurt, deer_death),        0.40),
     "fox":       (build_fox,       48, (fox_idle, fox_walk, fox_attack, fox_hurt, fox_death),             0.34),
     "hare":      (build_hare,      48, (hare_idle, hare_walk, hare_attack, hare_hurt, hare_death),        0.26),
     "orc1":      (build_orc1,      64, (orc_idle, orc_walk, orc_attack, orc_hurt, orc_death),             0.30),

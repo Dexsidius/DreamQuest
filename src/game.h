@@ -155,6 +155,7 @@ private:
     UI               ui;
     Minimap          minimap;
     WorldMapPanel    world_map;
+    bool             map_overview = false;   // the map screen is turned to the Hollowmarch
     TitleBackdrop    title;
     Input            input;
     Settings         settings;
