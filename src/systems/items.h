@@ -32,7 +32,7 @@ enum class WeaponKind { Melee, Bow, Staff };
 // made at each station trains its own skill -- Crafting at a workbench,
 // Smithing at an anvil, Brewing at a cauldron -- and a potion has to be learned
 // before it can be brewed.
-enum class CraftStation { Workbench, Anvil, Cauldron };
+enum class CraftStation { Workbench, Anvil, Cauldron, Range, Loom };
 CraftStation CraftStationFromName(const string& name);
 const char*  CraftStationName(CraftStation s);
 int          CraftSkill(CraftStation s);
@@ -120,6 +120,22 @@ struct ItemDef {
     string cook_result;
     int    cook_xp = 0, cook_level = 1;
 
+    // --- a dish -------------------------------------------------------------------
+    // A cooked thing that is worth more than the hit points in it: eat it and
+    // it sits with you for a while. Max health, mana and breath are shares of
+    // what they already are -- a tenth more of a big pool is worth more than a
+    // tenth more of a small one, which is what makes a good dinner worth
+    // cooking at fifty and not only at five -- and the levels are the flat
+    // amounts a potion gives, held steady until the meal wears off rather than
+    // draining a point at a time.
+    //
+    // One meal at a time: a second dish replaces the first, whatever was left
+    // of it. See Player::Eat and Player::Meal.
+    float dish_minutes = 0.0f;
+    float dish_max_hp = 0.0f, dish_max_mana = 0.0f, dish_max_stamina = 0.0f;
+    map<int, int> dish_levels;        // SkillId -> levels, for as long as it lasts
+    bool  IsDish() const { return dish_minutes > 0.0f; }
+
     // A gathering tool: "axe", "pickaxe" or "rod", and how much faster than a
     // basic one it works.
     string tool;
@@ -149,6 +165,9 @@ struct ItemDef {
     // Crafting: what this turns into, at the station its materials call for.
     string craft_result;
     int    craft_qty = 1, craft_xp = 0, craft_level = 1;
+    // Where it is made, when it is not decided by what goes into it: "range"
+    // for anything cooked at a fire. Empty leaves it to ItemDatabase::StationFor.
+    string craft_at;
     map<string, int> craft_inputs;    // item id -> quantity
 
     string icon;                      // image path, optional

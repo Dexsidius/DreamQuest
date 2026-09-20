@@ -1127,8 +1127,13 @@ int main(int argc, char** argv) {
         const auto anvil = items.Recipes(CraftStation::Anvil);
         Check(!bench.empty() && !anvil.empty(), "both the workbench and the anvil have something to make");
         const auto cauldron = items.Recipes(CraftStation::Cauldron);
+        const auto fire = items.Recipes(CraftStation::Range);
+        const auto loom = items.Recipes(CraftStation::Loom);
         Check(!cauldron.empty(), "and the cauldron has brews");
-        Check(bench.size() + anvil.size() + cauldron.size() == all.size(), "every recipe belongs to exactly one station");
+        Check(!fire.empty(), "and the fire has things to cook");
+        Check(!loom.empty(), "and the loom has cloth to weave");
+        Check(bench.size() + anvil.size() + cauldron.size() + fire.size() + loom.size() == all.size(),
+              "every recipe belongs to exactly one station");
         for (const ItemDef* r : all) {
             bool metal = false, brewed = false;
             for (const auto& in : r->craft_inputs)
@@ -1136,9 +1141,24 @@ int main(int argc, char** argv) {
                     metal |= mat->metal;
                     brewed |= std::find(mat->tags.begin(), mat->tags.end(), "brewing") != mat->tags.end();
                 }
+            // Woven is decided by what comes off it, not what goes in: a bag is
+            // part cloth and still sewn, a dye is cloth's business and still
+            // boiled.
+            const ItemDef* out = items.Get(r->craft_result);
+            const bool woven = out && std::find(out->tags.begin(), out->tags.end(), "cloth") != out->tags.end();
+            // A recipe that says where it is made is made there: a stew has
+            // mint in it and is still not a potion.
+            const bool at_fire = std::find(fire.begin(), fire.end(), r) != fire.end();
+            Check(at_fire == (r->craft_at == "range"),
+                  r->craft_result + (at_fire ? " is cooked at a fire, because it says so" : " is not cooked"));
+            if (at_fire) continue;
             const bool at_cauldron = std::find(cauldron.begin(), cauldron.end(), r) != cauldron.end();
             Check(brewed == at_cauldron, r->craft_result + (brewed ? " is brewed at a cauldron" : " is not brewed"));
             if (brewed) continue;
+            const bool at_loom = std::find(loom.begin(), loom.end(), r) != loom.end();
+            Check(woven == at_loom, r->craft_result + (woven ? " is cloth, so it is woven at a loom"
+                                                             : " is not cloth, so it is not woven"));
+            if (woven) continue;
             const bool at_anvil = std::find(anvil.begin(), anvil.end(), r) != anvil.end();
             Check(metal == at_anvil, r->craft_result + (metal ? " needs metal, so it is smithed at the anvil"
                                                               : " needs no metal, so it is made at a workbench"));
@@ -1153,37 +1173,57 @@ int main(int argc, char** argv) {
         for (const char* simple : {"wooden_shield", "leather_body", "oak_shortbow"})
             Check(made_at(simple, CraftStation::Workbench) && !made_at(simple, CraftStation::Anvil),
                   string(simple) + " is made at a workbench, not the anvil");
+        // The loom took the cloth and left the leather where it was: a bag is
+        // hide and cloth together and a bedroll is hide and thread, and both are
+        // still sewn at a bench.
+        Check(made_at("bolt_cloth", CraftStation::Loom) && !made_at("bolt_cloth", CraftStation::Workbench),
+              "a bolt of cloth is only woven");
+        for (const char* sewn : {"bag_satchel", "bag_pack", "bedroll"})
+            Check(made_at(sewn, CraftStation::Workbench) && !made_at(sewn, CraftStation::Loom),
+                  string(sewn) + " has hide in it, so it is sewn at a bench and not woven");
+        for (const char* dyed : {"dye_marigold", "dye_brookmint"})
+            Check(made_at(dyed, CraftStation::Cauldron) && !made_at(dyed, CraftStation::Loom),
+                  string(dyed) + " is boiled, not woven");
         for (const char* ore : {"copper_ore", "iron_ore"})
             Check(items.Get(ore) && items.Get(ore)->metal, string(ore) + " counts as metal");
         for (const char* soft : {"logs", "oak_logs", "hide", "thread"})
             Check(items.Get(soft) && !items.Get(soft)->metal, string(soft) + " is not metal");
 
         // What stands in the world agrees with what it is called and drawn as.
-        int anvils = 0, benches = 0, cauldrons = 0;
+        int anvils = 0, benches = 0, cauldrons = 0, looms = 0;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
             for (const MapObject& o : m.Objects()) {
                 if (o.type != "workbench") continue;
-                Check(o.station == "workbench" || o.station == "anvil" || o.station == "cauldron",
-                      o.id + " is a known crafting station");
+                Check(o.station == "workbench" || o.station == "anvil" || o.station == "cauldron" ||
+                      o.station == "loom", o.id + " is a known crafting station");
                 const bool drawn_as_anvil = o.sprite.find("anvil") != string::npos;
                 const bool drawn_as_cauldron = o.sprite.find("cauldron") != string::npos;
-                Check(drawn_as_anvil == (o.station == "anvil") && drawn_as_cauldron == (o.station == "cauldron"),
+                const bool drawn_as_loom = o.sprite.find("loom") != string::npos;
+                Check(drawn_as_anvil == (o.station == "anvil") && drawn_as_cauldron == (o.station == "cauldron") &&
+                      drawn_as_loom == (o.station == "loom"),
                       o.id + " works as the station it looks like");
                 if (o.station == "anvil") ++anvils;
                 else if (o.station == "workbench") ++benches;
+                else if (o.station == "loom") ++looms;
                 else ++cauldrons;
             }
         }
         Check(anvils >= 1, "there is an anvil somewhere to smith at");
         Check(benches >= 1, "there is a workbench somewhere to make simple things");
         Check(cauldrons >= 3, "there are cauldrons to brew at (" + std::to_string(cauldrons) + ")");
+        Check(looms >= 1, "and a loom to weave at (" + std::to_string(looms) + ")");
 
         // Each station trains its own skill, and smithing a tier asks for the
         // same level as its tier: the level its gear needs to be worn.
         Check(CraftSkill(CraftStation::Workbench) == SKILL_CRAFTING && CraftSkill(CraftStation::Anvil) == SKILL_SMITHING &&
               CraftSkill(CraftStation::Cauldron) == SKILL_BREWING, "workbench, anvil and cauldron train Crafting, Smithing and Brewing");
+        Check(CraftSkill(CraftStation::Loom) == SKILL_CRAFTING,
+              "and the loom trains Crafting too: two stations, one trade");
+        Check(CraftStationFromName("loom") == CraftStation::Loom &&
+              string(CraftStationName(CraftStation::Loom)) == "loom",
+              "a map that says \"loom\" gets one");
         for (const TierDef& t : items.Tiers()) {
             if (t.wood) continue;
             for (const char* piece : {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs", "axe", "pickaxe"}) {
@@ -4213,7 +4253,10 @@ int main(int argc, char** argv) {
             for (const ItemDef* r : items.Recipes()) {
                 const ItemDef* out = items.Get(r->craft_result);
                 if (!out || out->armour_cut.empty() || (out->armour_cut != "hide" && out->armour_cut != "robe")) continue;
-                if (items.StationFor(*r) != CraftStation::Workbench || !r->craft_inputs.count("thread")) { made = false; wrong = out->id; }
+                // The ranger's are sewn and the mage's are woven, which is the
+                // whole difference between the two trades.
+                const CraftStation where = out->armour_cut == "robe" ? CraftStation::Loom : CraftStation::Workbench;
+                if (items.StationFor(*r) != where || !r->craft_inputs.count("thread")) { made = false; wrong = out->id; }
                 if (out->armour_cut == "robe") {
                     bool dyed = false;
                     for (const auto& in : r->craft_inputs) if (const ItemDef* m = items.Get(in.first)) dyed |= m->untaught && m->tier == out->tier;
@@ -4230,15 +4273,24 @@ int main(int argc, char** argv) {
                   (only_its_own ? string() : ": " + wrong));
             Check(ordered, "plate keeps out the most and robes the least, and robes carry a spell furthest" + (ordered ? string() : ": " + wrong));
             Check(drawn, "each piece has its icon and is drawn in its own cut" + (drawn ? string() : ": " + wrong));
-            Check(made, "hides are cut from the tier's hide and robes from cloth and the tier's dye, at a workbench, at the tier's level" +
-                  (made ? string() : ": " + wrong));
+            Check(made, "hides are cut at a bench from the tier's hide, robes woven at a loom from cloth and the tier's dye, "
+                  "each at the tier's level" + (made ? string() : ": " + wrong));
             Check(hides.size() == 11 && got, "eleven hides, one a tier and the last two tiers sharing the dragon's, and something drops every one (" +
                   std::to_string(hides.size()) + ")" + (got ? string() : ": nothing drops " + wrong));
             const ItemDef* bolt = items.Get("bolt_cloth");
             int weaves = 0;
             for (const ItemDef* r : items.Recipes())
-                if (r->craft_result == "bolt_cloth" && items.StationFor(*r) == CraftStation::Workbench) ++weaves;
-            Check(bolt && weaves == 2, "a bolt of cloth is woven at a workbench, from flax or from spider silk");
+                if (r->craft_result == "bolt_cloth" && items.StationFor(*r) == CraftStation::Loom) ++weaves;
+            Check(bolt && weaves == 3, "a bolt of cloth is woven at a loom, from flax, spider silk or a fleece");
+            // Every last robe, hat and skirt went with it, and nothing else did.
+            int woven_pieces = 0;
+            for (const ItemDef* r : items.Recipes(CraftStation::Loom)) {
+                const ItemDef* out = items.Get(r->craft_result);
+                if (out && out->armour_cut == "robe") ++woven_pieces;
+                else if (!out || r->craft_result != "bolt_cloth") woven_pieces = -999;
+            }
+            Check(woven_pieces == 36, "and all thirty-six pieces of the mage's sets, and nothing that is not cloth (" +
+                  std::to_string(woven_pieces) + ")");
             // The cuts are rendered for all three characters.
             bool sheets = true;
             for (const char* look : {"player_hero", "player_warden", "player_wayfarer"})
@@ -10037,15 +10089,17 @@ int main(int argc, char** argv) {
             if (d->stages.empty()) continue;
             const string& what = d->stages[0].target;
             // It has to be makeable: an order for something nobody can craft is
-            // an order nobody can fill.
-            // The easiest way of making it: cloth comes off flax at Crafting 3
-            // and off spider silk at 8, and an order should ask for the first.
+            // an order nobody can fill. Where a thing can be made more than one
+            // way, the order asks for the easiest of them.
             const ItemDef* recipe = nullptr;
             for (const ItemDef* r : items.Recipes())
                 if (r->craft_result == what && (!recipe || r->craft_level < recipe->craft_level)) recipe = r;
             Check(recipe != nullptr, d->name + " asks for " + what + ", which somebody can make");
             if (!recipe) continue;
-            Check(items.StationFor(*recipe) == CraftStation::Workbench, what + " is made at a workbench, like the one in her yard");
+            // All of it is bench work: hers is the leather trade, and the
+            // cloth went to Wynn's loom with the rest of the weaving.
+            Check(items.StationFor(*recipe) == CraftStation::Workbench,
+                  what + " is made at a workbench, like the one in her yard");
             const auto needs = d->requirements.find(SKILL_CRAFTING);
             const int asked = needs == d->requirements.end() ? 1 : needs->second;
             Check(asked == recipe->craft_level,
@@ -10087,6 +10141,556 @@ int main(int argc, char** argv) {
             }
         Check(has_orders && has_shop && has_hand_in && has_teach,
               "and will show the book, the shelf, take an order in, and say how the trade is learned");
+    }
+
+    Section("a monster on a map the host is not on");
+    {
+        // Player One walks into the inn and Player Two stays outside, or a
+        // friend takes a road the host has not taken: the map they are left on
+        // is a world of its own, and the host's own Player is a stand-in on it
+        // -- standing at the arrival point with `absent` set, so that every
+        // line written for "the player" has something to point at.
+        //
+        // Two things about that stand-in used to make the monsters there
+        // ignore whoever was actually on the map. Seats are handed out from
+        // zero and the host is not one of them, so the first friend to sit
+        // down at the host's machine is seat 0 -- and so was the stand-in, by
+        // default. And the loop that decides who each monster is after thinks
+        // as each player in turn: once as the friend, who it chases, and once
+        // as the stand-in, who is a hundred yards away, on which it gives up.
+        // The upshot was a boar that changed its mind on every frame of every
+        // second and never once landed a blow.
+        Input hin;
+        std::mt19937 rng(606);
+        QuestLog one_quests, two_quests;
+        one_quests.LoadDefinitions("data/quests.json");
+        two_quests.LoadDefinitions("data/quests.json");
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &one_quests; ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &hin;         ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+
+        net::Server offline{net::Server::Config{}};
+        World home;
+        home.player.Init(ctx, "player_hero");
+        Check(home.LoadMap("town_havenbrook", "", ctx), "Player One is in Havenbrook");
+        coop::Host realm;
+        realm.kept_dir.clear();
+        const uint8_t seat = static_cast<uint8_t>(offline.ReserveSeat("Player Two", "player_warden"));
+        realm.AddLocal(seat, "Player Two", "player_warden", &two_quests, json());
+        PlayerInput hands;
+        const auto frame = [&] {
+            hin.Update(dt);
+            home.Update(dt, ctx);
+            realm.FeedLocal(seat, hands);
+            realm.Update(dt, offline, home, ctx, true);
+        };
+        const auto frames = [&](int n) { for (int i = 0; i < n; ++i) frame(); };
+        frames(2);
+        Player* two = realm.PlayerOf(seat);
+        Check(two != nullptr && realm.WorldOf(seat) == &home, "Player Two is beside them");
+        Check(seat == 0, "and holds seat 0, which is the seat a stand-in used to hold too");
+
+        // Player One goes inside; Player Two is left on a map of their own.
+        Check(home.LoadMap("house_inn", "default", ctx), "Player One goes into the inn");
+        frames(3);
+        World* theirs = realm.WorldOf(seat);
+        Check(theirs && theirs != &home && theirs->MapId() == "town_havenbrook",
+              "Player Two is on a world of their own, still in Havenbrook");
+        if (theirs && two) {
+            Check(theirs->player.absent && theirs->company, "the host is a stand-in there, and it is company");
+            Check(theirs->player.seat == Player::NO_SEAT,
+                  "and the stand-in holds a seat no real seat can have, so no monster can mistake it for one");
+
+            theirs->enemies.clear();
+            // Out of their barkwood, so a boar's swing is worth something: this
+            // is about whether it swings at them at all, not about the armour.
+            two->equipment.Clear();
+            EnemySpawnDef def;
+            def.type = "boar"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = two->x + 70.0f; def.y = two->y;
+            auto e = std::make_unique<Enemy>();
+            e->Init(enemy_db.Get("boar"), def, ctx);
+            Enemy* boar = e.get();
+            theirs->enemies.push_back(std::move(e));
+
+            const int one_hp0 = home.player.hp;
+            int swings = 0, changes = 0, taken = 0;
+            float closest = 1.0e9f;
+            bool chased = false, after_them = false;
+            const int frames_run = 60 * 30;
+            for (int f = 0; f < frames_run; ++f) {
+                const Enemy::State was = boar->CurrentState();
+                const int hp_was = two->hp;
+                frame();
+                const Enemy::State now = boar->CurrentState();
+                if (now != was) ++changes;
+                if (now == Enemy::State::Attack && was != Enemy::State::Attack) ++swings;
+                chased |= now == Enemy::State::Chase;
+                after_them |= boar->target_seat == static_cast<int>(seat);
+                closest = std::min(closest, Length(boar->x - two->x, boar->y - two->y));
+                // Kept on their feet, so the fight can be watched for half a
+                // minute rather than ending with them on the floor.
+                if (two->hp < hp_was) { taken += hp_was - two->hp; two->hp = two->max_hp; }
+            }
+            Check(after_them, "the boar is after Player Two, by seat");
+            Check(chased && closest <= 26.0f,
+                  "it comes for them and gets within reach (" + std::to_string(static_cast<int>(closest)) + "px)");
+            Check(swings >= 6, "it swings at them, over and over (" + std::to_string(swings) + " swings in thirty seconds)");
+            Check(taken > 0, "and it gets them: " + std::to_string(taken) + " hit points off Player Two");
+            Check(home.player.hp == one_hp0, "while Player One, indoors, is not touched by it");
+            // The signature of the bug: a monster that is thought about as two
+            // different people in one frame changes its mind on every one of
+            // them. It used to be one change a frame, eighteen hundred of them.
+            Check(changes < frames_run / 8,
+                  "and it does not change its mind every frame (" + std::to_string(changes) + " changes in " +
+                      std::to_string(frames_run) + " frames)");
+
+            // Two of them on that map: whoever is nearer is who it is after,
+            // and the one further off is not forgotten about either.
+            Player* third = theirs->AddGuest(2, "Player Three", "player_wayfarer", ctx);
+            if (third) {
+                third->x = two->x - 400.0f;
+                third->y = two->y;
+                third->equipment.Clear();
+                third->hp = third->max_hp;
+                boar->x = third->x + 40.0f;
+                boar->y = third->y;
+                int third_taken = 0;
+                bool after_third = false;
+                for (int f = 0; f < 60 * 20; ++f) {
+                    const int hp_was = third->hp;
+                    frame();
+                    after_third |= boar->target_seat == 2;
+                    if (third->hp < hp_was) { third_taken += hp_was - third->hp; third->hp = third->max_hp; }
+                }
+                Check(after_third, "a boar beside the further one turns to them");
+                Check(third_taken > 0, "and gets them too");
+            }
+        }
+    }
+
+    Section("cooking, and what a dish is worth");
+    {
+        // A fire used to cook whatever was nearest the top of the bag when the
+        // button was pressed. It opens a menu now, with every raw thing the
+        // cook can turn into food on it and, past those, the dishes -- which
+        // are worth more than the hit points in them.
+        const auto fire = items.Recipes(CraftStation::Range);
+        Check(fire.size() >= 15, "the fire has a menu (" + std::to_string(fire.size()) + " things to cook)");
+        int plain = 0, dishes = 0;
+        for (const ItemDef* r : fire) {
+            Check(items.StationFor(*r) == CraftStation::Range, r->craft_result + " is cooked at a fire");
+            Check(CraftSkill(CraftStation::Range) == SKILL_COOKING, "and cooking is Cooking");
+            const ItemDef* made = items.Get(r->craft_result);
+            Check(made && made->consumable, r->craft_result + " is something you can eat");
+            if (made && made->IsDish()) ++dishes; else ++plain;
+            for (const auto& in : r->craft_inputs)
+                Check(items.Get(in.first) != nullptr, r->craft_result + " is made of real things");
+        }
+        Check(plain >= 8, "every raw thing that could be cooked is on it (" + std::to_string(plain) + ")");
+        Check(dishes >= 6, "and the dishes are too (" + std::to_string(dishes) + ")");
+        // The plain ones are the same conversions the fire always did.
+        const ItemDef* raw = items.Get("raw_meat");
+        bool meat_on_the_menu = false;
+        for (const ItemDef* r : fire)
+            if (r->craft_result == "cooked_meat")
+                meat_on_the_menu = r->craft_level == raw->cook_level && r->craft_xp == raw->cook_xp &&
+                                   r->craft_inputs.size() == 1 && r->craft_inputs.count("raw_meat");
+        Check(meat_on_the_menu, "raw meat still cooks into cooked meat, at the level it always did");
+
+        // What a dish does, and that it says so.
+        int lifts_hp = 0, lifts_mana = 0, lifts_breath = 0, lifts_levels = 0;
+        for (const ItemDef* r : fire) {
+            const ItemDef* d = items.Get(r->craft_result);
+            if (!d || !d->IsDish()) continue;
+            Check(d->dish_minutes >= 10.0f && d->dish_minutes <= 40.0f,
+                  d->name + " sits with you for a few minutes, not a second and not an hour");
+            const bool does_something = d->dish_max_hp > 0.0f || d->dish_max_mana > 0.0f ||
+                                        d->dish_max_stamina > 0.0f || !d->dish_levels.empty();
+            Check(does_something, d->name + " is worth eating for something");
+            Check(d->dish_max_hp <= 0.25f && d->dish_max_mana <= 0.25f && d->dish_max_stamina <= 0.30f,
+                  d->name + " is a dinner and not a potion");
+            lifts_hp += d->dish_max_hp > 0.0f;
+            lifts_mana += d->dish_max_mana > 0.0f;
+            lifts_breath += d->dish_max_stamina > 0.0f;
+            for (const auto& b : d->dish_levels) {
+                Check(b.first == SKILL_ATTACK || b.first == SKILL_RANGED || b.first == SKILL_MAGIC ||
+                      b.first == SKILL_STRENGTH || b.first == SKILL_DEFENCE,
+                      d->name + " lifts a way of fighting");
+                Check(b.second >= 1 && b.second <= 6, d->name + " lifts it by a few levels");
+                ++lifts_levels;
+            }
+        }
+        Check(lifts_hp >= 2 && lifts_mana >= 2 && lifts_breath >= 2 && lifts_levels >= 3,
+              "between them the dishes lift health, mana, breath and the three ways of fighting");
+
+        // Eating one.
+        Input input;
+        std::mt19937 rng(808);
+        GameContext ctx;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.trees = &trees; ctx.rng = &rng;
+        ctx.loot = &loot; ctx.enemies = &enemy_db; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.input = &input;
+        // A world to stand in, so the clock that wears a meal off is running.
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "somewhere to eat it");
+        w.enemies.clear();
+        Player& p = w.player;
+        LevelUp up;
+        p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), up);
+        p.skills.AddXp(SKILL_MAGIC, XpForLevel(40), up);
+        p.SyncHitpoints(); p.hp = p.max_hp;
+        p.SyncMana(); p.RestoreMana();
+        const int hp_before = p.max_hp, mana_before = p.MaxMana();
+        const float breath_before = p.MaxStamina();
+
+        const ItemDef* stew = items.Get("hearty_stew");
+        Check(stew && stew->IsDish() && stew->dish_max_hp > 0.0f, "there is a stew, and it is a dish");
+        p.inventory.Add("hearty_stew", 2);
+        string why;
+        Check(p.Consume(0, why), "it can be eaten");
+        Check(p.Meal() == stew && p.MealLeft() > 0.0f, "and it is what you are on");
+        Check(p.max_hp > hp_before, "your health pool is bigger for it (" + std::to_string(hp_before) + " -> " +
+                                    std::to_string(p.max_hp) + ")");
+        Check(p.MaxMana() == mana_before && p.MaxStamina() == breath_before, "and nothing else is");
+
+        // A second dish is the one you are on; the first is gone.
+        const ItemDef* tea = items.Get("moonpetal_tea");
+        p.inventory.Add("moonpetal_tea", 1);
+        int tea_slot = -1;
+        for (int k = 0; k < p.inventory.SlotCount(); ++k) if (p.inventory.Slot(k).id == "moonpetal_tea") tea_slot = k;
+        Check(tea_slot >= 0 && p.Consume(tea_slot, why), "tea after a stew");
+        Check(p.Meal() == tea && p.max_hp == hp_before && p.MaxMana() > mana_before,
+              "one dish at a time: the stew is gone and the mana is up");
+        for (const auto& b : tea->dish_levels)
+            Check(p.skills.Current(b.first) >= p.skills.Level(b.first) + b.second,
+                  "and it lifts what it says it lifts");
+
+        // It holds its levels up against the ordinary boost decay, and then
+        // wears off.
+        const float dt = 1.0f / 60.0f;
+        for (int f = 0; f < 60 * 30; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        Check(p.Meal() == tea && p.MaxMana() > mana_before, "half a minute in, it is still with you");
+        for (const auto& b : tea->dish_levels)
+            Check(p.skills.Current(b.first) >= p.skills.Level(b.first) + b.second,
+                  "and what it lifted has not drained away");
+        p.SetMeal(tea, 0.4f);
+        for (int f = 0; f < 60 * 120; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        Check(p.Meal() == nullptr && p.MaxMana() == mana_before, "when it wears off, the pool is what it was");
+        bool back_down = true;
+        for (const auto& b : tea->dish_levels) back_down &= p.skills.Current(b.first) <= p.skills.Level(b.first);
+        Check(back_down, "and so are the levels");
+
+        // A dish is worth eating on a full stomach; plain food is not.
+        Player full;
+        full.Init(ctx, "player_hero");
+        full.inventory.Add("cooked_meat", 1);
+        full.inventory.Add("hearty_stew", 1);
+        Check(!full.Consume(0, why) && !why.empty(), "plain food at full health does nothing, and says so");
+        Check(full.Consume(1, why), "a dish at full health is still worth eating");
+    }
+
+    Section("ducks and geese, and the one pond they can get into");
+    {
+        // --- the pond is water, and water is a wall to everything that walks ---
+        Map pond;
+        Check(pond.Load("maps/fernhollow.mx"), "Fernhollow loads");
+        Check(pond.HasWater(), "its pond is marked as water and not as plain collision");
+        // The middle of the pond: cell (32, 15) at 32 to the cell.
+        const float wet_x = 32 * 32 + 16, wet_y = 15 * 32 + 16;
+        Check(pond.InWater(wet_x, wet_y), "the middle of it is water");
+        const SDL_FRect boots{wet_x - 8, wet_y - 10, 16, 10};
+        Check(pond.Blocked(boots), "and a walker cannot stand there");
+        Check(!pond.Blocked(boots, true), "though a swimmer can");
+        // The jetty is not water: it is what you fish from.
+        Check(!pond.InWater(26 * 32 + 16, 16 * 32 + 8), "the jetty is not water");
+        // Every other map's water is a plain wall, so nothing can swim anywhere
+        // it was not meant to.
+        int watery = 0;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            if (m.HasWater()) ++watery;
+        }
+        Check(watery == 1, "and it is the only water in the world anything can swim in (" +
+              std::to_string(watery) + ")");
+
+        // --- who is on it -------------------------------------------------------
+        int ducks = 0, geese = 0;
+        bool dry_start = true, roomy = true;
+        for (const EnemySpawnDef& e : pond.Enemies()) {
+            if (e.type == "duck") ++ducks;
+            else if (e.type == "goose") ++geese;
+            else continue;
+            // Posted on the bank: getting in is something they decide to do.
+            if (pond.InWater(e.x, e.y)) dry_start = false;
+            // And with a leash long enough that there is water inside it.
+            if (e.leash < 120.0f) roomy = false;
+        }
+        Check(ducks >= 4 && geese >= 2, "there are ducks and geese on it (" +
+              std::to_string(ducks) + " and " + std::to_string(geese) + ")");
+        Check(dry_start, "each of them starts on dry land");
+        Check(roomy, "and is on a long enough leash to reach open water");
+
+        const EnemyDef* drake = enemy_db.Get("duck");
+        const EnemyDef* gander = enemy_db.Get("goose");
+        Check(drake && drake->swims && gander && gander->swims, "both of them swim");
+        Check(drake && drake->aggro_range <= 0.0f && gander && gander->aggro_range <= 0.0f,
+              "and neither of them starts anything");
+        // Nothing else does. A boar that could cross the pond would cross the
+        // sea at the edge of the overworld too.
+        int swimmers = 0;
+        for (const char* other : {"boar", "hare", "deer", "fox", "lizardman", "orc1",
+                                  "chicken", "sheep", "pig", "cow", "frog", "wolf"})
+            if (const EnemyDef* d = enemy_db.Get(other)) swimmers += d->swims ? 1 : 0;
+        Check(swimmers == 0, "and nothing else in the world does");
+
+        // --- what they actually do ----------------------------------------------
+        // The whole of the feature is that they get in of their own accord and
+        // come out again. Run the hamlet for five minutes with nobody in it and
+        // count what the birds do.
+        Input input;
+        std::mt19937 rng(4646);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("fernhollow", "from_trail", ctx), "Fernhollow loads as a world");
+        // Out of the way: at aggro 0 they would ignore the player anyway, but a
+        // player stood in the middle of them is not what is being measured.
+        w.player.x = 2 * 32.0f;
+        w.player.y = 34 * 32.0f;
+
+        int in_water = 0, on_land = 0, ever_wet = 0, ever_dry = 0, wettest = 0, wet_total = 0;
+        std::set<const Enemy*> swum, walked;
+        for (int frame = 0; frame < 60 * 300; ++frame) {
+            w.Update(1.0f / 60.0f, ctx);
+            if (frame % 30) continue;
+            int wet = 0;
+            for (const auto& e : w.enemies) {
+                if (!e || e->CurrentState() == Enemy::State::Dead) continue;
+                if (!e->Def() || !e->Def()->swims) continue;
+                if (w.map.InWater(e->x, e->y)) { ++wet; swum.insert(e.get()); }
+                else                           { walked.insert(e.get()); }
+            }
+            wettest = std::max(wettest, wet);
+            wet_total += wet;
+            if (wet > 0) ++in_water; else ++on_land;
+        }
+        ever_wet = static_cast<int>(swum.size());
+        ever_dry = static_cast<int>(walked.size());
+        Check(ever_wet >= 7, "over five minutes most of them go swimming (" +
+              std::to_string(ever_wet) + " of " + std::to_string(ducks + geese) + ")");
+        Check(ever_dry >= 7, "and most of them are seen out of the water too (" +
+              std::to_string(ever_dry) + ")");
+        Check(in_water > 400, "there is nearly always somebody on the water (" +
+              std::to_string(in_water) + " of " + std::to_string(in_water + on_land) + " moments)");
+        Check(wettest >= 4, "and more than one of them at once (" + std::to_string(wettest) + ")");
+        // The balance is the thing, not either extreme: a flock that never
+        // gets in is scenery, and one that gets in and never comes out is a
+        // flock of decoys. Out of nine birds, somewhere between two and seven
+        // of them are afloat at any given moment.
+        const int afloat_x100 = wet_total * 100 / std::max(1, in_water + on_land);
+        Check(afloat_x100 > 200 && afloat_x100 < 700,
+              "and about half the flock is on the water at any moment (" +
+              std::to_string(afloat_x100 / 100) + "." + std::to_string((afloat_x100 / 10) % 10) +
+              " of " + std::to_string(ducks + geese) + ")");
+
+        // Nobody drowned in the scenery: every bird is somewhere it could be,
+        // and none of them left the pond's end of the hamlet.
+        bool placed = true, homely = true;
+        for (const auto& e : w.enemies) {
+            if (!e || !e->Def() || !e->Def()->swims) continue;
+            SDL_FRect box = e->Bounds();
+            if (w.map.Blocked(box, true)) placed = false;
+            if (Length(e->x - e->home_x, e->y - e->home_y) > 320.0f) homely = false;
+        }
+        Check(placed, "none of them ends up inside anything");
+        Check(homely, "and none of them wanders off out of the hamlet");
+
+        // A bird that has been swung at comes out after whoever did it, and is
+        // drawn walking while it does: the swim clip belongs to the water and
+        // not to the bird.
+        {
+            Enemy* afloat_bird = nullptr;
+            for (const auto& e : w.enemies)
+                if (e && e->Def() && e->Def()->swims && w.map.InWater(e->x, e->y)) afloat_bird = e.get();
+            Check(afloat_bird != nullptr, "one of them is on the water to be bothered");
+            if (afloat_bird) {
+                Check(afloat_bird->Told().clip == "swim", "and is drawn sitting on it");
+                w.player.x = afloat_bird->home_x;
+                w.player.y = afloat_bird->home_y;
+                afloat_bird->Provoke(0);
+                bool came_out = false, walked_dry = true;
+                for (int frame = 0; frame < 60 * 25; ++frame) {
+                    w.Update(1.0f / 60.0f, ctx);
+                    if (!w.map.InWater(afloat_bird->x, afloat_bird->y)) came_out = true;
+                    if (came_out && !w.map.InWater(afloat_bird->x, afloat_bird->y) &&
+                        afloat_bird->Told().clip == "swim") walked_dry = false;
+                }
+                Check(came_out, "a duck that has been provoked leaves the water");
+                Check(walked_dry, "and is never drawn swimming once it is out of it");
+            }
+        }
+
+        // A walker still cannot. Drop a hare where the ducks are and it stays
+        // on the bank however long it drifts.
+        {
+            const EnemyDef* hare = enemy_db.Get("hare");
+            EnemySpawnDef def;
+            def.type = "hare"; def.level = 1; def.leash = 220.0f; def.respawn = 0.0f;
+            def.x = 24 * 32 + 16; def.y = 15 * 32 + 16;
+            auto e = std::make_unique<Enemy>();
+            e->Init(hare, def, ctx);
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            bool dry = true;
+            for (int frame = 0; frame < 60 * 90; ++frame) {
+                w.Update(1.0f / 60.0f, ctx);
+                if (w.map.InWater(raw->x, raw->y)) { dry = false; break; }
+            }
+            Check(dry, "a hare beside the same water never gets into it");
+        }
+
+        // --- and what comes off them ----------------------------------------------
+        for (const char* raw : {"raw_duck", "raw_goose"}) {
+            const ItemDef* d = items.Get(raw);
+            Check(d && !d->cook_result.empty() && items.Get(d->cook_result),
+                  string(raw) + " cooks into something");
+        }
+        for (const char* who : {"duck", "goose"}) {
+            const LootTable* t = loot.Get(who);
+            Check(t && !t->always.empty(), string(who) + " leaves supper");
+        }
+        // The swim clip is a real sheet, and only these two have one.
+        int swim_sheets = 0;
+        for (const string& id : sprites.Ids())
+            if (const SpriteDef* d = sprites.Get(id))
+                if (d->Find("swim")) ++swim_sheets;
+        Check(swim_sheets == 2, "the drake and the goose are drawn sitting on the water, and nothing else is (" +
+              std::to_string(swim_sheets) + ")");
+    }
+
+    Section("a clothier, a farm, and frogs in the mire");
+    {
+        // --- Wynn's shed, at Mossvale ----------------------------------------------------
+        Map moss;
+        Check(moss.Load("maps/mossvale.mx"), "Mossvale loads");
+        const NpcDef* wynn = nullptr;
+        for (const NpcDef& n : moss.Npcs()) if (n.id == "npc_wynn") wynn = &n;
+        Check(wynn && wynn->shop == "mossvale_clothier", "Wynn the Clothier keeps a shed in Mossvale");
+        bool has_loom = false;
+        for (const MapObject& o : moss.Objects())
+            has_loom |= o.id == "loom_weaver" && o.station == "loom" &&
+                        o.sprite == "assets/props/loom.png";
+        Check(has_loom, "with her loom in it, and no bench standing in for one");
+
+        ShopDatabase shed;
+        Check(shed.Load("data/shops.json"), "the shops load");
+        const ShopDef* shop = shed.Get("mossvale_clothier");
+        Check(shop && shop->town == "mossvale" && shop->buys.count("cloth") && shop->buys.count("fibre"),
+              "she buys cloth and what cloth is made of");
+
+        vector<const QuestDef*> orders;
+        for (const auto& kv : quests.Definitions()) if (kv.second.giver == "npc_wynn") orders.push_back(&kv.second);
+        Check(orders.size() >= 8, "her book has orders in it (" + std::to_string(orders.size()) + ")");
+        int robes = 0, hats = 0, skirts = 0, lowest = 99, highest = 0;
+        for (const QuestDef* d : orders) {
+            Check(d->daily && d->pool == "wynn_orders", d->name + " is a daily order of hers");
+            if (d->stages.empty()) continue;
+            const string& what = d->stages[0].target;
+            robes += what.find("_robe_body") != string::npos;
+            hats += what.find("_robe_head") != string::npos;
+            skirts += what.find("_robe_legs") != string::npos;
+            const ItemDef* recipe = nullptr;
+            for (const ItemDef* r : items.Recipes())
+                if (r->craft_result == what && (!recipe || r->craft_level < recipe->craft_level)) recipe = r;
+            Check(recipe != nullptr, d->name + " asks for " + what + ", which somebody can make");
+            if (!recipe) continue;
+            const auto needs = d->requirements.find(SKILL_CRAFTING);
+            const int asked = needs == d->requirements.end() ? 1 : needs->second;
+            Check(asked == recipe->craft_level, d->name + " asks the Crafting its recipe asks");
+            Check(d->rewards.xp.count(SKILL_CRAFTING), d->name + " pays in Crafting");
+            lowest = std::min(lowest, asked);
+            highest = std::max(highest, asked);
+            // What she orders is a robe, a hat, a skirt or the cloth they are
+            // made of: she is the mage's tailor, and the tannery has the hides.
+            const ItemDef* made = items.Get(what);
+            Check(what == "bolt_cloth" || (made && made->armour_cut == "robe"),
+                  d->name + " is the mage's, not the ranger's");
+        }
+        Check(robes >= 4 && hats >= 2 && skirts >= 1, "robes, hats and skirts, which is what a mage wears");
+        Check(lowest == 1 && highest >= 20, "work in it from the first bolt to the upper sets");
+
+        const DialogueNode* root = dialogue.Get("wynn_root");
+        bool book = false, sells = false, hands_in = false;
+        if (root)
+            for (const DialogueOption& o : root->options) {
+                book |= o.action.open_orders == "npc_wynn";
+                sells |= o.action.open_shop == "mossvale_clothier";
+                hands_in |= o.action.hand_in;
+            }
+        Check(root && book && sells && hands_in, "and she will show the book, the shelf and take an order in");
+
+        // --- the farm at Havenbrook ------------------------------------------------------
+        Map town;
+        Check(town.Load("maps/town_havenbrook.mx"), "Havenbrook loads");
+        Check(town.Width() > 56 * 32, "the town is bigger than it was (" + std::to_string(static_cast<int>(town.Width() / 32)) + " cells across)");
+        std::map<string, int> pens;
+        for (const EnemySpawnDef& e : town.Enemies()) pens[e.type] += 1;
+        for (const char* beast : {"chicken", "sheep", "pig", "cow"}) {
+            Check(pens[beast] >= 3, string("there are ") + beast + "s in the farm's pens (" + std::to_string(pens[beast]) + ")");
+            const EnemyDef* d = enemy_db.Get(beast);
+            Check(d != nullptr, string(beast) + " is a real animal");
+            if (!d) continue;
+            // Nothing on a farm fights: they are stock, not monsters.
+            Check(d->aggro_range <= 0.0f, d->name + " does not come for anybody");
+            Check(!d->is_boss && d->hp >= 4, d->name + " is worth killing on purpose and not by accident");
+            const LootTable* t = loot.Get(d->loot_table);
+            Check(t && !t->always.empty(), d->name + " leaves something");
+            bool food = false;
+            if (t) for (const LootEntry& row : t->always) {
+                const ItemDef* item = items.Get(row.item);
+                food |= item && (item->consumable || !item->cook_result.empty() || row.item == "wool" || row.item == "hide");
+            }
+            Check(food, d->name + " leaves supper, a fleece or a hide");
+        }
+        const NpcDef* marrow = nullptr;
+        for (const NpcDef& n : town.Npcs()) if (n.id == "npc_marrow") marrow = &n;
+        Check(marrow != nullptr, "and a farmer stands in the yard");
+        Check(dialogue.Get("marrow_root") != nullptr, "with something to say");
+
+        // The fleece is the loom's: what the farm gives, the clothier uses.
+        const ItemDef* fleece = items.Get("wool");
+        bool fleece_to_cloth = false;
+        for (const ItemDef* r : items.Recipes())
+            fleece_to_cloth |= r->craft_result == "bolt_cloth" && r->craft_inputs.count("wool");
+        Check(fleece && fleece_to_cloth, "a fleece off the farm spins into cloth for the shed");
+
+        // And what the farm gives, the fire cooks.
+        for (const char* raw : {"raw_chicken", "raw_mutton", "raw_pork", "raw_beef", "raw_frog_legs"}) {
+            const ItemDef* d = items.Get(raw);
+            Check(d && !d->cook_result.empty() && items.Get(d->cook_result), string(raw) + " cooks into something");
+        }
+
+        // --- frogs in the mire -----------------------------------------------------------
+        Map field;
+        Check(field.Load("maps/overworld.mx"), "the Hollowmarch loads");
+        int frogs = 0;
+        for (const EnemySpawnDef& e : field.Enemies()) frogs += e.type == "frog";
+        Check(frogs >= 5, "there are frogs in the mire (" + std::to_string(frogs) + ")");
+        const EnemyDef* frog = enemy_db.Get("frog");
+        Check(frog && frog->aggro_range <= 0.0f, "and they sit there: a frog does not come for anybody");
+        Check(sprites.Has("frog") && sprites.Has("cow") && sprites.Has("sheep") && sprites.Has("pig") &&
+              sprites.Has("chicken"), "every one of them is drawn");
     }
 
     Section("save round trip");
@@ -11031,8 +11635,15 @@ int main(int argc, char** argv) {
               "a friend who is seated is told which map to load, and loads it");
         Check(hw.guests.size() == 1 && hw.Guest(1) && hw.Guest(1)->sprite_id == "player_warden" && hw.Guest(1)->name == "Oona" &&
               !hw.Guest(1)->puppet && !hw.Guest(1)->local, "and the host's world has her character in it, to be stepped");
-        Check(gw.enemies.empty() && gw.clock.Day() == 4 && fabsf(gw.clock.Hours() - 15.5f) < 0.1f,
-              "her world is a window: no monsters of its own, and the host's clock");
+        // Her world is a window: it builds the map's own monsters -- Havenbrook
+        // has a farm in it now, so the town has fifteen -- but every one of them
+        // is a puppet, out of sight until the host says where it is. The number
+        // is what matters: the nth monster on her screen is the nth on his.
+        bool all_puppets = !gw.enemies.empty();
+        for (const auto& e : gw.enemies) all_puppets &= e->puppet;
+        Check(gw.enemies.size() == hw.enemies.size() && all_puppets &&
+              gw.clock.Day() == 4 && fabsf(gw.clock.Hours() - 15.5f) < 0.1f,
+              "her world is a window: the map's monsters as puppets, posed by the host, and the host's clock");
         Check(fabsf(gw.player.x - hw.Guest(1)->x) < 0.01f && fabsf(gw.player.y - hw.Guest(1)->y) < 0.01f,
               "she stands where the host's copy of her stands");
         frames(20);
@@ -11770,6 +12381,7 @@ int main(int argc, char** argv) {
             Check(home.LoadMap("house_inn", "default", ctx), "Player One goes into the inn");
             frames(3);
             World* theirs = realm.WorldOf(seat);
+
             Check(theirs && theirs != &home && theirs->MapId() == "town_havenbrook" && realm.Worlds() == 2 &&
                   realm.PlayerOf(seat) == two && home.guests.empty(),
                   "and Player Two stays in Havenbrook, on a map of their own: the halves show different places");

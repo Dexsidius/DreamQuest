@@ -1319,6 +1319,112 @@ HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "gl
               "emberbloom", "moonpetal", "starlily"]
 
 
+# --- the larder ------------------------------------------------------------------------------------
+# What a farm gives and what a fire makes of it. Each is one readable shape at
+# thirty pixels: a bowl is a bowl, a pie is a pie, a skewer is three lumps on a
+# stick. Cooked things are browner and glossier than raw ones, which is the
+# whole of the difference a player needs to see in a bag.
+
+bc.PALETTE.update({
+    "crock":      (0.60, 0.42, 0.32), "crock_dk":  (0.42, 0.28, 0.22),
+    "broth":      (0.72, 0.44, 0.20), "broth_lt":  (0.86, 0.60, 0.28),
+    "crust":      (0.84, 0.66, 0.36), "crust_dk":  (0.66, 0.48, 0.24),
+    "meat_raw":   (0.78, 0.32, 0.32), "meat_done": (0.62, 0.38, 0.20),
+    "greens":     (0.36, 0.58, 0.28), "greens_lt": (0.52, 0.74, 0.38),
+    "milk_white": (0.96, 0.95, 0.90), "pail":      (0.52, 0.40, 0.28),
+    "shell":      (0.94, 0.90, 0.80), "shell_dk":  (0.80, 0.74, 0.62),
+    "wool_white": (0.93, 0.91, 0.86), "wool_dk":   (0.78, 0.75, 0.70),
+    "tea":        (0.72, 0.82, 0.62), "mug":       (0.56, 0.52, 0.50),
+    "skewer":     (0.66, 0.50, 0.30), "frog_leg":  (0.74, 0.62, 0.42),
+    "honey":      (0.88, 0.62, 0.18),
+})
+
+
+def _bowl(parts, parent, fill, rim="crock"):
+    """A crock with something in it, seen from a little above."""
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("bowl", bc.mesh_frustum(0.20, 0.30, 0.20, squash_y=0.72), "crock", parent, loc=(0, 0, -0.04))
+    add("foot", bc.mesh_torus(0.12, 0.03), "crock_dk", parent, loc=(0, 0, -0.23))
+    add("rim", bc.mesh_torus(0.30, 0.035), rim, parent, loc=(0, 0, 0.16))
+    add("fill", bc.mesh_ellipsoid(0.27, 0.19, 0.05), fill, parent, loc=(0, 0, 0.14))
+
+
+def build_dish(name, parent):
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    if name in ("hearty_stew", "fishermans_broth"):
+        # A broth is paler and thinner than a stew: two bowls have to be told
+        # apart at thirty pixels by their colour, since the bowl is the same.
+        _bowl(parts, parent, "broth" if name == "hearty_stew" else "tea")
+        # Lumps in it, so it reads as a stew and not as soup.
+        for k, (x, y) in enumerate(((-0.10, -0.04), (0.08, 0.02), (0.0, 0.07))):
+            add("lump_%d" % k, bc.mesh_ellipsoid(0.055, 0.04, 0.035),
+                "meat_done" if name == "hearty_stew" else "broth_lt", parent, loc=(x, y, 0.16))
+        add("herb", bc.mesh_ellipsoid(0.05, 0.035, 0.02), "greens_lt", parent, loc=(0.12, -0.06, 0.17))
+    elif name == "hunters_skewers":
+        add("stick", bc.mesh_capsule(0.018, 0.018, 0.62), "skewer", parent, loc=(0, 0, 0.30),
+            rot=(0, math.radians(28), 0))
+        for k, z in enumerate((0.16, -0.02, -0.20)):
+            add("cut_%d" % k, bc.mesh_ellipsoid(0.095, 0.085, 0.075), "meat_done", parent,
+                loc=(-z * 0.52, 0, z))
+            add("char_%d" % k, bc.mesh_ellipsoid(0.055, 0.05, 0.02), "crust_dk", parent,
+                loc=(-z * 0.52, -0.07, z + 0.05))
+    elif name == "travellers_pie":
+        add("dish", bc.mesh_frustum(0.26, 0.30, 0.12, squash_y=0.72), "crock_dk", parent, loc=(0, 0, -0.08))
+        add("crust", bc.mesh_ellipsoid(0.29, 0.21, 0.10), "crust", parent, loc=(0, 0, 0.06))
+        add("crimp", bc.mesh_torus(0.29, 0.03), "crust_dk", parent, loc=(0, 0, 0.02))
+        for k, a in enumerate((20, 90, 160)):
+            add("vent_%d" % k, mesh_box(0.10, 0.02, 0.012), "crock_dk", parent,
+                loc=(math.cos(math.radians(a)) * 0.06, math.sin(math.radians(a)) * 0.04, 0.14),
+                rot=(0, 0, math.radians(a)))
+    elif name == "moonpetal_tea":
+        add("mug", bc.mesh_capsule(0.15, 0.16, 0.26), "mug", parent, loc=(0, 0, 0.12))
+        add("tea", bc.mesh_ellipsoid(0.135, 0.135, 0.04), "tea", parent, loc=(0, 0, 0.13))
+        add("handle", bc.mesh_torus(0.09, 0.025), "mug", parent, loc=(0.20, 0, -0.02),
+            rot=(math.radians(90), 0, 0))
+        add("steam", bc.mesh_ellipsoid(0.04, 0.03, 0.09), "tea", parent, loc=(0.02, -0.02, 0.24))
+    elif name == "honeyed_oats":
+        _bowl(parts, parent, "crust")
+        add("honey", bc.mesh_ellipsoid(0.10, 0.07, 0.03), "honey", parent, loc=(-0.02, -0.02, 0.17))
+        add("drip", bc.mesh_capsule(0.02, 0.015, 0.09), "honey", parent, loc=(0.16, -0.04, 0.16))
+    elif name == "frog_legs":
+        for side in (-1, 1):
+            add("thigh_%d" % side, bc.mesh_ellipsoid(0.085, 0.07, 0.13), "frog_leg", parent,
+                loc=(side * 0.11, 0, 0.02), rot=(0, math.radians(side * 14), 0))
+            parts.append(bc.spike("shin_%d" % side, (side * 0.13, 0, -0.08), (side * 0.22, 0, -0.26),
+                                  0.035, "frog_leg", parent, r_tip=0.02))
+            add("char_%d" % side, bc.mesh_ellipsoid(0.05, 0.04, 0.02), "crust_dk", parent,
+                loc=(side * 0.11, -0.06, 0.10))
+    elif name == "egg":
+        add("egg", bc.mesh_ellipsoid(0.15, 0.15, 0.20), "shell", parent, loc=(0, 0, 0.0))
+        add("shade", bc.mesh_ellipsoid(0.10, 0.10, 0.13), "shell_dk", parent, loc=(0.05, 0.05, -0.04))
+    elif name == "milk":
+        add("pail", bc.mesh_frustum(0.17, 0.22, 0.34, squash_y=0.82), "pail", parent, loc=(0, 0, 0.10))
+        add("milk", bc.mesh_ellipsoid(0.20, 0.16, 0.03), "milk_white", parent, loc=(0, 0, 0.09))
+        add("band", bc.mesh_torus(0.20, 0.022), "crock_dk", parent, loc=(0, 0, -0.04))
+        add("handle", bc.mesh_torus(0.19, 0.018), "crock_dk", parent, loc=(0, 0, 0.16), rot=(math.radians(90), 0, 0))
+    elif name == "wool":
+        for k, (x, y, z, r) in enumerate(((0, 0, 0, 0.24), (-0.12, -0.05, 0.10, 0.15), (0.13, 0.03, 0.08, 0.16),
+                                          (0.02, -0.08, -0.14, 0.14), (-0.10, 0.06, -0.12, 0.13))):
+            add("puff_%d" % k, bc.mesh_ellipsoid(r, r * 0.92, r * 0.9),
+                "wool_white" if k % 2 == 0 else "wool_dk", parent, loc=(x, y, z))
+    return parts
+
+
+FOOD_ICONS = ["hearty_stew", "fishermans_broth", "hunters_skewers", "travellers_pie", "moonpetal_tea",
+              "honeyed_oats", "frog_legs", "egg", "milk", "wool"]
+
+
+def food_icons(only=None):
+    count = 0
+    for name in FOOD_ICONS:
+        if only and name not in only:
+            continue
+        render_icon(name, lambda t, p, n=name: build_dish(n, p), "wood", 18, 0, 0.9)
+        count += 1
+    print("icons %d food" % count)
+
+
 def brewing_icons(only=None):
     count = 0
     for name in HERB_ICONS:
@@ -1706,7 +1812,7 @@ def main():
         if chosen:
             return [m for m in chosen if m.split("_", 1)[0] in kinds]
         return every
-    wanted = set(args) or {"icons", "layers", "sets"}
+    wanted = set(args) or {"icons", "layers", "sets", "food"}
 
     os.makedirs(ICON_DIR, exist_ok=True)
     if "icons" in wanted:
@@ -1716,6 +1822,8 @@ def main():
             pass
         else:
             brewing_icons(set(names) if names else None)
+    if "food" in wanted:
+        food_icons(set(names) if names else None)
     if "sets" in wanted:
         set_icons(tiers, set(names) if names else None)
     if "layers" in wanted:

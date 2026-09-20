@@ -936,6 +936,41 @@
      "stock": 1
     }
    ]
+  },
+  "mossvale_clothier": {
+   "name": "Wynn's Weaving Shed",
+   "type": "clothier",
+   "keeper": "npc_wynn",
+   "town": "mossvale",
+   "markup": 1.15,
+   "buys": {
+    "cloth": 0.9,
+    "fibre": 0.85,
+    "leather": 0.6,
+    "trophy": 0.6
+   },
+   "sells": [
+    {
+     "item": "flax",
+     "stock": 20
+    },
+    {
+     "item": "wool",
+     "stock": 10
+    },
+    {
+     "item": "thread",
+     "stock": 15
+    },
+    {
+     "item": "vial",
+     "stock": 10
+    },
+    {
+     "item": "dye_marigold",
+     "stock": 4
+    }
+   ]
   }
  }
 }

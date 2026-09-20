@@ -125,6 +125,18 @@ bool ItemDatabase::Load(const string& path, bool required) {
             d.cook_xp     = c.value("xp", 0);
             d.cook_level  = c.value("level", 1);
         }
+        if (o.contains("dish")) {
+            const json& j = o["dish"];
+            d.dish_minutes     = j.value("minutes", 0.0f);
+            d.dish_max_hp      = j.value("max_hp", 0.0f);
+            d.dish_max_mana    = j.value("max_mana", 0.0f);
+            d.dish_max_stamina = j.value("max_stamina", 0.0f);
+            if (j.contains("levels"))
+                for (auto b = j["levels"].begin(); b != j["levels"].end(); ++b) {
+                    const int s = SkillFromName(b.key());
+                    if (s >= 0) d.dish_levels[s] = b.value().get<int>();
+                }
+        }
 
         d.metal = o.value("metal", false);
         if (o.contains("tags"))
@@ -149,6 +161,7 @@ bool ItemDatabase::Load(const string& path, bool required) {
             into.craft_qty    = c.value("qty", 1);
             into.craft_xp     = c.value("xp", 0);
             into.craft_level  = c.value("level", 1);
+            into.craft_at     = c.value("station", string(""));
             into.craft_inputs.clear();
             if (c.contains("inputs"))
                 for (auto i = c["inputs"].begin(); i != c["inputs"].end(); ++i)
@@ -174,6 +187,28 @@ bool ItemDatabase::Load(const string& path, bool required) {
         if (d.slot != SLOT_NONE) d.stackable = false;
 
         defs[d.id] = d;
+    }
+
+    // What a fire can do with one raw thing, as a recipe, so the menu at a
+    // fire lists the plain cooking beside the dishes rather than the player
+    // having to know that pressing the button somewhere cooks whatever is
+    // nearest the top of the bag.
+    for (const auto& kv : defs) {
+        const ItemDef& raw = kv.second;
+        if (raw.cook_result.empty() || !defs.count(raw.cook_result)) continue;
+        ItemDef r;
+        r.id = "recipe_" + raw.cook_result;
+        r.name = raw.cook_result;
+        r.craft_result = raw.cook_result;
+        r.craft_qty = 1;
+        r.craft_xp = raw.cook_xp;
+        r.craft_level = raw.cook_level;
+        r.craft_at = "range";
+        r.craft_inputs[raw.id] = 1;
+        data_recipes.erase(std::remove_if(data_recipes.begin(), data_recipes.end(),
+                                          [&](const ItemDef& x) { return x.id == r.id; }),
+                           data_recipes.end());
+        data_recipes.push_back(r);
     }
 
     SDL_Log("ItemDatabase: loaded %d items (%s)",
@@ -522,6 +557,8 @@ void ItemDatabase::SettleCraftValues() {
 
 CraftStation CraftStationFromName(const string& name) {
     if (name == "cauldron") return CraftStation::Cauldron;
+    if (name == "range" || name == "fire") return CraftStation::Range;
+    if (name == "loom") return CraftStation::Loom;
     return name == "anvil" ? CraftStation::Anvil : CraftStation::Workbench;
 }
 
@@ -529,6 +566,8 @@ const char* CraftStationName(CraftStation s) {
     switch (s) {
         case CraftStation::Anvil:    return "anvil";
         case CraftStation::Cauldron: return "cauldron";
+        case CraftStation::Range:    return "range";
+        case CraftStation::Loom:     return "loom";
         default:                     return "workbench";
     }
 }
@@ -537,6 +576,10 @@ int CraftSkill(CraftStation s) {
     switch (s) {
         case CraftStation::Anvil:    return SKILL_SMITHING;
         case CraftStation::Cauldron: return SKILL_BREWING;
+        case CraftStation::Range:    return SKILL_COOKING;
+        // The loom is the weaver's half of Crafting, the bench the leather
+        // worker's: two stations, one skill, which is why Wynn's order book and
+        // Nessa's both pay into the same number.
         default:                     return SKILL_CRAFTING;
     }
 }
@@ -544,11 +587,23 @@ int CraftSkill(CraftStation s) {
 // Decided when asked rather than when loaded: the materials of a recipe can be
 // defined in a file loaded after the recipe itself.
 CraftStation ItemDatabase::StationFor(const ItemDef& recipe) const {
-    // Anything brewed is brewed, even with a metal in it.
+    // A recipe that says where it belongs: everything cooked.
+    if (!recipe.craft_at.empty()) return CraftStationFromName(recipe.craft_at);
+    // Anything brewed is brewed, even with a metal in it. This has to come
+    // before the loom: a dye is cloth's business and carries the cloth tag, but
+    // it is boiled in a vat and not woven.
     for (const auto& in : recipe.craft_inputs)
         if (const ItemDef* mat = Get(in.first))
             if (std::find(mat->tags.begin(), mat->tags.end(), "brewing") != mat->tags.end())
                 return CraftStation::Cauldron;
+    // Anything whose result is cloth is woven: the bolts themselves, whichever
+    // fibre they are spun from, and every piece of the mage's set, which the
+    // tiers tag "cloth" where the ranger's is tagged "leather". Asking the
+    // result rather than the inputs is what keeps the bags and the bedroll at
+    // the bench -- they are cloth and hide together, and a hide is sewn.
+    if (const ItemDef* made = Get(recipe.craft_result))
+        if (std::find(made->tags.begin(), made->tags.end(), "cloth") != made->tags.end())
+            return CraftStation::Loom;
     for (const auto& in : recipe.craft_inputs)
         if (const ItemDef* mat = Get(in.first))
             if (mat->metal) return CraftStation::Anvil;

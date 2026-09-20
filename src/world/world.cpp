@@ -939,7 +939,10 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
             e->target_seat = best ? static_cast<int>(best->seat) : -1;
         }
     }
+    // Every monster is thought about once a frame, by whoever it is after.
+    std::set<const Enemy*> thought;
     const auto think = [&](Enemy& e) {
+        if (!thought.insert(&e).second) return;
         if (e.CurrentState() == Enemy::State::Dead) {
             e.TickRespawn(dt);
             // Not while anyone is standing on its spawn point. A boar
@@ -961,6 +964,13 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         // One acting-as per player, with every monster after them thought
         // about inside it, rather than one per monster.
         for (Player* p : Players()) {
+            // Not as somebody who is not there. On a map only friends are on
+            // the host's own Player is a stand-in, standing at the arrival
+            // point with `absent` set; thinking as it put every monster a
+            // hundred yards from whoever it was chasing, once a frame, so it
+            // gave up on the same frame it set off and never landed a blow.
+            // The friend it is after is in the same loop, a line below.
+            if (p == &player && player.absent) continue;
             bool any = false;
             for (auto& e : enemies) any |= e->target_seat == static_cast<int>(p->seat);
             const bool nobody = p == &player;      // and the ones after no one, with the host
@@ -973,6 +983,10 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
                     if (e->target_seat == seat || (nobody && e->target_seat < 0)) think(*e);
             });
         }
+        // And whatever is left: the ones after nobody on a map the host is not
+        // on. They have no one to chase, but they still wander, rot and come
+        // back, and none of that happens to a monster nobody thinks about.
+        for (auto& e : enemies) think(*e);
     }
 
     for (auto& n : npcs) n->Update(dt, *this, ctx);
@@ -2057,14 +2071,15 @@ void World::TryInteract(const GameContext& ctx) {
                     ctx.quests->Notify(e, player.inventory);
                 }
                 Wake(WakeReason::Stone);
-            } else if (o.type == "range") {
-                CookOne(o, ctx);
-            } else if (o.type == "workbench") {
+            } else if (o.type == "range" || o.type == "workbench") {
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Craft;
                 r.id    = o.id;
-                r.text  = o.station;
-                r.title = o.title.empty() ? (o.station == "anvil" ? "Anvil" : "Workbench") : o.title;
+                r.text  = o.type == "range" ? string("range") : o.station;
+                r.title = !o.title.empty() ? o.title
+                        : o.type == "range" ? string("Cooking fire")
+                        : o.station == "anvil" ? string("Anvil")
+                        : o.station == "loom" ? string("Loom") : string("Workbench");
                 requests.push_back(r);
             } else if (o.type == "altar") {
                 WorldRequest r;

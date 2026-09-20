@@ -34,6 +34,10 @@ struct EnemyDef {
     SDL_FRect body_box{-14.0f, -42.0f, 28.0f, 42.0f};
     float scale = 1.0f;
     bool  is_boss = false;
+    // It can get into water. Only waterfowl do, and only where the map has
+    // said which of its collision is water -- everywhere else a pond is a
+    // wall to everything, which is how it has always been.
+    bool  swims = false;
     // What the creature is aligned to, for the elemental matchup. Untyped
     // monsters take normal damage from everything.
     Element element = Element::None;
@@ -232,6 +236,27 @@ private:
     float respawn_at = 0.0f;
     float wander_timer = 0.0f;
     float wander_dx = 0, wander_dy = 0;
+
+    // --- waterfowl -------------------------------------------------------
+    // A duck does not drift the way a boar does. It picks somewhere to be --
+    // a patch of bank, or a bit of open water -- waddles there in a straight
+    // line, and pokes about for a while before deciding on somewhere else.
+    // Half of those somewheres are wet, so it spends its day going in and
+    // out of the pond of its own accord.
+    bool  afloat = false;         // over water this frame
+    bool  has_goal = false;
+    float goal_x = 0.0f, goal_y = 0.0f;
+    bool  goal_wet = false;       // the goal is a place in the water
+    float goal_timer = 0.0f;      // until it thinks of somewhere else
+    float goal_dist = 0.0f;       // closest it has come to the goal so far
+    float stuck_for = 0.0f;       // how long it has made no headway
+    // Picks somewhere to go: wet or dry as asked, within the leash of home,
+    // and somewhere it could actually float or stand. False if it cannot find
+    // one, which is what happens to a duck on a map with no pond in it.
+    bool  PickHaunt(World& world, const GameContext& ctx, bool wet);
+    // The whole of the waterfowl idle: returns the step to take this frame.
+    void  Paddle(World& world, const GameContext& ctx, float dt,
+                 float& move_x, float& move_y);
 
     float heavy_timer = 0.0f;     // until the next heavy attack may start
     bool  heavy_landed = false;   // the blow has been delivered this heavy

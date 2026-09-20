@@ -72,6 +72,9 @@ $clipRules = @{
     idle   = @{ fps =  8; loop = $true  }
     walk   = @{ fps = 10; loop = $true  }
     run    = @{ fps = 13; loop = $true  }
+    # Sitting on the water: slower than a walk, because nothing about a
+    # paddling bird is in a hurry.
+    swim   = @{ fps =  6; loop = $true  }
     sprint = @{ fps = 16; loop = $true  }
     attack = @{ fps = 16; loop = $false }
     # A spear's strike is a one-shot swing like any other. It was missing here

@@ -1448,6 +1448,39 @@ Fishing selected in the Skills panel they are listed along the bottom:
 
 A cast that lands more than one says so in gold ("+ 2 Raw Trout").
 
+### Cooking, and what a dish is worth
+
+A fire used to cook whatever was nearest the top of the bag when the button was
+pressed. It opens **a menu** now, the same panel the anvil and the cauldron use:
+every raw thing you are carrying that can be cooked, listed by the Cooking it
+asks for, and past those the **dishes**.
+
+A dish is worth more than the hit points in it. Eat one and it sits with you for
+twenty minutes or so and lifts something while it does:
+
+| Dish | Cooking | What it does |
+| --- | --- | --- |
+| Honeyed Oats | 6 | +6% max health, +10% max breath |
+| Hunter's Skewers | 12 | +4 Ranged |
+| Frog Legs in Butter | 16 | +15% max breath, +2 Ranged |
+| Hearty Stew | 18 | +10% max health |
+| Traveller's Pie | 24 | +25% max breath |
+| Fisherman's Broth | 28 | +12% max mana |
+| Moonpetal Tea | 34 | +18% max mana, +3 Magic |
+| Farmer's Supper | 40 | +15% max health, +3 Attack |
+
+The pools are **shares** of what they already are, so a good dinner is worth
+cooking at fifty as well as at five, and the levels are held steady for as long
+as the meal lasts rather than draining a point at a time the way a potion's do.
+**One dish at a time**: a second replaces the first, so which one you cook before
+a fight is the whole of the decision. What you are on, and how long is left of
+it, is under the vitals.
+
+Burning is still possible, and still falls away as the cook's level climbs past
+the dish's. `ItemDef::dish_*` is the whole of the data; `Player::Meal`,
+`SetMeal` and `HoldMeal` are the whole of the code, and the max-pool shares are
+read where the pools are worked out (`SyncHitpoints`, `SyncMana`, `MaxStamina`).
+
 ### Foraging
 
 **Foraging** is picking herbs and plants. It needs no tool: stand at a plant and
@@ -1582,7 +1615,7 @@ kind of shop.
 | Place | General store | Other shops |
 | --- | --- | --- |
 | Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo); **Nessa's Tannery**, with the order book |
-| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies |
+| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's Weaving Shed**, with the order book |
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
@@ -1619,6 +1652,54 @@ fill. It also holds each to the older rule that a repeatable order must pay
 **less in coin than buying the same goods would cost**, or an order book is a
 way to turn coins into coins; so the coin is modest and the Crafting XP is the
 reward. Nothing she sells is anything she orders, for the same reason.
+
+### Wynn's Weaving Shed, at Mossvale
+
+The tannery is the ranger's trade and this is the mage's. Wynn keeps a shed on
+the north side of Mossvale's square -- a wheel, lengths of dyed cloth drying on
+frames, and **her loom** -- and buys flax, fleece and silk. Her **order book**
+works the way Nessa's does, three a day out of nine, and asks for what a mage
+wears: bolts of cloth at Crafting 3, homespun hats and robes at 1 and 4, novice
+skirts and robes, apprentice's hats and robes at 10, a journeyman's robe at 20,
+an adept's at 30.
+
+Between the two of them every piece of soft armour in the game now has somebody
+who wants it: hides and bags at Havenbrook, hats, robes and skirts at Mossvale,
+and the cloth for both. Cloth itself has a third source now -- **a fleece off
+Havenbrook's farm spins into two bolts** (Crafting 6), beside flax at 3 and
+spider silk at 8 -- so a town can keep the loom going without walking to the
+riverbank.
+
+### The loom, and the fifth station
+
+Weaving used to happen at a carpenter's bench, which is where everything soft
+happened. It has its own station now -- `CraftStation::Loom` -- and Wynn's shed
+has the only one in the Hollowmarch:
+
+| Station | Trains | What is made there |
+| --- | --- | --- |
+| Workbench | Crafting | Wood, leather, thread: bows, hides, bags, a bedroll |
+| **Loom** | **Crafting** | **Cloth from any fibre, and all 36 pieces of the mage's sets** |
+| Anvil | Smithing | Anything with metal in it |
+| Cauldron | Brewing | Potions, and the robes' dyes |
+| Cooking fire | Cooking | Plain food, and the dishes |
+
+The loom and the bench both train Crafting, because both are the same trade:
+Nessa's order book and Wynn's pay into the same number. What separates them is
+what they make, and that is decided by **what comes off the recipe, not what
+goes into it** -- if the result is tagged `cloth` it is woven, and everything
+else falls through to the older rules. That one line is what carries the whole
+robe set across, since the tiers already tag the mage's pieces `cloth` where the
+ranger's are `leather`, and it is also why:
+
+- a **bag** is part cloth and still sewn at a bench, because a bag is mostly hide;
+- a **dye** is cloth's business, carries the cloth tag, and is still boiled --
+  brewing is asked first, since a dye is a pot of liquid and not a length of
+  anything.
+
+Nessa used to post an order for a bolt of cloth. She does not any more: cloth is
+woven three miles away at somebody else's loom, and Wynn's book already asks for
+it at the same level. Her book is thirteen orders of leather now.
 
 ### Prices
 
@@ -3109,6 +3190,72 @@ tanning racks, the hay ricks and the rail fences were all placed at 32x32.
 After rendering a new prop, run `tools/make_manifest.ps1` before `build.ps1
 -Maps`.
 
+### The farm at Havenbrook
+
+Havenbrook is sixteen columns wider than it was. Everything in it is placed from
+the west wall or from the crossroads and the fence, the gates and the south road
+are drawn from the town's width and height, so the town simply has a field on
+the end of it: past the mill pond, a yard of beaten earth with a farmhouse, a
+barn, hay and **four fenced pens**.
+
+| Pen | What is in it | What it leaves |
+| --- | --- | --- |
+| The hen run | Hens | Raw chicken, and eggs |
+| The sty | Farm pigs | Raw pork, sometimes a hide |
+| The fold | Ewes | Raw mutton **and a fleece** |
+| The paddock | Dairy cows | Raw beef and a hide, sometimes a pail of milk |
+
+None of them fights. Their aggro range is zero -- a hen is a hen -- so they are
+killed on purpose or not at all, and each is worth a supper. The fleece is what
+ties the farm to the loom at Mossvale, and the eggs and milk are what the
+dishes are made of. **Farmer Marrow** stands in the yard and will say which pen
+is which.
+
+And the mire has **frogs** in it now, sitting by the water among the lizardmen,
+as passive as anything on the farm. Frog legs fry into one of the better dishes,
+which is more than the bog's reputation would suggest.
+
+The five of them -- cow, sheep, pig, hen, frog -- are built on the same rig the
+boar and the deer are, in `tools/blender_creatures.py`: a cow is a barrel on
+short legs with the patches doing the work at thirty pixels, a sheep is a cloud
+with a dark face, a hen is two legs and an opinion, and a frog is a wide mouth
+with its back legs folded beside it.
+
+### The pond at Fernhollow, and the one thing that swims
+
+Six mallards and three geese live on the water at Fernhollow. They are posted
+on the bank, not on the pond, because getting in is something they decide to
+do: every few seconds a bird picks somewhere to be -- a patch of grass, or a
+bit of open water -- waddles there in a straight line, and pokes about until it
+thinks of somewhere else. A bird on the water usually comes out; a bird on the
+bank is as likely to go in. Left alone for five minutes, **about half the flock
+is afloat at any moment** and all nine of them are seen both wet and dry.
+
+Neither of them starts anything -- their aggro is zero, like the farm's -- but
+either will come out of the pond after somebody who takes a swing at it.
+
+Water is the new idea. Until now every pond in the game was collision, the same
+as a wall, and it still is for everything that walks:
+
+- a map may mark some of its collision as **water** (`m.Water()` in genmaps,
+  a `"water"` array in the `.mx`), which is a wall to everything as before;
+- `Map::Blocked(box, swims)` asks the same question with the water left out,
+  and `Map::InWater(x, y)` says whether a point is over it;
+- an enemy with `"swims": true` moves with `swims` set, so the pond is the one
+  obstacle that is not there for it.
+
+Fernhollow's pond is the only water in the world marked this way, and the drake
+and the goose are the only things in the game with `swims` set, so nothing can
+suddenly cross the sea at the edge of the overworld. Both of those are held by
+the self-test.
+
+Sitting on the water is drawn rather than faked: the two rigs have a **swim
+clip** -- legs folded up out of sight, body dropped until the belly is the
+waterline, neck up -- which the engine plays whenever the bird is over water
+and the rig has one. Anything else asked for it quietly keeps walking, which is
+how `run` has always worked. The clip goes over the wire by index like any
+other, so a friend watching from the far bank sees the same birds swimming.
+
 ### A house of your own
 
 The tanner's house at the bottom of Mossvale has stood empty since he went to
@@ -3416,6 +3563,38 @@ A monster's `scale` in `data/enemies.json` now actually draws it bigger -- it wa
 read and never used -- so a broodmother, a chief, the matriarch and the Pit Lord
 are the same art as their kin, only larger and tinted.
 
+### On a map the host is not on
+
+Each map anyone is on keeps running, so a map only friends are on is a world of
+its own, and on it the host's own `Player` is a **stand-in**: it stands at the
+arrival point with `absent` set, so every line written for "the player" has
+something to point at. Two things about that stand-in used to make the monsters
+there ignore whoever was actually standing in front of them -- Player One goes
+into the inn, and the boar outside stops caring about Player Two.
+
+- **It held a real seat number.** Seats are handed out from zero and the host is
+  not one of them, so the first friend to sit down at the host's own machine is
+  **seat 0** -- and so was the stand-in, by default construction. A monster that
+  had picked Player Two by seat number matched the stand-in just as well.
+- **It was thought about.** `UpdateShared` decides who each monster is after and
+  then thinks as each player in turn, running every monster that is after them.
+  With both of them answering to seat 0, the boar was thought about twice a
+  frame: once as Player Two, three strides away, which put it into a chase, and
+  once as a stand-in at the other end of the map, on which it gave up. It
+  changed its mind on **every frame of every second** -- eighteen hundred times
+  in the thirty seconds the self-test now watches it for -- and in all that time
+  never closed the distance or swung once.
+
+So: a stand-in holds `Player::NO_SEAT`, which no real seat can be; nothing is
+ever thought *as* an absent player, because it is nowhere and everything it
+thinks is that whoever it is after has gone; and each monster is thought about
+once a frame, with anything left over -- the ones after nobody, on a map with no
+one on it -- swept up afterwards, since a monster nobody thinks about never
+wanders, rots or comes back.
+
+What the player sees: on a map the others have left, the monsters come for you,
+reach you and hit you, exactly as they do when everyone is together.
+
 ### What starts a fight, and what ends one
 
 **Two things start one.** Someone inside a monster's aggro range: it has seen
@@ -3642,7 +3821,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **27391 checks** covering:
+and checks all of it — currently **28472 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -4265,6 +4444,48 @@ and checks all of it — currently **27391 checks** covering:
   work at 46; three are posted a day, the beginner is posted three they can do
   and the master three others; and she will show the book, the shelf, take an
   order in and say how the trade is learned
+- cooking, and what a dish is worth: the fire has a menu with every raw thing
+  and every dish on it, each cooked at a fire for Cooking XP out of real
+  materials; raw meat still cooks as it always did; a dish lasts minutes rather
+  than seconds, is worth eating for something, and is a dinner and not a potion;
+  between them they lift health, mana, breath and the three ways of fighting;
+  eating a stew makes the health pool bigger and nothing else, tea after a stew
+  replaces it and lifts mana and Magic, what it lifts does not drain away while
+  it lasts, and when it wears off the pool and the levels are what they were; a
+  dish is worth eating at full health and plain food is not
+- a clothier, a farm, and frogs in the mire: Wynn keeps a shed in Mossvale with
+  her loom and a shop that buys cloth and what cloth is made of; her book holds
+  nine orders for robes, hats, skirts and cloth, each asking the Crafting its
+  own recipe asks and paying in Crafting, from the first bolt to the upper sets,
+  and none of them is the ranger's; Havenbrook is wider than it was and its pens
+  hold hens, ewes, pigs and cows, none of which comes for anybody, each worth a
+  supper, a fleece or a hide, with a farmer in the yard; a fleece spins into
+  cloth for the shed and everything the farm gives cooks; and there are frogs in
+  the mire, which sit there
+- the loom: every recipe belongs to exactly one of the five stations; what is
+  woven is what comes off the loom and not what goes in, so a bolt of cloth is
+  only ever woven, all thirty-six pieces of the mage's sets go with it, a bag
+  and a bedroll have hide in them and stay at the bench, and a dye is boiled;
+  the loom trains Crafting the way the bench does; a map that says "loom" gets
+  one, it is drawn as one, and there is one standing in the world
+- ducks and geese, and the one pond they can get into: Fernhollow's pond is
+  marked as water, a walker cannot stand in it and a swimmer can, and it is the
+  only water in the world anything may enter; the birds are posted on dry land
+  on a leash long enough to reach it; both swim, neither starts anything, and
+  nothing else in the game swims at all; left for five minutes every one of
+  them goes in and every one of them comes out, about half the flock is afloat
+  at any moment, none of them ends up inside the scenery or wanders out of the
+  hamlet, and a hare beside the same water never gets into it; a bird that has
+  been provoked leaves the water and is never drawn swimming once it is out;
+  both of them cook, both leave supper, and only those two rigs have a swim
+  sheet
+- a monster on a map the host is not on: Player Two is left in Havenbrook when
+  Player One goes into the inn, the world they are left on has a stand-in for
+  the host that is absent and holds a seat no real seat can have, and the boar
+  beside them comes for them, gets within reach, swings at them over and over,
+  takes hit points off them, does not touch Player One indoors, and does not
+  change its mind every frame; and with two of them on that map the boar turns
+  to whichever it is standing beside and gets them too
 - keys and buttons can be moved, and cannot be lost: every action ships on a key
   and, if a pad can do it, a button, its own, with a name for the menu and one
   for the file; Esc, Enter, Backspace, the arrows, Start and the d-pad are kept;

@@ -1290,6 +1290,15 @@ void Game::DrawHud() {
         }
     }
 
+    // What was last eaten, under the vitals, while it lasts: a meal is worth
+    // knowing about, and worth knowing the end of.
+    if (const ItemDef* dish = p.Meal()) {
+        const int left = static_cast<int>(p.MealLeft());
+        char fed[96];
+        SDL_snprintf(fed, sizeof(fed), "%s  %d:%02d", dish->name.c_str(), left / 60, left % 60);
+        ui.TextShadowed(fed, 18.0f, 16.0f + 3.0f * 22.0f + 26.0f, TextSize::Small, {186, 226, 150, 255});
+    }
+
     // --- abilities -----------------------------------------------------------
     // The ones carried, bottom left, stacked up from the hint line: the keys,
     // the name, and a bar that refills as it comes back. What is running -- a
@@ -2750,12 +2759,27 @@ void Game::UpdateCrafting() {
         }
 
         for (const auto& in : recipe->craft_inputs) p.inventory.Remove(in.first, in.second);
+
+        // At a fire it can still be ruined, the way it always could: the
+        // chance falls away as the cook's level climbs past the dish's.
+        if (craft_station == CraftStation::Range) {
+            const float burn = std::max(0.0f, 0.34f - (p.skills.Level(skill) - recipe->craft_level) * 0.03f);
+            if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < burn) {
+                p.GrantXp(skill, std::max(1, recipe->craft_xp / 8));
+                PushToast("Burnt it.", {200, 110, 90, 255});
+                Audio::Play(Sfx::Burn);
+                return;
+            }
+        }
+
         p.inventory.Add(recipe->craft_result, recipe->craft_qty);
         p.GrantXp(skill, recipe->craft_xp);
 
         const ItemDef* made = items.Get(recipe->craft_result);
         PushToast(string(craft_station == CraftStation::Cauldron ? "Brewed " :
-                         craft_station == CraftStation::Anvil ? "Smithed " : "Crafted ") +
+                         craft_station == CraftStation::Anvil ? "Smithed " :
+                         craft_station == CraftStation::Range ? "Cooked " :
+                         craft_station == CraftStation::Loom ? "Wove " : "Crafted ") +
                   (made ? made->name : recipe->craft_result) + ".", Palette::Xp);
         quests->RefreshCollectObjectives(p.inventory);
     }
@@ -2770,8 +2794,11 @@ void Game::DrawCrafting() {
     ui.Panel(panel);
     const bool anvil = (craft_station == CraftStation::Anvil);
     const bool cauldron = (craft_station == CraftStation::Cauldron);
+    const bool fire = (craft_station == CraftStation::Range);
+    const bool loom = (craft_station == CraftStation::Loom);
     const int skill = CraftSkill(craft_station);
-    ui.Text(craft_title.empty() ? (cauldron ? "Cauldron" : anvil ? "Anvil" : "Workbench") : craft_title,
+    ui.Text(craft_title.empty() ? (cauldron ? "Cauldron" : anvil ? "Anvil" : fire ? "Cooking fire"
+                                 : loom ? "Loom" : "Workbench") : craft_title,
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
@@ -2784,7 +2811,11 @@ void Game::DrawCrafting() {
     // rather than "gone".
     ui.Text(cauldron ? "Brewing: herbs and a vial. A recipe has to be learned before it can be brewed."
             : anvil  ? "Smithing: anything made from metal. Wood and leather are worked at a workbench."
-                     : "Wood, leather and thread. Metal is smithed at an anvil, potions brewed at a cauldron.",
+            // One line, and it has to fit the panel at 1280x720: --audit counts
+            // anything wider as a runoff, and it is right to.
+            : fire   ? "Cooking: plain food, and dishes that sit with you a while."
+            : loom   ? "Weaving: cloth from any fibre, and the robes. Dyes are boiled at a cauldron."
+                     : "Wood, leather and thread. Cloth is woven at a loom, metal smithed at an anvil.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -2852,6 +2883,21 @@ void Game::DrawCrafting() {
     }
     if (made) y += ui.TextWrapped(made->description, dx, y, panel.w - list_w - 64.0f,
                                   TextSize::Small, Palette::TextDim) + 8.0f;
+    // A dish says what it is worth eating for, and for how long.
+    if (made && made->IsDish()) {
+        const auto share = [](float v) { return std::to_string(static_cast<int>(std::lround(v * 100.0f))) + "%"; };
+        string line;
+        if (made->dish_max_hp > 0.0f)      line += "+" + share(made->dish_max_hp) + " max health   ";
+        if (made->dish_max_mana > 0.0f)    line += "+" + share(made->dish_max_mana) + " max mana   ";
+        if (made->dish_max_stamina > 0.0f) line += "+" + share(made->dish_max_stamina) + " max breath   ";
+        for (const auto& b : made->dish_levels)
+            line += "+" + std::to_string(b.second) + " " + SkillName(b.first) + "   ";
+        y += ui.TextWrapped(line, dx, y, panel.w - list_w - 64.0f, TextSize::Small, Palette::Xp) + 2.0f;
+        const int mins = static_cast<int>(made->dish_minutes);
+        ui.Text("for " + std::to_string(mins) + (mins == 1 ? " minute" : " minutes") + ", and one dish at a time",
+                dx, y, TextSize::Small, Palette::TextDim);
+        y += 22.0f;
+    }
     if (made && !made->requirements.empty()) {
         string req = "To use: ";
         for (const auto& rq : made->requirements)
@@ -2878,7 +2924,7 @@ void Game::DrawCrafting() {
     ui.Text(std::to_string(r->craft_xp) + " " + SkillName(skill) + " XP", dx, y, TextSize::Small,
             Palette::TextDim);
 
-    ui.Text(input.PromptFor(Action::Confirm) + (cauldron ? " brew     " : anvil ? " smith     " : " craft     ") +
+    ui.Text(input.PromptFor(Action::Confirm) + (cauldron ? " brew     " : anvil ? " smith     " : fire ? " cook     " : " craft     ") +
             input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);

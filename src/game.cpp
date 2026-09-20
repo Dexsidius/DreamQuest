@@ -262,7 +262,13 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = 1; }
                 else if (what == "pause")     OpenPanel(GameState::Paused);
                 else if (what == "shop")      OpenShop(arg);
-                else if (what == "craft")     { craft_title = arg; craft_station = CraftStationFromName(arg); craft_cursor = 0; OpenPanel(GameState::Crafting); }
+                else if (what == "craft")     {
+                    craft_station = CraftStationFromName(arg);
+                    craft_title = arg == "range" ? "Cooking fire" : arg == "anvil" ? "Anvil"
+                                : arg == "cauldron" ? "Cauldron" : arg == "loom" ? "Loom" : "Workbench";
+                    craft_cursor = 0;
+                    OpenPanel(GameState::Crafting);
+                }
                 else if (what == "enchant")   { craft_title = "Enchanting table"; enchant_cursor = enchant_target = 0; OpenPanel(GameState::Enchanting); }
                 else if (what == "storage")   { storage_id = "scratch"; storage_title = "Storage chest"; storage_slots = 100;
                                                 storage_cursor = storage_bag_cursor = 0; storage_on_chest = false; OpenPanel(GameState::Storage); }
@@ -1149,6 +1155,8 @@ void Game::RunAudit() {
             {"crafting",       GameState::Crafting,        [&] { craft_title = "Workbench"; craft_station = CraftStation::Workbench; craft_cursor = 0; }},
             {"smithing",       GameState::Crafting,        [&] { craft_title = "Anvil"; craft_station = CraftStation::Anvil; craft_cursor = 0; }},
             {"brewing",        GameState::Crafting,        [&] { craft_title = "Cauldron"; craft_station = CraftStation::Cauldron; craft_cursor = 0; }},
+            {"cooking",        GameState::Crafting,        [&] { craft_title = "Cooking fire"; craft_station = CraftStation::Range; craft_cursor = 0; }},
+            {"weaving",        GameState::Crafting,        [&] { craft_title = "Loom"; craft_station = CraftStation::Loom; craft_cursor = 0; }},
             {"enchanting",     GameState::Enchanting,      [&] { craft_title = "Enchanting table"; enchant_cursor = 0; }},
             {"storage",        GameState::Storage,         [&] { storage_id = "audit"; storage_title = "Storage chest"; storage_slots = 100; }},
             {"shop",           GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 0; shop_cursor = 0; }},
@@ -1176,7 +1184,7 @@ void Game::RunAudit() {
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
             else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
             else if (name == "journal" || name == "journal side") { target = &quest_cursor[quest_tab]; steps = 40; }
-            else if (name == "crafting" || name == "smithing" || name == "brewing") { target = &craft_cursor; steps = 40; }
+            else if (name == "crafting" || name == "smithing" || name == "brewing" || name == "cooking") { target = &craft_cursor; steps = 40; }
             else if (name == "enchanting") { target = &enchant_cursor; steps = 12; }
             else if (name == "shop" || name == "shop sell") { target = &shop_cursor; steps = 30; }
             else if (name == "board")     { target = &board_cursor; steps = 30; }

@@ -198,9 +198,21 @@ public:
     }
 
     // --- collision -----------------------------------------------------------
-    bool  Blocked(const SDL_FRect& box) const;
+    //
+    // Water is collision like any other: the pond at Fernhollow is a wall to
+    // everything that walks. What makes it its own kind is that a few things
+    // swim, and for those the water is the one obstacle that is not there --
+    // so `swims` asks the same question with the water left out. Every other
+    // map's water is plain collision and nobody can swim in it, which is what
+    // keeps a duck in its own pond.
+    bool  Blocked(const SDL_FRect& box, bool swims = false) const;
+    // True when this point is over water, whoever is standing there.
+    bool  InWater(float x, float y) const;
+    // True when the map has water a swimmer could get into at all.
+    bool  HasWater() const { return water_count > 0; }
     // Axis-separated slide; returns the resolved position for the box.
-    SDL_FPoint MoveWithCollision(const SDL_FRect& box, float dx, float dy) const;
+    SDL_FPoint MoveWithCollision(const SDL_FRect& box, float dx, float dy,
+                                 bool swims = false) const;
 
     // Where a moving box first meets a wall, and which way that wall faces.
     //
@@ -262,7 +274,7 @@ public:
 
 private:
     void   BuildChunks();
-    void   AddCollider(const SDL_FRect& r);
+    void   AddCollider(const SDL_FRect& r, bool water = false);
     string ResolveAsset(const string& rel) const;
 
     struct Chunk { vector<int> layers[3]; vector<int> colliders; };
@@ -280,6 +292,11 @@ private:
     vector<string>       textures;      // resolved image paths
     vector<TileInstance> tiles;
     vector<SDL_FRect>    colliders;
+    // Parallel to `colliders`: which of them are water. A bitmap beside the
+    // rects rather than a second list, so the chunk index built over the
+    // colliders serves both questions.
+    vector<uint8_t>      collider_water;
+    int                  water_count = 0;
 
     vector<Portal>        portals;
     vector<Hazard>        hazards;

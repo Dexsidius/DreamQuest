@@ -545,6 +545,7 @@ World* Host::WorldFor(const string& map, World& home, const GameContext& ctx, bo
 
     auto w = std::make_unique<World>();
     w->player.absent = true;
+    w->player.seat = Player::NO_SEAT;
     w->journal = false;               // not while it loads: "visited" is nobody's news
     w->company = true;
     w->SetFlags(home.Flags());
@@ -568,6 +569,7 @@ void Host::SplitOff(World& home) {
     if (!anyone) return;
     auto w = std::make_unique<World>();
     w->player.absent = true;
+    w->player.seat = Player::NO_SEAT;
     w->company = true;
     w->SetFlags(home.Flags());
     w->SetPickedHerbs(home.PickedHerbs());

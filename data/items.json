@@ -1592,5 +1592,517 @@
     "dream_shard": 12
    }
   }
+ },
+ "egg": {
+  "tags": [
+   "food",
+   "farm"
+  ],
+  "name": "Egg",
+  "desc": "Still warm. The hens at Havenbrook's farm lay more than the town eats.",
+  "stack": true,
+  "value": 4,
+  "icon": "assets/icons/tiers/egg.png"
+ },
+ "milk": {
+  "tags": [
+   "food",
+   "farm"
+  ],
+  "name": "Pail of Milk",
+  "desc": "Drawn this morning, and it will not keep past this evening.",
+  "stack": true,
+  "value": 9,
+  "icon": "assets/icons/tiers/milk.png"
+ },
+ "wool": {
+  "tags": [
+   "cloth",
+   "farm"
+  ],
+  "name": "Fleece",
+  "desc": "A whole fleece off a Havenbrook ewe, greasy and warm. It spins into good cloth.",
+  "stack": true,
+  "value": 16,
+  "icon": "assets/icons/tiers/wool.png",
+  "craft": {
+   "result": "bolt_cloth",
+   "qty": 2,
+   "xp": 26,
+   "level": 6,
+   "inputs": {
+    "wool": 3
+   }
+  }
+ },
+ "raw_chicken": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Raw Chicken",
+  "desc": "A bird off the farm, plucked and drawn.",
+  "stack": true,
+  "value": 7,
+  "consume": true,
+  "heal": 2,
+  "icon": "assets/icons/meat_red.png",
+  "cook": {
+   "result": "cooked_chicken",
+   "level": 4,
+   "xp": 40
+  }
+ },
+ "cooked_chicken": {
+  "tags": [
+   "food"
+  ],
+  "name": "Roast Chicken",
+  "desc": "Crisp at the edges. A working lunch.",
+  "stack": true,
+  "value": 15,
+  "consume": true,
+  "heal": 7,
+  "icon": "assets/icons/meat_cooked.png"
+ },
+ "raw_mutton": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Raw Mutton",
+  "desc": "A cut off a hill ewe, dark and close-grained.",
+  "stack": true,
+  "value": 11,
+  "consume": true,
+  "heal": 3,
+  "icon": "assets/icons/meat_red.png",
+  "cook": {
+   "result": "cooked_mutton",
+   "level": 9,
+   "xp": 60
+  }
+ },
+ "cooked_mutton": {
+  "tags": [
+   "food"
+  ],
+  "name": "Roast Mutton",
+  "desc": "Fat, salt and an hour over the coals.",
+  "stack": true,
+  "value": 24,
+  "consume": true,
+  "heal": 11,
+  "icon": "assets/icons/meat_cooked.png"
+ },
+ "raw_pork": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Raw Pork",
+  "desc": "Off one of the farm's pigs, which were nobody's favourites anyway.",
+  "stack": true,
+  "value": 13,
+  "consume": true,
+  "heal": 4,
+  "icon": "assets/icons/meat_red.png",
+  "cook": {
+   "result": "cooked_pork",
+   "level": 14,
+   "xp": 75
+  }
+ },
+ "cooked_pork": {
+  "tags": [
+   "food"
+  ],
+  "name": "Roast Pork",
+  "desc": "Crackling, and enough of it to share.",
+  "stack": true,
+  "value": 28,
+  "consume": true,
+  "heal": 13,
+  "icon": "assets/icons/meat_cooked.png"
+ },
+ "raw_beef": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Raw Beef",
+  "desc": "A side off one of the herd. It is more than one person can carry comfortably.",
+  "stack": true,
+  "value": 18,
+  "consume": true,
+  "heal": 5,
+  "icon": "assets/icons/meat_red.png",
+  "cook": {
+   "result": "cooked_beef",
+   "level": 22,
+   "xp": 95
+  }
+ },
+ "cooked_beef": {
+  "tags": [
+   "food"
+  ],
+  "name": "Roast Beef",
+  "desc": "Rested, carved and still pink in the middle.",
+  "stack": true,
+  "value": 39,
+  "consume": true,
+  "heal": 16,
+  "icon": "assets/icons/meat_cooked.png"
+ },
+ "raw_frog_legs": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Frog Legs",
+  "desc": "From the mire. People are funny about them until they have had them.",
+  "stack": true,
+  "value": 9,
+  "consume": true,
+  "heal": 2,
+  "icon": "assets/icons/tiers/frog_legs.png",
+  "cook": {
+   "result": "frog_legs",
+   "level": 7,
+   "xp": 50
+  }
+ },
+ "frog_legs": {
+  "tags": [
+   "food"
+  ],
+  "name": "Fried Frog Legs",
+  "desc": "Butter, salt and a squeeze of something sour. Better than they sound.",
+  "stack": true,
+  "value": 19,
+  "consume": true,
+  "heal": 8,
+  "icon": "assets/icons/tiers/frog_legs.png"
+ },
+ "hearty_stew": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Hearty Stew",
+  "desc": "Beef, milk and a handful of mint, an hour in the pot. It fills a corner that bread does not reach.",
+  "stack": true,
+  "value": 90,
+  "consume": true,
+  "heal": 15,
+  "icon": "assets/icons/tiers/hearty_stew.png",
+  "dish": {
+   "minutes": 20,
+   "max_hp": 0.1,
+   "max_mana": 0.0,
+   "max_stamina": 0.0,
+   "levels": {}
+  },
+  "craft": {
+   "result": "hearty_stew",
+   "qty": 1,
+   "xp": 276,
+   "level": 18,
+   "station": "range",
+   "inputs": {
+    "cooked_beef": 1,
+    "brookmint": 1,
+    "milk": 1
+   }
+  }
+ },
+ "fishermans_broth": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Fisherman's Broth",
+  "desc": "Trout heads, minnows and nettle. Every jetty on the Hollowmarch makes it and every one of them says theirs is right.",
+  "stack": true,
+  "value": 120,
+  "consume": true,
+  "heal": 20,
+  "icon": "assets/icons/tiers/fishermans_broth.png",
+  "dish": {
+   "minutes": 20,
+   "max_hp": 0.0,
+   "max_mana": 0.12,
+   "max_stamina": 0.0,
+   "levels": {}
+  },
+  "craft": {
+   "result": "fishermans_broth",
+   "qty": 1,
+   "xp": 396,
+   "level": 28,
+   "station": "range",
+   "inputs": {
+    "cooked_trout": 1,
+    "cooked_minnow": 2,
+    "nettle": 1
+   }
+  }
+ },
+ "hunters_skewers": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Hunter's Skewers",
+  "desc": "Boar and bird turned over the fire on a green stick. What a hunting party eats standing up.",
+  "stack": true,
+  "value": 80,
+  "consume": true,
+  "heal": 13,
+  "icon": "assets/icons/tiers/hunters_skewers.png",
+  "dish": {
+   "minutes": 20,
+   "max_hp": 0.0,
+   "max_mana": 0.0,
+   "max_stamina": 0.0,
+   "levels": {
+    "Ranged": 4
+   }
+  },
+  "craft": {
+   "result": "hunters_skewers",
+   "qty": 1,
+   "xp": 204,
+   "level": 12,
+   "station": "range",
+   "inputs": {
+    "cooked_boar": 1,
+    "cooked_chicken": 1,
+    "marigold": 1
+   }
+  }
+ },
+ "travellers_pie": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Traveller's Pie",
+  "desc": "Mutton and egg under a lid of pastry, made to be carried a day and eaten cold at the end of it.",
+  "stack": true,
+  "value": 130,
+  "consume": true,
+  "heal": 21,
+  "icon": "assets/icons/tiers/travellers_pie.png",
+  "dish": {
+   "minutes": 25,
+   "max_hp": 0.0,
+   "max_mana": 0.0,
+   "max_stamina": 0.25,
+   "levels": {}
+  },
+  "craft": {
+   "result": "travellers_pie",
+   "qty": 1,
+   "xp": 348,
+   "level": 24,
+   "station": "range",
+   "inputs": {
+    "cooked_mutton": 1,
+    "egg": 2
+   }
+  }
+ },
+ "moonpetal_tea": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Moonpetal Tea",
+  "desc": "Pale and faintly sweet. The college drinks it by the gallon the night before an examination.",
+  "stack": true,
+  "value": 160,
+  "consume": true,
+  "heal": 26,
+  "icon": "assets/icons/tiers/moonpetal_tea.png",
+  "dish": {
+   "minutes": 20,
+   "max_hp": 0.0,
+   "max_mana": 0.18,
+   "max_stamina": 0.0,
+   "levels": {
+    "Magic": 3
+   }
+  },
+  "craft": {
+   "result": "moonpetal_tea",
+   "qty": 1,
+   "xp": 468,
+   "level": 34,
+   "station": "range",
+   "inputs": {
+    "moonpetal": 2,
+    "milk": 1
+   }
+  }
+ },
+ "honeyed_oats": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Honeyed Oats",
+  "desc": "Oats, milk and what the hedgerow gave up. The first thing anybody learns to make that is not simply burnt.",
+  "stack": true,
+  "value": 45,
+  "consume": true,
+  "heal": 7,
+  "icon": "assets/icons/tiers/honeyed_oats.png",
+  "dish": {
+   "minutes": 15,
+   "max_hp": 0.06,
+   "max_mana": 0.0,
+   "max_stamina": 0.1,
+   "levels": {}
+  },
+  "craft": {
+   "result": "honeyed_oats",
+   "qty": 1,
+   "xp": 132,
+   "level": 6,
+   "station": "range",
+   "inputs": {
+    "milk": 1,
+    "egg": 1
+   }
+  }
+ },
+ "roast_supper": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Farmer's Supper",
+  "desc": "Pork, beef and sage, and more of all three than is sensible. Havenbrook eats it on the last day of harvest.",
+  "stack": true,
+  "value": 320,
+  "consume": true,
+  "heal": 53,
+  "icon": "assets/icons/tiers/hearty_stew.png",
+  "dish": {
+   "minutes": 25,
+   "max_hp": 0.15,
+   "max_mana": 0.0,
+   "max_stamina": 0.0,
+   "levels": {
+    "Attack": 3
+   }
+  },
+  "craft": {
+   "result": "roast_supper",
+   "qty": 1,
+   "xp": 540,
+   "level": 40,
+   "station": "range",
+   "inputs": {
+    "cooked_pork": 1,
+    "cooked_beef": 1,
+    "mountain_sage": 1
+   }
+  }
+ },
+ "fried_frog_legs": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Frog Legs in Butter",
+  "desc": "Quick, light and gone in a minute. Mire fare, and better than the mire's reputation.",
+  "stack": true,
+  "value": 95,
+  "consume": true,
+  "heal": 15,
+  "icon": "assets/icons/tiers/frog_legs.png",
+  "dish": {
+   "minutes": 20,
+   "max_hp": 0.0,
+   "max_mana": 0.0,
+   "max_stamina": 0.15,
+   "levels": {
+    "Ranged": 2
+   }
+  },
+  "craft": {
+   "result": "fried_frog_legs",
+   "qty": 1,
+   "xp": 252,
+   "level": 16,
+   "station": "range",
+   "inputs": {
+    "frog_legs": 2,
+    "brookmint": 1
+   }
+  }
+ },
+ "raw_duck": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Raw Duck",
+  "desc": "A wild bird off the pond at Fernhollow, plucked and drawn.",
+  "stack": true,
+  "value": 9,
+  "consume": true,
+  "heal": 2,
+  "icon": "assets/icons/meat_red.png",
+  "cook": {
+   "result": "cooked_duck",
+   "level": 7,
+   "xp": 58
+  }
+ },
+ "cooked_duck": {
+  "tags": [
+   "food"
+  ],
+  "name": "Roast Duck",
+  "desc": "Dark meat and crackling skin. Worth the plucking.",
+  "stack": true,
+  "value": 22,
+  "consume": true,
+  "heal": 9,
+  "icon": "assets/icons/meat_cooked.png"
+ },
+ "raw_goose": {
+  "tags": [
+   "food",
+   "raw"
+  ],
+  "name": "Raw Goose",
+  "desc": "Heavy in the hand. There is a dinner in one of these.",
+  "stack": true,
+  "value": 16,
+  "consume": true,
+  "heal": 3,
+  "icon": "assets/icons/meat_red.png",
+  "cook": {
+   "result": "cooked_goose",
+   "level": 13,
+   "xp": 96
+  }
+ },
+ "cooked_goose": {
+  "tags": [
+   "food"
+  ],
+  "name": "Roast Goose",
+  "desc": "The whole bird, and enough of it to share.",
+  "stack": true,
+  "value": 38,
+  "consume": true,
+  "heal": 14,
+  "icon": "assets/icons/meat_cooked.png"
  }
 }

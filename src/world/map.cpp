@@ -162,6 +162,15 @@ bool Map::Load(const string& path) {
                 AddCollider({c[0].get<float>(), c[1].get<float>(),
                              c[2].get<float>(), c[3].get<float>()});
 
+    // ---- water ---------------------------------------------------------------
+    // Collision that a swimmer may pass. A map with none of this behaves
+    // exactly as it did.
+    if (dq.contains("water"))
+        for (const auto& c : dq["water"])
+            if (c.is_array() && c.size() >= 4)
+                AddCollider({c[0].get<float>(), c[1].get<float>(),
+                             c[2].get<float>(), c[3].get<float>()}, true);
+
     // ---- portals -------------------------------------------------------------
     if (dq.contains("portals"))
         for (const auto& p : dq["portals"]) {
@@ -321,6 +330,7 @@ bool Map::Load(const string& path) {
 void Map::Unload() {
     loaded = false;
     textures.clear(); tiles.clear(); colliders.clear();
+    collider_water.clear(); water_count = 0;
     portals.clear(); enemies.clear(); npcs.clear(); objects.clear();
     spawns.clear(); chunks.clear();
     bounds_w = bounds_h = 0;
@@ -340,9 +350,11 @@ void Map::Unload() {
     cliff_texture.clear();
 }
 
-void Map::AddCollider(const SDL_FRect& r) {
+void Map::AddCollider(const SDL_FRect& r, bool water) {
     if (r.w <= 0 || r.h <= 0) return;
     colliders.push_back(r);
+    collider_water.push_back(water ? 1 : 0);
+    if (water) ++water_count;
 }
 
 // Bucket static geometry into a uniform grid once at load time, so drawing and
@@ -667,10 +679,11 @@ bool Map::LevelChangeBlocked(float from_x, float from_y,
     return !(RampAt(from_x, from_y) || RampAt(to_x, to_y));
 }
 
-bool Map::Blocked(const SDL_FRect& box) const {
+bool Map::Blocked(const SDL_FRect& box, bool swims) const {
     if (!loaded) return false;
 
     // Map edges are walls, so the player cannot walk off a finished map.
+    // A swimmer is no exception: the pond stops at the map's edge too.
     if (bounds_w > 0 && bounds_h > 0) {
         if (box.x < 0 || box.y < 0 ||
             box.x + box.w > bounds_w || box.y + box.h > bounds_h)
@@ -680,10 +693,24 @@ bool Map::Blocked(const SDL_FRect& box) const {
     bool hit = false;
     ForEachChunkInRect(box, [&](const Chunk& c) {
         if (hit) return;
-        for (int idx : c.colliders)
+        for (int idx : c.colliders) {
+            if (swims && collider_water[idx]) continue;
             if (RectsOverlap(box, colliders[idx])) { hit = true; return; }
+        }
     });
     return hit;
+}
+
+bool Map::InWater(float x, float y) const {
+    if (!loaded || water_count == 0) return false;
+    const SDL_FRect point{x, y, 1.0f, 1.0f};
+    bool wet = false;
+    ForEachChunkInRect(point, [&](const Chunk& c) {
+        if (wet) return;
+        for (int idx : c.colliders)
+            if (collider_water[idx] && RectsOverlap(point, colliders[idx])) { wet = true; return; }
+    });
+    return wet;
 }
 
 // Which face was struck is worked out the way the slide below works out which
@@ -735,11 +762,12 @@ Map::Contact Map::SweepPoint(float x, float y, float dx, float dy,
 
 // Move each axis on its own so running into a wall diagonally slides along it
 // instead of stopping dead.
-SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy) const {
+SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy,
+                                  bool swims) const {
     SDL_FRect b = box;
 
     auto step_ok = [&](const SDL_FRect& from, const SDL_FRect& to) {
-        if (Blocked(to)) return false;
+        if (Blocked(to, swims)) return false;
         return !LevelChangeBlocked(from.x + from.w * 0.5f, from.y + from.h * 0.5f,
                                    to.x + to.w * 0.5f, to.y + to.h * 0.5f);
     };

@@ -278,6 +278,12 @@ public:
     bool  IsDead() const { return dead || absent || away; }
     bool  Fallen() const { return dead; }
     bool  absent = false, away = false;
+    // The seat number a stand-in holds: a map only friends are on has a Player
+    // for the host that is not there, and it must not answer to a number a real
+    // seat could have. Seats are handed out from zero, so the first friend to
+    // sit down at the host's own machine is seat 0 -- and so was the stand-in,
+    // which made every monster on that map think about both of them.
+    static constexpr uint8_t NO_SEAT = 255;
     // Lying down for the night, in company: out of the fight until dawn or
     // until they get up.
     bool  resting = false;
@@ -313,7 +319,22 @@ public:
     static constexpr float STAMINA_DELAY      = 0.8f;    // breather before regen starts
     static constexpr float STAMINA_RECOVER    = 0.35f;   // share needed to sprint again
     float Stamina() const { return stamina; }
-    float MaxStamina() const { return MAX_STAMINA * (1.0f + talents.Global("stamina")); }
+    float MaxStamina() const {
+        return MAX_STAMINA * (1.0f + talents.Global("stamina") + (meal ? meal->dish_max_stamina : 0.0f));
+    }
+
+    // --- a meal --------------------------------------------------------------------
+    // What was last eaten that was worth more than the hit points in it, and
+    // how long is left of it. One at a time: a second dish replaces the first.
+    // What it does is on the ItemDef (see ItemDef::IsDish); holding the pointer
+    // rather than a copy keeps the numbers in one place, and the id is what is
+    // saved, so a meal survives a reload with whatever is left of it.
+    const ItemDef* Meal() const { return meal; }
+    float MealLeft() const { return meal_left; }
+    void  SetMeal(const ItemDef* dish, float seconds) { meal = dish; meal_left = dish ? seconds : 0.0f; }
+    // The levels a meal is holding up, re-applied as the ordinary boost decay
+    // tries to walk them back down. Called every frame by Update.
+    void  HoldMeal();
     bool  Winded() const { return winded; }
     // Where the camera should lead, in world pixels: ahead of a sprint so the
     // player sees what they are running into, and back to centre otherwise.
@@ -502,6 +523,8 @@ private:
     Element attune_element = Element::None;
 
     float boost_timer = 0.0f;
+    const ItemDef* meal = nullptr;
+    float meal_left = 0.0f;
     int   mana = 0, max_mana = 0;
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point
     Element selected_element = Element::Fire;

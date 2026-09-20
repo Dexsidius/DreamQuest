@@ -1867,5 +1867,217 @@
       232
     ],
     "boss": true
+  },
+  "chicken": {
+    "name": "Hen",
+    "sprite": "chicken",
+    "hp": 4,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 1,
+    "speed": 62,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 3.0,
+    "loot": "chicken",
+    "kill_target": "chicken",
+    "foot_box": [
+      -7,
+      -6,
+      14,
+      6
+    ],
+    "body_box": [
+      -9,
+      -18,
+      18,
+      18
+    ],
+    "element": "none"
+  },
+  "sheep": {
+    "name": "Ewe",
+    "sprite": "sheep",
+    "hp": 12,
+    "attack": 1,
+    "strength": 2,
+    "defence": 3,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 3,
+    "speed": 48,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 3.0,
+    "loot": "sheep",
+    "kill_target": "sheep",
+    "foot_box": [
+      -11,
+      -9,
+      22,
+      9
+    ],
+    "body_box": [
+      -14,
+      -28,
+      28,
+      28
+    ],
+    "element": "none"
+  },
+  "pig": {
+    "name": "Farm Pig",
+    "sprite": "pig",
+    "hp": 14,
+    "attack": 2,
+    "strength": 3,
+    "defence": 2,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 2,
+    "speed": 52,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 3.0,
+    "loot": "pig",
+    "kill_target": "pig",
+    "foot_box": [
+      -11,
+      -9,
+      22,
+      9
+    ],
+    "body_box": [
+      -14,
+      -26,
+      28,
+      26
+    ],
+    "element": "none"
+  },
+  "cow": {
+    "name": "Dairy Cow",
+    "sprite": "cow",
+    "hp": 26,
+    "attack": 2,
+    "strength": 4,
+    "defence": 4,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 4,
+    "speed": 42,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 3.0,
+    "loot": "cow",
+    "kill_target": "cow",
+    "foot_box": [
+      -14,
+      -11,
+      28,
+      11
+    ],
+    "body_box": [
+      -18,
+      -36,
+      36,
+      36
+    ],
+    "element": "none"
+  },
+  "frog": {
+    "name": "Marsh Frog",
+    "sprite": "frog",
+    "hp": 5,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 1,
+    "speed": 54,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 3.0,
+    "loot": "frog",
+    "kill_target": "frog",
+    "foot_box": [
+      -7,
+      -5,
+      14,
+      5
+    ],
+    "body_box": [
+      -9,
+      -14,
+      18,
+      14
+    ],
+    "element": "none"
+  },
+  "duck": {
+    "name": "Mallard",
+    "sprite": "duck",
+    "hp": 6,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 1,
+    "speed": 58,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 2.6,
+    "swims": true,
+    "loot": "duck",
+    "kill_target": "duck",
+    "foot_box": [
+      -7,
+      -6,
+      14,
+      6
+    ],
+    "body_box": [
+      -9,
+      -18,
+      18,
+      18
+    ],
+    "element": "none"
+  },
+  "goose": {
+    "name": "Farm Goose",
+    "sprite": "goose",
+    "hp": 16,
+    "attack": 2,
+    "strength": 3,
+    "defence": 3,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 3,
+    "speed": 52,
+    "aggro": 0,
+    "attack_range": 20,
+    "attack_cooldown": 2.6,
+    "swims": true,
+    "loot": "goose",
+    "kill_target": "goose",
+    "foot_box": [
+      -9,
+      -7,
+      18,
+      7
+    ],
+    "body_box": [
+      -12,
+      -26,
+      24,
+      26
+    ],
+    "element": "none"
   }
 }

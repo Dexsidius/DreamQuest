@@ -245,6 +245,7 @@ public:
         dq["layers"]    = json::object();
         dq["solid"]     = json::array();
         dq["collision"] = json::array();
+        dq["water"]     = json::array();
         dq["portals"]   = json::array();
         dq["spawns"]    = json::object();
         dq["enemies"]   = json::array();
@@ -324,6 +325,14 @@ public:
         dq["collision"].push_back(json::array({x + ox, y, w, h}));
     }
 
+    // Collision that a swimmer may pass. Everything that walks is stopped by
+    // it exactly as before; the ducks and the geese at Fernhollow are not.
+    // Only water somebody is meant to be in wants marking -- the sea along the
+    // overworld's edge is still a plain wall, and nothing can swim there.
+    void Water(int x, int y, int w, int h) {
+        dq["water"].push_back(json::array({x + ox, y, w, h}));
+    }
+
     void Spawn(const string& name, int x, int y) {
         dq["spawns"][name] = json::array({x + ox, y});
     }
@@ -332,11 +341,16 @@ public:
     // the collision placed so far. The foot box matches the self-test's.
     bool Clear(int x, int y) const {
         x += ox;
-        for (const auto& c : dq["collision"]) {
-            const int cx = c[0], cy = c[1], cw = c[2], ch = c[3];
-            if (x - 8 < cx + cw && cx < x + 8 && y - 10 < cy + ch && cy < y) return false;
-        }
-        return true;
+        const auto hits = [&](const json& list) {
+            for (const auto& c : list) {
+                const int cx = c[0], cy = c[1], cw = c[2], ch = c[3];
+                if (x - 8 < cx + cw && cx < x + 8 && y - 10 < cy + ch && cy < y) return true;
+            }
+            return false;
+        };
+        // Water counts: a walker cannot stand in it either, so a prop or an
+        // NPC placed by Clear() must not end up in the pond.
+        return !hits(dq["collision"]) && !(dq.contains("water") && hits(dq["water"]));
     }
 
     void Portal(int x, int y, int w, int h, const string& target,
@@ -764,6 +778,16 @@ static void PlaceBuilding(MapBuilder& m, const string& art, int x, int y,
 
     // On the step outside, clear of the door, facing the street.
     m.Spawn(exit_spawn, x, y + 22);
+}
+
+// A length of split-rail fence along a line of cells, with a gap left for a gate.
+static void Fence(MapBuilder& m, int CELL, int cx0, int cx1, int cy, int gate_cx = -999) {
+    for (int cx = cx0; cx < cx1; cx += 2) {
+        if (abs(cx - gate_cx) <= 1) continue;
+        const int x = cx * CELL + CELL, y = cy * CELL + 20;
+        m.Prop("props", "rail_fence", x, y);
+        m.Collision(x - 30, y - 8, 60, 8);
+    }
 }
 
 // --- town gates ------------------------------------------------------------------
@@ -1368,8 +1392,17 @@ static void BuildOverworld() {
             } else if (b == MIRE) {
                 // The swamp belongs to the lizardmen now.
                 if (fabsf(cx - MIRE_CAMP_X) <= 7 && fabsf(cy - MIRE_CAMP_Y) <= 7) continue;
-                if (r < 0.055f)      { m.Enemy("lizardman", x, y, 1 + static_cast<int>(Hash2(cx, cy, 99) * 3)); ++spawned; }
-                else if (r < 0.065f) { m.Enemy("orc1", x, y, 5); ++spawned; }
+                // And to the frogs, which were always there in the noise and
+                // are something to see now: they sit by the water, they do not
+                // fight, and what they leave is the best thing anybody has ever
+                // eaten out of a bog.
+                // The bands below the frogs are the bands that were always
+                // here, moved up by the width of the frogs' one: the lizardmen
+                // keep their 0.055 of the noise and the orcs their 0.010, so
+                // the swamp has what it had and frogs besides.
+                if (r < 0.045f)      { m.Enemy("frog", x, y, 1, 60.0f, 80.0f); ++spawned; }
+                else if (r < 0.100f) { m.Enemy("lizardman", x, y, 1 + static_cast<int>(Hash2(cx, cy, 99) * 3)); ++spawned; }
+                else if (r < 0.110f) { m.Enemy("orc1", x, y, 5); ++spawned; }
             } else if (b == CURSED) {
                 if (r < 0.09f)       { m.Enemy("orc2", x, y, 8); ++spawned; }
             }
@@ -1736,7 +1769,13 @@ static void BuildOverworld() {
 // --- town --------------------------------------------------------------------
 
 static void BuildTown() {
-    const int CELL = 32, W = 56, H = 44;
+    // Sixteen columns wider than it was, for the farm: everything else in the
+    // town is placed from the west wall or from the crossroads, and the fence,
+    // the gates and the south road are all drawn from W and H, so the town
+    // simply has a field on the end of it now. The crossroads is still the
+    // middle of the village and the farm is a walk out past the pond, which is
+    // what a farm should be.
+    const int CELL = 32, W = 72, H = 44;
     MapBuilder m("town_havenbrook", "Havenbrook", W * CELL, H * CELL);
     m.Ambient("town");
     m.Subtitle("A market town on the southern road");
@@ -1762,6 +1801,10 @@ static void BuildTown() {
         // From dry land, or it is an island: the bank is only land west of 42.
         return cy == 37 && cx >= 42 && cx <= 46;
     };
+    // The farmyard: beaten earth in front of the barn, on the east side.
+    const auto farmyard = [](int cx, int cy) {
+        return cx >= 57 && cx <= 66 && cy >= 12 && cy <= 19;
+    };
 
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
@@ -1771,6 +1814,7 @@ static void BuildTown() {
             string tile = on_road ? VariantOf("road", cx, cy)
                         : (v > 0.6f ? "grass_light" : (v > 0.3f ? "grass" : "grass_olive"));
             if (in_pit(cx, cy))   tile = v > 0.6f ? "sand" : (v > 0.3f ? "dirt" : "dirt_dark");
+            else if (farmyard(cx, cy)) tile = v > 0.5f ? "dirt" : "dirt_dark";
             else if (jetty(cx, cy)) tile = "plank_floor";
             else if (pond(cx, cy))  tile = "water";
             m.Ground(VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
@@ -1903,6 +1947,82 @@ static void BuildTown() {
 
     // A cauldron beside it, for anyone with a brew to make.
     PlaceCauldron(m, "cauldron_town", 43 * CELL, 30 * CELL);
+
+    // --- the farm ------------------------------------------------------------------
+    // Sixteen columns of new town, east of the pond: a barn on the yard, a
+    // farmhouse beside it, and four fenced pens with what is in them. Nothing
+    // here fights -- a hen is a hen -- but every one of them is worth a supper,
+    // and the sheep are worth a fleece, which is what the loom at Mossvale runs
+    // on. The farmer stands in the yard and will say which pen is which.
+    {
+        const int fx = 60 * CELL, fy = 16 * CELL;      // the yard
+        // The farmhouse stands in the yard as a house, with nothing to go into:
+        // a door needs a room behind it, and the farm's work is all outside.
+        m.Decor("assets/objects/building_house_a.png", fx + 2 * CELL, fy - 2 * CELL, 136, 149);
+        m.Collision(fx + 2 * CELL - 58, fy - 2 * CELL - 30, 116, 30);
+        // The barn: a stall's worth of roof over the yard, and the hay by it.
+        m.Prop("props", "market_stall", fx - 2 * CELL, fy + CELL);
+        m.Collision(fx - 2 * CELL - 40, fy + CELL - 16, 80, 16);
+        m.Prop("props", "hay_rick", fx - 3 * CELL, fy - CELL);
+        m.Collision(fx - 3 * CELL - 22, fy - CELL - 14, 44, 14);
+        m.Prop("props", "hay_rick", fx + 4 * CELL, fy + 2 * CELL);
+        m.Collision(fx + 4 * CELL - 22, fy + 2 * CELL - 14, 44, 14);
+        m.Prop("props", "log_pile", fx + 5 * CELL, fy - 2 * CELL);
+        m.Collision(fx + 5 * CELL - 16, fy - 2 * CELL - 10, 32, 10);
+
+        // Four pens, each a run of rail fence with a gap to walk in by, and
+        // what lives in it. The fence is drawn a cell at a time so a pen can be
+        // any size; the gap is where the farmer walks.
+        struct Pen { int x0, y0, x1, y1; const char* beast; int many; int gap; };
+        const Pen pens[] = {
+            {56, 22, 62, 27, "chicken", 5, 24},     // the hen run, nearest the house
+            {64, 22, 70, 27, "pig",     3, 24},
+            {56, 29, 62, 35, "sheep",   4, 31},
+            {64, 29, 70, 35, "cow",     3, 31},
+        };
+        int post = 0;
+        for (const Pen& pen : pens) {
+            // The rails run east and west, two cells to a length, the way the
+            // Westwold's do -- one a cell overlaps itself into a hedge. The
+            // north and south sides are rails; the east and west sides are a
+            // line of posts, which is what a rail fence looks like end-on, and
+            // they are what keeps anything in.
+            Fence(m, CELL, pen.x0, pen.x1 + 1, pen.y0);
+            Fence(m, CELL, pen.x0, pen.x1 + 1, pen.y1);
+            for (int cy = pen.y0; cy <= pen.y1; ++cy) {
+                for (int cx : {pen.x0, pen.x1}) {
+                    if (cx == pen.x0 && cy == pen.gap) continue;        // the way in
+                    m.Prop("props", "fence_post", cx * CELL + 16, cy * CELL + 26);
+                    m.Collision(cx * CELL + 8, cy * CELL + 16, 16, 10);
+                }
+            }
+            // What is in it, spread about inside the rails. They never leave
+            // the pen: a short leash keeps them off the fence and out of the
+            // street.
+            for (int k = 0; k < pen.many; ++k) {
+                const int cx = pen.x0 + 2 + (k * 2) % std::max(1, pen.x1 - pen.x0 - 2);
+                const int cy = pen.y0 + 2 + (k * 3) % std::max(1, pen.y1 - pen.y0 - 2);
+                m.Enemy(pen.beast, cx * CELL + 16, cy * CELL + 20, 1, 90.0f, 70.0f);
+                ++post;
+            }
+        }
+        (void)post;
+
+        // A trough and a water butt, because a pen with nothing in it but
+        // animals reads as a paddock.
+        m.Prop("props", "well_dry", (58) * CELL + 16, 20 * CELL + 16);
+        m.Collision(58 * CELL, 20 * CELL + 6, CELL, 12);
+
+        {
+            json& o = m.Object("sign_farm", "sign", 57 * CELL, 13 * CELL + 16);
+            o["sprite"] = "assets/props/signpost.png";
+            o["title"]  = "Marrow Farm";
+            o["text"]   = "MARROW FARM\n\nEGGS. MILK. FLEECES. MUTTON, PORK AND BEEF IN SEASON.\n\n"
+                          "Under it: MIND THE GATES. IF YOU LET THE PIGS OUT YOU ARE GETTING THEM BACK IN.";
+            m.Collision(57 * CELL - 16, 13 * CELL + 6, 32, 10);
+        }
+        m.Npc("npc_marrow", "Farmer Marrow", "citizen2", 59 * CELL + 16, 18 * CELL + 10, "marrow_root", 0);
+    }
 
     // --- the tannery ---------------------------------------------------------------
     // Havenbrook had nowhere to learn a trade with: the Westwold's tannery is
@@ -3699,15 +3819,6 @@ static float Gap(const vector<vector<Pt>>& roads, float cx, float cy) {
     return best;
 }
 
-// A length of split-rail fence along a line of cells, with a gap left for a gate.
-static void Fence(MapBuilder& m, int CELL, int cx0, int cx1, int cy, int gate_cx = -999) {
-    for (int cx = cx0; cx < cx1; cx += 2) {
-        if (abs(cx - gate_cx) <= 1) continue;
-        const int x = cx * CELL + CELL, y = cy * CELL + 20;
-        m.Prop("props", "rail_fence", x, y);
-        m.Collision(x - 30, y - 8, 60, 8);
-    }
-}
 }   // namespace wold
 
 static void BuildWestwold() {
@@ -4391,6 +4502,47 @@ static void BuildMossvale() {
     // Sela keeps the gate, from the foot of its south tower.
     m.Npc("npc_sela",   "Warden Sela",    "player_wayfarer", 2 * CELL + 26, (gate_row + 2) * CELL + 6, "sela_root", 1);
     m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL + 50, 30 * CELL + 6, "pell_root", 0)["shop"] = "mossvale_general";
+    // --- the weaving shed -----------------------------------------------------------
+    // Mossvale has the flax fields and the sheep walk past its door on the way
+    // to Havenbrook, and until now the only loom in the Hollowmarch was out at
+    // Hidewater, past the wolves. Wynn's shed is on the north side of the
+    // square: a wheel, a rack of dyed cloth drying, and her.
+    {
+        const int wx = 34 * CELL, wy = 21 * CELL;
+        m.Prop("props", "market_stall", wx, wy);
+        m.Collision(wx - 40, wy - 16, 80, 16);
+        m.Prop("props", "spinning_wheel", wx - 76, wy + 10);
+        m.Collision(wx - 76 - 16, wy + 10 - 12, 32, 12);
+        // Cloth on the line: the tanning rack, which is a frame with a hide on
+        // it, doing duty as a drying rack for dyed lengths.
+        for (int k = 0; k < 2; ++k) {
+            const int x = wx - 40 + k * 84;
+            m.Prop("props", "tanning_rack", x, wy - 64);
+            m.Collision(x - 24, wy - 74, 48, 10);
+        }
+        {
+            // The loom, where the bench was. A weaver at a carpenter's bench
+            // was always a stand-in: this is the station the cloth and the
+            // college's robes are made at, and the only one of its kind.
+            json& o = m.Object("loom_weaver", "workbench", wx + 74, wy + 16);
+            o["sprite"]  = "assets/props/loom.png";
+            // Named so it reads after "the": these titles are dropped into
+            // "Use the ..." with only the first letter lowered, so a possessive
+            // comes out as "the wynn's Loom".
+            o["title"]   = "Weaver's loom";
+            o["station"] = "loom";
+            m.Collision(wx + 74 - 36, wy + 16 - 20, 72, 20);
+        }
+        {
+            json& o = m.Object("sign_weaver", "sign", wx - 108, wy + 6);
+            o["sprite"] = "assets/props/signpost.png";
+            o["title"]  = "The Weaving Shed";
+            o["text"]   = "WYNN, CLOTHIER\n\nFLAX BOUGHT. FLEECES BOUGHT. SILK BOUGHT, NO QUESTIONS.\n\n"
+                          "HATS, ROBES AND SKIRTS FOR THE COLLEGE. ASK FOR THE BOOK IF YOU CAN SEW.";
+            m.Collision(wx - 108 - 16, wy + 6 - 10, 32, 10);
+        }
+        m.Npc("npc_wynn", "Wynn the Clothier", "citizen1", wx + 26, wy + 20, "wynn_root", 0)["shop"] = "mossvale_clothier";
+    }
     // The smith works the village anvil by the workbench, with his bars in a
     // crate at his elbow.
     m.Npc("npc_garrow", "Garrow the Smith", "fighter2", 49 * CELL + 8, 26 * CELL - 2, "garrow_root", 0)["shop"] = "mossvale_forge";
@@ -4514,7 +4666,10 @@ static void BuildFernhollow() {
             else if (on_path(cx, cy))          tile = VariantOf(v > 0.6f ? "dirt_dark" : "dirt", cx, cy);
             else tile = VariantOf(v > 0.6f ? "grass_olive" : (v > 0.28f ? "grass" : "moss"), cx, cy);
             m.Ground(tile, cx * CELL, cy * CELL, CELL);
-            if (in_pond(cx, cy) && !on_jetty(cx, cy)) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            // The pond is marked as water rather than as plain collision: it
+            // stops everything that walks, exactly as it did, and it is the
+            // one place in the Hollowmarch a swimmer can go.
+            if (in_pond(cx, cy) && !on_jetty(cx, cy)) m.Water(cx * CELL, cy * CELL, CELL, CELL);
         }
 
     // Edges: forest, open at the south gate.
@@ -4540,6 +4695,41 @@ static void BuildFernhollow() {
             if (in_pond(32, cy)) { spot(32, cy, 0, 8); break; }
         for (int cx = W - 2; cx > 0; --cx)
             if (in_pond(cx, 17)) { spot(cx, 17, 8, 0); break; }
+    }
+
+    // --- the birds on the pond ---------------------------------------------------
+    // Ducks and geese, posted on the bank a little way out from the water so
+    // that walking into it is something they decide to do rather than where
+    // they start. Nothing else in the game can enter the pond; these two spend
+    // the day going in and coming out again, which is the whole of the point
+    // of them. Their leash is long enough to take in a good stretch of open
+    // water, so a bird that goes swimming has somewhere to swim to.
+    {
+        // A point on the bank at this angle: out along the ellipse until the
+        // ground is dry and nothing else is standing there.
+        const auto bank = [&](float deg, int& out_x, int& out_y) {
+            const float a = deg * 3.14159265f / 180.0f;
+            for (float k = 1.05f; k < 1.9f; k += 0.06f) {
+                const int cx = static_cast<int>(lroundf(pcx + cosf(a) * prx * k));
+                const int cy = static_cast<int>(lroundf(pcy + sinf(a) * pry * k));
+                if (cx < 2 || cy < 2 || cx >= W - 2 || cy >= H - 2) break;
+                if (in_pond(cx, cy) || on_jetty(cx, cy) || reserved(cx, cy)) continue;
+                const int x = cx * CELL + 16, y = cy * CELL + 24;
+                if (!m.Clear(x, y)) continue;
+                out_x = x;
+                out_y = y;
+                return true;
+            }
+            return false;
+        };
+        int bx = 0, by = 0;
+        // Ducks all round it, geese along the north shore where the grass is.
+        const float ducks[] = {28.0f, 96.0f, 155.0f, 215.0f, 300.0f, 342.0f};
+        for (float deg : ducks)
+            if (bank(deg, bx, by)) m.Enemy("duck", bx, by, 1, 90.0f, 170.0f);
+        const float geese[] = {248.0f, 272.0f, 320.0f};
+        for (float deg : geese)
+            if (bank(deg, bx, by)) m.Enemy("goose", bx, by, 2, 110.0f, 170.0f);
     }
 
     PlaceBuilding(m, "building_house_a", gate_col * CELL + 16, 11 * CELL, 136, 147,

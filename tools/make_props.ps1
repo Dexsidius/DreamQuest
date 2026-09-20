@@ -58,6 +58,9 @@ $sizes = @{
     bed_single = 64; bed_double = 72; wardrobe = 64; nightstand = 32
     washstand = 40; travel_chest = 40; stairwell_down = 88; room_door = 56
     cottage_hearth = 80; spinning_wheel = 56; writing_desk = 64
+    # Wynn's loom: as big as the carpenter's bench, because it does the same job
+    # for cloth that the bench does for leather.
+    loom = 80
     cottage_bookshelf = 64; dining_table = 56; herb_pots = 36
     # Buildings.
     inn_building = 192
@@ -66,7 +69,7 @@ $sizes = @{
     herbalist_cottage = 168
     well = 56; well_dry = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
     town_gate = 160
-    gate_tower = 104; palisade_side = 64
+    gate_tower = 104; palisade_side = 64; fence_post = 56
     dream_ladder_down = 80; dream_ladder_up = 104
 
     # Herbs for Foraging, growing and picked, and the brewing cauldron.

@@ -45,7 +45,8 @@ void Player::Init(const GameContext& ctx, const string& id) {
 
 void Player::SyncMana() {
     max_mana = static_cast<int>(std::lround(SpellBook::MaxMana(skills.Level(SKILL_MAGIC)) *
-                                            (1.0f + talents.Global("max_mana"))));
+                                            (1.0f + talents.Global("max_mana") +
+                                             (meal ? meal->dish_max_mana : 0.0f))));
     mana = std::clamp(mana, 0, max_mana);
 }
 
@@ -139,7 +140,10 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
 }
 
 void Player::SyncHitpoints() {
-    max_hp = std::max(1, skills.Level(SKILL_HITPOINTS));
+    // A dinner is worth a share of what the pool already is, so it is worth
+    // eating at fifty as well as at five.
+    const float fed = meal ? meal->dish_max_hp : 0.0f;
+    max_hp = std::max(1, static_cast<int>(std::lround(skills.Level(SKILL_HITPOINTS) * (1.0f + fed))));
     hp = std::clamp(skills.Current(SKILL_HITPOINTS), 0, max_hp);
 }
 
@@ -1254,6 +1258,19 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         stride = 14.0f;     // the first step after standing comes quickly
     }
 
+    // --- the meal ----------------------------------------------------------------
+    if (meal_left > 0.0f) {
+        meal_left = std::max(0.0f, meal_left - dt);
+        if (meal_left <= 0.0f) meal = nullptr;
+        // Whatever it lifts, it lifts for as long as it lasts: the decay below
+        // walks a potion's boost back down a point at a time, and a meal is
+        // put back up under it. When the meal goes, the decay finds it and
+        // takes it down for good.
+        HoldMeal();
+        SyncHitpoints();
+        SyncMana();
+    }
+
     // --- boosts wearing off -----------------------------------------------------
     // Hitpoints is its own thing -- it drains with damage -- so only the
     // levels a potion can lift drift back toward the real level.
@@ -1370,6 +1387,12 @@ bool Player::WearBag(int slot, string& why_not) {
     return true;
 }
 
+void Player::HoldMeal() {
+    if (!meal) return;
+    for (const auto& b : meal->dish_levels)
+        skills.SetCurrent(b.first, std::max(skills.Current(b.first), skills.Level(b.first) + b.second));
+}
+
 bool Player::Eat(int slot) {
     string why;
     return Consume(slot, why);
@@ -1388,6 +1411,8 @@ bool Player::Consume(int slot, string& why_not) {
     // refused, but a potion that also boosts or restores is not.
     bool helps = (def->heal > 0 && hp < max_hp) || (def->mana > 0 && mana < max_mana) ||
                  (def->stamina && stamina < MaxStamina());
+    // A dinner is worth eating on a full stomach: it is not the healing in it.
+    if (def->IsDish() && def != meal) helps = true;
     for (const auto& b : def->boosts) {
         const int level = skills.Level(b.first);
         const int target = level + b.second.first + static_cast<int>(level * b.second.second);
@@ -1399,6 +1424,15 @@ bool Player::Consume(int slot, string& why_not) {
         return false;
     }
 
+    // A dish sits with you: what it lifts, it lifts for its own few minutes,
+    // and a second dish is the one you are on rather than both at once.
+    if (def->IsDish()) {
+        meal = def;
+        meal_left = def->dish_minutes * 60.0f;
+        HoldMeal();
+        SyncHitpoints();
+        SyncMana();
+    }
     if (def->heal > 0) Heal(def->heal);
     if (def->mana > 0) { SyncMana(); mana = std::min(max_mana, mana + def->mana); }
     if (def->stamina) { stamina = MaxStamina(); stamina_delay = 0.0f; winded = false; }

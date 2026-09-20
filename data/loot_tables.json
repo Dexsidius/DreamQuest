@@ -2706,5 +2706,149 @@
         "weight": 4
       }
     ]
+  },
+  "chicken": {
+    "always": [
+      {
+        "item": "raw_chicken"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "egg",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 45
+      },
+      {
+        "item": "nothing",
+        "weight": 55
+      }
+    ]
+  },
+  "sheep": {
+    "always": [
+      {
+        "item": "raw_mutton"
+      },
+      {
+        "item": "wool"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "wool",
+        "weight": 35
+      },
+      {
+        "item": "nothing",
+        "weight": 65
+      }
+    ]
+  },
+  "pig": {
+    "always": [
+      {
+        "item": "raw_pork"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "hide",
+        "weight": 40
+      },
+      {
+        "item": "nothing",
+        "weight": 60
+      }
+    ]
+  },
+  "cow": {
+    "always": [
+      {
+        "item": "raw_beef"
+      },
+      {
+        "item": "hide"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "milk",
+        "weight": 40
+      },
+      {
+        "item": "hide",
+        "weight": 25
+      },
+      {
+        "item": "nothing",
+        "weight": 35
+      }
+    ]
+  },
+  "frog": {
+    "always": [
+      {
+        "item": "raw_frog_legs"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "raw_frog_legs",
+        "weight": 30
+      },
+      {
+        "item": "nothing",
+        "weight": 70
+      }
+    ]
+  },
+  "duck": {
+    "always": [
+      {
+        "item": "raw_duck"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "egg",
+        "weight": 30
+      },
+      {
+        "item": "nothing",
+        "weight": 70
+      }
+    ]
+  },
+  "goose": {
+    "always": [
+      {
+        "item": "raw_goose"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "egg",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 45
+      },
+      {
+        "item": "nothing",
+        "weight": 55
+      }
+    ]
   }
 }

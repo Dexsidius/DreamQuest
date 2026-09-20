@@ -2417,6 +2417,347 @@ def orc_death(t):
 
 
 # =================================================================================
+#  The farm, and the mire
+# =================================================================================
+#
+# Four animals that stand in a field and one that sits in the water. None of
+# them fights: they graze, they scatter when hit, and what they leave behind is
+# supper and a fleece. They are the same quadruped frame the boar and the deer
+# are built on, in different proportions -- a cow is a barrel on short legs, a
+# sheep is a cloud with a face, a pig is a barrel with a snout, and a chicken is
+# two legs and an opinion.
+
+bc.PALETTE.update({
+    "cow_hide":   (0.94, 0.92, 0.88), "cow_patch": (0.24, 0.20, 0.19), "cow_udder": (0.88, 0.66, 0.66),
+    "sheep_wool": (0.93, 0.91, 0.86), "sheep_wool_dk": (0.79, 0.76, 0.71), "sheep_face": (0.30, 0.28, 0.27),
+    "pig_skin":   (0.88, 0.62, 0.60), "pig_skin_dk": (0.72, 0.46, 0.46), "pig_snout": (0.92, 0.72, 0.72),
+    "hen_body":   (0.84, 0.66, 0.36), "hen_body_dk": (0.64, 0.46, 0.22), "hen_comb": (0.78, 0.22, 0.20),
+    "hen_beak":   (0.90, 0.74, 0.28),
+    "frog_skin":  (0.38, 0.60, 0.30), "frog_skin_dk": (0.26, 0.44, 0.22), "frog_belly": (0.84, 0.86, 0.62),
+    # The pond at Fernhollow. A drake and a farm goose: the two of them have to
+    # tell each other apart at forty pixels on green water, so one is dark at
+    # the head and pale at the body and the other is the other way round.
+    "duck_head":   (0.13, 0.35, 0.24), "duck_collar": (0.93, 0.92, 0.88),
+    "duck_breast": (0.46, 0.28, 0.20), "duck_body":   (0.62, 0.60, 0.56),
+    "duck_wing":   (0.40, 0.39, 0.37), "duck_bill":   (0.88, 0.72, 0.24),
+    "duck_foot":   (0.88, 0.50, 0.16), "duck_speculum": (0.25, 0.33, 0.62),
+    "goose_body":  (0.93, 0.92, 0.88), "goose_back":  (0.70, 0.68, 0.63),
+    "goose_bill":  (0.91, 0.52, 0.18),
+    "horn":       (0.84, 0.80, 0.68),
+})
+
+
+def build_cow():
+    """A barrel on short legs, white with dark patches, with a wide flat head
+    carried low. What says cow at thirty pixels is the patches and the width."""
+    r = Rig()
+    _quadruped(r, "cow_hide", "cow_hide", 0.44,
+               chest=(0.24, 0.30, 0.23), hips=(0.22, 0.24, 0.22),
+               leg_len=0.30, leg_r=0.055, fore_y=-0.18, hind_y=0.22, hip_x=0.14)
+    # The patches, which are the whole of it at this size.
+    for x, y, z, sx, sy in ((-0.10, -0.12, 0.10, 0.11, 0.09), (0.12, 0.06, 0.06, 0.10, 0.11),
+                            (-0.06, 0.18, 0.08, 0.08, 0.07)):
+        r.add("patch", E(sx, sy, 0.09), "cow_patch", "body", loc=(x, y, z))
+    r.add("udder", E(0.09, 0.10, 0.06), "cow_udder", "body", loc=(0, 0.14, -0.13))
+    r.joint("neck", (0, -0.30, 0.02), "body", rest=(24, 0, 0))
+    r.joint("head", (0, -0.12, 0.0), "neck", rest=(-30, 0, 0))
+    r.add("skull", E(0.10, 0.14, 0.09), "cow_hide", "head")
+    r.add("muzzle", E(0.075, 0.07, 0.06), "cow_udder", "head", loc=(0, -0.18, -0.03))
+    r.add("blaze", E(0.055, 0.08, 0.05), "cow_patch", "head", loc=(0, -0.06, 0.07))
+    for sx in (-1, 1):
+        r.add("ear", E(0.055, 0.03, 0.035), "cow_hide", "head", loc=(sx * 0.11, 0.0, 0.05), rot=(0, sx * -0.5, 0))
+        r.add("eye", E(0.020, 0.018, 0.020), "beast_eye", "head", loc=(sx * 0.062, -0.11, 0.03))
+        r.limb("horn", (sx * 0.06, -0.02, 0.08), (sx * 0.115, -0.05, 0.13), 0.016, "horn", "head", r_tip=0.006)
+    r.joint("tail1", (0, 0.30, 0.14), "body", rest=(30, 0, 0))
+    r.limb("tail", (0, 0, 0), (0, 0, -0.22), 0.014, "cow_hide", "tail1", r_tip=0.008)
+    r.add("tuft", E(0.025, 0.025, 0.035), "cow_patch", "tail1", loc=(0, 0, -0.23))
+    r.pose.scale = (2.1, 2.1, 2.1)
+    return r
+
+
+def build_sheep():
+    """A cloud with a dark face and four thin legs under it. The fleece is one
+    lumpy mass so that a shorn one would read differently, if it ever is."""
+    r = Rig()
+    _quadruped(r, "sheep_wool", "sheep_wool_dk", 0.34,
+               chest=(0.19, 0.22, 0.19), hips=(0.18, 0.18, 0.18),
+               leg_len=0.22, leg_r=0.035, fore_y=-0.12, hind_y=0.16, hip_x=0.10)
+    for x, y, z, rad in ((-0.10, -0.06, 0.12, 0.10), (0.10, -0.02, 0.12, 0.10), (0.0, 0.10, 0.13, 0.11),
+                         (0.0, -0.14, 0.10, 0.09), (-0.09, 0.14, 0.06, 0.08), (0.09, 0.14, 0.06, 0.08)):
+        r.add("fleece", E(rad, rad * 0.95, rad * 0.9), "sheep_wool", "body", loc=(x, y, z))
+    r.joint("neck", (0, -0.22, 0.06), "body", rest=(20, 0, 0))
+    r.joint("head", (0, -0.09, 0.0), "neck", rest=(-24, 0, 0))
+    r.add("skull", E(0.062, 0.095, 0.065), "sheep_face", "head")
+    r.add("muzzle", E(0.042, 0.05, 0.038), "sheep_face", "head", loc=(0, -0.11, -0.03))
+    r.add("cap", E(0.070, 0.06, 0.055), "sheep_wool", "head", loc=(0, 0.02, 0.06))
+    for sx in (-1, 1):
+        r.add("ear", E(0.045, 0.022, 0.026), "sheep_face", "head", loc=(sx * 0.075, -0.01, 0.02), rot=(0, sx * -0.6, 0))
+        r.add("eye", E(0.016, 0.014, 0.016), "beast_eye", "head", loc=(sx * 0.040, -0.075, 0.02))
+    r.joint("tail1", (0, 0.22, 0.10), "body", rest=(40, 0, 0))
+    r.add("tail", E(0.035, 0.035, 0.045), "sheep_wool", "tail1", loc=(0, 0, -0.04))
+    r.pose.scale = (1.8, 1.8, 1.8)
+    return r
+
+
+def build_pig():
+    """Pink, low and long, with a snout you can see from the back."""
+    r = Rig()
+    _quadruped(r, "pig_skin", "pig_skin_dk", 0.30,
+               chest=(0.17, 0.24, 0.17), hips=(0.16, 0.18, 0.16),
+               leg_len=0.18, leg_r=0.042, fore_y=-0.13, hind_y=0.17, hip_x=0.10)
+    r.joint("neck", (0, -0.24, 0.02), "body", rest=(12, 0, 0))
+    r.joint("head", (0, -0.08, 0.0), "neck", rest=(-14, 0, 0))
+    r.add("skull", E(0.085, 0.10, 0.080), "pig_skin", "head")
+    r.add("snout", E(0.050, 0.075, 0.045), "pig_skin", "head", loc=(0, -0.14, -0.03))
+    r.add("disc", E(0.048, 0.022, 0.042), "pig_snout", "head", loc=(0, -0.21, -0.03))
+    for sx in (-1, 1):
+        r.add("ear", E(0.032, 0.020, 0.050), "pig_skin_dk", "head", loc=(sx * 0.062, -0.03, 0.075),
+              rot=(0.5, sx * -0.3, 0))
+        r.add("eye", E(0.017, 0.015, 0.017), "beast_eye", "head", loc=(sx * 0.050, -0.075, 0.025))
+    r.joint("tail1", (0, 0.24, 0.10), "body", rest=(20, 0, 0))
+    r.limb("tail", (0, 0, 0), (0.03, 0.02, 0.06), 0.012, "pig_skin_dk", "tail1", r_tip=0.008)
+    r.pose.scale = (1.9, 1.9, 1.9)
+    return r
+
+
+def build_chicken():
+    """Two legs, a body and a comb. No quadruped frame: a hen is a different
+    animal from the waist down."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.20), rest=(-8, 0, 0))
+    r.add("body", E(0.095, 0.13, 0.105), "hen_body", "body")
+    r.add("wing_l", E(0.030, 0.10, 0.075), "hen_body_dk", "body", loc=(-0.090, 0.0, 0.01))
+    r.add("wing_r", E(0.030, 0.10, 0.075), "hen_body_dk", "body", loc=(0.090, 0.0, 0.01))
+    r.add("tail", E(0.055, 0.055, 0.085), "hen_body_dk", "body", loc=(0, 0.14, 0.08), rot=(-0.5, 0, 0))
+    r.joint("neck", (0, -0.08, 0.07), "body", rest=(18, 0, 0))
+    r.joint("head", (0, 0, 0.09), "neck", rest=(-20, 0, 0))
+    r.add("skull", E(0.050, 0.055, 0.050), "hen_body", "head")
+    r.add("comb", E(0.018, 0.045, 0.035), "hen_comb", "head", loc=(0, -0.01, 0.055))
+    r.add("wattle", E(0.020, 0.022, 0.030), "hen_comb", "head", loc=(0, -0.045, -0.040))
+    r.limb("beak", (0, -0.05, -0.005), (0, -0.105, -0.015), 0.022, "hen_beak", "head", r_tip=0.004)
+    for sx in (-1, 1):
+        r.add("eye", E(0.013, 0.012, 0.013), "beast_eye", "head", loc=(sx * 0.035, -0.035, 0.012))
+        j = "leg_" + ("l" if sx < 0 else "r")
+        r.joint(j, (sx * 0.045, 0.0, -0.09), "body", rest=(4, 0, 0))
+        r.limb("shank", (0, 0, 0), (0, 0, -0.11), 0.016, "hen_beak", j, r_tip=0.013)
+        r.add("foot", E(0.030, 0.045, 0.014), "hen_beak", j, loc=(0, -0.012, -0.115))
+    r.pose.scale = (1.7, 1.7, 1.7)
+    return r
+
+
+def build_duck():
+    """A mallard drake: dark green head, a white ring, a chestnut breast and a
+    grey back, low and long on short legs set well back. The legs are short
+    enough that the swim pose only has to tuck them."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.15), rest=(-4, 0, 0))
+    r.add("body", E(0.100, 0.165, 0.090), "duck_body", "body")
+    r.add("breast", E(0.095, 0.075, 0.085), "duck_breast", "body", loc=(0, -0.070, -0.005))
+    r.add("belly", E(0.085, 0.130, 0.040), "duck_collar", "body", loc=(0, 0.01, -0.050))
+    for sx in (-1, 1):
+        r.add("wing", E(0.028, 0.130, 0.070), "duck_wing", "body", loc=(sx * 0.082, 0.010, 0.012))
+        r.add("flash", E(0.022, 0.040, 0.020), "duck_speculum", "body", loc=(sx * 0.084, 0.055, 0.020))
+    r.add("tail", E(0.055, 0.070, 0.030), "duck_wing", "body", loc=(0, 0.150, 0.035), rot=(-0.40, 0, 0))
+    r.joint("neck", (0, -0.085, 0.055), "body", rest=(14, 0, 0))
+    r.add("throat", E(0.050, 0.050, 0.070), "duck_head", "neck", loc=(0, 0, 0.020))
+    r.add("collar", E(0.054, 0.054, 0.018), "duck_collar", "neck", loc=(0, 0, -0.020))
+    r.joint("head", (0, 0, 0.070), "neck", rest=(-14, 0, 0))
+    r.add("skull", E(0.056, 0.070, 0.056), "duck_head", "head")
+    r.limb("bill", (0, -0.030, -0.010), (0, -0.098, -0.020), 0.020, "duck_bill", "head", r_tip=0.016)
+    r.add("bill_tip", E(0.036, 0.028, 0.012), "duck_bill", "head", loc=(0, -0.098, -0.020))
+    for sx in (-1, 1):
+        r.add("eye", E(0.013, 0.012, 0.013), "beast_eye", "head", loc=(sx * 0.030, -0.030, 0.014))
+        j = "leg_" + ("l" if sx < 0 else "r")
+        r.joint(j, (sx * 0.035, 0.030, -0.070), "body", rest=(6, 0, 0))
+        r.limb("shank", (0, 0, 0), (0, 0, -0.058), 0.014, "duck_foot", j, r_tip=0.012)
+        r.add("webbed", E(0.036, 0.050, 0.012), "duck_foot", j, loc=(0, -0.016, -0.062))
+    r.pose.scale = (1.55, 1.55, 1.55)
+    return r
+
+
+def build_goose():
+    """A farm goose: white, a grey mantle over the back, and the neck that is
+    most of what you see of it. Bigger than the drake and paler, so the two
+    read apart on the same water."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.20), rest=(-5, 0, 0))
+    r.add("body", E(0.125, 0.205, 0.115), "goose_body", "body")
+    r.add("mantle", E(0.110, 0.150, 0.045), "goose_back", "body", loc=(0, 0.030, 0.075))
+    for sx in (-1, 1):
+        r.add("wing", E(0.032, 0.165, 0.090), "goose_body", "body", loc=(sx * 0.100, 0.015, 0.015))
+        r.add("wing_edge", E(0.026, 0.070, 0.030), "goose_back", "body", loc=(sx * 0.102, 0.080, 0.010))
+    r.add("tail", E(0.060, 0.070, 0.035), "goose_back", "body", loc=(0, 0.190, 0.055), rot=(-0.35, 0, 0))
+    # The neck: two joints, so it can crane and curl.
+    r.joint("neck", (0, -0.095, 0.080), "body", rest=(20, 0, 0))
+    r.add("neck_low", E(0.055, 0.055, 0.105), "goose_body", "neck", loc=(0, 0, 0.045))
+    r.joint("neck2", (0, 0, 0.105), "neck", rest=(-14, 0, 0))
+    r.add("neck_up", E(0.048, 0.048, 0.090), "goose_body", "neck2", loc=(0, 0, 0.040))
+    r.joint("head", (0, 0, 0.085), "neck2", rest=(-12, 0, 0))
+    r.add("skull", E(0.054, 0.066, 0.056), "goose_body", "head")
+    r.add("knob", E(0.040, 0.030, 0.030), "goose_bill", "head", loc=(0, -0.028, 0.030))
+    r.limb("bill", (0, -0.028, -0.006), (0, -0.092, -0.014), 0.021, "goose_bill", "head", r_tip=0.017)
+    for sx in (-1, 1):
+        r.add("eye", E(0.013, 0.012, 0.013), "beast_eye", "head", loc=(sx * 0.029, -0.030, 0.016))
+        j = "leg_" + ("l" if sx < 0 else "r")
+        r.joint(j, (sx * 0.042, 0.035, -0.090), "body", rest=(6, 0, 0))
+        r.limb("shank", (0, 0, 0), (0, 0, -0.072), 0.016, "duck_foot", j, r_tip=0.013)
+        r.add("webbed", E(0.042, 0.058, 0.013), "duck_foot", j, loc=(0, -0.018, -0.078))
+    r.pose.scale = (1.5, 1.5, 1.5)
+    return r
+
+
+def build_frog():
+    """A wide mouth, two eyes on top and folded back legs. It sits."""
+    r = Rig()
+    r.joint("body", (0, 0, 0.09), rest=(-6, 0, 0))
+    r.add("body", E(0.115, 0.135, 0.075), "frog_skin", "body")
+    r.add("belly", E(0.095, 0.115, 0.045), "frog_belly", "body", loc=(0, 0.01, -0.045))
+    for x, y in ((-0.05, -0.02), (0.06, 0.04), (-0.02, 0.08)):
+        r.add("spot", E(0.030, 0.028, 0.02), "frog_skin_dk", "body", loc=(x, y, 0.06))
+    r.joint("head", (0, -0.10, 0.03), "body", rest=(8, 0, 0))
+    r.add("skull", E(0.095, 0.075, 0.055), "frog_skin", "head")
+    r.add("mouth", E(0.090, 0.030, 0.016), "frog_skin_dk", "head", loc=(0, -0.055, -0.030))
+    for sx in (-1, 1):
+        r.add("brow", E(0.038, 0.036, 0.034), "frog_skin", "head", loc=(sx * 0.050, -0.010, 0.050))
+        r.add("eye", E(0.026, 0.025, 0.026), "beast_eye", "head", loc=(sx * 0.050, -0.022, 0.062))
+        # Back legs folded up beside it, and little front ones under the chin.
+        j = "hind_" + ("l" if sx < 0 else "r")
+        # The folded thigh is the whole of the frog's profile from the side, so
+        # it is the darker green and it sits a little high and proud of the
+        # body: from the east it is a haunch and not another inch of blob.
+        r.joint(j, (sx * 0.100, 0.07, -0.005), "body", rest=(0, 0, 0))
+        r.add("thigh", E(0.052, 0.075, 0.055), "frog_skin_dk", j, loc=(0, 0, 0))
+        r.limb("shin", (0, 0.02, -0.02), (sx * 0.02, -0.09, -0.05), 0.026, "frog_skin_dk", j, r_tip=0.018)
+        r.add("webbed", E(0.035, 0.045, 0.012), "frog_skin_dk", j, loc=(sx * 0.03, -0.13, -0.065))
+        j2 = "fore_" + ("l" if sx < 0 else "r")
+        r.joint(j2, (sx * 0.062, -0.08, -0.04), "body", rest=(0, 0, 0))
+        r.limb("arm", (0, 0, 0), (sx * 0.012, -0.02, -0.055), 0.018, "frog_skin", j2, r_tip=0.012)
+    r.pose.scale = (2.6, 2.6, 2.6)
+    return r
+
+
+# --- how they move -------------------------------------------------------------------
+# Grazers: a head that dips and a body that breathes. None of them has an attack
+# worth the name, so the "attack" clip is a butt or a peck, and hurt is a flinch.
+
+def graze_idle(t):
+    s = sn(t)
+    return {"_z": 0.006 * s, "body": X(1.4 * s), "neck": X(4 * s + 4), "head": X(-6 * s - 3),
+            "tail1": (0, 0, 9 * sn(t, 0.2))}
+
+
+def graze_walk(t):
+    swing = 22 * sn(t)
+    return {"_z": 0.010 * abs(sn(t, 0.25)),
+            "fore_l": fwd(swing), "fore_r": fwd(-swing),
+            "hind_l": fwd(-swing), "hind_r": fwd(swing),
+            "fore_l_knee": X(-10 - 8 * sn(t)), "fore_r_knee": X(-10 + 8 * sn(t)),
+            "hind_l_knee": X(-12 + 8 * sn(t)), "hind_r_knee": X(-12 - 8 * sn(t)),
+            "neck": X(5), "head": X(-4), "tail1": (0, 0, 14 * sn(t, 0.3))}
+
+
+def graze_attack(t):
+    i, k = phases(t, 0.45, 0.75, 1.0)
+    lean = 0.0 if i == 0 else (26 * k if i == 1 else 26 * (1 - k))
+    return {"_y": -0.05 * (lean / 26.0), "body": X(lean * 0.4), "neck": X(lean), "head": X(-lean * 0.6)}
+
+
+def graze_hurt(t):
+    k = 1.0 - t
+    return {"_z": 0.02 * k, "body": X(-14 * k), "neck": X(-10 * k), "head": X(12 * k)}
+
+
+def graze_death(t):
+    return topple(t)
+
+
+def hen_idle(t):
+    s = sn(t)
+    return {"_z": 0.004 * s, "neck": X(6 * s + 2), "head": X(-8 * s - 2 + 4 * sn(t, 0.3))}
+
+
+def hen_walk(t):
+    swing = 26 * sn(t)
+    return {"_z": 0.012 * abs(sn(t, 0.25)),
+            "leg_l": fwd(swing), "leg_r": fwd(-swing),
+            "neck": X(10 * sn(t, 0.5) + 4), "head": X(-10 * sn(t, 0.5) - 2),
+            "body": X(2 * sn(t))}
+
+
+def hen_attack(t):
+    i, k = phases(t, 0.4, 0.7, 1.0)
+    peck = 0.0 if i == 0 else (34 * k if i == 1 else 34 * (1 - k))
+    return {"neck": X(peck), "head": X(-peck * 0.5), "_y": -0.03 * (peck / 34.0)}
+
+
+# Waterfowl. On land they are hens with longer necks; on the water the legs go
+# away and the body settles, which is the whole of what tells a swimming bird
+# from a standing one at this size.
+
+def fowl_idle(t):
+    s = sn(t)
+    return {"_z": 0.004 * s, "body": X(1.2 * s), "neck": X(6 * s + 3),
+            "head": X(-7 * s - 3 + 3 * sn(t, 0.3))}
+
+
+def fowl_walk(t):
+    swing = 24 * sn(t)
+    # The waddle: the body rolls side to side, which is the whole joke of a
+    # duck walking, and each leg takes its turn under it.
+    return {"_z": 0.010 * abs(sn(t, 0.25)),
+            "leg_l": fwd(swing), "leg_r": fwd(-swing),
+            "_roll": 7 * sn(t, 0.25),
+            "neck": X(8 * sn(t, 0.5) + 5), "head": X(-9 * sn(t, 0.5) - 3)}
+
+
+def fowl_swim(t):
+    s = sn(t)
+    # Sat on the water: the body drops until the belly is the waterline, the
+    # legs fold up under it out of sight, and the head goes side to side the
+    # way a bird's does when it is going somewhere slowly.
+    # The neck comes up out of the forward lean it walks with: a bird on the
+    # water carries its head high, and on the goose -- whose neck is most of
+    # what it is -- that is the difference between the two birds at this size.
+    return {"_z": -0.055 + 0.006 * s, "body": X(-2 + 1.0 * s),
+            "leg_l": X(-96), "leg_r": X(-96),
+            "neck": X(-15 + 1.5 * s), "neck2": X(-4 + 1.0 * s),
+            "head": (-2 * s + 6, 0, 7 * sn(t, 0.25))}
+
+
+def fowl_attack(t):
+    i, k = phases(t, 0.4, 0.7, 1.0)
+    peck = 0.0 if i == 0 else (30 * k if i == 1 else 30 * (1 - k))
+    return {"neck": X(peck), "head": X(-peck * 0.4), "_y": -0.025 * (peck / 30.0)}
+
+
+def frog_idle(t):
+    s = sn(t)
+    # A frog at rest is a throat going in and out.
+    return {"_z": 0.004 * s, "body": X(1.2 * s), "head": X(-2 * s)}
+
+
+def frog_walk(t):
+    # It hops: up, forward, down, and a beat sitting still.
+    k = t % 1.0
+    lift = max(0.0, math.sin(k * math.pi)) if k < 0.6 else 0.0
+    return {"_z": 0.10 * lift, "_y": -0.03 * lift,
+            "body": X(-16 * lift), "head": X(10 * lift),
+            "hind_l": X(-30 * lift), "hind_r": X(-30 * lift),
+            "fore_l": X(20 * lift), "fore_r": X(20 * lift)}
+
+
+def frog_attack(t):
+    i, k = phases(t, 0.4, 0.7, 1.0)
+    out = 0.0 if i == 0 else (1.0 if i == 1 else 1.0 - k)
+    return {"head": X(-10 * out), "_y": -0.02 * out}
+
+
+def frog_hurt(t):
+    k = 1.0 - t
+    return {"_z": 0.02 * k, "body": X(-16 * k), "head": X(10 * k)}
+
+
+# =================================================================================
 #  The roster
 # =================================================================================
 CREATURES = {
@@ -2447,9 +2788,18 @@ CREATURES = {
     "banshee":   (build_banshee,   72, (banshee_idle, banshee_walk, banshee_attack, banshee_hurt, banshee_death), 0.26),
     "wolf":      (build_wolf,      64, (hound_idle, hound_walk, hound_attack, hound_hurt, hound_death),  0.34),
     "bear":      (build_bear,      96, (bear_idle, bear_walk, bear_attack, bear_hurt, bear_death),       0.62),
+    # The farm at Havenbrook, and what sits in the mire.
+    "cow":       (build_cow,       80, (graze_idle, graze_walk, graze_attack, graze_hurt, graze_death),   0.56),
+    "sheep":     (build_sheep,     64, (graze_idle, graze_walk, graze_attack, graze_hurt, graze_death),   0.42),
+    "pig":       (build_pig,       56, (graze_idle, graze_walk, graze_attack, graze_hurt, graze_death),   0.40),
+    "chicken":   (build_chicken,   40, (hen_idle, hen_walk, hen_attack, graze_hurt, graze_death),         0.20),
+    "frog":      (build_frog,      40, (frog_idle, frog_walk, frog_attack, frog_hurt, graze_death),       0.22),
+    # The pond at Fernhollow.
+    "duck":      (build_duck,      40, (fowl_idle, fowl_walk, fowl_attack, graze_hurt, graze_death),     0.22),
+    "goose":     (build_goose,     48, (fowl_idle, fowl_walk, fowl_attack, graze_hurt, graze_death),     0.26),
 }
 CLIP_FRAMES = [("idle", 4, True), ("walk", 6, True), ("attack", 6, False), ("hurt", 3, False),
-               ("death", 6, False), ("run", 6, True)]
+               ("death", 6, False), ("run", 6, True), ("swim", 4, True)]
 
 # Who runs. A creature that charges or bolts gets a run cycle; everything else
 # has one gait and uses it, and a sheet it never plays is a sheet that quietly
@@ -2472,6 +2822,11 @@ FRAME_DROP = {"orc3": 8}
 RUNNERS = {"orc1": 1.45, "orc2": 1.45, "orc3": 1.40,
            "boar": 1.20, "deer": 1.18, "fox": 1.20, "hare": 1.20,
            "wolf": 1.22, "bear": 1.15}
+
+# Who floats. Like RUNNERS, a sheet only the creatures that need it get: the
+# engine asks for "swim" and quietly keeps walking if the rig has no such clip,
+# so this list is the whole of who can be drawn sitting on water.
+SWIMMERS = {"duck": fowl_swim, "goose": fowl_swim}
 FACINGS = bc.FACINGS
 
 
@@ -2536,7 +2891,9 @@ def build_sheet(creature, clip_index):
     clip, frames, loops = CLIP_FRAMES[clip_index]
     # A run is made out of the creature's own walk rather than authored twice:
     # see running().
-    pose_fn = running(poses[1], RUNNERS[creature]) if clip == "run" else poses[clip_index]
+    if clip == "run":    pose_fn = running(poses[1], RUNNERS[creature])
+    elif clip == "swim": pose_fn = SWIMMERS[creature]
+    else:                pose_fn = poses[clip_index]
 
     bc.FRAME_PX = frame_px
     bc.FRAME_SPAN = UNITS_PER_PX * frame_px
@@ -2608,6 +2965,8 @@ def main():
             if clips and clip not in clips:
                 continue
             if clip == "run" and creature not in RUNNERS:
+                continue
+            if clip == "swim" and creature not in SWIMMERS:
                 continue
             build_sheet(creature, index)
 

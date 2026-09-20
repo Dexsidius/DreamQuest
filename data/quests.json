@@ -1906,35 +1906,6 @@
   },
   "completion": "She rolls one out along the bench, looks down it, and rolls it back up."
  },
- "q_order_cloth": {
-  "name": "Order: Bolts of Cloth",
-  "source": "npc",
-  "giver": "npc_nessa",
-  "level": 3,
-  "summary": "Four bolts of plain weave. Flax off the riverbank and an afternoon at the wheel.",
-  "repeat": "daily",
-  "pool": "nessa_orders",
-  "posts": 3,
-  "stages": [
-   {
-    "desc": "Bring Nessa 4 bolts of cloth",
-    "type": "deliver",
-    "target": "bolt_cloth",
-    "to": "npc_nessa",
-    "count": 4
-   }
-  ],
-  "rewards": {
-   "xp": {
-    "Crafting": 420
-   },
-   "coins": 44
-  },
-  "completion": "She measures one against her arm, twice, and takes the lot.",
-  "req": {
-   "Crafting": 3
-  }
- },
  "q_order_rawhide_jerkin": {
   "name": "Order: Rawhide Jerkins",
   "source": "npc",
@@ -2250,5 +2221,263 @@
    "coins": 96
   },
   "completion": "She counts them twice, which is how Nessa says thank you."
+ },
+ "q_weave_cloth": {
+  "name": "Order: Bolts of Cloth",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 3,
+  "summary": "Six bolts of plain weave. Wynn's wheel is one wheel and the college orders by the dozen.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 6 bolts of cloth",
+    "type": "deliver",
+    "target": "bolt_cloth",
+    "to": "npc_wynn",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 420
+   },
+   "coins": 67
+  },
+  "completion": "She stacks them by the door for the Fernhollow cart.",
+  "req": {
+   "Crafting": 3
+  }
+ },
+ "q_weave_homespun_hat": {
+  "name": "Order: Homespun Hats",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 1,
+  "summary": "Two homespun hats, brim and cone both. Every apprentice arrives without one and leaves with two.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 homespun hats",
+    "type": "deliver",
+    "target": "wood_robe_head",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 480
+   },
+   "coins": 32
+  },
+  "completion": "Wynn turns one on her fist, pinches the brim straight, and pays."
+ },
+ "q_weave_homespun_robe": {
+  "name": "Order: Homespun Robes",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 4,
+  "summary": "Two homespun robes for the college's first-years, cut long and sewn plain.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 homespun robes",
+    "type": "deliver",
+    "target": "wood_robe_body",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 700
+   },
+   "coins": 73
+  },
+  "completion": "They go on the rail with the others, tagged in her own hand.",
+  "req": {
+   "Crafting": 4
+  }
+ },
+ "q_weave_novice_skirt": {
+  "name": "Order: Novice Skirts",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 3,
+  "summary": "Two novice skirts, dyed and hemmed, for whoever is going up to Fernhollow this season.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 novice skirts",
+    "type": "deliver",
+    "target": "bronze_robe_legs",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 900
+   },
+   "coins": 96
+  },
+  "completion": "She checks the hem against her arm, which is how she measures everything.",
+  "req": {
+   "Crafting": 3
+  }
+ },
+ "q_weave_novice_robe": {
+  "name": "Order: Novice Robes",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 4,
+  "summary": "Two novice robes. The dye is the hard part and the dye is why she pays for them.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 novice robes",
+    "type": "deliver",
+    "target": "bronze_robe_body",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 1200
+   },
+   "coins": 147
+  },
+  "completion": "Wynn holds one to the light to see whether the colour took evenly. It did.",
+  "req": {
+   "Crafting": 4
+  }
+ },
+ "q_weave_apprentice_hat": {
+  "name": "Order: Apprentice's Hats",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 10,
+  "summary": "Two apprentice's hats, stiffened and banded. The college will not have a soft brim.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 apprentice's hats",
+    "type": "deliver",
+    "target": "iron_robe_head",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 2000
+   },
+   "coins": 192
+  },
+  "completion": "She sets them on the shelf where the college's order goes.",
+  "req": {
+   "Crafting": 10
+  }
+ },
+ "q_weave_apprentice_robe": {
+  "name": "Order: Apprentice's Robes",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 10,
+  "summary": "An apprentice's robe, mantled and trimmed. It takes her a day and she has three days of other work.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 apprentice's robe",
+    "type": "deliver",
+    "target": "iron_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 2600
+   },
+   "coins": 220
+  },
+  "completion": "She writes a name on a tag and ties it to the collar.",
+  "req": {
+   "Crafting": 10
+  }
+ },
+ "q_weave_journeyman_robe": {
+  "name": "Order: Journeyman's Robes",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 20,
+  "summary": "A journeyman's robe. Somebody at the college has been promoted and wants it by Whitsun.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 journeyman's robe",
+    "type": "deliver",
+    "target": "steel_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 4000
+   },
+   "coins": 662
+  },
+  "completion": "Wynn says the college pays late and orders often, and she is not complaining.",
+  "req": {
+   "Crafting": 20
+  }
+ },
+ "q_weave_adept_robe": {
+  "name": "Order: Adept's Robes",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 30,
+  "summary": "An adept's robe, blue-dyed and silk-sewn. There are two people in the Hollowmarch who can make one.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 adept's robe",
+    "type": "deliver",
+    "target": "azuryte_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 5600
+   },
+   "coins": 1472
+  },
+  "completion": "She looks along every seam, finds nothing, and says so, which from Wynn is a speech.",
+  "req": {
+   "Crafting": 30
+  }
  }
 }

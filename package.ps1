@@ -102,6 +102,20 @@ controller. On a Steam Deck put the map somewhere other than Guide, which is
 Steam's. The quest you are following is pointed at -- a gold arrow, a mark on
 the minimap and the map -- and the journal (P) chooses which quest that is.
 
+A fire opens a cooking menu now: plain food, and dishes that sit with you
+for twenty minutes and lift your health, mana, breath or one way of fighting.
+One dish at a time. The farm on the east side of Havenbrook has hens, pigs,
+sheep and cows to make them out of, and Wynn at Mossvale weaves the mage's
+robes and hats and pays for them.
+
+There are ducks and geese on the pond at Fernhollow. They walk the bank,
+wade in when they feel like it and paddle about, and come out again; nothing
+else in the game can get into water at all.
+
+Wynn's shed at Mossvale has a loom in it, which is a station of its own:
+all cloth is woven there now, and so is every piece of the mage's robe sets.
+The bench she used to work at was a carpenter's.
+
 Nessa's tannery, in the south-west of Havenbrook, has a bench and an order
 book: three orders a day for things you make rather than things you find,
 which is how Crafting is trained. A monster's level is now what it fights

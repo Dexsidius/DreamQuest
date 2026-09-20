@@ -57,6 +57,7 @@ bool EnemyDatabase::Load(const string& path) {
         d.kill_target     = o.value("kill_target", d.id);
         d.scale           = o.value("scale", 1.0f);
         d.is_boss         = o.value("boss", false);
+        d.swims           = o.value("swims", false);
         d.element         = ElementFromName(o.value("element", string("none")));
         if (o.contains("tint") && o["tint"].is_array() && o["tint"].size() >= 3)
             d.tint = {static_cast<Uint8>(o["tint"][0].get<int>()),
@@ -404,7 +405,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     // bar promised.
     if (state == State::Heavy) { knock_x *= 0.2f; knock_y *= 0.2f; }
     if (fabsf(knock_x) > 1.0f || fabsf(knock_y) > 1.0f) {
-        const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), knock_x * dt, knock_y * dt);
+        const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), knock_x * dt, knock_y * dt,
+                                                        def->swims);
         x = p.x - foot_box.x;
         y = p.y - foot_box.y;
         const float decay = std::max(0.0f, 1.0f - 10.0f * dt);
@@ -423,6 +425,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             break;
 
         case State::Idle: {
+            // Waterfowl keep their own counsel: see Enemy::Paddle.
+            if (def->swims) {
+                Paddle(world, ctx, dt, move_x, move_y);
+                if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
+                break;
+            }
             // Drift around the post so a field of monsters is not a still life.
             wander_timer -= dt;
             if (wander_timer <= 0.0f) {
@@ -588,7 +596,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
         if (fabsf(fx) > fabsf(fy)) facing = (fx > 0) ? FACE_RIGHT : FACE_LEFT;
         else                       facing = (fy > 0) ? FACE_DOWN  : FACE_UP;
 
-        const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), move_x * dt, move_y * dt);
+        const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), move_x * dt, move_y * dt,
+                                                        def->swims);
         x = p.x - foot_box.x;
         y = p.y - foot_box.y;
         // Every stride toward them is counted, and giving ground in a fight is
@@ -602,13 +611,121 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
         else                       facing = (dy > 0) ? FACE_DOWN  : FACE_UP;
     }
 
+    // Asked here, after the step has been taken and whatever the state: the
+    // frame a bird leaves the pond is the frame it stops being drawn sitting
+    // on it, and a duck someone has taken a swing at comes out in a chase,
+    // which is not a state that paddles. Paddle() reads last frame's answer,
+    // which is what it wants anyway -- it decides before it moves.
+    if (def->swims) afloat = world.map.InWater(x, y);
+
     if (state == State::Idle || state == State::Chase || state == State::Return) {
         const bool moving = (fabsf(move_x) + fabsf(move_y)) > 1.0f;
         sprite.Play(moving ? "walk" : "idle");
+        // Sitting on the water is its own picture: legs gone, body low. A
+        // swimmer whose rig has no such clip simply walks, so this is safe to
+        // ask of anything.
+        if (afloat && sprite.Def() && sprite.Def()->Find("swim")) sprite.Play("swim");
     }
 
     sprite.facing = facing;
     sprite.Update(dt);
+}
+
+// --- waterfowl ---------------------------------------------------------------
+// Somewhere to be, wet or dry. Tried as a handful of points on a ring round
+// home rather than a search: a duck does not need the nearest water, only some
+// water, and eight guesses find it on any bank worth putting ducks on.
+bool Enemy::PickHaunt(World& world, const GameContext& ctx, bool wet) {
+    const auto roll = [&](int n) {
+        return ctx.rng ? static_cast<int>((*ctx.rng)() % static_cast<unsigned>(n)) : rand() % n;
+    };
+    const float reach = std::max(48.0f, leash);
+    for (int tries = 0; tries < 10; ++tries) {
+        const float angle = roll(628) / 100.0f;
+        const float dist = reach * (0.25f + roll(100) / 133.0f);
+        const float tx = home_x + cosf(angle) * dist;
+        const float ty = home_y + sinf(angle) * dist;
+        if (world.map.InWater(tx, ty) != wet) continue;
+        // Somewhere it could actually be: the foot box has to fit, with the
+        // water let through only because this one swims.
+        SDL_FRect box = foot_box;
+        box.x += tx;
+        box.y += ty;
+        if (world.map.Blocked(box, true)) continue;
+        goal_x = tx;
+        goal_y = ty;
+        goal_wet = wet;
+        has_goal = true;
+        return true;
+    }
+    return false;
+}
+
+void Enemy::Paddle(World& world, const GameContext& ctx, float dt,
+                   float& move_x, float& move_y) {
+    const auto roll = [&](int n) {
+        return ctx.rng ? static_cast<int>((*ctx.rng)() % static_cast<unsigned>(n)) : rand() % n;
+    };
+    goal_timer -= dt;
+
+    // Time to think of somewhere else. Where it goes next is mostly the other
+    // element: a bird on the bank is likely to get in, and one on the water is
+    // likely to come out, so over a minute it does both without being told to.
+    if (!has_goal && goal_timer <= 0.0f) {
+        // On the water it usually comes out; on the bank it is a toss-up. Over
+        // a minute that is a bird that goes in and comes out again without
+        // anybody scripting a path for it.
+        const bool want_wet = afloat ? (roll(3) == 0) : (roll(2) == 0);
+        if (!PickHaunt(world, ctx, want_wet)) PickHaunt(world, ctx, !want_wet);
+        if (!has_goal) goal_timer = 2.0f;     // no pond here; stand about
+        goal_dist = 1e9f;
+        stuck_for = 0.0f;
+    }
+
+    if (has_goal) {
+        const float dx = goal_x - x, dy = goal_y - y;
+        const float d = Length(dx, dy);
+        if (d < 9.0f) {
+            has_goal = false;
+            // Longer on the water than on the bank: swimming is what it came
+            // for, and a duck that touched the pond and left again would look
+            // like it had changed its mind.
+            goal_timer = (goal_wet ? 5.0f : 3.0f) + roll(100) / 25.0f;
+        } else {
+            // Paddling is slower than walking, and a bird heading somewhere
+            // walks rather than ambles.
+            const float pace = def->speed * (afloat ? 0.42f : 0.60f);
+            move_x = dx / d * pace;
+            move_y = dy / d * pace;
+            // Give up on a goal it is not getting closer to. Measured as
+            // progress rather than as time spent, so a long waddle across the
+            // green is not mistaken for a bird leaning on a fence.
+            if (d < goal_dist - 1.0f) { goal_dist = d; stuck_for = 0.0f; }
+            else if ((stuck_for += dt) > 2.5f) {
+                has_goal = false;
+                stuck_for = 0.0f;
+                goal_timer = 1.0f;
+            }
+            return;
+        }
+    }
+
+    // Between somewheres: potter about on the spot.
+    stuck_for = 0.0f;
+    wander_timer -= dt;
+    if (wander_timer <= 0.0f) {
+        wander_timer = 0.9f + roll(100) / 60.0f;
+        if (roll(3) == 0) {
+            const float angle = roll(628) / 100.0f;
+            wander_dx = cosf(angle);
+            wander_dy = sinf(angle);
+        } else {
+            wander_dx = wander_dy = 0.0f;
+        }
+    }
+    const float pace = def->speed * (afloat ? 0.20f : 0.28f);
+    move_x = wander_dx * pace;
+    move_y = wander_dy * pace;
 }
 
 bool Enemy::CorpseGone() const {

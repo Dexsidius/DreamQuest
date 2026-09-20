@@ -3503,5 +3503,115 @@
     "next": "end"
    }
   ]
+ },
+ "wynn_root": {
+  "speaker": "Wynn the Clothier",
+  "text": "Mind the wheel, it bites. Flax, fleece, silk -- I buy all three, and I pay better for what you have already spun, woven or sewn.",
+  "options": [
+   {
+    "text": "How is a robe made?",
+    "next": "wynn_teach"
+   },
+   {
+    "text": "Any orders today?",
+    "next": "end",
+    "action": {
+     "orders": "npc_wynn"
+    }
+   },
+   {
+    "text": "I have an order for you.",
+    "next": "wynn_order_filled",
+    "if": {
+     "order_ready": true
+    },
+    "action": {
+     "hand_in": true
+    }
+   },
+   {
+    "text": "Let me see what is for sale.",
+    "next": "end",
+    "action": {
+     "shop": "mossvale_clothier"
+    }
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "wynn_teach": {
+  "speaker": "Wynn the Clothier",
+  "text": "Cloth first. Flax off the riverbank, three stems to a bolt, or a fleece off the farm at Havenbrook, which gives two -- and spider silk if you are the sort who goes into cellars.\n\nThen the bolt, the thread and a pot of dye make the piece: a hat, a robe, a skirt. The dye is what sets the colour and the tier, and Oona will sell you the first of them.\n\nBring me what you make. I post three orders a day and I pay in coin and in the doing of it.",
+  "options": [
+   {
+    "text": "Let me see the book.",
+    "next": "end",
+    "action": {
+     "orders": "npc_wynn"
+    }
+   },
+   {
+    "text": "I will go and spin, then.",
+    "next": "end"
+   }
+  ]
+ },
+ "wynn_order_filled": {
+  "speaker": "Wynn the Clothier",
+  "text": "That is a straight seam, and I do not say so often.",
+  "options": [
+   {
+    "text": "Anything else needed?",
+    "next": "end",
+    "action": {
+     "orders": "npc_wynn"
+    }
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "marrow_root": {
+  "speaker": "Farmer Marrow",
+  "text": "Mind the gates. Hens in the first pen, pigs in the second, ewes and the herd at the back. If you want meat, milk or a fleece you may take it the honest way, and if you let the pigs out you are getting them back in.",
+  "options": [
+   {
+    "text": "What is worth taking?",
+    "next": "marrow_what"
+   },
+   {
+    "text": "Who eats all this?",
+    "next": "marrow_who"
+   },
+   {
+    "text": "I will leave you to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "marrow_what": {
+  "speaker": "Farmer Marrow",
+  "text": "Hens give eggs, and the bird itself if you are quick. The cows give milk and a good side of beef. The ewes are the ones worth your while twice over -- mutton, and a fleece that Wynn over at Mossvale will spin into cloth for you.\n\nCook it at a fire. Anybody can burn meat; it takes a cook to make a supper that carries you through an afternoon.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "marrow_who": {
+  "speaker": "Farmer Marrow",
+  "text": "The inn, mostly, and the guild when they have people in. The rest goes down the Sunken Road with the carts. It is a small town with a large appetite.",
+  "options": [
+   {
+    "text": "Fair enough.",
+    "next": "end"
+   }
+  ]
  }
 }

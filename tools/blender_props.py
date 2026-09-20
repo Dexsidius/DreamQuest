@@ -1216,6 +1216,72 @@ def prop_spinning_wheel():
     return 1.6
 
 
+def prop_loom():
+    """A four-post floor loom: the warp beam at the back, the cloth beam at the
+    front with a finished length wound on it, the warp stretched between them
+    under the beater, a shuttle sat in the shed and a bench to sit at.
+
+    The thing that has to read at eighty pixels is the *sheet* -- a pale plane
+    of threads lying flat between two dark beams. A loom drawn as a frame with
+    nothing in it is a gate. So the warp is laid as one pale slab with the
+    individual threads scored into it, which survives the downscale where
+    forty separate cylinders would turn to mush."""
+    # The frame: four posts and the rails that tie them.
+    for i, (x, y) in enumerate(((-0.70, -0.62), (0.70, -0.62), (-0.70, 0.62), (0.70, 0.62))):
+        blk("post_%d" % i, (0.11, 0.11, 1.44), (x, y, 0.72), "oak")
+        blk("post_cap_%d" % i, (0.15, 0.15, 0.07), (x, y, 1.47), "oak_light")
+    for y in (-0.62, 0.62):
+        blk("rail_%s" % y, (1.52, 0.08, 0.09), (0, y, 0.30), "oak")
+    # The two beams. The cloth beam is at the front, with the woven length
+    # already rolled onto it -- that roll is what says a loom and not a frame.
+    cyl("warp_beam", 0.13, 1.44, (0, 0.58, 1.02), "oak", rot=(0, math.radians(90), 0), verts=12)
+    cyl("cloth_beam", 0.11, 1.44, (0, -0.58, 0.84), "oak", rot=(0, math.radians(90), 0), verts=12)
+    # The roll is the loom's whole front face from this camera, so it is linen
+    # and not dyed: a blue one that size reads as a blanket over a bed.
+    cyl("cloth_roll", 0.12, 1.28, (0, -0.60, 0.84), "cloth_cream", rot=(0, math.radians(90), 0),
+        verts=14, rough=0.95)
+    # The bed of the loom, and the whole of the read at eighty pixels: a pale
+    # plane of threads with a hand's width of finished cloth at the near edge.
+    # Weight it the other way and it is a bed with a blanket on it -- what says
+    # loom is the threads, so the threads get the room.
+    blk("warp", (1.28, 0.94, 0.03), (0, 0.14, 0.955), "cloth_cream", rough=0.95, bev=0,
+        rot=(math.radians(-6), 0, 0))
+    for i in range(9):
+        blk("thread_%d" % i, (0.045, 0.92, 0.05), (-0.56 + i * 0.14, 0.14, 0.972), "oak_pale",
+            rough=0.95, bev=0, rot=(math.radians(-6), 0, 0))
+    blk("web", (1.26, 0.28, 0.035), (0, -0.46, 0.915), "cloth_blue", rough=0.95, bev=0,
+        rot=(math.radians(6), 0, 0))
+    # The fell: the line where the last pick was beaten in.
+    blk("fell", (1.28, 0.05, 0.055), (0, -0.32, 0.945), "oak", rough=0.9, bev=0)
+    # The beater, hung from the top: the comb the weaver pulls towards them.
+    blk("beater_bar", (1.40, 0.10, 0.10), (0, 0.06, 1.28), "oak_light")
+    blk("beater_frame", (1.34, 0.07, 0.34), (0, 0.06, 1.10), "oak")
+    for i in range(7):
+        blk("reed_%d" % i, (0.025, 0.05, 0.26), (-0.54 + i * 0.18, 0.06, 1.10), "oak_pale", bev=0)
+    for sx in (-1, 1):
+        blk("beater_arm", (0.06, 0.06, 0.30), (sx * 0.66, 0.06, 1.34), "oak")
+    # The heddles: two shafts on cords, one lifted, which is what opens the shed.
+    for i, (y, z) in enumerate(((0.26, 1.18), (0.40, 1.24))):
+        blk("shaft_%d" % i, (1.30, 0.05, 0.06), (0, y, z), "oak_light")
+        for sx in (-1, 1):
+            blk("cord_%d_%d" % (i, sx), (0.02, 0.02, 0.24), (sx * 0.58, y, z + 0.16), "straw", bev=0)
+    # The shuttle sat in the shed, a spool of weft on it, and the spare yarn.
+    blk("shuttle", (0.34, 0.09, 0.06), (0.24, -0.16, 0.99), "oak_light", bev=0.02,
+        rot=(0, 0, math.radians(-4)))
+    cyl("shuttle_spool", 0.05, 0.22, (0.24, -0.16, 1.03), "cloth_blue",
+        rot=(0, math.radians(90), 0), verts=10, rough=0.95)
+    sphere("yarn", 0.13, (-0.86, -0.34, 0.14), "cloth_red", rough=0.95)
+    sphere("yarn_b", 0.11, (-0.80, -0.06, 0.12), "cloth_blue", rough=0.95)
+    # The treadles underfoot and the bench to sit at.
+    for i, x in enumerate((-0.26, 0.26)):
+        blk("treadle_%d" % i, (0.22, 0.60, 0.05), (x, -0.06, 0.16), "oak",
+            rot=(math.radians(6), 0, 0))
+    blk("bench", (1.10, 0.28, 0.07), (0, -1.04, 0.52), "oak_light")
+    for i, x in enumerate((-0.44, 0.44)):
+        blk("bench_leg_%d" % i, (0.08, 0.08, 0.50), (x, -1.04, 0.26), "oak")
+    return 2.6
+
+
 def prop_writing_desk():
     """An old woman's desk: an open book, a stack of scrolls, a candle and an
     inkwell with a quill in it."""
@@ -1726,6 +1792,7 @@ ROOM_PROPS = {
     "room_door":         (prop_room_door,         56),
     "cottage_hearth":    (prop_cottage_hearth,    80),
     "spinning_wheel":    (prop_spinning_wheel,    56),
+    "loom":              (prop_loom,              80),
     "writing_desk":      (prop_writing_desk,      64),
     "cottage_bookshelf": (prop_cottage_bookshelf, 64),
     "dining_table":      (prop_dining_table,      56),
@@ -2008,6 +2075,17 @@ def prop_dream_ladder_up():
     return 3.3
 
 
+def prop_fence_post():
+    """One post of a split-rail fence with the rail ends coming off it north and
+    south: what a rail fence looks like end-on, for the sides of a pen."""
+    blk("post", (0.14, 0.14, 1.05), (0, 0, 0.52), "log_dk", bev=0.02)
+    blk("cap", (0.18, 0.18, 0.07), (0, 0, 1.06), "log", bev=0.02)
+    for z in (0.44, 0.78):
+        for sy in (-1, 1):
+            blk("rail_%d_%.2f" % (sy, z), (0.10, 0.44, 0.09), (0, sy * 0.30, z), "log", bev=0.02)
+    return 1.9
+
+
 def prop_log_pile():
     """Split firewood stacked with its end grain toward the path, and an axe
     leaning on it. Woodcutting country."""
@@ -2240,6 +2318,7 @@ WOODLAND_PROPS = {
     "market_stall": (prop_market_stall, 80),
     "palisade":     (prop_palisade,     64),
     "gate_tower":   (prop_gate_tower,   104),
+    "fence_post":   (prop_fence_post,   56),
     "dream_ladder_down": (prop_dream_ladder_down, 80),
     "dream_ladder_up":   (prop_dream_ladder_up,   104),
     "palisade_side": (prop_palisade_side, 64),
