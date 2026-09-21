@@ -24,6 +24,11 @@
 #    gust(_greater)         lines of moving air that curl over at the front; the
 #                           greater one has an edge on it
 #    glow                   a soft round light, added under what burns
+#    acid_glob, acid_wake   the Acid Spray's gouts: the water orb and its wake, in green
+#    blood_orb, blood_wake  the Vampiric Touch: the same, in red
+#    frost_shard            the Ice Touch: the stone shard, cut in ice
+#    throwing_knife         a knife going end over end
+#    air_slash              the Air Slash: the greater gust's edge, with nothing behind it
 #
 #  Flame, the wake and the gust are fields and not drawings: a number is worked
 #  out for every pixel -- how hot, how wet -- and cut into four or five flat
@@ -206,10 +211,17 @@ public static class Fx
     // ------------------------------------------------------------------ water
     public static Bitmap[] WaterWake(int w, int h, double hx, double hy, double R, int frames, int seed)
     {
-        double[] stops = { 0.80, 0.52, 0.30, 0.16 };
         Color[] cols = {
             Color.FromArgb(255, 214, 242, 255), Color.FromArgb(240, 120, 190, 246),
             Color.FromArgb(235, 66, 138, 224),  Color.FromArgb(235, 38, 92, 178) };
+        return Wake(w, h, hx, hy, R, frames, seed, cols, Color.FromArgb(200, 22, 56, 120));
+    }
+
+    // The same, of anything that runs: `cols` is four, brightest first.
+    public static Bitmap[] Wake(int w, int h, double hx, double hy, double R, int frames, int seed,
+                                Color[] cols, Color outline)
+    {
+        double[] stops = { 0.80, 0.52, 0.30, 0.16 };
         Bitmap[] outp = new Bitmap[frames];
         for (int f = 0; f < frames; ++f) {
             Bitmap b = Blank(w, h);
@@ -220,7 +232,7 @@ public static class Fx
                     if (c.A > 0) b.SetPixel(x, y, c);
                 }
             Despeckle(b);
-            Outline(b, Color.FromArgb(200, 22, 56, 120));
+            Outline(b, outline);
             outp[f] = b;
         }
         return outp;
@@ -230,11 +242,17 @@ public static class Fx
     // light comes from and the light it has gathered on the side it leaves by.
     public static Bitmap[] WaterOrb(int size, double R, int frames, int seed)
     {
-        Color rim    = Color.FromArgb(255, 24, 62, 138);
-        Color deep   = Color.FromArgb(232, 44, 106, 200);
-        Color mid    = Color.FromArgb(228, 70, 148, 234);
-        Color light  = Color.FromArgb(240, 140, 208, 252);
-        Color bright = Color.FromArgb(255, 208, 240, 255);
+        Color[] water = {
+            Color.FromArgb(255, 24, 62, 138),   Color.FromArgb(232, 44, 106, 200), Color.FromArgb(228, 70, 148, 234),
+            Color.FromArgb(240, 140, 208, 252), Color.FromArgb(255, 208, 240, 255) };
+        return Orb(size, R, frames, seed, water);
+    }
+
+    // The same, of anything that holds together in a ball: `pal` is rim, deep,
+    // mid, light and bright.
+    public static Bitmap[] Orb(int size, double R, int frames, int seed, Color[] pal)
+    {
+        Color rim = pal[0], deep = pal[1], mid = pal[2], light = pal[3], bright = pal[4];
         Color white  = Color.FromArgb(255, 255, 255, 255);
         double c0 = size / 2.0;
         Bitmap[] outp = new Bitmap[frames];
@@ -293,6 +311,16 @@ public static class Fx
     // and lit afresh each time from the top-left.
     public static Bitmap[] Rock(int size, double R, int frames, int seed)
     {
+        Color[] stone = {
+            Color.FromArgb(255, 226, 204, 160), Color.FromArgb(255, 186, 156, 108),
+            Color.FromArgb(255, 140, 110, 74),  Color.FromArgb(255, 96, 72, 50) };
+        return Shard(size, R, frames, seed, stone, Color.FromArgb(255, 74, 56, 40), Color.FromArgb(255, 46, 32, 24));
+    }
+
+    // The same cut in anything: `tones` is four, from the face that has the
+    // light to the one that has none.
+    public static Bitmap[] Shard(int size, double R, int frames, int seed, Color[] tones, Color fleck, Color outline)
+    {
         const int K = 7;
         double[] lx = new double[K], ly = new double[K];
         for (int i = 0; i < K; ++i) {
@@ -304,10 +332,6 @@ public static class Fx
             ly[i] = Math.Sin(ang) * rad * 0.82;
         }
         double apx = R * 0.16, apy = -R * 0.12;
-        Color[] tones = {
-            Color.FromArgb(255, 226, 204, 160), Color.FromArgb(255, 186, 156, 108),
-            Color.FromArgb(255, 140, 110, 74),  Color.FromArgb(255, 96, 72, 50) };
-        Color fleck = Color.FromArgb(255, 74, 56, 40);
         double c0 = size / 2.0;
         Bitmap[] outp = new Bitmap[frames];
         for (int f = 0; f < frames; ++f) {
@@ -339,7 +363,7 @@ public static class Fx
                     b.GetPixel(qx, qy + 1).A > 0 && b.GetPixel(qx, qy - 1).A > 0)
                     b.SetPixel(qx, qy, fleck);
             }
-            Outline(b, Color.FromArgb(255, 46, 32, 24));
+            Outline(b, outline);
             outp[f] = b;
         }
         return outp;
@@ -437,6 +461,33 @@ public static class Fx
         return outp;
     }
 
+    // An edge of air and nothing else: the greater gust's crescent, on its own.
+    public static Bitmap[] Slash(int w, int h, double[] blade, int frames)
+    {
+        return Gust(w, h, new double[0][], blade, frames);
+    }
+
+    // A knife, end over end: a bright blade and a dark grip, a step of the turn a frame.
+    public static Bitmap[] Knife(int size, int frames)
+    {
+        Color blade = Color.FromArgb(255, 232, 238, 248), spine = Color.FromArgb(255, 150, 160, 184);
+        Color grip = Color.FromArgb(255, 96, 66, 44), rim = Color.FromArgb(230, 34, 30, 40);
+        double c0 = size / 2.0;
+        Bitmap[] outp = new Bitmap[frames];
+        for (int f = 0; f < frames; ++f) {
+            double a = f * 2 * Math.PI / frames, ca = Math.Cos(a), sa = Math.Sin(a);
+            Bitmap b = Blank(size, size);
+            for (double d = -4.5; d <= 4.5; d += 0.25) {
+                int x = (int)Math.Floor(c0 + ca * d), y = (int)Math.Floor(c0 + sa * d);
+                if (x < 0 || y < 0 || x >= size || y >= size) continue;
+                b.SetPixel(x, y, d < -1.5 ? grip : d > 3.0 ? blade : (d > 0.5 ? blade : spine));
+            }
+            Outline(b, rim);
+            outp[f] = b;
+        }
+        return outp;
+    }
+
     // ------------------------------------------------------------------- glow
     public static Bitmap Glow(int size)
     {
@@ -497,6 +548,25 @@ $gale = @(
     ,[double[]]@(4, 25, 23.5, 1, 3.6, 2.6)
 )
 Save-Strip "gust_greater" ([Fx]::Gust(52, 34, [double[][]]$gale, [double[]]@(32.0, 17.0, 16.0, 4.6), $N)) 38 17
+
+# --- the ancient spells that are not violet: the same shapes in other stuff
+function Argb($a, $r, $g, $b) { return [System.Drawing.Color]::FromArgb($a, $r, $g, $b) }
+$acid  = [System.Drawing.Color[]]@((Argb 255 34 84 22), (Argb 232 66 140 40), (Argb 228 116 196 60), (Argb 240 178 232 110), (Argb 255 226 250 170))
+$acidW = [System.Drawing.Color[]]@((Argb 255 226 250 170), (Argb 240 160 222 90), (Argb 235 100 176 52), (Argb 235 54 116 30))
+Save-Strip "acid_glob" ([Fx]::Orb(14, 5.6, $N, 7, $acid)) 7 7
+Save-Strip "acid_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 5.6, $N, 53, $acidW, (Argb 200 26 64 18))) 18 6
+
+$blood  = [System.Drawing.Color[]]@((Argb 255 84 12 22), (Argb 236 140 22 36), (Argb 232 196 40 52), (Argb 240 236 96 96), (Argb 255 255 190 180))
+$bloodW = [System.Drawing.Color[]]@((Argb 255 255 190 180), (Argb 240 226 80 84), (Argb 235 170 30 44), (Argb 235 104 14 28))
+Save-Strip "blood_orb"  ([Fx]::Orb(16, 6.4, $N, 9, $blood)) 8 8
+Save-Strip "blood_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 59, $bloodW, (Argb 200 64 8 18))) 18 6
+
+$ice = [System.Drawing.Color[]]@((Argb 255 244 252 255), (Argb 255 190 230 252), (Argb 250 128 186 236), (Argb 250 78 130 204))
+Save-Strip "frost_shard" ([Fx]::Shard(20, 6.6, $N, 47, $ice, (Argb 255 255 255 255), (Argb 255 40 72 130))) 10 10
+
+# --- what the armoury throws, and the air's third spell
+Save-Strip "throwing_knife" ([Fx]::Knife(12, $N)) 6 6
+Save-Strip "air_slash" ([Fx]::Slash(24, 40, [double[]]@(4.0, 20.0, 18.0, 5.0), $N)) 16 20
 
 $glow = [Fx]::Glow(32)
 $glow.Save((Join-Path $out "glow.png"), [System.Drawing.Imaging.ImageFormat]::Png)

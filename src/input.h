@@ -7,7 +7,15 @@
 enum class Action {
     MoveUp, MoveDown, MoveLeft, MoveRight,
     LightAttack, StrongAttack, Interact, Jump, Sprint, Target, Block,
+    // Held, it turns light, heavy and lock on into the three abilities carried.
+    // It was the guard button that did that, on a pad as on the keys -- and on
+    // a pad the guard is B and the light attack X, which is one thumb asked to
+    // be in two places. A pad has it on RB; the keys keep the guard for it (H
+    // and J are two fingers) and have a key of their own besides.
+    Ability,
     Inventory, QuestLog, Skills, WorldMap, Pause,
+    // The way to everything else: inventory, skills, spellbook, journal, map.
+    Menu,
     SelectFire, SelectWater, SelectEarth, SelectAir, SelectArcane, CycleSpell,
     // Drops what the bag's cursor is on. Read only by the inventory panel.
     Drop,
@@ -44,6 +52,8 @@ static constexpr int PAD_RIGHT_TRIGGER = 1001;
 //  and the prompt under every menu moves with it.
 // -----------------------------------------------------------------------------
 struct Bindings {
+    // Which set of defaults a saved layout was made over: see FromJson.
+    static constexpr int LAYOUT = 2;
     std::map<Action, SDL_Keycode> keys;
     std::map<Action, int>         buttons;
 
@@ -82,6 +92,14 @@ public:
     void Update(float dt);
 
     bool  Down(Action a) const     { return Src().state[Index(a)].down; }
+    // The shift that turns the attack buttons into abilities and Interact into
+    // "eat what is to hand": RB on a pad, the guard (or the abilities' own key)
+    // on the keys. See Action::Ability.
+    bool  ShiftDown() const {
+        return Down(Action::Ability) || (ActiveDevice() != InputMode::Controller && Down(Action::Block));
+    }
+    // What to call it in a prompt.
+    Action ShiftAction() const { return ActiveDevice() == InputMode::Controller ? Action::Ability : Action::Block; }
     bool  Pressed(Action a) const  { return Src().state[Index(a)].pressed; }
     bool  Released(Action a) const { return Src().state[Index(a)].released; }
     float HeldFor(Action a) const  { return Src().state[Index(a)].held_time; }

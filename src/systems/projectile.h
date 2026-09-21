@@ -1,6 +1,8 @@
 #pragma once
 #include "../headers.h"
 #include "combat.h"
+#include "element.h"
+#include "status.h"
 
 class TextureCache;
 class Camera;
@@ -17,26 +19,6 @@ class Camera;
 //  frames and not a still -- a fireball's flames stream, a gust's lines run --
 //  and sheds things as it flies: see Mote, below.
 // -----------------------------------------------------------------------------
-
-// Arcane is the ancient magic's school, taught at the college in Fernhollow:
-// outside the four elements' cycle, so it neither beats nor is beaten by any
-// of them, and untyped creatures take it as they take anything.
-enum class Element { None = 0, Fire, Water, Earth, Air, Arcane, COUNT };
-
-const char* ElementName(Element e);
-Element     ElementFromName(const string& name);
-SDL_Color   ElementColor(Element e);
-
-// The cycle is Water over Fire over Earth over Air over Water: water douses
-// fire, fire scorches earth, earth smothers air, air disperses water.
-Element ElementBeats(Element e);
-
-// Damage multiplier for attacker's element against defender's.
-//   1.60  the attacker's element beats the defender's
-//   0.60  the defender's element beats the attacker's
-//   0.75  same element, which resists itself
-//   1.00  anything else, including untyped
-float ElementMultiplier(Element attacker, Element defender);
 
 struct ProjectileDef {
     string id;
@@ -75,6 +57,19 @@ struct ProjectileDef {
     // chips of stone, streaks of air. Its own element's, unless "trail" says
     // otherwise; "none" sheds nothing.
     Element shed = Element::None;
+    // The colour of the sparks an ancient spell sheds: acid is not violet.
+    // Alpha nothing for the school's own.
+    SDL_Color shed_color{0, 0, 0, 0};
+
+    // --- what it can leave on what it strikes -----------------------------------
+    // A status, some of the time: see systems/status.h. What it leaves on the
+    // ground -- a fire's burning patch, a stone's eruption -- carries the same.
+    StatusProc status;
+    // This share of the damage it does comes back to whoever threw it, as
+    // health: the Vampiric Touch.
+    float leech = 0.0f;
+    // The share of a target's Defence it goes past: a crossbow's bolt.
+    float armour_pierce = 0.0f;
 
     int   pierce    = 0;        // extra targets it passes through
     float knockback = 40.0f;
@@ -226,6 +221,26 @@ struct GroundEffect {
     AttackStyle style = AttackStyle::Magic;
     float hit_mult = -1.0f;
     float knockback = 8.0f;
+    // What standing in it can leave on a monster: see ProjectileDef::status.
+    StatusProc status;
+    // --- the elements' bigger spells -----------------------------------------------
+    // A whirlpool drags what is in it toward its middle, this many pixels a
+    // second. A tornado and the turbulence throw what they catch, each tick,
+    // in whatever direction the dice say, this hard at most -- and what is
+    // thrown is hurt by how hard: `fling_hurt` is the damage multiplier for a
+    // throw of a hundred. A tornado walks: (drift_x, drift_y), a second. And
+    // the turbulence is the caster's own weather: it goes where they go.
+    float pull = 0.0f;
+    float fling = 0.0f, fling_hurt = 0.0f;
+    float drift_x = 0.0f, drift_y = 0.0f;
+    bool  follows = false;
+    // How it is drawn, where a disc of its colour is not it.
+    enum class Draw : uint8_t { Disc = 0, Rain = 1, Whirlpool = 2, Tornado = 3, Turbulence = 4 };
+    Draw draw = Draw::Disc;
+    // What it looks like, where that is not what it is: a Hellish Rebuke is
+    // the ancient magic's and is drawn as the fire it is. None for its own.
+    Element look = Element::None;
+    Element Look() const { return look != Element::None ? look : element; }
     float stagger = 0.0f;        // seconds each tick staggers what it cuts: caltrops
     bool  once = false;          // a snare: it takes the first thing to step in it, and is sprung
     bool  sure_crit = false;     // loosed with Take Aim

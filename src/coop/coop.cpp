@@ -1093,6 +1093,7 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             es.bits = static_cast<uint8_t>((told.facing & 3) | ((told.state & 7) << 2) | (told.hurt ? 32 : 0) | (told.bar ? 64 : 0));
             es.clip = ClipIndex(e.sprite.Def(), told.clip);
             es.frame = told.frame; es.heavy = told.heavy; es.alpha = told.alpha;
+            es.statuses = told.statuses;
             es.hp = static_cast<uint16_t>(std::clamp(told.hp, 0, 65535));
             snap.enemies.push_back(es);
         }
@@ -1109,12 +1110,13 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             net::PatchState ps;
             ps.x = Px(g.x); ps.y = Px(g.y);
             ps.radius = static_cast<uint16_t>(std::clamp(g.radius, 0.0f, 65535.0f));
-            ps.element = static_cast<uint8_t>(g.element);
+            ps.element = static_cast<uint8_t>(g.Look());
             ps.life = static_cast<uint8_t>(std::clamp(g.life * 10.0f, 0.0f, 255.0f));
             ps.max_life = static_cast<uint8_t>(std::clamp(g.max_life * 10.0f, 0.0f, 255.0f));
             ps.active = g.Active();
             ps.from_player = g.from_player;
-            ps.kind = g.rain ? 1 : 0;
+            // What kind of ground it is, for the drawing: see GroundEffect::Draw.
+            ps.kind = g.rain ? 1 : static_cast<uint8_t>(g.draw);
             snap.patches.push_back(ps);
         }
         server.SendToSeat(seat_no, net::Channel::Unreliable, net::Encode(snap));
@@ -1478,6 +1480,7 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         g.delay = ps.active ? 0.0f : 0.1f;
         g.from_player = ps.from_player;
         g.rain = ps.kind == 1;
+        g.draw = static_cast<GroundEffect::Draw>(std::min<uint8_t>(ps.kind, static_cast<uint8_t>(GroundEffect::Draw::Turbulence)));
         world.ground_effects.push_back(g);
     }
 }
@@ -1580,6 +1583,7 @@ void Guest::PoseBeasts(float dt, World& world) {
         p.hurt = (a.bits & 32) != 0;
         p.bar = (a.bits & 64) != 0;
         p.frame = a.frame; p.heavy = a.heavy; p.alpha = a.alpha;
+        p.statuses = a.statuses;
         p.hp = a.hp;
         p.clip = ClipName(e->sprite.Def(), a.clip);
         e->Pose(p);

@@ -58,12 +58,61 @@ bool Player::SpendMana(int cost) {
 }
 
 void Player::CycleElement(int delta) {
+    // An element's own staff steps through its four spells, and then the
+    // ancient magic if there is any on the fifth slot.
+    if (StaffElement() != Element::None) {
+        const int count = 4 + (arcane_spell.empty() ? 0 : 1);
+        int index = selected_element == Element::Arcane ? 4 : spell_slot;
+        index = ((index + delta) % count + count) % count;
+        if (index == 4) selected_element = Element::Arcane;
+        else SelectSlot(index);
+        return;
+    }
     // Elements run Fire, Water, Earth, Air, then the ancient magic if any is
     // known; None is not selectable.
     const int count = static_cast<int>(Element::Arcane) - 1 + (arcane_spell.empty() ? 0 : 1);
     int index = static_cast<int>(selected_element) - 1;
     index = ((index + delta) % count + count) % count;
     selected_element = static_cast<Element>(index + 1);
+}
+
+void Player::CycleElement(int delta, const vector<string>& known) {
+    if (!known.empty() && std::find(known.begin(), known.end(), arcane_spell) == known.end())
+        arcane_spell = known.front();
+    CycleElement(delta);
+}
+
+static int HeldIndex(Element e) {
+    const int i = static_cast<int>(e) - static_cast<int>(Element::Fire);
+    return i >= 0 && i < 4 ? i : -1;
+}
+
+const string& Player::HeldSpell(Element e) const {
+    static const string none;
+    const int i = HeldIndex(e);
+    return i < 0 ? none : held_spell[i];
+}
+
+void Player::HoldSpell(Element e, const string& id) {
+    const int i = HeldIndex(e);
+    if (i >= 0) held_spell[i] = id;
+}
+
+// The spells held to, as a save and a friend's host are told them: only the
+// elements that are held to anything.
+static json HeldToJson(const string held[4]) {
+    json out = json::object();
+    for (int i = 0; i < 4; ++i)
+        if (!held[i].empty()) out[ElementName(static_cast<Element>(i + static_cast<int>(Element::Fire)))] = held[i];
+    return out;
+}
+
+static void HeldFromJson(const json& j, string held[4]) {
+    for (int i = 0; i < 4; ++i) {
+        held[i].clear();
+        const char* name = ElementName(static_cast<Element>(i + static_cast<int>(Element::Fire)));
+        if (j.is_object() && j.contains(name) && j[name].is_string()) held[i] = j[name].get<string>();
+    }
 }
 
 void Player::SelectArcane(const vector<string>& known) {
@@ -77,6 +126,31 @@ void Player::SelectArcane(const vector<string>& known) {
     auto it = std::find(known.begin(), known.end(), arcane_spell);
     const size_t next = (it == known.end()) ? 0 : (static_cast<size_t>(it - known.begin()) + 1) % known.size();
     arcane_spell = known[next];
+}
+
+string Player::ComboLabel(ComboMove move) const {
+    const ItemDef::ComboTwist* t = Twist(move);
+    return t && !t->name.empty() ? t->name : string(ComboNameFor(move, Style()));
+}
+
+const ItemDef::ComboTwist* Player::Twist(ComboMove move) const {
+    const ItemDef* w = equipment.Weapon();
+    const int i = move == ComboMove::Crush ? 0 : move == ComboMove::Cleave ? 1 : move == ComboMove::Backhand ? 2
+                : move == ComboMove::CrossCut ? 3 : -1;
+    return (w && i >= 0) ? &w->combos[i] : nullptr;
+}
+
+void Player::StartReload() {
+    const ItemDef* w = equipment.Weapon();
+    if (!w || w->reload <= 0.0f) return;
+    // Quick hands span it quicker: the same talents and the same Rapid Fire
+    // that hurry a bow.
+    reload_time = reload_left = w->reload * std::clamp(WeaponSpeed() / std::max(0.1f, w->attack_speed), 0.4f, 1.5f);
+}
+
+Element Player::StaffElement() const {
+    const ItemDef* w = equipment.Weapon();
+    return (w && w->kind == WeaponKind::Staff) ? w->element : Element::None;
 }
 
 AttackStyle Player::Style() const {
@@ -482,6 +556,16 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     ShapeForWeapon(attack.profile);
     attack.rate    = speed;
     attack.damage_mult = charged ? ChargeMultiplier(ratio) : attack.profile.damage_mult;
+    // A greataxe held and let go is a chop, not a bigger sweep: longer down
+    // the line of it, half as wide, and harder.
+    const ItemDef* held = equipment.Weapon();
+    const bool own_charge = charged && held && !held->charge_clip.empty() && Style() == AttackStyle::Melee;
+    if (own_charge) {
+        attack.profile.reach     *= held->charge_reach;
+        attack.profile.width     *= held->charge_sweep;
+        attack.profile.sweep_deg *= held->charge_sweep;
+        attack.damage_mult       *= held->charge_damage;
+    }
     // A fuller charge also swings wider.
     attack.reach_scale = charged ? (1.0f + 0.35f * ratio) : 1.0f;
     attack.combo    = 0;
@@ -489,7 +573,7 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     attack.consumed = false;
     TurnToTarget(world);
     sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-    sprite.Play(AttackClip(), true);
+    sprite.Play(own_charge && sprite.Def() && sprite.Def()->Find(held->charge_clip) ? held->charge_clip : AttackClip(), true);
     if (Style() == AttackStyle::Melee)
         Audio::Play(Sfx::SwingHeavy, charged ? 1.0f : 0.85f, charged ? 0.85f : 1.0f);
     combo        = 0;
@@ -986,6 +1070,12 @@ void Player::UpdateAnimation(const Vec2& move) {
     }
 
     const float mag = Length(move.x, move.y);
+    // A crossbow being spanned, standing: the nose down and the string hauled back.
+    if (reload_left > 0.0f && mag < 0.05f && sprite.Def() && sprite.Def()->Find("reload")) {
+        sprite.Play("reload");
+        sprite.speed_scale = 1.0f;
+        return;
+    }
     // The work, looped for as long as it goes on. A rig with no clip for it
     // swings its attack over and over instead.
     if (!gather_clip.empty() && mag < 0.05f) {
@@ -1016,6 +1106,13 @@ void Player::UpdateAnimation(const Vec2& move) {
 
 void Player::Update(float dt, World& world, const GameContext& ctx) {
     // What abilities and their passives leave running.
+    since_hurt += dt;
+    if (reload_left > 0.0f) {
+        reload_left = std::max(0.0f, reload_left - dt);
+        // Put down for something else, it is not spanned by the time it is picked up again.
+        const ItemDef* held = equipment.Weapon();
+        if (!held || held->reload <= 0.0f) reload_left = 0.0f;
+    }
     for (float& cd : ability_cd) cd = std::max(0.0f, cd - dt);
     tumble_timer      = std::max(0.0f, tumble_timer - dt);
     war_cry_timer     = std::max(0.0f, war_cry_timer - dt);
@@ -1103,11 +1200,11 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
         blocking = hands.Down(PlayerInput::Block) && CanBlock();
-        // Guard held and an attack button: an ability, if one is carried
-        // there. With a shield up or without one -- the guard button is the
-        // shift key either way -- and the press is the ability's, not a swing.
+        // The abilities' shift held and an attack button: an ability, if one
+        // is carried there, and the press is the ability's, not a swing. The
+        // shift is RB on a pad and the guard on the keys: see Action::Ability.
         PlayerInput for_attacks = hands;
-        if (hands.Down(PlayerInput::Block)) {
+        if (hands.Down(PlayerInput::Ability)) {
             for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
                 const uint8_t button = slot == 0 ? PlayerInput::Light : slot == 1 ? PlayerInput::Strong : PlayerInput::Target;
                 if (!talents.Ability(slot)) continue;
@@ -1499,17 +1596,17 @@ bool Player::EquipFromInventory(int slot, string& why_not) {
     int unseat = SLOT_NONE;
     if (item_db && (def->slot == SLOT_WEAPON || def->slot == SLOT_SHIELD)) {
         const ItemDef* worn_weapon = item_db->Get(equipment.InSlot(SLOT_WEAPON));
-        const bool bow_in   = def->slot == SLOT_WEAPON && def->kind == WeaponKind::Bow;
+        const bool bow_in   = def->slot == SLOT_WEAPON && def->two_handed;
         const bool shield_in = def->slot == SLOT_SHIELD;
         const int  clash = (bow_in && !equipment.InSlot(SLOT_SHIELD).empty()) ? SLOT_SHIELD
-                         : (shield_in && worn_weapon && worn_weapon->kind == WeaponKind::Bow)
+                         : (shield_in && worn_weapon && worn_weapon->two_handed)
                                ? SLOT_WEAPON : SLOT_NONE;
         if (clash != SLOT_NONE) {
             const int freed = (stack.qty == 1) ? 1 : 0;
             const int needed = 1 + (equipment.InSlot(def->slot).empty() ? 0 : 1);
             if (inventory.FreeSlots() + freed < needed) {
-                why_not = clash == SLOT_SHIELD ? "A bow needs both hands, and your pack has no room for the shield."
-                                               : "A shield needs a free hand, and your pack has no room for the bow.";
+                why_not = clash == SLOT_SHIELD ? "That needs both hands, and your pack has no room for the shield."
+                                               : "A shield needs a free hand, and your pack has no room for what you are holding.";
                 return false;
             }
             unseat = clash;
@@ -1584,6 +1681,8 @@ json Player::ToJson() const {
         {"mana",      mana},
         {"element",   ElementName(selected_element)},
         {"arcane_spell", arcane_spell},
+        {"held_spells", HeldToJson(held_spell)},
+        {"spell_slot", spell_slot},
         {"quick_item", quick_item},
         {"skills",    skills.ToJson()},
         {"bags",      bags},
@@ -1616,6 +1715,8 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     skills.SetCurrent(SKILL_HITPOINTS, hp);
     SyncMana();
     arcane_spell = j.value("arcane_spell", string(""));
+    HeldFromJson(j.value("held_spells", json::object()), held_spell);
+    spell_slot = std::clamp(j.value("spell_slot", 0), 0, 3);
     quick_item   = j.value("quick_item", quick_item);
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;
@@ -1654,6 +1755,8 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     SyncMana();
     mana = std::clamp(j.value("mana", max_mana), 0, max_mana);
     arcane_spell = j.value("arcane_spell", string(""));
+    HeldFromJson(j.value("held_spells", json::object()), held_spell);
+    spell_slot = std::clamp(j.value("spell_slot", 0), 0, 3);
     quick_item   = j.value("quick_item", quick_item);
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;

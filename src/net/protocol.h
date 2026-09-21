@@ -27,7 +27,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 4;   // 4: a patch says what kind it is
+static constexpr uint16_t PROTOCOL_VERSION = 5;   // 4: a patch says what kind it is. 5: a monster says what is on it
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -223,6 +223,7 @@ struct EnemyState {
     uint8_t  bits = 0;           // facing (2) | state (3) << 2 | hurt << 5 | bar shown << 6
     uint8_t  clip = 0;           // index into its sprite's clips, which are kept in name order
     uint8_t  frame = 0, heavy = 0, alpha = 255;
+    uint8_t  statuses = 0;       // StatusSet::Bits: burning, soaked, concussed...
     uint16_t hp = 0;
 };
 struct PickupState {

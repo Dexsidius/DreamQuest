@@ -16,6 +16,13 @@ PlayerInput PlayerInput::FromDevice(const Input& in) {
     take(Jump,     Action::Jump);
     take(Interact, Action::Interact);
     take(Target,   Action::Target);
+    take(Ability,  Action::Ability);
+    // On the keys the guard is the abilities' shift as well, as it always was.
+    if (in.ActiveDevice() != InputMode::Controller) {
+        if (in.Down(Action::Block))     out.down     |= Ability;
+        if (in.Pressed(Action::Block))  out.pressed  |= Ability;
+        if (in.Released(Action::Block)) out.released |= Ability;
+    }
     return out;
 }
 
@@ -38,6 +45,9 @@ Bindings::Bindings() {
         {Action::LightAttack, SDLK_J}, {Action::StrongAttack, SDLK_K}, {Action::Target, SDLK_L}, {Action::Block, SDLK_H},
         {Action::Interact, SDLK_E}, {Action::Jump, SDLK_SPACE}, {Action::Sprint, SDLK_LSHIFT},
         {Action::Inventory, SDLK_I}, {Action::Skills, SDLK_O}, {Action::QuestLog, SDLK_P}, {Action::WorldMap, SDLK_M},
+        // The menu of menus, and a key for the abilities' shift under the left
+        // hand's first finger -- though H does it too.
+        {Action::Menu, SDLK_TAB}, {Action::Ability, SDLK_F},
         {Action::SelectFire, SDLK_1}, {Action::SelectWater, SDLK_2}, {Action::SelectEarth, SDLK_3},
         {Action::SelectAir, SDLK_4},
         // The ancient magic, once any of it is known: 5 chooses it, and 5 again
@@ -54,8 +64,12 @@ Bindings::Bindings() {
         // The button that backs out of menus guards in the game: every other
         // one a thumb can reach was already an attack.
         {Action::Block, SDL_GAMEPAD_BUTTON_EAST},
-        {Action::Inventory, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}, {Action::Skills, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER},
-        {Action::QuestLog, SDL_GAMEPAD_BUTTON_BACK}, {Action::WorldMap, SDL_GAMEPAD_BUTTON_GUIDE},
+        // RB held is the abilities' shift: RB + X, Y and the right trigger. It was
+        // B + X, which is one thumb in two places. RB was the skills panel and
+        // Select the journal; both are in the menu Select opens now, with the
+        // rest -- a pad had run out of buttons to give each panel its own.
+        {Action::Inventory, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}, {Action::Ability, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER},
+        {Action::Menu, SDL_GAMEPAD_BUTTON_BACK}, {Action::WorldMap, SDL_GAMEPAD_BUTTON_GUIDE},
         // Clicking the right stick steps through the elements; the d-pad and
         // both sticks are already spoken for.
         {Action::CycleSpell, SDL_GAMEPAD_BUTTON_RIGHT_STICK},
@@ -72,9 +86,9 @@ Bindings::Bindings() {
 const vector<Action>& Bindings::Rebindable() {
     static const vector<Action> list = {
         Action::MoveUp, Action::MoveDown, Action::MoveLeft, Action::MoveRight,
-        Action::LightAttack, Action::StrongAttack, Action::Target, Action::Block,
+        Action::LightAttack, Action::StrongAttack, Action::Target, Action::Block, Action::Ability,
         Action::Interact, Action::Jump, Action::Sprint,
-        Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
+        Action::Menu, Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
         Action::CycleSpell, Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir,
         Action::SelectArcane,
     };
@@ -91,6 +105,8 @@ const char* Bindings::Name(Action a) {
         case Action::StrongAttack: return "Heavy attack";
         case Action::Target:       return "Lock on";
         case Action::Block:        return "Block";
+        case Action::Ability:      return "Abilities (hold)";
+        case Action::Menu:         return "Menu";
         case Action::Interact:     return "Interact";
         case Action::Jump:         return "Jump";
         case Action::Sprint:       return "Sprint";
@@ -119,6 +135,8 @@ const char* Bindings::Id(Action a) {
         case Action::StrongAttack: return "heavy_attack";
         case Action::Target:       return "lock_on";
         case Action::Block:        return "block";
+        case Action::Ability:      return "abilities";
+        case Action::Menu:         return "menu";
         case Action::Interact:     return "interact";
         case Action::Jump:         return "jump";
         case Action::Sprint:       return "sprint";
@@ -251,7 +269,7 @@ json Bindings::ToJson() const {
         else if (const char* n = SDL_GetGamepadStringForButton(static_cast<SDL_GamepadButton>(kv.second)))
             b[Id(kv.first)] = n;
     }
-    return json{{"keys", k}, {"buttons", b}};
+    return json{{"layout", LAYOUT}, {"keys", k}, {"buttons", b}};
 }
 
 void Bindings::FromJson(const json& j) {
@@ -268,6 +286,15 @@ void Bindings::FromJson(const json& j) {
         }
     };
     each("keys", [&](Action a, const string& name) { BindKey(a, SDL_GetKeyFromName(name.c_str())); });
+    // A pad laid out before the abilities moved to RB has RB on the skills
+    // panel, and would take it straight back: the saved buttons are from
+    // another layout, so the new one stands. Keys are as they were saved.
+    if (j.value("layout", 1) < LAYOUT) {
+        const std::map<Action, SDL_Keycode> mine = keys;
+        *this = Bindings();
+        for (const auto& kv : mine) if (keys.count(kv.first)) BindKey(kv.first, kv.second);
+        return;
+    }
     each("buttons", [&](Action a, const string& name) {
         if (name == "lefttrigger")       BindButton(a, PAD_LEFT_TRIGGER);
         else if (name == "righttrigger") BindButton(a, PAD_RIGHT_TRIGGER);
@@ -311,7 +338,7 @@ void Input::RebuildMaps() {
 
     // A second key for three things, for as long as nothing else has asked for it.
     const std::pair<SDL_Keycode, Action> spares[] = {
-        {SDLK_TAB, Action::Inventory}, {SDLK_Q, Action::QuestLog}, {SDLK_RSHIFT, Action::Sprint}};
+        {SDLK_Q, Action::QuestLog}, {SDLK_RSHIFT, Action::Sprint}};
     for (const auto& spare : spares)
         if (!taken.count(spare.first)) keymap.insert(spare);
 
@@ -614,6 +641,10 @@ string Input::PromptFor(Action a) const {
             case Action::SelectFire: case Action::SelectWater: case Action::SelectEarth:
             case Action::SelectAir:  case Action::SelectArcane:
                 a = Action::CycleSpell; break;
+            // The skills and the journal are in the menu, on a pad.
+            case Action::Skills: case Action::QuestLog:
+                if (!b.buttons.count(a)) a = Action::Menu;
+                break;
             default: break;
         }
         return Bindings::ButtonLabel(b.Button(a));

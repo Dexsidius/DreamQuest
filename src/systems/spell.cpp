@@ -31,6 +31,7 @@ bool SpellBook::Load(const string& path) {
         d.projectile  = o.value("projectile", string(""));
         d.arcane      = o.value("school", string("elemental")) == "arcane";
         d.shape       = o.value("shape", string("bolt"));
+        d.slot        = std::clamp(o.value("slot", 1), 1, 4);
         d.taught_by   = o.value("taught_by", string(""));
         if (d.arcane) d.element = Element::Arcane;
         defs[d.id] = d;
@@ -49,10 +50,47 @@ const SpellDef* SpellBook::BestFor(Element e, int magic_level) const {
     const SpellDef* best = nullptr;
     for (const auto& kv : defs) {
         const SpellDef& s = kv.second;
-        if (s.element != e || s.level > magic_level) continue;
+        if (s.element != e || s.slot != 1 || s.level > magic_level) continue;
         if (!best || s.tier > best->tier) best = &s;
     }
     return best;
+}
+
+const SpellDef* SpellBook::Chosen(Element e, int magic_level, const string& held) const {
+    const SpellDef* s = held.empty() ? nullptr : Get(held);
+    if (s && !s->arcane && s->element == e && s->level <= magic_level) return s;
+    return BestFor(e, magic_level);
+}
+
+const SpellDef* SpellBook::ForSlot(Element e, int slot, int magic_level) const {
+    const SpellDef* best = nullptr;
+    for (const auto& kv : defs) {
+        const SpellDef& sp = kv.second;
+        if (sp.arcane || sp.element != e || sp.slot != slot || sp.level > magic_level) continue;
+        if (!best || sp.tier > best->tier) best = &sp;
+    }
+    return best;
+}
+
+const SpellDef* SpellBook::FirstOnSlot(Element e, int slot) const {
+    const SpellDef* first = nullptr;
+    for (const auto& kv : defs) {
+        const SpellDef& sp = kv.second;
+        if (sp.arcane || sp.element != e || sp.slot != slot) continue;
+        if (!first || sp.level < first->level) first = &sp;
+    }
+    return first;
+}
+
+vector<const SpellDef*> SpellBook::Of(Element e) const {
+    vector<const SpellDef*> out;
+    for (const auto& kv : defs)
+        if (!kv.second.arcane && kv.second.element == e && kv.second.slot == 1) out.push_back(&kv.second);
+    std::sort(out.begin(), out.end(), [](const SpellDef* a, const SpellDef* b) {
+        if (a->tier != b->tier) return a->tier < b->tier;
+        return a->level < b->level;
+    });
+    return out;
 }
 
 vector<const SpellDef*> SpellBook::Arcane() const {
@@ -69,7 +107,7 @@ const SpellDef* SpellBook::NextFor(Element e, int magic_level) const {
     const SpellDef* next = nullptr;
     for (const auto& kv : defs) {
         const SpellDef& s = kv.second;
-        if (s.element != e || s.level <= magic_level) continue;
+        if (s.element != e || s.slot != 1 || s.level <= magic_level) continue;
         if (!next || s.level < next->level) next = &s;
     }
     return next;

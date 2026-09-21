@@ -46,7 +46,7 @@
   },
 
   "shardshot": {
-    "name": "Shardshot",
+    "name": "Sharpstone",
     "desc": "A stone thrown low and hard. It bursts a moment after it lands.",
     "element": "earth",
     "tier": 1,
@@ -91,6 +91,174 @@
     "projectile": "bolt_air_greater"
   },
 
+  "flamethrower": {
+    "name": "Flamethrower",
+    "desc": "A jet of flame for as long as there is mana. Light is a wide cone at arm's length; heavy is narrow, and reaches three times as far.",
+    "element": "fire",
+    "slot": 2,
+    "tier": 1,
+    "level": 12,
+    "mana": 5,
+    "damage": 0.5,
+    "xp": 14,
+    "shape": "cone",
+    "projectile": "flame_jet"
+  },
+
+  "flame_ring": {
+    "name": "Flame Ring",
+    "desc": "A ring of fire round where you stand. What is inside it with you has to come through it to get out.",
+    "element": "fire",
+    "slot": 3,
+    "tier": 1,
+    "level": 24,
+    "mana": 12,
+    "damage": 1.0,
+    "xp": 40,
+    "shape": "fire_ring",
+    "projectile": "bolt_fire"
+  },
+
+  "wall_of_fire": {
+    "name": "Wall of Fire",
+    "desc": "A wall of burning ground across the way you are facing, for five seconds. It does not care which side anything is on.",
+    "element": "fire",
+    "slot": 4,
+    "tier": 1,
+    "level": 36,
+    "mana": 16,
+    "damage": 1.0,
+    "xp": 58,
+    "shape": "wall",
+    "projectile": "bolt_fire_greater"
+  },
+
+  "hydro_cannon": {
+    "name": "Hydro Cannon",
+    "desc": "One great ball of water, thrown hard. What it hits is soaked, and goes a long way backwards.",
+    "element": "water",
+    "slot": 2,
+    "tier": 1,
+    "level": 12,
+    "mana": 9,
+    "damage": 1.5,
+    "xp": 28,
+    "shape": "bolt",
+    "projectile": "hydro_cannon"
+  },
+
+  "tidal_wave": {
+    "name": "Tidal Wave",
+    "desc": "A wave seven wide that rolls out slowly through everything, soaking it and carrying it along.",
+    "element": "water",
+    "slot": 3,
+    "tier": 1,
+    "level": 24,
+    "mana": 14,
+    "damage": 0.9,
+    "xp": 44,
+    "shape": "wave",
+    "projectile": "wave_crest"
+  },
+
+  "whirlpool": {
+    "name": "Whirlpool",
+    "desc": "Water turning where your target stands, for four seconds. It drags whatever is in it to the middle and holds it there.",
+    "element": "water",
+    "slot": 4,
+    "tier": 1,
+    "level": 36,
+    "mana": 16,
+    "damage": 0.7,
+    "xp": 58,
+    "shape": "whirlpool",
+    "projectile": "bolt_water_greater"
+  },
+
+  "bedrock_sweep": {
+    "name": "Bedrock Sweep",
+    "desc": "A slab of the ground torn up and swung flat across everything in front of you. It lands like a wall: what it hits is thrown, and often concussed.",
+    "element": "earth",
+    "slot": 2,
+    "tier": 1,
+    "level": 12,
+    "mana": 9,
+    "damage": 1.6,
+    "xp": 28,
+    "shape": "slab",
+    "projectile": "bolt_earth"
+  },
+
+  "sedimentary_rain": {
+    "name": "Sedimentary Rain",
+    "desc": "Stones, coming down on a circle for two seconds and more. Each volley is its own roll to hit on whatever is still under it.",
+    "element": "earth",
+    "slot": 3,
+    "tier": 1,
+    "level": 24,
+    "mana": 14,
+    "damage": 1.0,
+    "xp": 44,
+    "shape": "stone_rain",
+    "projectile": "bolt_earth"
+  },
+
+  "mineral_burst": {
+    "name": "Mineral Burst",
+    "desc": "Eight sharp stones, one after another, faster than they can be counted.",
+    "element": "earth",
+    "slot": 4,
+    "tier": 1,
+    "level": 36,
+    "mana": 15,
+    "damage": 0.45,
+    "xp": 58,
+    "shape": "burst",
+    "projectile": "mineral_shard"
+  },
+
+  "tornado": {
+    "name": "Tornado",
+    "desc": "A whirl of air that walks where you sent it, throwing whatever it catches in any direction it likes; the further it is thrown, the more it is hurt. A light cast is a dust devil. Held and let go, it lasts four seconds.",
+    "element": "air",
+    "slot": 2,
+    "tier": 1,
+    "level": 12,
+    "mana": 12,
+    "damage": 1.0,
+    "xp": 30,
+    "shape": "tornado",
+    "projectile": "bolt_air"
+  },
+
+  "air_slash": {
+    "name": "Air Slash",
+    "desc": "An edge of air as wide as a doorway, that goes through everything in its way and is gone.",
+    "element": "air",
+    "slot": 3,
+    "tier": 1,
+    "level": 24,
+    "mana": 10,
+    "damage": 1.3,
+    "xp": 42,
+    "shape": "bolt",
+    "projectile": "air_slash"
+  },
+
+  "turbulence": {
+    "name": "Turbulence",
+    "desc": "The air round you for three seconds is not to be stood in: everything near is thrown about, again and again.",
+    "element": "air",
+    "slot": 4,
+    "tier": 1,
+    "level": 36,
+    "mana": 16,
+    "damage": 0.6,
+    "xp": 58,
+    "shape": "turbulence",
+    "projectile": "bolt_air_greater"
+  },
+
   "eldritch_blast": {
     "name": "Eldritch Blast",
     "desc": "A beam of crackling force out of the oldest books. It passes through whatever it strikes and throws the rest back.",
@@ -105,6 +273,20 @@
     "taught_by": "Magister Orrin teaches it at the college in Fernhollow."
   },
 
+  "acid_spray": {
+    "name": "Acid Spray",
+    "desc": "Five gouts of acid in a fan, at arm's length and a little more. What they splash is poisoned: it sickens for six seconds, and its hide gives way while it does.",
+    "school": "arcane",
+    "shape": "spray",
+    "tier": 2,
+    "level": 13,
+    "mana": 8,
+    "damage": 0.45,
+    "xp": 32,
+    "projectile": "acid_glob",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
   "magic_missile": {
     "name": "Magic Missile",
     "desc": "Three darts of light that turn after whatever you are fighting. They have never been known to miss.",
@@ -116,6 +298,20 @@
     "damage": 0.55,
     "xp": 34,
     "projectile": "dart_arcane",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
+  "ice_touch": {
+    "name": "Ice Touch",
+    "desc": "A hand's reach of cold. What it touches is chilled -- slow in its legs and in its arm -- and if it is soaked, it freezes where it stands.",
+    "school": "arcane",
+    "shape": "bolt",
+    "tier": 3,
+    "level": 20,
+    "mana": 7,
+    "damage": 1.2,
+    "xp": 38,
+    "projectile": "frost_touch",
     "taught_by": "The college in Fernhollow sells the tome."
   },
 
@@ -133,6 +329,20 @@
     "taught_by": "The college in Fernhollow sells the tome."
   },
 
+  "vampiric_touch": {
+    "name": "Vampiric Touch",
+    "desc": "A hand's reach, and half of what it takes from them comes back to you as health. There is no status in it: it is a way of staying up.",
+    "school": "arcane",
+    "shape": "bolt",
+    "tier": 4,
+    "level": 28,
+    "mana": 12,
+    "damage": 1.3,
+    "xp": 50,
+    "projectile": "blood_touch",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
   "hail_of_blades": {
     "name": "Hail of Blades",
     "desc": "A moment after the word is said, conjured blades come down on whatever you are fighting and everything beside it.",
@@ -144,6 +354,20 @@
     "damage": 1.5,
     "xp": 56,
     "projectile": "blade_arcane",
+    "taught_by": "The college in Fernhollow sells the tome."
+  },
+
+  "hellish_rebuke": {
+    "name": "Hellish Rebuke",
+    "desc": "Fire where they stand, at once, and it leaves them burning. Cast within four seconds of being hurt it is an answer, and lands half as hard again.",
+    "school": "arcane",
+    "shape": "rebuke",
+    "tier": 5,
+    "level": 36,
+    "mana": 14,
+    "damage": 1.6,
+    "xp": 60,
+    "projectile": "hellfire",
     "taught_by": "The college in Fernhollow sells the tome."
   },
 

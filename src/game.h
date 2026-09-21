@@ -33,6 +33,7 @@ enum class GameState {
     Paused,
     Inventory,
     SkillsPanel,
+    Hub,               // the menu of menus: inventory, skills, spellbook, journal, map
     QuestPanel,
     WorldMapPage,
     Dialogue,
@@ -211,6 +212,7 @@ private:
     QuestLog*        quests = &own_quests;
     DialogueDatabase dialogue_db;
     ProjectileDatabase projectile_db;
+    StatusDatabase status_db;
     SpellBook        spells;
     SkillTrees       skill_trees;
     ShopDatabase     shop_db;
@@ -255,6 +257,37 @@ private:
     // The skills panel: 0 is the level list, 1..3 the melee, ranged and magic
     // trees, with a cursor on a branch and a row in whichever tree is open.
     int  skills_tab = 0;
+    int  hub_cursor = 0;
+    void UpdateHub();
+    void DrawHub();
+    // The skills panel's pages, in the order their tabs stand.
+    enum { TAB_SKILLS = 0, TAB_TREE, TAB_BOOK, TAB_BOONS, TAB_COUNT };
+
+    // --- the spellbook ---------------------------------------------------------
+    // One row for each thing a button does -- the five spell slots, the three
+    // abilities carried, the charged attack -- and, for each, everything this
+    // character has that could go there. The page is only a way of choosing
+    // among them: up and down for the row, left and right for what is on it.
+    struct BookOption {
+        string id;                 // a spell's, a tree node's, or nothing
+        string name, note, text;   // what it is called, what it costs, what it does
+        bool   usable = true;      // known, but out of the Magic level's reach
+    };
+    struct BookRow {
+        enum class Kind { Spell, Ancient, Ability, Technique } kind = Kind::Spell;
+        Element element = Element::None;
+        int     slot = 0;
+        string  label;             // "1  Fire", "H + J"
+        SDL_Color color{255, 255, 255, 255};
+        vector<BookOption> options;
+        int     chosen = 0;
+        string  nothing;           // said in place of a choice, when there is none to make
+    };
+    vector<BookRow> SpellbookRows() const;
+    void ChooseInBook(const BookRow& row, int option);
+    void UpdateSpellbook();
+    void DrawSpellbook(const SDL_FRect& panel);
+    int  book_row = 0;
     int  tree_branch = 0, tree_row = 0;
     bool tree_reset_armed = false;
     int  slot_purpose = 0;       // 0 = start new game, 1 = save

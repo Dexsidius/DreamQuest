@@ -1,4 +1,5 @@
 #pragma once
+#include "status.h"
 #include "../headers.h"
 #include "../sprite.h"
 
@@ -55,6 +56,49 @@ struct ItemDef {
     // all ones. A spear reaches much further down a narrow line and pushes what
     // it hits back, so a fight stays at the end of the shaft.
     float reach = 1.0f, sweep = 1.0f, push = 1.0f;
+    // What a blow from it can leave: a sword's edge opens a wound some of the
+    // time. See systems/status.h.
+    StatusProc on_hit;
+
+    // --- the armoury ----------------------------------------------------------------
+    // Everything past sword, spear, bow and staff is told apart by these and
+    // nothing else: there is no "if it is a mace" anywhere, only what a mace's
+    // line in data/tiers.json says a mace is.
+    //
+    // What it is called among weapons: "dagger", "greataxe", "crossbow", "orb".
+    // For the combo names and the HUD; empty is the plain weapon of its kind.
+    string weapon_class;
+    bool   two_handed = false;        // no shield with it, as with a bow
+    // The share of a target's Defence its point goes past: a dagger's, a bolt's.
+    float  armour_pierce = 0.0f;
+    // What everything it does is worth, beside a plain weapon of its tier: a
+    // wand is quick and light.
+    float  damage = 1.0f;
+    // A charged heavy with a clip and a shape of its own: a greataxe's chop is
+    // longer, narrower and harder than its swing.
+    string charge_clip;
+    float  charge_damage = 1.0f, charge_reach = 1.0f, charge_sweep = 1.0f;
+    // A crossbow: let off at once, and then this long spanning it again.
+    float  reload = 0.0f;
+    // What it throws, where that is not an arrow or a spell: a bolt, a knife.
+    string shoots;
+    // A caster's: the share of a spell's mana it asks, and how hard what it
+    // throws turns after its target.
+    float  mana_mult = 1.0f, homing = 0.0f;
+    // The four combos, as this weapon makes them: what each is called, and what
+    // is different about it -- a status it always leaves, armour it goes past,
+    // what it is worth beside the sword's. In the order of ComboMove: crush,
+    // cleave, backhand, cross cut. A name left empty is the sword's.
+    struct ComboTwist {
+        string name;
+        Status status = Status::COUNT;
+        float  pierce = 0.0f, damage = 1.0f;
+    };
+    ComboTwist combos[4];
+
+    // A staff given over to one element: 1 to 4 choose that element's four
+    // spells instead of the four elements. None for a staff that is not.
+    Element element = Element::None;
     // The hero's clip for its strikes: "thrust" for a spear. Empty is the
     // ordinary swing.
     string attack_clip;

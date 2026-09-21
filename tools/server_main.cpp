@@ -133,6 +133,7 @@ int main(int argc, char* argv[]) {
     ProjectileDatabase projectiles;
     SpellBook spells;
     SkillTrees trees;
+    StatusDatabase statuses;
     bool ok = true;
     ok &= sprites.Load("data/sprites.json");
     ok &= items.Load("data/items.json");
@@ -146,13 +147,14 @@ int main(int argc, char* argv[]) {
     ok &= projectiles.Load("data/projectiles.json");
     ok &= spells.Load("data/spells.json");
     ok &= trees.Load("data/skill_trees.json");
+    ok &= statuses.Load("data/statuses.json");
     if (!ok) { printf("One or more data files failed to load.\n"); return 1; }
 
     std::mt19937 rng(std::random_device{}());
     GameContext ctx;
     ctx.sprites = &sprites;   ctx.items = &items;   ctx.loot = &loot;
     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
-    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees; ctx.statuses = &statuses;
     ctx.rng = &rng;
 
     World home;

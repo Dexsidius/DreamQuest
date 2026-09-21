@@ -1,4 +1,5 @@
 #pragma once
+#include "../systems/status.h"
 #include "entity.h"
 #include "../systems/combat.h"
 #include "../systems/projectile.h"
@@ -41,6 +42,9 @@ struct EnemyDef {
     // What the creature is aligned to, for the elemental matchup. Untyped
     // monsters take normal damage from everything.
     Element element = Element::None;
+    // Statuses it cannot take: the dead do not bleed and cannot be poisoned.
+    // Besides these, nothing made of fire can be set burning.
+    bool immune[STATUS_COUNT] = {};
     // Multiplied over the sprite: the dream's nightmares are the waking
     // world's orcs and boars, drawn in the colours of a bad night.
     SDL_Color tint{255, 255, 255, 255};
@@ -52,6 +56,7 @@ public:
     bool Load(const string& path);
     const EnemyDef* Get(const string& id) const;
     bool Has(const string& id) const { return defs.count(id) > 0; }
+    const map<string, EnemyDef>& All() const { return defs; }
 
 private:
     map<string, EnemyDef> defs;
@@ -161,14 +166,31 @@ public:
     float marked = 0.0f, sundered = 0.0f;
     bool  Staggered() const { return state == State::Hurt; }
     // A wound left open: this much more, bled out over BLEED_TIME. A second
-    // wound adds to what is left rather than starting over.
+    // wound adds to what is left rather than starting over. (It is a status
+    // like the rest now -- see below -- and this is the way to open one for a
+    // known amount, which is what Open Wounds does.)
     static constexpr float BLEED_TIME = 4.0f;
     void  Bleed(float damage);
-    bool  Bleeding() const { return bleed_left > 0.0f; }
+    bool  Bleeding() const { return statuses.Has(Status::Bleed); }
+
+    // --- statuses -----------------------------------------------------------------
+    // What blows have left on it: see systems/status.h. `Afflict` is a blow of
+    // `blow` damage leaving `kind`; it answers with what was actually left,
+    // which may be another (a chill on something soaked is frozen) or nothing
+    // (immune, blocked, dead).
+    Status Afflict(Status kind, int blow, const StatusDatabase& db);
+    bool   Afflicted(Status s) const { return statuses.Has(s); }
+    bool   ImmuneTo(Status s) const;
+    // How much harder this element bites for what is on it: the wind, on
+    // something soaked.
+    float  StatusWeakness(Element e) const;
+    // What is on it slows it: its pace, and the gap between its swings.
+    float  MoveSpeed() const;
+    float  AttackCooldown() const;
+    StatusSet statuses;
     // Stand Fast: for this long it is after that seat and nobody else.
     void  Taunt(int seat, float seconds) { taunt_seat = seat; taunted = seconds; }
     int   TauntedBy() const { return taunted > 0.0f ? taunt_seat : -1; }
-    float bleed_left = 0.0f, bleed_rate = 0.0f, bleed_bank = 0.0f;
     float taunted = 0.0f;
     int   taunt_seat = -1;
 
@@ -223,6 +245,7 @@ public:
     struct Posed {
         float x = 0, y = 0;
         uint8_t facing = 0, state = 0, frame = 0, heavy = 0, alpha = 255;
+        uint8_t statuses = 0;          // StatusSet::Bits: what a friend's machine draws on it
         bool  hurt = false, bar = false;
         int   hp = 0;
         string clip;
@@ -235,6 +258,7 @@ private:
     void SetState(State s);
 
     const EnemyDef* def = nullptr;
+    const StatusDatabase* status_db = nullptr;     // what the statuses on it do, from the context it was made in
     string type_id;
     State  state = State::Idle;
 

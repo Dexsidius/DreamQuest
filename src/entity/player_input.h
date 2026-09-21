@@ -30,6 +30,8 @@ struct PlayerInput {
         Jump     = 1 << 4,
         Interact = 1 << 5,
         Target   = 1 << 6,
+        // The abilities' shift: see Action::Ability. The last bit there was.
+        Ability  = 1 << 7,
     };
 
     Vec2    move{0.0f, 0.0f};

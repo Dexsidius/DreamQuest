@@ -58,6 +58,10 @@ bool EnemyDatabase::Load(const string& path) {
         d.scale           = o.value("scale", 1.0f);
         d.is_boss         = o.value("boss", false);
         d.swims           = o.value("swims", false);
+        if (o.contains("immune") && o["immune"].is_array())
+            for (const auto& v : o["immune"])
+                if (v.is_string() && StatusFromId(v.get<string>()) != Status::COUNT)
+                    d.immune[static_cast<int>(StatusFromId(v.get<string>()))] = true;
         d.element         = ElementFromName(o.value("element", string("none")));
         if (o.contains("tint") && o["tint"].is_array() && o["tint"].size() >= 3)
             d.tint = {static_cast<Uint8>(o["tint"][0].get<int>()),
@@ -115,6 +119,7 @@ int Enemy::ShownLevel() const { return def ? ShownLevelOf(*def, level) : level; 
 
 void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContext& ctx) {
     def     = d;
+    status_db = ctx.statuses;
     type_id = spawn.type;
     level   = std::max(1, spawn.level);
     x = home_x = spawn.x;
@@ -158,7 +163,89 @@ CombatProfile Enemy::Profile() const {
         p.defence_level = static_cast<int>(p.defence_level * SUNDER_SHARE);
         p.defence_bonus = static_cast<int>(p.defence_bonus * SUNDER_SHARE);
     }
+    // What is on it: concussed, it swings wide and guards badly; poisoned, its
+    // hide gives way. Each is a share of what it has, and they multiply.
+    if (status_db)
+        for (int i = 0; i < STATUS_COUNT; ++i) {
+            const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+            if (!d) continue;
+            p.attack_level  = std::max(1, static_cast<int>(p.attack_level * d->attack));
+            p.attack_bonus  = static_cast<int>(p.attack_bonus * d->attack);
+            p.defence_level = std::max(1, static_cast<int>(p.defence_level * d->defence));
+            p.defence_bonus = static_cast<int>(p.defence_bonus * d->defence);
+        }
     return p;
+}
+
+// -----------------------------------------------------------------------------
+//  Statuses
+// -----------------------------------------------------------------------------
+
+bool Enemy::ImmuneTo(Status s) const {
+    if (!def || s == Status::COUNT) return true;
+    if (def->immune[static_cast<int>(s)]) return true;
+    // Nothing made of fire can be set burning.
+    return s == Status::Burn && def->element == Element::Fire;
+}
+
+Status Enemy::Afflict(Status kind, int blow, const StatusDatabase& db) {
+    if (state == State::Dead || hp <= 0 || kind == Status::COUNT) return Status::COUNT;
+    status_db = &db;
+    const StatusDef* d = db.Get(kind);
+    if (!d || ImmuneTo(kind)) return Status::COUNT;
+    const auto lasts = [&](const StatusDef& of) { return of.seconds * (def->is_boss ? of.boss_share : 1.0f); };
+
+    // A chill on something soaked is frozen -- where it can be: the great ones
+    // are never held, and are chilled like anything else.
+    if (d->becomes != Status::COUNT && d->if_has != Status::COUNT && statuses.Has(d->if_has)) {
+        const StatusDef* other = db.Get(d->becomes);
+        if (other && !ImmuneTo(d->becomes) && lasts(*other) > 0.0f) { kind = d->becomes; d = other; }
+    }
+    for (Status stops : d->blocked_by) if (statuses.Has(stops)) return Status::COUNT;
+    const float seconds = lasts(*d);
+    if (seconds <= 0.0f) return Status::COUNT;
+
+    for (Status over : d->ends) statuses.End(over);
+
+    const int i = static_cast<int>(kind);
+    if (d->dot_share > 0.0f) {
+        const float fresh = std::max(static_cast<float>(d->dot_min), static_cast<float>(blow) * d->dot_share);
+        const float owed = statuses.left[i] * statuses.rate[i];
+        const float total = d->stacks ? owed + fresh : std::max(owed, fresh);
+        statuses.rate[i] = total / seconds;
+    }
+    statuses.left[i] = std::max(statuses.left[i], seconds);
+    if (d->holds)              Stagger(seconds);
+    else if (d->stagger > 0.0f) Stagger(d->stagger);
+    return kind;
+}
+
+float Enemy::StatusWeakness(Element e) const {
+    float mult = 1.0f;
+    if (!status_db || e == Element::None) return mult;
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+        if (d && std::find(d->weak_to.begin(), d->weak_to.end(), e) != d->weak_to.end()) mult *= d->weak_mult;
+    }
+    return mult;
+}
+
+float Enemy::MoveSpeed() const {
+    float speed = def ? def->speed : 0.0f;
+    if (status_db)
+        for (int i = 0; i < STATUS_COUNT; ++i)
+            if (const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr)
+                speed *= d->speed;
+    return speed;
+}
+
+float Enemy::AttackCooldown() const {
+    float gap = def ? def->attack_cooldown : 1.6f;
+    if (status_db)
+        for (int i = 0; i < STATUS_COUNT; ++i)
+            if (const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr)
+                gap *= d->cooldown;
+    return gap;
 }
 
 void Enemy::Pose(const Posed& p) {
@@ -167,6 +254,9 @@ void Enemy::Pose(const Posed& p) {
     facing = static_cast<Facing>(std::min<uint8_t>(p.facing, 3));
     sprite.facing = facing;
     hp = std::clamp(p.hp, 0, max_hp);
+    // Which statuses are on it, for the drawing: a puppet's run down nowhere,
+    // so each is simply on or off as the host last said.
+    for (int i = 0; i < STATUS_COUNT; ++i) statuses.left[i] = (p.statuses >> i) & 1 ? 1.0f : 0.0f;
     const State was = state;
     state = static_cast<State>(std::min<uint8_t>(p.state, static_cast<uint8_t>(State::Heavy)));
     if (state != was) state_timer = 0.0f;
@@ -193,6 +283,7 @@ Enemy::Posed Enemy::Told() const {
     p.bar = bar_revealed;
     p.hp = hp;
     p.clip = sprite.current;
+    p.statuses = statuses.Bits();
     return p;
 }
 
@@ -278,10 +369,11 @@ void Enemy::Provoke(int seat) {
 }
 
 void Enemy::Bleed(float damage) {
-    if (damage <= 0.0f || state == State::Dead) return;
-    const float owed = bleed_rate * bleed_left + damage;
-    bleed_left = BLEED_TIME;
-    bleed_rate = owed / BLEED_TIME;
+    if (damage <= 0.0f || state == State::Dead || ImmuneTo(Status::Bleed)) return;
+    const int i = static_cast<int>(Status::Bleed);
+    const float owed = statuses.rate[i] * statuses.left[i] + damage;
+    statuses.left[i] = BLEED_TIME;
+    statuses.rate[i] = owed / BLEED_TIME;
 }
 
 void Enemy::TickRespawn(float dt) {
@@ -290,6 +382,7 @@ void Enemy::TickRespawn(float dt) {
 }
 
 void Enemy::Revive() {
+    statuses.Clear();
     hp = max_hp;
     x = home_x;
     y = home_y;
@@ -347,18 +440,35 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     marked   = std::max(0.0f, marked - dt);
     sundered = std::max(0.0f, sundered - dt);
     taunted  = std::max(0.0f, taunted - dt);
-    if (state == State::Dead) marked = sundered = taunted = bleed_left = bleed_bank = 0.0f;
-    if (bleed_left > 0.0f && hp > 0) {
-        const float step = std::min(dt, bleed_left);
-        bleed_left -= step;
-        bleed_bank += bleed_rate * step;
-        const int whole = static_cast<int>(bleed_bank);
+    if (!status_db) status_db = ctx.statuses;
+    if (state == State::Dead) { marked = sundered = taunted = 0.0f; statuses.Clear(); }
+    // What is on it runs down, and what burns, bleeds or sickens takes its
+    // share as it goes -- in whole points, in the status's own colour.
+    for (int i = 0; i < STATUS_COUNT && hp > 0; ++i) {
+        if (statuses.left[i] <= 0.0f) continue;
+        const Status kind = static_cast<Status>(i);
+        const StatusDef* d = status_db ? status_db->Get(kind) : nullptr;
+        const float step = std::min(dt, statuses.left[i]);
+        statuses.left[i] -= step;
+        statuses.bank[i] += statuses.rate[i] * step;
+        const int whole = static_cast<int>(statuses.bank[i]);
         if (whole > 0) {
-            bleed_bank -= static_cast<float>(whole);
+            statuses.bank[i] -= static_cast<float>(whole);
+            // Taken without the red flash of a blow: a burn ticks six times a
+            // second, and flashed for each the monster is simply red -- which
+            // hides the colour that says what is on it, and what a blow
+            // landing looks like.
+            const float flash = hurt_flash;
             Damage(whole);
-            world.AddText(std::to_string(whole), x + 10.0f, y - 38.0f, {200, 60, 70, 255}, 0.7f);
+            hurt_flash = flash;
+            const SDL_Color c = d ? d->color : SDL_Color{200, 60, 70, 255};
+            world.AddText(std::to_string(whole), x + 10.0f, y - 38.0f, c, 0.7f);
         }
-        if (bleed_left <= 0.0f) bleed_rate = bleed_bank = 0.0f;
+        if (statuses.left[i] <= 0.0f) {
+            statuses.End(kind);
+            // Frozen thaws into a chill.
+            if (d && d->then != Status::COUNT && status_db && hp > 0) Afflict(d->then, 0, *status_db);
+        }
     }
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
     state_timer += dt;
@@ -464,8 +574,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 }
             }
             if (home_dist > 48.0f) { wander_dx = (home_x - x) / home_dist; wander_dy = (home_y - y) / home_dist; }
-            move_x = wander_dx * def->speed * 0.35f;
-            move_y = wander_dy * def->speed * 0.35f;
+            move_x = wander_dx * MoveSpeed() * 0.35f;
+            move_y = wander_dy * MoveSpeed() * 0.35f;
 
             if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
             break;
@@ -509,13 +619,13 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             const float standoff = def->attack_range * 0.75f;
             const float too_close = def->attack_range * 0.4f;
             if (dist > standoff) {
-                move_x = (dx / dist) * def->speed;
-                move_y = (dy / dist) * def->speed;
+                move_x = (dx / dist) * MoveSpeed();
+                move_y = (dy / dist) * MoveSpeed();
             } else if (dist > 0.5f && dist < too_close) {
                 // And if the player walks into it, give ground rather than
                 // sharing a tile with them.
-                move_x = -(dx / dist) * def->speed * 0.5f;
-                move_y = -(dy / dist) * def->speed * 0.5f;
+                move_x = -(dx / dist) * MoveSpeed() * 0.5f;
+                move_y = -(dy / dist) * MoveSpeed() * 0.5f;
             }
             break;
         }
@@ -544,7 +654,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             }
             if (swing_timer >= ProfileFor(AttackType::Strong).Total()) {
                 swinging = false;
-                attack_timer = def->attack_cooldown;
+                attack_timer = AttackCooldown();
                 SetState(State::Chase);
             }
             break;
@@ -578,7 +688,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             }
             if (heavy_landed && state_timer >= windup + HEAVY_RECOVER) {
                 heavy_timer = def->heavy.cooldown;
-                attack_timer = std::max(attack_timer, def->attack_cooldown * 0.5f);
+                attack_timer = std::max(attack_timer, AttackCooldown() * 0.5f);
                 SetState(State::Chase);
             }
             break;
@@ -586,8 +696,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
 
         case State::Return: {
             if (home_dist < 8.0f) { SetState(State::Idle); break; }
-            move_x = ((home_x - x) / home_dist) * def->speed * 0.8f;
-            move_y = ((home_y - y) / home_dist) * def->speed * 0.8f;
+            move_x = ((home_x - x) / home_dist) * MoveSpeed() * 0.8f;
+            move_y = ((home_y - y) / home_dist) * MoveSpeed() * 0.8f;
             // Re-engage if the player steps back into range on the way home,
             // wherever on the way that is.
             if (!player.IsDead() && dist < def->aggro_range * 0.6f) { chase_run = 0.0f; SetState(State::Chase); }
@@ -704,7 +814,7 @@ void Enemy::Paddle(World& world, const GameContext& ctx, float dt,
         } else {
             // Paddling is slower than walking, and a bird heading somewhere
             // walks rather than ambles.
-            const float pace = def->speed * (afloat ? 0.42f : 0.60f);
+            const float pace = MoveSpeed() * (afloat ? 0.42f : 0.60f);
             move_x = dx / d * pace;
             move_y = dy / d * pace;
             // Give up on a goal it is not getting closer to. Measured as
@@ -733,7 +843,7 @@ void Enemy::Paddle(World& world, const GameContext& ctx, float dt,
             wander_dx = wander_dy = 0.0f;
         }
     }
-    const float pace = def->speed * (afloat ? 0.20f : 0.28f);
+    const float pace = MoveSpeed() * (afloat ? 0.20f : 0.28f);
     move_x = wander_dx * pace;
     move_y = wander_dy * pace;
 }
@@ -777,6 +887,21 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
     if (CorpseGone()) return;
     SDL_Color tint{255, 255, 255, CorpseAlpha()};
     if (def) tint = {def->tint.r, def->tint.g, def->tint.b, tint.a};
+    // What is on it shows on it: its own colours pulled toward the status's --
+    // blue for the cold and the wet, green for poison, a throb of orange for a
+    // burn. Frozen is nearly all of the way there.
+    if (statuses.Any() && state != State::Dead) {
+        const auto toward = [&](SDL_Color c, float k) {
+            tint = {static_cast<Uint8>(tint.r + (c.r - tint.r) * k), static_cast<Uint8>(tint.g + (c.g - tint.g) * k),
+                    static_cast<Uint8>(tint.b + (c.b - tint.b) * k), tint.a};
+        };
+        const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        if (statuses.Has(Status::Wet))    toward({150, 190, 255, 255}, 0.35f);
+        if (statuses.Has(Status::Poison)) toward({150, 230, 120, 255}, 0.45f);
+        if (statuses.Has(Status::Burn))   toward({255, 150, 80, 255}, 0.30f + 0.20f * sinf(t * 14.0f));
+        if (statuses.Has(Status::Chill))  toward({170, 215, 255, 255}, 0.50f);
+        if (statuses.Has(Status::Frozen)) toward({190, 232, 255, 255}, 0.85f);
+    }
     if (hurt_flash > 0.0f) tint = {255, 110, 110, tint.a};
 
     // Winding up a heavy, it glows red. Two parts: a halo -- its own frame in

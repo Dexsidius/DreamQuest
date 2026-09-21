@@ -5694,17 +5694,30 @@ static void BuildCollege() {
         m.Overlay("props", "spell_circle", dx, 13 * CELL + 16);
 
         // The table, and the six chairs: three behind it facing the room, three
-        // before it with their backs to the door.
+        // before it with their backs to the door -- all six turned to the table.
         const int tx = dx, ty = 8 * CELL + 16;
         piece("council_table", tx, ty, 116, 26);
-        for (int off : {-46, 0, 46}) {
-            piece("high_chair", tx + off, ty - 30, 0, 0);
+        // Forty apart and not further: the table is an oval, and a chair out at
+        // the end of it has the rim fall away in front of it and the sitter's
+        // knees showing.
+        const int seat = 40;
+        for (int off : {-seat, 0, seat}) {
+            piece("high_chair", tx + off, ty - 38, 0, 0);
             piece("high_chair_back", tx + off, ty + 30, 18, 8);
         }
-        // The council. Orrin at the head of it; he is who he always was and keeps what he kept.
-        m.Npc("npc_magister", "Magister Orrin", "magister", tx, ty - 44, "magister_root", 0)["shop"] = "fernhollow_college";
-        m.Npc("npc_councillor_ferris", "Councillor Ferris", "adept", tx - 46, ty - 44, "councillor_ferris_root", 0);
-        m.Npc("npc_councillor_wren", "Councillor Wren", "magister", tx + 46, ty - 44, "councillor_wren_root", 0)["tint"] =
+        // The council sits *in* the three behind it, facing the table and the
+        // room across it: each a few pixels south of their chair, so they are
+        // drawn over its tall back and under the table, which hides them from
+        // the chest down -- and that is somebody sitting at a table. They used
+        // to stand north of the chairs, and all that showed of a councillor
+        // was the top of a head over the back of an empty chair. The row is
+        // walled off so nobody walks through a lap.
+        const int sit = ty - 34;
+        m.Collision(tx - 66, ty - 50, 132, 24);
+        // Orrin at the head of it; he is who he always was and keeps what he kept.
+        m.Npc("npc_magister", "Magister Orrin", "magister", tx, sit, "magister_root", 0)["shop"] = "fernhollow_college";
+        m.Npc("npc_councillor_ferris", "Councillor Ferris", "adept", tx - seat, sit, "councillor_ferris_root", 0);
+        m.Npc("npc_councillor_wren", "Councillor Wren", "magister", tx + seat, sit, "councillor_wren_root", 0)["tint"] =
             json::array({226, 214, 255});
 
         // The library along the back wall, the college's colours between the cases.

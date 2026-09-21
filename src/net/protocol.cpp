@@ -219,7 +219,7 @@ Bytes Encode(const Snapshot& m) {
     for (size_t i = 0, c = count(m.enemies.size(), MAX_ENEMIES_TOLD); i < c; ++i) {
         const EnemyState& e = m.enemies[i];
         w.U16(e.id); w.I16(e.x); w.I16(e.y);
-        w.U8(e.bits); w.U8(e.clip); w.U8(e.frame); w.U8(e.heavy); w.U8(e.alpha);
+        w.U8(e.bits); w.U8(e.clip); w.U8(e.frame); w.U8(e.heavy); w.U8(e.alpha); w.U8(e.statuses);
         w.U16(e.hp);
     }
     for (size_t i = 0, c = count(m.pickups.size(), MAX_PICKUPS_TOLD); i < c; ++i) {
@@ -269,7 +269,7 @@ bool Decode(const Bytes& b, Snapshot& out) {
     for (uint16_t i = 0; i < c; ++i) {
         EnemyState e;
         e.id = r.U16(); e.x = r.I16(); e.y = r.I16();
-        e.bits = r.U8(); e.clip = r.U8(); e.frame = r.U8(); e.heavy = r.U8(); e.alpha = r.U8();
+        e.bits = r.U8(); e.clip = r.U8(); e.frame = r.U8(); e.heavy = r.U8(); e.alpha = r.U8(); e.statuses = r.U8();
         e.hp = r.U16();
         out.enemies.push_back(e);
     }

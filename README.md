@@ -460,12 +460,15 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Sprint (hold) | `Shift` | Left trigger |
 | Jump / climb | `Space` | Left stick click |
 | Interact | `E` | A (south) |
-| Inventory | `I` or tab | LB |
-| Skills | `O` | RB |
-| Quest journal | `P` or `Q` | Back |
+| **Menu**: inventory, skills, spellbook, quests, map | `Tab` | Select (Back) |
+| **Abilities** (hold, with light, heavy or lock on) | `H`, or `F` | **RB** |
+| Inventory | `I` | LB |
+| Skills | `O` | in the menu |
+| Quest journal | `P` or `Q` | in the menu |
 | Select element | `1` `2` `3` `4` | — |
-| The ancient magic, and its next page | `5` | — |
-| Cycle element | `R` | Right stick click |
+| The ancient magic, and its next page | `5` | — (it is the fifth stop of *cycle element*) |
+| Cycle element, the ancient magic included | `R` | Right stick click |
+| The spellbook: what is on every slot | `O`, then `O` twice more | RB, then RB twice more |
 | Drop what the cursor is on (in the bag) | `G` | Y (north) |
 | Pause | `Esc` | Start |
 
@@ -670,6 +673,92 @@ same attack state machine, so the charge mechanic works for every style.
   swing starts charging and a meter appears under your feet; it turns bright
   when it is full. Release to fire. A full charge is worth roughly three times
   a normal strong hit and reaches further, but it roots you while it winds up.
+
+### RB, and the menu of menus
+
+Abilities were guard + light, heavy or lock on -- on a pad, **B + X**, which is
+one thumb asked to be in two places. **RB is the abilities' shift now: RB + X,
+Y and the right trigger**, and RB + A eats what is to hand. The keys keep the
+guard for it (`H` and `J` are two fingers) and have `F` besides.
+
+RB was the skills panel, and a pad had no button left to move it to. So
+**Select opens one menu with every panel on it** -- inventory, skills,
+spellbook, quests, map -- and the skills and the journal, which gave their
+buttons up, are reached from there. `Tab` does the same on the keys, where
+`I`, `O`, `P` and `M` still work as well. A pad layout saved before this had
+RB on the skills panel and would have taken it straight back, so a saved
+layout says which set of defaults it was made over (`"layout"`) and an old
+one's buttons are not applied; its keys are.
+
+### The armoury
+
+There were four weapons -- sword, spear, bow, staff -- in twelve tiers. There
+are thirteen now, in the same twelve: every one forged or carved from the same
+bars and logs, by the same skills, with a picture of its own, a model of its
+own in the hand, and a strike of its own. None of them is a line of code: what
+a mace *is* is what its line in `data/tiers.json` says, and the engine reads
+the same dozen fields off every weapon (`ItemDef`, "the armoury").
+
+| Weapon | Hands | Speed | What it is for |
+| --- | --- | --- | --- |
+| **Dagger** | one | 0.72 | Short, quick, and all point: **a third of a target's Defence does nothing against it** (`armour_pierce`). Strikes with the thrust. |
+| **Mace** | one | 1.12 | The hardest one-handed blow, and one in five **concusses**. Its own overhead `bash`. |
+| **Greatsword** | two | 1.45 | Half again a sword's reach and sixty per cent wider: the two-handed `sweep`, which is mostly wind-up and recovery, because that is what heavy looks like. 28% **bleed**. |
+| **Greataxe** | two | 1.6 | The slowest and the hardest. The same sweep -- and **held and let go it is a chop** (`hew`): longer down the line, half as wide, a third harder. 32% **bleed**. |
+| **Crossbow** | two | 0.55 | **It goes off the moment it is asked** -- no draw -- at 2.7 times the tier's power where a bow is 2.0, and the bolt goes through two bodies and past 40% of their Defence. Then it is **spanned again** for a second and a bit (`reload`), and nothing can be let off until it is. No combos: nothing chains off a weapon that has to be reloaded. |
+| **Throwing knives** | one | 0.6 | A shield on the other arm. Quick and close: a light throw is one knife, a **heavy one a fan of three**. |
+| **Wand** | one | 0.66 | Half again as many casts as a staff, each worth 0.72: about even over time, and much hungrier for mana. |
+| **Grimoire** | one | 0.8 | 0.8 of a staff's cast, and **every spell costs a sixth less**. |
+| **Orb** | one | 0.76 | 0.78 of a staff's cast, and **what it throws turns after its target**. |
+| **Fire, Water, Earth, Air staff** | one | 1.05 | [Four spells instead of four elements](#an-elements-own-staff). |
+
+**Combos.** The grammar is the sword's -- light-heavy, light-light-heavy,
+heavy-light, both at once -- and each melee weapon has its own four, with its
+own twist (`"combos"` on the piece): a dagger's *Gut Stab* goes past 70% of
+Defence and always opens a wound, its *Backstab* is a quarter harder; a mace's
+*Skull Crack* and *Ground Slam* always concuss; a greatsword's *Reaping Sweep*
+always bleeds and its *Pommel Strike* concusses; a greataxe's *Hew* and
+*Maelstrom* bleed and its *Haft Check* concusses. The HUD and the word over
+your head say the weapon's name for it.
+
+**Drawn.** `tools/blender_tiers.py` has a builder for each, cut from the same
+per-tier tables as the sword, so a bronze mace is a bronze sword's cousin;
+`tools/blender_character.py` has eight new clips -- `bash`, `sweep`, `hew`,
+`shoot`, `reload`, `throw`, `flick`, `invoke` -- for all three characters. A
+great weapon is carried **over the shoulder** in every clip that does not swing
+it: a blade as long as the man is tall, hung from the hand like a sword, drags
+its point through the floor.
+
+**And a bug the armoury found.** Every weapon sheet ever rendered had a suit of
+plain plate armour drawn into it under the weapon: the renderer held the body
+and the head out of the picture and had never been told about armour, which
+came later. It was invisible on anyone wearing a full suit, which is most
+people -- and a character with nothing on their legs grew steel greaves the
+moment they picked up a sword. All 1,900 sheets, old and new, were rendered
+again with the armour held out (a steel sword's sheet went from 3,841 opaque
+pixels to 531).
+
+### An element's own staff
+
+Any staff chooses among the four elements with `1` to `4`, and throws each
+one's bolt. **A Fire Staff casts nothing but fire -- and `1` to `4` are fire's
+four spells.** Twelve new spells, three an element, at Magic 12, 24 and 36:
+
+| | 1 | 2 (Magic 12) | 3 (Magic 24) | 4 (Magic 36) |
+| --- | --- | --- | --- | --- |
+| **Fire** | Ember, Pyre | **Flamethrower** -- light is five tongues across sixty degrees at arm's length; heavy is three, close together, that reach three times as far | **Flame Ring** -- twelve patches of burning ground round where you stand | **Wall of Fire** -- seven across the way you face, for five seconds |
+| **Water** | Spray, Torrent | **Hydro Cannon** -- one great ball: soaked, and thrown twice as far as a gust throws | **Tidal Wave** -- seven abreast, slowly, through everything | **Whirlpool** -- four seconds of water that drags what is in it to the middle |
+| **Earth** | Sharpstone, Upheaval | **Bedrock Sweep** -- a slab of the ground torn up and swung flat through everything in front; it lands like a wall, and often concusses | **Sedimentary Rain** -- the Arrow Rain's numbers, in stone | **Mineral Burst** -- eight sharp stones, one after another, from wherever you have got to |
+| **Air** | Gust, Galewind | **Tornado** -- it walks the way it was sent, throwing what it catches in any direction it likes, and **the further it is thrown the more it is hurt**. A light cast is a dust devil; **held and let go it lasts four seconds** | **Air Slash** -- an edge of air as wide as a doorway, through everything | **Turbulence** -- three seconds of your own weather, that goes where you go |
+
+(*Bedrock Sweep* is a name chosen for want of one: it is one string in
+`data/spells.json`.) The bar over the hands shows the four spells in the
+staff's colour, the spellbook page lists them, the pad's *next element* steps
+through them, and the fifth slot is still the ancient magic. What the big ones
+leave on the ground can **pull** (`GroundEffect::pull`), **throw**
+(`fling`), **walk** (`drift`) and **follow** its caster, and is drawn as what
+it is -- rings of water turning inward, a funnel of rings stacked off the
+ground -- on a friend's machine as on yours.
 
 ### Combos
 
@@ -901,6 +990,94 @@ How it is done, and why:
   be kept on the shot), and a shot it stops hearing of has met something and
   breaks where it last was.
 
+### The spellbook
+
+What each button does was spread over three places, and one of them was nowhere.
+An ability was moved from slot to slot by pressing confirm on it in the tree
+until it came round. An ancient spell was chosen by pressing `5` until it came
+round. And which of an element's spells was cast was not a choice at all: it
+was the strongest, at the strongest's price.
+
+**The third tab of the skills panel** (`O`, or RB, then `O` again) is one page
+for all of it -- **Spellbook** on a wayfarer, **Abilities** on the other two,
+who have the same page with the abilities first. A row for every slot, and on
+each row everything this character has that could go in it: up and down choose
+the row, left and right (or confirm) change what is on it, and it is changed as
+it is chosen. Under the rows, what the chosen thing is and does.
+
+| Row | What can go on it |
+| --- | --- |
+| `1`-`4`, the elements | **Strongest** (the default: whatever your Magic reaches, and the next tier when you reach that), or **held** to any one spell of that element you can cast. Holding fire to Ember at Magic 25 casts Ember for 4 mana where Pyre is 9 -- for a mage who is out of mana more often than out of damage. A held spell is the plain cast's; Arcane Pulse and Repulse have their own price and still throw the strongest. |
+| `5`, the ancient magic | whichever of the ancient spells you have learned. One out of your Magic's reach is shown in red with the level it wants. |
+| guard + light / heavy / lock on | nothing, or any ability learned. One that is already in another slot **changes places** with what was here, so choosing never drops an ability off the bar. |
+| hold heavy | the plain charged attack, or any technique learned |
+
+The tree still does what it did (confirm on a learned ability steps it through
+the slots), `5` again still turns the ancient magic's page, and what is held is
+the character's: it is in the save (`held_spells`), and in the sheet a friend's
+machine sends the host, who does the casting.
+
+**The fifth slot could not be reached from a pad.** A pad has no `5`; it has
+*next element* on the right stick, which went fire, water, earth, air and round
+again. The ancient magic was only in that round once a spell had been put on
+the slot, and the only thing that ever put one there was pressing `5`. *Next
+element* is told which ancient spells are known now, puts the first of them on
+the slot if nothing is, and steps onto it (`Player::CycleElement`). The
+self-test had only ever pressed `5`.
+
+### Status effects
+
+A blow can leave something on a monster besides the damage. It does not always:
+what throws it says how likely (`"status": {"id", "chance"}` on a projectile in
+`data/projectiles.json`, `"on_hit"` on a weapon in `data/tiers.json` and
+`data/items.json`), and what each one does while it lasts is data too, in
+`data/statuses.json` (`src/systems/status.h`).
+
+| Status | Left by | While it lasts |
+| --- | --- | --- |
+| **Burning** | Ember 30%, Pyre 40%; standing in what they leave burning, a third of that a tick; the Ember Blade 25%; Hellish Rebuke always | Half the blow again, over three seconds. Water puts it out, and nothing soaked can be set burning. |
+| **Soaked** | Spray 40%, Torrent 55% | Six seconds. It cannot burn, the wind bites it a quarter harder -- and an Ice Touch freezes it. |
+| **Concussed** | Shardshot 20%, Upheaval 30%, and the same again when the stone bursts | It reels as it takes it, and for four seconds its Attack and its Defence are down a quarter and it is a little slow. |
+| **Bleeding** | any sword, 18% a cut (and Open Wounds, as before) | Half the blow again over four seconds. A second wound adds to the first. |
+| **Poisoned** | Acid Spray, 35% a gout | Four fifths of the blow again over six seconds, and its Defence is down a fifth: its hide gives way. |
+| **Chilled** | Ice Touch, always | Four seconds at six tenths of its pace and a third longer between its swings. |
+| **Frozen** | a chill on something soaked | Held fast for a second and a half; then it thaws into a chill, and is dry. |
+
+**The wind leaves nothing.** A gust's thing is that it throws what it hits --
+further than anything else any element throws -- and that is all of it.
+
+**Defence is where they meet the rest of the fight.** Every monster has always
+had a Defence level and a Defence bonus (all sixty-one, in `data/enemies.json`),
+and a blow lands or misses by the attacker's Attack against it, the way Old
+School RuneScape rolls it. So a concussed or a poisoned monster is one that is
+hit more often -- by everybody, a friend's arrows included -- which is what
+makes them worth the mana beyond their own damage.
+
+What else is so:
+
+- **A burn is not a second fire.** Two burns are the greater of the two, not the
+  sum: fast hands would otherwise stack one without end. A bleed is the one
+  that adds, because it always did.
+- **The great ones shake things off** in half the time, and are never held: a
+  boss soaked and chilled is only chilled.
+- **Some things cannot take some things.** Nothing made of fire can be set
+  burning. The dead -- skeletons, wraiths, banshees, the ankou, the Wight -- do
+  not bleed and cannot be poisoned (`"immune"` in `data/enemies.json`); a zombie
+  cannot be poisoned and a slime has nothing to bleed.
+- **It shows.** The name floats up once as it takes; a pip in its colour stands
+  over the health bar for as long as it lasts; the monster's own colours are
+  pulled toward it (a throb of orange, blue for the wet and the cold, green for
+  poison, and nearly all the way to ice when frozen); and it sheds what it is
+  made of -- embers, drops, blood, bubbles, frost, and stars going round a head
+  that has been rung. Damage over time comes up in the status's colour, and
+  does *not* flash the monster red: a burn ticks six times a second, and
+  flashed for each the monster was simply red, which hid what was on it.
+- **A friend sees the same.** What is on a monster goes down the wire as one
+  byte of bits (protocol 5), and a guest's machine tints, pips and sheds from
+  that.
+- **Nothing is rolled without the statuses loaded**, so every test written
+  before them is a test of the same game it was.
+
 ### The effectiveness cycle
 
 ```
@@ -936,21 +1113,30 @@ The spells are a fifth school, **arcane**, beside the elements rather than
 among them: it neither beats nor is beaten by any of them. `5` chooses it once
 any of it is known, and `5` again turns the page to the next spell learned, so
 the school is chosen by name where an element is chosen by strength. `R`
-cycles round to it too. The old books, and D&D's, are where the names come
-from:
+cycles round to it too -- as does a pad's right stick, which is the only way a
+pad has -- and [the spellbook](#the-spellbook) puts any of them on the slot
+outright. The old books, and D&D's, are where the names come from:
 
 | Spell | Magic | Mana | Shape |
 | --- | --- | --- | --- |
 | Eldritch Blast | 10 | 8 | one bolt of force at 1.3x that passes through three bodies and throws the rest back |
+| **Acid Spray** | 13 | 8 | five gouts of acid in a fan at 0.45x each, at arm's length and a little more; each can leave it **poisoned** |
 | Magic Missile | 16 | 9 | three darts at 0.55x that turn after the target; they do not miss |
+| **Ice Touch** | 20 | 7 | a hand's reach of cold at 1.2x that always **chills** -- and **freezes** what is soaked |
 | Scorching Ray | 24 | 12 | three rays of heat in a fan at 0.8x, faster than anything the elements throw |
+| **Vampiric Touch** | 28 | 12 | a hand's reach at 1.3x, and **half of what it takes comes back as health** |
 | Hail of Blades | 32 | 15 | a moment later, blades come down on the target and everything beside it, at 1.5x |
+| **Hellish Rebuke** | 36 | 14 | fire where the target stands, at once, at 1.6x, and it is left **burning** -- half as hard again if you were hurt in the last four seconds |
 | Cloud of Daggers | 40 | 16 | a slow orb that bursts into a cloud of knives where it lands and cuts for four seconds |
 | Thunderwave | 48 | 18 | a ring of force out of the caster in every direction, at 0.7x, that throws everything it touches |
 
 Every spell has a shape in `data/spells.json` -- `bolt`, `darts`, `rays`,
-`rain`, `ring` -- and the world casts by shape, so a new spell is a line of
-data and a projectile. The combos work with the ancient magic as they do with
+`rain`, `ring`, `spray`, `rebuke` -- and the world casts by shape, so a new
+spell is a line of data and a projectile. The two touches are bolts that live a
+quarter of a second. The four in bold came with the [status
+effects](#status-effects), and are the ancient magic's way into them: all four
+are arcane, so none is any creature's weakness -- the Rebuke is the ancient
+magic's and only *looks* like the fire it is (`GroundEffect::look`). The combos work with the ancient magic as they do with
 the elements.
 
 ### Mana
@@ -1113,7 +1299,7 @@ is a character who can loose one.
 
 #### Abilities
 
-**Hold the guard (`H`, or `(B)`) and press light, heavy or lock on.** A tree
+**Hold the abilities' shift (RB on a pad; the guard, `H`, on the keys) and press light, heavy or lock on.** A tree
 teaches six abilities and **three are carried at once**: slot one on guard +
 light (`H`+`J`), slot two on guard + heavy (`H`+`K`), slot three on guard +
 lock on (`H`+`L`, or B + the right trigger). The guard button is the shift key
@@ -1123,8 +1309,10 @@ Each has a cooldown and a cost, shown on the HUD at the bottom left with a bar
 that refills as it comes back, and what is running -- a frenzy, a held breath,
 an overload -- is named beside them. A newly learned ability goes straight
 into a free slot; `J` on a learned one in the tree moves it on to the next slot
-(changing places with whatever is there) and from the last puts it away. Which
-three of the six to carry is part of the build.
+(changing places with whatever is there) and from the last puts it away; and
+[the spellbook](#the-spellbook) has a row for each slot, with every ability
+learned on it to choose from. Which three of the six to carry is part of the
+build.
 
 | Whose | Ability | Every | Costs | What it does |
 | --- | --- | --- | --- | --- |
@@ -3635,7 +3823,7 @@ of room:
 | --- | --- | --- |
 | West | `college_training` | **The practice hall.** Four lanes with a straw man at the end of each, and an apprentice or an adept at the head of each throwing what they are learning at him -- fire, the old bolt, water, air. Crystals in the corners, the staves in a rack, a duelling ring, Battlemaster Ysolde watching. |
 | East | `college_classroom` | **The lecture room.** A board across the back wall chalked with a working, the lectern, an orrery, shelves, ten desks either side of a blue runner with a class at half of them, and Lector Maud on the four elements and what each one fears. |
-| North | `fernhollow_college` | **The great hall, where the council sits.** The council's table under a blue cloth with six high chairs at it, Magister Orrin at its head with Councillors Ferris and Wren, the library along the back wall, a founder either side -- and south of the table the circle cut in the floor, which is older than all of it. The hall keeps the id it always had, so everything that knew the way to the Magister still does. |
+| North | `fernhollow_college` | **The great hall, where the council sits.** The council's table under a blue cloth with six high chairs turned to it, and the council *sitting* in the three behind it -- Magister Orrin in the middle, Councillors Ferris and Wren either side, facing the table and the room across it. (They stood north of their chairs at first, and all that showed of a councillor was the top of a head over the back of an empty chair. Each is a few pixels south of the chair now, so they are drawn over its tall back and under the table, which hides them from the chest down: somebody sitting at a table, with no sitting sprite.) Behind them the library along the back wall, a founder either side -- and south of the table the circle cut in the floor, which is older than all of it. The hall keeps the id it always had, so everything that knew the way to the Magister still does. |
 
 The side doors are doors in side walls: a gap in the wall with the runner laid
 through it and a pair of columns either side, walked into sideways. The rooms
@@ -4586,7 +4774,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **30327 checks** covering:
+and checks all of it — currently **32577 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -5365,6 +5553,62 @@ and checks all of it — currently **30327 checks** covering:
   game's dice in the same place; seven hundred and twenty fireballs are seven
   hundred motes; and a friend's machine sheds its own trail from the shots it
   is told of, and breaks one it stops hearing of where it last was
+- the armoury: every tier has all nine new weapons and the four elements'
+  staves (156), each with its picture, its model in the hand and a recipe; a
+  dagger is quicker and shorter than a sword and goes past armour, and against
+  something well guarded its blows land more often; a mace concusses; the great
+  weapons take both hands, are slower, reach further, sweep wider and bleed,
+  and a greataxe's charged heavy is a chop of its own; a greatsword takes the
+  shield off and knives and a shield go together; a crossbow throws a bolt at
+  once, is then being spanned, and nothing can be let off until it is; a light
+  throw is one knife and a heavy one three; the casters' weapons are quicker
+  than a staff for less, about even over time; each melee weapon has four
+  combos by name; every element has a spell on each of four slots; a fire
+  staff's four keys are four spells and it casts nothing else; the Flame Ring
+  is a ring, the Wall of Fire a line across the way faced, the Flamethrower
+  five wide or three far; the Hydro Cannon throws, the Tidal Wave is seven, the
+  Whirlpool drags to its middle; the Bedrock Sweep hits what is in front and
+  not behind, the Mineral Burst is eight, the Sedimentary Rain a rain of stone;
+  a Tornado walks, lasts four seconds held, throws and hurts, and Turbulence
+  goes where its caster goes; RB is the abilities' shift and Select the menu,
+  an old saved pad layout is not applied, the guard and the light attack is no
+  longer an ability and the shift and the light attack is, and on the keys the
+  guard is still the shift; and every one of the 156 weapons looks different in
+  the hero's hand, striking
+- statuses: all seven load with a name; fire can leave a burn, water soaks,
+  stone concusses and the wind leaves nothing but throws further than any of
+  them, the greater of each more often and neither always; every tier's sword
+  can open a wound (by what is in the hand: the steel one is a longsword and an
+  enchanted sword is a sword), no spear, bow or staff can, and the Ember Blade
+  burns; every monster has a Defence, and a blow that lands on a soft one
+  misses a hard one; a burn is half the blow over three seconds, two burns are
+  the greater and two bleeds the sum; water puts a burn out and keeps one from
+  taking; the wind bites what is soaked; a chill on something soaked is frozen,
+  held, thaws into a chill, slow in leg and arm, and wears off; a concussed
+  skeleton is hit more often by the same hand; the dead do not bleed, fire does
+  not burn, a boss is poisoned for half as long and never held; of sixty bolts
+  of each element some leave their status and sixty gusts none, every one of
+  them throwing what it hits; seventy cuts open a few wounds and seventy
+  thrusts none; with no statuses loaded nothing is rolled; Acid Spray is five
+  gouts that mostly poison, every Ice Touch that lands chills, freezes the
+  soaked and does not cross a field, half of what the Vampiric Touch takes
+  comes back, the Rebuke is arcane drawn as fire, leaves its target burning and
+  is half as hard again as an answer; and the byte of what is on a monster
+  crosses the wire and a friend's machine draws the same
+- the spellbook, and the fifth slot on a pad: with no ancient magic known four
+  steps of *next element* are fire again, and with a spell learned and `5`
+  never pressed the fourth step is the fifth slot, with that spell on it, and
+  it casts; the spell the book put on the slot is the one stepped to; fire at
+  Magic 25 is Pyre, and held to Ember it is Ember, cast as an Ember for an
+  Ember's mana, with water none the weaker; an element cannot be held to
+  another's spell, an ancient one, or one out of its Magic's reach, and the
+  fifth slot holds nothing that way; a save keeps what is held and so does a
+  friend's sheet; an ability is put in a slot outright, changes places with one
+  already carried, and a passive, an unlearned one and a fourth slot are
+  refused; the charged attack is set from one technique to another without
+  going by way of plain, and not to an ability or an unlearned one; and the
+  council is seated -- each in a chair, in front of its back, north of the
+  table and facing it
 - the College at Fernhollow, and Wynn's at Mossvale: the college is through a
   gatehouse on the hamlet's north side with a porter at it, and the tower is
   gone; the court is out of doors, bigger than the hamlet, and paved in its own
@@ -5445,6 +5689,31 @@ It exits with the number of failures, so CI can use it directly.
 
 ## Layout
 
+### Two files that had grown too big
+
+`world.cpp` was 4,331 lines and `ui/screens.cpp` 4,630: a fifth of the game in
+two files, which is a long wait every time either is touched and a long scroll
+to find anything in them. Both already had banners down them -- *Combat
+resolution*, *Interaction*, *Rendering*; *HUD*, *Inventory*, *Shops* -- so they
+were cut along those, and nothing else was done to them: every function is the
+function it was, to the line, in a file named for what it is about. (It was
+done by a script that cuts a file into its top-level paragraphs and sends each
+whole to one place, and then counts: every line of the original is in exactly
+one of the new files.) A class in C++ does not have to live in one file, and
+`World` and `Game` no longer do.
+
+An outside audit of the repository asked for that, and for five other things.
+What was found for each, since the next audit will ask again:
+
+| Asked for | What is there |
+| --- | --- |
+| Split the god-modules | Done, as above. |
+| One authority for each behaviour | Mostly so already: `Player` is intent and owned state, `systems/combat` rolls the blow, `World` simulates, `Game` draws and takes commands, `coop/` replicates. `World` never calls the UI: it leaves `WorldRequest`s and the `Game` takes them. |
+| Typed gameplay events | The fan-out that matters is one already: a kill is a `QuestEvent` in `World::kill_log`, and `FlushKills` tells every journal at the table, awards the boss, and relays it down the wire. A general event bus would be a rewrite of working code to move the same calls behind a subscription, so it was not done. |
+| Static data apart from runtime state | It is. Every `*Def` is loaded once from `data/` and held `const`; an `Enemy`, a `Projectile`, an item in a bag hold a pointer or an id and their own changing state; a save holds ids. |
+| Versioned saves | They are: `SAVE_VERSION` in `systems/save.cpp`, read back as `version`, with the one migration there has been (the overworld's layout moved) keyed on it. |
+| Tests | 30,000 checks of exactly the list asked for -- damage, loot rolls, inventory, quests, shop prices, save round trips, the wire protocol, the data hashes -- in `tools/selftest.cpp`, which an audit looking for a `tests/` folder does not find. `.\build.ps1 -Test`. |
+
 ```
 src/
   game.cpp/h            state machine, window, main loop
@@ -5454,16 +5723,26 @@ src/
   texturecache.cpp/h    path -> texture
   world/
     map.cpp/h           .mx loader, chunked render, collision, portals
-    world.cpp/h         entities, combat resolution, interaction, loot
+    world.cpp/h         the World class: the map, the seats at it, sleep and the frame
+    world_combat.cpp      ...what a swing, a shot, a cast and an ability do; what a hit is
+    world_projectiles.cpp ...what flies, what it strikes, what it leaves on the ground
+    world_effects.cpp     ...what spells shed, and sprint dust: only ever for show
+    world_interact.cpp    ...reach, open, gather, cook, loot and pick up
+    world_render.cpp      ...everything that is drawn, and the light it is drawn in
     targeting.cpp/h     who the player is fighting: combat target and lock-on
     lighting.cpp/h      night as a multiplied light map, with fires cut out of it
   entity/               player, enemies, NPCs
   systems/              skills, items, loot, combat, quests, dialogue, saves,
-                        projectiles and elements, spells, the clock,
+                        projectiles, elements (element.h) and statuses (status.h),
+                        spells, the clock,
                         material tiers (items.cpp), skill trees (talents.cpp),
                         tools, fishing and foraging (gathering.cpp), and traders (shop.cpp)
   ui/                   drawing helpers and every screen; lobby.cpp is Play Together,
-                        splitscreen.cpp is two at one machine
+                        splitscreen.cpp is two at one machine. The Game class's
+                        screens are screens.cpp (the menus) and screen_hud,
+                        screen_inventory, screen_skills, screen_journal,
+                        screen_talk and screen_trade; screens_shared.h is what
+                        two of them use
   coop/                 co-op: where the wire meets the world -- the host's half
                         and the guest's
   net/                  co-op: the transport (ENet, and an in-process loopback),
@@ -5482,7 +5761,7 @@ tools/
   make_icons.ps1        paints the hand-drawn item icons in icons.txt
   blender_tiers.py      models and renders every tier's ore, bar, weapon and armour,
                         as icons and as weapon layers in the hero's hand
-  make_tiers.ps1        runs blender_tiers.py headless
+  make_tiers.ps1        runs blender_tiers.py headless (`-What armoury,icons` for the nine new weapons' icons alone)
   make_titleart.ps1     the window icon and the .exe's .ico, off the cover painting
   appicon.rc            the resource that compiles the .ico into the executable
   make_sprites_json.ps1 / make_manifest.ps1

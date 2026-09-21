@@ -11,6 +11,37 @@ const char* EquipSlotName(int slot) {
     return kSlotNames[slot];
 }
 
+// What a weapon's line says about itself, in items.json and in a piece of
+// tiers.json alike.
+static void ReadArmoury(const json& o, ItemDef& d) {
+    d.weapon_class  = o.value("class", string(""));
+    d.two_handed    = o.value("two_handed", false);
+    d.armour_pierce = std::clamp(o.value("armour_pierce", 0.0f), 0.0f, 0.9f);
+    d.damage        = o.value("damage", 1.0f);
+    d.charge_clip   = o.value("charge_clip", string(""));
+    if (o.contains("charge") && o["charge"].is_object()) {
+        d.charge_damage = o["charge"].value("damage", 1.0f);
+        d.charge_reach  = o["charge"].value("reach", 1.0f);
+        d.charge_sweep  = o["charge"].value("sweep", 1.0f);
+    }
+    d.reload    = o.value("reload", 0.0f);
+    d.shoots    = o.value("shoots", string(""));
+    d.mana_mult = o.value("mana", 1.0f);
+    d.homing    = o.value("homing", 0.0f);
+    d.element   = ElementFromName(o.value("element", string("none")));
+    if (o.contains("combos") && o["combos"].is_object()) {
+        static const char* kMoves[4] = {"crush", "cleave", "backhand", "cross_cut"};
+        for (int i = 0; i < 4; ++i) {
+            if (!o["combos"].contains(kMoves[i])) continue;
+            const json& c = o["combos"][kMoves[i]];
+            d.combos[i].name   = c.value("name", string(""));
+            d.combos[i].status = StatusFromId(c.value("status", string("")));
+            d.combos[i].pierce = std::clamp(c.value("pierce", 0.0f), 0.0f, 0.9f);
+            d.combos[i].damage = c.value("damage", 1.0f);
+        }
+    }
+}
+
 WeaponKind WeaponKindFromName(const string& name) {
     if (name == "bow")   return WeaponKind::Bow;
     if (name == "staff") return WeaponKind::Staff;
@@ -65,7 +96,9 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.reach       = o.value("reach", 1.0f);
         d.sweep       = o.value("sweep", 1.0f);
         d.push        = o.value("push", 1.0f);
+        if (o.contains("on_hit")) d.on_hit = StatusProcFromJson(o["on_hit"]);
         d.attack_clip = o.value("clip", string(""));
+        ReadArmoury(o, d);
         d.light_radius = o.value("light", 0.0f);
         d.lights       = o.value("lights", string(""));
         d.needs_recipe = o.value("needs_recipe", false);
@@ -254,7 +287,11 @@ bool ItemDatabase::LoadTiers(const string& path) {
 
     // Pieces in a fixed order, so the recipe list reads the same every time.
     static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs",
-                                    "axe", "pickaxe"};
+                                    "axe", "pickaxe",
+                                    // The armoury: see README.
+                                    "dagger", "mace", "greatsword", "greataxe", "crossbow", "knives",
+                                    "wand", "grimoire", "orb",
+                                    "fire_staff", "water_staff", "earth_staff", "air_staff"};
     const json& pieces = root["pieces"];
 
     const auto icon_for = [](const string& file) { return "assets/icons/tiers/" + file + ".png"; };
@@ -342,7 +379,9 @@ bool ItemDatabase::LoadTiers(const string& path) {
             d.reach = pj.value("reach", 1.0f);
             d.sweep = pj.value("sweep", 1.0f);
             d.push = pj.value("push", 1.0f);
+            if (pj.contains("on_hit")) d.on_hit = StatusProcFromJson(pj["on_hit"]);
             d.attack_clip = pj.value("clip", string(""));
+            ReadArmoury(pj, d);
             d.value = pj.value("value", 10) * value_mult;
             d.icon = icon_for(piece + "_" + t.id);
             d.tier = t.id;
@@ -352,7 +391,10 @@ bool ItemDatabase::LoadTiers(const string& path) {
             const bool weapon = d.slot == SLOT_WEAPON;
             d.tool = pj.value("tool", string(""));
             if (!d.tool.empty()) d.tool_speed = tj.value("tool_speed", 1.0f);
-            if (weapon || !d.tool.empty()) d.model = piece + "_" + t.id;
+            if (weapon || !d.tool.empty()) d.model = pj.value("model", piece) + "_" + t.id;
+            if (weapon && pj.contains("tint") && pj["tint"].is_array() && pj["tint"].size() >= 3)
+                d.tint = {static_cast<Uint8>(pj["tint"][0].get<int>()), static_cast<Uint8>(pj["tint"][1].get<int>()),
+                          static_cast<Uint8>(pj["tint"][2].get<int>()), 255};
             // A weapon's model is drawn in its own colours; a piece of plate is
             // drawn from the character's own armour sheet for that slot, in the
             // tier's metal.
@@ -409,8 +451,10 @@ bool ItemDatabase::LoadTiers(const string& path) {
             map<string, int> inputs;
             int amount = 0;
             if (t.wood) {
-                if (tj.contains("wood_inputs") && tj["wood_inputs"].contains(piece))
-                    for (auto i = tj["wood_inputs"][piece].begin(); i != tj["wood_inputs"][piece].end(); ++i) {
+                const json* from = (tj.contains("wood_inputs") && tj["wood_inputs"].contains(piece)) ? &tj["wood_inputs"][piece]
+                                 : pj.contains("wood") ? &pj["wood"] : nullptr;
+                if (from)
+                    for (auto i = from->begin(); i != from->end(); ++i) {
                         inputs[i.key()] = i.value().get<int>();
                         amount += i.value().get<int>();
                     }

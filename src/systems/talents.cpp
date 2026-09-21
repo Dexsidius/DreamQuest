@@ -258,6 +258,28 @@ int Talents::CycleAbility(const string& node_id) {
     return -1;
 }
 
+bool Talents::SetAbility(int slot, const string& node_id) {
+    if (slot < 0 || slot >= SkillTrees::ABILITY_SLOTS) return false;
+    if (node_id.empty()) { ability[slot].clear(); return true; }
+    const TalentNode* node = db ? db->Find(node_id) : nullptr;
+    if (!node || node->ability.empty() || !Has(node_id)) return false;
+    const int was = SlotOf(node_id);
+    if (was == slot) return true;
+    if (was >= 0) std::swap(ability[was], ability[slot]);
+    else          ability[slot] = node_id;
+    return true;
+}
+
+bool Talents::SetTechnique(AttackStyle style, const string& node_id) {
+    string& slot = technique[static_cast<int>(style)];
+    if (node_id.empty()) { slot.clear(); return true; }
+    AttackStyle owner = AttackStyle::Melee;
+    const TalentNode* node = db ? db->Find(node_id, &owner) : nullptr;
+    if (!node || node->technique.empty() || owner != style || !Has(node_id)) return false;
+    slot = node->technique;
+    return true;
+}
+
 Talents::Why Talents::CanLearn(const string& id, const Skills& skills) const {
     AttackStyle style = AttackStyle::Melee;
     const TalentNode* node = db ? db->Find(id, &style) : nullptr;

@@ -51,7 +51,7 @@ public:
     // True when a new swing may begin: nothing in flight, no cooldown left,
     // and both feet on the ground.
     bool  CanAttack() const {
-        return !attack.Active() && attack_cooldown <= 0.0f && !jumping;
+        return reload_left <= 0.0f && !attack.Active() && attack_cooldown <= 0.0f && !jumping;
     }
 
     // --- jumping ---------------------------------------------------------------
@@ -130,14 +130,53 @@ public:
     // A night's sleep: health, mana and breath all back to full.
     void  Rest();
 
-    Element SelectedElement() const { return selected_element; }
+    // How long since a blow last got through, for the Hellish Rebuke: inside
+    // the window it is an answer, and lands half as hard again.
+    static constexpr float REBUKE_WINDOW = 4.0f, REBUKE_DAMAGE = 1.5f;
+    float   SinceHurt() const { return since_hurt; }
+    void    NoteHurt() { since_hurt = 0.0f; }
+
+    // --- the armoury ----------------------------------------------------------------
+    // What this weapon calls a combo, and what is different about it: see
+    // ItemDef::ComboTwist. The sword's name where the weapon has none.
+    string ComboLabel(ComboMove move) const;
+    const ItemDef::ComboTwist* Twist(ComboMove move) const;
+    // A crossbow being spanned: nothing can be let off until it is.
+    bool  Reloading() const { return reload_left > 0.0f; }
+    float ReloadProgress() const { return reload_time > 0.0f ? 1.0f - reload_left / reload_time : 1.0f; }
+    void  StartReload();
+    // A staff given over to one element, and which of its four spells is
+    // chosen: see ItemDef::element. None, and 1 to 4 are the elements.
+    Element StaffElement() const;
+    int   SpellSlot() const { return spell_slot; }
+    void  SelectSlot(int slot) { spell_slot = std::clamp(slot, 0, 3); if (StaffElement() != Element::None) selected_element = StaffElement(); }
+
+    Element SelectedElement() const { return StaffElement() != Element::None && selected_element != Element::Arcane
+                                                 ? StaffElement() : selected_element; }
     void    SelectElement(Element e) { if (e != Element::Arcane || !arcane_spell.empty()) selected_element = e; }
     void    CycleElement(int delta);
+    // The same, knowing which ancient spells have been learned: with any, the
+    // fifth slot is in the round. It was only in it once 5 had been pressed --
+    // that is what first put a spell on it -- and a pad has no 5: it has this.
+    void    CycleElement(int delta, const vector<string>& known);
     // The ancient magic: chooses the arcane school with the first spell of
     // `known` -- the ids learned, in the order they are learned -- or, already
     // on it, steps to the next one known. Nothing happens with none known.
     void    SelectArcane(const vector<string>& known);
     const string& ArcaneSpell() const { return arcane_spell; }
+    // Puts an ancient spell on the fifth slot without choosing the slot: the
+    // spellbook's page does this.
+    void    SetArcaneSpell(const string& id) { arcane_spell = id; }
+    // The spell an element is held to, or nothing for the strongest: see
+    // SpellBook::Chosen. Fire, water, earth and air only.
+    const string& HeldSpell(Element e) const;
+    void    HoldSpell(Element e, const string& id);
+    const SpellDef* SpellOf(Element e, const SpellBook& book) const {
+        // An element's own staff casts the spell on the slot chosen; anything
+        // else casts the element's first, the strongest or the one held to.
+        if (StaffElement() == e && spell_slot > 0) return book.ForSlot(e, spell_slot + 1, skills.Level(SKILL_MAGIC));
+        return book.Chosen(e, skills.Level(SKILL_MAGIC), HeldSpell(e));
+    }
 
     // --- progression ----------------------------------------------------------
     Skills    skills;
@@ -563,6 +602,10 @@ private:
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point
     Element selected_element = Element::Fire;
     string  arcane_spell;                 // the ancient spell chosen with 5
+    string  held_spell[4];                // fire, water, earth, air: see HeldSpell
+    float   since_hurt = 1.0e6f;
+    float   reload_left = 0.0f, reload_time = 0.0f;
+    int     spell_slot = 0;
 
     const ItemDatabase* item_db = nullptr;
 

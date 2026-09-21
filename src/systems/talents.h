@@ -211,12 +211,19 @@ public:
     // away. Returns the slot it is now in, or -1.
     int  CycleAbility(const string& node_id);
     int  SlotOf(const string& node_id) const;
+    // Puts a learned ability in a slot outright -- or nothing, for no id. One
+    // that was in another slot changes places with what was here, so choosing
+    // never loses an ability off the bar.
+    bool SetAbility(int slot, const string& node_id);
 
     // The technique the charged attack with this style's weapon comes out as;
     // empty for the plain charged attack. Only a learned technique can be set,
     // and setting the one already chosen clears it.
     const string& Technique(AttackStyle style) const { return technique[static_cast<int>(style)]; }
     bool ToggleTechnique(const string& node_id);
+    // The same, said outright: this learned technique's node, or no id for
+    // the plain charged attack.
+    bool SetTechnique(AttackStyle style, const string& node_id);
 
     // Summed effect of every learned node: a style-scoped effect from that
     // style's tree, a global one from all three.

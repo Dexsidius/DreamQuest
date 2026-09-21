@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
     QuestLog         quests;
     DialogueDatabase dialogue;
     ProjectileDatabase projectiles;
+    StatusDatabase statuses;
     SpellBook        spells;
     SkillTrees       trees;
 
@@ -99,6 +100,7 @@ int main(int argc, char** argv) {
     Check(quests.LoadDefinitions("data/quests.json"), "data/quests.json loads");
     Check(dialogue.Load("data/dialogue.json"),      "data/dialogue.json loads");
     Check(projectiles.Load("data/projectiles.json"), "data/projectiles.json loads");
+    Check(statuses.Load("data/statuses.json"),       "data/statuses.json loads");
     Check(spells.Load("data/spells.json"),         "data/spells.json loads");
     Check(trees.Load("data/skill_trees.json"),     "data/skill_trees.json loads");
 
@@ -3109,25 +3111,33 @@ int main(int argc, char** argv) {
             int missing = 0, sheets = 0;
             std::set<size_t> attack_sheets;
             for (const TierDef& t : tiers)
-                for (const char* kind : {"sword", "spear", "bow", "staff"}) {
+                for (const char* kind : {"sword", "spear", "bow", "staff", "dagger", "mace", "greatsword", "greataxe",
+                                         "crossbow", "knives", "wand", "grimoire", "orb"}) {
                     const string model = string(kind) + "_" + t.id;
-                    const bool spear = string(kind) == "spear";
+                    const string k = kind;
+                    const bool melee = k == "sword" || k == "spear" || k == "dagger" || k == "mace" || k == "greatsword" || k == "greataxe";
+                    // The strike each makes, which nothing else makes: see
+                    // models_for in tools/blender_tiers.py, which this mirrors.
+                    const std::map<string, std::set<string>> own = {
+                        {"attack", {"sword", "bow", "staff"}}, {"thrust", {"spear", "dagger"}}, {"bash", {"mace"}},
+                        {"sweep", {"greatsword", "greataxe"}}, {"hew", {"greataxe"}}, {"shoot", {"crossbow"}},
+                        {"reload", {"crossbow"}}, {"throw", {"knives"}}, {"flick", {"wand"}}, {"invoke", {"grimoire", "orb"}}};
                     for (const auto& clip : hero ? hero->clips : map<string, AnimClip>{}) {
                         // The work clips hold a tool, not a weapon, and picking herbs holds nothing.
                         if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish" ||
                             clip.first == "gather") continue;
-                        // A spear strikes with the thrust and nothing else does.
-                        if (clip.first == (spear ? "attack" : "thrust")) continue;
-                        // Rushing Strike is a melee move; a bow or a staff never leaps.
+                        const auto whose = own.find(clip.first);
+                        if (whose != own.end() && !whose->second.count(k)) continue;
+                        // Rushing Strike is a melee move; nothing thrown or cast ever leaps.
                         // Nor do they make the combos.
                         const bool melee_only = clip.first == "rush" || clip.first == "crush" || clip.first == "cleave" ||
                                                 clip.first == "backhand" || clip.first == "spin";
-                        if (melee_only && (string(kind) == "bow" || string(kind) == "staff")) continue;
+                        if (melee_only && !melee) continue;
                         const string path = "assets/characters/player_hero/layers/" + clip.first +
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
                         ++sheets;
-                        if (clip.first == "attack" || clip.first == "thrust") {
+                        if (whose != own.end() && clip.first != "reload" && clip.first != "hew") {
                             std::ifstream f(path, std::ios::binary);
                             attack_sheets.insert(std::hash<string>{}(string(
                                 (std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>())));
@@ -3136,7 +3146,8 @@ int main(int argc, char** argv) {
                 }
             Check(hero && missing == 0, "every tier weapon has a layer sheet for every hero clip (" +
                   std::to_string(sheets) + ")");
-            Check(attack_sheets.size() == 48, "all 48 weapons look different in the hero's hand");
+            Check(attack_sheets.size() == 12 * 13, "all 156 weapons look different in the hero's hand, striking (" +
+                                                        std::to_string(attack_sheets.size()) + ")");
         }
 
         // --- the spear ------------------------------------------------------------------------
@@ -9673,9 +9684,9 @@ int main(int argc, char** argv) {
                   in.PromptFor(Action::Back) == "K" && in.PromptFor(Action::Drop) == "G" && in.PromptFor(Action::SelectArcane) == "5",
                   "the prompts read as they always did, and the ancient magic's key has one at last");
             Check(tap(in, SDLK_J).count(Action::LightAttack) && tap(in, SDLK_J).count(Action::Confirm) && tap(in, SDLK_K).count(Action::Back) &&
-                  tap(in, SDLK_TAB).count(Action::Inventory) && tap(in, SDLK_Q).count(Action::QuestLog) && tap(in, SDLK_RSHIFT).count(Action::Sprint) &&
+                  tap(in, SDLK_TAB).count(Action::Menu) && tap(in, SDLK_Q).count(Action::QuestLog) && tap(in, SDLK_RSHIFT).count(Action::Sprint) &&
                   tap(in, SDLK_UP).count(Action::MoveUp) && tap(in, SDLK_W).count(Action::MoveUp),
-                  "and the keys do what they always did: J swings and confirms, K backs out, Tab and Q and the right Shift are spares, W and Up both go up");
+                  "and the keys do what they always did: J swings and confirms, K backs out, Q and the right Shift are spares, W and Up both go up -- and Tab is the menu of menus");
         }
 
         // --- a swap, never a loss ------------------------------------------------------------------------
@@ -9684,7 +9695,7 @@ int main(int argc, char** argv) {
             Check(b.BindKey(Action::LightAttack, SDLK_K) == Action::StrongAttack && b.Key(Action::LightAttack) == SDLK_K &&
                   b.Key(Action::StrongAttack) == SDLK_J, "giving the light attack the heavy attack's key gives the heavy attack the light attack's");
             Check(b.BindKey(Action::LightAttack, SDLK_K) == Action::COUNT, "asking for the key it has is nothing");
-            Check(b.BindKey(Action::Jump, SDLK_F) == Action::COUNT && b.Key(Action::Jump) == SDLK_F, "a key nobody had is just taken");
+            Check(b.BindKey(Action::Jump, SDLK_V) == Action::COUNT && b.Key(Action::Jump) == SDLK_V, "a key nobody had is just taken");
             const Bindings before = b;
             Check(b.BindKey(Action::Jump, SDLK_ESCAPE) == Action::COUNT && b.BindKey(Action::Jump, SDLK_RETURN) == Action::COUNT &&
                   b.BindKey(Action::Jump, SDLK_UP) == Action::COUNT && b == before, "Esc, Enter and the arrows cannot be given away");
@@ -13219,7 +13230,7 @@ int main(int argc, char** argv) {
             }
             // What is seen should be about what strikes: a picture three times
             // the circle sails through things it looks to have hit.
-            if (d.frames > 1 && d.upright) Check(h <= d.radius * 4.0f, kv.first + " is no bigger than about what it hits");
+            if (d.frames > 1 && d.upright) Check(h * d.scale <= d.radius * 4.0f, kv.first + " is no bigger than about what it hits");
         }
         for (const char* el : {"fire", "water", "earth", "air"}) {
             const ProjectileDef* small = projectiles.Get(string("bolt_") + el);
@@ -13374,6 +13385,1090 @@ int main(int argc, char** argv) {
                 // Leaving takes it all along: nothing bursts on the far side of a door.
                 w.visiting = false;
             }
+        }
+    }
+
+    Section("the spellbook: what each button does, and the fifth slot on a pad");
+    {
+        GameContext ctx;
+        std::mt19937 rng(818);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        Input input;
+        ctx.input = &input;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto mage = [&](World& w, int magic) {
+            w.player.Init(ctx, "player_wayfarer");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(magic), lu);
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Equip(SLOT_WEAPON, "novice_staff");
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            return true;
+        };
+        // One press of the light button, and what came of it.
+        const auto cast = [&](World& w) -> const ProjectileDef* {
+            w.projectiles.clear();
+            input.Update(kFrame); key(SDLK_J, true);  w.Update(kFrame, ctx);
+            input.Update(kFrame); key(SDLK_J, false); w.Update(kFrame, ctx);
+            for (int f = 0; f < 60 && w.projectiles.empty(); ++f) { input.Update(kFrame); w.Update(kFrame, ctx); }
+            const ProjectileDef* def = w.projectiles.empty() ? nullptr : w.projectiles.front().def;
+            for (int f = 0; f < 50; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); }
+            return def;
+        };
+
+        // --- the fifth slot, stepped to --------------------------------------------------------
+        // A pad has no 5. It has "next element", which went fire, water, earth,
+        // air and round again: the ancient magic was only in the round once a
+        // spell had been put on the slot, and only 5 ever put one there.
+        {
+            World w;
+            if (mage(w, 20)) {
+                for (int i = 0; i < 4; ++i) w.player.CycleElement(1, w.KnownArcane(spells));
+                Check(w.player.SelectedElement() == Element::Fire, "with no ancient magic known, four steps round is fire again");
+                w.SetFlag("recipe:spell:eldritch_blast");
+                for (int i = 0; i < 4; ++i) w.player.CycleElement(1, w.KnownArcane(spells));
+                Check(w.player.SelectedElement() == Element::Arcane,
+                      "with a spell learned and 5 never pressed, the fourth step is the fifth slot");
+                Check(w.player.ArcaneSpell() == "eldritch_blast", "with the spell that was learned on it");
+                Check(cast(w) == projectiles.Get("bolt_eldritch"), "and it casts");
+                w.player.CycleElement(1, w.KnownArcane(spells));
+                Check(w.player.SelectedElement() == Element::Fire, "one more step is fire");
+                // The one chosen is kept for as long as it is known.
+                w.SetFlag("recipe:spell:magic_missile");
+                w.player.SetArcaneSpell("magic_missile");
+                for (int i = 0; i < 4; ++i) w.player.CycleElement(1, w.KnownArcane(spells));
+                Check(w.player.SelectedElement() == Element::Arcane && w.player.ArcaneSpell() == "magic_missile",
+                      "the spell the book put on the slot is the one stepped to");
+            }
+        }
+
+        // --- an element held to a lesser spell ---------------------------------------------------
+        {
+            World w;
+            if (mage(w, 25)) {
+                Player& p = w.player;
+                p.SelectElement(Element::Fire);
+                Check(p.SpellOf(Element::Fire, spells) == spells.Get("pyre"), "left alone, fire at Magic 25 is Pyre");
+                int mana = p.Mana();
+                Check(cast(w) == projectiles.Get("bolt_fire_greater"), "and Pyre is what is cast");
+                const int pyre_cost = mana - p.Mana();
+                p.HoldSpell(Element::Fire, "ember");
+                Check(p.SpellOf(Element::Fire, spells) == spells.Get("ember"), "held to Ember, it is Ember");
+                p.RestoreMana();
+                mana = p.Mana();
+                Check(cast(w) == projectiles.Get("bolt_fire"), "and Ember is what is cast");
+                Check(mana - p.Mana() < pyre_cost && mana - p.Mana() > 0,
+                      "for Ember's mana and not Pyre's (" + std::to_string(mana - p.Mana()) + " against " +
+                          std::to_string(pyre_cost) + ")");
+                Check(p.SpellOf(Element::Water, spells) == spells.Get("torrent"), "water is none the weaker for it");
+
+                // What cannot be held to is not: another element's, an ancient
+                // spell, and one the Magic level has not reached.
+                p.HoldSpell(Element::Water, "ember");
+                Check(p.SpellOf(Element::Water, spells) == spells.Get("torrent"), "water cannot be held to a fire spell");
+                p.HoldSpell(Element::Water, "eldritch_blast");
+                Check(p.SpellOf(Element::Water, spells) == spells.Get("torrent"), "nor to an ancient one");
+                p.HoldSpell(Element::Air, "galewind");
+                Check(p.SpellOf(Element::Air, spells) == spells.Get("gust"), "and Galewind held at Magic 25 is still a Gust");
+                p.HoldSpell(Element::Arcane, "ember");
+                Check(p.HeldSpell(Element::Arcane).empty(), "the fifth slot holds nothing this way");
+
+                // It is the character's: a save keeps it, and so does the
+                // sheet a friend's machine sends the host.
+                Player saved;
+                saved.FromJson(p.ToJson(), ctx);
+                Check(saved.HeldSpell(Element::Fire) == "ember" && saved.SpellOf(Element::Fire, spells) == spells.Get("ember"),
+                      "a save keeps what fire is held to");
+                Player guest;
+                guest.Init(ctx, "player_wayfarer");
+                guest.ApplySheet(p.ToJson(), ctx);
+                Check(guest.HeldSpell(Element::Fire) == "ember", "and the host is told, in a friend's sheet");
+                p.HoldSpell(Element::Fire, "");
+                Check(p.SpellOf(Element::Fire, spells) == spells.Get("pyre"), "let go, it is the strongest again");
+            }
+        }
+        Check(spells.Of(Element::Fire).size() >= 2 && spells.Of(Element::Fire).front() == spells.Get("ember"),
+              "an element's spells are listed weakest first");
+        Check(spells.Of(Element::Arcane).empty(), "and the ancient ones are not any element's");
+
+        // --- an ability put in a slot outright ---------------------------------------------------
+        {
+            World w;
+            if (mage(w, 60)) {
+                Talents& t = w.player.talents;
+                for (const char* id : {"potency", "focus", "nova", "arcane_pulse", "flow", "swift_casting", "barrage", "blink"})
+                    t.Learn(id, w.player.skills);
+                Check(t.Has("arcane_pulse") && t.Has("blink"), "two abilities are learned");
+                for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) t.SetAbility(slot, "");
+                Check(t.SetAbility(0, "arcane_pulse") && t.SlotOf("arcane_pulse") == 0, "Arcane Pulse goes in the first slot");
+                Check(t.SetAbility(2, "blink") && t.SlotOf("blink") == 2, "and Blink in the third, with the second left empty");
+                Check(t.Ability(1) == nullptr, "which it is");
+                Check(t.SetAbility(0, "blink") && t.SlotOf("blink") == 0 && t.SlotOf("arcane_pulse") == 2,
+                      "Blink put where Arcane Pulse is changes places with it: nothing is lost off the bar");
+                Check(!t.SetAbility(1, "potency"), "a passive is not an ability");
+                Check(!t.SetAbility(1, "mana_shield"), "nor is one that has not been learned");
+                Check(!t.SetAbility(5, "blink") && !t.SetAbility(-1, "blink"), "and there are three slots");
+                Check(t.SetAbility(0, "") && t.SlotOf("blink") < 0, "nothing can be carried in a slot, too");
+
+                Check(t.SetTechnique(AttackStyle::Magic, "nova") && t.Technique(AttackStyle::Magic) == "nova",
+                      "the charged attack is set to Nova outright");
+                Check(t.SetTechnique(AttackStyle::Magic, "barrage") && t.Technique(AttackStyle::Magic) == "barrage",
+                      "and to Barrage, without going by way of plain");
+                Check(!t.SetTechnique(AttackStyle::Magic, "meteor"), "not to one that is not learned");
+                Check(!t.SetTechnique(AttackStyle::Magic, "blink"), "nor to an ability");
+                Check(t.Technique(AttackStyle::Magic) == "barrage", "and a refusal changes nothing");
+                Check(t.SetTechnique(AttackStyle::Magic, "") && t.Technique(AttackStyle::Magic).empty(), "plain, again");
+            }
+        }
+
+        // --- the council sits at its table ---------------------------------------------------------
+        // Three councillors in the three chairs behind it, each just south of
+        // their chair (drawn over its back) and north of the table (drawn under
+        // it), facing the room across it.
+        {
+            Map hall;
+            if (hall.Load("maps/fernhollow_college.mx")) {
+                float table_y = 0.0f;
+                vector<SDL_FPoint> chairs;
+                for (const TileInstance& t : hall.Tiles()) {
+                    const string& tex = hall.TexturePath(t);
+                    if (tex.find("council_table") != string::npos) table_y = t.sort_y;
+                    if (tex.find("high_chair.png") != string::npos) chairs.push_back({t.rect.x + t.rect.w / 2.0f, t.sort_y});
+                }
+                Check(table_y > 0.0f && chairs.size() == 3, "the council's table and the three chairs behind it are there");
+                int seated = 0;
+                for (const NpcDef& n : hall.Npcs()) {
+                    if (n.id != "npc_magister" && n.id.rfind("npc_councillor", 0) != 0) continue;
+                    bool in_chair = false;
+                    for (const SDL_FPoint& c : chairs)
+                        in_chair |= fabsf(c.x - n.x) < 3.0f && n.y > c.y && n.y - c.y <= 8.0f;
+                    Check(in_chair, n.name + " is in a chair, in front of its back");
+                    Check(n.y < table_y && table_y - n.y < 44.0f, n.name + " is at the table, which hides them from the chest down");
+                    Check(n.facing == FACE_DOWN, n.name + " faces the table and the room across it");
+                    ++seated;
+                }
+                Check(seated == 3, "all three of the council are seated");
+            }
+        }
+    }
+
+    Section("statuses: what a blow can leave on a monster");
+    {
+        GameContext ctx;
+        std::mt19937 rng(919);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) { for (int f = 0; f < n; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); } };
+        const auto field = [&](World& w, const char* who, const char* weapon, int skill, int level) {
+            w.player.Init(ctx, who);
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(skill, XpForLevel(level), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto spawn = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        // Something that stands there and takes it.
+        const auto sturdy = [&](World& w, const string& type, float dx) -> Enemy* {
+            Enemy* e = spawn(w, type, dx, 0.0f);
+            if (e) { e->max_hp = 60000; e->hp = e->max_hp; }
+            return e;
+        };
+        const auto press = [&](World& w, SDL_Keycode k) {
+            input.Update(kFrame); key(k, true);  w.Update(kFrame, ctx);
+            input.Update(kFrame); key(k, false); w.Update(kFrame, ctx);
+        };
+
+        // --- the data --------------------------------------------------------------------------
+        for (int i = 0; i < STATUS_COUNT; ++i)
+            Check(statuses.Get(static_cast<Status>(i)) && !statuses.Get(static_cast<Status>(i))->name.empty(),
+                  string(StatusId(static_cast<Status>(i))) + " is a status, with a name to float up");
+        Check(StatusFromId("burn") == Status::Burn && StatusFromId("nonsense") == Status::COUNT, "and nothing else is");
+        {
+            const auto proc = [&](const char* bolt) { const ProjectileDef* d = projectiles.Get(bolt); return d ? d->status : StatusProc{}; };
+            Check(proc("bolt_fire").kind == Status::Burn && proc("bolt_fire_greater").kind == Status::Burn, "fire can leave a burn");
+            Check(proc("bolt_water").kind == Status::Wet && proc("bolt_water_greater").kind == Status::Wet, "water soaks");
+            Check(proc("bolt_earth").kind == Status::Concussed && proc("bolt_earth_greater").kind == Status::Concussed, "stone concusses");
+            Check(!proc("bolt_air").Any() && !proc("bolt_air_greater").Any(), "and the wind leaves nothing: it throws");
+            for (const char* el : {"fire", "water", "earth"})
+                Check(proc((string("bolt_") + el + "_greater").c_str()).chance > proc((string("bolt_") + el).c_str()).chance &&
+                      proc((string("bolt_") + el).c_str()).chance >= 0.15f && proc((string("bolt_") + el + "_greater").c_str()).chance <= 0.6f,
+                      string("the greater ") + el + " leaves it more often, and neither always");
+            // Of the bolts any staff throws. (An element's own staff has bigger
+            // things: the Hydro Cannon is for exactly this.)
+            bool throws_most = true;
+            for (const char* id : {"bolt_fire", "bolt_fire_greater", "bolt_water", "bolt_water_greater", "bolt_earth", "bolt_earth_greater"})
+                throws_most &= projectiles.Get(id) && projectiles.Get(id)->knockback < projectiles.Get("bolt_air")->knockback;
+            Check(throws_most, "no other element's bolt knocks back as a gust does");
+            Check(!proc("arrow").Any(), "an arrow leaves nothing");
+        }
+        // A sword's edge, and nothing else's.
+        {
+            int swords = 0, maces = 0, others = 0;
+            bool all = true, none = true;
+            for (const auto& kv : items.All()) {
+                const ItemDef& d = kv.second;
+                if (d.slot != SLOT_WEAPON || kv.first == "ember_blade") continue;      // that one is its own: below
+                // By what is in the hand, not by what it is called: the steel
+                // one is a longsword, and an enchanted sword is still a sword.
+                const bool sword = d.model.rfind("sword_", 0) == 0;
+                // What cuts opens wounds, what is a lump of metal on a haft rings
+                // heads, and nothing else leaves anything.
+                const bool great = d.weapon_class == "greatsword" || d.weapon_class == "greataxe";
+                if (sword || great) { ++swords; all &= d.on_hit.kind == Status::Bleed && d.on_hit.chance > 0.05f && d.on_hit.chance < 0.5f; }
+                else if (d.weapon_class == "mace") { ++maces; all &= d.on_hit.kind == Status::Concussed; }
+                else { ++others; none &= !d.on_hit.Any(); }
+            }
+            Check(swords >= 30 && maces >= 10 && all, "every sword, greatsword and greataxe can open a wound, and every mace ring a head (" +
+                                                          std::to_string(swords) + " blades, " + std::to_string(maces) + " maces)");
+            Check(others >= 20 && none, "and no spear, dagger, bow, crossbow, knife or caster's weapon leaves anything (" + std::to_string(others) + ")");
+            const ItemDef* ember = items.Get("ember_blade");
+            Check(ember && ember->on_hit.kind == Status::Burn, "the Ember Blade leaves what it cuts burning");
+        }
+        // Every monster has a Defence, and it is what a blow is rolled against.
+        {
+            bool all = true;
+            for (const auto& kv : enemy_db.All()) all &= kv.second.defence_level >= 1;
+            Check(all && enemy_db.All().size() >= 60, "every monster has a Defence level");
+            CombatProfile hand; hand.attack_level = 30; hand.attack_bonus = 20;
+            CombatProfile soft, hard; soft.defence_level = 5; hard.defence_level = 60; hard.defence_bonus = 40;
+            Check(HitChance(hand, soft) > HitChance(hand, hard) + 0.3f, "and a blow that lands on a soft one misses a hard one");
+        }
+
+        // --- what each does ------------------------------------------------------------------------
+        {
+            World w;
+            if (field(w, "player_hero", "wood_sword", SKILL_ATTACK, 10)) {
+                Enemy* cow = sturdy(w, "cow", 300.0f);
+                Check(cow != nullptr, "there is something to try them on");
+                if (cow) {
+                    // Burn: half the blow again, over three seconds.
+                    Check(cow->Afflict(Status::Burn, 40, statuses) == Status::Burn && cow->Afflicted(Status::Burn), "a burn takes");
+                    Check(fabsf(cow->statuses.Owed(Status::Burn) - 20.0f) < 0.01f, "for half the blow again");
+                    cow->Afflict(Status::Burn, 40, statuses);
+                    Check(fabsf(cow->statuses.Owed(Status::Burn) - 20.0f) < 0.6f, "a second burn is not a second fire: the greater of the two");
+                    const int before = cow->hp;
+                    frames(w, static_cast<int>(3.3f * 60.0f));
+                    Check(!cow->Afflicted(Status::Burn) && before - cow->hp >= 19 && before - cow->hp <= 21,
+                          "over three seconds, and then it is out (" + std::to_string(before - cow->hp) + ")");
+
+                    // Wet: puts a burn out, and keeps one from taking.
+                    cow->Afflict(Status::Burn, 40, statuses);
+                    Check(cow->Afflict(Status::Wet, 10, statuses) == Status::Wet && !cow->Afflicted(Status::Burn), "water puts a burn out");
+                    Check(cow->Afflict(Status::Burn, 40, statuses) == Status::COUNT && !cow->Afflicted(Status::Burn),
+                          "and nothing soaked can be set burning");
+                    Check(cow->StatusWeakness(Element::Air) > 1.2f && cow->StatusWeakness(Element::Fire) == 1.0f,
+                          "the wind bites what is soaked a quarter harder, and nothing else does");
+
+                    // A chill on something soaked is frozen: held, then thawing into a chill.
+                    Check(cow->Afflict(Status::Chill, 10, statuses) == Status::Frozen, "a chill on something soaked is frozen");
+                    Check(cow->Afflicted(Status::Frozen) && cow->Staggered() && !cow->Afflicted(Status::Wet), "held fast, and no longer wet");
+                    frames(w, static_cast<int>(1.8f * 60.0f));
+                    Check(!cow->Afflicted(Status::Frozen) && cow->Afflicted(Status::Chill), "and it thaws into a chill");
+                    const float pace = enemy_db.Get("cow")->speed, gap = enemy_db.Get("cow")->attack_cooldown;
+                    Check(cow->MoveSpeed() < pace * 0.7f && cow->AttackCooldown() > gap * 1.2f, "slow in its legs and in its arm");
+                    frames(w, static_cast<int>(4.2f * 60.0f));
+                    Check(!cow->statuses.Any() && cow->MoveSpeed() == pace, "until it wears off");
+                    Check(cow->Afflict(Status::Chill, 10, statuses) == Status::Chill, "on something dry a chill is only a chill");
+                    cow->statuses.Clear();
+
+                    // Concussed and poisoned are where Defence comes in.
+                    const CombatProfile clear = cow->Profile();
+                    Check(cow->Afflict(Status::Concussed, 10, statuses) == Status::Concussed && cow->Staggered(), "a concussion reels it");
+                    const CombatProfile rung = cow->Profile();
+                    Check(rung.defence_level < clear.defence_level || clear.defence_level <= 1, "and its guard is down");
+                    cow->statuses.Clear();
+                    cow->Afflict(Status::Poison, 50, statuses);
+                    Check(fabsf(cow->statuses.Owed(Status::Poison) - 40.0f) < 0.01f, "poison is four fifths of the blow again, over six seconds");
+                    cow->statuses.Clear();
+
+                    // A bleed adds to a bleed.
+                    cow->Afflict(Status::Bleed, 40, statuses);
+                    cow->Afflict(Status::Bleed, 40, statuses);
+                    Check(fabsf(cow->statuses.Owed(Status::Bleed) - 40.0f) < 0.6f, "a second wound adds to the first");
+                    cow->statuses.Clear();
+                }
+                // Defence, where it shows: the same hand lands more often on a rung skeleton.
+                if (Enemy* bones = sturdy(w, "skeleton", 360.0f)) {
+                    CombatProfile hand; hand.attack_level = 12; hand.attack_bonus = 8;
+                    const float clear = HitChance(hand, bones->Profile());
+                    bones->Afflict(Status::Concussed, 10, statuses);
+                    const float rung = HitChance(hand, bones->Profile());
+                    Check(rung > clear + 0.03f, "a concussed monster is hit more often (" + std::to_string(clear) + " to " + std::to_string(rung) + ")");
+                    // The dead do not bleed and cannot be poisoned.
+                    Check(bones->Afflict(Status::Bleed, 40, statuses) == Status::COUNT &&
+                          bones->Afflict(Status::Poison, 40, statuses) == Status::COUNT, "the dead do not bleed, and cannot be poisoned");
+                    bones->Bleed(30.0f);
+                    Check(!bones->Bleeding(), "not by Open Wounds either");
+                }
+                if (Enemy* imp = sturdy(w, "imp", 420.0f)) {
+                    Check(imp->ElementOf() == Element::Fire && imp->Afflict(Status::Burn, 40, statuses) == Status::COUNT,
+                          "nothing made of fire can be set burning");
+                    Check(imp->Afflict(Status::Wet, 10, statuses) == Status::Wet, "though it can be soaked");
+                }
+                // The great ones shake things off in half the time, and are never held.
+                if (Enemy* chief = sturdy(w, "orc3", 480.0f)) {
+                    chief->Afflict(Status::Poison, 40, statuses);
+                    Check(fabsf(chief->statuses.left[static_cast<int>(Status::Poison)] - 3.0f) < 0.01f, "a boss is poisoned for half as long");
+                    chief->statuses.Clear();
+                    chief->Afflict(Status::Wet, 10, statuses);
+                    Check(chief->Afflict(Status::Chill, 10, statuses) == Status::Chill && !chief->Afflicted(Status::Frozen),
+                          "and soaked and chilled it is only chilled: a boss is never held");
+                }
+            }
+        }
+
+        // --- thrown ---------------------------------------------------------------------------------
+        // Sixty bolts of each at something that stands there: some of those that
+        // land leave their status, not all and not none -- and a gust never.
+        struct Thrown { Element element; Status left; const char* name; };
+        for (const Thrown& t : {Thrown{Element::Fire, Status::Burn, "embers"}, Thrown{Element::Water, Status::Wet, "sprays"},
+                                Thrown{Element::Earth, Status::Concussed, "shardshots"}, Thrown{Element::Air, Status::COUNT, "gusts"}}) {
+            World w;
+            if (!field(w, "player_wayfarer", "novice_staff", SKILL_MAGIC, 12)) continue;
+            Enemy* cow = sturdy(w, "cow", 110.0f);
+            if (!cow) continue;
+            w.player.SelectElement(t.element);
+            int landed = 0, left = 0, thrown_back = 0;
+            for (int i = 0; i < 60; ++i) {
+                cow->statuses.Clear();
+                cow->x = w.player.x + 110.0f; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                w.player.RestoreMana();
+                const int hp = cow->hp;
+                press(w, SDLK_J);
+                bool pushed = false;
+                for (int f = 0; f < 45; ++f) { frames(w, 1); pushed |= cow->knock_x > 1.0f; }
+                if (cow->hp < hp) { ++landed; thrown_back += pushed; }
+                if (t.left != Status::COUNT && cow->Afflicted(t.left)) ++left;
+                if (t.left == Status::COUNT) left += cow->statuses.Any();
+            }
+            if (t.left == Status::COUNT) {
+                Check(landed >= 20 && left == 0, string("sixty ") + t.name + " leave no status at all (" + std::to_string(landed) + " landed)");
+                Check(thrown_back == landed, "and every one that lands throws what it hits");
+            } else {
+                Check(landed >= 20 && left >= 3 && left <= landed - 5,
+                      string("of sixty ") + t.name + ", " + std::to_string(landed) + " land and " + std::to_string(left) + " leave their status");
+            }
+        }
+        // A sword opens a wound some of the time; a spear never does.
+        for (const char* blade : {"wood_sword", "wood_spear"}) {
+            World w;
+            if (!field(w, "player_hero", blade, SKILL_ATTACK, 30)) continue;
+            Enemy* cow = sturdy(w, "cow", 26.0f);
+            if (!cow) continue;
+            int landed = 0, bled = 0;
+            for (int i = 0; i < 70; ++i) {
+                cow->statuses.Clear();
+                cow->x = w.player.x + 26.0f; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                const int hp = cow->hp;
+                press(w, SDLK_J);
+                frames(w, 40);
+                landed += cow->hp < hp;
+                bled += cow->Bleeding();
+            }
+            if (string(blade) == "wood_sword")
+                Check(landed >= 25 && bled >= 2 && bled <= landed / 2,
+                      "of seventy cuts with a sword " + std::to_string(landed) + " land and " + std::to_string(bled) + " open a wound");
+            else
+                Check(landed >= 25 && bled == 0, "and seventy thrusts of a spear open none (" + std::to_string(landed) + " landed)");
+        }
+        // Without the statuses loaded nothing is rolled and nothing is left: every
+        // test written before them is a test of the same game it was.
+        {
+            GameContext bare = ctx;
+            bare.statuses = nullptr;
+            World w;
+            w.player.Init(bare, "player_wayfarer");
+            if (w.LoadMap("overworld", "start", bare)) {
+                w.enemies.clear();
+                std::mt19937 dice_a(5), dice_b(5);
+                bare.rng = &dice_a;
+                Enemy* cow = spawn(w, "cow", 60.0f, 0.0f);
+                if (cow) {
+                    cow->max_hp = cow->hp = 60000;
+                    w.TryAfflict(*cow, {Status::Burn, 1.0f}, 40, bare);
+                    Check(!cow->statuses.Any() && dice_a() == dice_b(), "with no statuses loaded nothing is rolled, and nothing is left");
+                }
+            }
+        }
+
+        // --- the four new spells ----------------------------------------------------------------------
+        for (const char* id : {"acid_spray", "ice_touch", "vampiric_touch", "hellish_rebuke"}) {
+            const SpellDef* sp = spells.Get(id);
+            Check(sp && sp->arcane && projectiles.Has(sp->projectile) && items.Get(string("tome_") + id) &&
+                      items.Get(string("tome_") + id)->learn == string("spell:") + id,
+                  string(id) + " is an ancient spell with a tome");
+        }
+        Check(projectiles.Get("acid_glob") && projectiles.Get("acid_glob")->status.kind == Status::Poison, "acid poisons");
+        Check(projectiles.Get("frost_touch") && projectiles.Get("frost_touch")->status.kind == Status::Chill &&
+              projectiles.Get("frost_touch")->status.chance == 1.0f, "the Ice Touch always chills");
+        Check(projectiles.Get("blood_touch") && projectiles.Get("blood_touch")->leech == 0.5f &&
+              !projectiles.Get("blood_touch")->status.Any(), "the Vampiric Touch takes half back and leaves nothing");
+        Check(projectiles.Get("hellfire") && projectiles.Get("hellfire")->status.kind == Status::Burn, "the Rebuke burns");
+        {
+            World w;
+            if (field(w, "player_wayfarer", "novice_staff", SKILL_MAGIC, 60)) {
+                for (const char* id : {"acid_spray", "ice_touch", "vampiric_touch", "hellish_rebuke"}) w.SetFlag(string("recipe:spell:") + id);
+                Enemy* cow = sturdy(w, "cow", 50.0f);
+                const auto reset = [&](float dx) {
+                    cow->statuses.Clear();
+                    cow->x = w.player.x + dx; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                    w.player.RestoreMana();
+                    w.projectiles.clear();
+                };
+                if (cow) {
+                    // Acid Spray: five gouts, and what they splash is poisoned some of the time.
+                    w.player.SetArcaneSpell("acid_spray");
+                    w.player.SelectElement(Element::Arcane);
+                    reset(50.0f);
+                    press(w, SDLK_J);
+                    size_t most = 0;
+                    for (int f = 0; f < 30; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
+                    Check(most == 5, "Acid Spray is five gouts (" + std::to_string(most) + ")");
+                    int poisoned = 0;
+                    for (int i = 0; i < 20; ++i) { reset(40.0f); press(w, SDLK_J); frames(w, 40); poisoned += cow->Afflicted(Status::Poison); }
+                    Check(poisoned >= 4 && poisoned <= 20, "and of twenty sprays at arm's length most leave it poisoned (" + std::to_string(poisoned) + ")");
+
+                    // Ice Touch: a hand's reach, and it always chills; soaked, it freezes.
+                    w.player.SetArcaneSpell("ice_touch");
+                    int chilled = 0, struck = 0;
+                    for (int i = 0; i < 12; ++i) {
+                        reset(44.0f);
+                        const int hp = cow->hp;
+                        press(w, SDLK_J); frames(w, 40);
+                        struck += cow->hp < hp; chilled += cow->Afflicted(Status::Chill);
+                    }
+                    Check(struck >= 8 && chilled == struck, "every Ice Touch that lands chills (" + std::to_string(struck) + ")");
+                    bool froze = false;
+                    for (int i = 0; i < 12 && !froze; ++i) {
+                        reset(44.0f);
+                        cow->Afflict(Status::Wet, 5, statuses);
+                        press(w, SDLK_J);
+                        for (int f = 0; f < 40 && !froze; ++f) { frames(w, 1); froze = cow->Afflicted(Status::Frozen); }
+                    }
+                    Check(froze, "and on something soaked it freezes");
+                    reset(260.0f);
+                    const int far_hp = cow->hp;
+                    press(w, SDLK_J); frames(w, 60);
+                    Check(cow->hp == far_hp && w.projectiles.empty(), "it is a touch: it does not reach across a field");
+
+                    // Vampiric Touch: half of what it takes comes back.
+                    w.player.SetArcaneSpell("vampiric_touch");
+                    int took = 0, back = 0;
+                    for (int i = 0; i < 12; ++i) {
+                        reset(44.0f);
+                        w.player.hp = w.player.max_hp / 2;
+                        const int hp = cow->hp, mine = w.player.hp;
+                        press(w, SDLK_J); frames(w, 40);
+                        took += hp - cow->hp; back += w.player.hp - mine;
+                    }
+                    Check(took > 20 && back >= took * 4 / 10 && back <= took * 6 / 10,
+                          "half of what the Vampiric Touch takes comes back (" + std::to_string(back) + " of " + std::to_string(took) + ")");
+
+                    // Hellish Rebuke: fire where it stands, burning -- and harder as an answer.
+                    w.player.SetArcaneSpell("hellish_rebuke");
+                    w.player.hp = w.player.max_hp;
+                    reset(120.0f);
+                    w.ground_effects.clear();
+                    press(w, SDLK_J);
+                    float plain = 0.0f;
+                    bool fire_look = false;
+                    for (int f = 0; f < 30 && plain == 0.0f; ++f) {
+                        frames(w, 1);
+                        for (const GroundEffect& g : w.ground_effects)
+                            if (g.status.kind == Status::Burn) { plain = g.hit_mult; fire_look = g.Look() == Element::Fire && g.element == Element::Arcane; }
+                    }
+                    Check(plain > 0.0f && fire_look, "the Rebuke is the ancient magic's, drawn as the fire it is, where the target stands");
+                    int burning = 0;
+                    for (int i = 0; i < 10; ++i) { reset(120.0f); press(w, SDLK_J); frames(w, 50); burning += cow->Afflicted(Status::Burn); }
+                    Check(burning >= 7, "and what it lands on is left burning (" + std::to_string(burning) + " of 10)");
+                    reset(120.0f);
+                    w.ground_effects.clear();
+                    w.player.NoteHurt();
+                    press(w, SDLK_J);
+                    float answer = 0.0f;
+                    for (int f = 0; f < 30 && answer == 0.0f; ++f) {
+                        frames(w, 1);
+                        for (const GroundEffect& g : w.ground_effects) if (g.status.kind == Status::Burn) answer = g.hit_mult;
+                    }
+                    Check(answer > plain * 1.45f && answer < plain * 1.55f, "cast just after being hurt it is an answer, and half as hard again (" +
+                                                                              std::to_string(plain) + " to " + std::to_string(answer) + ")");
+                }
+            }
+        }
+
+        // --- a friend's machine ----------------------------------------------------------------------
+        {
+            World w;
+            if (field(w, "player_hero", "wood_sword", SKILL_ATTACK, 10)) {
+                if (Enemy* cow = sturdy(w, "cow", 200.0f)) {
+                    cow->Afflict(Status::Burn, 40, statuses);
+                    cow->Afflict(Status::Concussed, 10, statuses);
+                    const Enemy::Posed told = cow->Told();
+                    Check(told.statuses == ((1u << static_cast<int>(Status::Burn)) | (1u << static_cast<int>(Status::Concussed))),
+                          "the host says which statuses are on a monster, a bit each");
+                    net::Snapshot snap;
+                    net::EnemyState es; es.id = 1; es.statuses = told.statuses; es.hp = 50;
+                    snap.enemies = {es};
+                    net::Snapshot heard;
+                    Check(net::Decode(net::Encode(snap), heard) && heard.enemies.size() == 1 && heard.enemies[0].statuses == told.statuses,
+                          "the byte crosses the wire");
+                    Enemy puppet;
+                    EnemySpawnDef def; def.type = "cow";
+                    puppet.Init(enemy_db.Get("cow"), def, ctx);
+                    Enemy::Posed p = told;
+                    puppet.Pose(p);
+                    Check(puppet.Afflicted(Status::Burn) && puppet.Afflicted(Status::Concussed) && !puppet.Afflicted(Status::Wet),
+                          "and a friend's machine draws the same ones");
+                    Check(net::PROTOCOL_VERSION >= 5, "the line knows a monster says what is on it");
+                }
+            }
+        }
+    }
+
+    Section("the armoury: nine more weapons, the elements' staves, and RB");
+    {
+        GameContext ctx;
+        std::mt19937 rng(1010);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) { for (int f = 0; f < n; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); } };
+        const auto press = [&](World& w, SDL_Keycode k) {
+            input.Update(kFrame); key(k, true);  w.Update(kFrame, ctx);
+            input.Update(kFrame); key(k, false); w.Update(kFrame, ctx);
+        };
+        const auto field = [&](World& w, const char* who, const char* weapon, int skill, int level) {
+            w.player.Init(ctx, who);
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(skill, XpForLevel(level), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Unequip(SLOT_SHIELD);
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto sturdy = [&](World& w, const string& type, float dx, float dy = 0.0f) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 600.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            e->max_hp = e->hp = 60000;
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+
+        // --- the data: every tier has all of them, drawn, and made somewhere -------------------------
+        static const char* kTiers[] = {"wood", "bronze", "iron", "steel", "azuryte", "damascus", "orichalcum", "diamond",
+                                       "platinum", "demonite", "dracon", "enchanted"};
+        static const char* kNew[] = {"dagger", "mace", "greatsword", "greataxe", "crossbow", "knives", "wand", "grimoire", "orb",
+                                     "fire_staff", "water_staff", "earth_staff", "air_staff"};
+        {
+            int made = 0, drawn = 0, in_hand = 0, recipes = 0;
+            std::set<string> craftable;
+            for (const ItemDef* r : items.Recipes()) craftable.insert(r->craft_result);
+            for (const char* t : kTiers)
+                for (const char* piece : kNew) {
+                    const ItemDef* d = items.Get(string(t) + "_" + piece);
+                    if (!d) continue;
+                    ++made;
+                    drawn += !d->icon.empty() && fs::exists(d->icon);
+                    in_hand += !d->model.empty() &&
+                               fs::exists("assets/characters/player_hero/layers/idle_4_weapon_" + d->model + ".png");
+                    recipes += craftable.count(d->id) > 0;
+                }
+            Check(made == 12 * 13, "every tier has all nine, and the four elements' staves (" + std::to_string(made) + ")");
+            Check(drawn == made, "each with its own picture (" + std::to_string(drawn) + ")");
+            Check(in_hand == made, "each drawn in the hand (" + std::to_string(in_hand) + ")");
+            Check(recipes == made, "and each can be made (" + std::to_string(recipes) + ")");
+        }
+        {
+            const ItemDef* dagger = items.Get("iron_dagger");
+            const ItemDef* sword = items.Get("iron_sword");
+            const ItemDef* mace = items.Get("iron_mace");
+            const ItemDef* gs = items.Get("iron_greatsword");
+            const ItemDef* axe = items.Get("iron_greataxe");
+            const ItemDef* xbow = items.Get("iron_crossbow");
+            const ItemDef* knives = items.Get("iron_knives");
+            const ItemDef* staff = items.Get("iron_staff");
+            const ItemDef* wand = items.Get("iron_wand");
+            const ItemDef* book = items.Get("iron_grimoire");
+            const ItemDef* orb = items.Get("iron_orb");
+            Check(dagger && sword && mace && gs && axe && xbow && knives && staff && wand && book && orb, "the iron ones are all there");
+            if (dagger && sword && mace && gs && axe && xbow && knives && staff && wand && book && orb) {
+                Check(dagger->armour_pierce > 0.2f && dagger->attack_speed < sword->attack_speed && dagger->reach < sword->reach,
+                      "a dagger is quicker and shorter than a sword, and goes past armour");
+                Check(mace->on_hit.kind == Status::Concussed, "a mace concusses");
+                for (const ItemDef* great : {gs, axe})
+                    Check(great->two_handed && great->on_hit.kind == Status::Bleed && great->attack_speed > sword->attack_speed * 1.3f &&
+                              great->reach > sword->reach * 1.25f && great->sweep > sword->sweep * 1.3f,
+                          great->name + " takes both hands, is slower, reaches further, sweeps wider, and leaves them bleeding");
+                Check(axe->charge_clip == "hew" && axe->charge_damage > 1.0f && axe->charge_sweep < 1.0f && axe->charge_reach > 1.0f &&
+                          gs->charge_clip.empty(), "a greataxe's charged heavy is a chop of its own: longer, narrower, harder");
+                Check(xbow->two_handed && xbow->reload > 0.5f && xbow->shoots == "crossbow_bolt" && xbow->kind == WeaponKind::Bow,
+                      "a crossbow takes both hands, throws bolts, and has to be spanned");
+                Check(!knives->two_handed && knives->shoots == "throwing_knife" && knives->kind == WeaponKind::Bow,
+                      "throwing knives are one hand's");
+                for (const ItemDef* light : {wand, book, orb})
+                    Check(light->kind == WeaponKind::Staff && light->attack_speed < staff->attack_speed * 0.85f && light->damage < 0.9f &&
+                              light->damage > 0.6f, light->name + " casts quicker than a staff, for less");
+                // Quicker and lighter, about evenly: what a cast is worth a second is within a fifth of a staff's.
+                for (const ItemDef* light : {wand, book, orb}) {
+                    const float theirs = light->damage / light->attack_speed, staffs = 1.0f / staff->attack_speed;
+                    Check(theirs > staffs * 0.95f && theirs < staffs * 1.25f, light->name + " comes out about even with a staff over time");
+                }
+                Check(book->mana_mult < 1.0f && orb->homing > 0.0f, "a grimoire's spells cost less and an orb's turn after their target");
+                const ProjectileDef* bolt = projectiles.Get("crossbow_bolt");
+                Check(bolt && bolt->pierce >= 1 && bolt->armour_pierce > 0.2f, "a bolt goes through what it hits, and through its armour");
+            }
+            for (const char* cls : {"dagger", "mace", "greatsword", "greataxe"}) {
+                const ItemDef* d = items.Get(string("steel_") + cls);
+                bool named = d != nullptr;
+                std::set<string> names;
+                for (int i = 0; i < 4 && d; ++i) { named &= !d->combos[i].name.empty(); names.insert(d->combos[i].name); }
+                Check(named && names.size() == 4, string("a ") + cls + " has four combos of its own, by name");
+            }
+            for (const char* el : {"fire", "water", "earth", "air"}) {
+                const ItemDef* d = items.Get(string("iron_") + el + "_staff");
+                Check(d && d->element == ElementFromName(el) && d->kind == WeaponKind::Staff && d->model == "staff_iron",
+                      string("the iron ") + el + " staff is that element's, and an iron staff in the hand");
+                for (int slot = 1; slot <= 4; ++slot) {
+                    const SpellDef* sp = spells.FirstOnSlot(ElementFromName(el), slot);
+                    Check(sp && sp->slot == slot && (slot == 1 || projectiles.Has(sp->projectile)),
+                          string(el) + " has a spell on slot " + std::to_string(slot) + (sp ? ": " + sp->name : string()));
+                }
+            }
+            Check(spells.Get("bedrock_sweep") && spells.Get("shardshot") && spells.Get("shardshot")->name == "Sharpstone",
+                  "earth's first is Sharpstone and its second has a name");
+        }
+
+        // --- two hands ---------------------------------------------------------------------------
+        {
+            World w;
+            if (field(w, "player_hero", "wood_sword", SKILL_ATTACK, 40)) {
+                Player& p = w.player;
+                p.inventory.Add("wooden_shield", 1);
+                p.inventory.Add("iron_greatsword", 1);
+                p.inventory.Add("wood_knives", 1);
+                string why;
+                const auto slot_of = [&](const string& id) { for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == id) return i; return -1; };
+                p.EquipFromInventory(slot_of("wooden_shield"), why);
+                Check(p.equipment.InSlot(SLOT_SHIELD) == "wooden_shield", "a sword and a shield");
+                p.EquipFromInventory(slot_of("iron_greatsword"), why);
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "iron_greatsword" && p.equipment.InSlot(SLOT_SHIELD).empty() &&
+                      p.inventory.Has("wooden_shield"), "a greatsword takes the shield off, and it goes in the bag");
+                p.EquipFromInventory(slot_of("wood_knives"), why);
+                p.EquipFromInventory(slot_of("wooden_shield"), why);
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "wood_knives" && p.equipment.InSlot(SLOT_SHIELD) == "wooden_shield",
+                      "throwing knives and a shield go together");
+            }
+        }
+
+        // --- a dagger goes past armour ---------------------------------------------------------------
+        {
+            int landed[2] = {0, 0}, rolls[2] = {0, 0};
+            const char* blades[2] = {"iron_dagger", "iron_sword"};
+            for (int b = 0; b < 2; ++b) {
+                World w;
+                if (!field(w, "player_hero", blades[b], SKILL_ATTACK, 20)) continue;
+                // A cow of the thirtieth level: it has a guard worth going past, and
+                // does nothing about being stabbed, so every press is a roll.
+                Enemy* knight = sturdy(w, "cow", 16.0f);
+                if (!knight) continue;
+                knight->level = 30;
+                rng.seed(77);
+                int rolled = 0;
+                for (int i = 0; i < 120 && rolled < 80; ++i) {
+                    knight->statuses.Clear();
+                    // Well inside a dagger's reach: what is counted is the roll, not the arm.
+                    knight->x = w.player.x + 16.0f; knight->y = w.player.y; knight->knock_x = knight->knock_y = 0.0f;
+                    w.texts.clear();
+                    const int hp = knight->hp;
+                    press(w, SDLK_J);
+                    frames(w, 50);
+                    bool missed = false;
+                    for (const FloatingText& t : w.texts) missed |= t.text == "miss";
+                    if (knight->hp < hp) { ++landed[b]; ++rolled; }
+                    else if (missed) ++rolled;
+                }
+                rolls[b] = rolled;
+            }
+            const float dagger_rate = landed[0] / static_cast<float>(std::max(1, rolls[0]));
+            const float sword_rate  = landed[1] / static_cast<float>(std::max(1, rolls[1]));
+            Check(rolls[0] >= 30 && rolls[1] >= 30 && dagger_rate > sword_rate + 0.05f,
+                  "against something well guarded a dagger's blows land more often than a sword's (" +
+                      std::to_string(landed[0]) + " of " + std::to_string(rolls[0]) + " against " +
+                      std::to_string(landed[1]) + " of " + std::to_string(rolls[1]) + ")");
+        }
+
+        // --- great weapons: slower, and wider -----------------------------------------------------------
+        {
+            float swing[2] = {0, 0}, reach[2] = {0, 0};
+            const char* blades[2] = {"iron_greataxe", "iron_sword"};
+            for (int b = 0; b < 2; ++b) {
+                World w;
+                if (!field(w, "player_hero", blades[b], SKILL_ATTACK, 30)) continue;
+                press(w, SDLK_J);
+                swing[b] = w.player.Attack().profile.Total();
+                reach[b] = w.player.Attack().profile.reach;
+                if (b == 0) Check(w.player.sprite.current == "sweep", "a greataxe's swing is the two-handed sweep (" + w.player.sprite.current + ")");
+            }
+            Check(swing[0] > swing[1] * 1.4f && reach[0] > reach[1] * 1.25f, "slower than a sword's by half again, and further");
+            World w;
+            if (field(w, "player_hero", "iron_greataxe", SKILL_ATTACK, 30)) {
+                // Held and let go: the chop.
+                input.Update(kFrame); key(SDLK_K, true); w.Update(kFrame, ctx);
+                frames(w, 90);
+                input.Update(kFrame); key(SDLK_K, false); w.Update(kFrame, ctx);
+                frames(w, 2);
+                Check(w.player.Attack().type == AttackType::Charged && w.player.sprite.current == "hew",
+                      "held and let go, a greataxe comes straight down (" + w.player.sprite.current + ")");
+            }
+        }
+
+        // --- a crossbow: at once, and then spanned ---------------------------------------------------------
+        {
+            World w;
+            if (field(w, "player_warden", "iron_crossbow", SKILL_RANGED, 30)) {
+                press(w, SDLK_J);
+                int shot_after = -1;
+                for (int f = 0; f < 40 && shot_after < 0; ++f) { frames(w, 1); if (!w.projectiles.empty()) shot_after = f; }
+                Check(shot_after >= 0 && w.projectiles.front().def == projectiles.Get("crossbow_bolt"), "a crossbow throws a bolt");
+                Check(w.player.Reloading(), "and is then being spanned");
+                frames(w, 20);
+                w.projectiles.clear();
+                press(w, SDLK_J);
+                frames(w, 12);
+                Check(w.projectiles.empty(), "and nothing can be let off until it is");
+                frames(w, 120);
+                Check(!w.player.Reloading(), "which takes a second and a bit");
+                press(w, SDLK_J);
+                frames(w, 30);
+                Check(!w.projectiles.empty(), "and then it goes off again");
+            }
+        }
+        // --- knives: one, or a fan ------------------------------------------------------------------------
+        {
+            World w;
+            if (field(w, "player_warden", "iron_knives", SKILL_RANGED, 30)) {
+                press(w, SDLK_J);
+                const string clip = w.player.sprite.current;
+                size_t most = 0;
+                for (int f = 0; f < 40; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
+                Check(most == 1 && clip == "throw", "a light throw is one knife, thrown (" + clip + ")");
+                frames(w, 60);
+                w.projectiles.clear();
+                press(w, SDLK_K);
+                most = 0;
+                for (int f = 0; f < 50; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
+                Check(most == 3, "and a heavy one a fan of three (" + std::to_string(most) + ")");
+            }
+        }
+
+        // --- an element's own staff: four keys, four spells -----------------------------------------------
+        {
+            World w;
+            if (field(w, "player_wayfarer", "iron_fire_staff", SKILL_MAGIC, 60)) {
+                Player& p = w.player;
+                Check(p.StaffElement() == Element::Fire && p.SelectedElement() == Element::Fire, "a fire staff is fire's");
+                const char* want[4] = {"pyre", "flamethrower", "flame_ring", "wall_of_fire"};
+                for (int slot = 0; slot < 4; ++slot) {
+                    p.SelectSlot(slot);
+                    const SpellDef* sp = p.SpellOf(Element::Fire, spells);
+                    Check(sp && sp->id == want[slot], "slot " + std::to_string(slot + 1) + " is " + want[slot] + (sp ? "" : " (nothing)"));
+                }
+                p.SelectElement(Element::Water);
+                Check(p.SelectedElement() == Element::Fire, "and it casts nothing but fire");
+                // Flame Ring: burning ground all round; Wall of Fire: a line of it across the way faced.
+                p.SelectSlot(2);
+                w.ground_effects.clear();
+                press(w, SDLK_J); frames(w, 30);
+                Check(w.ground_effects.size() >= 10, "a Flame Ring is a ring of burning ground (" + std::to_string(w.ground_effects.size()) + ")");
+                frames(w, 40);
+                p.SelectSlot(3);
+                p.RestoreMana();
+                w.ground_effects.clear();
+                press(w, SDLK_J); frames(w, 30);
+                float min_x = 1e9f, max_x = -1e9f, min_y = 1e9f, max_y = -1e9f;
+                for (const GroundEffect& g : w.ground_effects) { min_x = std::min(min_x, g.x); max_x = std::max(max_x, g.x); min_y = std::min(min_y, g.y); max_y = std::max(max_y, g.y); }
+                Check(w.ground_effects.size() == 7 && max_y - min_y > 120.0f && max_x - min_x < 8.0f && min_x > p.x + 60.0f,
+                      "a Wall of Fire stands across the way faced, a little way off");
+                // The Flamethrower: light is wide and short, heavy narrow and long.
+                frames(w, 40);
+                p.SelectSlot(1);
+                p.RestoreMana();
+                w.projectiles.clear();
+                press(w, SDLK_J);
+                size_t wide = 0; float wide_life = 0.0f;
+                for (int f = 0; f < 30 && wide == 0; ++f) { frames(w, 1); if (!w.projectiles.empty()) { wide = w.projectiles.size(); wide_life = w.projectiles.front().life; } }
+                frames(w, 50);
+                p.RestoreMana();
+                w.projectiles.clear();
+                press(w, SDLK_K);
+                size_t narrow = 0; float narrow_life = 0.0f;
+                for (int f = 0; f < 40 && narrow == 0; ++f) { frames(w, 1); if (!w.projectiles.empty()) { narrow = w.projectiles.size(); narrow_life = w.projectiles.front().life; } }
+                Check(wide == 5 && narrow == 3 && narrow_life > wide_life * 2.0f,
+                      "the Flamethrower is five tongues wide on light and three that reach far on heavy");
+            }
+        }
+        // Water: the cannon throws, the whirlpool drags in.
+        {
+            World w;
+            if (field(w, "player_wayfarer", "iron_water_staff", SKILL_MAGIC, 60)) {
+                Player& p = w.player;
+                Enemy* cow = sturdy(w, "cow", 120.0f);
+                p.SelectSlot(1);
+                press(w, SDLK_J);
+                float thrown = 0.0f;
+                for (int f = 0; f < 60; ++f) { frames(w, 1); if (cow) thrown = std::max(thrown, cow->knock_x); }
+                Check(thrown > 150.0f, "a Hydro Cannon sends what it hits a long way back (" + std::to_string(static_cast<int>(thrown)) + ")");
+                frames(w, 60);
+                if (cow) {
+                    cow->x = p.x + 160.0f; cow->y = p.y + 50.0f; cow->knock_x = cow->knock_y = 0.0f;
+                    p.SelectSlot(3);
+                    p.RestoreMana();
+                    w.ground_effects.clear();
+                    Enemy* other = sturdy(w, "cow", 160.0f, -30.0f);
+                    w.targeting.Clear();
+                    press(w, SDLK_J); frames(w, 20);
+                    const GroundEffect* pool = nullptr;
+                    for (const GroundEffect& g : w.ground_effects) if (g.pull > 0.0f) pool = &g;
+                    Check(pool != nullptr, "a Whirlpool is water that pulls");
+                    if (pool && other) {
+                        const float px = pool->x, py = pool->y;
+                        other->x = px + 50.0f; other->y = py; other->knock_x = other->knock_y = 0.0f;
+                        const float before = Length(other->x - px, other->y - py);
+                        frames(w, 90);
+                        Check(Length(other->x - px, other->y - py) < before - 15.0f, "and what is in it is dragged to the middle");
+                    }
+                }
+                p.SelectSlot(2);
+                p.RestoreMana();
+                w.projectiles.clear();
+                frames(w, 260);
+                press(w, SDLK_J);
+                size_t most = 0;
+                for (int f = 0; f < 30; ++f) { frames(w, 1); most = std::max(most, w.projectiles.size()); }
+                Check(most == 7, "a Tidal Wave is seven abreast (" + std::to_string(most) + ")");
+            }
+        }
+        // Earth: the slab throws what is in front; the burst is eight, one after another.
+        {
+            World w;
+            if (field(w, "player_wayfarer", "iron_earth_staff", SKILL_MAGIC, 60)) {
+                Player& p = w.player;
+                Enemy* near_one = sturdy(w, "cow", 50.0f);
+                Enemy* behind = sturdy(w, "cow", -50.0f);
+                p.SelectSlot(1);
+                const int hp_front = near_one ? near_one->hp : 0, hp_back = behind ? behind->hp : 0;
+                bool swung = false;
+                for (int tries = 0; tries < 6 && near_one && near_one->hp == hp_front; ++tries) {
+                    near_one->x = p.x + 50.0f; near_one->y = p.y; p.RestoreMana();
+                    press(w, SDLK_J);
+                    for (int f = 0; f < 50; ++f) { frames(w, 1); swung |= !w.slabs.empty(); }
+                }
+                Check(swung && near_one && near_one->hp < hp_front && behind && behind->hp == hp_back,
+                      "the Bedrock Sweep is a slab swung through what is in front, and not what is behind");
+                p.SelectSlot(3);
+                p.RestoreMana();
+                w.projectiles.clear();
+                // Out of the way: a stone that is let go into a cow's flank is gone
+                // in the frame it was thrown, and cannot be counted.
+                if (near_one) near_one->x += 600.0f;
+                if (behind) behind->x -= 600.0f;
+                press(w, SDLK_J);
+                std::set<uint32_t> seen;
+                for (int f = 0; f < 120; ++f) { frames(w, 1); for (const Projectile& s : w.projectiles) seen.insert(s.net_id); }
+                Check(seen.size() == 8, "a Mineral Burst is eight stones, one after another (" + std::to_string(seen.size()) + ")");
+                p.SelectSlot(2);
+                p.RestoreMana();
+                w.ground_effects.clear();
+                frames(w, 60);
+                press(w, SDLK_J); frames(w, 30);
+                bool rain = false;
+                for (const GroundEffect& g : w.ground_effects) rain |= g.rain && g.element == Element::Earth;
+                Check(rain, "the Sedimentary Rain is a rain, of stone");
+            }
+        }
+        // Air: a tornado walks and throws; held it is four seconds. Turbulence goes with the caster.
+        {
+            World w;
+            if (field(w, "player_wayfarer", "iron_air_staff", SKILL_MAGIC, 60)) {
+                Player& p = w.player;
+                p.SelectSlot(1);
+                press(w, SDLK_J); frames(w, 30);
+                const GroundEffect* twister = nullptr;
+                for (const GroundEffect& g : w.ground_effects) if (g.draw == GroundEffect::Draw::Tornado) twister = &g;
+                Check(twister && twister->max_life < 2.0f && twister->fling > 0.0f && twister->drift_x > 10.0f,
+                      "a light Tornado is a dust devil that walks the way it was sent");
+                frames(w, 120);
+                p.RestoreMana();
+                w.ground_effects.clear();
+                input.Update(kFrame); key(SDLK_K, true); w.Update(kFrame, ctx);
+                frames(w, 90);
+                input.Update(kFrame); key(SDLK_K, false); w.Update(kFrame, ctx);
+                frames(w, 30);
+                twister = nullptr;
+                for (const GroundEffect& g : w.ground_effects) if (g.draw == GroundEffect::Draw::Tornado) twister = &g;
+                Check(twister && fabsf(twister->max_life - 4.0f) < 0.01f, "held and let go, it lasts four seconds");
+                if (twister) {
+                    Enemy* cow = sturdy(w, "cow", 0.0f);
+                    if (cow) {
+                        cow->x = twister->x; cow->y = twister->y;
+                        const int hp = cow->hp;
+                        float thrown = 0.0f;
+                        for (int f = 0; f < 60; ++f) { frames(w, 1); thrown = std::max(thrown, Length(cow->knock_x, cow->knock_y)); }
+                        Check(thrown > 60.0f && cow->hp < hp, "what it catches is thrown, and hurt by it");
+                    }
+                }
+                frames(w, 260);
+                p.SelectSlot(3);
+                p.RestoreMana();
+                w.ground_effects.clear();
+                press(w, SDLK_J); frames(w, 30);
+                const GroundEffect* rough = nullptr;
+                for (const GroundEffect& g : w.ground_effects) if (g.draw == GroundEffect::Draw::Turbulence) rough = &g;
+                Check(rough && rough->follows, "Turbulence is the caster's own weather");
+                if (rough) {
+                    p.x += 40.0f;
+                    frames(w, 2);
+                    Check(fabsf(rough->x - p.x) < 1.0f, "and goes where they go");
+                }
+            }
+        }
+        // Any other staff still chooses among the elements, and casts the first of each.
+        {
+            World w;
+            if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 60)) {
+                w.player.SelectSlot(2);
+                w.player.SelectElement(Element::Water);
+                Check(w.player.StaffElement() == Element::None && w.player.SelectedElement() == Element::Water &&
+                      w.player.SpellOf(Element::Water, spells) == spells.Get("torrent"),
+                      "a plain staff chooses among the elements, and casts each one's first spell");
+            }
+        }
+
+        // --- the abilities' shift ---------------------------------------------------------------------------
+        {
+            Bindings b;
+            Check(b.Button(Action::Ability) == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER && b.Button(Action::Menu) == SDL_GAMEPAD_BUTTON_BACK &&
+                  b.Button(Action::Block) == SDL_GAMEPAD_BUTTON_EAST && !b.buttons.count(Action::Skills) && !b.buttons.count(Action::QuestLog),
+                  "on a pad RB is the abilities' shift and Select the menu; the skills and the journal are in it");
+            Check(b.Key(Action::Menu) == SDLK_TAB && b.Key(Action::Skills) == SDLK_O && b.Key(Action::QuestLog) == SDLK_P,
+                  "on the keys Tab is the menu, and O and P are still the skills and the journal");
+            // A layout saved before the change had RB on the skills panel: it does not take RB back.
+            json old = {{"keys", {{"jump", "V"}}}, {"buttons", {{"skills", "rightshoulder"}, {"quest_journal", "back"}}}};
+            Bindings loaded;
+            loaded.FromJson(old);
+            Check(loaded.Button(Action::Ability) == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER && loaded.Key(Action::Jump) == SDLK_V,
+                  "a pad layout saved before RB moved is not applied, and the keys saved with it are");
+            Bindings again;
+            again.FromJson(loaded.ToJson());
+            Check(again.Button(Action::Ability) == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER && again.Key(Action::Jump) == SDLK_V,
+                  "and one saved since round-trips");
+
+            // The shift is its own button in the hands: the guard alone is a guard.
+            World w;
+            if (field(w, "player_hero", "wood_sword", SKILL_ATTACK, 60)) {
+                Player& p = w.player;
+                for (const char* id : {"power", "toughness", "cleave_t", "sunder"}) p.talents.Learn(id, p.skills);
+                const TalentTree& tree = trees.Tree(AttackStyle::Melee);
+                string ability_node;
+                for (int pass = 0; pass < 4; ++pass)
+                    for (const TalentNode& n : tree.nodes) p.talents.Learn(n.id, p.skills);
+                for (const TalentNode& n : tree.nodes) if (!n.ability.empty() && p.talents.Has(n.id) && ability_node.empty()) ability_node = n.id;
+                Check(!ability_node.empty() && p.talents.SetAbility(0, ability_node), "an ability is carried in the first slot");
+                Enemy* cow = sturdy(w, "cow", 30.0f);
+                (void)cow;
+                p.hands_external = true;
+                const auto step = [&](uint8_t down, uint8_t pressed) {
+                    p.hands = PlayerInput{};
+                    p.hands.down = down; p.hands.pressed = pressed;
+                    w.Update(kFrame, ctx);
+                };
+                const float cd0 = p.AbilityCooldown(0);
+                step(PlayerInput::Block | PlayerInput::Light, PlayerInput::Light);
+                Check(p.AbilityCooldown(0) == cd0, "the guard and the light attack is not an ability any more");
+                for (int f = 0; f < 60; ++f) step(0, 0);
+                step(PlayerInput::Ability | PlayerInput::Light, PlayerInput::Light);
+                Check(p.AbilityCooldown(0) > cd0, "the shift and the light attack is");
+            }
+            // On the keys the guard is still the shift.
+            Input kb;
+            SDL_Event e{};
+            e.type = SDL_EVENT_KEY_DOWN; e.key.key = SDLK_H;
+            kb.HandleEvent(e);
+            kb.Update(kFrame);
+            const PlayerInput hands = PlayerInput::FromDevice(kb);
+            Check(hands.Down(PlayerInput::Block) && hands.Down(PlayerInput::Ability), "on the keys the guard is still the abilities' shift");
         }
     }
 
@@ -15507,6 +16602,49 @@ int main(int argc, char** argv) {
                             const string name = string("bin/previews/") + v.name + ".png";
                             Check(IMG_SavePNG(pixels, name.c_str()), string(v.name) + " preview saves");
                             SDL_DestroySurface(pixels);
+                        }
+                    }
+                    // Every status, on a row of orcs, after a second of wearing it:
+                    // the tint, what comes off them, and the pips over the bar.
+                    {
+                        GameContext sctx = pctx;
+                        sctx.statuses = &statuses;
+                        World world;
+                        world.player.Init(sctx, "player_wayfarer");
+                        if (world.LoadMap("overworld", "start", sctx)) {
+                            world.enemies.clear();
+                            world.clock.Set(1, 12.0f);
+                            const Status each[] = {Status::Burn, Status::Wet, Status::Concussed, Status::Bleed,
+                                                   Status::Poison, Status::Chill, Status::Frozen};
+                            for (int i = 0; i < 8; ++i) {
+                                EnemySpawnDef def;
+                                def.type = "orc1"; def.level = 1; def.leash = 10.0f; def.respawn = 0.0f;
+                                def.x = world.player.x + 140.0f + i * 44.0f; def.y = world.player.y - 10.0f;
+                                auto e = std::make_unique<Enemy>();
+                                e->Init(enemy_db.Get("orc1"), def, sctx);
+                                e->max_hp = e->hp = 5000;
+                                e->RevealHealthBar();
+                                world.enemies.push_back(std::move(e));
+                            }
+                            world.player.x -= 4000.0f;                  // out of their sight: they stand
+                            for (int i = 0; i < 7; ++i) {
+                                Enemy& e = *world.enemies[i];
+                                if (each[i] == Status::Frozen) e.Afflict(Status::Wet, 5, statuses);
+                                e.Afflict(each[i] == Status::Frozen ? Status::Chill : each[i], 60, statuses);
+                            }
+                            // The last has three at once.
+                            world.enemies[7]->Afflict(Status::Poison, 60, statuses);
+                            world.enemies[7]->Afflict(Status::Bleed, 60, statuses);
+                            world.enemies[7]->Afflict(Status::Concussed, 60, statuses);
+                            for (int f = 0; f < 50; ++f) world.Update(1.0f / 60.0f, sctx);
+                            world.camera.SetViewport(1280, 720);
+                            world.camera.SetZoom(3.0f);
+                            world.camera.SnapTo(world.enemies[3]->x + 24.0f, world.enemies[3]->y - 30.0f);
+                            world.Render(renderer, cache);
+                            if (SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr)) {
+                                Check(IMG_SavePNG(pixels, "bin/previews/statuses.png"), "statuses preview saves");
+                                SDL_DestroySurface(pixels);
+                            }
                         }
                     }
                 }

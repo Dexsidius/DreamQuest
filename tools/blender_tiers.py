@@ -607,8 +607,283 @@ def build_fish(name, parent, cooked=False):
     return parts
 
 
+# --- the armoury ----------------------------------------------------------------------
+# Nine more things to hold, each cut from the same tier tables as the sword so a
+# bronze mace is a bronze sword's cousin: the sword's length, width and extras
+# say how big a tier's weapons are and what they are dressed in, and each of
+# these is that, in its own proportions. All are built in the grip's frame,
+# with the business end down -Z like a sword's blade -- so an arm raised
+# forward points them forward, which is what a crossbow and a wand want too.
+
+# How a great weapon is carried when it is not being swung: up over the
+# shoulder, where a blade as long as the man is tall does not drag its point
+# through the floor. Set by weapon_layers for the clips that swing it.
+GREAT_MODE = {"swing": False}
+
+
+def _dress(tier, parts, parent, at_z, reach):
+    """What the high tiers hang on everything: a gem at the guard, wings, horns."""
+    extras = SWORDS[tier][3]
+    if "gem" in extras:
+        parts.append(bc.part("gem", mesh_gem(0.028, 0.022, 0.032), glow_or(tier, "light"), parent, loc=(0, -0.035, at_z)))
+    if "wings" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("wing", (side * 0.04, 0, at_z), (side * reach, 0, at_z + 0.09), 0.028,
+                                  P(tier, "accent"), parent))
+    if "horns" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("horn", (side * 0.06, 0, at_z), (side * reach * 0.8, 0, at_z - 0.09), 0.03,
+                                  P(tier, "light"), parent))
+
+
+def build_dagger(tier, parent):
+    blade, width, guard, extras = SWORDS[tier]
+    blade, width = 0.10 + blade * 0.42, width * 1.15        # short, but not so short it is lost in the fist
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("hilt", bc.mesh_capsule(0.020, 0.020, 0.085), P(tier, "grip"), parent, loc=(0, 0, 0.05))
+    add("pommel", bc.mesh_ellipsoid(0.026, 0.026, 0.026), P(tier, "dark"), parent, loc=(0, 0, 0.075))
+    add("guard", bc.mesh_ellipsoid(0.060, 0.030, 0.022), P(tier, "accent" if tier != "wood" else "dark"), parent,
+        loc=(0, 0, -0.04))
+    if "crystal" in extras:
+        add("blade", mesh_gem(width, width * 0.45, blade * 0.6, sides=4), P(tier, "main"), parent,
+            loc=(0, 0, -0.05 - blade * 0.5))
+    else:
+        # A dagger is a point: wide at the guard and nothing at the tip.
+        parts.append(bc.spike("blade", (0, 0, -0.05), (0, 0, -0.05 - blade), width * 0.95, P(tier, "main"), parent,
+                              r_tip=0.006))
+        parts.append(bc.spike("ridge", (0, -0.006, -0.06), (0, -0.006, -0.05 - blade * 0.8), width * 0.32,
+                              glow_or(tier, "light") if "edge" in extras else P(tier, "light"), parent, r_tip=0.004))
+    _dress(tier, parts, parent, -0.04, 0.10)
+    return parts
+
+
+def build_knives(tier, parent):
+    """Throwing knives: three in the hand, fanned, all blade and no guard."""
+    blade, width, guard, extras = SWORDS[tier]
+    blade, width = blade * 0.36, width * 0.75
+    parts = []
+    for i, lean in enumerate((-0.10, 0.0, 0.10)):
+        tip = (lean * 1.6, -0.01 * i, -0.04 - blade)
+        parts.append(bc.spike("knife", (lean * 0.3, -0.01 * i, -0.03), tip, width, P(tier, "main"), parent, r_tip=0.006))
+        parts.append(bc.spike("tang", (lean * 0.3, -0.01 * i, -0.03), (lean * -0.2, -0.01 * i, 0.07), 0.016,
+                              P(tier, "grip"), parent, r_tip=0.014))
+    if "edge" in extras or "gem" in extras:
+        parts.append(bc.spike("edge", (0, -0.014, -0.05), (0, -0.014, -0.04 - blade * 0.85), width * 0.3,
+                              glow_or(tier, "light"), parent, r_tip=0.004))
+    return parts
+
+
+def build_mace(tier, parent):
+    blade, width, guard, extras = SWORDS[tier]
+    haft = 0.32 + blade * 0.34
+    head = 0.075 + width * 0.60
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("grip", bc.mesh_capsule(0.022, 0.022, 0.11), P(tier, "grip"), parent, loc=(0, 0, 0.06))
+    add("haft", bc.mesh_capsule(0.020, 0.018, haft), P(tier, "dark") if tier != "wood" else P(tier, "main"), parent,
+        loc=(0, 0, -0.03))
+    at = -0.03 - haft
+    add("head", bc.mesh_ellipsoid(head, head, head * 1.05), P(tier, "main"), parent, loc=(0, 0, at))
+    add("collar", bc.mesh_ellipsoid(head * 0.55, head * 0.55, 0.03), P(tier, "light"), parent, loc=(0, 0, at + head * 0.9))
+    # Flanges all round it: the thing that makes it a mace and not a ball on a stick.
+    flange = glow_or(tier, "light") if "edge" in extras else P(tier, "light")
+    for i in range(6):
+        a = math.radians(60 * i)
+        dx, dy = math.cos(a), math.sin(a)
+        parts.append(bc.spike("flange", (dx * head * 0.7, dy * head * 0.7, at),
+                              (dx * head * (1.75 if "spikes" in extras else 1.4), dy * head * (1.75 if "spikes" in extras else 1.4), at),
+                              head * 0.42, flange, parent, r_tip=head * (0.05 if "spikes" in extras else 0.2)))
+    parts.append(bc.spike("spike", (0, 0, at - head * 0.7), (0, 0, at - head * 1.7), head * 0.4, flange, parent, r_tip=0.006))
+    _dress(tier, parts, parent, 0.0, 0.10)
+    return parts
+
+
+def _great_frame(parent):
+    """Swung, a great weapon is in the hands like a sword. Carried, it is turned
+    end for end and laid back over the shoulder."""
+    if GREAT_MODE["swing"] or ICON_MODE["on"]:
+        return parent, []
+    frame = bc.empty("great_frame", (-0.02, 0.06, 0.04), parent)
+    frame.rotation_euler = Euler((math.radians(164), math.radians(10), 0), "XYZ")
+    return frame, [frame]
+
+
+def build_greatsword(tier, parent):
+    blade, width, guard, extras = SWORDS[tier]
+    blade, width, guard = 0.52 + blade * 0.72, width * 1.55, max(0.13, guard * 1.5)
+    parent, parts = _great_frame(parent)
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    fitting = P(tier, "accent") if tier != "wood" else P(tier, "dark")
+    # A hilt long enough for both hands.
+    add("hilt", bc.mesh_capsule(0.023, 0.023, 0.22), P(tier, "grip"), parent, loc=(0, 0, 0.17))
+    add("pommel", bc.mesh_ellipsoid(0.038, 0.038, 0.038), fitting, parent, loc=(0, 0, 0.20))
+    add("guard", bc.mesh_ellipsoid(guard, 0.036, 0.032), fitting, parent, loc=(0, 0, -0.06))
+    top = -0.07
+    if "crystal" in extras:
+        add("blade", mesh_gem(width, width * 0.4, blade * 0.55, sides=4), P(tier, "main"), parent, loc=(0, 0, top - blade * 0.5))
+    else:
+        # Thicker through than a sword's: swung, it is seen edge-on as often as
+        # flat, and a flat one is a line for half the clip.
+        add("blade", bc.mesh_capsule(width, width * 0.5, blade, squash_y=0.62), P(tier, "main"), parent, loc=(0, 0, top))
+        add("fuller", bc.mesh_capsule(width * 0.34, width * 0.2, blade * 0.78, squash_y=0.5),
+            glow_or(tier, "light") if "edge" in extras else P(tier, "light"), parent, loc=(0, -0.004, top - 0.03))
+        parts.append(bc.spike("point", (0, 0, top - blade + 0.02), (0, 0, top - blade - width * 1.3), width * 0.72,
+                              P(tier, "main"), parent, r_tip=0.006))
+    if "spikes" in extras:
+        for side in (-1, 1):
+            parts.append(bc.spike("barb", (side * width * 0.7, 0, top - blade * 0.3), (side * width * 1.9, 0, top - blade * 0.22),
+                                  0.026, P(tier, "main"), parent))
+    _dress(tier, parts, parent, -0.06, guard * 1.25)
+    return parts
+
+
+def build_greataxe(tier, parent):
+    blade, width, guard, extras = SWORDS[tier]
+    haft = 0.66 + blade * 0.35
+    bit = 0.15 + width * 1.2                     # how far the blade stands off the haft
+    parent, parts = _great_frame(parent)
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("haft", bc.mesh_capsule(0.024, 0.022, haft + 0.24), "wood_dark" if tier not in ("wood", "demonite") else P(tier, "dark"),
+        parent, loc=(0, 0, 0.22))
+    add("grip", bc.mesh_capsule(0.027, 0.027, 0.20), P(tier, "grip"), parent, loc=(0, 0, 0.16))
+    at = -haft * 0.80
+    double = "heavy" in extras or "wings" in extras or "spikes" in extras
+    edge = glow_or(tier, "light") if "edge" in extras else P(tier, "light")
+    for side in ((1, -1) if double else (1,)):
+        # A fan: narrow where it leaves the haft and twice as tall at the edge,
+        # which is what makes it an axe and not a hammer -- a box laid on its
+        # side, with its far face flared -- and a bright curved edge on the end.
+        add("cheek", mesh_box(bit * 0.95, 0.03, bit, taper=2.3), P(tier, "main"), parent,
+            loc=(side * bit * 0.55, 0, at), rot=(0, math.radians(side * 90), 0))
+        add("edge", bc.mesh_ellipsoid(bit * 0.16, 0.02, bit * 1.22), edge, parent, loc=(side * bit * 1.04, 0, at))
+    if not double:
+        parts.append(bc.spike("poll", (-0.02, 0, at), (-bit * 0.5, 0, at), 0.04, P(tier, "dark"), parent, r_tip=0.03))
+    add("eye", bc.mesh_ellipsoid(0.045, 0.045, bit * 0.5), P(tier, "dark"), parent, loc=(0, 0, at))
+    parts.append(bc.spike("spike", (0, 0, at - bit * 0.4), (0, 0, at - bit * 1.0), 0.03, P(tier, "light"), parent, r_tip=0.005))
+    _dress(tier, parts, parent, at + bit * 0.75, 0.10)
+    return parts
+
+
+def build_crossbow(tier, parent):
+    blade, width, guard, extras = SWORDS[tier]
+    span = 0.17 + blade * 0.16                   # half the prod
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    stock = "wood_dark" if tier != "wood" else P(tier, "main")
+    # Along -Z like a blade: nose down at the side, and level when it is brought up.
+    parts.append(bc.spike("stock", (0, 0, 0.12), (0, 0, -0.40), 0.036, stock, parent, r_tip=0.028))
+    add("butt", bc.mesh_ellipsoid(0.04, 0.05, 0.05), stock, parent, loc=(0, 0, 0.13))
+    nose = -0.34
+    limb = P(tier, "main")
+    tips = []
+    for side in (-1, 1):
+        mid = (side * span * 0.6, 0, nose - 0.02)
+        tip = (side * span, 0, nose + 0.07)
+        parts.append(bc.spike("prod", (0, 0, nose), mid, 0.030, limb, parent, r_tip=0.024))
+        parts.append(bc.spike("prod", mid, tip, 0.024, limb, parent, r_tip=0.016))
+        tips.append(tip)
+        if "wings" in extras or "spikes" in extras:
+            parts.append(bc.spike("barb", mid, (side * span * 0.8, 0, nose - 0.10), 0.02, P(tier, "light"), parent))
+    string = glow_or(tier, "light") if PALETTES[tier]["glow"] else "string"
+    nut = (0, -0.02, nose + 0.22)                # spanned: the string drawn back to the nut
+    for tip in tips:
+        parts.append(bc.spike("string", tip, nut, 0.008, string, parent, r_tip=0.008))
+    parts.append(bc.spike("bolt", (0, -0.03, nose + 0.22), (0, -0.03, nose - 0.10), 0.012, P(tier, "light"), parent, r_tip=0.004))
+    add("stirrup", bc.mesh_torus(0.045, 0.012), P(tier, "dark"), parent, loc=(0, 0, nose - 0.05), rot=(0, math.radians(90), 0))
+    add("lock", bc.mesh_ellipsoid(0.03, 0.03, 0.04), P(tier, "accent"), parent, loc=(0, -0.03, nose + 0.24))
+    if "gem" in extras:
+        add("gem", mesh_gem(0.026, 0.02, 0.03), glow_or(tier, "light"), parent, loc=(0, -0.04, nose + 0.02))
+    return parts
+
+
+def build_wand(tier, parent):
+    blade, width, guard, extras = SWORDS[tier]
+    length = 0.22 + blade * 0.22
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("grip", bc.mesh_capsule(0.022, 0.020, 0.10), P(tier, "grip"), parent, loc=(0, 0, 0.05))
+    parts.append(bc.spike("rod", (0, 0, -0.04), (0, 0, -0.04 - length), 0.020, P(tier, "main") if tier != "wood" else "wood_dark",
+                          parent, r_tip=0.012))
+    add("band", bc.mesh_ellipsoid(0.028, 0.028, 0.016), P(tier, "accent"), parent, loc=(0, 0, -0.045))
+    tip = -0.04 - length
+    if tier == "wood":
+        add("knot", bc.mesh_ellipsoid(0.028, 0.028, 0.03), P(tier, "light"), parent, loc=(0, 0, tip))
+    else:
+        add("tip", mesh_gem(0.034, 0.030, 0.06), glow_or(tier, "light"), parent, loc=(0, 0, tip - 0.03))
+        if "wings" in extras or "horns" in extras:
+            for side in (-1, 1):
+                parts.append(bc.spike("claw", (0, 0, tip + 0.03), (side * 0.06, 0, tip - 0.04), 0.014, P(tier, "accent"), parent))
+    return parts
+
+
+def build_grimoire(tier, parent):
+    """A book held open on the palm. Its pages face -Y, which is up once the
+    forearm is level (and forward, at the hip, when the arm hangs)."""
+    blade, width, guard, extras = SWORDS[tier]
+    parts = []
+    frame = bc.empty("book_frame", (0.0, -0.035, -0.09), parent)
+    parts.append(frame)
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    w, h = 0.13, 0.19
+    for side in (-1, 1):
+        rot = (0, 0, math.radians(side * 16))
+        add("cover", mesh_box(w, 0.022, h), P(tier, "main"), frame, loc=(side * w * 0.52, 0.016, 0), rot=rot)
+        add("pages", mesh_box(w * 0.92, 0.020, h * 0.92), "string", frame, loc=(side * w * 0.50, -0.004, 0), rot=rot)
+        add("corner", mesh_box(0.03, 0.026, 0.03), P(tier, "accent"), frame, loc=(side * w * 0.95, 0.016, h * 0.42), rot=rot)
+        add("corner", mesh_box(0.03, 0.026, 0.03), P(tier, "accent"), frame, loc=(side * w * 0.95, 0.016, -h * 0.42), rot=rot)
+        # Lines of writing: what says it is a book and not a tile.
+        for k in (-0.05, 0.0, 0.05):
+            add("line", mesh_box(w * 0.6, 0.004, 0.012), P(tier, "dark"), frame, loc=(side * w * 0.50, -0.016, k), rot=rot)
+    add("spine", bc.mesh_capsule(0.018, 0.018, h), P(tier, "dark"), frame, loc=(0, 0.022, h * 0.5))
+    if PALETTES[tier]["glow"] or "gem" in extras:
+        add("sigil", mesh_gem(0.03, 0.012, 0.03), glow_or(tier, "light"), frame, loc=(0, -0.02, 0.0))
+    return parts
+
+
+def build_orb(tier, parent):
+    """An orb over an open palm, in a claw of the tier's metal."""
+    blade, width, guard, extras = SWORDS[tier]
+    r = 0.062 + blade * 0.03
+    parts = []
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    at = (0.0, -0.10, -0.07)
+    add("orb", bc.mesh_ellipsoid(r, r, r), glow_or(tier, "light") if tier != "wood" else P(tier, "light"), parent, loc=at)
+    add("core", bc.mesh_ellipsoid(r * 0.5, r * 0.5, r * 0.5), P(tier, "main"), parent, loc=(at[0] - r * 0.25, at[1] - r * 0.6, at[2] - r * 0.2))
+    for a in (20, 140, 260):
+        dx, dz = math.cos(math.radians(a)), math.sin(math.radians(a))
+        parts.append(bc.spike("claw", (0, -0.02, -0.06), (at[0] + dx * r * 1.05, at[1] + r * 0.2, at[2] + dz * r * 1.05), 0.016,
+                              P(tier, "dark"), parent, r_tip=0.008))
+    add("ring", bc.mesh_torus(r * 1.35, 0.010), P(tier, "accent"), parent, loc=at, rot=(math.radians(62), 0, math.radians(20)))
+    if "wings" in extras or "crystal" in extras:
+        add("ring2", bc.mesh_torus(r * 1.6, 0.008), P(tier, "light"), parent, loc=at, rot=(math.radians(100), math.radians(30), 0))
+    return parts
+
+
+# The four elements' staves: a tier's own staff with the element in its head.
+# Only their icons are modelled; in the hand they are that tier's staff, tinted.
+ELEMENTS = {"fire": (1.00, 0.50, 0.18), "water": (0.32, 0.64, 1.00), "earth": (0.74, 0.56, 0.30), "air": (0.84, 0.96, 1.00)}
+for _el, _rgb in ELEMENTS.items():
+    bc.PALETTE["element_" + _el] = _rgb
+
+
+def _element_staff(element):
+    def build(tier, parent):
+        parts = build_staff(tier, parent)
+        frame = parts[0]
+        top = 0.60
+        parts.append(bc.part("element", mesh_gem(0.10, 0.085, 0.15), "element_" + element, frame, loc=(0, -0.02, top + 0.10)))
+        for side in (-1, 1):
+            parts.append(bc.spike("claw", (0, 0, top - 0.06), (side * 0.10, 0, top + 0.10), 0.02, "element_" + element, frame))
+        return parts
+    return build
+
+
 WEAPONS = {"sword": build_sword, "spear": build_spear, "bow": build_bow, "staff": build_staff,
-           "axe": build_axe, "pickaxe": build_pickaxe, "rod": build_rod}
+           "axe": build_axe, "pickaxe": build_pickaxe, "rod": build_rod,
+           "dagger": build_dagger, "mace": build_mace, "greatsword": build_greatsword, "greataxe": build_greataxe,
+           "crossbow": build_crossbow, "knives": build_knives, "wand": build_wand, "grimoire": build_grimoire,
+           "orb": build_orb}
 
 
 # --- armour, ore and bars (icons only) ----------------------------------------------------
@@ -874,6 +1149,9 @@ BARS = {"bronze": "bronze_bar", "iron": "iron_bar", "steel": "steel_bar", "azury
         "dracon": "dracon_bar", "enchanted": "enchanted_bar"}
 
 
+ARMOURY_ONLY = {"on": False}
+
+
 def all_icons(only_tiers):
     ICON_MODE["on"] = True
     count = 0
@@ -887,6 +1165,24 @@ def all_icons(only_tiers):
                 ("helm_" + tier,   build_helm,   0,    20,  0.88),
                 ("body_" + tier,   build_body,   0,    14,  0.9),
                 ("legs_" + tier,   build_legs,   0,    14,  0.88)]
+        armoury = [("dagger_" + tier,     build_dagger,     -135, 0,  0.80),
+                   ("mace_" + tier,       build_mace,       -135, 0,  0.95),
+                   ("greatsword_" + tier, build_greatsword, -135, 0,  1.0),
+                   ("greataxe_" + tier,   build_greataxe,   -135, 0,  1.0),
+                   ("crossbow_" + tier,   build_crossbow,   -135, 0,  0.96),
+                   ("knives_" + tier,     build_knives,     -135, 0,  0.74),
+                   ("wand_" + tier,       build_wand,       -135, 0,  0.84),
+                   ("grimoire_" + tier,   build_grimoire,   0,    0,  0.92),
+                   ("orb_" + tier,        build_orb,        0,    24, 0.86)]
+        armoury += [("%s_staff_%s" % (el, tier), _element_staff(el), 45, 0, 1.0) for el in ELEMENTS]
+        if ARMOURY_ONLY["on"]:
+            jobs = []
+        jobs += armoury
+        if ARMOURY_ONLY["on"]:
+            for name, builder, tilt, spin, fill in jobs:
+                render_icon(name, builder, tier, tilt, spin, fill)
+                count += 1
+            continue
         # Turned side-on, so the blade and the points are seen in profile.
         jobs.append(("axe_" + tier,     build_axe,     -135, 90, 1.0))
         jobs.append(("pickaxe_" + tier, build_pickaxe, -135, 90, 1.0))
@@ -902,7 +1198,7 @@ def all_icons(only_tiers):
             count += 1
     # The rod and the fish belong to no tier; they are drawn once, with the
     # full set.
-    if len(only_tiers) == len(TIERS):
+    if len(only_tiers) == len(TIERS) and not ARMOURY_ONLY["on"]:
         render_icon("fishing_rod", build_rod, "wood", -135, 0, 1.0)
         count += 1
         for name in FISH:
@@ -1752,6 +2048,17 @@ def weapon_layers(clip_name, models, out_dir):
             joints["root"].location = offset
             occluders += groups[bc.BODY] + groups[bc.HEAD]
             own_sword += groups[bc.WEAPON]
+            # And the armour it was built in. It was left standing in the
+            # render -- neither held out nor hidden -- so every weapon sheet
+            # had a suit of plain plate drawn into it under the weapon, and a
+            # character with nothing on their legs grew steel greaves the
+            # moment they picked up a sword. Held out, like the body: what is
+            # worn is drawn from its own sheets, over this one.
+            # The shield is only hidden: not everybody carries one, and held out
+            # it would cut a shield-shaped hole in a blade that crossed it.
+            for key in bc.ARMOUR_GROUPS:
+                if key == bc.ARM_SHIELD: own_sword += groups.get(key, [])
+                else:                    occluders += groups.get(key, [])
             grips.append(joints["grip"])
 
     for ob in occluders:
@@ -1763,6 +2070,9 @@ def weapon_layers(clip_name, models, out_dir):
     bc.setup_camera(cols, rows)
     bc.setup_render(cols, rows)
     SPEAR_MODE["thrust"] = clip_name == "thrust"
+    # A great weapon is in the hands for anything that swings it, and over the
+    # shoulder for everything else.
+    GREAT_MODE["swing"] = clip_name in ("sweep", "hew", "rush", "crush", "cleave", "backhand", "spin")
 
     for model in models:
         kind, tier = model.split("_", 1) if "_" in model else (model, "wood")
@@ -1800,18 +2110,29 @@ def main():
             return []
         # A spear strikes with its own clip and never plays the swing, and
         # nothing but a spear plays the thrust.
+        melee = ("sword", "spear", "dagger", "mace", "greatsword", "greataxe")
         kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",),
-                 "attack": ("sword", "bow", "staff"), "thrust": ("spear",),
+                 "attack": ("sword", "bow", "staff"),
+                 # A spear strikes with a thrust, and so does a dagger.
+                 "thrust": ("spear", "dagger"),
+                 # The armoury's own strikes: see blender_character.CLIPS.
+                 "bash": ("mace",), "sweep": ("greatsword", "greataxe"), "hew": ("greataxe",),
+                 "shoot": ("crossbow",), "reload": ("crossbow",), "throw": ("knives",),
+                 "flick": ("wand",), "invoke": ("grimoire", "orb"),
                  # The leap is a melee move: a bow or a staff never makes it.
-                 "rush": ("sword", "spear"),
+                 "rush": melee,
                  # And so are the combos.
-                 "crush": ("sword", "spear"), "cleave": ("sword", "spear"),
-                 "backhand": ("sword", "spear"), "spin": ("sword", "spear")}.get(
-                     clip, ("sword", "spear", "bow", "staff"))
+                 "crush": melee, "cleave": melee, "backhand": melee, "spin": melee}.get(
+                     clip, ("sword", "spear", "bow", "staff", "dagger", "mace", "greatsword", "greataxe",
+                            "crossbow", "knives", "wand", "grimoire", "orb"))
         every = ["rod"] if kinds == ("rod",) else ["%s_%s" % (k, t) for t in tiers for k in kinds]
         if chosen:
             return [m for m in chosen if m.split("_", 1)[0] in kinds]
         return every
+    # `armoury` with `icons`: only the nine new weapons' and the elements' staves'.
+    if "armoury" in args:
+        args.remove("armoury")
+        ARMOURY_ONLY["on"] = True
     wanted = set(args) or {"icons", "layers", "sets", "food"}
 
     os.makedirs(ICON_DIR, exist_ok=True)

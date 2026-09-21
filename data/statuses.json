@@ -1,0 +1,63 @@
+{
+  "_comment": "What a blow can leave on a monster: see src/systems/status.h. 'dot_share' is the share of the blow that lands again, spread over 'seconds'. 'speed', 'attack', 'defence' and 'cooldown' multiply the monster's own while the status lasts. A boss keeps a status for 'boss_share' of the time, and is never held.",
+
+  "burn": {
+    "name": "Burning",
+    "color": [255, 150, 60],
+    "seconds": 3.0,
+    "dot_share": 0.5,
+    "dot_min": 2,
+    "blocked_by": ["wet"]
+  },
+  "wet": {
+    "name": "Soaked",
+    "color": [110, 180, 240],
+    "seconds": 6.0,
+    "ends": ["burn"],
+    "weak_to": ["air"],
+    "weak_mult": 1.25
+  },
+  "concussed": {
+    "name": "Concussed",
+    "color": [236, 214, 120],
+    "seconds": 4.0,
+    "attack": 0.75,
+    "defence": 0.75,
+    "speed": 0.85,
+    "stagger": 0.35
+  },
+  "bleed": {
+    "name": "Bleeding",
+    "color": [200, 60, 70],
+    "seconds": 4.0,
+    "dot_share": 0.5,
+    "dot_min": 1,
+    "stacks": true
+  },
+  "poison": {
+    "name": "Poisoned",
+    "color": [140, 210, 90],
+    "seconds": 6.0,
+    "dot_share": 0.8,
+    "dot_min": 3,
+    "defence": 0.8
+  },
+  "chill": {
+    "name": "Chilled",
+    "color": [170, 220, 250],
+    "seconds": 4.0,
+    "speed": 0.6,
+    "cooldown": 1.35,
+    "if_has": "wet",
+    "becomes": "frozen"
+  },
+  "frozen": {
+    "name": "Frozen",
+    "color": [200, 236, 255],
+    "seconds": 1.6,
+    "holds": true,
+    "ends": ["wet", "burn"],
+    "then": "chill",
+    "boss_share": 0.0
+  }
+}

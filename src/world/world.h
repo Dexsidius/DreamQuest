@@ -465,6 +465,20 @@ public:
     vector<Mote> motes;
     void BurstOf(Element e, float x, float y, float lift, float size, float nx, float ny);
 
+    // Shots that are owed: a Mineral Burst is eight stones one after another,
+    // and the seven after the first are let go from wherever the caster has
+    // got to by then.
+    struct QueuedShot { float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; };
+    vector<QueuedShot> queued_shots;
+    // A slab of the ground being swung: drawn from the caster through an arc.
+    struct SlabSwing { float x = 0, y = 0, from = 0, to = 0, length = 60, life = 0, max_life = 0.28f, lift = 0; };
+    vector<SlabSwing> slabs;
+
+    // Rolls a status against a monster a blow of `blow` has just landed on, and
+    // says so over its head if it takes: see systems/status.h. Nothing is
+    // rolled, and nothing left, without the statuses loaded.
+    void TryAfflict(Enemy& e, const StatusProc& proc, int blow, const GameContext& ctx);
+
 private:
     // The frame, in two parts: what is done for one seat, and what is done
     // once for the place.
@@ -582,6 +596,15 @@ private:
     uint32_t next_cast_id = 1;
     uint32_t casting = 0;         // the cast being let go of: what is spawned now carries it
     uint32_t cast_next = 0;       // the cast the next HitEnemy came of, set as crit_next is
+    // What the next HitEnemy can leave on what it strikes, and what of it
+    // comes back as health: a projectile's, or the ground's. Set as crit_next
+    // is. A swing sets nothing and is asked its weapon.
+    StatusProc proc_next;
+    float leech_next = 0.0f;
+    // And the share of its Defence the next HitEnemy goes past: a bolt's. A
+    // swing is asked its weapon, and its combo.
+    float pierce_next = 0.0f;
+    void  ShedFromStatuses(float dt);
     uint32_t OpenCast(int skill, int xp);
     void  PayCast(uint32_t id);
     void  ForgetSpentCasts();

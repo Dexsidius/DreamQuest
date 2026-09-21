@@ -6,6 +6,10 @@
    "kind": "melee",
    "skill": "Attack",
    "noun": "Sword",
+   "on_hit": {
+    "id": "bleed",
+    "chance": 0.18
+   },
    "power": "weapon",
    "bonus": {
     "attack": 1.0,
@@ -18,7 +22,8 @@
     "logs": 1
    },
    "craft_offset": 1,
-   "desc": "A straight blade and a plain grip."
+   "desc": "A straight blade and a plain grip.",
+   "class": "sword"
   },
   "spear": {
    "slot": "weapon",
@@ -42,7 +47,8 @@
     "logs": 2
    },
    "craft_offset": 1,
-   "desc": "A long ash shaft and a narrow head. It keeps them at arm's length and then some."
+   "desc": "A long ash shaft and a narrow head. It keeps them at arm's length and then some.",
+   "class": "spear"
   },
   "bow": {
    "slot": "weapon",
@@ -61,7 +67,8 @@
     "thread": 1
    },
    "craft_offset": 2,
-   "desc": "Takes both hands, and a steady eye."
+   "desc": "Takes both hands, and a steady eye.",
+   "two_handed": true
   },
   "staff": {
    "slot": "weapon",
@@ -180,6 +187,442 @@
    },
    "craft_offset": 1,
    "desc": "For breaking ore out of rock. The better the metal, the faster the work."
+  },
+  "dagger": {
+   "slot": "weapon",
+   "kind": "melee",
+   "class": "dagger",
+   "skill": "Attack",
+   "noun": "Dagger",
+   "power": "weapon",
+   "bonus": {
+    "attack": 1.35,
+    "strength": 0.95
+   },
+   "speed": 0.72,
+   "reach": 0.8,
+   "sweep": 0.7,
+   "push": 0.6,
+   "clip": "thrust",
+   "armour_pierce": 0.35,
+   "value": 30,
+   "bars": 1,
+   "craft_offset": 1,
+   "wood": {
+    "logs": 2
+   },
+   "desc": "Short, quick, and all point. It goes between the plates: a third of a target's Defence does nothing against it.",
+   "combos": {
+    "crush": {
+     "name": "Gut Stab",
+     "pierce": 0.7,
+     "status": "bleed"
+    },
+    "cleave": {
+     "name": "Flurry"
+    },
+    "backhand": {
+     "name": "Backstab",
+     "damage": 1.25,
+     "pierce": 0.5
+    },
+    "cross_cut": {
+     "name": "Fan of Steel"
+    }
+   }
+  },
+  "mace": {
+   "slot": "weapon",
+   "kind": "melee",
+   "class": "mace",
+   "skill": "Attack",
+   "noun": "Mace",
+   "power": "weapon",
+   "bonus": {
+    "attack": 0.9,
+    "strength": 1.75
+   },
+   "speed": 1.12,
+   "reach": 0.95,
+   "sweep": 0.9,
+   "push": 1.3,
+   "clip": "bash",
+   "on_hit": {
+    "id": "concussed",
+    "chance": 0.22
+   },
+   "value": 46,
+   "bars": 3,
+   "extra": {
+    "logs": 1
+   },
+   "craft_offset": 1,
+   "wood": {
+    "logs": 4
+   },
+   "desc": "A flanged head on a short haft. One blow in five rings its head: concussed, it swings wide and guards badly.",
+   "combos": {
+    "crush": {
+     "name": "Skull Crack",
+     "status": "concussed"
+    },
+    "cleave": {
+     "name": "Sweeping Blow"
+    },
+    "backhand": {
+     "name": "Backswing"
+    },
+    "cross_cut": {
+     "name": "Ground Slam",
+     "status": "concussed",
+     "damage": 0.9
+    }
+   }
+  },
+  "greatsword": {
+   "slot": "weapon",
+   "kind": "melee",
+   "class": "greatsword",
+   "two_handed": true,
+   "skill": "Attack",
+   "noun": "Greatsword",
+   "power": "weapon",
+   "bonus": {
+    "attack": 1.2,
+    "strength": 2.25
+   },
+   "speed": 1.45,
+   "reach": 1.45,
+   "sweep": 1.6,
+   "push": 1.4,
+   "clip": "sweep",
+   "on_hit": {
+    "id": "bleed",
+    "chance": 0.28
+   },
+   "value": 70,
+   "bars": 4,
+   "extra": {
+    "logs": 1
+   },
+   "craft_offset": 2,
+   "wood": {
+    "logs": 6
+   },
+   "desc": "Both hands, and the whole body behind it. Slow to start and slow to stop, and it clears half a room and leaves what it cuts bleeding.",
+   "combos": {
+    "crush": {
+     "name": "Overhead Cleave",
+     "damage": 1.15
+    },
+    "cleave": {
+     "name": "Reaping Sweep",
+     "status": "bleed"
+    },
+    "backhand": {
+     "name": "Pommel Strike",
+     "status": "concussed",
+     "damage": 0.8
+    },
+    "cross_cut": {
+     "name": "Whirlwind"
+    }
+   }
+  },
+  "greataxe": {
+   "slot": "weapon",
+   "kind": "melee",
+   "class": "greataxe",
+   "two_handed": true,
+   "skill": "Attack",
+   "noun": "Greataxe",
+   "power": "weapon",
+   "bonus": {
+    "attack": 1.0,
+    "strength": 2.5
+   },
+   "speed": 1.6,
+   "reach": 1.35,
+   "sweep": 1.5,
+   "push": 1.6,
+   "clip": "sweep",
+   "charge_clip": "hew",
+   "charge": {
+    "damage": 1.35,
+    "reach": 1.3,
+    "sweep": 0.5
+   },
+   "on_hit": {
+    "id": "bleed",
+    "chance": 0.32
+   },
+   "value": 72,
+   "bars": 4,
+   "extra": {
+    "logs": 2
+   },
+   "craft_offset": 2,
+   "wood": {
+    "logs": 6
+   },
+   "desc": "Both hands. The slowest thing there is to swing, and the hardest: held and let go it comes straight down, a chop where the swing is a sweep.",
+   "combos": {
+    "crush": {
+     "name": "Hew",
+     "damage": 1.2,
+     "status": "bleed"
+    },
+    "cleave": {
+     "name": "Felling Sweep"
+    },
+    "backhand": {
+     "name": "Haft Check",
+     "status": "concussed",
+     "damage": 0.75
+    },
+    "cross_cut": {
+     "name": "Maelstrom",
+     "status": "bleed"
+    }
+   }
+  },
+  "crossbow": {
+   "slot": "weapon",
+   "kind": "bow",
+   "class": "crossbow",
+   "two_handed": true,
+   "skill": "Ranged",
+   "noun": "Crossbow",
+   "power": "weapon",
+   "bonus": {
+    "ranged": 2.7
+   },
+   "speed": 0.55,
+   "reload": 1.15,
+   "shoots": "crossbow_bolt",
+   "clip": "shoot",
+   "value": 52,
+   "bars": 2,
+   "extra": {
+    "logs": 2,
+    "thread": 1
+   },
+   "craft_offset": 2,
+   "wood": {
+    "logs": 4,
+    "thread": 1
+   },
+   "desc": "Spanned and loaded, it goes off the moment it is asked -- no draw -- and the bolt goes through armour and out the other side. Then it has to be spanned again."
+  },
+  "knives": {
+   "slot": "weapon",
+   "kind": "bow",
+   "class": "knives",
+   "skill": "Ranged",
+   "noun": "Throwing Knives",
+   "power": "weapon",
+   "bonus": {
+    "ranged": 1.6
+   },
+   "speed": 0.6,
+   "damage": 0.85,
+   "shoots": "throwing_knife",
+   "clip": "throw",
+   "value": 28,
+   "bars": 1,
+   "craft_offset": 1,
+   "wood": {
+    "logs": 2
+   },
+   "desc": "One hand, so there is a shield on the other. Quick and close: a light throw is one knife and a heavy one a fan of three."
+  },
+  "wand": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "wand",
+   "skill": "Magic",
+   "noun": "Wand",
+   "power": "weapon",
+   "bonus": {
+    "magic": 1.7
+   },
+   "speed": 0.66,
+   "damage": 0.72,
+   "clip": "flick",
+   "value": 32,
+   "bars": 1,
+   "extra": {
+    "logs": 1
+   },
+   "craft_offset": 1,
+   "wood": {
+    "logs": 2
+   },
+   "desc": "Nothing but the forearm in it. Half again as many casts as a staff in the same time, each worth a little under three quarters as much."
+  },
+  "grimoire": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "grimoire",
+   "skill": "Magic",
+   "noun": "Grimoire",
+   "power": "weapon",
+   "bonus": {
+    "magic": 1.85
+   },
+   "speed": 0.8,
+   "damage": 0.8,
+   "mana": 0.85,
+   "clip": "invoke",
+   "value": 40,
+   "bars": 1,
+   "extra": {
+    "hide": 1
+   },
+   "craft_offset": 2,
+   "wood": {
+    "logs": 1,
+    "hide": 1
+   },
+   "desc": "The words written down, so they need not be held in the head: quicker than a staff, lighter, and every spell costs a sixth less."
+  },
+  "orb": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "orb",
+   "skill": "Magic",
+   "noun": "Orb",
+   "power": "weapon",
+   "bonus": {
+    "magic": 1.8
+   },
+   "speed": 0.76,
+   "damage": 0.78,
+   "homing": 2.5,
+   "clip": "invoke",
+   "value": 44,
+   "bars": 2,
+   "craft_offset": 2,
+   "wood": {
+    "logs": 3
+   },
+   "desc": "It watches what you are fighting. Quicker than a staff and lighter, and what it throws turns after its target."
+  },
+  "fire_staff": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "staff",
+   "element": "fire",
+   "skill": "Magic",
+   "noun": "Fire Staff",
+   "power": "weapon",
+   "bonus": {
+    "magic": 2.0
+   },
+   "speed": 1.05,
+   "model": "staff",
+   "tint": [
+    255,
+    176,
+    130
+   ],
+   "value": 60,
+   "bars": 2,
+   "extra": {
+    "logs": 3
+   },
+   "craft_offset": 3,
+   "wood": {
+    "logs": 5
+   },
+   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are fire's four spells, where any other staff has only the first of them."
+  },
+  "water_staff": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "staff",
+   "element": "water",
+   "skill": "Magic",
+   "noun": "Water Staff",
+   "power": "weapon",
+   "bonus": {
+    "magic": 2.0
+   },
+   "speed": 1.05,
+   "model": "staff",
+   "tint": [
+    150,
+    196,
+    255
+   ],
+   "value": 60,
+   "bars": 2,
+   "extra": {
+    "logs": 3
+   },
+   "craft_offset": 3,
+   "wood": {
+    "logs": 5
+   },
+   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are water's four spells, where any other staff has only the first of them."
+  },
+  "earth_staff": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "staff",
+   "element": "earth",
+   "skill": "Magic",
+   "noun": "Earth Staff",
+   "power": "weapon",
+   "bonus": {
+    "magic": 2.0
+   },
+   "speed": 1.05,
+   "model": "staff",
+   "tint": [
+    214,
+    184,
+    132
+   ],
+   "value": 60,
+   "bars": 2,
+   "extra": {
+    "logs": 3
+   },
+   "craft_offset": 3,
+   "wood": {
+    "logs": 5
+   },
+   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are earth's four spells, where any other staff has only the first of them."
+  },
+  "air_staff": {
+   "slot": "weapon",
+   "kind": "staff",
+   "class": "staff",
+   "element": "air",
+   "skill": "Magic",
+   "noun": "Air Staff",
+   "power": "weapon",
+   "bonus": {
+    "magic": 2.0
+   },
+   "speed": 1.05,
+   "model": "staff",
+   "tint": [
+    214,
+    240,
+    255
+   ],
+   "value": 60,
+   "bars": 2,
+   "extra": {
+    "logs": 3
+   },
+   "craft_offset": 3,
+   "wood": {
+    "logs": 5
+   },
+   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are air's four spells, where any other staff has only the first of them."
   }
  },
  "tiers": [

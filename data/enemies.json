@@ -810,7 +810,10 @@
       28,
       44
     ],
-    "element": "earth"
+    "element": "earth",
+    "immune": [
+      "poison"
+    ]
   },
   "skeleton": {
     "name": "Skeleton",
@@ -840,7 +843,11 @@
       26,
       44
     ],
-    "element": "earth"
+    "element": "earth",
+    "immune": [
+      "bleed",
+      "poison"
+    ]
   },
   "wraith": {
     "name": "Wraith",
@@ -870,7 +877,11 @@
       26,
       46
     ],
-    "element": "air"
+    "element": "air",
+    "immune": [
+      "bleed",
+      "poison"
+    ]
   },
   "barrow_wight": {
     "name": "The Hollowrest Wight",
@@ -912,7 +923,11 @@
       210,
       255
     ],
-    "boss": true
+    "boss": true,
+    "immune": [
+      "bleed",
+      "poison"
+    ]
   },
   "slime": {
     "name": "Cellar Slime",
@@ -942,7 +957,10 @@
       32,
       26
     ],
-    "element": "water"
+    "element": "water",
+    "immune": [
+      "bleed"
+    ]
   },
   "bat": {
     "name": "Well Bat",
@@ -1032,7 +1050,11 @@
       36,
       58
     ],
-    "element": "earth"
+    "element": "earth",
+    "immune": [
+      "bleed",
+      "poison"
+    ]
   },
   "banshee": {
     "name": "Banshee",
@@ -1062,7 +1084,11 @@
       32,
       52
     ],
-    "element": "air"
+    "element": "air",
+    "immune": [
+      "bleed",
+      "poison"
+    ]
   },
   "well_warden": {
     "name": "The Thing in the Spring",
@@ -1104,7 +1130,11 @@
       220,
       235
     ],
-    "boss": true
+    "boss": true,
+    "immune": [
+      "bleed",
+      "poison"
+    ]
   },
   "wolf": {
     "name": "Grey Wolf",
@@ -1494,6 +1524,10 @@
       206,
       150,
       255
+    ],
+    "immune": [
+      "bleed",
+      "poison"
     ]
   },
   "dream_bat": {
@@ -1564,6 +1598,10 @@
       196,
       176,
       255
+    ],
+    "immune": [
+      "bleed",
+      "poison"
     ]
   },
   "nightmare_troll": {
@@ -1748,6 +1786,10 @@
       210,
       160,
       255
+    ],
+    "immune": [
+      "bleed",
+      "poison"
     ]
   },
   "dream_wyvern": {
@@ -1824,6 +1866,10 @@
       200,
       170,
       255
+    ],
+    "immune": [
+      "bleed",
+      "poison"
     ]
   },
   "nightmare_dragon": {

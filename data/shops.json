@@ -118,6 +118,22 @@
      "stock": 1
     },
     {
+     "item": "bronze_dagger",
+     "stock": 1
+    },
+    {
+     "item": "bronze_mace",
+     "stock": 1
+    },
+    {
+     "item": "bronze_greatsword",
+     "stock": 1
+    },
+    {
+     "item": "bronze_greataxe",
+     "stock": 1
+    },
+    {
      "item": "bronze_shield",
      "stock": 1
     },
@@ -195,6 +211,18 @@
     },
     {
      "item": "bronze_bow",
+     "stock": 1
+    },
+    {
+     "item": "bronze_crossbow",
+     "stock": 1
+    },
+    {
+     "item": "bronze_knives",
+     "stock": 1
+    },
+    {
+     "item": "iron_crossbow",
      "stock": 1
     },
     {
@@ -337,6 +365,22 @@
     },
     {
      "item": "iron_spear",
+     "stock": 1
+    },
+    {
+     "item": "iron_dagger",
+     "stock": 1
+    },
+    {
+     "item": "iron_mace",
+     "stock": 1
+    },
+    {
+     "item": "iron_greatsword",
+     "stock": 1
+    },
+    {
+     "item": "iron_greataxe",
      "stock": 1
     },
     {
@@ -489,6 +533,46 @@
      "stock": 1
     },
     {
+     "item": "wood_wand",
+     "stock": 1
+    },
+    {
+     "item": "wood_grimoire",
+     "stock": 1
+    },
+    {
+     "item": "wood_orb",
+     "stock": 1
+    },
+    {
+     "item": "wood_fire_staff",
+     "stock": 1
+    },
+    {
+     "item": "wood_water_staff",
+     "stock": 1
+    },
+    {
+     "item": "wood_earth_staff",
+     "stock": 1
+    },
+    {
+     "item": "wood_air_staff",
+     "stock": 1
+    },
+    {
+     "item": "bronze_wand",
+     "stock": 1
+    },
+    {
+     "item": "bronze_grimoire",
+     "stock": 1
+    },
+    {
+     "item": "bronze_orb",
+     "stock": 1
+    },
+    {
      "item": "vial",
      "stock": 10
     },
@@ -497,7 +581,15 @@
      "stock": 1
     },
     {
+     "item": "tome_acid_spray",
+     "stock": 1
+    },
+    {
      "item": "tome_magic_missile",
+     "stock": 1
+    },
+    {
+     "item": "tome_ice_touch",
      "stock": 1
     },
     {
@@ -505,7 +597,15 @@
      "stock": 1
     },
     {
+     "item": "tome_vampiric_touch",
+     "stock": 1
+    },
+    {
      "item": "tome_hail_of_blades",
+     "stock": 1
+    },
+    {
+     "item": "tome_hellish_rebuke",
      "stock": 1
     },
     {

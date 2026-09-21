@@ -115,6 +115,10 @@ bool ProjectileDatabase::Load(const string& path) {
         }
         const string trail = o.value("trail", string(""));
         d.shed = trail.empty() ? d.element : ElementFromName(trail);
+        if (o.contains("trail_color")) d.shed_color = ColorFromJson(o["trail_color"], {0, 0, 0, 0});
+        if (o.contains("status")) d.status = StatusProcFromJson(o["status"]);
+        d.leech = std::clamp(o.value("leech", 0.0f), 0.0f, 1.0f);
+        d.armour_pierce = std::clamp(o.value("armour_pierce", 0.0f), 0.0f, 0.9f);
 
         if (o.contains("patch")) {
             const json& p = o["patch"];

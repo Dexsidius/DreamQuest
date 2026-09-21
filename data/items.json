@@ -18,7 +18,7 @@
  },
  "ember_blade": {
   "name": "Ember Blade",
-  "desc": "Warm to the touch, even in the cold under the mountain.",
+  "desc": "Warm to the touch, even in the cold under the mountain. One blow in four, what it cuts is left burning.",
   "slot": "weapon",
   "value": 1800,
   "speed": 0.95,
@@ -36,7 +36,11 @@
    156,
    88
   ],
-  "model": "sword_bronze"
+  "model": "sword_bronze",
+  "on_hit": {
+   "id": "burn",
+   "chance": 0.25
+  }
  },
  "apprentice_staff": {
   "name": "Apprentice Staff",
@@ -386,7 +390,8 @@
    104
   ],
   "icon": "assets/icons/shortbow.png",
-  "model": "bow_wood"
+  "model": "bow_wood",
+  "two_handed": true
  },
  "novice_staff": {
   "name": "Novice Staff",
@@ -2193,5 +2198,45 @@
   "value": 0,
   "icon": "assets/props/totem_nightmare_dragon.png",
   "keep": true
+ },
+ "tome_acid_spray": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Acid Spray",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Acid Spray.",
+  "value": 520,
+  "learn": "spell:acid_spray",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_ice_touch": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Ice Touch",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Ice Touch.",
+  "value": 760,
+  "learn": "spell:ice_touch",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_vampiric_touch": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Vampiric Touch",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Vampiric Touch.",
+  "value": 1000,
+  "learn": "spell:vampiric_touch",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_hellish_rebuke": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Hellish Rebuke",
+  "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Hellish Rebuke.",
+  "value": 1350,
+  "learn": "spell:hellish_rebuke",
+  "icon": "assets/icons/tiers/spell_tome.png"
  }
 }

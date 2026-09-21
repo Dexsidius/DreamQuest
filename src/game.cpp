@@ -79,6 +79,7 @@ int Game::Start(int argc, char** argv) {
             launch_screen = argv[++i];
         } else if (arg == "--learn" && more) {
             // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
+            // A name that starts "spell:" is an ancient spell to know instead.
             launch_learn = argv[++i];
         } else if (arg == "--hour" && more) {
             launch_hour = std::clamp(static_cast<float>(SDL_atof(argv[++i])), 0.0f, 23.99f);
@@ -179,6 +180,7 @@ int Game::Start(int argc, char** argv) {
     ctx.projectiles = &projectile_db;
     ctx.spells   = &spells;
     ctx.trees    = &skill_trees;
+    ctx.statuses = &status_db;
     ctx.input    = &input;
     ctx.rng      = &rng;
 
@@ -221,7 +223,9 @@ int Game::Start(int argc, char** argv) {
                 while (from <= launch_learn.size()) {
                     const size_t comma = launch_learn.find(',', from);
                     const string id = launch_learn.substr(from, comma == string::npos ? string::npos : comma - from);
-                    if (p.talents.Learn(id, p.skills)) p.talents.ToggleTechnique(id);
+                    // "spell:<id>" is an ancient spell, known as if its tome had been read.
+                    if (id.rfind("spell:", 0) == 0) world->SetFlag("recipe:" + id);
+                    else if (p.talents.Learn(id, p.skills)) p.talents.ToggleTechnique(id);
                     if (comma == string::npos) break;
                     from = comma + 1;
                 }
@@ -296,8 +300,10 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "journal")   OpenPanel(GameState::QuestPanel);
                 else if (what == "inventory") OpenPanel(GameState::Inventory);
                 else if (what == "skills")    { skills_tab = 0; OpenPanel(GameState::SkillsPanel); }
-                else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = 1; }
-                else if (what == "boons")     { OpenPanel(GameState::SkillsPanel); skills_tab = 2; }
+                else if (what == "menu")      { hub_cursor = 0; OpenPanel(GameState::Hub); }
+                else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_TREE; }
+                else if (what == "spellbook") { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOOK; book_row = 0; }
+                else if (what == "boons")     { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOONS; }
                 else if (what == "pause")     OpenPanel(GameState::Paused);
                 else if (what == "totems")    { totem_cursor = 0; OpenPanel(GameState::TotemRing); }
                 else if (what == "travel")    { travel_from = "waystone_havenbrook"; travel_cursor = 0;
@@ -351,6 +357,7 @@ bool Game::LoadContent() {
     ok &= quests_two.LoadDefinitions("data/quests.json");
     ok &= dialogue_db.Load("data/dialogue.json");
     ok &= projectile_db.Load("data/projectiles.json");
+    ok &= status_db.Load("data/statuses.json");
     ok &= spells.Load("data/spells.json");
     ok &= skill_trees.Load("data/skill_trees.json");
     ok &= shop_db.Load("data/shops.json");
@@ -552,6 +559,7 @@ bool Game::InGameplayState() const {
     switch (state) {
         case GameState::Play:
         case GameState::Paused:
+        case GameState::Hub:
         case GameState::Inventory:
         case GameState::SkillsPanel:
         case GameState::QuestPanel:
@@ -744,6 +752,7 @@ void Game::Update(float dt) {
         case GameState::Paused:          UpdatePaused(); break;
         case GameState::Inventory:       UpdateInventory(); break;
         case GameState::SkillsPanel:     UpdateSkillsPanel(); break;
+        case GameState::Hub:             UpdateHub(); break;
         case GameState::QuestPanel:      UpdateQuestPanel(); break;
         case GameState::WorldMapPage:    UpdateWorldMap(); break;
         case GameState::Dialogue:        UpdateDialogue(dt); break;
@@ -937,16 +946,26 @@ void Game::SeatChores() {
     // --- spell selection -----------------------------------------------------
     // The element is chosen, not the spell: Magic level decides which tier of
     // that element actually comes out.
-    if (input.Pressed(Action::SelectFire))  world->player.SelectElement(Element::Fire);
-    if (input.Pressed(Action::SelectWater)) world->player.SelectElement(Element::Water);
-    if (input.Pressed(Action::SelectEarth)) world->player.SelectElement(Element::Earth);
-    if (input.Pressed(Action::SelectAir))   world->player.SelectElement(Element::Air);
+    // With an element's own staff in hand the same four keys are that
+    // element's four spells: see ItemDef::element.
+    {
+        static const Action kKeys[4] = {Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir};
+        static const Element kElements[4] = {Element::Fire, Element::Water, Element::Earth, Element::Air};
+        Player& me = world->player;
+        for (int i = 0; i < 4; ++i) {
+            if (!input.Pressed(kKeys[i])) continue;
+            if (me.StaffElement() != Element::None) me.SelectSlot(i);
+            else                                    me.SelectElement(kElements[i]);
+        }
+    }
     if (input.Pressed(Action::SelectArcane)) {
         const vector<string> known = world->KnownArcane(spells);
         if (known.empty()) PushToast("You know no ancient magic yet. The college in Fernhollow teaches it.", Palette::TextDim);
         else world->player.SelectArcane(known);
     }
-    if (input.Pressed(Action::CycleSpell))  world->player.CycleElement(1);
+    // With what is known of the ancient magic, so that the fifth slot is in
+    // the round: see Player::CycleElement.
+    if (input.Pressed(Action::CycleSpell))  world->player.CycleElement(1, world->KnownArcane(spells));
 
     // --- what is to hand ------------------------------------------------------
     // Guard and interact eats or drinks the quick item; guard and sprint steps
@@ -954,7 +973,7 @@ void Game::SeatChores() {
     // button left -- and because it is the one way to eat that does not open
     // the bag, which online does not stop the world for you.
     bool chorded = false;
-    if (input.Down(Action::Block)) {
+    if (input.ShiftDown()) {
         Player& me = world->player;
         if (input.Pressed(Action::Interact)) {
             chorded = true;
@@ -983,6 +1002,7 @@ void Game::SeatChores() {
 
     // --- panel hotkeys -------------------------------------------------------
     if (!chorded && input.Pressed(Action::Interact)) world->TryInteract(ctx);
+    if (input.Pressed(Action::Menu))       { hub_cursor = 0; OpenPanel(GameState::Hub); }
     if (input.Pressed(Action::Inventory))  OpenPanel(GameState::Inventory);
     if (input.Pressed(Action::Skills))     OpenPanel(GameState::SkillsPanel);
     if (input.Pressed(Action::QuestLog))   OpenPanel(GameState::QuestPanel);
@@ -1335,12 +1355,22 @@ void Game::RunAudit() {
             {"controls",       GameState::Controls,        [&] { controls_cursor = 6; }},
             {"play together",  GameState::Multiplayer,     [] {}},
             {"pause",          GameState::Paused,          [&] { has_session = true; }},
+            {"menu",           GameState::Hub,             [&] { hub_cursor = 0; }},
             {"inventory",      GameState::Inventory,       [&] { inventory_cursor = 0; }},
-            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = 0; }},
-            {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = 1; tree_branch = 0; tree_row = 2; }},
+            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; }},
+            {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = TAB_TREE; tree_branch = 0; tree_row = 2; }},
+            // With the whole tree learned and every ancient spell known: every
+            // row has its longest choice somewhere along it.
+            {"spellbook",      GameState::SkillsPanel,     [&] {
+                skills_tab = TAB_BOOK;
+                const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+                for (int pass = 0; pass < 4; ++pass)
+                    for (const TalentNode& n : skill_trees.Tree(path).nodes) p.talents.Learn(n.id, p.skills);
+                for (const SpellDef* s : spells.Arcane()) world->SetFlag("recipe:spell:" + s->id);
+            }},
             // With every boss in the game brought down: the fullest the page can be.
             {"boons",          GameState::SkillsPanel,     [&] {
-                skills_tab = 2;
+                skills_tab = TAB_BOONS;
                 for (const char* boss : {"broodmother", "lizardman_chief", "barrow_wight", "orc3", "well_warden", "den_mother",
                                          "nightmare_troll", "wyvern_matriarch", "pit_lord", "frost_dragon", "nightmare_dragon"})
                     world->player.talents.SlayBoss(boss, rng);
@@ -1402,7 +1432,11 @@ void Game::RunAudit() {
             const string name = sc.name;
             if (name == "inventory")      { target = &inventory_cursor; steps = p.inventory.SlotCount(); }
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
+            else if (name == "menu")      { target = &hub_cursor; steps = 5; }
             else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
+            // Nine rows, and as many choices as the longest of them has: the
+            // ancient magic's, with every spell of it known.
+            else if (name == "spellbook") { target = &book_row; steps = 9 * (static_cast<int>(spells.Arcane().size()) + 1); }
             else if (name == "journal" || name == "journal side") { target = &quest_cursor[quest_tab]; steps = 40; }
             // Every recipe, not the first forty: the anvil alone makes one of
             // every piece in every tier, and the longest lines -- "Instead of
@@ -1423,6 +1457,13 @@ void Game::RunAudit() {
                 if (target) *target = step;
                 // Every branch of a tree, too, and both of its tabs.
                 if (name == "skill tree") tree_branch = step % SkillTrees::BRANCHES;
+                // Every row of the book, with each thing that could be on it in turn.
+                if (name == "spellbook") {
+                    book_row = step % 9;
+                    const vector<BookRow> rows = SpellbookRows();
+                    if (book_row < static_cast<int>(rows.size()) && !rows[book_row].options.empty())
+                        ChooseInBook(rows[book_row], (step / 9) % static_cast<int>(rows[book_row].options.size()));
+                }
                 ui.BeginAudit();
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
                 SDL_RenderClear(renderer);
@@ -1527,6 +1568,7 @@ void Game::Render() {
         case GameState::Paused:          DrawPaused(); break;
         case GameState::Inventory:       DrawInventory(); break;
         case GameState::SkillsPanel:     DrawSkillsPanel(); break;
+        case GameState::Hub:             DrawHub(); break;
         case GameState::QuestPanel:      DrawQuestPanel(); break;
         case GameState::WorldMapPage:    DrawWorldMap(); break;
         case GameState::Dialogue:        DrawDialogue(); break;
