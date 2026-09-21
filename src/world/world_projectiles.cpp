@@ -369,26 +369,42 @@ void World::UpdateImpacts(float dt) {
                   impacts.end());
 }
 
-void World::AddSlabSwing(float x, float y, float facing, float length, float lift) {
+void World::AddSlabSwing(float x, float y, float facing, float radius, float side, float lift) {
     SlabSwing s;
     s.x = x; s.y = y;
     s.facing = facing;
     s.from = facing - SLAB_SWEEP; s.to = facing + SLAB_SWEEP;
-    s.length = length;
+    s.radius = radius;
+    s.side = side;
     s.life = s.max_life = SLAB_TIME;
     s.lift = lift;
     slabs.push_back(s);
-    // The ground it came out of, and what came up with it.
-    BurstOf(Element::Earth, x + cosf(s.from) * length * 0.55f, y + 14.0f + sinf(s.from) * length * 0.4f, lift, 1.4f, 0.0f, 0.0f);
+    // The hole it came out of, and what came up with it.
+    BurstOf(Element::Earth, x + cosf(s.from) * radius * 0.6f, y + 14.0f + sinf(s.from) * radius * 0.45f, lift,
+            1.0f + side / 30.0f, 0.0f, 0.0f);
 }
 
-void World::HearOfSlabSwing(float x, float y, float facing, float length) {
-    // A swing is told of in every snapshot for as long as it lasts, and is one
-    // swing: the same place and the same way, heard of again, is the one
-    // already being drawn. It is kept a moment past its end for that.
+void World::AddSlabDrop(float x, float y, float side, float lift) {
+    SlabSwing s;
+    s.x = x; s.y = y;
+    s.facing = 0.0f;
+    s.radius = 0.0f;
+    s.side = side;
+    s.drop = true;
+    s.life = s.max_life = SLAB_DROP_TIME;
+    s.lift = lift;
+    slabs.push_back(s);
+}
+
+void World::HearOfSlab(float x, float y, float facing, float radius, float side, bool drop) {
+    // One is told of in every snapshot for as long as it lasts, and is one
+    // slab: the same place and the same way, heard of again, is the one already
+    // being drawn. It is kept a moment past its end for that.
     for (SlabSwing& s : slabs)
-        if (fabsf(s.x - x) < 3.0f && fabsf(s.y - y) < 3.0f && fabsf(s.facing - facing) < 0.06f) { s.told = 0.0f; return; }
-    AddSlabSwing(x, y, facing, length, LiftAt(x, y));
+        if (s.drop == drop && fabsf(s.x - x) < 3.0f && fabsf(s.y - y) < 3.0f &&
+            fabsf(s.facing - facing) < 0.06f) { s.told = 0.0f; return; }
+    if (drop) AddSlabDrop(x, y, side, LiftAt(x, y));
+    else      AddSlabSwing(x, y, facing, radius, side, LiftAt(x, y));
 }
 
 void World::UpdateSlabs(float dt) {
@@ -397,15 +413,28 @@ void World::UpdateSlabs(float dt) {
         s.life -= dt;
         s.told += dt;
         if (!swinging) continue;
-        // The ground under the far end of it: dust dragged along behind as it
-        // goes round, and what is left of it thrown down where it stops.
-        const float a = s.Angle(), len = s.Length();
-        const float tx = s.x + cosf(a) * len, ty = s.y + 14.0f + sinf(a) * len * 0.72f;
+        if (s.drop) {
+            // It lands: a thump, a ring of broken ground, and the dust of it.
+            if (s.Fallen() >= 1.0f && s.dust <= 0.0f) {
+                s.dust = 1.0f;
+                Audio::PlayAt(Sfx::Impact, s.x, s.y, 0.9f, 0.62f);
+                // Enough to say it struck, and no more: the chunks of it
+                // sliding off are what the eye should be on.
+                Burst(s.x, s.y, s.side * 0.7f, {198, 180, 146, 255}, 3, 0.8f);
+                BurstOf(Element::Earth, s.x, s.y, s.lift, 1.0f + s.side / 24.0f, 0.0f, 0.0f);
+                for (float w : {-1.0f, 1.0f})
+                    AddDust(s.x + w * s.side, s.y + 2.0f, w, 0.0f);
+            }
+            continue;
+        }
+        // The ground under it: dust dragged along behind as it goes round, and
+        // what is left of it thrown down where it stops.
+        const float a = s.Angle(), out = s.Out();
+        const float tx = s.x + cosf(a) * out, ty = s.y + 14.0f + sinf(a) * out * 0.72f;
         s.dust -= dt;
         if (s.dust <= 0.0f) {
             s.dust = 0.025f;
             AddDust(tx, ty, -sinf(a), cosf(a));
-            AddDust(s.x + cosf(a) * len * 0.55f, s.y + 14.0f + sinf(a) * len * 0.4f, -sinf(a), cosf(a));
         }
         if (s.life <= 0.0f) BurstOf(Element::Earth, tx, ty, s.lift, 1.3f, 0.0f, 0.0f);
     }

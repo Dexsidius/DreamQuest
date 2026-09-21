@@ -470,27 +470,51 @@ public:
     // got to by then.
     struct QueuedShot { float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; float life = 1; };
     vector<QueuedShot> queued_shots;
-    // A slab of the ground being swung: drawn from the caster through an arc.
+    // A square of the ground torn up and thrown about: the Slabstrike. Swung
+    // through an arc in front of the caster -- a small one on a light, a bigger
+    // and slower one on a heavy -- or, held and let go, carried over whoever is
+    // being fought and dropped on them, where it breaks into chunks.
     struct SlabSwing {
-        float x = 0, y = 0, facing = 0, from = 0, to = 0, length = 60, life = 0, max_life = 0.28f, lift = 0;
+        float x = 0, y = 0;            // the caster it swings about, or where a dropped one lands
+        float facing = 0, from = 0, to = 0;
+        float radius = 58.0f;          // how far out it is swung
+        float side = 5.0f;             // how big the square is, in world pixels
+        bool  drop = false;
+        float life = 0, max_life = 0.34f, lift = 0;
         float told = 0.0f, dust = 0.0f;
-        // It comes up out of the ground in the first fifth, goes round, and
-        // hangs a moment at the far end before it breaks up.
         float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
-        float Angle() const {
-            float t = std::clamp((Progress() - 0.12f) / 0.74f, 0.0f, 1.0f);
+        // Swung: it is thrown out in front in the first fifth, comes round, and
+        // is held a moment at the far end before it drops.
+        float AngleAt(float p) const {
+            float t = std::clamp((p - 0.12f) / 0.74f, 0.0f, 1.0f);
             t = t * t * (3.0f - 2.0f * t);
             return from + (to - from) * t;
         }
-        float Length() const { return length * (0.3f + 0.7f * std::clamp(Progress() / 0.2f, 0.0f, 1.0f)); }
+        float OutAt(float p) const { return radius * (0.42f + 0.58f * std::clamp(p / 0.18f, 0.0f, 1.0f)); }
+        float Angle() const { return AngleAt(Progress()); }
+        float Out() const { return OutAt(Progress()); }
+        // Dropped: 0 while it is still falling, 1 from the moment it lands.
+        float Fallen() const { return std::clamp(Progress() / SLAB_DROP_FALL, 0.0f, 1.0f); }
+        // And how far through breaking up it is, once it is down.
+        float Broken() const {
+            return std::clamp((Progress() - SLAB_DROP_FALL) / (1.0f - SLAB_DROP_FALL), 0.0f, 1.0f);
+        }
     };
     vector<SlabSwing> slabs;
-    // One swing, about `facing`. The caster's world makes it; a guest's makes the
-    // same one from the three numbers a snapshot gives it, once, however many
+    // One swing or one drop. The caster's world makes it; a guest's makes the
+    // same one from the numbers a snapshot gives it, once, however many
     // snapshots go on saying so -- `told` is how long ago one last did.
     static constexpr float SLAB_SWEEP = 1.15f, SLAB_TIME = 0.34f;
-    void AddSlabSwing(float x, float y, float facing, float length, float lift);
-    void HearOfSlabSwing(float x, float y, float facing, float length);
+    // A dropped one lives longer: most of that is the fall, and the rest is the
+    // chunks of it sliding off whatever it landed on.
+    static constexpr float SLAB_DROP_TIME = 0.86f, SLAB_DROP_FALL = 0.52f;
+    // How big a square each is, in world pixels. The heavy is the light and
+    // half again: a character stands about forty pixels tall, so a light is
+    // half their height and a heavy is most of it.
+    static constexpr float SLAB_LIGHT = 20.0f, SLAB_HEAVY = 32.0f;
+    void AddSlabSwing(float x, float y, float facing, float radius, float side, float lift);
+    void AddSlabDrop(float x, float y, float side, float lift);
+    void HearOfSlab(float x, float y, float facing, float radius, float side, bool drop);
 
     // Rolls a status against a monster a blow of `blow` has just landed on, and
     // says so over its head if it takes: see systems/status.h. Nothing is

@@ -511,6 +511,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     };
 
     for (const GroundEffect& g : ground_effects) {
+        // Something else is drawing this one -- the Slabstrike's slab, falling
+        // and then broken on top of whatever it landed on. A disc of earth over
+        // that says nothing the chunks do not.
+        if (g.quiet) continue;
         // As round as what it burns, and on the ground it lies on.
         const SDL_FPoint centre = camera.ToScreen(g.x, g.y - LiftAt(g.x, g.y));
         const float rx = g.radius * camera.zoom;
@@ -948,49 +952,128 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         }
     }
 
-    // A slab of the ground, mid-swing: a bar four pixels wide from the caster
-    // out, at the angle the moment says, with its shadow a pixel under it.
+    // The Slabstrike's square of torn-up ground: swung through an arc in front
+    // of the caster, or dropped on somebody and broken on top of them.
     //
-    // Four wide, and a block, not a stripe: its shadow on the ground, the dark
-    // face of it under the top, and the top itself -- lit along the edge that
-    // leads, cracked across every so often, turf still on the end that was
-    // uppermost, and broken off ragged at the far end. What it is made of is
-    // worked out from how far along it a pixel is, so the stone does not crawl
-    // as the slab turns.
+    // Seen edge-on, so what shows is the earthy side of it, with the turf still
+    // along its top edge and its shadow on the ground under it. The one before
+    // this was a bar four pixels wide and it read as a sawn plank -- straight
+    // edges its whole length, one unbroken highlight down the leading side,
+    // cracks at regular intervals across it. So: the outline is bitten into and
+    // lumped out, the highlight is in pieces, and the stone is three tones
+    // scattered rather than one with a stripe. What each pixel is made of comes
+    // from where it is *on the slab*, not on the screen, so the stone does not
+    // crawl as the slab travels.
     for (const SlabSwing& s : slabs) {
         if (s.life <= 0.0f) continue;
         const float z = camera.zoom;
-        const float a = s.Angle(), length = s.Length();
-        const float ca = cosf(a), sa = sinf(a);
-        const bool  clockwise = s.to > s.from;
-        const auto grain = [](int d) { return static_cast<int>((static_cast<uint32_t>(d) * 2654435761u) >> 28); };   // 0..15
+        const auto grain = [](int d, int k) {
+            uint32_t h = static_cast<uint32_t>(d) * 2654435761u ^ static_cast<uint32_t>(k) * 40503u;
+            h ^= h >> 13; h *= 1274126177u; h ^= h >> 16;
+            return static_cast<int>(h >> 28);                    // 0..15
+        };
         SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-        for (int pass = 0; pass < 3; ++pass)
-            for (float d = 12.0f; d <= length; d += 1.0f) {
-                const int   di = static_cast<int>(d);
-                const bool  crack = grain(di / 2) == 3 || grain(di / 2) == 11;
-                // The far end is broken, not sawn: the last few pixels lose a
-                // corner each.
-                const float ragged = d > length - 4.0f ? static_cast<float>(grain(di) % 3) - 1.0f : 0.0f;
-                for (float w = -2.0f; w < 2.0f; w += 1.0f) {
-                    if (ragged > 0.0f && w >= 2.0f - ragged) continue;
-                    if (ragged < 0.0f && w < -2.0f - ragged) continue;
-                    const float drop = pass == 0 ? 6.0f : pass == 1 ? 2.0f : 0.0f;
-                    const float wx = s.x + ca * d - sa * w, wy = s.y + sa * d * 0.72f + ca * w + drop;
-                    const SDL_FPoint at = camera.ToScreen(wx, wy - s.lift);
-                    const bool rim  = w <= -2.0f || w >= 1.0f || d >= length - 1.0f || d <= 13.0f;
-                    const bool lead = clockwise ? w >= 1.0f : w <= -2.0f;
-                    if (pass == 0)      SDL_SetRenderDrawColor(r, 24, 18, 12, 96);
-                    else if (pass == 1) SDL_SetRenderDrawColor(r, 66, 48, 34, 255);
-                    else if (crack)     SDL_SetRenderDrawColor(r, 84, 62, 44, 255);
-                    else if (d > length - 9.0f && !rim) SDL_SetRenderDrawColor(r, static_cast<Uint8>(96 + grain(di) * 2), 150, 72, 255);
-                    else if (lead)      SDL_SetRenderDrawColor(r, 226, 200, 150, 255);
-                    else if (rim)       SDL_SetRenderDrawColor(r, 112, 86, 60, 255);
-                    else                SDL_SetRenderDrawColor(r, static_cast<Uint8>(168 + grain(di) * 3), static_cast<Uint8>(138 + grain(di) * 2), 96, 255);
-                    const SDL_FRect px = {roundf(at.x / z) * z, roundf(at.y / z) * z, z, z};
-                    SDL_RenderFillRect(r, &px);
+        const auto dot = [&](float wx, float wy, SDL_Color c) {
+            const SDL_FPoint at = camera.ToScreen(wx, wy);
+            SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+            const SDL_FRect px = {roundf(at.x / z) * z, roundf(at.y / z) * z, z, z};
+            SDL_RenderFillRect(r, &px);
+        };
+        // One block of ground, `n` across, standing `up` above the point it is
+        // over. `lead` is the side that is swinging forward and catches the
+        // light: -1, +1, or 0 for a chunk of debris, which catches none.
+        //
+        // Everything about it is worked out from `n`, because the same code
+        // draws a twenty-pixel slab, a thirty-two-pixel one and the five-pixel
+        // chunks it breaks into. At five pixels a knocked-off corner is a pixel
+        // and the stone is one tone; at thirty-two, a corner is a proper chipped
+        // wedge, the turf on top is a band rather than a line, and the face
+        // wants cracks in it -- a square that big with nothing but per-pixel
+        // noise on it reads as static, not stone.
+        const auto block = [&](float cx, float cy, int n, float up, int seed, int alpha, int lead) {
+            const int half = std::max(1, n / 2);
+            const int turf_deep = std::max(1, n / 6);          // how thick the sod on top is
+            const int chip = std::max(1, n / 5);               // how deep the corners are knocked off
+            const int patch = n >= 10 ? 2 : 1;                 // how coarse the mottling is
+            const float high = std::clamp(up / (24.0f + n * 1.6f), 0.0f, 1.0f);
+            // Its shadow, which draws in and darkens as it comes down.
+            const int sw = std::max(0, static_cast<int>(half * (1.25f - 0.5f * high)));
+            for (int ix = -sw; ix <= sw; ++ix)
+                for (int iy = 0; iy < std::max(1, n / 6); ++iy)
+                    dot(cx + static_cast<float>(ix), cy + half * 0.55f + static_cast<float>(iy),
+                        {24, 18, 12, static_cast<Uint8>(alpha * (0.46f - 0.24f * high))});
+            for (int iy = -half; iy <= half; ++iy)
+                for (int ix = -half; ix <= half; ++ix) {
+                    const int in_x = half - std::abs(ix), in_y = half - std::abs(iy);   // how far in from the sides
+                    // A wedge knocked off each corner, a different one each.
+                    const int corner = seed * 7 + (ix < 0 ? 1 : 2) * 31 + (iy < 0 ? 3 : 5) * 17;
+                    if (in_x + in_y < chip - grain(corner, 1) % (chip + 1)) continue;
+                    // And bites out of the edges between them.
+                    if ((in_x == 0 || in_y == 0) && grain(seed * 101 + ix * 13 + iy * 7, 2) < 3) continue;
+                    const int g = grain(seed * 101 + ((iy + 64) / patch) * 19 + (ix + 64) / patch, 3);
+                    const bool rim  = (ix == -half || ix == half || iy == half) && !(lead != 0 && ix == lead * half);
+                    const bool turf = iy < -half + turf_deep;
+                    const bool soil = iy == -half + turf_deep && n >= 10;   // the dark line under the sod
+                    const bool lit  = lead != 0 && ix == lead * half && g > 5;
+                    // Cracks: dashes running down and across the face, so the
+                    // stone is broken rather than merely speckled.
+                    const bool crack = n >= 12 && !turf && !rim &&
+                                       grain(seed * 13 + ix, 9) == 0 && grain(seed * 5 + iy / 3, 10) > 9;
+                    SDL_Color c;
+                    if (turf)        c = {static_cast<Uint8>(58 + g * 2), static_cast<Uint8>(104 + g * 2), 48, 255};
+                    else if (soil)   c = {68, 52, 40, 255};
+                    else if (lit)    c = {232, 222, 196, 255};
+                    else if (rim)    c = {78, 62, 50, 255};
+                    else if (crack)  c = {92, 76, 60, 255};
+                    else if (g < 3)  c = {116, 98, 78, 255};       // a clod of earth
+                    else if (g < 10) c = {170, 152, 122, 255};
+                    else             c = {202, 186, 154, 255};
+                    c.a = static_cast<Uint8>(alpha);
+                    dot(cx + static_cast<float>(ix), cy + static_cast<float>(iy) - up, c);
                 }
+            // Blades of grass hanging off the top edge.
+            if (alpha > 200)
+                for (int ix = -half; ix <= half; ++ix)
+                    if (grain(seed * 101 + ix, 8) < 4)
+                        dot(cx + static_cast<float>(ix), cy - half - 1.0f - up, {92, 146, 70, 255});
+        };
+
+        if (!s.drop) {
+            // Where it has just been, fading: one small square in one place is a
+            // rock sitting in the air, and three behind it are a swing.
+            const int lead = s.to > s.from ? 1 : -1;
+            // How far back they are set depends on how big it is: three ghosts a
+            // sixteenth of the swing apart are a blur behind a small square and
+            // a wall behind a big one.
+            const int ghosts = s.side >= 12.0f ? 1 : 3;
+            const float step = s.side >= 12.0f ? 0.11f : 0.06f;
+            for (int back = ghosts; back >= 0; --back) {
+                const float p = s.Progress() - static_cast<float>(back) * step;
+                if (p < 0.0f) continue;
+                const float a = s.AngleAt(p), out = s.OutAt(p);
+                const float cx = s.x + cosf(a) * out, cy = s.y + sinf(a) * out * 0.72f - s.lift;
+                static const int kFade[4] = {255, 78, 80, 50};
+                block(cx, cy, static_cast<int>(s.side), 7.0f, 1, kFade[back], back ? 0 : lead);
             }
+        } else if (s.Fallen() < 1.0f) {
+            // Still in the air, coming down fast at the end.
+            const float k = s.Fallen();
+            block(s.x, s.y - s.lift, static_cast<int>(s.side), (1.0f - k * k) * (46.0f + s.side * 1.4f), 2, 255, 0);
+        } else {
+            // Broken on top of whatever it landed on: chunks sliding out from
+            // under it, settling and fading.
+            const float k = s.Broken();
+            const int   n = static_cast<int>(s.side);
+            for (int i = 0; i < 6; ++i) {
+                const float a = 6.2831853f * i / 6.0f + 0.4f;
+                const float out = (0.35f + 1.05f * (1.0f - (1.0f - k) * (1.0f - k))) * s.side *
+                                  (0.7f + 0.1f * static_cast<float>(grain(i, 5) % 4));
+                const int   bit = std::max(3, n / 4 - grain(i, 6) % 2);
+                block(s.x + cosf(a) * out, s.y - s.lift + sinf(a) * out * 0.6f, bit,
+                      std::max(0.0f, 5.0f - 10.0f * k), 3 + i,
+                      static_cast<int>(255.0f * std::clamp(1.0f - (k - 0.55f) / 0.45f, 0.0f, 1.0f)), 0);
+            }
+        }
     }
 
     // Embers, drops and the rest, over everything that stands: see Mote.

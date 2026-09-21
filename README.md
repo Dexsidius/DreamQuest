@@ -863,11 +863,10 @@ four spells.** Twelve new spells, three an element, at Magic 12, 24 and 36:
 | --- | --- | --- | --- | --- |
 | **Fire** | Ember, Pyre | **Flamethrower** -- light is five tongues across sixty degrees at arm's length; heavy is three, close together, that reach three times as far. Each is a breath, not a volley: a second flight follows a moment later in the gaps of the first, and the two together are worth what the one was | **Flame Ring** -- twelve patches of burning ground round where you stand | **Wall of Fire** -- seven across the way you face, for five seconds |
 | **Water** | Spray, Torrent | **Hydro Cannon** -- one great ball: soaked, and thrown twice as far as a gust throws | **Tidal Wave** -- seven abreast, slowly, through everything | **Whirlpool** -- four seconds of water that drags what is in it to the middle |
-| **Earth** | Sharpstone, Upheaval | **Bedrock Sweep** -- a slab of the ground torn up and swung flat through everything in front; it lands like a wall, and often concusses | **Sedimentary Rain** -- the Arrow Rain's numbers, in stone | **Mineral Burst** -- eight sharp stones, one after another, from wherever you have got to |
+| **Earth** | Sharpstone, Upheaval | **Slabstrike** -- a square of the ground torn up and swung at what is in front. Twenty pixels of it on a light, thirty-two on a heavy, and [held and let go the big one is dropped on your quarry](#slabstrike) and breaks on them. What it hits is thrown, and often concussed | **Sedimentary Rain** -- the Arrow Rain's numbers, in stone | **Mineral Burst** -- eight sharp stones, one after another, from wherever you have got to |
 | **Air** | Gust, Galewind | **Tornado** -- it walks the way it was sent, throwing what it catches in any direction it likes, and **the further it is thrown the more it is hurt**. A light cast is a dust devil; **held and let go it lasts four seconds** | **Air Slash** -- an edge of air as wide as a doorway, through everything | **Turbulence** -- three seconds of your own weather, that goes where you go |
 
-(*Bedrock Sweep* is a name chosen for want of one: it is one string in
-`data/spells.json`.) The bar over the hands shows the four spells in the
+The bar over the hands shows the four spells in the
 staff's colour, the spellbook page lists them, the pad's *next element* steps
 through them, and the fifth slot is still the ancient magic. What the big ones
 leave on the ground can **pull** (`GroundEffect::pull`), **throw**
@@ -885,15 +884,50 @@ one front (`wave_crest`), and the Mineral Burst's stones are small stones, not
 big ones shrunk. The Sedimentary Rain's stones are lit and shaded, land in a
 puff of dust, and come down onto **their own shadows closing in under them**;
 Turbulence is streaks of air at two heights with the dirt and leaves it has
-picked up, not rings of dots. **The Bedrock Sweep's slab** comes up out of the
-ground, goes round, and breaks up at the far end: four pixels wide as asked,
-and a block -- a lit top, a dark face under it, cracks across it, turf on the
-end that was uppermost -- dragging dust behind it. **A friend sees it swung**:
-it was the caster's alone, because the swing lived in the caster's world and
-nothing on the line spoke of it. It goes as a patch of a kind of its own
-(`PatchState::SLAB`: where it turns about, how long it is, and its facing in
-the byte a patch keeps its age in), and the guest's world makes the same swing
-once from that, however many snapshots go on saying so. `PROTOCOL_VERSION` 6.
+picked up, not rings of dots.
+
+#### Slabstrike
+
+The one spell that is three moves rather than one, because a square of ground
+can be swung or dropped:
+
+| | What it does |
+| --- | --- |
+| **Light** | A **twenty-pixel** square torn up and swung through an arc in front of you -- half a character's height. |
+| **Heavy** | The same swing with a **thirty-two-pixel** one: further, wider, harder -- and a heavy's own slowness is the price. |
+| **Heavy, held** | The big one is carried over whoever you are fighting and **dropped on them**, where it lands for a third again and **breaks into chunks on top of them**. |
+
+Both sizes are `SLAB_LIGHT` and `SLAB_HEAVY` in `src/world/world.h`, and
+everything the drawing does is worked out from them -- how thick the sod on top
+is, how deep the corners are chipped, how coarse the mottling is, how far it
+falls, how big the chunks it breaks into are -- so changing a number changes
+the slab and not the look of it.
+
+Seen edge-on, so what shows is the earthy side of it, with the turf still along
+its top edge and its shadow on the ground under it, drawn tight and dark as it
+comes down. It was a bar four pixels wide, and a bar that shape read as a sawn
+plank: straight edges its whole length, one unbroken highlight down the leading
+side, cracks at regular intervals across it. So the outline is bitten into and
+lumped out, the highlight is in pieces, and the stone is three tones scattered
+rather than one with a stripe. What each pixel is made of comes from where it
+is *on the slab*, not on the screen, so the stone does not crawl as the slab
+travels.
+
+Two things a square needs that a bar did not. It rides round the **middle** of
+what it strikes rather than the far edge, or it reads as a rock flying past
+instead of something swung at what is in front of you; and it leaves **three
+fading copies of itself** behind, because one small square in one place is a
+rock sitting in the air and four in a row are a swing. The dropped one is its
+own warning -- it is above you, falling, with its shadow drawing in and
+darkening under it -- so the ground effect that carries the damage is marked
+`quiet` and draws none of the usual disc over the top of it.
+
+**A friend sees it.** It was the caster's alone, because it lived in the
+caster's world and nothing on the line spoke of it. It goes as a patch of a
+kind of its own (`PatchState::SLAB` and `SLAB_DROP`: where it is swung about or
+comes down, how far out it goes or how big it is, and its facing in the byte a
+patch keeps its age in), and the guest's world makes the one swing or the one
+drop from that, however many snapshots go on saying so. `PROTOCOL_VERSION` 7.
 
 ### Combos
 
@@ -5702,7 +5736,7 @@ and checks all of it — currently **34431 checks** covering:
   staff's four keys are four spells and it casts nothing else; the Flame Ring
   is a ring, the Wall of Fire a line across the way faced, the Flamethrower
   five wide or three far; the Hydro Cannon throws, the Tidal Wave is seven, the
-  Whirlpool drags to its middle; the Bedrock Sweep hits what is in front and
+  Whirlpool drags to its middle; the Slabstrike hits what is in front and
   not behind, the Mineral Burst is eight, the Sedimentary Rain a rain of stone;
   a Tornado walks, lasts four seconds held, throws and hurts, and Turbulence
   goes where its caster goes; RB is the abilities' shift and Select the menu,

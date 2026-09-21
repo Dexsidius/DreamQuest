@@ -14117,7 +14117,7 @@ int main(int argc, char** argv) {
                           string(el) + " has a spell on slot " + std::to_string(slot) + (sp ? ": " + sp->name : string()));
                 }
             }
-            Check(spells.Get("bedrock_sweep") && spells.Get("shardshot") && spells.Get("shardshot")->name == "Sharpstone",
+            Check(spells.Get("slabstrike") && spells.Get("shardshot") && spells.Get("shardshot")->name == "Sharpstone",
                   "earth's first is Sharpstone and its second has a name");
         }
 
@@ -14556,7 +14556,63 @@ int main(int argc, char** argv) {
                     for (int f = 0; f < 50; ++f) { frames(w, 1); swung |= !w.slabs.empty(); }
                 }
                 Check(swung && near_one && near_one->hp < hp_front && behind && behind->hp == hp_back,
-                      "the Bedrock Sweep is a slab swung through what is in front, and not what is behind");
+                      "the Slabstrike swings through what is in front, and not what is behind");
+                // Three moves out of one spell: a small square swung, a big one
+                // swung, and a big one dropped on whoever is being fought.
+                {
+                    // Only the one in front is a candidate, so where it is dropped
+                    // is not a coin toss between two cows.
+                    if (behind) { behind->x = p.x - 900.0f; behind->y = p.y; }
+                    const auto cast = [&](SDL_Keycode k, int hold) -> World::SlabSwing {
+                        // Long enough for the chain window to shut as well: a heavy
+                        // pressed inside it is a combo, and a combo is not a heavy.
+                        for (int f = 0; f < 120 && (!p.CanAttack() || p.ComboOpen()); ++f) frames(w, 1);
+                        p.RestoreMana();
+                        w.slabs.clear();
+                        input.Update(kFrame); key(k, true); w.Update(kFrame, ctx);
+                        frames(w, hold);
+                        input.Update(kFrame); key(k, false); w.Update(kFrame, ctx);
+                        for (int f = 0; f < 60 && w.slabs.empty(); ++f) frames(w, 1);
+                        return w.slabs.empty() ? World::SlabSwing{} : w.slabs.front();
+                    };
+                    const World::SlabSwing light = cast(SDLK_J, 0);
+                    const World::SlabSwing heavy = cast(SDLK_K, 0);
+                    const World::SlabSwing held  = cast(SDLK_K, 90);
+                    Check(fabsf(light.side - World::SLAB_LIGHT) < 0.01f && !light.drop,
+                          "a light Slabstrike swings the smaller square (" + std::to_string(light.side) + " across)");
+                    Check(fabsf(heavy.side - World::SLAB_HEAVY) < 0.01f && !heavy.drop &&
+                              heavy.radius > light.radius && World::SLAB_HEAVY > World::SLAB_LIGHT,
+                          "a heavy swings the bigger one, further out (" + std::to_string(heavy.side) + " across)");
+                    Check(held.drop && fabsf(held.side - World::SLAB_HEAVY) < 0.01f && held.max_life > light.max_life * 2.0f,
+                          "and held and let go, that one is dropped instead, and takes its time about it");
+                    // Where it comes down. With nobody to fight it is thrown out
+                    // in front; with somebody, it lands on them -- which is the
+                    // whole point of dropping it rather than swinging it.
+                    if (near_one) { near_one->x = p.x - 900.0f; near_one->y = p.y; }
+                    for (int f = 0; f < 40; ++f) frames(w, 1);        // the lock-on lets go of what it cannot reach
+                    const World::SlabSwing nobody = cast(SDLK_K, 90);
+                    Check(nobody.drop && nobody.x > p.x + 90.0f && fabsf(nobody.y - p.y) < 30.0f,
+                          "with nobody to fight it is dropped out in front (" + std::to_string(nobody.x - p.x) + " away)");
+                    if (near_one) {
+                        near_one->x = p.x + 60.0f; near_one->y = p.y;
+                        for (int f = 0; f < 20; ++f) frames(w, 1);
+                        press(w, SDLK_L);                             // lock on to it
+                        const World::SlabSwing onto = cast(SDLK_K, 90);
+                        Check(onto.drop && fabsf(onto.x - near_one->x) < 14.0f,
+                              "and on whoever is being fought when there is one (" +
+                                  std::to_string(onto.x - near_one->x) + " off)");
+                    }
+                    // The falling slab is the warning: the ground does not draw one too.
+                    bool quiet = false, loud = false;
+                    for (const GroundEffect& g : w.ground_effects)
+                        if (g.element == Element::Earth) { quiet |= g.quiet; loud |= !g.quiet; }
+                    Check(quiet && !loud, "and nothing else is drawn on the spot it will land");
+                    // Put the hands back where the next test expects them: rested,
+                    // with nothing in the air and no chain open.
+                    for (int f = 0; f < 200 && (!p.CanAttack() || p.ComboOpen()); ++f) frames(w, 1);
+                    w.slabs.clear();
+                    w.ground_effects.clear();
+                }
                 p.SelectSlot(3);
                 p.RestoreMana();
                 w.projectiles.clear();
@@ -16386,7 +16442,7 @@ int main(int argc, char** argv) {
         }
 
         // --- a slab of the ground, swung where a guest can see it ------------------------------------------
-        // Bedrock Sweep was the caster's alone to see: the swing lived in the
+        // The Slabstrike was the caster's alone to see: the swing lived in the
         // caster's world and nothing on the line spoke of it.
         {
             World* where = host.WorldOf(1);
@@ -16394,21 +16450,45 @@ int main(int argc, char** argv) {
             if (guest_in && her() && where) {
                 frames(10);
                 gw.slabs.clear();
-                where->AddSlabSwing(her()->x + 20.0f, her()->y - 14.0f, 2.2f, 74.0f, 0.0f);
+                where->AddSlabSwing(her()->x + 20.0f, her()->y - 14.0f, 2.2f, 52.0f, World::SLAB_HEAVY, 0.0f);
                 size_t most = 0, total = 0;
-                float faced = -9.0f, length = 0.0f;
+                float faced = -9.0f, reach = 0.0f, side = 0.0f;
                 for (int i = 0; i < 45; ++i) {
                     frame();
                     size_t live = 0;
-                    for (const World::SlabSwing& s : gw.slabs) if (s.life > 0.0f) { ++live; faced = s.facing; length = s.length; }
+                    for (const World::SlabSwing& s : gw.slabs)
+                        if (s.life > 0.0f) { ++live; faced = s.facing; reach = s.radius; side = s.side; }
                     most = std::max(most, live);
                     total = std::max(total, gw.slabs.size());
                 }
-                Check(most == 1 && total == 1 && fabsf(faced - 2.2f) < 0.03f && fabsf(length - 74.0f) < 1.0f,
-                      "a slab swung on the host is one slab on the guest's screen, swung the same way (" + std::to_string(total) +
-                          " made, facing " + std::to_string(faced) + ")");
+                Check(most == 1 && total == 1 && fabsf(faced - 2.2f) < 0.03f && fabsf(reach - 52.0f) < 1.0f &&
+                          fabsf(side - World::SLAB_HEAVY) < 0.01f,
+                      "a slab swung on the host is one slab on the guest's screen, the same size and swung the same way (" +
+                          std::to_string(total) + " made, facing " + std::to_string(faced) + ")");
                 frames(40);
                 Check(gw.slabs.empty() && where->slabs.empty(), "and gone from both when it is done");
+
+                // And one dropped on somebody: a different kind on the wire, and
+                // the guest times its fall and its breaking itself.
+                gw.slabs.clear();
+                where->AddSlabDrop(her()->x + 24.0f, her()->y + 6.0f, World::SLAB_HEAVY, 0.0f);
+                size_t drops = 0, dropped_total = 0;
+                bool  fell = false, broke = false;
+                for (int i = 0; i < 90; ++i) {
+                    frame();
+                    size_t live = 0;
+                    for (const World::SlabSwing& s : gw.slabs)
+                        if (s.life > 0.0f && s.drop) {
+                            ++live;
+                            fell  |= s.Fallen() < 1.0f;
+                            broke |= s.Broken() > 0.2f;
+                        }
+                    drops = std::max(drops, live);
+                    dropped_total = std::max(dropped_total, gw.slabs.size());
+                }
+                Check(drops == 1 && dropped_total == 1 && fell && broke,
+                      "and a slab dropped on the host falls and breaks on the guest's screen too, once (" +
+                          std::to_string(dropped_total) + " made)");
             }
         }
         fs::remove_all("bin/selftest_net", ec);

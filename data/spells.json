@@ -175,9 +175,9 @@
     "projectile": "bolt_water_greater"
   },
 
-  "bedrock_sweep": {
-    "name": "Bedrock Sweep",
-    "desc": "A slab of the ground torn up and swung flat across everything in front of you. It lands like a wall: what it hits is thrown, and often concussed.",
+  "slabstrike": {
+    "name": "Slabstrike",
+    "desc": "A square of the ground torn up and swung at whatever is in front of you. A heavy blow tears up a bigger one and swings it the same way, slower; held and let go, that one is carried over your quarry and dropped on them, where it breaks. What it hits is thrown, and often concussed.",
     "element": "earth",
     "slot": 2,
     "tier": 1,

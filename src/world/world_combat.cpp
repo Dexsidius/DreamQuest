@@ -165,9 +165,10 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         if (target) return Targeting::AimPoint(*target);
         return SDL_FPoint{player.x + aim.x * 110.0f, player.y + aim.y * 110.0f};
     };
-    const auto strike = [&](float radius, float delay, float mult, Element el) {
+    const auto strike = [&](float radius, float delay, float mult, Element el, bool quiet = false) {
         const SDL_FPoint at = strike_point();
         GroundEffect g;
+        g.quiet = quiet;
         g.x = at.x;
         g.y = at.y + 8.0f;
         g.radius = radius;
@@ -447,25 +448,46 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         }
         AddGroundEffect(g);
     } else if (shape == "slab") {
-        // A slab of the ground, swung flat through everything in front: a
-        // wide arc, a long reach, and it lands like a wall.
-        AttackProfile swing;
-        swing.reach = 78.0f; swing.width = 60.0f; swing.sweep_deg = 62.0f;
-        const SDL_FPoint from = player.GroundCentre();
-        const StrikeArc arc = ArcFor(from.x, from.y, player.facing, swing, 1.0f);
+        // The Slabstrike. A square of the ground is torn up and swung through
+        // whatever is in front: five pixels of it on a light, eight on a heavy
+        // -- the same swing, but the heavy's own slowness carries it. Held and
+        // let go, the big one is carried over whoever is being fought instead
+        // and dropped on them, and breaks on top of them.
         const ProjectileDef* stone = ctx.projectiles ? ctx.projectiles->Get(projectile_id) : nullptr;
-        for (auto& e : enemies) {
-            if (!Strikeable(*e)) continue;
-            const SDL_FPoint a = e->GroundCentre();
-            if (!ArcHits(arc, a.x, a.y, e->GroundRadius())) continue;
-            proc_next = stone ? StatusProc{stone->status.kind, 0.4f} : StatusProc{};
-            cast_next = casting;
-            HitEnemy(*e, player.Profile(), style, element, damage_mult, 230.0f, player.x, player.y, ctx);
+        const StatusProc leaves = stone ? StatusProc{stone->status.kind, 0.4f} : StatusProc{};
+        if (atk.type == AttackType::Charged) {
+            const SDL_FPoint at = strike_point();
+            proc_next = leaves;
+            strike(26.0f, World::SLAB_DROP_TIME * World::SLAB_DROP_FALL, damage_mult * 1.35f, element, true);
             proc_next = {};
-            cast_next = 0;
+            AddSlabDrop(at.x, at.y + 8.0f, World::SLAB_HEAVY, LiftAt(at.x, at.y));
+            Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, 0.62f);
+        } else {
+            const bool heavy = atk.type != AttackType::Light;
+            const float side = heavy ? World::SLAB_HEAVY : World::SLAB_LIGHT;
+            AttackProfile swing;
+            swing.reach = heavy ? 84.0f : 70.0f;
+            swing.width = heavy ? 60.0f : 44.0f;
+            swing.sweep_deg = heavy ? 62.0f : 54.0f;
+            const SDL_FPoint from = player.GroundCentre();
+            const StrikeArc arc = ArcFor(from.x, from.y, player.facing, swing, 1.0f);
+            for (auto& e : enemies) {
+                if (!Strikeable(*e)) continue;
+                const SDL_FPoint a = e->GroundCentre();
+                if (!ArcHits(arc, a.x, a.y, e->GroundRadius())) continue;
+                proc_next = leaves;
+                cast_next = casting;
+                HitEnemy(*e, player.Profile(), style, element, damage_mult, heavy ? 230.0f : 150.0f,
+                         player.x, player.y, ctx);
+                proc_next = {};
+                cast_next = 0;
+            }
+            // It rides round the middle of what it strikes, not the far edge:
+            // out at the rim it reads as a rock flying past rather than as
+            // something swung at what is in front of you.
+            AddSlabSwing(player.x, player.y - 14.0f, atan2f(aim.y, aim.x), swing.reach * 0.62f, side, player.draw_lift);
+            Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, heavy ? 0.7f : 0.95f);
         }
-        AddSlabSwing(player.x, player.y - 14.0f, atan2f(aim.y, aim.x), 74.0f, player.draw_lift);
-        Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, 0.7f);
     } else if (shape == "stone_rain") {
         // The Arrow Rain's numbers, in stone: see GroundEffect::RAIN_TIME.
         const SDL_FPoint at = strike_point();

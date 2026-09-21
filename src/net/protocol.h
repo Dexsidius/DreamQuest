@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 6;   // 4: a patch says what kind it is. 5: a monster says what is on it. 6: a slab swung
+static constexpr uint16_t PROTOCOL_VERSION = 7;   // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -245,9 +245,11 @@ struct PatchState {              // burning ground, a rune, a storm
     uint8_t  element = 0, life = 0, max_life = 0;   // tenths of a second
     bool     active = true, from_player = true;
     uint8_t  kind = 0;           // 0 a patch of something, 1 Arrow Rain: the guest draws its own arrows
-    // Not ground at all: a slab of it, mid-swing. x, y where it turns about,
-    // radius its length, and `life` the way it is swung: see AngleByte.
-    static constexpr uint8_t SLAB = 32;
+    // Not ground at all: the Slabstrike's square of it. x, y is the caster it
+    // is swung about (or, for SLAB_DROP, where it comes down), `radius` how far
+    // out it is swung, `max_life` how big the square is, and `life` the way it
+    // is swung: see AngleByte.
+    static constexpr uint8_t SLAB = 32, SLAB_DROP = 33;
 };
 // A direction in a byte, a degree and a half at a time.
 inline uint8_t AngleByte(float radians) {

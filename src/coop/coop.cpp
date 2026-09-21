@@ -1119,17 +1119,19 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             ps.kind = g.rain ? 1 : static_cast<uint8_t>(g.draw);
             snap.patches.push_back(ps);
         }
-        // A slab of the ground mid-swing is not ground, but it goes the same
-        // way: where it turns about, how long it is, and -- in the byte a patch
-        // keeps its age in -- which way it is swung. The guest times it itself.
+        // A Slabstrike is not ground, but it goes the same way: where it is
+        // swung about or comes down, how far out it goes (or how big it is),
+        // and -- in the byte a patch keeps its age in -- which way. The guest
+        // times it itself.
         for (const World::SlabSwing& s : w.slabs) {
             if (s.life <= 0.0f || !near(s.x, s.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
             net::PatchState ps;
             ps.x = Px(s.x); ps.y = Px(s.y);
-            ps.radius = static_cast<uint16_t>(std::clamp(s.length, 0.0f, 65535.0f));
+            ps.radius = static_cast<uint16_t>(std::clamp(s.radius, 0.0f, 65535.0f));
             ps.element = static_cast<uint8_t>(Element::Earth);
             ps.life = net::AngleByte(s.facing);
-            ps.kind = net::PatchState::SLAB;
+            ps.max_life = static_cast<uint8_t>(std::clamp(s.side, 0.0f, 255.0f));   // how big a square
+            ps.kind = s.drop ? net::PatchState::SLAB_DROP : net::PatchState::SLAB;
             snap.patches.push_back(ps);
         }
         server.SendToSeat(seat_no, net::Channel::Unreliable, net::Encode(snap));
@@ -1484,8 +1486,9 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
     }
     world.ground_effects.clear();
     for (const net::PatchState& ps : snap.patches) {
-        if (ps.kind == net::PatchState::SLAB) {
-            world.HearOfSlabSwing(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius);
+        if (ps.kind == net::PatchState::SLAB || ps.kind == net::PatchState::SLAB_DROP) {
+            world.HearOfSlab(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius, ps.max_life,
+                             ps.kind == net::PatchState::SLAB_DROP);
             continue;
         }
         GroundEffect g;

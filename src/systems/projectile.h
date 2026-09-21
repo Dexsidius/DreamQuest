@@ -216,6 +216,10 @@ struct GroundEffect {
     uint8_t owner_seat = 0;
     uint32_t cast_id = 0;        // the cast it came of, as a projectile's is
     bool  burst = false;         // one big hit rather than damage over time
+    // Something else on the screen is already saying where this is about to
+    // land -- the Slabstrike's slab, falling, with its own shadow drawing in
+    // under it -- so do not draw the usual disc over it as well.
+    bool  quiet = false;
     // A technique's strike: resolved as this style at this damage multiplier,
     // rather than as a spell scaled by damage. Negative for the old behaviour.
     AttackStyle style = AttackStyle::Magic;
