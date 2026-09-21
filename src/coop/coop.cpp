@@ -130,7 +130,10 @@ net::Delta::Panel ToPanel(const WorldRequest& r) {
 
 WorldRequest FromPanel(const net::Delta::Panel& p) {
     WorldRequest r;
-    r.type = static_cast<WorldRequest::Type>(std::min<uint8_t>(p.type, static_cast<uint8_t>(WorldRequest::Type::Sleep)));
+    // Held to the last there is. It was held to Sleep, which was the last when
+    // this was written: a friend who touched a woken waystone was asked how
+    // they would like to spend the night.
+    r.type = static_cast<WorldRequest::Type>(std::min<uint8_t>(p.type, static_cast<uint8_t>(WorldRequest::Type::Totem)));
     r.id = p.id; r.title = p.title; r.text = p.text; r.list = p.list; r.count = p.count;
     return r;
 }
@@ -1344,6 +1347,10 @@ void Guest::OnDelta(const net::Delta& d, World& world, const GameContext& ctx) {
             e.type = static_cast<ObjectiveType>(q.type);
             e.target = q.target; e.secondary = q.secondary; e.map_id = q.map; e.amount = q.amount;
             ctx.quests->Notify(e, me.inventory);
+            // A boss went down where they were. Their character is here, so
+            // what it leaves them is rolled and kept here, and goes back to
+            // the host on the next sheet.
+            if (e.type == ObjectiveType::Kill && !e.secondary.empty()) world.AwardBoss(e.secondary, ctx);
         }
     for (const string& label : d.chain) { if (label.empty()) me.BreakChain(); else me.CountChainHit(label); }
     for (const net::Delta::Sound& s : d.sounds) {

@@ -32,7 +32,10 @@ float Speed(int level, float tool_speed) {
 }
 
 float WorkTime(float base_seconds, int level, float tool_speed) {
-    return std::max(0.6f, base_seconds / Speed(level, tool_speed));
+    // No quicker than this, however good the axe. It was 0.6, which a platinum
+    // axe reached on the day it could first be held -- so the three tiers
+    // above it, demonite, dracon and enchanted, cut no faster than it did.
+    return std::max(0.42f, base_seconds / Speed(level, tool_speed));
 }
 
 const ItemDef* BestTool(const Inventory& bag, const Equipment& worn, const ItemDatabase& db,

@@ -1536,6 +1536,54 @@
                                            "w":  64,
                                            "h":  64
                                        },
+                   "props/totem_barrow_wight":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
+                   "props/totem_broodmother":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "props/totem_circle":  {
+                                              "w":  24,
+                                              "h":  24
+                                          },
+                   "props/totem_den_mother":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "props/totem_frost_dragon":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
+                   "props/totem_lizardman_chief":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "props/totem_nightmare_dragon":  {
+                                                        "w":  32,
+                                                        "h":  32
+                                                    },
+                   "props/totem_nightmare_troll":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "props/totem_orc3":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
+                   "props/totem_pit_lord":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "props/totem_well_warden":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "props/totem_wyvern_matriarch":  {
+                                                        "w":  32,
+                                                        "h":  32
+                                                    },
                    "props/town_gate":  {
                                            "w":  160,
                                            "h":  160
@@ -1552,6 +1600,14 @@
                                            "w":  40,
                                            "h":  40
                                        },
+                   "props/waystone":  {
+                                          "w":  72,
+                                          "h":  72
+                                      },
+                   "props/waystone_lit":  {
+                                              "w":  72,
+                                              "h":  72
+                                          },
                    "props/weapon_barrel":  {
                                                "w":  48,
                                                "h":  48

@@ -109,6 +109,24 @@ The woodland zones added a set of their own:
   and a crystal on the finial.
 - **`spell_circle`** (96) -- the circle cut into the college's floor, its
   runes lit, laid as an overlay like a rug.
+- **`totem_circle`** (24) and eleven **`totem_<boss>`** (32) -- the ring in
+  the floor of the house at Mossvale, and what a boss leaves the fifteenth
+  time. One builder, `_totem(post, band, cap)`: a squat carved post of three
+  blocks with a band between and lit eyes in the top one, and what is on its
+  head says whose it is -- spider, crest, skull, horns, lantern, bear's ears,
+  tusks, wings, great horns with an ember, and spines in ice and in violet. At
+  thirty-two pixels a carving is a colour and a silhouette, so that is all each
+  is given. The same picture is the item's icon and the thing in the ring. The
+  ring's middle was a grey plate until it was made a dark socket: a plate is a
+  thing put down, a socket is somewhere to put a thing. Framed at 1.64; at 1.5
+  the spider, the crest and the lantern ran into the top of the frame.
+- **`waystone`**, **`waystone_lit`** (72) -- the town waystones: a broad
+  tapering slab of coursed stone on a flagged ring, an eye cut into its face
+  and runes down three of its courses, two warden stones and an offering bowl
+  at its foot. One builder, `_waystone(lit)`, rendered twice: dark and
+  void-eyed asleep, the eye and the runes lit cold blue once woken. The first
+  try had a round head on a neck and read as a lamp post; the eye had to be
+  *in* the stone, and the emission under 1.2, or it blew out white.
 
 Two icons are built the same way as the potions in `tools/blender_tiers.py`:
 `hide_boots`, and `enchant_scroll`, a recipe scroll with a rune and a blue

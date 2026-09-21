@@ -212,9 +212,10 @@ void Game::DrawCharacterSelect() {
         const vector<string> kit = Player::StartingKit(kCharacterIds[i]);
         const ItemDef* first = kit.empty() ? nullptr : items.Get(kit.front());
         const bool vowel = first && string("AEIOUaeiou").find(first->name[0]) != string::npos;
-        ui.Text(first ? "starts with a" + string(vowel ? "n " : " ") + first->name : string("hits harder and truer with it"),
+        ui.Text(first ? "starts: " + first->name : string("hits harder and truer with it"),
                 card.x + card.w / 2.0f, card.y + card.h - 20.0f,
                 TextSize::Small, Palette::TextDim, Align::Center);
+        (void)vowel;
     }
 
     ui.TextShadowed("Left / Right to choose   " + input.PromptFor(Action::Confirm) +
@@ -235,7 +236,12 @@ void Game::UpdateSlotSelect() {
         if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
             const int slot = overwrite_slot;
             overwrite_slot = -1;
-            NewGame(pending_character, slot);
+            if (slot_purpose == 0) {
+                NewGame(pending_character, slot);
+            } else {
+                SaveGame(slot);
+                SetState(GameState::Play);
+            }
         } else if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
             overwrite_slot = -1;
         }
@@ -246,9 +252,16 @@ void Game::UpdateSlotSelect() {
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         const int slot = cursor + 1;
+        // Anything in the slot at all is something to ask about -- a save that
+        // cannot be read included, which used to look like an empty slot.
         if (slot_purpose == 0) {
-            if (SaveSystem::Exists(slot)) overwrite_slot = slot;
-            else                          NewGame(pending_character, slot);
+            if (SaveSystem::Occupied(slot)) overwrite_slot = slot;
+            else                            NewGame(pending_character, slot);
+        } else if (SaveSystem::Occupied(slot) && slot != active_slot) {
+            // Saving over your own slot is what saving is. Saving over
+            // somebody else's is a different character gone, and used to take
+            // one press where starting a new game there took two.
+            overwrite_slot = slot;
         } else {
             SaveGame(slot);
             SetState(GameState::Play);
@@ -280,12 +293,19 @@ void Game::DrawSlotList(const SDL_FRect& area, const string& heading) {
         ui.Text("Slot " + std::to_string(i + 1), row.x + 16.0f, row.y + 12.0f,
                 TextSize::Body, selected ? Palette::Highlight : Palette::Text);
 
+        if (s.damaged) {
+            ui.Text("Damaged", row.x + 120.0f, row.y + 12.0f, TextSize::Body, {235, 150, 120, 255});
+            ui.Text("There is a save here that cannot be read. It has not been touched.",
+                    row.x + 16.0f, row.y + 42.0f, TextSize::Small, {235, 150, 120, 255});
+            continue;
+        }
         if (!s.exists) {
             ui.Text("Empty", row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
             continue;
         }
 
-        ui.Text(s.map_name, row.x + 120.0f, row.y + 12.0f, TextSize::Body, Palette::Text);
+        ui.Text(s.map_name + (s.from_backup ? "  (backup)" : ""), row.x + 120.0f, row.y + 12.0f,
+                TextSize::Body, s.from_backup ? SDL_Color{235, 200, 120, 255} : Palette::Text);
         char line[160];
         SDL_snprintf(line, sizeof(line), "Combat %d    Total level %d    %s",
                      s.combat_level, s.total_level,
@@ -311,9 +331,10 @@ void Game::DrawSlotSelect() {
         const float cx = box.x + box.w / 2.0f;
         ui.Text("Slot " + std::to_string(overwrite_slot) + " already holds a saved game.",
                 cx, box.y + 24.0f, TextSize::Body, Palette::Highlight, Align::Center);
-        ui.Text("Starting over here will erase it.", cx, box.y + 56.0f, TextSize::Small,
-                Palette::Text, Align::Center);
-        ui.Text(input.PromptFor(Action::Confirm) + " erase and start     " +
+        ui.Text(slot_purpose == 0 ? "Starting over here will erase it."
+                                  : "It is not the one you are playing. Saving here will replace it.",
+                cx, box.y + 56.0f, TextSize::Small, Palette::Text, Align::Center);
+        ui.Text(input.PromptFor(Action::Confirm) + (slot_purpose == 0 ? " erase and start     " : " save over it     ") +
                 input.PromptFor(Action::Back) + " keep it",
                 cx, box.y + box.h - 36.0f, TextSize::Small, Palette::TextDim, Align::Center);
     }
@@ -324,10 +345,33 @@ void Game::DrawSlotSelect() {
 // =============================================================================
 
 void Game::UpdateLoadMenu() {
+    // Deleting asks first, on a panel of its own, the way starting over does.
+    if (delete_slot >= 0) {
+        if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+            const int slot = delete_slot;
+            delete_slot = -1;
+            if (SaveSystem::Delete(slot))
+                PushToast("Slot " + std::to_string(slot) + " deleted.", Palette::TextDim);
+            else
+                PushToast("That slot could not be deleted.", {235, 120, 120, 255});
+        } else if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+            delete_slot = -1;
+        }
+        return;
+    }
+
     MoveCursor(cursor, SAVE_SLOTS);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-        if (SaveSystem::Exists(cursor + 1)) LoadGame(cursor + 1);
+        const SaveSlotInfo info = SaveSystem::Peek(cursor + 1);
+        if (info.damaged)      PushToast("That save cannot be read. It has been left as it is.", {235, 150, 120, 255});
+        else if (info.exists)  LoadGame(cursor + 1);
+        else                   PushToast("That slot is empty.", Palette::TextDim);
+    }
+    // There was a function for deleting a slot and no way to reach it, so the
+    // only way to make room for a fourth character was to write over a third.
+    if (input.Pressed(Action::Drop)) {
+        if (SaveSystem::Occupied(cursor + 1)) delete_slot = cursor + 1;
         else PushToast("That slot is empty.", Palette::TextDim);
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
@@ -338,9 +382,24 @@ void Game::DrawLoadMenu() {
     const SDL_FRect area = CenteredPanel(ui, 560.0f, 400.0f);
     DrawSlotList(area, "Load game");
     ui.TextShadowed(input.PromptFor(Action::Confirm) + " load     " +
+                    input.PromptFor(Action::Drop) + " delete     " +
                     input.PromptFor(Action::Back) + " back",
                     ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
                     {186, 176, 158, 255}, Align::Center);
+
+    if (delete_slot >= 0) {
+        ui.Dim(0.6f);
+        const SDL_FRect box = CenteredPanel(ui, 440.0f, 150.0f);
+        ui.Panel(box);
+        const float cx = box.x + box.w / 2.0f;
+        ui.Text("Delete the save in slot " + std::to_string(delete_slot) + "?",
+                cx, box.y + 24.0f, TextSize::Body, Palette::Highlight, Align::Center);
+        ui.Text("The character in it will be gone from this list.", cx, box.y + 56.0f, TextSize::Small,
+                Palette::Text, Align::Center);
+        ui.Text(input.PromptFor(Action::Confirm) + " delete it     " +
+                input.PromptFor(Action::Back) + " keep it",
+                cx, box.y + box.h - 36.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    }
 }
 
 // =============================================================================
@@ -350,7 +409,8 @@ void Game::DrawLoadMenu() {
 // The rows of the Options screen, by name, so adding one is not a renumbering.
 namespace {
 enum OptionRow {
-    OPT_INPUT, OPT_CONTROLS, OPT_ZOOM, OPT_FULLSCREEN, OPT_VSYNC, OPT_FPS, OPT_DAMAGE, OPT_WAYPOINTS,
+    OPT_INPUT, OPT_CONTROLS, OPT_ZOOM, OPT_UI_SCALE, OPT_FULLSCREEN, OPT_VSYNC, OPT_FPS, OPT_DAMAGE, OPT_XP,
+    OPT_WAYPOINTS,
     OPT_MASTER, OPT_SFX, OPT_AMBIENCE, OPT_BACK, OPT_ROWS
 };
 }
@@ -385,6 +445,17 @@ void Game::UpdateOptions() {
                 settings.zoom = std::clamp(settings.zoom + step * 0.25f, 1.5f, 4.0f);
                 world->camera.SetZoom(settings.zoom);
                 break;
+            case OPT_UI_SCALE: {
+                // The four sizes worth having, stepped through: text is set at
+                // a whole number of points, so the ones in between would only
+                // be one of these with the panels drawn a hair larger.
+                static const float kSteps[] = {1.0f, 1.1f, 1.25f, 1.5f};
+                int at = 0;
+                for (int k = 0; k < 4; ++k) if (fabsf(kSteps[k] - settings.ui_scale) < 0.03f) at = k;
+                at = (delta != 0) ? std::clamp(at + delta, 0, 3) : (at + 1) % 4;
+                settings.ui_scale = kSteps[at];
+                break;
+            }
             case OPT_FULLSCREEN:
                 settings.fullscreen = !settings.fullscreen;
                 SDL_SetWindowFullscreen(window, settings.fullscreen);
@@ -395,6 +466,7 @@ void Game::UpdateOptions() {
                 break;
             case OPT_FPS: settings.show_fps = !settings.show_fps; break;
             case OPT_DAMAGE: settings.damage_numbers = !settings.damage_numbers; break;
+            case OPT_XP: settings.xp_drops = !settings.xp_drops; break;
             case OPT_WAYPOINTS: settings.quest_waypoints = !settings.quest_waypoints; break;
             case OPT_MASTER: case OPT_SFX: case OPT_AMBIENCE: {
                 float& v = (cursor == OPT_MASTER) ? settings.master_volume
@@ -433,8 +505,9 @@ void Game::DrawOptions() {
     ui.Dim(0.55f);
     // Twelve rows now, so they are a little shorter, and shorter again in a
     // window that is.
-    const float row_h = std::clamp(floorf((ui.ViewHeight() - 40.0f - 130.0f) / OPT_ROWS), 30.0f, 40.0f);
-    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 130.0f + OPT_ROWS * row_h);
+    const float row_count = static_cast<float>(OPT_ROWS);
+    const float row_h = std::clamp(floorf((ui.ViewHeight() - 40.0f - 130.0f) / row_count), 30.0f, 40.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 130.0f + row_count * row_h);
     ui.Panel(panel);
 
     ui.Text("Options", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
@@ -442,6 +515,14 @@ void Game::DrawOptions() {
 
     char zoom_buf[24];
     SDL_snprintf(zoom_buf, sizeof(zoom_buf), "%.2fx", settings.zoom);
+    // What was asked for, and what the window has room for when that is less.
+    char scale_buf[48];
+    {
+        const int asked = static_cast<int>(lroundf(settings.ui_scale * 100.0f));
+        const int shown = static_cast<int>(lroundf(UiScale() * 100.0f));
+        if (shown < asked) SDL_snprintf(scale_buf, sizeof(scale_buf), "%d%%  (%d%% fits)", asked, shown);
+        else               SDL_snprintf(scale_buf, sizeof(scale_buf), "%d%%", asked);
+    }
 
     const string pad_note = input.HasGamepad()
         ? string(input.GamepadName())
@@ -451,10 +532,12 @@ void Game::DrawOptions() {
         {"Input Device",   InputModeLabel(settings.input_mode)},
         {"Controls",       "keys and buttons  >"},
         {"Camera Zoom",    zoom_buf},
+        {"Interface Size", scale_buf},
         {"Fullscreen",     settings.fullscreen ? "On" : "Off"},
         {"VSync",          settings.vsync ? "On" : "Off"},
         {"Show FPS",       settings.show_fps ? "On" : "Off"},
         {"Damage Numbers", settings.damage_numbers ? "On" : "Off"},
+        {"Experience Gains", settings.xp_drops ? "On" : "Off"},
         {"Quest Waypoints", settings.quest_waypoints ? "On" : "Off"},
         {"Master Volume",  VolumeLabel(settings.master_volume)},
         {"Effects Volume", VolumeLabel(settings.sfx_volume)},
@@ -687,7 +770,7 @@ void Game::UpdatePaused() {
 
 void Game::DrawPaused() {
     ui.Dim(0.55f);
-    const SDL_FRect panel = CenteredPanel(ui, 380.0f, 368.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 420.0f, 368.0f);
     ui.Panel(panel);
 
     ui.Text(serving == 1 ? "Paused  -  Player Two" : "Paused", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
@@ -715,7 +798,7 @@ void Game::DrawWorldText() {
 
     for (const FloatingText& t : world->texts) {
         const float progress = 1.0f - (t.life / t.max_life);
-        const SDL_FPoint p = world->camera.ToScreen(t.x, t.y - t.rise * progress);
+        const SDL_FPoint p = UiPoint(t.x, t.y - t.rise * progress);
         SDL_Color c = t.color;
         // Fade out over the last third of the life.
         c.a = static_cast<Uint8>(255 * std::clamp((t.life / t.max_life) * 3.0f, 0.0f, 1.0f));
@@ -764,7 +847,7 @@ void Game::DrawWaypoint(const Waypoint& wp) {
     // Over a head if it is somebody; over a way out, clear of the prompt that
     // names it, which is drawn after this and used to sit on top of it.
     const float up = wp.here ? 54.0f : 50.0f;
-    const SDL_FPoint p = world->camera.ToScreen(wp.local_x, wp.local_y - lift - up);
+    const SDL_FPoint p = UiPoint(wp.local_x, wp.local_y - lift - up);
     const float w = ui.ViewWidth(), h = ui.ViewHeight();
     const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
     const auto tri = [&](SDL_FPoint a, SDL_FPoint b, SDL_FPoint c, SDL_Color col) {
@@ -805,6 +888,27 @@ void Game::DrawWaypoint(const Waypoint& wp) {
     arrow(18.0f * grow, edge);
     arrow(13.0f * grow, gold);
     ui.TextShadowed(std::to_string(paces), at.x - dx * 30.0f, at.y - dy * 30.0f - 8.0f, TextSize::Small, gold, Align::Center);
+}
+
+void Game::DrawXpLines(float x, float y) {
+    const Player& p = world->player;
+    for (const XpLine& line : xp_lines) {
+        // How far through the level this leaves you: the number that says
+        // whether the next one is a swing away or an evening.
+        const int level = p.skills.Level(line.skill);
+        const int have = p.skills.Xp(line.skill);
+        const int from = XpForLevel(level), to = XpForLevel(level + 1);
+        char buf[96];
+        if (level >= MAX_SKILL_LEVEL || to <= from)
+            SDL_snprintf(buf, sizeof(buf), "+%d %s", line.amount, SkillName(line.skill));
+        else
+            SDL_snprintf(buf, sizeof(buf), "+%d %s   %d%%", line.amount, SkillName(line.skill),
+                         std::clamp(static_cast<int>(100.0f * (have - from) / (to - from)), 0, 99));
+        SDL_Color c = Palette::Xp;
+        c.a = static_cast<Uint8>(255.0f * std::clamp((2.8f - line.age) / 0.6f, 0.0f, 1.0f));
+        ui.TextShadowed(buf, x, y, TextSize::Small, c);
+        y += ui.LineHeight(TextSize::Small) + 2.0f;
+    }
 }
 
 void Game::DrawHud() {
@@ -938,9 +1042,118 @@ void Game::DrawHud() {
         ui.TextShadowed(line, hp_bar.x, y, TextSize::Small, col);
     }
 
+    // Down the left edge, under everything that lives in the top corner.
+    if (settings.xp_drops) DrawXpLines(hp_bar.x, floorf(ui.ViewHeight() * 0.40f));
+
     // Meters and prompts describe what the button does right now, so they are
     // only meaningful while the player actually has control.
     const bool live = (state == GameState::Play);
+
+    // --- abilities -----------------------------------------------------------
+    // The ones carried, bottom left, stacked up from the hint line: the keys,
+    // the name, and a bar that refills as it comes back. What is running -- a
+    // war cry, a mana shield -- beside. Drawn ahead of the middle of the foot
+    // of the screen, which has to know how much of this corner is taken: the
+    // boxes, and the line beside them.
+    SDL_FRect corner[2] = {};
+    {
+        const Player& me = world->player;
+        int carrying = 0;
+        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) carrying += me.talents.Ability(slot) ? 1 : 0;
+        // What is to hand goes at the foot of the same stack, when there is
+        // anything that could be: a box like an ability's, with how many are
+        // left where the cooldown would be.
+        string quick = me.QuickItem();
+        if (quick.empty() && !me.QuickChoices().empty()) quick = me.QuickChoices().front();
+        const ItemDef* quick_def = quick.empty() ? nullptr : items.Get(quick);
+        const int rows_up = carrying + (quick_def ? 1 : 0);
+        const float ay = ui.ViewHeight() - 40.0f - 30.0f * static_cast<float>(std::max(1, rows_up));
+        if (quick_def && live) {
+            const int have = me.inventory.Count(quick);
+            const SDL_FRect box = {18.0f, ay + static_cast<float>(carrying) * 30.0f, 214.0f, 26.0f};
+            const float chewing = std::clamp(me.EatCooldown() / Player::EAT_COOLDOWN, 0.0f, 1.0f);
+            ui.Fill(box, {18, 15, 13, 190});
+            if (have > 0)
+                ui.Fill({box.x, box.y, box.w * (1.0f - chewing), box.h},
+                        chewing > 0.0f ? SDL_Color{58, 70, 48, 210} : SDL_Color{52, 92, 56, 225});
+            ui.Outline(box, have > 0 && chewing <= 0.0f ? Palette::Xp : Palette::BorderDim, 1.0f);
+            ui.Text(input.PromptFor(Action::Block) + "+" + input.PromptFor(Action::Interact),
+                    box.x + 6.0f, box.y + 4.0f, TextSize::Small, Palette::TextDim);
+            if (!quick_def->icon.empty())
+                if (SDL_Texture* tex = textures->Get(quick_def->icon)) {
+                    const SDL_FRect ic = {box.x + 60.0f, box.y + 3.0f, 20.0f, 20.0f};
+                    SDL_RenderTexture(renderer, tex, nullptr, &ic);
+                }
+            ui.Text(quick_def->name, box.x + 84.0f, box.y + 4.0f, TextSize::Small,
+                    have > 0 ? Palette::Text : SDL_Color{150, 110, 100, 255});
+            ui.Text("x" + std::to_string(have), box.x + box.w - 8.0f, box.y + 4.0f, TextSize::Small,
+                    have > 0 ? Palette::TextDim : SDL_Color{200, 110, 100, 255}, Align::Right);
+        }
+        int drawn = 0;
+        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
+            const TalentNode* carried = me.talents.Ability(slot);
+            if (!carried) continue;
+            const SDL_FRect box = {18.0f, ay + static_cast<float>(drawn++) * 30.0f, 214.0f, 26.0f};
+            const float left = me.AbilityCooldown(slot);
+            const float ready = carried->cooldown > 0.0f ? 1.0f - std::clamp(left / carried->cooldown, 0.0f, 1.0f) : 1.0f;
+            const bool afford = (carried->stamina_cost <= 0 || me.Stamina() >= carried->stamina_cost) &&
+                                (carried->mana_cost <= 0 || me.Mana() >= carried->mana_cost);
+            ui.Fill(box, {18, 15, 13, 190});
+            ui.Fill({box.x, box.y, box.w * ready, box.h}, left > 0.0f ? SDL_Color{52, 66, 88, 210}
+                                                         : afford ? SDL_Color{46, 84, 120, 225} : SDL_Color{88, 52, 46, 215});
+            ui.Outline(box, left > 0.0f ? Palette::BorderDim : SDL_Color{130, 190, 240, 255}, 1.0f);
+            ui.Text(input.PromptFor(Action::Block) + "+" + input.PromptFor(AbilityButton(slot)),
+                    box.x + 6.0f, box.y + 4.0f, TextSize::Small, Palette::TextDim);
+            ui.Text(carried->name, box.x + 62.0f, box.y + 4.0f, TextSize::Small, left > 0.0f ? Palette::TextDim : Palette::Text);
+            if (left > 0.0f)
+                ui.Text(std::to_string(static_cast<int>(std::ceil(left))), box.x + box.w - 8.0f, box.y + 4.0f,
+                        TextSize::Small, Palette::TextDim, Align::Right);
+        }
+        string running;
+        if (me.WarCry())     running += "War Cry " + std::to_string(static_cast<int>(std::ceil(me.WarCryLeft()))) + "   ";
+        if (me.ManaShield()) running += "Mana Shield " + std::to_string(static_cast<int>(std::ceil(me.ManaShieldLeft()))) + "   ";
+        if (me.Frenzied())     running += "Frenzy " + std::to_string(static_cast<int>(std::ceil(me.FrenzyLeft()))) + "   ";
+        if (me.StandingFast()) running += "Stand Fast " + std::to_string(static_cast<int>(std::ceil(me.StandFastLeft()))) + "   ";
+        if (me.RapidFire())    running += "Rapid Fire " + std::to_string(static_cast<int>(std::ceil(me.RapidFireLeft()))) + "   ";
+        if (me.Aiming())       running += "Aim held   ";
+        if (me.Overloaded())   running += "Overloaded   ";
+        if (me.Invoking())     running += "Invoking   ";
+        if (me.RiposteReady()) running += "Riposte ready   ";
+        if (!running.empty()) ui.TextShadowed(running, 240.0f, ay + 6.0f, TextSize::Small, {255, 214, 140, 255});
+
+        if (rows_up > 0) corner[0] = {18.0f, ay, 214.0f, 30.0f * static_cast<float>(rows_up) - 4.0f};
+        if (!running.empty()) corner[1] = {240.0f, ay + 6.0f, ui.Measure(running, TextSize::Small).x, line_h};
+        ui.Claim("abilities", corner[0]);
+        ui.Claim("what is running", corner[1]);
+    }
+
+    // --- the foot of the screen -------------------------------------------------
+    // The key hints run along the bottom edge, and what the buttons will do
+    // right now is stacked up from them in the middle: the element bar with its
+    // spell named under it, the line for a combo or a technique, the prompt.
+    // Each goes on top of the last and is measured, not counted up from the
+    // bottom on its own -- which is how the spell's name and the key hints came
+    // to be written on the same line, twenty-eight up, and a combo across the
+    // element bar. At no size of window or of interface is there a line here
+    // with two things on it.
+    //
+    // In half a screen the middle reaches over the corner the abilities are
+    // in. Whatever would land on them there goes above them instead, and the
+    // rest of the stack on top of that.
+    const float foot_y = ui.ViewHeight() - 28.0f;
+    float stack_y = foot_y;         // the top of whatever was stacked last
+    float stack_half = 0.0f;        // and half the width of the widest of it
+    const auto stack = [&](const char* what, float w, float h, float gap) {
+        const float left = roundf(ui.ViewWidth() / 2.0f - w / 2.0f);
+        float top = stack_y - gap - h;
+        for (const SDL_FRect& c : corner)
+            if (c.w > 0.0f && left < c.x + c.w + 8.0f && top < c.y + c.h + 4.0f && top + h > c.y - 4.0f)
+                top = c.y - 4.0f - h;
+        stack_y = top;
+        stack_half = std::max(stack_half, w / 2.0f);
+        ui.Claim(what, {left, top, w, h});
+        return top;
+    };
 
     // --- what the attack button will do ---------------------------------------
     // A staff shows the four elements with the selected one lit, and names the
@@ -953,8 +1166,31 @@ void Game::DrawHud() {
             const float box = 30.0f, gap = 5.0f;
             const float total = box * 5 + gap * 4;
             const float x0 = ui.ViewWidth() / 2.0f - total / 2.0f;
-            const float y0 = ui.ViewHeight() - 62.0f;
             const vector<string> arcane_known = world->KnownArcane(spells);
+
+            // The line under the boxes first: the bar and its name are one
+            // piece of the stack, as wide as the wider of them.
+            const bool arcane_on = p.SelectedElement() == Element::Arcane;
+            const SpellDef* current = arcane_on ? spells.Get(p.ArcaneSpell())
+                                                : spells.BestFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
+            string line;
+            if (current && arcane_on && current->level > p.skills.Level(SKILL_MAGIC)) {
+                line = current->name + "   needs Magic " + std::to_string(current->level);
+            } else if (current) {
+                line = current->name + "   " + std::to_string(current->mana) + " mana";
+                if (arcane_on && arcane_known.size() > 1)
+                    line += "   " + input.PromptFor(Action::SelectArcane) + " again: next";
+                // A staff's technique rides on the same line as the spell.
+                if (const TalentNode* t = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique()))
+                    line += "     hold " + input.PromptFor(Action::StrongAttack) + ": " + t->name;
+            } else {
+                const SpellDef* next = arcane_on ? nullptr
+                                     : spells.NextFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
+                line = next ? ("Magic " + std::to_string(next->level) + " for " + next->name)
+                            : arcane_on ? "No ancient magic known" : "Nothing known";
+            }
+            const float y0 = stack("element bar", std::max(total, ui.Measure(line, TextSize::Small).x),
+                                   box + 4.0f + line_h, 5.0f);
 
             for (int i = 0; i < 5; ++i) {
                 const bool on = (kOrder[i] == p.SelectedElement());
@@ -979,25 +1215,6 @@ void Game::DrawHud() {
                         Align::Center);
             }
 
-            const bool arcane_on = p.SelectedElement() == Element::Arcane;
-            const SpellDef* current = arcane_on ? spells.Get(p.ArcaneSpell())
-                                                : spells.BestFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
-            string line;
-            if (current && arcane_on && current->level > p.skills.Level(SKILL_MAGIC)) {
-                line = current->name + "   needs Magic " + std::to_string(current->level);
-            } else if (current) {
-                line = current->name + "   " + std::to_string(current->mana) + " mana";
-                if (arcane_on && arcane_known.size() > 1)
-                    line += "   " + input.PromptFor(Action::SelectArcane) + " again: next";
-                // A staff's technique rides on the same line as the spell.
-                if (const TalentNode* t = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique()))
-                    line += "     hold " + input.PromptFor(Action::StrongAttack) + ": " + t->name;
-            } else {
-                const SpellDef* next = arcane_on ? nullptr
-                                     : spells.NextFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
-                line = next ? ("Magic " + std::to_string(next->level) + " for " + next->name)
-                            : arcane_on ? "No ancient magic known" : "Nothing known";
-            }
             ui.TextShadowed(line, ui.ViewWidth() / 2.0f, y0 + box + 4.0f,
                             TextSize::Small,
                             current ? ElementColor(p.SelectedElement()) : Palette::TextDim,
@@ -1005,29 +1222,30 @@ void Game::DrawHud() {
         }
 
         // The technique a held heavy attack will come out as, from the tree --
-        // on the line under the prompts, where the bow says it is drawn.
+        // on the line under the prompts, where the bow says it is drawn. The
+        // line keeps its place in the stack with nothing on it, so a prompt
+        // does not hop up for the two fifths of a second a chain is open.
         const TalentNode* tech = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique());
         const ComboMove next_light = p.NextCombo(true), next_heavy = p.NextCombo(false);
+        string line;
+        SDL_Color line_col = Palette::TextDim;
         if (next_light != ComboMove::None || next_heavy != ComboMove::None) {
             // The chain is open: what each button would come out as, for the
             // moment the window lasts.
-            string line;
             if (next_light != ComboMove::None)
                 line += input.PromptFor(Action::LightAttack) + ": " + ComboNameFor(next_light, style);
             if (next_heavy != ComboMove::None)
                 line += (line.empty() ? string("") : string("     ")) +
                         input.PromptFor(Action::StrongAttack) + ": " + ComboNameFor(next_heavy, style);
-            ui.TextShadowed(line, ui.ViewWidth() / 2.0f, ui.ViewHeight() - 46.0f, TextSize::Small,
-                            {255, 224, 140, 255}, Align::Center);
+            line_col = {255, 224, 140, 255};
         } else if (tech && style != AttackStyle::Magic) {
-            ui.TextShadowed("Hold " + input.PromptFor(Action::StrongAttack) + ": " + tech->name,
-                            ui.ViewWidth() / 2.0f, ui.ViewHeight() - 46.0f, TextSize::Small,
-                            {236, 150, 110, 255}, Align::Center);
+            line = "Hold " + input.PromptFor(Action::StrongAttack) + ": " + tech->name;
+            line_col = {236, 150, 110, 255};
         } else if (style == AttackStyle::Ranged) {
-            ui.TextShadowed("Bow drawn", ui.ViewWidth() / 2.0f,
-                            ui.ViewHeight() - 46.0f, TextSize::Small,
-                            Palette::TextDim, Align::Center);
+            line = "Bow drawn";
         }
+        const float line_y = stack("attack line", line.empty() ? 0.0f : ui.Measure(line, TextSize::Small).x, line_h, 5.0f);
+        ui.TextShadowed(line, ui.ViewWidth() / 2.0f, line_y, TextSize::Small, line_col, Align::Center);
     }
 
     // --- the chain -------------------------------------------------------------
@@ -1067,10 +1285,16 @@ void Game::DrawHud() {
             const SDL_FRect box = {roundf(cx - w / 2.0f), 12.0f, w, 48.0f};
             ui.Fill(box, {14, 11, 9, 200});
             ui.Outline(box, lock ? SDL_Color{206, 70, 56, 255} : Palette::BorderDim, lock ? 2.0f : 1.0f);
+            // `boss` in enemies.json was read into the definition and then by
+            // nothing. It is what tells a player the thing in front of them is
+            // not one of a pack, so the frame says so, in the gold a rare
+            // thing is written in.
+            const bool boss = t->Def()->is_boss;
             ui.TextShadowed(t->Def()->name, box.x + 12.0f, box.y + 5.0f, TextSize::Small,
-                            lock ? Palette::Highlight : Palette::Text);
-            ui.TextShadowed(lock ? "LOCKED   Lv " + std::to_string(t->ShownLevel())
-                                 : input.PromptFor(Action::Target) + " lock   Lv " + std::to_string(t->ShownLevel()),
+                            boss ? SDL_Color{255, 214, 96, 255} : (lock ? Palette::Highlight : Palette::Text));
+            const string level_tag = string(boss ? "Boss   Lv " : "Lv ") + std::to_string(t->ShownLevel());
+            ui.TextShadowed(lock ? "LOCKED   " + level_tag
+                                 : input.PromptFor(Action::Target) + " lock   " + level_tag,
                             box.x + box.w - 12.0f, box.y + 5.0f, TextSize::Small,
                             lock ? SDL_Color{236, 110, 90, 255} : Palette::TextDim, Align::Right);
             ui.FramedBar({box.x + 12.0f, box.y + 27.0f, box.w - 24.0f, 12.0f}, t->HealthFraction(),
@@ -1081,7 +1305,7 @@ void Game::DrawHud() {
     // --- charge meter --------------------------------------------------------
     if (live && p.IsCharging()) {
         const float t = p.ChargeProgress();
-        const SDL_FPoint anchor = world->camera.ToScreen(p.x, p.y + 10.0f);
+        const SDL_FPoint anchor = UiPoint(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 34.0f, anchor.y + 8.0f, 68.0f, 8.0f};
         // Turns bright at full charge, so the release timing is readable.
         const SDL_Color fill = (t >= 1.0f) ? SDL_Color{255, 236, 150, 255} : Palette::Charge;
@@ -1099,7 +1323,7 @@ void Game::DrawHud() {
     // bar in the middle of a fight.
     if (live && !p.IsCharging() && p.CooldownProgress() > 0.0f) {
         const float t = p.CooldownProgress();
-        const SDL_FPoint anchor = world->camera.ToScreen(p.x, p.y + 10.0f);
+        const SDL_FPoint anchor = UiPoint(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 20.0f, anchor.y + 9.0f, 40.0f, 3.0f};
         ui.Bar(bar, t, SDL_Color{188, 170, 140, 190}, {26, 22, 18, 150});
     }
@@ -1112,24 +1336,28 @@ void Game::DrawHud() {
         const string prompt = "[" + input.PromptFor(Action::Jump) + "]  " + p.ClimbHint();
         const SDL_FPoint size = ui.Measure(prompt, TextSize::Body);
         const SDL_FRect box = {ui.ViewWidth() / 2.0f - size.x / 2.0f - 14.0f,
-                               ui.ViewHeight() - 92.0f, size.x + 28.0f, size.y + 12.0f};
+                               stack("prompt", size.x + 28.0f, size.y + 12.0f, 17.0f),
+                               size.x + 28.0f, size.y + 12.0f};
         ui.Panel(box);
         ui.Text(prompt, box.x + 14.0f, box.y + 6.0f, TextSize::Body, Palette::Highlight);
     }
 
     // --- gathering -----------------------------------------------------------
     if (live && world->Gathering()) {
-        const SDL_FPoint anchor = world->camera.ToScreen(p.x, p.y + 10.0f);
+        const SDL_FPoint anchor = UiPoint(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 34.0f, anchor.y + 8.0f, 68.0f, 8.0f};
         ui.Bar(bar, world->GatherProgress(), Palette::Xp, {20, 30, 20, 220});
     }
 
     // --- interact prompt -----------------------------------------------------
+    // The top of the stack at the foot of the screen, like the ledge's: there
+    // is only ever one of the two.
     if (live && p.interact.kind != InteractTarget::None && !world->Gathering()) {
         const string prompt = "[" + input.PromptFor(Action::Interact) + "]  " + p.interact.label;
         const SDL_FPoint size = ui.Measure(prompt, TextSize::Body);
         const SDL_FRect box = {ui.ViewWidth() / 2.0f - size.x / 2.0f - 14.0f,
-                               ui.ViewHeight() - 92.0f, size.x + 28.0f, size.y + 12.0f};
+                               stack("prompt", size.x + 28.0f, size.y + 12.0f, 17.0f),
+                               size.x + 28.0f, size.y + 12.0f};
         ui.Fill(box, {20, 16, 12, 210});
         ui.Outline(box, Palette::BorderDim, 1.0f);
         ui.Text(prompt, ui.ViewWidth() / 2.0f, box.y + 6.0f, TextSize::Body,
@@ -1159,10 +1387,16 @@ void Game::DrawHud() {
             else if (nearest == to_t) { text = "^ " + portal.label; ny = -1.0f; }
             else                      { text = "v " + portal.label; ny =  1.0f; }
 
-            SDL_FPoint s = world->camera.ToScreen(px, py);
+            SDL_FPoint s = UiPoint(px, py);
             const SDL_FPoint size = ui.Measure(text, TextSize::Small);
             s.x = std::clamp(s.x - nx * 90.0f, size.x / 2.0f + 12.0f, ui.ViewWidth() - size.x / 2.0f - 12.0f);
-            s.y = std::clamp(s.y - ny * 70.0f, 40.0f, ui.ViewHeight() - 60.0f);
+            // A way out to the south is under the player's feet, which is
+            // under the middle of the screen: over the stack at its foot, the
+            // label sits on top of that rather than across it.
+            const bool over_stack = fabsf(s.x - ui.ViewWidth() / 2.0f) < size.x / 2.0f + 8.0f + stack_half + 8.0f;
+            const float lowest = over_stack ? std::min(ui.ViewHeight() - 60.0f, stack_y - size.y - 12.0f)
+                                            : ui.ViewHeight() - 60.0f;
+            s.y = std::clamp(s.y - ny * 70.0f, 40.0f, std::max(40.0f, lowest));
 
             ui.Fill({roundf(s.x - size.x / 2.0f - 8.0f), roundf(s.y - 4.0f), size.x + 16.0f, size.y + 8.0f},
                     {14, 11, 9, static_cast<Uint8>(170.0f * fade)});
@@ -1246,11 +1480,17 @@ void Game::DrawHud() {
             where_line = waypoint.hint;
         }
     }
-    if (!active.empty()) {
+    // Sits below the minimap, and below however many toasts are stacked. Three
+    // at most, and fewer where three would run off the bottom: half a split
+    // screen, one above the other, in the smallest window has room under the
+    // minimap for one -- and drew three, the last of them off its half.
+    const float tracker_y = kHudRightTop + toasts.size() * 20.0f;
+    const float tracker_room = ui.ViewHeight() - 8.0f - (tracker_y + 18.0f) - (where_line.empty() ? 0.0f : 18.0f);
+    const size_t shown = std::min<size_t>({active.size(), size_t{3},
+                                           static_cast<size_t>(std::max(0.0f, tracker_room) / 42.0f)});
+    if (shown > 0) {
         const float right = ui.ViewWidth() - 18.0f;
-        // Sits below the minimap, and below however many toasts are stacked.
-        float y = kHudRightTop + toasts.size() * 20.0f;
-        const size_t shown = std::min<size_t>(active.size(), 3);
+        float y = tracker_y;
 
         // A dark backing sized to the text. The dim objective lines were
         // unreadable over the pale olive grass and the road, shadow or not.
@@ -1299,48 +1539,6 @@ void Game::DrawHud() {
         ui.TextShadowed(fed, 18.0f, 16.0f + 3.0f * 22.0f + 26.0f, TextSize::Small, {186, 226, 150, 255});
     }
 
-    // --- abilities -----------------------------------------------------------
-    // The ones carried, bottom left, stacked up from the hint line: the keys,
-    // the name, and a bar that refills as it comes back. What is running -- a
-    // war cry, a mana shield -- beside.
-    {
-        const Player& me = world->player;
-        int carrying = 0;
-        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) carrying += me.talents.Ability(slot) ? 1 : 0;
-        const float ay = ui.ViewHeight() - 40.0f - 30.0f * static_cast<float>(std::max(1, carrying));
-        int drawn = 0;
-        for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
-            const TalentNode* carried = me.talents.Ability(slot);
-            if (!carried) continue;
-            const SDL_FRect box = {18.0f, ay + static_cast<float>(drawn++) * 30.0f, 214.0f, 26.0f};
-            const float left = me.AbilityCooldown(slot);
-            const float ready = carried->cooldown > 0.0f ? 1.0f - std::clamp(left / carried->cooldown, 0.0f, 1.0f) : 1.0f;
-            const bool afford = (carried->stamina_cost <= 0 || me.Stamina() >= carried->stamina_cost) &&
-                                (carried->mana_cost <= 0 || me.Mana() >= carried->mana_cost);
-            ui.Fill(box, {18, 15, 13, 190});
-            ui.Fill({box.x, box.y, box.w * ready, box.h}, left > 0.0f ? SDL_Color{52, 66, 88, 210}
-                                                         : afford ? SDL_Color{46, 84, 120, 225} : SDL_Color{88, 52, 46, 215});
-            ui.Outline(box, left > 0.0f ? Palette::BorderDim : SDL_Color{130, 190, 240, 255}, 1.0f);
-            ui.Text(input.PromptFor(Action::Block) + "+" + input.PromptFor(AbilityButton(slot)),
-                    box.x + 6.0f, box.y + 4.0f, TextSize::Small, Palette::TextDim);
-            ui.Text(carried->name, box.x + 62.0f, box.y + 4.0f, TextSize::Small, left > 0.0f ? Palette::TextDim : Palette::Text);
-            if (left > 0.0f)
-                ui.Text(std::to_string(static_cast<int>(std::ceil(left))), box.x + box.w - 8.0f, box.y + 4.0f,
-                        TextSize::Small, Palette::TextDim, Align::Right);
-        }
-        string running;
-        if (me.WarCry())     running += "War Cry " + std::to_string(static_cast<int>(std::ceil(me.WarCryLeft()))) + "   ";
-        if (me.ManaShield()) running += "Mana Shield " + std::to_string(static_cast<int>(std::ceil(me.ManaShieldLeft()))) + "   ";
-        if (me.Frenzied())     running += "Frenzy " + std::to_string(static_cast<int>(std::ceil(me.FrenzyLeft()))) + "   ";
-        if (me.StandingFast()) running += "Stand Fast " + std::to_string(static_cast<int>(std::ceil(me.StandFastLeft()))) + "   ";
-        if (me.RapidFire())    running += "Rapid Fire " + std::to_string(static_cast<int>(std::ceil(me.RapidFireLeft()))) + "   ";
-        if (me.Aiming())       running += "Aim held   ";
-        if (me.Overloaded())   running += "Overloaded   ";
-        if (me.Invoking())     running += "Invoking   ";
-        if (me.RiposteReady()) running += "Riposte ready   ";
-        if (!running.empty()) ui.TextShadowed(running, 240.0f, ay + 6.0f, TextSize::Small, {255, 214, 140, 255});
-    }
-
     // --- controls hint -------------------------------------------------------
     if (!live) return;
     string spell_hint;
@@ -1362,8 +1560,11 @@ void Game::DrawHud() {
                         input.PromptFor(Action::WorldMap) + " map    " +
                         input.PromptFor(Action::Pause) + " menu";
     // Half a screen has no room for the line, and two players know the keys.
-    if (!split_active)
-        ui.TextShadowed(hint, 18.0f, ui.ViewHeight() - 28.0f, TextSize::Small, Palette::TextDim);
+    // Its place is kept all the same, so the stack above it is where it was.
+    if (!split_active) {
+        ui.TextShadowed(hint, 18.0f, foot_y, TextSize::Small, Palette::TextDim);
+        if (ui.Auditing()) ui.Claim("key hints", {18.0f, foot_y, ui.Measure(hint, TextSize::Small).x, line_h});
+    }
 }
 
 void Game::DrawToasts() {
@@ -1374,7 +1575,7 @@ void Game::DrawToasts() {
     // With the skill tree open they are about what was just bought, and where
     // they usually go is where the tree says what a node does. Inside the
     // panel instead, in the gap under the description.
-    if (state == GameState::SkillsPanel && skills_tab > 0) {
+    if (state == GameState::SkillsPanel && skills_tab == 1) {
         const AttackStyle mine = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
         const float tree_w = 860.0f + 172.0f * (skill_trees.Tree(mine).BranchCount() - SkillTrees::BRANCHES);
         y = ui.ViewHeight() / 2.0f + 8.0f;
@@ -1526,6 +1727,20 @@ void Game::UpdateInventory() {
         // pressed twice, so a purse of coins is not one slip from the floor.
         // Leaving the map loses it, which is as close to destroying a thing
         // as the game gets.
+        // The lock-on button, which has nothing to lock on to in a bag, puts
+        // what the cursor is on to hand.
+        if (input.Pressed(Action::Target)) {
+            const ItemStack& under = p.inventory.Slot(inventory_cursor);
+            const ItemDef* ud = under.Empty() ? nullptr : items.Get(under.id);
+            if (ud && ud->consumable) {
+                p.SetQuickItem(under.id);
+                PushToast(ud->name + " is to hand: " + input.PromptFor(Action::Block) + " + " +
+                          input.PromptFor(Action::Interact) + " uses it.", Palette::Xp);
+                Audio::Play(Sfx::Equip);
+            } else if (ud) {
+                PushToast("Only something to eat or drink can be kept to hand.", Palette::TextDim);
+            }
+        }
         if (input.Pressed(Action::Drop)) {
             const ItemStack& s = p.inventory.Slot(inventory_cursor);
             const ItemDef* def = s.Empty() ? nullptr : items.Get(s.id);
@@ -1591,11 +1806,15 @@ void Game::DrawInventory() {
     const float grid_x = panel.x + 24.0f + (COLS * pitch - COLS * (cell + gap)) * 0.5f;
     const float grid_y = panel.y + 62.0f;
 
+    // Where the lit square is, so the card can be put beside it once the rest
+    // of the panel has been drawn and cannot paint over it.
+    SDL_FRect lit{0, 0, 0, 0};
     for (int i = 0; i < p.inventory.SlotCount(); ++i) {
         const int col = i % COLS, row = i / COLS;
         const SDL_FRect r = {grid_x + col * (cell + gap), grid_y + row * (cell + gap),
                              cell, cell};
         const bool selected = (!inventory_on_equipment && i == inventory_cursor);
+        if (selected) lit = r;
 
         ui.Fill(r, {34, 27, 22, 235});
         ui.Outline(r, selected ? Palette::Highlight : Palette::BorderDim,
@@ -1613,6 +1832,9 @@ void Game::DrawInventory() {
         if (s.qty > 1)
             ui.TextShadowed(std::to_string(s.qty), r.x + r.w - 4.0f, r.y + r.h - 18.0f,
                             TextSize::Small, Palette::Highlight, Align::Right);
+        // What is to hand wears a gold corner.
+        if (!p.QuickItem().empty() && s.id == p.QuickItem())
+            ui.Fill({r.x + 2.0f, r.y + 2.0f, 8.0f, 8.0f}, {255, 214, 96, 255});
     }
 
     // --- equipment -----------------------------------------------------------
@@ -1622,6 +1844,7 @@ void Game::DrawInventory() {
     for (int i = 0; i < SLOT_COUNT; ++i) {
         const SDL_FRect r = {eq_x, panel.y + 92.0f + i * 30.0f, 236.0f, 26.0f};
         const bool selected = (inventory_on_equipment && i == equipment_cursor);
+        if (selected) lit = r;
         ui.Fill(r, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
         ui.Outline(r, selected ? Palette::Highlight : Palette::BorderDim, 1.0f);
 
@@ -1707,11 +1930,20 @@ void Game::DrawInventory() {
                            COLS * pitch - 12.0f, TextSize::Small, Palette::Highlight);
     }
 
+    const ItemDef* under_cursor = sel_id.empty() ? nullptr : items.Get(sel_id);
+    const bool can_hand = !inventory_on_equipment && under_cursor && under_cursor->consumable;
     ui.Text(input.PromptFor(Action::Confirm) + " use / equip     " +
+            (can_hand ? input.PromptFor(Action::Target) + " keep to hand     " : string()) +
             input.PromptFor(Action::Drop) + " drop     " +
             input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
+
+    // Drawn over everything else: a card under the panel it belongs to would
+    // be a card nobody can read.
+    if (lit.w > 0.0f)
+        if (const ItemDef* def = sel_id.empty() ? nullptr : items.Get(sel_id))
+            DrawItemCard(*def, lit);
 }
 
 // =============================================================================
@@ -1724,7 +1956,8 @@ void Game::UpdateSkillsPanel() {
     // I and O (the shoulder buttons on a pad) step between the level list and
     // the character's tree -- their path's, the only one they have; the panel
     // closes with Back.
-    const int tabs = 2;
+    // ...and what the bosses have left them.
+    const int tabs = 3;
     skills_tab = std::clamp(skills_tab, 0, tabs - 1);
     if (input.Pressed(Action::Inventory)) { skills_tab = (skills_tab + tabs - 1) % tabs; tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
     if (input.Pressed(Action::Skills))    { skills_tab = (skills_tab + 1) % tabs;        tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
@@ -1737,6 +1970,7 @@ void Game::UpdateSkillsPanel() {
         MoveCursor(cursor, SKILL_COUNT);
         return;
     }
+    if (skills_tab == 2) return;         // the boons are read, not chosen
 
     Player& p = world->player;
     const AttackStyle style = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
@@ -1815,14 +2049,30 @@ void Game::UpdateSkillsPanel() {
 
     // Unlearning a tree takes two presses, so it cannot happen by accident.
     if (input.Pressed(Action::Target)) {
-        if (!tree_reset_armed) {
+        // It costs: sixty coins for every point being taken back. Free and
+        // unlimited, a build was whatever the next fight wanted -- thirty-three
+        // points against forty-two ranks is only a choice if changing your
+        // mind has a price. The first few points cost next to nothing to
+        // rethink, and a finished tree costs about two thousand.
+        const int spent = p.talents.PointsEarned(style, p.skills) - p.talents.PointsFree(style, p.skills);
+        const int fee = Talents::RESPEC_FEE * std::max(0, spent);
+        if (spent <= 0) {
+            PushToast("There is nothing in the " + tree.name + " tree to unlearn.", Palette::TextDim);
+        } else if (p.inventory.Coins() < fee) {
+            tree_reset_armed = false;
+            PushToast("Unlearning " + std::to_string(spent) + " points costs " + std::to_string(fee) +
+                      " coins. You have " + std::to_string(p.inventory.Coins()) + ".", {235, 150, 120, 255});
+            Audio::Play(Sfx::UiError);
+        } else if (!tree_reset_armed) {
             tree_reset_armed = true;
             PushToast("Press " + input.PromptFor(Action::Target) + " again to unlearn the " +
-                      tree.name + " tree.", {235, 190, 120, 255});
+                      tree.name + " tree for " + std::to_string(fee) + " coins.", {235, 190, 120, 255});
         } else {
+            p.inventory.SpendCoins(fee);
             p.talents.Reset(style);
             tree_reset_armed = false;
-            PushToast(tree.name + " tree unlearned. Its points are free again.", Palette::TextDim);
+            PushToast(tree.name + " tree unlearned for " + std::to_string(fee) + " coins. Its points are free again.",
+                      Palette::TextDim);
             Audio::Play(Sfx::UiBack);
         }
     }
@@ -1835,11 +2085,19 @@ void Game::DrawSkillsPanel() {
     // A tree with a fourth branch -- melee has Footwork -- widens the panel by
     // a column, so the node descriptions keep the room they had.
     float tree_w = 860.0f;
-    if (skills_tab > 0) {
+    if (skills_tab == 1) {
         const AttackStyle mine = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
         tree_w += 172.0f * (skill_trees.Tree(mine).BranchCount() - SkillTrees::BRANCHES);
     }
-    const SDL_FRect panel = CenteredPanel(ui, skills_tab == 0 ? 640.0f : tree_w, skills_tab == 0 ? 640.0f : 690.0f);
+    // As big as it wants to be, in a window with room for it; and in one
+    // without, as big as the window. It was 640 and 690 tall whatever it was
+    // drawn in, which is taller than a 1024 by 600 window and taller than a
+    // Steam Deck's screen at the 125% its text wants -- the title and the
+    // close prompt were both off the glass. (The overflow audit had a size for
+    // exactly this and had never actually tested it: see Game::RunAudit.)
+    const float fit_w = ui.ViewWidth() - 16.0f, fit_h = ui.ViewHeight() - 16.0f;
+    const SDL_FRect panel = CenteredPanel(ui, std::min(skills_tab == 1 ? tree_w : 640.0f, fit_w),
+                                          std::min(skills_tab == 1 ? 690.0f : 640.0f, fit_h));
     ui.Panel(panel);
 
     // --- tabs ------------------------------------------------------------------
@@ -1848,16 +2106,17 @@ void Game::DrawSkillsPanel() {
         // warden's the bow's, the wayfarer's the staff's.
         const AttackStyle path = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
         const string tree_tab = skill_trees.Tree(path).name + " tree";
-        const string kTabs[2] = {"Skills", tree_tab};
+        const size_t boons = world->player.talents.Boons().size();
+        const string kTabs[3] = {"Skills", tree_tab, boons ? "Boons (" + std::to_string(boons) + ")" : string("Boons")};
         float tx = panel.x + 24.0f;
-        for (int t = 0; t < 2; ++t) {
+        for (int t = 0; t < 3; ++t) {
             const float w = ui.Measure(kTabs[t], TextSize::Body).x + 24.0f;
             const SDL_FRect tab = {tx, panel.y + 14.0f, w, 30.0f};
             const bool on = (t == skills_tab);
             ui.Fill(tab, on ? SDL_Color{70, 54, 30, 235} : SDL_Color{30, 24, 20, 200});
             ui.Outline(tab, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
             int free = 0;
-            if (t > 0) free = world->player.talents.PointsFree(path, s);
+            if (t == 1) free = world->player.talents.PointsFree(path, s);
             ui.Text(kTabs[t], tab.x + 12.0f, tab.y + 5.0f, TextSize::Body,
                     on ? Palette::Highlight : (free > 0 ? Palette::Xp : Palette::Text));
             tx += w + 6.0f;
@@ -1866,8 +2125,12 @@ void Game::DrawSkillsPanel() {
                 tx + 10.0f, panel.y + 22.0f, TextSize::Small, Palette::TextDim);
     }
 
-    if (skills_tab > 0) {
+    if (skills_tab == 1) {
         DrawSkillTree(panel);
+        return;
+    }
+    if (skills_tab == 2) {
+        DrawBoons(panel);
         return;
     }
 
@@ -1894,7 +2157,8 @@ void Game::DrawSkillsPanel() {
                        s.Level(SKILL_FISHING) >= 20 ? Palette::Xp : Palette::TextDim);
     }
 
-    const float row_h = 32.0f;
+    // Fourteen rows in whatever is left between the tabs and the footer.
+    const float row_h = std::clamp(floorf((panel.h - 58.0f - 134.0f) / static_cast<float>(SKILL_COUNT)), 24.0f, 32.0f);
     for (int i = 0; i < SKILL_COUNT; ++i) {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 58.0f + i * row_h,
                                panel.w - 40.0f, row_h - 4.0f};
@@ -1934,6 +2198,54 @@ void Game::DrawSkillsPanel() {
             panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
 }
 
+// What the bosses have left this character: see Talents::SlayBoss. Nothing to
+// choose here -- a boon is given, not bought -- so it is a page to read.
+void Game::DrawBoons(const SDL_FRect& panel) {
+    const Player& p = world->player;
+    const float x = panel.x + 24.0f, w = panel.w - 48.0f;
+    float y = panel.y + 58.0f;
+    y += ui.TextWrapped("The first time you bring down one of the great ones it leaves you two things, for good: "
+                        "a skill point for your tree, and a boon. The fifteenth time, its totem, for the ring in your house.",
+                        x, y, w, TextSize::Small, Palette::TextDim) + 14.0f;
+
+    const vector<string>& mine = p.talents.Boons();
+    if (mine.empty()) {
+        ui.Text("Nothing yet.", panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f - 30.0f, TextSize::Body,
+                Palette::TextDim, Align::Center);
+        ui.TextWrapped("There is one under the Barley and Bell, if Bess has not mentioned it.",
+                       x + 60.0f, panel.y + panel.h / 2.0f, w - 120.0f, TextSize::Small, Palette::TextDim);
+    }
+    // As many rows as there are bosses in the game would need, in the room there is.
+    const float room = panel.y + panel.h - 112.0f - y;
+    const float row_h = std::clamp(floorf(room / std::max<size_t>(1, mine.size())), 26.0f, 40.0f);
+    for (const string& id : mine) {
+        const BoonDef* b = skill_trees.Boon(id);
+        if (!b || y + row_h > panel.y + panel.h - 108.0f) continue;
+        const SDL_FRect row = {x, y, w, row_h - 4.0f};
+        ui.Fill(row, {40, 32, 22, 220});
+        ui.Outline(row, {232, 190, 96, 255}, 1.0f);
+        const float ty = row.y + (row.h - 20.0f) / 2.0f;
+        ui.Text(b->name, row.x + 12.0f, ty, TextSize::Body, Palette::Highlight);
+        ui.Text(b->text, row.x + row.w - 12.0f, ty + 3.0f, TextSize::Small, Palette::Text, Align::Right);
+        y += row_h;
+    }
+
+    // Who has been killed, by name, so that it is plain which are still to do.
+    // And how many times, because the fifteenth is the one that leaves a totem.
+    string fallen;
+    for (const string& id : p.talents.BossesSlain()) {
+        const EnemyDef* d = enemy_db.Get(id);
+        const int n = p.talents.Kills(id);
+        fallen += (fallen.empty() ? "" : ", ") + (d ? d->name : id) + " " +
+                  (n >= Talents::TOTEM_KILLS ? string("(totem)") : std::to_string(n) + "/" + std::to_string(Talents::TOTEM_KILLS));
+    }
+    if (!fallen.empty())
+        ui.TextWrapped("Brought down: " + fallen + ".", x, panel.y + panel.h - 104.0f, w, TextSize::Small, Palette::TextDim);
+
+    ui.Text(input.PromptFor(Action::Back) + " close", panel.x + panel.w / 2.0f,
+            panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
 void Game::DrawSkillTree(const SDL_FRect& panel) {
     const Player& p = world->player;
     const AttackStyle style = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
@@ -1942,14 +2254,27 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
     const int earned = p.talents.PointsEarned(style, p.skills);
     const int free = p.talents.PointsFree(style, p.skills);
 
-    char head[160];
-    SDL_snprintf(head, sizeof(head), "%s %d     %d of %d points free     a point every %d levels",
-                 SkillName(tree.skill), level, free, earned, SkillTrees::LEVELS_PER_POINT);
+    char head[200];
+    const int from_bosses = p.talents.BonusPoints();
+    if (from_bosses > 0)
+        SDL_snprintf(head, sizeof(head), "%s %d     %d of %d points free     a point every %d levels, and %d from bosses",
+                     SkillName(tree.skill), level, free, earned, SkillTrees::LEVELS_PER_POINT, from_bosses);
+    else
+        SDL_snprintf(head, sizeof(head), "%s %d     %d of %d points free     a point every %d levels, and one for each boss",
+                     SkillName(tree.skill), level, free, earned, SkillTrees::LEVELS_PER_POINT);
     ui.Text(head, panel.x + 24.0f, panel.y + 56.0f, TextSize::Small, free > 0 ? Palette::Xp : Palette::TextDim);
 
     // --- the grid ----------------------------------------------------------------
     const float gx = panel.x + 78.0f, gy = panel.y + 112.0f;
-    const float col_w = 172.0f, row_h = 62.0f, box_w = 150.0f, box_h = 44.0f;
+    // The grid is cut to the panel, which is cut to the window: the melee
+    // tree's four columns are 1032 wide at their full size, and eight rows of
+    // 62 are 496 before the headings. Columns give up width and rows give up
+    // the gap between boxes before either gives up the box itself, which has
+    // two lines of text to hold.
+    const int   columns = std::max(1, tree.BranchCount());
+    const float col_w = std::min(172.0f, floorf((panel.w - 78.0f - 36.0f - 230.0f) / columns));
+    const float row_h = std::clamp(floorf((panel.h - 112.0f - 82.0f) / SkillTrees::ROWS), 46.0f, 62.0f);
+    const float box_w = col_w - 22.0f, box_h = std::min(44.0f, row_h - 6.0f);
 
     for (int b = 0; b < tree.BranchCount(); ++b) {
         const string name = b < static_cast<int>(tree.branches.size()) ? tree.branches[b] : "";
@@ -1987,7 +2312,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         ui.Fill(box, fill);
         ui.Outline(box, selected ? SDL_Color{255, 255, 255, 255} : edge, selected ? 3.0f : 1.0f);
 
-        ui.Text(n.name, box.x + box_w / 2.0f, box.y + 5.0f, TextSize::Small, text, Align::Center);
+        ui.Text(n.name, box.x + box_w / 2.0f, box.y + (box_h >= 44.0f ? 5.0f : 3.0f), TextSize::Small, text, Align::Center);
         // Rushing Strike is neither a charged technique nor a passive: it is a
         // move of its own, made on its own button.
         string kind = !n.technique.empty() ? string(active ? "technique - active" : "technique")
@@ -1995,7 +2320,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
                     : n.effects.count("rushing_strike") ? string("move")
                     : n.row == SkillTrees::ROWS - 1 ? string("capstone") : string("passive");
         if (n.ranks > 1) kind += "  " + std::to_string(rank) + "/" + std::to_string(n.ranks);
-        ui.Text(kind, box.x + box_w / 2.0f, box.y + 23.0f, TextSize::Small,
+        ui.Text(kind, box.x + box_w / 2.0f, box.y + box_h - 21.0f, TextSize::Small,
                 !n.technique.empty() ? SDL_Color{236, 150, 110, 255}
                 : !n.ability.empty() ? SDL_Color{130, 190, 240, 255} : Palette::TextDim, Align::Center);
     }
@@ -2286,9 +2611,22 @@ void Game::DrawQuestPanel() {
             if (state == 2)
                 ui.Text("done", row.x + row.w - 8.0f, row.y + 5.0f, TextSize::Small,
                         kQuestDone, Align::Right);
-            else if (state == 1 && list[i] == quests->Followed())
-                ui.Text(quests->Chosen() ? "following" : "following (newest)", row.x + row.w - 8.0f, row.y + 5.0f,
-                        TextSize::Small, {255, 214, 96, 255}, Align::Right);
+            else if (state == 1 && list[i] == quests->Followed()) {
+                // The tag gives way to the name. "Cooking: Meat and Fire" and
+                // "following (newest)" do not both fit on a row, and drawn
+                // anyway they were one unreadable word. A gold bar down the
+                // row's edge marks it whatever happens; the words are added
+                // when there is room for them -- the long form, the short one,
+                // or none.
+                const SDL_Color gold{255, 214, 96, 255};
+                ui.Fill({row.x, row.y, 3.0f, row.h}, gold);
+                const float name_w = ui.Measure(d ? d->name : list[i], TextSize::Small).x;
+                const float room = row.w - 18.0f - name_w - 14.0f;
+                string tag = quests->Chosen() ? "following" : "following (newest)";
+                if (ui.Measure(tag, TextSize::Small).x > room) tag = "following";
+                if (ui.Measure(tag, TextSize::Small).x <= room)
+                    ui.Text(tag, row.x + row.w - 8.0f, row.y + 5.0f, TextSize::Small, gold, Align::Right);
+            }
         }
         if (list.size() > visible)
             ui.Text(std::to_string(cursor_here + 1) + "/" + std::to_string(list.size()),
@@ -2661,14 +2999,241 @@ constexpr SleepRow kSleepRows[2] = {
 };
 }
 
+// =============================================================================
+//  Waystones
+//
+//  Three old stones, one in each town and none anywhere else. Each is asleep
+//  until somebody puts a hand on it, and a woken one is a door to every other
+//  woken one -- so the road to a town is walked once, and the wilds and the
+//  dungeons are always walked. There is no fare: the price of a waystone is
+//  having got there.
+// =============================================================================
+
+namespace {
+struct Waystone { const char* id; const char* map; const char* name; const char* note; };
+const Waystone kWaystones[] = {
+    {"waystone_havenbrook", "town_havenbrook", "Havenbrook", "the market town on the southern road"},
+    {"waystone_mossvale",   "mossvale",        "Mossvale",   "the logging village under the Whisperwood"},
+    {"waystone_fernhollow", "fernhollow",      "Fernhollow", "the hamlet on still water"},
+};
+constexpr int kWaystoneCount = 3;
+}
+
+void Game::UpdateTravel() {
+    MoveCursor(travel_cursor, kWaystoneCount);
+
+    if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+        const Waystone& to = kWaystones[std::clamp(travel_cursor, 0, kWaystoneCount - 1)];
+        if (travel_from == to.id) {
+            PushToast("You are standing at it.", Palette::TextDim);
+            Audio::Play(Sfx::UiError);
+        } else if (!world->Flagged(to.id)) {
+            PushToast("The stone at " + string(to.name) + " is still asleep. It has to be woken by hand.",
+                      {235, 190, 120, 255});
+            Audio::Play(Sfx::UiError);
+        } else {
+            SetState(GameState::Play);
+            if (world->RequestTransition(to.map, "waystone")) Audio::Play(Sfx::QuestStart);
+        }
+        return;
+    }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
+        SetState(GameState::Play);
+}
+
+void Game::DrawTravel() {
+    ui.Dim(0.55f);
+    const float row_h = 58.0f;
+    const SDL_FRect panel = CenteredPanel(ui, 520.0f, 150.0f + kWaystoneCount * row_h);
+    ui.Panel(panel);
+    ui.Text("Waystone", panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
+            Palette::Highlight, Align::Center);
+    ui.Text("A woken stone opens on every other you have woken.", panel.x + panel.w / 2.0f,
+            panel.y + 52.0f, TextSize::Small, Palette::TextDim, Align::Center);
+
+    const SDL_Color cold{150, 220, 255, 255};
+    for (int i = 0; i < kWaystoneCount; ++i) {
+        const Waystone& w = kWaystones[i];
+        const SDL_FRect row = {panel.x + 20.0f, panel.y + 84.0f + i * row_h, panel.w - 40.0f, row_h - 8.0f};
+        const bool selected = (i == travel_cursor);
+        const bool here = travel_from == w.id;
+        const bool awake = world->Flagged(w.id);
+        ui.Fill(row, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
+        ui.Outline(row, selected ? Palette::Highlight : Palette::BorderDim, selected ? 2.0f : 1.0f);
+        // A lit or a dark eye, the way the stone itself shows it.
+        ui.Fill({row.x + 14.0f, row.y + 16.0f, 16.0f, 16.0f}, awake ? cold : SDL_Color{52, 50, 56, 255});
+        ui.Outline({row.x + 14.0f, row.y + 16.0f, 16.0f, 16.0f}, Palette::BorderDim, 1.0f);
+        ui.Text(w.name, row.x + 44.0f, row.y + 6.0f, TextSize::Body,
+                !awake ? SDL_Color{120, 110, 100, 255} : (selected ? Palette::Highlight : Palette::Text));
+        ui.Text(w.note, row.x + 44.0f, row.y + 28.0f, TextSize::Small, Palette::TextDim);
+        ui.Text(here ? "you are here" : (awake ? "awake" : "asleep"), row.x + row.w - 12.0f, row.y + 8.0f,
+                TextSize::Small, here ? Palette::Highlight : (awake ? cold : SDL_Color{150, 110, 100, 255}),
+                Align::Right);
+    }
+
+    ui.Text(input.PromptFor(Action::Confirm) + " go     " + input.PromptFor(Action::Back) + " stay",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small,
+            Palette::TextDim, Align::Center);
+}
+
+// =============================================================================
+//  The ring in the house at Mossvale
+//
+//  What a boss leaves the fifteenth time is a totem, and the ring in the floor
+//  of the player's own house is where one is stood. Touched, it gives its
+//  blessing for the rest of that day -- wherever they go, and through a death --
+//  and the next day it is a carving in a ring until it is touched again.
+//  One at a time: standing another in the ring puts the first back in the bag.
+// =============================================================================
+
+vector<string> Game::TotemChoices() const {
+    vector<string> out;
+    const Player& p = world->player;
+    if (!p.talents.PlacedTotem().empty()) out.push_back(p.talents.PlacedTotem());
+    for (const TotemDef& t : skill_trees.Totems())
+        if (p.inventory.Has(t.item) && std::find(out.begin(), out.end(), t.item) == out.end()) out.push_back(t.item);
+    return out;
+}
+
+void Game::UpdateTotemRing() {
+    Player& p = world->player;
+    const vector<string> have = TotemChoices();
+    if (!have.empty()) MoveCursor(totem_cursor, static_cast<int>(have.size()));
+    totem_cursor = std::clamp(totem_cursor, 0, std::max(0, static_cast<int>(have.size()) - 1));
+    const int today = world->clock.QuestDay();
+
+    if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && !have.empty()) {
+        const string pick = have[totem_cursor];
+        const TotemDef* def = skill_trees.Totem(pick);
+        const ItemDef* thing = items.Get(pick);
+        const string what = thing ? thing->name : pick;
+        if (pick == p.talents.PlacedTotem() && p.talents.TotemAwake()) {
+            PushToast("It is awake, and will be until dawn.", Palette::TextDim);
+            Audio::Play(Sfx::UiError);
+            return;
+        }
+        if (pick == p.talents.PlacedTotem()) {
+            // Standing there, asleep: a hand on it is all it wants.
+            p.talents.PlaceTotem(pick, today);
+        } else {
+            // Out of the bag and into the ring; what was in the ring, into the
+            // bag, which has the room the other one just left.
+            if (!p.inventory.Remove(pick, 1)) return;
+            const string was = p.talents.PlaceTotem(pick, today);
+            if (!was.empty()) p.inventory.Add(was, 1);
+            totem_cursor = 0;
+        }
+        // Some blessings are health, or mana: the pools are what they now are.
+        p.SyncHitpoints();
+        p.SyncMana();
+        // Two lines: a toast is one line from the right-hand edge, and the
+        // Pit Lord's blessing alone is most of a narrow window.
+        PushToast(what + " wakes, until dawn.", {255, 214, 120, 255});
+        if (def) PushToast(def->name + ": " + def->text + ".", {255, 214, 120, 255});
+        Audio::Play(Sfx::QuestStart);
+        return;
+    }
+    if (input.Pressed(Action::Drop) && !p.talents.PlacedTotem().empty()) {
+        if (p.inventory.Full()) {
+            PushToast("There is no room in your pack to carry it.", {235, 150, 120, 255});
+            Audio::Play(Sfx::UiError);
+            return;
+        }
+        const string was = p.talents.TakeTotem();
+        p.inventory.Add(was, 1);
+        p.SyncHitpoints();
+        p.SyncMana();
+        const ItemDef* thing = items.Get(was);
+        PushToast("You lift " + (thing ? thing->name : was) + " out of the ring. Its blessing goes with it.", Palette::TextDim);
+        Audio::Play(Sfx::UiBack);
+        totem_cursor = 0;
+        return;
+    }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
+        SetState(GameState::Play);
+}
+
+void Game::DrawTotemRing() {
+    ui.Dim(0.55f);
+    const Player& p = world->player;
+    const vector<string> have = TotemChoices();
+    const float row_h = 46.0f;
+    // Room for as many rows as the window has, and no fewer than three so the
+    // panel is not a letterbox with one totem in it.
+    const float fit_h = ui.ViewHeight() - 16.0f;
+    const int   rows = std::max(3, static_cast<int>(have.size()));
+    const float want_h = 176.0f + rows * row_h;
+    const SDL_FRect panel = CenteredPanel(ui, std::min(620.0f, ui.ViewWidth() - 16.0f), std::min(want_h, fit_h));
+    ui.Panel(panel);
+    ui.Text("The Ring", panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight, Align::Center);
+    const float x = panel.x + 24.0f, w = panel.w - 48.0f;
+    float y = panel.y + 52.0f;
+    y += ui.TextWrapped("One totem stands here at a time. Touched, it gives its blessing until dawn, wherever you go.",
+                        x, y, w, TextSize::Small, Palette::TextDim) + 10.0f;
+
+    if (have.empty()) {
+        ui.TextWrapped("You have no totems. A boss leaves its totem the " + std::to_string(Talents::TOTEM_KILLS) +
+                       "th time you bring it down -- it is back every dawn. The Boons page of your skills keeps count.",
+                       x + 30.0f, y + 26.0f, w - 60.0f, TextSize::Small, Palette::Text);
+    }
+    // The cursor kept in view, in a window that may be shorter than the list.
+    const int fit = std::max(1, static_cast<int>((panel.y + panel.h - 56.0f - y) / row_h));
+    const int first = std::clamp(totem_cursor - fit + 1, 0, std::max(0, static_cast<int>(have.size()) - fit));
+    for (int i = first; i < static_cast<int>(have.size()) && i < first + fit; ++i) {
+        const TotemDef* def = skill_trees.Totem(have[i]);
+        const ItemDef* thing = items.Get(have[i]);
+        const SDL_FRect row = {x, y, w, row_h - 6.0f};
+        const bool selected = i == totem_cursor;
+        const bool standing = have[i] == p.talents.PlacedTotem();
+        const bool awake = standing && p.talents.TotemAwake();
+        ui.Fill(row, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
+        ui.Outline(row, awake ? SDL_Color{255, 214, 120, 255} : (selected ? Palette::Highlight : Palette::BorderDim),
+                   selected || awake ? 2.0f : 1.0f);
+        if (thing && !thing->icon.empty())
+            if (SDL_Texture* tex = textures->Get(thing->icon)) {
+                const SDL_FRect ic = {row.x + 6.0f, row.y + 4.0f, 32.0f, 32.0f};
+                SDL_RenderTexture(renderer, tex, nullptr, &ic);
+            }
+        ui.Text(thing ? thing->name : have[i], row.x + 46.0f, row.y + 3.0f, TextSize::Body,
+                selected ? Palette::Highlight : Palette::Text);
+        ui.Text(standing ? (awake ? "awake until dawn" : "in the ring, asleep") : "in your pack",
+                row.x + row.w - 10.0f, row.y + 5.0f, TextSize::Small,
+                awake ? SDL_Color{255, 214, 120, 255} : (standing ? SDL_Color{170, 160, 190, 255} : Palette::TextDim),
+                Align::Right);
+        if (def) ui.Text(def->name + ": " + def->text, row.x + 46.0f, row.y + 22.0f, TextSize::Small, Palette::TextDim);
+        y += row_h;
+    }
+
+    string foot;
+    if (!have.empty()) {
+        const bool standing = have[std::clamp(totem_cursor, 0, static_cast<int>(have.size()) - 1)] == p.talents.PlacedTotem();
+        foot = input.PromptFor(Action::Confirm) + (standing ? " wake it" : (p.talents.PlacedTotem().empty() ? " stand it here" : " stand it here instead")) + "     ";
+        if (!p.talents.PlacedTotem().empty()) foot += input.PromptFor(Action::Drop) + " lift it out     ";
+    }
+    foot += input.PromptFor(Action::Back) + " leave";
+    ui.Text(foot, panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
 void Game::UpdateSleepPrompt() {
     MoveCursor(sleep_cursor, 2);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         const World::SleepChoice how = sleep_cursor == 0 ? World::SleepChoice::Through
                                                          : World::SleepChoice::Reverie;
+        // An inn's bed is paid for. Your own, and the ground, are not.
+        Player& sleeper = world->player;
+        if (sleep_fee > 0 && sleeper.inventory.Coins() < sleep_fee) {
+            PushToast("A bed here is " + std::to_string(sleep_fee) + " coins, and you have " +
+                      std::to_string(sleeper.inventory.Coins()) + ". A camp costs nothing.", {235, 150, 120, 255});
+            Audio::Play(Sfx::UiError);
+            return;
+        }
         SetState(GameState::Play);
-        world->Sleep(how, ctx);
+        if (world->Sleep(how, ctx) && sleep_fee > 0) {
+            sleeper.inventory.SpendCoins(sleep_fee);
+            PushToast("Paid " + std::to_string(sleep_fee) + " coins for the bed.", Palette::TextDim);
+        }
+        sleep_fee = 0;
         return;
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
@@ -2721,7 +3286,13 @@ void Game::DrawSleepPrompt() {
 
 void Game::UpdateCrafting() {
     const vector<const ItemDef*> recipes = items.Recipes(craft_station);
+    // Opened on the row it was left on. state_time is nothing on the frame a
+    // panel opens, which is the one frame the cursor is put back rather than
+    // remembered.
+    int& kept = craft_cursor_at[std::clamp(static_cast<int>(craft_station), 0, 7)];
+    if (state_time <= 0.0f) craft_cursor = std::clamp(kept, 0, std::max(0, static_cast<int>(recipes.size()) - 1));
     MoveCursor(craft_cursor, static_cast<int>(recipes.size()));
+    kept = craft_cursor;
 
     if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) &&
         !recipes.empty()) {
@@ -2745,47 +3316,232 @@ void Game::UpdateCrafting() {
             return;
         }
 
-        bool have_all = true;
-        for (const auto& in : recipe->craft_inputs)
-            if (!p.inventory.Has(in.first, in.second)) { have_all = false; break; }
+        // One, or with sprint held as many as there is the stuff for: the same
+        // hand the shop uses for ten. Twenty bars used to be twenty presses.
+        // Each is made exactly as one is -- its own materials, its own room in
+        // the pack, its own chance of burning -- so holding the button is a
+        // convenience and never a better deal.
+        const int wanted = input.Down(Action::Sprint) ? 99 : 1;
+        int made_n = 0, burnt_n = 0;
+        string stopped;
+        for (int n = 0; n < wanted; ++n) {
+            bool have_all = true;
+            for (const auto& in : recipe->craft_inputs)
+                if (!p.inventory.Has(in.first, in.second)) { have_all = false; break; }
+            if (!have_all) { stopped = "You are missing materials."; break; }
+            if (p.inventory.FreeSlots() == 0) { stopped = "Your pack is full."; break; }
 
-        if (!have_all) {
-            PushToast("You are missing materials.", {235, 150, 120, 255});
-            return;
-        }
-        if (p.inventory.FreeSlots() == 0) {
-            PushToast("Your pack is full.", {235, 150, 120, 255});
-            return;
-        }
+            for (const auto& in : recipe->craft_inputs) p.inventory.Remove(in.first, in.second);
 
-        for (const auto& in : recipe->craft_inputs) p.inventory.Remove(in.first, in.second);
-
-        // At a fire it can still be ruined, the way it always could: the
-        // chance falls away as the cook's level climbs past the dish's.
-        if (craft_station == CraftStation::Range) {
-            const float burn = std::max(0.0f, 0.34f - (p.skills.Level(skill) - recipe->craft_level) * 0.03f);
-            if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < burn) {
-                p.GrantXp(skill, std::max(1, recipe->craft_xp / 8));
-                PushToast("Burnt it.", {200, 110, 90, 255});
-                Audio::Play(Sfx::Burn);
-                return;
+            // At a fire it can still be ruined, the way it always could: the
+            // chance falls away as the cook's level climbs past the dish's.
+            if (craft_station == CraftStation::Range) {
+                const float burn = std::max(0.0f, 0.34f - (p.skills.Level(skill) - recipe->craft_level) * 0.03f);
+                if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < burn) {
+                    p.GrantXp(skill, std::max(1, recipe->craft_xp / 8));
+                    ++burnt_n;
+                    continue;
+                }
             }
-        }
 
-        p.inventory.Add(recipe->craft_result, recipe->craft_qty);
-        p.GrantXp(skill, recipe->craft_xp);
+            p.inventory.Add(recipe->craft_result, recipe->craft_qty);
+            p.GrantXp(skill, recipe->craft_xp);
+            // Tell the journal something was made. After the burn roll, so a
+            // ruined dinner does not count, and by how many came off -- a
+            // fleece spins into two bolts, and an order for two is filled by
+            // one of them.
+            QuestEvent made_it;
+            made_it.type   = ObjectiveType::Craft;
+            made_it.target = recipe->craft_result;
+            made_it.amount = std::max(1, recipe->craft_qty);
+            made_it.map_id = world->MapId();
+            quests->Notify(made_it, p.inventory);
+            ++made_n;
+        }
 
         const ItemDef* made = items.Get(recipe->craft_result);
-        PushToast(string(craft_station == CraftStation::Cauldron ? "Brewed " :
-                         craft_station == CraftStation::Anvil ? "Smithed " :
-                         craft_station == CraftStation::Range ? "Cooked " :
-                         craft_station == CraftStation::Loom ? "Wove " : "Crafted ") +
-                  (made ? made->name : recipe->craft_result) + ".", Palette::Xp);
+        const string what = made ? made->name : recipe->craft_result;
+        if (made_n > 0) {
+            const int total = made_n * std::max(1, recipe->craft_qty);
+            PushToast(string(craft_station == CraftStation::Cauldron ? "Brewed " :
+                             craft_station == CraftStation::Anvil ? "Smithed " :
+                             craft_station == CraftStation::Range ? "Cooked " :
+                             craft_station == CraftStation::Loom ? "Wove " : "Crafted ") +
+                      (total > 1 ? std::to_string(total) + "x " : string()) + what + ".", Palette::Xp);
+        }
+        if (burnt_n > 0) {
+            PushToast(burnt_n > 1 ? "Burnt " + std::to_string(burnt_n) + " of them." : string("Burnt it."),
+                      {200, 110, 90, 255});
+            Audio::Play(Sfx::Burn);
+        }
+        // Said when nothing at all could be made; a run that simply came to
+        // the end of the iron has nothing to apologise for.
+        if (made_n == 0 && burnt_n == 0 && !stopped.empty()) PushToast(stopped, {235, 150, 120, 255});
         quests->RefreshCollectObjectives(p.inventory);
     }
 
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
         SetState(GameState::Play);
+}
+
+// =============================================================================
+//  What an item is worth
+//
+//  Every panel that shows an item used to show its name, its description and
+//  what it needed to be worn -- and not one of its numbers. A sword on a
+//  smith's shelf said nothing about being better than the one in your hand,
+//  which is the only question anybody was asking of it.
+//
+//  This draws the numbers, and next to each the difference it would make
+//  against what is worn in that slot now. Green is better, red is worse, and a
+//  stat that is nothing on both pieces is left off entirely: a helmet's line
+//  is one line, not five zeroes. The comparison is what makes it worth
+//  reading, so a piece that goes in an empty slot compares against nothing and
+//  shows the whole of its bonus as the gain it is.
+// =============================================================================
+
+namespace {
+
+const SDL_Color kWorse{225, 130, 120, 255};
+
+// The one thing a panel decides for itself: what a verdict looks like. Which
+// rows there are is ItemStatLines' business, in the item layer, where it can
+// be checked by the self-test.
+SDL_Color DeltaColour(int verdict) {
+    return verdict > 0 ? Palette::Xp : (verdict < 0 ? kWorse : Palette::TextDim);
+}
+
+} // namespace
+
+// What is in the same slot now, which is what a piece is weighed against.
+const ItemDef* Game::WornAgainst(const ItemDef& d) const {
+    if (d.slot == SLOT_NONE) return nullptr;
+    const string& in_slot = world->player.equipment.InSlot(d.slot);
+    return in_slot.empty() ? nullptr : items.Get(in_slot);
+}
+
+// The line above the numbers, saying what they are being measured against.
+string Game::WornAgainstLine(const ItemDef& d) const {
+    if (d.slot == SLOT_NONE) return string();
+    const string& in_slot = world->player.equipment.InSlot(d.slot);
+    if (!in_slot.empty() && in_slot == d.id) return "Worn now";
+    if (const ItemDef* worn = in_slot.empty() ? nullptr : items.Get(in_slot))
+        return "Instead of " + worn->name;
+    return "Nothing worn there";
+}
+
+float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
+    const Player& p = world->player;
+    const float top = y;
+    const float row = 16.0f;
+    // Three columns: what the stat is, what this piece gives, and the change.
+    // The two numbers sit near each other rather than at opposite ends of the
+    // pane, because they are the pair being compared.
+    const float value_x = x + w * 0.58f;
+    const float delta_x = x + w * 0.88f;
+
+    const ItemDef* worn = WornAgainst(d);
+    const bool compare = (d.slot != SLOT_NONE);
+
+    if (compare) {
+        ui.Text(WornAgainstLine(d), x, y, TextSize::Small, Palette::TextDim);
+        y += row + 2.0f;
+    }
+    for (const ItemStat& r : ItemStatLines(d, worn, compare)) {
+        ui.Text(r.label, x, y, TextSize::Small, Palette::Text);
+        ui.Text(r.value, value_x, y, TextSize::Small,
+                r.value == "+0" ? Palette::TextDim : Palette::Xp, Align::Right);
+        if (!r.delta.empty()) ui.Text(r.delta, delta_x, y, TextSize::Small, DeltaColour(r.verdict), Align::Right);
+        y += row;
+    }
+
+    // What drinking or eating it does. A dish says the rest of its piece
+    // itself, in the panel that cooks it.
+    if (d.consumable && !d.IsDish()) {
+        string line;
+        if (d.heal > 0)  line += "Heals " + std::to_string(d.heal) + "   ";
+        if (d.mana > 0)  line += "+" + std::to_string(d.mana) + " mana   ";
+        if (d.stamina)   line += "full breath   ";
+        // A boost is a flat amount plus a share of the level, so what it is
+        // worth depends on who drinks it. Worked out for this character rather
+        // than printed as the two numbers it is stored as: "+3 and 10%" is a
+        // recipe, "+10 Strength" is the answer.
+        for (const auto& b : d.boosts) {
+            const int gain = ItemDef::BoostGain(b.second, p.skills.Level(b.first));
+            char buf[64];
+            SDL_snprintf(buf, sizeof(buf), "+%d %s   ", gain, SkillName(b.first));
+            line += buf;
+        }
+        if (!line.empty()) y += ui.TextWrapped(line, x, y, w, TextSize::Small, Palette::Xp);
+    }
+
+    // What it does that no stat block can say. The bag has always printed
+    // this; the shop and the anvil never did, which meant the one line that
+    // makes a legendary piece worth having was the one line you could not
+    // read until you owned it.
+    if (!d.passive_text.empty())
+        y += ui.TextWrapped(d.passive_text, x, y + 2.0f, w, TextSize::Small, Palette::Highlight) + 2.0f;
+
+    return y > top ? y - top + 4.0f : 0.0f;
+}
+
+// =============================================================================
+//  The card beside the cursor
+//
+//  The bag and the storage chest have no room under their grids for a stat
+//  block: their lower half is already the name, the tier and the description.
+//  So the numbers come to the cursor instead -- a small card beside whatever
+//  square is highlighted, for the things where the numbers are the question.
+//
+//  Only for what can be worn. A card over every rock and bar would be noise
+//  covering the grid it is trying to explain.
+// =============================================================================
+
+void Game::DrawItemCard(const ItemDef& d, const SDL_FRect& slot) {
+    if (d.slot == SLOT_NONE) return;
+    const ItemDef* worn = WornAgainst(d);
+    const vector<ItemStat> rows = ItemStatLines(d, worn, true);
+    if (rows.empty()) return;
+
+    const string head = WornAgainstLine(d);
+    const float pad = 10.0f, row_h = 16.0f;
+
+    // Wide enough for its own longest line, measured rather than guessed: item
+    // names run from "Cap" to "Orichalcum Greatsword".
+    float label_w = 0.0f, value_w = 0.0f, delta_w = 0.0f;
+    for (const ItemStat& r : rows) {
+        label_w = std::max(label_w, ui.Measure(r.label, TextSize::Small).x);
+        value_w = std::max(value_w, ui.Measure(r.value, TextSize::Small).x);
+        delta_w = std::max(delta_w, ui.Measure(r.delta, TextSize::Small).x);
+    }
+    const float gap = 10.0f;
+    const float widest_head = std::max(ui.Measure(d.name, TextSize::Small).x,
+                                       ui.Measure(head, TextSize::Small).x);
+    const float card_w = std::max(widest_head, label_w + gap + value_w + gap + delta_w) + pad * 2.0f;
+    const float card_h = pad * 2.0f + row_h * 2.0f + 4.0f + row_h * static_cast<float>(rows.size());
+
+    // Beside the square, on whichever side it fits; nudged back on-screen
+    // rather than allowed to hang off an edge.
+    SDL_FRect card = {slot.x + slot.w + 10.0f, slot.y - 6.0f, card_w, card_h};
+    if (card.x + card.w > ui.ViewWidth() - 8.0f) card.x = slot.x - card.w - 10.0f;
+    card.x = std::clamp(card.x, 8.0f, std::max(8.0f, ui.ViewWidth() - card.w - 8.0f));
+    card.y = std::clamp(card.y, 8.0f, std::max(8.0f, ui.ViewHeight() - card.h - 8.0f));
+
+    ui.Panel(card);
+    float y = card.y + pad;
+    ui.Text(d.name, card.x + pad, y, TextSize::Small, Palette::Highlight);
+    y += row_h;
+    ui.Text(head, card.x + pad, y, TextSize::Small, Palette::TextDim);
+    y += row_h + 4.0f;
+    const float value_x = card.x + card.w - pad - delta_w - gap;
+    const float delta_x = card.x + card.w - pad;
+    for (const ItemStat& r : rows) {
+        ui.Text(r.label, card.x + pad, y, TextSize::Small, Palette::Text);
+        ui.Text(r.value, value_x, y, TextSize::Small,
+                r.value == "+0" ? Palette::TextDim : Palette::Xp, Align::Right);
+        if (!r.delta.empty()) ui.Text(r.delta, delta_x, y, TextSize::Small, DeltaColour(r.verdict), Align::Right);
+        y += row_h;
+    }
 }
 
 void Game::DrawCrafting() {
@@ -2905,6 +3661,10 @@ void Game::DrawCrafting() {
         ui.Text(req, dx, y, TextSize::Small, Palette::Text);
         y += 22.0f;
     }
+    // What it would be worth wearing, against what is being worn. The reason
+    // to stand at an anvil is that the thing on it is better than the thing in
+    // your hand, and until now the panel never said so.
+    if (made) y += DrawItemStats(*made, dx, y, panel.w - list_w - 64.0f);
 
     ui.Text("Materials", dx, y, TextSize::Small, Palette::Highlight);
     y += 20.0f;
@@ -2924,7 +3684,9 @@ void Game::DrawCrafting() {
     ui.Text(std::to_string(r->craft_xp) + " " + SkillName(skill) + " XP", dx, y, TextSize::Small,
             Palette::TextDim);
 
-    ui.Text(input.PromptFor(Action::Confirm) + (cauldron ? " brew     " : anvil ? " smith     " : fire ? " cook     " : " craft     ") +
+    const string verb = cauldron ? " brew" : anvil ? " smith" : fire ? " cook" : loom ? " weave" : " craft";
+    ui.Text(input.PromptFor(Action::Confirm) + verb + "     " +
+            input.PromptFor(Action::Sprint) + " + " + input.PromptFor(Action::Confirm) + verb + " all     " +
             input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
@@ -2997,7 +3759,7 @@ void Game::DrawEnchanting() {
     ui.Text("Magic " + std::to_string(p.skills.Level(SKILL_MAGIC)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
-    ui.Text("A charm worked into a worn piece, for Magic. Each has to be learned before it can be worked.",
+    ui.Text("A charm worked into a worn piece, for Magic. Each is learned before it is worked.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -3280,6 +4042,10 @@ void Game::DrawShop() {
                 ui.Text(req, dx, y, TextSize::Small, Palette::Text);
                 y += 22.0f;
             }
+            // The numbers, and what they would be instead of what is on: a
+            // shelf of swords is a row of names until it says which is better
+            // than the one you came in with.
+            y += DrawItemStats(*d, dx, y, dw);
             ui.Text("You carry " + std::to_string(p.inventory.Count(id)), dx, y, TextSize::Small, Palette::Text);
             y += 20.0f;
 
@@ -3420,6 +4186,52 @@ void Game::UpdateStorage() {
     storage_bag_cursor = std::clamp(storage_bag_cursor, 0, std::max(0, bag_slots - 1));
     if (cursor != before || storage_on_chest != side_before) Audio::Play(Sfx::UiMove);
 
+    // --- by the armful ---------------------------------------------------------
+    // The drop button, which in a chest has nothing to drop. From the pack it
+    // stows everything the chest already has some of -- the ore goes with the
+    // ore -- or, with sprint held, everything but the purse and what cannot be
+    // parted with. From the chest it takes the lot. Emptying a full pack into
+    // a chest was fifty-six presses.
+    if (input.Pressed(Action::Drop)) {
+        const bool everything = input.Down(Action::Sprint);
+        Inventory& from = storage_on_chest ? chest : p.inventory;
+        Inventory& to   = storage_on_chest ? p.inventory : chest;
+        int moved_total = 0, kinds = 0;
+        bool no_room = false;
+        for (int i = 0; i < from.SlotCount(); ++i) {
+            const ItemStack stack = from.Slot(i);
+            if (stack.Empty()) continue;
+            if (!storage_on_chest) {
+                const ItemDef* d = items.Get(stack.id);
+                if (stack.id == "coins" || (d && d->keep)) continue;
+                if (!everything && !to.Has(stack.id, 1)) continue;
+            }
+            const int moved = to.Add(stack.id, stack.qty);
+            if (moved <= 0) { no_room = true; continue; }
+            from.RemoveSlot(i, moved);
+            moved_total += moved;
+            ++kinds;
+            if (moved < stack.qty) no_room = true;
+        }
+        if (moved_total > 0) {
+            PushToast((storage_on_chest ? "Took " : "Stowed ") + std::to_string(moved_total) + " things, " +
+                          std::to_string(kinds) + (kinds == 1 ? " kind" : " kinds") +
+                          (no_room ? "  -  no room for the rest" : ""),
+                      no_room ? SDL_Color{235, 200, 120, 255} : Palette::Text);
+            Audio::Play(Sfx::Pickup, 0.7f);
+            quests->RefreshCollectObjectives(p.inventory);
+        } else {
+            PushToast(no_room ? (storage_on_chest ? "Your pack is full." : "The chest is full.")
+                      : storage_on_chest ? "The chest is empty."
+                      : everything ? "There is nothing to stow."
+                                   : "Nothing you carry is already in here. Hold " +
+                                         input.PromptFor(Action::Sprint) + " to stow everything.",
+                      Palette::TextDim);
+            Audio::Play(Sfx::UiError);
+        }
+        return;
+    }
+
     if (!(input.Pressed(Action::Confirm) || input.Pressed(Action::Interact))) return;
 
     // One at a time, or the whole stack with sprint held: the same hand as the
@@ -3473,8 +4285,10 @@ void Game::DrawStorage() {
 
     // One square, drawn the same on either side so a stack does not change
     // appearance when it crosses over.
+    SDL_FRect lit{0, 0, 0, 0};
     const auto square = [&](const Inventory& inv, int i, float x, float y, bool selected) {
         const SDL_FRect r = {x, y, cell, cell};
+        if (selected) lit = r;
         ui.Fill(r, {34, 27, 22, 235});
         ui.Outline(r, selected ? Palette::Highlight : Palette::BorderDim, selected ? 2.0f : 1.0f);
         const ItemStack& s = inv.Slot(i);
@@ -3518,7 +4332,14 @@ void Game::DrawStorage() {
     }
     ui.Text(input.PromptFor(Action::Confirm) + " move one   -   hold " +
                 input.PromptFor(Action::Sprint) + " for the stack   -   " +
+                input.PromptFor(Action::Drop) + (storage_on_chest ? " take all" : " stow alike") + "   -   " +
                 input.PromptFor(Action::Back) + " close",
             panel.x + panel.w - 24.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
+
+    // The card last, over the top of the grids: moving armour between a chest
+    // and a pack is the other time you want to know which of two coifs is the
+    // better one.
+    if (lit.w > 0.0f && !sel.Empty())
+        if (const ItemDef* def = items.Get(sel.id)) DrawItemCard(*def, lit);
 }

@@ -26,11 +26,7 @@ bool UI::Init(SDL_Renderer* r) {
     std::error_code ec;
     for (const char* candidate : kFontCandidates) {
         if (!fs::exists(candidate, ec)) continue;
-        bool all_opened = true;
-        for (int i = 0; i < static_cast<int>(TextSize::COUNT); ++i) {
-            fonts[i] = TTF_OpenFont(candidate, kSizes[i]);
-            if (!fonts[i]) { all_opened = false; break; }
-        }
+        const bool all_opened = OpenFonts(candidate, scale);
         if (all_opened) {
             font_path = candidate;
             SDL_Log("UI: using font '%s'", candidate);
@@ -42,6 +38,32 @@ bool UI::Init(SDL_Renderer* r) {
 
     SDL_Log("UI: no usable font found; text will not render");
     return false;
+}
+
+bool UI::OpenFonts(const string& path, float at_scale) {
+    for (int i = 0; i < static_cast<int>(TextSize::COUNT); ++i) {
+        fonts[i] = TTF_OpenFont(path.c_str(), roundf(kSizes[i] * at_scale));
+        if (!fonts[i]) return false;
+    }
+    return true;
+}
+
+void UI::SetScale(float s) {
+    s = std::clamp(s, 1.0f, 2.0f);
+    if (fabsf(s - scale) < 0.001f) return;
+    scale = s;
+    // Every piece of text drawn so far was set at the old size.
+    for (auto& kv : cache)
+        if (kv.second.texture) SDL_DestroyTexture(kv.second.texture);
+    cache.clear();
+    if (font_path.empty()) return;
+    for (auto& f : fonts) { if (f) TTF_CloseFont(f); f = nullptr; }
+    if (!OpenFonts(font_path, scale)) {
+        SDL_Log("UI: could not reopen '%s' at %.2fx", font_path.c_str(), scale);
+        for (auto& f : fonts) { if (f) TTF_CloseFont(f); f = nullptr; }
+        scale = 1.0f;
+        OpenFonts(font_path, 1.0f);
+    }
 }
 
 void UI::Shutdown() {
@@ -74,8 +96,11 @@ UI::CachedText& UI::GetText(const string& text, TextSize size, SDL_Color color) 
         SDL_Surface* surface = TTF_RenderText_Blended(fonts[index], text.c_str(), 0, color);
         if (surface) {
             entry.texture = SDL_CreateTextureFromSurface(renderer, surface);
-            entry.w = static_cast<float>(surface->w);
-            entry.h = static_cast<float>(surface->h);
+            // In the panel's units: the texture is `scale` times the size
+            // the layout thinks it is, and is drawn back at exactly its own
+            // pixels once the renderer has been told to draw that much larger.
+            entry.w = static_cast<float>(surface->w) / scale;
+            entry.h = static_cast<float>(surface->h) / scale;
             SDL_DestroySurface(surface);
             if (entry.texture) SDL_SetTextureScaleMode(entry.texture, SDL_SCALEMODE_NEAREST);
         }
@@ -114,7 +139,7 @@ float UI::LineHeight(TextSize size) const {
     const int index = std::clamp(static_cast<int>(size), 0,
                                  static_cast<int>(TextSize::COUNT) - 1);
     if (!fonts[index]) return kSizes[index] * 1.3f;
-    return static_cast<float>(TTF_GetFontHeight(fonts[index]));
+    return static_cast<float>(TTF_GetFontHeight(fonts[index])) / scale;
 }
 
 void UI::Text(const string& text, float x, float y, TextSize size,
@@ -128,7 +153,10 @@ void UI::Text(const string& text, float x, float y, TextSize size,
     if (align == Align::Center)     draw_x = x - c.w / 2.0f;
     else if (align == Align::Right) draw_x = x - c.w;
 
-    SDL_FRect dst = {roundf(draw_x), roundf(y), c.w, c.h};
+    // On a whole pixel of the screen rather than of the layout: at 1.25 a
+    // whole layout unit is a pixel and a quarter, and text drawn across the
+    // join is text drawn soft.
+    SDL_FRect dst = {roundf(draw_x * scale) / scale, roundf(y * scale) / scale, c.w, c.h};
     SDL_RenderTexture(renderer, c.texture, nullptr, &dst);
 
     // A shadow is the same words a pixel over: only the words themselves count.
@@ -148,6 +176,22 @@ void UI::Text(const string& text, float x, float y, TextSize size,
         }
         if (o.off_window || o.over_left > 0.5f || o.over_right > 0.5f || o.over_bottom > 0.5f) audit_found.push_back(o);
     }
+}
+
+vector<UI::Overlap> UI::Overlaps() const {
+    vector<Overlap> out;
+    for (size_t i = 0; i < audit_claims.size(); ++i) {
+        for (size_t k = i + 1; k < audit_claims.size(); ++k) {
+            const SDL_FRect& a = audit_claims[i].r;
+            const SDL_FRect& b = audit_claims[k].r;
+            // How far into each other, the lesser way: touching is not meeting.
+            const float across = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
+            const float down   = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
+            if (across > 0.5f && down > 0.5f)
+                out.push_back({audit_claims[i].what, audit_claims[k].what, std::min(across, down)});
+        }
+    }
+    return out;
 }
 
 void UI::TextShadowed(const string& text, float x, float y, TextSize size,

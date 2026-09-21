@@ -109,6 +109,9 @@ struct Projectile {
     bool    owner_local = true;
     uint8_t owner_seat = 0;
     uint32_t net_id = 0;
+    // Which cast let it go, so the cast can be paid for when this lands on
+    // something -- see World::OpenCast. Nothing, for an arrow or a monster's.
+    uint32_t cast_id = 0;
     int   pierce_left = 0;
     int   bounces_left = 0;
     bool  finished = false;
@@ -162,6 +165,7 @@ struct GroundEffect {
     bool  from_player = true;
     bool    owner_local = true;
     uint8_t owner_seat = 0;
+    uint32_t cast_id = 0;        // the cast it came of, as a projectile's is
     bool  burst = false;         // one big hit rather than damage over time
     // A technique's strike: resolved as this style at this damage multiplier,
     // rather than as a spell scaled by damage. Negative for the old behaviour.

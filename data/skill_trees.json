@@ -892,5 +892,243 @@
         }
       }
     ]
-  }
+  },
+  "boons": [
+    {
+      "id": "boon_vigour",
+      "name": "Vigour",
+      "text": "+8% maximum health",
+      "effects": {
+        "max_health": 0.08
+      }
+    },
+    {
+      "id": "boon_stoneblood",
+      "name": "Stoneblood",
+      "text": "+5 Defence, whatever you wear",
+      "effects": {
+        "defence": 5
+      }
+    },
+    {
+      "id": "boon_long_wind",
+      "name": "Long Wind",
+      "text": "+10% maximum breath",
+      "effects": {
+        "stamina": 0.1
+      }
+    },
+    {
+      "id": "boon_second_breath",
+      "name": "Second Breath",
+      "text": "Breath comes back 12% faster",
+      "effects": {
+        "stamina_regen": 0.12
+      }
+    },
+    {
+      "id": "boon_fleetness",
+      "name": "Fleetness",
+      "text": "You walk 3% quicker",
+      "effects": {
+        "move_speed": 0.03
+      }
+    },
+    {
+      "id": "boon_keen_eye",
+      "name": "Keen Eye",
+      "text": "+2% chance to strike critically",
+      "effects": {
+        "crit": 0.02
+      }
+    },
+    {
+      "id": "boon_might",
+      "name": "Might",
+      "text": "+3% damage, with anything",
+      "effects": {
+        "damage": 0.03
+      }
+    },
+    {
+      "id": "boon_leech",
+      "name": "The Leech's Gift",
+      "text": "2% of the damage you deal comes back as health",
+      "effects": {
+        "lifesteal": 0.02
+      }
+    },
+    {
+      "id": "boon_sure_feet",
+      "name": "Sure Feet",
+      "text": "On the move, 3% of blows simply miss you",
+      "effects": {
+        "evade": 0.03
+      }
+    },
+    {
+      "id": "boon_swift_hands",
+      "name": "Swift Hands",
+      "text": "You attack 2% faster",
+      "effects": {
+        "speed": 0.02
+      }
+    },
+    {
+      "id": "boon_heavy_hitter",
+      "name": "Heavy Hitter",
+      "text": "Charged attacks hit 6% harder",
+      "effects": {
+        "charged_damage": 0.06
+      }
+    },
+    {
+      "id": "boon_shieldarm",
+      "name": "Shield Arm",
+      "text": "A blow caught on the shield costs 8% less breath",
+      "paths": [
+        "melee"
+      ],
+      "effects": {
+        "block_cost": 0.08
+      }
+    },
+    {
+      "id": "boon_true_flight",
+      "name": "True Flight",
+      "text": "Your arrows fly 8% faster",
+      "paths": [
+        "ranged"
+      ],
+      "effects": {
+        "projectile_speed": 0.08
+      }
+    },
+    {
+      "id": "boon_deep_reserves",
+      "name": "Deep Reserves",
+      "text": "+10% maximum mana",
+      "paths": [
+        "magic"
+      ],
+      "effects": {
+        "max_mana": 0.1
+      }
+    },
+    {
+      "id": "boon_wellspring",
+      "name": "Wellspring",
+      "text": "Mana comes back 12% faster",
+      "paths": [
+        "magic"
+      ],
+      "effects": {
+        "mana_regen": 0.12
+      }
+    }
+  ],
+  "totems": [
+    {
+      "item": "totem_broodmother",
+      "boss": "broodmother",
+      "name": "Skittering",
+      "text": "You walk 8% quicker",
+      "effects": {
+        "move_speed": 0.08
+      }
+    },
+    {
+      "item": "totem_lizardman_chief",
+      "boss": "lizardman_chief",
+      "name": "Cold Blood",
+      "text": "Breath comes back 30% faster",
+      "effects": {
+        "stamina_regen": 0.3
+      }
+    },
+    {
+      "item": "totem_barrow_wight",
+      "boss": "barrow_wight",
+      "name": "Grave Chill",
+      "text": "5% of the damage you deal comes back as health",
+      "effects": {
+        "lifesteal": 0.05
+      }
+    },
+    {
+      "item": "totem_orc3",
+      "boss": "orc3",
+      "name": "Warchief's Fury",
+      "text": "+10% damage, with anything",
+      "effects": {
+        "damage": 0.1
+      }
+    },
+    {
+      "item": "totem_well_warden",
+      "boss": "well_warden",
+      "name": "Deep Water",
+      "text": "On the move, 8% of blows simply miss you",
+      "effects": {
+        "evade": 0.08
+      }
+    },
+    {
+      "item": "totem_den_mother",
+      "boss": "den_mother",
+      "name": "Thick Hide",
+      "text": "+15 Defence, whatever you wear",
+      "effects": {
+        "defence": 15
+      }
+    },
+    {
+      "item": "totem_nightmare_troll",
+      "boss": "nightmare_troll",
+      "name": "Troll's Blood",
+      "text": "+20% maximum health",
+      "effects": {
+        "max_health": 0.2
+      }
+    },
+    {
+      "item": "totem_wyvern_matriarch",
+      "boss": "wyvern_matriarch",
+      "name": "Wind Under Wing",
+      "text": "You attack 6% faster",
+      "effects": {
+        "speed": 0.06
+      }
+    },
+    {
+      "item": "totem_pit_lord",
+      "boss": "pit_lord",
+      "name": "Hellfire",
+      "text": "+6% chance to strike critically, and critical blows hit 25% harder",
+      "effects": {
+        "crit": 0.06,
+        "crit_damage": 0.25
+      }
+    },
+    {
+      "item": "totem_frost_dragon",
+      "boss": "frost_dragon",
+      "name": "Hoarfrost",
+      "text": "+12 Defence and +12% maximum health",
+      "effects": {
+        "defence": 12,
+        "max_health": 0.12
+      }
+    },
+    {
+      "item": "totem_nightmare_dragon",
+      "boss": "nightmare_dragon",
+      "name": "Dread",
+      "text": "+8% damage, and charged attacks 15% more again",
+      "effects": {
+        "damage": 0.08,
+        "charged_damage": 0.15
+      }
+    }
+  ]
 }

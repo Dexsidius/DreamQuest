@@ -39,6 +39,8 @@ enum class GameState {
     Board,
     Note,
     SleepPrompt,       // a bed after dusk: sleep the night through, or dream
+    Travel,            // a waystone: which of the woken ones to go to
+    TotemRing,         // the ring in the house at Mossvale: which totem stands in it
     Crafting,
     Enchanting,
     Shop,
@@ -110,6 +112,8 @@ private:
     void UpdateBoard();
     void UpdateNote();
     void UpdateSleepPrompt();
+    void UpdateTravel();
+    void UpdateTotemRing();
     void UpdateCrafting();
     void UpdateEnchanting();
     void UpdateShop();
@@ -130,18 +134,52 @@ private:
     void DrawInventory();
     void DrawSkillsPanel();
     void DrawSkillTree(const SDL_FRect& panel);
+    void DrawBoons(const SDL_FRect& panel);
     void DrawQuestPanel();
     void DrawWorldMap();
     void DrawDialogue();
     void DrawBoard();
     void DrawNote();
     void DrawSleepPrompt();
+    void DrawTravel();
+    void DrawTotemRing();
+    // The totems this character has, the one in the ring first: what the
+    // ring's panel lists.
+    vector<string> TotemChoices() const;
+    // What a piece is worth, and what it would be worth instead of what is
+    // already on: drawn by the bag, the crafting panel, the shop and the
+    // storage chest, so an item reads the same wherever it is looked at.
+    // Returns the height used, so a caller can lay out what comes after it.
+    float DrawItemStats(const ItemDef& d, float x, float y, float w);
+    // The same numbers as a small card beside a highlighted square, for the
+    // bag and the chest, whose lower halves have no room for a stat block.
+    void DrawItemCard(const ItemDef& d, const SDL_FRect& slot);
+    // What a piece is weighed against: whatever is in the same slot now.
+    const ItemDef* WornAgainst(const ItemDef& d) const;
+    string WornAgainstLine(const ItemDef& d) const;
     void DrawCrafting();
     void DrawEnchanting();
     void DrawShop();
     void DrawStorage();
     void DrawDeath();
     void DrawToasts();
+    // --- the size of the interface -----------------------------------------------
+    // What the player asked for, held to what the window has room for: every
+    // panel is laid out to fit 1024 by 600 of its own units, so the scale may
+    // not take the window below that. On a Deck's 1280 by 800 that is 125%.
+    // Two at one machine get 100%: half a screen has no room to spare.
+    float UiScale() const;
+    // A point in the world, in the interface's units rather than the screen's.
+    SDL_FPoint UiPoint(float world_x, float world_y) const;
+    // --- experience, as it is earned ----------------------------------------------
+    // One line a skill, beside the vitals, counting up while the gains keep
+    // coming and fading a moment after they stop. Every gain used to be worked
+    // out, banked, and thrown away unseen: the only way to find out that a
+    // heavy swing trained anything was to open the Skills panel and compare.
+    struct XpLine { int skill = 0; int amount = 0; float age = 0.0f; };
+    vector<XpLine> xp_lines;
+    void NoteXp(int skill, int amount);
+    void DrawXpLines(float x, float y);
     void DrawSlotList(const SDL_FRect& area, const string& heading);
 
     // Shared cursor movement for every list-shaped screen.
@@ -204,6 +242,9 @@ private:
     int  quest_cursor[kQuestTabs] = {0, 0, 0};
     int  board_cursor = 0;
     int  craft_cursor = 0;
+    // Where the cursor was left at each kind of station, so the anvil opens on
+    // the bar you were smelting and not at the top of sixty rows every time.
+    int  craft_cursor_at[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     // The enchanting table: which enchantment, and which of the pieces in
     // the bag that take it.
     int  enchant_cursor = 0, enchant_target = 0;
@@ -218,6 +259,15 @@ private:
     bool tree_reset_armed = false;
     int  slot_purpose = 0;       // 0 = start new game, 1 = save
     int  overwrite_slot = -1;    // occupied slot a new game is waiting to replace
+    int  delete_slot = -1;       // slot the load screen is asking about deleting
+    int  sleep_fee = 0;          // what the bed being asked about costs
+    int    travel_cursor = 0;
+    int    totem_cursor = 0;
+    string travel_from;          // the waystone being touched
+    // Writes the session to its slot if there is one to write and nothing says
+    // not to: what quitting from the pause menu always did, and what closing
+    // the window never did.
+    void SaveOnTheWayOut();
 
     string pending_character = "player_hero";
 
@@ -288,6 +338,13 @@ private:
     bool     never_save = false;
     // --map <id> [spawn] and --wear a,b,c: where a scratch game starts, and in what.
     string   launch_map, launch_spawn, launch_wear;
+    // --bag: the same list, but into the pack whether it can be worn or not.
+    // --wear equips anything with a slot, so there was no way to ask for a
+    // helmet sitting in the bag -- which is exactly the case the card beside
+    // the cursor is for.
+    string   launch_bag;
+    float    launch_at_x = -1.0f, launch_at_y = -1.0f;   // --at x y: stood here, on the map it starts on
+    string   launch_slay;        // --slay a,b,c: bosses this scratch character has already brought down
     // Where the quest being followed is, for whoever's HUD is being drawn:
     // worked out a few times a second, and at once when the map, the quest or
     // its stage changes. See systems/waypoint.h.
@@ -309,7 +366,8 @@ private:
     string   launch_quests;             // --quest a,b: with these quests taken
     string   launch_screen;             // --screen controls|options|map|journal: and this open
     // --audit: opens every menu in turn at a few window sizes, says which of
-    // them draw text that runs off a panel or off the screen, and quits. See
+    // them draw text that runs off a panel or off the screen -- and which
+    // pieces of the play HUD are drawn over one another -- and quits. See
     // Game::RunAudit.
     bool     launch_audit = false;
     void     RunAudit();

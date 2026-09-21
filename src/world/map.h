@@ -95,6 +95,12 @@ struct EnemySpawnDef {
     vector<string> pool;
     string group;
     int    spread = 0;
+    // A post kept only after dark, and not every night: something that does
+    // not live here, abroad from nightfall to dawn. `chance` is the share of
+    // nights it is kept at all -- a `group` comes or stays away together --
+    // and once killed it is gone until the next night. See World::Abroad.
+    bool   night = false;
+    float  chance = 1.0f;
 };
 
 // Somewhere a walking villager stops, and for how long.
@@ -154,6 +160,9 @@ struct MapObject {
     float  deplete = 0.0f;
     string title;
     string station;          // crafting objects: "workbench" or "anvil"
+    // What using it costs, in coins: a bed at an inn. Nothing, for anything
+    // that does not say -- your own bed, a camp, a fire by the road.
+    int    fee = 0;
     // A storage chest: how many slots it holds. What is in it is the player's
     // and lives in the save, not here.
     int    capacity = 0;

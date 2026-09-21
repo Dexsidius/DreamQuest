@@ -35,7 +35,9 @@ public:
     // is not a character yet: the character-select screen's cards.
     static LayerStyle KitStyle(const string& character_id, const ItemDatabase* db);
     // Called by the world when a swing connects, so the player banks XP for it.
-    void AwardCombatXp(int damage, AttackType type);
+    // `worth` is the monster's own multiplier (`xp_mult` in enemies.json),
+    // which was read from the file and then by nothing.
+    void AwardCombatXp(int damage, AttackType type, float worth = 1.0f);
     void SyncHitpoints();               // keep hp in step with the Hitpoints skill
     bool Attacking() const { return attack.Active(); }
     const AttackState& Attack() const { return attack; }
@@ -264,6 +266,35 @@ public:
     bool Consume(int slot, string& why_not);
     // A boost above a level wears off one point every BOOST_DECAY seconds.
     static constexpr float BOOST_DECAY = 45.0f;
+
+    // --- one mouthful at a time ---------------------------------------------------
+    // Anything that heals takes a moment to get down. Without this a pack of
+    // food was a second health bar: opening the bag stops the world, and
+    // nothing stopped twenty-eight suppers being eaten in the time it took to
+    // press the button twenty-eight times. The moment is counted in the
+    // world's time, so a bag that stops the world stops the chewing too --
+    // one bite a visit, however long the visit.
+    //
+    // A draught that heals nothing -- a strength potion, a mana one -- is not
+    // food and is not held to it.
+    static constexpr float EAT_COOLDOWN = 1.5f;
+    float EatCooldown() const { return eat_cooldown; }
+
+    // --- what is to hand ------------------------------------------------------------
+    // The one thing in the pack that can be used without opening it: guard and
+    // interact eats or drinks it, guard and sprint steps to the next. It is an
+    // item and not a slot, so it follows the food around the bag, and it stays
+    // chosen when the last one is eaten so that buying more puts it back.
+    const string& QuickItem() const { return quick_item; }
+    void SetQuickItem(const string& id) { quick_item = id; }
+    // Everything in the pack that could be the quick item, once each, in the
+    // order it is carried.
+    vector<string> QuickChoices() const;
+    // Steps to the next of them; returns what it landed on, or nothing.
+    string CycleQuickItem();
+    // Eats or drinks it. False with a reason if there is none, or it would do
+    // nothing, or the last mouthful is still going down.
+    bool UseQuickItem(string& why_not);
     // Wear the item in an inventory slot, swapping out whatever it replaces.
     // Fails when the slot is not equipment or a skill requirement is unmet.
     bool EquipFromInventory(int slot, string& why_not);
@@ -319,6 +350,9 @@ public:
     static constexpr float STAMINA_DELAY      = 0.8f;    // breather before regen starts
     static constexpr float STAMINA_RECOVER    = 0.35f;   // share needed to sprint again
     float Stamina() const { return stamina; }
+    // For the self-test, which has to ask what happens on a nearly empty bar
+    // without sprinting a character round a field to get one.
+    void  SetStamina(float v) { stamina = std::clamp(v, 0.0f, MaxStamina()); }
     float MaxStamina() const {
         return MAX_STAMINA * (1.0f + talents.Global("stamina") + (meal ? meal->dish_max_stamina : 0.0f));
     }
@@ -534,6 +568,8 @@ private:
 
     vector<LevelUp> pending_levels;
     vector<pair<int,int>> pending_xp;
+    float  eat_cooldown = 0.0f;
+    string quick_item;
 
     // Combat XP accrues in fractions; bank it and hand over whole points.
     float xp_fraction[SKILL_COUNT] = {0};

@@ -33,7 +33,7 @@ bool WaypointIndex::Load(const string& path) {
         if (j.contains("things"))
             for (const json& t : j["things"])
                 a.things.push_back({t.value("id", string()), t.value("kind", string()), t.value("yield", string()), t.value("title", string()),
-                                    t.value("x", 0.0f), t.value("y", 0.0f)});
+                                    t.value("x", 0.0f), t.value("y", 0.0f), t.value("station", string())});
         if (j.contains("posts"))
             for (const json& p : j["posts"]) {
                 Post post;
@@ -134,6 +134,26 @@ vector<WaypointIndex::Spot> WaypointIndex::SpotsFor(const QuestStage& stage, int
             break;
         case ObjectiveType::Reach:
             break;      // a place is not a spot: Resolve takes the road to it
+        case ObjectiveType::Craft: {
+            // Anywhere it can be made: the stations of the kind its recipe
+            // wants. A fire is its own object type; everything else is a
+            // workbench that says what it works as.
+            if (!items) break;
+            const ItemDef* recipe = nullptr;
+            for (const ItemDef* r : items->Recipes())
+                if (r->craft_result == stage.target && (!recipe || r->craft_level < recipe->craft_level)) recipe = r;
+            if (!recipe) break;
+            const CraftStation want = items->StationFor(*recipe);
+            for (const auto& kv : areas)
+                for (const Thing& t : kv.second.things) {
+                    const bool fire = t.kind == "range";
+                    if (!fire && t.kind != "workbench") continue;
+                    const CraftStation has = fire ? CraftStation::Range
+                                                  : CraftStationFromName(t.station.empty() ? string("workbench") : t.station);
+                    if (has == want) out.push_back({kv.first, t.x, t.y, t.title});
+                }
+            break;
+        }
     }
     return out;
 }

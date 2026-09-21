@@ -555,6 +555,99 @@ void ItemDatabase::SettleCraftValues() {
         }
 }
 
+vector<ItemStat> ItemStatLines(const ItemDef& d, const ItemDef* worn, bool compare) {
+    vector<ItemStat> rows;
+    const ItemDef blank;                       // what "nothing worn" is worth
+    const ItemDef& o = worn ? *worn : blank;
+
+    // A row is kept when either piece has something to say about it. A stat
+    // that is nothing on both is left off -- a helmet's block is one line, not
+    // five zeroes -- but one the worn piece has and this one does not is kept,
+    // because losing it is the whole point of showing the change.
+    const auto stat = [&](const char* label, int mine, int theirs) {
+        if (mine == 0 && theirs == 0) return;
+        char v[32];
+        SDL_snprintf(v, sizeof(v), "%+d", mine);
+        ItemStat r;
+        r.label = label;
+        r.value = v;
+        if (compare) {
+            const int change = mine - theirs;
+            char c[32];
+            SDL_snprintf(c, sizeof(c), "(%+d)", change);
+            r.delta = change == 0 ? "( -- )" : c;
+            r.verdict = change > 0 ? 1 : (change < 0 ? -1 : 0);
+        }
+        rows.push_back(r);
+    };
+    // The same row for anything measured as a fraction: block, walk speed.
+    const auto share = [&](const char* label, float mine, float theirs, const char* unit) {
+        if (fabsf(mine) < 0.005f && fabsf(theirs) < 0.005f) return;
+        char v[40];
+        SDL_snprintf(v, sizeof(v), "%.0f%s", mine * 100.0f, unit);
+        ItemStat r;
+        r.label = label;
+        r.value = v;
+        if (compare) {
+            const float change = mine - theirs;
+            char c[40];
+            SDL_snprintf(c, sizeof(c), "(%+.0f%s)", change * 100.0f, unit);
+            r.delta = fabsf(change) < 0.005f ? "( -- )" : c;
+            r.verdict = fabsf(change) < 0.005f ? 0 : (change > 0.0f ? 1 : -1);
+        }
+        rows.push_back(r);
+    };
+
+    stat("Attack",   d.attack_bonus,   o.attack_bonus);
+    stat("Strength", d.strength_bonus, o.strength_bonus);
+    stat("Defence",  d.defence_bonus,  o.defence_bonus);
+    stat("Ranged",   d.ranged_bonus,   o.ranged_bonus);
+    stat("Magic",    d.magic_bonus,    o.magic_bonus);
+    share("Block",   d.block,          o.block, "%");
+    share("Walk",    d.move_speed,     o.move_speed, "%");
+
+    // A weapon's speed, said as a rate the way the bag says it: the stored
+    // number is a multiplier on swing time, so smaller is faster, and a stat
+    // where less is better has to be turned round before anybody reads it.
+    if (d.slot == SLOT_WEAPON || (worn && worn->slot == SLOT_WEAPON)) {
+        const float mine = d.attack_speed > 0.0f ? d.attack_speed : 1.0f;
+        const float theirs = (worn && worn->attack_speed > 0.0f) ? worn->attack_speed : 1.0f;
+        if (fabsf(mine - 1.0f) > 0.005f || fabsf(theirs - 1.0f) > 0.005f) {
+            char v[40];
+            SDL_snprintf(v, sizeof(v), "%.2fx", 1.0f / mine);
+            ItemStat r;
+            r.label = "Swing speed";
+            r.value = v;
+            if (compare) {
+                const float change = (1.0f / mine) - (1.0f / theirs);
+                char c[40];
+                SDL_snprintf(c, sizeof(c), "(%+.2f)", change);
+                r.delta = fabsf(change) < 0.005f ? "( -- )" : c;
+                r.verdict = fabsf(change) < 0.005f ? 0 : (change > 0.0f ? 1 : -1);
+            }
+            rows.push_back(r);
+        }
+        if (d.reach > 1.005f || (worn && worn->reach > 1.005f)) {
+            char v[40];
+            SDL_snprintf(v, sizeof(v), "%.2fx", d.reach);
+            ItemStat r;
+            r.label = "Reach";
+            r.value = v;
+            rows.push_back(r);
+        }
+    }
+
+    // A lamp is not a stat block, but how far it throws is the only number
+    // anybody buys one for.
+    if (d.light_radius > 0.0f) {
+        ItemStat r;
+        r.label = "Light";
+        r.value = std::to_string(static_cast<int>(d.light_radius));
+        rows.push_back(r);
+    }
+    return rows;
+}
+
 CraftStation CraftStationFromName(const string& name) {
     if (name == "cauldron") return CraftStation::Cauldron;
     if (name == "range" || name == "fire") return CraftStation::Range;

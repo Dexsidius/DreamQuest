@@ -93,6 +93,20 @@ public:
     void  Revive();
 
     const EnemyDef* Def() const { return def; }
+    // Which of the map's posts it keeps, so the world can remember a boss by
+    // where it stood. And the state a boss already killed today is put in when
+    // its map is loaded again: there, because everyone who counts monsters
+    // counts them by their place in this list, and gone.
+    int  post = -1;
+    void LieDead();
+    // A night visitor: see EnemySpawnDef::night. What it needs of its post to
+    // be asked, each frame, whether tonight is one of its nights.
+    bool   night = false;
+    float  night_chance = 1.0f;
+    string night_group;
+    // Dawn: it goes to ground. Not a death -- no cry, no loot, nothing counted
+    // -- it stands as it was and fades, the way a body does, and is gone.
+    void GoToGround();
     Element ElementOf() const { return def ? def->element : Element::None; }
     const string& TypeId() const { return type_id; }
     State CurrentState() const { return state; }

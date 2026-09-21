@@ -61,7 +61,10 @@ public:
     struct Spot   { string map; float x = 0, y = 0; string label; };
     struct Exit   { float x = 0, y = 0; string to, label; };
     struct Post   { vector<string> types; float x = 0, y = 0; };
-    struct Thing  { string id, kind, yield, title; float x = 0, y = 0; };
+    // `station` is what a workbench object works as -- "anvil", "loom" -- so a
+    // quest that asks for something to be made can be pointed at somewhere it
+    // can be. Empty on everything that is not a place to make things.
+    struct Thing  { string id, kind, yield, title; float x = 0, y = 0; string station; };
     struct Person { string id, name; float x = 0, y = 0; };
     struct Area {
         string name;

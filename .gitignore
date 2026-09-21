@@ -47,3 +47,11 @@ imgui.ini
 .DS_Store
 Thumbs.db
 __pycache__/
+
+# --- saves -------------------------------------------------------------------
+# The backup the game keeps beside each slot, the half-written file a save goes
+# through on its way, and what a deleted slot is put aside as. None of them is
+# a save anybody made on purpose.
+saves/*.bak
+saves/*.tmp
+saves/*.deleted

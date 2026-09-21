@@ -362,7 +362,39 @@
    },
    {
     "text": "Can you teach me anything?",
-    "next": "smith_teach"
+    "next": "smith_teach",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "available"
+    }
+   },
+   {
+    "text": "I made a helm. It is not a good helm.",
+    "next": "smith_teach_done",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_smith"
+    }
+   },
+   {
+    "text": "About that helm.",
+    "next": "smith_teach_waiting",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "active"
+    }
+   },
+   {
+    "text": "Tell me about the workbench again.",
+    "next": "smith_teach_after",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "complete"
+    }
    },
    {
     "text": "The forge is lit. Anything else?",
@@ -415,14 +447,29 @@
  },
  "smith_teach": {
   "speaker": "Smith Halda",
-  "text": "I can show you the shape of it, but crafting is hands, not talk. Find a workbench, bring materials, and make something badly. Then make it again.",
+  "text": "I can show you the shape of it, but crafting is hands, not talk. Find a workbench, bring materials, and make something badly. Then make it again.\n\nHere -- two logs and a hide, which is a helm if you are patient and a mess if you are not. Make it, and bring it back so I can see which.",
   "options": [
    {
-    "text": "Show me the basics.",
-    "next": "end",
+    "text": "How does a workbench work?",
+    "next": "smith_teach_how",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "available"
+    }
+   },
+   {
+    "text": "I will take the logs.",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "available"
+    },
+    "next": "smith_teach_accept",
     "action": {
-     "xp_skill": "Crafting",
-     "xp": 220
+     "start_quest": "q_learn_crafting",
+     "gives": {
+      "logs": 2,
+      "hide": 1
+     }
     }
    },
    {
@@ -644,7 +691,39 @@
    },
    {
     "text": "How do I fight properly?",
-    "next": "guard_combat"
+    "next": "guard_combat",
+    "if": {
+     "quest": "q_learn_fighting",
+     "state": "available"
+    }
+   },
+   {
+    "text": "Three boar, and I walked back.",
+    "next": "guard_combat_done",
+    "if": {
+     "quest": "q_learn_fighting",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_guard"
+    }
+   },
+   {
+    "text": "About those boar.",
+    "next": "guard_combat_waiting",
+    "if": {
+     "quest": "q_learn_fighting",
+     "state": "active"
+    }
+   },
+   {
+    "text": "Tell me about the three swings again.",
+    "next": "guard_combat_after",
+    "if": {
+     "quest": "q_learn_fighting",
+     "state": "complete"
+    }
    },
    {
     "text": "Carry on.",
@@ -664,15 +743,22 @@
  },
  "guard_combat": {
   "speaker": "Watchman Corrin",
-  "text": "Three swings, that is all there is.\n\nQuick ones to keep them honest, and they chain if you keep at it. A heavy one when you have the room. And if you hold the heavy swing and let it build, it comes out hard enough to move something bigger than you. Watch the meter, not the enemy, or you will let go early.",
+  "text": "Three swings, that is all there is.\n\nQuick ones to keep them honest, and they chain if you keep at it -- those teach you to land a blow, which is Attack. A heavy one when you have the room -- those teach you to land it hard, which is Strength, and a held one teaches both. Train only the one and you will either miss a great deal or tickle them. And if you hold the heavy swing and let it build, it comes out hard enough to move something bigger than you. Watch the meter, not the enemy, or you will let go early.\n\nThat is the telling. The doing is out of this gate and into the meadow: there are boar in it, and a boar will teach you more in a minute than I will in a week. Put three of them down and come back and tell me which swing did it.",
   "options": [
    {
-    "text": "I will practise.",
-    "next": "end",
+    "text": "Three boar. I will be back.",
+    "if": {
+     "quest": "q_learn_fighting",
+     "state": "available"
+    },
+    "next": "guard_combat_accept",
     "action": {
-     "xp_skill": "Attack",
-     "xp": 180
+     "start_quest": "q_learn_fighting"
     }
+   },
+   {
+    "text": "Not today.",
+    "next": "end"
    }
   ]
  },
@@ -682,7 +768,39 @@
   "options": [
    {
     "text": "Teach me to hunt.",
-    "next": "hunter_teach"
+    "next": "hunter_teach",
+    "if": {
+     "quest": "q_learn_cooking",
+     "state": "available"
+    }
+   },
+   {
+    "text": "Three pieces, cooked through.",
+    "next": "hunter_teach_done",
+    "if": {
+     "quest": "q_learn_cooking",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_hunter"
+    }
+   },
+   {
+    "text": "About that meat.",
+    "next": "hunter_teach_waiting",
+    "if": {
+     "quest": "q_learn_cooking",
+     "state": "active"
+    }
+   },
+   {
+    "text": "Tell me about meat and fire again.",
+    "next": "hunter_teach_after",
+    "if": {
+     "quest": "q_learn_cooking",
+     "state": "complete"
+    }
    },
    {
     "text": "What is worth taking out here?",
@@ -703,15 +821,24 @@
  },
  "hunter_teach": {
   "speaker": "Hunter Ivo",
-  "text": "Hides come off anything with fur. Meat comes off anything at all. Cook it before you eat it, unless you enjoy the Mire from the inside.\n\nThat is the lesson. It is not a long one.",
+  "text": "Hides come off anything with fur. Meat comes off anything at all. Cook it before you eat it, unless you enjoy the Mire from the inside.\n\nAny fire will do -- the inn has a range, and there is a ring of stones at every camp. Stand at it, press use, pick what to cook. You will burn some to begin with. Everybody does. It stops.\n\nThat is the lesson. It is not a long one. Here is some of mine: cook three pieces and come back, and if you ruin it all the meadow is full of more.",
   "options": [
    {
-    "text": "Noted.",
-    "next": "end",
+    "text": "I will take the meat.",
+    "if": {
+     "quest": "q_learn_cooking",
+     "state": "available"
+    },
+    "next": "hunter_teach_accept",
     "action": {
-     "xp_skill": "Cooking",
-     "xp": 160
+     "start_quest": "q_learn_cooking",
+     "give": "raw_meat",
+     "give_qty": 4
     }
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
    }
   ]
  },
@@ -894,6 +1021,23 @@
     "next": "oona_herbs"
    },
    {
+    "text": "Is there anything you are short of?",
+    "next": "end",
+    "action": {
+     "orders": "npc_oona"
+    }
+   },
+   {
+    "text": "I have what you asked for.",
+    "next": "oona_order_filled",
+    "if": {
+     "order_ready": true
+    },
+    "action": {
+     "hand_in": true
+    }
+   },
+   {
     "text": "Do you sell remedies?",
     "next": "end",
     "action": {
@@ -943,12 +1087,13 @@
     "text": "I need a replacement bottle.",
     "next": "oona_accept",
     "if": {
-     "has_item": "herbal_tonic",
-     "not": true
+     "lacks_item": "herbal_tonic",
+     "no_flag": "replaced:herbal_tonic"
     },
     "action": {
      "give": "herbal_tonic",
-     "give_qty": 1
+     "give_qty": 1,
+     "set_flag": "replaced:herbal_tonic"
     }
    },
    {
@@ -2244,11 +2389,12 @@
     "text": "I lost the axe.",
     "next": "sawyer_replace",
     "if": {
-     "has_item": "bronze_axe",
-     "not": true
+     "lacks_item": "bronze_axe",
+     "no_flag": "replaced:bronze_axe"
     },
     "action": {
-     "give": "bronze_axe"
+     "give": "bronze_axe",
+     "set_flag": "replaced:bronze_axe"
     }
    },
    {
@@ -2414,11 +2560,12 @@
     "text": "I lost the pickaxe.",
     "next": "pit_replace",
     "if": {
-     "has_item": "bronze_pickaxe",
-     "not": true
+     "lacks_item": "bronze_pickaxe",
+     "no_flag": "replaced:bronze_pickaxe"
     },
     "action": {
-     "give": "bronze_pickaxe"
+     "give": "bronze_pickaxe",
+     "set_flag": "replaced:bronze_pickaxe"
     }
    },
    {
@@ -2584,11 +2731,12 @@
     "text": "I lost the rod.",
     "next": "angler_replace",
     "if": {
-     "has_item": "fishing_rod",
-     "not": true
+     "lacks_item": "fishing_rod",
+     "no_flag": "replaced:fishing_rod"
     },
     "action": {
-     "give": "fishing_rod"
+     "give": "fishing_rod",
+     "set_flag": "replaced:fishing_rod"
     }
    },
    {
@@ -3610,6 +3758,203 @@
   "options": [
    {
     "text": "Fair enough.",
+    "next": "end"
+   }
+  ]
+ },
+ "guard_combat_accept": {
+  "speaker": "Watchman Corrin",
+  "text": "Keep your guard up when they come at you -- a boar charges in a straight line, which is the one kind thing about them. And eat something first.",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "guard_combat_waiting": {
+  "speaker": "Watchman Corrin",
+  "text": "Three of them. They root about under the trees just beyond the gate, and they do not need finding -- get close enough and one will find you.",
+  "options": [
+   {
+    "text": "Tell me again how it is done.",
+    "next": "guard_combat_lesson"
+   },
+   {
+    "text": "I am working on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "guard_combat_lesson": {
+  "speaker": "Watchman Corrin",
+  "text": "Three swings, that is all there is.\n\nQuick ones to keep them honest, and they chain if you keep at it -- those teach you to land a blow, which is Attack. A heavy one when you have the room -- those teach you to land it hard, which is Strength, and a held one teaches both. Train only the one and you will either miss a great deal or tickle them. And if you hold the heavy swing and let it build, it comes out hard enough to move something bigger than you. Watch the meter, not the enemy, or you will let go early.",
+  "options": [
+   {
+    "text": "Back to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "guard_combat_done": {
+  "speaker": "Watchman Corrin",
+  "text": "So you did. Which swing was it? -- No, do not tell me, it is always the heavy one and it is always held too long. You will get the feel of it.",
+  "options": [
+   {
+    "text": "I will keep at it.",
+    "next": "end"
+   }
+  ]
+ },
+ "guard_combat_after": {
+  "speaker": "Watchman Corrin",
+  "text": "Three swings, that is all there is.\n\nQuick ones to keep them honest, and they chain if you keep at it -- those teach you to land a blow, which is Attack. A heavy one when you have the room -- those teach you to land it hard, which is Strength, and a held one teaches both. Train only the one and you will either miss a great deal or tickle them. And if you hold the heavy swing and let it build, it comes out hard enough to move something bigger than you. Watch the meter, not the enemy, or you will let go early.\n\nYou have heard all I know, and the boar have told you the rest.",
+  "options": [
+   {
+    "text": "Thank you, Corrin.",
+    "next": "end"
+   }
+  ]
+ },
+ "smith_teach_how": {
+  "speaker": "Smith Halda",
+  "text": "A workbench makes anything of wood, hide or thread; metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.",
+  "options": [
+   {
+    "text": "I will take the logs.",
+    "if": {
+     "quest": "q_learn_crafting",
+     "state": "available"
+    },
+    "next": "smith_teach_accept",
+    "action": {
+     "start_quest": "q_learn_crafting",
+     "gives": {
+      "logs": 2,
+      "hide": 1
+     }
+    }
+   },
+   {
+    "text": "I will think on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "smith_teach_accept": {
+  "speaker": "Smith Halda",
+  "text": "Two logs and a hide. Do not lose the hide, I am not made of cows.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "smith_teach_waiting": {
+  "speaker": "Smith Halda",
+  "text": "A Barkwood Helm: two logs and a hide, at any workbench. There is one on the square.\n\nIf you have used up what I gave you, there is more where it came from -- Jessa at the sawpit will lend you an axe, and anything in the meadow with fur on it is wearing a hide.",
+  "options": [
+   {
+    "text": "Tell me again how a workbench works.",
+    "next": "smith_teach_lesson"
+   },
+   {
+    "text": "I am working on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "smith_teach_lesson": {
+  "speaker": "Smith Halda",
+  "text": "A workbench makes anything of wood, hide or thread; metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.",
+  "options": [
+   {
+    "text": "Back to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "smith_teach_done": {
+  "speaker": "Smith Halda",
+  "text": "Let me see. -- Mm. Well, you made it, and you made it yourself, and that is more than most who come in asking.",
+  "options": [
+   {
+    "text": "It will do.",
+    "next": "end"
+   }
+  ]
+ },
+ "smith_teach_after": {
+  "speaker": "Smith Halda",
+  "text": "A workbench makes anything of wood, hide or thread; metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.\n\nWhen you are ready for metal, bring me ore and I will show you the anvil.",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "hunter_teach_accept": {
+  "speaker": "Hunter Ivo",
+  "text": "Four, and you need three. That is me being generous about the first one.",
+  "options": [
+   {
+    "text": "Noted.",
+    "next": "end"
+   }
+  ]
+ },
+ "hunter_teach_waiting": {
+  "speaker": "Hunter Ivo",
+  "text": "Three pieces, cooked. If you have burnt what I gave you, there are hare and deer past the gate and every one of them is dinner.",
+  "options": [
+   {
+    "text": "Tell me again how it is done.",
+    "next": "hunter_teach_lesson"
+   },
+   {
+    "text": "I am working on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "hunter_teach_lesson": {
+  "speaker": "Hunter Ivo",
+  "text": "Hides come off anything with fur. Meat comes off anything at all. Cook it before you eat it, unless you enjoy the Mire from the inside.\n\nAny fire will do -- the inn has a range, and there is a ring of stones at every camp. Stand at it, press use, pick what to cook. You will burn some to begin with. Everybody does. It stops.",
+  "options": [
+   {
+    "text": "Back to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "hunter_teach_done": {
+  "speaker": "Hunter Ivo",
+  "text": "Hm. Give it here.",
+  "options": [
+   {
+    "text": "Well?",
+    "next": "end"
+   }
+  ]
+ },
+ "hunter_teach_after": {
+  "speaker": "Hunter Ivo",
+  "text": "Hides come off anything with fur. Meat comes off anything at all. Cook it before you eat it, unless you enjoy the Mire from the inside.\n\nAny fire will do -- the inn has a range, and there is a ring of stones at every camp. Stand at it, press use, pick what to cook. You will burn some to begin with. Everybody does. It stops.",
+  "options": [
+   {
+    "text": "Quietly, yes.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_order_filled": {
+  "speaker": "Oona",
+  "text": "Let me see. -- Yes. That is what I asked for and it is as it should be. Look in again tomorrow; the shelves empty faster than I can fill them.",
+  "options": [
+   {
+    "text": "I will.",
     "next": "end"
    }
   ]

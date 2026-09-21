@@ -24,6 +24,7 @@
 #include "../src/systems/skills.h"
 #include "../src/systems/combat.h"
 #include "../src/systems/save.h"
+#include "../src/ui/ui.h"
 #include "../src/systems/projectile.h"
 #include "../src/systems/spell.h"
 #include "../src/systems/audio.h"
@@ -1927,8 +1928,12 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 240 && orc->ChargingHeavy(); ++f) frames(1);
         frames(2);
         const int taken = hp1 - w.player.hp;
-        Check(taken >= static_cast<int>(least * World::HEAVY_BLOCK_PUNISH) - 1,
-              "the best shield there is stops none of it, and it lands half as hard again (" +
+        // The shield stops none of it; what is worn still takes its share
+        // first, and the shield in this test is the best in the game.
+        const CombatProfile worn = w.player.Profile();
+        const int through = SoakHeavy(least, worn.defence_level, worn.defence_bonus);
+        Check(taken >= static_cast<int>(through * World::HEAVY_BLOCK_PUNISH) - 1,
+              "the best shield there is stops none of it, and what gets past the armour lands half as hard again (" +
               std::to_string(taken) + ")");
         Check(w.player.GuardBroken() && !w.player.Blocking() && w.player.Stamina() == 0.0f,
               "and the guard shatters, taking every bit of stamina with it");
@@ -2126,22 +2131,31 @@ int main(int argc, char** argv) {
     // --- blocking -------------------------------------------------------------------
     Section("blocking with a shield");
     {
-        // The rule on its own. A blow of 10 from a level 5 attacker costs
-        // 10 x 5 = 50 stamina through a shield with a multiplier of one, and a
-        // shield that turns aside half of it stops 5.
-        BlockOutcome b = ResolveBlock(10, 5, 0.5f, 1.0f, 100.0f);
-        Check(b.blocked == 5 && b.taken == 5 && std::fabs(b.stamina - 50.0f) < 0.01f && !b.broke,
-              "a blow of 10 from a level 5 costs 50 stamina and half of it is stopped");
-        b = ResolveBlock(6, 12, 0.5f, 1.0f, 1000.0f);
-        Check(std::fabs(b.stamina - 72.0f) < 0.01f, "stamina is the damage times the attacker's level");
-        b = ResolveBlock(6, 12, 0.5f, 0.5f, 1000.0f);
-        Check(std::fabs(b.stamina - 36.0f) < 0.01f, "and a shield's multiplier takes its share off that");
+        // The rule on its own: the damage, times the root of the attacker's
+        // level, times 1.6, times the shield's own multiplier. A blow of 10
+        // from a level 4 is 10 x 2 x 1.6 = 32, and a shield that turns aside
+        // half of it stops 5.
+        BlockOutcome b = ResolveBlock(10, 4, 0.5f, 1.0f, 100.0f);
+        Check(b.blocked == 5 && b.taken == 5 && std::fabs(b.stamina - 32.0f) < 0.01f && !b.broke,
+              "a blow of 10 from a level 4 costs 32 stamina and half of it is stopped");
+        b = ResolveBlock(6, 16, 0.5f, 1.0f, 1000.0f);
+        Check(std::fabs(b.stamina - 38.4f) < 0.01f, "stamina is the damage by the root of the attacker's level");
+        b = ResolveBlock(6, 16, 0.5f, 0.5f, 1000.0f);
+        Check(std::fabs(b.stamina - 19.2f) < 0.01f, "and a shield's multiplier takes its share off that");
         // Short of stamina: the block holds for what could be paid, all the
-        // stamina goes, and the guard breaks.
-        b = ResolveBlock(10, 20, 0.5f, 1.0f, 50.0f);
-        Check(b.broke && std::fabs(b.stamina - 50.0f) < 0.01f,
+        // stamina goes, and the guard breaks. 20 from a level 25 is 160.
+        b = ResolveBlock(20, 25, 0.5f, 1.0f, 40.0f);
+        Check(b.broke && std::fabs(b.stamina - 40.0f) < 0.01f,
               "a blow costing more than is left empties the bar and breaks the guard");
-        Check(b.blocked == 1 && b.taken == 9, "and only the share that was paid for is stopped");
+        Check(b.blocked == 3 && b.taken == 17, "and only the share that was paid for is stopped");
+        // What the change was for: a beginner's shield against something well
+        // past the meadow is worth raising, and against a dragon it is not.
+        b = ResolveBlock(15, 28, 0.5f, 1.0f, 100.0f);
+        Check(b.blocked >= 5, "a wooden shield turns a fair part of a Warchief's blow (" +
+              std::to_string(b.blocked) + " of 15), where it used to turn two");
+        b = ResolveBlock(30, 64, 0.5f, 1.0f, 100.0f);
+        Check(b.broke && b.blocked <= 5, "and is still matchwood to a dragon");
+        Check(BlockCost(30, 64, 0.086f) < 40.0f, "which the best shield in the game stops for a third of a bar");
         Check(ResolveBlock(10, 5, 0.0f, 1.0f, 100.0f).blocked == 0, "something that does not block stops nothing");
         Check(ResolveBlock(0, 5, 0.5f, 1.0f, 100.0f).stamina == 0.0f, "a blow that did no damage costs nothing");
 
@@ -2238,7 +2252,8 @@ int main(int argc, char** argv) {
         const int   xp0 = w.player.skills.Xp(SKILL_DEFENCE);
         int taken = w.HitPlayer(6, grunt, w.player.x + 30.0f, w.player.y);
         Check(taken == 3 && w.player.hp == hp0 - 3, "a wooden shield turns aside half of a blow from the front");
-        Check(std::fabs(st0 - w.player.Stamina() - 30.0f) < 0.01f, "for 6 x 5 = 30 stamina");
+        Check(std::fabs(st0 - w.player.Stamina() - BlockCost(6, 5, 1.0f)) < 0.01f,
+              "for the breath BlockCost says: about 21");
         Check(w.player.skills.Xp(SKILL_DEFENCE) - xp0 >= 12 + 3,
               "stopping it trains Defence, on top of what the blow that got through does");
 
@@ -2249,7 +2264,10 @@ int main(int argc, char** argv) {
         CombatProfile dragon;
         dragon.attack_level = 60; dragon.strength_level = 64;
         const float before_break = w.player.Stamina();
-        taken = w.HitPlayer(6, dragon, w.player.x + 30.0f, w.player.y);
+        // A glancing blow from a dragon: twelve, which at the root of sixty-four
+        // is still half as much again as a whole bar. (A square one is thirty,
+        // and this character would not be standing to have the rest checked.)
+        taken = w.HitPlayer(12, dragon, w.player.x + 30.0f, w.player.y);
         Check(w.player.Stamina() == 0.0f && before_break > 0.0f, "a dragon's blow empties the bar");
         Check(w.player.GuardBroken() && !w.player.Blocking(), "and breaks the guard");
         frames(10);
@@ -4476,7 +4494,21 @@ int main(int argc, char** argv) {
         // The arithmetic.
         Check(Gathering::Speed(50, 1.0f) > Gathering::Speed(1, 1.0f) &&
               Gathering::Speed(1, 2.25f) > Gathering::Speed(1, 1.0f), "a higher level and a better tool are both faster");
-        Check(Gathering::WorkTime(3.0f, 99, 10.0f) >= 0.6f, "however good, work takes a moment");
+        Check(Gathering::WorkTime(3.0f, 99, 10.0f) >= 0.42f, "however good, work takes a moment");
+        // The floor used to be 0.6, which a platinum axe reached the day it
+        // could be held: the three tiers above it cut no faster. Each does now.
+        {
+            float last = 99.0f;
+            bool each_faster = true;
+            for (const char* tier : {"platinum", "demonite", "dracon", "enchanted"}) {
+                const ItemDef* axe = items.Get(items.TierPiece(tier, "axe"));
+                const int need = axe && axe->requirements.count(SKILL_WOODCUTTING) ? axe->requirements.at(SKILL_WOODCUTTING) : 1;
+                const float t = axe ? Gathering::WorkTime(3.8f, need, axe->tool_speed) : 99.0f;
+                if (!(t < last)) each_faster = false;
+                last = t;
+            }
+            Check(each_faster, "every axe past platinum cuts faster than the one before it, on the day it can be held");
+        }
         Check(string(SkillName(SKILL_FISHING)) == "Fishing" && SkillFromName("Fishing") == SKILL_FISHING, "Fishing is a skill");
         {
             bool rising = true;
@@ -6274,6 +6306,9 @@ int main(int argc, char** argv) {
             for (const EnemySpawnDef& e : ow.Enemies()) {
                 if (e.type != "zombie" && e.type != "skeleton" && e.type != "wraith" &&
                     e.type != "barrow_wight") continue;
+                // What walks the Mire and the greenwood after dark is another
+                // matter, and is meant to: see "what comes out at night".
+                if (e.night) continue;
                 ++dead[e.type];
                 // Every one of them stands inside the fence: the graveyard is
                 // an ellipse about (40, 99) in cells, and the map is shifted
@@ -6286,7 +6321,7 @@ int main(int argc, char** argv) {
                   "zombies, skeletons and wraiths walk in it (" + std::to_string(dead["zombie"]) + ", " +
                   std::to_string(dead["skeleton"]) + ", " + std::to_string(dead["wraith"]) + ")");
             Check(dead["barrow_wight"] == 1, "and the wight holds the crypt");
-            Check(outside == 0, "none of the dead has wandered outside the fence");
+            Check(outside == 0, "none of the dead has wandered outside the fence by day");
             for (const char* id : {"zombie", "skeleton", "wraith", "barrow_wight"}) {
                 const EnemyDef* d = enemy_db.Get(id);
                 Check(d && loot.Has(d->loot_table), string(id) + " drops from a table of its own");
@@ -10363,7 +10398,11 @@ int main(int argc, char** argv) {
         p.inventory.Add("moonpetal_tea", 1);
         int tea_slot = -1;
         for (int k = 0; k < p.inventory.SlotCount(); ++k) if (p.inventory.Slot(k).id == "moonpetal_tea") tea_slot = k;
-        Check(tea_slot >= 0 && p.Consume(tea_slot, why), "tea after a stew");
+        // One mouthful at a time: the stew has to go down first.
+        Check(tea_slot >= 0 && !p.Consume(tea_slot, why) && !why.empty(),
+              "tea straight after a stew is refused: the stew is still going down");
+        for (int f = 0; f < 60 * 2; ++f) w.Update(1.0f / 60.0f, ctx);
+        Check(p.EatCooldown() <= 0.0f && p.Consume(tea_slot, why), "and a moment later it is not");
         Check(p.Meal() == tea && p.max_hp == hp_before && p.MaxMana() > mana_before,
               "one dish at a time: the stew is gone and the mana is up");
         for (const auto& b : tea->dish_levels)
@@ -10579,6 +10618,795 @@ int main(int argc, char** argv) {
               std::to_string(swim_sheets) + ")");
     }
 
+    Section("what each blow trains, and other things that were quietly broken");
+    {
+        Input input;
+        std::mt19937 rng(9090);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+
+        // --- Attack is whether it lands; Strength is how hard ----------------------
+        // The two numbers, held apart: raising one must move only its own half of
+        // a blow.
+        {
+            CombatProfile dummy;
+            dummy.defence_level = 30; dummy.defence_bonus = 40;
+            CombatProfile plain;
+            plain.attack_level = 20; plain.strength_level = 20; plain.attack_bonus = 30; plain.strength_bonus = 30;
+            CombatProfile accurate = plain;  accurate.attack_level = 70;
+            CombatProfile strong = plain;    strong.strength_level = 70;
+
+            Check(HitChance(accurate, dummy) > HitChance(plain, dummy) + 0.15f,
+                  "Attack makes a blow likelier to land");
+            Check(MaxHit(accurate, 1.0f) == MaxHit(plain, 1.0f),
+                  "and does nothing to how hard it can land");
+            Check(MaxHit(strong, 1.0f) > MaxHit(plain, 1.0f) * 2,
+                  "Strength raises the top of the damage roll");
+            Check(std::fabs(HitChance(strong, dummy) - HitChance(plain, dummy)) < 0.0001f,
+                  "and does nothing to whether it lands");
+        }
+
+        // --- and each is trained by the swing that uses it -------------------------
+        {
+            Player p;
+            p.Init(ctx, "player_hero");
+            const auto gained = [&](AttackType type, int skill) {
+                const int before = p.skills.Xp(skill);
+                p.AwardCombatXp(10, type);
+                return p.skills.Xp(skill) - before;
+            };
+            Check(gained(AttackType::Light, SKILL_ATTACK) == 40, "a light swing trains Attack");
+            Check(gained(AttackType::Light, SKILL_STRENGTH) == 0, "and not Strength");
+            Check(gained(AttackType::Strong, SKILL_STRENGTH) == 40, "a heavy swing trains Strength");
+            Check(gained(AttackType::Strong, SKILL_ATTACK) == 0, "and not Attack");
+            const int att0 = p.skills.Xp(SKILL_ATTACK), str0 = p.skills.Xp(SKILL_STRENGTH);
+            p.AwardCombatXp(10, AttackType::Charged);
+            Check(p.skills.Xp(SKILL_ATTACK) - att0 == 20 && p.skills.Xp(SKILL_STRENGTH) - str0 == 20,
+                  "a charged one trains both, half each");
+            Check(gained(AttackType::None, SKILL_ATTACK) == 40,
+                  "a blow with no swing behind it still teaches something");
+            const int hp0 = p.skills.Xp(SKILL_HITPOINTS);
+            p.AwardCombatXp(30, AttackType::Strong);
+            Check(p.skills.Xp(SKILL_HITPOINTS) > hp0, "and every blow trains Hitpoints");
+            // A monster's own worth, which was read from the file and then by nothing.
+            const int s0 = p.skills.Xp(SKILL_STRENGTH);
+            p.AwardCombatXp(10, AttackType::Strong, 2.0f);
+            Check(p.skills.Xp(SKILL_STRENGTH) - s0 == 80, "a monster worth double pays double");
+        }
+
+        // --- in a real fight: the whole way from the button to the skill -----------
+        // This is the one that was broken. The award was right; the call that
+        // made it said "light" whatever had been swung.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for a fight");
+            w.enemies.clear();
+            w.player.y -= 200.0f;
+            w.player.facing = FACE_RIGHT;
+            w.player.equipment.Equip(SLOT_WEAPON, "bronze_sword");
+            const auto frames = [&](int n) {
+                for (int f = 0; f < n; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+            };
+            // Something to hit that will stand there and take it.
+            EnemyDef post = *enemy_db.Get("boar");
+            post.hp = 100000; post.aggro_range = 0.0f; post.speed = 0.0f;
+            post.defence_level = 1; post.defence_bonus = 0;
+            EnemySpawnDef def;
+            def.type = "boar"; def.level = 1; def.leash = 10.0f; def.respawn = 0.0f;
+            def.x = w.player.x + 26.0f; def.y = w.player.y;
+            auto e = std::make_unique<Enemy>();
+            e->Init(&post, def, ctx);
+            w.enemies.push_back(std::move(e));
+
+            // Pressed and let go the way a real key arrives: after the input's
+            // frame has begun and before the world's. A heavy swing goes on the
+            // release, and a release the world never sees is a button still held.
+            const auto swing = [&](SDL_Keycode k, int times) {
+                for (int n = 0; n < times; ++n) {
+                    input.Update(1.0f / 60.0f); key(k, true);  w.Update(1.0f / 60.0f, ctx);
+                    frames(3);
+                    input.Update(1.0f / 60.0f); key(k, false); w.Update(1.0f / 60.0f, ctx);
+                    frames(75);                 // let it land and the chain lapse
+                }
+            };
+            int att0 = w.player.skills.Xp(SKILL_ATTACK), str0 = w.player.skills.Xp(SKILL_STRENGTH);
+            swing(SDLK_K, 8);
+            const int str_from_heavy = w.player.skills.Xp(SKILL_STRENGTH) - str0;
+            const int att_from_heavy = w.player.skills.Xp(SKILL_ATTACK) - att0;
+            Check(str_from_heavy > 0, "heavy swings that land train Strength (" + std::to_string(str_from_heavy) + " xp)");
+            Check(att_from_heavy == 0, "and leave Attack alone (" + std::to_string(att_from_heavy) + ")");
+
+            att0 = w.player.skills.Xp(SKILL_ATTACK); str0 = w.player.skills.Xp(SKILL_STRENGTH);
+            // Eight heavy blows have shoved it back out of a light swing's reach,
+            // and it has been told to stand still: walk up to it again.
+            w.player.x = w.enemies.front()->x - 26.0f;
+            w.player.y = w.enemies.front()->y;
+            w.player.facing = FACE_RIGHT;
+            frames(30);
+            const int hp_before_lights = w.enemies.front()->hp;
+            swing(SDLK_J, 8);
+            Check(w.player.skills.Xp(SKILL_ATTACK) - att0 > 0, "light swings that land train Attack (" +
+                  std::to_string(w.player.skills.Xp(SKILL_ATTACK) - att0) + " xp, " +
+                  std::to_string(hp_before_lights - w.enemies.front()->hp) + " damage dealt)");
+            Check(w.player.skills.Xp(SKILL_STRENGTH) - str0 == 0, "and leave Strength alone (" +
+                  std::to_string(w.player.skills.Xp(SKILL_STRENGTH) - str0) + ")");
+        }
+
+        // --- a full bag gets nothing, and the tree still falls --------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the axe");
+            w.enemies.clear();
+            Player& p = w.player;
+            p.inventory.Add("bronze_axe", 1);
+            // Find a tree anybody can cut, and stand at it.
+            const MapObject* tree = nullptr;
+            for (const MapObject& o : w.map.Objects())
+                if (o.type == "tree" && o.skill_level <= 1 && o.yield == "logs") { tree = &o; break; }
+            Check(tree != nullptr, "there is a tree to cut");
+            if (tree) {
+                // Fill every slot with things that do not stack with a log.
+                const char* junk[] = {"bones", "hide", "thread", "raw_meat", "cooked_meat", "marigold", "flax",
+                                      "copper_ore", "iron_ore", "coal", "vial", "brookmint", "nettle", "egg",
+                                      "milk", "wool", "raw_minnow", "cooked_minnow", "raw_chicken", "feather",
+                                      "bolt_cloth", "bronze_bar", "iron_bar", "oak_logs", "raw_boar", "bogbean",
+                                      "tinderbox", "bedroll", "lantern", "rope", "steel_bar", "raw_trout"};
+                for (const char* j : junk) if (p.inventory.FreeSlots() > 0 && items.Get(j)) p.inventory.Add(j, 1);
+                Check(p.inventory.FreeSlots() == 0 && !p.inventory.Has("logs"), "the pack is full, with no logs in it");
+
+                const auto frames = [&](int n) {
+                    for (int f = 0; f < n; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+                };
+                // Stand where the tree is what the button would act on.
+                bool at_it = false;
+                for (int dy = 8; dy <= 40 && !at_it; dy += 4)
+                    for (int dx = -24; dx <= 24 && !at_it; dx += 8) {
+                        p.x = tree->x + dx; p.y = tree->y + dy;
+                        frames(2);
+                        at_it = p.interact.kind == InteractTarget::Object;
+                    }
+                Check(at_it, "the tree is in reach");
+
+                const int xp0 = p.skills.Xp(SKILL_WOODCUTTING);
+                // Ask to cut it, over and over, for a minute. The swing has to
+                // be seen to start, or "it taught nothing" proves nothing.
+                int started = 0;
+                for (int round = 0; round < 12; ++round) {
+                    w.TryInteract(ctx);
+                    frames(2);
+                    if (w.Gathering()) ++started;
+                    frames(60 * 5);
+                }
+                Check(started >= 6, "the axe is swung at it (" + std::to_string(started) + " times)");
+                Check(p.skills.Xp(SKILL_WOODCUTTING) == xp0,
+                      "a minute's chopping with a full pack teaches nothing (" +
+                      std::to_string(p.skills.Xp(SKILL_WOODCUTTING) - xp0) + " xp)");
+
+                // With room, it is paid for as it always was.
+                p.inventory.Remove("bones", 1);
+                for (int round = 0; round < 4 && !p.inventory.Has("logs"); ++round) {
+                    if (!w.Gathering()) w.TryInteract(ctx);
+                    frames(60 * 5);
+                }
+                Check(p.inventory.Has("logs") && p.skills.Xp(SKILL_WOODCUTTING) > xp0,
+                      "and with room for the log, the log and the experience both come");
+            }
+        }
+
+        // --- the Cross Cut costs what it costs ---------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("overworld", "start", ctx), "the overworld loads for the Cross Cut");
+            w.enemies.clear();
+            w.player.y -= 200.0f;
+            w.player.equipment.Equip(SLOT_WEAPON, "bronze_sword");
+            const auto frames = [&](int n) {
+                for (int f = 0; f < n; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+            };
+            const auto both = [&]() {
+                input.Update(1.0f / 60.0f);
+                key(SDLK_J, true); key(SDLK_K, true);
+                w.Update(1.0f / 60.0f, ctx);
+                frames(2);
+                const bool cut = w.player.Attack().move == ComboMove::CrossCut;
+                key(SDLK_J, false); key(SDLK_K, false);
+                return cut;
+            };
+            Check(both(), "both buttons together are a Cross Cut, on a full bar");
+            frames(120);
+            w.player.SetStamina(10.0f);
+            Check(!both(), "but not on ten points of breath: it costs twenty-five");
+            frames(120);
+            w.player.SetStamina(CROSS_CUT_STAMINA);
+            Check(both(), "and exactly enough is enough");
+        }
+
+        // --- a healer mends you and leaves your potions alone ------------------------
+        {
+            Skills s;
+            LevelUp up;
+            s.AddXp(SKILL_STRENGTH, XpForLevel(40), up);
+            s.AddXp(SKILL_ATTACK, XpForLevel(40), up);
+            s.SetCurrent(SKILL_STRENGTH, 48);     // an elixir
+            s.SetCurrent(SKILL_ATTACK, 31);       // something that drained it
+            s.RestoreDrained();
+            Check(s.Current(SKILL_STRENGTH) == 48, "being healed leaves a potion's boost where it was");
+            Check(s.Current(SKILL_ATTACK) == 40, "and puts back what had been drained");
+            s.ResetCurrent();
+            Check(s.Current(SKILL_STRENGTH) == 40, "dying still costs the boost, as it always did");
+        }
+
+        // --- saves: backups, damage, deleting -- nowhere near a real one -------------
+        {
+            namespace fs = std::filesystem;
+            const string was = SaveSystem::Directory();
+            const fs::path dir = fs::temp_directory_path() / "dreamquest_selftest_saves";
+            std::error_code ec;
+            fs::remove_all(dir, ec);
+            fs::create_directories(dir, ec);
+            SaveSystem::SetDirectory(dir.string());
+            Check(SaveSystem::SlotPath(1).find("dreamquest_selftest_saves") != string::npos,
+                  "the save tests are pointed away from the real saves");
+
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.LoadMap("town_havenbrook", "default", ctx);
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+
+            Check(!SaveSystem::Occupied(2) && !SaveSystem::Peek(2).exists && !SaveSystem::Peek(2).damaged,
+                  "an empty slot is empty");
+            Check(SaveSystem::Save(2, w, log, 60.0f), "a save is written");
+            Check(SaveSystem::Peek(2).exists && !fs::exists(SaveSystem::BackupPath(2)),
+                  "the first save has nothing to back up");
+            w.player.inventory.Add("coins", 500);
+            Check(SaveSystem::Save(2, w, log, 120.0f), "and a second");
+            Check(fs::exists(SaveSystem::BackupPath(2)), "which keeps the first beside it as a backup");
+
+            // The slot's file goes bad.
+            { std::ofstream bad(SaveSystem::SlotPath(2), std::ios::trunc); bad << "{ \"version\": 2, \"player\": {"; }
+            SaveSlotInfo info = SaveSystem::Peek(2);
+            Check(info.exists && info.from_backup && !info.damaged,
+                  "a slot whose file cannot be read is shown from its backup");
+            {
+                World back; back.player.Init(ctx, "player_hero");
+                QuestLog log2; log2.LoadDefinitions("data/quests.json");
+                float played = 0.0f; bool from_backup = false;
+                Check(SaveSystem::Load(2, back, log2, ctx, played, &from_backup) && from_backup,
+                      "and loads from it, and says so");
+                Check(std::fabs(played - 60.0f) < 0.5f, "it is the save before the last one");
+            }
+            // Saving over a bad file must not make the bad file the backup.
+            Check(SaveSystem::Save(2, w, log, 180.0f), "saving over the damaged file works");
+            {
+                std::ifstream in(SaveSystem::BackupPath(2));
+                json j; bool ok = true;
+                try { in >> j; } catch (...) { ok = false; }
+                Check(ok && j.is_object(), "and the good backup was not replaced with the bad file");
+            }
+
+            // Both gone bad: damaged, and treated as occupied.
+            { std::ofstream bad(SaveSystem::SlotPath(2), std::ios::trunc); bad << "not a save"; }
+            { std::ofstream bad(SaveSystem::BackupPath(2), std::ios::trunc); bad << "nor this"; }
+            info = SaveSystem::Peek(2);
+            Check(info.damaged && !info.exists, "a slot nothing can read is damaged, not empty");
+            Check(SaveSystem::Occupied(2), "and counts as occupied, so a new game there has to ask first");
+
+            // Deleting puts it aside rather than destroying it.
+            Check(SaveSystem::Save(3, w, log, 30.0f) && SaveSystem::Save(3, w, log, 40.0f), "a slot to delete");
+            Check(SaveSystem::Delete(3), "a slot can be deleted");
+            Check(!SaveSystem::Occupied(3) && !SaveSystem::Peek(3).exists, "and is then empty");
+            Check(fs::exists(SaveSystem::DeletedPath(3)), "with what was in it put aside, not destroyed");
+            Check(!SaveSystem::Delete(3), "and there is nothing to delete twice");
+
+            SaveSystem::SetDirectory(was);
+            fs::remove_all(dir, ec);
+            Check(SaveSystem::Directory() == "saves", "and the real saves are where they were");
+        }
+
+        // --- the interface at a size ------------------------------------------------
+        // Text is measured in the layout's units whatever size it is set at, so a
+        // panel that fits at 100% is laid out the same at 150%.
+        {
+            UI probe;
+            // No renderer: nothing can be drawn, but the arithmetic can be asked for.
+            Check(std::fabs(probe.Scale() - 1.0f) < 0.001f, "the interface starts at its own size");
+            probe.SetScale(1.25f);
+            Check(std::fabs(probe.Scale() - 1.25f) < 0.001f, "and can be made larger");
+            probe.SetScale(9.0f);
+            Check(probe.Scale() <= 2.0f, "within reason");
+            probe.SetScale(0.2f);
+            Check(probe.Scale() >= 1.0f, "and never smaller than it was designed at");
+        }
+    }
+
+    Section("a lesson is a quest, not a button");
+    {
+        // Three people used to hand out a couple of hundred experience every
+        // time they were asked how something was done, and could be asked for
+        // as long as anybody cared to keep asking. Each is a tutorial quest
+        // now: asked for once, done with your hands, paid for on the way back.
+
+        // --- no conversation anywhere gives experience ---------------------------
+        // Checked in the file itself, because the engine no longer reads the
+        // field at all and a test of the engine would pass whatever was in it.
+        {
+            std::ifstream in("data/dialogue.json");
+            json root;
+            in >> root;
+            int xp_lines = 0;
+            string where;
+            for (auto n = root.begin(); n != root.end(); ++n)
+                if (n.value().contains("options"))
+                    for (const json& o : n.value()["options"])
+                        if (o.contains("action") && (o["action"].contains("xp") || o["action"].contains("xp_skill"))) {
+                            ++xp_lines;
+                            where = n.key();
+                        }
+            Check(xp_lines == 0, "no line of dialogue hands out experience" +
+                  (where.empty() ? string() : ": " + where));
+        }
+
+        struct Lesson {
+            const char* quest; const char* npc; const char* root; int skill;
+            ObjectiveType doing; const char* target; int count;
+        };
+        const Lesson lessons[] = {
+            {"q_learn_fighting", "npc_guard",  "guard_root",  SKILL_ATTACK,   ObjectiveType::Kill,  "boar",        3},
+            {"q_learn_crafting", "npc_smith",  "smith_root",  SKILL_CRAFTING, ObjectiveType::Craft, "wood_helm",   1},
+            {"q_learn_cooking",  "npc_hunter", "hunter_root", SKILL_COOKING,  ObjectiveType::Craft, "cooked_meat", 3},
+        };
+
+        for (const Lesson& L : lessons) {
+            const QuestDef* def = quests.Definition(L.quest);
+            Check(def != nullptr, string(L.quest) + " exists");
+            if (!def) continue;
+            const string name = def->name;
+            Check(def->tutorial, name + " is filed with the tutorials");
+            Check(def->giver == L.npc && def->source == QuestSource::Npc, name + " is theirs to give");
+            Check(!def->daily, name + " is not a daily: it is done once");
+            Check(def->stages.size() == 2, name + " is the doing and the coming back");
+            if (def->stages.size() != 2) continue;
+            Check(def->stages[0].type == L.doing && def->stages[0].target == L.target &&
+                  def->stages[0].count == L.count, name + " asks for the skill to be used");
+            Check(def->stages[1].type == ObjectiveType::Talk && def->stages[1].target == L.npc,
+                  name + " ends back where it started");
+            Check(def->rewards.xp.count(L.skill) && def->rewards.xp.at(L.skill) >= 150,
+                  name + " pays in the skill it teaches");
+
+            // ---- played through, with every attempt to get paid twice ----------
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            std::set<string> flags;
+            DialogueContext dc;
+            dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags;
+            dc.npc = L.npc;
+
+            // Picks the first visible option that leads to `next`, applies what
+            // it does through the same function the game uses, and says
+            // whether there was such an option.
+            const auto pick = [&](DialogueRunner& r, const string& next) {
+                for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                    if (r.VisibleOptions()[i]->next == next) {
+                        r.MoveSelection(static_cast<int>(i) - r.Selected());
+                        r.Choose(dc);
+                        for (const DialogueAction& a : r.TakeActions())
+                            ApplyDialogueAction(a, log, inv, sk, L.npc);
+                        return true;
+                    }
+                return false;
+            };
+            // The option on the root that starts the lesson: the one whose
+            // condition is "this quest is available".
+            const auto offer_of = [&](DialogueRunner& r) -> string {
+                for (const DialogueOption* o : r.VisibleOptions())
+                    if (o->condition.quest == L.quest && o->condition.quest_state == "available") return o->next;
+                return string();
+            };
+            const auto line_for = [&](DialogueRunner& r, const string& state) -> string {
+                for (const DialogueOption* o : r.VisibleOptions())
+                    if (o->condition.quest == L.quest && o->condition.quest_state == state) return o->next;
+                return string();
+            };
+
+            DialogueRunner first;
+            first.Begin(&dialogue, L.root, L.npc, "them", dc);
+            const string offer = offer_of(first);
+            Check(!offer.empty(), name + ": they offer the lesson to somebody who has not had it");
+            const int xp_before = sk.Xp(L.skill);
+            Check(pick(first, offer), name + ": the lesson can be asked for");
+            Check(sk.Xp(L.skill) == xp_before, name + ": asking teaches nothing by itself");
+
+            // Accept: whichever option on the lesson's node starts the quest.
+            string accept;
+            for (const DialogueOption* o : first.VisibleOptions())
+                if (o->action.start_quest == L.quest) accept = o->next;
+            Check(!accept.empty(), name + ": the lesson ends in a quest");
+            const int held_before = inv.SlotCount() - inv.FreeSlots();
+            pick(first, accept);
+            Check(log.IsActive(L.quest), name + ": and taking it starts it");
+            const int held_after = inv.SlotCount() - inv.FreeSlots();
+
+            // Asked again, straight away: no offer, nothing handed over, no XP.
+            for (int again = 0; again < 5; ++again) {
+                DialogueRunner r;
+                r.Begin(&dialogue, L.root, L.npc, "them", dc);
+                Check(offer_of(r).empty(), name + ": the lesson is not offered twice");
+                Check(!line_for(r, "active").empty(), name + ": they ask how it is going instead");
+                // Walk every line they will say while it is under way.
+                pick(r, line_for(r, "active"));
+                for (int deeper = 0; deeper < 4 && r.Active(); ++deeper) {
+                    if (r.VisibleOptions().empty()) break;
+                    r.Choose(dc);
+                    for (const DialogueAction& a : r.TakeActions()) ApplyDialogueAction(a, log, inv, sk, L.npc);
+                }
+            }
+            Check(sk.Xp(L.skill) == xp_before, name + ": asking five more times is still worth nothing");
+            Check(inv.SlotCount() - inv.FreeSlots() == held_after,
+                  name + ": and nothing more is handed over for asking");
+            (void)held_before;
+
+            // Coming back early does not finish it.
+            {
+                DialogueRunner r;
+                r.Begin(&dialogue, L.root, L.npc, "them", dc);
+                bool can_hand_in = false;
+                for (const DialogueOption* o : r.VisibleOptions()) can_hand_in |= o->action.advance_quest == L.npc;
+                Check(!can_hand_in, name + ": it cannot be handed in before it is done");
+            }
+
+            // Do the thing.
+            QuestEvent did;
+            did.type = L.doing; did.target = L.target; did.amount = 1;
+            for (int n = 0; n < L.count; ++n) log.Notify(did, inv);
+            Check(log.IsActive(L.quest) && log.Stage(L.quest) == 1, name + ": doing it moves it on to the walk back");
+
+            // And hand it in.
+            {
+                DialogueRunner r;
+                r.Begin(&dialogue, L.root, L.npc, "them", dc);
+                string done;
+                for (const DialogueOption* o : r.VisibleOptions()) if (o->action.advance_quest == L.npc) done = o->next;
+                Check(!done.empty(), name + ": they will hear about it now");
+                pick(r, done);
+            }
+            Check(log.IsComplete(L.quest), name + ": and telling them finishes it");
+
+            // Finished, the lesson is still there to be read -- and is only words.
+            for (int again = 0; again < 3; ++again) {
+                DialogueRunner r;
+                r.Begin(&dialogue, L.root, L.npc, "them", dc);
+                Check(offer_of(r).empty(), name + ": it is never offered again");
+                bool any_action = false;
+                const string after = line_for(r, "complete");
+                Check(!after.empty(), name + ": the lesson can still be asked about");
+                pick(r, after);
+                for (const DialogueOption* o : r.VisibleOptions())
+                    any_action |= !o->action.start_quest.empty() || !o->action.gives.empty() ||
+                                  !o->action.advance_quest.empty();
+                Check(!any_action, name + ": and asking about it afterwards does nothing but talk");
+            }
+            Check(log.Completions(L.quest) == 1, name + ": it was completed exactly once");
+        }
+
+        // --- the rule about gifts, at the place that keeps it ----------------------
+        {
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Skills sk;
+            Inventory inv(&items);
+            DialogueAction gift;
+            gift.start_quest = "q_learn_cooking";
+            gift.gives = {{"raw_meat", 4}};
+            DialogueOutcome out = ApplyDialogueAction(gift, log, inv, sk, "npc_hunter");
+            Check(out.quest_started && inv.Count("raw_meat") == 4, "a lesson hands over what it is learnt on");
+            for (int again = 0; again < 10; ++again) out = ApplyDialogueAction(gift, log, inv, sk, "npc_hunter");
+            Check(!out.quest_started && inv.Count("raw_meat") == 4,
+                  "and the same action ten more times hands over nothing: a gift, not a tap");
+
+            // Several things in one hand.
+            DialogueAction both;
+            both.start_quest = "q_learn_crafting";
+            both.gives = {{"logs", 2}, {"hide", 1}};
+            ApplyDialogueAction(both, log, inv, sk, "npc_smith");
+            Check(inv.Count("logs") == 2 && inv.Count("hide") == 1, "Halda hands over the logs and the hide together");
+
+            // A gift with no quest behind it is still a gift.
+            DialogueAction plain;
+            plain.gives = {{"herbal_tonic", 1}};
+            ApplyDialogueAction(plain, log, inv, sk, "npc_oona");
+            Check(inv.Count("herbal_tonic") == 1, "something given with no quest attached is simply given");
+        }
+
+        // --- "I lost it" is said once ----------------------------------------------
+        // The lent axe, the lent pick, the lent rod and Oona's tonic were each
+        // replaced whenever they were missing -- and a forge pays forty coins
+        // for a bronze axe. Sell it, ask, sell it, ask. One replacement now,
+        // remembered by the world, and after that the line is gone.
+        {
+            struct Lent { const char* quest; const char* npc; const char* waiting; const char* item; };
+            const Lent lent[] = {
+                {"q_learn_woodcutting", "npc_sawyer",     "sawyer_waiting", "bronze_axe"},
+                {"q_learn_mining",      "npc_pitmaster",  "pit_waiting",    "bronze_pickaxe"},
+                {"q_learn_fishing",     "npc_angler",     "angler_waiting", "fishing_rod"},
+                {"q_word_to_fernhollow","npc_oona",       "oona_waiting",   "herbal_tonic"},
+            };
+            for (const Lent& L : lent) {
+                const DialogueNode* node = dialogue.Get(L.waiting);
+                Check(node != nullptr, string(L.waiting) + " exists");
+                if (!node) continue;
+                QuestLog log;
+                log.LoadDefinitions("data/quests.json");
+                Skills sk;
+                Inventory inv(&items);
+                std::set<string> flags;
+                DialogueContext dc;
+                dc.quests = &log; dc.inventory = &inv; dc.skills = &sk; dc.flags = &flags; dc.npc = L.npc;
+
+                // Sell it and ask again, twenty times over.
+                int handed = 0;
+                for (int round = 0; round < 20; ++round) {
+                    inv.Remove(L.item, inv.Count(L.item));          // "sold"
+                    DialogueRunner r;
+                    r.Begin(&dialogue, L.waiting, L.npc, "them", dc);
+                    for (size_t i = 0; i < r.VisibleOptions().size(); ++i) {
+                        const DialogueOption* o = r.VisibleOptions()[i];
+                        bool gives_it = false;
+                        for (const auto& g : o->action.gives) gives_it |= g.first == L.item;
+                        if (!gives_it) continue;
+                        r.MoveSelection(static_cast<int>(i) - r.Selected());
+                        r.Choose(dc);
+                        for (const DialogueAction& a : r.TakeActions()) {
+                            const DialogueOutcome out = ApplyDialogueAction(a, log, inv, sk, L.npc);
+                            for (const string& f : out.flags) flags.insert(f);
+                            for (const auto& got : out.received) if (got.first == L.item) handed += got.second;
+                        }
+                        break;
+                    }
+                }
+                Check(handed == 1, string(L.item) + " is replaced once, however often it goes missing (" +
+                      std::to_string(handed) + ")");
+
+                // And it is not offered at all to somebody who still has theirs.
+                inv.Add(L.item, 1);
+                std::set<string> fresh;
+                dc.flags = &fresh;
+                DialogueRunner r;
+                r.Begin(&dialogue, L.waiting, L.npc, "them", dc);
+                bool offered = false;
+                for (const DialogueOption* o : r.VisibleOptions())
+                    for (const auto& g : o->action.gives) offered |= g.first == L.item;
+                Check(!offered, string(L.item) + " is not replaced while it is still in the bag");
+            }
+
+            // Nothing anywhere hands something over with neither a quest nor a
+            // memory behind it: every give is a quest's, or is said once.
+            std::ifstream in("data/dialogue.json");
+            json root;
+            in >> root;
+            string tap;
+            for (auto n = root.begin(); n != root.end(); ++n)
+                if (n.value().contains("options"))
+                    for (const json& o : n.value()["options"]) {
+                        if (!o.contains("action")) continue;
+                        const json& a = o["action"];
+                        if (!a.contains("give") && !a.contains("gives")) continue;
+                        const bool with_quest = a.contains("start_quest");
+                        const bool remembered = a.contains("set_flag") && o.contains("if") &&
+                                                o["if"].value("no_flag", string()) == a.value("set_flag", string());
+                        // Oona's tonic at the start of her errand is the quest's.
+                        if (!with_quest && !remembered && tap.empty()) tap = n.key();
+                    }
+            Check(tap.empty(), "every line that hands something over is a quest's to give, or is given once" +
+                  (tap.empty() ? string() : ": " + tap));
+        }
+
+        // --- what the lessons ask for can be done ----------------------------------
+        {
+            const ItemDef* helm = nullptr;
+            for (const ItemDef* r : items.Recipes()) if (r->craft_result == "wood_helm") helm = r;
+            Check(helm && items.StationFor(*helm) == CraftStation::Workbench && helm->craft_level <= 1,
+                  "a Barkwood Helm is made at a workbench by somebody who has never made anything");
+            Check(helm && helm->craft_inputs.size() == 2 && helm->craft_inputs.count("logs") &&
+                  helm->craft_inputs.at("logs") == 2 && helm->craft_inputs.count("hide") &&
+                  helm->craft_inputs.at("hide") == 1, "out of exactly what Halda hands over");
+            const ItemDef* cooked = nullptr;
+            for (const ItemDef* r : items.Recipes(CraftStation::Range))
+                if (r->craft_result == "cooked_meat") cooked = r;
+            Check(cooked && cooked->craft_level <= 1 && cooked->craft_inputs.count("raw_meat"),
+                  "meat is cooked at a fire by somebody who has never cooked, out of what Ivo hands over");
+            const EnemyDef* boar = enemy_db.Get("boar");
+            Check(boar && boar->kill_target == "boar", "and a boar counts as a boar");
+
+            // A new character's three cooked meat are not the lesson.
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Inventory inv(&items);
+            inv.Add("cooked_meat", 3);
+            log.Start("q_learn_cooking");
+            log.RefreshCollectObjectives(inv);
+            Check(log.Stage("q_learn_cooking") == 0 && log.Counter("q_learn_cooking") == 0,
+                  "meat already in the bag is not meat cooked: the lesson counts the cooking");
+
+            // Somewhere to do each of them is on the way.
+            WaypointIndex index;
+            Check(index.Load("data/waypoints.json"), "the waypoint index loads");
+            for (const char* id : {"q_learn_crafting", "q_learn_cooking"}) {
+                const QuestDef* d = quests.Definition(id);
+                if (!d) continue;
+                const auto spots = index.SpotsFor(d->stages[0], 0, &enemy_db, &loot, &items);
+                bool in_town = false;
+                for (const auto& s : spots) in_town |= s.map == "town_havenbrook" || s.map == "house_inn";
+                Check(!spots.empty() && in_town, d->name + " points at somewhere in Havenbrook to do it (" +
+                      std::to_string(spots.size()) + " places)");
+            }
+        }
+    }
+
+    Section("what the menus say a thing is worth");
+    {
+        // The panels at a shop and an anvil now print an item's bonuses and the
+        // change against what is worn. They read the item's own fields, so what
+        // is worth testing is the two places that could lie: a boost, whose
+        // printed number is worked out rather than stored, and the promise that
+        // an equippable thing has something to print at all.
+
+        // --- a potion says what it will actually do -----------------------------
+        // The panel prints ItemDef::BoostGain; drinking it applies the same.
+        // If those ever drift, a potion sold as "+10 Strength" gives eight.
+        {
+            Input input;
+            std::mt19937 rng(77);
+            GameContext ctx;
+            ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+            ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+            ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+            ctx.input = &input;       ctx.rng = &rng;
+
+            int tested = 0;
+            for (const auto& kv : items.All()) {
+                const ItemDef& d = kv.second;
+                if (d.boosts.empty()) continue;
+                World w;
+                w.player.Init(ctx, "player_hero");
+                Player& p = w.player;
+                LevelUp up;
+                for (const auto& b : d.boosts) p.skills.AddXp(b.first, XpForLevel(60), up);
+                p.SyncHitpoints(); p.hp = p.max_hp;
+                p.inventory.Add(d.id, 1);
+                int slot = -1;
+                for (int k = 0; k < p.inventory.SlotCount(); ++k)
+                    if (p.inventory.Slot(k).id == d.id) { slot = k; break; }
+                if (slot < 0) continue;
+                // What the panel would print, before the cork comes out.
+                std::map<int, int> promised;
+                for (const auto& b : d.boosts)
+                    promised[b.first] = ItemDef::BoostGain(b.second, p.skills.Level(b.first));
+                std::map<int, int> before;
+                for (const auto& b : d.boosts) before[b.first] = p.skills.Current(b.first);
+                string why;
+                Check(p.Consume(slot, why), d.name + " can be drunk" + (why.empty() ? string() : ": " + why));
+                for (const auto& b : d.boosts) {
+                    const int got = p.skills.Current(b.first) - before[b.first];
+                    Check(got == promised[b.first],
+                          d.name + " gives the " + std::to_string(promised[b.first]) + " " +
+                          SkillName(b.first) + " the panel promises (" + std::to_string(got) + ")");
+                }
+                ++tested;
+            }
+            Check(tested >= 5, "every potion that boosts was checked (" + std::to_string(tested) + ")");
+        }
+
+        // --- which rows a stat block has -------------------------------------
+        // The rules the panels follow, which are worth holding still: a stat
+        // that is nothing on both pieces is left off, one the worn piece has
+        // and this one does not is kept, and an empty slot shows the whole
+        // bonus as the gain it is.
+        {
+            const auto row = [](const vector<ItemStat>& rows, const string& label) -> const ItemStat* {
+                for (const ItemStat& r : rows) if (r.label == label) return &r;
+                return nullptr;
+            };
+            ItemDef plain;
+            plain.id = "test_helm";
+            plain.slot = SLOT_HEAD;
+            plain.defence_bonus = 10;
+
+            // Nothing worn there: the whole of it is the gain.
+            vector<ItemStat> rows = ItemStatLines(plain, nullptr, true);
+            Check(rows.size() == 1 && row(rows, "Defence"), "a plain helm is one row, not five zeroes");
+            Check(row(rows, "Defence") && row(rows, "Defence")->value == "+10" &&
+                  row(rows, "Defence")->delta == "(+10)" && row(rows, "Defence")->verdict > 0,
+                  "against an empty slot the whole bonus reads as the gain");
+            Check(!row(rows, "Attack") && !row(rows, "Magic"),
+                  "and the stats it does not have are left off");
+
+            // Against itself: every change is nothing.
+            rows = ItemStatLines(plain, &plain, true);
+            Check(row(rows, "Defence") && row(rows, "Defence")->delta == "( -- )" &&
+                  row(rows, "Defence")->verdict == 0, "a piece weighed against itself changes nothing");
+
+            // Against something better, and something it does not have.
+            ItemDef better;
+            better.id = "test_better";
+            better.slot = SLOT_HEAD;
+            better.defence_bonus = 22;
+            better.magic_bonus = 4;
+            rows = ItemStatLines(plain, &better, true);
+            Check(row(rows, "Defence") && row(rows, "Defence")->delta == "(-12)" &&
+                  row(rows, "Defence")->verdict < 0, "a worse piece says so, in the minus");
+            Check(row(rows, "Magic") && row(rows, "Magic")->value == "+0" &&
+                  row(rows, "Magic")->delta == "(-4)" && row(rows, "Magic")->verdict < 0,
+                  "and a stat you would lose is shown even though this piece has none of it");
+
+            // With no comparison at all -- a potion is not instead of anything.
+            rows = ItemStatLines(better, nullptr, false);
+            Check(!rows.empty() && rows[0].delta.empty(),
+                  "with nothing to compare against there is no change column");
+
+            // A faster weapon reads as faster, though its stored number is smaller.
+            ItemDef quick, slow;
+            quick.id = "test_dagger"; quick.slot = SLOT_WEAPON; quick.attack_speed = 0.75f;
+            slow.id = "test_maul";    slow.slot = SLOT_WEAPON;  slow.attack_speed = 1.20f;
+            rows = ItemStatLines(quick, &slow, true);
+            Check(row(rows, "Swing speed") && row(rows, "Swing speed")->verdict > 0,
+                  "a quicker weapon is better, although the number stored for it is smaller");
+            rows = ItemStatLines(slow, &quick, true);
+            Check(row(rows, "Swing speed") && row(rows, "Swing speed")->verdict < 0,
+                  "and a slower one is worse");
+
+            // Every real piece in the game produces at least one row, so no
+            // card is ever drawn empty.
+            int mute = 0;
+            string first;
+            for (const auto& kv : items.All()) {
+                if (kv.second.slot == SLOT_NONE) continue;
+                if (ItemStatLines(kv.second, nullptr, true).empty()) {
+                    ++mute;
+                    if (first.empty()) first = kv.first;
+                }
+            }
+            Check(mute == 0, "every piece that can be worn makes at least one row" +
+                  (first.empty() ? string() : ": " + first));
+        }
+
+        // --- everything worn has something to say for itself ----------------------
+        // A piece with no bonus, no block, no speed and no light draws an empty
+        // stat block, which reads as a bug rather than as a plain item.
+        {
+            int worn = 0;
+            string mute;
+            for (const auto& kv : items.All()) {
+                const ItemDef& d = kv.second;
+                if (d.slot == SLOT_NONE) continue;
+                ++worn;
+                const bool says_something =
+                    d.attack_bonus || d.strength_bonus || d.defence_bonus ||
+                    d.ranged_bonus || d.magic_bonus ||
+                    d.block > 0.0f || d.move_speed != 0.0f || d.light_radius > 0.0f ||
+                    fabsf(d.attack_speed - 1.0f) > 0.005f || !d.passive.empty();
+                if (!says_something && mute.empty()) mute = d.id;
+            }
+            Check(worn > 100, "there is a wardrobe to check (" + std::to_string(worn) + ")");
+            Check(mute.empty(), "every piece that can be worn has a number to show for it" +
+                  (mute.empty() ? string() : ": " + mute));
+        }
+    }
+
     Section("a clothier, a farm, and frogs in the mire");
     {
         // --- Wynn's shed, at Mossvale ----------------------------------------------------
@@ -10691,6 +11519,1380 @@ int main(int argc, char** argv) {
         Check(frog && frog->aggro_range <= 0.0f, "and they sit there: a frog does not come for anybody");
         Check(sprites.Has("frog") && sprites.Has("cow") && sprites.Has("sheep") && sprites.Has("pig") &&
               sprites.Has("chicken"), "every one of them is drawn");
+    }
+
+    Section("what the same review changed about playing it");
+    {
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        GameContext rctx;
+        std::mt19937 rng(23);
+        rctx.sprites = &sprites; rctx.items = &items; rctx.enemies = &enemy_db;
+        rctx.quests = &log; rctx.rng = &rng;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the quick item, and the wait between mouthfuls -------------------------------
+        {
+            World w;
+            w.player.Init(rctx, "player_hero");
+            w.player.inventory.SetDatabase(&items);
+            Check(w.LoadMap("town_havenbrook", "default", rctx), "somewhere quiet to eat");
+            Player& p = w.player;
+            p.inventory.Clear();
+            p.SetQuickItem("");
+            string why;
+            Check(!p.UseQuickItem(why) && !why.empty(), "with nothing to eat, it says so");
+
+            p.inventory.Add("logs", 3);
+            p.inventory.Add("cooked_meat", 3);
+            p.inventory.Add("mana_tonic", 2);
+            p.inventory.Add("cooked_trout", 2);
+            Check(p.QuickChoices() == vector<string>({"cooked_meat", "mana_tonic", "cooked_trout"}),
+                  "what could be the quick item is what can be eaten or drunk, in the order carried, and not the logs");
+
+            p.Damage(std::max(1, p.hp - 2));
+            const int hurt = p.hp;
+            Check(p.UseQuickItem(why) && p.QuickItem() == "cooked_meat" && p.hp > hurt &&
+                  p.inventory.Count("cooked_meat") == 2,
+                  "with nothing chosen it is the first food in the pack, and it is eaten from the pack");
+            Check(p.EatCooldown() > 0.0f, "a mouthful takes a moment to get down");
+
+            const int after_one = p.hp;
+            Check(!p.UseQuickItem(why) && !why.empty() && p.hp == after_one && p.inventory.Count("cooked_meat") == 2,
+                  "a second straight after it is refused, with a reason, and costs nothing");
+            p.SetQuickItem("cooked_trout");
+            Check(!p.UseQuickItem(why) && p.inventory.Count("cooked_trout") == 2,
+                  "and so is a different thing that heals: it is the healing that waits, not the dish");
+            p.SetQuickItem("mana_tonic");
+            p.SetMana(0);
+            Check(p.UseQuickItem(why) && p.inventory.Count("mana_tonic") == 1,
+                  "a tonic that mends nothing is not held up by it");
+
+            for (int f = 0; f < static_cast<int>(Player::EAT_COOLDOWN * 60.0f) + 6; ++f) w.Update(kFrame, rctx);
+            Check(p.EatCooldown() <= 0.0f, "the wait is a second and a half");
+            p.SetQuickItem("cooked_trout");
+            if (p.hp >= p.max_hp) p.Damage(3);
+            Check(p.UseQuickItem(why) && p.inventory.Count("cooked_trout") == 1, "and then the next goes down");
+
+            Check(p.CycleQuickItem() == "cooked_meat" && p.CycleQuickItem() == "mana_tonic" &&
+                  p.CycleQuickItem() == "cooked_trout", "stepping goes round what is carried, and comes back to the start");
+
+            // Out of it: it says which, and does not quietly eat something else.
+            p.SetQuickItem("cooked_meat");
+            p.inventory.Remove("cooked_meat", 2);
+            for (int f = 0; f < 120; ++f) w.Update(kFrame, rctx);
+            Check(!p.UseQuickItem(why) && why.find("no ") != string::npos && p.inventory.Count("cooked_trout") == 1,
+                  "out of the chosen thing, it says so rather than eating something else");
+
+            // And it is the character's, so it is in the save.
+            p.SetQuickItem("cooked_trout");
+            Player back;
+            back.Init(rctx, "player_hero");
+            back.FromJson(p.ToJson(), rctx);
+            Check(back.QuickItem() == "cooked_trout", "the quick item is saved with the character");
+        }
+
+        // --- the inn's beds have a price, and nobody else's does ----------------------------
+        {
+            int paid = 0, lent = 0;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const MapObject& o : m.Objects()) {
+                    if (o.type != "bed" && o.type != "campsite") continue;
+                    if (string(id) == "house_inn_upper") {
+                        Check(o.fee > 0 && o.title.find(std::to_string(o.fee)) != string::npos,
+                              o.id + " at the inn is paid for, and says what it costs before it is asked for");
+                        ++paid;
+                    } else {
+                        Check(o.fee == 0, string(id) + "/" + o.id + " is somebody's own, and is free");
+                        ++lent;
+                    }
+                }
+            }
+            Check(paid == 3 && lent >= 3, "three rooms at the Barley and Bell, and beds elsewhere besides");
+
+            World w;
+            w.player.Init(rctx, "player_hero");
+            if (w.LoadMap("house_inn_upper", "entrance", rctx) || w.LoadMap("house_inn_upper", "default", rctx)) {
+                w.enemies.clear();
+                w.clock.Set(1, 22.0f);
+                w.TakeRequests();
+                Check(w.AskToSleep("A bed at the inn", 15), "the inn's bed asks");
+                const vector<WorldRequest> reqs = w.TakeRequests();
+                Check(reqs.size() == 1 && reqs[0].type == WorldRequest::Type::Sleep && reqs[0].count == 15,
+                      "and what it costs goes to the panel with the question");
+                Check(w.AskToSleep("Your own"), "a bed with no price asks too");
+                const vector<WorldRequest> own = w.TakeRequests();
+                Check(own.size() == 1 && own[0].count == 0, "for nothing");
+            }
+            Check(Talents::RESPEC_FEE > 0, "and unlearning a tree has a price as well");
+        }
+
+        // --- a boss is killed once a day ------------------------------------------------------
+        {
+            World w;
+            w.player.Init(rctx, "player_hero");
+            Check(w.LoadMap("house_inn_cellar", "entrance", rctx) || w.LoadMap("house_inn_cellar", "default", rctx),
+                  "down into Bess's cellar");
+            w.clock.Set(3, 12.0f);
+            int boss_at = -1, rat_at = -1;
+            for (size_t i = 0; i < w.enemies.size(); ++i) {
+                const EnemyDef* d = w.enemies[i]->Def();
+                if (!d) continue;
+                if (d->is_boss && boss_at < 0) boss_at = static_cast<int>(i);
+                if (!d->is_boss && rat_at < 0) rat_at = static_cast<int>(i);
+            }
+            Check(boss_at >= 0 && rat_at >= 0, "the Broodmother is there, and her brood");
+            if (boss_at >= 0 && rat_at >= 0) {
+                const size_t before = w.enemies.size();
+                const int boss_post = w.enemies[boss_at]->post;
+                Check(boss_post >= 0 && !w.SlainToday("house_inn_cellar", boss_post), "she has not been killed today");
+                w.enemies[boss_at]->Damage(99999);
+                w.enemies[rat_at]->Damage(99999);
+                // Stood well away, so nothing is kept from coming back by being watched.
+                for (int f = 0; f < 5; ++f) w.Update(kFrame, rctx);
+                Check(w.enemies[boss_at]->Dead() && w.SlainToday("house_inn_cellar", boss_post),
+                      "killed, she is remembered by where she stood and the day");
+                Check(!w.SlainToday("house_inn_cellar", w.enemies[rat_at]->post),
+                      "a rat is not: only a boss is kept count of");
+
+                // Out of the door and in again.
+                Check(w.LoadMap("house_inn", "default", rctx) || w.LoadMap("house_inn", "entrance", rctx), "up the stairs");
+                Check(w.LoadMap("house_inn_cellar", "entrance", rctx) || w.LoadMap("house_inn_cellar", "default", rctx),
+                      "and down again");
+                Check(w.enemies.size() == before,
+                      "everything keeps its place in the list, which is what friends count monsters by");
+                Check(w.enemies[boss_at]->Def() && w.enemies[boss_at]->Def()->is_boss && w.enemies[boss_at]->Dead(),
+                      "and she is lying dead in hers");
+                Check(!w.enemies[rat_at]->Dead(), "the rat is back, as rats always were");
+                for (int f = 0; f < 600; ++f) w.Update(kFrame, rctx);
+                Check(w.enemies[boss_at]->Dead(), "ten seconds on she has not got up");
+
+                // It is in the save, and it is only today's that is.
+                const string was = SaveSystem::Directory();
+                const fs::path dir = fs::temp_directory_path() / "dreamquest_selftest_slain";
+                std::error_code ec;
+                fs::remove_all(dir, ec);
+                fs::create_directories(dir, ec);
+                SaveSystem::SetDirectory(dir.string());
+                Check(SaveSystem::Save(1, w, log, 10.0f), "a save with her dead writes");
+                {
+                    World back;
+                    back.player.Init(rctx, "player_hero");
+                    QuestLog log2;
+                    log2.LoadDefinitions("data/quests.json");
+                    float played = 0.0f;
+                    Check(SaveSystem::Load(1, back, log2, rctx, played), "and loads");
+                    Check(back.SlainToday("house_inn_cellar", boss_post) && back.MapId() == "house_inn_cellar" &&
+                          static_cast<int>(back.enemies.size()) > boss_at && back.enemies[boss_at]->Dead(),
+                          "loading does not stand her back up");
+                }
+                SaveSystem::SetDirectory(was);
+                fs::remove_all(dir, ec);
+
+                // The day after, she is back.
+                w.clock.Set(4, 12.0f);
+                Check(!w.SlainToday("house_inn_cellar", boss_post), "the next day is another day");
+                Check(w.LoadMap("house_inn", "default", rctx) || w.LoadMap("house_inn", "entrance", rctx), "up");
+                Check(w.LoadMap("house_inn_cellar", "entrance", rctx) || w.LoadMap("house_inn_cellar", "default", rctx), "and down");
+                Check(!w.enemies[boss_at]->Dead(), "and she is on her feet for it");
+            }
+        }
+    }
+
+    Section("a spell is paid for when it lands, and a wall teaches nothing");
+    {
+        Input input;
+        std::mt19937 rng(417);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        const auto mage = [&](World& w, const string& map, const string& at, int level,
+                              std::initializer_list<const char*> nodes, const char* technique) {
+            w.player.Init(ctx, "player_wayfarer");
+            if (!w.LoadMap(map, at, ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            if (level > 1) w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(level), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Equip(SLOT_WEAPON, "novice_staff");
+            for (const char* n : nodes) w.player.talents.Learn(n, w.player.skills);
+            if (technique) w.player.talents.ToggleTechnique(technique);
+            w.player.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto spawn = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        // Something to cast at that does not fight back and does not fall over:
+        // a mage at thirty kills a cow with one bolt, and then what is being
+        // measured is how much of the blow was wasted on a dead cow.
+        const auto sturdy = [&](World& w, float dx, float dy) -> Enemy* {
+            Enemy* cow = spawn(w, "cow", dx, dy);
+            if (cow) { cow->max_hp = 4000; cow->hp = cow->max_hp; }
+            return cow;
+        };
+        // One press of the light button: a bolt.
+        const auto bolt = [&](World& w) {
+            input.Update(dt); key(SDLK_J, true);  w.Update(dt, ctx);
+            input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+        };
+
+        // --- the exploit, as it was played -------------------------------------------------
+        // In the middle of Havenbrook, a pace from something solid, with the
+        // mana put back before every cast so that nothing stops it but the rule.
+        {
+            World w;
+            if (mage(w, "town_havenbrook", "waystone", 1, {}, nullptr)) {
+                // The stone is north. A few paces back from it, because a bolt
+                // leaves the staff a hand's width ahead of the caster, and let go
+                // with the staff against the stone it begins inside it.
+                w.player.y += 40.0f;
+                w.player.facing = FACE_UP;
+                const int xp0 = w.player.skills.Xp(SKILL_MAGIC);
+                int casts = 0;
+                bool struck_stone = false, flew = false;
+                for (int i = 0; i < 40; ++i) {
+                    w.player.RestoreMana();
+                    const int mana = w.player.Mana();
+                    int lowest = mana;
+                    bolt(w);
+                    for (int f = 0; f < 50; ++f) {
+                        frames(w, 1);
+                        lowest = std::min(lowest, w.player.Mana());
+                        flew |= !w.projectiles.empty();
+                        struck_stone |= !w.impacts.empty();
+                    }
+                    casts += lowest < mana;               // the mana went: it was cast
+                }
+                Check(flew && struck_stone, "the bolts are cast, and break on the stone");
+                Check(casts >= 30, "forty presses is a good many casts (" + std::to_string(casts) + ")");
+                Check(w.player.skills.Xp(SKILL_MAGIC) == xp0,
+                      "and a minute of casting at a wall teaches no Magic at all (" +
+                          std::to_string(w.player.skills.Xp(SKILL_MAGIC) - xp0) + " gained)");
+                Check(w.player.skills.Level(SKILL_MAGIC) == 1, "not a level of it");
+                frames(w, 200);
+                Check(w.OwedCasts() == 0, "nothing is left owed for bolts that are gone");
+            }
+        }
+
+        // --- nor does the open air ----------------------------------------------------------
+        {
+            World w;
+            if (mage(w, "overworld", "start", 30, {"potency", "focus", "nova"}, "nova")) {
+                const int xp0 = w.player.skills.Xp(SKILL_MAGIC);
+                for (int i = 0; i < 6; ++i) { w.player.RestoreMana(); bolt(w); frames(w, 50); }
+                // And the dear ones: a ring of eight at twice the mana.
+                for (int i = 0; i < 3; ++i) {
+                    w.player.RestoreMana();
+                    input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                    frames(w, 80);
+                    input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+                    frames(w, 60);
+                }
+                Check(w.player.skills.Xp(SKILL_MAGIC) == xp0, "bolts and novas into an empty field teach nothing either");
+                // A fire bolt leaves the ground burning for three seconds and
+                // more, and the cast is owed for as long as something could
+                // still walk into it.
+                Check(w.OwedCasts() > 0 && !w.ground_effects.empty(),
+                      "while what they left is still burning, something could yet walk into it");
+                frames(w, 360);
+                Check(w.OwedCasts() == 0 && w.projectiles.empty() && w.ground_effects.empty(),
+                      "and are forgotten when they have burnt out");
+            }
+        }
+
+        // --- a spell that lands is paid, in full, and a miss is not ---------------------------
+        {
+            World w;
+            if (mage(w, "overworld", "start", 30, {}, nullptr)) {
+                // Water, for the sums: it leaves nothing burning, so what one
+                // press earns is all earned by that press.
+                w.player.SelectElement(Element::Water);
+                const SpellDef* spell = spells.BestFor(w.player.SelectedElement(), 30);
+                Enemy* cow = sturdy(w, 80, 0);
+                Check(spell && spell->xp > 0 && cow, "a spell worth something, and a cow to cast it at");
+                int landed = 0, missed = 0;
+                bool paid_right = true, miss_free = true, owed_in_flight = false;
+                for (int i = 0; i < 16 && spell && cow; ++i) {
+                    w.player.RestoreMana();
+                    cow->hp = cow->max_hp;
+                    cow->x = w.player.x + 80.0f; cow->y = w.player.y;
+                    const int xp0 = w.player.skills.Xp(SKILL_MAGIC);
+                    bolt(w);
+                    for (int f = 0; f < 60; ++f) {
+                        frames(w, 1);
+                        if (!w.projectiles.empty() && w.OwedCasts() == 1 && w.projectiles.front().cast_id != 0)
+                            owed_in_flight = true;
+                    }
+                    const int hurt = cow->max_hp - cow->hp;
+                    const int gain = w.player.skills.Xp(SKILL_MAGIC) - xp0;
+                    if (hurt > 0) { ++landed; paid_right &= gain == spell->xp + 4 * hurt; }
+                    else          { ++missed; miss_free &= gain == 0; }
+                }
+                Check(owed_in_flight, "while the bolt is in the air the cast is owed, and the bolt says which cast it is");
+                Check(landed >= 3, "most of sixteen bolts land on a cow (" + std::to_string(landed) + ")");
+                Check(paid_right, "and each that does pays the spell's own experience, once, on top of what the damage pays");
+                Check(miss_free, "one that reaches the cow and does nothing pays nothing (" + std::to_string(missed) +
+                                     " missed): a monster that cannot be hit is not a wall with a name");
+                frames(w, 360);
+                Check(w.OwedCasts() == 0, "and nothing is owed afterwards");
+            }
+        }
+
+        // --- the fire a bolt leaves is the same cast, and is not a second one -------------------------
+        {
+            World w;
+            if (mage(w, "overworld", "start", 30, {}, nullptr)) {
+                const SpellDef* spell = spells.BestFor(Element::Fire, 30);
+                Enemy* cow = sturdy(w, 80, 0);
+                bool proved = false;
+                for (int attempt = 0; attempt < 6 && !proved && spell && cow; ++attempt) {
+                    w.player.RestoreMana();
+                    cow->hp = cow->max_hp;
+                    cow->x = w.player.x + 80.0f; cow->y = w.player.y;
+                    const int xp0 = w.player.skills.Xp(SKILL_MAGIC);
+                    bolt(w);
+                    int ticks = 0, last = cow->hp;
+                    for (int f = 0; f < 330; ++f) {             // the bolt, and all of the burning after it
+                        frames(w, 1);
+                        cow->x = w.player.x + 80.0f; cow->y = w.player.y;   // stood in it
+                        if (cow->hp < last) { ++ticks; last = cow->hp; }
+                    }
+                    const int hurt = cow->max_hp - cow->hp;
+                    if (ticks < 2) continue;                    // the dice; go again
+                    const int gain = w.player.skills.Xp(SKILL_MAGIC) - xp0;
+                    Check(gain == spell->xp + 4 * hurt,
+                          "a fire bolt and the ground it leaves burning hurt the cow " + std::to_string(ticks) +
+                              " times and pay for the spell once (" + std::to_string(gain - 4 * hurt) + " of " +
+                              std::to_string(spell->xp) + ")");
+                    Check(w.OwedCasts() == 0, "and with the fire out there is nothing owed");
+                    proved = true;
+                }
+                Check(proved, "a cow stood in a fire bolt's burning ground is burnt by it");
+            }
+        }
+
+        // --- once a cast, however many things it hits ---------------------------------------------
+        {
+            World w;
+            if (mage(w, "overworld", "start", 30, {"potency", "focus", "nova"}, "nova")) {
+                w.player.SelectElement(Element::Water);
+                const SpellDef* spell = spells.BestFor(w.player.SelectedElement(), 30);
+                const float marks[4][2] = {{60, 0}, {-60, 0}, {0, 60}, {0, -60}};
+                vector<Enemy*> herd;
+                for (const auto& m : marks) herd.push_back(sturdy(w, m[0], m[1]));
+                bool proved = false;
+                for (int attempt = 0; attempt < 8 && !proved && spell; ++attempt) {
+                    w.player.RestoreMana();
+                    input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                    frames(w, 80);
+                    for (size_t i = 0; i < herd.size(); ++i)
+                        if (herd[i]) { herd[i]->hp = herd[i]->max_hp; herd[i]->x = w.player.x + marks[i][0]; herd[i]->y = w.player.y + marks[i][1]; }
+                    const int xp0 = w.player.skills.Xp(SKILL_MAGIC);
+                    input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+                    frames(w, 70);
+                    int hurt = 0, cows_hurt = 0;
+                    for (Enemy* c : herd) if (c && c->hp < c->max_hp) { hurt += c->max_hp - c->hp; ++cows_hurt; }
+                    if (cows_hurt < 2) continue;                       // the dice; go again
+                    const int gain = w.player.skills.Xp(SKILL_MAGIC) - xp0;
+                    Check(gain == spell->xp + 4 * hurt,
+                          "a nova that hurts " + std::to_string(cows_hurt) + " cows is one cast: the spell's experience once (" +
+                              std::to_string(gain - 4 * hurt) + " of " + std::to_string(spell->xp) + ")");
+                    proved = true;
+                }
+                Check(proved, "a nova in the middle of four cows hurts at least two of them");
+            }
+        }
+
+        // --- what comes down from above is the cast's as well ----------------------------------------
+        {
+            World w;
+            if (mage(w, "overworld", "start", 30, {"ward", "seeker", "meteor"}, "meteor")) {
+                const SpellDef* spell = spells.BestFor(w.player.SelectedElement(), 30);
+                // Into an empty field first: a meteor is three bolts' mana, and was three bolts' worth of nothing.
+                const int idle0 = w.player.skills.Xp(SKILL_MAGIC);
+                input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                frames(w, 80);
+                input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+                bool carried = false;
+                for (int f = 0; f < 90; ++f) {
+                    frames(w, 1);
+                    for (const GroundEffect& g : w.ground_effects) carried |= g.cast_id != 0;
+                }
+                Check(carried, "a meteor carries its cast down with it");
+                Check(w.player.skills.Xp(SKILL_MAGIC) == idle0 && w.OwedCasts() == 0,
+                      "and one that lands on nothing pays nothing and is forgotten");
+
+                Enemy* cow = sturdy(w, 110, 0);
+                bool proved = false;
+                for (int attempt = 0; attempt < 8 && !proved && spell && cow; ++attempt) {
+                    w.player.RestoreMana();
+                    input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                    frames(w, 80);
+                    cow->hp = cow->max_hp;
+                    cow->x = w.player.x + 110.0f; cow->y = w.player.y;
+                    const int xp0 = w.player.skills.Xp(SKILL_MAGIC);
+                    input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+                    for (int f = 0; f < 90; ++f) {
+                        frames(w, 1);
+                        // Held under it: a cow that ambles off is a test of cows.
+                        if (cow->hp == cow->max_hp) { cow->x = w.player.x + 110.0f; cow->y = w.player.y; }
+                    }
+                    const int hurt = cow->max_hp - cow->hp;
+                    if (hurt <= 0) continue;
+                    const int gain = w.player.skills.Xp(SKILL_MAGIC) - xp0;
+                    Check(gain == spell->xp + 4 * hurt, "a meteor that lands on a cow pays the spell's experience, once (" +
+                                                           std::to_string(gain - 4 * hurt) + " of " + std::to_string(spell->xp) + ")");
+                    proved = true;
+                }
+                Check(proved, "a meteor lands on a cow that is stood under it");
+            }
+        }
+
+        // --- an arrow is not a cast ------------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_warden");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                w.enemies.clear();
+                w.player.equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+                w.player.facing = FACE_RIGHT;
+                const int xp0 = w.player.skills.Xp(SKILL_RANGED);
+                bool loosed = false, plain = true;
+                bolt(w);
+                for (int f = 0; f < 60; ++f) {
+                    frames(w, 1);
+                    for (const Projectile& p : w.projectiles) { loosed = true; plain &= p.cast_id == 0; }
+                }
+                Check(loosed && plain && w.OwedCasts() == 0, "a bow owes nothing: it never paid for an arrow that hit nothing");
+                Check(w.player.skills.Xp(SKILL_RANGED) == xp0, "and an arrow into a field still teaches nothing");
+            }
+        }
+    }
+
+    Section("what comes out at night");
+    {
+        GameContext ctx;
+        std::mt19937 rng(2020);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- where, and what ---------------------------------------------------------------
+        const std::set<string> wilds = {"overworld", "whisperwood_trail", "westwold", "brackenwood"};
+        int posts_all = 0;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            vector<const EnemySpawnDef*> night, day;
+            for (const EnemySpawnDef& e : m.Enemies()) (e.night ? night : day).push_back(&e);
+            if (!wilds.count(id)) {
+                Check(night.empty(), string(id) + " is a town, a room, a hole in the ground or a dream: nothing new comes to it at night");
+                continue;
+            }
+            posts_all += static_cast<int>(night.size());
+            Check(night.size() >= 6, string(id) + " has visitors after dark (" + std::to_string(night.size()) + " posts)");
+            // "Don't overdo it": with half of them kept on any one night, what
+            // is abroad is a small share of what lives there.
+            Check(night.size() * 0.5f <= day.size() * 0.2f,
+                  string(id) + ": and few of them -- " + std::to_string(night.size()) + " posts, half kept, to " +
+                      std::to_string(day.size()) + " by day");
+            // They are written last, so that every post there was before keeps
+            // its number: the day's hash and a slain boss both go by it.
+            bool seen_night = false, night_last = true;
+            for (const EnemySpawnDef& e : m.Enemies()) { if (e.night) seen_night = true; else if (seen_night) night_last = false; }
+            Check(night_last, string(id) + ": the night posts come after everything else in the list");
+
+            bool sound = true, strangers = true, stronger = true, measured = true, clear = true;
+            for (const EnemySpawnDef* n : night) {
+                sound &= n->respawn <= 0.0f && !n->pool.empty() && !n->group.empty() && n->chance > 0.0f && n->chance <= 0.75f;
+                int low = 99, high = 0;
+                for (const string& t : n->pool) {
+                    const EnemyDef* d = enemy_db.Get(t);
+                    sound &= d != nullptr && !d->is_boss && d->aggro_range > 0.0f;
+                    if (!d) continue;
+                    low  = std::min(low,  Enemy::ShownLevelOf(*d, n->level));
+                    high = std::max(high, Enemy::ShownLevelOf(*d, n->level + n->spread));
+                }
+                // What lives round about by day, bosses apart.
+                float sum = 0.0f; int count = 0;
+                for (const EnemySpawnDef* d : day) {
+                    const EnemyDef* def = enemy_db.Get(d->type);
+                    if (!def || def->is_boss) continue;
+                    const float far = std::hypot(d->x - n->x, d->y - n->y);
+                    if (far < 640.0f && std::find(n->pool.begin(), n->pool.end(), d->type) != n->pool.end()) strangers = false;
+                    if (far < 800.0f) { sum += Enemy::ShownLevelOf(*def, d->level); ++count; }
+                }
+                if (count > 0) {
+                    const float usual = sum / count;
+                    stronger &= low > usual;
+                    measured &= high <= usual + 24.0f;
+                }
+                clear &= !m.Blocked({n->x - 6.0f, n->y - 6.0f, 12.0f, 6.0f});
+                // Nowhere near a way in, somewhere to arrive, or anybody.
+                for (const Portal& p : m.Portals()) {
+                    const float px = std::clamp(n->x, p.rect.x, p.rect.x + p.rect.w), py = std::clamp(n->y, p.rect.y, p.rect.y + p.rect.h);
+                    clear &= std::hypot(px - n->x, py - n->y) >= 340.0f;
+                }
+                for (const NpcDef& who : m.Npcs()) clear &= std::hypot(who.x - n->x, who.y - n->y) >= 340.0f;
+                for (const MapObject& o : m.Objects())
+                    if (o.type == "bed" || o.type == "campsite") clear &= std::hypot(o.x - n->x, o.y - n->y) >= 340.0f;
+            }
+            Check(sound, string(id) + ": each is a pack's post, of real monsters that fight, kept some nights and never respawning");
+            Check(strangers, string(id) + ": and what comes is not what lives there -- nothing of its kind stands within twenty cells by day");
+            Check(stronger, string(id) + ": it is stronger than the run of what does");
+            Check(measured, string(id) + ": but by a step or two, not by a dragon");
+            Check(clear, string(id) + ": and is posted on open ground, away from every gate, camp and person");
+        }
+        Check(posts_all >= 40, "about eighty posts across the wilds (" + std::to_string(posts_all) + ")");
+
+        // The road out of Havenbrook is the way to travel after dark.
+        {
+            Map ow;
+            ow.Load("maps/overworld.mx");
+            SDL_FPoint gate{};
+            ow.Spawn("start", gate);
+            float nearest_to_gate = 1.0e9f;
+            for (const EnemySpawnDef& e : ow.Enemies())
+                if (e.night) nearest_to_gate = std::min(nearest_to_gate, std::hypot(e.x - gate.x, e.y - gate.y));
+            Check(nearest_to_gate > 500.0f, "nothing comes within a screen of Havenbrook's gate (" +
+                                                std::to_string(static_cast<int>(nearest_to_gate)) + " px)");
+        }
+
+        // --- which nights -----------------------------------------------------------------------
+        {
+            int kept = 0, asked = 0, changed = 0;
+            for (int day = 1; day <= 60; ++day)
+                for (int post = 0; post < 40; ++post) {
+                    const bool tonight = World::KeptTonight("overworld", day, post, "", 0.5f);
+                    kept += tonight; ++asked;
+                    changed += tonight != World::KeptTonight("overworld", day + 1, post, "", 0.5f);
+                }
+            const float share = static_cast<float>(kept) / asked;
+            Check(share > 0.42f && share < 0.58f, "half the posts are kept on a night (" + std::to_string(static_cast<int>(share * 100)) + "%)");
+            Check(changed > asked / 3, "and not the same half two nights running");
+            Check(World::KeptTonight("overworld", 3, 7, "", 1.0f) && !World::KeptTonight("overworld", 3, 7, "", 0.0f),
+                  "always is always and never is never");
+            bool together = true;
+            for (int day = 1; day <= 40; ++day)
+                together &= World::KeptTonight("westwold", day, 4, "night_90_33", 0.5f) ==
+                            World::KeptTonight("westwold", day, 5, "night_90_33", 0.5f);
+            Check(together, "a pack comes or stays away together");
+        }
+
+        // --- a night, played through -------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(2, 12.0f);
+            Check(w.LoadMap("overworld", "start", ctx), "the Hollowmarch at noon");
+            const size_t listed = w.enemies.size();
+            const auto up = [&]() {
+                int n = 0;
+                for (const auto& e : w.enemies) n += e->night && !e->Dead();
+                return n;
+            };
+            const auto due = [&]() {
+                int n = 0;
+                for (const auto& e : w.enemies) n += w.Abroad(*e);
+                return n;
+            };
+            Check(w.HasNightPosts() && up() == 0 && due() == 0, "by day every one of them is in the list and none of them is there");
+            for (int f = 0; f < 120; ++f) w.Update(kFrame, ctx);
+            Check(up() == 0, "and stays away while the sun is up");
+
+            // Nightfall, watched from the town gate, which is nowhere near any of them.
+            w.clock.Set(2, 19.99f);
+            w.TakeRequests();
+            for (int f = 0; f < 90; ++f) w.Update(kFrame, ctx);
+            Check(w.clock.IsNight(), "the clock goes round to eight");
+            const int tonight = due();
+            Check(tonight >= 8 && tonight <= 30, "about half of them are due tonight (" + std::to_string(tonight) + ")");
+            Check(up() == tonight, "and every one that is due is up, at its post (" + std::to_string(up()) + ")");
+            Check(w.enemies.size() == listed, "with the list as long as it was: friends count monsters by their place in it");
+            bool warned = false;
+            for (const WorldRequest& r : w.TakeRequests())
+                warned |= r.type == WorldRequest::Type::Toast && r.text.find("road") != string::npos;
+            Check(warned, "nightfall says so, and says to keep to the road");
+
+            // One of them, killed.
+            Enemy* visitor = nullptr;
+            for (const auto& e : w.enemies) if (e->night && !e->Dead()) { visitor = e.get(); break; }
+            Check(visitor != nullptr, "there is one to go and find");
+            if (visitor) {
+                const int post = visitor->post;
+                const size_t index = static_cast<size_t>(post);
+                w.player.x = visitor->x - 300.0f; w.player.y = visitor->y;
+                visitor->Damage(99999);
+                for (int f = 0; f < 5; ++f) w.Update(kFrame, ctx);
+                Check(visitor->Dead() && w.SlainToday("overworld", post), "killed, it is remembered for the night");
+                // It leaves what its kind leaves: it is a real one.
+                for (int f = 0; f < 60 * 40; ++f) w.Update(kFrame, ctx);
+                Check(visitor->Dead(), "forty seconds on it has not come back: there is no respawn in the dark");
+                // Out of the door and in again.
+                Check(w.LoadMap("town_havenbrook", "default", ctx) && w.LoadMap("overworld", "start", ctx), "into town and out again");
+                Check(index < w.enemies.size() && w.enemies[index]->night && w.enemies[index]->Dead(),
+                      "and it is still dead, the same night");
+                Check(up() == tonight - 1, "with the rest of them up, as a map walked into at night finds them");
+
+                // Dawn.
+                const size_t lying = w.pickups.size();
+                w.clock.Set(3, 4.99f);
+                w.TakeRequests();
+                for (int f = 0; f < 120; ++f) w.Update(kFrame, ctx);
+                Check(!w.clock.IsNight() && up() == 0, "at dawn what is left goes to ground");
+                Check(w.pickups.size() == lying, "and leaves nothing: it was not killed");
+                bool said = false;
+                for (const WorldRequest& r : w.TakeRequests()) said |= r.type == WorldRequest::Type::Toast && r.text.find("Dawn") != string::npos;
+                Check(said, "and the morning says so");
+
+                // The next night it may be back. Find one on which it is.
+                int back_day = 0;
+                for (int day = 3; day < 40 && !back_day; ++day)
+                    if (World::KeptTonight("overworld", day, post, w.enemies[index]->night_group, w.enemies[index]->night_chance)) back_day = day;
+                w.clock.Set(back_day, 19.99f);
+                for (int f = 0; f < 90; ++f) w.Update(kFrame, ctx);
+                Check(back_day > 0 && !w.enemies[index]->Dead(), "and on another night that is one of its own, it is back");
+            }
+        }
+
+        // --- one in the middle of a fight at dawn finishes it -----------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(60), lu);
+            w.player.skills.AddXp(SKILL_DEFENCE, XpForLevel(60), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.clock.Set(5, 23.0f);
+            if (w.LoadMap("overworld", "start", ctx)) {
+                Enemy* visitor = nullptr;
+                for (const auto& e : w.enemies) if (e->night && !e->Dead()) { visitor = e.get(); break; }
+                if (visitor) {
+                    w.player.x = visitor->x + 40.0f; w.player.y = visitor->y;
+                    for (int f = 0; f < 30; ++f) w.Update(kFrame, ctx);
+                    Check(visitor->Engaged(), "walked up to, it comes for you");
+                    w.clock.Set(6, 4.999f);
+                    for (int f = 0; f < 20; ++f) { w.player.x = visitor->x + 30.0f; w.player.y = visitor->y; w.Update(kFrame, ctx); }
+                    Check(!w.clock.IsNight() && !visitor->Dead(), "and dawn does not pull it out of a fight it is in");
+                }
+            }
+        }
+
+        // --- a town's nightfall is as it was, and a quest does not point into the dark -----------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(2, 19.99f);
+            if (w.LoadMap("town_havenbrook", "default", ctx)) {
+                w.TakeRequests();
+                for (int f = 0; f < 90; ++f) w.Update(kFrame, ctx);
+                bool plain = false;
+                for (const WorldRequest& r : w.TakeRequests())
+                    plain |= r.type == WorldRequest::Type::Toast && r.text.find("Night falls") != string::npos &&
+                             r.text.find("road") == string::npos;
+                Check(!w.HasNightPosts() && plain, "in town night falls the way it always did");
+            }
+            std::ifstream in("data/waypoints.json");
+            json ways_json;
+            if (in) in >> ways_json;
+            bool pointed = false;
+            if (ways_json.contains("maps") && ways_json["maps"].contains("overworld"))
+                for (const auto& post : ways_json["maps"]["overworld"].value("posts", json::array()))
+                    for (const auto& t : post.value("types", json::array()))
+                        pointed |= t == "hound" || t == "imp" || t == "bat" || t == "wolf";
+            Check(!pointed, "no contract is pointed at a post that is only kept after dark");
+        }
+    }
+
+    Section("what a boss leaves, the first time");
+    {
+        GameContext ctx;
+        std::mt19937 rng(1111);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the boons ----------------------------------------------------------------------------
+        vector<string> bosses;
+        {
+            std::ifstream in("data/enemies.json");
+            json ej;
+            in >> ej;
+            const json& rows = ej.contains("enemies") ? ej["enemies"] : ej;
+            for (auto it = rows.begin(); it != rows.end(); ++it) {
+                const string id = rows.is_object() ? it.key() : it.value().value("id", string(""));
+                const EnemyDef* d = enemy_db.Get(id);
+                if (d && d->is_boss) bosses.push_back(id);
+            }
+        }
+        Check(bosses.size() >= 10, "there are bosses to kill (" + std::to_string(bosses.size()) + ")");
+        // Every effect a boon names has to be one the game reads, or the boon is a name and nothing else.
+        const std::set<string> read = {"max_health", "defence", "stamina", "stamina_regen", "move_speed", "crit", "damage",
+                                       "lifesteal", "evade", "speed", "charged_damage", "block_cost", "projectile_speed",
+                                       "max_mana", "mana_regen"};
+        Check(trees.Boons().size() >= 12, "and boons to leave (" + std::to_string(trees.Boons().size()) + ")");
+        std::set<string> ids;
+        for (const BoonDef& b : trees.Boons()) {
+            Check(ids.insert(b.id).second && !b.name.empty() && !b.text.empty(), b.id + " has a name, and says what it does");
+            for (const auto& fx : b.effects)
+                Check(read.count(fx.first) > 0 && fx.second > 0.0f, b.id + ": '" + fx.first + "' is something the game reads");
+        }
+        for (const AttackStyle path : {AttackStyle::Melee, AttackStyle::Ranged, AttackStyle::Magic}) {
+            size_t usable = 0;
+            for (const BoonDef& b : trees.Boons()) usable += b.For(path);
+            Check(usable >= bosses.size(), "every path has a boon for every boss, so no first kill has to repeat one (" +
+                                               std::to_string(usable) + ")");
+        }
+
+        // --- the first time, and once -----------------------------------------------------------------
+        {
+            Talents t;
+            t.SetDatabase(&trees);
+            t.SetPath(AttackStyle::Magic);
+            Skills s;
+            LevelUp lu;
+            s.AddXp(SKILL_MAGIC, XpForLevel(6), lu);
+            Check(t.PointsEarned(AttackStyle::Magic, s) == 2 && t.BonusPoints() == 0, "level six is two points, and no boss is none besides");
+            const Talents::Trophy first = t.SlayBoss("broodmother", rng);
+            Check(first.first && first.boon && t.HasSlain("broodmother") && t.BonusPoints() == 1 && t.Boons().size() == 1,
+                  "the first Broodmother leaves a point and a boon");
+            Check(t.PointsEarned(AttackStyle::Magic, s) == 3 && t.PointsFree(AttackStyle::Magic, s) == 3, "and the point is one to spend");
+            const Talents::Trophy again = t.SlayBoss("broodmother", rng);
+            Check(!again.first && !again.boon && t.BonusPoints() == 1 && t.Boons().size() == 1, "the second leaves her loot and nothing else");
+            Check(!t.SlayBoss("", rng).first, "and nobody is nobody");
+
+            // It buys a rank like any other.
+            const TalentTree& tree = trees.Tree(AttackStyle::Magic);
+            const TalentNode* top = tree.At(0, 0);
+            if (top) {
+                int bought = 0;
+                while (t.Learn(top->id, s)) ++bought;
+                Check(bought == std::min(3, top->ranks), "three points buy three ranks where level six alone bought two");
+                t.Reset(AttackStyle::Magic);
+                Check(t.PointsFree(AttackStyle::Magic, s) == 3 && t.Boons().size() == 1 && t.HasSlain("broodmother"),
+                      "unlearning the tree gives the point back with the rest, and keeps the boon");
+            }
+
+            // All of them: a different boon from each, and none a mage has no use for.
+            for (const string& b : bosses) t.SlayBoss(b, rng);
+            std::set<string> got(t.Boons().begin(), t.Boons().end());
+            Check(t.Boons().size() == bosses.size() && got.size() == bosses.size(),
+                  "every boss leaves a boon, and no two the same (" + std::to_string(got.size()) + ")");
+            bool fitting = true;
+            for (const string& id : t.Boons()) { const BoonDef* b = trees.Boon(id); fitting &= b && b->For(AttackStyle::Magic); }
+            Check(fitting && !t.HasBoon("boon_shieldarm") && !t.HasBoon("boon_true_flight"), "and none is for a path that is not theirs");
+            Check(t.PointsEarned(AttackStyle::Magic, s) == 2 + static_cast<int>(bosses.size()), "a point for each");
+
+            // It is the character's, so it is wherever the character is kept.
+            Talents back;
+            back.SetDatabase(&trees);
+            back.SetPath(AttackStyle::Magic);
+            back.FromJson(t.ToJson());
+            Check(back.Boons() == t.Boons() && back.BossesSlain() == t.BossesSlain(), "bosses and boons survive a save");
+            Check(!back.SlayBoss("pit_lord", rng).first, "and a boss killed before the save is not a first kill after it");
+            // A save that has been meddled with cannot have more boons than bosses, or boons nobody made.
+            json forged = t.ToJson();
+            forged["bosses"] = json::array({"broodmother"});
+            forged["boss_kills"] = json{{"broodmother", 3}};
+            forged["boons"] = json::array({"boon_might", "boon_vigour", "boon_of_being_a_god"});
+            back.FromJson(forged);
+            Check(back.Boons().size() == 1 && back.BonusPoints() == 1, "a boon for each boss and no more, whatever the file says");
+
+            // A hero is never handed mana.
+            for (int seed = 0; seed < 30; ++seed) {
+                std::mt19937 dice(seed);
+                Talents hero;
+                hero.SetDatabase(&trees);
+                hero.SetPath(AttackStyle::Melee);
+                for (const string& b : bosses) hero.SlayBoss(b, dice);
+                fitting &= !hero.HasBoon("boon_deep_reserves") && !hero.HasBoon("boon_wellspring") && !hero.HasBoon("boon_true_flight");
+            }
+            Check(fitting, "thirty heroes kill everything and not one is given mana or arrows");
+        }
+
+        // --- what each one does -----------------------------------------------------------------------
+        {
+            const auto with = [&](const char* boon) {
+                auto p = std::make_unique<Player>();
+                p->Init(ctx, "player_wayfarer");
+                LevelUp lu;
+                p->skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+                p->skills.AddXp(SKILL_MAGIC, XpForLevel(40), lu);
+                if (boon) p->talents.FromJson(json{{"bosses", json::array({"x"})}, {"boons", json::array({boon})}});
+                p->SyncHitpoints();
+                p->SyncMana();
+                return p;
+            };
+            const auto plain = with(nullptr);
+            Check(with("boon_vigour")->max_hp == static_cast<int>(std::lround(plain->max_hp * 1.08f)) && plain->max_hp == 50,
+                  "Vigour is eight parts in a hundred more health");
+            Check(with("boon_stoneblood")->Profile().defence_bonus == plain->Profile().defence_bonus + 5, "Stoneblood is five Defence");
+            Check(std::fabs(with("boon_long_wind")->MaxStamina() - plain->MaxStamina() * 1.10f) < 0.01f, "Long Wind is a tenth more breath");
+            Check(with("boon_deep_reserves")->MaxMana() == static_cast<int>(std::lround(plain->MaxMana() * 1.10f)), "Deep Reserves is a tenth more mana");
+            Check(std::fabs(with("boon_might")->TalentDamage(AttackStyle::Magic, AttackType::Light) -
+                            plain->TalentDamage(AttackStyle::Magic, AttackType::Light) - 0.03f) < 1e-4f &&
+                  std::fabs(with("boon_might")->TalentDamage(AttackStyle::Melee, AttackType::Light) -
+                            plain->TalentDamage(AttackStyle::Melee, AttackType::Light) - 0.03f) < 1e-4f,
+                  "Might is three in a hundred, with whatever is in hand");
+            Check(std::fabs(with("boon_keen_eye")->talents.Effect("crit", AttackStyle::Ranged) - 0.02f) < 1e-5f &&
+                  std::fabs(with("boon_sure_feet")->talents.Global("evade") - 0.03f) < 1e-5f &&
+                  std::fabs(with("boon_leech")->talents.Effect("lifesteal", AttackStyle::Melee) - 0.02f) < 1e-5f,
+                  "and the rest are read where the tree's own are");
+        }
+
+        // --- in the world: down into the cellar ------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("house_inn_cellar", "entrance", ctx) || w.LoadMap("house_inn_cellar", "default", ctx), "Bess's cellar");
+            w.clock.Set(3, 12.0f);
+            Enemy* mother = nullptr;
+            Enemy* rat = nullptr;
+            for (const auto& e : w.enemies) {
+                if (e->Def() && e->Def()->is_boss) mother = e.get();
+                else if (!rat) rat = e.get();
+            }
+            Check(mother && rat, "the Broodmother, and a rat");
+            if (mother && rat) {
+                w.TakeRequests();
+                rat->Damage(99999);
+                for (int f = 0; f < 5; ++f) w.Update(kFrame, ctx);
+                Check(w.player.talents.BonusPoints() == 0 && w.player.talents.Boons().empty(), "a rat leaves nothing of the kind");
+                w.TakeRequests();
+
+                const int points = w.player.talents.PointsEarned(AttackStyle::Melee, w.player.skills);
+                mother->Damage(99999);
+                for (int f = 0; f < 5; ++f) w.Update(kFrame, ctx);
+                Check(w.player.talents.HasSlain("broodmother") && w.player.talents.Boons().size() == 1 &&
+                      w.player.talents.PointsEarned(AttackStyle::Melee, w.player.skills) == points + 1,
+                      "the Broodmother, killed, leaves a skill point and a boon");
+                bool named = false, pointed = false, booned = false, short_enough = true;
+                const BoonDef* left = w.player.talents.Boons().empty() ? nullptr : trees.Boon(w.player.talents.Boons().back());
+                for (const WorldRequest& r : w.TakeRequests()) {
+                    if (r.type != WorldRequest::Type::Toast) continue;
+                    named   |= r.text.find("The Broodmother") != string::npos;
+                    pointed |= r.text.find("skill point") != string::npos;
+                    booned  |= left && r.text.find(left->name) != string::npos && r.text.find(left->text) != string::npos;
+                    short_enough &= r.text.size() <= 90;
+                }
+                Check(named && pointed && booned, "and the game says who, and that there is a point, and which boon and what it does");
+                Check(short_enough, "in lines short enough for a narrow window");
+
+                // The next day she is back, and is only a fight.
+                w.clock.Set(4, 12.0f);
+                Check((w.LoadMap("house_inn", "default", ctx) || w.LoadMap("house_inn", "entrance", ctx)) &&
+                      (w.LoadMap("house_inn_cellar", "entrance", ctx) || w.LoadMap("house_inn_cellar", "default", ctx)), "up, and down again the day after");
+                Enemy* again = nullptr;
+                for (const auto& e : w.enemies) if (e->Def() && e->Def()->is_boss) again = e.get();
+                Check(again && !again->Dead(), "she is back");
+                if (again) {
+                    w.TakeRequests();
+                    again->Damage(99999);
+                    for (int f = 0; f < 5; ++f) w.Update(kFrame, ctx);
+                    bool told_again = false;
+                    for (const WorldRequest& r : w.TakeRequests()) told_again |= r.type == WorldRequest::Type::Toast && r.text.find("boon") != string::npos;
+                    Check(w.player.talents.Boons().size() == 1 && w.player.talents.BonusPoints() == 1 && !told_again,
+                          "and the second time leaves what she drops and nothing more");
+                }
+            }
+        }
+
+        // --- a fight shared: everyone who was there, each once ------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Check(w.LoadMap("house_inn_cellar", "entrance", ctx) || w.LoadMap("house_inn_cellar", "default", ctx), "the cellar, in company");
+            w.clock.Set(3, 12.0f);
+            QuestLog couch_journal;
+            couch_journal.LoadDefinitions("data/quests.json");
+            Player* couch = w.AddGuest(1, "Player Two", "player_warden", ctx);
+            Player* wire  = w.AddGuest(2, "Oona", "player_wayfarer", ctx);
+            Check(couch && wire, "two friends: one on the couch, one down the wire");
+            if (couch && wire) {
+                w.SeatOf(1).own_journal = &couch_journal;      // here in person: their character is this one
+                w.SeatOf(2).journal.relay = true;              // theirs is on their own machine
+                w.player.talents.SlayBoss("broodmother", rng); // the host has killed her before
+                const size_t host_boons = w.player.talents.Boons().size();
+                Enemy* mother = nullptr;
+                for (const auto& e : w.enemies) if (e->Def() && e->Def()->is_boss) mother = e.get();
+                if (mother) {
+                    mother->Damage(99999);
+                    for (int f = 0; f < 5; ++f) w.Update(kFrame, ctx);
+                }
+                Check(w.player.talents.Boons().size() == host_boons, "the host, who had, gets nothing new");
+                Check(couch->talents.HasSlain("broodmother") && couch->talents.Boons().size() == 1, "the friend on the couch, who had not, gets theirs");
+                bool couch_told = false;
+                for (const WorldRequest& r : w.SeatOf(1).requests) couch_told |= r.type == WorldRequest::Type::Toast && r.text.find("boon") != string::npos;
+                Check(couch_told, "and is the one told");
+                // The friend down the wire: not here, where their character is a copy...
+                Check(!wire->talents.HasSlain("broodmother") && wire->talents.Boons().empty(),
+                      "the friend down the wire is not given it here, on a copy of their character");
+                // ...but their machine is sent the kill, with which boss it was.
+                bool relayed = false;
+                for (const QuestEvent& e : w.SeatOf(2).journal.relayed)
+                    relayed |= e.type == ObjectiveType::Kill && e.secondary == "broodmother";
+                Check(relayed, "their machine is sent the kill, and which boss it was");
+                // What it does with that.
+                World theirs;
+                theirs.player.Init(ctx, "player_wayfarer");
+                theirs.AwardBoss("broodmother", ctx);
+                Check(theirs.player.talents.HasSlain("broodmother") && theirs.player.talents.Boons().size() == 1 &&
+                      !theirs.TakeRequests().empty(), "where it is given to the real one, and said");
+                // And what goes back to the host is the character, boon and all.
+                wire->ApplySheet(theirs.player.ToJson(), ctx);
+                Check(wire->talents.Boons() == theirs.player.talents.Boons() && wire->talents.BonusPoints() == 1,
+                      "and the next sheet tells the host, so its rolls are the right ones");
+            }
+            // A name with its own article is not given a second.
+            {
+                World w2;
+                w2.player.Init(ctx, "player_hero");
+                w2.AwardBoss("barrow_wight", ctx);
+                bool doubled = false, said = false;
+                for (const WorldRequest& r : w2.TakeRequests()) {
+                    doubled |= r.text.find("The The") != string::npos;
+                    said |= r.text.find("Wight") != string::npos;
+                }
+                Check(said && !doubled, "the Hollowrest Wight is not The The Hollowrest Wight");
+            }
+            // A chief still counts for the contract on lizardmen.
+            const EnemyDef* chief = enemy_db.Get("lizardman_chief");
+            Check(chief && chief->is_boss && chief->kill_target == "lizardman", "a chief is a boss and still a lizardman to the board");
+        }
+    }
+
+    Section("a totem for the fifteenth, and the ring it stands in");
+    {
+        GameContext ctx;
+        std::mt19937 rng(1515);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- one for every boss, and each a real thing ----------------------------------------------
+        const std::set<string> read = {"max_health", "defence", "stamina", "stamina_regen", "move_speed", "crit", "crit_damage",
+                                       "damage", "lifesteal", "evade", "speed", "charged_damage"};
+        int bosses = 0;
+        {
+            std::ifstream in("data/enemies.json");
+            json ej;
+            in >> ej;
+            const json& rows = ej.contains("enemies") ? ej["enemies"] : ej;
+            for (auto it = rows.begin(); it != rows.end(); ++it) {
+                const string id = rows.is_object() ? it.key() : it.value().value("id", string(""));
+                const EnemyDef* d = enemy_db.Get(id);
+                if (!d || !d->is_boss) continue;
+                ++bosses;
+                const TotemDef* t = trees.TotemOf(id);
+                Check(t != nullptr, d->name + " has a totem to leave");
+                if (!t) continue;
+                const ItemDef* thing = items.Get(t->item);
+                Check(thing && thing->keep && thing->value == 0 && !thing->stackable && !thing->consumable,
+                      t->item + " is a thing in the bag that cannot be sold, dropped or eaten");
+                Check(thing && fs::exists(thing->icon), t->item + " has a picture, which is also what stands in the ring");
+                Check(thing && thing->description.find("Mossvale") != string::npos, t->item + " says where it goes");
+                Check(!t->name.empty() && !t->text.empty() && trees.Totem(t->item) == t, t->item + " says what it gives");
+                for (const auto& fx : t->effects) {
+                    Check(read.count(fx.first) > 0 && fx.second > 0.0f, t->item + ": '" + fx.first + "' is something the game reads");
+                    // A day's blessing, one at a time and gone home for, is more than what a first kill leaves for good.
+                    for (const BoonDef& b : trees.Boons()) {
+                        const auto same = b.effects.find(fx.first);
+                        if (same != b.effects.end())
+                            Check(fx.second > same->second, t->item + ": " + fx.first + " is more than " + b.name + " gives for good");
+                    }
+                }
+            }
+        }
+        Check(bosses >= 10 && static_cast<int>(trees.Totems().size()) == bosses, "a totem for each boss and no others");
+        Check(Talents::TOTEM_KILLS == 15, "and the fifteenth kill is the one");
+
+        // --- counting to fifteen ----------------------------------------------------------------------
+        {
+            Talents t;
+            t.SetDatabase(&trees);
+            t.SetPath(AttackStyle::Melee);
+            int totems = 0, boons = 0, which = 0;
+            for (int n = 1; n <= 20; ++n) {
+                const Talents::Trophy won = t.SlayBoss("orc3", rng);
+                Check(won.kills == n, "kill " + std::to_string(n) + " is counted as " + std::to_string(n));
+                if (won.totem) { ++totems; which = n; }
+                boons += won.boon != nullptr;
+            }
+            Check(totems == 1 && which == 15, "twenty Warchiefs leave one totem, on the fifteenth");
+            Check(boons == 1 && t.BonusPoints() == 1 && t.Kills("orc3") == 20, "and one boon and one point, on the first");
+            Check(t.Kills("pit_lord") == 0 && !t.SlayBoss("pit_lord", rng).totem, "one boss's count is not another's");
+
+            Talents back;
+            back.SetDatabase(&trees);
+            back.SetPath(AttackStyle::Melee);
+            back.FromJson(t.ToJson());
+            Check(back.Kills("orc3") == 20 && back.Kills("pit_lord") == 1, "the count is in the save");
+            Check(!back.SlayBoss("orc3", rng).totem, "and a totem already earned is not earned again after it");
+            // A save from before kills were counted: each boss in it, once.
+            back.FromJson(json{{"bosses", json::array({"den_mother"})}, {"boons", json::array({"boon_might"})}});
+            Check(back.Kills("den_mother") == 1 && back.HasSlain("den_mother") && back.Boons().size() == 1,
+                  "an older save's bosses count as killed once, and keep their boons");
+            int until = 0;
+            while (!back.SlayBoss("den_mother", rng).totem && until < 40) ++until;
+            Check(until == 13, "so fourteen more leave the totem");
+        }
+
+        // --- the ring: one at a time, for the day ---------------------------------------------------------
+        {
+            Talents t;
+            t.SetDatabase(&trees);
+            t.SetToday(3);
+            Check(t.PlacedTotem().empty() && !t.TotemAwake() && !t.ActiveTotem(), "an empty ring gives nothing");
+            Check(t.PlaceTotem("not_a_totem", 3).empty() && t.PlacedTotem().empty(), "and only a totem will stand in it");
+            Check(t.PlaceTotem("totem_orc3", 3).empty() && t.TotemAwake() && t.ActiveTotem() &&
+                  std::fabs(t.Effect("damage", AttackStyle::Ranged) - 0.10f) < 1e-5f,
+                  "the Warchief's, stood in it and touched, is a tenth more damage with anything");
+            // The same day, all day.
+            Check(t.TotemAwake(), "and still is that evening");
+            t.SetToday(4);
+            Check(!t.TotemAwake() && t.PlacedTotem() == "totem_orc3" && t.Effect("damage", AttackStyle::Ranged) == 0.0f,
+                  "at dawn it is a carving in a ring: still there, and giving nothing");
+            Check(t.PlaceTotem("totem_orc3", 4).empty() && t.TotemAwake(), "a hand on it wakes it for the new day, and nothing comes out of the ring");
+            // Another in its place.
+            const string was = t.PlaceTotem("totem_den_mother", 4);
+            Check(was == "totem_orc3" && t.PlacedTotem() == "totem_den_mother", "another stood in its place sends the first back to the bag");
+            Check(t.Effect("damage", AttackStyle::Melee) == 0.0f && std::fabs(t.Global("defence") - 15.0f) < 1e-4f,
+                  "and there is one blessing, the new one: never two");
+            // With what the first kills left, which is for good.
+            t.FromJson(json{{"bosses", json::array({"a", "b"})}, {"boons", json::array({"boon_stoneblood", "boon_might"})},
+                            {"totem", "totem_den_mother"}, {"totem_day", 4}});
+            t.SetToday(4);
+            Check(std::fabs(t.Global("defence") - 20.0f) < 1e-4f && std::fabs(t.Effect("damage", AttackStyle::Melee) - 0.03f) < 1e-5f,
+                  "a totem is on top of the boons, not instead of them, and is in the save");
+            Check(t.TakeTotem() == "totem_den_mother" && t.PlacedTotem().empty() && std::fabs(t.Global("defence") - 5.0f) < 1e-4f,
+                  "lifted out, its blessing goes with it and the boons stay");
+            t.FromJson(json{{"totem", "totem_of_nobody"}, {"totem_day", 4}});
+            Check(t.PlacedTotem().empty(), "a totem nobody made does not stand in the ring, whatever the file says");
+        }
+
+        // --- what it is to the character ---------------------------------------------------------------------
+        {
+            Player p;
+            p.Init(ctx, "player_hero");
+            LevelUp lu;
+            p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+            p.SyncHitpoints();
+            const int plain = p.max_hp;
+            const int armour = p.Profile().defence_bonus;
+            p.talents.SetToday(7);
+            p.talents.PlaceTotem("totem_nightmare_troll", 7);
+            p.SyncHitpoints();
+            Check(plain == 50 && p.max_hp == 60, "the Nightmare's is a fifth more health: fifty is sixty");
+            p.talents.PlaceTotem("totem_frost_dragon", 7);
+            p.SyncHitpoints();
+            Check(p.max_hp == 56 && p.Profile().defence_bonus == armour + 12, "Hoarfang's is twelve Defence and twelve in a hundred health");
+            p.talents.SetToday(8);
+            p.SyncHitpoints();
+            Check(p.max_hp == 50 && p.Profile().defence_bonus == armour, "and the day after, nothing, until it is touched");
+        }
+
+        // --- the fifteenth, in the world ------------------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.player.inventory.SetDatabase(&items);
+            Check(w.LoadMap("town_havenbrook", "default", ctx), "somewhere to stand");
+            for (int n = 0; n < 14; ++n) w.AwardBoss("broodmother", ctx);
+            Check(!w.player.inventory.Has("totem_broodmother"), "fourteen Broodmothers leave no totem");
+            w.TakeRequests();
+            w.AwardBoss("broodmother", ctx);
+            Check(w.player.inventory.Count("totem_broodmother") == 1, "the fifteenth leaves one, in the bag");
+            bool said = false, where = false, short_enough = true;
+            for (const WorldRequest& r : w.TakeRequests()) {
+                said  |= r.text.find("totem") != string::npos && r.text.find("15") != string::npos;
+                where |= r.text.find("Mossvale") != string::npos;
+                short_enough &= r.text.size() <= 90;
+            }
+            Check(said && where && short_enough, "and the game says so, and where it goes, in lines short enough for a narrow window");
+            for (int n = 0; n < 10; ++n) w.AwardBoss("broodmother", ctx);
+            Check(w.player.inventory.Count("totem_broodmother") == 1, "and ten more leave no second");
+
+            // A full pack does not lose it.
+            for (int i = 0; i < w.player.inventory.SlotCount(); ++i) w.player.inventory.Add("bronze_sword", 1);
+            Check(w.player.inventory.Full(), "a pack with no room in it");
+            const size_t lying = w.pickups.size();
+            for (int n = 0; n < 15; ++n) w.AwardBoss("orc3", ctx);
+            Check(!w.player.inventory.Has("totem_orc3") && w.pickups.size() == lying + 1, "has the totem put at its owner's feet instead");
+        }
+
+        // --- the ring itself -----------------------------------------------------------------------------------------
+        {
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                int rings = 0;
+                for (const MapObject& o : m.Objects()) rings += o.type == "totem_circle";
+                Check(rings == (string(id) == "mossvale_cottage" ? 1 : 0),
+                      string(id) + (string(id) == "mossvale_cottage" ? " has the ring" : " has no ring: there is one, and it is at home"));
+            }
+            Check(fs::exists("assets/props/totem_circle.png"), "the ring is drawn");
+
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.player.inventory.SetDatabase(&items);
+            Check(w.LoadMap("mossvale_cottage", "entrance", ctx), "the house in Mossvale");
+            const MapObject* ring = nullptr;
+            for (const MapObject& o : w.CurrentMap().Objects()) if (o.type == "totem_circle") ring = &o;
+            Check(ring != nullptr, "the ring is in it");
+            if (ring) {
+                const float rx = ring->x, ry = ring->y;
+                Check(std::fabs(rx - w.CurrentMap().Width() / 2.0f) <= 8.0f && std::fabs(ry - w.CurrentMap().Height() / 2.0f) <= 8.0f,
+                      "in the middle of the room");
+                bool open = true;
+                for (int k = 0; k < 8; ++k) {
+                    const float a = k * 0.7853982f;
+                    open &= !w.CurrentMap().Blocked({rx + cosf(a) * 30.0f - 8.0f, ry + sinf(a) * 30.0f - 10.0f, 16.0f, 10.0f});
+                }
+                Check(open && !w.CurrentMap().Blocked({rx - 8.0f, ry - 10.0f, 16.0f, 10.0f}),
+                      "with clear floor all round it, and over it: a ring is walked across");
+
+                w.player.x = rx; w.player.y = ry + 14.0f;
+                w.Update(kFrame, ctx);
+                Check(w.player.interact.kind == InteractTarget::Object && w.player.interact.label == "Touch the ring",
+                      "stood at it, empty, it asks to be touched");
+                w.TakeRequests();
+                w.TryInteract(ctx);
+                const vector<WorldRequest> reqs = w.TakeRequests();
+                Check(reqs.size() == 1 && reqs[0].type == WorldRequest::Type::Totem, "and touching it asks the game for the ring's panel");
+
+                const int day = w.clock.QuestDay();
+                w.player.talents.PlaceTotem("totem_nightmare_troll", day);
+                w.TellTheDay();
+                w.player.SyncHitpoints();
+                const int blessed = w.player.max_hp;
+                w.Update(kFrame, ctx);
+                Check(w.player.interact.label == "Touch the totem", "with a totem in it, it is the totem that is touched");
+
+                // The blessing goes where they go, and lasts the day.
+                Check(w.LoadMap("mossvale", "from_mossvale_cottage", ctx), "out of the door");
+                for (int f = 0; f < 30; ++f) w.Update(kFrame, ctx);
+                Check(w.player.talents.TotemAwake() && w.player.max_hp == blessed, "the blessing goes out of the door with them");
+                w.clock.Set(w.clock.Day(), 23.5f);
+                for (int f = 0; f < 30; ++f) w.Update(kFrame, ctx);
+                Check(w.player.talents.TotemAwake(), "and is still there at midnight: the day turns at dawn");
+                w.clock.Set(w.clock.Day() + 1, 4.995f);
+                for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
+                Check(!w.clock.IsNight() && !w.player.talents.TotemAwake() && w.player.max_hp < blessed,
+                      "at dawn it is over, and the health it lent is given back");
+                Check(w.player.talents.PlacedTotem() == "totem_nightmare_troll", "though the totem is still standing at home");
+                Check(w.LoadMap("mossvale_cottage", "entrance", ctx), "home again");
+                w.player.x = rx; w.player.y = ry + 14.0f;
+                w.Update(kFrame, ctx);
+                Check(w.player.interact.label.find("asleep") != string::npos, "where it says it is asleep, and wants a hand on it");
+
+                // And it is the character's, so it is in the save with them.
+                const string was = SaveSystem::Directory();
+                const fs::path dir = fs::temp_directory_path() / "dreamquest_selftest_totem";
+                std::error_code ec;
+                fs::remove_all(dir, ec);
+                fs::create_directories(dir, ec);
+                SaveSystem::SetDirectory(dir.string());
+                w.player.talents.PlaceTotem("totem_nightmare_troll", w.clock.QuestDay());
+                Check(SaveSystem::Save(1, w, log, 10.0f), "a save with a totem awake writes");
+                World back;
+                back.player.Init(ctx, "player_hero");
+                QuestLog log2;
+                log2.LoadDefinitions("data/quests.json");
+                float played = 0.0f;
+                Check(SaveSystem::Load(1, back, log2, ctx, played), "and loads");
+                back.Update(kFrame, ctx);
+                Check(back.player.talents.PlacedTotem() == "totem_nightmare_troll" && back.player.talents.TotemAwake(),
+                      "with the totem in the ring, and awake for the rest of the same day");
+                SaveSystem::SetDirectory(was);
+                fs::remove_all(dir, ec);
+            }
+        }
+    }
+
+    Section("waystones: three towns, woken by hand");
+    {
+        // --- where they stand ------------------------------------------------------------
+        // One in each town and none anywhere else: not the wilds, not a dungeon,
+        // not the Reverie. The road to a town is walked once; everything that
+        // is not a town is always walked.
+        const std::map<string, string> towns = {
+            {"town_havenbrook", "waystone_havenbrook"},
+            {"mossvale",        "waystone_mossvale"},
+            {"fernhollow",      "waystone_fernhollow"},
+        };
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            vector<const MapObject*> stones;
+            for (const MapObject& o : m.Objects()) if (o.type == "waystone") stones.push_back(&o);
+            const auto town = towns.find(id);
+            if (town == towns.end()) {
+                Check(stones.empty(), string(id) + " is not a town and has no waystone");
+                continue;
+            }
+            Check(stones.size() == 1, string(id) + " has one waystone, and only one");
+            if (stones.empty()) continue;
+            const MapObject& stone = *stones.front();
+            Check(stone.id == town->second, string(id) + "'s stone is " + town->second);
+            Check(stone.sprite == "assets/props/waystone.png" && fs::exists(stone.sprite),
+                  string(id) + ": asleep, it is drawn dark");
+            Check(stone.sprite_open == "assets/props/waystone_lit.png" && fs::exists(stone.sprite_open),
+                  string(id) + ": awake, it is drawn lit");
+            SDL_FPoint arrive{};
+            const bool has = m.Spawn("waystone", arrive);
+            Check(has, string(id) + " has somewhere to arrive by it");
+            if (!has) continue;
+            const SDL_FRect feet = {arrive.x - 8.0f, arrive.y - 10.0f, 16.0f, 10.0f};
+            Check(!m.Blocked(feet), string(id) + ": and it is not inside the stone, or anything else");
+            Check(std::hypot(arrive.x - stone.x, arrive.y - stone.y) < 64.0f,
+                  string(id) + ": you arrive at the stone, not across the square from it");
+            bool on_a_door = false;
+            for (const Portal& p : m.Portals()) on_a_door |= !p.requires_interact && RectsOverlap(feet, p.rect);
+            Check(!on_a_door, string(id) + ": and not on a way out of town");
+        }
+
+        // --- the first touch wakes it, and only the second goes anywhere ------------------
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        World w;
+        GameContext wctx;
+        std::mt19937 rng(11);
+        wctx.sprites = &sprites; wctx.items = &items; wctx.enemies = &enemy_db;
+        wctx.quests = &log; wctx.rng = &rng;
+        w.player.Init(wctx, "player_hero");
+        w.player.inventory.SetDatabase(&items);
+        constexpr float kFrame = 1.0f / 60.0f;
+        Check(w.LoadMap("town_havenbrook", "default", wctx), "arrive in Havenbrook on foot");
+        Check(!w.Flagged("waystone_havenbrook") && !w.Flagged("waystone_mossvale") &&
+              !w.Flagged("waystone_fernhollow"), "a new character has woken nothing");
+
+        const auto stone_here = [&]() -> const MapObject* {
+            for (const MapObject& o : w.CurrentMap().Objects()) if (o.type == "waystone") return &o;
+            return nullptr;
+        };
+        // Stood where the stone's own spawn puts you, which is also the proof
+        // that whoever arrives by it can reach it without taking a step.
+        const auto stand_by_it = [&]() {
+            SDL_FPoint at{};
+            w.CurrentMap().Spawn("waystone", at);
+            w.player.x = at.x; w.player.y = at.y;
+            w.Update(kFrame, wctx);
+        };
+        const auto count = [](const vector<WorldRequest>& reqs, WorldRequest::Type t) {
+            int n = 0;
+            for (const WorldRequest& r : reqs) n += r.type == t;
+            return n;
+        };
+
+        const MapObject* stone = stone_here();
+        Check(stone != nullptr, "the stone is in the square");
+        if (stone) {
+            stand_by_it();
+            Check(w.player.interact.kind == InteractTarget::Object && w.player.interact.label == "Wake the waystone",
+                  "where you would arrive by it is where you can reach it, and asleep it asks to be woken");
+            w.TakeRequests();
+            w.TryInteract(wctx);
+            vector<WorldRequest> reqs = w.TakeRequests();
+            Check(w.Flagged("waystone_havenbrook"), "a hand on it wakes it");
+            Check(count(reqs, WorldRequest::Type::Travel) == 0, "and that is all the first touch does");
+            Check(count(reqs, WorldRequest::Type::Toast) == 1, "but it says what it is for");
+
+            w.Update(kFrame, wctx);
+            Check(w.player.interact.label == "Touch the waystone", "awake, it asks to be touched");
+            w.TryInteract(wctx);
+            reqs = w.TakeRequests();
+            Check(count(reqs, WorldRequest::Type::Travel) == 1, "the second touch opens the way");
+            for (const WorldRequest& r : reqs)
+                if (r.type == WorldRequest::Type::Travel)
+                    Check(r.id == "waystone_havenbrook", "and says which stone you are standing at");
+            Check(!w.Flagged("waystone_mossvale") && !w.Flagged("waystone_fernhollow"),
+                  "waking one wakes that one: the others are still to be walked to");
+        }
+
+        // --- one stone is one stone: Mossvale's has to be walked to and woken too ----------
+        Check(w.LoadMap("mossvale", "from_trail", wctx), "walk to Mossvale");
+        Check(w.Flagged("waystone_havenbrook"), "Havenbrook's stays awake behind you");
+        stone = stone_here();
+        if (stone) {
+            stand_by_it();
+            Check(w.player.interact.label == "Wake the waystone", "Mossvale's is asleep until it is touched");
+            w.TakeRequests();
+            w.TryInteract(wctx);
+            Check(w.Flagged("waystone_mossvale") && count(w.TakeRequests(), WorldRequest::Type::Travel) == 0,
+                  "and wakes the same way");
+        }
+
+        // --- the going itself ------------------------------------------------------------
+        // What the panel does once a woken stone is chosen: an ordinary
+        // transition, to the spawn by the far stone.
+        Check(w.RequestTransition("town_havenbrook", "waystone"), "choosing Havenbrook asks for the way there");
+        for (int i = 0; i < 240 && w.MapId() != "town_havenbrook"; ++i) w.Update(kFrame, wctx);
+        Check(w.MapId() == "town_havenbrook", "and the fade takes you");
+        stone = stone_here();
+        if (stone) {
+            Check(std::hypot(w.player.x - stone->x, w.player.y - stone->y) < 64.0f,
+                  "you come out standing at Havenbrook's stone");
+            Check(!w.CurrentMap().Blocked(w.player.Bounds()), "on open ground");
+            for (int i = 0; i < 90; ++i) w.Update(kFrame, wctx);      // let the fade finish
+            Check(w.player.interact.label == "Touch the waystone", "with the stone in reach to go on again");
+        }
+
+        // --- a woken stone is part of the save ---------------------------------------------
+        {
+            const string was = SaveSystem::Directory();
+            const fs::path dir = fs::temp_directory_path() / "dreamquest_selftest_waystones";
+            std::error_code ec;
+            fs::remove_all(dir, ec);
+            fs::create_directories(dir, ec);
+            SaveSystem::SetDirectory(dir.string());
+            Check(SaveSystem::Save(1, w, log, 30.0f), "a save with two stones woken writes");
+            World back;
+            back.player.Init(wctx, "player_hero");
+            QuestLog log2;
+            log2.LoadDefinitions("data/quests.json");
+            float played = 0.0f;
+            Check(SaveSystem::Load(1, back, log2, wctx, played), "and loads");
+            Check(back.Flagged("waystone_havenbrook") && back.Flagged("waystone_mossvale") &&
+                  !back.Flagged("waystone_fernhollow"), "with the same two awake and the third still asleep");
+            SaveSystem::SetDirectory(was);
+            fs::remove_all(dir, ec);
+        }
     }
 
     Section("save round trip");

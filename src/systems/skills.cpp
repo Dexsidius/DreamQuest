@@ -83,6 +83,10 @@ void Skills::ResetCurrent() {
     for (int i = 0; i < SKILL_COUNT; ++i) current[i] = LevelForXp(xp[i]);
 }
 
+void Skills::RestoreDrained() {
+    for (int i = 0; i < SKILL_COUNT; ++i) current[i] = std::max(current[i], LevelForXp(xp[i]));
+}
+
 bool Skills::AddXp(int skill, int amount, LevelUp& out) {
     if (skill < 0 || skill >= SKILL_COUNT || amount <= 0) return false;
 

@@ -12,6 +12,7 @@ static DialogueCondition ParseCondition(const json& o) {
     c.quest_state = o.value("state", string(""));
     c.quest_stage = o.value("stage", -1);
     c.has_item    = o.value("has_item", string(""));
+    c.lacks_item  = o.value("lacks_item", string(""));
     c.has_qty     = o.value("qty", 1);
     c.skill       = o.value("skill", string(""));
     c.skill_level = o.value("level", 0);
@@ -35,16 +36,24 @@ static DialogueAction ParseAction(const json& o) {
     if (!o.is_object()) return a;
     a.start_quest   = o.value("start_quest", string(""));
     a.advance_quest = o.value("advance", string(""));
-    a.give_item     = o.value("give", string(""));
-    a.give_qty      = o.value("give_qty", 1);
+    if (o.contains("give") && o["give"].is_string())
+        a.gives.push_back({o["give"].get<string>(), std::max(1, o.value("give_qty", 1))});
+    if (o.contains("gives") && o["gives"].is_object())
+        for (auto g = o["gives"].begin(); g != o["gives"].end(); ++g)
+            if (g.value().is_number_integer())
+                a.gives.push_back({g.key(), std::max(1, g.value().get<int>())});
     a.take_item     = o.value("take", string(""));
     a.take_qty      = o.value("take_qty", 1);
     a.open_shop     = o.value("shop", string(""));
     a.open_orders   = o.value("orders", string(""));
     a.hand_in       = o.value("hand_in", false);
     a.learn_recipe  = o.value("learn", string(""));
-    a.skill_xp      = o.value("xp_skill", string(""));
-    a.xp_amount     = o.value("xp", 0);
+    a.set_flag      = o.value("set_flag", string(""));
+    // Said out loud rather than dropped: see DialogueAction for why a line of
+    // dialogue may not hand out experience.
+    if (o.contains("xp") || o.contains("xp_skill"))
+        SDL_Log("DialogueDatabase: an option grants experience, which a conversation cannot do "
+                "-- it would do it every time. Give it as a quest's reward.");
     a.heal          = o.value("heal", false);
     return a;
 }
@@ -115,6 +124,8 @@ bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx) {
 
     if (!c.has_item.empty() && ctx.inventory)
         pass = pass && ctx.inventory->Has(c.has_item, c.has_qty);
+    if (!c.lacks_item.empty())
+        pass = pass && ctx.inventory && !ctx.inventory->Has(c.lacks_item, 1);
 
     if (!c.skill.empty() && ctx.skills) {
         const int s = SkillFromName(c.skill);
@@ -135,6 +146,43 @@ bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx) {
                !ctx.quests->ReadyToDeliver(ctx.npc, *ctx.inventory).empty();
 
     return c.invert ? !pass : pass;
+}
+
+DialogueOutcome ApplyDialogueAction(const DialogueAction& a, QuestLog& quests, Inventory& inv,
+                                    const Skills& skills, const string& npc_id) {
+    DialogueOutcome out;
+
+    bool gift_stands = true;
+    if (!a.start_quest.empty()) {
+        out.quest_started = quests.CanStart(a.start_quest, skills) && quests.Start(a.start_quest);
+        gift_stands = out.quest_started;
+    }
+
+    if (!a.advance_quest.empty()) {
+        QuestEvent e;
+        e.type   = ObjectiveType::Talk;
+        e.target = a.advance_quest;
+        quests.Notify(e, inv);
+    }
+
+    if (gift_stands)
+        for (const auto& gift : a.gives) {
+            const int added = inv.Add(gift.first, gift.second);
+            if (added > 0) out.received.push_back({gift.first, added});
+            if (added < gift.second) out.overflow.push_back({gift.first, gift.second - added});
+        }
+    if (!out.received.empty()) quests.RefreshCollectObjectives(inv);
+    if (gift_stands && !a.set_flag.empty()) out.flags.push_back(a.set_flag);
+
+    if (!a.take_item.empty() && inv.Remove(a.take_item, a.take_qty)) {
+        QuestEvent e;
+        e.type      = ObjectiveType::Deliver;
+        e.target    = a.take_item;
+        e.secondary = npc_id;
+        e.amount    = a.take_qty;
+        quests.Notify(e, inv);
+    }
+    return out;
 }
 
 void DialogueRunner::Begin(const DialogueDatabase* database, const string& node_id,

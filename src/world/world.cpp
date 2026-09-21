@@ -113,9 +113,105 @@ EnemySpawnDef World::ResolveSpawn(const EnemySpawnDef& def, const string& map_id
     return out;
 }
 
+bool World::KeptTonight(const string& map_id, int day, int index, const string& group, float chance) {
+    if (chance >= 1.0f) return true;
+    if (chance <= 0.0f) return false;
+    // The same stirring ResolveSpawn does, salted, so that which thing comes
+    // and whether it comes are two questions.
+    uint32_t h = 2166136261u;
+    for (char c : map_id) h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+    h = (h ^ static_cast<uint32_t>(day)) * 16777619u;
+    h = (h ^ 0x6e696768u) * 16777619u;                         // "nigh"
+    if (group.empty()) h = (h ^ static_cast<uint32_t>(index)) * 16777619u;
+    else for (char c : group) h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+    h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16;
+    return static_cast<float>(h & 0xFFFFu) / 65536.0f < chance;
+}
+
+bool World::Abroad(const Enemy& e) const {
+    return e.night && clock.IsNight() && !InDream() &&
+           KeptTonight(map_id, clock.QuestDay(), e.post, e.night_group, e.night_chance) &&
+           !SlainToday(map_id, e.post);
+}
+
+bool World::HasNightPosts() const {
+    for (const auto& e : enemies) if (e->night) return true;
+    return false;
+}
+
+void World::TellTheDay() {
+    told_day = clock.QuestDay();
+    for (Player* p : Players()) {
+        const bool was = p->talents.TotemAwake();
+        p->talents.SetToday(told_day);
+        if (was != p->talents.TotemAwake()) {
+            p->SyncHitpoints();
+            p->SyncMana();
+        }
+    }
+}
+
+void World::AwardBoss(const string& boss_id, const GameContext& ctx) {
+    if (boss_id.empty()) return;
+    std::mt19937 spare(0xb055u);
+    const Talents::Trophy won = player.talents.SlayBoss(boss_id, ctx.rng ? *ctx.rng : spare);
+    if (won.totem) {
+        // Into the bag if there is room, and at their feet if there is not:
+        // it cannot be sold or thrown away, and it is not going to be lost to
+        // a full pack either.
+        const EnemyDef* whose = ctx.enemies ? ctx.enemies->Get(boss_id) : nullptr;
+        const ItemDef* thing = ctx.items ? ctx.items->Get(won.totem->item) : nullptr;
+        if (player.inventory.Add(won.totem->item, 1) <= 0) DropItem(won.totem->item, 1, player.x, player.y, ctx);
+        WorldRequest t;
+        t.type = WorldRequest::Type::Toast;
+        t.text = string(whose ? whose->name : boss_id) + ", " + std::to_string(Talents::TOTEM_KILLS) +
+                 " times: it leaves you its totem.";
+        requests.push_back(t);
+        t.text = (thing ? thing->name : won.totem->item) + ". Stand it in the ring in your house at Mossvale.";
+        requests.push_back(t);
+        AddText("A totem", player.x, player.y - 94.0f, {255, 214, 120, 255}, 3.2f);
+        Burst(player.x, player.y - 30.0f, 80.0f, {255, 190, 90, 255}, 26);
+        Audio::PlayAt(Sfx::QuestComplete, player.x, player.y);
+    }
+    if (!won.first) return;
+    // Health or mana may be the boon: the pools are what they now are.
+    player.SyncHitpoints();
+    player.SyncMana();
+
+    const EnemyDef* def = ctx.enemies ? ctx.enemies->Get(boss_id) : nullptr;
+    // "The Hollowrest Wight" has its own article; "Broodmother" wants one.
+    string who = def ? def->name : boss_id;
+    if (who.rfind("The ", 0) != 0 && who.rfind("the ", 0) != 0) who = "The " + who;
+    // Two short lines rather than one long one: a toast is a single line, set
+    // from the right-hand edge, and a long one runs off a narrow window.
+    WorldRequest r;
+    r.type = WorldRequest::Type::Toast;
+    r.text = who + " is down, for the first time: +1 skill point.";
+    requests.push_back(r);
+    if (won.boon) {
+        r.text = "And a boon -- " + won.boon->name + ": " + won.boon->text + ".";
+        requests.push_back(r);
+    }
+    AddText(won.boon ? "Boon: " + won.boon->name : string("A skill point"), player.x, player.y - 78.0f,
+            {255, 214, 120, 255}, 3.2f);
+    AddText("+1 skill point", player.x, player.y - 62.0f, {190, 236, 160, 255}, 3.2f);
+    Burst(player.x, player.y - 30.0f, 70.0f, {255, 214, 120, 255}, 22);
+    Audio::PlayAt(Sfx::QuestComplete, player.x, player.y);
+}
+
 int World::DreamBonus(const string& item_id) const {
     if (item_id != "dream_shard" || !InDream()) return 0;
     return std::max(0, map.DreamDepth() - 1);
+}
+
+void World::NoteSlain(int post) {
+    if (post < 0) return;
+    slain[map_id + ":" + std::to_string(post)] = clock.QuestDay();
+}
+
+bool World::SlainToday(const string& map, int post) const {
+    const auto it = slain.find(map + ":" + std::to_string(post));
+    return it != slain.end() && it->second >= clock.QuestDay();
 }
 
 void World::SpawnEntitiesFromMap(const GameContext& ctx) {
@@ -131,6 +227,12 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
         }
         auto e = std::make_unique<Enemy>();
         e->Init(stats, def, ctx);
+        e->post = post - 1;
+        // Killed already today: it keeps its place in the list, which friends
+        // count monsters by, and is not there.
+        if (stats->is_boss && SlainToday(map_id, e->post)) e->LieDead();
+        // A night visitor by day, or on a night that is not one of its own.
+        if (e->night && !Abroad(*e)) e->LieDead();
         enemies.push_back(std::move(e));
     }
 
@@ -324,13 +426,19 @@ bool World::AnyPlayerNear(float px, float py, float range) {
 
 void World::FlushKills(const GameContext& ctx) {
     if (kill_log.empty() || acting) return;
-    (void)ctx;
     for (const QuestEvent& e : kill_log) {
         if (host_quests && !player.absent) host_quests->Notify(e, player.inventory);
+        // A boss: `secondary` says which. Whoever is here had a hand in it.
+        if (!e.secondary.empty() && !player.absent && !visiting) AwardBoss(e.secondary, ctx);
         for (auto& g : guests) {
             if (g->puppet) continue;
             SeatState& seat = seat_states[g->seat];
             (seat.own_journal ? *seat.own_journal : seat.journal).Notify(e, g->inventory);
+            // Someone on the same couch is here in person, and is given theirs
+            // here. A friend down the wire keeps their character on their own
+            // machine: the kill is relayed to it, and it is given there --
+            // see Guest::OnDelta -- and comes back on their sheet.
+            if (!e.secondary.empty() && seat.own_journal) ActAs(*g, [&] { AwardBoss(e.secondary, ctx); });
         }
     }
     kill_log.clear();
@@ -390,7 +498,7 @@ string World::SleepRefusal() const {
     return "";
 }
 
-bool World::AskToSleep(const string& title) {
+bool World::AskToSleep(const string& title, int fee) {
     if (InDream() || transition_pending || player.IsDead()) return false;
     const string why = SleepRefusal();
     if (!why.empty()) {
@@ -401,6 +509,7 @@ bool World::AskToSleep(const string& title) {
     WorldRequest r;
     r.type  = WorldRequest::Type::Sleep;
     r.title = title;
+    r.count = std::max(0, fee);      // what the bed costs; the panel takes it
     requests.push_back(r);
     return true;
 }
@@ -757,9 +866,22 @@ void World::Update(float dt, const GameContext& ctx) {
         if (!was_night && clock.IsNight() && !InDream()) {
             WorldRequest r;
             r.type = WorldRequest::Type::Toast;
-            r.text = "Night falls. A bed or a camp will see you through it, or into a dream.";
+            r.text = HasNightPosts()
+                ? "Night falls, and things are abroad that are not by day. Keep to the road, or find a bed."
+                : "Night falls. A bed or a camp will see you through it, or into a dream.";
             requests.push_back(r);
         }
+        if (was_night && !clock.IsNight() && !InDream() && HasNightPosts()) {
+            WorldRequest r;
+            r.type = WorldRequest::Type::Toast;
+            r.text = "Dawn. What the dark let out has gone to ground.";
+            requests.push_back(r);
+        }
+    }
+    // Dawn, or a day nobody has been told of yet -- a load, a friend arriving.
+    if (told_day != clock.QuestDay() || (guests.size() + 1) != told_players) {
+        told_players = guests.size() + 1;
+        TellTheDay();
     }
     // The seat at this machine, and then the place. A friend's seat is done
     // by StepGuest, to their own clock, acting as them.
@@ -943,6 +1065,19 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
     std::set<const Enemy*> thought;
     const auto think = [&](Enemy& e) {
         if (!thought.insert(&e).second) return;
+        if (e.night) {
+            const bool abroad = Abroad(e);
+            if (e.CurrentState() == Enemy::State::Dead) {
+                // Nightfall, for something whose night it is: up at its post,
+                // but not under anybody's feet -- the same room a respawn waits for.
+                const float clearance = e.Def() ? std::max(240.0f, e.Def()->aggro_range + 96.0f) : 240.0f;
+                if (abroad && e.CorpseGone() && !AnyPlayerNear(e.home_x, e.home_y, clearance)) e.Revive();
+                else e.Update(dt, *this, ctx);
+                return;
+            }
+            // Dawn. It finishes the fight it is in first.
+            if (!abroad && !e.Engaged()) { e.GoToGround(); return; }
+        }
         if (e.CurrentState() == Enemy::State::Dead) {
             e.TickRespawn(dt);
             // Not while anyone is standing on its spawn point. A boar
@@ -952,7 +1087,8 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
             // are clear of where it would start chasing them.
             const float clearance = e.Def() ? std::max(192.0f, e.Def()->aggro_range + 64.0f)
                                             : 192.0f;
-            if (e.ReadyToRespawn() && !AnyPlayerNear(e.home_x, e.home_y, clearance)) e.Revive();
+            const bool slain_today = e.Def() && e.Def()->is_boss && SlainToday(map_id, e.post);
+            if (e.ReadyToRespawn() && !slain_today && !AnyPlayerNear(e.home_x, e.home_y, clearance)) e.Revive();
             else                                                                     e.Update(dt, *this, ctx);
             return;
         }
@@ -993,6 +1129,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
 
     UpdateProjectiles(dt, ctx);
     UpdateGroundEffects(dt, ctx);
+    ForgetSpentCasts();
     UpdateImpacts(dt);
     UpdateDust(dt);
     UpdateElevation(dt);
@@ -1027,6 +1164,9 @@ Vec2 World::PlayerAim() const {
 // swing animation and its timing are unchanged; only what leaves the character
 // at the active frame is different.
 void World::FirePlayerProjectile(const GameContext& ctx) {
+    // Whatever is spawned between here and the way out belongs to one cast.
+    struct CastScope { uint32_t& open; ~CastScope() { open = 0; } } cast_scope{casting};
+    casting = 0;
     const AttackState& atk = player.Attack();
     const AttackStyle style = player.Style();
     const Vec2 aim = PlayerAim();
@@ -1080,8 +1220,9 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         element = spell->element;
         player.NoteCast(spell->element);      // Attunement: the same element, again
         shape = spell->shape;
-        // Casting trains Magic whether or not the bolt finds anything.
-        player.GrantXp(SKILL_MAGIC, spell->xp);
+        // The spell's own experience is owed, not paid: it comes when the
+        // spell lands on something. See OpenCast in world.h for why.
+        casting = OpenCast(SKILL_MAGIC, spell->xp);
     }
 
     if (style == AttackStyle::Ranged) {
@@ -1525,8 +1666,10 @@ int World::HitAround(float radius, float damage_mult, float knockback, const Gam
         if (!Strikeable(*e)) continue;
         const SDL_FPoint a = e->GroundCentre();
         if (!CircleHits(c.x, c.y, radius, a.x, a.y, e->GroundRadius())) continue;
+        // A turn on the spot is whatever swing the player is in the middle of:
+        // a charged technique, or the Cross Cut, which is a heavy one.
         HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, damage_mult,
-                 knockback, player.x, player.y, ctx);
+                 knockback, player.x, player.y, ctx, player.Attack().type);
         ++struck;
     }
     return struck;
@@ -1595,7 +1738,7 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
             const SDL_FPoint a = e->GroundCentre();
             if (!ArcHits(hit, a.x, a.y, e->GroundRadius())) continue;
             HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult,
-                     atk.profile.knockback * knock, player.x, player.y, ctx);
+                     atk.profile.knockback * knock, player.x, player.y, ctx, atk.type);
             ++struck;
         }
         for (int i = 0; i < 4; ++i) AddDust(player.x - fx * i * 8.0f, player.y - fy * i * 8.0f, fx, fy);
@@ -1628,7 +1771,8 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         if (ability == "sunder") {
             target->Sunder(10.0f);
             HitEnemy(*target, player.Profile(), AttackStyle::Melee, Element::None,
-                     1.5f * player.TalentDamage(AttackStyle::Melee, AttackType::Strong), 70.0f, px, py, ctx);
+                     1.5f * player.TalentDamage(AttackStyle::Melee, AttackType::Strong), 70.0f, px, py, ctx,
+                     AttackType::Strong);
             AddText("Sundered", target->x, target->y - 64.0f, {255, 190, 110, 255}, 1.4f);
             Burst(target->x, target->y - 16.0f, 26.0f, {255, 190, 110, 255}, 10);
         } else {
@@ -1649,7 +1793,8 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
             const float dx = e->x - px, dy = e->y - py;
             if (Length(dx, dy) > 60.0f || !InFrontOf(player.facing, dx, dy)) continue;
             HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None,
-                     0.6f * player.TalentDamage(AttackStyle::Melee, AttackType::Light), 110.0f, px, py, ctx);
+                     0.6f * player.TalentDamage(AttackStyle::Melee, AttackType::Light), 110.0f, px, py, ctx,
+                     AttackType::Light);
             e->Stagger(1.2f);
             ++struck;
         }
@@ -1707,7 +1852,8 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
             const float across = fabsf(dx * fy - dy * fx);
             if (along < 0.0f || along > LENGTH || across > HALF_WIDTH) continue;
             // The blow can miss; the ground going out from under it cannot.
-            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult, 0.0f, px, py, ctx);
+            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult, 0.0f, px, py, ctx,
+                     AttackType::Strong);
             e->knock_x += fx * 240.0f;
             e->knock_y += fy * 240.0f;
             e->Stagger(0.7f);
@@ -1818,7 +1964,7 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         connected = true;
         const int before = e->hp;
         HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, mult, knock,
-                 player.x, player.y, ctx);
+                 player.x, player.y, ctx, atk.type);
         // The Crushing Blow leaves what it lands on reeling.
         if (atk.move == ComboMove::Crush && e->hp < before) e->Stagger(CRUSH_STAGGER);
     }
@@ -1898,6 +2044,12 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
                                           : o.title;
             noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
             label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
+        } else if (o.type == "waystone") {
+            label = Flagged(o.id) ? "Touch the waystone" : "Wake the waystone";
+        } else if (o.type == "totem_circle") {
+            label = player.talents.PlacedTotem().empty() ? "Touch the ring"
+                  : player.talents.TotemAwake()          ? "Touch the totem"
+                                                         : "Touch the totem  -  it is asleep";
         } else if (o.type == "altar") {
             string noun = o.title.empty() ? string("enchanting table") : o.title;
             noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
@@ -2003,6 +2155,15 @@ void World::TryInteract(const GameContext& ctx) {
                 }
                 break;
             }
+            if (o.type == "totem_circle") {
+                WorldRequest r;
+                r.type  = WorldRequest::Type::Totem;
+                r.id    = o.id;
+                r.title = o.title.empty() ? "The ring" : o.title;
+                requests.push_back(r);
+                Audio::Play(Sfx::UiConfirm);
+                break;
+            }
             if (o.type == "storage") {
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Storage;
@@ -2047,7 +2208,8 @@ void World::TryInteract(const GameContext& ctx) {
                     ctx.quests->Notify(e, player.inventory);
                 }
             } else if (o.type == "bed" || o.type == "campsite") {
-                AskToSleep(!o.title.empty() ? o.title : string(o.type == "bed" ? "A bed for the night" : "By the fire"));
+                AskToSleep(!o.title.empty() ? o.title : string(o.type == "bed" ? "A bed for the night" : "By the fire"),
+                           o.fee);
             } else if (o.type == "camp") {
                 if (clock.CanSleep()) {
                     AskToSleep("Your camp");
@@ -2081,6 +2243,24 @@ void World::TryInteract(const GameContext& ctx) {
                         : o.station == "anvil" ? string("Anvil")
                         : o.station == "loom" ? string("Loom") : string("Workbench");
                 requests.push_back(r);
+            } else if (o.type == "waystone") {
+                if (!Flagged(o.id)) {
+                    // The first hand on it wakes it, and that is all the first
+                    // touch does: a stone is found before it is used.
+                    SetFlag(o.id);
+                    Burst(o.x, o.y - 40.0f, 90.0f, {150, 220, 255, 255}, 26);
+                    AddText("The waystone wakes", o.x, o.y - 84.0f, {170, 228, 255, 255}, 2.4f);
+                    Audio::PlayAt(Sfx::QuestStart, o.x, o.y);
+                    WorldRequest r;
+                    r.type = WorldRequest::Type::Toast;
+                    r.text = "The waystone is awake. Touch it again to go to any other you have woken.";
+                    requests.push_back(r);
+                } else {
+                    WorldRequest r;
+                    r.type = WorldRequest::Type::Travel;
+                    r.id   = o.id;
+                    requests.push_back(r);
+                }
             } else if (o.type == "altar") {
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Enchant;
@@ -2319,7 +2499,7 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
             gather_index = -1;
             return;
         }
-        player.GrantXp(SKILL_FORAGING, o.yield_xp * added);
+        player.GrantXp(SKILL_FORAGING, (d && d->forage_xp > 0 ? d->forage_xp : o.yield_xp) * added);
         AddText("+ " + (added > 1 ? std::to_string(added) + " " : string("")) + (d ? d->name : o.yield),
                 player.x, player.y - 54.0f, added > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
         Audio::PlayAt(Sfx::Pickup, o.x, o.y);
@@ -2342,7 +2522,7 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
             gather_index = -1;
             return;
         }
-        player.GrantXp(SKILL_FISHING, d->fish_xp * count);
+        player.GrantXp(SKILL_FISHING, d->fish_xp * added);
         AddText("+ " + (count > 1 ? std::to_string(count) + " " : string("")) + d->name,
                 player.x, player.y - 54.0f, count > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
         Audio::PlayAt(Sfx::Splash, o.x, o.y, 1.0f, 1.2f);
@@ -2351,11 +2531,14 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
         return;
     }
 
-    if (skill >= 0 && o.yield_xp > 0) player.GrantXp(skill, o.yield_xp);
-
+    // The log goes in the bag before the swing is paid for. It used to be the
+    // other way round: with a full pack every swing still paid its experience,
+    // and because the refusal below returned before the dice were rolled the
+    // tree never came down either -- a full bag made any seam an endless one.
     if (!o.yield.empty()) {
         const int got = player.inventory.Add(o.yield, 1 + DreamBonus(o.yield));
         if (got > 0) {
+            if (skill >= 0 && o.yield_xp > 0) player.GrantXp(skill, o.yield_xp);
             const ItemDef* d = ctx.items ? ctx.items->Get(o.yield) : nullptr;
             AddText("+ " + (got > 1 ? std::to_string(got) + " " : string("")) + (d ? d->name : o.yield),
                     player.x, player.y - 54.0f, {200, 255, 200, 255});
@@ -2365,6 +2548,9 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
             gather_index = -1;
             return;
         }
+    } else if (skill >= 0 && o.yield_xp > 0) {
+        // Something worked for its own sake, with nothing to carry away.
+        player.GrantXp(skill, o.yield_xp);
     }
 
     // The dice roll. A tree does not stand there giving logs for ever: on
@@ -2415,7 +2601,7 @@ float World::GatherProgress() const {
 // bolt of fire, so the element matchup and the XP are applied consistently.
 void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                      Element element, float damage_mult, float knockback,
-                     float from_x, float from_y, const GameContext& ctx) {
+                     float from_x, float from_y, const GameContext& ctx, AttackType swing) {
     // The player's talents. Everything that reaches this function is the
     // player hitting something, so they apply to all of it.
     std::uniform_real_distribution<float> unit(0.0f, 1.0f);
@@ -2483,7 +2669,13 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     e.Damage(damage);
     // It comes for whoever did that, from wherever they did it.
     e.Provoke(static_cast<int>(player.seat));
-    player.AwardCombatXp(damage, AttackType::Light);
+    // What it trains is decided by the swing that did it. This line used to
+    // say every blow was a light one, so a heavy swing fed Attack and nothing
+    // in combat ever fed Strength -- the skill that sets how hard a blow can
+    // land sat at level 1 for the whole of the game.
+    player.AwardCombatXp(damage, swing, e.Def() ? e.Def()->xp_multiplier : 1.0f);
+    // And if this is the first thing a spell has hurt, the spell's own.
+    PayCast(cast_next);
 
     // What a blow that landed pays back.
     if (style == AttackStyle::Melee && player.RiposteReady()) player.SpendRiposte();
@@ -2553,6 +2745,7 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
     p.from_player = from_player;
     p.owner_local = player.local;
     p.owner_seat = player.seat;
+    p.cast_id = from_player ? casting : 0;
     p.net_id = next_net_id++;
     p.pierce_left  = def->pierce;
     p.bounces_left = def->bounces;
@@ -2563,6 +2756,41 @@ void World::AddGroundEffect(const GroundEffect& effect) {
     ground_effects.push_back(effect);
     ground_effects.back().owner_local = player.local;
     ground_effects.back().owner_seat = player.seat;
+    // A meteor is the cast's own; what a bolt leaves burning says so itself.
+    if (ground_effects.back().cast_id == 0 && effect.from_player) ground_effects.back().cast_id = casting;
+}
+
+uint32_t World::OpenCast(int skill, int xp) {
+    if (xp <= 0) return 0;
+    OwedCast c;
+    c.id = next_cast_id++;
+    if (next_cast_id == 0) next_cast_id = 1;      // nothing is ever cast number nothing
+    c.skill = skill;
+    c.xp = xp;
+    owed_casts.push_back(c);
+    return c.id;
+}
+
+// Called with the caster acting, as everything in HitEnemy is.
+void World::PayCast(uint32_t id) {
+    if (id == 0) return;
+    for (size_t i = 0; i < owed_casts.size(); ++i) {
+        if (owed_casts[i].id != id) continue;
+        player.GrantXp(owed_casts[i].skill, owed_casts[i].xp);
+        owed_casts.erase(owed_casts.begin() + static_cast<std::ptrdiff_t>(i));
+        return;
+    }
+}
+
+// A cast nothing is left of will never land: the bolt met a wall, or ran out
+// of air. The list is a handful long, so asking everything in flight is cheap.
+void World::ForgetSpentCasts() {
+    if (owed_casts.empty()) return;
+    owed_casts.erase(std::remove_if(owed_casts.begin(), owed_casts.end(), [&](const OwedCast& c) {
+        for (const Projectile& p : projectiles) if (!p.finished && p.cast_id == c.id) return false;
+        for (const GroundEffect& g : ground_effects) if (!g.finished && g.cast_id == c.id) return false;
+        return true;
+    }), owed_casts.end());
 }
 
 void World::UpdateProjectiles(float dt, const GameContext& ctx) {
@@ -2672,9 +2900,11 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
 
                     ActAs(OwnerOf(p.owner_local, p.owner_seat), [&] {
                         crit_next = p.sure_crit;
+                        cast_next = p.cast_id;
                         HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
                                  p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
                         crit_next = false;
+                        cast_next = 0;
                     });
 
                     if (p.pierce_left > 0) --p.pierce_left;
@@ -2722,6 +2952,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 g.element = p.def->element;
                 g.owner = p.owner;
                 g.from_player = p.from_player;
+                g.cast_id = p.cast_id;
                 AddGroundEffect(g);
             }
             if (p.def->erupts) {
@@ -2735,6 +2966,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 g.element = p.def->element;
                 g.owner = p.owner;
                 g.from_player = p.from_player;
+                g.cast_id = p.cast_id;
                 g.burst = true;
                 AddGroundEffect(g);
             }
@@ -2893,12 +3125,14 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
                     if (!inside(*e)) continue;
                     if (g.finished && g.once) break;      // a snare holds one thing
                     crit_next = g.sure_crit;
+                    cast_next = g.cast_id;
                     if (g.hit_mult >= 0.0f)
                         HitEnemy(*e, g.owner, g.style, g.element, g.hit_mult, g.knockback, g.x, g.y, ctx);
                     else
                         HitEnemy(*e, g.owner, AttackStyle::Magic, g.element,
                                  static_cast<float>(g.damage) * 0.5f, 8.0f, g.x, g.y, ctx);
                     crit_next = false;
+                    cast_next = 0;
                     if (g.stagger > 0.0f) e->Stagger(g.stagger);
                     if (g.once) {
                         g.finished = true;
@@ -2980,6 +3214,13 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     if (player.resting || player.Untouchable()) return 0;
     player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
+    // What is worn takes its share first: see HeavySoak. Before the guard is
+    // asked about, so a shield raised to it is still the mistake it always
+    // was -- half as much again of whatever the armour let through.
+    {
+        const CombatProfile mine = player.Profile();
+        damage = SoakHeavy(damage, mine.defence_level, mine.defence_bonus);
+    }
     float push = 1.0f;
     if (player.StandingFast()) {
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
@@ -3286,6 +3527,13 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     const SDL_FRect view = camera.VisibleWorldRect(96.0f);
 
     for (const auto& o : map.Objects()) {
+        // The ring is laid in the floor as an overlay, under everybody. What
+        // stands in it is this character's totem, and sorts like anything
+        // standing: `5`, below.
+        if (o.type == "totem_circle") {
+            if (!player.talents.PlacedTotem().empty()) queue.push_back({o.y, 5, &o});
+            continue;
+        }
         if (o.sprite.empty() || !ObjectPresent(o)) continue;
         if (o.x < view.x || o.x > view.x + view.w ||
             o.y < view.y || o.y > view.y + view.h) continue;
@@ -3418,6 +3666,23 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                                            p->def->tint.b, 235);
                     SDL_RenderFillRect(r, &dst);
                 }
+                break;
+            }
+            case 5: {
+                // A totem in the ring. The picture is the item's own; awake it
+                // is as it is, and asleep it is dulled, the way a worked-out
+                // seam is.
+                const MapObject* o = static_cast<const MapObject*>(it.ptr);
+                const ItemDef* thing = player.ItemDb() ? player.ItemDb()->Get(player.talents.PlacedTotem()) : nullptr;
+                SDL_Texture* tex = thing ? cache.Get(thing->icon) : nullptr;
+                if (!tex) break;
+                float tw = 0, th = 0;
+                SDL_GetTextureSize(tex, &tw, &th);
+                const SDL_FRect dst = camera.ToScreenRect({o->x - tw / 2.0f, o->y + 4.0f - th, tw, th});
+                const bool awake = player.talents.TotemAwake();
+                if (!awake) SDL_SetTextureColorMod(tex, 128, 124, 132);
+                SDL_RenderTexture(r, tex, nullptr, &dst);
+                if (!awake) SDL_SetTextureColorMod(tex, 255, 255, 255);
                 break;
             }
             case 3: {

@@ -111,6 +111,12 @@ struct ItemDef {
     int  mana = 0;
     bool stamina = false;
     map<int, pair<int, float>> boosts;   // SkillId -> (flat, fraction of level)
+    // What one of those is worth to somebody at this level. Written once
+    // because two places need it and they must not drift: the panel that says
+    // what a potion will do, and the draught that does it.
+    static int BoostGain(const pair<int, float>& boost, int level) {
+        return boost.first + static_cast<int>(level * boost.second);
+    }
     // A recipe scroll: using it teaches the brew with this id.
     string learn;
     // Where the recipe for this brew is learned, for the cauldron to say.
@@ -331,6 +337,22 @@ private:
     vector<ItemStack> items;
     const ItemDatabase* db;
 };
+
+// One line of an item's stat block: what the stat is, what this piece gives,
+// and -- when it is being weighed against something already worn -- what that
+// would change. Built here rather than in the panel that draws it, because
+// three panels draw it and they must not disagree about which numbers an item
+// has. `verdict` is +1 for a change for the better, -1 for worse and 0 for no
+// change or no comparison; the colour that goes with it is the UI's business.
+struct ItemStat {
+    string label, value, delta;
+    int    verdict = 0;
+};
+
+// `worn` is whatever is in the same slot -- possibly this very piece, in which
+// case every change is nothing, which is the honest answer. `compare` is false
+// for anything with no slot of its own: a potion is not instead of anything.
+vector<ItemStat> ItemStatLines(const ItemDef& d, const ItemDef* worn, bool compare);
 
 class Equipment {
 public:

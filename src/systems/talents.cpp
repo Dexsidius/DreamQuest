@@ -63,9 +63,54 @@ bool SkillTrees::Load(const string& path) {
                 t.nodes.push_back(n);
             }
     }
-    SDL_Log("SkillTrees: %d / %d / %d nodes", static_cast<int>(trees[0].nodes.size()),
-            static_cast<int>(trees[1].nodes.size()), static_cast<int>(trees[2].nodes.size()));
+    boons.clear();
+    if (root.contains("boons") && root["boons"].is_array())
+        for (const auto& bj : root["boons"]) {
+            BoonDef b;
+            b.id   = bj.value("id", string(""));
+            b.name = bj.value("name", b.id);
+            b.text = bj.value("text", string(""));
+            if (bj.contains("paths") && bj["paths"].is_array())
+                for (const auto& p : bj["paths"])
+                    for (int s = 0; s < 3; ++s)
+                        if (p.is_string() && p.get<string>() == kStyleKeys[s]) b.paths.push_back(static_cast<AttackStyle>(s));
+            if (bj.contains("effects") && bj["effects"].is_object())
+                for (auto e = bj["effects"].begin(); e != bj["effects"].end(); ++e)
+                    if (e.value().is_number()) b.effects[e.key()] = e.value().get<float>();
+            if (!b.id.empty() && !b.effects.empty()) boons.push_back(b);
+        }
+    totems.clear();
+    if (root.contains("totems") && root["totems"].is_array())
+        for (const auto& tj : root["totems"]) {
+            TotemDef t;
+            t.item = tj.value("item", string(""));
+            t.boss = tj.value("boss", string(""));
+            t.name = tj.value("name", t.item);
+            t.text = tj.value("text", string(""));
+            if (tj.contains("effects") && tj["effects"].is_object())
+                for (auto e = tj["effects"].begin(); e != tj["effects"].end(); ++e)
+                    if (e.value().is_number()) t.effects[e.key()] = e.value().get<float>();
+            if (!t.item.empty() && !t.boss.empty() && !t.effects.empty()) totems.push_back(t);
+        }
+    SDL_Log("SkillTrees: %d / %d / %d nodes, %d boons, %d totems", static_cast<int>(trees[0].nodes.size()),
+            static_cast<int>(trees[1].nodes.size()), static_cast<int>(trees[2].nodes.size()),
+            static_cast<int>(boons.size()), static_cast<int>(totems.size()));
     return true;
+}
+
+const TotemDef* SkillTrees::Totem(const string& item) const {
+    for (const TotemDef& t : totems) if (t.item == item) return &t;
+    return nullptr;
+}
+
+const TotemDef* SkillTrees::TotemOf(const string& boss) const {
+    for (const TotemDef& t : totems) if (t.boss == boss) return &t;
+    return nullptr;
+}
+
+const BoonDef* SkillTrees::Boon(const string& id) const {
+    for (const BoonDef& b : boons) if (b.id == id) return &b;
+    return nullptr;
 }
 
 const TalentNode* SkillTrees::Find(const string& id, AttackStyle* style) const {
@@ -81,12 +126,77 @@ const TalentNode* SkillTrees::Find(const string& id, AttackStyle* style) const {
 bool TalentEffectIsGlobal(const string& effect) {
     return effect == "defence" || effect == "stamina" || effect == "stamina_regen" ||
            effect == "move_speed" || effect == "mana_regen" || effect == "charge" ||
-           effect == "max_mana" || effect == "evade" || effect == "hurt_mana" || effect == "block_cost";
+           effect == "max_mana" || effect == "evade" || effect == "hurt_mana" || effect == "block_cost" ||
+           effect == "max_health";
 }
 
 int Talents::PointsEarned(AttackStyle style, const Skills& skills) const {
     if (!db) return 0;
-    return skills.Level(db->Tree(style).skill) / SkillTrees::LEVELS_PER_POINT;
+    // A boss's point is for the character's own tree, which is the only one
+    // they have; with no path set -- the self-test's plain Talents -- any.
+    return skills.Level(db->Tree(style).skill) / SkillTrees::LEVELS_PER_POINT +
+           (Open(style) ? BonusPoints() : 0);
+}
+
+Talents::Trophy Talents::SlayBoss(const string& boss_id, std::mt19937& rng) {
+    Trophy out;
+    if (boss_id.empty()) return out;
+    // Every time is counted; the fifteenth is the one that leaves the totem,
+    // and it is the count passing fifteen that does it, so there is one.
+    out.kills = ++kills[boss_id];
+    if (out.kills == TOTEM_KILLS && db) out.totem = db->TotemOf(boss_id);
+    if (!slain.insert(boss_id).second) return out;
+    out.first = true;
+    if (!db) return out;
+    // One they can use and have not got; and if they have every one of those,
+    // one they can use -- a second helping rather than nothing.
+    vector<const BoonDef*> fresh, any;
+    for (const BoonDef& b : db->Boons()) {
+        if (has_path && !b.For(path)) continue;
+        any.push_back(&b);
+        if (!HasBoon(b.id)) fresh.push_back(&b);
+    }
+    const vector<const BoonDef*>& from = fresh.empty() ? any : fresh;
+    if (from.empty()) return out;
+    out.boon = from[std::uniform_int_distribution<size_t>(0, from.size() - 1)(rng)];
+    boons.push_back(out.boon->id);
+    return out;
+}
+
+string Talents::PlaceTotem(const string& item, int quest_day) {
+    if (item.empty() || (db && !db->Totem(item))) return string();
+    string was = placed == item ? string() : placed;
+    placed = item;
+    totem_day = quest_day;
+    today = quest_day;
+    return was;
+}
+
+string Talents::TakeTotem() {
+    string was = placed;
+    placed.clear();
+    totem_day = -1;
+    return was;
+}
+
+const TotemDef* Talents::ActiveTotem() const {
+    return (db && TotemAwake()) ? db->Totem(placed) : nullptr;
+}
+
+float Talents::BoonEffect(const string& effect) const {
+    if (!db) return 0.0f;
+    float total = 0.0f;
+    // The totem in the ring, if it has been touched today. One, ever.
+    if (const TotemDef* t = ActiveTotem()) {
+        const auto it = t->effects.find(effect);
+        if (it != t->effects.end()) total += it->second;
+    }
+    for (const string& id : boons)
+        if (const BoonDef* b = db->Boon(id)) {
+            const auto it = b->effects.find(effect);
+            if (it != b->effects.end()) total += it->second;
+        }
+    return total;
 }
 
 int Talents::PointsSpent(AttackStyle style) const {
@@ -190,7 +300,7 @@ bool Talents::ToggleTechnique(const string& node_id) {
 float Talents::Effect(const string& effect, AttackStyle style) const {
     if (!db) return 0.0f;
     if (TalentEffectIsGlobal(effect)) return Global(effect);
-    float total = 0.0f;
+    float total = BoonEffect(effect);          // a boon is no style's: it is the character's
     for (const TalentNode& n : db->Tree(style).nodes) {
         const int rank = Rank(n.id);
         if (rank <= 0) continue;
@@ -202,7 +312,7 @@ float Talents::Effect(const string& effect, AttackStyle style) const {
 
 float Talents::Global(const string& effect) const {
     if (!db) return 0.0f;
-    float total = 0.0f;
+    float total = BoonEffect(effect);
     for (int s = 0; s < 3; ++s)
         for (const TalentNode& n : db->Tree(static_cast<AttackStyle>(s)).nodes) {
             const int rank = Rank(n.id);
@@ -228,14 +338,55 @@ json Talents::ToJson() const {
         if (!technique[s].empty()) j["technique"][kStyleKeys[s]] = technique[s];
     j["abilities"] = json::array();
     for (const string& slot : ability) j["abilities"].push_back(slot);
+    // What the bosses left. Unlearning a tree does not touch either: the point
+    // comes back with the rest, and a boon was never bought.
+    j["bosses"] = json::array();
+    for (const string& id : slain) j["bosses"].push_back(id);
+    j["boons"] = json::array();
+    for (const string& id : boons) j["boons"].push_back(id);
+    j["boss_kills"] = json::object();
+    for (const auto& [id, n] : kills) if (n > 0) j["boss_kills"][id] = n;
+    if (!placed.empty()) {
+        j["totem"] = placed;
+        j["totem_day"] = totem_day;
+    }
     return j;
 }
 
 void Talents::FromJson(const json& j) {
     ranks.clear();
+    slain.clear();
+    kills.clear();
+    boons.clear();
+    placed.clear();
+    totem_day = -1;
     for (string& t : technique) t.clear();
     for (string& a : ability) a.clear();
     if (!j.is_object()) return;
+    if (j.contains("bosses") && j["bosses"].is_array())
+        for (const auto& id : j["bosses"]) if (id.is_string()) slain.insert(id.get<string>());
+    // Before the boons, which may be no more than the bosses: all of the bosses first.
+    if (j.contains("boss_kills") && j["boss_kills"].is_object())
+        for (auto it = j["boss_kills"].begin(); it != j["boss_kills"].end(); ++it)
+            if (it.value().is_number_integer() && it.value().get<int>() > 0) {
+                kills[it.key()] = it.value().get<int>();
+                slain.insert(it.key());          // killed is killed, however it was written down
+            }
+    // A save from before kills were counted: each boss in it was killed once.
+    for (const string& id : slain) if (!kills.count(id)) kills[id] = 1;
+    if (j.contains("boons") && j["boons"].is_array())
+        for (const auto& id : j["boons"])
+            // One that has gone from the file is simply gone; never more than
+            // there were bosses to leave them.
+            if (id.is_string() && (!db || db->Boon(id.get<string>())) && boons.size() < slain.size())
+                boons.push_back(id.get<string>());
+    {
+        const string standing = j.value("totem", string(""));
+        if (!standing.empty() && (!db || db->Totem(standing))) {
+            placed = standing;
+            totem_day = j.value("totem_day", -1);
+        }
+    }
     if (j.contains("learned") && j["learned"].is_array())
         for (const auto& id : j["learned"]) if (id.is_string()) ranks[id.get<string>()] = 1;
     if (j.contains("ranks") && j["ranks"].is_object())

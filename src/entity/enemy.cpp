@@ -121,6 +121,9 @@ void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContex
     y = home_y = spawn.y;
     leash = spawn.leash;
     respawn_delay = spawn.respawn;
+    night        = spawn.night;
+    night_chance = spawn.chance;
+    night_group  = spawn.group;
 
     if (def) {
         // Levels scale the stat block, so the same monster can staff an early
@@ -312,18 +315,25 @@ void Enemy::Revive() {
 }
 
 void Enemy::OnKilled(World& world, const GameContext& ctx) {
+    // A boss is killed once a day, and so is what came out in the night: both
+    // are remembered by where they stood.
+    if ((def && def->is_boss) || night) world.NoteSlain(post);
     if (!def) return;
 
     // Loot first, so the drop lands where the body fell.
     if (!def->loot_table.empty())
         world.SpawnLoot(def->loot_table, x, y, ctx);
 
-    if (ctx.quests) {
+    {
         QuestEvent e;
         e.type   = ObjectiveType::Kill;
         e.target = def->kill_target;
         e.amount = 1;
         e.map_id = world.MapId();
+        // Which boss, if it was one. A chief's kill target is "lizardman", for
+        // the contracts' sake, so the target cannot say; and this is what goes
+        // down the wire to a friend's machine, where their character is.
+        if (def->is_boss) e.secondary = def->id;
         // To everyone who is here, not only whoever struck the blow: a fight
         // shared is a kill shared. The world hands it round once the frame's
         // acting-as is over.
@@ -726,6 +736,31 @@ void Enemy::Paddle(World& world, const GameContext& ctx, float dt,
     const float pace = def->speed * (afloat ? 0.20f : 0.28f);
     move_x = wander_dx * pace;
     move_y = wander_dy * pace;
+}
+
+void Enemy::LieDead() {
+    hp = 0;
+    state = State::Dead;
+    state_timer = 99.0f;
+    corpse_timer = 99.0f;          // nothing left to see
+    respawn_at = 0.0f;
+    respawn_delay = 0.0f;          // and not back while this map is up
+    provoked = false;
+}
+
+void Enemy::GoToGround() {
+    if (state == State::Dead) return;
+    hp = 0;
+    last_hp = 0;
+    state = State::Dead;           // not SetState: it is not dying, and plays no death
+    state_timer = DEATH_LINGER;    // so the fade begins now
+    corpse_timer = CORPSE_HOLD;
+    respawn_at = 0.0f;
+    swinging = false;
+    knock_x = knock_y = 0.0f;
+    provoked = false;
+    grudge = 0.0f;
+    bar_revealed = false;
 }
 
 bool Enemy::CorpseGone() const {

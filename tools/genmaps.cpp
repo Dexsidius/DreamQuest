@@ -408,6 +408,52 @@ public:
         e["spread"] = spread;
     }
 
+    // A post kept only after dark, by something that does not live here: see
+    // EnemySpawnDef::night and World::Abroad. One of `pool` by the day, the
+    // same one for a `group`, on `chance` of the nights; and it does not come
+    // back the same night, so there is no respawn to give it.
+    //
+    // Always written after everything else a map has. A post is known by its
+    // place in the list -- the day's hash is taken over it, and a boss killed
+    // today is remembered by it -- so what was there before keeps its number.
+    void NightEnemy(const vector<string>& pool, const string& group, int x, int y, int level, int spread,
+                    float chance, float leash = 300.0f) {
+        EnemyPool(pool, group, x, y, level, spread, 0.0f, leash);
+        json& e = dq["enemies"].back();
+        e["night"]  = true;
+        e["chance"] = chance;
+        ++night_posts;
+    }
+    int night_posts = 0;
+
+    // How far, in pixels, to the nearest place somebody has a right to feel
+    // safe: a way in or out, somewhere to arrive, a bed or a camp, a person, a
+    // chest, a sign. Nothing that comes out at night is posted near one -- a
+    // bed will not take you with a monster in sight, and a gate is not where
+    // to meet a wolf.
+    float NearestHaven(int x, int y) const {
+        x += ox;
+        float best = 1.0e9f;
+        const auto near = [&](float hx, float hy) {
+            best = std::min(best, std::sqrt((hx - x) * (hx - x) + (hy - y) * (hy - y)));
+        };
+        for (const auto& p : dq["portals"]) {
+            const float px = p["rect"][0].get<float>(), py = p["rect"][1].get<float>(),
+                        pw = p["rect"][2].get<float>(), ph = p["rect"][3].get<float>();
+            // The nearest point of it, not its middle: a gate is wide.
+            near(std::clamp(static_cast<float>(x), px, px + pw), std::clamp(static_cast<float>(y), py, py + ph));
+        }
+        for (auto it = dq["spawns"].begin(); it != dq["spawns"].end(); ++it) near(it.value()[0].get<float>(), it.value()[1].get<float>());
+        for (const auto& n : dq["npcs"]) near(n["x"].get<float>(), n["y"].get<float>());
+        for (const auto& o : dq["objects"]) {
+            const string type = o.value("type", string(""));
+            if (type == "bed" || type == "campsite" || type == "camp" || type == "chest" || type == "sign" ||
+                type == "storage" || type == "range" || type == "note")
+                near(o["x"].get<float>(), o["y"].get<float>());
+        }
+        return best;
+    }
+
     // How far down the Reverie a map is: see World::DreamBonus.
     void DreamDepth(int depth) { dq["dream_depth"] = depth; }
 
@@ -514,10 +560,16 @@ public:
             for (const auto& o : dq["objects"]) {
                 json t = {{"id", o["id"]}, {"kind", o["type"]}, {"x", o["x"]}, {"y", o["y"]}};
                 if (o.contains("yield")) t["yield"] = o["yield"];
+                // What a bench works as, so a quest that asks for something to
+                // be made can be pointed at somewhere it can be.
+                if (o.contains("station")) t["station"] = o["station"];
                 if (o.contains("title")) t["title"] = o["title"];
                 things.push_back(t);
             }
             for (const auto& e : dq["enemies"]) {
+                // Not what comes out at night: a contract for wolves is filled
+                // where wolves live, not where two might be after dark.
+                if (e.value("night", false)) continue;
                 json types = e.contains("pool") ? e["pool"] : json::array({e["type"]});
                 posts.push_back({{"types", types}, {"x", e["x"]}, {"y", e["y"]}});
             }
@@ -599,9 +651,14 @@ static void PlaceTree(MapBuilder& m, std::mt19937& rng, int index,
     o["skill"]       = "Woodcutting";
     o["skill_level"] = level;
     o["yield"]       = yield;
-    o["yield_xp"]    = big ? 65 : 25;
-    o["gather_time"] = big ? 3.0f : 2.2f;
-    o["title"]       = big ? "oak" : "sapling";
+    // What a tree is worth follows what it asks for, on the slope the seams
+    // are on: 65 for a log anybody can cut, 135 for an oak at fifteen, 210 for
+    // the old growth at thirty -- and each a little longer in the cutting.
+    // They were all 65, so the hundred oldest trees in the Brackenwood taught
+    // exactly what the ones by the sawpit did.
+    o["yield_xp"]    = big ? static_cast<int>(65.0f * (1.0f + level / 13.0f) + 0.5f) : 25;
+    o["gather_time"] = big ? 3.0f + level * 0.027f : 2.2f;
+    o["title"]       = big ? (level >= 30 ? "old oak" : "oak") : "sapling";
     // Not for ever: on each log there is a chance the tree comes down, and
     // then a stump stands there for a while. A sapling goes sooner than an
     // oak and is back sooner.
@@ -665,13 +722,37 @@ static void PlaceRelicChest(MapBuilder& m, const string& chest_id, int x, int y,
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
+// A waystone: the old stones that stand in the three towns and nowhere else.
+// Asleep until somebody puts a hand on it; after that, a door to every other
+// one that has been woken. The world remembers a woken stone as a flag with
+// the stone's own id, which is also what draws it lit -- an object whose id is
+// flagged is drawn as its `sprite_open`, the way an opened chest is.
+//
+// Towns only, and that is the whole of the design: the road to a place has to
+// be walked once, and the wilds and the dungeons are always walked.
+static void PlaceWaystone(MapBuilder& m, const string& town, int x, int y) {
+    json& o = m.Object("waystone_" + town, "waystone", x, y);
+    o["sprite"]      = "assets/props/waystone.png";
+    o["sprite_open"] = "assets/props/waystone_lit.png";
+    o["title"]       = "Waystone";
+    m.Collision(x - 28, y - 20, 56, 20);
+    // Where somebody arriving by it stands: in front of it, facing the town.
+    m.Spawn("waystone", x, y + 30);
+}
+
 // A bed anyone may sleep in after dusk. Drawn from the same prop art as the
 // rest of the furniture, but placed as an object so it can be used.
 static void PlaceBed(MapBuilder& m, const string& bed_id, const string& art,
-                     int x, int y, int cw, int ch) {
+                     int x, int y, int cw, int ch, int fee = 0) {
     json& o = m.Object(bed_id, "bed", x, y);
     o["sprite"] = "assets/props/" + art + ".png";
     o["title"]  = (art == "bed_double") ? "Double bed" : "Bed";
+    // An inn's bed is paid for by the night; anybody else's is theirs to lend.
+    if (fee > 0) {
+        o["fee"]   = fee;
+        o["title"] = string(art == "bed_double" ? "The inn's double bed" : "A bed at the inn") +
+                     "  -  " + std::to_string(fee) + " coins";
+    }
     m.Collision(x - cw / 2, y - ch, cw, ch);
 }
 
@@ -729,8 +810,12 @@ static void PlaceHerb(MapBuilder& m, const string& herb, int x, int y, int& inde
     o["yield"]       = herb;
     o["yield_xp"]    = it->second.xp;
     o["gather_time"] = 1.4f + it->second.level * 0.012f;
-    // Game hours to grow back: a marigold in three, a starlily in nearly nine.
-    o["regrow"]      = 3.0f + it->second.level / 12.0f;
+    // Game hours to grow back: a marigold in under two, a starlily in five.
+    // It was three and nearly nine, which with one pick a plant and a couple
+    // of dozen of the rare ones in the whole world left a forager standing in
+    // a picked field nineteen minutes in twenty -- five hundred hours to 99,
+    // against eight for a miner.
+    o["regrow"]      = 1.8f + it->second.level / 21.0f;
     string title = it->second.name;
     for (char& c : title) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     o["title"]       = title;
@@ -1762,6 +1847,54 @@ static void BuildOverworld() {
     PlaceChest(m, "chest_wood_01",  114 * OW_CELL, 52 * OW_CELL, "chest_common");
     PlaceChest(m, "chest_mire_01",   10 * OW_CELL, 60 * OW_CELL, "chest_common");
 
+    // --- what comes out at night ----------------------------------------------------
+    // Last, so every post above keeps its number. A sparse lattice of its own:
+    // well off the road and the trail -- the road is the way to travel after
+    // dark, and that is the whole of the advice -- nowhere near the town gate,
+    // where a new character is finding out which end of the sword to hold, and
+    // nowhere near a way in, a camp or a person. What comes is a step or two
+    // up from what the ground has by day, from somewhere nearby that is worse:
+    // wolves off the Westwold and bats out of the well on the meadow, the
+    // barrow's dead under the trees and up in the hills, what lives at the
+    // bottom of the well loose in the Mire, and the hellgate's imps on the
+    // Cursed Reach. Half of the posts, on any one night.
+    {
+        const int gate_cx = static_cast<int>(RoadX(86)), gate_cy = 88;
+        for (int gy = 6; gy < OW_H - 7; gy += 8) {
+            for (int gx = OW_X0 + 5; gx < OW_W - 7; gx += 8) {
+                // Off the lattice by a few cells either way, so that what is
+                // abroad is not drawn up in ranks.
+                const int cx = gx + static_cast<int>(Hash2(gx, gy, 2022) * 5.0f) - 2;
+                const int cy = gy + static_cast<int>(Hash2(gx, gy, 2023) * 5.0f) - 2;
+                const Biome b = BiomeAt(cx, cy);
+                if (b == WATER || b == ROAD || b == TRAIL || b == GRAVEYARD || BogAt(cx, cy)) continue;
+                if (fabsf(cx - RoadX(cy)) < 6.5f && cy > 6 && cy < 94) continue;
+                if (cx >= RoadX(TRAIL_JUNCTION_CY) && fabsf(cy - TrailY(cx)) < 5.5f) continue;
+                if (GraveField(cx, cy) < 3.2f) continue;                             // Hollowrest has its own dead
+                if (abs(cx - 12) <= 7 && cy >= 37 && cy <= 50) continue;             // and so has the barrow
+                if (abs(cx - MIRE_CAMP_X) <= 10 && abs(cy - MIRE_CAMP_Y) <= 10) continue;   // the chief keeps his own
+                if (std::hypot(static_cast<float>(cx - gate_cx), static_cast<float>(cy - gate_cy)) < 18.0f) continue;
+                const int x = cx * OW_CELL + 16, y = cy * OW_CELL + 16;
+                if (!m.Clear(x, y) || m.NearestHaven(x, y) < 352.0f) continue;
+                if (Hash2(cx, cy, 2020) > 0.21f) continue;      // about one candidate in five
+
+                const string group = "night_" + std::to_string(cx - OW_X0) + "_" + std::to_string(cy);
+                if (b == MEADOW)         m.NightEnemy({"wolf", "bat"}, group, x, y, 1, 1, 0.5f);
+                else if (b == GREENWOOD) {
+                    m.NightEnemy({"wolf", "zombie"}, group, x, y, 1, 2, 0.5f);
+                    // Under the trees they come in twos.
+                    if (Hash2(cx, cy, 2021) < 0.5f && m.Clear(x + 44, y + 26))
+                        m.NightEnemy({"wolf", "zombie"}, group, x + 44, y + 26, 1, 1, 0.5f);
+                }
+                // Not bats, here: the raiders camped in the hills are worse than a bat.
+                else if (b == FOOTHILLS) m.NightEnemy({"wraith", "zombie"}, group, x, y, 1, 2, 0.5f);
+                else if (b == MIRE)      m.NightEnemy({"wraith", "hound"}, group, x, y, 1, 1, 0.5f);
+                else if (b == CURSED)    m.NightEnemy({"hound", "imp"}, group, x, y, 1, 2, 0.5f);
+            }
+        }
+        std::printf("  the Hollowmarch by night: %d posts\n", m.night_posts);
+    }
+
     m.Write("maps");
     WriteWorldMap("data", (OW_W - OW_X0) * OW_CELL, OW_PX_H, m.ox);
 }
@@ -1947,6 +2080,11 @@ static void BuildTown() {
 
     // A cauldron beside it, for anyone with a brew to make.
     PlaceCauldron(m, "cauldron_town", 43 * CELL, 30 * CELL);
+
+    // --- the waystone ----------------------------------------------------------------
+    // On the grass at the north-east corner of the crossroads, where every road
+    // in the town passes it.
+    PlaceWaystone(m, "havenbrook", 1010, 652);
 
     // --- the farm ------------------------------------------------------------------
     // Sixteen columns of new town, east of the pond: a barn on the yard, a
@@ -2662,7 +2800,7 @@ static void BuildInteriors() {
         (void)room_cols;
 
         // Room one: a single, with a wardrobe.
-        PlaceBed(m, "bed_inn_1", "bed_single", 150, 250, 30, 36);
+        PlaceBed(m, "bed_inn_1", "bed_single", 150, 250, 30, 36, 15);
         piece("nightstand",   178, 214, 18, 8);
         piece("wardrobe",     258, 246, 34, 14);
         piece("washstand",    258, 330, 22, 8);
@@ -2670,13 +2808,13 @@ static void BuildInteriors() {
 
         // Room two: the good room.
         m.Overlay("props", "inn_rug", 400, 326);
-        PlaceBed(m, "bed_inn_2", "bed_double", 356, 258, 48, 36);
+        PlaceBed(m, "bed_inn_2", "bed_double", 356, 258, 48, 36, 25);
         piece("nightstand",   448, 214, 18, 8);
         piece("washstand",    452, 322, 22, 8);
         piece("travel_chest", 356, 300, 28, 12);
 
         // Room three: another single.
-        PlaceBed(m, "bed_inn_3", "bed_single", 556, 250, 30, 36);
+        PlaceBed(m, "bed_inn_3", "bed_single", 556, 250, 30, 36, 15);
         piece("nightstand",   522, 214, 18, 8);
         piece("wardrobe",     650, 246, 34, 14);
         piece("washstand",    650, 330, 22, 8);
@@ -3786,6 +3924,24 @@ static void BuildWhisperwood() {
         }
     }
 
+    // --- what comes out at night ----------------------------------------------------
+    // Back among the trees, never on the verge: by day the trail is foxes and
+    // footpads, and after dark there are wolves in the wood and the Mire's dead
+    // have walked this far. The trail itself is left alone.
+    for (int gy = 4; gy < H - 4; gy += 5)
+        for (int gx = 12; gx < W - 8; gx += 7) {
+            // Off the lattice a little, so they are not drawn up in ranks.
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, 2022) * 5.0f) - 2;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, 2023) * 5.0f) - 2;
+            const float gap = TrailGap(cx, cy);
+            if (gap < 5.0f || Stream(cx, cy) || in_camp(cx, cy) || on_camp_path(cx, cy)) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (!m.Clear(x, y) || m.NearestHaven(x, y) < 352.0f) continue;
+            if (Hash2(cx, cy, 2020) > 0.30f) continue;
+            m.NightEnemy({"wolf", "zombie"}, "night_" + std::to_string(cx) + "_" + std::to_string(cy), x, y, 1, 2, 0.5f);
+        }
+    std::printf("  the Whisperwood by night: %d posts\n", m.night_posts);
+
     m.Write("maps");
 }
 
@@ -4153,6 +4309,36 @@ static void BuildWestwold() {
     m.Danger(20);
     m.Spawn("from_brackenwood", 40 * CELL + 16, 3 * CELL);
 
+    // --- what comes out at night ----------------------------------------------------
+    // Off the roads and away from Hidewater. East of the Wend, where by day it
+    // is a walk in the fields, bats come over the downs and the dead come up
+    // out of the low ground -- not wolves: there are wolves here by day, and
+    // what comes out at night is what does not live here. West of it, where
+    // the wolves are, a bear down from the Brackenwood, or a wraith. The Fells
+    // are left as they are: nothing that comes out at night is worse than what
+    // lives there.
+    for (int gy = 6; gy < H - 6; gy += 9)
+        for (int gx = 30; gx < W - 8; gx += 9) {
+            // Off the lattice a little, so they are not drawn up in ranks.
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, 2022) * 5.0f) - 2;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, 2023) * 5.0f) - 2;
+            if (river(cx, cy) || in_field(cx, cy) || near_field(cx, cy, 3) || steading(cx, cy) || fells(cx, cy)) continue;
+            if (Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) < 6.0f) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (!m.Clear(x, y) || m.NearestHaven(x, y) < 352.0f) continue;
+            const bool west = cx < river_x(static_cast<float>(cy));
+            // There is less of the west bank, between the river and the Fells.
+            if (Hash2(cx, cy, 2020) > (west ? 0.42f : 0.22f)) continue;
+            const string group = "night_" + std::to_string(cx) + "_" + std::to_string(cy);
+            if (west) m.NightEnemy({"bear", "wraith"}, group, x, y, 1, 1, 0.5f);
+            else {
+                m.NightEnemy({"bat", "zombie"}, group, x, y, 1, 2, 0.5f);
+                if (Hash2(cx, cy, 2021) < 0.4f && m.Clear(x + 44, y + 26))
+                    m.NightEnemy({"bat", "zombie"}, group, x + 44, y + 26, 1, 1, 0.5f);
+            }
+        }
+    std::printf("  the Westwold by night: %d posts\n", m.night_posts);
+
     m.Write("maps");
 }
 
@@ -4326,6 +4512,28 @@ static void BuildBrackenwood() {
     m.Portal(64 * CELL - 72, H * CELL - 24, 144, 24, "westwold", "from_brackenwood", "To the Westwold", false);
     m.Spawn("from_westwold", 64 * CELL + 16, (H - 4) * CELL);
     m.Spawn("default",       64 * CELL + 16, (H - 4) * CELL);
+
+    // --- what comes out at night ----------------------------------------------------
+    // An old forest has old dead in it. Off the trails and out of the glades:
+    // wraiths and the grave-walkers of the deep well in the south of the wood,
+    // where by day it is wolves; the walkers and the wailing ones further in,
+    // among the bears. The Old Growth is left to the dire bears, who are worse.
+    for (int gy = 8; gy < H - 8; gy += 8)
+        for (int gx = 8; gx < W - 8; gx += 9) {
+            // Off the lattice a little, so they are not drawn up in ranks.
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, 2022) * 5.0f) - 2;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, 2023) * 5.0f) - 2;
+            const float gap = Gap(trails, static_cast<float>(cx), static_cast<float>(cy));
+            // Nor anywhere near it: what is posted beside a dire bear is not the worst thing there.
+            if (gap < 5.0f || gap > 14.0f || in_glade(cx, cy) || old_growth(cx, cy - 14)) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (!m.Clear(x, y) || m.NearestHaven(x, y) < 352.0f) continue;
+            if (Hash2(cx, cy, 2020) > 0.46f) continue;
+            const string group = "night_" + std::to_string(cx) + "_" + std::to_string(cy);
+            if (cy > 84) m.NightEnemy({"wraith", "ankou"}, group, x, y, 1, 1, 0.5f);
+            else         m.NightEnemy({"ankou", "banshee"}, group, x, y, 1, 1, 0.5f);
+        }
+    std::printf("  the Brackenwood by night: %d posts\n", m.night_posts);
 
     m.Write("maps");
 }
@@ -4502,6 +4710,10 @@ static void BuildMossvale() {
     // Sela keeps the gate, from the foot of its south tower.
     m.Npc("npc_sela",   "Warden Sela",    "player_wayfarer", 2 * CELL + 26, (gate_row + 2) * CELL + 6, "sela_root", 1);
     m.Npc("npc_pell",   "Pell the Trader", "citizen2",     21 * CELL + 50, 30 * CELL + 6, "pell_root", 0)["shop"] = "mossvale_general";
+    // --- the waystone -----------------------------------------------------------------
+    // On the square, west of the well and clear of the path down from the lodge.
+    PlaceWaystone(m, "mossvale", 850, 770);
+
     // --- the weaving shed -----------------------------------------------------------
     // Mossvale has the flax fields and the sheep walk past its door on the way
     // to Havenbrook, and until now the only loom in the Hollowmarch was out at
@@ -4654,6 +4866,7 @@ static void BuildFernhollow() {
         if (cx >= 16 && cx <= 24 && cy >= 23 && cy <= 29) return true;   // camp
         if (cx >= 15 && cx <= 21 && cy >= 17 && cy <= 21) return true;   // Nell's cart
         if (cx >= 30 && cx <= 44 && cy >= 23 && cy <= 34) return true;   // the college, and its doorstep
+        if (cx >= 17 && cx <= 20 && cy >= 12 && cy <= 15) return true;   // the waystone
         return false;
     };
 
@@ -4696,6 +4909,10 @@ static void BuildFernhollow() {
         for (int cx = W - 2; cx > 0; --cx)
             if (in_pond(cx, 17)) { spot(cx, 17, 8, 0); break; }
     }
+
+    // --- the waystone ---------------------------------------------------------------
+    // On the grass north of the jetty road, between the cottage and the water.
+    PlaceWaystone(m, "fernhollow", 600, 446);
 
     // --- the birds on the pond ---------------------------------------------------
     // Ducks and geese, posted on the bank a little way out from the water so
@@ -4953,7 +5170,19 @@ static void BuildWoodlandInteriors() {
             m.Prop("props", art, x, y);
             if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
         };
-        m.Overlay("props", "rug", dx, 6 * CELL + 16);
+        // By the door, where a rug is for. It lay in the middle of the floor,
+        // which is the ring's now.
+        m.Overlay("props", "rug", dx, 9 * CELL + 16);
+        // The ring, in the middle of the floor: where a boss's totem is stood.
+        // It is set in the boards -- an overlay, under everybody's feet -- and
+        // the thing that is touched has no picture of its own. What stands in
+        // it is the character's, and the game draws that: see World, `5`.
+        {
+            const int rx = (cols / 2) * CELL, ry = (rows / 2) * CELL;
+            m.Overlay("props", "totem_circle", rx, ry);
+            json& o = m.Object("totem_ring_mossvale", "totem_circle", rx, ry);
+            o["title"] = "The ring";
+        }
         {
             json& o = m.Object("range_cottage", "range", 3 * CELL, 100);
             o["sprite"] = "assets/props/cottage_hearth.png";
@@ -4971,8 +5200,10 @@ static void BuildWoodlandInteriors() {
             m.Collision(12 * CELL - 16, 4 * CELL + 8 - 14, 32, 14);
         }
         PlaceBed(m, "bed_cottage", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
-        piece("dining_table", 7 * CELL,      7 * CELL + 8,  46, 14);
-        piece("tavern_chair", 5 * CELL + 16, 7 * CELL + 10, 16, 8);
+        // Table and chair in the south-west of the room, clear of the ring:
+        // they stood a hand's width from the middle of the floor.
+        piece("dining_table", 5 * CELL + 8,  8 * CELL + 8,  46, 14);
+        piece("tavern_chair", 3 * CELL + 24, 8 * CELL + 10, 16, 8);
         piece("wardrobe",     6 * CELL,      3 * CELL + 4,  34, 14);
         piece("cottage_bookshelf", 9 * CELL, 3 * CELL + 4,  40, 14);
         piece("barrel",       2 * CELL,      9 * CELL,      28, 10);

@@ -98,6 +98,91 @@
   },
   "completion": "Sula strings the minnow on a withy and hands the rod back to you. \"Yours. The lake north of town is better water, and Wendel pays for what you land.\""
  },
+ "q_learn_fighting": {
+  "name": "Fighting: The Gate Meadow",
+  "source": "npc",
+  "giver": "npc_guard",
+  "level": 1,
+  "tutorial": true,
+  "summary": "Watchman Corrin will tell anybody how a fight works, and thinks less of telling than of doing. There are boar in the meadow outside his gate.",
+  "stages": [
+   {
+    "desc": "Put down 3 boar in the meadow outside the gate",
+    "type": "kill",
+    "target": "boar",
+    "count": 3
+   },
+   {
+    "desc": "Go back to Watchman Corrin at the gate",
+    "type": "talk",
+    "target": "npc_guard"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 220,
+    "Strength": 110
+   },
+   "coins": 30
+  },
+  "completion": "Corrin looks you over for blood that is yours. \"Three, and you walked back. That is the whole of it -- the rest is the same thing with bigger animals.\""
+ },
+ "q_learn_crafting": {
+  "name": "Crafting: A Bad First Helm",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "tutorial": true,
+  "summary": "Smith Halda says crafting is hands, not talk. She has put two logs and a hide in yours and wants to see what you make of them.",
+  "stages": [
+   {
+    "desc": "Make a Barkwood Helm at a workbench",
+    "type": "craft",
+    "target": "wood_helm",
+    "count": 1
+   },
+   {
+    "desc": "Show it to Smith Halda at the forge",
+    "type": "talk",
+    "target": "npc_smith"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Crafting": 220
+   },
+   "coins": 30
+  },
+  "completion": "Halda turns it over twice. \"It is crooked, the hide is on backwards, and it will turn a blow. Wear it. The next one you make will embarrass this one.\""
+ },
+ "q_learn_cooking": {
+  "name": "Cooking: Meat and Fire",
+  "source": "npc",
+  "giver": "npc_hunter",
+  "level": 1,
+  "tutorial": true,
+  "summary": "Hunter Ivo's lesson is a short one: meat comes off anything, and you cook it before you eat it. He has handed over some of his own to prove the second half on.",
+  "stages": [
+   {
+    "desc": "Cook 3 pieces of meat over a fire",
+    "type": "craft",
+    "target": "cooked_meat",
+    "count": 3
+   },
+   {
+    "desc": "Go back to Hunter Ivo",
+    "type": "talk",
+    "target": "npc_hunter"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 200
+   },
+   "coins": 20
+  },
+  "completion": "Ivo takes a piece, chews, and says nothing, which from him is a review. \"Hides come off anything with fur. You can work the rest out.\""
+ },
  "q_thin_the_herd": {
   "name": "Thin the Herd",
   "source": "board",
@@ -862,7 +947,7 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 520
+    "Fishing": 3200
    },
    "coins": 176
   },
@@ -1483,7 +1568,7 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 300
+    "Fishing": 320
    },
    "coins": 78
   },
@@ -1512,9 +1597,9 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 450
+    "Fishing": 1500
    },
-   "coins": 188
+   "coins": 320
   },
   "completion": "Wendel lays them out on the jetty in a neat row."
  },
@@ -1541,9 +1626,9 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 600
+    "Fishing": 6500
    },
-   "coins": 273
+   "coins": 1400
   },
   "completion": "\"Not a word to Hesper.\""
  },
@@ -1570,9 +1655,9 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 650
+    "Fishing": 12000
    },
-   "coins": 260
+   "coins": 3200
   },
   "completion": "Wendel looks at them, and they look back. He pays quickly."
  },
@@ -1600,9 +1685,9 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 400
+    "Fishing": 1300
    },
-   "coins": 252
+   "coins": 268
   },
   "completion": "\"Still warm. You have a hand for it.\""
  },
@@ -1626,7 +1711,7 @@
   ],
   "rewards": {
    "xp": {
-    "Fishing": 200
+    "Fishing": 260
    },
    "coins": 108
   },
@@ -2160,7 +2245,7 @@
    "xp": {
     "Crafting": 7000
    },
-   "coins": 11200
+   "coins": 5200
   },
   "completion": "She turns every seam over, finds nothing to complain about, and says so.",
   "req": {
@@ -2478,6 +2563,319 @@
   "completion": "She looks along every seam, finds nothing, and says so, which from Wynn is a speech.",
   "req": {
    "Crafting": 30
+  }
+ },
+ "q_oona_marigold": {
+  "name": "Order: Marigolds",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 1,
+  "summary": "A basket of marigolds for the drying racks. They grow in any meadow.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 8 marigolds",
+    "type": "deliver",
+    "target": "marigold",
+    "to": "npc_oona",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 380
+   },
+   "coins": 40
+  },
+  "completion": "Oona sorts them by the head, quickly, and keeps all but one."
+ },
+ "q_oona_brookmint": {
+  "name": "Order: Brookmint",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 6,
+  "summary": "Brookmint from the waterside, cut before it flowers.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 8 sprigs of brookmint",
+    "type": "deliver",
+    "target": "brookmint",
+    "to": "npc_oona",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 900
+   },
+   "coins": 90
+  },
+  "completion": "\"Cut clean. Somebody taught you, or you have been paying attention.\"",
+  "req": {
+   "Foraging": 6
+  }
+ },
+ "q_oona_nettle": {
+  "name": "Order: Nettles",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 12,
+  "summary": "Stinging nettles, and gloves are your own affair.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 8 stinging nettles",
+    "type": "deliver",
+    "target": "nettle",
+    "to": "npc_oona",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 1700
+   },
+   "coins": 150
+  },
+  "completion": "She takes them bare-handed, which answers a question nobody asked.",
+  "req": {
+   "Foraging": 12
+  }
+ },
+ "q_oona_bogbean": {
+  "name": "Order: Bogbean",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 20,
+  "summary": "Bogbean out of the mire. Mind what else lives in it.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 6 bogbean",
+    "type": "deliver",
+    "target": "bogbean",
+    "to": "npc_oona",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 2800
+   },
+   "coins": 260
+  },
+  "completion": "\"Wet to the knee for it, I expect. It is worth the knee.\"",
+  "req": {
+   "Foraging": 20
+  }
+ },
+ "q_oona_sage": {
+  "name": "Order: Mountain Sage",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 28,
+  "summary": "Sage from the foothills, the higher the better.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 6 mountain sage",
+    "type": "deliver",
+    "target": "mountain_sage",
+    "to": "npc_oona",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 4200
+   },
+   "coins": 420
+  },
+  "completion": "The whole room smells of it before she has the sack open.",
+  "req": {
+   "Foraging": 28
+  }
+ },
+ "q_oona_glowcap": {
+  "name": "Order: Glowcaps",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 36,
+  "summary": "Glowcaps from the deep wood, picked by their own light.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 6 glowcaps",
+    "type": "deliver",
+    "target": "glowcap",
+    "to": "npc_oona",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 6200
+   },
+   "coins": 640
+  },
+  "completion": "She puts them in the dark cupboard, where they go on glowing.",
+  "req": {
+   "Foraging": 36
+  }
+ },
+ "q_oona_draughts": {
+  "name": "Order: Healing Draughts",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 1,
+  "summary": "Healing draughts for the loggers, who will not be told.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 healing draughts",
+    "type": "deliver",
+    "target": "healing_draught",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 420
+   },
+   "coins": 60
+  },
+  "completion": "Oona holds one to the window. \"Clear. You strained it. Good.\""
+ },
+ "q_oona_nettle_brew": {
+  "name": "Order: Nettle Brew",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 12,
+  "summary": "Nettle brew for the sawpit: it is what Jessa swears by.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 nettle brews",
+    "type": "deliver",
+    "target": "nettle_brew",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 1900
+   },
+   "coins": 240
+  },
+  "completion": "\"Strong. She will complain about the taste and ask for more.\"",
+  "req": {
+   "Brewing": 12
+  }
+ },
+ "q_oona_bitters": {
+  "name": "Order: Fen Bitters",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 20,
+  "summary": "Fen bitters, for the marsh cough that goes round each autumn.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 fen bitters",
+    "type": "deliver",
+    "target": "fen_bitters",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 3100
+   },
+   "coins": 380
+  },
+  "completion": "She tastes it, which nobody should, and nods.",
+  "req": {
+   "Brewing": 20
+  }
+ },
+ "q_oona_stoneskin": {
+  "name": "Order: Stoneskin Draughts",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 28,
+  "summary": "Stoneskin for the watch at Havenbrook, before the orcs come down again.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 stoneskin draughts",
+    "type": "deliver",
+    "target": "stoneskin_draught",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 4600
+   },
+   "coins": 620
+  },
+  "completion": "\"Corrin will pretend he does not need it. He will drink it.\"",
+  "req": {
+   "Brewing": 28
+  }
+ },
+ "q_oona_focus": {
+  "name": "Order: Hunter's Focus",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 36,
+  "summary": "Hunter's Focus, for a trapper who has started missing.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 Hunter's Focus",
+    "type": "deliver",
+    "target": "hunters_focus",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 6800
+   },
+   "coins": 940
+  },
+  "completion": "Oona stoppers them twice. \"It is his eyes. This will not mend those, but he will think it has.\"",
+  "req": {
+   "Brewing": 36
   }
  }
 }

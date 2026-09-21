@@ -86,6 +86,18 @@ int Game::Start(int argc, char** argv) {
             // With --scratch: start on this map, at this spawn if one is named.
             launch_map = argv[++i];
             if (i + 1 < argc && argv[i + 1][0] != '-') launch_spawn = argv[++i];
+        } else if (arg == "--bag" && more) {
+            // With --scratch: put these in the pack, comma separated, worn or not.
+            launch_bag = argv[++i];
+        } else if (arg == "--at" && i + 2 < argc) {
+            // With --scratch and --map: stood at this point of it, in pixels,
+            // rather than at a spawn -- for looking at somewhere no door leads to.
+            launch_at_x = static_cast<float>(SDL_atof(argv[++i]));
+            launch_at_y = static_cast<float>(SDL_atof(argv[++i]));
+        } else if (arg == "--slay" && more) {
+            // With --scratch: these bosses are already dead at this character's
+            // hands, with the point and the boon each left.
+            launch_slay = argv[++i];
         } else if (arg == "--wear" && more) {
             // With --scratch: put these on, comma separated.
             launch_wear = argv[++i];
@@ -233,10 +245,35 @@ int Game::Start(int argc, char** argv) {
                     from = comma + 1;
                 }
             }
+            if (!launch_bag.empty()) {
+                size_t from = 0;
+                while (from <= launch_bag.size()) {
+                    const size_t comma = launch_bag.find(',', from);
+                    const string id = launch_bag.substr(from, comma == string::npos ? string::npos : comma - from);
+                    if (items.Get(id)) world->player.inventory.Add(id, 1);
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+            }
+            if (!launch_slay.empty()) {
+                size_t from = 0;
+                while (from <= launch_slay.size()) {
+                    const size_t comma = launch_slay.find(',', from);
+                    const string id = launch_slay.substr(from, comma == string::npos ? string::npos : comma - from);
+                    if (enemy_db.Get(id)) world->AwardBoss(id, ctx);
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+            }
             // The hour before the map: who keeps a dream's platforms is settled
             // by the day as it loads, and a dream walked into by daylight is over.
             if (launch_hour >= 0.0f) world->clock.Set(world->clock.Day(), launch_hour);
             if (!launch_map.empty()) world->LoadMap(launch_map, launch_spawn.empty() ? "default" : launch_spawn, ctx);
+            if (launch_at_x >= 0.0f && launch_at_y >= 0.0f) {
+                world->player.x = launch_at_x;
+                world->player.y = launch_at_y;
+                world->camera.SnapTo(launch_at_x, launch_at_y);
+            }
             if (!launch_quests.empty()) {
                 size_t from = 0;
                 while (from <= launch_quests.size()) {
@@ -260,7 +297,11 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "inventory") OpenPanel(GameState::Inventory);
                 else if (what == "skills")    { skills_tab = 0; OpenPanel(GameState::SkillsPanel); }
                 else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = 1; }
+                else if (what == "boons")     { OpenPanel(GameState::SkillsPanel); skills_tab = 2; }
                 else if (what == "pause")     OpenPanel(GameState::Paused);
+                else if (what == "totems")    { totem_cursor = 0; OpenPanel(GameState::TotemRing); }
+                else if (what == "travel")    { travel_from = "waystone_havenbrook"; travel_cursor = 0;
+                                                OpenPanel(GameState::Travel); }
                 else if (what == "shop")      OpenShop(arg);
                 else if (what == "craft")     {
                     craft_station = CraftStationFromName(arg);
@@ -415,10 +456,14 @@ bool Game::LoadGame(int slot) {
     banner_time = 0.0f;
     banner_zone.clear();
     banner_seen_map.clear();
-    if (!SaveSystem::Load(slot, (*world), (*quests), ctx, playtime)) {
+    bool from_backup = false;
+    if (!SaveSystem::Load(slot, (*world), (*quests), ctx, playtime, &from_backup)) {
         PushToast("That save could not be loaded.", {235, 120, 120, 255});
         return false;
     }
+    if (from_backup)
+        PushToast("Slot " + std::to_string(slot) + " could not be read. This is the save before it.",
+                  {235, 200, 120, 255});
     active_slot = slot;
     autosave_timer = 0.0f;
     has_session = true;
@@ -442,6 +487,17 @@ bool Game::LoadGame(int slot) {
         if (given) PushToast("Your pack has the tools for chopping, mining and fishing now.", Palette::Xp);
     }
     return true;
+}
+
+void Game::SaveOnTheWayOut() {
+    // Closing the window used to cost whatever had happened since the last
+    // autosave -- up to two minutes -- where quitting from the pause menu cost
+    // nothing. A guest's character is kept by the destructor; a scratch game
+    // is nobody's to keep; and somebody lying dead is not written down dead:
+    // the last autosave stands for them.
+    if (!has_session || never_save || guest_session) return;
+    if (home_world.player.IsDead()) return;
+    if (WriteSlot(active_slot)) SDL_Log("DreamQuest: saved slot %d on the way out", active_slot);
 }
 
 bool Game::SaveGame(int slot) {
@@ -504,6 +560,8 @@ bool Game::InGameplayState() const {
         case GameState::Board:
         case GameState::Note:
         case GameState::SleepPrompt:
+        case GameState::Travel:
+        case GameState::TotemRing:
         case GameState::Crafting:
         case GameState::Enchanting:
         case GameState::Shop:
@@ -593,11 +651,13 @@ void Game::Process(float dt) {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_EVENT_QUIT:
+                SaveOnTheWayOut();
                 running = false;
                 return;
 
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 if (event.window.windowID == SDL_GetWindowID(window)) {
+                    SaveOnTheWayOut();
                     running = false;
                     return;
                 }
@@ -650,6 +710,14 @@ void Game::Update(float dt) {
         launch_say.clear();
     }
     for (auto& t : toasts) t.life -= dt;
+    // What is earned at a bench or a fire is shown as it is earned, not when
+    // the panel is closed: the chores that collect these run only while the
+    // world does, and a panel stops it.
+    if (has_session && !split_active && state != GameState::Play && InGameplayState())
+        for (const auto& drop : world->player.TakeXpDrops()) NoteXp(drop.first, drop.second);
+    for (XpLine& line : xp_lines) line.age += dt;
+    xp_lines.erase(std::remove_if(xp_lines.begin(), xp_lines.end(),
+                                  [](const XpLine& l) { return l.age >= 2.8f; }), xp_lines.end());
     toasts.erase(std::remove_if(toasts.begin(), toasts.end(),
                                 [](const Toast& t) { return t.life <= 0.0f; }),
                  toasts.end());
@@ -682,6 +750,8 @@ void Game::Update(float dt) {
         case GameState::Board:           UpdateBoard(); break;
         case GameState::Note:            UpdateNote(); break;
         case GameState::SleepPrompt:     UpdateSleepPrompt(); break;
+        case GameState::Travel:          UpdateTravel(); break;
+        case GameState::TotemRing:       UpdateTotemRing(); break;
         case GameState::Crafting:        UpdateCrafting(); break;
         case GameState::Enchanting:      UpdateEnchanting(); break;
         case GameState::Shop:            UpdateShop(); break;
@@ -847,7 +917,8 @@ void Game::SeatChores() {
                           " to spend it", Palette::Xp);
         }
     }
-    world->player.TakeXpDrops();     // consumed; the HUD shows totals instead
+    // Shown, where they used to be taken and dropped on the floor.
+    for (const auto& drop : world->player.TakeXpDrops()) NoteXp(drop.first, drop.second);
 
     // Quests that finished this frame pay out now.
     for (const string& id : quests->TakeJustStarted())
@@ -877,8 +948,41 @@ void Game::SeatChores() {
     }
     if (input.Pressed(Action::CycleSpell))  world->player.CycleElement(1);
 
+    // --- what is to hand ------------------------------------------------------
+    // Guard and interact eats or drinks the quick item; guard and sprint steps
+    // to the next. A chord, the way the abilities are, because a pad has no
+    // button left -- and because it is the one way to eat that does not open
+    // the bag, which online does not stop the world for you.
+    bool chorded = false;
+    if (input.Down(Action::Block)) {
+        Player& me = world->player;
+        if (input.Pressed(Action::Interact)) {
+            chorded = true;
+            string why;
+            const string id = me.QuickItem().empty() && !me.QuickChoices().empty() ? me.QuickChoices().front()
+                                                                                   : me.QuickItem();
+            const ItemDef* d = items.Get(id);
+            if (me.UseQuickItem(why)) {
+                const bool potion = d && std::find(d->tags.begin(), d->tags.end(), "potion") != d->tags.end();
+                PushToast((potion ? "You drink the " : "You eat the ") + (d ? d->name : id) + ".", Palette::Xp);
+                Audio::Play(Sfx::Eat);
+            } else {
+                PushToast(why, Palette::TextDim);
+                Audio::Play(Sfx::UiError);
+            }
+        } else if (input.Pressed(Action::Sprint)) {
+            chorded = true;
+            const string id = me.CycleQuickItem();
+            if (const ItemDef* d = items.Get(id))
+                PushToast(d->name + " is to hand  (x" + std::to_string(me.inventory.Count(id)) + ")", Palette::Text);
+            else
+                PushToast("You have nothing to eat or drink.", Palette::TextDim);
+            Audio::Play(Sfx::UiMove);
+        }
+    }
+
     // --- panel hotkeys -------------------------------------------------------
-    if (input.Pressed(Action::Interact))   world->TryInteract(ctx);
+    if (!chorded && input.Pressed(Action::Interact)) world->TryInteract(ctx);
     if (input.Pressed(Action::Inventory))  OpenPanel(GameState::Inventory);
     if (input.Pressed(Action::Skills))     OpenPanel(GameState::SkillsPanel);
     if (input.Pressed(Action::QuestLog))   OpenPanel(GameState::QuestPanel);
@@ -927,8 +1031,20 @@ void Game::HandleWorldRequests() {
                 OpenPanel(GameState::Crafting);
                 break;
 
+            case WorldRequest::Type::Travel:
+                travel_from = r.id;
+                travel_cursor = 0;
+                OpenPanel(GameState::Travel);
+                break;
+
+            case WorldRequest::Type::Totem:
+                totem_cursor = 0;
+                OpenPanel(GameState::TotemRing);
+                break;
+
             case WorldRequest::Type::Sleep:
                 sleep_title = r.title;
+                sleep_fee   = r.count;
                 OpenPanel(GameState::SleepPrompt);
                 break;
 
@@ -961,46 +1077,19 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
     Player& p = world->player;
 
     for (const DialogueAction& a : actions) {
-        if (!a.start_quest.empty()) {
-            if (quests->CanStart(a.start_quest, p.skills)) quests->Start(a.start_quest);
+        // The journal and the bag are the dialogue layer's to change, and it
+        // keeps the rule about gifts: see ApplyDialogueAction. What is left
+        // here is saying so, and putting what did not fit on the ground.
+        const DialogueOutcome done = ApplyDialogueAction(a, *quests, p.inventory, p.skills, dialogue.NpcId());
+        for (const auto& got : done.received) {
+            const ItemDef* d = items.Get(got.first);
+            PushToast("Received " + std::to_string(got.second) + "x " + (d ? d->name : got.first), Palette::Xp);
         }
-
-        if (!a.advance_quest.empty()) {
-            QuestEvent e;
-            e.type   = ObjectiveType::Talk;
-            e.target = a.advance_quest;
-            quests->Notify(e, p.inventory);
+        for (const auto& spilt : done.overflow) {
+            world->DropItem(spilt.first, spilt.second, p.x, p.y + 6.0f, ctx);
+            PushToast("Your pack is full. The item is at your feet.", {235, 150, 120, 255});
         }
-
-        if (!a.give_item.empty()) {
-            const int added = p.inventory.Add(a.give_item, a.give_qty);
-            if (added > 0) {
-                const ItemDef* d = items.Get(a.give_item);
-                PushToast("Received " + std::to_string(added) + "x " +
-                          (d ? d->name : a.give_item), Palette::Xp);
-                quests->RefreshCollectObjectives(p.inventory);
-            }
-            if (added < a.give_qty) {
-                world->DropItem(a.give_item, a.give_qty - added, p.x, p.y + 6.0f, ctx);
-                PushToast("Your pack is full. The item is at your feet.", {235, 150, 120, 255});
-            }
-        }
-
-        if (!a.take_item.empty()) {
-            if (p.inventory.Remove(a.take_item, a.take_qty)) {
-                QuestEvent e;
-                e.type      = ObjectiveType::Deliver;
-                e.target    = a.take_item;
-                e.secondary = dialogue.NpcId();
-                e.amount    = a.take_qty;
-                quests->Notify(e, p.inventory);
-            }
-        }
-
-        if (!a.skill_xp.empty() && a.xp_amount > 0) {
-            const int s = SkillFromName(a.skill_xp);
-            if (s >= 0) p.GrantXp(s, a.xp_amount);
-        }
+        for (const string& flag : done.flags) world->SetFlag(flag);
 
         // Trading waits for the conversation to close; see UpdateDialogue.
         if (!a.open_shop.empty() && shop_db.Get(a.open_shop)) pending_shop = a.open_shop;
@@ -1042,7 +1131,8 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
         }
 
         if (a.heal) {
-            p.skills.ResetCurrent();
+            // Mended, not reset: see Skills::RestoreDrained.
+            p.skills.RestoreDrained();
             p.SyncHitpoints();
             p.hp = p.max_hp;
             PushToast("You feel restored.", Palette::Xp);
@@ -1111,8 +1201,12 @@ void Game::GrantQuestRewards(const string& quest_id) {
 // of the window. It is run by hand while working on a menu, and by the
 // self-test's screen pass through bin/DreamQuest.exe --audit, so a panel that
 // somebody adds a long line to says so rather than waiting to be noticed.
+//
+// The play HUD goes through it too, for the other thing that goes wrong with a
+// screen: two pieces of it in the same place. See UI::Claim.
 void Game::RunAudit() {
-    struct Screen { const char* name; GameState state; std::function<void()> open; };
+    // `draw`, for the few that are not a frame of Render(): half a split screen.
+    struct Screen { const char* name; GameState state; std::function<void()> open; std::function<void()> draw; };
     // A character with everything, because the longest lines are the ones a
     // finished character sees: every skill at seventy, a full bag, the trees
     // learned, quests in hand.
@@ -1122,8 +1216,19 @@ void Game::RunAudit() {
     p.SyncHitpoints(); p.hp = p.max_hp; p.SyncMana(); p.RestoreMana();
     for (const char* id : {"dragonhide_hide_head", "dragonhide_hide_body", "dragonhide_hide_legs",
                            "bag_haversack", "bag_rucksack", "greatwolf_pelt", "dream_shard", "starlily_panacea",
-                           "demonite_greatsword", "wyvern_scale", "herbal_tonic", "dire_bear_hide"})
+                           "demonite_greatsword", "wyvern_scale", "herbal_tonic", "dire_bear_hide",
+                           // A piece with a passive on it and an enchanted one,
+                           // so the line the stat block prints for those is
+                           // swept in the shop's sell tab rather than assumed
+                           // to fit.
+                           "drowned_king_boots", "orichalcum_sword+might", "dragonhide_hide_body+the_wind"})
         if (items.Get(id)) p.inventory.Add(id, 99);
+    // And wearing something in every slot, because the stat block in the shop
+    // and at the anvil writes "Instead of <what you have on>": the longest
+    // line it can draw is the longest item name in the game.
+    for (const char* id : {"orichalcum_sword", "orichalcum_shield", "dragonhide_hide_head",
+                           "dragonhide_hide_body", "dragonhide_hide_legs"})
+        if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_NONE) p.equipment.Equip(d->slot, id);
     for (const auto& kv : quests->Definitions()) quests->Start(kv.first);
     quests->TakeJustStarted();
 
@@ -1131,12 +1236,97 @@ void Game::RunAudit() {
     // full-screen one: it is not a panel's text running off.
     toasts.clear();
 
-    const std::pair<float, float> sizes[] = {{1280.0f, 720.0f}, {1024.0f, 600.0f}, {1920.0f, 1080.0f}};
-    int found = 0;
+    // The window's size, the interface's scale. 1280 by 800 is a Steam Deck,
+    // and it is here twice: as it comes, and at the 125% that is the most it
+    // has room for -- which is every panel laid out in 1024 by 640, close to
+    // the smallest the game supports and the likeliest place for a line to run
+    // off.
+    //
+    // This list used to be three sizes and test one. Render() sets the
+    // interface's viewport from the window's size on its first line, so
+    // whatever was asked for here was thrown away and every pass was the
+    // window as it opened: 1280 by 720, three times. The window's size is what
+    // is set now, which is what Render() reads.
+    struct Pass { float w, h, scale; };
+    const Pass sizes[] = {{1280.0f, 720.0f, 1.0f}, {1024.0f, 600.0f, 1.0f}, {1920.0f, 1080.0f, 1.0f},
+                          {1280.0f, 800.0f, 1.0f}, {1280.0f, 800.0f, 1.1f}, {1280.0f, 800.0f, 1.25f},
+                          {1920.0f, 1080.0f, 1.25f}, {1920.0f, 1080.0f, 1.5f}};
+    // The play HUD is not a panel, and what goes wrong on it is not a line
+    // running off: it is two things drawn in the same place, which is what
+    // UI::Claim is for. It is posed with everything the foot of the screen can
+    // hold at once -- a technique chosen, three abilities carried, something to
+    // interact with, a chain open -- once with a sword and once with a staff,
+    // whose element bar is the tallest thing there and whose line, with the
+    // ancient magic chosen and a technique riding on it, is the widest.
+    //
+    // The chain first: one light attack at nothing, let finish. Nothing in an
+    // audit steps the player again, so the window it leaves open stays open.
+    p.input_locked = false;
+    p.hands = {};
+    p.hands.down = p.hands.pressed = PlayerInput::Light;
+    p.Update(1.0f / 60.0f, *world, ctx);
+    p.hands = {};
+    for (int f = 0; f < 240 && !p.ComboOpen(); ++f) p.Update(1.0f / 60.0f, *world, ctx);
+
+    const Talents talents_was = p.talents;
+    const Equipment worn_was = p.equipment;
+    const std::set<string> flags_was = world->Flags();
+    const auto hud_pose = [&](bool staff) {
+        has_session = true;
+        const AttackStyle path = staff ? AttackStyle::Magic : AttackStyle::Melee;
+        const TalentTree& tree = skill_trees.Tree(path);
+        p.talents = talents_was;
+        p.talents.SetPath(path);
+        // A rank of everything the points reach, then the technique with the
+        // longest name and the first three abilities.
+        for (const TalentNode& n : tree.nodes) p.talents.Learn(n.id, p.skills);
+        const TalentNode* longest = nullptr;
+        int carried = 0;
+        for (const TalentNode& n : tree.nodes) {
+            if (!p.talents.Has(n.id)) continue;
+            if (!n.technique.empty() && (!longest || n.name.size() > longest->name.size())) longest = &n;
+            if (!n.ability.empty() && carried < SkillTrees::ABILITY_SLOTS) { p.talents.CycleAbility(n.id); ++carried; }
+        }
+        if (longest) p.talents.ToggleTechnique(longest->id);
+        p.equipment.Equip(SLOT_WEAPON, staff ? "apprentice_staff" : "orichalcum_sword");
+        p.SelectElement(Element::Fire);
+        if (staff) {
+            for (const SpellDef* s : spells.Arcane()) world->SetFlag("recipe:spell:" + s->id);
+            p.SelectArcane(world->KnownArcane(spells));
+        }
+        p.interact = {};
+        p.interact.kind = InteractTarget::Object;
+        p.interact.label = "Search the Drowned King's reliquary";
+    };
+    // Half a split screen, as RenderSplit lays one out: at 100% whatever the
+    // interface is set to, without the key hints, and -- side by side -- narrow
+    // enough for the middle of the foot of the screen to reach the abilities.
+    const auto hud_half = [&](float w, float h) {
+        ui.SetScale(1.0f);
+        SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        ui.SetViewport(w, h);
+        world->camera.SetViewport(w, h);
+        split_active = true;
+        DrawHud();
+        split_active = false;
+    };
+
+    int found = 0, met = 0;
     std::set<string> said;
-    for (const auto& size : sizes) {
-        ui.SetViewport(size.first, size.second);
-        world->camera.SetViewport(size.first, size.second);
+    const int was_w = screen_w, was_h = screen_h;
+    const float was_scale = settings.ui_scale;
+    // The frame counter is drawn over the corner of the screen, not on a panel:
+    // once a panel reaches into that corner it reads as the panel's text
+    // running off, which it is not. Like the toasts, it is put away for this.
+    const bool was_fps = settings.show_fps;
+    settings.show_fps = false;
+    for (const Pass& size : sizes) {
+        screen_w = static_cast<int>(size.w);
+        screen_h = static_cast<int>(size.h);
+        settings.ui_scale = size.scale;
+        const float eff = UiScale();
+        ui.SetViewport(size.w / eff, size.h / eff);
+        world->camera.SetViewport(size.w, size.h);
         const Screen screens[] = {
             {"main menu",      GameState::MainMenu,        [&] { has_session = false; }},
             {"character",      GameState::CharacterSelect, [] {}},
@@ -1148,6 +1338,13 @@ void Game::RunAudit() {
             {"inventory",      GameState::Inventory,       [&] { inventory_cursor = 0; }},
             {"skills",         GameState::SkillsPanel,     [&] { skills_tab = 0; }},
             {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = 1; tree_branch = 0; tree_row = 2; }},
+            // With every boss in the game brought down: the fullest the page can be.
+            {"boons",          GameState::SkillsPanel,     [&] {
+                skills_tab = 2;
+                for (const char* boss : {"broodmother", "lizardman_chief", "barrow_wight", "orc3", "well_warden", "den_mother",
+                                         "nightmare_troll", "wyvern_matriarch", "pit_lord", "frost_dragon", "nightmare_dragon"})
+                    world->player.talents.SlayBoss(boss, rng);
+            }},
             {"journal",        GameState::QuestPanel,      [&] { quest_tab = 0; quest_cursor[0] = 0; }},
             {"journal side",   GameState::QuestPanel,      [&] { quest_tab = 2; quest_cursor[2] = 0; }},
             {"map",            GameState::WorldMapPage,    [&] { map_overview = false; }},
@@ -1161,13 +1358,35 @@ void Game::RunAudit() {
             {"storage",        GameState::Storage,         [&] { storage_id = "audit"; storage_title = "Storage chest"; storage_slots = 100; }},
             {"shop",           GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 0; shop_cursor = 0; }},
             {"shop sell",      GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 1; shop_cursor = 0; }},
+            // A shelf with gear on it, so the stat block under a shop's
+            // description is swept too: the general store sells rope.
+            {"shop gear",      GameState::Shop,            [&] { shop_id = "havenbrook_forge"; shop_tab = 0; shop_cursor = 0; }},
             {"board",          GameState::Board,           [&] { board_orders = false; board_title = "Notice board"; board_cursor = 0;
                                                                  board_quests.clear();
                                                                  for (const auto& kv : quests->Definitions()) board_quests.push_back(kv.first); }},
             {"note",           GameState::Note,            [&] { note_title = "A torn page"; note_quest.clear();
                                                                  note_text = string(40, 'M') + "\n\n" + string(400, 'a') + " and a very long unbroken word: " + string(60, 'q'); }},
             {"sleep",          GameState::SleepPrompt,     [&] { sleep_title = "A bed at the Barley and Bell"; sleep_cursor = 0; }},
+            {"travel",         GameState::Travel,          [&] { travel_from = "waystone_havenbrook"; travel_cursor = 0; }},
+            // With every totem there is in the bag, and one of them in the ring.
+            {"totem ring",     GameState::TotemRing,       [&] {
+                totem_cursor = 0;
+                for (const TotemDef& t : skill_trees.Totems())
+                    if (!world->player.inventory.Has(t.item) && world->player.talents.PlacedTotem() != t.item)
+                        world->player.inventory.Add(t.item, 1);
+                if (world->player.talents.PlacedTotem().empty() && !skill_trees.Totems().empty()) {
+                    const string first = skill_trees.Totems().front().item;
+                    world->player.inventory.Remove(first, 1);
+                    world->player.talents.PlaceTotem(first, world->clock.QuestDay());
+                }
+            }},
             {"death",          GameState::Death,           [] {}},
+            // Last, because they dress the character for it; it is put back
+            // as it was under the loop.
+            {"hud",            GameState::Play,            [&] { hud_pose(false); }},
+            {"hud staff",      GameState::Play,            [&] { hud_pose(true); }},
+            {"hud side",       GameState::Play,            [&] { hud_pose(true); }, [&] { hud_half(floorf(size.w / 2.0f) - 1.0f, size.h); }},
+            {"hud stacked",    GameState::Play,            [&] { hud_pose(true); }, [&] { hud_half(size.w, floorf(size.h / 2.0f) - 1.0f); }},
         };
         for (const Screen& sc : screens) {
             sc.open();
@@ -1184,10 +1403,16 @@ void Game::RunAudit() {
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
             else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
             else if (name == "journal" || name == "journal side") { target = &quest_cursor[quest_tab]; steps = 40; }
-            else if (name == "crafting" || name == "smithing" || name == "brewing" || name == "cooking") { target = &craft_cursor; steps = 40; }
+            // Every recipe, not the first forty: the anvil alone makes one of
+            // every piece in every tier, and the longest lines -- "Instead of
+            // Orichalcum Greatsword" -- are all down the far end of it.
+            else if (name == "crafting" || name == "smithing" || name == "brewing" ||
+                     name == "cooking" || name == "weaving") { target = &craft_cursor; steps = 130; }
             else if (name == "enchanting") { target = &enchant_cursor; steps = 12; }
-            else if (name == "shop" || name == "shop sell") { target = &shop_cursor; steps = 30; }
+            else if (name == "shop" || name == "shop sell" || name == "shop gear") { target = &shop_cursor; steps = 30; }
             else if (name == "board")     { target = &board_cursor; steps = 30; }
+            else if (name == "travel")    { target = &travel_cursor; steps = 3; }
+            else if (name == "totem ring") { target = &totem_cursor; steps = 12; }
             else if (name == "controls")  { target = &controls_cursor; steps = 26; }
             else if (name == "options")   { target = &cursor_row; steps = 12; }
             else if (name == "character") { target = &cursor_row; steps = 3; }
@@ -1200,12 +1425,20 @@ void Game::RunAudit() {
                 ui.BeginAudit();
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
                 SDL_RenderClear(renderer);
-                Render();
+                if (sc.draw) sc.draw(); else Render();
+                for (const UI::Overlap& o : ui.Overlaps()) {
+                    const string key = string(sc.name) + "|" + o.a + "|" + o.b;
+                    if (!said.insert(key).second) continue;
+                    ++met;
+                    std::printf("audit %4.0fx%-4.0f @%3.0f%% %-14s the %s and the %s overlap by %.0f\n", size.w, size.h,
+                                size.scale * 100.0f, sc.name, o.a.c_str(), o.b.c_str(), o.by);
+                }
                 for (const UI::Overflow& o : ui.EndAudit()) {
                     const string key = string(sc.name) + "|" + o.text;
                     if (!said.insert(key).second) continue;
                     ++found;
-                    std::printf("audit %4.0fx%-4.0f %-14s %s%s%s%s  \"%.70s\"\n", size.first, size.second, sc.name,
+                    std::printf("audit %4.0fx%-4.0f @%3.0f%% %-14s %s%s%s%s  \"%.70s\"\n", size.w, size.h,
+                                size.scale * 100.0f, sc.name,
                                 o.off_window ? "off the window " : "",
                                 o.over_right > 0.5f ? "right " : "", o.over_left > 0.5f ? "left " : "",
                                 o.over_bottom > 0.5f ? "bottom " : "", o.text.c_str());
@@ -1214,18 +1447,58 @@ void Game::RunAudit() {
             }
             if (target) *target = 0;
         }
+        // Out of what the HUD was posed in, so the next size opens its panels
+        // on the character the last one did.
+        p.talents = talents_was;
+        p.equipment = worn_was;
+        p.interact = {};
+        p.SelectElement(Element::Fire);
+        world->SetFlags(flags_was);
     }
+    screen_w = was_w;
+    screen_h = was_h;
+    settings.ui_scale = was_scale;
+    settings.show_fps = was_fps;
     std::printf("audit: %d overflowing %s\n", found, found == 1 ? "line" : "lines");
+    std::printf("audit: %d overlapping HUD %s\n", met, met == 1 ? "pair" : "pairs");
+}
+
+float Game::UiScale() const {
+    if (split_active) return 1.0f;
+    const float room = std::min(screen_w / 1024.0f, screen_h / 600.0f);
+    return std::clamp(std::min(settings.ui_scale, room), 1.0f, 2.0f);
+}
+
+SDL_FPoint Game::UiPoint(float world_x, float world_y) const {
+    const SDL_FPoint p = world->camera.ToScreen(world_x, world_y);
+    const float s = ui.Scale();
+    return {p.x / s, p.y / s};
+}
+
+void Game::NoteXp(int skill, int amount) {
+    if (amount <= 0 || skill < 0 || skill >= SKILL_COUNT) return;
+    // The same skill again while its line is still up adds to it: a fight is
+    // one number climbing, not a column of fours.
+    for (XpLine& line : xp_lines)
+        if (line.skill == skill) { line.amount += amount; line.age = 0.0f; return; }
+    xp_lines.push_back({skill, amount, 0.0f});
+    if (xp_lines.size() > 4) xp_lines.erase(xp_lines.begin());
 }
 
 void Game::Render() {
-    ui.SetViewport(static_cast<float>(screen_w), static_cast<float>(screen_h));
+    // The world is drawn at the screen's own pixels and the interface over it
+    // at the player's chosen size; see UI::SetScale.
+    const float ui_scale = UiScale();
+    ui.SetScale(ui_scale);
+    ui.SetViewport(screen_w / ui_scale, screen_h / ui_scale);
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
     if (InGameplayState() && has_session && split_active) {
         RenderSplit();
         DrawParty();
     } else if (InGameplayState() && has_session) {
         world->Render(renderer, *textures);
+        SDL_SetRenderScale(renderer, ui_scale, ui_scale);
         DrawNameTags();
         DrawWorldText();
         DrawHud();
@@ -1234,11 +1507,13 @@ void Game::Render() {
         // The front end: the cover painting and its night sky, rather than a
         // flat colour. Only without a session -- a panel opened mid-game draws
         // over the world it belongs to.
+        SDL_SetRenderScale(renderer, ui_scale, ui_scale);
         title.Draw(renderer, *textures, ui);
     } else {
         SDL_SetRenderDrawColor(renderer, 16, 13, 18, 255);
         SDL_RenderClear(renderer);
     }
+    SDL_SetRenderScale(renderer, ui_scale, ui_scale);
 
     switch (state) {
         case GameState::MainMenu:        DrawMainMenu(); break;
@@ -1257,6 +1532,8 @@ void Game::Render() {
         case GameState::Board:           DrawBoard(); break;
         case GameState::Note:            DrawNote(); break;
         case GameState::SleepPrompt:     DrawSleepPrompt(); break;
+        case GameState::Travel:          DrawTravel(); break;
+        case GameState::TotemRing:       DrawTotemRing(); break;
         case GameState::Crafting:        DrawCrafting(); break;
         case GameState::Enchanting:      DrawEnchanting(); break;
         case GameState::Shop:            DrawShop(); break;
@@ -1292,6 +1569,8 @@ void Game::Render() {
         ui.TextShadowed(buf, ui.ViewWidth() - 10.0f, ui.ViewHeight() - 22.0f,
                         TextSize::Small, Palette::TextDim, Align::Right);
     }
+
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
     if (!shot_path.empty() && run_time >= shot_after) {
         if (SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr)) {

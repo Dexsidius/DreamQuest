@@ -1907,6 +1907,159 @@ def prop_well_dry():
     return 2.3
 
 
+def prop_coach():
+    """A carrier's waggon drawn up at its post: a plank bed on four spoked
+    wheels, a canvas tilt arched over hoops, a driver's bench and a shaft at
+    the front, a lantern, and the board that says where it goes.
+
+    What has to read at ninety-six pixels is *waggon*: a pale arch over a dark
+    box, on wheels. The wheels are the part a smaller render loses first, so
+    they are big, dark-rimmed and stand proud of the bed rather than under it."""
+    # The bed, and the rails round it.
+    blk("bed", (2.00, 0.96, 0.16), (0, 0, 0.62), "oak")
+    blk("bed_side_l", (2.00, 0.06, 0.30), (0, -0.48, 0.80), "oak_light")
+    blk("bed_side_r", (2.00, 0.06, 0.30), (0, 0.48, 0.80), "oak_light")
+    blk("tailboard", (0.06, 0.96, 0.30), (-1.00, 0, 0.80), "oak_light")
+    # The tilt: canvas over hoops. A cylinder along the waggon, sunk to its
+    # middle in the bed, is an arch; the hoops are what stop it being a barrel.
+    cyl("tilt", 0.50, 1.62, (-0.10, 0, 0.98), "cloth_cream", rot=(0, math.radians(90), 0), verts=20,
+        rough=0.95)
+    for i, x in enumerate((-0.88, -0.36, 0.16, 0.68)):
+        cyl("hoop_%d" % i, 0.515, 0.05, (x, 0, 0.98), "oak", rot=(0, math.radians(90), 0), verts=20)
+    blk("tilt_mouth", (0.04, 0.70, 0.46), (0.72, 0, 1.06), "soot", bev=0)
+    # The bench and the footboard.
+    blk("bench", (0.30, 0.90, 0.07), (0.92, 0, 1.02), "oak_light")
+    blk("bench_back", (0.05, 0.90, 0.26), (0.79, 0, 1.16), "oak")
+    blk("footboard", (0.26, 0.90, 0.06), (1.12, 0, 0.76), "oak")
+    # Four wheels, the back pair bigger, each a dark rim, a pale felloe inside
+    # it, spokes and a hub.
+    for x, rad in ((-0.62, 0.40), (0.66, 0.33)):
+        for y in (-0.56, 0.56):
+            tag = "%s_%s" % ("b" if x < 0 else "f", "l" if y < 0 else "r")
+            cyl("rim_" + tag, rad, 0.09, (x, y, rad), "soot", rot=(math.radians(90), 0, 0), verts=20)
+            cyl("felloe_" + tag, rad - 0.06, 0.10, (x, y, rad), "oak_pale", rot=(math.radians(90), 0, 0), verts=20)
+            for k in range(4):
+                blk("spoke_%s_%d" % (tag, k), (rad * 1.7, 0.11, 0.045), (x, y, rad), "oak",
+                    rot=(0, math.radians(k * 45), 0), bev=0)
+            cyl("hub_" + tag, 0.08, 0.14, (x, y, rad), "iron", rot=(math.radians(90), 0, 0), verts=12, metal=0.6)
+    blk("axle_b", (0.08, 1.12, 0.08), (-0.62, 0, 0.40), "iron", metal=0.5)
+    blk("axle_f", (0.08, 1.12, 0.08), (0.66, 0, 0.33), "iron", metal=0.5)
+    # The shaft, down on its prop while the horse is at the trough.
+    blk("shaft", (1.20, 0.08, 0.08), (1.62, 0, 0.44), "oak_light", rot=(0, math.radians(14), 0))
+    blk("shaft_bar", (0.08, 0.80, 0.08), (2.16, 0, 0.30), "oak")
+    # A lantern on an iron crook at the front corner.
+    blk("crook", (0.04, 0.04, 0.50), (0.98, -0.44, 1.30), "iron", metal=0.6)
+    blk("lantern", (0.13, 0.13, 0.18), (0.98, -0.44, 1.52), "glass_lit", emit=1.4)
+    blk("lantern_cap", (0.17, 0.17, 0.04), (0.98, -0.44, 1.63), "iron", metal=0.6)
+    # The board: where it goes, on a post of its own beside the tailboard.
+    blk("post", (0.09, 0.09, 1.50), (-1.34, -0.40, 0.75), "oak")
+    blk("board", (0.06, 0.62, 0.34), (-1.34, -0.40, 1.34), "oak_pale")
+    blk("board_band", (0.07, 0.62, 0.06), (-1.34, -0.40, 1.34), "cloth_red", bev=0)
+    # A trunk and a sack in the back, which is what a carrier carries.
+    blk("trunk", (0.34, 0.30, 0.22), (-0.80, -0.20, 0.82), "leather")
+    sphere("sack", 0.16, (-0.78, 0.22, 0.84), "hay_lt", rough=0.95)
+    return 3.3
+
+
+PALETTE.update({
+    # The waystones: a cold light, so that one burning in a town square is never
+    # mistaken for a lamp or a fire, which are all the warm end of the palette.
+    "way_glow":    (0.62, 0.90, 1.00),
+    "way_glow_dp": (0.30, 0.60, 0.95),
+    "way_carve":   (0.26, 0.27, 0.30),
+})
+
+
+def _waystone(lit):
+    """A waystone: a broad tapering slab of dressed stone on a round plinth of
+    flags, a ringed eye set into its face, runes cut below the eye, a stone at
+    either shoulder and an offering bowl at its foot. Asleep the eye is a dark
+    socket and the runes are only cuts; awake the eye holds a cold light, the
+    runes burn with it and a mote hangs over the peak.
+
+    The first attempt had the eye as a round head on a neck, which is a lamp
+    post: what makes a standing stone is that it is *wide*, wider than a man,
+    and that whatever is carved on it is carved into it. So the eye is in the
+    face of the slab and the slab is most of the silhouette.
+
+    Built in courses, each a different grey and a hair out of true: one block
+    this size is a concrete bollard, and the whole of what says *old* and
+    *made* is the joints."""
+    greys = ("stone", "stone_pale", "rock", "stone", "stone_pale", "rock")
+    # The plinth: a ring of separate flags round a low step.
+    for k in range(11):
+        a = math.radians(k * 360.0 / 11.0)
+        blk("flag_%d" % k, (0.42, 0.32, 0.12), (math.cos(a) * 0.74, math.sin(a) * 0.62, 0.06),
+            greys[k % 3], rot=(0, 0, a + math.radians(90)), bev=0.02)
+    cyl("step", 0.62, 0.14, (0, 0, 0.19), "stone_pale", verts=14)
+    # The slab: six courses, 0.92 wide at the foot and 0.62 at the shoulder.
+    z = 0.26
+    widths = []
+    for i in range(6):
+        w = 0.92 - i * 0.06
+        d = 0.40 - i * 0.02
+        h = 0.25
+        blk("course_%d" % i, (w, d, h), (0.014 * (-1) ** i, 0, z + h / 2.0), greys[i],
+            rot=(0, 0, math.radians(2.0 * (-1) ** i)), bev=0.03)
+        widths.append((w, d, z + h / 2.0))
+        z += h
+    # A stepped peak, so the top is a point and not a shelf.
+    blk("peak_a", (0.46, 0.26, 0.15), (0, 0, z + 0.075), "stone_pale", bev=0.03)
+    blk("peak_b", (0.26, 0.20, 0.13), (0, 0, z + 0.215), "rock", bev=0.03)
+    peak = z + 0.28
+    # The eye, set into the face across the fourth and fifth courses: a raised
+    # ring of paler stone, and the socket inside it.
+    ew, ed, ez = widths[4]
+    eye_z = (widths[3][2] + widths[4][2]) / 2.0 + 0.02
+    face_y = -widths[3][1] / 2.0
+    cyl("eye_ring", 0.235, 0.07, (0, face_y - 0.01, eye_z), "stone_pale", rot=(math.radians(90), 0, 0), verts=18)
+    cyl("eye_ring_in", 0.175, 0.08, (0, face_y - 0.012, eye_z), "rock_dk", rot=(math.radians(90), 0, 0), verts=18)
+    if lit:
+        # Two discs, the outer deep and the inner pale, both kept low: a single
+        # bright one burnt out to a flat white coin.
+        cyl("eye", 0.150, 0.09, (0, face_y - 0.016, eye_z), "way_glow_dp", rot=(math.radians(90), 0, 0),
+            verts=18, emit=0.95)
+        cyl("eye_core", 0.080, 0.10, (0, face_y - 0.020, eye_z), "way_glow", rot=(math.radians(90), 0, 0),
+            verts=14, emit=1.15)
+        sphere("mote_halo", 0.105, (0, -0.02, peak + 0.26), "way_glow_dp", emit=0.8)
+        sphere("mote", 0.060, (0, -0.04, peak + 0.26), "way_glow", emit=1.2)
+    else:
+        cyl("eye", 0.150, 0.09, (0, face_y - 0.016, eye_z), "void", rot=(math.radians(90), 0, 0), verts=18)
+    # Runes on the three courses under the eye: a bar and a tick each.
+    for i in range(3):
+        w, d, cz = widths[i]
+        colour, glow = ("way_glow_dp", 1.1) if lit else ("way_carve", 0.0)
+        blk("rune_%d" % i, (0.26, 0.03, 0.05), (0, -d / 2.0 - 0.006, cz + 0.02), colour, emit=glow, bev=0)
+        blk("tick_%d" % i, (0.05, 0.03, 0.13), ((-0.11 if i % 2 else 0.11), -d / 2.0 - 0.006, cz), colour,
+            emit=glow, bev=0)
+    # A stone at either shoulder, half its height and leaning in.
+    for sx in (-1, 1):
+        blk("warden_lo_%d" % sx, (0.26, 0.24, 0.30), (sx * 0.72, 0.04, 0.27), "rock", bev=0.03,
+            rot=(0, math.radians(-5 * sx), math.radians(8 * sx)))
+        blk("warden_hi_%d" % sx, (0.20, 0.19, 0.24), (sx * 0.71, 0.04, 0.52), "stone", bev=0.03,
+            rot=(0, math.radians(-7 * sx), math.radians(-6 * sx)))
+    # The offering bowl, and what has been left in it.
+    cyl("bowl", 0.15, 0.09, (0.22, -0.58, 0.17), "rock_dk", verts=12)
+    cyl("bowl_in", 0.11, 0.095, (0.22, -0.58, 0.18), "way_glow_dp" if lit else "soot", verts=12,
+        emit=0.8 if lit else 0.0)
+    # Moss, more of it on a stone nobody has woken.
+    for k, (x, y, zz, r) in enumerate(((-0.62, -0.40, 0.13, 0.12), (0.66, 0.30, 0.13, 0.10),
+                                        (-0.34, -0.20, 0.34, 0.10), (-0.74, 0.02, 0.62, 0.08),
+                                        (0.30, -0.16, 0.62, 0.07))):
+        if lit and k >= 2:
+            continue
+        sphere("moss_%d" % k, r, (x, y, zz), "moss" if k % 2 else "moss_dk", rough=0.95)
+    return 3.0
+
+
+def prop_waystone():
+    return _waystone(False)
+
+
+def prop_waystone_lit():
+    return _waystone(True)
+
+
 def prop_market_stall():
     """A market stall: a counter under a striped awning with baskets of
     produce on it. The stripes are the identifying mark -- without them it is
@@ -2316,6 +2469,9 @@ WOODLAND_PROPS = {
     "well":         (prop_well,         56),
     "well_dry":     (prop_well_dry,     56),
     "market_stall": (prop_market_stall, 80),
+    "waystone":     (prop_waystone,     72),
+    "waystone_lit": (prop_waystone_lit, 72),
+    "coach":        (prop_coach,        104),
     "palisade":     (prop_palisade,     64),
     "gate_tower":   (prop_gate_tower,   104),
     "fence_post":   (prop_fence_post,   56),
@@ -2947,6 +3103,151 @@ def prop_spell_circle():
 
 HERB_PROPS["mage_college"] = (prop_mage_college, 176)
 HERB_PROPS["spell_circle"] = (prop_spell_circle, 96)
+
+
+# -----------------------------------------------------------------------------
+#  Totems
+#
+#  What a boss leaves the fifteenth time it is killed, and the ring in the
+#  floor of the house at Mossvale that one is stood in. One builder: a squat
+#  carved post -- three blocks with a band between, a face with lit eyes in the
+#  top one -- and what is on its head says whose it is. At thirty-two pixels a
+#  carving is a colour and a silhouette, so that is all each one is given: the
+#  Broodmother's is a spider, the Warchief's has horns, the Wight's is a skull.
+#  The same picture is the thing in the bag and the thing in the ring.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "totem_base":   (0.455, 0.447, 0.431),
+    "totem_ring":   (0.780, 0.760, 0.700),
+    "totem_ring_dk": (0.420, 0.400, 0.370),
+    "totem_rune":   (1.000, 0.780, 0.360),
+    "tt_brood":     (0.290, 0.220, 0.300),  "tt_brood_b":   (0.560, 0.780, 0.300),
+    "tt_lizard":    (0.300, 0.500, 0.330),  "tt_lizard_b":  (0.880, 0.780, 0.300),
+    "tt_wight":     (0.520, 0.540, 0.560),  "tt_wight_b":   (0.890, 0.855, 0.769),
+    "tt_orc":       (0.560, 0.200, 0.160),  "tt_orc_b":     (0.900, 0.860, 0.760),
+    "tt_well":      (0.300, 0.400, 0.480),  "tt_well_b":    (0.400, 0.900, 0.860),
+    "tt_bear":      (0.440, 0.300, 0.190),  "tt_bear_b":    (0.800, 0.620, 0.380),
+    "tt_troll":     (0.420, 0.300, 0.560),  "tt_troll_b":   (0.860, 0.820, 0.700),
+    "tt_wyvern":    (0.560, 0.700, 0.800),  "tt_wyvern_b":  (0.920, 0.950, 0.980),
+    "tt_pit":       (0.160, 0.130, 0.140),  "tt_pit_b":     (1.000, 0.450, 0.150),
+    "tt_frost":     (0.620, 0.855, 0.945),  "tt_frost_b":   (0.960, 0.990, 1.000),
+    "tt_dread":     (0.250, 0.160, 0.360),  "tt_dread_b":   (0.800, 0.400, 1.000),
+})
+
+
+def _totem(post, band, cap, eye_emit=1.3):
+    cyl("base", 0.30, 0.09, (0, 0, 0.045), "totem_base", verts=10)
+    blk("p0", (0.38, 0.32, 0.30), (0, 0, 0.24), post)
+    blk("band0", (0.44, 0.38, 0.08), (0, 0, 0.42), band)
+    blk("p1", (0.34, 0.30, 0.22), (0, 0, 0.57), post)
+    blk("band1", (0.42, 0.36, 0.07), (0, 0, 0.71), band)
+    blk("head", (0.42, 0.34, 0.28), (0, 0, 0.88), post)
+    # The face: a brow, and two eyes that are lit. The eyes are most of what
+    # says "this is a made thing, and it is looking at you".
+    blk("brow", (0.44, 0.06, 0.07), (0, -0.175, 0.96), band, bev=0)
+    for sx in (-1, 1):
+        blk("eye_%d" % sx, (0.10, 0.04, 0.08), (sx * 0.10, -0.178, 0.87), band, emit=eye_emit, bev=0)
+    blk("mouth", (0.20, 0.04, 0.05), (0, -0.175, 0.78), "totem_ring_dk", bev=0)
+
+    top = 1.02
+    if cap == "spider":
+        sphere("body", 0.15, (0, 0, top + 0.10), post)
+        sphere("abdomen", 0.12, (0, 0.10, top + 0.16), post)
+        for sx in (-1, 1):
+            for k in range(3):
+                blk("leg_%d_%d" % (sx, k), (0.26, 0.05, 0.05),
+                    (sx * 0.24, -0.08 + k * 0.10, top + 0.06), band,
+                    rot=(0, sx * math.radians(32), sx * math.radians(-18 + k * 18)), bev=0)
+    elif cap == "crest":
+        for k, x in enumerate((-0.13, 0.0, 0.13)):
+            blk("fin_%d" % k, (0.07, 0.30, 0.22 + (0.10 if k == 1 else 0.0)), (x, 0.02, top + 0.11 + (0.05 if k == 1 else 0.0)), band)
+    elif cap == "skull":
+        sphere("skull", 0.17, (0, 0, top + 0.13), band)
+        blk("jaw", (0.20, 0.16, 0.08), (0, -0.04, top + 0.00), band)
+        for sx in (-1, 1):
+            blk("socket_%d" % sx, (0.07, 0.04, 0.07), (sx * 0.07, -0.16, top + 0.14), "totem_ring_dk", bev=0)
+    elif cap == "horns":
+        blk("helm", (0.46, 0.38, 0.08), (0, 0, top + 0.03), "totem_ring_dk")
+        for sx in (-1, 1):
+            cone("horn_%d" % sx, 0.085, 0.36, (sx * 0.25, 0, top + 0.17), band, rot=(0, sx * math.radians(34), 0))
+    elif cap == "lantern":
+        blk("cage_floor", (0.30, 0.26, 0.05), (0, 0, top + 0.02), "totem_ring_dk")
+        blk("light", (0.20, 0.18, 0.18), (0, 0, top + 0.13), band, emit=1.5, bev=0)
+        blk("cage_roof", (0.32, 0.28, 0.06), (0, 0, top + 0.25), "totem_ring_dk")
+        cone("cage_peak", 0.12, 0.12, (0, 0, top + 0.34), "totem_ring_dk")
+    elif cap == "ears":
+        for sx in (-1, 1):
+            sphere("ear_%d" % sx, 0.10, (sx * 0.17, 0.02, top + 0.06), post)
+            sphere("ear_in_%d" % sx, 0.055, (sx * 0.17, -0.05, top + 0.06), band)
+        blk("snout", (0.18, 0.12, 0.12), (0, -0.20, 0.82), band)
+    elif cap == "tusks":
+        blk("heavy_brow", (0.50, 0.14, 0.12), (0, -0.14, top + 0.02), post)
+        for sx in (-1, 1):
+            cone("tusk_%d" % sx, 0.06, 0.26, (sx * 0.14, -0.20, 0.86), band)
+    elif cap == "wings":
+        for sx in (-1, 1):
+            blk("wing_%d" % sx, (0.34, 0.06, 0.30), (sx * 0.30, 0.06, top + 0.06), band,
+                rot=(0, sx * math.radians(-28), 0))
+        cone("crown", 0.10, 0.18, (0, 0, top + 0.09), post)
+    elif cap == "great_horns":
+        for sx in (-1, 1):
+            cone("horn_%d" % sx, 0.10, 0.46, (sx * 0.24, 0, top + 0.20), post, rot=(0, sx * math.radians(26), 0))
+        blk("ember", (0.16, 0.14, 0.14), (0, 0, top + 0.07), band, emit=1.6, bev=0)
+    elif cap == "spikes":
+        for k, y in enumerate((-0.10, 0.04, 0.16)):
+            cone("spike_%d" % k, 0.085, 0.30 - k * 0.04, (0, y, top + 0.15 - k * 0.02), band)
+        for sx in (-1, 1):
+            cone("side_%d" % sx, 0.06, 0.20, (sx * 0.20, 0.02, top + 0.08), post, rot=(0, sx * math.radians(30), 0))
+    # Tight: it is also the picture in the bag, and a totem lost in the middle
+    # of its slot is a smudge. Not tighter than this: at 1.5 the spider, the
+    # crest and the lantern ran into the top of the frame.
+    return 1.64
+
+
+def prop_totem_broodmother():      return _totem("tt_brood", "tt_brood_b", "spider")
+def prop_totem_lizardman_chief():  return _totem("tt_lizard", "tt_lizard_b", "crest")
+def prop_totem_barrow_wight():     return _totem("tt_wight", "tt_wight_b", "skull")
+def prop_totem_orc3():             return _totem("tt_orc", "tt_orc_b", "horns")
+def prop_totem_well_warden():      return _totem("tt_well", "tt_well_b", "lantern")
+def prop_totem_den_mother():       return _totem("tt_bear", "tt_bear_b", "ears")
+def prop_totem_nightmare_troll():  return _totem("tt_troll", "tt_troll_b", "tusks")
+def prop_totem_wyvern_matriarch(): return _totem("tt_wyvern", "tt_wyvern_b", "wings")
+def prop_totem_pit_lord():         return _totem("tt_pit", "tt_pit_b", "great_horns")
+def prop_totem_frost_dragon():     return _totem("tt_frost", "tt_frost_b", "spikes")
+def prop_totem_nightmare_dragon(): return _totem("tt_dread", "tt_dread_b", "spikes")
+
+
+def prop_totem_circle():
+    """The ring in the floor of the house at Mossvale: a band of pale stone
+    set flush in the boards, eight runes cut in it and lit, and a dark socket
+    in the middle for a totem's foot. Drawn flat, as an overlay."""
+    cyl("ring", 0.46, 0.02, (0, 0, 0.010), "totem_ring", verts=20)
+    # Dark inside the band, and darker again at the middle: a plate is a thing
+    # put down, a socket is somewhere to put a thing.
+    cyl("dark", 0.33, 0.022, (0, 0, 0.011), "totem_ring_dk", verts=20)
+    cyl("socket", 0.17, 0.024, (0, 0, 0.012), (0.13, 0.11, 0.10), verts=16)
+    for k in range(8):
+        a = k / 8 * math.tau
+        blk("rune_%d" % k, (0.10, 0.06, 0.02), (math.cos(a) * 0.40, math.sin(a) * 0.40, 0.03),
+            "totem_rune", rot=(0, 0, a), emit=1.4, bev=0)
+    return (1.05, 62.0)
+
+
+TOTEM_PROPS = {
+    "totem_circle":           (prop_totem_circle, 24),
+    "totem_broodmother":      (prop_totem_broodmother, 32),
+    "totem_lizardman_chief":  (prop_totem_lizardman_chief, 32),
+    "totem_barrow_wight":     (prop_totem_barrow_wight, 32),
+    "totem_orc3":             (prop_totem_orc3, 32),
+    "totem_well_warden":      (prop_totem_well_warden, 32),
+    "totem_den_mother":       (prop_totem_den_mother, 32),
+    "totem_nightmare_troll":  (prop_totem_nightmare_troll, 32),
+    "totem_wyvern_matriarch": (prop_totem_wyvern_matriarch, 32),
+    "totem_pit_lord":         (prop_totem_pit_lord, 32),
+    "totem_frost_dragon":     (prop_totem_frost_dragon, 32),
+    "totem_nightmare_dragon": (prop_totem_nightmare_dragon, 32),
+}
 
 
 # -----------------------------------------------------------------------------
@@ -4263,6 +4564,7 @@ PROPS.update(ROOM_PROPS)
 PROPS.update(BUILDING_PROPS)
 PROPS.update(WOODLAND_PROPS)
 PROPS.update(HERB_PROPS)
+PROPS.update(TOTEM_PROPS)
 
 
 def main():

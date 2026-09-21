@@ -16,7 +16,9 @@
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
 struct WorldRequest {
-    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant, Sleep } type = Type::Toast;
+    // Totem is the last, and FromPanel in coop.cpp says so: what goes down the
+    // wire is a number, and one past the end is held to the end.
+    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant, Sleep, Travel, Totem } type = Type::Toast;
     string id;            // npc id / object id / shop id
     string title;
     string text;          // note body, toast message, dialogue root node
@@ -134,6 +136,30 @@ public:
         if (flags.insert(key).second && journal) flag_log.push_back(key);
     }
     const std::set<string>& Flags() const { return flags; }
+
+    // --- a spell is paid for when it lands --------------------------------------------
+    // Casting paid its Magic experience as the bolt left the staff, "whether or
+    // not the bolt finds anything" -- and mana comes back by itself, so a wall
+    // in the middle of Havenbrook was the best teacher in the game: no risk, no
+    // cost, and every spell's experience for as long as anyone cared to stand
+    // there. A cast is *owed* its experience now, and is paid the first time
+    // anything it threw -- a bolt, one of a fan of them, the fire a bolt left
+    // on the ground, a meteor -- takes something off a monster. Once a cast,
+    // however many things it hits; never for a miss, which would only have
+    // made a monster that cannot be hit into the same wall; and a cast with
+    // nothing of it left in the air is forgotten.
+    size_t OwedCasts() const { return owed_casts.size(); }
+
+    // --- a boss is killed once a day ----------------------------------------------
+    // Every map load used to stand every monster back up, the Pit Lord and the
+    // dragons with the rest: out of the door and in again, and a hundred and
+    // forty thousand coins of demonite was on its feet waiting. A boss that has
+    // been killed stays killed until the next dawn, on its map and across
+    // loads, and is back the day after. Ordinary monsters are as they were.
+    void NoteSlain(int post);
+    bool SlainToday(const string& map, int post) const;
+    const std::map<string, int>& Slain() const { return slain; }
+    void SetSlain(const std::map<string, int>& s) { slain = s; }
     void  SetFlags(const std::set<string>& f) { flags = f; }
 
     // What is in a storage chest, by object id. A chest the player owns is
@@ -349,6 +375,32 @@ public:
     //     host from the day it was already being sent.
     // Pure, and static, so the self-test can ask it about any night.
     static EnemySpawnDef ResolveSpawn(const EnemySpawnDef& def, const string& map_id, int day, int index);
+
+    // --- what comes out at night ----------------------------------------------------
+    // Night changed the light and nothing else. Now the wilds have visitors
+    // after dark: things that live somewhere worse, a few of them, off the
+    // roads -- wolves down on the meadow, the barrow's dead out past its
+    // fence, something from the bottom of the well in the Mire. A post marked
+    // `night` is kept from nightfall (20:00) to dawn (05:00), on the nights the
+    // day's hash says (a pack comes or stays away together), and what is killed
+    // stays killed until the next night, door or no door. At dawn whatever is
+    // left goes to ground -- once it is done with any fight it is in.
+    //
+    // It is always in the list, up or not, because friends count monsters by
+    // their place in it; by day it lies the way a boss killed today does.
+    static bool KeptTonight(const string& map_id, int day, int index, const string& group, float chance);
+    bool Abroad(const Enemy& e) const;
+    // Whether this map has any such posts at all: what the nightfall note says.
+    bool HasNightPosts() const;
+
+    // A boss brought down, for whoever `player` is: the first time, a point for
+    // their tree and a boon; the fifteenth, its totem, into the bag or at their
+    // feet. See Talents::SlayBoss. Says so, to them.
+    void AwardBoss(const string& boss_id, const GameContext& ctx);
+    // The day has turned, or someone has just been given one: everybody's
+    // talents are told what day it is, and their pools are what they now are --
+    // a totem's blessing is over at dawn, and some of them are health.
+    void TellTheDay();
     const DreamReturn& Dream() const { return dream; }
     void SetDream(const DreamReturn& d) { dream = d; }
     const Camp& PlayerCamp() const { return camp; }
@@ -361,7 +413,7 @@ public:
     // A bed has been used. Raises the Sleep request if the night and the
     // neighbourhood allow it; says why not in the world if they do not. True
     // when the question has been asked. `title` names what is being slept on.
-    bool AskToSleep(const string& title);
+    bool AskToSleep(const string& title, int fee = 0);
     // Lies down, the way chosen, under the same conditions. True when the
     // player is falling asleep.
     bool Sleep(SleepChoice how, const GameContext& ctx);
@@ -443,9 +495,14 @@ private:
     void DrawSwing(SDL_Renderer* r) const;
     void DrawArrowRain(SDL_Renderer* r) const;
     // Applies a hit from a projectile or a ground effect to one enemy.
+    // `swing` is what kind of blow it was, which for melee decides what it
+    // trains: a light swing feeds Attack, a heavy one Strength, a charged one
+    // both. A bow and a staff train their own skill whatever the button, so
+    // everything that is not melee leaves it at the default.
     void HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                   Element element, float damage_mult, float knockback,
-                  float from_x, float from_y, const GameContext& ctx);
+                  float from_x, float from_y, const GameContext& ctx,
+                  AttackType swing = AttackType::Light);
     void UpdateTexts(float dt);
     void UpdateGathering(float dt, const GameContext& ctx);
     void CookOne(const struct MapObject& range, const GameContext& ctx);
@@ -478,6 +535,9 @@ private:
     bool   arrival_released = true;
 
     std::set<string> flags;
+    std::map<string, int> slain;      // "map:post" -> the quest day it died on
+    int told_day = -999999;           // the quest day the talents were last told
+    size_t told_players = 0;          // and how many of them there were to tell
     std::map<string, Inventory> storage;
     vector<WorldRequest> requests;
     // Borrowed each frame from the context, so drawing can ask what the
@@ -488,6 +548,14 @@ private:
     // The next HitEnemy strikes critically whatever the dice say: a shot
     // loosed with Take Aim, set by whatever carries it just before it lands.
     bool  crit_next = false;
+    struct OwedCast { uint32_t id = 0; int skill = 0; int xp = 0; };
+    vector<OwedCast> owed_casts;
+    uint32_t next_cast_id = 1;
+    uint32_t casting = 0;         // the cast being let go of: what is spawned now carries it
+    uint32_t cast_next = 0;       // the cast the next HitEnemy came of, set as crit_next is
+    uint32_t OpenCast(int skill, int xp);
+    void  PayCast(uint32_t id);
+    void  ForgetSpentCasts();
     // Whether a blow slips past someone on the move. HitPlayer is handed no
     // dice, and only ever decides anything on the host.
     std::mt19937 evade_dice{0x51199u};

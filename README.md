@@ -388,7 +388,11 @@ the panel it belongs to or off the edge of the window. It is how the skill
 tree's cost line ("Attack 47, a point a rank, after War Cry"), the fishing
 milestones and the storage chest's description were found running off the side;
 run it after touching a panel, because a long name somewhere down a list is not
-something anybody notices by looking.
+something anybody notices by looking. The play HUD goes through it as well, posed
+with a sword, with a staff and as each half of a split screen, for the other way
+a screen goes wrong: each piece at the foot of it names the room it takes
+(`UI::Claim`), and any two that meet are printed -- which is what would have
+caught the spell's name being written over the key hints.
 
 What is still plain: a friend's chopping shows the swing without the axe in
 hand on other screens; camps are the host's to pitch; and a line relayed
@@ -522,9 +526,14 @@ sprint, and with a monster targeted you keep facing it as you move.
 
 A shield turns aside a share of every blow it takes, and each one costs stamina:
 
-    stamina = the blow's damage x the attacker's level x the shield's multiplier
+    stamina = the blow's damage x the root of the attacker's level x 1.6 x the shield's multiplier
 
-so a rat's nip costs next to nothing and a dragon's bite empties the bar. If a
+so a rat's nip costs next to nothing and a dragon's bite empties the bar. It
+used to be the level outright and not its root, which priced a wooden shield out
+of any fight past the meadow: an average blow from the Orc Warchief asked for 168
+of a 100-point bar, so the shield turned a sliver of it and broke. The root keeps
+a dragon dearer to stop than a boar without making a beginner's shield a thing
+that only works on boars. If a
 blow costs more than you have left, the shield stops only the share you could pay
 for, the bar empties, and the **guard breaks**: it will not come up again until
 the bar has refilled to the same point a winded sprint waits for. The stamina bar
@@ -547,13 +556,18 @@ Every tier of shield blocks more and costs less:
 
 What an average hit costs to block, out of a bar of 100:
 
-| Monster | Level | Wood | Bronze | Steel | Azuryte | Diamond | Enchanted |
+| Monster | Highest stat | Wood | Bronze | Steel | Azuryte | Diamond | Enchanted |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Orc Grunt | 9 | 18 | 14 | 9 | 7 | 4 | 2 |
-| Lizardman | 21 | 84 | 67 | 43 | 34 | 18 | 7 |
-| Orc Warchief | 28 | 168 | 134 | 86 | 69 | 35 | 14 |
-| Ice Troll | 31 | 202 | 161 | 103 | 83 | 42 | 17 |
-| Hoarfang | 66 | 1122 | 898 | 574 | 460 | 236 | 96 |
+| Orc Grunt | 5 | 5 | 4 | 3 | 2 | 1 | 0 |
+| Lizardman | 10 | 13 | 10 | 6 | 5 | 3 | 1 |
+| Lizardman Chief | 15 | 22 | 17 | 11 | 9 | 5 | 2 |
+| Orc Warchief | 28 | 51 | 41 | 26 | 21 | 11 | 5 |
+| Ice Troll | 29 | 52 | 41 | 26 | 21 | 11 | 5 |
+| Hoarfang | 66 | 221 | 177 | 113 | 91 | 46 | 20 |
+
+(The level a block is priced by is the attacker's highest combat stat --
+`CombatLevelOf` -- which is what the column gives. Under the old rule the
+Warchief's row began 168 and Hoarfang's 1122.)
 
 The rule is `ResolveBlock` in `src/systems/combat.h`, and every blow that lands on
 the player goes through `World::HitPlayer`, so no monster or projectile can skip
@@ -917,7 +931,7 @@ values.
 | Foraging | Picking herbs and plants, by hand; see [Foraging](#foraging) |
 | Brewing | Brewing potions at a cauldron; see [Brewing](#brewing) |
 | Ranged | Landing arrows with a bow equipped |
-| Magic | Casting spells with a staff equipped |
+| Magic | Landing spells with a staff equipped -- [a wall teaches nothing](#a-wall-teaches-nothing) |
 
 Combat level uses the OSRS formula across the melee/ranged/magic triangle.
 
@@ -995,7 +1009,11 @@ points by level 99 against forty-two ranks a tree** (forty-three for the hero,
 with Rushing Strike): two branches to the bottom and a little of the third, or
 all three most of the way. A build, not a checklist. `J` on a
 node buys its next rank; `L` twice unlearns the whole tree and gives every point
-back, for anyone who wants to fight another way.
+back, for anyone who wants to fight another way -- at **sixty coins a point
+taken back**. Free, a build was whatever the next fight wanted; thirty-three
+points against forty-two ranks is only a choice if changing your mind has a
+price. The first few points cost next to nothing to rethink and a finished tree
+about two thousand, and the first press says the sum before the second takes it.
 
 **Techniques** are as they were: once learned, `J` on one makes it the charged
 attack, so holding and releasing `K` comes out as the technique, and the HUD
@@ -1701,6 +1719,357 @@ Nessa used to post an order for a bolt of cloth. She does not any more: cloth is
 woven three miles away at somebody else's loom, and Wynn's book already asks for
 it at the same level. Her book is thirteen orders of leather now.
 
+### Things that were quietly broken
+
+A review of the game's systems against its own data turned these up. None of
+them crashed anything, which is how they had lasted.
+
+**Strength never trained.** Attack decides whether a blow lands and Strength
+decides how hard it can -- `HitChance` reads one and `MaxHit` the other, and
+always did. A light swing is meant to train Attack, a heavy one Strength, and a
+charged one both. But the one call that awards the experience said every blow
+was a light one, so nothing in combat ever fed Strength: the number that sets
+the top of the damage roll sat at 1 for the whole game, moved only by quest
+rewards. `World::HitEnemy` takes the swing now and passes it on, and Watchman
+Corrin's lesson says which swing teaches what, because nothing else in the game
+did. A monster's `xp_mult`, which was read from the file and then by nothing,
+is applied on the way.
+
+**A full bag made any tree an endless one.** Chopping and mining paid their
+experience *before* trying to put the log in the pack, and the refusal that
+followed returned before the dice that fell the tree were rolled. With no room,
+every swing paid in full, produced nothing, and the tree never came down.
+Fishing and foraging had it right; now all four add first and pay for what was
+added.
+
+**The Cross Cut was free on an empty bar.** It costs 25 breath and asked only
+for more than none, with the spend clamped at nothing.
+
+**A healer took your potions off you.** The `heal` a conversation gives reset
+every level to its base, which mends what was drained and also pours out an
+Emberfire Elixir. `Skills::RestoreDrained` puts back only what was lost.
+(Dying still costs the boost; that is the price of dying.)
+
+**Closing the window cost up to two minutes.** Quitting from the pause menu
+saved; the window's own close button did not. Both save now -- except a scratch
+game, a guest's world, and anybody lying dead, for whom the last autosave
+stands.
+
+**Saves.**
+
+- Each slot keeps **the save before the last one** beside it (`slotN.bak`), and
+  a slot whose file cannot be read is shown, and loaded, from that -- with a
+  note saying so. A file that has gone bad is never allowed to become the
+  backup.
+- A slot nothing can read says **Damaged**, not *Empty*. Empty was an
+  invitation to start a new game over whatever could still have been rescued.
+- **Saving over a slot that is not the one you are playing asks first**, the
+  way a new game there always did. Saving over your own is just saving.
+- The load screen can **delete a slot** (the drop button, then confirm). There
+  was a function for it and nothing that called it, so the only way to make
+  room for a fourth character was to write over a third. What is deleted is put
+  aside as `slotN.deleted` rather than destroyed.
+- `SaveSystem::SetDirectory` exists so the self-test can do all of the above
+  somewhere that is not `saves/`.
+
+**Experience is shown as it is earned.** Every gain was worked out, banked, and
+thrown away unseen -- the comment said the HUD showed totals, and the HUD showed
+none. There is a line a skill down the left edge now, `+48 Strength  62%`,
+counting up while the gains keep coming and fading a moment after they stop;
+the percentage is how far through the level that leaves you. Options has a
+switch for it.
+
+**The interface has a size.** `ui_scale` was saved, loaded, clamped -- and read
+by nothing. It works now (Options -> Interface Size: 100 / 110 / 125 / 150%):
+the renderer draws the interface's units larger and the fonts are *opened*
+larger, so text is set at its real size rather than stretched and blurred.
+Every panel is laid out to fit 1024 by 600 of its own units, so the scale is
+held to what the window has room for -- on a Steam Deck's 1280 by 800 that is
+125%, and Options says so when it has had to. The world is not scaled; that is
+what Camera Zoom is for. Two at one machine get 100%.
+
+**And the audit had never tested what it said it tested.** `--audit` listed
+three window sizes and set the interface's viewport for each -- and `Render()`
+resets that viewport from the real window on its first line, so all three
+passes were 1280 by 720. It sets the window's size now, and runs eight passes:
+four sizes, including the Deck's, at every scale each has room for. The first
+honest run found the **Skills panel did not fit a 1024 by 600 window at all**
+(640 and 690 tall, the melee tree 1032 wide -- title and close prompt both off
+the glass), which is also what a Deck at 125% would have shown. It is cut to
+the window now, like the bag and the options always were.
+
+Also: enemies marked `boss` say so on the target frame, which is the first
+thing that flag has ever done; a herb's experience comes from `items.json`
+where it is written rather than from a copy in the map; and the note in
+`combat.cpp` that said a maxed character "tops out around 20" now says 148,
+which is what twelve tiers of gear made it.
+
+### What the same review changed about playing it
+
+The second half of that review was not bugs. It was things that worked and were
+worse than they needed to be.
+
+**A quick item, and food that cannot be spammed.** Healing in a fight meant
+opening the bag. One thing that can be eaten or drunk can be set as the quick
+item now -- the target button on it in the bag, where it wears a gold corner --
+and it sits in a box at the bottom left of the HUD with how many are left.
+**Block + Interact** uses it and **Block + Sprint** steps to the next thing in
+the pack that could be it, so nothing new had to be bound and both hands stay
+where a fight has them. With nothing chosen it is the first food in the pack.
+Alongside it, anything that heals starts a **1.5-second wait** before the next
+thing that heals (`Player::EAT_COOLDOWN`): before, a full pack of trout was a
+second health bar at the speed of a button. A potion that only boosts or
+restores mana is not held up by it.
+
+**Make all, and put it all away.** At any station, **Sprint + Confirm** makes
+the recipe until the materials, the bag or ninety-nine run out; the footer says
+so. Every station remembers the row it was left on. At a chest, **Drop** from
+the pack stows everything the chest already has some of -- the ore goes with
+the ore -- and **Sprint + Drop** stows the whole pack, never coins and never
+anything marked `keep`. From the chest's side, Drop takes the lot, as far as
+there is room. Emptying a full pack into a chest was fifty-six presses.
+
+**Defence is worth having against the blows that matter.** A leader's heavy
+attack ignores the shield on purpose, and used to ignore armour as well, so the
+one blow in the game that kills people was the one blow Defence did nothing
+about. `SoakHeavy` takes `armour / (armour + 300)` off it, capped at 60%, where
+armour is the Defence level plus the worn bonus -- little in a beginner's
+leathers, a real share by the middle tiers, and never all of it. It is still
+the blow to step out of. Blocking is re-priced with it -- see
+[Blocking](#blocking).
+
+**Skilling curves.**
+
+- Every tree paid 65 experience, so the hundred oldest trees in the Brackenwood
+  taught exactly what the ones by the sawpit did. What a tree is worth follows
+  what it asks for now, on the slope the seams are on -- 65, 135 for an oak at
+  fifteen, 210 for the old growth at thirty -- and each a little longer in the
+  cutting.
+- Herbs took three to nearly nine game hours to grow back, which with one pick
+  a plant left a forager standing in a picked field nineteen minutes in twenty:
+  about five hundred hours to 99 Foraging against eight for a miner. They grow
+  back in `1.8 + level / 21` hours -- a marigold in under two, a starlily in
+  five -- and a herb's experience, which lives in `items.json`, is two and a
+  half times what it was.
+- The quickest a swing of an axe or a pick can be is **0.42 seconds, down from
+  0.6**. A platinum axe reached 0.6 on the day it could first be held, so the
+  three tiers above it cut no faster than it did.
+- Fish heal 5 / 14 / 21 / 28 / 36 by tier and say so. Fish were worse than the
+  meat off a boar, which made Fishing and the Cooking it feeds a worse way to
+  eat than killing things.
+
+**Kills pay like their level, and the economy has somewhere to go.**
+
+- A level-6 dream boar dropped a nine-hundred-coin hide three times in ten: 274
+  coins a kill beside an ordinary boar's 17. It is one in twenty now, and the
+  Nightmare Brute leaves one rather than two or three. Bats, slimes and hounds,
+  which fought like their level and paid like vermin, pay; the Den Mother, a
+  boss with three hundred hit points, pays 500-900 on top of what she carried.
+  (A skeleton still leaves bones and nothing else. That one is on purpose, and
+  the self-test says so.)
+- **A boss killed today stays killed until dawn.** Every map load stood every
+  monster back up, the Pit Lord and the dragons with the rest: out of the door
+  and in again, and a hundred and forty thousand coins of demonite was on its
+  feet waiting. `World::NoteSlain` remembers a boss by its map, its post and
+  the quest day; it is spawned lying dead rather than left out, because friends
+  in co-op count monsters by their place in the list; and it is in the save.
+- **Sinks:** the inn's beds, unlearning a tree, and the middle tiers on the
+  shelves -- steel at Mossvale's forge, steel and azuryte bows at the bowyer and
+  staves at the college, azuryte and a damascus sword at the Reverie's
+  curio-seller -- one of each a day, so smithing your own stays the cheap way
+  and buying the quick one. The dearest thing a shop sold was 3,168 coins.
+- Oona has an **order book**: eleven orders, six of herbs and five of what is
+  brewed from them, so Foraging and Herblore have the repeatable work the other
+  trades already had. The fishing orders were re-scaled to what the fish are
+  worth, under the old rule that an order pays less than buying its goods off a
+  shelf would cost.
+
+### A wall teaches nothing
+
+Casting paid a spell's own Magic experience as the bolt left the staff --
+the comment beside it said "whether or not the bolt finds anything" -- and mana
+comes back by itself. So the best teacher of Magic in the game was any wall:
+no risk, no cost, twelve experience a press at level 1 and seventy-two at
+forty-eight, for as long as anybody cared to stand in Havenbrook square. Forty
+presses at the waystone took a new wayfarer from nothing to 480 experience,
+which is level 5. Nothing else in the game trained that way: a sword swung at the air
+and an arrow shot into a field have always taught nothing.
+
+A cast is **owed** its experience now, and is **paid the first time anything
+it threw takes something off a monster**:
+
+- **Once a cast**, however many things it hits. A Nova is eight bolts and one
+  spell; a Cascade is three.
+- **Whatever of it lands.** The bolt; any one of a fan of them; the ground a
+  fire bolt leaves burning, if something walks into it; a Meteor coming down.
+  They all carry the number of the cast that made them
+  (`Projectile::cast_id`, `GroundEffect::cast_id`).
+- **Never for a miss.** A bolt that reaches a monster and does nothing pays
+  nothing. Paying for a miss would only have made a monster that cannot be hit
+  into the same wall with a name -- which is the oldest trick there is.
+- **A cast with nothing of it left in the air is forgotten**
+  (`World::ForgetSpentCasts`): the bolt broke on a wall, or ran out of sky, or
+  the fire went out.
+
+In a fight nothing has changed: a spell that lands pays exactly what it always
+paid, the spell's own experience and four a point of damage on top. The mana is
+still spent on a cast that finds nothing; that was never the price of the
+experience, only of the bolt.
+
+How: `World::OpenCast` where the experience used to be granted,
+`World::PayCast` in `HitEnemy` beside the line that pays for the damage -- the
+one place every blow a player lands goes through -- with the cast handed to it
+the way a sure critical is, by whatever carries it, just before it lands. It is
+paid with the caster acting, so in co-op a friend's spell pays the friend.
+
+### A lesson is a quest, not a button
+
+Three people used to hand out experience for being asked how something was
+done: Watchman Corrin (180 Attack), Smith Halda (220 Crafting) and Hunter Ivo
+(160 Cooking). A line of dialogue has no memory, so each could be asked again,
+and again -- three clicks was a level, and an afternoon was twenty.
+
+Each is a **tutorial quest** now, on the journal's Tutorials tab beside the
+sawpit, the gravel pit and the mill pond, and built the way those always were:
+asked for once, done with your hands, paid for on the way back.
+
+| Who | Quest | The doing | Pays |
+| --- | --- | --- | --- |
+| Watchman Corrin, at the gate | Fighting: The Gate Meadow | Put down 3 boar | 220 Attack, 110 Strength |
+| Smith Halda, at the forge | Crafting: A Bad First Helm | Make a Barkwood Helm at a workbench, from the two logs and the hide she hands over | 220 Crafting |
+| Hunter Ivo | Cooking: Meat and Fire | Cook 3 pieces of meat at a fire, from the four he hands over | 200 Cooking |
+
+The lesson itself -- the three swings, how a bench works, meat and fire -- can
+still be asked for afterwards, as often as anybody likes. It is only words.
+
+Two of those needed something the journal could not say. "Hold three cooked
+meat" is finished by the three a new character starts with, and "hold a helm"
+by buying one. So there is a new objective, **`craft`**: make N of a thing, at a
+bench, an anvil, a cauldron, a loom or a fire, counted as it is made and only
+when it is made -- a burnt dinner does not count, and a fleece that spins into
+two bolts counts as two. The quest tracker points it at the nearest station of
+the kind the recipe wants.
+
+**The rules that came out of it**, which hold for every conversation and not
+only these three:
+
+- **A conversation cannot give experience.** The action is gone from the engine
+  rather than merely unused, because the capability was the bug: whatever a
+  line does, it does every time it is chosen. A data file that still asks for
+  it is told so at load. Experience is a quest's to give; a quest ends once.
+- **What comes with a quest comes with the quest, or not at all.** Meat handed
+  over to learn cooking on is given by the same action that starts the quest,
+  and if the quest does not start -- already taken, already done -- nothing is
+  handed over, however the conversation was got into. It is the difference
+  between a gift and a tap. (`ApplyDialogueAction`, in the dialogue layer, so
+  the test that checks the rule runs the code that keeps it.)
+- **"I lost it" is said once.** This one was found on the way: the sawpit's
+  lent axe, the pit's pick, the angler's rod and Oona's tonic were each replaced
+  *whenever they were missing* -- and the forge pays forty coins for a bronze
+  axe. Sell it, ask, sell it, ask. A replacement now sets a world flag
+  (`set_flag`) and is offered only to somebody who lacks the thing and has not
+  had one before (`lacks_item` + `no_flag`), so a genuinely careless apprentice
+  is rescued once and nobody is paid a wage for it. Halda offers no refill at
+  all: she says where wood and hides come from instead.
+- And a line that hands something over with neither a quest nor a memory
+  behind it **fails the self-test**, so the next one cannot be added by accident.
+
+### What a thing is worth, before you own it
+
+A shop used to tell you an item's name, its description and what it needed to
+be worn -- and not one of its numbers. A sword on a smith's shelf said nothing
+about being better than the one in your hand, which is the only question
+anybody was asking of it. The same was true at an anvil: you could spend five
+bronze bars finding out that the cuirass you made was worse than the one you
+had on.
+
+Every shop row and every recipe now shows the piece's bonuses, and beside each
+one **the change against what is worn in that slot**:
+
+```
+Novice's Robe
+Instead of Barkwood Cuirass
+Attack       +0    (-1)
+Strength     +0    (-2)
+Defence     +10    (-4)
+Magic        +5    (+5)
+```
+
+Green is better, red is worse, `( -- )` is no change. The rules it follows:
+
+- a stat that is nothing on **both** pieces is left off, so a helmet's block is
+  one line and not five zeroes -- but a stat the worn piece has and this one
+  does not is shown, because losing it is the point;
+- the slot decides what it compares against, so a robe is weighed against the
+  body armour and not against the sword;
+- an empty slot compares against nothing, and the whole bonus reads as the gain
+  it is; the piece you are already wearing compares against itself and reads
+  `( -- )` all the way down;
+- block, walk speed, swing speed, reach and a lamp's throw are shown the same
+  way, with swing speed turned round first -- the stored number is a multiplier
+  on swing *time*, so smaller is faster, and a stat where less is better has to
+  be flipped before anybody reads it;
+- a potion says what it would do **for you**: a boost is a flat amount plus a
+  share of the level, so `+3 and 12%` is printed as the `+8` a level-45
+  character would actually get. Both the panel and the draught read
+  `ItemDef::BoostGain`, and the self-test drinks every potion in the game to
+  check the promise against the result;
+- and a piece with a passive prints it. The bag always did; the shop and the
+  anvil never had, which meant the one line that makes a legendary worth having
+  was the one line you could not read until you owned it.
+
+### The card beside the cursor
+
+The bag and the storage chest have no room for that block: their lower halves
+are already the name, the tier and the description, and the panel is sized to
+the grid above it. So in those two the numbers come to the cursor instead -- a
+small card beside whatever square is lit, with the same header and the same
+rows:
+
+```
+   +--------------------------+
+   | Steel Helm               |
+   | Instead of Iron Helm     |
+   | Attack       +4    (+2)  |
+   | Strength     +4    (+1)  |
+   | Defence     +22    (+6)  |
+   +--------------------------+
+```
+
+**Only for what can be worn.** A card over every rock and bar would be noise
+covering the grid it is trying to explain, so anything with no slot of its own
+has none -- which also means the card is a signal in itself: if one appears,
+that is a thing you could put on.
+
+It is sized from its own longest line, measured rather than guessed, and placed
+beside the square on whichever side it fits, nudged back on-screen rather than
+allowed to hang off an edge. It is drawn last of all, over the panel, because a
+card under the panel it belongs to is a card nobody can read. The worn list has
+one too, which is how you find out what the sword you are holding is actually
+worth.
+
+### One set of numbers, three panels
+
+Which rows an item has is **not** the drawing code's decision. `ItemStatLines`
+in the item layer builds them -- label, value, change, and a verdict of better,
+worse or no change -- and the panels only choose what a verdict looks like.
+That is what stops a shop and a bag from disagreeing about the same sword, and
+it is what lets the self-test check the rules directly rather than by
+screenshot: that a stat which is nothing on both pieces is dropped, that one
+the worn piece has and this one does not is kept, that an empty slot shows the
+whole bonus as the gain, that a piece weighed against itself changes nothing,
+and that a quicker weapon reads as better although the number stored for it is
+smaller.
+
+`--audit` sweeps every recipe at all five stations, every shop row, every bag
+square and every chest square at three window sizes, with a character wearing a
+full set and carrying a piece with a passive and two enchanted ones, so the
+longest line any of this can draw is checked rather than assumed.
+
+There is a `--bag a,b,c` switch beside `--wear a,b,c` now, because `--wear`
+equips anything with a slot and there was otherwise no way to ask for a helmet
+sitting *in* the bag -- which is the one case the card exists for.
+
 ### Prices
 
 Prices come from an item's value. A shop charges its markup on the value --
@@ -2246,6 +2615,67 @@ darkness at any hour. At noon nothing is drawn at all.
 
 Outdoors the birds fall quiet as it gets dark and the crickets start.
 
+### What comes out at night
+
+Night changed the light and nothing else: the same boars stood in the same
+meadow, only darker. Now the wilds have **visitors after dark** -- things that
+live somewhere worse, a few of them, off the roads.
+
+| Where | By day | After dark |
+| --- | --- | --- |
+| The Hollowmarch: the meadow | hares, deer, a boar | a **wolf** off the Westwold, or a **bat** out of the well |
+| ...the greenwood | deer, foxes, boars, footpads | **wolves**, sometimes two, or the **walking dead** |
+| ...the foothills | orc grunts and raiders | **wraiths** and the **walking dead** (not bats: a raider is worse than a bat) |
+| ...the Mire | frogs, lizardmen | **wraiths**, and the **hounds** from the bottom of the well |
+| ...the Cursed Reach | orc raiders | **hounds**, and the hellgate's **imps** |
+| The Whisperwood trail | foxes, boars, footpads | **wolves** and the **walking dead**, back among the trees |
+| The Westwold, east of the Wend | hares, deer, foxes | **bats** over the downs, and the **walking dead** |
+| ...west of it | wolves | a **bear** down from the Brackenwood, or a **wraith** |
+| The Brackenwood | wolves, bears | **wraiths**, the deep well's **grave-walkers**, and **banshees** |
+
+The rules it was built to:
+
+- **What does not live there.** No visitor is of a kind that stands within
+  twenty cells of its post by day. The Westwold gets no wolves at night,
+  because it has wolves.
+- **Stronger, by a step or two.** Every visitor is above the average of what
+  lives round its post, and none is more than about twenty levels above it: a
+  level-10 wolf on a meadow of level-3 boars, a level-30 banshee among level-22
+  bears. Nothing is sent that a character who belongs in the region cannot
+  fight, or at least get away from: the dead are slow, and wolves and bats are
+  quick but weak. Only the Mire's hounds and the Reach's imps are both, and
+  neither of those was ever a place to stroll.
+- **Few.** About eighty posts across four regions, and **half of them kept on any
+  one night**, by the day's hash, a pack coming or staying away together: about
+  eighteen visitors in the whole Hollowmarch, against a hundred and seventy
+  things that live there. Not the same half two nights running.
+- **Keep to the road.** No post is within five or six cells of a road or a
+  trail, within eleven of a way in, a camp, a bed, a chest, a sign or a person,
+  or within eighteen of Havenbrook's gate, where a new character is finding out
+  which end of the sword to hold. Towns, buildings, dungeons and the Reverie
+  have none. The road is the way to travel after dark, and nightfall says so:
+  *"Night falls, and things are abroad that are not by day. Keep to the road,
+  or find a bed."*
+- **Killed is killed, until tomorrow night.** A visitor does not respawn, and
+  going out of a door and in again does not bring it back: it is remembered by
+  its post and the day, the way a boss is. It leaves what its kind leaves --
+  it is a real wolf.
+- **At dawn they go to ground.** Not a death: no cry, no loot, nothing
+  counted. It stands as it was and fades. One in the middle of a fight
+  finishes the fight first.
+
+How: a spawn in a map can be marked `"night": true` with a `"chance"`
+(`EnemySpawnDef::night`, `chance`). It is **always in the monster list, up or
+not**, because friends in co-op count monsters by their place in it; by day it
+lies the way a boss killed today does. `World::Abroad` asks, each frame: is it
+night, is tonight one of this post's nights (`World::KeptTonight`, a salted
+twin of the hash that picks a pool's monster), and has it been killed tonight?
+`genmaps` writes the posts **after everything else a map has**
+(`MapBuilder::NightEnemy`), so every post that was there before keeps its
+number; keeps them clear of havens (`MapBuilder::NearestHaven`); and leaves
+them out of the quest-waypoint index, so a contract for wolves points at where
+wolves live and not at where two might be after dark.
+
 ### Sleep and the dreamworld
 
 From **seven in the evening until four in the morning** you can sleep, and a
@@ -2272,7 +2702,10 @@ a hostile monster nearby, and the bed does not ask.
 There are three kinds of place to sleep:
 
 - **Beds** -- Elder Maren's, the three guest rooms at the Barley and Bell,
-  Oona's in Mossvale and the ferry cottage's double bed in Fernhollow.
+  Oona's in Mossvale and the ferry cottage's double bed in Fernhollow. **The
+  inn's are paid for by the night** -- 15 coins a single, 25 the double, said
+  on the prompt and taken only if you do sleep. Everybody else's bed is theirs
+  to lend, and a camp costs nothing.
 - **Campsites** -- the tents at Bram's camp on the Whisperwood trail and at the
   traveller's camp in Fernhollow.
 - **Your own camp.** A **Bedroll** is sold at the general stores and made at a
@@ -3035,6 +3468,37 @@ with the Whisperwood trail leaving from the east.
 | `westwold` | The Westwold, out of Havenbrook's west gate, Combat 5: open downs, Hidewater steading, the river Wend, wolves, and the Howling Fells in the west |
 | `brackenwood` | The Brackenwood, north off the Westwold's fork, Combat 20: old forest, bears, the Den Mother, and the Old Growth |
 
+### Waystones
+
+There are three **waystones**, one in each town -- Havenbrook's by the
+crossroads, Mossvale's in the square, Fernhollow's on the green -- and none
+anywhere else. Not in the wilds, not at a dungeon's door, not in the Reverie.
+
+A stone is **asleep until somebody puts a hand on it**. The first touch wakes
+it, and that is all the first touch does: the eye in its face lights, the
+runes down its courses with it, and it says what it is for. A woken stone,
+touched again, opens a panel of all three; any other *woken* one can be chosen,
+and you come out standing beside it. One that is still asleep is listed, dark,
+and refuses: it has to be walked to and woken by hand. There is no fare. The
+price of a waystone is having got there.
+
+So the road to a town is walked once, and everything that is not a town is
+always walked. The long errands in this game are town to town (an order for
+Wynn, a notice from Havenbrook's board, a bar Halda wants), and the walks that
+are *the game* -- out to the Mire, up to the Spire, down a mine -- are
+untouched.
+
+How: a `waystone` map object whose id is its flag. `World::TryInteract` sets
+the flag the first time and raises `WorldRequest::Type::Travel` after; an
+object whose id is flagged is drawn as its `sprite_open`, which is how a chest
+stays open, so the lit stone cost no new drawing code. The panel is
+`Game::UpdateTravel` / `DrawTravel`, and going is an ordinary
+`RequestTransition` to the far map's `waystone` spawn -- so a guest in co-op is
+told the host leads the way, as at any other door. Woken stones are world flags
+and are saved with the rest. The stone is `_waystone(lit)` in
+`tools/blender_props.py`, rendered twice; `PlaceWaystone` in `tools/genmaps.cpp`
+stands one up. `--screen travel` opens the panel for a screenshot.
+
 ### The Westwold and the Brackenwood
 
 Havenbrook's cross street always ran west into the fence and stopped. It runs
@@ -3620,6 +4084,110 @@ stride counted is the one it meant to take, not the one the map allowed, so
 something walking into the foot of a cliff after an archer on top of it tires
 of that as fast as of a long run.
 
+### What a boss leaves, the first time
+
+Killing a boss paid what it dropped and nothing else: the Pit Lord was a long
+fight for a loot roll. **The first time a character brings one down** it leaves
+them two things, for good:
+
+- **A skill point** for their tree, over and above the one every third level
+  earns. There are eleven bosses, so eleven points against the nine a finished
+  tree is short of (ten, for the hero): someone who has killed everything in the game can finish
+  their tree, and nobody else can. The tree's header says how many of your
+  points came that way.
+- **A boon**, by the dice: one of fifteen small permanent things, of those the
+  character's path can use and they do not already have -- so no first kill
+  repeats one, a hero is never handed mana, and two characters who kill the
+  same bosses do not end up the same.
+
+| Boon | | Boon | |
+| --- | --- | --- | --- |
+| Vigour | +8% maximum health | Sure Feet | on the move, 3% of blows miss you |
+| Stoneblood | +5 Defence, whatever you wear | Swift Hands | attacks 2% faster |
+| Long Wind | +10% maximum breath | Heavy Hitter | charged attacks +6% |
+| Second Breath | breath returns 12% faster | Shield Arm *(hero)* | a block costs 8% less breath |
+| Fleetness | walk 3% quicker | True Flight *(warden)* | arrows fly 8% faster |
+| Keen Eye | +2% critical chance | Deep Reserves *(wayfarer)* | +10% maximum mana |
+| Might | +3% damage, with anything | Wellspring *(wayfarer)* | mana returns 12% faster |
+| The Leech's Gift | 2% of damage dealt returns as health | | |
+
+Each is about one rank of a talent, of a kind any path can use -- and maximum
+health, which no tree teaches at all. **Once each:** a boss is back the next
+dawn and leaves its loot again, but this is kept count of by who it was. The
+game says so when it happens, in two short lines, and the Skills panel has a
+third tab, **Boons**, that lists them and names who has been brought down.
+
+Everyone who was there gets theirs, each once: a fight shared is a kill
+shared. It is part of the character, kept with the tree's ranks
+(`Talents::SlayBoss`, in the `talents` of a save), so it goes wherever they go:
+the save, the character a friend keeps on their own machine, the sheet their
+host rolls with. In co-op a friend's boon is rolled **on their own machine**,
+where their character is: the kill is relayed to it with which boss it was (a
+kill event's `secondary` -- a chief's kill target is "lizardman", for the
+contracts' sake, so the target cannot say), and comes back to the host on
+their next sheet. Unlearning a tree gives a boss's point back with the rest
+and does not touch a boon. A save cannot hold more boons than bosses, or a
+boon nobody made.
+
+The boons are data: `"boons"` in `data/skill_trees.json`, each an `effects`
+map in the names the trees already use (plus `max_health`), with an optional
+`paths`. `--slay a,b,c` with `--scratch` starts a character who has already
+killed those, and `--at x y` stands them at a point on the map, for looking at
+somewhere no door leads to.
+
+### The fifteenth time: a totem, and the ring at home
+
+A boss is back every dawn, and after the first kill it was only its loot. **The
+fifteenth time a character brings one down it leaves its totem** -- a carved
+post a hand high, with the boss's head on it: a spider for the Broodmother,
+horns for the Warchief, a skull for the Wight. One for each boss, one each per
+character, straight into the bag (at your feet, if the bag is full). It cannot
+be sold, dropped or lost. The Boons page of the Skills panel keeps the count:
+*"Broodmother 7/15"*.
+
+There is a **ring set in the floor in the middle of your house at Mossvale**.
+Touch it and a panel lists your totems; stand one in the ring and **it gives
+its blessing for the rest of that day** -- until dawn, wherever you go, and
+through a death. The next day it is a carving in a ring, drawn dull, until a
+hand is put on it again. **One at a time:** standing another in the ring puts
+the first back in your pack, and its blessing goes with it. It can be lifted
+out altogether.
+
+| Totem of... | Blessing, until dawn | | Totem of... | Blessing, until dawn |
+| --- | --- | --- | --- | --- |
+| the Broodmother | walk 8% quicker | | the Sleepless | +20% maximum health |
+| the Lizardman Chief | breath returns 30% faster | | the Wyvern Matriarch | attack 6% faster |
+| the Hollowrest Wight | 5% of damage dealt returns as health | | the Pit Lord | +6% critical chance, criticals 25% harder |
+| the Warchief | +10% damage, with anything | | Hoarfang | +12 Defence and +12% maximum health |
+| the Thing in the Spring | on the move, 8% of blows miss you | | the Unwaking | +8% damage, charged attacks +15% more |
+| the Den Mother | +15 Defence, whatever you wear | | | |
+
+A totem's blessing is two or three times what a first kill leaves for good,
+because it is one at a time, for a day, earned over a fortnight, and has to be
+gone home for -- which is what the waystone at Mossvale is for. It is on top
+of the boons, not instead of them. The self-test holds every totem to being
+more than any boon of the same kind.
+
+How: the count, the totem in the ring and the day it was last touched are in
+`Talents` with the boons (`boss_kills`, `totem`, `totem_day`), so they go where
+the character goes -- the save, a friend's own machine, the sheet their host
+rolls with. `Talents::SlayBoss` reports the fifteenth; `World::AwardBoss` hands
+the totem over; `Talents::PlaceTotem` is the ring, and returns what was
+standing in it. The blessing is read through the same `BoonEffect` the boons
+are, and is awake only while the day it was touched is the world's quest day
+(`World::TellTheDay`, at dawn and whenever someone arrives, which also puts
+health and mana back to what they now are). The ring is a `totem_circle` map
+object with no picture of its own -- it is laid in the boards as an overlay,
+under everybody's feet -- and what stands in it is drawn from the item's own
+picture, for whoever is looking: a totem is the character's, not the room's.
+The totems are data: `"totems"` in `data/skill_trees.json`, and an item each.
+`--screen totems` opens the panel; `--bag totem_orc3` puts one in the pack.
+
+One thing found on the way: a panel sent to a friend's machine is a number,
+and the number was held to `Sleep`, which was the last kind there was when that
+line was written. A friend who touched a woken **waystone** was asked how they
+would like to spend the night. It is held to the last there is now.
+
 ### Highwaymen
 
 The forest paths have bandits on them. **Highwaymen loiter in twos at the
@@ -3821,7 +4389,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **28472 checks** covering:
+and checks all of it — currently **29591 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -4468,6 +5036,121 @@ and checks all of it — currently **28472 checks** covering:
   and a bedroll have hide in them and stay at the bench, and a dye is boiled;
   the loom trains Crafting the way the bench does; a map that says "loom" gets
   one, it is drawn as one, and there is one standing in the world
+- what each blow trains, and other things that were quietly broken: Attack
+  moves whether a blow lands and nothing else, Strength the top of the damage
+  roll and nothing else; a light swing trains Attack, a heavy one Strength, a
+  charged one both, and in a real fight from the button to the skill; a
+  monster worth double pays double; a minute's chopping with a full pack
+  teaches nothing, with the axe seen to swing, and with room the log and the
+  experience both come; the Cross Cut needs the breath it spends; being healed
+  leaves a potion's boost and puts back what was drained; a save keeps the one
+  before it, is shown and loaded from that when its own file goes bad, never
+  lets a bad file become the backup, says Damaged rather than Empty, and is
+  put aside rather than destroyed when deleted -- all of it in a temporary
+  directory, with the real saves where they were
+- a lesson is a quest, not a button: no line of dialogue anywhere hands out
+  experience; the fighting, crafting and cooking lessons are tutorials, given
+  by who teaches them, done once, that ask for the skill to be used and end
+  back where they started; each is played through -- asked for, taken, asked
+  for five more times for nothing, refused early, done, handed in, and asked
+  about three times afterwards for nothing but words -- and is completed
+  exactly once; an action that starts a quest hands over what comes with it
+  once and the same action ten more times hands over nothing; the lent axe,
+  pick and rod and Oona's tonic are each replaced once however often they go
+  missing, and not at all while still in the bag; every line that gives
+  something is a quest's to give or is given once; a Barkwood Helm is made at a
+  bench by a beginner out of exactly what Halda hands over, meat is cooked at a
+  fire out of what Ivo does, meat already in the bag is not meat cooked, and
+  both lessons point at somewhere in Havenbrook to do them
+- what the menus say a thing is worth: every potion in the game gives exactly
+  the boost the panel promises, at the level the drinker is -- the number is
+  worked out rather than stored, and the panel and the draught read one
+  expression; a plain helm is one row and not five zeroes, a stat you would
+  lose is shown even though the new piece has none of it, an empty slot reads
+  the whole bonus as the gain, a piece weighed against itself changes nothing,
+  and a quicker weapon reads as better although its stored number is smaller;
+  and every piece that can be worn makes at least one row, so a card is never
+  drawn empty
+- what the same review changed about playing it: a heavy blow is softened by
+  armour, never past the cap and never to nothing, and an average blow from the
+  Warchief no longer costs more to block than a bar holds; a quick item is the
+  first food in the pack until one is chosen, steps through what could be it,
+  is eaten from the pack, and is in the save; two healing things taken one
+  after the other are one eaten and one refused until the wait is over, and a
+  potion that does not heal is not held up; the inn's beds have a price, nobody
+  else's does, and the price reaches the prompt; a boss killed today is lying
+  dead in its place in the list when its map is loaded again, an ordinary
+  monster is not, the boss is up again the day after, and all of that is true
+  across a save
+- a spell is paid for when it lands, and a wall teaches nothing: a new wayfarer
+  stood in Havenbrook square casts into the waystone forty times with the mana
+  put back each time -- the bolts are seen to fly and to break on the stone --
+  and gains no Magic experience and no level; bolts and novas into an empty
+  field teach nothing and are forgotten once what they left has burnt out; a
+  bolt in the air says which cast it is and the cast is owed; every bolt that
+  lands on a cow pays the spell's experience once on top of what the damage
+  pays, to the point, and one that reaches the cow and does nothing pays
+  nothing; a fire bolt and the ground it leaves burning hurt the cow several
+  times and pay for the spell once; a nova that hurts several cows is one cast;
+  a meteor carries its cast down with it, pays once on a cow and nothing on an
+  empty field; and an arrow owes nothing, because a bow never paid for an arrow
+  that hit nothing
+- what comes out at night: only the four wild maps have night posts, written
+  after everything else in the list; each is a pack's post of real monsters
+  that fight, kept some nights, never respawning; nothing of a visitor's kind
+  stands within twenty cells of it by day; every visitor is stronger than the
+  average of what lives round its post, and none by more than a couple of
+  dozen levels; posts stand on open ground, eleven cells from every way in,
+  camp and person, and none within a screen of Havenbrook's gate; what is
+  abroad is never more than a fifth of what lives there; half the posts are
+  kept on a night, not the same half two nights running, and a pack comes or
+  stays away together; played through -- by day every one is in the list and
+  none is there, at eight those that are due are up with the list no longer,
+  nightfall says to keep to the road, one killed is remembered, does not come
+  back in forty seconds or through a door, at dawn the rest go to ground and
+  leave nothing, and on another night of its own it is back; one in a fight at
+  dawn finishes it; a town's nightfall is as it was; and no contract points at
+  a post that is only kept after dark
+- what a boss leaves, the first time: every boon names effects the game reads,
+  and every path has one for every boss; the first kill is a point and a boon,
+  the second nothing; the point buys a rank and comes back when the tree is
+  unlearned, the boon is kept; eleven bosses leave eleven different boons, none
+  for another path, and thirty heroes are never once given mana or arrows; it
+  survives a save, a boss killed before the save is not a first kill after it,
+  and a forged save gets a boon for each boss and no more; Vigour, Stoneblood,
+  Long Wind, Deep Reserves and Might each move the number they say by what
+  they say; in the cellar a rat leaves nothing, the Broodmother a point and a
+  boon and two short lines saying which, and the day after she is only a
+  fight; and in company the host who had killed her gets nothing, the friend
+  on the couch gets theirs and is the one told, the friend down the wire gets
+  nothing on the host's copy, is sent the kill with which boss it was, is given
+  it on their own machine, and the next sheet tells the host
+- a totem for the fifteenth, and the ring it stands in: every boss has a totem
+  and there are no others; each is a thing in the bag that cannot be sold,
+  dropped or eaten, has a picture, and says where it goes; every effect is one
+  the game reads and is more than any boon of the same kind; twenty Warchiefs
+  leave one totem, on the fifteenth, and one boon and one point, on the first;
+  the count is in the save, and an older save's bosses count as killed once;
+  only a totem will stand in the ring; stood in it, the Warchief's is a tenth
+  more damage with anything, all that day, and at dawn is a carving giving
+  nothing until a hand wakes it; another stood in its place sends the first
+  back and leaves one blessing, never two; it is on top of the boons, is in the
+  save, and lifted out takes its blessing with it; fifty health is sixty under
+  the Sleepless's; in the world fourteen Broodmothers leave nothing, the
+  fifteenth one totem and two short lines saying where it goes, ten more no
+  second, and a full pack has it put at its owner's feet; only the house at
+  Mossvale has a ring, in the middle of the room with clear floor all round
+  and over it, which asks to be touched and asks the game for its panel; the
+  blessing goes out of the door, is still there at midnight, is over at dawn
+  with the health it lent given back, the totem still standing at home and
+  saying it is asleep; and all of it survives a save
+- waystones: each of the three towns has exactly one, with its dark and its lit
+  sprite on disk and somewhere clear to arrive beside it, and no other map in
+  the game has one; the first touch wakes the stone and asks for nothing else,
+  the second asks for the panel and says which stone you are at; waking one
+  does not wake another; travelling is a transition that ends beside the far
+  stone, on open ground, with the stone in reach; and the woken stones are in
+  the save
 - ducks and geese, and the one pond they can get into: Fernhollow's pond is
   marked as water, a walker cannot stand in it and a swimmer can, and it is the
   only water in the world anything may enter; the birds are posted on dry land

@@ -143,7 +143,10 @@ void Player::SyncHitpoints() {
     // A dinner is worth a share of what the pool already is, so it is worth
     // eating at fifty as well as at five.
     const float fed = meal ? meal->dish_max_hp : 0.0f;
-    max_hp = std::max(1, static_cast<int>(std::lround(skills.Level(SKILL_HITPOINTS) * (1.0f + fed))));
+    // And a boss's boon the same way: a share of the pool, so it is worth as
+    // much to whoever has it at eighty as it was at twenty.
+    const float blessed = talents.Global("max_health");
+    max_hp = std::max(1, static_cast<int>(std::lround(skills.Level(SKILL_HITPOINTS) * (1.0f + fed + blessed))));
     hp = std::clamp(skills.Current(SKILL_HITPOINTS), 0, max_hp);
 }
 
@@ -351,7 +354,7 @@ BlockOutcome Player::TryBlock(int damage, int attacker_level, float from_x, floa
 // XP follows the style used, the way OSRS ties training to how you fight:
 // light swings feed Attack, heavy swings feed Strength, and everything feeds
 // Hitpoints.
-void Player::AwardCombatXp(int damage, AttackType type) {
+void Player::AwardCombatXp(int damage, AttackType type, float worth) {
     if (damage <= 0) return;
 
     auto bank = [&](int skill, float amount) {
@@ -363,7 +366,7 @@ void Player::AwardCombatXp(int damage, AttackType type) {
         }
     };
 
-    const float d = static_cast<float>(damage);
+    const float d = static_cast<float>(damage) * std::max(0.0f, worth);
 
     // A bow trains Ranged and a staff trains Magic whichever button fired it;
     // only melee splits its XP by how heavy the swing was.
@@ -380,7 +383,9 @@ void Player::AwardCombatXp(int damage, AttackType type) {
                 case AttackType::Strong:  bank(SKILL_STRENGTH, d * 4.0f); break;
                 case AttackType::Charged: bank(SKILL_ATTACK, d * 2.0f);
                                           bank(SKILL_STRENGTH, d * 2.0f); break;
-                default: break;
+                // A blow with no swing behind it still landed: it is a light
+                // one for this purpose, rather than one that teaches nothing.
+                default:                  bank(SKILL_ATTACK, d * 4.0f); break;
             }
             break;
     }
@@ -595,7 +600,10 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
     const bool fresh_light = attack.type == AttackType::Light && attack.move == ComboMove::None &&
                              !rushing && attack.timer <= TOGETHER_WINDOW;
     const bool fresh_hold  = strong_armed && charge_held <= TOGETHER_WINDOW;
-    const bool together = melee && !jumping && stamina > 0.0f && !winded &&
+    // It needs the breath it spends. The test used to be "any breath at all",
+    // and the spend below is clamped at nothing, so on an empty bar it cost one
+    // frame's regeneration and could be thrown about once a second for ever.
+    const bool together = melee && !jumping && stamina >= CROSS_CUT_STAMINA && !winded &&
         ((light_press && strong_press && CanAttack()) ||
          (raw_strong && fresh_light) ||
          (raw_light && fresh_hold && CanAttack()));
@@ -1274,6 +1282,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // --- boosts wearing off -----------------------------------------------------
     // Hitpoints is its own thing -- it drains with damage -- so only the
     // levels a potion can lift drift back toward the real level.
+    eat_cooldown = std::max(0.0f, eat_cooldown - dt);
+
     boost_timer += dt;
     if (boost_timer >= BOOST_DECAY) {
         boost_timer -= BOOST_DECAY;
@@ -1406,6 +1416,10 @@ bool Player::Consume(int slot, string& why_not) {
 
     const ItemDef* def = item_db->Get(s.id);
     if (!def || !def->consumable) { why_not = "You cannot eat that."; return false; }
+    if (def->heal > 0 && eat_cooldown > 0.0f) {
+        why_not = "You are still getting the last mouthful down.";
+        return false;
+    }
 
     // Only worth using if something would change: food at full health is
     // refused, but a potion that also boosts or restores is not.
@@ -1415,7 +1429,7 @@ bool Player::Consume(int slot, string& why_not) {
     if (def->IsDish() && def != meal) helps = true;
     for (const auto& b : def->boosts) {
         const int level = skills.Level(b.first);
-        const int target = level + b.second.first + static_cast<int>(level * b.second.second);
+        const int target = level + ItemDef::BoostGain(b.second, level);
         if (skills.Current(b.first) < target) helps = true;
     }
     if (!helps) {
@@ -1433,12 +1447,12 @@ bool Player::Consume(int slot, string& why_not) {
         SyncHitpoints();
         SyncMana();
     }
-    if (def->heal > 0) Heal(def->heal);
+    if (def->heal > 0) { Heal(def->heal); eat_cooldown = EAT_COOLDOWN; }
     if (def->mana > 0) { SyncMana(); mana = std::min(max_mana, mana + def->mana); }
     if (def->stamina) { stamina = MaxStamina(); stamina_delay = 0.0f; winded = false; }
     for (const auto& b : def->boosts) {
         const int level = skills.Level(b.first);
-        const int target = level + b.second.first + static_cast<int>(level * b.second.second);
+        const int target = level + ItemDef::BoostGain(b.second, level);
         // A boost never stacks past its own ceiling, and never lowers one.
         skills.SetCurrent(b.first, std::max(skills.Current(b.first), target));
     }
@@ -1510,6 +1524,45 @@ bool Player::UnequipSlot(int equip_slot) {
     return true;
 }
 
+vector<string> Player::QuickChoices() const {
+    vector<string> out;
+    if (!item_db) return out;
+    for (int i = 0; i < inventory.SlotCount(); ++i) {
+        const ItemStack& st = inventory.Slot(i);
+        if (st.Empty()) continue;
+        const ItemDef* d = item_db->Get(st.id);
+        if (!d || !d->consumable) continue;
+        if (std::find(out.begin(), out.end(), st.id) == out.end()) out.push_back(st.id);
+    }
+    return out;
+}
+
+string Player::CycleQuickItem() {
+    const vector<string> choices = QuickChoices();
+    if (choices.empty()) return string();
+    const auto at = std::find(choices.begin(), choices.end(), quick_item);
+    quick_item = (at == choices.end() || at + 1 == choices.end()) ? choices.front() : *(at + 1);
+    return quick_item;
+}
+
+bool Player::UseQuickItem(string& why_not) {
+    why_not.clear();
+    // Nothing chosen yet: the first thing in the pack that can be eaten.
+    if (quick_item.empty() || !inventory.Has(quick_item, 1)) {
+        const vector<string> choices = QuickChoices();
+        if (quick_item.empty() && !choices.empty()) quick_item = choices.front();
+        if (quick_item.empty() || !inventory.Has(quick_item, 1)) {
+            const ItemDef* d = item_db ? item_db->Get(quick_item) : nullptr;
+            why_not = quick_item.empty() ? string("You have nothing to eat or drink.")
+                                         : "You have no " + (d ? d->name : quick_item) + " left.";
+            return false;
+        }
+    }
+    for (int i = 0; i < inventory.SlotCount(); ++i)
+        if (inventory.Slot(i).id == quick_item) return Consume(i, why_not);
+    return false;
+}
+
 json Player::ToJson() const {
     return json{
         {"sprite",    sprite_id},
@@ -1520,6 +1573,7 @@ json Player::ToJson() const {
         {"mana",      mana},
         {"element",   ElementName(selected_element)},
         {"arcane_spell", arcane_spell},
+        {"quick_item", quick_item},
         {"skills",    skills.ToJson()},
         {"bags",      bags},
         {"inventory", inventory.ToJson()},
@@ -1551,6 +1605,7 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     skills.SetCurrent(SKILL_HITPOINTS, hp);
     SyncMana();
     arcane_spell = j.value("arcane_spell", string(""));
+    quick_item   = j.value("quick_item", quick_item);
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;
     if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;
@@ -1588,6 +1643,7 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     SyncMana();
     mana = std::clamp(j.value("mana", max_mana), 0, max_mana);
     arcane_spell = j.value("arcane_spell", string(""));
+    quick_item   = j.value("quick_item", quick_item);
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;
     if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;

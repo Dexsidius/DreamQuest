@@ -69,6 +69,16 @@ $sizes = @{
     herbalist_cottage = 168
     well = 56; well_dry = 56; market_stall = 80; palisade = 64; log_pile = 48; tent = 72; campfire_ring = 48
     town_gate = 160
+    # The waystones in the three towns: asleep, and woken.
+    waystone = 72; waystone_lit = 72
+    # What a boss leaves the fifteenth time, and the ring in the house's floor
+    # one is stood in. The same picture is the thing in the bag.
+    totem_circle = 24
+    totem_broodmother = 32; totem_lizardman_chief = 32; totem_barrow_wight = 32; totem_orc3 = 32
+    totem_well_warden = 32; totem_den_mother = 32; totem_nightmare_troll = 32; totem_wyvern_matriarch = 32
+    totem_pit_lord = 32; totem_frost_dragon = 32; totem_nightmare_dragon = 32
+    # The carrier's waggon at each town's coach post.
+    coach = 104
     gate_tower = 104; palisade_side = 64; fence_post = 56
     dream_ladder_down = 80; dream_ladder_up = 104
 

@@ -51,6 +51,9 @@ public:
     int Current(int skill) const;
     void SetCurrent(int skill, int value);
     void ResetCurrent();                 // restore all drained/boosted levels
+    // Puts back what has been drained and leaves what has been added: a healer
+    // mends you, and does not pour your Emberfire Elixir out while she is at it.
+    void RestoreDrained();
 
     // Returns a level-up if this award crossed a threshold, so the caller can
     // show the banner without polling.

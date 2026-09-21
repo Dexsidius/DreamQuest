@@ -477,11 +477,11 @@
  },
  "cooked_minnow": {
   "name": "Cooked Minnow",
-  "desc": "Restores 4 hitpoints.",
+  "desc": "Restores 5 hitpoints.",
   "stack": true,
   "value": 12,
   "consume": true,
-  "heal": 4,
+  "heal": 5,
   "icon": "assets/icons/tiers/cooked_minnow.png"
  },
  "raw_trout": {
@@ -502,11 +502,11 @@
  },
  "cooked_trout": {
   "name": "Cooked Trout",
-  "desc": "Restores 9 hitpoints.",
+  "desc": "Restores 14 hitpoints.",
   "stack": true,
   "value": 48,
   "consume": true,
-  "heal": 9,
+  "heal": 14,
   "icon": "assets/icons/tiers/cooked_trout.png"
  },
  "raw_pike": {
@@ -527,11 +527,11 @@
  },
  "cooked_pike": {
   "name": "Cooked Pike",
-  "desc": "Restores 13 hitpoints.",
+  "desc": "Restores 21 hitpoints.",
   "stack": true,
   "value": 90,
   "consume": true,
-  "heal": 13,
+  "heal": 21,
   "icon": "assets/icons/tiers/cooked_pike.png"
  },
  "raw_salmon": {
@@ -552,11 +552,11 @@
  },
  "cooked_salmon": {
   "name": "Cooked Salmon",
-  "desc": "Restores 17 hitpoints.",
+  "desc": "Restores 28 hitpoints.",
   "stack": true,
   "value": 140,
   "consume": true,
-  "heal": 17,
+  "heal": 28,
   "icon": "assets/icons/tiers/cooked_salmon.png"
  },
  "raw_eel": {
@@ -577,11 +577,11 @@
  },
  "cooked_eel": {
   "name": "Cooked Eel",
-  "desc": "Restores 22 hitpoints.",
+  "desc": "Restores 36 hitpoints.",
   "stack": true,
   "value": 200,
   "consume": true,
-  "heal": 22,
+  "heal": 36,
   "icon": "assets/icons/tiers/cooked_eel.png"
  },
  "marigold": {
@@ -595,7 +595,7 @@
   "value": 4,
   "forage": {
    "level": 1,
-   "xp": 10,
+   "xp": 25,
    "grows": "meadow"
   },
   "icon": "assets/icons/tiers/marigold.png"
@@ -611,7 +611,7 @@
   "value": 8,
   "forage": {
    "level": 6,
-   "xp": 18,
+   "xp": 45,
    "grows": "waterside"
   },
   "icon": "assets/icons/tiers/brookmint.png"
@@ -627,7 +627,7 @@
   "value": 12,
   "forage": {
    "level": 12,
-   "xp": 26,
+   "xp": 65,
    "grows": "woodland"
   },
   "icon": "assets/icons/tiers/nettle.png"
@@ -643,7 +643,7 @@
   "value": 18,
   "forage": {
    "level": 20,
-   "xp": 38,
+   "xp": 95,
    "grows": "mire"
   },
   "icon": "assets/icons/tiers/bogbean.png"
@@ -659,7 +659,7 @@
   "value": 26,
   "forage": {
    "level": 28,
-   "xp": 50,
+   "xp": 125,
    "grows": "foothills"
   },
   "icon": "assets/icons/tiers/mountain_sage.png"
@@ -675,7 +675,7 @@
   "value": 34,
   "forage": {
    "level": 36,
-   "xp": 64,
+   "xp": 160,
    "grows": "deep forest"
   },
   "icon": "assets/icons/tiers/glowcap.png"
@@ -691,7 +691,7 @@
   "value": 48,
   "forage": {
    "level": 46,
-   "xp": 82,
+   "xp": 205,
    "grows": "cursed"
   },
   "icon": "assets/icons/tiers/emberbloom.png"
@@ -707,7 +707,7 @@
   "value": 64,
   "forage": {
    "level": 56,
-   "xp": 100,
+   "xp": 250,
    "grows": "reverie"
   },
   "icon": "assets/icons/tiers/moonpetal.png"
@@ -723,7 +723,7 @@
   "value": 90,
   "forage": {
    "level": 68,
-   "xp": 130,
+   "xp": 325,
    "grows": "reverie"
   },
   "icon": "assets/icons/tiers/starlily.png"
@@ -1474,7 +1474,7 @@
   "value": 3,
   "forage": {
    "level": 3,
-   "xp": 12,
+   "xp": 30,
    "grows": "field"
   },
   "icon": "assets/icons/tiers/flax.png",
@@ -1752,7 +1752,7 @@
   "stack": true,
   "value": 39,
   "consume": true,
-  "heal": 16,
+  "heal": 19,
   "icon": "assets/icons/meat_cooked.png"
  },
  "raw_frog_legs": {
@@ -2104,5 +2104,93 @@
   "consume": true,
   "heal": 14,
   "icon": "assets/icons/meat_cooked.png"
+ },
+ "totem_broodmother": {
+  "name": "Totem of the Broodmother",
+  "desc": "Dark wood, eight legs, and eyes that catch the light. She was killed fifteen times before she gave this up. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Skittering.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_broodmother.png",
+  "keep": true
+ },
+ "totem_lizardman_chief": {
+  "name": "Totem of the Lizardman Chief",
+  "desc": "A crested head cut in green stone, gold at the brow. The Mire's chiefs are buried with theirs. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Cold Blood.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_lizardman_chief.png",
+  "keep": true
+ },
+ "totem_barrow_wight": {
+  "name": "Totem of the Hollowrest Wight",
+  "desc": "A skull on a grey post. Colder than the room it is in. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Grave Chill.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_barrow_wight.png",
+  "keep": true
+ },
+ "totem_orc3": {
+  "name": "Totem of the Warchief",
+  "desc": "Red paint, a horned helm. It smells of smoke and the lower workings. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Warchief's Fury.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_orc3.png",
+  "keep": true
+ },
+ "totem_well_warden": {
+  "name": "Totem of the Thing in the Spring",
+  "desc": "A lantern on a post of wet stone. The light in it is the colour of deep water. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Deep Water.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_well_warden.png",
+  "keep": true
+ },
+ "totem_den_mother": {
+  "name": "Totem of the Den Mother",
+  "desc": "A bear's head in old brown wood, worn smooth where a hand would rest. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Thick Hide.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_den_mother.png",
+  "keep": true
+ },
+ "totem_nightmare_troll": {
+  "name": "Totem of the Sleepless",
+  "desc": "Heavy-browed and tusked, the colour of a bad night. It was not there when you woke; then it was. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Troll's Blood.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_nightmare_troll.png",
+  "keep": true
+ },
+ "totem_wyvern_matriarch": {
+  "name": "Totem of the Wyvern Matriarch",
+  "desc": "Pale wings on a pale post. It hums in a wind. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Wind Under Wing.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_wyvern_matriarch.png",
+  "keep": true
+ },
+ "totem_pit_lord": {
+  "name": "Totem of the Pit Lord",
+  "desc": "Black, horned, with an ember in its head that has not gone out. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Hellfire.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_pit_lord.png",
+  "keep": true
+ },
+ "totem_frost_dragon": {
+  "name": "Totem of Hoarfang",
+  "desc": "Ice that does not melt, cut into a crest of spines. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Hoarfrost.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_frost_dragon.png",
+  "keep": true
+ },
+ "totem_nightmare_dragon": {
+  "name": "Totem of the Unwaking",
+  "desc": "A spined head the violet of the deep Reverie. Looking at it for long is a mistake. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Dread.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_nightmare_dragon.png",
+  "keep": true
  }
 }

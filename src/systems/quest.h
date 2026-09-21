@@ -16,7 +16,15 @@ enum class ObjectiveType {
     Collect,    // hold N of an item
     Reach,      // enter a map
     Interact,   // use a specific world object
-    Deliver     // hand N of an item to an NPC
+    Deliver,    // hand N of an item to an NPC
+    // Make N of an item: at a bench, an anvil, a cauldron, a loom or a fire.
+    // Counted as it is made, not by what is in the bag -- so it cannot be
+    // bought, and it cannot be finished by the three cooked meat a new
+    // character starts with. It is what a lesson asks for: do the thing.
+    //
+    // Last in the list on purpose. The number goes over the wire and into
+    // nothing else, and everything before it keeps the value it had.
+    Craft
 };
 
 enum class QuestSource { Board, Npc, Note };

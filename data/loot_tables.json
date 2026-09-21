@@ -640,11 +640,11 @@
       },
       {
         "item": "nothing",
-        "weight": 45
+        "weight": 70
       },
       {
         "item": "dread_hide",
-        "weight": 30
+        "weight": 5
       }
     ]
   },
@@ -667,8 +667,8 @@
       {
         "item": "dread_hide",
         "qty": [
-          2,
-          3
+          1,
+          1
         ]
       }
     ],
@@ -1387,8 +1387,8 @@
       {
         "item": "bones",
         "qty": [
-          1,
-          2
+          2,
+          3
         ]
       }
     ],
@@ -1542,23 +1542,23 @@
     "table": [
       {
         "item": "coins",
-        "weight": 34,
+        "weight": 44,
         "qty": [
-          6,
-          22
+          8,
+          28
         ]
       },
       {
         "item": "vial",
-        "weight": 22
+        "weight": 24
       },
       {
         "item": "bones",
-        "weight": 18
+        "weight": 12
       },
       {
         "item": "nothing",
-        "weight": 26
+        "weight": 20
       }
     ]
   },
@@ -1568,19 +1568,19 @@
     "table": [
       {
         "item": "bones",
-        "weight": 40
+        "weight": 30
       },
       {
         "item": "coins",
-        "weight": 26,
+        "weight": 40,
         "qty": [
-          4,
-          16
+          6,
+          22
         ]
       },
       {
         "item": "nothing",
-        "weight": 34
+        "weight": 30
       }
     ]
   },
@@ -1588,13 +1588,16 @@
     "always": [
       {
         "item": "bones"
+      },
+      {
+        "item": "hide"
       }
     ],
     "rolls": 1,
     "table": [
       {
         "item": "hide",
-        "weight": 34,
+        "weight": 24,
         "qty": [
           1,
           2
@@ -1602,14 +1605,14 @@
       },
       {
         "item": "raw_meat",
-        "weight": 26
+        "weight": 22
       },
       {
         "item": "coins",
-        "weight": 22,
+        "weight": 36,
         "qty": [
-          20,
-          60
+          24,
+          70
         ]
       },
       {
@@ -1850,6 +1853,13 @@
       },
       {
         "item": "bones"
+      },
+      {
+        "item": "coins",
+        "qty": [
+          500,
+          900
+        ]
       }
     ],
     "rolls": 2,

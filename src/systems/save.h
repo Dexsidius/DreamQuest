@@ -25,11 +25,32 @@ struct SaveSlotInfo {
     float  playtime = 0.0f;
     string saved_at;          // human-readable local timestamp
     string character;         // sprite id, so the slot shows who you were
+    // There is a file and it cannot be read, and neither can its backup. It
+    // used to be reported as an empty slot, which is an invitation to start a
+    // new game on top of whatever could still have been rescued from it.
+    bool   damaged = false;
+    // The slot's own file could not be read, and this is its backup: the save
+    // before the last one.
+    bool   from_backup = false;
 };
 
 class SaveSystem {
 public:
+    // Where saves live. "saves" unless somebody says otherwise -- which the
+    // self-test does, so that checking what happens to a damaged slot never
+    // goes near a real one.
+    static void   SetDirectory(const string& dir);
+    static const string& Directory();
     static string SlotPath(int slot);
+    // The save before the last one, kept beside it. One generation: enough to
+    // come back from a file that went bad, without keeping a history.
+    static string BackupPath(int slot);
+    // Where a deleted slot goes, so that one mis-press is not the end of a
+    // character: it is overwritten by the next delete of the same slot.
+    static string DeletedPath(int slot);
+    // True when there is anything in the slot at all, readable or not: the
+    // question "would a new game here destroy something".
+    static bool   Occupied(int slot);
     static bool   Exists(int slot);
     static SaveSlotInfo Peek(int slot);
     static vector<SaveSlotInfo> PeekAll();
@@ -39,8 +60,10 @@ public:
     // cannot leave a half-written slot behind.
     static bool Save(int slot, const World& world, const QuestLog& quests,
                      float playtime);
+    // `from_backup`, when given, is set if the slot's own file could not be
+    // read and its backup was loaded in its place.
     static bool Load(int slot, World& world, QuestLog& quests,
-                     const GameContext& ctx, float& playtime);
+                     const GameContext& ctx, float& playtime, bool* from_backup = nullptr);
 
     static string FormatPlaytime(float seconds);
 };
@@ -53,6 +76,8 @@ struct Settings {
     bool  vsync = true;
     bool  show_fps = false;
     bool  damage_numbers = true;
+    // Experience as it is earned, beside the vitals: "+48 Strength  62%".
+    bool  xp_drops = true;
     float ui_scale = 1.0f;
     float master_volume   = 0.8f;
     float sfx_volume      = 1.0f;

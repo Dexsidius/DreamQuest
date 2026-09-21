@@ -223,6 +223,14 @@
     {
      "item": "scroll_enchant_hawks_eye",
      "stock": 1
+    },
+    {
+     "item": "steel_bow",
+     "stock": 1
+    },
+    {
+     "item": "azuryte_bow",
+     "stock": 1
     }
    ]
   },
@@ -344,6 +352,26 @@
     },
     {
      "item": "scroll_enchant_might",
+     "stock": 1
+    },
+    {
+     "item": "steel_helm",
+     "stock": 1
+    },
+    {
+     "item": "steel_body",
+     "stock": 1
+    },
+    {
+     "item": "steel_shield",
+     "stock": 1
+    },
+    {
+     "item": "steel_spear",
+     "stock": 1
+    },
+    {
+     "item": "steel_pickaxe",
      "stock": 1
     }
    ]
@@ -493,6 +521,14 @@
      "after": [
       "q_lights_on_the_pond"
      ]
+    },
+    {
+     "item": "steel_staff",
+     "stock": 1
+    },
+    {
+     "item": "azuryte_staff",
+     "stock": 1
     }
    ]
   },
@@ -743,6 +779,22 @@
      "after": [
       "q_lights_on_the_pond"
      ]
+    },
+    {
+     "item": "azuryte_sword",
+     "stock": 1
+    },
+    {
+     "item": "azuryte_shield",
+     "stock": 1
+    },
+    {
+     "item": "azuryte_helm",
+     "stock": 1
+    },
+    {
+     "item": "damascus_sword",
+     "stock": 1
     }
    ]
   },

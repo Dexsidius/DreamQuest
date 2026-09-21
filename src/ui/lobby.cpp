@@ -315,7 +315,7 @@ void Game::DrawNameTags() {
     // Who that is. Over friends only: you know who you are.
     for (const auto& g : world->guests) {
         if (g->name.empty()) continue;
-        const SDL_FPoint p = world->camera.ToScreen(g->x, g->y - g->draw_lift - 58.0f);
+        const SDL_FPoint p = UiPoint(g->x, g->y - g->draw_lift - 58.0f);
         ui.TextShadowed(g->name, p.x, p.y, TextSize::Small, {214, 232, 255, 255}, Align::Center);
     }
 }

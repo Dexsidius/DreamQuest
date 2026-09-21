@@ -22,6 +22,10 @@ struct DialogueCondition {
     int    quest_stage = -1;      // when >= 0, the active stage must match
     string has_item;
     int    has_qty = 1;
+    // The opposite, as a condition of its own. `not` turns the whole of a
+    // condition over, so "has no axe AND has not had one replaced" cannot be
+    // said with it: it would come out as "has no axe OR has had one replaced".
+    string lacks_item;
     string skill;                 // skill name
     int    skill_level = 0;
     // Prerequisites for a line, however it is otherwise gated.
@@ -36,7 +40,7 @@ struct DialogueCondition {
     bool   invert = false;
 
     bool Empty() const {
-        return quest.empty() && has_item.empty() && skill.empty() && after.empty() &&
+        return quest.empty() && has_item.empty() && lacks_item.empty() && skill.empty() && after.empty() &&
                flag.empty() && no_flag.empty() && combat <= 0 && time.empty() && !order_ready;
     }
 };
@@ -44,8 +48,11 @@ struct DialogueCondition {
 struct DialogueAction {
     string start_quest;
     string advance_quest;         // fires a Talk objective against this NPC
-    string give_item;
-    int    give_qty = 1;
+    // What is handed over. A list, because a lesson hands over everything it
+    // needs at once: two logs and a hide are one gift, not two conversations.
+    // In the file, "give"/"give_qty" for one thing and "gives": {id: n} for
+    // several; both land here.
+    vector<pair<string, int>> gives;
     string take_item;
     int    take_qty = 1;
     string open_shop;
@@ -55,14 +62,23 @@ struct DialogueAction {
     bool   hand_in = false;
     // Teaches the brew with this id.
     string learn_recipe;
-    string skill_xp;              // skill name
-    int    xp_amount = 0;
+    // A world flag this sets, so a conversation can remember that it has done
+    // something once. A line of dialogue has no memory of its own: the lent
+    // axe that is replaced "if you have lost it" was replaced every time it
+    // was sold, at forty coins a time, until this. Set only when whatever the
+    // action hands over is actually handed over.
+    string set_flag;
+    // There is no "grant experience" here, and there used to be. A line of
+    // dialogue has no memory: whatever it does, it does every time it is
+    // chosen, so three of them handing out two hundred experience each were
+    // three buttons that levelled a skill for as long as somebody cared to
+    // press them. Experience is a quest's to give -- a quest is finished once.
     bool   heal = false;
 
     bool Empty() const {
-        return start_quest.empty() && advance_quest.empty() && give_item.empty() &&
+        return start_quest.empty() && advance_quest.empty() && gives.empty() && set_flag.empty() &&
                take_item.empty() && open_shop.empty() && open_orders.empty() && !hand_in && learn_recipe.empty() &&
-               skill_xp.empty() && !heal;
+               !heal;
     }
 };
 
@@ -102,6 +118,29 @@ struct DialogueContext {
 };
 
 bool EvaluateCondition(const DialogueCondition& c, const DialogueContext& ctx);
+
+// What an action did to the journal and the bag, for whoever has to say so.
+struct DialogueOutcome {
+    bool quest_started = false;
+    vector<pair<string, int>> received;   // went into the pack
+    vector<pair<string, int>> overflow;   // did not fit, and is somebody's to drop
+    vector<string> flags;                 // world flags to set: the world's to keep
+};
+
+// The part of an action that is about the journal and the bag: the quest it
+// starts, what it hands over, what it takes, and who it counts as having been
+// spoken to. Here and not in the game's own handler so that the rule it keeps
+// can be tested by the thing that enforces it:
+//
+//   what comes with a quest comes with the quest, or not at all.
+//
+// An axe lent for the sawpit and meat handed over to learn cooking on are
+// given with `start_quest`. If the quest does not start -- already taken,
+// already done -- nothing is handed over, however the conversation was got
+// into. That is the difference between a gift and a tap.
+DialogueOutcome ApplyDialogueAction(const DialogueAction& a, class QuestLog& quests,
+                                    class Inventory& inv, const class Skills& skills,
+                                    const string& npc_id);
 
 // Drives one conversation. The owner pumps input into it and reads back which
 // actions fired.

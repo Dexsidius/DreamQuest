@@ -132,6 +132,35 @@ DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defe
                         bool floor_damage = false);
 
 int MaxHit(const CombatProfile& p, float damage_mult);
+
+// --- what armour is for, against a blow that cannot miss ---------------------------
+// Defence makes an ordinary swing miss, and against an ordinary swing that is
+// all it needs to do. A monster's heavy attack has no accuracy roll -- it is
+// telegraphed, and the answer to it is to not be there -- so every point of
+// Defence and every plate a character had on did nothing at all against the
+// one blow in the game most likely to kill them: a frost dragon's came to
+// seventy-six to ninety-five, against a most-there-could-ever-be of ninety-nine
+// hit points, whoever was wearing what.
+//
+// So armour soaks them. The share turned aside is armour / (armour + 300),
+// where armour is the Defence level and the defence bonus together, and never
+// more than three fifths: bare skin takes all of it, a level-appropriate set
+// takes about two thirds, and the best harness in the game still takes two
+// fifths of a dragon -- it is still the blow to dodge.
+static constexpr float HEAVY_SOAK_SCALE = 300.0f;
+static constexpr float HEAVY_SOAK_CAP   = 0.60f;
+float HeavySoak(int defence_level, int defence_bonus);
+int   SoakHeavy(int damage, int defence_level, int defence_bonus);
+
+// --- what a block costs ---------------------------------------------------------------
+// Breath, by how hard the blow was and who threw it. It used to be the damage
+// times the attacker's level outright, which priced a wooden shield out of any
+// fight past the meadow: fifteen from a level-28 orc asked for 420 of a
+// 100-point bar, so the shield turned two of the fifteen and broke. The root
+// of the level keeps a dragon dearer to stop than a boar without making a
+// beginner's shield a thing that only works on boars.
+static constexpr float BLOCK_COST_SCALE = 1.6f;
+float BlockCost(int damage, int attacker_level, float stamina_mult);
 float HitChance(const CombatProfile& attacker, const CombatProfile& defender);
 
 // Style-aware versions. Melee defers to the two above.

@@ -72,6 +72,17 @@ public:
                   bool enabled = true, const string& right_text = "");
 
     void SetViewport(float w, float h) { view_w = w; view_h = h; }
+
+    // --- the size of everything -----------------------------------------------
+    // The whole interface, bigger. Every panel is laid out in the same units
+    // it always was; the renderer is told to draw those units larger, and the
+    // fonts are opened that much larger too, so text is set at its real size
+    // rather than stretched -- thirteen points on a seven-inch screen at arm's
+    // length was the problem, and thirteen points blown up and blurred would
+    // not have been the answer. Everything a panel asks about text -- how wide
+    // a line is, how tall -- is answered in the panel's own units.
+    void  SetScale(float s);
+    float Scale() const { return scale; }
     float ViewWidth() const { return view_w; }
     float ViewHeight() const { return view_h; }
 
@@ -83,8 +94,22 @@ public:
     // how `--audit` walks every menu and says which ones overflow, instead of
     // somebody having to notice.
     struct Overflow { string text; float over_right = 0, over_left = 0, over_bottom = 0; bool off_window = false; };
-    void BeginAudit() { auditing = true; audit_panels.clear(); audit_found.clear(); }
+    void BeginAudit() { auditing = true; audit_panels.clear(); audit_found.clear(); audit_claims.clear(); }
     vector<Overflow> EndAudit() { auditing = false; return std::move(audit_found); }
+
+    // --- and for two things in one place ------------------------------------------
+    // The play HUD has no panel for a line to run off. What goes wrong there is
+    // two pieces drawn in the same place -- the spell's name was written over
+    // the key hints for as long as there had been a staff -- and nothing above
+    // would ever have said so. So the HUD names the room each of its pieces
+    // takes, and while auditing any two that meet are written down: which, and
+    // by how much. Outside an audit a claim costs nothing and keeps nothing.
+    struct Overlap { string a, b; float by = 0; };
+    void Claim(const char* what, const SDL_FRect& r) { if (auditing && r.w > 0.0f && r.h > 0.0f) audit_claims.push_back({what, r}); }
+    // For a claim that has to measure something the drawing did not.
+    bool Auditing() const { return auditing; }
+    // What met in the frame just audited: kept until the next BeginAudit.
+    vector<Overlap> Overlaps() const;
 
     bool Ready() const { return fonts[0] != nullptr; }
     // Which font file was actually opened, for the startup log.
@@ -103,8 +128,12 @@ private:
     int frame = 0;
 
     float view_w = 1280.0f, view_h = 720.0f;
+    float scale = 1.0f;
+    bool  OpenFonts(const string& path, float at_scale);
 
     bool auditing = false;
     vector<SDL_FRect> audit_panels;
     vector<Overflow>  audit_found;
+    struct Claimed { const char* what; SDL_FRect r; };
+    vector<Claimed>   audit_claims;
 };

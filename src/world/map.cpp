@@ -223,6 +223,8 @@ bool Map::Load(const string& path) {
                 for (const auto& t : e["pool"]) if (t.is_string()) d.pool.push_back(t.get<string>());
             d.group   = e.value("group", string(""));
             d.spread  = std::max(0, e.value("spread", 0));
+            d.night   = e.value("night", false);
+            d.chance  = std::clamp(e.value("chance", 1.0f), 0.0f, 1.0f);
             enemies.push_back(d);
         }
 
@@ -287,6 +289,7 @@ bool Map::Load(const string& path) {
             m.deplete      = o.value("deplete", 0.0f);
             m.title        = o.value("title", string(""));
             m.station      = o.value("station", string("workbench"));
+            m.fee          = o.value("fee", 0);
             m.capacity     = o.value("capacity", 0);
             if (o.contains("fish"))
                 for (const auto& f : o["fish"]) m.fish.push_back(f.get<string>());

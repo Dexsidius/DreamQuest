@@ -111,8 +111,11 @@ float ChargeMultiplier(float ratio) {
 // Effective level in OSRS terms: the level plus the flat stance bonus.
 static int Effective(int level) { return level + 8; }
 
-// Tuned so a fresh character with the starting sword tops out around 2, and a
-// maxed one with the best blade in the game tops out around 20.
+// Tuned so a fresh character with the starting sword tops out around 2. The
+// other end has moved a long way since this was first written: twelve tiers of
+// gear later, Strength 99 with the last sword and plate is a base of about
+// 148, before any swing's multiplier -- a fully charged blow can pass 450.
+// Strength sets this ceiling; Attack decides how often anything lands at all.
 static constexpr float MAX_HIT_DIVISOR = 280.0f;
 
 // The unmodified top of the damage range: what the character could hit for
@@ -255,7 +258,25 @@ bool ArcHits(const StrikeArc& arc, float tx, float ty, float radius) {
     return acosf(along) <= arc.half_angle + allowance;
 }
 
+// --- armour against a heavy blow ---------------------------------------------------
+
+float HeavySoak(int defence_level, int defence_bonus) {
+    const float armour = static_cast<float>(std::max(0, defence_level) + std::max(0, defence_bonus));
+    return std::min(HEAVY_SOAK_CAP, armour / (armour + HEAVY_SOAK_SCALE));
+}
+
+int SoakHeavy(int damage, int defence_level, int defence_bonus) {
+    if (damage <= 0) return 0;
+    const float kept = 1.0f - HeavySoak(defence_level, defence_bonus);
+    return std::max(1, static_cast<int>(std::lround(damage * kept)));
+}
+
 // --- blocking ----------------------------------------------------------------
+
+float BlockCost(int damage, int attacker_level, float stamina_mult) {
+    return static_cast<float>(std::max(0, damage)) * sqrtf(static_cast<float>(std::max(1, attacker_level))) *
+           BLOCK_COST_SCALE * std::max(0.0f, stamina_mult);
+}
 
 BlockOutcome ResolveBlock(int damage, int attacker_level, float mitigation,
                           float stamina_mult, float stamina_available) {
@@ -263,8 +284,7 @@ BlockOutcome ResolveBlock(int damage, int attacker_level, float mitigation,
     out.taken = std::max(0, damage);
     if (damage <= 0 || mitigation <= 0.0f) return out;
 
-    const float cost = static_cast<float>(damage) * static_cast<float>(std::max(1, attacker_level)) *
-                       std::max(0.0f, stamina_mult);
+    const float cost = BlockCost(damage, attacker_level, stamina_mult);
     const float have = std::max(0.0f, stamina_available);
     // The share of the block that could be paid for. All of it, or as much as
     // was left in the bar when the bar ran out.

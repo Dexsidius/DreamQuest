@@ -40,6 +40,29 @@ struct TalentNode {
     bool Passive() const { return technique.empty() && ability.empty(); }
 };
 
+// What a boss leaves the first time it is brought down: something small and
+// for good, of a kind no tree teaches or that any path can use. `paths` is who
+// may be given it -- nobody is handed mana they have no spell to spend on --
+// and empty is anybody.
+struct BoonDef {
+    string id, name, text;
+    vector<AttackStyle> paths;
+    map<string, float> effects;
+
+    bool For(AttackStyle path) const {
+        return paths.empty() || std::find(paths.begin(), paths.end(), path) != paths.end();
+    }
+};
+
+// What a boss leaves the fifteenth time: a totem, which is a thing in the bag
+// (`item`) until it is stood in the ring in the house at Mossvale, and then for
+// the rest of that day is a boon -- a bigger one than a boss's first, because it
+// is one at a time, for a day, and has to be gone home for.
+struct TotemDef {
+    string item, boss, name, text;
+    map<string, float> effects;
+};
+
 struct TalentTree {
     string id, name;
     int    skill = 0;              // SkillId that earns points and gates nodes
@@ -67,8 +90,19 @@ public:
     // The node and the style whose tree it is in; null if nobody has that id.
     const TalentNode* Find(const string& id, AttackStyle* style = nullptr) const;
 
+    // The boons, from the same file: see Talents::SlayBoss.
+    const vector<BoonDef>& Boons() const { return boons; }
+    const BoonDef* Boon(const string& id) const;
+
+    // And the totems: see Talents::PlaceTotem. By the item it is, or the boss it is of.
+    const vector<TotemDef>& Totems() const { return totems; }
+    const TotemDef* Totem(const string& item) const;
+    const TotemDef* TotemOf(const string& boss) const;
+
 private:
     TalentTree trees[3];
+    vector<BoonDef> boons;
+    vector<TotemDef> totems;
 };
 
 // Effects that apply whatever the player is holding. Everything else only
@@ -77,6 +111,8 @@ bool TalentEffectIsGlobal(const string& effect);
 
 class Talents {
 public:
+    // Coins for each point taken back when a tree is unlearned.
+    static constexpr int RESPEC_FEE = 60;
     // Learned: every rank it has is bought. OtherPath: it is in a tree that
     // is not this character's.
     enum class Why { Ok, Learned, NoPoints, Level, Prerequisite, Unknown, OtherPath };
@@ -92,6 +128,63 @@ public:
     bool HasPath() const { return has_path; }
     AttackStyle Path() const { return path; }
     bool Open(AttackStyle style) const { return !has_path || style == path; }
+
+    // --- what a boss leaves -----------------------------------------------------------
+    // Killing a boss paid what it dropped and nothing else: the Pit Lord was a
+    // long fight for a loot roll. The *first* time a character brings one down
+    // it leaves them two things, for good: a point for their tree, over and
+    // above the one every third level earns, and a boon -- one of
+    // data/skill_trees.json's, by the dice, of those their path can use and they
+    // do not already have. Eleven bosses, so eleven points against the nine a
+    // finished tree is short of: someone who has killed everything in the game
+    // can finish their tree, and nobody else can.
+    //
+    // The first time, and once: a boss is back the next dawn and leaves its
+    // loot again, but this is kept count of by who it was. It lives here, with
+    // the ranks, so it goes wherever they go -- the save, the character a
+    // friend keeps on their own machine, the sheet their host rolls with.
+    struct Trophy {
+        bool first = false;              // false: they had killed it before
+        const BoonDef* boon = nullptr;   // what it left; null with no boons to give
+        int  kills = 0;                  // how many times, this one included
+        const TotemDef* totem = nullptr; // the fifteenth, and only the fifteenth: its totem
+    };
+    // How many times a boss has to be brought down before it leaves its totem.
+    // A boss is back once a day, so this is a fortnight of going back for it.
+    static constexpr int TOTEM_KILLS = 15;
+    int    Kills(const string& boss_id) const {
+        const auto it = kills.find(boss_id);
+        return it == kills.end() ? 0 : it->second;
+    }
+    Trophy SlayBoss(const string& boss_id, std::mt19937& rng);
+    bool   HasSlain(const string& boss_id) const { return slain.count(boss_id) > 0; }
+    const std::set<string>& BossesSlain() const { return slain; }
+    // A point for each.
+    int    BonusPoints() const { return static_cast<int>(slain.size()); }
+    const vector<string>& Boons() const { return boons; }
+    bool   HasBoon(const string& id) const { return std::find(boons.begin(), boons.end(), id) != boons.end(); }
+    // What the boons come to for one effect: added to whatever the tree gives,
+    // whatever is in hand.
+    float  BoonEffect(const string& effect) const;
+
+    // --- the ring in the house -----------------------------------------------------------
+    // One totem stands in it at a time. Touched, it gives its boon for the rest
+    // of that day -- the quest day, which turns at dawn -- wherever the
+    // character goes, and through a death; the next day it is a carving in a
+    // ring until it is touched again. Another can be stood in its place, and
+    // the one that was there goes back in the bag: one boss's blessing at a
+    // time, never two.
+    //
+    // `item` is the totem's item id. These do not touch the bag: whoever calls
+    // them moves the thing itself. Placing returns what was standing there.
+    string PlaceTotem(const string& item, int quest_day);
+    // Lifted out: the ring is empty and the blessing, if there was one, is over.
+    string TakeTotem();
+    const string& PlacedTotem() const { return placed; }
+    // Today, by the world's clock. The world says, whenever it changes.
+    void   SetToday(int quest_day) { today = quest_day; }
+    bool   TotemAwake() const { return !placed.empty() && totem_day == today; }
+    const TotemDef* ActiveTotem() const;
 
     int  PointsEarned(AttackStyle style, const Skills& skills) const;
     int  PointsSpent(AttackStyle style) const;
@@ -138,6 +231,12 @@ private:
 
     const SkillTrees* db = nullptr;
     std::map<string, int> ranks;
+    std::set<string> slain;          // bosses, by id
+    std::map<string, int> kills;     // and how many times each
+    vector<string> boons;            // one for each, in the order they came
+    string placed;                   // the totem in the ring, by item id
+    int    totem_day = -1;           // the day it was last touched
+    int    today = 0;
     string technique[3];
     string ability[SkillTrees::ABILITY_SLOTS];
     bool has_path = false;

@@ -9,6 +9,7 @@ static ObjectiveType ObjectiveFromName(const string& s) {
     if (s == "reach")    return ObjectiveType::Reach;
     if (s == "interact") return ObjectiveType::Interact;
     if (s == "deliver")  return ObjectiveType::Deliver;
+    if (s == "craft" || s == "cook" || s == "make") return ObjectiveType::Craft;
     return ObjectiveType::Talk;
 }
 

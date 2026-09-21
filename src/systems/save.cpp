@@ -17,13 +17,42 @@ static float LayoutShiftX(const string& map, int saved_version) {
     return 0.0f;
 }
 
-string SaveSystem::SlotPath(int slot) {
-    return "saves/slot" + std::to_string(std::clamp(slot, 1, SAVE_SLOTS)) + ".json";
+static string& SaveDir() {
+    static string dir = "saves";
+    return dir;
+}
+
+void SaveSystem::SetDirectory(const string& dir) { SaveDir() = dir.empty() ? string("saves") : dir; }
+const string& SaveSystem::Directory() { return SaveDir(); }
+
+static string SlotStem(int slot) {
+    return SaveDir() + "/slot" + std::to_string(std::clamp(slot, 1, SAVE_SLOTS));
+}
+
+string SaveSystem::SlotPath(int slot)    { return SlotStem(slot) + ".json"; }
+string SaveSystem::BackupPath(int slot)  { return SlotStem(slot) + ".bak"; }
+string SaveSystem::DeletedPath(int slot) { return SlotStem(slot) + ".deleted"; }
+
+// A save that can be read: a JSON object, the whole way through.
+static bool ReadSave(const string& path, json& out) {
+    std::ifstream in(path);
+    if (!in) return false;
+    try {
+        in >> out;
+    } catch (const std::exception&) {
+        return false;
+    }
+    return out.is_object();
 }
 
 bool SaveSystem::Exists(int slot) {
     std::error_code ec;
     return fs::exists(SlotPath(slot), ec);
+}
+
+bool SaveSystem::Occupied(int slot) {
+    std::error_code ec;
+    return fs::exists(SlotPath(slot), ec) || fs::exists(BackupPath(slot), ec);
 }
 
 static string NowString() {
@@ -53,14 +82,18 @@ SaveSlotInfo SaveSystem::Peek(int slot) {
     SaveSlotInfo info;
     info.slot = slot;
 
-    std::ifstream in(SlotPath(slot));
-    if (!in) return info;
+    if (!Occupied(slot)) return info;
 
+    // The slot's own file, or failing that the save before it. A slot with a
+    // file in it that nothing can read is damaged, and says so: it is not
+    // empty, and must not be offered as somewhere to start again.
     json j;
-    try {
-        in >> j;
-    } catch (const std::exception&) {
-        return info;                     // corrupt slot reads as empty
+    if (!ReadSave(SlotPath(slot), j)) {
+        if (!ReadSave(BackupPath(slot), j)) {
+            info.damaged = true;
+            return info;
+        }
+        info.from_backup = true;
     }
 
     info.exists       = true;
@@ -80,8 +113,22 @@ vector<SaveSlotInfo> SaveSystem::PeekAll() {
 }
 
 bool SaveSystem::Delete(int slot) {
+    // Put aside rather than destroyed: slotN.deleted is the last thing deleted
+    // from that slot, and renaming it back is all it takes to have it again.
+    // The backup goes, or the slot would come straight back from it.
     std::error_code ec;
-    return fs::remove(SlotPath(slot), ec);
+    if (!Occupied(slot)) return false;
+    if (fs::exists(SlotPath(slot), ec)) {
+        fs::remove(DeletedPath(slot), ec);
+        fs::rename(SlotPath(slot), DeletedPath(slot), ec);
+        if (ec) return false;
+    } else if (fs::exists(BackupPath(slot), ec)) {
+        fs::remove(DeletedPath(slot), ec);
+        fs::rename(BackupPath(slot), DeletedPath(slot), ec);
+        return !ec;
+    }
+    fs::remove(BackupPath(slot), ec);
+    return true;
 }
 
 bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
@@ -115,6 +162,10 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
 
     j["flags"] = json::array();
     for (const auto& f : world.Flags()) j["flags"].push_back(f);
+    // Bosses killed, and the day: only today's are worth keeping.
+    j["slain"] = json::object();
+    for (const auto& kv : world.Slain())
+        if (kv.second >= world.clock.QuestDay()) j["slain"][kv.first] = kv.second;
 
     // Storage chests, by object id. Only the ones with something in them: an
     // empty chest is rebuilt from the map the next time it is opened.
@@ -143,6 +194,17 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
         }
     }
 
+    // The save being replaced becomes the backup -- if it is one that can be
+    // read. A file that has gone bad is not allowed to take the place of a
+    // good backup on its way out.
+    {
+        json was;
+        if (ReadSave(final_path, was)) {
+            fs::copy_file(final_path, BackupPath(slot), fs::copy_options::overwrite_existing, ec);
+            ec.clear();
+        }
+    }
+
     fs::remove(final_path, ec);
     fs::rename(temp_path, final_path, ec);
     if (ec) {
@@ -156,19 +218,21 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
 }
 
 bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
-                      const GameContext& ctx, float& playtime) {
-    std::ifstream in(SlotPath(slot));
-    if (!in) {
+                      const GameContext& ctx, float& playtime, bool* from_backup) {
+    if (from_backup) *from_backup = false;
+    if (!Occupied(slot)) {
         SDL_Log("SaveSystem: slot %d is empty", slot);
         return false;
     }
 
     json j;
-    try {
-        in >> j;
-    } catch (const std::exception& e) {
-        SDL_Log("SaveSystem: slot %d is corrupt: %s", slot, e.what());
-        return false;
+    if (!ReadSave(SlotPath(slot), j)) {
+        if (!ReadSave(BackupPath(slot), j)) {
+            SDL_Log("SaveSystem: slot %d cannot be read, and neither can its backup", slot);
+            return false;
+        }
+        SDL_Log("SaveSystem: slot %d could not be read; loading its backup", slot);
+        if (from_backup) *from_backup = true;
     }
 
     playtime = j.value("playtime", 0.0f);
@@ -179,6 +243,13 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
     std::set<string> flags;
     if (j.contains("flags"))
         for (const auto& f : j["flags"]) flags.insert(f.get<string>());
+    {
+        std::map<string, int> slain;
+        if (j.contains("slain") && j["slain"].is_object())
+            for (auto it = j["slain"].begin(); it != j["slain"].end(); ++it)
+                if (it.value().is_number_integer()) slain[it.key()] = it.value().get<int>();
+        world.SetSlain(slain);
+    }
     world.SetFlags(flags);
 
     // A saved chest comes back without an item database and at whatever size
@@ -261,7 +332,8 @@ bool Settings::Load(const string& path) {
     vsync          = j.value("vsync", vsync);
     show_fps       = j.value("show_fps", show_fps);
     damage_numbers = j.value("damage_numbers", damage_numbers);
-    ui_scale       = std::clamp(j.value("ui_scale", ui_scale), 0.75f, 1.5f);
+    ui_scale       = std::clamp(j.value("ui_scale", ui_scale), 1.0f, 1.5f);
+    xp_drops       = j.value("xp_drops", xp_drops);
     master_volume   = std::clamp(j.value("master_volume", master_volume), 0.0f, 1.0f);
     sfx_volume      = std::clamp(j.value("sfx_volume", sfx_volume), 0.0f, 1.0f);
     ambience_volume = std::clamp(j.value("ambience_volume", ambience_volume), 0.0f, 1.0f);
@@ -292,6 +364,7 @@ bool Settings::Save(const string& path) const {
         {"show_fps", show_fps},
         {"damage_numbers", damage_numbers},
         {"ui_scale", ui_scale},
+        {"xp_drops", xp_drops},
         {"master_volume", master_volume},
         {"sfx_volume", sfx_volume},
         {"ambience_volume", ambience_volume},
