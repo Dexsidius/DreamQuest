@@ -652,6 +652,7 @@ CraftStation CraftStationFromName(const string& name) {
     if (name == "cauldron") return CraftStation::Cauldron;
     if (name == "range" || name == "fire") return CraftStation::Range;
     if (name == "loom") return CraftStation::Loom;
+    if (name == "rack" || name == "tanning_rack") return CraftStation::Rack;
     return name == "anvil" ? CraftStation::Anvil : CraftStation::Workbench;
 }
 
@@ -661,6 +662,7 @@ const char* CraftStationName(CraftStation s) {
         case CraftStation::Cauldron: return "cauldron";
         case CraftStation::Range:    return "range";
         case CraftStation::Loom:     return "loom";
+        case CraftStation::Rack:     return "rack";
         default:                     return "workbench";
     }
 }
@@ -670,9 +672,9 @@ int CraftSkill(CraftStation s) {
         case CraftStation::Anvil:    return SKILL_SMITHING;
         case CraftStation::Cauldron: return SKILL_BREWING;
         case CraftStation::Range:    return SKILL_COOKING;
-        // The loom is the weaver's half of Crafting, the bench the leather
-        // worker's: two stations, one skill, which is why Wynn's order book and
-        // Nessa's both pay into the same number.
+        // The loom is the weaver's share of Crafting, the rack the tanner's
+        // and the bench the carpenter's: three stations, one skill, which is
+        // why Wynn's order book and Nessa's both pay into the same number.
         default:                     return SKILL_CRAFTING;
     }
 }
@@ -697,6 +699,16 @@ CraftStation ItemDatabase::StationFor(const ItemDef& recipe) const {
     if (const ItemDef* made = Get(recipe.craft_result))
         if (std::find(made->tags.begin(), made->tags.end(), "cloth") != made->tags.end())
             return CraftStation::Loom;
+    // And anything whose result is leather is worked on a tanner's frame: the
+    // ranger's hides in every tier, the jerkin and the chaps and the boots, the
+    // bags, the bedroll. The tanneries had frames of hide standing all round a
+    // carpenter's bench, and the bench was where the hide was worked. Asked of
+    // the result again, and before the metal: a banded jerkin has iron in it
+    // and is still a jerkin, cut by a tanner and not beaten out by a smith --
+    // and a Barkwood Helm has a hide in it and is still wood.
+    if (const ItemDef* made = Get(recipe.craft_result))
+        if (std::find(made->tags.begin(), made->tags.end(), "leather") != made->tags.end())
+            return CraftStation::Rack;
     for (const auto& in : recipe.craft_inputs)
         if (const ItemDef* mat = Get(in.first))
             if (mat->metal) return CraftStation::Anvil;

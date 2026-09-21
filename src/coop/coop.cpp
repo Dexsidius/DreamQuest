@@ -506,11 +506,16 @@ void Host::Arrive(uint8_t seat_no, Seat& s, net::Server& server, World& home, co
             g->seat = seat_no;
             g->name = s.name;
         } else {
-            for (const string& id : Player::StartingKit(g->sprite_id)) {
-                g->inventory.Add(id, 1);
-                if (const ItemDef* def = ctx.items ? ctx.items->Get(id) : nullptr)
-                    if (def->slot != SLOT_NONE) g->equipment.Equip(def->slot, id);
-            }
+            // Into the bag and then worn out of it, the way a new game does
+            // it. It was put in the bag and then put on as well, without
+            // coming out of the bag: a second kit, free, and five pieces of it
+            // now that the warden and the wayfarer set out in a whole set.
+            const vector<string> kit = Player::StartingKit(g->sprite_id);
+            for (const string& id : kit) g->inventory.Add(id, 1);
+            string why;
+            for (const string& worn : kit)
+                for (int slot = 0; slot < g->inventory.SlotCount(); ++slot)
+                    if (g->inventory.Slot(slot).id == worn) { g->EquipFromInventory(slot, why); break; }
             g->inventory.Add("coins", 25);
             g->inventory.Add("cooked_meat", 3);
         }

@@ -25,6 +25,7 @@
 #include <map>
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <set>
 #include <filesystem>
 #include <random>
@@ -822,6 +823,18 @@ static void PlaceHerb(MapBuilder& m, const string& herb, int x, int y, int& inde
 }
 
 // A cauldron to brew at.
+// A tanner's frame that can be worked at: a hide laced into poles to dry, and
+// the beam beside it that hides are scraped and cut on. It is the tanning rack
+// that always stood about a tannery as scenery, and is now the tannery's
+// station -- everything of leather is made on one. See CraftStation::Rack.
+static void PlaceTanningRack(MapBuilder& m, const string& obj_id, int x, int y) {
+    json& o = m.Object(obj_id, "workbench", x, y);
+    o["sprite"]  = "assets/props/tanning_rack.png";
+    o["title"]   = "Tanning rack";
+    o["station"] = "rack";
+    m.Collision(x - 24, y - 10, 48, 10);
+}
+
 static void PlaceCauldron(MapBuilder& m, const string& obj_id, int x, int y) {
     json& o = m.Object(obj_id, "workbench", x, y);
     o["sprite"]  = "assets/props/cauldron.png";
@@ -2166,24 +2179,16 @@ static void BuildTown() {
     // Havenbrook had nowhere to learn a trade with: the Westwold's tannery is
     // out of the west gate and past the wolves, which is no use to anyone at
     // Crafting 1. This is the same yard inside the walls -- frames of hide
-    // drying, a vat, a bench to work at -- and Nessa, who keeps an order book
-    // and buys what comes off it.
+    // drying, and Nessa, who keeps an order book and buys what comes off it.
+    // The frames are what is worked at. There was a carpenter's bench among
+    // them, and the frames were scenery round it: a tanner's station is the
+    // tanner's own, the way Wynn's is a loom.
     {
         const int tx = 8 * CELL, ty = 27 * CELL;
-        for (int k = 0; k < 3; ++k) {
-            const int x = tx - 84 + k * 84;
-            m.Prop("props", "tanning_rack", x, ty - 64);
-            m.Collision(x - 24, ty - 74, 48, 10);
-        }
+        for (int k = 0; k < 3; ++k)
+            PlaceTanningRack(m, "rack_tannery_" + std::to_string(k), tx - 84 + k * 84, ty - 64);
         m.Prop("props", "log_pile", tx + 120, ty - 60);
         m.Collision(tx + 120 - 16, ty - 70, 32, 10);
-        {
-            json& o = m.Object("bench_tannery", "workbench", tx + 36, ty + 24);
-            o["sprite"]  = "assets/props/workbench.png";
-            o["title"]   = "Tanner's bench";
-            o["station"] = "workbench";
-            m.Collision(tx + 36 - 34, ty + 24 - 18, 67, 18);
-        }
         {
             json& o = m.Object("sign_tannery", "sign", tx - 118, ty + 20);
             o["sprite"] = "assets/props/signpost.png";
@@ -4149,27 +4154,19 @@ static void BuildWestwold() {
     // --- Hidewater steading ---------------------------------------------------------------
     {
         const int sx = st_cx * CELL, sy = st_cy * CELL;
-        // Drying frames along the north side, hides on every one.
-        for (int k = 0; k < 4; ++k) {
-            const int x = sx - 170 + k * 84, y = sy - 96;
-            m.Prop("props", "tanning_rack", x, y);
-            m.Collision(x - 24, y - 10, 48, 10);
-        }
+        // Drying frames along the north side, hides on every one -- and
+        // worked at, every one: they are the steading's station.
+        for (int k = 0; k < 4; ++k)
+            PlaceTanningRack(m, "rack_hidewater_" + std::to_string(k), sx - 170 + k * 84, sy - 96);
         m.Prop("props", "tent", sx - 196, sy + 10);
         m.Collision(sx - 196 - 30, sy + 10 - 16, 60, 16);
         m.Prop("props", "tent", sx + 200, sy - 30);
         m.Collision(sx + 200 - 30, sy - 30 - 16, 60, 16);
         PlaceCampsite(m, "campsite_hidewater", sx + 200, sy + 40);
 
-        // The tanner's bench, where hides become leathers.
-        {
-            json& o = m.Object("bench_hidewater", "workbench", sx - 60, sy + 6);
-            o["sprite"]  = "assets/props/workbench.png";
-            o["title"]   = "Tanner's bench";
-            o["station"] = "workbench";
-            m.Collision(sx - 60 - 34, sy + 6 - 18, 67, 18);
-        }
-        // The dye vat, and a fire to cook on.
+        // The dye vat, and a fire to cook on. (There was a carpenter's bench
+        // here "where hides become leathers". They become leathers on the
+        // frames.)
         PlaceCauldron(m, "cauldron_hidewater", sx + 40, sy + 10);
         {
             json& o = m.Object("range_hidewater", "range", sx + 110, sy + 60);
@@ -4439,8 +4436,9 @@ static void BuildBrackenwood() {
             o["title"]  = "Camp fire";
             m.Collision(cx0 + 6 - 16, cy0 + 30 - 10, 32, 10);
         }
-        m.Prop("props", "tanning_rack", cx0 + 84, cy0 - 20);
-        m.Collision(cx0 + 84 - 24, cy0 - 30, 48, 10);
+        // A trapper's frame is a tanner's frame: bear hide can be cut where
+        // the bear was.
+        PlaceTanningRack(m, "rack_brackenwood", cx0 + 84, cy0 - 20);
         m.Prop("props", "log_pile", cx0 - 10, cy0 - 60);
         m.Collision(cx0 - 10 - 16, cy0 - 70, 32, 10);
         m.Npc("npc_hale", "Hale the Trapper", "player_warden", cx0 + 40, cy0 + 8, "hale_root", 0)["shop"] = "brackenwood_trapper";
@@ -4558,6 +4556,8 @@ static void BuildMossvale() {
     };
     auto on_lane = [&](int cx, int cy) {
         if (abs(cx - sq_cx) <= 1 && cy >= 16 && cy <= sq_cy) return true;        // up to the lodge
+        if (abs(cx - 20) <= 1 && cy >= 13 && cy <= 22) return true;              // up to Wynn's door
+        if (abs(cy - 22) <= 1 && cx >= 20 && cx <= 23) return true;              // and into the square
         if (abs(cy - 38) <= 1 && cx >= 11 && cx <= 26) return true;             // to the herbalist
         if (abs(cx - 26) <= 1 && cy >= sq_cy && cy <= 38) return true;
         return false;
@@ -4567,6 +4567,7 @@ static void BuildMossvale() {
         if (cx >= 25 && cx <= 35 && cy >= 10 && cy <= 17) return true;   // lodge
         if (cx >= 8 && cx <= 16 && cy >= 30 && cy <= 38) return true;    // herbalist
         if (cx >= 42 && cx <= 50 && cy >= 33 && cy <= 39) return true;   // the tanner's
+        if (cx >= 15 && cx <= 25 && cy >= 6 && cy <= 13) return true;    // Wynn's
         return false;
     };
 
@@ -4714,46 +4715,34 @@ static void BuildMossvale() {
     // On the square, west of the well and clear of the path down from the lodge.
     PlaceWaystone(m, "mossvale", 850, 770);
 
-    // --- the weaving shed -----------------------------------------------------------
-    // Mossvale has the flax fields and the sheep walk past its door on the way
-    // to Havenbrook, and until now the only loom in the Hollowmarch was out at
-    // Hidewater, past the wolves. Wynn's shed is on the north side of the
-    // square: a wheel, a rack of dyed cloth drying, and her.
+    // --- Wynn's -----------------------------------------------------------------------
+    // She kept a stall on the north side of the square with her loom standing
+    // out in the weather beside it, in earshot of Garrow's anvil -- which is no
+    // place to keep cloth or to hear yourself count threads. She has a house
+    // now, up its own lane in the quiet north-west of the village, with a
+    // window full of what she makes: see mossvale_weavers, in
+    // BuildWoodlandInteriors. The loom, the wheel and the woman are all in it.
     {
-        const int wx = 34 * CELL, wy = 21 * CELL;
-        m.Prop("props", "market_stall", wx, wy);
-        m.Collision(wx - 40, wy - 16, 80, 16);
-        m.Prop("props", "spinning_wheel", wx - 76, wy + 10);
-        m.Collision(wx - 76 - 16, wy + 10 - 12, 32, 12);
-        // Cloth on the line: the tanning rack, which is a frame with a hide on
-        // it, doing duty as a drying rack for dyed lengths.
-        for (int k = 0; k < 2; ++k) {
-            const int x = wx - 40 + k * 84;
-            m.Prop("props", "tanning_rack", x, wy - 64);
-            m.Collision(x - 24, wy - 74, 48, 10);
-        }
-        {
-            // The loom, where the bench was. A weaver at a carpenter's bench
-            // was always a stand-in: this is the station the cloth and the
-            // college's robes are made at, and the only one of its kind.
-            json& o = m.Object("loom_weaver", "workbench", wx + 74, wy + 16);
-            o["sprite"]  = "assets/props/loom.png";
-            // Named so it reads after "the": these titles are dropped into
-            // "Use the ..." with only the first letter lowered, so a possessive
-            // comes out as "the wynn's Loom".
-            o["title"]   = "Weaver's loom";
-            o["station"] = "loom";
-            m.Collision(wx + 74 - 36, wy + 16 - 20, 72, 20);
-        }
-        {
-            json& o = m.Object("sign_weaver", "sign", wx - 108, wy + 6);
-            o["sprite"] = "assets/props/signpost.png";
-            o["title"]  = "The Weaving Shed";
-            o["text"]   = "WYNN, CLOTHIER\n\nFLAX BOUGHT. FLEECES BOUGHT. SILK BOUGHT, NO QUESTIONS.\n\n"
-                          "HATS, ROBES AND SKIRTS FOR THE COLLEGE. ASK FOR THE BOOK IF YOU CAN SEW.";
-            m.Collision(wx - 108 - 16, wy + 6 - 10, 32, 10);
-        }
-        m.Npc("npc_wynn", "Wynn the Clothier", "citizen1", wx + 26, wy + 20, "wynn_root", 0)["shop"] = "mossvale_clothier";
+        const int hx = 20 * CELL + 16, hy = 13 * CELL;
+        PlaceBuilding(m, "clothier_shop", hx, hy, 144, 146,
+                      "mossvale_weavers", "entrance", "Enter Wynn's",
+                      "from_mossvale_weavers", "props");
+        json& o = m.Object("sign_weaver", "sign", hx + 86, hy + 4);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "Wynn, Clothier";
+        o["text"]   = "WYNN, CLOTHIER\n\nFLAX BOUGHT. FLEECES BOUGHT. SILK BOUGHT, NO QUESTIONS.\n\n"
+                      "HATS, ROBES AND SKIRTS FOR THE COLLEGE. ASK FOR THE BOOK IF YOU CAN SEW. THE LOOM IS INSIDE.";
+        m.Collision(hx + 86 - 16, hy + 4 - 10, 32, 10);
+        // Flax in a bed by the door, and a tub of rolls out on the step on a dry day.
+        m.Prop("props", "fabric_rolls", hx - 84, hy + 6);
+        m.Collision(hx - 84 - 14, hy - 4, 28, 10);
+        // And where she used to be, a board pointing at where she is.
+        json& old = m.Object("sign_weaver_moved", "sign", 33 * CELL, 21 * CELL + 6);
+        old["sprite"] = "assets/props/signpost.png";
+        old["title"]  = "A board where the stall was";
+        old["text"]   = "WYNN HAS MOVED.\n\nUp the lane north-west of the square: the house with the blue door "
+                        "and the gowns in the window. It is quieter, and the cloth does not smell of the forge.";
+        m.Collision(33 * CELL - 16, 21 * CELL - 4, 32, 10);
     }
     // The smith works the village anvil by the workbench, with his bars in a
     // crate at his elbow.
@@ -4855,9 +4844,12 @@ static void BuildFernhollow() {
         return dx * dx + dy * dy < 1.0f;
     };
     auto on_jetty = [&](int cx, int cy) { return cy >= 15 && cy <= 16 && cx >= 22 && cx <= 29; };
+    // The college's walk: paved, from the jetty road north to its gatehouse.
+    auto on_college_walk = [&](int cx, int cy) { return cx >= 21 && cx <= 23 && cy >= 7 && cy <= 14; };
     auto on_path = [&](int cx, int cy) {
         if (cy >= 12 && fabsf(cx - path_x(static_cast<float>(cy))) < 1.2f) return true;   // from the gate
         if (cy >= 15 && cy <= 16 && cx >= gate_col && cx <= 23) return true;            // to the jetty
+        if (on_college_walk(cx, cy)) return true;
         return false;
     };
     auto reserved = [&](int cx, int cy) {
@@ -4865,7 +4857,7 @@ static void BuildFernhollow() {
         if (cx >= 3 && cx <= 10 && cy >= 21 && cy <= 28) return true;    // shrine
         if (cx >= 16 && cx <= 24 && cy >= 23 && cy <= 29) return true;   // camp
         if (cx >= 15 && cx <= 21 && cy >= 17 && cy <= 21) return true;   // Nell's cart
-        if (cx >= 30 && cx <= 44 && cy >= 23 && cy <= 34) return true;   // the college, and its doorstep
+        if (cx >= 18 && cx <= 27 && cy >= 0 && cy <= 9) return true;     // the college's gatehouse
         if (cx >= 17 && cx <= 20 && cy >= 12 && cy <= 15) return true;   // the waystone
         return false;
     };
@@ -4876,6 +4868,7 @@ static void BuildFernhollow() {
             string tile;
             if (on_jetty(cx, cy))              tile = VariantOf("plank_floor", cx, cy);
             else if (in_pond(cx, cy))          tile = "water";
+            else if (on_college_walk(cx, cy))  tile = VariantOf("college_paving", cx, cy);
             else if (on_path(cx, cy))          tile = VariantOf(v > 0.6f ? "dirt_dark" : "dirt", cx, cy);
             else tile = VariantOf(v > 0.6f ? "grass_olive" : (v > 0.28f ? "grass" : "moss"), cx, cy);
             m.Ground(tile, cx * CELL, cy * CELL, CELL);
@@ -4953,11 +4946,33 @@ static void BuildFernhollow() {
                   "fernhollow_cottage", "entrance", "Enter the ferry cottage",
                   "from_fernhollow_cottage");
 
-    // The mage college: a stone tower south-east of the pond, older than the
-    // hamlet, where the ancient magic is taught. Its own model, in props.
-    PlaceBuilding(m, "mage_college", 37 * CELL, 31 * CELL, 150, 176,
-                  "fernhollow_college", "entrance", "Enter the college",
-                  "from_fernhollow_college", "props");
+    // The college. It was a tower in the south-east corner with one room in
+    // it; it is on the north side now and the hamlet has only its gatehouse --
+    // two towers under blue slate and an arch between them -- at the head of a
+    // paved walk up from the jetty road. What is through it is its own map:
+    // see BuildCollege. A way into the college is a door, not a road out of
+    // the hamlet, so it is walked up to and gone through like one.
+    {
+        const int gx = 22 * CELL + 16, gy = 7 * CELL + 8;
+        PlaceBuilding(m, "college_gate", gx, gy, 200, 154,
+                      "college_grounds", "entrance", "Go through to the college",
+                      "from_college_grounds", "props");
+        for (int side : {-1, 1}) {
+            m.Prop("props", "college_banner", gx + side * 62, gy + 76);
+            m.Collision(gx + side * 62 - 6, gy + 68, 12, 8);
+            json& lamp = m.Object(side < 0 ? "lamp_college_walk_w" : "lamp_college_walk_e", "lamp", gx + side * 62, gy + 190);
+            lamp["sprite"] = "assets/props/college_lamp.png";
+            m.Collision(gx + side * 62 - 6, gy + 182, 12, 8);
+        }
+        json& o = m.Object("sign_college_gate", "sign", gx + 96, gy + 40);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A brass plate on the gatepost";
+        o["text"]   = "THE COLLEGE AT FERNHOLLOW\n\nFOUNDED BEFORE THE HAMLET, AND NOT ANSWERABLE TO IT.\n\n"
+                      "Visitors are welcome in the court, the practice hall and the lecture room. "
+                      "The council sits in the great hall, and the Magister keeps the old magic there.";
+        m.Collision(gx + 96 - 16, gy + 30, 32, 10);
+        m.Npc("npc_college_porter", "Porter Hobb", "citizen2", gx - 58, gy + 30, "college_porter_root", 0);
+    }
 
     // The shrine: standing stones in a ring round a candle, and the one thing
     // anyone in Fernhollow will tell you about the pond.
@@ -5217,6 +5232,67 @@ static void BuildWoodlandInteriors() {
         m.Write("maps");
     }
 
+    // Wynn's, at Mossvale: a draper's. Bolts in racks along the back wall and
+    // hangings between them, forms dressed in her work down the front of the
+    // shop where the window is, the cutting table in the middle of the floor,
+    // the counter she sells over -- and the loom and the wheel, which used to
+    // stand outside.
+    {
+        const int CELL = 32, cols = 22, rows = 15;
+        MapBuilder m("mossvale_weavers", "Wynn's", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Subtitle("Cloth, cut to order");
+        m.Background(22, 18, 16);
+        RoomShell(m, cols, rows, CELL, "plank_floor", "plaster_wall_warm", cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "mossvale", "from_mossvale_weavers", "Step outside", false);
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        m.Overlay("props", "inn_rug", dx, 11 * CELL);
+
+        // The back wall: bolts, and hangings between the racks.
+        piece("fabric_shelf", 8 * CELL,       3 * CELL + 6, 70, 14);
+        piece("fabric_shelf", 11 * CELL + 16, 3 * CELL + 6, 70, 14);
+        piece("fabric_shelf", 15 * CELL,      3 * CELL + 6, 70, 14);
+        piece("tapestry_red",   5 * CELL + 8,  2 * CELL + 6, 0, 0);
+        piece("tapestry_blue",  18 * CELL,     2 * CELL + 6, 0, 0);
+        piece("tapestry_green", 20 * CELL + 8, 2 * CELL + 6, 0, 0);
+
+        // The counter, in the corner by the racks, and Wynn behind it.
+        piece("shop_counter", 3 * CELL + 8, 5 * CELL + 16, 72, 16);
+        m.Npc("npc_wynn", "Wynn the Clothier", "citizen1", 3 * CELL + 8, 4 * CELL + 14, "wynn_root", 0)["shop"] = "mossvale_clothier";
+
+        // The loom and the wheel, down the east side where the light is.
+        {
+            json& o = m.Object("loom_weaver", "workbench", 18 * CELL, 7 * CELL + 16);
+            o["sprite"]  = "assets/props/loom.png";
+            // Named so it reads after "the": these titles are dropped into
+            // "Use the ..." with only the first letter lowered, so a possessive
+            // comes out as "the wynn's Loom".
+            o["title"]   = "Weaver's loom";
+            o["station"] = "loom";
+            m.Collision(18 * CELL - 36, 7 * CELL + 16 - 20, 72, 20);
+        }
+        piece("spinning_wheel", 19 * CELL, 10 * CELL + 16, 28, 12);
+        piece("fabric_rolls",   16 * CELL, 10 * CELL + 8,  28, 10);
+
+        // The cutting table, in the middle of the floor.
+        piece("cutting_table", 10 * CELL + 16, 8 * CELL, 70, 18);
+        piece("fabric_rolls",  7 * CELL,       8 * CELL + 4, 28, 10);
+
+        // The forms, down the front of the shop: a robe for the college, a gown, a travelling cloak.
+        piece("mannequin_robe",  3 * CELL,      11 * CELL + 16, 18, 8);
+        piece("mannequin_dress", 5 * CELL + 16, 12 * CELL,      18, 8);
+        piece("mannequin_cloak", 8 * CELL,      11 * CELL + 16, 18, 8);
+        piece("mannequin_dress", 14 * CELL,     12 * CELL + 8,  18, 8);
+        piece("mannequin_robe",  16 * CELL + 16, 12 * CELL + 8, 18, 8);
+        m.Write("maps");
+    }
+
     // The ferry cottage at Fernhollow, where Wendel and Hesper live.
     {
         const int CELL = 32, cols = 16, rows = 12;
@@ -5252,41 +5328,405 @@ static void BuildWoodlandInteriors() {
         m.Write("maps");
     }
 
-    // The college's hall: a round of stone under the tower, the circle cut
-    // into the floor at its middle, shelves of the library along the back
-    // wall, the magister's lectern, and the copying room's chalk board.
+    // (The college's hall was built here, as one room under a tower. The
+    // college is a place of its own now: see BuildCollege.)
+}
+
+
+// --- the College at Fernhollow ---------------------------------------------------
+//
+// It was a tower in the corner of the hamlet with one room in it. It is a place
+// now: through a gatehouse on the hamlet's north side into a great court, with
+// the hall across the north of it and a chamber off the west and the east.
+//
+//   college_grounds      the court: the fountain, the founders, the lawns
+//   fernhollow_college   north: the great hall, where the council sits and the
+//                        Magister keeps the circle (the id it always had, so
+//                        everything that knew the way to him still does)
+//   college_training     west: the practice hall, where they throw fire at straw
+//   college_classroom    east: the lecture room
+//
+// All of it in the college's own tiles -- see make_ground.ps1 -- because the
+// point of the place is that it does not look like the Hollowmarch.
+
+// A chamber: chequer floor, banded walls, and its door wherever it is. `door`
+// is 'S' for the usual one in the front wall, or 'E' / 'W' for one in a side
+// wall, which is how a room off the side of a court is left. The door cells are
+// carpet, and open.
+//
+// `runner` says which cells of the floor are carpet. It has to be said here and
+// not laid afterwards: the ground is drawn a tile name at a time in the order of
+// the alphabet, so a carpet laid over a floor is under it.
+static void CollegeRoom(MapBuilder& m, int cols, int rows, int CELL, char door, int d0, int d1,
+                        const std::function<bool(int, int)>& runner = nullptr) {
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            const bool back = cy <= 1, front = cy == rows - 1, west = cx == 0, east = cx == cols - 1;
+            bool gap = false;
+            if (door == 'S') gap = front && cx >= d0 && cx <= d1;
+            if (door == 'E') gap = east && cy >= d0 && cy <= d1;
+            if (door == 'W') gap = west && cy >= d0 && cy <= d1;
+            const bool solid = (back || front || west || east) && !gap;
+            // The back wall is seen: plain ashlar above, the blue band along its
+            // foot. The other three are looked down on, and are their tops --
+            // the band run up the side walls a tile at a time was a ladder.
+            const string wall = (west || east || front) ? string("college_walltop")
+                              : cy == 0 ? string("college_wallface") : VariantOf("college_wall", cx, cy);
+            const bool carpet = gap || (!solid && runner && runner(cx, cy));
+            m.Ground(solid ? wall : carpet ? string("college_carpet")
+                           : VariantOf("college_floor", cx, cy), cx * CELL, cy * CELL, CELL);
+            if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+}
+
+// A lamp standard: a thing that stands there and, after dark, is lit. See World's lights.
+static void PlaceLamp(MapBuilder& m, const string& id, int x, int y) {
+    json& o = m.Object(id, "lamp", x, y);
+    o["sprite"] = "assets/props/college_lamp.png";
+    m.Collision(x - 6, y - 8, 12, 8);
+}
+
+static void BuildCollege() {
+    const int CELL = 32;
+
+    // ------------------------------------------------------------------ the court
     {
-        const int CELL = 32, cols = 20, rows = 14;
-        MapBuilder m("fernhollow_college", "The College", cols * CELL, rows * CELL);
-        m.Interior(true);
-        m.Subtitle("Older than the hamlet round it");
-        m.Background(16, 14, 24);
-        RoomShell(m, cols, rows, CELL, "cellar_floor", "forge_wall", cols / 2 - 1, cols / 2);
-        const int dx = (cols / 2) * CELL;
-        m.Spawn("entrance", dx, (rows - 2) * CELL);
-        m.Spawn("default",  dx, (rows - 2) * CELL);
-        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "fernhollow", "from_fernhollow_college",
-                 "Step outside", false);
+        const int W = 60, H = 46;
+        MapBuilder m("college_grounds", "The College at Fernhollow", W * CELL, H * CELL);
+        m.Ambient("grove");
+        m.Subtitle("Older than the hamlet, and not of it");
+        m.Background(40, 44, 58);
+
+        const int mid = W / 2;                       // the avenue runs up the middle
+        const int cross = 25;                        // and the cross-walk from the west door to the east
+        auto lawn = [&](int cx, int cy) {
+            const bool ew = (cx >= 6 && cx <= 24) || (cx >= 35 && cx <= 53);
+            const bool ns = (cy >= 14 && cy <= 21) || (cy >= 29 && cy <= 40);
+            return ew && ns;
+        };
+        auto avenue = [&](int cx, int cy) {
+            if (abs(cx - mid) <= 1 || cx == mid - 2) return cy >= 9;                           // gate to hall
+            if (cy == cross || cy == cross - 1) return true;                                    // door to door
+            const float dx = static_cast<float>(cx - mid) + 0.5f, dy = static_cast<float>(cy - cross) + 0.5f;
+            return dx * dx + dy * dy < 30.0f;                                                   // round the fountain
+        };
+        for (int cy = 0; cy < H; ++cy)
+            for (int cx = 0; cx < W; ++cx) {
+                const bool side = cx <= 1 || cx >= W - 2;
+                const bool north = cy <= 1, south = cy >= H - 2;
+                const bool west_door = cx <= 1 && (cy == cross - 1 || cy == cross);
+                const bool east_door = cx >= W - 2 && (cy == cross - 1 || cy == cross);
+                const bool south_gate = south && cx >= mid - 2 && cx <= mid + 1;
+                string tile;
+                bool solid = false;
+                const bool door_run = (cy == cross - 1 || cy == cross) && (cx <= 4 || cx >= W - 5);
+                if (west_door || east_door || (door_run && !side)) tile = "college_carpet";
+                else if (south_gate)        tile = "college_inlay";
+                else if (side || north || south) { tile = "college_walltop"; solid = true; }
+                else if (cy <= 3)           { tile = "college_wallface"; solid = true; }     // the north wall, seen
+                else if (lawn(cx, cy))      tile = VariantOf("grass", cx, cy);
+                else if (avenue(cx, cy))    tile = "college_inlay";
+                else                        tile = VariantOf("college_paving", cx, cy);
+                m.Ground(tile, cx * CELL, cy * CELL, CELL);
+                if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
 
         auto piece = [&](const string& art, int x, int y, int cw, int ch) {
             m.Prop("props", art, x, y);
             if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
         };
-        // The circle, on the floor at the middle of the hall.
-        m.Overlay("props", "spell_circle", dx, 7 * CELL + 16);
-        for (int i = 0; i < 4; ++i) piece("bookshelf", (3 + i * 3) * CELL + 16, 3 * CELL + 4, 44, 14);
-        piece("cottage_bookshelf", 16 * CELL + 16, 3 * CELL + 4, 40, 14);
-        piece("lectern",      dx - 16,          5 * CELL + 8,  28, 10);
-        piece("chalk_board",  17 * CELL,        6 * CELL + 4,  30, 10);
-        piece("table_round",  3 * CELL + 16,    9 * CELL + 8,  40, 12);
-        piece("tavern_chair", 2 * CELL + 16,    9 * CELL + 10, 16, 8);
-        piece("candlestand",  6 * CELL,         6 * CELL + 8,  16, 8);
-        piece("candlestand",  14 * CELL,        6 * CELL + 8,  16, 8);
-        piece("candlestand",  6 * CELL,         10 * CELL + 8, 16, 8);
-        piece("candlestand",  14 * CELL,        10 * CELL + 8, 16, 8);
-        piece("travel_chest", 17 * CELL + 8,    10 * CELL,     28, 12);
-        piece("writing_desk", 3 * CELL,         6 * CELL + 4,  40, 14);
-        m.Npc("npc_magister", "Magister Orrin", "magister", dx + 40, 6 * CELL + 8, "magister_root", 0)["shop"] = "fernhollow_college";
+
+        // The great hall, across the north: the council's chamber is behind its doors.
+        const int hall_x = mid * CELL, hall_y = 9 * CELL + 20;      // its roofs against the north wall
+        PlaceBuilding(m, "college_hall", hall_x, hall_y, 340, 178,
+                      "fernhollow_college", "entrance", "Enter the great hall",
+                      "from_fernhollow_college", "props");
+        // A wing either side of it, so the north of the court is one front: the
+        // hall alone was a fifth of the width of the place it was meant to
+        // preside over. They stand a little back from it -- their foot is level
+        // with the hall's own, which is behind its steps -- and so are drawn
+        // behind its towers, which they run in under.
+        for (int side : {-1, 1}) {
+            const int wx = hall_x + side * 286, wy = hall_y - 22;
+            m.Prop("props", "college_wing", wx, wy);
+            m.Collision(wx - 122, wy - 114, 244, 114);
+        }
+
+        // The fountain, where the two walks cross.
+        const int fx = mid * CELL, fy = cross * CELL + 24;
+        piece("college_fountain", fx, fy, 84, 34);
+
+        // The lawns: a hedge along each side that faces a walk, a founder in the
+        // middle of each of the four, and box in pots at the corners.
+        struct Bed { int x0, y0, x1, y1; };
+        const Bed beds[4] = {{6, 14, 24, 21}, {35, 14, 53, 21}, {6, 29, 24, 40}, {35, 29, 53, 40}};
+        for (const Bed& b : beds) {
+            for (int cx = b.x0 + 1; cx < b.x1; cx += 2) {
+                piece("hedge", cx * CELL + 16, b.y0 * CELL + 22, 52, 12);
+                piece("hedge", cx * CELL + 16, (b.y1 + 1) * CELL - 2, 52, 12);
+            }
+            const int sx = (b.x0 + b.x1 + 1) * CELL / 2, sy = (b.y0 + b.y1 + 1) * CELL / 2 + 16;
+            piece("college_statue", sx, sy, 30, 14);
+            for (int cx : {b.x0 + 3, b.x1 - 2})
+                piece("topiary", cx * CELL, sy - 4, 18, 8);
+        }
+        // Benches along the avenue, facing it, and the college's colours up both sides of it.
+        for (int cy : {16, 19, 31, 35, 39}) {
+            piece("stone_bench", (mid - 4) * CELL, cy * CELL + 16, 40, 10);
+            piece("stone_bench", (mid + 4) * CELL, cy * CELL + 16, 40, 10);
+        }
+        for (int cy : {12, 22, 28, 33, 37, 42}) {
+            piece("college_banner", (mid - 3) * CELL + 8, cy * CELL, 12, 8);
+            piece("college_banner", (mid + 3) * CELL - 8, cy * CELL, 12, 8);
+        }
+        // Lamps: at the corners of the walks, and along the cross-walk.
+        {
+            int k = 0;
+            for (int cx : {4, 12, 20, 40, 48, 56})
+                for (int cy : {cross - 2, cross + 2})
+                    PlaceLamp(m, "lamp_court_" + std::to_string(k++), cx * CELL, cy * CELL + (cy < cross ? 8 : 24));
+            for (int cy : {11, 43})
+                for (int side : {-1, 1})
+                    PlaceLamp(m, "lamp_court_" + std::to_string(k++), (mid + side * 5) * CELL, cy * CELL);
+        }
+        // A colonnade down the west wall and the east: a column every third cell,
+        // broken where the doors are.
+        for (int cy = 6; cy < H - 3; cy += 3) {
+            if (abs(cy - cross) <= 2) continue;
+            piece("college_column", 3 * CELL + 8, cy * CELL, 16, 8);
+            piece("college_column", (W - 3) * CELL - 8, cy * CELL, 16, 8);
+        }
+        // The two side doors: a pair of columns and the colours either side of
+        // each, a carpet run out to the walk, and a board saying what is inside.
+        for (int side : {-1, 1}) {
+            const int wall_x = side < 0 ? 2 * CELL : (W - 2) * CELL;
+            for (int cy : {cross - 2, cross + 1}) {
+                piece("college_column", wall_x + side * -22, cy * CELL + (cy < cross ? 24 : 40), 16, 8);
+            }
+        }
+        {
+            json& o = m.Object("sign_college_training", "sign", 5 * CELL, (cross - 2) * CELL + 8);
+            o["sprite"] = "assets/props/signpost.png";
+            o["title"]  = "The Practice Hall";
+            o["text"]   = "THE PRACTICE HALL\n\nNOTHING IN HERE IS THROWN AT YOU. WALK WHERE YOU LIKE.\n\n"
+                          "Chalked underneath: and nothing in here teaches you anything either. It is straw.";
+            m.Collision(5 * CELL - 16, (cross - 2) * CELL - 2, 32, 10);
+        }
+        {
+            json& o = m.Object("sign_college_classroom", "sign", (W - 5) * CELL, (cross - 2) * CELL + 8);
+            o["sprite"] = "assets/props/signpost.png";
+            o["title"]  = "The Lecture Room";
+            o["text"]   = "THE LECTURE ROOM\n\nLECTOR MAUD, DAILY. THE FOUR ELEMENTS AND WHAT EACH ONE FEARS.\n\n"
+                          "Sit anywhere. Do not touch the orrery.";
+            m.Collision((W - 5) * CELL - 16, (cross - 2) * CELL - 2, 32, 10);
+        }
+        {
+            json& o = m.Object("sign_college_founders", "sign", (mid + 3) * CELL, 44 * CELL - 40);
+            o["sprite"] = "assets/props/signpost.png";
+            o["title"]  = "Cut into the gatepost";
+            o["text"]   = "THE COLLEGE AT FERNHOLLOW\n\nThe hall, north. The practice hall, west. The lecture room, east.\n\n"
+                          "THE FOUR FOUNDERS STAND ON THE LAWNS. THEY ARE OLDER THAN THE HAMLET AND THEY WILL OUTLAST IT.";
+            m.Collision((mid + 3) * CELL - 16, 44 * CELL - 50, 32, 10);
+        }
+
+        // People. Two who walk the court by the clock, and three who stand about in it.
+        {
+            json& a = m.Npc("npc_college_walker_a", "Apprentice Tam", "apprentice", 8 * CELL, cross * CELL + 8,
+                            "college_apprentice_root", 0);
+            a["path"] = json::array({json::array({8 * CELL, cross * CELL + 8, 6, 1}), json::array({(mid - 6) * CELL, cross * CELL + 8, 2, 0}),
+                                     json::array({(mid - 6) * CELL, 12 * CELL + 16, 8, 3}), json::array({(mid - 6) * CELL, cross * CELL + 8, 1, 0})});
+            a["speed"] = 30;
+            json& b = m.Npc("npc_college_walker_b", "Adept Sorrel", "adept", (W - 8) * CELL, cross * CELL - 8,
+                            "college_adept_root", 0);
+            b["path"] = json::array({json::array({(W - 8) * CELL, cross * CELL - 8, 5, 2}), json::array({(mid + 6) * CELL, cross * CELL - 8, 2, 0}),
+                                     json::array({(mid + 6) * CELL, 42 * CELL, 9, 0}), json::array({(mid + 6) * CELL, cross * CELL - 8, 1, 3})});
+            b["speed"] = 28;
+            b["phase"] = 40;
+        }
+        m.Npc("npc_college_reader", "Apprentice Isa", "apprentice", (mid - 4) * CELL, 31 * CELL + 30, "college_reader_root", 2);
+        m.Npc("npc_college_gardener", "Old Peverell", "citizen2", 15 * CELL, 28 * CELL, "college_gardener_root", 0);
+        m.Npc("npc_college_usher", "Usher Brandt", "magister", (mid + 3) * CELL, 10 * CELL + 24, "college_usher_root", 0);
+
+        // Ways out. South, through the gatehouse, to the hamlet; west and east into the chambers.
+        m.Spawn("entrance", mid * CELL - 16, (H - 4) * CELL);
+        m.Spawn("default",  mid * CELL - 16, (H - 4) * CELL);
+        m.Portal((mid - 2) * CELL, H * CELL - 24, 4 * CELL, 24, "fernhollow", "from_college_grounds", "To Fernhollow", false);
+        m.Portal(0, (cross - 1) * CELL, 24, 2 * CELL, "college_training", "entrance", "The practice hall", false);
+        m.Spawn("from_college_training", 4 * CELL, cross * CELL);
+        m.Portal(W * CELL - 24, (cross - 1) * CELL, 24, 2 * CELL, "college_classroom", "entrance", "The lecture room", false);
+        m.Spawn("from_college_classroom", (W - 4) * CELL, cross * CELL);
+        m.Write("maps");
+    }
+
+    // ------------------------------------------------ west: the practice hall
+    // Four lanes, a straw man at the end of each, and somebody at the head of
+    // each throwing what they are learning at him. Nothing thrown in here
+    // touches anybody: it is walked through. The door is in the east wall,
+    // because the room is off the court's west side.
+    {
+        const int cols = 26, rows = 17;
+        MapBuilder m("college_training", "The Practice Hall", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Subtitle("Four lanes, four straw men, and nobody runs dry");
+        m.Background(16, 16, 28);
+        // The runner in from the door, and a mark across each lane where its caster stands.
+        CollegeRoom(m, cols, rows, CELL, 'E', 12, 13, [&](int cx, int cy) {
+            if ((cy == 12 || cy == 13) && cx >= cols - 5) return true;
+            return cx == 14 && (cy == 4 || cy == 6 || cy == 8 || cy == 10);
+        });
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        m.Spawn("entrance", (cols - 3) * CELL, 13 * CELL);
+        m.Spawn("default",  (cols - 3) * CELL, 13 * CELL);
+        m.Portal(cols * CELL - 24, 12 * CELL, 24, 2 * CELL, "college_grounds", "from_college_training", "Back to the court", false);
+
+        struct Lane { int cy; const char* who; const char* look; const char* bolt; float every; const char* talk; };
+        const Lane lanes[4] = {
+            {4,  "Apprentice Bryn",  "apprentice", "bolt_fire",     3.1f, "college_lane_fire_root"},
+            {6,  "Adept Corvane",    "adept",      "bolt_eldritch", 2.6f, "college_lane_arcane_root"},
+            {8,  "Apprentice Lisse", "apprentice", "bolt_water",    3.4f, "college_lane_water_root"},
+            {10, "Adept Marrin",     "adept",      "bolt_air",      2.9f, "college_lane_air_root"},
+        };
+        int k = 0;
+        for (const Lane& l : lanes) {
+            const int dummy_x = 4 * CELL, y = l.cy * CELL + 20, caster_x = 14 * CELL;
+            piece("training_dummy", dummy_x, y, 18, 8);
+            json& who = m.Npc("npc_college_lane_" + std::to_string(k++), l.who, l.look, caster_x, y, l.talk, 1);
+            who["casts"] = {{"bolt", l.bolt}, {"at", json::array({dummy_x, y})}, {"every", l.every}};
+        }
+        // Crystals in the corners, which is why nobody in here runs dry.
+        piece("crystal_pylon", 2 * CELL + 8, 3 * CELL + 20, 22, 10);
+        piece("crystal_pylon", 2 * CELL + 8, 14 * CELL + 16, 22, 10);
+        piece("crystal_pylon", (cols - 2) * CELL - 8, 3 * CELL + 20, 22, 10);
+        // Along the back wall: the colours, and the racks the staves are kept in.
+        for (int cx : {7, 12, 17, 22}) piece("tapestry_blue", cx * CELL, 2 * CELL + 4, 0, 0);
+        piece("weapon_rack", 19 * CELL + 16, 3 * CELL + 4, 40, 12);
+        // Benches along the south wall, for whoever is waiting for a lane.
+        piece("stone_bench", 7 * CELL, 15 * CELL + 16, 40, 10);
+        piece("stone_bench", 11 * CELL, 15 * CELL + 16, 40, 10);
+        piece("stone_bench", 15 * CELL, 15 * CELL + 16, 40, 10);
+        // A ring on the floor at the east end where two of them can face each other.
+        m.Overlay("props", "spell_circle", 20 * CELL, 7 * CELL);
+        m.Npc("npc_college_instructor", "Battlemaster Ysolde", "magister", 17 * CELL, 12 * CELL + 8, "college_instructor_root", 1);
+        m.Write("maps");
+    }
+
+    // ------------------------------------------------- east: the lecture room
+    // A board across the back wall, a lectern, the orrery, and rows of desks
+    // with a walk up the middle. The door is in the west wall.
+    {
+        const int cols = 26, rows = 17;
+        MapBuilder m("college_classroom", "The Lecture Room", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Subtitle("The four elements, and what each one fears");
+        m.Background(16, 16, 28);
+        // The runner in from the door, and the walk up the middle to the board.
+        CollegeRoom(m, cols, rows, CELL, 'W', 12, 13, [&](int cx, int cy) {
+            if ((cy == 12 || cy == 13) && cx <= cols / 2) return true;
+            return (cx == cols / 2 - 1 || cx == cols / 2) && cy >= 5 && cy <= 14;
+        });
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        m.Spawn("entrance", 3 * CELL, 13 * CELL);
+        m.Spawn("default",  3 * CELL, 13 * CELL);
+        m.Portal(0, 12 * CELL, 24, 2 * CELL, "college_grounds", "from_college_classroom", "Back to the court", false);
+        const int mid_x = (cols / 2) * CELL;
+
+        piece("college_blackboard", mid_x, 3 * CELL + 10, 104, 12);
+        piece("lectern", mid_x - 70, 5 * CELL + 8, 28, 10);
+        piece("college_orrery", mid_x + 150, 4 * CELL + 16, 26, 10);
+        for (int cx : {3, 5, 20, 22}) piece("cottage_bookshelf", cx * CELL + 16, 3 * CELL + 4, 40, 14);
+        piece("candlestand", 7 * CELL + 16, 4 * CELL, 16, 8);
+        piece("candlestand", 18 * CELL + 16, 4 * CELL, 16, 8);
+        piece("tapestry_green", 2 * CELL, 2 * CELL + 4, 0, 0);
+        piece("tapestry_red", (cols - 2) * CELL, 2 * CELL + 4, 0, 0);
+
+        // Desks: three rows, two either side of the walk, and somebody at most of them.
+        struct Seat { int cx, cy; const char* who; const char* look; const char* talk; };
+        const Seat seats[] = {
+            {6, 7, "Apprentice Oda", "apprentice", "college_pupil_a_root"},   {9, 7, nullptr, nullptr, nullptr},
+            {16, 7, "Adept Hale", "adept", "college_pupil_b_root"},           {19, 7, "Apprentice Wick", "apprentice", "college_pupil_c_root"},
+            {6, 10, nullptr, nullptr, nullptr},                                {9, 10, "Apprentice Nan", "apprentice", "college_pupil_a_root"},
+            {16, 10, nullptr, nullptr, nullptr},                               {19, 10, "Adept Thessaly", "adept", "college_pupil_b_root"},
+            {6, 13, "Apprentice Roe", "apprentice", "college_pupil_c_root"},  {9, 13, nullptr, nullptr, nullptr},
+            {16, 13, nullptr, nullptr, nullptr},                               {19, 13, nullptr, nullptr, nullptr},
+        };
+        int k = 0;
+        for (const Seat& s : seats) {
+            const int x = s.cx * CELL + 16, y = s.cy * CELL + 8;
+            // Not the two at the bottom left: that is where the door's carpet runs.
+            if (s.cx < cols / 2 && s.cy >= 12) continue;
+            piece("college_desk", x, y, 38, 10);
+            if (s.who) m.Npc("npc_college_pupil_" + std::to_string(k++), s.who, s.look, x, y + 22, s.talk, 3);
+        }
+        m.Npc("npc_college_lector", "Lector Maud", "magister", mid_x + 10, 5 * CELL + 14, "college_lector_root", 0);
+        m.Write("maps");
+    }
+
+    // ------------------------------------------------- north: the great hall
+    // Where the council sits. The table in the middle of the floor, six chairs
+    // at it, the Magister at its head with the college's books behind him; and
+    // south of the table the circle cut in the floor, which is older than the
+    // table, the hall, and the college.
+    {
+        const int cols = 28, rows = 19;
+        MapBuilder m("fernhollow_college", "The Great Hall", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Subtitle("Where the council sits");
+        m.Background(16, 14, 24);
+        // The runner, from the doors to the table.
+        CollegeRoom(m, cols, rows, CELL, 'S', cols / 2 - 1, cols / 2, [&](int cx, int cy) {
+            return (cx == cols / 2 - 1 || cx == cols / 2) && cy >= 10;
+        });
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "college_grounds", "from_fernhollow_college",
+                 "Back to the court", false);
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        m.Overlay("props", "spell_circle", dx, 13 * CELL + 16);
+
+        // The table, and the six chairs: three behind it facing the room, three
+        // before it with their backs to the door.
+        const int tx = dx, ty = 8 * CELL + 16;
+        piece("council_table", tx, ty, 116, 26);
+        for (int off : {-46, 0, 46}) {
+            piece("high_chair", tx + off, ty - 30, 0, 0);
+            piece("high_chair_back", tx + off, ty + 30, 18, 8);
+        }
+        // The council. Orrin at the head of it; he is who he always was and keeps what he kept.
+        m.Npc("npc_magister", "Magister Orrin", "magister", tx, ty - 44, "magister_root", 0)["shop"] = "fernhollow_college";
+        m.Npc("npc_councillor_ferris", "Councillor Ferris", "adept", tx - 46, ty - 44, "councillor_ferris_root", 0);
+        m.Npc("npc_councillor_wren", "Councillor Wren", "magister", tx + 46, ty - 44, "councillor_wren_root", 0)["tint"] =
+            json::array({226, 214, 255});
+
+        // The library along the back wall, the college's colours between the cases.
+        for (int i = 0; i < 6; ++i)
+            piece("cottage_bookshelf", (3 + i * 4) * CELL + 16 + (i >= 3 ? 2 * CELL : 0), 3 * CELL + 4, 40, 14);
+        piece("tapestry_blue", dx, 2 * CELL + 4, 0, 0);
+        for (int side : {-1, 1}) {
+            piece("tapestry_blue", dx + side * 4 * CELL, 2 * CELL + 4, 0, 0);
+            // A founder either side of the circle: the hall is theirs.
+            piece("college_statue", dx + side * 6 * CELL, 16 * CELL, 30, 14);
+        }
+        for (int side : {-1, 1}) {
+            piece("crystal_pylon", dx + side * 5 * CELL, 5 * CELL + 8, 22, 10);
+            piece("candlestand", dx + side * 7 * CELL, 8 * CELL + 8, 16, 8);
+            piece("candlestand", dx + side * 7 * CELL, 13 * CELL + 8, 16, 8);
+            piece("college_banner", dx + side * 3 * CELL, (rows - 2) * CELL - 4, 12, 8);
+        }
+        piece("lectern",        4 * CELL,           8 * CELL,       28, 10);
+        piece("writing_desk",   3 * CELL + 16,      12 * CELL,      40, 14);
+        piece("college_orrery", (cols - 4) * CELL,  8 * CELL,       26, 10);
+        piece("travel_chest",   (cols - 3) * CELL,  12 * CELL,      28, 12);
+        piece("cottage_bookshelf", (cols - 4) * CELL - 8, 15 * CELL, 40, 14);
         m.Write("maps");
     }
 }
@@ -5860,6 +6300,7 @@ int main() {
     BuildMossvale();
     BuildFernhollow();
     BuildWoodlandInteriors();
+    BuildCollege();
     BuildDreamworld();
     BuildDreamDeep();
     BuildDreamDark();

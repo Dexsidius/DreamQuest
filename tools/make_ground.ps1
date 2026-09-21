@@ -490,4 +490,129 @@ $bmp.Save((Join-Path $tiles "dungeon_void.png"), [System.Drawing.Imaging.ImageFo
 $bmp.Dispose()
 $made++
 
+# --- the college at Fernhollow ------------------------------------------------------
+# Its own tileset, and last in the file on purpose: the sequence above is one
+# run of one generator, so anything added before the end would re-roll every
+# tile after it and show up as a diff in the whole world's ground.
+#
+# Pale stone throughout, because everything else in the Hollowmarch is brown:
+# wide cream flagstones for the courtyard, the same with a blue lozenge let into
+# it for the avenues, polished chequer for the chambers, ashlar with a band of
+# college blue and a gold line for their walls, the top of the courtyard's own
+# wall seen from above, and a blue runner.
+$Size = 32
+$collegeBlue = @(52, 78, 146)
+$collegeGold = @(214, 178, 92)
+
+foreach ($t in @(@{ name = "college_paving"; rgb = @(202, 196, 182); mortar = @(158, 152, 142); variants = 3 })) {
+    for ($v = 0; $v -lt $t.variants; $v++) {
+        $bmp = New-Masonry 32 $t.rgb $t.mortar 16 32 0.07 $true
+        $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# The avenue: the same flagstone with a blue lozenge and a gold pip at its heart.
+$bmp = New-Masonry 32 @(206, 200, 186) @(158, 152, 142) 32 32 0.04 $true
+$blue = [System.Drawing.Color]::FromArgb(255, $collegeBlue[0], $collegeBlue[1], $collegeBlue[2])
+$gold = [System.Drawing.Color]::FromArgb(255, $collegeGold[0], $collegeGold[1], $collegeGold[2])
+for ($y = 0; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) {
+        $d = [math]::Abs($x - 15.5) + [math]::Abs($y - 15.5)
+        if ($d -le 9.5 -and $d -gt 7.5) { $bmp.SetPixel($x, $y, (Shade $blue (-0.15))) }
+        elseif ($d -le 7.5 -and $d -gt 2.5) { $bmp.SetPixel($x, $y, (Shade $blue ((Rand) * 0.10))) }
+        elseif ($d -le 2.5) { $bmp.SetPixel($x, $y, $gold) }
+    }
+}
+$bmp.Save((Join-Path $tiles "college_inlay.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# Chequer for the chambers: sixteen-pixel squares of cream and slate-blue marble,
+# a hairline joint, and a vein or two in each so that it is stone and not paint.
+for ($v = 0; $v -lt 2; $v++) {
+    $bmp = New-Tile ([System.Drawing.Color]::FromArgb(255, 226, 220, 206))
+    for ($cy = 0; $cy -lt 2; $cy++) {
+        for ($cx = 0; $cx -lt 2; $cx++) {
+            $dark = (($cx + $cy) % 2) -eq 1
+            $rgb = if ($dark) { @(104, 120, 158) } else { @(228, 222, 208) }
+            $face = Shade ([System.Drawing.Color]::FromArgb(255, $rgb[0], $rgb[1], $rgb[2])) (((Rand) - 0.5) * 0.08)
+            for ($y = 0; $y -lt 16; $y++) {
+                for ($x = 0; $x -lt 16; $x++) {
+                    $c = $face
+                    if ($x -eq 15 -or $y -eq 15) { $c = Shade $face (-0.22) }
+                    elseif ($x -eq 0 -or $y -eq 0) { $c = Shade $face 0.14 }
+                    $bmp.SetPixel($cx * 16 + $x, $cy * 16 + $y, $c)
+                }
+            }
+            # Veins: a short wandering line, lighter in the dark stone and darker in the light.
+            for ($k = 0; $k -lt 2; $k++) {
+                $vx = 2 + (RandInt 11); $vy = 2 + (RandInt 11)
+                for ($n = 0; $n -lt 5; $n++) {
+                    $px = $cx * 16 + [math]::Min(14, [math]::Max(1, $vx)); $py = $cy * 16 + [math]::Min(14, [math]::Max(1, $vy))
+                    $veinShade = if ($dark) { 0.16 } else { -0.10 }
+                    $bmp.SetPixel($px, $py, (Shade $face $veinShade))
+                    $vx += (RandInt 3) - 1; $vy += 1
+                }
+            }
+        }
+    }
+    $name = if ($v -eq 0) { "college_floor" } else { "college_floor_$v" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# The chambers' walls: pale ashlar, a band of college blue across the lower
+# half with a gold line above and below it. A wall built of these has one
+# unbroken band running round the room.
+for ($v = 0; $v -lt 2; $v++) {
+    $bmp = New-Masonry 32 @(186, 182, 192) @(126, 122, 140) 8 16 0.10 $true
+    for ($x = 0; $x -lt 32; $x++) {
+        for ($y = 17; $y -le 26; $y++) {
+            $c = if ($y -eq 17 -or $y -eq 26) { $gold } else { Shade $blue (((($x * 7 + $y * 3) % 5) - 2) * 0.02) }
+            $bmp.SetPixel($x, $y, $c)
+        }
+        # A gold star every sixteen pixels along the band.
+        if (($x % 16) -eq 8) {
+            foreach ($d in @(@(0, 0), @(-1, 0), @(1, 0), @(0, -1), @(0, 1))) { $bmp.SetPixel($x + $d[0], 21 + $d[1], $gold) }
+        }
+    }
+    $name = if ($v -eq 0) { "college_wall" } else { "college_wall_$v" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# The top of the courtyard's wall, seen from above: big pale capstones with a
+# dark joint, a lit inner edge and a shadowed outer one.
+$bmp = New-Masonry 32 @(170, 166, 176) @(104, 100, 118) 16 32 0.08 $true
+for ($x = 0; $x -lt 32; $x++) { $bmp.SetPixel($x, 0, (Shade ([System.Drawing.Color]::FromArgb(255, 170, 166, 176)) 0.22)) }
+$bmp.Save((Join-Path $tiles "college_walltop.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# And the face of that wall, where it is seen: coursed pale stone, darker toward its foot.
+$bmp = New-Masonry 32 @(158, 154, 166) @(98, 94, 112) 8 16 0.12 $true
+for ($y = 24; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) { $bmp.SetPixel($x, $y, (Shade ($bmp.GetPixel($x, $y)) (-0.05 * ($y - 23)))) }
+}
+$bmp.Save((Join-Path $tiles "college_wallface.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# The runner: college blue, a weave in it, no border -- it is laid in lengths.
+$bmp = New-Tile $blue
+for ($y = 0; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) {
+        $w = if ((($x + $y) % 4) -eq 0) { 0.10 } elseif ((($x - $y + 64) % 4) -eq 0) { -0.10 } else { 0.0 }
+        $bmp.SetPixel($x, $y, (Shade $blue $w))
+    }
+}
+$bmp.Save((Join-Path $tiles "college_carpet.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

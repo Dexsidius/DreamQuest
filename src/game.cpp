@@ -306,7 +306,8 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "craft")     {
                     craft_station = CraftStationFromName(arg);
                     craft_title = arg == "range" ? "Cooking fire" : arg == "anvil" ? "Anvil"
-                                : arg == "cauldron" ? "Cauldron" : arg == "loom" ? "Loom" : "Workbench";
+                                : arg == "cauldron" ? "Cauldron" : arg == "loom" ? "Loom"
+                                : (arg == "rack" || arg == "tanning_rack") ? "Tanning Rack" : "Workbench";
                     craft_cursor = 0;
                     OpenPanel(GameState::Crafting);
                 }
@@ -393,12 +394,10 @@ void Game::NewGame(const string& character, int slot) {
     banner_zone.clear();
     banner_seen_map.clear();
     quests->FromJson(json::object());
-    world->SetFlags({});
-    world->clock.Set(1, 9.0f);
+    // Everything the last game left in the world: see World::StartAfresh.
+    world->StartAfresh();
     world->SetCamp({});
     world->SetDream({});
-    world->SetPickedHerbs({});
-    world->shops.Clear();
     world->player = Player();
     world->player.Init(ctx, character);
 
@@ -410,7 +409,8 @@ void Game::NewGame(const string& character, int slot) {
     // start with the sword, which sent the warden and the wayfarer into their
     // first fight with the one weapon their affinity does nothing for.
     //
-    // The cuirass and the shield are not generosity. Accuracy here is
+    // The armour is not generosity -- the hero's cuirass and shield, the
+    // warden's rawhide, the wayfarer's homespun and shield. Accuracy here is
     // (level + 8) x (bonus + 64) on both sides, so at level 1 the bonus from
     // gear is most of the number: with nothing worn a boar hits a new
     // character 60% of the time and an orc 65%, while they hit back at about
@@ -1354,6 +1354,7 @@ void Game::RunAudit() {
             {"brewing",        GameState::Crafting,        [&] { craft_title = "Cauldron"; craft_station = CraftStation::Cauldron; craft_cursor = 0; }},
             {"cooking",        GameState::Crafting,        [&] { craft_title = "Cooking fire"; craft_station = CraftStation::Range; craft_cursor = 0; }},
             {"weaving",        GameState::Crafting,        [&] { craft_title = "Loom"; craft_station = CraftStation::Loom; craft_cursor = 0; }},
+            {"tanning",        GameState::Crafting,        [&] { craft_title = "Tanning Rack"; craft_station = CraftStation::Rack; craft_cursor = 0; }},
             {"enchanting",     GameState::Enchanting,      [&] { craft_title = "Enchanting table"; enchant_cursor = 0; }},
             {"storage",        GameState::Storage,         [&] { storage_id = "audit"; storage_title = "Storage chest"; storage_slots = 100; }},
             {"shop",           GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 0; shop_cursor = 0; }},
@@ -1407,7 +1408,7 @@ void Game::RunAudit() {
             // every piece in every tier, and the longest lines -- "Instead of
             // Orichalcum Greatsword" -- are all down the far end of it.
             else if (name == "crafting" || name == "smithing" || name == "brewing" ||
-                     name == "cooking" || name == "weaving") { target = &craft_cursor; steps = 130; }
+                     name == "cooking" || name == "weaving" || name == "tanning") { target = &craft_cursor; steps = 130; }
             else if (name == "enchanting") { target = &enchant_cursor; steps = 12; }
             else if (name == "shop" || name == "shop sell" || name == "shop gear") { target = &shop_cursor; steps = 30; }
             else if (name == "board")     { target = &board_cursor; steps = 30; }

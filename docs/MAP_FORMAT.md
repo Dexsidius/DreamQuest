@@ -81,6 +81,8 @@ Everything a game needs beyond pictures lives under `"dreamquest"`.
 | `spawns` | Named points. A portal names the spawn it arrives at. `default` is the fallback. |
 | `portals` | `interact: false` steps through on contact; `true` needs the Interact button. `locked_by` names an item the player must be carrying. |
 | `enemies` | `level` scales the stat block. `respawn` is seconds, `0` means it stays dead. `leash` is how far it chases from its post. `pool`, `group` and `spread` make a post that is not kept by the same thing every day. `"night": true` makes it one that is only kept after dark, on `chance` (0-1) of the nights, never respawning: put these **last** in the list, because a post is known by its place in it. |
+| `npcs` with `"casts"` | `{"bolt": "<projectile id>", "at": [x, y], "every": seconds}`: they stand at their mark, turn to the point and throw a practice bolt at it every so often. It touches nobody and leaves nothing behind. Used in the college's practice hall. |
+| `objects` of type `lamp` | A lamp standard: its `sprite`, and after dark a steady cool light. |
 | `objects` of type `totem_circle` | The ring a boss's totem is stood in. It needs no `sprite` -- lay the ring's art as a floor overlay at the same point -- because what stands in it is the character's and is drawn by the game. There is one, in `mossvale_cottage`, and the self-test says so. |
 | `npcs` | `dialogue` is a root node id in `data/dialogue.json`. |
 

@@ -139,6 +139,11 @@ a boon: one of fifteen small permanent bonuses, chosen by the dice from those
 your character can use. Once per boss, per character; everyone in the fight
 gets their own. The Skills panel (O) has a Boons tab that lists them.
 
+A new warden sets out in a full set of rawhide and a new wayfarer in a full
+set of homespun robes, instead of the hero's wooden cuirass: the same
+protection, and armour that helps the way they actually fight. (New
+characters only; one you already have keeps what it is wearing.)
+
 Keep killing a boss and the fifteenth time it leaves you its totem. There
 is a ring in the middle of the floor of your house at Mossvale: touch it, stand
 a totem in it, and it gives its blessing until dawn -- a big one, wherever you
@@ -183,7 +188,25 @@ Wynn's shed at Mossvale has a loom in it, which is a station of its own:
 all cloth is woven there now, and so is every piece of the mage's robe sets.
 The bench she used to work at was a carpenter's.
 
-Nessa's tannery, in the south-west of Havenbrook, has a bench and an order
+The college at Fernhollow is a place now, not a tower: go through the
+gatehouse on the north side of the hamlet into a great court, with the hall
+where the council sits to the north, a practice hall where the mages throw
+spells at straw men to the west, and a lecture room to the east. Magister
+Orrin is in the great hall. Nothing in the practice hall can hurt you.
+
+Wynn the clothier has moved out of the square at Mossvale into a shop of
+her own, up the lane to the north-west -- blue door, gowns in the window. Her
+loom is inside with her.
+
+Fixed: starting a new game after playing another save no longer puts the
+first character's things in the new character's storage chest.
+
+The tanning racks are what you work at now. Anything made of leather -- all
+the hide armour, the leather jerkin, hide boots, the bags and the bedroll -- is made at a tanning rack: three in Nessa's yard in Havenbrook, four
+at Hidewater, one at the trapper's camp in the Brackenwood. The carpenter's
+benches that stood in the tanners' yards are gone; a workbench is for wood.
+
+Nessa's tannery, in the south-west of Havenbrook, has frames to work at and an order
 book: three orders a day for things you make rather than things you find,
 which is how Crafting is trained. A monster's level is now what it fights
 like, so "Lv 13" means a Combat 13 character has a fight on their hands.

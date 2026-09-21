@@ -32,7 +32,8 @@ enum class WeaponKind { Melee, Bow, Staff };
 // made at each station trains its own skill -- Crafting at a workbench,
 // Smithing at an anvil, Brewing at a cauldron -- and a potion has to be learned
 // before it can be brewed.
-enum class CraftStation { Workbench, Anvil, Cauldron, Range, Loom };
+// Rack: a tanner's frame, where hide is cut and sewn -- see StationFor.
+enum class CraftStation { Workbench, Anvil, Cauldron, Range, Loom, Rack };
 CraftStation CraftStationFromName(const string& name);
 const char*  CraftStationName(CraftStation s);
 int          CraftSkill(CraftStation s);

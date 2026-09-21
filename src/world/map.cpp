@@ -253,6 +253,15 @@ bool Map::Load(const string& path) {
                 }
             d.ping_pong = n.value("ping_pong", false);
             d.speed     = n.value("speed", 30.0f);
+            if (n.contains("casts") && n["casts"].is_object()) {
+                const json& c = n["casts"];
+                d.cast_bolt  = c.value("bolt", string(""));
+                d.cast_every = c.value("every", 3.0f);
+                if (c.contains("at") && c["at"].is_array() && c["at"].size() >= 2) {
+                    d.cast_x = c["at"][0].get<float>();
+                    d.cast_y = c["at"][1].get<float>();
+                }
+            }
             d.phase     = n.value("phase", 0.0f);
             if (n.contains("hours") && n["hours"].size() >= 2) {
                 d.from_hour = n["hours"][0].get<float>();

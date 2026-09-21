@@ -68,6 +68,7 @@ static const char* kMaps[] = {
     "whisperwood_trail", "mossvale", "fernhollow",
     "westwold", "brackenwood",
     "mossvale_lodge_hall", "mossvale_herbalist", "fernhollow_cottage", "fernhollow_college",
+    "mossvale_weavers", "college_grounds", "college_training", "college_classroom",
     "dreamworld", "dreamworld_2", "dreamworld_3",
     "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
 };
@@ -445,6 +446,7 @@ int main(int argc, char** argv) {
                            "house_smith", "guild_hall", "house_elder", "house_inn",
                            "house_inn_upper", "mossvale_lodge_hall", "mossvale_herbalist",
                            "fernhollow_cottage", "fernhollow_college", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld",
+                           "mossvale_weavers", "college_grounds", "college_training", "college_classroom",
                            "dreamworld_2", "dreamworld_3",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path"}) {
         Map room;
@@ -1130,10 +1132,12 @@ int main(int argc, char** argv) {
         const auto cauldron = items.Recipes(CraftStation::Cauldron);
         const auto fire = items.Recipes(CraftStation::Range);
         const auto loom = items.Recipes(CraftStation::Loom);
+        const auto rack = items.Recipes(CraftStation::Rack);
         Check(!cauldron.empty(), "and the cauldron has brews");
         Check(!fire.empty(), "and the fire has things to cook");
         Check(!loom.empty(), "and the loom has cloth to weave");
-        Check(bench.size() + anvil.size() + cauldron.size() + fire.size() + loom.size() == all.size(),
+        Check(!rack.empty(), "and the tanning rack has hide to cut");
+        Check(bench.size() + anvil.size() + cauldron.size() + fire.size() + loom.size() + rack.size() == all.size(),
               "every recipe belongs to exactly one station");
         for (const ItemDef* r : all) {
             bool metal = false, brewed = false;
@@ -1160,6 +1164,14 @@ int main(int argc, char** argv) {
             Check(woven == at_loom, r->craft_result + (woven ? " is cloth, so it is woven at a loom"
                                                              : " is not cloth, so it is not woven"));
             if (woven) continue;
+            // Leather the same way, by what comes off it: a banded jerkin has
+            // iron in it and is still cut by a tanner, and a Barkwood Helm has a
+            // hide in it and is still wood.
+            const bool leather = out && std::find(out->tags.begin(), out->tags.end(), "leather") != out->tags.end();
+            const bool at_rack = std::find(rack.begin(), rack.end(), r) != rack.end();
+            Check(leather == at_rack, r->craft_result + (leather ? " is leather, so it is cut on a tanning rack"
+                                                                 : " is not leather, so it is not"));
+            if (leather) continue;
             const bool at_anvil = std::find(anvil.begin(), anvil.end(), r) != anvil.end();
             Check(metal == at_anvil, r->craft_result + (metal ? " needs metal, so it is smithed at the anvil"
                                                               : " needs no metal, so it is made at a workbench"));
@@ -1171,17 +1183,39 @@ int main(int argc, char** argv) {
         Check(made_at("iron_shield", CraftStation::Anvil) && !made_at("iron_shield", CraftStation::Workbench),
               "the iron shield is only smithed");
         Check(made_at("copper_ring", CraftStation::Anvil), "the copper ring is smithed");
-        for (const char* simple : {"wooden_shield", "leather_body", "oak_shortbow"})
-            Check(made_at(simple, CraftStation::Workbench) && !made_at(simple, CraftStation::Anvil),
-                  string(simple) + " is made at a workbench, not the anvil");
-        // The loom took the cloth and left the leather where it was: a bag is
-        // hide and cloth together and a bedroll is hide and thread, and both are
-        // still sewn at a bench.
+        for (const char* simple : {"wooden_shield", "wood_helm", "oak_shortbow"})
+            Check(made_at(simple, CraftStation::Workbench) && !made_at(simple, CraftStation::Anvil) &&
+                  !made_at(simple, CraftStation::Rack),
+                  string(simple) + " is made at a workbench, not the anvil or the rack");
+        // The loom took the cloth, and the tanning rack the leather: everything
+        // worn that is cut from hide, in every tier, and what is sewn from it.
         Check(made_at("bolt_cloth", CraftStation::Loom) && !made_at("bolt_cloth", CraftStation::Workbench),
               "a bolt of cloth is only woven");
-        for (const char* sewn : {"bag_satchel", "bag_pack", "bedroll"})
-            Check(made_at(sewn, CraftStation::Workbench) && !made_at(sewn, CraftStation::Loom),
-                  string(sewn) + " has hide in it, so it is sewn at a bench and not woven");
+        for (const char* cut : {"leather_body", "hide_boots", "wood_hide_head", "wood_hide_body", "wood_hide_legs",
+                                "bag_satchel", "bag_pack", "bedroll"})
+            Check(made_at(cut, CraftStation::Rack) && !made_at(cut, CraftStation::Workbench) &&
+                  !made_at(cut, CraftStation::Loom) && !made_at(cut, CraftStation::Anvil),
+                  string(cut) + " is leather, so it is made on a tanning rack and nowhere else");
+        {
+            // Every piece of the ranger's set, in every tier, whatever else is in it.
+            int pieces = 0, elsewhere = 0;
+            for (const TierDef& t : items.Tiers())
+                for (const char* piece : {"hide_head", "hide_body", "hide_legs"}) {
+                    const string id = items.TierPiece(t.id, piece);
+                    if (id.empty()) continue;
+                    ++pieces;
+                    elsewhere += !made_at(id, CraftStation::Rack);
+                }
+            Check(pieces >= 30 && elsewhere == 0, "all " + std::to_string(pieces) + " pieces of the ranger's hides are cut on the rack");
+            // And none of the hero's plate or the mage's cloth has strayed onto it.
+            bool strayed = false;
+            for (const ItemDef* r : rack) {
+                const ItemDef* made = items.Get(r->craft_result);
+                strayed |= made && (made->armour_cut == "robe" || (made->slot != SLOT_NONE && made->armour_cut.empty() &&
+                                                                   !made->tier.empty()));
+            }
+            Check(!strayed, "and no plate and no robe is");
+        }
         for (const char* dyed : {"dye_marigold", "dye_brookmint"})
             Check(made_at(dyed, CraftStation::Cauldron) && !made_at(dyed, CraftStation::Loom),
                   string(dyed) + " is boiled, not woven");
@@ -1191,23 +1225,25 @@ int main(int argc, char** argv) {
             Check(items.Get(soft) && !items.Get(soft)->metal, string(soft) + " is not metal");
 
         // What stands in the world agrees with what it is called and drawn as.
-        int anvils = 0, benches = 0, cauldrons = 0, looms = 0;
+        int anvils = 0, benches = 0, cauldrons = 0, looms = 0, racks = 0;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
             for (const MapObject& o : m.Objects()) {
                 if (o.type != "workbench") continue;
                 Check(o.station == "workbench" || o.station == "anvil" || o.station == "cauldron" ||
-                      o.station == "loom", o.id + " is a known crafting station");
+                      o.station == "loom" || o.station == "rack", o.id + " is a known crafting station");
                 const bool drawn_as_anvil = o.sprite.find("anvil") != string::npos;
                 const bool drawn_as_cauldron = o.sprite.find("cauldron") != string::npos;
                 const bool drawn_as_loom = o.sprite.find("loom") != string::npos;
+                const bool drawn_as_rack = o.sprite.find("tanning_rack") != string::npos;
                 Check(drawn_as_anvil == (o.station == "anvil") && drawn_as_cauldron == (o.station == "cauldron") &&
-                      drawn_as_loom == (o.station == "loom"),
+                      drawn_as_loom == (o.station == "loom") && drawn_as_rack == (o.station == "rack"),
                       o.id + " works as the station it looks like");
                 if (o.station == "anvil") ++anvils;
                 else if (o.station == "workbench") ++benches;
                 else if (o.station == "loom") ++looms;
+                else if (o.station == "rack") ++racks;
                 else ++cauldrons;
             }
         }
@@ -1215,6 +1251,42 @@ int main(int argc, char** argv) {
         Check(benches >= 1, "there is a workbench somewhere to make simple things");
         Check(cauldrons >= 3, "there are cauldrons to brew at (" + std::to_string(cauldrons) + ")");
         Check(looms >= 1, "and a loom to weave at (" + std::to_string(looms) + ")");
+        Check(racks >= 3, "and tanning racks to cut hide on (" + std::to_string(racks) + ")");
+
+        // A tanner's station is the tanner's own. Both yards had a carpenter's
+        // bench standing among the frames, and the frames were scenery.
+        for (const auto& yard : {std::pair<const char*, const char*>{"town_havenbrook", "npc_nessa"},
+                                 std::pair<const char*, const char*>{"westwold", "npc_orla"}}) {
+            Map m;
+            if (!m.Load(string("maps/") + yard.first + ".mx")) continue;
+            const NpcDef* tanner = nullptr;
+            for (const NpcDef& n : m.Npcs()) if (n.id == yard.second) tanner = &n;
+            Check(tanner != nullptr, string(yard.second) + " keeps a yard");
+            if (!tanner) continue;
+            int near_racks = 0, near_benches = 0, scenery = 0;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "workbench" || std::hypot(o.x - tanner->x, o.y - tanner->y) > 260.0f) continue;
+                near_racks += o.station == "rack";
+                near_benches += o.station == "workbench";
+            }
+            json mx;
+            { std::ifstream in(string("maps/") + yard.first + ".mx"); in >> mx; }
+            if (mx["tiles"].contains("tanning_rack")) scenery = static_cast<int>(mx["tiles"]["tanning_rack"]["locations"].size());
+            Check(near_racks >= 3, tanner->name + " has frames to work at (" + std::to_string(near_racks) + ")");
+            Check(near_benches == 0, tanner->name + " has no carpenter's bench among them");
+            Check(scenery == 0, tanner->name + "'s frames are all of them the station, and none of them scenery");
+        }
+        // And everything in Nessa's book can be made in her yard.
+        {
+            int orders = 0, elsewhere = 0;
+            for (const auto& kv : quests.Definitions()) {
+                const QuestDef& d = kv.second;
+                if (d.pool != "nessa_orders" || d.stages.empty()) continue;
+                ++orders;
+                if (!made_at(d.stages[0].target, CraftStation::Rack)) { ++elsewhere; Check(false, d.name + " asks for something her frames cannot make"); }
+            }
+            Check(orders >= 10 && elsewhere == 0, "all " + std::to_string(orders) + " orders in Nessa's book are made on her own frames");
+        }
 
         // Each station trains its own skill, and smithing a tier asks for the
         // same level as its tier: the level its gear needs to be worn.
@@ -1225,6 +1297,9 @@ int main(int argc, char** argv) {
         Check(CraftStationFromName("loom") == CraftStation::Loom &&
               string(CraftStationName(CraftStation::Loom)) == "loom",
               "a map that says \"loom\" gets one");
+        Check(CraftSkill(CraftStation::Rack) == SKILL_CRAFTING && CraftStationFromName("rack") == CraftStation::Rack &&
+              string(CraftStationName(CraftStation::Rack)) == "rack",
+              "the rack trains Crafting as well, and a map that says \"rack\" gets one");
         for (const TierDef& t : items.Tiers()) {
             if (t.wood) continue;
             for (const char* piece : {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs", "axe", "pickaxe"}) {
@@ -4265,15 +4340,16 @@ int main(int argc, char** argv) {
                         !fs::exists(hide->icon) || !fs::exists(robe->icon)) { drawn = false; wrong = hide->id; }
                 }
             }
-            // How they are made: a hide piece from its tier's hide at a bench, a
-            // robe from cloth and its tier's dye at a bench, and the dye in a pot.
+            // How they are made: a hide piece from its tier's hide on a tanner's
+            // rack, a robe from cloth and its tier's dye at a loom, and the dye in
+            // a pot.
             std::set<string> hides;
             for (const ItemDef* r : items.Recipes()) {
                 const ItemDef* out = items.Get(r->craft_result);
                 if (!out || out->armour_cut.empty() || (out->armour_cut != "hide" && out->armour_cut != "robe")) continue;
-                // The ranger's are sewn and the mage's are woven, which is the
-                // whole difference between the two trades.
-                const CraftStation where = out->armour_cut == "robe" ? CraftStation::Loom : CraftStation::Workbench;
+                // The ranger's are cut and sewn on a tanner's frame and the mage's
+                // are woven, which is the whole difference between the two trades.
+                const CraftStation where = out->armour_cut == "robe" ? CraftStation::Loom : CraftStation::Rack;
                 if (items.StationFor(*r) != where || !r->craft_inputs.count("thread")) { made = false; wrong = out->id; }
                 if (out->armour_cut == "robe") {
                     bool dyed = false;
@@ -4291,7 +4367,7 @@ int main(int argc, char** argv) {
                   (only_its_own ? string() : ": " + wrong));
             Check(ordered, "plate keeps out the most and robes the least, and robes carry a spell furthest" + (ordered ? string() : ": " + wrong));
             Check(drawn, "each piece has its icon and is drawn in its own cut" + (drawn ? string() : ": " + wrong));
-            Check(made, "hides are cut at a bench from the tier's hide, robes woven at a loom from cloth and the tier's dye, "
+            Check(made, "hides are cut on a tanning rack from the tier's hide, robes woven at a loom from cloth and the tier's dye, "
                   "each at the tier's level" + (made ? string() : ": " + wrong));
             Check(hides.size() == 11 && got, "eleven hides, one a tier and the last two tiers sharing the dragon's, and something drops every one (" +
                   std::to_string(hides.size()) + ")" + (got ? string() : ": nothing drops " + wrong));
@@ -5159,11 +5235,12 @@ int main(int argc, char** argv) {
             Check(shard && fs::exists(shard->icon) && catcher && catcher->slot == SLOT_AMULET && fs::exists(catcher->icon),
                   "dream shards and the dreamcatcher exist, with icons");
             bool bedroll_recipe = false, catcher_recipe = false;
-            for (const ItemDef* r : items.Recipes(CraftStation::Workbench)) {
-                if (r->craft_result == "bedroll") bedroll_recipe = true;
+            for (const ItemDef* r : items.Recipes(CraftStation::Workbench))
                 if (r->craft_result == "dreamcatcher") catcher_recipe = true;
-            }
-            Check(bedroll_recipe, "a bedroll is made at a workbench");
+            // Two hides and the thread to sew them: a tanner's work, on a tanner's frame.
+            for (const ItemDef* r : items.Recipes(CraftStation::Rack))
+                if (r->craft_result == "bedroll") bedroll_recipe = true;
+            Check(bedroll_recipe, "a bedroll is made on a tanning rack");
             Check(catcher_recipe, "a dreamcatcher is made at a workbench from dream shards");
             for (const char* table : {"nightmare_shade", "dread_boar", "nightmare_brute", "chest_dream"})
                 Check(loot.Has(table), string("loot table ") + table + " exists");
@@ -5539,7 +5616,9 @@ int main(int argc, char** argv) {
             {"town_havenbrook", "havenbrook"}, {"house_smith", "havenbrook"}, {"house_inn", "havenbrook"},
             {"house_inn_upper", "havenbrook"}, {"house_elder", "havenbrook"}, {"guild_hall", "havenbrook"},
             {"mossvale", "mossvale"}, {"mossvale_lodge_hall", "mossvale"}, {"mossvale_herbalist", "mossvale"},
+            {"mossvale_weavers", "mossvale"},
             {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"}, {"fernhollow_college", "fernhollow"},
+            {"college_grounds", "fernhollow"}, {"college_training", "fernhollow"}, {"college_classroom", "fernhollow"},
             {"whisperwood_trail", "whisperwood"}, {"dreamworld", "reverie"},
             {"westwold", "westwold"}, {"brackenwood", "brackenwood"},
         };
@@ -6219,8 +6298,14 @@ int main(int argc, char** argv) {
                   "a room's page is the place the room is in, with the dot on its door");
             Check(pages.PageFor("house_inn_upper", &door) == "town_havenbrook" && door == "house_inn",
                   "and upstairs at the inn is still the inn's door");
-            Check(pages.PageFor("mossvale_herbalist", &door) == "mossvale" && pages.PageFor("fernhollow_college") == "fernhollow",
+            Check(pages.PageFor("mossvale_herbalist", &door) == "mossvale" && pages.PageFor("mossvale_weavers") == "mossvale" &&
+                  pages.PageFor("fernhollow_cottage") == "fernhollow",
                   "in Mossvale and Fernhollow as in Havenbrook");
+            // The college is a place of its own: its court has a page, and its rooms are rooms of the court.
+            Check(pages.PageFor("college_grounds") == "college_grounds" && pages.PageFor("fernhollow_college", &door) == "college_grounds" &&
+                  door == "fernhollow_college" && pages.PageFor("college_training") == "college_grounds" &&
+                  pages.PageFor("college_classroom") == "college_grounds",
+                  "and the college's court is a page, with its three chambers on it");
             Check(!pages.HasOverview("overworld") && pages.HasOverview("fernhollow") && pages.HasOverview("house_smith"),
                   "the Hollowmarch is the other side of every page but its own");
             Check(pages.WayFrom("fernhollow") == "whisperwood_trail" && pages.WayFrom("mossvale") == "whisperwood_trail" &&
@@ -6253,8 +6338,12 @@ int main(int argc, char** argv) {
                 bool fishmonger = false;
                 for (const WorldMark& mk : marks)
                     fishmonger |= mk.kind == "trader" && !mk.shops.empty() && mk.shops[0] == "fishmonger";
-                Check(count(marks, "trader") == 2 && fishmonger && count(marks, "door") == 2 && count(marks, "path") == 1,
-                      "Fernhollow's page: two traders by their trades, two doors, and the way back to the trail");
+                // The cottage is a door. The college was one too, when it was a room in
+                // the hamlet; it is a place now, and its gatehouse is a way to it.
+                Check(count(marks, "trader") == 2 && fishmonger && count(marks, "door") + count(marks, "path") == 3 &&
+                      count(marks, "door") >= 1 && count(marks, "path") >= 1,
+                      "Fernhollow's page: two traders by their trades, the cottage's door, the college's gate, and the way back to the trail (" +
+                          std::to_string(count(marks, "door")) + " doors, " + std::to_string(count(marks, "path")) + " ways)");
             }
             {
                 Map m;
@@ -7400,9 +7489,9 @@ int main(int argc, char** argv) {
             if (r->craft_result == "hide_boots") recipe = r;
             if (r->craft_result == "leather_body") jerkin = true;
         }
-        Check(recipe && items.StationFor(*recipe) == CraftStation::Workbench && recipe->craft_inputs.count("hide") &&
+        Check(recipe && items.StationFor(*recipe) == CraftStation::Rack && recipe->craft_inputs.count("hide") &&
               recipe->craft_inputs.count("thread") && recipe->craft_level <= 8,
-              "made at a workbench from hide and thread, early in Crafting");
+              "made on a tanning rack from hide and thread, early in Crafting");
         Check(jerkin, "and hide still makes a jerkin as well");
         Check(recipe && boots && boots->value >= items.InputValue(*recipe) * ItemDatabase::CRAFT_VALUE_ADD - 1,
               "worth more than the hide that went into them");
@@ -8326,9 +8415,40 @@ int main(int argc, char** argv) {
             const int hero_def = kit_of("player_hero", WeaponKind::Melee, "wood_sword");
             const int warden_def = kit_of("player_warden", WeaponKind::Bow, "oak_shortbow");
             const int wayfarer_def = kit_of("player_wayfarer", WeaponKind::Staff, "wood_staff");
-            Check(hero_def == 26 && wayfarer_def == 26, "the hero and the wayfarer wear the cuirass and the shield, 26 points");
-            Check(warden_def >= 18 && warden_def < hero_def, "the warden, whose bow takes both hands, wears boots instead (" +
+            Check(hero_def == 26, "the hero wears the cuirass and the shield, 26 points");
+
+            // The other two set out in the wooden tier's armour of their own
+            // kind, the whole set of it, and not in the hero's plate.
+            const auto dressed_in = [&](const char* who, const char* cut) {
+                std::set<int> slots;
+                bool own = true, plate = false;
+                for (const string& id : Player::StartingKit(who)) {
+                    const ItemDef* d = items.Get(id);
+                    if (!d) { own = false; continue; }
+                    plate |= id == "wood_body" || id == "wood_helm" || id == "wood_legs";
+                    if (d->slot != SLOT_HEAD && d->slot != SLOT_BODY && d->slot != SLOT_LEGS) continue;
+                    slots.insert(static_cast<int>(d->slot));
+                    own &= d->armour_cut == cut && d->tier == "wood";
+                }
+                return own && !plate && slots.size() == 3;
+            };
+            Check(dressed_in("player_warden", "hide"), "the warden sets out in rawhide: coif, jerkin and chaps, and no cuirass");
+            Check(dressed_in("player_wayfarer", "robe"), "the wayfarer in homespun: hat, robe and skirt, and no cuirass");
+            {
+                int ranged = 0, magic = 0, hero_style = 0;
+                for (const string& id : Player::StartingKit("player_warden"))   if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_WEAPON) ranged += d->ranged_bonus;
+                for (const string& id : Player::StartingKit("player_wayfarer")) if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_WEAPON) magic += d->magic_bonus;
+                for (const string& id : Player::StartingKit("player_hero"))     if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_WEAPON) hero_style += d->ranged_bonus + d->magic_bonus;
+                Check(ranged > 0 && magic > 0 && hero_style == 0,
+                      "and what they wear helps the way they fight, which the cuirass never did (+" +
+                          std::to_string(ranged) + " Ranged, +" + std::to_string(magic) + " Magic)");
+            }
+            // Hide and cloth turn less than wood; neither of them is sent out
+            // much worse protected than the hero for it.
+            Check(warden_def >= 18 && warden_def <= hero_def + 4, "the warden, whose bow takes both hands, wears boots and no shield (" +
                   std::to_string(warden_def) + ")");
+            Check(wayfarer_def >= 18 && wayfarer_def <= hero_def + 4, "the wayfarer keeps the shield, a staff being held in one hand (" +
+                  std::to_string(wayfarer_def) + ")");
             {
                 Inventory bag(&items);
                 Equipment worn(&items);
@@ -8451,14 +8571,18 @@ int main(int argc, char** argv) {
             for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it)
                 circle |= it.key().find("spell_circle") != string::npos;
             Check(magister, "Magister Orrin is in it, drawn in his own robes");
-            Check(circle && fs::exists("assets/props/spell_circle.png") && fs::exists("assets/props/mage_college.png") &&
+            Check(circle && fs::exists("assets/props/spell_circle.png") && fs::exists("assets/props/college_hall.png") &&
                   fs::exists("assets/characters/magister/idle.png"),
-                  "the circle is cut into its floor, and the tower, the circle and the magister are drawn");
-            Map fern;
-            bool door = false;
+                  "the circle is cut into its floor, and the hall, the circle and the magister are drawn");
+            // It was one room under a tower in the hamlet. It is the north side of the
+            // college's court now, and the hamlet has the gatehouse.
+            Map fern, court;
+            bool gate = false, door = false;
             if (fern.Load("maps/fernhollow.mx"))
-                for (const Portal& p : fern.Portals()) door |= p.target_map == "fernhollow_college";
-            Check(door, "and Fernhollow has a door into it");
+                for (const Portal& p : fern.Portals()) gate |= p.target_map == "college_grounds";
+            if (court.Load("maps/college_grounds.mx"))
+                for (const Portal& p : court.Portals()) door |= p.target_map == "fernhollow_college";
+            Check(gate && door, "and Fernhollow has a gate into the college, whose court has a door into the hall");
         }
 
         // A wayfarer with a staff: 5 does nothing until the magic is known,
@@ -8990,8 +9114,8 @@ int main(int argc, char** argv) {
             Check(!d->icon.empty() && fs::exists(d->icon), d->name + " has a picture");
             Check(d->slot == SLOT_NONE && !d->consumable && !d->stackable,
                   d->name + " is not worn in a slot, eaten, or stacked");
-            Check(d->craft_result == id && items.StationFor(*d) == CraftStation::Workbench,
-                  d->name + " is made at a workbench");
+            Check(d->craft_result == id && items.StationFor(*d) == CraftStation::Rack,
+                  d->name + " is hide, and is made on a tanning rack");
             int pieces = 0, cost = 0;
             bool known = true;
             for (const auto& in : d->craft_inputs) {
@@ -9758,7 +9882,7 @@ int main(int argc, char** argv) {
         Check(road("overworld", "town_havenbrook") == (vector<string>{"overworld", "town_havenbrook"}), "Havenbrook is one door from the Hollowmarch");
         Check(road("town_havenbrook", "mossvale") == (vector<string>{"town_havenbrook", "overworld", "whisperwood_trail", "mossvale"}),
               "Mossvale is out of the gate, up the road and down the trail");
-        Check(road("house_inn_upper", "fernhollow_college").size() == 7, "from upstairs at the inn to the college is six doors");
+        Check(road("house_inn_upper", "fernhollow_college").size() == 8, "from upstairs at the inn to the college's hall is seven doors");
         Check(road("town_havenbrook", "brackenwood") == (vector<string>{"town_havenbrook", "westwold", "brackenwood"}), "the Brackenwood is out of the west gate");
         Check(road("overworld", "dreamworld").empty() && road("dreamworld_3", "overworld").empty(), "no road leads into a dream, and none out");
         Check(road("dreamworld", "dreamworld_3").size() == 3, "but the ladders are roads");
@@ -10089,13 +10213,16 @@ int main(int argc, char** argv) {
         for (const NpcDef& n : town.Npcs()) if (n.id == "npc_nessa") nessa = &n;
         Check(nessa != nullptr, "Nessa the Tanner keeps a yard in Havenbrook");
         Check(nessa && nessa->shop == "havenbrook_tannery", "and a shop");
-        bool bench = false, racks = false;
+        int frames = 0;
+        bool bench = false, sign = false;
         for (const MapObject& o : town.Objects()) {
-            bench |= o.id == "bench_tannery" && o.station == "workbench";
-            racks |= o.id == "sign_tannery";
+            frames += o.type == "workbench" && o.station == "rack" && o.id.rfind("rack_tannery_", 0) == 0;
+            bench |= o.id == "bench_tannery";
+            sign |= o.id == "sign_tannery";
         }
-        Check(bench, "with a bench in it to work at, which is the point of a tannery you can reach");
-        Check(racks, "and a sign saying what it is");
+        Check(frames == 3, "with three frames in it to work at, which is the point of a tannery you can reach");
+        Check(!bench, "and no carpenter's bench: a tanner's station is the tanner's own");
+        Check(sign, "and a sign saying what it is");
 
         ShopDatabase tannery_shops;
         Check(tannery_shops.Load("data/shops.json"), "the shops load");
@@ -10131,10 +10258,10 @@ int main(int argc, char** argv) {
                 if (r->craft_result == what && (!recipe || r->craft_level < recipe->craft_level)) recipe = r;
             Check(recipe != nullptr, d->name + " asks for " + what + ", which somebody can make");
             if (!recipe) continue;
-            // All of it is bench work: hers is the leather trade, and the
+            // All of it is a tanner's work: hers is the leather trade, and the
             // cloth went to Wynn's loom with the rest of the weaving.
-            Check(items.StationFor(*recipe) == CraftStation::Workbench,
-                  what + " is made at a workbench, like the one in her yard");
+            Check(items.StationFor(*recipe) == CraftStation::Rack,
+                  what + " is made on a tanning rack, like the ones in her yard");
             const auto needs = d->requirements.find(SKILL_CRAFTING);
             const int asked = needs == d->requirements.end() ? 1 : needs->second;
             Check(asked == recipe->craft_level,
@@ -11409,12 +11536,13 @@ int main(int argc, char** argv) {
 
     Section("a clothier, a farm, and frogs in the mire");
     {
-        // --- Wynn's shed, at Mossvale ----------------------------------------------------
+        // --- Wynn's, at Mossvale -----------------------------------------------------------
+        // A house of her own now, up the lane from the square, and not a stall on it.
         Map moss;
-        Check(moss.Load("maps/mossvale.mx"), "Mossvale loads");
+        Check(moss.Load("maps/mossvale_weavers.mx"), "Wynn's house in Mossvale loads");
         const NpcDef* wynn = nullptr;
         for (const NpcDef& n : moss.Npcs()) if (n.id == "npc_wynn") wynn = &n;
-        Check(wynn && wynn->shop == "mossvale_clothier", "Wynn the Clothier keeps a shed in Mossvale");
+        Check(wynn && wynn->shop == "mossvale_clothier", "Wynn the Clothier keeps a shop in Mossvale");
         bool has_loom = false;
         for (const MapObject& o : moss.Objects())
             has_loom |= o.id == "loom_weaver" && o.station == "loom" &&
@@ -12741,6 +12869,510 @@ int main(int argc, char** argv) {
                       "with the totem in the ring, and awake for the rest of the same day");
                 SaveSystem::SetDirectory(was);
                 fs::remove_all(dir, ec);
+            }
+        }
+    }
+
+    Section("a new game starts with a new world");
+    {
+        // Someone played one save, then started another, and found the first
+        // character's things in the second character's storage chest -- and the
+        // new save wrote them down as its own. A new game cleared what the
+        // world remembers a line at a time, and the two newest things a save
+        // had learned to keep were not on the list.
+        GameContext ctx;
+        std::mt19937 rng(303);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees;
+
+        World w;
+        w.player.Init(ctx, "player_hero");
+        w.player.inventory.SetDatabase(&items);
+        Check(w.LoadMap("mossvale_cottage", "entrance", ctx), "the first character's house");
+        w.Storage("storage_mossvale", 100, &items).Add("iron_bar", 40);
+        w.SetFlag("chest_mine_01");
+        w.clock.Set(9, 14.0f);
+        w.NoteSlain(3);
+        w.SetCamp({true, "overworld", 900.0f, 900.0f});
+        Check(w.Storage("storage_mossvale", 100, &items).Count("iron_bar") == 40 && !w.Slain().empty() && w.Flagged("chest_mine_01"),
+              "with forty bars in the chest, a chest looted, a boss dead and nine days gone");
+
+        w.StartAfresh();
+        Check(w.Storages().empty() && w.Storage("storage_mossvale", 100, &items).Count("iron_bar") == 0,
+              "a new game finds the storage chest empty");
+        Check(w.Slain().empty(), "no boss dead before anybody has met one");
+        Check(w.Flags().empty() && !w.PlayerCamp().pitched && !w.Dream().active, "nothing opened, no camp pitched, nobody dreaming");
+        Check(w.clock.Day() == 1 && std::fabs(w.clock.Hours() - 9.0f) < 0.01f, "and nine in the morning of the first day");
+
+        // And the two saves are two saves: each chest is in its own file, and
+        // loading one after the other shows each its own.
+        const string was = SaveSystem::Directory();
+        const fs::path dir = fs::temp_directory_path() / "dreamquest_selftest_two_saves";
+        std::error_code ec;
+        fs::remove_all(dir, ec);
+        fs::create_directories(dir, ec);
+        SaveSystem::SetDirectory(dir.string());
+        {
+            World a;
+            a.player.Init(ctx, "player_hero");
+            a.player.inventory.SetDatabase(&items);
+            a.LoadMap("mossvale_cottage", "entrance", ctx);
+            a.Storage("storage_mossvale", 100, &items).Add("iron_bar", 40);
+            Check(SaveSystem::Save(1, a, log, 10.0f), "the first save, with bars in the chest");
+            // The same session goes on to a new game, in the same world object, as the game does.
+            a.StartAfresh();
+            a.player = Player();
+            a.player.Init(ctx, "player_wayfarer");
+            a.player.inventory.SetDatabase(&items);
+            a.LoadMap("mossvale_cottage", "entrance", ctx);
+            a.Storage("storage_mossvale", 100, &items).Add("logs", 5);
+            Check(SaveSystem::Save(2, a, log, 5.0f), "and a second, started after it, with logs in its own");
+        }
+        for (int slot : {1, 2, 1}) {
+            World back;
+            back.player.Init(ctx, "player_hero");
+            QuestLog log2;
+            log2.LoadDefinitions("data/quests.json");
+            float played = 0.0f;
+            Check(SaveSystem::Load(slot, back, log2, ctx, played), "slot " + std::to_string(slot) + " loads");
+            Inventory& chest = back.Storage("storage_mossvale", 100, &items);
+            Check(slot == 1 ? (chest.Count("iron_bar") == 40 && chest.Count("logs") == 0)
+                            : (chest.Count("logs") == 5 && chest.Count("iron_bar") == 0),
+                  "slot " + std::to_string(slot) + " has its own chest and none of the other's");
+        }
+        // One world loading one slot and then the other: the way the load menu does it.
+        {
+            World one;
+            one.player.Init(ctx, "player_hero");
+            QuestLog log2;
+            log2.LoadDefinitions("data/quests.json");
+            float played = 0.0f;
+            SaveSystem::Load(1, one, log2, ctx, played);
+            SaveSystem::Load(2, one, log2, ctx, played);
+            Check(one.Storage("storage_mossvale", 100, &items).Count("iron_bar") == 0 &&
+                  one.Storage("storage_mossvale", 100, &items).Count("logs") == 5,
+                  "and loading the second over the first leaves nothing of the first behind");
+        }
+        SaveSystem::SetDirectory(was);
+        fs::remove_all(dir, ec);
+    }
+
+    Section("the College at Fernhollow, and Wynn's at Mossvale");
+    {
+        GameContext ctx;
+        std::mt19937 rng(606);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the way in, and the court -----------------------------------------------------------
+        Map fern, court;
+        Check(fern.Load("maps/fernhollow.mx") && court.Load("maps/college_grounds.mx"), "the hamlet and the court load");
+        const Portal* gate = nullptr;
+        bool tower = false;
+        for (const Portal& p : fern.Portals()) if (p.target_map == "college_grounds") gate = &p;
+        for (const TileInstance& t : fern.Tiles()) tower |= fern.TexturePath(t).find("mage_college") != string::npos;
+        Check(gate && gate->requires_interact, "the college is through a gatehouse in Fernhollow, walked up to like a door");
+        Check(gate && gate->rect.y < fern.Height() * 0.3f, "on the hamlet's north side");
+        Check(!tower, "and the tower in the south-east corner is gone");
+        bool porter = false;
+        for (const NpcDef& n : fern.Npcs()) porter |= n.id == "npc_college_porter" && gate &&
+                                                       std::hypot(n.x - gate->rect.x, n.y - gate->rect.y) < 160.0f;
+        Check(porter, "with a porter at it");
+
+        Check(!court.IsInterior(), "the court is out of doors");
+        Check(court.Width() >= 1800.0f && court.Height() >= 1400.0f &&
+              court.Width() * court.Height() > fern.Width() * fern.Height(),
+              "and huge: bigger than the hamlet it stands beside");
+        // Its own tiles, and nothing of the Hollowmarch's brown.
+        {
+            std::map<string, int> ground;
+            for (const TileInstance& t : court.Tiles()) {
+                const string& tex = court.TexturePath(t);
+                if (tex.find("assets/tiles/") != string::npos) ground[tex.substr(tex.find("assets/tiles/") + 13)] += 1;
+            }
+            int own = 0, all = 0;
+            bool dirt = false;
+            for (const auto& kv : ground) {
+                all += kv.second;
+                if (kv.first.rfind("college_", 0) == 0) own += kv.second;
+                dirt |= kv.first.rfind("dirt", 0) == 0 || kv.first.rfind("plank", 0) == 0;
+            }
+            Check(all > 0 && own * 10 >= all * 6 && !dirt, "paved in the college's own stone (" + std::to_string(own) + " of " +
+                                                              std::to_string(all) + " tiles), with no dirt and no planks");
+            for (const char* t : {"college_paving", "college_inlay", "college_floor", "college_wall", "college_walltop",
+                                  "college_wallface", "college_carpet"})
+                Check(fs::exists(string("assets/tiles/") + t + ".png"), string(t) + " is drawn");
+        }
+        // A chamber off the west wall, the north and the east -- and each somewhere different.
+        const Portal* west = nullptr;
+        const Portal* north = nullptr;
+        const Portal* east = nullptr;
+        const Portal* south = nullptr;
+        for (const Portal& p : court.Portals()) {
+            const float cx = p.rect.x + p.rect.w / 2.0f, cy = p.rect.y + p.rect.h / 2.0f;
+            if (cx < 64.0f) west = &p;
+            else if (cx > court.Width() - 64.0f) east = &p;
+            else if (cy > court.Height() - 64.0f) south = &p;
+            else if (cy < court.Height() * 0.4f) north = &p;
+        }
+        Check(west && north && east && south, "there is a door in the west wall, the north and the east, and the gate to the south");
+        if (west && north && east && south) {
+            Check(west->target_map == "college_training" && north->target_map == "fernhollow_college" &&
+                  east->target_map == "college_classroom" && south->target_map == "fernhollow",
+                  "the practice hall west, the great hall north, the lecture room east, the hamlet south");
+            std::set<string> rooms = {west->target_map, north->target_map, east->target_map};
+            Check(rooms.size() == 3, "three rooms, not one room three times");
+            Check(std::fabs((west->rect.y + west->rect.h / 2.0f) - (east->rect.y + east->rect.h / 2.0f)) < 2.0f,
+                  "the west door and the east face each other across the court");
+        }
+        int statues = 0, fountains = 0, halls = 0, wings = 0, lamps = 0;
+        for (const TileInstance& t : court.Tiles()) {
+            const string& tex = court.TexturePath(t);
+            statues += tex.find("college_statue") != string::npos;
+            fountains += tex.find("college_fountain") != string::npos;
+            halls += tex.find("college_hall") != string::npos;
+            wings += tex.find("college_wing") != string::npos;
+        }
+        for (const MapObject& o : court.Objects()) lamps += o.type == "lamp";
+        Check(halls == 1 && wings == 2 && fountains == 1 && statues == 4,
+              "the hall with a wing either side of it, a fountain, and four founders");
+        Check(lamps >= 8, "and lamps, which are lit after dark (" + std::to_string(lamps) + ")");
+
+        // --- the three rooms -----------------------------------------------------------------------
+        struct Room { const char* id; const char* must[3]; };
+        const Room rooms[] = {
+            {"college_training",   {"training_dummy", "crystal_pylon", "spell_circle"}},
+            {"college_classroom",  {"college_blackboard", "college_desk", "college_orrery"}},
+            {"fernhollow_college", {"council_table", "high_chair", "spell_circle"}},
+        };
+        for (const Room& r : rooms) {
+            Map m;
+            Check(m.Load(string("maps/") + r.id + ".mx") && m.IsInterior(), string(r.id) + " loads, indoors");
+            for (const char* art : r.must) {
+                bool has = false;
+                for (const TileInstance& t : m.Tiles()) has |= m.TexturePath(t).find(art) != string::npos;
+                Check(has && fs::exists(string("assets/props/") + art + ".png"), string(r.id) + " has its " + art);
+            }
+            bool floor = false, dummies_elsewhere = false;
+            for (const TileInstance& t : m.Tiles()) {
+                floor |= m.TexturePath(t).find("college_floor") != string::npos;
+                if (string(r.id) != "college_training") dummies_elsewhere |= m.TexturePath(t).find("training_dummy") != string::npos;
+            }
+            Check(floor && !dummies_elsewhere, string(r.id) + " is floored in the college's chequer, and is its own room");
+            bool back = false;
+            for (const Portal& p : m.Portals()) back |= p.target_map == "college_grounds";
+            Check(back, string(r.id) + " lets back out onto the court");
+        }
+        {
+            Map cls, hall;
+            cls.Load("maps/college_classroom.mx");
+            hall.Load("maps/fernhollow_college.mx");
+            int pupils = 0, desks = 0, lector = 0, council = 0;
+            for (const NpcDef& n : cls.Npcs()) { pupils += n.id.rfind("npc_college_pupil_", 0) == 0; lector += n.id == "npc_college_lector"; }
+            for (const TileInstance& t : cls.Tiles()) desks += cls.TexturePath(t).find("college_desk") != string::npos;
+            for (const NpcDef& n : hall.Npcs()) council += n.id == "npc_magister" || n.id.rfind("npc_councillor_", 0) == 0;
+            Check(lector == 1 && pupils >= 4 && desks >= 8 && desks > pupils,
+                  "a lector, a class of " + std::to_string(pupils) + " and " + std::to_string(desks) + " desks: somewhere to sit");
+            Check(council == 3, "and a council of three in the hall, the Magister among them");
+        }
+
+        // --- the practice hall, watched --------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            Check(w.LoadMap("college_training", "entrance", ctx), "into the practice hall");
+            int casters = 0;
+            for (const auto& n : w.npcs) casters += n->Practises();
+            Check(casters == 4, "four of them at the head of four lanes");
+            const int hp0 = w.player.hp;
+            const int magic0 = w.player.skills.Xp(SKILL_MAGIC);
+            size_t most = 0, shown = 0, real = 0;
+            bool cast_seen = false;
+            // Stood in the middle of a lane, in the line of fire, for twenty seconds.
+            const float lane_y = 6.0f * 32.0f + 20.0f;
+            for (int f = 0; f < 60 * 20; ++f) {
+                w.player.x = 9.0f * 32.0f;
+                w.player.y = lane_y;
+                w.Update(kFrame, ctx);
+                most = std::max(most, w.projectiles.size());
+                for (const Projectile& p : w.projectiles) (p.show ? shown : real) += 1;
+                for (const auto& n : w.npcs) cast_seen |= n->Casting();
+            }
+            Check(cast_seen && most >= 1 && shown > 0, "they cast, and the bolts fly down the lanes");
+            Check(real == 0, "every bolt in the room is a practice bolt");
+            Check(w.player.hp == hp0, "twenty seconds stood in a lane costs nobody anything");
+            Check(w.ground_effects.empty(), "and a practice fire bolt leaves nothing burning on the floor");
+            Check(w.player.skills.Xp(SKILL_MAGIC) == magic0, "watching teaches no Magic, which would have been a trick worth knowing");
+            // The player's own spells find nothing to land on either: straw is scenery.
+            Check(w.enemies.empty(), "and the straw men are straw: nothing in here can be fought for experience");
+        }
+
+        // --- Wynn's ---------------------------------------------------------------------------------
+        {
+            Map moss, shop;
+            Check(moss.Load("maps/mossvale.mx") && shop.Load("maps/mossvale_weavers.mx") && shop.IsInterior(),
+                  "Mossvale, and Wynn's house in it, load");
+            const Portal* door = nullptr;
+            for (const Portal& p : moss.Portals()) if (p.target_map == "mossvale_weavers") door = &p;
+            Check(door != nullptr, "her door is on the village");
+            bool outside = false, loom_outside = false;
+            for (const NpcDef& n : moss.Npcs()) outside |= n.id == "npc_wynn";
+            for (const MapObject& o : moss.Objects()) loom_outside |= o.station == "loom";
+            Check(!outside && !loom_outside, "she and her loom are not out on the square any more");
+            // Away from the anvil: across the village from it.
+            const MapObject* anvil = nullptr;
+            for (const MapObject& o : moss.Objects()) if (o.station == "anvil") anvil = &o;
+            Check(anvil != nullptr, "the village anvil is where it was");
+            if (anvil && door) {
+                const float far = std::hypot(anvil->x - door->rect.x, anvil->y - door->rect.y);
+                Check(far > 800.0f, "and her door is a long way from it (" + std::to_string(static_cast<int>(far)) + " px; the stall was about 400)");
+            }
+            bool wynn = false, loom = false;
+            for (const NpcDef& n : shop.Npcs()) wynn |= n.id == "npc_wynn" && n.shop == "mossvale_clothier";
+            for (const MapObject& o : shop.Objects()) loom |= o.id == "loom_weaver" && o.station == "loom";
+            Check(wynn && loom, "she is inside, selling, with her loom");
+            std::map<string, int> has;
+            for (const TileInstance& t : shop.Tiles()) {
+                const string& tex = shop.TexturePath(t);
+                for (const char* art : {"mannequin_", "tapestry_", "fabric_shelf", "fabric_rolls", "cutting_table", "spinning_wheel", "shop_counter"})
+                    if (tex.find(art) != string::npos) has[art] += 1;
+            }
+            Check(has["mannequin_"] >= 3 && has["tapestry_"] >= 3, "with forms dressed in her work (" + std::to_string(has["mannequin_"]) +
+                                                                       ") and hangings on the walls (" + std::to_string(has["tapestry_"]) + ")");
+            Check(has["fabric_shelf"] >= 2 && has["fabric_rolls"] >= 1 && has["cutting_table"] == 1 && has["spinning_wheel"] == 1 &&
+                  has["shop_counter"] == 1, "bolts on the shelves, a cutting table, her wheel, and a counter to sell over");
+            for (const char* art : {"clothier_shop", "mannequin_robe", "mannequin_dress", "mannequin_cloak", "tapestry_blue",
+                                    "tapestry_red", "tapestry_green", "fabric_shelf", "fabric_rolls", "cutting_table"})
+                Check(fs::exists(string("assets/props/") + art + ".png"), string(art) + " is drawn");
+        }
+    }
+
+    Section("what a spell looks like in the air");
+    {
+        GameContext ctx;
+        std::mt19937 rng(717);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the pictures ---------------------------------------------------------------------
+        // Each element is thrown as the thing it is, drawn for the purpose, and
+        // not as whatever icon was nearest.
+        struct Look { const char* bolt; const char* art; Element element; bool upright; };
+        for (const Look& l : {Look{"bolt_fire", "fireball", Element::Fire, false},
+                              Look{"bolt_fire_greater", "fireball_greater", Element::Fire, false},
+                              Look{"bolt_water", "water_orb", Element::Water, true},
+                              Look{"bolt_water_greater", "water_orb_greater", Element::Water, true},
+                              Look{"bolt_earth", "rock_shard", Element::Earth, true},
+                              Look{"bolt_earth_greater", "rock_shard_greater", Element::Earth, true},
+                              Look{"bolt_air", "gust", Element::Air, false},
+                              Look{"bolt_air_greater", "gust_greater", Element::Air, false}}) {
+            const ProjectileDef* d = projectiles.Get(l.bolt);
+            Check(d != nullptr, string(l.bolt) + " is a projectile");
+            if (!d) continue;
+            Check(d->sprite == string("assets/effects/") + l.art + ".png", string(l.bolt) + " is drawn as a " + l.art);
+            Check(d->frames >= 4 && d->fps > 0.0f, string(l.bolt) + " moves as it flies: a strip, not a still");
+            Check(!d->spin, string(l.bolt) + " is not a picture spun round");
+            Check(d->upright == l.upright, string(l.bolt) + (l.upright ? " keeps its light top-left whichever way it goes"
+                                                                       : " is turned to the way it is going"));
+            Check(d->shed == l.element, string(l.bolt) + " sheds what it is made of");
+            Check(d->tint.r == 255 && d->tint.g == 255 && d->tint.b == 255,
+                  string(l.bolt) + " is its own colours: an element's tint over it would put out the white of a fire");
+            Check(d->scale == 1.0f, string(l.bolt) + " is drawn pixel for pixel");
+        }
+        // Water is upright, so the way it is going has to be said by something
+        // else: what streams off the back of it.
+        for (const char* id : {"bolt_water", "bolt_water_greater"})
+            if (const ProjectileDef* d = projectiles.Get(id))
+                Check(!d->tail.empty() && fs::exists(d->tail) && d->tail_frames >= 4, string(id) + " has a wake behind it");
+        if (const ProjectileDef* d = projectiles.Get("bolt_fire")) Check(d->glow > 0.0f, "a fireball lights the ground under it");
+        if (const ProjectileDef* d = projectiles.Get("arrow"))
+            Check(d->shed == Element::None && d->frames == 1, "an arrow is a still, and sheds nothing");
+        Check(fs::exists("assets/effects/glow.png"), "the glow's picture exists");
+
+        // Every strip is whole frames, held at a point inside one, and the
+        // greater of a pair is the bigger.
+        const auto frame_of = [&](const string& art, int frames, float& w, float& h) {
+            SDL_Surface* img = IMG_Load(art.c_str());
+            if (!img) return false;
+            const bool whole = frames > 0 && img->w % frames == 0;
+            w = static_cast<float>(img->w) / std::max(1, frames);
+            h = static_cast<float>(img->h);
+            SDL_DestroySurface(img);
+            return whole;
+        };
+        for (const auto& kv : projectiles.All()) {
+            const ProjectileDef& d = kv.second;
+            float w = 0, h = 0;
+            Check(frame_of(d.sprite, d.frames, w, h), kv.first + "'s strip is a whole number of frames");
+            Check(d.pivot_x < w && d.pivot_y < h, kv.first + " is held at a point inside its frame");
+            if (!d.tail.empty()) {
+                Check(frame_of(d.tail, d.tail_frames, w, h), kv.first + "'s tail is a whole number of frames");
+                Check(d.tail_pivot_x < w && d.tail_pivot_y < h, kv.first + "'s tail is held inside its frame");
+            }
+            // What is seen should be about what strikes: a picture three times
+            // the circle sails through things it looks to have hit.
+            if (d.frames > 1 && d.upright) Check(h <= d.radius * 4.0f, kv.first + " is no bigger than about what it hits");
+        }
+        for (const char* el : {"fire", "water", "earth", "air"}) {
+            const ProjectileDef* small = projectiles.Get(string("bolt_") + el);
+            const ProjectileDef* great = projectiles.Get(string("bolt_") + el + "_greater");
+            float sw = 0, sh = 0, gw = 0, gh = 0;
+            if (small && great && frame_of(small->sprite, small->frames, sw, sh) && frame_of(great->sprite, great->frames, gw, gh))
+                Check(gw > sw && gh > sh, string("the greater ") + el + " is the bigger");
+        }
+
+        // --- in the air -----------------------------------------------------------------------
+        const auto field = [&](World& w) {
+            w.player.Init(ctx, "player_wayfarer");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            return true;
+        };
+        const auto loose = [&](World& w, const char* bolt, float dx, float dy) {
+            w.SpawnProjectile(bolt, w.player.x + dx * 24.0f, w.player.y - 20.0f + dy * 24.0f, dx, dy,
+                              w.player.Profile(), AttackStyle::Magic, 1.0f, true, ctx);
+        };
+        for (const char* bolt : {"bolt_fire", "bolt_water", "bolt_earth", "bolt_air", "bolt_eldritch"}) {
+            World w;
+            if (!field(w)) { Check(false, "the overworld loads for a bolt"); continue; }
+            loose(w, bolt, 1.0f, 0.0f);
+            for (int i = 0; i < 10; ++i) w.Update(kFrame, ctx);
+            Check(!w.projectiles.empty(), string(bolt) + " is still in the air a sixth of a second on");
+            Check(w.motes.size() >= 3, string(bolt) + " sheds as it flies (" + std::to_string(w.motes.size()) + ")");
+            // Behind it, not ahead: it is a trail.
+            bool ahead = false;
+            if (!w.projectiles.empty())
+                for (const Mote& m : w.motes) ahead |= m.x > w.projectiles.front().x + 6.0f;
+            Check(!ahead, string(bolt) + " leaves it behind it");
+        }
+        {
+            World w;
+            if (field(w)) {
+                loose(w, "arrow", 1.0f, 0.0f);
+                for (int i = 0; i < 10; ++i) w.Update(kFrame, ctx);
+                Check(w.motes.empty(), "an arrow leaves nothing in the air behind it");
+            }
+        }
+
+        // --- where it lands --------------------------------------------------------------------
+        // Against the waystone at Havenbrook, as the wall test does.
+        for (const char* bolt : {"bolt_fire", "bolt_water", "bolt_earth", "bolt_air"}) {
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            if (!w.LoadMap("town_havenbrook", "waystone", ctx)) { Check(false, "Havenbrook loads for a bolt"); continue; }
+            w.enemies.clear();
+            w.player.y += 40.0f;
+            loose(w, bolt, 0.0f, -1.0f);
+            // The most that appears in any one frame: a trail is one or two,
+            // and breaking on something is a dozen at once. (Air comes back off
+            // the stone and flies on, so it is the frame and not the end.)
+            size_t jump = 0;
+            bool struck = false;
+            for (int i = 0; i < 90 && !struck; ++i) {
+                const size_t before = w.motes.size();
+                w.Update(kFrame, ctx);
+                if (w.motes.size() > before) jump = std::max(jump, w.motes.size() - before);
+                struck = !w.impacts.empty();
+            }
+            Check(struck, string(bolt) + " meets the stone");
+            Check(jump >= 7, string(bolt) + " breaks on it: what it was made of is thrown back (" +
+                                 std::to_string(jump) + " at once)");
+        }
+        // What a fireball leaves burning stands in flames for as long as it burns.
+        {
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            if (w.LoadMap("town_havenbrook", "waystone", ctx)) {
+                w.enemies.clear();
+                w.player.y += 40.0f;
+                loose(w, "bolt_fire", 0.0f, -1.0f);
+                for (int i = 0; i < 90; ++i) w.Update(kFrame, ctx);       // landed, and the burst of it long gone
+                bool burning = false;
+                for (const GroundEffect& g : w.ground_effects) burning |= g.element == Element::Fire && g.Active();
+                int tongues = 0;
+                for (const Mote& m : w.motes) tongues += m.tall > 0.0f;
+                Check(burning && tongues >= 4, "burning ground stands in tongues of flame (" + std::to_string(tongues) + ")");
+            }
+        }
+
+        // --- and none of it is the game's business ------------------------------------------------
+        // Two fields, the same dice: a fireball over one and an arrow over the
+        // other. Embers are shed over the first and nothing over the second,
+        // and the game's dice are where they were in both.
+        {
+            std::mt19937 dice_a(99), dice_b(99);
+            GameContext ca = ctx, cb = ctx;
+            ca.rng = &dice_a; cb.rng = &dice_b;
+            World a, b;
+            a.player.Init(ca, "player_wayfarer"); b.player.Init(cb, "player_wayfarer");
+            if (a.LoadMap("overworld", "start", ca) && b.LoadMap("overworld", "start", cb)) {
+                a.enemies.clear(); b.enemies.clear();
+                a.SpawnProjectile("bolt_fire", a.player.x + 24.0f, a.player.y - 20.0f, 1, 0, a.player.Profile(),
+                                  AttackStyle::Magic, 1.0f, true, ca);
+                b.SpawnProjectile("arrow", b.player.x + 24.0f, b.player.y - 20.0f, 1, 0, b.player.Profile(),
+                                  AttackStyle::Ranged, 1.0f, true, cb);
+                for (int i = 0; i < 30; ++i) { a.Update(kFrame, ca); b.Update(kFrame, cb); }
+                Check(!a.motes.empty() && b.motes.empty(), "embers over one field and nothing over the other");
+                Check(dice_a() == dice_b(), "and the game's dice have not been touched by the embers");
+            }
+        }
+        // A room full of mages is a great many embers, and no more than that.
+        {
+            World w;
+            if (field(w)) {
+                size_t most = 0;
+                for (int i = 0; i < 120; ++i) {
+                    for (int k = 0; k < 6; ++k) {
+                        const float a = 6.2831853f * (i * 6 + k) / 97.0f;
+                        loose(w, "bolt_fire_greater", cosf(a), sinf(a));
+                    }
+                    w.Update(kFrame, ctx);
+                    most = std::max(most, w.motes.size());
+                }
+                Check(most > 300 && most <= 700, "seven hundred bolts' worth of embers is capped (" + std::to_string(most) + ")");
+            }
+        }
+
+        // --- on a friend's machine ------------------------------------------------------------------
+        // A guest is told where the shots are and nothing else. It makes its
+        // own trail from that, and a shot it stops hearing about has met
+        // something: it breaks where it last was.
+        {
+            World w;
+            if (field(w)) {
+                w.visiting = true;
+                const ProjectileDef* def = projectiles.Get("bolt_water");
+                float x = w.player.x + 30.0f;
+                const float y = w.player.y - 20.0f;
+                for (int i = 0; i < 12 && def; ++i) {
+                    // As coop::Guest does: the list made again from the host's word.
+                    w.projectiles.clear();
+                    Projectile p;
+                    p.def = def; p.net_id = 4242; p.x = x; p.y = y; p.vx = def->speed; p.vy = 0.0f;
+                    p.element = def->element;
+                    w.projectiles.push_back(p);
+                    w.Update(kFrame, ctx);
+                    x += def->speed * kFrame;
+                }
+                Check(w.motes.size() >= 3, "a friend's machine sheds a trail from the shots it is told of (" +
+                                               std::to_string(w.motes.size()) + ")");
+                const size_t before = w.motes.size();
+                w.projectiles.clear();
+                w.Update(kFrame, ctx);
+                bool ring = false;
+                for (const Mote& m : w.motes) ring |= m.kind == Mote::Kind::Ring;
+                Check(w.motes.size() >= before + 8 && ring, "and one it stops hearing of breaks where it last was");
+                // Leaving takes it all along: nothing bursts on the far side of a door.
+                w.visiting = false;
             }
         }
     }
@@ -14854,8 +15486,12 @@ int main(int argc, char** argv) {
                     GameContext pctx = ctx;
                     pctx.rng = &prng;
                     struct Spot { const char* name; const char* map; const char* spawn; float dx, dy; };
-                    for (const Spot& v : {Spot{"mage_college", "fernhollow", "from_fernhollow_college", 0.0f, -70.0f},
-                                          Spot{"college_hall", "fernhollow_college", "entrance", 0.0f, -110.0f}}) {
+                    for (const Spot& v : {Spot{"college_gate", "fernhollow", "from_college_grounds", 0.0f, -70.0f},
+                                          Spot{"college_court", "college_grounds", "from_fernhollow_college", 0.0f, 40.0f},
+                                          Spot{"college_practice", "college_training", "entrance", -300.0f, -140.0f},
+                                          Spot{"college_lecture", "college_classroom", "entrance", 300.0f, -140.0f},
+                                          Spot{"college_hall", "fernhollow_college", "entrance", 0.0f, -110.0f},
+                                          Spot{"wynns", "mossvale_weavers", "entrance", 0.0f, -110.0f}}) {
                         World world;
                         world.player.Init(pctx, "player_wayfarer");
                         if (!world.LoadMap(v.map, v.spawn, pctx)) continue;

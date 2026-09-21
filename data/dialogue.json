@@ -1501,7 +1501,7 @@
  },
  "magister_root": {
   "speaker": "Magister Orrin",
-  "text": "Mind the circle. It is older than the floor it is cut into, and it does not care for boots.\n\nThe college is three of us and a copying room now, but the books remember when it was more.",
+  "text": "Mind the circle. It is older than the floor it is cut into, and it does not care for boots.\n\nThe college is fuller than it has been in my lifetime -- a court, a practice hall, a lecture room -- but the books remember when it was more, and the circle remembers further back than the books.",
   "options": [
    {
     "text": "Could you teach me the old magic?",
@@ -3226,7 +3226,7 @@
  },
  "orla_buys": {
   "speaker": "Orla the Tanner",
-  "text": "Anything that had a skin. Rawhide off the deer and boar this side of the Wend. Wolf pelts from the far bank: that is your first proper set. Lizard scale out of the Mire, bear from the Brackenwood. After that you are into things I have had across this bench twice in my life: troll, wyvern, and worse than wyvern.",
+  "text": "Anything that had a skin. Rawhide off the deer and boar this side of the Wend. Wolf pelts from the far bank: that is your first proper set. Lizard scale out of the Mire, bear from the Brackenwood. After that you are into things I have had on these frames twice in my life: troll, wyvern, and worse than wyvern.",
   "options": [
    {
     "text": "And what are they for?",
@@ -3240,7 +3240,7 @@
  },
  "orla_sets": {
   "speaker": "Orla the Tanner",
-  "text": "A coif, a jerkin and chaps, cut at any workbench. Mine is there. Two hides, four and three, and thread to sew them. Hide will not stop what plate stops. It does not foul a bowstring either. It is an archer's wear, and it puts weight behind an arrow the way plate does behind a sword arm. It does nothing at all for a swordsman.",
+  "text": "A coif, a jerkin and chaps, cut on a tanner's frame. Mine are there, along the north side, and you may use them. Two hides, four and three, and thread to sew them. Hide will not stop what plate stops. It does not foul a bowstring either. It is an archer's wear, and it puts weight behind an arrow the way plate does behind a sword arm. It does nothing at all for a swordsman.",
   "options": [
    {
     "text": "What do you buy?",
@@ -3620,7 +3620,7 @@
  },
  "nessa_teach": {
   "speaker": "Nessa the Tanner",
-  "text": "The bench is there, and the frames, and you may use both. Hide off anything you kill, thread off me or off Isolde's wheel, and start with coifs -- they are small and nobody minds if the first three are poor.\n\nWhen you can cut one that is not poor, ask me for the book. I post three orders a day and I pay in coin and in what you learn making them.",
+  "text": "The frames are there, and you may use them -- a hide is cut on a frame, not on a carpenter's bench. Hide off anything you kill, thread off me or off Isolde's wheel, and start with coifs -- they are small and nobody minds if the first three are poor.\n\nWhen you can cut one that is not poor, ask me for the book. I post three orders a day and I pay in coin and in what you learn making them.",
   "options": [
    {
     "text": "Let me see the book.",
@@ -3818,7 +3818,7 @@
  },
  "smith_teach_how": {
   "speaker": "Smith Halda",
-  "text": "A workbench makes anything of wood, hide or thread; metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.",
+  "text": "A workbench makes anything of wood; hide is cut on a tanner's frame -- Nessa has three, south-west of here -- cloth is woven, and metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.",
   "options": [
    {
     "text": "I will take the logs.",
@@ -3867,7 +3867,7 @@
  },
  "smith_teach_lesson": {
   "speaker": "Smith Halda",
-  "text": "A workbench makes anything of wood, hide or thread; metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.",
+  "text": "A workbench makes anything of wood; hide is cut on a tanner's frame -- Nessa has three, south-west of here -- cloth is woven, and metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.",
   "options": [
    {
     "text": "Back to it.",
@@ -3887,7 +3887,7 @@
  },
  "smith_teach_after": {
   "speaker": "Smith Halda",
-  "text": "A workbench makes anything of wood, hide or thread; metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.\n\nWhen you are ready for metal, bring me ore and I will show you the anvil.",
+  "text": "A workbench makes anything of wood; hide is cut on a tanner's frame -- Nessa has three, south-west of here -- cloth is woven, and metal is my business and wants an anvil. Stand at one and press use, and it lists everything you could make and what each wants. What you have enough for is lit, what you have not is red.\n\nEvery piece made is Crafting experience, and the better things want more of it before they will let themselves be made. There is a bench on the square, south of my door.\n\nWhen you are ready for metal, bring me ore and I will show you the anvil.",
   "options": [
    {
     "text": "I will.",
@@ -3955,6 +3955,382 @@
   "options": [
    {
     "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_porter_root": {
+  "speaker": "Porter Hobb",
+  "text": "Through the arch and you are in the court. The hall is north, the practice hall west, the lecture room east, and the grass is for looking at.",
+  "options": [
+   {
+    "text": "What is this place?",
+    "next": "college_porter_what"
+   },
+   {
+    "text": "I thought the college was a tower.",
+    "next": "college_porter_tower"
+   },
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_porter_what": {
+  "speaker": "Porter Hobb",
+  "text": "The College at Fernhollow. It was here before the hamlet and it will be here after. They teach the four elements to anybody with the wit for it, and the old magic to the few the Magister thinks will not hurt themselves.\n\nVisitors may go anywhere but the council's table.",
+  "options": [
+   {
+    "text": "And the tower?",
+    "next": "college_porter_tower"
+   },
+   {
+    "text": "I will go in.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_porter_tower": {
+  "speaker": "Porter Hobb",
+  "text": "That was the copying room, down in the corner of the hamlet. Three of them and a leaking roof. The council voted to open the old court again and nobody has been back to it since.\n\nIt is a better walk to work, I will say that.",
+  "options": [
+   {
+    "text": "I will go in.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_usher_root": {
+  "speaker": "Usher Brandt",
+  "text": "The council sits within. You may go in; you may not sit down. Mind the runner, and mind the circle more.",
+  "options": [
+   {
+    "text": "Who sits on the council?",
+    "next": "college_usher_council"
+   },
+   {
+    "text": "I will mind both.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_usher_council": {
+  "speaker": "Usher Brandt",
+  "text": "Magister Orrin at the head of the table, who keeps the circle and teaches the old magic, and sells staves to those who have earned one. Councillor Ferris on his right, who worries. Councillor Wren on his left, who reads.\n\nThere are three more chairs. They are for whoever is next.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_apprentice_root": {
+  "speaker": "Apprentice Tam",
+  "text": "Can't stop -- hall to the practice hall and back, all day. Do you know how far it is across this court? I do. I have counted.",
+  "options": [
+   {
+    "text": "Where do your robes come from?",
+    "next": "college_apprentice_robes"
+   },
+   {
+    "text": "Go on, then.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_apprentice_robes": {
+  "speaker": "Apprentice Tam",
+  "text": "Wynn, at Mossvale. She has a proper shop now, up the lane north-west of the square, gowns in the window. Every hat, robe and skirt in this court came off her loom -- and the dye is what sets the tier, so you will want Oona the herbalist as well.\n\nIf you can weave, she keeps an order book. The college is most of it.",
+  "options": [
+   {
+    "text": "Useful. Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_adept_root": {
+  "speaker": "Adept Sorrel",
+  "text": "You are looking at the violet. It means I have been let near the old magic, which means the Magister thinks I will not set fire to myself. He is mostly right.",
+  "options": [
+   {
+    "text": "How does one learn it?",
+    "next": "college_adept_old"
+   },
+   {
+    "text": "Congratulations.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_adept_old": {
+  "speaker": "Adept Sorrel",
+  "text": "From him, in the hall, one working at a time, when your Magic is up to it -- and not before, he can tell. It is its own thing: it neither beats the four elements nor is beaten by them. You choose it like a fifth.\n\nBring coin. Knowledge is free and the Magister's time is not.",
+  "options": [
+   {
+    "text": "I will ask him.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_reader_root": {
+  "speaker": "Apprentice Isa",
+  "text": "Water douses fire. Fire scorches earth. Earth smothers air. Air disperses water. Water douses -- sorry. There is an examination.",
+  "options": [
+   {
+    "text": "What is it worth, getting it right?",
+    "next": "college_reader_worth"
+   },
+   {
+    "text": "Good luck.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_reader_worth": {
+  "speaker": "Apprentice Isa",
+  "text": "More than half again. Throw the element a creature fears and the blow is worth sixteen parts where it was ten. Throw the one it is made of and you have wasted your mana and its time.\n\nLizardmen are water. I got that one wrong in the Mire, once.",
+  "options": [
+   {
+    "text": "I will remember.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_gardener_root": {
+  "speaker": "Old Peverell",
+  "text": "Four lawns, sixty yards of box, and students. The box I can manage.",
+  "options": [
+   {
+    "text": "Who are the statues?",
+    "next": "college_gardener_statues"
+   },
+   {
+    "text": "It looks well.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_gardener_statues": {
+  "speaker": "Old Peverell",
+  "text": "The founders. Four of them, one to a lawn, each with a staff and a book, and if anybody ever knew which was which it was not written down anywhere I can reach with a rake.\n\nThe crystals light themselves at dusk. Nobody knows how that works either. I do not ask.",
+  "options": [
+   {
+    "text": "Fair enough.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_instructor_root": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "Walk where you like. Nothing thrown in this room touches anybody: that is the first working any of them learns, and the only one I insist on.",
+  "options": [
+   {
+    "text": "Why straw?",
+    "next": "college_instructor_straw"
+   },
+   {
+    "text": "What are the crystals for?",
+    "next": "college_instructor_crystals"
+   },
+   {
+    "text": "I will watch.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_instructor_straw": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "Because straw does not mind. It is for the hands -- the stance, the release, the aim. It teaches nothing else, and I will not pretend it does: a spell is learned by landing it on something that would rather you had not.\n\nAnyone who tells you they got good throwing fire at a wall is lying, or was, until recently.",
+  "options": [
+   {
+    "text": "And the crystals?",
+    "next": "college_instructor_crystals"
+   },
+   {
+    "text": "Understood.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_instructor_crystals": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "They give back what is spent in here, so nobody in a lane runs dry. They do it for the college and for nobody else -- do not ask, the answer is no, and they would not fit in your pack.",
+  "options": [
+   {
+    "text": "Why straw, though?",
+    "next": "college_instructor_straw"
+   },
+   {
+    "text": "A pity.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lane_fire_root": {
+  "speaker": "Apprentice Bryn",
+  "text": "Fire. It leaves the ground burning where it lands, which is either the best thing about it or the worst, depending on where you were about to stand.",
+  "options": [
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lane_arcane_root": {
+  "speaker": "Adept Corvane",
+  "text": "The old bolt. It goes through the first three things in its way and does not care what any of them are made of. Do not talk to me while I am doing this.",
+  "options": [
+   {
+    "text": "Sorry.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lane_water_root": {
+  "speaker": "Apprentice Lisse",
+  "text": "Water goes through the first two things in its way and into the third. If they are standing in a line, I am your friend.",
+  "options": [
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lane_air_root": {
+  "speaker": "Adept Marrin",
+  "text": "Air comes back off a wall. Twice, if you are good. In a mine that is three chances at the same orc -- in here it is mostly a way to startle Bryn.",
+  "options": [
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lector_root": {
+  "speaker": "Lector Maud",
+  "text": "-- and so each of the four is afraid of exactly one of the others, and is feared by exactly one. You are late. Sit anywhere.",
+  "options": [
+   {
+    "text": "Say it again, slowly?",
+    "next": "college_lector_cycle"
+   },
+   {
+    "text": "And the old magic?",
+    "next": "college_lector_arcane"
+   },
+   {
+    "text": "I will sit.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lector_cycle": {
+  "speaker": "Lector Maud",
+  "text": "Water douses fire. Fire scorches earth. Earth smothers air. Air disperses water. Round it goes.\n\nA creature made of one takes more than half again from the one it fears, and the number comes up in that element's colour, so that even an apprentice can tell. Most creatures are made of something. Find out what before you are standing in front of it.",
+  "options": [
+   {
+    "text": "And the old magic?",
+    "next": "college_lector_arcane"
+   },
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_lector_arcane": {
+  "speaker": "Lector Maud",
+  "text": "Outside the circle altogether. It fears nothing and nothing fears it, which makes it the right answer when you do not know the question, and the second-best answer when you do.\n\nIt is not taught in this room.",
+  "options": [
+   {
+    "text": "The cycle again?",
+    "next": "college_lector_cycle"
+   },
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_pupil_a_root": {
+  "speaker": "A pupil",
+  "text": "Shh. She can hear a whisper from the orrery.",
+  "options": [
+   {
+    "text": "Sorry.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_pupil_b_root": {
+  "speaker": "A pupil",
+  "text": "Is it true the Reverie goes down? Three ladders, they say, and everything at the bottom of each is worse.",
+  "options": [
+   {
+    "text": "It is true.",
+    "next": "end"
+   },
+   {
+    "text": "Pay attention to the board.",
+    "next": "end"
+   }
+  ]
+ },
+ "college_pupil_c_root": {
+  "speaker": "A pupil",
+  "text": "Do you know what a Meteor costs? Three bolts' worth. I have done the sum four times. I am taking the Warden's branch anyway.",
+  "options": [
+   {
+    "text": "Good luck with that.",
+    "next": "end"
+   }
+  ]
+ },
+ "councillor_ferris_root": {
+  "speaker": "Councillor Ferris",
+  "text": "Things are abroad at night that were not, a year ago. Wolves on the meadow. The Mire's dead under the trees on the trail. We have had three reports this month and the council has had three opinions.",
+  "options": [
+   {
+    "text": "What should a traveller do?",
+    "next": "councillor_ferris_advice"
+   },
+   {
+    "text": "I will leave you to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "councillor_ferris_advice": {
+  "speaker": "Councillor Ferris",
+  "text": "Keep to the road after dark. They do not come near it, nor near a gate or a camp, and they are gone at dawn. What you kill stays killed until the next night, for what comfort that is.\n\nOr sleep. A bed does not care what is outside.",
+  "options": [
+   {
+    "text": "Sound advice.",
+    "next": "end"
+   }
+  ]
+ },
+ "councillor_wren_root": {
+  "speaker": "Councillor Wren",
+  "text": "I have been reading about what the great ones leave behind. The first time one is brought down, something of it stays with whoever did it -- a boon, the old books call it. And for those who go back and back, a totem.",
+  "options": [
+   {
+    "text": "What is a totem for?",
+    "next": "councillor_wren_totem"
+   },
+   {
+    "text": "Interesting.",
+    "next": "end"
+   }
+  ]
+ },
+ "councillor_wren_totem": {
+  "speaker": "Councillor Wren",
+  "text": "It wants a ring to stand in, cut in a floor that is your own. Stood there and touched, it lends you the beast's own strength until the next dawn. One at a time: they do not share.\n\nThere is such a ring in the old tanner's house at Mossvale, I am told. I have not been invited.",
+  "options": [
+   {
+    "text": "Thank you, Councillor.",
     "next": "end"
    }
   ]

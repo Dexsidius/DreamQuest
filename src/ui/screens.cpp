@@ -3366,7 +3366,8 @@ void Game::UpdateCrafting() {
             PushToast(string(craft_station == CraftStation::Cauldron ? "Brewed " :
                              craft_station == CraftStation::Anvil ? "Smithed " :
                              craft_station == CraftStation::Range ? "Cooked " :
-                             craft_station == CraftStation::Loom ? "Wove " : "Crafted ") +
+                             craft_station == CraftStation::Loom ? "Wove " :
+                             craft_station == CraftStation::Rack ? "Cut and sewed " : "Crafted ") +
                       (total > 1 ? std::to_string(total) + "x " : string()) + what + ".", Palette::Xp);
         }
         if (burnt_n > 0) {
@@ -3552,9 +3553,10 @@ void Game::DrawCrafting() {
     const bool cauldron = (craft_station == CraftStation::Cauldron);
     const bool fire = (craft_station == CraftStation::Range);
     const bool loom = (craft_station == CraftStation::Loom);
+    const bool rack = (craft_station == CraftStation::Rack);
     const int skill = CraftSkill(craft_station);
     ui.Text(craft_title.empty() ? (cauldron ? "Cauldron" : anvil ? "Anvil" : fire ? "Cooking fire"
-                                 : loom ? "Loom" : "Workbench") : craft_title,
+                                 : loom ? "Loom" : rack ? "Tanning Rack" : "Workbench") : craft_title,
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
@@ -3571,7 +3573,8 @@ void Game::DrawCrafting() {
             // anything wider as a runoff, and it is right to.
             : fire   ? "Cooking: plain food, and dishes that sit with you a while."
             : loom   ? "Weaving: cloth from any fibre, and the robes. Dyes are boiled at a cauldron."
-                     : "Wood, leather and thread. Cloth is woven at a loom, metal smithed at an anvil.",
+            : rack   ? "Leatherwork: hide armour, boots, bags and bedrolls. Wood is worked at a bench."
+                     : "Wood and bows. Hide is cut on a tanner's rack, cloth woven at a loom, metal smithed.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -3684,7 +3687,8 @@ void Game::DrawCrafting() {
     ui.Text(std::to_string(r->craft_xp) + " " + SkillName(skill) + " XP", dx, y, TextSize::Small,
             Palette::TextDim);
 
-    const string verb = cauldron ? " brew" : anvil ? " smith" : fire ? " cook" : loom ? " weave" : " craft";
+    const string verb = cauldron ? " brew" : anvil ? " smith" : fire ? " cook" : loom ? " weave"
+                      : rack ? " cut" : " craft";
     ui.Text(input.PromptFor(Action::Confirm) + verb + "     " +
             input.PromptFor(Action::Sprint) + " + " + input.PromptFor(Action::Confirm) + verb + " all     " +
             input.PromptFor(Action::Back) + " close",

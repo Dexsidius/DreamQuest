@@ -15,6 +15,30 @@
       "kind": "land",
       "name": "The Brackenwood"
     },
+    "college_classroom": {
+      "exits": [
+        "college_grounds"
+      ],
+      "kind": "interior",
+      "name": "The Lecture Room"
+    },
+    "college_grounds": {
+      "exits": [
+        "fernhollow_college",
+        "fernhollow",
+        "college_training",
+        "college_classroom"
+      ],
+      "kind": "land",
+      "name": "The College at Fernhollow"
+    },
+    "college_training": {
+      "exits": [
+        "college_grounds"
+      ],
+      "kind": "interior",
+      "name": "The Practice Hall"
+    },
     "dreamworld": {
       "exits": [
         "dreamworld_2"
@@ -69,7 +93,7 @@
     "fernhollow": {
       "exits": [
         "fernhollow_cottage",
-        "fernhollow_college",
+        "college_grounds",
         "whisperwood_trail"
       ],
       "kind": "land",
@@ -77,10 +101,10 @@
     },
     "fernhollow_college": {
       "exits": [
-        "fernhollow"
+        "college_grounds"
       ],
       "kind": "interior",
-      "name": "The College"
+      "name": "The Great Hall"
     },
     "fernhollow_cottage": {
       "exits": [
@@ -145,6 +169,7 @@
         "mossvale_lodge_hall",
         "mossvale_herbalist",
         "mossvale_cottage",
+        "mossvale_weavers",
         "whisperwood_trail"
       ],
       "kind": "land",
@@ -170,6 +195,13 @@
       ],
       "kind": "interior",
       "name": "Mossvale Lodge"
+    },
+    "mossvale_weavers": {
+      "exits": [
+        "mossvale"
+      ],
+      "kind": "interior",
+      "name": "Wynn's"
     },
     "overworld": {
       "exits": [

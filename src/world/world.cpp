@@ -48,6 +48,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     ground_effects.clear();
     impacts.clear();
     dust.clear();
+    motes.clear();
+    shots_seen.clear();
     targeting.Clear();
     gather_index = -1;
     player.StopGathering();
@@ -111,6 +113,18 @@ EnemySpawnDef World::ResolveSpawn(const EnemySpawnDef& def, const string& map_id
     const uint32_t how = stir((h ^ (static_cast<uint32_t>(index) + 977u)) * 16777619u);
     if (def.spread > 0) out.level = def.level + static_cast<int>(how % static_cast<uint32_t>(def.spread + 1));
     return out;
+}
+
+void World::StartAfresh() {
+    flags.clear();
+    slain.clear();
+    storage.clear();
+    picked.clear();
+    shops.Clear();
+    clock.Set(1, 9.0f);
+    camp = {};
+    dream = {};
+    told_day = -999999;
 }
 
 bool World::KeptTonight(const string& map_id, int day, int index, const string& group, float chance) {
@@ -342,11 +356,14 @@ void World::HandOver(World& to) {
     to.projectiles = std::move(projectiles);
     to.ground_effects = std::move(ground_effects);
     to.impacts = std::move(impacts);
+    to.motes = std::move(motes);
+    to.shots_seen = std::move(shots_seen);
     for (auto& g : guests) to.guests.push_back(std::move(g));
     for (auto& [seat, state] : seat_states) to.seat_states[seat] = std::move(state);
     to.next_net_id = std::max(to.next_net_id, next_net_id);
     enemies.clear(); npcs.clear(); pickups.clear(); projectiles.clear();
     ground_effects.clear(); impacts.clear(); guests.clear(); seat_states.clear();
+    motes.clear(); shots_seen.clear();
     // Whoever either host seat was fighting has changed hands.
     targeting.Clear();
     to.targeting.Clear();
@@ -690,6 +707,9 @@ vector<Light> World::CollectLights() const {
             const float f = flicker(o.id);
             const float radius = (map.IsInterior() ? 150.0f : 130.0f) * (0.96f + 0.04f * f);
             lights.push_back({o.x, o.y - 10.0f, radius, {255, 172, 96, 255}, dark * f});
+        } else if (o.type == "lamp") {
+            // A lamp standard: a steady cool light, as much of it as it is dark.
+            lights.push_back({o.x, o.y - 44.0f, 150.0f, {196, 226, 255, 255}, dark * 0.95f});
         } else if (o.type == "dream_wake") {
             lights.push_back({o.x, o.y - 16.0f, 120.0f, {226, 214, 255, 255}, 0.85f});
         } else if (dreaming && o.yield == "dream_shard" && !o.skill.empty()) {
@@ -1035,6 +1055,9 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         for (auto& n : npcs) n->Update(dt, *this, ctx);
         UpdateImpacts(dt);
         UpdateDust(dt);
+        ShedFromShots();
+        ShedFromGround(dt);
+        UpdateMotes(dt);
         UpdateElevation(dt);
         for (auto& p : pickups) p.bob += dt * 3.4f;
         UpdateTexts(dt);
@@ -1132,6 +1155,9 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
     ForgetSpentCasts();
     UpdateImpacts(dt);
     UpdateDust(dt);
+    ShedFromShots();
+    ShedFromGround(dt);
+    UpdateMotes(dt);
     UpdateElevation(dt);
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);
@@ -2241,7 +2267,8 @@ void World::TryInteract(const GameContext& ctx) {
                 r.title = !o.title.empty() ? o.title
                         : o.type == "range" ? string("Cooking fire")
                         : o.station == "anvil" ? string("Anvil")
-                        : o.station == "loom" ? string("Loom") : string("Workbench");
+                        : o.station == "loom" ? string("Loom")
+                        : o.station == "rack" ? string("Tanning Rack") : string("Workbench");
                 requests.push_back(r);
             } else if (o.type == "waystone") {
                 if (!Flagged(o.id)) {
@@ -2752,6 +2779,23 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
     projectiles.push_back(p);
 }
 
+void World::ThrowPracticeBolt(const string& bolt, float x, float y, float tx, float ty, const GameContext& ctx) {
+    // A friend's machine is shown the host's, like any other shot.
+    if (visiting) return;
+    const float dx = tx - x, dy = ty - y;
+    const float far = Length(dx, dy);
+    if (far < 8.0f) return;
+    const size_t before = projectiles.size();
+    SpawnProjectile(bolt, x + dx / far * 10.0f, y + dy / far * 10.0f, dx, dy, CombatProfile{}, AttackStyle::Magic,
+                    0.0f, false, ctx);
+    if (projectiles.size() == before) return;
+    Projectile& p = projectiles.back();
+    p.show = true;
+    p.show_left = std::max(8.0f, far - 14.0f);
+    p.life = std::max(p.life, far / std::max(40.0f, Length(p.vx, p.vy)) + 0.2f);
+    Audio::PlayAt(Sfx::SpellCast, x, y, 0.45f, 1.1f);
+}
+
 void World::AddGroundEffect(const GroundEffect& effect) {
     ground_effects.push_back(effect);
     ground_effects.back().owner_local = player.local;
@@ -2798,7 +2842,12 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
         if (p.finished || !p.def) continue;
 
         p.life -= dt;
-        if (p.life <= 0.0f) { p.finished = true; }
+        if (p.life <= 0.0f) {
+            // Out of air: it goes out, a little, rather than blinking off.
+            p.finished = true;
+            BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
+                    std::max(0.75f, p.def->radius / 6.0f) * 0.5f, 0.0f, 0.0f);
+        }
 
         // Homing: turn toward the monster it was loosed at, no faster than the
         // projectile allows. Once that monster is dead, gone, or already behind
@@ -2883,6 +2932,19 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             p.y += dy;
             if (p.def->spin) p.spin_angle += 14.0f * step_dt;
 
+            // Practice: it has so far to go, and bursts when it has gone it.
+            if (p.show) {
+                p.show_left -= Length(dx, dy);
+                if (p.show_left <= 0.0f) {
+                    const float speed = std::max(1.0f, Length(p.vx, p.vy));
+                    AddImpact(p, -p.vx / speed, -p.vy / speed);
+                    Burst(p.x, p.y, 26.0f, {255, 236, 200, 255}, 6);
+                    Audio::PlayAt(Sfx::Impact, p.x, p.y, 0.4f);
+                    p.finished = true;
+                }
+                continue;
+            }
+
             const SDL_FRect box = {p.x - p.def->radius, p.y - p.def->radius,
                                    p.def->radius * 2, p.def->radius * 2};
 
@@ -2906,6 +2968,14 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                         crit_next = false;
                         cast_next = 0;
                     });
+                    // It breaks on what it strikes, back the way it came --
+                    // and on everything it goes through, which is how a bolt
+                    // that pierces is seen to.
+                    {
+                        const float speed = std::max(1.0f, Length(p.vx, p.vy));
+                        BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
+                                std::max(0.75f, p.def->radius / 6.0f), -p.vx / speed, -p.vy / speed);
+                    }
 
                     if (p.pierce_left > 0) --p.pierce_left;
                     else                    p.finished = true;
@@ -2921,6 +2991,11 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                         AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                     }
                 });
+                {
+                    const float speed = std::max(1.0f, Length(p.vx, p.vy));
+                    BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
+                            std::max(0.75f, p.def->radius / 6.0f), -p.vx / speed, -p.vy / speed);
+                }
                 p.finished = true;
             }
         }
@@ -2929,7 +3004,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
         // point is flush with the surface, so nudge the effect back along the
         // direction of travel -- burning ground should lie in front of the
         // wall where someone can be standing in it, not half inside it.
-        if (p.finished) {
+        if (p.finished && !p.show) {
             float ex = p.x, ey = p.y;
             if (p.hit_wall) {
                 const float len = Length(p.vx, p.vy);
@@ -3014,7 +3089,11 @@ void World::UpdateElevation(float dt) {
 }
 
 void World::AddImpact(const Projectile& p, float nx, float ny) {
-    if (!p.def || p.def->impact_size <= 0.0f) return;
+    if (!p.def) return;
+    // What it was made of, thrown back off the face it struck.
+    BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
+            std::max(0.75f, p.def->radius / 6.0f), nx, ny);
+    if (p.def->impact_size <= 0.0f) return;
 
     Impact im;
     im.x = p.x;
@@ -3028,6 +3107,353 @@ void World::AddImpact(const Projectile& p, float nx, float ny) {
     im.color = (p.element != Element::None) ? ElementColor(p.element)
                                             : SDL_Color{214, 200, 176, 255};
     impacts.push_back(im);
+}
+
+// -----------------------------------------------------------------------------
+//  What spells shed
+//
+//  A bolt in the air used to be a picture moving: nothing came off it, and where
+//  it landed there was a disc in its colour and three lines. So each element
+//  sheds what it is made of as it flies -- embers and smoke, drops, dust and
+//  chips of stone, streaks of air, sparks -- throws the same up where it lands,
+//  and keeps doing it on the ground it leaves burning or breaks open.
+//
+//  None of it is the game's business. Nothing asks where an ember is; a friend's
+//  machine makes its own from the shots it is told about; and the dice are its
+//  own, so that what is only for show never moves the ones the game is played
+//  with.
+// -----------------------------------------------------------------------------
+
+static std::mt19937& ShowDice() { static std::mt19937 dice(0x5EED5); return dice; }
+static float Between(float a, float b) {
+    return a + (b - a) * static_cast<float>(ShowDice()() & 0xFFFF) / 65535.0f;
+}
+static bool Chance(float p) { return Between(0.0f, 1.0f) < p; }
+static constexpr size_t MOTES_MAX = 700;
+
+static const SDL_Color EMBER_HOT{255, 228, 120, 255}, EMBER_COLD{206, 52, 20, 0};
+static const SDL_Color SMOKE_NEW{84, 70, 64, 140},    SMOKE_OLD{40, 36, 36, 0};
+static const SDL_Color DROP_NEW{206, 238, 255, 255},  DROP_OLD{56, 124, 214, 0};
+static const SDL_Color CHIP_NEW{150, 118, 80, 255},   CHIP_OLD{84, 62, 44, 0};
+static const SDL_Color DUST_NEW{214, 192, 150, 205},  DUST_OLD{160, 140, 110, 0};
+static const SDL_Color AIR_NEW{240, 250, 255, 235},   AIR_OLD{190, 225, 245, 0};
+static const SDL_Color SPARK_NEW{246, 232, 255, 255}, SPARK_OLD{150, 96, 255, 0};
+
+static Mote Speck(float x, float y, float vx, float vy, float life, float size, SDL_Color from, SDL_Color to) {
+    Mote m;
+    m.x = x; m.y = y; m.vx = vx; m.vy = vy;
+    m.life = m.max_life = life;
+    m.size = size;
+    m.from = from; m.to = to;
+    return m;
+}
+
+// What one bolt leaves behind it over one step of its flight: (dx, dy) is the
+// way it is going, `size` one for an apprentice's bolt.
+static void ShedTrail(vector<Mote>& motes, Element e, float x, float y, float dx, float dy,
+                      float speed, float size, float lift) {
+    const float sx = -dy, sy = dx;                  // across its path
+    const auto behind = [&](float back, float across, float& px, float& py) {
+        px = x - dx * back + sx * across;
+        py = y - dy * back + sy * across;
+    };
+    float px = 0, py = 0;
+    switch (e) {
+        case Element::Fire: {
+            behind(Between(4.0f, 14.0f) * size, Between(-4.0f, 4.0f) * size, px, py);
+            Mote m = Speck(px, py, -dx * Between(10, 40) + sx * Between(-18, 18),
+                           -dy * Between(10, 40) + sy * Between(-18, 18) - Between(8, 26),
+                           Between(0.25f, 0.55f), Chance(0.25f * size) ? 2.0f : 1.0f, EMBER_HOT, EMBER_COLD);
+            m.gravity = -30.0f; m.drag = 2.0f; m.lift = lift;
+            motes.push_back(m);
+            if (Chance(0.3f)) {
+                behind(Between(10.0f, 20.0f) * size, Between(-3.0f, 3.0f), px, py);
+                Mote s = Speck(px, py, -dx * 10.0f, -dy * 10.0f - 14.0f, Between(0.5f, 0.9f), 2.0f, SMOKE_NEW, SMOKE_OLD);
+                s.grow = 3.0f; s.drag = 1.0f; s.lift = lift;
+                motes.push_back(s);
+            }
+            break;
+        }
+        case Element::Water: {
+            behind(Between(4.0f, 12.0f) * size, Between(-4.0f, 4.0f) * size, px, py);
+            Mote m = Speck(px, py, -dx * Between(10, 30) + sx * Between(-14, 14),
+                           -dy * Between(10, 30) + sy * Between(-14, 14),
+                           Between(0.3f, 0.5f), Chance(0.25f * size) ? 2.0f : 1.0f, DROP_NEW, DROP_OLD);
+            m.gravity = 160.0f; m.lift = lift;
+            motes.push_back(m);
+            break;
+        }
+        case Element::Earth: {
+            behind(Between(3.0f, 9.0f) * size, Between(-3.0f, 3.0f) * size, px, py);
+            Mote d = Speck(px, py, -dx * Between(5, 20), -dy * Between(5, 20) - 6.0f,
+                           Between(0.35f, 0.6f), 2.0f, DUST_NEW, DUST_OLD);
+            d.grow = 2.5f; d.drag = 2.0f; d.lift = lift;
+            motes.push_back(d);
+            if (Chance(0.5f)) {
+                Mote c = Speck(px, py, -dx * Between(10, 40) + sx * Between(-30, 30),
+                               -dy * Between(10, 40) + sy * Between(-30, 30) - Between(10, 40),
+                               Between(0.3f, 0.5f), 1.0f, CHIP_NEW, CHIP_OLD);
+                c.gravity = 220.0f; c.lift = lift;
+                motes.push_back(c);
+            }
+            break;
+        }
+        case Element::Air: {
+            // Lines of it left hanging either side, carried along a little.
+            behind(Between(6.0f, 18.0f), Between(-10.0f, 10.0f) * size, px, py);
+            Mote m = Speck(px, py, dx * speed * 0.35f, dy * speed * 0.35f,
+                           Between(0.14f, 0.26f), Between(5.0f, 10.0f), AIR_NEW, AIR_OLD);
+            m.kind = Mote::Kind::Streak; m.lift = lift;
+            motes.push_back(m);
+            break;
+        }
+        case Element::Arcane: {
+            behind(Between(2.0f, 10.0f), Between(-5.0f, 5.0f) * size, px, py);
+            Mote m = Speck(px, py, Between(-8, 8), Between(-8, 8), Between(0.2f, 0.4f), 1.0f, SPARK_NEW, SPARK_OLD);
+            m.lift = lift;
+            motes.push_back(m);
+            break;
+        }
+        default: break;
+    }
+}
+
+void World::BurstOf(Element e, float x, float y, float lift, float size, float nx, float ny) {
+    if (e == Element::None) return;
+    // All round, leaning off the face it struck.
+    const auto thrown = [&](float slow, float fast, float& vx, float& vy) {
+        const float a = Between(0.0f, 6.2831853f), v = Between(slow, fast);
+        vx = (cosf(a) + nx * 0.9f) * v;
+        vy = (sinf(a) + ny * 0.9f) * v;
+    };
+    const auto count = [&](int base) { return std::max(2, static_cast<int>(base * size + 0.5f)); };
+    const auto ring = [&](float grow, float life, SDL_Color from, SDL_Color to) {
+        Mote m = Speck(x, y, 0.0f, 0.0f, life, 3.0f * size, from, to);
+        m.kind = Mote::Kind::Ring; m.grow = grow * size; m.lift = lift;
+        motes.push_back(m);
+    };
+    float vx = 0, vy = 0;
+    switch (e) {
+        case Element::Fire:
+            for (int i = count(12); i-- > 0;) {
+                thrown(30, 95, vx, vy);
+                Mote m = Speck(x, y, vx, vy - Between(0, 30), Between(0.28f, 0.6f), Chance(0.3f) ? 2.0f : 1.0f,
+                               EMBER_HOT, EMBER_COLD);
+                m.gravity = -40.0f; m.drag = 2.2f; m.lift = lift;
+                motes.push_back(m);
+            }
+            for (int i = count(3); i-- > 0;) {
+                thrown(6, 20, vx, vy);
+                Mote s = Speck(x, y, vx, vy - 16.0f, Between(0.5f, 0.9f), 2.0f, SMOKE_NEW, SMOKE_OLD);
+                s.grow = 4.0f; s.drag = 1.5f; s.lift = lift;
+                motes.push_back(s);
+            }
+            ring(40.0f, 0.22f, {255, 196, 96, 230}, {255, 120, 40, 0});
+            break;
+        case Element::Water:
+            // A splash: up and out, and down again.
+            for (int i = count(12); i-- > 0;) {
+                thrown(30, 85, vx, vy);
+                Mote m = Speck(x, y, vx, vy - Between(20, 70), Between(0.3f, 0.55f), Chance(0.3f) ? 2.0f : 1.0f,
+                               DROP_NEW, DROP_OLD);
+                m.gravity = 300.0f; m.lift = lift;
+                motes.push_back(m);
+            }
+            ring(46.0f, 0.32f, {214, 240, 255, 235}, {110, 170, 235, 0});
+            break;
+        case Element::Earth:
+            for (int i = count(9); i-- > 0;) {
+                thrown(30, 90, vx, vy);
+                Mote m = Speck(x, y, vx, vy - Between(20, 60), Between(0.3f, 0.55f), Chance(0.4f) ? 2.0f : 1.0f,
+                               CHIP_NEW, CHIP_OLD);
+                m.gravity = 340.0f; m.lift = lift;
+                motes.push_back(m);
+            }
+            for (int i = count(5); i-- > 0;) {
+                thrown(8, 26, vx, vy);
+                Mote d = Speck(x, y, vx, vy, Between(0.35f, 0.65f), 2.0f, DUST_NEW, DUST_OLD);
+                d.grow = 5.0f; d.drag = 2.0f; d.lift = lift;
+                motes.push_back(d);
+            }
+            break;
+        case Element::Air:
+            for (int i = count(8); i-- > 0;) {
+                thrown(70, 140, vx, vy);
+                Mote m = Speck(x, y, vx, vy, Between(0.16f, 0.3f), Between(4.0f, 8.0f), AIR_NEW, AIR_OLD);
+                m.kind = Mote::Kind::Streak; m.drag = 3.0f; m.lift = lift;
+                motes.push_back(m);
+            }
+            ring(60.0f, 0.26f, {236, 248, 255, 220}, {200, 230, 245, 0});
+            break;
+        case Element::Arcane:
+            for (int i = count(10); i-- > 0;) {
+                thrown(20, 70, vx, vy);
+                Mote m = Speck(x, y, vx, vy, Between(0.25f, 0.5f), Chance(0.25f) ? 2.0f : 1.0f, SPARK_NEW, SPARK_OLD);
+                m.drag = 2.5f; m.lift = lift;
+                motes.push_back(m);
+            }
+            break;
+        default: break;
+    }
+}
+
+void World::ShedFromShots() {
+    for (auto& [id, seen] : shots_seen) seen.here = false;
+
+    for (const Projectile& p : projectiles) {
+        if (p.finished || !p.def) continue;
+        const auto [it, fresh] = shots_seen.try_emplace(p.net_id);
+        ShotSeen& seen = it->second;
+        if (fresh) { seen.x = p.x; seen.y = p.y; }
+        seen.here = true;
+        seen.shed = p.def->shed;
+        seen.size = std::max(0.75f, p.def->radius / 6.0f);
+        seen.lift = p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y);
+        const float moved = Length(p.x - seen.x, p.y - seen.y);
+        seen.x = p.x; seen.y = p.y;
+        if (seen.shed == Element::None) continue;
+        // Put somewhere else altogether -- the host's word about it, arriving
+        // late -- it sheds nothing over the gap.
+        if (moved > 60.0f) continue;
+        seen.owed += moved;
+
+        const float speed = Length(p.vx, p.vy);
+        if (speed < 1.0f) continue;
+        const float every = seen.shed == Element::Fire ? 3.5f : seen.shed == Element::Air ? 7.0f
+                          : seen.shed == Element::Earth ? 6.0f : 5.0f;
+        while (seen.owed >= every) {
+            seen.owed -= every;
+            ShedTrail(motes, seen.shed, p.x, p.y, p.vx / speed, p.vy / speed, speed, seen.size, seen.lift);
+        }
+    }
+
+    for (auto it = shots_seen.begin(); it != shots_seen.end();) {
+        if (it->second.here) { ++it; continue; }
+        // The host knows what its shots met, and says so as it happens. A
+        // friend's machine is only ever told where the shots are: one that is
+        // no longer spoken of has met something, and met it where it last was.
+        if (visiting) BurstOf(it->second.shed, it->second.x, it->second.y, it->second.lift, it->second.size, 0.0f, 0.0f);
+        it = shots_seen.erase(it);
+    }
+}
+
+void World::ShedFromGround(float dt) {
+    for (const GroundEffect& g : ground_effects) {
+        if (g.finished || !g.Active() || g.rain || g.once || g.element == Element::None) continue;
+        const float lift = LiftAt(g.x, g.y);
+        const float rate = g.radius * (g.element == Element::Earth ? 4.0f : g.element == Element::Fire ? 3.2f : 1.6f);
+        int n = static_cast<int>(rate * dt);
+        if (Chance(rate * dt - n)) ++n;
+        for (; n > 0; --n) {
+            // Anywhere in the circle, evenly.
+            const float a = Between(0.0f, 6.2831853f), d = sqrtf(Between(0.0f, 1.0f)) * g.radius * 0.92f;
+            const float x = g.x + cosf(a) * d, y = g.y + sinf(a) * d;
+            Mote m;
+            switch (g.element) {
+                case Element::Fire:
+                    // Flames standing on it: the disc under them is the glow.
+                    // Two in three are tongues, and the rest sparks going up.
+                    if (Chance(0.66f)) {
+                        m = Speck(x, y, Between(-4, 4), -Between(6, 16), Between(0.3f, 0.55f), Chance(0.4f) ? 3.0f : 2.0f,
+                                  EMBER_HOT, EMBER_COLD);
+                        m.tall = Between(2.0f, 5.0f);
+                    } else {
+                        m = Speck(x, y, Between(-6, 6), -Between(20, 46), Between(0.3f, 0.6f), 1.0f, EMBER_HOT, EMBER_COLD);
+                        m.gravity = -30.0f;
+                    }
+                    break;
+                case Element::Earth:
+                    // The ground coming up: thrown high and outward, and down again.
+                    m = Speck(x, y, cosf(a) * Between(20, 70), sinf(a) * Between(10, 40) - Between(40, 120),
+                              Between(0.3f, 0.6f), Chance(0.45f) ? 2.0f : 1.0f, CHIP_NEW, CHIP_OLD);
+                    m.gravity = 380.0f;
+                    break;
+                case Element::Water:
+                    m = Speck(x, y, cosf(a) * Between(10, 40), -Between(30, 90), Between(0.3f, 0.5f),
+                              Chance(0.3f) ? 2.0f : 1.0f, DROP_NEW, DROP_OLD);
+                    m.gravity = 300.0f;
+                    break;
+                case Element::Air:
+                    // Round and round.
+                    m = Speck(x, y, -sinf(a) * Between(60, 120), cosf(a) * Between(60, 120), Between(0.16f, 0.3f),
+                              Between(4.0f, 8.0f), AIR_NEW, AIR_OLD);
+                    m.kind = Mote::Kind::Streak;
+                    break;
+                default:
+                    m = Speck(x, y, Between(-10, 10), -Between(4, 20), Between(0.25f, 0.5f), 1.0f, SPARK_NEW, SPARK_OLD);
+                    break;
+            }
+            m.lift = lift;
+            motes.push_back(m);
+        }
+    }
+}
+
+void World::UpdateMotes(float dt) {
+    for (Mote& m : motes) {
+        m.life -= dt;
+        m.vy += m.gravity * dt;
+        const float keep = std::max(0.0f, 1.0f - m.drag * dt);
+        m.vx *= keep;
+        m.vy *= keep;
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        m.size += m.grow * dt;
+    }
+    motes.erase(std::remove_if(motes.begin(), motes.end(), [](const Mote& m) { return m.life <= 0.0f; }),
+                motes.end());
+    // A room full of mages is a great many embers: the oldest go first.
+    if (motes.size() > MOTES_MAX) motes.erase(motes.begin(), motes.begin() + (motes.size() - MOTES_MAX));
+}
+
+void World::DrawMotes(SDL_Renderer* r) const {
+    if (motes.empty()) return;
+    const float z = camera.zoom;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // Whole art pixels, on the art's own grid, like the dust: a speck that
+    // slides between pixels is a smear among sprites that do not.
+    const auto dot = [&](float sx, float sy, float side) {
+        const SDL_FRect d = {roundf(sx / z) * z, roundf(sy / z) * z, side * z, side * z};
+        SDL_RenderFillRect(r, &d);
+    };
+    for (const Mote& m : motes) {
+        const float t = std::clamp(m.life / std::max(0.01f, m.max_life), 0.0f, 1.0f);      // one, new; nothing, gone
+        const auto mix = [&](Uint8 a, Uint8 b) { return static_cast<Uint8>(b + (a - b) * t); };
+        SDL_SetRenderDrawColor(r, mix(m.from.r, m.to.r), mix(m.from.g, m.to.g), mix(m.from.b, m.to.b), mix(m.from.a, m.to.a));
+        const SDL_FPoint s = camera.ToScreen(m.x, m.y - m.lift);
+        switch (m.kind) {
+            case Mote::Kind::Speck: {
+                const float side = std::max(1.0f, roundf(m.size));
+                dot(s.x - side * z / 2.0f, s.y - side * z / 2.0f, side);
+                if (m.tall > 0.0f) {
+                    // A tongue: a narrower column standing on it, shorter as it dies.
+                    const float up = roundf(m.tall * (0.35f + 0.65f * t));
+                    const float narrow = std::max(1.0f, side - 1.0f);
+                    const SDL_FRect column = {roundf((s.x - narrow * z / 2.0f) / z) * z,
+                                              roundf((s.y - side * z / 2.0f) / z) * z - up * z, narrow * z, up * z};
+                    SDL_RenderFillRect(r, &column);
+                }
+                break;
+            }
+            case Mote::Kind::Streak: {
+                // A run of pixels along the way it is going.
+                const float v = std::max(1.0f, Length(m.vx, m.vy));
+                const int n = std::max(2, static_cast<int>(m.size));
+                for (int i = 0; i < n; ++i) dot(s.x - m.vx / v * i * z, s.y - m.vy / v * i * z, 1.0f);
+                break;
+            }
+            case Mote::Kind::Ring: {
+                // Opening, a pixel at a time round it, and flat as the ground is.
+                const float rx = m.size * z, ry = rx * 0.6f;
+                const int steps = std::max(12, static_cast<int>(m.size * 4.0f));
+                for (int i = 0; i < steps; ++i) {
+                    const float a = 6.2831853f * i / steps;
+                    dot(s.x + cosf(a) * rx, s.y + sinf(a) * ry, 1.0f);
+                }
+                break;
+            }
+        }
+    }
 }
 
 void World::AddDust(float x, float y, float dir_x, float dir_y) {
@@ -3632,38 +4058,67 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             case 4: {
                 const Projectile* p = static_cast<const Projectile*>(it.ptr);
                 if (!p->def) break;
-                SDL_Texture* tex = cache.Get(p->def->sprite);
-
-                // Draw at the art's own proportions. An arrow is long and thin;
-                // forcing it into a square makes it look like a thrown brick.
-                float aw = 16.0f, ah = 16.0f;
-                if (tex) {
-                    float tw = 0, th = 0;
-                    SDL_GetTextureSize(tex, &tw, &th);
-                    if (tw > 0 && th > 0) { aw = tw; ah = th; }
-                }
-                aw *= p->def->scale;
-                ah *= p->def->scale;
+                const ProjectileDef& d = *p->def;
 
                 // At the height it was loosed from, all the way: looked up
                 // under it each frame it would drop a level crossing a bank.
                 if (p->lift < 0.0f) p->lift = LiftAt(p->x, p->y);
-                const SDL_FRect world = {p->x - aw / 2.0f, p->y - ah / 2.0f - p->lift, aw, ah};
-                const SDL_FRect dst = camera.ToScreenRect(world);
+                const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
 
-                if (tex) {
-                    // One sprite covers every direction: it is drawn turned to
-                    // face the way it is travelling.
-                    const double deg = p->def->spin
-                        ? p->spin_angle * 57.2957795
-                        : p->angle * 57.2957795 + p->def->sprite_angle;
-                    SDL_SetTextureColorMod(tex, p->def->tint.r, p->def->tint.g, p->def->tint.b);
-                    SDL_RenderTextureRotated(r, tex, nullptr, &dst, deg, nullptr, SDL_FLIP_NONE);
+                // A light under what burns, by day as well. Added and not
+                // painted, so the grass under a fireball is lit and not covered.
+                if (d.glow > 0.0f) {
+                    if (SDL_Texture* glow = cache.Get("assets/effects/glow.png")) {
+                        const float across = d.glow * (0.88f + 0.12f * sinf(now * 23.0f + static_cast<float>(p->net_id)));
+                        const SDL_FRect lit = camera.ToScreenRect({p->x - across / 2.0f, p->y - across / 2.0f - p->lift,
+                                                                   across, across});
+                        const SDL_Color c = ElementColor(d.element);
+                        SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_ADD);
+                        SDL_SetTextureColorMod(glow, c.r, c.g, c.b);
+                        SDL_SetTextureAlphaMod(glow, 150);
+                        SDL_RenderTexture(r, glow, nullptr, &lit);
+                        SDL_SetTextureAlphaMod(glow, 255);
+                        SDL_SetTextureColorMod(glow, 255, 255, 255);
+                        SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_BLEND);
+                    }
+                }
+
+                // One strip: the frame the clock says (the shot's own number
+                // added, so a volley is not in step), at the art's own
+                // proportions -- an arrow is long and thin, and forced into a
+                // square it is a thrown brick -- held by its pivot on the
+                // shot's position, and turned about that.
+                const auto strip = [&](const string& path, int frames, float pvx, float pvy, double deg) {
+                    SDL_Texture* tex = path.empty() ? nullptr : cache.Get(path);
+                    float tw = 0, th = 0;
+                    if (tex) SDL_GetTextureSize(tex, &tw, &th);
+                    if (!tex || tw <= 0 || th <= 0) return false;
+                    const float fw = tw / frames;
+                    const int frame = frames > 1
+                        ? (static_cast<int>(now * d.fps) + static_cast<int>(p->net_id % 64) * 3) % frames : 0;
+                    if (pvx < 0.0f) pvx = fw / 2.0f;
+                    if (pvy < 0.0f) pvy = th / 2.0f;
+                    const SDL_FRect src = {frame * fw, 0.0f, fw, th};
+                    const SDL_FRect dst = camera.ToScreenRect({p->x - pvx * d.scale, p->y - pvy * d.scale - p->lift,
+                                                               fw * d.scale, th * d.scale});
+                    const SDL_FPoint about = {dst.w * pvx / fw, dst.h * pvy / th};
+                    SDL_SetTextureColorMod(tex, d.tint.r, d.tint.g, d.tint.b);
+                    SDL_RenderTextureRotated(r, tex, &src, &dst, deg, &about, SDL_FLIP_NONE);
                     SDL_SetTextureColorMod(tex, 255, 255, 255);
-                } else {
+                    return true;
+                };
+
+                // One picture covers every direction: it is drawn turned to
+                // face the way it is travelling. What is upright is not, and
+                // what streams off the back of it is.
+                const double along = p->angle * 57.2957795;
+                if (!d.tail.empty()) strip(d.tail, d.tail_frames, d.tail_pivot_x, d.tail_pivot_y, along);
+                const double deg = d.upright ? 0.0 : d.spin ? p->spin_angle * 57.2957795 : along + d.sprite_angle;
+                if (!strip(d.sprite, d.frames, d.pivot_x, d.pivot_y, deg)) {
+                    const SDL_FRect dst = camera.ToScreenRect({p->x - 8.0f * d.scale, p->y - 8.0f * d.scale - p->lift,
+                                                               16.0f * d.scale, 16.0f * d.scale});
                     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-                    SDL_SetRenderDrawColor(r, p->def->tint.r, p->def->tint.g,
-                                           p->def->tint.b, 235);
+                    SDL_SetRenderDrawColor(r, d.tint.r, d.tint.g, d.tint.b, 235);
                     SDL_RenderFillRect(r, &dst);
                 }
                 break;
@@ -3715,6 +4170,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             }
         }
     }
+
+    // Embers, drops and the rest, over everything that stands: see Mote.
+    DrawMotes(r);
 
     // The player's swing, over everything at ground level: it is the one
     // thing on screen that says where a blow is landing.

@@ -37,6 +37,9 @@ public:
     const string& Shop() const { return shop; }
 
     bool talking = false;        // frozen while in conversation
+    // Whether they are someone who practises, and whether a cast is under way.
+    bool Practises() const { return cast_every > 0.0f && !cast_bolt.empty(); }
+    bool Casting() const { return casting > 0.0f; }
 
 private:
     string id, name, dialogue_root, shop;
@@ -54,4 +57,12 @@ private:
     float  shown = -1.0f;        // seconds into the round they are drawn at
     bool   away = false;
     SDL_Color tint{255, 255, 255, 255};
+
+    // Practice: see NpcDef::cast_bolt.
+    string cast_bolt;
+    float  cast_x = 0.0f, cast_y = 0.0f, cast_every = 0.0f;
+    float  cast_timer = 0.0f;    // until the next
+    float  casting = 0.0f;       // seconds into this one; 0 when not
+    bool   cast_thrown = false;
+    static constexpr float CAST_TIME = 0.55f, CAST_RELEASE = 0.22f;
 };

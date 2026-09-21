@@ -44,6 +44,50 @@
                                           "w":  16,
                                           "h":  16
                                       },
+                   "tiles/college_carpet":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "tiles/college_floor":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/college_floor_1":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/college_inlay":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/college_paving":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "tiles/college_paving_1":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "tiles/college_paving_2":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "tiles/college_wall":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/college_wall_1":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "tiles/college_wallface":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "tiles/college_walltop":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
                    "tiles/crag":  {
                                       "w":  16,
                                       "h":  16
@@ -1164,6 +1208,10 @@
                                               "w":  72,
                                               "h":  72
                                           },
+                   "props/clothier_shop":  {
+                                               "w":  192,
+                                               "h":  192
+                                           },
                    "props/coal_bin":  {
                                           "w":  44,
                                           "h":  44
@@ -1172,6 +1220,50 @@
                                         "w":  40,
                                         "h":  40
                                     },
+                   "props/college_banner":  {
+                                                "w":  72,
+                                                "h":  72
+                                            },
+                   "props/college_blackboard":  {
+                                                    "w":  112,
+                                                    "h":  112
+                                                },
+                   "props/college_column":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "props/college_desk":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
+                   "props/college_fountain":  {
+                                                  "w":  112,
+                                                  "h":  112
+                                              },
+                   "props/college_gate":  {
+                                              "w":  224,
+                                              "h":  224
+                                          },
+                   "props/college_hall":  {
+                                              "w":  352,
+                                              "h":  352
+                                          },
+                   "props/college_lamp":  {
+                                              "w":  72,
+                                              "h":  72
+                                          },
+                   "props/college_orrery":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "props/college_statue":  {
+                                                "w":  96,
+                                                "h":  96
+                                            },
+                   "props/college_wing":  {
+                                              "w":  256,
+                                              "h":  256
+                                          },
                    "props/cottage_bookshelf":  {
                                                    "w":  64,
                                                    "h":  64
@@ -1180,6 +1272,10 @@
                                                 "w":  80,
                                                 "h":  80
                                             },
+                   "props/council_table":  {
+                                               "w":  128,
+                                               "h":  128
+                                           },
                    "props/crates_sacks":  {
                                               "w":  48,
                                               "h":  48
@@ -1188,6 +1284,14 @@
                                        "w":  176,
                                        "h":  176
                                    },
+                   "props/crystal_pylon":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
+                   "props/cutting_table":  {
+                                               "w":  80,
+                                               "h":  80
+                                           },
                    "props/dining_table":  {
                                               "w":  56,
                                               "h":  56
@@ -1212,6 +1316,14 @@
                                                   "w":  64,
                                                   "h":  64
                                               },
+                   "props/fabric_rolls":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
+                   "props/fabric_shelf":  {
+                                              "w":  80,
+                                              "h":  80
+                                          },
                    "props/fence_post":  {
                                             "w":  56,
                                             "h":  56
@@ -1252,6 +1364,10 @@
                                         "w":  80,
                                         "h":  80
                                     },
+                   "props/hedge":  {
+                                       "w":  56,
+                                       "h":  56
+                                   },
                    "props/hellgate":  {
                                           "w":  144,
                                           "h":  144
@@ -1344,6 +1460,14 @@
                                                    "w":  168,
                                                    "h":  168
                                                },
+                   "props/high_chair":  {
+                                            "w":  48,
+                                            "h":  48
+                                        },
+                   "props/high_chair_back":  {
+                                                 "w":  48,
+                                                 "h":  48
+                                             },
                    "props/ice_crystal":  {
                                              "w":  40,
                                              "h":  40
@@ -1404,6 +1528,18 @@
                                               "w":  176,
                                               "h":  176
                                           },
+                   "props/mannequin_cloak":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "props/mannequin_dress":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "props/mannequin_robe":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
                    "props/market_stall":  {
                                               "w":  80,
                                               "h":  80
@@ -1496,6 +1632,10 @@
                                                 "w":  88,
                                                 "h":  88
                                             },
+                   "props/stone_bench":  {
+                                             "w":  56,
+                                             "h":  56
+                                         },
                    "props/strongbox":  {
                                            "w":  44,
                                            "h":  44
@@ -1513,6 +1653,18 @@
                                              "h":  64
                                          },
                    "props/tanning_rack":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
+                   "props/tapestry_blue":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
+                   "props/tapestry_green":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "props/tapestry_red":  {
                                               "w":  64,
                                               "h":  64
                                           },
@@ -1536,6 +1688,10 @@
                                            "w":  64,
                                            "h":  64
                                        },
+                   "props/topiary":  {
+                                         "w":  56,
+                                         "h":  56
+                                     },
                    "props/totem_barrow_wight":  {
                                                     "w":  32,
                                                     "h":  32
@@ -1588,6 +1744,10 @@
                                            "w":  160,
                                            "h":  160
                                        },
+                   "props/training_dummy":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
                    "props/travel_chest":  {
                                               "w":  40,
                                               "h":  40

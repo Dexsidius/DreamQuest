@@ -191,6 +191,34 @@ LOOKS = {
         "scarf": False,
         "weapon": False,
     },
+    # The college's students. An apprentice is young and in the pale blue of a
+    # first-year, an adept in the violet of someone who has been let near the
+    # ancient magic. Neither holds anything: what they throw, they throw with
+    # their hands, and the "attack" clip with nothing in it is a cast.
+    "apprentice": {
+        "palette": {"hair":    (0.46, 0.30, 0.18),
+                    "tunic":   (0.42, 0.56, 0.82),
+                    "trim":    (0.90, 0.86, 0.74),
+                    "belt":    (0.34, 0.28, 0.22),
+                    "trouser": (0.30, 0.34, 0.48),
+                    "boot":    (0.22, 0.18, 0.16),
+                    "skin":    (0.94, 0.78, 0.64)},
+        "hair": 1.0,
+        "scarf": False,
+        "weapon": False,
+    },
+    "adept": {
+        "palette": {"hair":    (0.14, 0.12, 0.16),
+                    "tunic":   (0.44, 0.28, 0.60),
+                    "trim":    (0.80, 0.68, 0.34),
+                    "belt":    (0.26, 0.20, 0.26),
+                    "trouser": (0.26, 0.18, 0.36),
+                    "boot":    (0.16, 0.13, 0.17),
+                    "skin":    (0.78, 0.60, 0.46)},
+        "hair": 1.2,
+        "scarf": False,
+        "weapon": False,
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),

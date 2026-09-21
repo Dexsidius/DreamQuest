@@ -126,6 +126,12 @@ struct NpcDef {
     float  phase = 0.0f;        // seconds into the round at midnight of day one
     float  from_hour = 0.0f, to_hour = 0.0f;
     SDL_Color tint{255, 255, 255, 255};
+    // Practising. Every `cast_every` seconds, give or take, they turn to
+    // (cast_x, cast_y) -- a training dummy -- and throw `cast_bolt` at it, which
+    // is one of data/projectiles.json's and does nothing to anybody: see
+    // Projectile::show. "casts": {"bolt": ..., "at": [x, y], "every": seconds}.
+    string cast_bolt;
+    float  cast_x = 0.0f, cast_y = 0.0f, cast_every = 0.0f;
 };
 
 struct MapObject {

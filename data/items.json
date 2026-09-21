@@ -408,7 +408,8 @@
  },
  "bedroll": {
   "tags": [
-   "supplies"
+   "supplies",
+   "leather"
   ],
   "name": "Bedroll",
   "desc": "Canvas, a blanket and a groundsheet. Use it under open sky to pitch camp, and sleep there after dusk.",

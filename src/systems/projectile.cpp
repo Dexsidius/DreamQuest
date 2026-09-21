@@ -96,6 +96,26 @@ bool ProjectileDatabase::Load(const string& path) {
         d.tint = ColorFromJson(o.contains("tint") ? o["tint"] : json(),
                                ElementColor(d.element));
 
+        d.frames  = std::max(1, o.value("frames", 1));
+        d.fps     = o.value("fps", 12.0f);
+        d.upright = o.value("upright", false);
+        d.glow    = o.value("glow", 0.0f);
+        const auto pivot = [](const json& from, float& x, float& y) {
+            if (from.contains("pivot") && from["pivot"].is_array() && from["pivot"].size() >= 2) {
+                x = from["pivot"][0].get<float>();
+                y = from["pivot"][1].get<float>();
+            }
+        };
+        pivot(o, d.pivot_x, d.pivot_y);
+        if (o.contains("tail")) {
+            const json& t = o["tail"];
+            d.tail        = t.value("sprite", string(""));
+            d.tail_frames = std::max(1, t.value("frames", 1));
+            pivot(t, d.tail_pivot_x, d.tail_pivot_y);
+        }
+        const string trail = o.value("trail", string(""));
+        d.shed = trail.empty() ? d.element : ElementFromName(trail);
+
         if (o.contains("patch")) {
             const json& p = o["patch"];
             d.patch_time   = p.value("time", 0.0f);

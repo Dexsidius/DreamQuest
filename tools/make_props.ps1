@@ -77,6 +77,14 @@ $sizes = @{
     totem_broodmother = 32; totem_lizardman_chief = 32; totem_barrow_wight = 32; totem_orc3 = 32
     totem_well_warden = 32; totem_den_mother = 32; totem_nightmare_troll = 32; totem_wyvern_matriarch = 32
     totem_pit_lord = 32; totem_frost_dragon = 32; totem_nightmare_dragon = 32
+    # The college at Fernhollow: its buildings, its court, and its chambers.
+    college_hall = 352; college_wing = 256; college_gate = 224; college_fountain = 112; college_statue = 96
+    college_column = 64; college_banner = 72; college_lamp = 72; hedge = 56; topiary = 56; stone_bench = 56
+    training_dummy = 64; college_desk = 56; college_blackboard = 112; council_table = 128
+    high_chair = 48; high_chair_back = 48; college_orrery = 64; crystal_pylon = 64
+    # Wynn's shop at Mossvale, and what is in it.
+    clothier_shop = 192; mannequin_robe = 64; mannequin_dress = 64; mannequin_cloak = 64
+    tapestry_blue = 64; tapestry_red = 64; tapestry_green = 64; fabric_shelf = 80; fabric_rolls = 56; cutting_table = 80
     # The carrier's waggon at each town's coach post.
     coach = 104
     gate_tower = 104; palisade_side = 64; fence_post = 56

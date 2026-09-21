@@ -138,6 +138,7 @@ there is nothing to download first.
 | Ores, bars, weapons, armour icons, the weapon in hand | `blender_tiers.py` |
 | 93 ground and interior tiles | `make_ground.ps1` |
 | Ground decals, item icons, the HUD | `make_decals.ps1`, `make_icons.ps1`, `make_ui.ps1` |
+| Spells in the air: fireball, water orb, stone shard, gust | `make_effects.ps1` |
 
 The game began on free [CraftPix](https://craftpix.net) packs, whose licence
 permits using the art in a game but not passing the files on — which meant the
@@ -833,9 +834,10 @@ field. The numbers live in `src/world/targeting.h` and the `homing` field of
 
 Arrows and spells are the same system. Everything that separates a bowshot
 from a firebolt — speed, reach, how many bodies it passes through, what it
-leaves on the ground — is data in `data/projectiles.json`, and the art is one
-sprite drawn turned along its direction of travel, so a single arrow image
-covers every angle.
+leaves on the ground — is data in `data/projectiles.json`, and the art is
+drawn turned along its direction of travel, so a single arrow image covers
+every angle. An arrow is a still; a spell is a strip of frames, and
+[looks like what it is](#what-a-spell-looks-like-in-the-air).
 
 ### The four elements
 
@@ -849,6 +851,55 @@ button does instead of adding another thing to remember.
 | **Water** | Runs straight through a line of bodies | Piercing |
 | **Earth** | Lands heavy and bursts a moment later, after a visible wind-up | Slow, high commitment |
 | **Air** | Very fast, long range, and it carries what it hits backwards | Kiting |
+
+### What a spell looks like in the air
+
+The four elements were thrown as whatever icon was nearest: fire was the spark
+off the tinderbox, water a blue gem, earth a small rock from the scenery and
+air a rune -- each eleven pixels across, tinted its element's colour, and turned
+or spun as it flew. They could be told apart by colour and by nothing else.
+Each is drawn now as the thing it is (`tools/make_effects.ps1`, into
+`assets/effects/`), as a strip of eight frames:
+
+| Key | Element | In the air | Behind it | Where it lands |
+| --- | --- | --- | --- | --- |
+| 1 | Fire | **A fireball**: a round white-hot head, banded out through yellow and orange to a dark red rim, and a tail of flame streaming back off it in tongues. It lights the ground under it, by day as well. | embers, going up and going out, and a little smoke | embers thrown back off whatever it met, smoke, a ring of light -- and the ground it leaves burning **stands in tongues of flame** for as long as it burns, where it was an orange disc |
+| 2 | Water | **A ball of water**, seen as glass is -- a dark rim, a highlight top-left, the light it has gathered bottom-right, two bubbles going round inside -- that wobbles as it flies, with a wake streaming off the back of it | drops, falling | a splash: drops up and out and down again, and a ring opening |
+| 3 | Earth | **A shard of stone**, cut in facets and tumbling | dust, and chips falling out of it | chips and dust; and where it breaks the ground open a moment later, the ground comes up |
+| 4 | Air | **A gust**: three lines of moving air that curl over at the front, the brightness running along them toward the curl. Galewind, which "has an edge on it", has one: a crescent ahead of the lines. | streaks of it left hanging either side | streaks thrown outward, and a ring |
+
+The greater spell of each is the same thing larger -- a second strip, not the
+first one scaled, so both are pixel for pixel. The ancient magic keeps its own
+pictures and sheds violet sparks.
+
+How it is done, and why:
+
+- **Fields, not drawings.** A flame, a wake and a gust are worked out as one
+  number a pixel -- how hot, how wet -- and cut into four or five flat colours,
+  which is what makes them pixel art and not a blur. The noise scrolled through
+  them repeats, so the eighth frame runs into the first.
+- **Held by a point, turned about it.** A strip names its `pivot`: the head of
+  the fireball, not the middle of its tail, is on the projectile's position and
+  is what it turns about.
+- **What has a light side is not turned.** A ball of water has its highlight
+  top-left flying east or west, and a stone is lit from the top-left in every
+  frame of its tumble -- which is why the tumble is eight drawn frames and not
+  one picture spun: a spun picture carries its own shadow round with it. They
+  are `upright`. What says which way the water is going is its `tail`, a second
+  strip under the first that *is* turned.
+- **No bigger than what it hits.** The first gust was three times as tall as
+  the circle it strikes with, and sailed through things it looked to have hit.
+- **Motes.** What a spell sheds and throws up (`Mote` in
+  `src/systems/projectile.h`; `World::ShedFromShots`, `ShedFromGround`,
+  `BurstOf`) is only ever for show. Nothing in the game asks where an ember is;
+  the dice they are thrown with are their own, so a fireball over a field
+  leaves the game's dice exactly where an arrow would; and there are never more
+  than seven hundred, which a practice hall full of mages will reach.
+- **A friend's machine makes its own.** A guest is told where the host's shots
+  are and nothing else. It sheds a trail from that, shot by shot (by number:
+  its shots are handed to it anew with every word from the host, so nothing can
+  be kept on the shot), and a shot it stops hearing of has met something and
+  breaks where it last was.
 
 ### The effectiveness cycle
 
@@ -871,13 +922,13 @@ are air, the Warchief is fire.
 
 The four elements are what the land lends a caster. **The ancient magic is
 what people wrote down before they had the elements to lean on**, and it is
-taught at the **mage college in Fernhollow**: a round stone tower south-east
-of the pond, older than the hamlet round it, with a circle cut into the floor
-of its hall (`mage_college` and `spell_circle` in `tools/blender_props.py`;
-the hall is `fernhollow_college`, with the college's own floor and walls).
+taught at the **[College at Fernhollow](#the-college-at-fernhollow)**, north of
+the water and older than the hamlet beside it, in the great hall on the north
+side of its court, where a circle is cut into the floor (`spell_circle` in
+`tools/blender_props.py`; the hall is `fernhollow_college`).
 Magister Orrin keeps it, on the hero's rig in a blue robe (`magister` in
 `LOOKS`), and teaches the first spell to anyone who asks; the rest are
-**tomes** sold in the copying room, the last two only once the pond has
+**tomes** he sells across the council's table, the last two only once the pond has
 spoken to the player. A tome is read from the pack like a recipe scroll, and
 what is learned lives in the flags as `recipe:spell:<id>`.
 
@@ -1344,8 +1395,9 @@ station's skill. **Anything brewed -- anything with a herb or a vial in it -- is
 brewed at a cauldron**, with Brewing. **Anything that
 needs metal is smithed at an anvil**, with Smithing -- in Halda's forge in Havenbrook, or
 beside the workbench in Mossvale: every bar, every metal tier's pieces, and the
-Copper Ring. **Everything else is made at a workbench**, in Havenbrook or
-Mossvale, with Crafting: the wooden tier, the Leather Jerkin, the Hide Boots, the Fishing Rod, the Bedroll and the Dreamcatcher.
+Copper Ring. **Cloth is woven at a loom and leather cut on a tanning rack** (see below), and
+**everything else is made at a workbench**, in Havenbrook or
+Mossvale, with Crafting: the wooden tier, the bows, the Fishing Rod and the Dreamcatcher.
 The two used to share one list, so a village workbench could smith an iron
 shield.
 
@@ -1633,7 +1685,7 @@ kind of shop.
 | Place | General store | Other shops |
 | --- | --- | --- |
 | Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo); **Nessa's Tannery**, with the order book |
-| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's Weaving Shed**, with the order book |
+| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book |
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
@@ -1646,8 +1698,9 @@ Havenbrook had nowhere inside its walls to learn a craft with. The Westwold's
 tannery is out of the west gate and past the wolves, which is no use at
 Crafting 1, and the workbench by the forge had nobody standing at it who wanted
 anything made. So the south-west corner of the town, which was empty grass, is a
-tannery yard: frames of hide drying along the wall, a log pile, a bench to work
-at, and **Nessa the Tanner**, who buys hide, pelt and cloth, sells thread and
+tannery yard: frames of hide drying along the wall -- which are what is worked
+at: see [the tanning rack](#the-tanning-rack-and-the-sixth) -- a log pile, and
+**Nessa the Tanner**, who buys hide, pelt and cloth, sells thread and
 boots, and keeps **an order book**.
 
 An order is a daily delivery like Halda's ore or Wendel's pike, with one
@@ -1671,11 +1724,24 @@ fill. It also holds each to the older rule that a repeatable order must pay
 way to turn coins into coins; so the coin is modest and the Crafting XP is the
 reward. Nothing she sells is anything she orders, for the same reason.
 
-### Wynn's Weaving Shed, at Mossvale
+### Wynn's, at Mossvale
 
-The tannery is the ranger's trade and this is the mage's. Wynn keeps a shed on
-the north side of Mossvale's square -- a wheel, lengths of dyed cloth drying on
-frames, and **her loom** -- and buys flax, fleece and silk. Her **order book**
+The tannery is the ranger's trade and this is the mage's. Wynn kept a stall on
+the north side of Mossvale's square with her loom standing out in the weather
+beside it, in earshot of Garrow's anvil. **She has a house now**, up its own
+lane in the quiet north-west of the village, a long way from the forge: a
+timbered shop with a blue door between two windows of small panes, gowns stood
+in each under a striped awning, and a spool on the sign
+(`prop_clothier_shop`; the first front had the door to one side of one wide
+window, and the way in was through the glass).
+
+Inside (`mossvale_weavers`) it is a draper's: racks of bolts end-on along the
+back wall in every colour she dyes, hangings between them, the counter she
+sells over, a cutting table in the middle of the floor with a length of blue
+across it and the shears beside, tubs of rolls, five dressmaker's forms down
+the front of the shop in a robe, a gown and a travelling cloak -- and **her
+loom and her wheel**, which are the point. A board where the stall was says
+where she has gone. She buys flax, fleece and silk. Her **order book**
 works the way Nessa's does, three a day out of nine, and asks for what a mage
 wears: bolts of cloth at Crafting 3, homespun hats and robes at 1 and 4, novice
 skirts and robes, apprentice's hats and robes at 10, a journeyman's robe at 20,
@@ -1696,7 +1762,7 @@ has the only one in the Hollowmarch:
 
 | Station | Trains | What is made there |
 | --- | --- | --- |
-| Workbench | Crafting | Wood, leather, thread: bows, hides, bags, a bedroll |
+| Workbench | Crafting | Wood, leather, thread: bows, hides, bags, a bedroll *(the leather has since gone to the tanning rack: see the next section)* |
 | **Loom** | **Crafting** | **Cloth from any fibre, and all 36 pieces of the mage's sets** |
 | Anvil | Smithing | Anything with metal in it |
 | Cauldron | Brewing | Potions, and the robes' dyes |
@@ -1718,6 +1784,51 @@ ranger's are `leather`, and it is also why:
 Nessa used to post an order for a bolt of cloth. She does not any more: cloth is
 woven three miles away at somebody else's loom, and Wynn's book already asks for
 it at the same level. Her book is thirteen orders of leather now.
+
+### The tanning rack, and the sixth
+
+Both tanneries had frames of hide standing all round a carpenter's bench, and
+the bench was where the hide was worked: the frames were scenery. **The frames
+are the station now** -- `CraftStation::Rack`, "Use the tanning rack" -- and the
+bench has gone from both yards. There are three at Nessa's in Havenbrook, four
+along the north side of Hidewater, and the one at Hale the trapper's camp in the
+Brackenwood, where bear hide can be cut where the bear was. (Wynn had two
+at her stall doing duty as a drying line for cloth; they went when she moved
+indoors.)
+
+| Station | Trains | What is made there |
+| --- | --- | --- |
+| Workbench | Crafting | Wood: the wooden tier, bows, the fishing rod, the dreamcatcher |
+| **Tanning rack** | **Crafting** | **Everything of leather: all 36 pieces of the ranger's hides, the Leather Jerkin, Hide Boots, the four bags, the bedroll** |
+| Loom | Crafting | Cloth from any fibre, and all 36 pieces of the mage's sets |
+| Anvil | Smithing | Anything with metal in it |
+| Cauldron | Brewing | Potions, and the robes' dyes |
+| Cooking fire | Cooking | Plain food, and the dishes |
+
+It is the loom's rule over again, one line later: **if what comes off the
+recipe is tagged `leather`, it is cut on a rack.** The tiers already tag the
+ranger's pieces `leather`, so the whole of the hide armour went across on that
+line. Asked of the result, and before the metal, which is why:
+
+- a **banded jerkin** has iron in it and is still a jerkin, cut by a tanner and
+  not beaten out by a smith;
+- a **Barkwood Helm** has a hide in it and is still wood, so Halda's lesson is
+  still done at a bench;
+- a **bag** and a **bedroll** went to the rack with the rest. The loom's section
+  above says a bag is "still sewn at a bench, because a bag is mostly hide":
+  being mostly hide is now the reason it is not. The bedroll is tagged `leather`
+  for the same purpose -- it is two hides and the thread to sew them.
+
+That last one is the judgement call. The alternative was hide *armour* only on
+the rack, with the bags and bedrolls left at a bench -- but five of the thirteen
+orders in Nessa's book are bags and bedrolls, and a tannery whose own order book
+cannot be filled in its own yard is the thing the loom was built to stop. The
+self-test holds her book to it: every order in it is made on her frames. If the
+bags belong back at the bench it is one tag on five items.
+
+Three stations, one skill: the rack, the loom and the bench all train Crafting,
+because all three are the same trade. Orla, Nessa and Halda say where hide is
+cut now, where they used to say "any workbench".
 
 ### Things that were quietly broken
 
@@ -1754,6 +1865,17 @@ Emberfire Elixir. `Skills::RestoreDrained` puts back only what was lost.
 saved; the window's own close button did not. Both save now -- except a scratch
 game, a guest's world, and anybody lying dead, for whom the last autosave
 stands.
+
+**A new game did not start with a new world.** Play one save, start a new game
+in the same sitting, and the first character's things were in the second
+character's storage chest at Mossvale -- and the new save wrote them down as
+its own, so from then on the chest was "shared". Each save always kept its own
+chest and loading always replaced it; what was missing was the *new game*,
+which cleared what the world remembers a line at a time and had not been told
+about the two newest things a save had learned to keep: the storage chests, and
+which bosses have been killed today (so a new character could also find a boss
+dead on day one). `World::StartAfresh` is the one list now, and the self-test
+saves two games from one world and loads each over the other.
 
 **Saves.**
 
@@ -2061,7 +2183,7 @@ whole bonus as the gain, that a piece weighed against itself changes nothing,
 and that a quicker weapon reads as better although the number stored for it is
 smaller.
 
-`--audit` sweeps every recipe at all five stations, every shop row, every bag
+`--audit` sweeps every recipe at all six stations, every shop row, every bag
 square and every chest square at three window sizes, with a character wearing a
 full set and carrying a piece with a passive and two enchanted ones, so the
 longest line any of this can draw is checked rather than assumed.
@@ -3068,17 +3190,26 @@ mid-story.
 
 
 A new character starts with **25 coins, three cooked meat, and the wood tier's
-weapon of their affinity, worn with a Barkwood Cuirass**: the hero a Wooden
-Sword and a Wooden Shield, the wayfarer a Wood Staff and the same shield, and
-the warden an Oak Shortbow and a pair of Hide Boots, because a bow takes both
-hands and a shield they could not raise is no use to them. The character card
-says which. Nothing else: the rest of a set and a bedroll are bought from the
-traders, found or made. The tools are lent, by the three people in Havenbrook
+weapon of their affinity, worn with the wood tier's armour of their own kind**:
+
+| | Weapon | Armour | And |
+| --- | --- | --- | --- |
+| The hero | Wooden Sword | Barkwood Cuirass | Wooden Shield |
+| The warden | Oak Shortbow | **Rawhide** Coif, Jerkin and Chaps | Hide Boots -- a bow takes both hands, and a shield they could not raise is no use to them |
+| The wayfarer | Wooden Staff | **Homespun** Hat, Robe and Skirt | Wooden Shield -- a staff is held in one hand |
+
+All three used to set out in the hero's cuirass, which is plate: it does
+nothing for a bow or a staff, and the first thing the other two learned about
+armour was that theirs was the wrong sort. Hide and cloth turn less than wood
+a piece, so it is the whole set, and it comes out even -- Defence 26, 26 and
+25 -- with the set's own small push on top: +5 Ranged for the warden, +7 Magic
+for the wayfarer. The character card draws each in what they wear. Nothing
+else: a bedroll and anything better are bought from the traders, found or made. The tools are lent, by the three people in Havenbrook
 who work with them. Every character used to start with the sword, which sent
 two of the three into their first fight with the one weapon their affinity
 does nothing for.
 
-The two pieces of armour are not generosity, they are the accuracy formula.
+The armour is not generosity, it is the accuracy formula.
 Defence is `(level + 8) x (bonus + 64)`, so at level 1 the bonus from what you
 are wearing is most of the number: with an empty body slot a boar hits a new
 character 60% of the time and an orc 65%, while they hit back at about 42%.
@@ -3460,6 +3591,9 @@ with the Whisperwood trail leaving from the east.
 | `mossvale_cottage` | The tanner's empty house at the bottom of the village -- yours, once you find the key |
 | `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
+| `college_grounds` | The College at Fernhollow: through the gatehouse on the hamlet's north side, a great court with the hall across the north of it |
+| `fernhollow_college`, `college_training`, `college_classroom` | The college's three chambers: the great hall where the council sits (north), the practice hall (west), the lecture room (east) |
+| `mossvale_weavers` | Wynn's, up the north-west lane at Mossvale: a draper's, with her loom in it |
 | `dreamworld` | The Reverie, reached only by sleeping: five cloud islands over the void |
 | `house_inn_cellar` | Under the Barley and Bell, down a hatch behind the bar: rats, spiders and a broodmother |
 | `ice_spire_peak` | North off the foothills, Combat 30: a climb through trolls to the wyverns' summit |
@@ -3467,6 +3601,69 @@ with the Whisperwood trail leaving from the east.
 | `dungeon_infernal` | The Infernal Pit, through the hellgate at the Ashen Path's end: imps, demons and the Pit Lord |
 | `westwold` | The Westwold, out of Havenbrook's west gate, Combat 5: open downs, Hidewater steading, the river Wend, wolves, and the Howling Fells in the west |
 | `brackenwood` | The Brackenwood, north off the Westwold's fork, Combat 20: old forest, bears, the Den Mother, and the Old Growth |
+
+### The College at Fernhollow
+
+It was a tower in the south-east corner of the hamlet with one room in it. It is
+a place of its own now, north of the water, and it is meant to be the grandest
+thing in the Hollowmarch: everything else is brown timber, and this is pale
+stone under blue slate with gold on it.
+
+**The hamlet has the gatehouse** -- two round towers under blue spires and an
+arch between them, at the head of a paved walk up from the jetty road, with a
+porter, the college's colours and a pair of lamps. A way into the college is a
+door and not a road out of the hamlet, so it is walked up to and gone through
+like one (and the rule that every road out of a town is a gate with a warden
+is not asked about it).
+
+**Through it is the great court** (`college_grounds`, 60 by 46 cells -- bigger
+than Fernhollow itself): an avenue of blue-lozenged flagstones from the gate to
+the hall, a cross-walk from the west door to the east, a three-tiered fountain
+where they meet, four lawns edged in box with **a founder in stone on each**,
+benches, the colours up both sides of the avenue, a colonnade down each side
+wall, and lamp standards that are lit after dark. Across the north side, its
+roofs against the wall, is **the hall with a wing either side of it**: six
+columns under a pediment with the college's star in it, tall lit windows, a
+round tower at each end -- one front twenty-five cells wide. The first court
+had the hall alone, which was a fifth of the width of the place it was meant to
+preside over.
+
+Off the court, a chamber in each of the three walls, and each a different kind
+of room:
+
+| Door | Map | What it is |
+| --- | --- | --- |
+| West | `college_training` | **The practice hall.** Four lanes with a straw man at the end of each, and an apprentice or an adept at the head of each throwing what they are learning at him -- fire, the old bolt, water, air. Crystals in the corners, the staves in a rack, a duelling ring, Battlemaster Ysolde watching. |
+| East | `college_classroom` | **The lecture room.** A board across the back wall chalked with a working, the lectern, an orrery, shelves, ten desks either side of a blue runner with a class at half of them, and Lector Maud on the four elements and what each one fears. |
+| North | `fernhollow_college` | **The great hall, where the council sits.** The council's table under a blue cloth with six high chairs at it, Magister Orrin at its head with Councillors Ferris and Wren, the library along the back wall, a founder either side -- and south of the table the circle cut in the floor, which is older than all of it. The hall keeps the id it always had, so everything that knew the way to the Magister still does. |
+
+The side doors are doors in side walls: a gap in the wall with the runner laid
+through it and a pair of columns either side, walked into sideways. The rooms
+behind them have their own door in the *opposite* side wall, so going west out
+of the court brings you in at the east end of the practice hall.
+
+**The mages really do practise.** An NPC in a map can be given
+`"casts": {"bolt": ..., "at": [x, y], "every": seconds}`: they turn to the
+point, play the cast -- the rig's attack clip with nothing in the hand, rendered
+for the `magister` and for two new looks, `apprentice` and `adept` -- and let
+go one of `data/projectiles.json`'s bolts at it. It is a **practice bolt**
+(`Projectile::show`): it flies exactly as far as the dummy and bursts there,
+and on the way it touches nobody -- not a monster, not a player stood in the
+lane -- and a fire bolt leaves nothing burning. The straw men are scenery, not
+monsters, so nothing in the room can be hit for experience either; the
+instructor says so, and says why ([a wall teaches nothing](#a-wall-teaches-nothing)).
+
+**Its own tileset**, from `tools/make_ground.ps1`: `college_paving` and
+`college_inlay` for the court, `college_floor` (chequer marble) and
+`college_wall` (ashlar with a band of blue and gold) for the chambers,
+`college_walltop` and `college_wallface` for walls seen from above and from the
+front, `college_carpet` for the runners. They are appended at the very end of
+the generator on purpose: it is one run of one random sequence, so anything
+added earlier would re-roll every tile after it. Two things learned laying
+them: a carpet laid *over* a floor is under it, because the ground is drawn a
+tile name at a time in alphabetical order (`CollegeRoom` takes its runners as a
+predicate and lays them *instead*); and a banded wall tile run up a side wall
+is a ladder, so only the back wall wears the band.
 
 ### Waystones
 
@@ -4389,7 +4586,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **29591 checks** covering:
+and checks all of it — currently **30327 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -5030,10 +5227,16 @@ and checks all of it — currently **29591 checks** covering:
   supper, a fleece or a hide, with a farmer in the yard; a fleece spins into
   cloth for the shed and everything the farm gives cooks; and there are frogs in
   the mire, which sit there
-- the loom: every recipe belongs to exactly one of the five stations; what is
-  woven is what comes off the loom and not what goes in, so a bolt of cloth is
-  only ever woven, all thirty-six pieces of the mage's sets go with it, a bag
-  and a bedroll have hide in them and stay at the bench, and a dye is boiled;
+- the loom and the tanning rack: every recipe belongs to exactly one of the six
+  stations; what is woven is what comes off the loom and not what goes in, so a
+  bolt of cloth is only ever woven, all thirty-six pieces of the mage's sets go
+  with it, and a dye is boiled; what is leather is cut on a rack the same way
+  -- all thirty-six pieces of the ranger's hides whatever else is in them, the
+  jerkin, the boots, the bags and the bedroll, and no plate and no robe -- while
+  a Barkwood Helm has a hide in it and is still made at a bench; both tanners
+  have frames to work at, no carpenter's bench, and no frame that is only
+  scenery; every order in Nessa's book is made on her own frames; the rack
+  trains Crafting, a map that says "rack" gets one, and it is drawn as one;
   the loom trains Crafting the way the bench does; a map that says "loom" gets
   one, it is drawn as one, and there is one standing in the world
 - what each blow trains, and other things that were quietly broken: Attack
@@ -5144,6 +5347,39 @@ and checks all of it — currently **29591 checks** covering:
   blessing goes out of the door, is still there at midnight, is over at dawn
   with the health it lent given back, the totem still standing at home and
   saying it is asleep; and all of it survives a save
+- a new game starts with a new world: with forty bars in the chest, a chest
+  looted, a boss dead and nine days gone, a new game finds the storage chest
+  empty, no boss dead, nothing opened, no camp, and nine in the morning of the
+  first day; two saves made from one world in one sitting each have their own
+  chest and none of the other's, in either order, and loading one over the
+  other leaves nothing behind
+- what a spell looks like in the air: each of the eight elemental bolts is
+  drawn as the thing it is (fireball, water orb, stone shard, gust) from
+  `assets/effects/`, as a strip of whole frames held at a point inside one,
+  in its own colours with no element's tint over it, pixel for pixel, the
+  greater of each pair the bigger, and what is upright no bigger than about
+  what it hits; water has a wake and a fireball a glow; an arrow is a still
+  and sheds nothing; every bolt sheds a trail, and leaves it behind it; on the
+  waystone each breaks a dozen motes at once; burning ground stands in tongues
+  of flame; a fireball over one field and an arrow over another leave the
+  game's dice in the same place; seven hundred and twenty fireballs are seven
+  hundred motes; and a friend's machine sheds its own trail from the shots it
+  is told of, and breaks one it stops hearing of where it last was
+- the College at Fernhollow, and Wynn's at Mossvale: the college is through a
+  gatehouse on the hamlet's north side with a porter at it, and the tower is
+  gone; the court is out of doors, bigger than the hamlet, and paved in its own
+  tiles with no dirt or planks; there is a door in the west wall, the north and
+  the east, facing each other, to three different rooms, and the gate south; the
+  hall has a wing either side, there is a fountain, four founders, and lamps;
+  each chamber is indoors, has the three things that make it what it is, is
+  floored in the college's chequer, and lets back onto the court; there is a
+  lector, a class and more desks than pupils, and a council of three; in the
+  practice hall four of them cast, the bolts fly, every bolt in the room is a
+  practice bolt, twenty seconds stood in a lane costs nothing, nothing is left
+  burning, watching teaches no Magic and there is nothing in the room to fight;
+  Wynn and her loom are not on the square, her door is a long way from the
+  anvil, and she is inside selling, with forms, hangings, shelves of bolts, a
+  cutting table, her wheel and a counter
 - waystones: each of the three towns has exactly one, with its dark and its lit
   sprite on disk and somewhere clear to arrive beside it, and no other map in
   the game has one; the first touch wakes the stone and asks for nothing else,
@@ -5242,6 +5478,7 @@ tools/
   selftest.cpp          content and systems validation
   make_ground.ps1       generated ground and interior tiles
   make_decals.ps1       grass tufts, flowers, leaves, pebbles and the like for the overworld's ground
+  make_effects.ps1      what each element's spell looks like in the air, as strips of frames
   make_icons.ps1        paints the hand-drawn item icons in icons.txt
   blender_tiers.py      models and renders every tier's ore, bar, weapon and armour,
                         as icons and as weapon layers in the hero's hand

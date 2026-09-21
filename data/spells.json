@@ -1,7 +1,7 @@
 {
   "ember": {
     "name": "Ember",
-    "desc": "A thrown coal that sticks. Leaves the ground burning for a few seconds.",
+    "desc": "A ball of fire. Where it lands, the ground burns for a few seconds.",
     "element": "fire",
     "tier": 1,
     "level": 1,
@@ -12,7 +12,7 @@
   },
   "pyre": {
     "name": "Pyre",
-    "desc": "The same idea, with far less restraint. A wider, longer fire.",
+    "desc": "The same fireball, with far less restraint. A wider, longer fire.",
     "element": "fire",
     "tier": 2,
     "level": 20,
@@ -24,7 +24,7 @@
 
   "spray": {
     "name": "Spray",
-    "desc": "A lance of water that runs straight through a line of bodies.",
+    "desc": "A ball of water thrown hard enough to go straight through a line of bodies.",
     "element": "water",
     "tier": 1,
     "level": 1,

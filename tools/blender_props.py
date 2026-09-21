@@ -3251,6 +3251,710 @@ TOTEM_PROPS = {
 
 
 # -----------------------------------------------------------------------------
+#  The College at Fernhollow
+#
+#  It was a tower in a corner of the hamlet. It is a place of its own now, north
+#  of the water: a gatehouse, a great court, a hall across the north side of it
+#  and chambers off the west and the east. Everything here is pale stone under
+#  blue slate with gold on it, because everything else in the Hollowmarch is
+#  brown timber, and the point of the place is that it is not the Hollowmarch's.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "col_stone":    (0.800, 0.780, 0.730),
+    "col_stone_lt": (0.890, 0.870, 0.820),
+    "col_stone_dk": (0.600, 0.585, 0.600),
+    "col_blue":     (0.215, 0.310, 0.580),
+    "col_blue_dk":  (0.145, 0.205, 0.420),
+    "col_blue_lt":  (0.380, 0.500, 0.800),
+    "col_gold":     (0.850, 0.700, 0.350),
+    "col_glass":    (0.560, 0.820, 0.980),
+    "col_water":    (0.330, 0.600, 0.860),
+    "col_water_lt": (0.700, 0.880, 0.980),
+    "col_door":     (0.300, 0.200, 0.140),
+    "hedge":        (0.220, 0.420, 0.220),
+    "hedge_lt":     (0.330, 0.540, 0.290),
+    "hedge_dk":     (0.150, 0.300, 0.170),
+    "dummy_sack":   (0.760, 0.660, 0.460),
+    "dummy_sack_dk": (0.560, 0.470, 0.320),
+    "scorch":       (0.160, 0.130, 0.120),
+    "board_green":  (0.160, 0.260, 0.220),
+    "brass_lt":     (0.900, 0.780, 0.420),
+})
+
+
+def _col_window(name, x, y, z, w=0.36, h=0.80, lit=True):
+    """A tall arched window of lit blue glass in a pale stone surround."""
+    # Square-headed under a lintel. Arched heads were tried: at this size the
+    # curve is two dark pixels at the top corners, and every window had eyes.
+    blk(name + "_surround", (w + 0.14, 0.08, h + 0.14), (x, y, z), "col_stone_lt")
+    blk(name + "_glass", (w, 0.05, h), (x, y - 0.04, z), "col_glass", emit=0.9 if lit else 0.0, rough=0.3, bev=0)
+    blk(name + "_lintel", (w + 0.24, 0.12, 0.10), (x, y - 0.02, z + h / 2 + 0.09), "col_stone_lt")
+    blk(name + "_sill", (w + 0.24, 0.14, 0.07), (x, y - 0.03, z - h / 2 - 0.07), "col_stone_lt")
+    blk(name + "_mullion", (0.05, 0.06, h), (x, y - 0.06, z), "col_stone_lt", bev=0)
+
+
+def _col_column(name, x, y, height, radius=0.13):
+    cyl(name + "_base", radius + 0.07, 0.10, (x, y, 0.05), "col_stone_lt", verts=14)
+    cyl(name + "_shaft", radius, height, (x, y, 0.10 + height / 2), "col_stone", verts=14)
+    cyl(name + "_band", radius + 0.02, 0.07, (x, y, 0.10 + height - 0.10), "col_gold", verts=14, metal=0.4, rough=0.45)
+    blk(name + "_cap", (radius * 2 + 0.16, radius * 2 + 0.16, 0.10), (x, y, 0.10 + height + 0.05), "col_stone_lt")
+
+
+def _col_spire(name, x, y, z, radius, height, crystal=True):
+    cone(name, radius, height, (x, y, z + height / 2), "col_blue", verts=20)
+    for k in range(3):
+        t = 0.18 + k * 0.24
+        cone("%s_band_%d" % (name, k), radius * (1 - t) + 0.02, 0.06, (x, y, z + t * height), "col_blue_dk", verts=20)
+    cyl(name + "_finial", 0.04, 0.22, (x, y, z + height + 0.08), "col_gold", verts=8, metal=0.4, rough=0.45)
+    if crystal:
+        cone(name + "_crystal", 0.09, 0.30, (x, y, z + height + 0.32), "crystal", verts=6)
+        bpy.context.active_object.data.materials[0] = material(name + "_cr", "crystal", 0.35, 0.0, 1.0)
+
+
+def prop_college_hall():
+    """The great hall across the north of the court: a long pale front on a
+    flight of steps, six columns under a pediment with the college's star in
+    it, tall lit windows either side of a pair of doors, a blue slate roof, and
+    a round tower at each end under a spire with a crystal on it. The council
+    sits behind those doors, so it is the widest thing in the Hollowmarch."""
+    W, D, H = 7.6, 1.6, 2.5
+    front = -D / 2
+    # Steps across the whole portico.
+    for k in range(3):
+        blk("step_%d" % k, (4.2 - k * 0.3, 0.30, 0.10), (0, front - 0.72 + k * 0.24, 0.05 + k * 0.10), "col_stone_lt")
+    blk("body", (W, D, H), (0, 0, 0.30 + H / 2), "col_stone", bev=0.03)
+    blk("plinth", (W + 0.2, D + 0.2, 0.30), (0, 0, 0.15), "col_stone_dk", bev=0.03)
+    blk("cornice", (W + 0.24, D + 0.24, 0.16), (0, 0, 0.30 + H + 0.08), "col_stone_lt", bev=0.03)
+    blk("frieze", (W + 0.02, 0.06, 0.22), (0, front - 0.02, 0.30 + H - 0.22), "col_blue", bev=0)
+    for k in range(9):
+        blk("frieze_pip_%d" % k, (0.10, 0.04, 0.10), (-3.4 + k * 0.85, front - 0.05, 0.30 + H - 0.22), "col_gold", bev=0)
+    # The portico: six columns and a pediment.
+    for k in range(6):
+        _col_column("col_%d" % k, -1.75 + k * 0.70, front - 0.45, 2.05, radius=0.12)
+    blk("entablature", (4.10, 0.60, 0.22), (0, front - 0.30, 0.30 + 2.05 + 0.26), "col_stone_lt")
+    # A pediment: a shallow triangle made of a wide thin block and two slanted ones.
+    ped_z = 0.30 + 2.05 + 0.37
+    # The face is a triangle, which at this size is three courses each shorter
+    # than the one under it; the two slabs over it rise to the middle. (The
+    # first ones fell to the middle, and the hall had a butterfly on its head.)
+    for k, wdt in enumerate((3.7, 2.5, 1.3)):
+        blk("ped_face_%d" % k, (wdt, 0.50, 0.22), (0, front - 0.30, ped_z + 0.11 + k * 0.22), "col_stone", bev=0)
+    for side in (-1, 1):
+        blk("ped_%d" % side, (2.25, 0.66, 0.12), (side * 1.02, front - 0.30, ped_z + 0.42), "col_blue",
+            rot=(0, side * math.radians(19), 0), bev=0.02)
+    sphere("star", 0.17, (0, front - 0.58, ped_z + 0.26), "col_gold", emit=0.6)
+    # The doors, a pair, under a fanlight.
+    blk("door_case", (1.50, 0.10, 1.95), (0, front - 0.01, 0.30 + 0.97), "col_stone_lt")
+    for side in (-1, 1):
+        blk("door_%d" % side, (0.60, 0.08, 1.50), (side * 0.31, front - 0.05, 0.30 + 0.75), "col_door")
+        blk("door_panel_%d" % side, (0.38, 0.03, 0.52), (side * 0.31, front - 0.10, 0.30 + 1.08), "oak", bev=0.01)
+        blk("door_panel_b_%d" % side, (0.38, 0.03, 0.52), (side * 0.31, front - 0.10, 0.30 + 0.42), "oak", bev=0.01)
+        sphere("knob_%d" % side, 0.05, (side * 0.08, front - 0.11, 0.30 + 0.76), "brass_lt")
+    blk("fanlight", (1.24, 0.08, 0.30), (0, front - 0.05, 0.30 + 1.68), "col_glass", emit=1.0, bev=0)
+    # Windows, tall and lit, down the front.
+    for k, x in enumerate((-3.10, -2.45, 2.45, 3.10)):
+        _col_window("win_%d" % k, x, front - 0.02, 0.30 + 1.25, w=0.34, h=1.10)
+    # The roof: blue slate, hipped -- a long ridge with sloped ends.
+    rz = 0.30 + H + 0.16
+    pitch = math.radians(34)
+    half = D / 2 + 0.30
+    for side in (-1, 1):
+        blk("roof_%d" % side, (W + 0.5, half / math.cos(pitch), 0.12), (0, side * half / 2, rz + half * math.tan(pitch) / 2),
+            "col_blue", rot=(-side * pitch, 0, 0), bev=0.02)
+    blk("ridge", (W + 0.54, 0.16, 0.12), (0, 0, rz + half * math.tan(pitch) + 0.02), "col_blue_dk", bev=0.02)
+    for k in range(3):
+        t = 0.25 + k * 0.25
+        blk("roof_course_%d" % k, (W + 0.52, 0.05, 0.03), (0, -half * (1 - t), rz + half * math.tan(pitch) * t + 0.075),
+            "col_blue_dk", bev=0)
+    # A tower at each end.
+    for side in (-1, 1):
+        tx = side * (W / 2 + 0.35)
+        cyl("tower_%d" % side, 0.78, 3.7, (tx, 0.05, 1.85), "col_stone", verts=22)
+        cyl("tower_plinth_%d" % side, 0.88, 0.30, (tx, 0.05, 0.15), "col_stone_dk", verts=22)
+        for k in range(3):
+            cyl("tower_course_%d_%d" % (side, k), 0.80, 0.07, (tx, 0.05, 1.0 + k * 1.0), "col_stone_lt", verts=22)
+        cyl("tower_top_%d" % side, 0.90, 0.16, (tx, 0.05, 3.78), "col_stone_lt", verts=22)
+        _col_window("tower_win_%d" % side, tx, -0.74, 2.70, w=0.26, h=0.60)
+        _col_window("tower_win_lo_%d" % side, tx, -0.74, 1.30, w=0.26, h=0.60)
+        _col_spire("spire_%d" % side, tx, 0.05, 3.86, 0.98, 1.55)
+    # Banners either side of the portico.
+    for side in (-1, 1):
+        blk("banner_%d" % side, (0.34, 0.04, 1.30), (side * 2.55 * 0 + side * 1.98, front - 0.06, 0.30 + 1.55), "col_blue", bev=0)
+        blk("banner_gold_%d" % side, (0.34, 0.05, 0.08), (side * 1.98, front - 0.07, 0.30 + 0.96), "col_gold", bev=0)
+        sphere("banner_star_%d" % side, 0.08, (side * 1.98, front - 0.09, 0.30 + 1.70), "col_gold")
+    return (10.6, BUILDING_ELEVATION)
+
+
+def prop_college_wing():
+    """A wing of the hall: the same pale range under the same blue roof, seven
+    tall lit windows between pilasters, and nothing else -- it stands either
+    side of the hall and makes the north of the court one front."""
+    W, D, H = 6.9, 1.6, 2.5
+    front = -D / 2
+    blk("body", (W, D, H), (0, 0, 0.30 + H / 2), "col_stone", bev=0.03)
+    blk("plinth", (W + 0.2, D + 0.2, 0.30), (0, 0, 0.15), "col_stone_dk", bev=0.03)
+    blk("cornice", (W + 0.24, D + 0.24, 0.16), (0, 0, 0.30 + H + 0.08), "col_stone_lt", bev=0.03)
+    blk("frieze", (W + 0.02, 0.06, 0.22), (0, front - 0.02, 0.30 + H - 0.22), "col_blue", bev=0)
+    for k in range(8):
+        blk("frieze_pip_%d" % k, (0.10, 0.04, 0.10), (-2.98 + k * 0.85, front - 0.05, 0.30 + H - 0.22), "col_gold", bev=0)
+    for k in range(7):
+        x = -2.76 + k * 0.92
+        _col_window("win_%d" % k, x, front - 0.02, 0.30 + 1.22, w=0.36, h=1.20)
+    for k in range(8):
+        x = -3.22 + k * 0.92
+        blk("pilaster_%d" % k, (0.16, 0.10, H - 0.30), (x, front - 0.03, 0.30 + (H - 0.30) / 2), "col_stone_lt", bev=0.01)
+    rz = 0.30 + H + 0.16
+    pitch = math.radians(34)
+    half = D / 2 + 0.30
+    for side in (-1, 1):
+        blk("roof_%d" % side, (W + 0.5, half / math.cos(pitch), 0.12), (0, side * half / 2, rz + half * math.tan(pitch) / 2),
+            "col_blue", rot=(-side * pitch, 0, 0), bev=0.02)
+    blk("ridge", (W + 0.54, 0.16, 0.12), (0, 0, rz + half * math.tan(pitch) + 0.02), "col_blue_dk", bev=0.02)
+    for k in range(3):
+        t = 0.25 + k * 0.25
+        blk("roof_course_%d" % k, (W + 0.52, 0.05, 0.03), (0, -half * (1 - t), rz + half * math.tan(pitch) * t + 0.075),
+            "col_blue_dk", bev=0)
+    return (7.7, BUILDING_ELEVATION)
+
+
+def prop_college_gate():
+    """The gatehouse on the hamlet's north side: two round towers under blue
+    spires, a wall between them with a wide arch in it, the gates standing
+    open, a lit window over the arch and the college's banner down each tower."""
+    for side in (-1, 1):
+        tx = side * 1.85
+        cyl("tower_%d" % side, 0.80, 3.0, (tx, 0, 1.5), "col_stone", verts=22)
+        cyl("tower_plinth_%d" % side, 0.90, 0.30, (tx, 0, 0.15), "col_stone_dk", verts=22)
+        for k in range(3):
+            cyl("course_%d_%d" % (side, k), 0.82, 0.07, (tx, 0, 0.9 + k * 0.8), "col_stone_lt", verts=22)
+        cyl("tower_top_%d" % side, 0.92, 0.16, (tx, 0, 3.08), "col_stone_lt", verts=22)
+        _col_window("tower_win_%d" % side, tx, -0.78, 2.15, w=0.24, h=0.50)
+        _col_spire("spire_%d" % side, tx, 0, 3.16, 1.0, 1.45)
+        blk("banner_%d" % side, (0.36, 0.04, 1.10), (tx, -0.83, 1.30), "col_blue", bev=0)
+        sphere("banner_star_%d" % side, 0.09, (tx, -0.86, 1.45), "col_gold")
+        blk("banner_hem_%d" % side, (0.36, 0.05, 0.08), (tx, -0.84, 0.78), "col_gold", bev=0)
+    # The wall between, with the arch through it.
+    # One block, with the way through it laid on its face in the dark. It was
+    # three blocks round a hole, and where they met there were two black bars.
+    blk("wall", (2.50, 0.70, 2.80), (0, 0, 1.40), "col_stone")
+    cyl("arch_ring", 0.76, 0.10, (0, -0.36, 1.64), "col_stone_lt", rot=(math.radians(90), 0, 0), verts=24)
+    cyl("arch_inner", 0.66, 0.12, (0, -0.37, 1.64), "scorch", rot=(math.radians(90), 0, 0), verts=24)
+    blk("way_inner", (1.32, 0.12, 1.64), (0, -0.37, 0.82), "scorch", bev=0)
+    sphere("keystone", 0.13, (0, -0.42, 2.40), "col_gold", emit=0.5)
+    # The gates, open: a leaf folded back against each side of the way.
+    for side in (-1, 1):
+        blk("gate_%d" % side, (0.10, 0.62, 1.50), (side * 0.60, -0.62, 0.75), "col_door", rot=(0, 0, side * math.radians(12)))
+        for k in range(2):
+            blk("gate_band_%d_%d" % (side, k), (0.12, 0.64, 0.07), (side * 0.60, -0.62, 0.45 + k * 0.70), "iron",
+                rot=(0, 0, side * math.radians(12)), bev=0)
+    # Battlements along the wall's top, and a lit window over the arch.
+    for k in range(5):
+        blk("merlon_%d" % k, (0.30, 0.74, 0.26), (-1.0 + k * 0.5, 0, 2.83), "col_stone_lt")
+    _col_window("gate_win", 0, -0.37, 2.62 - 0.30, w=0.30, h=0.30)
+    return (6.2, BUILDING_ELEVATION)
+
+
+def prop_college_fountain():
+    """Three tiers of pale stone with water standing in each and falling from
+    one to the next, a lit crystal at the top. The middle of the court."""
+    cyl("basin_wall", 1.30, 0.34, (0, 0, 0.17), "col_stone", verts=24)
+    cyl("basin_rim", 1.36, 0.08, (0, 0, 0.36), "col_stone_lt", verts=24)
+    cyl("water_0", 1.18, 0.04, (0, 0, 0.33), "col_water", verts=24, emit=0.35, rough=0.25)
+    for k in range(8):
+        a = k / 8 * math.tau
+        blk("rim_stud_%d" % k, (0.14, 0.14, 0.10), (math.cos(a) * 1.33, math.sin(a) * 1.33, 0.42), "col_gold", rot=(0, 0, a))
+    cyl("stem_0", 0.22, 0.60, (0, 0, 0.62), "col_stone", verts=14)
+    cyl("bowl_1", 0.74, 0.14, (0, 0, 0.96), "col_stone_lt", verts=20)
+    cyl("water_1", 0.64, 0.04, (0, 0, 1.03), "col_water", verts=20, emit=0.35, rough=0.25)
+    cyl("stem_1", 0.14, 0.46, (0, 0, 1.26), "col_stone", verts=12)
+    cyl("bowl_2", 0.40, 0.12, (0, 0, 1.52), "col_stone_lt", verts=16)
+    cyl("water_2", 0.32, 0.04, (0, 0, 1.58), "col_water", verts=16, emit=0.35, rough=0.25)
+    # Falling water: pale strips from each bowl's lip to the one below.
+    for k in range(6):
+        a = k / 6 * math.tau + 0.3
+        blk("fall_a_%d" % k, (0.07, 0.07, 0.62), (math.cos(a) * 0.70, math.sin(a) * 0.70, 0.66), "col_water_lt", emit=0.5, bev=0)
+    for k in range(4):
+        a = k / 4 * math.tau + 0.8
+        blk("fall_b_%d" % k, (0.06, 0.06, 0.46), (math.cos(a) * 0.37, math.sin(a) * 0.37, 1.27), "col_water_lt", emit=0.5, bev=0)
+    cone("crystal", 0.13, 0.42, (0, 0, 1.86), "crystal", verts=6)
+    bpy.context.active_object.data.materials[0] = material("fountain_cr", "crystal", 0.35, 0.0, 1.1)
+    return 3.3
+
+
+def prop_college_statue():
+    """A founder in stone on a plinth: robed, hooded, a staff in one hand with
+    a lit crystal at its head, a book in the other. Twice a man's height."""
+    blk("plinth", (0.78, 0.78, 0.50), (0, 0, 0.25), "col_stone_dk")
+    blk("plinth_cap", (0.90, 0.90, 0.10), (0, 0, 0.55), "col_stone_lt")
+    blk("plaque", (0.44, 0.03, 0.20), (0, -0.40, 0.28), "col_gold", bev=0)
+    cone("robe", 0.42, 1.30, (0, 0, 0.60 + 0.65), "col_stone", verts=14)
+    cyl("chest", 0.26, 0.50, (0, 0, 1.55), "col_stone", verts=12)
+    sphere("head", 0.19, (0, -0.02, 1.98), "col_stone_lt")
+    cone("hood", 0.26, 0.40, (0, 0.04, 2.12), "col_stone", verts=12)
+    for side in (-1, 1):
+        blk("arm_%d" % side, (0.13, 0.13, 0.50), (side * 0.32, -0.08, 1.50), "col_stone",
+            rot=(math.radians(-28), 0, side * math.radians(8)))
+    cyl("staff", 0.04, 2.00, (0.44, -0.22, 1.30), "col_stone_dk", verts=8)
+    cone("staff_crystal", 0.11, 0.30, (0.44, -0.22, 2.44), "crystal", verts=6)
+    bpy.context.active_object.data.materials[0] = material("statue_cr", "crystal", 0.35, 0.0, 1.0)
+    blk("book", (0.24, 0.08, 0.30), (-0.34, -0.26, 1.38), "col_blue", rot=(math.radians(-20), 0, 0))
+    return 2.9
+
+
+def prop_college_column():
+    """A free-standing column: the court's colonnade is a row of these."""
+    _col_column("col", 0, 0, 1.70, radius=0.17)
+    sphere("orb", 0.15, (0, 0, 2.08), "col_gold", emit=0.35)
+    return 2.9
+
+
+def prop_college_banner():
+    """The college's colours on a standing pole: blue, a gold star, a gold hem."""
+    cyl("foot", 0.20, 0.10, (0, 0, 0.05), "col_stone_dk", verts=12)
+    cyl("pole", 0.04, 2.10, (0, 0, 1.05), "col_gold", verts=8, metal=0.4, rough=0.45)
+    blk("arm", (0.70, 0.05, 0.05), (0, 0, 2.02), "col_gold", bev=0)
+    blk("cloth", (0.62, 0.04, 1.30), (0, -0.02, 1.34), "col_blue", bev=0.01)
+    blk("cloth_side_l", (0.06, 0.05, 1.30), (-0.30, -0.03, 1.34), "col_blue_dk", bev=0)
+    blk("cloth_side_r", (0.06, 0.05, 1.30), (0.30, -0.03, 1.34), "col_blue_dk", bev=0)
+    blk("hem", (0.62, 0.06, 0.10), (0, -0.03, 0.72), "col_gold", bev=0)
+    # The star: a diamond and a bar, which is what a star is at this size.
+    blk("star_a", (0.26, 0.05, 0.26), (0, -0.05, 1.50), "col_gold", rot=(0, math.radians(45), 0), bev=0)
+    blk("star_b", (0.40, 0.05, 0.08), (0, -0.06, 1.50), "col_gold", bev=0)
+    blk("star_c", (0.08, 0.05, 0.40), (0, -0.06, 1.50), "col_gold", bev=0)
+    sphere("finial", 0.08, (0, 0, 2.16), "col_gold")
+    return 2.5
+
+
+def prop_college_lamp():
+    """A lamp standard with a lit crystal in a cage: the court is lit at night."""
+    cyl("foot", 0.22, 0.12, (0, 0, 0.06), "col_stone_dk", verts=12)
+    cyl("post", 0.06, 1.70, (0, 0, 0.95), "iron", verts=8)
+    blk("cage_floor", (0.34, 0.34, 0.06), (0, 0, 1.80), "iron")
+    blk("glow", (0.22, 0.22, 0.30), (0, 0, 1.98), "col_glass", emit=1.6, bev=0.02)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            blk("bar_%d_%d" % (sx, sy), (0.04, 0.04, 0.34), (sx * 0.14, sy * 0.14, 1.98), "iron", bev=0)
+    cone("cap", 0.26, 0.24, (0, 0, 2.26), "col_blue", verts=8)
+    return 3.0
+
+
+def prop_hedge():
+    """A clipped box hedge, a length of it: the court's beds are edged in these."""
+    blk("hedge", (1.60, 0.50, 0.62), (0, 0, 0.33), "hedge", bev=0.06)
+    blk("hedge_top", (1.50, 0.40, 0.10), (0, 0, 0.66), "hedge_lt", bev=0.04)
+    import random
+    rng = random.Random(7)
+    for k in range(14):
+        blk("leaf_%d" % k, (0.12, 0.04, 0.10), (rng.uniform(-0.72, 0.72), -0.26, rng.uniform(0.12, 0.58)),
+            ("hedge_lt", "hedge_dk")[k % 2], bev=0)
+    return 1.9
+
+
+def prop_topiary():
+    """A ball of box on a stem in a stone pot."""
+    cyl("pot", 0.26, 0.30, (0, 0, 0.15), "col_stone", verts=12)
+    cyl("pot_rim", 0.30, 0.07, (0, 0, 0.32), "col_stone_lt", verts=12)
+    cyl("stem", 0.05, 0.50, (0, 0, 0.58), "log_dk", verts=8)
+    sphere("ball", 0.42, (0, 0, 1.12), "hedge")
+    sphere("ball_lt", 0.30, (-0.10, -0.16, 1.26), "hedge_lt")
+    return 1.9
+
+
+def prop_stone_bench():
+    blk("seat", (1.30, 0.42, 0.10), (0, 0, 0.42), "col_stone_lt")
+    for sx in (-1, 1):
+        blk("leg_%d" % sx, (0.18, 0.36, 0.38), (sx * 0.46, 0, 0.19), "col_stone")
+    return 1.7
+
+
+def prop_training_dummy():
+    """A straw man on a post with a painted target on his chest, scorched and
+    split where the spells land. What the apprentices throw fire at."""
+    cyl("foot", 0.34, 0.10, (0, 0, 0.05), "log_dk", verts=12)
+    for a in (0, math.pi / 2):
+        blk("foot_beam_%d" % int(a * 10), (0.90, 0.12, 0.10), (0, 0, 0.10), "log", rot=(0, 0, a))
+    cyl("post", 0.07, 1.30, (0, 0, 0.75), "log", verts=8)
+    cyl("body", 0.30, 0.74, (0, 0, 1.12), "dummy_sack", verts=14)
+    cyl("belt", 0.31, 0.08, (0, 0, 0.92), "leather", verts=14)
+    blk("arms", (1.20, 0.13, 0.13), (0, 0, 1.36), "log")
+    for sx in (-1, 1):
+        sphere("hand_%d" % sx, 0.12, (sx * 0.62, 0, 1.36), "dummy_sack_dk")
+    sphere("head", 0.22, (0, 0, 1.72), "dummy_sack")
+    cyl("hat", 0.26, 0.05, (0, 0, 1.90), "dummy_sack_dk", verts=12)
+    # The target, and what has been done to it.
+    cyl("target_a", 0.20, 0.04, (0, -0.29, 1.14), "paint_red", rot=(math.radians(90), 0, 0), verts=14)
+    cyl("target_b", 0.12, 0.05, (0, -0.30, 1.14), "chalk", rot=(math.radians(90), 0, 0), verts=12)
+    cyl("target_c", 0.05, 0.06, (0, -0.31, 1.14), "paint_red", rot=(math.radians(90), 0, 0), verts=10)
+    blk("scorch_a", (0.16, 0.03, 0.22), (0.16, -0.27, 1.32), "scorch", bev=0)
+    blk("scorch_b", (0.12, 0.03, 0.14), (-0.18, -0.27, 0.98), "scorch", bev=0)
+    for k in range(5):
+        blk("straw_%d" % k, (0.03, 0.03, 0.18), (-0.20 + k * 0.10, -0.06, 0.70), "straw", rot=(math.radians(20), 0, 0), bev=0)
+    return 2.6
+
+
+def prop_college_desk():
+    """A student's desk: a sloped top with an open book and an inkwell, and the
+    bench that goes with it. The classroom is rows of these."""
+    blk("top", (1.10, 0.50, 0.07), (0, -0.05, 0.74), "oak_light", rot=(math.radians(10), 0, 0))
+    blk("front", (1.10, 0.06, 0.56), (0, -0.30, 0.42), "oak")
+    for sx in (-1, 1):
+        blk("side_%d" % sx, (0.07, 0.50, 0.70), (sx * 0.52, -0.05, 0.35), "oak")
+    blk("book", (0.40, 0.28, 0.04), (-0.12, -0.06, 0.80), "page", rot=(math.radians(10), 0, 0), bev=0.01)
+    blk("book_spine", (0.03, 0.28, 0.05), (-0.12, -0.06, 0.805), "col_blue", rot=(math.radians(10), 0, 0), bev=0)
+    cyl("inkwell", 0.06, 0.09, (0.34, 0.04, 0.84), "col_blue_dk", verts=8)
+    blk("bench", (1.00, 0.30, 0.07), (0, 0.52, 0.42), "oak_light")
+    for sx in (-1, 1):
+        blk("bench_leg_%d" % sx, (0.08, 0.26, 0.40), (sx * 0.40, 0.52, 0.20), "oak")
+    return 1.8
+
+
+def prop_college_blackboard():
+    """The classroom's board: wide, green, in an oak frame on the wall, chalked
+    with a circle of runes and the lines of a working, a ledge of chalk under it."""
+    blk("frame", (3.00, 0.10, 1.50), (0, 0, 1.35), "oak")
+    blk("board", (2.80, 0.06, 1.30), (0, -0.04, 1.35), "board_green", bev=0)
+    # The working: a circle, a star in it, and two lines of writing.
+    for k in range(16):
+        a = k / 16 * math.tau
+        blk("ring_%d" % k, (0.10, 0.03, 0.04), (-0.75 + math.cos(a) * 0.42, -0.08, 1.38 + math.sin(a) * 0.42), "chalk",
+            rot=(0, -a + math.pi / 2, 0), bev=0)
+    for k in range(3):
+        a = k / 3 * math.pi
+        blk("star_%d" % k, (0.78, 0.03, 0.03), (-0.75, -0.08, 1.38), "chalk", rot=(0, a, 0), bev=0)
+    for row in range(4):
+        for k in range(5 - row % 2):
+            blk("word_%d_%d" % (row, k), (0.20, 0.03, 0.05), (0.05 + k * 0.27, -0.08, 1.78 - row * 0.24), "chalk", bev=0)
+    blk("ledge", (2.80, 0.16, 0.06), (0, -0.10, 0.66), "oak_light")
+    for k in range(3):
+        blk("chalk_%d" % k, (0.12, 0.04, 0.04), (-0.9 + k * 0.5, -0.12, 0.71), "chalk", bev=0)
+    return 3.5
+
+
+def prop_council_table():
+    """The council's table: a long oval of dark oak under a blue cloth with a
+    gold edge, a branch of candles, papers, and the college's orb at its head."""
+    cyl("top", 1.0, 0.10, (0, 0, 0.78), "oak", verts=28)
+    bpy.context.active_object.scale = (1.75, 0.80, 1.0)
+    cyl("cloth", 1.0, 0.03, (0, 0, 0.845), "col_blue", verts=28)
+    bpy.context.active_object.scale = (1.55, 0.62, 1.0)
+    cyl("cloth_edge", 1.0, 0.02, (0, 0, 0.84), "col_gold", verts=28)
+    bpy.context.active_object.scale = (1.62, 0.68, 1.0)
+    for sx in (-1, 1):
+        cyl("leg_%d" % sx, 0.16, 0.74, (sx * 1.05, 0, 0.37), "oak", verts=10)
+        cyl("foot_%d" % sx, 0.30, 0.08, (sx * 1.05, 0, 0.04), "oak", verts=12)
+    for k in range(3):
+        cyl("candle_%d" % k, 0.035, 0.26, (-0.30 + k * 0.30, 0.05, 1.00), "candle", verts=8)
+        sphere("flame_%d" % k, 0.05, (-0.30 + k * 0.30, 0.05, 1.18), "flame", emit=1.6)
+    blk("candle_base", (0.80, 0.10, 0.04), (0, 0.05, 0.88), "brass_lt")
+    for k, (x, y) in enumerate(((-1.0, -0.20), (0.95, -0.15), (-0.55, 0.25), (0.60, 0.28))):
+        blk("paper_%d" % k, (0.26, 0.20, 0.015), (x, y, 0.87), "page", rot=(0, 0, 0.3 * k), bev=0)
+    sphere("orb", 0.13, (1.20, 0.05, 1.00), "col_glass", emit=1.2)
+    cyl("orb_stand", 0.08, 0.10, (1.20, 0.05, 0.90), "brass_lt", verts=10)
+    return 3.9
+
+
+def _high_chair(back_to_camera):
+    blk("seat", (0.50, 0.46, 0.08), (0, 0, 0.46), "oak")
+    blk("cushion", (0.44, 0.40, 0.06), (0, 0, 0.53), "col_blue")
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            blk("leg_%d_%d" % (sx, sy), (0.07, 0.07, 0.44), (sx * 0.20, sy * 0.18, 0.22), "oak")
+    y = -0.22 if back_to_camera else 0.22
+    blk("back", (0.50, 0.07, 0.95), (0, y, 0.98), "oak")
+    blk("back_pad", (0.36, 0.03, 0.60), (0, y + (0.04 if back_to_camera else -0.04), 1.02), "col_blue", bev=0.01)
+    blk("back_top", (0.56, 0.09, 0.10), (0, y, 1.48), "col_gold", bev=0.02)
+    return 1.9
+
+
+def prop_high_chair():
+    return _high_chair(False)
+
+
+def prop_high_chair_back():
+    return _high_chair(True)
+
+
+def prop_college_orrery():
+    """Brass rings turning about a lit sun on a stand: the heavens, as the
+    college has them. It is what a lecture hall has where an inn has a keg."""
+    cyl("foot", 0.34, 0.08, (0, 0, 0.04), "oak", verts=14)
+    cyl("stand", 0.06, 0.80, (0, 0, 0.46), "brass_lt", verts=8, metal=0.5, rough=0.4)
+    sphere("sun", 0.20, (0, 0, 1.20), "flame", emit=1.5)
+    for k, (r, tilt) in enumerate(((0.46, 18), (0.64, -24), (0.82, 10))):
+        bpy.ops.mesh.primitive_torus_add(major_radius=r, minor_radius=0.025, location=(0, 0, 1.20),
+                                         rotation=(math.radians(68 + tilt), 0, math.radians(k * 40)))
+        ob = bpy.context.active_object
+        ob.name = "ring_%d" % k
+        ob.data.materials.append(material("ring_%d" % k, "brass_lt", 0.4, 0.5, 0.0))
+        a = k * 2.1 + 0.6
+        sphere("world_%d" % k, 0.08, (math.cos(a) * r, math.sin(a) * r * 0.4, 1.20 + math.sin(a) * r * 0.5),
+               ("col_blue_lt", "paint_red", "hedge_lt")[k])
+    return 2.9
+
+
+def prop_crystal_pylon():
+    """A tall crystal in a stone socket with a ring of lit runes at its foot:
+    the training hall draws on these, and they are why nobody runs dry in it."""
+    cyl("socket", 0.40, 0.24, (0, 0, 0.12), "col_stone", verts=14)
+    cyl("rune_ring", 0.42, 0.05, (0, 0, 0.20), "col_glass", verts=14, emit=1.0)
+    cone("shard", 0.24, 1.50, (0, 0, 1.00), "crystal", verts=6)
+    bpy.context.active_object.data.materials[0] = material("pylon_cr", "crystal", 0.30, 0.0, 1.1)
+    for side in (-1, 1):
+        cone("shard_%d" % side, 0.13, 0.70, (side * 0.22, 0.05, 0.55), "crystal", verts=6, rot=(0, side * math.radians(16), 0))
+        bpy.context.active_object.data.materials[0] = material("pylon_cr_s", "crystal", 0.30, 0.0, 0.8)
+    return 2.2
+
+
+COLLEGE_PROPS = {
+    "college_hall":       (prop_college_hall, 352),
+    "college_gate":       (prop_college_gate, 224),
+    "college_wing":       (prop_college_wing, 256),
+    "college_fountain":   (prop_college_fountain, 112),
+    "college_statue":     (prop_college_statue, 96),
+    "college_column":     (prop_college_column, 64),
+    "college_banner":     (prop_college_banner, 72),
+    "college_lamp":       (prop_college_lamp, 72),
+    "hedge":              (prop_hedge, 56),
+    "topiary":            (prop_topiary, 56),
+    "stone_bench":        (prop_stone_bench, 56),
+    "training_dummy":     (prop_training_dummy, 64),
+    "college_desk":       (prop_college_desk, 56),
+    "college_blackboard": (prop_college_blackboard, 112),
+    "council_table":      (prop_council_table, 128),
+    "high_chair":         (prop_high_chair, 48),
+    "high_chair_back":    (prop_high_chair_back, 48),
+    "college_orrery":     (prop_college_orrery, 64),
+    "crystal_pylon":      (prop_crystal_pylon, 64),
+}
+
+
+# -----------------------------------------------------------------------------
+#  Wynn's, at Mossvale
+#
+#  She kept a stall on the square, a loom standing out in the weather beside
+#  it, within earshot of the anvil. She has a shop now: a timbered house with a
+#  window full of what she makes, and inside it the loom, the wheel, forms
+#  dressed in her work, bolts on the shelves and hangings on the walls.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "form_wood":    (0.780, 0.640, 0.460),
+    "fab_blue":     (0.240, 0.360, 0.660),
+    "fab_red":      (0.700, 0.200, 0.220),
+    "fab_green":    (0.260, 0.520, 0.320),
+    "fab_gold":     (0.860, 0.700, 0.300),
+    "fab_purple":   (0.480, 0.300, 0.620),
+    "fab_cream":    (0.920, 0.880, 0.780),
+    "fab_teal":     (0.240, 0.580, 0.600),
+    "fab_rose":     (0.860, 0.520, 0.580),
+    "shop_plaster": (0.900, 0.860, 0.760),
+    "shop_timber":  (0.340, 0.230, 0.160),
+    "awning_blue":  (0.300, 0.440, 0.720),
+})
+
+
+def _mannequin(garment, trim, kind):
+    """A dressmaker's form on a turned stand: a padded torso, no head but a
+    knob, dressed in something of Wynn's. `kind` is what: a robe to the floor,
+    a dress with a full skirt, or a cloak and a pointed hat."""
+    cyl("foot", 0.26, 0.06, (0, 0, 0.03), "oak", verts=12)
+    cyl("stand", 0.04, 0.70, (0, 0, 0.38), "oak", verts=8)
+    if kind == "robe":
+        cone("skirt", 0.40, 1.10, (0, 0, 0.62), garment, verts=14)
+        cyl("torso", 0.23, 0.52, (0, 0, 1.30), garment, verts=12)
+        blk("sash", (0.50, 0.40, 0.08), (0, 0, 1.08), trim, bev=0.02)
+        blk("front", (0.08, 0.04, 0.95), (0, -0.24, 0.95), trim, bev=0)
+        for sx in (-1, 1):
+            blk("sleeve_%d" % sx, (0.14, 0.16, 0.56), (sx * 0.30, 0, 1.22), garment, rot=(0, sx * math.radians(-12), 0))
+    elif kind == "dress":
+        cone("skirt", 0.52, 0.95, (0, 0, 0.56), garment, verts=16)
+        cyl("hem", 0.50, 0.07, (0, 0, 0.12), trim, verts=16)
+        cyl("torso", 0.20, 0.50, (0, 0, 1.28), garment, verts=12)
+        cyl("waist", 0.17, 0.10, (0, 0, 1.02), trim, verts=12)
+        for sx in (-1, 1):
+            sphere("puff_%d" % sx, 0.13, (sx * 0.26, 0, 1.44), garment)
+    else:
+        cone("cloak", 0.44, 1.20, (0, 0.04, 0.72), garment, verts=14)
+        cyl("torso", 0.21, 0.46, (0, -0.02, 1.30), "fab_cream", verts=12)
+        blk("clasp", (0.12, 0.05, 0.10), (0, -0.23, 1.46), trim, bev=0.02)
+        blk("cloak_edge_l", (0.07, 0.05, 1.00), (-0.20, -0.24, 0.84), trim, rot=(0, math.radians(8), 0), bev=0)
+        blk("cloak_edge_r", (0.07, 0.05, 1.00), (0.20, -0.24, 0.84), trim, rot=(0, math.radians(-8), 0), bev=0)
+    cyl("neck", 0.07, 0.12, (0, 0, 1.60), "form_wood", verts=8)
+    sphere("knob", 0.10, (0, 0, 1.72), "form_wood")
+    if kind == "cloak":
+        cyl("hat_brim", 0.30, 0.04, (0, 0, 1.80), garment, verts=14)
+        cone("hat", 0.20, 0.50, (0, 0, 2.06), garment, verts=12)
+        cyl("hat_band", 0.205, 0.07, (0, 0, 1.86), trim, verts=12)
+    return 2.5
+
+
+def prop_mannequin_robe():  return _mannequin("fab_blue", "fab_gold", "robe")
+def prop_mannequin_dress(): return _mannequin("fab_red", "fab_cream", "dress")
+def prop_mannequin_cloak(): return _mannequin("fab_green", "fab_gold", "cloak")
+
+
+def _tapestry(field, border, motif):
+    """A hanging on a rod: a field of one colour in a border of another with a
+    device worked in the middle, and a fringe. For a wall."""
+    cyl("rod", 0.035, 1.30, (0, 0, 1.92), "brass", rot=(0, math.radians(90), 0), verts=8)
+    for sx in (-1, 1):
+        sphere("rod_end_%d" % sx, 0.07, (sx * 0.66, 0, 1.92), "brass")
+    blk("border", (1.10, 0.04, 1.50), (0, -0.01, 1.14), border, bev=0)
+    blk("field", (0.86, 0.05, 1.22), (0, -0.02, 1.16), field, bev=0)
+    if motif == "star":
+        blk("m_a", (0.34, 0.06, 0.34), (0, -0.03, 1.20), border, rot=(0, math.radians(45), 0), bev=0)
+        blk("m_b", (0.56, 0.06, 0.10), (0, -0.04, 1.20), border, bev=0)
+        blk("m_c", (0.10, 0.06, 0.56), (0, -0.04, 1.20), border, bev=0)
+    elif motif == "tree":
+        blk("trunk", (0.10, 0.06, 0.50), (0, -0.03, 0.92), border, bev=0)
+        for k, (w, z) in enumerate(((0.60, 1.20), (0.44, 1.38), (0.26, 1.54))):
+            blk("bough_%d" % k, (w, 0.06, 0.16), (0, -0.04, z), border, bev=0)
+    else:
+        for k in range(4):
+            blk("chev_%d" % k, (0.62, 0.06, 0.09), (0, -0.03, 0.78 + k * 0.26), border,
+                rot=(0, math.radians(18 if k % 2 else -18), 0), bev=0)
+    for k in range(8):
+        blk("fringe_%d" % k, (0.06, 0.03, 0.14), (-0.49 + k * 0.14, -0.01, 0.34), "fab_gold", bev=0)
+    return 2.3
+
+
+def prop_tapestry_blue():  return _tapestry("fab_blue", "fab_gold", "star")
+def prop_tapestry_red():   return _tapestry("fab_red", "fab_cream", "chevron")
+def prop_tapestry_green(): return _tapestry("fab_green", "fab_gold", "tree")
+
+
+def prop_fabric_shelf():
+    """Bolts of cloth end-on in a rack against the wall, every colour she dyes,
+    which is what makes a room a draper's at a glance."""
+    blk("back", (1.90, 0.10, 1.70), (0, 0.22, 0.85), "oak")
+    for sx in (-1, 1):
+        blk("side_%d" % sx, (0.08, 0.50, 1.70), (sx * 0.95, 0, 0.85), "oak")
+    colours = ("fab_blue", "fab_red", "fab_green", "fab_gold", "fab_purple", "fab_cream", "fab_teal", "fab_rose")
+    for row in range(4):
+        z = 0.10 + row * 0.42
+        blk("shelf_%d" % row, (1.90, 0.50, 0.06), (0, 0, z), "oak_light")
+        for k in range(6):
+            c = colours[(row * 3 + k * 5) % len(colours)]
+            cyl("bolt_%d_%d" % (row, k), 0.135, 0.46, (-0.75 + k * 0.30, -0.02, z + 0.18), c,
+                rot=(math.radians(90), 0, 0), verts=12)
+            cyl("bolt_core_%d_%d" % (row, k), 0.04, 0.47, (-0.75 + k * 0.30, -0.025, z + 0.18), "oak_pale",
+                rot=(math.radians(90), 0, 0), verts=8)
+    blk("top", (2.00, 0.56, 0.08), (0, 0, 1.74), "oak")
+    return 2.6
+
+
+def prop_fabric_rolls():
+    """A tub of rolls stood on end, a length pulled out of one and over the side."""
+    cyl("tub", 0.42, 0.50, (0, 0, 0.25), "oak", verts=14)
+    cyl("tub_band", 0.43, 0.06, (0, 0, 0.40), "iron", verts=14)
+    rolls = (("fab_blue", -0.18, -0.08, 1.20), ("fab_red", 0.16, -0.10, 1.05), ("fab_gold", 0.0, 0.14, 1.32),
+             ("fab_green", -0.20, 0.16, 0.95), ("fab_purple", 0.22, 0.12, 1.12))
+    for k, (c, x, y, h) in enumerate(rolls):
+        cyl("roll_%d" % k, 0.12, h, (x, y, 0.20 + h / 2), c, verts=10, rot=(math.radians(4 * (k - 2)), 0, 0))
+        cyl("roll_core_%d" % k, 0.035, 0.04, (x, y, 0.22 + h), "oak_pale", verts=8)
+    blk("drape", (0.22, 0.03, 0.62), (0.16, -0.43, 0.42), "fab_red", bev=0.01)
+    return 1.9
+
+
+def prop_cutting_table():
+    """Her cutting table: a length of blue laid out across it, the shears, a
+    tape, a pincushion and chalk."""
+    blk("top", (2.00, 0.90, 0.08), (0, 0, 0.80), "oak_light")
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            blk("leg_%d_%d" % (sx, sy), (0.10, 0.10, 0.76), (sx * 0.88, sy * 0.36, 0.38), "oak")
+    blk("rail", (1.80, 0.06, 0.10), (0, -0.40, 0.70), "oak")
+    blk("cloth", (1.30, 0.70, 0.025), (-0.20, 0, 0.855), "fab_blue", bev=0.01)
+    blk("cloth_hang", (1.30, 0.03, 0.34), (-0.20, -0.46, 0.68), "fab_blue", bev=0.01)
+    blk("cloth_edge", (1.30, 0.06, 0.03), (-0.20, -0.33, 0.87), "fab_gold", bev=0)
+    # Shears: two blades and two bows.
+    blk("blade_a", (0.34, 0.05, 0.02), (0.66, 0.06, 0.87), "iron_light", rot=(0, 0, math.radians(18)), bev=0)
+    blk("blade_b", (0.34, 0.05, 0.02), (0.66, 0.06, 0.875), "iron_light", rot=(0, 0, math.radians(-18)), bev=0)
+    for sy in (-1, 1):
+        cyl("bow_%d" % sy, 0.06, 0.02, (0.86, 0.06 + sy * 0.08, 0.87), "iron", verts=10)
+    sphere("pincushion", 0.09, (0.60, -0.24, 0.90), "fab_red")
+    blk("chalk", (0.12, 0.05, 0.03), (0.84, -0.22, 0.86), "chalk", bev=0)
+    blk("tape", (0.60, 0.04, 0.015), (0.10, 0.30, 0.875), "fab_cream", rot=(0, 0, math.radians(-8)), bev=0)
+    return 2.6
+
+
+def prop_clothier_shop():
+    """Wynn's shop: a timbered house under a steep tiled roof, a wide window of
+    small panes with three gowns standing in it, a striped awning over that, a
+    painted door, and a hanging sign with a spool on it."""
+    W, D, H = 3.6, 2.2, 1.85
+    front = -D / 2
+    blk("plinth", (W + 0.12, D + 0.12, 0.22), (0, 0, 0.11), "stone")
+    blk("body", (W, D, H), (0, 0, 0.22 + H / 2), "shop_plaster", bev=0.02)
+    # Timber framing on the front.
+    for x in (-W / 2 + 0.06, -0.52, 0.52, W / 2 - 0.06):
+        blk("post_%s" % x, (0.12, 0.06, H), (x, front - 0.02, 0.22 + H / 2), "shop_timber", bev=0)
+    for z in (0.22 + 0.06, 0.22 + H - 0.06):
+        blk("beam_%s" % z, (W, 0.06, 0.12), (0, front - 0.02, z), "shop_timber", bev=0)
+    # The door is in the middle, because the way in is: the first front had it
+    # to one side of a single wide window, and the way in was through the glass.
+    # A window either side of it, in small panes, lit, with gowns stood in each
+    # and a striped awning over.
+    wz, ww, wh = 0.22 + 0.92, 1.00, 0.95
+    gowns = (("fab_blue", "fab_gold"), ("fab_red", "fab_green"))
+    for side, pair in zip((-1, 1), gowns):
+        wx = side * 1.15
+        tag = "l" if side < 0 else "r"
+        blk("win_frame_" + tag, (ww + 0.14, 0.08, wh + 0.14), (wx, front - 0.02, wz), "shop_timber")
+        blk("win_glass_" + tag, (ww, 0.05, wh), (wx, front - 0.05, wz), "glass_lit", emit=0.7, rough=0.3, bev=0)
+        for k, c in enumerate(pair):
+            cone("gown_%s_%d" % (tag, k), 0.18, 0.62, (wx - 0.24 + k * 0.48, front - 0.09, wz - 0.12), c, verts=10)
+            sphere("gown_head_%s_%d" % (tag, k), 0.07, (wx - 0.24 + k * 0.48, front - 0.09, wz + 0.26), "form_wood")
+        blk("mullion_" + tag, (0.03, 0.04, wh), (wx, front - 0.10, wz), "shop_timber", bev=0)
+        blk("transom_" + tag, (ww, 0.04, 0.03), (wx, front - 0.10, wz + 0.10), "shop_timber", bev=0)
+        blk("sill_" + tag, (ww + 0.24, 0.16, 0.06), (wx, front - 0.08, wz - wh / 2 - 0.08), "stone_pale")
+        for k in range(4):
+            blk("awning_%s_%d" % (tag, k), (0.30, 0.62, 0.05), (wx - 0.45 + k * 0.30, front - 0.34, wz + wh / 2 + 0.22),
+                ("awning_blue", "fab_cream")[k % 2], rot=(math.radians(-26), 0, 0), bev=0)
+    dx = 0.0
+    blk("door_frame", (0.80, 0.08, 1.36), (dx, front - 0.02, 0.22 + 0.68), "shop_timber")
+    blk("door", (0.64, 0.06, 1.24), (dx, front - 0.05, 0.22 + 0.62), "awning_blue")
+    for z in (0.22 + 0.30, 0.22 + 0.86):
+        blk("door_panel_%s" % z, (0.44, 0.03, 0.40), (dx, front - 0.09, z), "col_blue_dk", bev=0.01)
+    sphere("knob", 0.045, (dx + 0.22, front - 0.10, 0.22 + 0.62), "brass")
+    blk("step", (1.0, 0.36, 0.10), (dx, front - 0.20, 0.05), "stone_pale")
+    # The sign over the door: a bracket, a board, and a spool of gold thread on it.
+    blk("bracket", (0.06, 0.56, 0.06), (dx, front - 0.28, 0.22 + 1.78), "iron")
+    blk("board", (0.50, 0.05, 0.30), (dx, front - 0.50, 0.22 + 1.58), "shop_timber")
+    cyl("spool", 0.09, 0.06, (dx, front - 0.54, 0.22 + 1.58), "fab_gold", rot=(math.radians(90), 0, 0), verts=12)
+    # A small lit window upstairs in the gable, and the roof.
+    rz = 0.22 + H
+    rise = gable_roof("roof", W, D, rz, 44, "roof_tile", thick=0.12, overhang=0.26)
+    # A dormer in the front slope, with a lit window: the ridge runs across,
+    # so there is no gable to the street to put one in. (Three stepped blocks
+    # of plaster were tried for a gable, and were a ziggurat on a roof.)
+    dz = rz + 0.42
+    blk("dormer", (0.80, 0.70, 0.62), (0, front + 0.30, dz), "shop_plaster", bev=0.02)
+    for side in (-1, 1):
+        blk("dormer_roof_%d" % side, (0.58, 0.86, 0.08), (side * 0.22, front + 0.28, dz + 0.42), "roof_tile",
+            rot=(0, side * math.radians(34), 0), bev=0.01)
+    window("win_dormer", 0, front - 0.06, dz - 0.02, w=0.34, h=0.34, lit=True, shutters=False)
+    blk("chimney", (0.36, 0.36, 1.00), (W / 2 - 0.60, 0.40, rz + rise * 0.55 + 0.30), "brick")
+    blk("chimney_cap", (0.44, 0.44, 0.08), (W / 2 - 0.60, 0.40, rz + rise * 0.55 + 0.84), "stone_pale")
+    return (5.4, BUILDING_ELEVATION)
+
+
+CLOTHIER_PROPS = {
+    "clothier_shop":   (prop_clothier_shop, 192),
+    "mannequin_robe":  (prop_mannequin_robe, 64),
+    "mannequin_dress": (prop_mannequin_dress, 64),
+    "mannequin_cloak": (prop_mannequin_cloak, 64),
+    "tapestry_blue":   (prop_tapestry_blue, 64),
+    "tapestry_red":    (prop_tapestry_red, 64),
+    "tapestry_green":  (prop_tapestry_green, 64),
+    "fabric_shelf":    (prop_fabric_shelf, 80),
+    "fabric_rolls":    (prop_fabric_rolls, 56),
+    "cutting_table":   (prop_cutting_table, 80),
+}
+
+
+# -----------------------------------------------------------------------------
 #  The swamp, the Ice Spire, the Ashen Path and the inn's cellar
 # -----------------------------------------------------------------------------
 
@@ -4565,6 +5269,8 @@ PROPS.update(BUILDING_PROPS)
 PROPS.update(WOODLAND_PROPS)
 PROPS.update(HERB_PROPS)
 PROPS.update(TOTEM_PROPS)
+PROPS.update(COLLEGE_PROPS)
+PROPS.update(CLOTHIER_PROPS)
 
 
 def main():

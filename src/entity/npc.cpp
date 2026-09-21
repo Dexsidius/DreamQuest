@@ -19,6 +19,12 @@ void Npc::Init(const NpcDef& def, const GameContext& ctx) {
     if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(def.sprite));
     sprite.facing = facing;
     sprite.Play("idle", true);
+    cast_bolt  = def.cast_bolt;
+    cast_x     = def.cast_x;
+    cast_y     = def.cast_y;
+    cast_every = def.cast_every;
+    // Not all at once: each starts somewhere in their own interval, by where they stand.
+    cast_timer = cast_every > 0.0f ? fmodf(fabsf(def.x * 0.37f + def.y * 0.11f), cast_every) + 0.4f : 0.0f;
     tint = def.tint;
 
     // The round, laid out in time: a wait at each stop and a walk to the next,
@@ -122,6 +128,36 @@ void Npc::Update(float dt, World& world, const GameContext& ctx) {
         facing = face;
         sprite.facing = facing;
         sprite.Play(walking ? "walk" : "idle");
+        sprite.Update(dt);
+        return;
+    }
+
+    // --- practice ---------------------------------------------------------------
+    // Stood at their mark, facing the dummy; every so often, a cast. The bolt is
+    // let go a little way into the throw, the way the player's is, and is the
+    // world's to fly: it touches nobody and bursts on the dummy.
+    if (Practises()) {
+        FaceToward(cast_x, cast_y);
+        sprite.facing = facing;
+        if (casting > 0.0f) {
+            casting += dt;
+            if (!cast_thrown && casting >= CAST_RELEASE) {
+                cast_thrown = true;
+                world.ThrowPracticeBolt(cast_bolt, x, y - 22.0f, cast_x, cast_y - 26.0f, ctx);
+            }
+            if (casting >= CAST_TIME) { casting = 0.0f; sprite.Play("idle", true); }
+        } else {
+            cast_timer -= dt;
+            if (cast_timer <= 0.0f) {
+                // Give or take a third, so a row of them is not a metronome.
+                cast_timer = cast_every * (0.78f + (rand() % 45) / 100.0f);
+                casting = 0.001f;
+                cast_thrown = false;
+                sprite.Play("attack", true);
+            } else {
+                sprite.Play("idle");
+            }
+        }
         sprite.Update(dt);
         return;
     }

@@ -12,8 +12,10 @@ class Camera;
 //  between a bowshot and a firebolt -- speed, reach, how many targets it passes
 //  through, what it leaves on the ground -- is data in data/projectiles.json.
 //
-//  The art is a single sprite drawn along the direction of travel, so one arrow
-//  image covers every angle rather than needing a frame per facing.
+//  The art is drawn along the direction of travel, so one arrow image covers
+//  every angle rather than needing a frame per facing. A spell is a strip of
+//  frames and not a still -- a fireball's flames stream, a gust's lines run --
+//  and sheds things as it flies: see Mote, below.
 // -----------------------------------------------------------------------------
 
 // Arcane is the ancient magic's school, taught at the college in Fernhollow:
@@ -47,6 +49,32 @@ struct ProjectileDef {
     // way still lines up with the direction of travel.
     float sprite_angle = 0.0f;
     bool  spin = false;         // tumbles instead of pointing along its path
+
+    // --- how it is drawn -------------------------------------------------------
+    // The sprite is a strip of this many frames read left to right, played at
+    // `fps`. One frame is a still, which is what an arrow is.
+    int   frames = 1;
+    float fps    = 12.0f;
+    // The point of a frame that sits on the projectile's own position, and that
+    // it is turned about: the head of a fireball, not the middle of its tail.
+    // Negative is the middle of the frame.
+    float pivot_x = -1.0f, pivot_y = -1.0f;
+    // Drawn as it stands, whichever way it is going. A ball of water has its
+    // highlight top-left flying east or west; turned with its flight it would
+    // carry the sun round with it.
+    bool  upright = false;
+    // What streams off the back of something upright: a second strip, drawn
+    // under the first and turned to the way it is going.
+    string tail;
+    int    tail_frames = 1;
+    float  tail_pivot_x = -1.0f, tail_pivot_y = -1.0f;
+    // A light added under it by day, this many world pixels across. (By night
+    // anything elemental is a light already: see World::CollectLights.)
+    float glow = 0.0f;
+    // What it sheds as it flies and throws up where it lands -- embers, drops,
+    // chips of stone, streaks of air. Its own element's, unless "trail" says
+    // otherwise; "none" sheds nothing.
+    Element shed = Element::None;
 
     int   pierce    = 0;        // extra targets it passes through
     float knockback = 40.0f;
@@ -127,6 +155,11 @@ struct Projectile {
     float knockback_mult = 1.0f;
     float extra_homing = 0.0f;
     bool  sure_crit = false;     // loosed with Take Aim: it strikes critically, whatever the dice say
+    // Thrown for practice, at a training dummy: it flies `show_left` pixels,
+    // bursts there, and on the way touches nobody -- not a monster, not a
+    // player who walks through the line of it -- and leaves nothing burning.
+    bool  show = false;
+    float show_left = 0.0f;
     // How far the ground it was loosed from lifts it on screen; found the first
     // time it is drawn, which is why drawing may write it.
     mutable float lift = -1.0f;
@@ -137,6 +170,27 @@ struct Projectile {
         return {x - def_radius(), y - def_radius(), def_radius() * 2, def_radius() * 2};
     }
     float def_radius() const { return def ? def->radius : 6.0f; }
+};
+
+// Something small and short-lived that a spell sheds or throws up: an ember, a
+// drop, a chip of stone, a streak of air, a ring opening on the ground. Only
+// ever for show -- nothing in the game asks where one is -- so they are made
+// the same way on the host's machine and on a friend's, by each for itself.
+struct Mote {
+    enum class Kind : uint8_t { Speck, Streak, Ring };
+    Kind  kind = Kind::Speck;
+    float x = 0, y = 0, vx = 0, vy = 0;
+    float gravity = 0.0f;        // world pixels a second, every second; negative rises
+    float drag = 0.0f;           // share of its speed lost a second
+    float life = 0.0f, max_life = 0.4f;
+    // Art pixels: a speck's side, a streak's length, a ring's radius. And how
+    // fast that grows, for smoke that spreads and a ring that opens.
+    float size = 1.0f, grow = 0.0f;
+    // A speck this many art pixels taller than it is wide, standing up from
+    // where it is: a tongue of flame and not an ember. It sinks as it dies.
+    float tall = 0.0f;
+    float lift = 0.0f;           // how far the ground it was shed over lifts it
+    SDL_Color from{255, 255, 255, 255}, to{255, 255, 255, 0};
 };
 
 // A short-lived mark where something struck a wall. Purely visual: without it

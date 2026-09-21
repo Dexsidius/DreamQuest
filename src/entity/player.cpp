@@ -157,14 +157,25 @@ AttackStyle Player::AffinityFor(const string& character_id) {
 }
 
 vector<string> Player::StartingKit(const string& character_id) {
+    // Each in the wooden tier's armour of their own kind. The warden and the
+    // wayfarer both set out in the hero's Barkwood Cuirass, which is plate: it
+    // does nothing for a bow or a staff, and the first thing either of them
+    // learned about armour was that theirs was the wrong sort. The whole set of
+    // the right sort -- head, body and legs -- so the card at the start shows
+    // the character they are going to be, and the set's small push to their
+    // own style is there from the first fight.
     switch (AffinityFor(character_id)) {
-        // A bow takes both hands, so the warden's second piece is the boots a
-        // ranger would wear to keep the distance rather than a shield they
-        // could not raise.
-        case AttackStyle::Ranged: return {"oak_shortbow", "wood_body", "hide_boots"};
-        // A staff is held in one hand, so the shield stays.
-        case AttackStyle::Magic:  return {"wood_staff", "wood_body", "wooden_shield"};
-        default:                  return {"wood_sword", "wood_body", "wooden_shield"};
+        // Rawhide: coif, jerkin and chaps. A bow takes both hands, so the
+        // warden's other piece is the boots a ranger would wear to keep the
+        // distance rather than a shield they could not raise.
+        case AttackStyle::Ranged:
+            return {"oak_shortbow", "wood_hide_head", "wood_hide_body", "wood_hide_legs", "hide_boots"};
+        // Homespun: hat, robe and skirt. A staff is held in one hand, so the
+        // shield stays -- and cloth turns less than wood does, so it matters more.
+        case AttackStyle::Magic:
+            return {"wood_staff", "wood_robe_head", "wood_robe_body", "wood_robe_legs", "wooden_shield"};
+        default:
+            return {"wood_sword", "wood_body", "wooden_shield"};
     }
 }
 

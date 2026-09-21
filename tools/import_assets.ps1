@@ -419,6 +419,7 @@ Write-Host "`nGenerating ground tiles, item icons and HUD fittings ..." -Foregro
 & (Join-Path $PSScriptRoot "make_ground.ps1")
 & (Join-Path $PSScriptRoot "make_icons.ps1")
 & (Join-Path $PSScriptRoot "make_ui.ps1")
+& (Join-Path $PSScriptRoot "make_effects.ps1")
 
 # --- done ---------------------------------------------------------------------
 $total = (Get-ChildItem $assets -Recurse -File -Filter *.png |
