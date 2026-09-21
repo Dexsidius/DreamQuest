@@ -87,6 +87,30 @@ $clipRules = @{
     cleave   = @{ fps = 16; loop = $false }
     backhand = @{ fps = 18; loop = $false }
     spin     = @{ fps = 16; loop = $false }
+    # The same, with both hands on a great weapon: the sword's timing, to the frame.
+    rush_2h     = @{ fps = 15; loop = $false }
+    crush_2h    = @{ fps = 15; loop = $false }
+    cleave_2h   = @{ fps = 16; loop = $false }
+    backhand_2h = @{ fps = 18; loop = $false }
+    spin_2h     = @{ fps = 16; loop = $false }
+    # A second dagger's stab is the thrust, in the other hand.
+    offstab  = @{ fps = 16; loop = $false }
+    # The armoury's own strikes. `fit`: the clip is played to last exactly as
+    # long as the attack it belongs to, whatever that is -- a greataxe's light
+    # and its charged chop are the same eight frames over a third of a second
+    # and over a whole one. The fps is only what it plays at when nothing is
+    # fitting it. None of these was listed, and what is not listed loops at ten
+    # frames a second: a greatsword's swing showed its wind-up and was cut off
+    # before the blade came round.
+    bash   = @{ fps = 16; loop = $false; fit = $true }
+    sweep  = @{ fps = 16; loop = $false; fit = $true }
+    hew    = @{ fps = 14; loop = $false; fit = $true }
+    shoot  = @{ fps = 14; loop = $false; fit = $true }
+    throw  = @{ fps = 16; loop = $false; fit = $true }
+    flick  = @{ fps = 16; loop = $false; fit = $true }
+    invoke = @{ fps = 14; loop = $false; fit = $true }
+    # Spanning a crossbow goes on for as long as it takes.
+    reload = @{ fps = 10; loop = $true  }
     # A held guard breathes slowly.
     block  = @{ fps = 6;  loop = $true  }
     chop   = @{ fps = 10; loop = $true  }
@@ -137,6 +161,7 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
             fps    = $rule.fps
             loop   = $rule.loop
         }
+        if ($rule.fit) { $clip["fit"] = $true }
 
         # Only record per-row counts when a row is actually short, so the data
         # stays readable and the common case carries no extra noise.

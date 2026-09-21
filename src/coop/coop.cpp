@@ -83,7 +83,7 @@ void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx) {
         const string& id = outfit.worn[slot];
         // Only what exists, and only where it goes.
         const ItemDef* def = (ctx.items && !id.empty()) ? ctx.items->Get(id) : nullptr;
-        if (def && def->slot == static_cast<int>(slot)) p.equipment.Equip(static_cast<int>(slot), id);
+        if (def && def->FitsSlot(static_cast<int>(slot))) p.equipment.Equip(static_cast<int>(slot), id);
     }
 }
 
@@ -1119,6 +1119,19 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             ps.kind = g.rain ? 1 : static_cast<uint8_t>(g.draw);
             snap.patches.push_back(ps);
         }
+        // A slab of the ground mid-swing is not ground, but it goes the same
+        // way: where it turns about, how long it is, and -- in the byte a patch
+        // keeps its age in -- which way it is swung. The guest times it itself.
+        for (const World::SlabSwing& s : w.slabs) {
+            if (s.life <= 0.0f || !near(s.x, s.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
+            net::PatchState ps;
+            ps.x = Px(s.x); ps.y = Px(s.y);
+            ps.radius = static_cast<uint16_t>(std::clamp(s.length, 0.0f, 65535.0f));
+            ps.element = static_cast<uint8_t>(Element::Earth);
+            ps.life = net::AngleByte(s.facing);
+            ps.kind = net::PatchState::SLAB;
+            snap.patches.push_back(ps);
+        }
         server.SendToSeat(seat_no, net::Channel::Unreliable, net::Encode(snap));
     }
 }
@@ -1471,6 +1484,10 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
     }
     world.ground_effects.clear();
     for (const net::PatchState& ps : snap.patches) {
+        if (ps.kind == net::PatchState::SLAB) {
+            world.HearOfSlabSwing(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius);
+            continue;
+        }
         GroundEffect g;
         g.x = ps.x; g.y = ps.y;
         g.radius = ps.radius;

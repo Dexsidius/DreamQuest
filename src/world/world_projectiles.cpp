@@ -369,6 +369,50 @@ void World::UpdateImpacts(float dt) {
                   impacts.end());
 }
 
+void World::AddSlabSwing(float x, float y, float facing, float length, float lift) {
+    SlabSwing s;
+    s.x = x; s.y = y;
+    s.facing = facing;
+    s.from = facing - SLAB_SWEEP; s.to = facing + SLAB_SWEEP;
+    s.length = length;
+    s.life = s.max_life = SLAB_TIME;
+    s.lift = lift;
+    slabs.push_back(s);
+    // The ground it came out of, and what came up with it.
+    BurstOf(Element::Earth, x + cosf(s.from) * length * 0.55f, y + 14.0f + sinf(s.from) * length * 0.4f, lift, 1.4f, 0.0f, 0.0f);
+}
+
+void World::HearOfSlabSwing(float x, float y, float facing, float length) {
+    // A swing is told of in every snapshot for as long as it lasts, and is one
+    // swing: the same place and the same way, heard of again, is the one
+    // already being drawn. It is kept a moment past its end for that.
+    for (SlabSwing& s : slabs)
+        if (fabsf(s.x - x) < 3.0f && fabsf(s.y - y) < 3.0f && fabsf(s.facing - facing) < 0.06f) { s.told = 0.0f; return; }
+    AddSlabSwing(x, y, facing, length, LiftAt(x, y));
+}
+
+void World::UpdateSlabs(float dt) {
+    for (SlabSwing& s : slabs) {
+        const bool swinging = s.life > 0.0f;
+        s.life -= dt;
+        s.told += dt;
+        if (!swinging) continue;
+        // The ground under the far end of it: dust dragged along behind as it
+        // goes round, and what is left of it thrown down where it stops.
+        const float a = s.Angle(), len = s.Length();
+        const float tx = s.x + cosf(a) * len, ty = s.y + 14.0f + sinf(a) * len * 0.72f;
+        s.dust -= dt;
+        if (s.dust <= 0.0f) {
+            s.dust = 0.025f;
+            AddDust(tx, ty, -sinf(a), cosf(a));
+            AddDust(s.x + cosf(a) * len * 0.55f, s.y + 14.0f + sinf(a) * len * 0.4f, -sinf(a), cosf(a));
+        }
+        if (s.life <= 0.0f) BurstOf(Element::Earth, tx, ty, s.lift, 1.3f, 0.0f, 0.0f);
+    }
+    slabs.erase(std::remove_if(slabs.begin(), slabs.end(),
+                               [](const SlabSwing& s) { return s.life <= 0.0f && s.told > 0.3f; }), slabs.end());
+}
+
 void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
     // Shots that were owed: let go from where the caster is now, at what they
     // are fighting now.
@@ -386,10 +430,12 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         SpawnProjectile(q.projectile, muzzle.x + cosf(a) * 12.0f, muzzle.y + sinf(a) * 12.0f, cosf(a), sinf(a),
                         player.Profile(), AttackStyle::Magic, q.mult, true, ctx);
         casting = was;
-        if (projectiles.size() > before) projectiles.back().target = targeting.Current();
+        if (projectiles.size() > before) {
+            projectiles.back().target = targeting.Current();
+            projectiles.back().life *= q.life;
+        }
     }
-    for (SlabSwing& s : slabs) s.life -= dt;
-    slabs.erase(std::remove_if(slabs.begin(), slabs.end(), [](const SlabSwing& s) { return s.life <= 0.0f; }), slabs.end());
+    UpdateSlabs(dt);
 
     for (GroundEffect& g : ground_effects) {
         if (g.finished) continue;
@@ -443,7 +489,11 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         if (g.rain) {
             ++g.volleys;
             Audio::PlayAt(Sfx::Impact, g.x, g.y, 0.45f, 1.30f + 0.06f * (g.volleys % 3));
-            Burst(g.x, g.y, g.radius * 0.8f, {226, 210, 172, 255}, 4);
+            // Where this volley struck: somewhere else each time, near the middle
+            // and out by the rim by turns. Always the same four points, a rain
+            // looked like it was falling on four pegs.
+            Burst(g.x, g.y, g.radius * (0.30f + 0.17f * static_cast<float>(g.volleys % 4)), {226, 210, 172, 255}, 4,
+                  static_cast<float>(g.volleys) * 1.13f);
         }
 
         // A circle on the ground, against where things stand. It was a square

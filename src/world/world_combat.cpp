@@ -348,12 +348,21 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         // The Flamethrower. Light is wide and at arm's length: five tongues
         // across sixty degrees that are gone in a quarter of a second. Heavy is
         // three, close together, that live three times as long -- a lance of it.
+        //
+        // And behind each, the rest of the breath: a second flight a moment
+        // later, in the gaps of the first. It is what makes it a jet of fire
+        // and not five darts -- and it is the same fire, shared out: what the
+        // two flights are worth together is what the one was.
         const bool focused = atk.type != AttackType::Light;
         if (focused) {
             for (float deg : {-5.0f, 0.0f, 5.0f})
-                if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 1.25f, deg == 0.0f)) p->life *= 2.9f;
+                if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 1.25f * 0.7f, deg == 0.0f)) p->life *= 2.9f;
+            for (float deg : {-2.5f, 2.5f})
+                queued_shots.push_back({0.08f, projectile_id, damage_mult * 1.25f * 0.45f, deg, casting, 2.9f});
         } else {
-            for (float deg : {-30.0f, -15.0f, 0.0f, 15.0f, 30.0f}) loose(turned(deg).x, turned(deg).y, damage_mult, false);
+            for (float deg : {-30.0f, -15.0f, 0.0f, 15.0f, 30.0f}) loose(turned(deg).x, turned(deg).y, damage_mult * 0.64f, false);
+            for (float deg : {-22.5f, -7.5f, 7.5f, 22.5f})
+                queued_shots.push_back({0.07f, projectile_id, damage_mult * 0.45f, deg, casting, 1.0f});
         }
     } else if (shape == "fire_ring" || shape == "wall") {
         // Burning ground, laid out: a ring round the caster, or a wall across
@@ -455,14 +464,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             proc_next = {};
             cast_next = 0;
         }
-        const float facing = atan2f(aim.y, aim.x);
-        SlabSwing s;
-        s.x = player.x; s.y = player.y - 14.0f;
-        s.from = facing - 1.15f; s.to = facing + 1.15f;
-        s.length = 74.0f;
-        s.life = s.max_life = 0.26f;
-        s.lift = player.draw_lift;
-        slabs.push_back(s);
+        AddSlabSwing(player.x, player.y - 14.0f, atan2f(aim.y, aim.x), 74.0f, player.draw_lift);
         Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, 0.7f);
     } else if (shape == "stone_rain") {
         // The Arrow Rain's numbers, in stone: see GroundEffect::RAIN_TIME.
@@ -508,9 +510,9 @@ vector<string> World::KnownArcane(const SpellBook& book) const {
     return out;
 }
 
-void World::Burst(float x, float y, float radius, SDL_Color color, int count) {
+void World::Burst(float x, float y, float radius, SDL_Color color, int count, float turn) {
     for (int i = 0; i < count; ++i) {
-        const float a = 6.2831853f * i / count;
+        const float a = 6.2831853f * i / count + turn;
         Impact im;
         im.x = x + cosf(a) * radius;
         im.y = y + sinf(a) * radius;
@@ -918,6 +920,9 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         if (const ItemDef* blade = player.equipment.Weapon()) past = std::max(past, blade->armour_pierce);
         twist = player.Twist(player.Attack().move);
         if (twist) { past = std::max(past, twist->pierce); damage_mult *= twist->damage; }
+        // A pair of daggers lands twice as often, and each of the two is worth
+        // less for it -- every blow of theirs, a technique's as much as a stab.
+        damage_mult *= player.equipment.DualDamage();
     }
     if (past > 0.0f) {
         guard.defence_level = std::max(1, static_cast<int>(guard.defence_level * (1.0f - past)));

@@ -201,11 +201,14 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
         const ItemDef* w = db->Get(equipment.InSlot(SLOT_WEAPON));
         if (w && w->worn && !w->worn_sprite.empty()) s.show_weapon = false;
         if (w) s.weapon_model = w->model;
+        // A second dagger, in the hand a shield would be on.
+        if (const ItemDef* off = equipment.Offhand()) s.offhand_model = off->model;
     }
     // Picking herbs is done bare-handed, so the weapon is put away.
     if (gather_clip == "gather") s.show_weapon = false;
     // At work the hands hold the tool, whatever is normally in them.
     if (!gather_model.empty()) {
+        s.offhand_model.clear();
         s.weapon_model = gather_model;
         s.show_weapon = true;
         s.weapon = {255, 255, 255, 255};
@@ -382,7 +385,8 @@ bool Player::StartRush(const World& world) {
 
     const bool has_clip = sprite.Def() && sprite.Def()->Find("rush");
     sprite.speed_scale = 1.0f;
-    sprite.Play(has_clip ? "rush" : AttackClip(), true);
+    sprite.Play(has_clip ? BothHands("rush") : AttackClip(), true);
+    FitSwing();
     Audio::Play(Sfx::Jump);
     Audio::Play(Sfx::SwingHeavy, 0.9f, 1.1f);
     return true;
@@ -548,6 +552,26 @@ string Player::AttackClip() const {
     return "attack";
 }
 
+string Player::BothHands(const string& clip) const {
+    const ItemDef* w = equipment.Weapon();
+    if (w && w->two_handed && w->kind == WeaponKind::Melee && sprite.Def() && sprite.Def()->Find(clip + "_2h"))
+        return clip + "_2h";
+    return clip;
+}
+
+void Player::FitSwing() {
+    // The sword's clips run at their own rate and are cut off where the attack
+    // ends, which suits six quick frames. An eight-frame swing that is half
+    // wind-up does not survive that: at any fixed rate it is either over before
+    // a heavy has landed or has not come round by the time a light is done. So
+    // a clip that asks is stretched over the attack, whatever the attack is --
+    // and the weapon's slowness, which is already in the attack, is in the clip.
+    const AnimClip* c = sprite.Def() ? sprite.Def()->Find(sprite.current) : nullptr;
+    const float total = attack.profile.Total();
+    if (!c || !c->fit || total <= 0.01f || c->fps <= 0.0f) return;
+    sprite.speed_scale = static_cast<float>(c->frames) / (c->fps * total);
+}
+
 void Player::FireStrong(bool charged, float ratio, const World& world) {
     const float speed = WeaponSpeed();
     attack.type    = charged ? AttackType::Charged : AttackType::Strong;
@@ -574,6 +598,7 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     TurnToTarget(world);
     sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
     sprite.Play(own_charge && sprite.Def() && sprite.Def()->Find(held->charge_clip) ? held->charge_clip : AttackClip(), true);
+    FitSwing();
     if (Style() == AttackStyle::Melee)
         Audio::Play(Sfx::SwingHeavy, charged ? 1.0f : 0.85f, charged ? 0.85f : 1.0f);
     combo        = 0;
@@ -588,7 +613,7 @@ string Player::ComboClip(ComboMove move) const {
                      : move == ComboMove::CrossCut ? "spin" : "";
     // A bow or a staff plays its own draw or cast: the sword's combo clips
     // would swing it like a blade.
-    if (Style() == AttackStyle::Melee && *name && sprite.Def() && sprite.Def()->Find(name)) return name;
+    if (Style() == AttackStyle::Melee && *name && sprite.Def() && sprite.Def()->Find(name)) return BothHands(name);
     return AttackClip();
 }
 
@@ -609,6 +634,7 @@ void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
     after_strong = false;
     sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
     sprite.Play(ComboClip(move), true);
+    FitSwing();                                       // a wand's combo is a wand's flick
     if (Style() != AttackStyle::Melee) return;
     switch (move) {
         case ComboMove::Crush:    Audio::Play(Sfx::SwingHeavy, 0.95f, 0.9f);  break;
@@ -748,7 +774,14 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
             attack.consumed    = false;
             TurnToTarget(world);
             sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-            sprite.Play(AttackClip(), true);
+            // A pair of daggers strikes hand after hand: right, left, right.
+            const ItemDef* held = equipment.Weapon();
+            const bool pair = held && equipment.DualWielding() && !held->offhand_clip.empty() &&
+                              sprite.Def() && sprite.Def()->Find(held->offhand_clip);
+            const bool left = pair && left_hand_next;
+            left_hand_next = pair && !left_hand_next;
+            sprite.Play(left ? held->offhand_clip : AttackClip(), true);
+            FitSwing();
             combo_window = 0.0f;
             after_strong = false;
             // A bow or a staff makes its own noise when the shot leaves.
@@ -1593,20 +1626,33 @@ bool Player::EquipFromInventory(int slot, string& why_not) {
     // A bow takes both hands. Equipping one takes the shield off, and a
     // shield takes the bow off -- but only if the bag has room for what comes
     // off, or the item would be lost.
+    //
+    // A dagger is the one weapon the other hand will hold. With a dagger already
+    // in the right and no dagger in the left, the next one equipped goes to the
+    // left, in place of whatever was there; with a pair already, it replaces the
+    // right like any weapon. And a dagger in the left stays only while there is
+    // one in the right: any other weapon coming in sends it back to the bag.
     int unseat = SLOT_NONE;
+    int into = def->slot;
     if (item_db && (def->slot == SLOT_WEAPON || def->slot == SLOT_SHIELD)) {
         const ItemDef* worn_weapon = item_db->Get(equipment.InSlot(SLOT_WEAPON));
+        const ItemDef* worn_off    = item_db->Get(equipment.InSlot(SLOT_SHIELD));
+        const bool off_is_weapon   = worn_off && worn_off->slot == SLOT_WEAPON;
+        if (def->slot == SLOT_WEAPON && def->offhand && worn_weapon && worn_weapon->offhand && !off_is_weapon)
+            into = SLOT_SHIELD;
         const bool bow_in   = def->slot == SLOT_WEAPON && def->two_handed;
         const bool shield_in = def->slot == SLOT_SHIELD;
-        const int  clash = (bow_in && !equipment.InSlot(SLOT_SHIELD).empty()) ? SLOT_SHIELD
+        const bool lone_in  = into == SLOT_WEAPON && !def->offhand && off_is_weapon;
+        const int  clash = ((bow_in || lone_in) && !equipment.InSlot(SLOT_SHIELD).empty()) ? SLOT_SHIELD
                          : (shield_in && worn_weapon && worn_weapon->two_handed)
                                ? SLOT_WEAPON : SLOT_NONE;
         if (clash != SLOT_NONE) {
             const int freed = (stack.qty == 1) ? 1 : 0;
-            const int needed = 1 + (equipment.InSlot(def->slot).empty() ? 0 : 1);
+            const int needed = 1 + (equipment.InSlot(into).empty() ? 0 : 1);
             if (inventory.FreeSlots() + freed < needed) {
-                why_not = clash == SLOT_SHIELD ? "That needs both hands, and your pack has no room for the shield."
-                                               : "A shield needs a free hand, and your pack has no room for what you are holding.";
+                why_not = clash != SLOT_SHIELD ? "A shield needs a free hand, and your pack has no room for what you are holding."
+                        : off_is_weapon        ? "Your pack has no room for the dagger in your other hand."
+                                               : "That needs both hands, and your pack has no room for the shield.";
                 return false;
             }
             unseat = clash;
@@ -1615,7 +1661,7 @@ bool Player::EquipFromInventory(int slot, string& why_not) {
 
     const string item_id = stack.id;
     inventory.RemoveSlot(slot, 1);
-    const string displaced = equipment.Equip(def->slot, item_id);
+    const string displaced = equipment.Equip(into, item_id);
     // The freed slot guarantees room for whatever came off.
     if (!displaced.empty()) inventory.Add(displaced, 1);
     // After the item has left the bag, so its slot counts toward the room.
@@ -1627,7 +1673,11 @@ bool Player::UnequipSlot(int equip_slot) {
     const string id = equipment.InSlot(equip_slot);
     if (id.empty()) return false;
     if (inventory.Full()) return false;
+    // Putting away the right hand's dagger of a pair: the left's changes hands,
+    // rather than being left in a hand that holds nothing without the other.
+    const bool pair = equip_slot == SLOT_WEAPON && equipment.DualWielding();
     equipment.Unequip(equip_slot);
+    if (pair) equipment.Equip(SLOT_WEAPON, equipment.Unequip(SLOT_SHIELD));
     inventory.Add(id, 1);
     return true;
 }

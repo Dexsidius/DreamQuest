@@ -78,6 +78,17 @@ struct ItemDef {
     // longer, narrower and harder than its swing.
     string charge_clip;
     float  charge_damage = 1.0f, charge_reach = 1.0f, charge_sweep = 1.0f;
+    // A dagger: light enough for the other hand to hold a second. A pair strikes
+    // in `dual_speed` of the time, hand after hand, and each blow is worth
+    // `dual_damage` of one hand's. What the second brings is its speed and
+    // nothing else: its bonuses are not counted twice.
+    bool   offhand = false;
+    float  dual_speed = 1.0f, dual_damage = 1.0f;
+    // The clip the left hand strikes with, turn about with `attack_clip`.
+    string offhand_clip;
+    // Whether it can go in `equip_slot`: where it is made to go, or -- a
+    // dagger -- the off hand, where a shield would.
+    bool   FitsSlot(int equip_slot) const;
     // A crossbow: let off at once, and then this long spanning it again.
     float  reload = 0.0f;
     // What it throws, where that is not an arrow or a spell: a bolt, a knife.
@@ -419,6 +430,13 @@ public:
     float MoveSpeed() const;
     // The weapon in hand, or null.
     const ItemDef* Weapon() const;
+    // A second weapon, in the hand a shield would be on: a dagger beside a
+    // dagger. Null when that hand holds a shield, a lantern or nothing -- or a
+    // dagger with nothing in the other hand to pair it with.
+    const ItemDef* Offhand() const;
+    bool  DualWielding() const { return Offhand() != nullptr; }
+    // What each blow of a pair is worth beside one hand's; 1 for one hand.
+    float DualDamage() const;
     // True when something worn carries this passive.
     bool HasPassive(const string& id) const;
     // The furthest a worn light throws; 0 when nothing worn is lit.

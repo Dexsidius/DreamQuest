@@ -885,6 +885,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         for (auto& n : npcs) n->Update(dt, *this, ctx);
         UpdateImpacts(dt);
         UpdateDust(dt);
+        UpdateSlabs(dt);
         ShedFromShots();
         ShedFromGround(dt);
         ShedFromStatuses(dt);

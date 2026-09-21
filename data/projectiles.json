@@ -328,11 +328,11 @@
   },
 
   "flame_jet": {
-    "sprite": "assets/effects/fireball.png",
+    "sprite": "assets/effects/flame_billow.png",
     "frames": 8,
     "fps": 18,
-    "pivot": [30, 9],
-    "glow": 36,
+    "pivot": [19, 9],
+    "glow": 40,
     "tint": [255, 255, 255],
     "status": {"id": "burn", "chance": 0.22},
     "speed": 320,
@@ -345,13 +345,12 @@
   },
 
   "hydro_cannon": {
-    "sprite": "assets/effects/water_orb_greater.png",
+    "sprite": "assets/effects/water_orb_cannon.png",
     "frames": 8,
     "fps": 12,
     "upright": true,
-    "pivot": [13, 13],
-    "scale": 1.3,
-    "tail": {"sprite": "assets/effects/water_wake_greater.png", "frames": 8, "pivot": [34, 11]},
+    "pivot": [17, 17],
+    "tail": {"sprite": "assets/effects/water_wake_cannon.png", "frames": 8, "pivot": [45, 14]},
     "tint": [255, 255, 255],
     "status": {"id": "wet", "chance": 0.8},
     "speed": 440,
@@ -364,12 +363,10 @@
   },
 
   "wave_crest": {
-    "sprite": "assets/effects/water_orb.png",
+    "sprite": "assets/effects/wave_crest.png",
     "frames": 8,
     "fps": 10,
-    "upright": true,
-    "pivot": [9, 9],
-    "tail": {"sprite": "assets/effects/water_wake.png", "frames": 8, "pivot": [24, 8]},
+    "pivot": [17, 15],
     "tint": [255, 255, 255],
     "status": {"id": "wet", "chance": 0.5},
     "speed": 170,
@@ -382,11 +379,10 @@
   },
 
   "mineral_shard": {
-    "sprite": "assets/effects/rock_shard.png",
+    "sprite": "assets/effects/rock_shard_small.png",
     "frames": 8,
     "fps": 20,
     "upright": true,
-    "scale": 0.75,
     "tint": [255, 255, 255],
     "status": {"id": "bleed", "chance": 0.12},
     "speed": 480,

@@ -701,7 +701,7 @@ the same dozen fields off every weapon (`ItemDef`, "the armoury").
 
 | Weapon | Hands | Speed | What it is for |
 | --- | --- | --- | --- |
-| **Dagger** | one | 0.72 | Short, quick, and all point: **a third of a target's Defence does nothing against it** (`armour_pierce`). Strikes with the thrust. |
+| **Dagger** | one, or **one in each** | 0.72 | Short, quick, and all point: **a third of a target's Defence does nothing against it** (`armour_pierce`). Strikes with the thrust. [A second goes in the other hand](#a-dagger-in-each-hand). |
 | **Mace** | one | 1.12 | The hardest one-handed blow, and one in five **concusses**. Its own overhead `bash`. |
 | **Greatsword** | two | 1.45 | Half again a sword's reach and sixty per cent wider: the two-handed `sweep`, which is mostly wind-up and recovery, because that is what heavy looks like. 28% **bleed**. |
 | **Greataxe** | two | 1.6 | The slowest and the hardest. The same sweep -- and **held and let go it is a chop** (`hew`): longer down the line, half as wide, a third harder. 32% **bleed**. |
@@ -724,10 +724,125 @@ your head say the weapon's name for it.
 **Drawn.** `tools/blender_tiers.py` has a builder for each, cut from the same
 per-tier tables as the sword, so a bronze mace is a bronze sword's cousin;
 `tools/blender_character.py` has eight new clips -- `bash`, `sweep`, `hew`,
-`shoot`, `reload`, `throw`, `flick`, `invoke` -- for all three characters. A
+`shoot`, `reload`, `throw`, `flick`, `invoke` -- for all three characters, and
+six that are versions of older ones: `offstab`, and the five `_2h` combos. A
 great weapon is carried **over the shoulder** in every clip that does not swing
 it: a blade as long as the man is tall, hung from the hand like a sword, drags
 its point through the floor.
+
+#### A dagger in each hand
+
+A dagger is the one weapon the other hand will hold. With one in the right
+hand, **equipping a second puts it in the left**, where a shield would be (the
+shield goes into the bag); the bag, the shops and the anvil say *In your other
+hand: speed, not bonuses* where they would say *Instead of* -- and show its
+numbers without a change against them, because there will be none -- and the
+worn list calls the row *off hand*.
+
+| | One dagger | A pair |
+| --- | --- | --- |
+| Time between blows | 0.72 | **0.36** -- twice as fast |
+| What each blow is worth | 1 | **0.75** |
+| The second dagger's bonuses | -- | **not counted** |
+| Shield | yes | no |
+
+So a pair is about half again one dagger over time, for the price of the
+shield arm -- roughly what the two-handed weapons pay for theirs. Twice the
+speed *and* the second blade's Attack and Strength on top would have been three
+times a dagger, and nothing else in the armoury would have been worth holding.
+All of it is one block on the piece in `data/tiers.json`:
+`"dual": {"speed": 0.5, "damage": 0.75, "clip": "offstab"}` -- set `damage` to 1
+and a pair is simply two daggers' worth.
+
+- **Hand after hand.** Light attacks go right, left, right: `thrust`, then
+  `offstab` -- the thrust mirrored (`mirrored()` in
+  `tools/blender_character.py`) -- then `thrust`. Combos, the charged heavy and
+  everything else are the right hand's.
+- **The rules of the left hand** (`Player::EquipFromInventory`). A third dagger
+  replaces the right hand's. A shield takes the left hand back. Any other
+  weapon in the right sends the left's dagger to the bag -- it is only ever
+  held beside another -- and so does anything that takes both hands; with no
+  room in the bag for it, the swap is refused and says why. Put the right
+  hand's away and the left's changes hands.
+- **Drawn.** The left hand has a grip of its own on the rig (`grip_l`), and
+  every dagger is rendered a second time built on it:
+  `layers/<clip>_4_weapon_off_<model>.png`, for every clip a dagger is carried
+  through, drawn straight after the right hand's (`LayerStyle::offhand_model`).
+  Each hand's is its own tier's: an iron dagger and a wooden one look it.
+- **Shared.** A guest's outfit says what is in each slot and the host used to
+  keep only what *belonged* in it, which would have thrown the left hand's
+  dagger away; `ItemDef::FitsSlot` is the one place that says what fits where.
+
+**The dagger itself was redrawn.** It was a cone a third the length of a
+sword, and a cone that size is three pixels of blade and then nothing: the thin
+half never survives being reduced to game size, so what was in the fist read as
+a nail. It is a broad leaf with a short point now, two thirds of a sword's
+length -- it keeps its width nearly to the tip, and that is what reads as a
+blade at forty pixels.
+
+#### Both hands on it
+
+The first pass set the arms of the two-handed clips by eye, and the left hand
+floated beside the hilt more often than it held it. The reason is the rig: an
+arm is 0.235 long from a shoulder 0.19 out from the middle, so two hands can
+meet only in a small pocket in front of the chest, and angles set by eye miss
+it. A two-handed pose does not give angles now. It says
+
+- **where the right hand is** (`hold_x/y/z`) -- from the point between the
+  shoulders, *in the chest's own axes*, so a lean or a twist carries the hands
+  with it and what could be reached still can be;
+- **where the thing held points** (`aim_x/y/z`) and which way its edge faces
+  (`edge_x/y/z`), in the character's axes -- so a sweep's blade is flat and
+  leading with its edge, a chop's bit is into the blow, a crossbow is level
+  and dead ahead with its prod square, and a book's pages are up;
+- **how far along it the left hand sits** (`left_on`: toward the pommel, or,
+  negative, toward the nose -- under a crossbow's stock),
+
+and three small searches in `apply_pose` find the arm angles, the wrist and the
+left arm that make it so (`_place_right_hand`, `_aim_grip`, `_place_left_hand`).
+Where the mark is a little further than the left arm is long, the arm is let
+out to meet it, up to 1.3 -- a pixel of forearm at this size, where a hand
+floating beside a hilt is the thing you notice. `sweep`, `hew`, `shoot`,
+`reload`, `flick` and `invoke` were all re-posed on it: the great weapons wait
+with the blade out over the right shoulder (not up in front of the face, where
+the head's sheet covers it), the crossbow no longer spins about its stock while
+it is spanned, the greataxe's bit is turned a little to the side as it comes
+down so that it is a blade from the front and not a line. The grimoire has a
+dark cover showing round pale pages, and the orb is twice the size, clear of
+the palm, and the violet of a spell with no element instead of a white ball.
+
+**The combos, too.** A greatsword's Crushing Blow was the sword's, swung with
+one hand, because the combos' clips are the sword's and there was one set. The
+five that swing -- `rush`, `crush`, `cleave`, `backhand`, `spin` -- have a
+second version each (`rush_2h` ... `spin_2h`) that is *the same pose, to the
+frame*, run through the same solver: `two_handed(pose_fn)` measures on the rig
+where the sword's pose put the right hand and where its blade pointed, brings
+the hand in to where the left can reach the hilt too, and keeps the blade
+pointing exactly where it did. The swing keeps its shape and its timing, and
+nobody swings four feet of steel about one-handed. `Player::BothHands(clip)`
+picks it, for a melee weapon that takes both hands, on a rig that has it.
+
+#### A clip that lasts what its attack lasts
+
+The armoury's strikes had no playback rule in `tools/make_sprites_json.ps1`, and
+a clip with no rule loops at ten frames a second. The sword's clips play at a
+fixed rate and are cut off where the attack ends, which suits six quick frames;
+an eight-frame swing that is half wind-up does not survive it -- a greatsword
+showed its wind-up, and the attack was over before the blade came round.
+
+So `bash`, `sweep`, `hew`, `shoot`, `throw`, `flick` and `invoke` are marked
+**`"fit"`** in `data/sprites.json`, and `Player::FitSwing` plays a fitted clip to
+last exactly as long as the attack now under way: a greataxe's light and its
+charged chop are the same eight frames over a third of a second and over a
+whole one, and the weapon's slowness -- which was already in the attack -- is
+in the swing. With that, every one of them was **re-timed so the blow is on the
+screen while it is live**: an attack's hit is live from about a fifth of the
+way through to about a half, so the frame that shows it landing is the fourth of
+eight, the third of six, the second of five; and what is thrown or cast leaves
+the hand on the second frame, which is when it leaves the world's. The first
+pass had every blow in the middle of its clip, after the monster had been hit.
+(`offstab` and the `_2h` clips keep the rate of the swing they are a version
+of, and `reload` loops: spanning a crossbow goes on for as long as it takes.)
 
 **And a bug the armoury found.** Every weapon sheet ever rendered had a suit of
 plain plate armour drawn into it under the weapon: the renderer held the body
@@ -746,7 +861,7 @@ four spells.** Twelve new spells, three an element, at Magic 12, 24 and 36:
 
 | | 1 | 2 (Magic 12) | 3 (Magic 24) | 4 (Magic 36) |
 | --- | --- | --- | --- | --- |
-| **Fire** | Ember, Pyre | **Flamethrower** -- light is five tongues across sixty degrees at arm's length; heavy is three, close together, that reach three times as far | **Flame Ring** -- twelve patches of burning ground round where you stand | **Wall of Fire** -- seven across the way you face, for five seconds |
+| **Fire** | Ember, Pyre | **Flamethrower** -- light is five tongues across sixty degrees at arm's length; heavy is three, close together, that reach three times as far. Each is a breath, not a volley: a second flight follows a moment later in the gaps of the first, and the two together are worth what the one was | **Flame Ring** -- twelve patches of burning ground round where you stand | **Wall of Fire** -- seven across the way you face, for five seconds |
 | **Water** | Spray, Torrent | **Hydro Cannon** -- one great ball: soaked, and thrown twice as far as a gust throws | **Tidal Wave** -- seven abreast, slowly, through everything | **Whirlpool** -- four seconds of water that drags what is in it to the middle |
 | **Earth** | Sharpstone, Upheaval | **Bedrock Sweep** -- a slab of the ground torn up and swung flat through everything in front; it lands like a wall, and often concusses | **Sedimentary Rain** -- the Arrow Rain's numbers, in stone | **Mineral Burst** -- eight sharp stones, one after another, from wherever you have got to |
 | **Air** | Gust, Galewind | **Tornado** -- it walks the way it was sent, throwing what it catches in any direction it likes, and **the further it is thrown the more it is hurt**. A light cast is a dust devil; **held and let go it lasts four seconds** | **Air Slash** -- an edge of air as wide as a doorway, through everything | **Turbulence** -- three seconds of your own weather, that goes where you go |
@@ -759,6 +874,26 @@ leave on the ground can **pull** (`GroundEffect::pull`), **throw**
 (`fling`), **walk** (`drift`) and **follow** its caster, and is drawn as what
 it is -- rings of water turning inward, a funnel of rings stacked off the
 ground -- on a friend's machine as on yours.
+
+Each of the big ones has art of its own, at the size it is drawn
+(`tools/make_effects.ps1`): the Flamethrower breathes **billows of flame** with
+no ball at the head of them (`flame_billow`), the Hydro Cannon is a ball of
+water drawn that big rather than a smaller one scaled up (`water_orb_cannon`),
+the Tidal Wave is seven lengths of **a wave** -- a bowed line of foam, the
+glassy face behind it, churned water thinning out behind that -- that read as
+one front (`wave_crest`), and the Mineral Burst's stones are small stones, not
+big ones shrunk. The Sedimentary Rain's stones are lit and shaded, land in a
+puff of dust, and come down onto **their own shadows closing in under them**;
+Turbulence is streaks of air at two heights with the dirt and leaves it has
+picked up, not rings of dots. **The Bedrock Sweep's slab** comes up out of the
+ground, goes round, and breaks up at the far end: four pixels wide as asked,
+and a block -- a lit top, a dark face under it, cracks across it, turf on the
+end that was uppermost -- dragging dust behind it. **A friend sees it swung**:
+it was the caster's alone, because the swing lived in the caster's world and
+nothing on the line spoke of it. It goes as a patch of a kind of its own
+(`PatchState::SLAB`: where it turns about, how long it is, and its facing in
+the byte a patch keeps its age in), and the guest's world makes the same swing
+once from that, however many snapshots go on saying so. `PROTOCOL_VERSION` 6.
 
 ### Combos
 
@@ -4774,7 +4909,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **32577 checks** covering:
+and checks all of it — currently **34431 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed

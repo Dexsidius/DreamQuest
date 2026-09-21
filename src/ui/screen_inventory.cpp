@@ -295,7 +295,9 @@ void Game::DrawInventory() {
 
         const string& worn = p.equipment.InSlot(i);
         const ItemDef* def = worn.empty() ? nullptr : items.Get(worn);
-        ui.Text(EquipSlotName(i), r.x + 8.0f, r.y + 4.0f, TextSize::Small, Palette::TextDim);
+        // A second dagger sits where a shield would: the row says which it is.
+        const bool second = def && i == SLOT_SHIELD && def->slot == SLOT_WEAPON;
+        ui.Text(second ? "off hand" : EquipSlotName(i), r.x + 8.0f, r.y + 4.0f, TextSize::Small, Palette::TextDim);
         ui.Text(def ? def->name : "-", r.x + r.w - 8.0f, r.y + 4.0f, TextSize::Small,
                 def ? Palette::Text : Palette::TextDim, Align::Right);
     }
@@ -421,8 +423,17 @@ SDL_Color DeltaColour(int verdict) {
 } // namespace
 
 // What is in the same slot now, which is what a piece is weighed against.
+bool Game::GoesInOtherHand(const ItemDef& d) const {
+    if (d.slot != SLOT_WEAPON || !d.offhand) return false;
+    // Looking at what is already in a hand is not looking at a second one.
+    if (state == GameState::Inventory && inventory_on_equipment) return false;
+    const ItemDef* right = world->player.equipment.Weapon();
+    const ItemDef* left  = items.Get(world->player.equipment.InSlot(SLOT_SHIELD));
+    return right && right->offhand && !(left && left->slot == SLOT_WEAPON);
+}
+
 const ItemDef* Game::WornAgainst(const ItemDef& d) const {
-    if (d.slot == SLOT_NONE) return nullptr;
+    if (d.slot == SLOT_NONE || GoesInOtherHand(d)) return nullptr;
     const string& in_slot = world->player.equipment.InSlot(d.slot);
     return in_slot.empty() ? nullptr : items.Get(in_slot);
 }
@@ -431,6 +442,9 @@ const ItemDef* Game::WornAgainst(const ItemDef& d) const {
 string Game::WornAgainstLine(const ItemDef& d) const {
     if (d.slot == SLOT_NONE) return string();
     const string& in_slot = world->player.equipment.InSlot(d.slot);
+    // It replaces nothing, and what it brings is its speed: its numbers are
+    // shown, and no change against them, because there will be none.
+    if (GoesInOtherHand(d)) return "In your other hand: speed, not bonuses";
     if (!in_slot.empty() && in_slot == d.id) return "Worn now";
     if (const ItemDef* worn = in_slot.empty() ? nullptr : items.Get(in_slot))
         return "Instead of " + worn->name;
@@ -448,9 +462,9 @@ float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
     const float delta_x = x + w * 0.88f;
 
     const ItemDef* worn = WornAgainst(d);
-    const bool compare = (d.slot != SLOT_NONE);
+    const bool compare = (d.slot != SLOT_NONE) && !GoesInOtherHand(d);
 
-    if (compare) {
+    if (d.slot != SLOT_NONE) {
         ui.Text(WornAgainstLine(d), x, y, TextSize::Small, Palette::TextDim);
         y += row + 2.0f;
     }
@@ -507,7 +521,8 @@ float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
 void Game::DrawItemCard(const ItemDef& d, const SDL_FRect& slot) {
     if (d.slot == SLOT_NONE) return;
     const ItemDef* worn = WornAgainst(d);
-    const vector<ItemStat> rows = ItemStatLines(d, worn, true);
+    // A second dagger changes nothing but the speed: its numbers, and no change.
+    const vector<ItemStat> rows = ItemStatLines(d, worn, !GoesInOtherHand(d));
     if (rows.empty()) return;
 
     const string head = WornAgainstLine(d);

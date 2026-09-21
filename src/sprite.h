@@ -90,6 +90,9 @@ struct LayerStyle {
     // sheet for it draws that, in its own colours, in place of its sword;
     // one that does not falls back to the sword, tinted.
     string weapon_model;
+    // And a second one in the other hand -- "dagger_iron" -- drawn from its own
+    // sheets, layers/<clip>_4_weapon_off_<model>.png, straight after the first.
+    string offhand_model;
     // Worn pieces, in the order they should be drawn.
     vector<Attachment> attachments;
 };
@@ -99,6 +102,10 @@ struct AnimClip {
     int    frames = 1;         // columns in the sheet
     float  fps    = 10.0f;
     bool   loop   = true;
+    // A strike that is played to last exactly as long as the attack it belongs
+    // to, however long that is: see Player::FitSwing. `fps` is what it plays at
+    // when nothing is fitting it.
+    bool   fit    = false;
 
     // Several CraftPix sheets are padded to the width of their longest row.
     // The player's idle has twelve frames facing down, left and right but only

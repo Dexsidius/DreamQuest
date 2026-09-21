@@ -209,8 +209,32 @@ void World::DrawArrowRain(SDL_Renderer* r) const {
         h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16;
         return static_cast<float>(h & 0xffffff) / static_cast<float>(0x1000000);
     };
+    // A stone of the Sedimentary Rain, `w` by `h` screen pixels about (cx, cy):
+    // a dark rim, the stone, light along its top and left and dark along its
+    // bottom. `which` picks its colour; no two in a rain are quite the same.
+    const auto stone = [&](float cx, float cy, float w, float h, int which, Uint8 alpha) {
+        const SDL_FRect rock = {roundf((cx - w / 2.0f) / z) * z, roundf((cy - h / 2.0f) / z) * z, w, h};
+        const SDL_FRect rim = {rock.x - z, rock.y - z, rock.w + 2.0f * z, rock.h + 2.0f * z};
+        const Uint8 warm = static_cast<Uint8>(which % 40);
+        SDL_SetRenderDrawColor(r, 52, 38, 28, alpha);
+        SDL_RenderFillRect(r, &rim);
+        SDL_SetRenderDrawColor(r, static_cast<Uint8>(158 + warm), static_cast<Uint8>(128 + warm / 2), 90, alpha);
+        SDL_RenderFillRect(r, &rock);
+        if (h >= 2.0f * z) {
+            SDL_SetRenderDrawColor(r, 108, 82, 58, alpha);
+            const SDL_FRect under = {rock.x, rock.y + rock.h - z, rock.w, z};
+            SDL_RenderFillRect(r, &under);
+        }
+        SDL_SetRenderDrawColor(r, 228, 206, 160, alpha);
+        const SDL_FRect top = {rock.x, rock.y, std::max(z, rock.w - z), z};
+        SDL_RenderFillRect(r, &top);
+        if (w >= 3.0f * z && h >= 3.0f * z) {
+            const SDL_FRect left = {rock.x, rock.y + z, z, rock.h - 2.0f * z};
+            SDL_RenderFillRect(r, &left);
+        }
+    };
 
-    constexpr int   LANES = 44;            // arrows a rain has on the go
+    constexpr int   LANES = 44;           // arrows a rain has on the go
     constexpr float CYCLE = 0.78f;         // a lane's arrow: down, stood, gone, and the next
     constexpr float FALL = 0.20f, STAND = 0.50f;
     constexpr float FROM_X = -46.0f, FROM_Y = -150.0f;   // where it comes from, off where it lands
@@ -244,16 +268,19 @@ void World::DrawArrowRain(SDL_Renderer* r) const {
                 const float hx = lx + FROM_X * (1.0f - k), hy = ly + FROM_Y * (1.0f - k);
                 const SDL_FPoint head = camera.ToScreen(hx, hy);
                 if (stones) {
-                    // A stone the size of a fist, dark round the edge, with the streak of its fall over it.
+                    // A stone the size of a fist: dark round the edge, lit on
+                    // the two sides the light is on and dark along the bottom,
+                    // with the streak of its fall over it -- and under it, on
+                    // the ground, its shadow closing in to where it will land.
                     const float side = (2.0f + static_cast<float>(lane % 3)) * z;
-                    const SDL_FRect rock = {roundf((head.x - side / 2.0f) / z) * z, roundf((head.y - side / 2.0f) / z) * z, side, side};
-                    SDL_SetRenderDrawColor(r, 60, 44, 30, 255);
-                    const SDL_FRect rim = {rock.x - z, rock.y - z, rock.w + 2.0f * z, rock.h + 2.0f * z};
-                    SDL_RenderFillRect(r, &rim);
-                    SDL_SetRenderDrawColor(r, static_cast<Uint8>(170 + lane % 40), 140, 96, 255);
-                    SDL_RenderFillRect(r, &rock);
-                    const SDL_FPoint streak = camera.ToScreen(hx - ux * 12.0f, hy - uy * 12.0f);
-                    pixels(streak.x, streak.y, head.x, head.y - side, {214, 196, 160, 120});
+                    const SDL_FPoint land = camera.ToScreen(lx, ly);
+                    const float across = side * (0.6f + 0.8f * k) + 2.0f * z;
+                    SDL_SetRenderDrawColor(r, 20, 14, 10, static_cast<Uint8>(40.0f + 90.0f * k));
+                    const SDL_FRect shade = {roundf((land.x - across / 2.0f) / z) * z, roundf(land.y / z) * z, roundf(across / z) * z, z};
+                    SDL_RenderFillRect(r, &shade);
+                    stone(head.x, head.y, side, side, lane, 255);
+                    const SDL_FPoint streak = camera.ToScreen(hx - ux * 14.0f, hy - uy * 14.0f);
+                    pixels(streak.x, streak.y, head.x, head.y - side, {214, 196, 160, 130});
                     continue;
                 }
                 const SDL_FPoint tail = camera.ToScreen(hx - ux * SHAFT * 1.5f, hy - uy * SHAFT * 1.5f);
@@ -267,18 +294,23 @@ void World::DrawArrowRain(SDL_Renderer* r) const {
                 const Uint8 alpha = static_cast<Uint8>(255.0f * std::clamp(1.6f - k * 1.6f, 0.0f, 1.0f));
                 const SDL_FPoint foot = camera.ToScreen(lx, ly);
                 if (stones) {
-                    // Lying where it fell, and going.
+                    // Lying where it fell, and going: squatter than it fell, and
+                    // for the first moment in the dust it knocked up -- a low
+                    // pale line that spreads, and two specks thrown clear of it.
                     const float side = (2.0f + static_cast<float>(lane % 3)) * z;
-                    SDL_SetRenderDrawColor(r, 60, 44, 30, alpha);
-                    const SDL_FRect rim = {roundf((foot.x - side / 2.0f) / z) * z - z, roundf((foot.y - side * 0.5f) / z) * z - z, side + 2.0f * z, side * 0.7f + 2.0f * z};
-                    SDL_RenderFillRect(r, &rim);
-                    SDL_SetRenderDrawColor(r, static_cast<Uint8>(160 + lane % 40), 132, 92, alpha);
-                    const SDL_FRect rock = {rim.x + z, rim.y + z, side, side * 0.7f};
-                    SDL_RenderFillRect(r, &rock);
-                    if (k < 0.2f) {
-                        SDL_SetRenderDrawColor(r, 214, 196, 160, static_cast<Uint8>(160.0f * (1.0f - k / 0.2f)));
-                        const SDL_FRect puff = {rim.x - 2.0f * z, rim.y + side * 0.5f, side + 6.0f * z, z};
+                    const float squat = std::max(z, roundf(side * 0.7f / z) * z);
+                    stone(foot.x, foot.y - squat / 2.0f, side, squat, lane, alpha);
+                    if (k < 0.3f) {
+                        const float out = k / 0.3f;
+                        SDL_SetRenderDrawColor(r, 214, 196, 160, static_cast<Uint8>(170.0f * (1.0f - out)));
+                        const float wide = side + (4.0f + 8.0f * out) * z;
+                        const SDL_FRect puff = {roundf((foot.x - wide / 2.0f) / z) * z, roundf(foot.y / z) * z, roundf(wide / z) * z, z};
                         SDL_RenderFillRect(r, &puff);
+                        for (float way : {-1.0f, 1.0f}) {
+                            const SDL_FRect chip = {roundf((foot.x + way * (side * 0.5f + 5.0f * z * out)) / z) * z,
+                                                    roundf((foot.y - (6.0f * out - 7.0f * out * out) * 3.0f * z) / z) * z, z, z};
+                            SDL_RenderFillRect(r, &chip);
+                        }
                     }
                     continue;
                 }
@@ -527,11 +559,43 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 }
             } else {
                 // Turbulence: no shape to it, only the air going every way at
-                // once -- broken rings, counter-turning.
-                for (int ring = 0; ring < 4; ++ring) {
-                    const float k = 1.0f - ring * 0.22f;
-                    dotted(centre.x, centre.y - 10.0f * z, rx * k, ry * 0.62f * k, now * (ring % 2 ? 3.4f : -2.6f) + ring, static_cast<int>(60 * k), 2,
-                           {232, 246, 255, static_cast<Uint8>(200 * fade)});
+                // once. Streaks of it, not dots -- each ring is a few long arcs
+                // with gaps between, every other ring turning against its
+                // neighbours, at two heights so it has a middle; a grey line
+                // under each white one, because white specks on grass are a
+                // sprinkle of salt; the ground paled under it all; and the dirt
+                // and leaves it has picked up going round faster than any of it.
+                const auto streaks = [&](float cx, float cy, float ax, float ay, float turn, int dots, int arcs, float fill, SDL_Color col) {
+                    SDL_SetRenderDrawColor(r, col.r, col.g, col.b, col.a);
+                    for (int i = 0; i < dots; ++i) {
+                        const float along = static_cast<float>(i) * arcs / dots;
+                        const float in_arc = along - floorf(along);
+                        if (in_arc > fill) continue;
+                        const float a = 6.2831853f * i / dots + turn;
+                        const SDL_FRect dot = {roundf((cx + cosf(a) * ax) / z) * z, roundf((cy + sinf(a) * ay) / z) * z, z, z};
+                        SDL_RenderFillRect(r, &dot);
+                    }
+                };
+                fill_disc(centre.x, centre.y, rx, ry * 0.62f, {226, 240, 250, static_cast<Uint8>(34 * fade)});
+                for (int ring = 0; ring < 6; ++ring) {
+                    const float k = 1.0f - ring * 0.15f;
+                    const float up = (ring % 2 ? 15.0f : 6.0f) * z;
+                    const float turn = now * (ring % 2 ? 4.2f : -3.1f) + ring * 1.3f;
+                    const int   dots = static_cast<int>(96 * k) + 12;
+                    streaks(centre.x, centre.y - up + z, rx * k, ry * 0.62f * k, turn, dots, 3 + ring % 2, 0.56f,
+                            {92, 110, 128, static_cast<Uint8>(190 * fade)});
+                    streaks(centre.x, centre.y - up, rx * k, ry * 0.62f * k, turn, dots, 3 + ring % 2, 0.56f,
+                            {238, 248, 255, static_cast<Uint8>(240 * fade)});
+                }
+                for (int bit = 0; bit < 9; ++bit) {
+                    const float a = now * (5.0f + bit * 0.4f) * (bit % 2 ? 1.0f : -1.0f) + bit * 0.7f;
+                    const float k = 0.35f + 0.07f * bit;
+                    const float up = (4.0f + 3.0f * (bit % 5) + 3.0f * sinf(now * 6.0f + bit)) * z;
+                    const SDL_FRect speck = {roundf((centre.x + cosf(a) * rx * k) / z) * z,
+                                             roundf((centre.y + sinf(a) * ry * 0.62f * k - up) / z) * z, z * (1 + bit % 2), z};
+                    if (bit % 3 == 0) SDL_SetRenderDrawColor(r, 96, 150, 70, static_cast<Uint8>(255 * fade));
+                    else              SDL_SetRenderDrawColor(r, 122, 94, 62, static_cast<Uint8>(255 * fade));
+                    SDL_RenderFillRect(r, &speck);
                 }
             }
         } else if (g.delay > 0.0f) {
@@ -886,24 +950,47 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
 
     // A slab of the ground, mid-swing: a bar four pixels wide from the caster
     // out, at the angle the moment says, with its shadow a pixel under it.
+    //
+    // Four wide, and a block, not a stripe: its shadow on the ground, the dark
+    // face of it under the top, and the top itself -- lit along the edge that
+    // leads, cracked across every so often, turf still on the end that was
+    // uppermost, and broken off ragged at the far end. What it is made of is
+    // worked out from how far along it a pixel is, so the stone does not crawl
+    // as the slab turns.
     for (const SlabSwing& s : slabs) {
+        if (s.life <= 0.0f) continue;
         const float z = camera.zoom;
-        const float t = 1.0f - std::clamp(s.life / std::max(0.01f, s.max_life), 0.0f, 1.0f);
-        const float k = t * t * (3.0f - 2.0f * t);
-        const float a = s.from + (s.to - s.from) * k;
+        const float a = s.Angle(), length = s.Length();
+        const float ca = cosf(a), sa = sinf(a);
+        const bool  clockwise = s.to > s.from;
+        const auto grain = [](int d) { return static_cast<int>((static_cast<uint32_t>(d) * 2654435761u) >> 28); };   // 0..15
         SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-        for (int pass = 0; pass < 2; ++pass)
-            for (float d = 14.0f; d <= s.length; d += 1.0f)
+        for (int pass = 0; pass < 3; ++pass)
+            for (float d = 12.0f; d <= length; d += 1.0f) {
+                const int   di = static_cast<int>(d);
+                const bool  crack = grain(di / 2) == 3 || grain(di / 2) == 11;
+                // The far end is broken, not sawn: the last few pixels lose a
+                // corner each.
+                const float ragged = d > length - 4.0f ? static_cast<float>(grain(di) % 3) - 1.0f : 0.0f;
                 for (float w = -2.0f; w < 2.0f; w += 1.0f) {
-                    const float wx = s.x + cosf(a) * d - sinf(a) * w, wy = s.y + sinf(a) * d * 0.72f + cosf(a) * w + (pass ? 0.0f : 3.0f);
+                    if (ragged > 0.0f && w >= 2.0f - ragged) continue;
+                    if (ragged < 0.0f && w < -2.0f - ragged) continue;
+                    const float drop = pass == 0 ? 6.0f : pass == 1 ? 2.0f : 0.0f;
+                    const float wx = s.x + ca * d - sa * w, wy = s.y + sa * d * 0.72f + ca * w + drop;
                     const SDL_FPoint at = camera.ToScreen(wx, wy - s.lift);
-                    const bool edge = w <= -2.0f || w >= 1.0f || d >= s.length - 1.0f || d <= 15.0f;
-                    if (!pass)          SDL_SetRenderDrawColor(r, 30, 22, 16, 110);
-                    else if (edge)      SDL_SetRenderDrawColor(r, 70, 52, 36, 255);
-                    else                SDL_SetRenderDrawColor(r, static_cast<Uint8>(176 + (static_cast<int>(d) % 7) * 6), 146, 100, 255);
+                    const bool rim  = w <= -2.0f || w >= 1.0f || d >= length - 1.0f || d <= 13.0f;
+                    const bool lead = clockwise ? w >= 1.0f : w <= -2.0f;
+                    if (pass == 0)      SDL_SetRenderDrawColor(r, 24, 18, 12, 96);
+                    else if (pass == 1) SDL_SetRenderDrawColor(r, 66, 48, 34, 255);
+                    else if (crack)     SDL_SetRenderDrawColor(r, 84, 62, 44, 255);
+                    else if (d > length - 9.0f && !rim) SDL_SetRenderDrawColor(r, static_cast<Uint8>(96 + grain(di) * 2), 150, 72, 255);
+                    else if (lead)      SDL_SetRenderDrawColor(r, 226, 200, 150, 255);
+                    else if (rim)       SDL_SetRenderDrawColor(r, 112, 86, 60, 255);
+                    else                SDL_SetRenderDrawColor(r, static_cast<Uint8>(168 + grain(di) * 3), static_cast<Uint8>(138 + grain(di) * 2), 96, 255);
                     const SDL_FRect px = {roundf(at.x / z) * z, roundf(at.y / z) * z, z, z};
                     SDL_RenderFillRect(r, &px);
                 }
+            }
     }
 
     // Embers, drops and the rest, over everything that stands: see Mote.

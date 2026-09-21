@@ -91,6 +91,12 @@ public:
     void ShapeForWeapon(AttackProfile& p) const;
     // The clip a strike plays: the weapon's own, when the rig has it.
     string AttackClip() const;
+    // `clip`, or -- with a weapon that takes both hands and a rig that has it --
+    // the same swing made with both hands on the hilt: "crush" -> "crush_2h".
+    string BothHands(const string& clip) const;
+    // A strike whose clip asks to be fitted ("fit" in sprites.json) is played to
+    // last exactly as long as the attack now under way. Call after Play.
+    void   FitSwing();
     bool  IsCharging() const { return charging; }
 
     // --- combos ---------------------------------------------------------------
@@ -547,6 +553,8 @@ private:
     // The last swing was a plain strong, so a light inside the window is a
     // Backhand and a heavy is a fresh hold rather than a combo.
     bool  after_strong = false;
+    // With a dagger in each hand: whose turn the next light blow is.
+    bool  left_hand_next = false;
     // Presses made inside a swing, kept for the moment the next may start.
     float buf_light = 0.0f, buf_strong = 0.0f;
     int   chain_hits = 0;

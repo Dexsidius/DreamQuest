@@ -260,6 +260,39 @@ Eight clips came with them, for all three characters
 about 25 seconds a clip a character): which weapon plays which is `models_for`
 in `tools/blender_tiers.py`, and the self-test mirrors it.
 
+A ninth, `offstab`, is the thrust made with the other hand
+(`mirrored(pose_thrust)`): with a dagger in each hand every other stab is it.
+**What the left hand holds has sheets of its own**,
+`layers/<clip>_4_weapon_off_<model>.png`, rendered with the same call as the
+right hand's for any kind in `OFFHAND_KINDS` (`tools/blender_tiers.py`) and
+built on the rig's `grip_l`.
+
+**Posing anything held in two hands, or that has to point somewhere.** Do not
+set the arms by eye: the arms are short (0.235, from shoulders 0.19 out) and
+two hands meet only in a small pocket in front of the chest. Give the pose
+`hold_x/y/z` (where the right hand is, from between the shoulders, in the
+chest's axes), `aim_x/y/z` (where the thing points, in the character's:
+forward is -Y, up +Z, their right -X), optionally `edge_x/y/z` (which way its
++X faces -- an axe's bit, a crossbow's prod) or `aim_top` (its top kept up),
+and `left_on` (how far along it the left hand sits: toward the pommel, or
+negative toward the nose). `_two_hands()` builds such a frame; `apply_pose`
+finds the angles. Say *something* about the roll (`edge` or `aim_top`) on every
+frame, or each frame's search settles on its own and the thing spins about its
+length from one frame to the next. And keep what is held **clear of the head**
+on the screen: the head's sheet is drawn over the weapon's, so a blade held up
+in front of the face is a blade nobody sees. To check a clip without rendering
+it, print where the hands and the nose ended up and how far each search fell
+short -- a dozen lines of Blender Python against `apply_pose`.
+
+**A new strike needs a rule in `tools/make_sprites_json.ps1`** (`$clipRules`),
+or it loops at ten frames a second. `fit = $true` plays it over the length of
+whatever attack it belongs to; put the frame that shows the blow landing a
+fifth to a half of the way through the clip, where the hit is live, and let
+anything thrown or cast leave the hand on the second frame. And a swing that
+already exists for one hand gets its two-handed version for nothing:
+`"crush_2h": (two_handed(pose_crush), 6, False)` in `CLIPS`, the same rule as
+the original, and the great weapons' names against it in `models_for`.
+
 Two things to know before adding a fourteenth. **A great weapon has two
 poses**: in the hands for the clips that swing it and over the shoulder for the
 rest (`GREAT_MODE`), or its point drags through the floor. And **the weapon
@@ -285,6 +318,10 @@ is turned about.
 | `acid_glob.png`, `acid_wake.png` | 14x14, 24x12 | centre / 18,6 | the Acid Spray's gouts: the water orb and its wake, in green (`Fx.Orb`, `Fx.Wake` take a palette) |
 | `blood_orb.png`, `blood_wake.png` | 16x16, 24x12 | centre / 18,6 | the Vampiric Touch: the same, in red |
 | `frost_shard.png` | 20x20 | centre | the Ice Touch: the stone shard, cut in ice (`Fx.Shard` takes its tones) |
+| `flame_billow.png` | 30x18 | 19,9 | what the Flamethrower breathes: a billow with no ball at its head and no white heart (`Fx.Flame`) |
+| `water_orb_cannon.png`, `water_wake_cannon.png` | 34x34, 56x28 | centre / 45,14 | the Hydro Cannon, drawn at its size: a strip scaled up in the engine is a strip of fat pixels beside everything else |
+| `wave_crest.png` | 24x30 | 17,15 | one length of the Tidal Wave, going toward +x: foam, the face, churned water thinning out behind. Seven go out abreast thirteen apart, so nothing is outlined but the front and both ends fade (`Fx.Wave`) |
+| `rock_shard_small.png` | 14x14 | centre | the Mineral Burst's stones |
 | `throwing_knife.png` | 12x12 | centre | a knife going end over end |
 | `air_slash.png` | 24x40 | 16,20 | the Air Slash: the greater gust's crescent with nothing behind it (`Fx.Slash`) |
 

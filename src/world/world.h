@@ -468,11 +468,29 @@ public:
     // Shots that are owed: a Mineral Burst is eight stones one after another,
     // and the seven after the first are let go from wherever the caster has
     // got to by then.
-    struct QueuedShot { float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; };
+    struct QueuedShot { float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; float life = 1; };
     vector<QueuedShot> queued_shots;
     // A slab of the ground being swung: drawn from the caster through an arc.
-    struct SlabSwing { float x = 0, y = 0, from = 0, to = 0, length = 60, life = 0, max_life = 0.28f, lift = 0; };
+    struct SlabSwing {
+        float x = 0, y = 0, facing = 0, from = 0, to = 0, length = 60, life = 0, max_life = 0.28f, lift = 0;
+        float told = 0.0f, dust = 0.0f;
+        // It comes up out of the ground in the first fifth, goes round, and
+        // hangs a moment at the far end before it breaks up.
+        float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
+        float Angle() const {
+            float t = std::clamp((Progress() - 0.12f) / 0.74f, 0.0f, 1.0f);
+            t = t * t * (3.0f - 2.0f * t);
+            return from + (to - from) * t;
+        }
+        float Length() const { return length * (0.3f + 0.7f * std::clamp(Progress() / 0.2f, 0.0f, 1.0f)); }
+    };
     vector<SlabSwing> slabs;
+    // One swing, about `facing`. The caster's world makes it; a guest's makes the
+    // same one from the three numbers a snapshot gives it, once, however many
+    // snapshots go on saying so -- `told` is how long ago one last did.
+    static constexpr float SLAB_SWEEP = 1.15f, SLAB_TIME = 0.34f;
+    void AddSlabSwing(float x, float y, float facing, float length, float lift);
+    void HearOfSlabSwing(float x, float y, float facing, float length);
 
     // Rolls a status against a monster a blow of `blow` has just landed on, and
     // says so over its head if it takes: see systems/status.h. Nothing is
@@ -512,6 +530,7 @@ private:
     void UpdatePickups(float dt, const GameContext& ctx);
     void UpdateProjectiles(float dt, const GameContext& ctx);
     void UpdateGroundEffects(float dt, const GameContext& ctx);
+    void UpdateSlabs(float dt);
     void UpdateImpacts(float dt);
     // Tells every entity how far the terrain under it lifts it on screen.
     void UpdateElevation(float dt);
@@ -522,7 +541,10 @@ private:
     // True when it handled the attack.
     bool MeleeTechnique(const string& technique, const GameContext& ctx);
     // Rings of sparks and puffs of dust for techniques that have no projectile.
-    void Burst(float x, float y, float radius, SDL_Color color, int count);
+    // `turn` is where round the ring the first of them goes: something that
+    // bursts again and again wants a different one each time, or its marks are
+    // four fixed points on the ground.
+    void Burst(float x, float y, float radius, SDL_Color color, int count, float turn = 0.0f);
     // At the target in combat, along the facing out of it.
     Vec2 PlayerAim() const;
     // Strikes everything whose body is within a radius of the player's chest:

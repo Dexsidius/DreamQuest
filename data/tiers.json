@@ -205,13 +205,18 @@
    "push": 0.6,
    "clip": "thrust",
    "armour_pierce": 0.35,
+   "dual": {
+    "speed": 0.5,
+    "damage": 0.75,
+    "clip": "offstab"
+   },
    "value": 30,
    "bars": 1,
    "craft_offset": 1,
    "wood": {
     "logs": 2
    },
-   "desc": "Short, quick, and all point. It goes between the plates: a third of a target's Defence does nothing against it.",
+   "desc": "Short, quick, and all point. It goes between the plates: a third of a target's Defence does nothing against it. Light enough for a second in the other hand: a pair strikes twice as fast.",
    "combos": {
     "crush": {
      "name": "Gut Stab",

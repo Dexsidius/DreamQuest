@@ -208,6 +208,79 @@ public static class Fx
         return outp;
     }
 
+    // A billow of flame with no ball at the head of it: what a Flamethrower
+    // breathes. Blunt in front, ragged and licking away behind, and yellow at
+    // its hottest -- the white heart is what makes a fireball a ball.
+    public static Bitmap[] Flame(int w, int h, double cx, double cy, double rx, double ry, int frames, int seed)
+    {
+        double[] stops = { 0.80, 0.54, 0.31, 0.15 };
+        Color[] cols = {
+            Color.FromArgb(255, 255, 238, 150), Color.FromArgb(255, 255, 178, 52),
+            Color.FromArgb(255, 236, 98, 28),   Color.FromArgb(255, 166, 44, 22) };
+        Bitmap[] outp = new Bitmap[frames];
+        for (int f = 0; f < frames; ++f) {
+            double phase = f / (double)frames, scroll = phase * PERIOD * CELL;
+            Bitmap b = Blank(w, h);
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x) {
+                    double dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+                    double behind = dx < 0 ? -dx : 0.0;
+                    double pinch = 1.0 + behind * 0.5;
+                    double d = Math.Sqrt(dx * dx * (dx < 0 ? 0.55 : 1.0) + dy * dy * pinch * pinch);
+                    double n = Fbm((x + scroll) / CELL, y / 3.0, PERIOD, seed);
+                    double lick = Fbm((x + scroll * 2) / (CELL * 0.5), y / 2.0, PERIOD * 2, seed + 3);
+                    double v = 1.08 - d + (n - 0.5) * 0.75 - Math.Max(0.0, 0.58 - lick) * behind * 1.4;
+                    Color c = Ramp(v, stops, cols);
+                    if (c.A > 0) b.SetPixel(x, y, c);
+                }
+            Despeckle(b);
+            Outline(b, Color.FromArgb(215, 78, 18, 14));
+            outp[f] = b;
+        }
+        return outp;
+    }
+
+    // A wave, seen from above and going toward +x: a bowed line of foam, the
+    // glassy face of it behind that, and the churned water it leaves thinning out
+    // to nothing. Seven of these go out abreast and have to read as one, so
+    // nothing is outlined but the front, and both ends are let fade.
+    public static Bitmap[] Wave(int w, int h, double front, double bulge, double depth, int frames, int seed)
+    {
+        Color foam = Color.FromArgb(255, 255, 255, 255), bright = Color.FromArgb(255, 208, 240, 255);
+        Color light = Color.FromArgb(245, 140, 208, 252), mid = Color.FromArgb(235, 70, 148, 234);
+        Color deep = Color.FromArgb(225, 44, 106, 200), rim = Color.FromArgb(210, 22, 56, 120);
+        double cy = h / 2.0;
+        Bitmap[] outp = new Bitmap[frames];
+        for (int f = 0; f < frames; ++f) {
+            double phase = f / (double)frames, scroll = phase * PERIOD * CELL;
+            Bitmap b = Blank(w, h);
+            for (int y = 0; y < h; ++y) {
+                double yn = (y + 0.5 - cy) / cy;                                   // -1 .. 1 along the crest
+                double xf = front - bulge * yn * yn + Math.Sin(yn * 5.0 + phase * 2 * Math.PI) * 0.9;
+                double thick = depth * (1.0 - 0.55 * yn * yn);
+                for (int x = 0; x < w; ++x) {
+                    double u = xf - (x + 0.5);                                     // how far behind the front
+                    if (u < -1.0 || u > thick) continue;
+                    double n = Fbm((x + scroll) / CELL, y / 2.6, PERIOD, seed);
+                    Color c;
+                    if (u < 0.0)       c = Math.Abs(yn) < 0.86 ? rim : Color.Transparent;
+                    else if (u < 1.8)  c = foam;
+                    else if (u < 3.4)  c = n > 0.62 ? foam : bright;
+                    else if (u < 6.2)  c = n > 0.70 ? bright : light;
+                    else if (u < 9.5)  c = n > 0.74 ? light : mid;
+                    else               c = deep;
+                    // The back of it breaks up, and so do the two ends.
+                    double fray = Math.Max((u - thick * 0.62) / (thick * 0.38), (Math.Abs(yn) - 0.72) / 0.28);
+                    if (fray > 0.0 && n < 0.30 + fray * 0.55) continue;
+                    if (c.A > 0) b.SetPixel(x, y, c);
+                }
+            }
+            Despeckle(b);
+            outp[f] = b;
+        }
+        return outp;
+    }
+
     // ------------------------------------------------------------------ water
     public static Bitmap[] WaterWake(int w, int h, double hx, double hy, double R, int frames, int seed)
     {
@@ -563,6 +636,15 @@ Save-Strip "blood_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 59, $bloodW, (Ar
 
 $ice = [System.Drawing.Color[]]@((Argb 255 244 252 255), (Argb 255 190 230 252), (Argb 250 128 186 236), (Argb 250 78 130 204))
 Save-Strip "frost_shard" ([Fx]::Shard(20, 6.6, $N, 47, $ice, (Argb 255 255 255 255), (Argb 255 40 72 130))) 10 10
+
+# --- the elements' own staves: what their second, third and fourth spells throw.
+#     Each at the size it is drawn: a strip scaled up in the engine is a strip of
+#     fat pixels beside everything else on the screen.
+Save-Strip "flame_billow"      ([Fx]::Flame(30, 18, 19.0, 9.0, 9.5, 6.4, $N, 67)) 19 9
+Save-Strip "water_orb_cannon"  ([Fx]::WaterOrb(34, 14.0, $N, 13)) 17 17
+Save-Strip "water_wake_cannon" ([Fx]::WaterWake(56, 28, 45.0, 14.0, 14.0, $N, 61)) 45 14
+Save-Strip "wave_crest"        ([Fx]::Wave(24, 30, 19.0, 5.0, 17.0, $N, 71)) 17 15
+Save-Strip "rock_shard_small"  ([Fx]::Rock(14, 4.6, $N, 45)) 7 7
 
 # --- what the armoury throws, and the air's third spell
 Save-Strip "throwing_knife" ([Fx]::Knife(12, $N)) 6 6

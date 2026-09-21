@@ -1397,6 +1397,31 @@ def pose_gather(t):
 
 
 # clip -> (pose function, frame count, loops)
+def two_handed(pose_fn, left_on=0.095):
+    """A one-handed swing, made with both hands on the hilt: the combos and the
+    leap, for a greatsword or a greataxe. The pose is the sword's, to the frame.
+    What changes is found on the rig, in apply_pose: where that pose put the
+    right hand is brought in to where the left can reach it too, the blade is
+    kept pointing exactly where the sword's pointed, and the left hand goes on
+    the hilt. So the swing keeps its shape and its timing, and nobody swings
+    four feet of steel about with one hand."""
+    def pose(t):
+        v = dict(pose_fn(t))
+        v["two_hands"] = left_on
+        return v
+    return pose
+
+
+# When the blow lands. These clips are played to last exactly as long as the
+# attack they belong to ("fit" in make_sprites_json.ps1), and an attack's blow is
+# live from about a fifth of the way through it to about a half: a light from
+# 20% to 60%, a heavy from 27% to 49%, a charged one from 20% to 45%. So the
+# frame that shows the blow landing has to be one shown inside that -- the
+# fourth of eight, the third of six, the second of five -- and anything thrown
+# or cast leaves the hand at the fifth, which is the second frame. The first
+# pass had the blow at the middle of every clip, after the monster had been hit.
+
+
 def mirrored(pose_fn):
     """The same pose made with the other hand: a left-handed stab is a stab."""
     swaps = {"sword": "sword_l", "sword_l": "sword", "grip_y": "grip_y_l", "grip_y_l": "grip_y"}
@@ -1415,16 +1440,16 @@ def mirrored(pose_fn):
 def pose_bash(t):
     """A mace's blow: one hand, up beside the head and straight down, with the
     knees taking it. Shorter than the Crushing Blow and with no stride: it is
-    the weight of the head that does the work."""
+    the weight of the head that does the work. Lands on the third frame of six."""
     return _keyed([
         (0.00, dict(lean=2, arm_r=24, elbow_r=44, flare_r=16, sword=8,
                     arm_l=-8, elbow_l=38, flare_l=14, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
-        (0.34, dict(lean=-8, twist=14, nod=-6, arm_r=128, elbow_r=58, flare_r=20, sword=-22,
+        (0.20, dict(lean=-8, twist=-14, nod=-6, arm_r=132, elbow_r=58, flare_r=20, sword=-22,
                     arm_l=-20, elbow_l=44, flare_l=18, knee_l=14, knee_r=12, scarf=10, scarf2=8, hair=-3)),
-        (0.54, dict(lean=22, twist=-10, nod=12, arm_r=-18, elbow_r=6, flare_r=10, sword=34,
+        (0.40, dict(lean=22, twist=10, nod=12, arm_r=-18, elbow_r=6, flare_r=10, sword=34,
                     arm_l=18, elbow_l=34, flare_l=16, leg_l=12, leg_r=-8, knee_l=22, knee_r=20,
                     lunge=0.05, scarf=38, scarf2=26, hair=10, bob=-0.04)),
-        (0.70, dict(lean=20, twist=-10, nod=10, arm_r=-16, elbow_r=8, flare_r=10, sword=32,
+        (0.60, dict(lean=20, twist=10, nod=10, arm_r=-16, elbow_r=8, flare_r=10, sword=32,
                     arm_l=16, elbow_l=34, flare_l=16, leg_l=12, leg_r=-8, knee_l=20, knee_r=18,
                     lunge=0.05, scarf=28, scarf2=20, hair=6, bob=-0.04)),
         (1.00, dict(lean=4, arm_r=10, elbow_r=34, flare_r=14, sword=12,
@@ -1432,65 +1457,86 @@ def pose_bash(t):
     ], t)
 
 
+def _two_hands(hold, aim, edge=None, left_on=0.095, **rest):
+    """A frame of a two-handed clip: where the right hand is (from between the
+    shoulders, in the chest's axes), where the blade points and which way its
+    edge faces (in the character's), and the rest of the body as usual."""
+    v = dict(hold_x=hold[0], hold_y=hold[1], hold_z=hold[2], aim_x=aim[0], aim_y=aim[1], aim_z=aim[2],
+             left_on=left_on, arm_r=60, elbow_r=70, cross_r=50, arm_l=60, elbow_l=70, cross_l=50, flare_l=-10)
+    if edge:
+        v.update(edge_x=edge[0], edge_y=edge[1], edge_z=edge[2])
+    v.update(rest)
+    return v
+
+
+# Where a great weapon waits between blows: hands low in front of the chest,
+# the blade up and well out over the right shoulder. Out, and not straight up:
+# the head's sheet is drawn over the weapon's, so a blade held up in front of
+# the face is a blade nobody sees from the front.
+_GREAT_READY = dict(hold=(-0.04, -0.12, -0.08), aim=(-0.58, -0.12, 0.80), edge=(0, -1, 0))
+
+
 def pose_sweep(t):
-    """A great weapon's swing. Both hands in front of the chest -- `cross_r`
-    brings the right one there and the left is put on the hilt above it -- and
-    the blade is told where to point: up over the right shoulder, back and out
-    to the right as the body coils away from it, then flat through the front
-    and a long way round to the left with a stride in behind it, before it can
-    be stopped and brought back. Half the clip is the wind-up and the recovery:
-    that is what heavy looks like."""
-    hold = dict(left_on=0.075, cross_r=48, flare_r=-4)
-    def at(x, y, z): return dict(aim_x=x, aim_y=y, aim_z=z)
+    """A great weapon's swing, both hands on it. The body coils away to the
+    right with the blade laid back behind the shoulder, and then the whole of it
+    comes round -- hips, chest, a stride, and the blade flat through the front
+    on the fourth frame and far out to the left before it can be stopped and
+    hauled back. The edge leads: `edge` is the way the blade is travelling."""
+    def cut(ax, ay, az):
+        return dict(aim=(ax, ay, az), edge=(-ay, ax, 0.0))
     return _keyed([
-        (0.00, dict(hold, **at(-0.25, -0.45, 0.85), lean=4, twist=8, arm_r=50, elbow_r=62,
-                    arm_l=44, elbow_l=62, flare_l=-22, knee_l=12, knee_r=10, scarf=16, scarf2=12)),
-        (0.22, dict(hold, **at(-0.70, 0.10, 0.70), lean=-2, twist=40, nod=-2, arm_r=78, elbow_r=62,
-                    arm_l=70, elbow_l=74, flare_l=-40, leg_l=-8, leg_r=6, knee_l=16, knee_r=14,
-                    lunge=-0.03, scarf=8, scarf2=6, hair=-4)),
-        (0.40, dict(hold, **at(-0.85, 0.50, 0.20), lean=-8, twist=62, nod=-4, arm_r=88, elbow_r=56,
-                    arm_l=84, elbow_l=78, flare_l=-40, leg_l=-12, leg_r=8, knee_l=20, knee_r=18,
-                    lunge=-0.05, scarf=4, scarf2=2, hair=-6)),
-        (0.54, dict(hold, **at(-0.35, -0.93, -0.04), lean=16, twist=-20, nod=6, arm_r=74, elbow_r=26,
-                    arm_l=70, elbow_l=26, flare_l=-10, leg_l=24, leg_r=-16, knee_l=20, knee_r=14,
-                    lunge=0.12, scarf=50, scarf2=36, hair=12, bob=-0.03)),
-        (0.66, dict(hold, **at(0.80, -0.58, -0.08), lean=18, twist=-66, nod=6, arm_r=66, elbow_r=22,
-                    arm_l=56, elbow_l=36, flare_l=-6, leg_l=26, leg_r=-18, knee_l=18, knee_r=12,
-                    lunge=0.13, scarf=42, scarf2=30, hair=10, bob=-0.03)),
-        (0.80, dict(hold, **at(0.92, 0.10, 0.25), lean=12, twist=-70, nod=4, arm_r=54, elbow_r=40,
-                    arm_l=48, elbow_l=50, flare_l=-12, leg_l=18, leg_r=-12, knee_l=14, knee_r=10,
-                    lunge=0.08, scarf=26, scarf2=18, hair=4, bob=-0.01)),
-        (1.00, dict(hold, **at(-0.25, -0.45, 0.85), lean=4, twist=8, arm_r=50, elbow_r=62,
-                    arm_l=46, elbow_l=60, flare_l=-22, leg_l=6, leg_r=-4, knee_l=12, knee_r=10,
-                    lunge=0.02, scarf=18, scarf2=12)),
+        (0.000, _two_hands(**_GREAT_READY, lean=4, twist=-6, knee_l=12, knee_r=10, scarf=16, scarf2=12)),
+        (0.143, _two_hands((-0.09, -0.10, -0.05), **cut(-0.78, 0.30, 0.55), lean=-4, twist=-42, nod=-3,
+                           leg_l=-8, leg_r=6, knee_l=16, knee_r=16, lunge=-0.03, scarf=8, scarf2=6, hair=-4)),
+        (0.286, _two_hands((-0.11, -0.09, -0.03), **cut(-0.72, 0.66, 0.20), lean=-9, twist=-62, nod=-4,
+                           leg_l=-12, leg_r=8, knee_l=20, knee_r=20, lunge=-0.05, scarf=4, scarf2=2, hair=-6)),
+        (0.429, _two_hands((-0.03, -0.13, -0.09), **cut(-0.20, -0.98, -0.04), lean=16, twist=22, nod=6,
+                           leg_l=24, leg_r=-16, knee_l=20, knee_r=14, lunge=0.12, bob=-0.03,
+                           scarf=52, scarf2=38, hair=12)),
+        (0.571, _two_hands((-0.02, -0.12, -0.08), **cut(0.86, -0.50, -0.06), lean=18, twist=62, nod=6,
+                           leg_l=26, leg_r=-18, knee_l=18, knee_r=12, lunge=0.13, bob=-0.03,
+                           scarf=42, scarf2=30, hair=10)),
+        (0.714, _two_hands((-0.02, -0.12, -0.07), **cut(0.93, 0.25, 0.22), lean=12, twist=70, nod=4,
+                           leg_l=18, leg_r=-12, knee_l=14, knee_r=10, lunge=0.08, bob=-0.01,
+                           scarf=26, scarf2=18, hair=4)),
+        (0.857, _two_hands((-0.03, -0.12, -0.07), aim=(0.35, -0.30, 0.89), edge=(0.0, -1.0, 0.0), lean=8, twist=30, nod=2,
+                           leg_l=10, leg_r=-6, knee_l=12, knee_r=10, lunge=0.04, scarf=20, scarf2=14, hair=2)),
+        (1.000, _two_hands(**_GREAT_READY, lean=4, twist=-6, leg_l=6, leg_r=-4, knee_l=12, knee_r=10,
+                           lunge=0.02, scarf=18, scarf2=12)),
     ], t)
 
 
 def pose_hew(t):
-    """A greataxe's charged chop: both hands carry it right up and back over the
-    head with the body arched under it, it hangs there a beat, and then
-    everything comes down at once -- a deep stride, the back bent into it, the
-    head of the axe buried in front of the feet and held there."""
-    hold = dict(left_on=0.075, cross_r=46, flare_r=-4)
-    def at(x, y, z): return dict(aim_x=x, aim_y=y, aim_z=z)
+    """A greataxe's charged chop: both hands carry it up and back over the head
+    with the body arched under it, and then everything comes down at once on
+    the fourth frame -- a deep stride, the back bent into it, the head of the
+    axe buried in front of the feet and held there two frames more before it is
+    wrenched out. The bit leads all the way."""
+    def chop(ay, az, show=0.0):
+        # `show` turns the bit a little to the side: dead square to the blow it
+        # is edge-on to anyone in front of it, and an axe seen edge-on is a stick.
+        return dict(aim=(0.0, ay, az), edge=(show, -az, ay))
     return _keyed([
-        (0.00, dict(hold, **at(-0.25, -0.45, 0.85), lean=4, arm_r=50, elbow_r=62,
-                    arm_l=44, elbow_l=62, flare_l=-22, knee_l=12, knee_r=10, scarf=16, scarf2=12)),
-        (0.28, dict(hold, **at(0.0, 0.35, 0.94), lean=-14, nod=-10, arm_r=140, elbow_r=50,
-                    arm_l=146, elbow_l=52, flare_l=-18, leg_l=-10, leg_r=8, knee_l=18, knee_r=18,
-                    lunge=-0.05, scarf=6, scarf2=4, hair=-8)),
-        (0.46, dict(hold, **at(0.0, 0.75, 0.66), lean=-22, nod=-14, arm_r=156, elbow_r=58,
-                    arm_l=158, elbow_l=58, flare_l=-18, leg_l=-14, leg_r=10, knee_l=22, knee_r=22,
-                    lunge=-0.07, bob=0.02, scarf=2, scarf2=0, hair=-12)),
-        (0.58, dict(hold, **at(0.0, -0.80, -0.60), lean=40, nod=24, arm_r=30, elbow_r=10,
-                    arm_l=2, elbow_l=14, flare_l=-10, leg_l=32, leg_r=-24, knee_l=30, knee_r=18,
-                    lunge=0.16, scarf=58, scarf2=44, hair=18, bob=-0.07)),
-        (0.80, dict(hold, **at(0.0, -0.78, -0.63), lean=36, nod=20, arm_r=32, elbow_r=12,
-                    arm_l=6, elbow_l=16, flare_l=-10, leg_l=30, leg_r=-22, knee_l=28, knee_r=16,
-                    lunge=0.15, scarf=34, scarf2=24, hair=8, bob=-0.07)),
-        (1.00, dict(hold, **at(-0.25, -0.45, 0.85), lean=8, arm_r=50, elbow_r=60,
-                    arm_l=40, elbow_l=58, flare_l=-22, leg_l=10, leg_r=-8, knee_l=14, knee_r=10,
-                    lunge=0.04, scarf=18, scarf2=12)),
+        (0.000, _two_hands(**_GREAT_READY, lean=4, knee_l=12, knee_r=10, scarf=16, scarf2=12)),
+        (0.143, _two_hands((-0.02, -0.06, 0.12), **chop(0.45, 0.89, 0.4), lean=-14, nod=-10,
+                           leg_l=-10, leg_r=8, knee_l=18, knee_r=18, lunge=-0.05, scarf=6, scarf2=4, hair=-8)),
+        (0.286, _two_hands((-0.02, -0.03, 0.14), **chop(0.80, 0.60, 0.4), lean=-22, nod=-14,
+                           leg_l=-14, leg_r=10, knee_l=22, knee_r=22, lunge=-0.07, bob=0.02,
+                           scarf=2, scarf2=0, hair=-12)),
+        (0.429, _two_hands((-0.03, -0.12, -0.11), **chop(-0.80, -0.60, 0.55), lean=32, nod=14,
+                           leg_l=32, leg_r=-24, knee_l=30, knee_r=18, lunge=0.16, bob=-0.07,
+                           scarf=58, scarf2=44, hair=18)),
+        (0.571, _two_hands((-0.03, -0.12, -0.11), **chop(-0.78, -0.63, 0.55), lean=30, nod=12,
+                           leg_l=30, leg_r=-22, knee_l=28, knee_r=16, lunge=0.15, bob=-0.07,
+                           scarf=36, scarf2=26, hair=9)),
+        (0.714, _two_hands((-0.03, -0.12, -0.11), **chop(-0.80, -0.60, 0.5), lean=28, nod=10,
+                           leg_l=28, leg_r=-20, knee_l=26, knee_r=16, lunge=0.14, bob=-0.06,
+                           scarf=26, scarf2=18, hair=5)),
+        (0.857, _two_hands((-0.03, -0.12, -0.09), **chop(-0.85, 0.30, 0.3), lean=18, nod=8,
+                           leg_l=20, leg_r=-14, knee_l=20, knee_r=12, lunge=0.09, bob=-0.03,
+                           scarf=24, scarf2=16, hair=4)),
+        (1.000, _two_hands(**_GREAT_READY, lean=6, leg_l=8, leg_r=-6, knee_l=12, knee_r=10,
+                           lunge=0.03, scarf=18, scarf2=12)),
     ], t)
 
 
@@ -1500,19 +1546,19 @@ def _level(arm, lean, elbow):
 
 
 def pose_shoot(t):
-    """A crossbow let off: brought up across the chest with the left hand under
-    the stock, level and pointing dead ahead, a beat to sight along it, and the
-    kick up and back through the shoulders as it goes."""
-    keys = []
-    for at, arm, elbow, lean, back, kick in ((0.00, 56, 64, 2, 0.0, -0.18), (0.30, 80, 30, 6, 0.0, 0.0),
-                                             (0.50, 82, 28, 6, 0.0, 0.0), (0.62, 78, 44, -4, -0.035, 0.24),
-                                             (1.00, 60, 60, 2, 0.0, -0.14)):
-        keys.append((at, dict(lean=lean, twist=-6, nod=4, arm_r=arm, elbow_r=elbow, flare_r=-4, cross_r=50,
-                              aim_x=0.0, aim_y=-1.0, aim_z=kick, aim_top=1.0,
-                              left_on=-0.085, left_under=0.035,
-                              arm_l=arm - 6, elbow_l=elbow + 10, flare_l=-10, cross_l=40, leg_l=12, leg_r=-10,
-                              knee_l=14, knee_r=10, lunge=back, scarf=18 - back * 300, scarf2=12)))
-    return _keyed(keys, t)
+    """A crossbow let off: it comes up level in front of the chest with the left
+    hand under the stock, goes off on the second frame, kicks up and back
+    through the shoulders on the third, and is brought down again."""
+    def held(hold, rise, **rest):
+        return _two_hands(hold, (0.0, -1.0, rise), left_on=-0.07, left_under=0.03, aim_top=1.0,
+                          twist=-6, nod=4, leg_l=12, leg_r=-10, knee_l=14, knee_r=10, **rest)
+    return _keyed([
+        (0.00, held((-0.02, -0.10, -0.08), -0.14, lean=4, scarf=18, scarf2=12)),
+        (0.25, held((-0.02, -0.13, -0.05), 0.00, lean=6, scarf=18, scarf2=12)),
+        (0.50, held((-0.02, -0.07, -0.03), 0.30, lean=-5, lunge=-0.04, scarf=32, scarf2=20, hair=-4)),
+        (0.75, held((-0.02, -0.11, -0.05), 0.06, lean=3, lunge=-0.01, scarf=22, scarf2=14)),
+        (1.00, held((-0.02, -0.08, -0.10), -0.24, lean=2, scarf=18, scarf2=12)),
+    ], t)
 
 
 def pose_reload(t):
@@ -1520,33 +1566,30 @@ def pose_reload(t):
     body bent over it, and the left hand hauling the string back up the stock
     -- twice, because once does not look like work."""
     pull = 0.5 - 0.5 * math.cos(t * 4 * math.pi)
-    return {
-        "lean": 24 + 8 * pull, "nod": 20, "twist": -4,
-        "arm_r": 40, "elbow_r": 34, "flare_r": -4, "cross_r": 44,
-        "aim_x": 0.0, "aim_y": -0.30, "aim_z": -0.95, "aim_top": 0.0,
-        "left_on": -0.13 + 0.15 * pull, "left_under": 0.03,
-        "arm_l": 40, "elbow_l": 40, "flare_l": -10, "cross_l": 40,
-        "leg_l": 16, "leg_r": -12, "knee_l": 28, "knee_r": 16, "bob": -0.05 + 0.02 * pull,
-        "scarf": 30, "scarf2": 20, "hair": 8,
-    }
+    return _two_hands((-0.02, -0.12, -0.12), (0.0, -0.30, -0.95), edge=(1.0, 0.0, 0.0),
+                      left_on=-0.10 + 0.09 * pull, left_under=0.03,
+                      lean=14 + 10 * pull, nod=12 + 6 * pull, twist=-4, leg_l=16, leg_r=-12, knee_l=28, knee_r=16,
+                      bob=-0.05 + 0.02 * pull, scarf=30, scarf2=20, hair=8)
 
 
 def pose_throw(t):
-    """A knife thrown: back past the ear, the off hand pointing where it is
-    going, and whipped over the top with a step, the hand finishing low across
-    the body. It leaves the fingers at the top of the arc."""
+    """A knife thrown. It starts already drawn back past the ear with the off
+    hand pointing where it is going -- there is no time in a throw for getting
+    there -- and is whipped over the top on the second frame with a step, the
+    hand finishing low across the body."""
     return _keyed([
-        (0.00, dict(lean=2, arm_r=20, elbow_r=40, flare_r=16, sword=6,
-                    arm_l=-6, elbow_l=36, flare_l=14, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
-        (0.36, dict(lean=-10, twist=30, nod=-4, arm_r=150, elbow_r=96, flare_r=26, sword=-50,
+        (0.00, dict(lean=-10, twist=-30, nod=-4, arm_r=150, elbow_r=96, flare_r=26, sword=-50,
                     arm_l=70, elbow_l=14, flare_l=6, leg_l=-8, leg_r=6, knee_l=14, knee_r=14,
                     lunge=-0.03, scarf=8, scarf2=6, hair=-4)),
-        (0.54, dict(lean=18, twist=-34, nod=8, arm_r=64, elbow_r=6, flare_r=4, sword=40,
+        (0.20, dict(lean=18, twist=34, nod=8, arm_r=64, elbow_r=6, flare_r=4, sword=40,
                     arm_l=-10, elbow_l=40, flare_l=18, leg_l=20, leg_r=-14, knee_l=16, knee_r=12,
                     lunge=0.09, scarf=44, scarf2=30, hair=10)),
-        (0.72, dict(lean=20, twist=-46, nod=8, arm_r=14, elbow_r=14, flare_r=-16, sword=30,
+        (0.40, dict(lean=20, twist=46, nod=8, arm_r=14, elbow_r=14, flare_r=-16, sword=30,
                     arm_l=-16, elbow_l=42, flare_l=18, leg_l=18, leg_r=-12, knee_l=14, knee_r=10,
                     lunge=0.08, scarf=30, scarf2=22, hair=6)),
+        (0.70, dict(lean=10, twist=20, nod=4, arm_r=16, elbow_r=30, flare_r=4, sword=14,
+                    arm_l=-8, elbow_l=38, flare_l=16, leg_l=10, leg_r=-6, knee_l=12, knee_r=10,
+                    lunge=0.04, scarf=20, scarf2=14, hair=2)),
         (1.00, dict(lean=4, arm_r=18, elbow_r=38, flare_r=14, sword=8,
                     arm_l=-4, elbow_l=36, flare_l=14, leg_l=6, leg_r=-4, knee_l=10, knee_r=8,
                     lunge=0.02, scarf=16, scarf2=12)),
@@ -1554,39 +1597,40 @@ def pose_throw(t):
 
 
 def pose_flick(t):
-    """A wand: nothing but the forearm. Drawn up beside the ear and snapped out
-    at what it is for, the point finishing dead level, quick enough to do again
-    at once."""
+    """A wand: nothing but the forearm. It starts drawn up beside the ear with
+    the point at the sky, is snapped out at what it is for on the second frame
+    with the point dead level, held a frame, and brought back."""
+    def wand(ax, ay, az, **rest):
+        v = dict(aim_x=ax, aim_y=ay, aim_z=az, arm_l=-6, elbow_l=36, flare_l=14, knee_l=10, knee_r=8)
+        v.update(rest)
+        return v
     return _keyed([
-        (0.00, dict(lean=2, arm_r=30, elbow_r=60, flare_r=6, sword=10, grip_y=6,
-                    arm_l=-6, elbow_l=36, flare_l=14, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
-        (0.30, dict(lean=-6, twist=14, arm_r=58, elbow_r=118, flare_r=12, sword=-36, grip_y=6,
-                    arm_l=-14, elbow_l=40, flare_l=16, knee_l=10, knee_r=8, scarf=12, scarf2=8, hair=-2)),
-        (0.50, dict(lean=10, twist=-16, nod=4, arm_r=80, elbow_r=6, flare_r=-14, sword=_level(80, 10, 6), grip_y=-4,
-                    arm_l=-18, elbow_l=44, flare_l=18, leg_l=10, leg_r=-8, knee_l=12, knee_r=10,
-                    lunge=0.04, scarf=32, scarf2=22, hair=6)),
-        (0.70, dict(lean=9, twist=-16, nod=4, arm_r=78, elbow_r=10, flare_r=-14, sword=_level(78, 9, 10), grip_y=-4,
-                    arm_l=-16, elbow_l=44, flare_l=18, leg_l=10, leg_r=-8, knee_l=12, knee_r=10,
-                    lunge=0.04, scarf=24, scarf2=16, hair=4)),
-        (1.00, dict(lean=2, arm_r=32, elbow_r=58, flare_r=6, sword=10, grip_y=6,
-                    arm_l=-6, elbow_l=36, flare_l=14, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
+        (0.00, wand(-0.55, 0.30, 0.78, lean=-6, twist=-14, arm_r=64, elbow_r=120, flare_r=14,
+                    scarf=12, scarf2=8, hair=-2)),
+        (0.25, wand(0.0, -1.0, 0.0, lean=10, twist=16, nod=4, arm_r=82, elbow_r=6, flare_r=-6,
+                    leg_l=10, leg_r=-8, knee_l=12, lunge=0.04, scarf=32, scarf2=22, hair=6)),
+        (0.50, wand(0.0, -1.0, 0.04, lean=9, twist=16, nod=4, arm_r=80, elbow_r=10, flare_r=-6,
+                    leg_l=10, leg_r=-8, knee_l=12, lunge=0.04, scarf=24, scarf2=16, hair=4)),
+        (0.75, wand(-0.06, -0.85, 0.45, lean=5, twist=6, arm_r=56, elbow_r=44, flare_r=2,
+                    leg_l=6, leg_r=-4, lunge=0.02, scarf=20, scarf2=14, hair=2)),
+        (1.00, wand(-0.10, -0.70, 0.70, lean=2, arm_r=34, elbow_r=70, flare_r=6, scarf=16, scarf2=12)),
     ], t)
 
 
 def pose_invoke(t):
-    """A book or an orb: held out in front of the chest on an open palm with
-    the forearm level -- so the pages, and the orb over them, are up -- and the
-    other hand drawn up beside the head and pushed out over it. What is held
-    hardly moves: it is the off hand that does the casting."""
+    """A book or an orb: held out in front of the chest on an open palm, level
+    -- so the pages, and the orb over them, are up -- while the other hand does
+    the casting: it starts drawn up beside the head, is pushed out over what is
+    held on the second frame, held there, and let fall."""
     keys = []
-    for at, left, left_elbow, left_cross, lean, rise in ((0.00, 20, 70, 0, 0, 0.0), (0.32, 112, 100, -10, -6, 0.012),
-                                                         (0.52, 80, 10, 34, 8, 0.0), (0.72, 76, 14, 34, 8, 0.0),
-                                                         (1.00, 22, 68, 0, 0, 0.0)):
-        keys.append((at, dict(lean=lean, twist=8 if at < 0.5 else -6, nod=8 - lean * 0.3,
-                              arm_r=24, elbow_r=86, flare_r=-4, cross_r=30,
+    for at, left, left_elbow, left_cross, lean, rise in ((0.0, 118, 96, -10, -6, 0.012), (0.2, 80, 8, 36, 8, 0.0),
+                                                         (0.4, 76, 14, 36, 8, 0.0), (0.6, 60, 40, 24, 5, 0.0),
+                                                         (0.8, 34, 60, 8, 2, 0.0), (1.0, 22, 68, 0, 0, 0.0)):
+        keys.append((at, dict(lean=lean, twist=-8 if at < 0.1 else 6 if at < 0.7 else 0, nod=8 - lean * 0.3,
+                              hold_x=-0.09, hold_y=-0.13, hold_z=-0.10 + rise, arm_r=30, elbow_r=86, cross_r=30,
                               aim_x=0.0, aim_y=-1.0, aim_z=0.0, aim_top=1.0,
                               arm_l=left, elbow_l=left_elbow, flare_l=6, cross_l=left_cross, knee_l=10, knee_r=8, bob=rise,
-                              leg_l=6 if at > 0.4 else 0, leg_r=-4 if at > 0.4 else 0,
+                              leg_l=6 if 0.1 < at < 0.7 else 0, leg_r=-4 if 0.1 < at < 0.7 else 0,
                               scarf=16 + lean * 2, scarf2=12, hair=lean * 0.5)))
     return _keyed(keys, t)
 
@@ -1619,6 +1663,13 @@ CLIPS = {
     "invoke": (pose_invoke, 6, False),     # a grimoire, an orb
     # A second dagger, in the left hand: every other blow of a pair is this one.
     "offstab": (mirrored(pose_thrust), 6, False),
+    # The combos and the leap, with both hands on the hilt: what a greatsword or
+    # a greataxe plays in place of the sword's. See two_handed().
+    "rush_2h":     (two_handed(pose_rush),     8, False),
+    "crush_2h":    (two_handed(pose_crush),    6, False),
+    "cleave_2h":   (two_handed(pose_cleave),   8, False),
+    "backhand_2h": (two_handed(pose_backhand), 5, False),
+    "spin_2h":     (two_handed(pose_spin),     8, False),
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
     # Holding a shield up. Looped: a guard lasts as long as the button is held.
@@ -1637,15 +1688,68 @@ FACINGS = [("down", 0.0), ("left", 270.0), ("right", 90.0), ("up", 180.0)]
 
 
 # --- both hands on it ---------------------------------------------------------------
-# A pose that says `left_on` wants the left hand on what the right is holding:
-# that far up the hilt from the right hand (or, negative, that far down toward
-# the nose -- under a crossbow's stock). The numbers a pose gives for the left
-# arm are where the search starts, not where it ends: the arm is three angles
-# and the hand is wherever they put it, so they are turned, a few degrees at a
-# time, until the hand is on the mark. Found once for each frame of a clip and
-# kept: the four facings and every sheet of a clip are the same pose.
+# The arms on this rig are short -- 0.235 from a shoulder that is 0.19 out from
+# the middle -- so two hands meet on a hilt only in a small pocket in front of
+# the chest, and an arm's angles set by eye miss it. So a two-handed pose does
+# not give angles. It says where the right hand is (`hold_x/y/z`: from the point
+# between the shoulders, in the chest's own axes, so a lean or a twist carries
+# the hands with it and what could be reached still can be), where the thing
+# held points (`aim_x/y/z`, in the character's axes: forward is -Y, up is +Z,
+# their right is -X), and how far along it the left hand sits (`left_on`: toward
+# the pommel, or negative, toward the nose -- under a crossbow's stock). The
+# angles a pose does give are where each search starts, which is what decides
+# which way the elbow points. Found once for each frame of a clip and kept: the
+# four facings and every sheet of a clip are the same pose.
+_RIGHT_HAND = {}
 _LEFT_HAND = {}
 _AIMED = {}
+SHOULDER_MID = Vector((0.0, 0.0, 0.27))      # between the shoulders, in the chest's space
+ARM_STRETCH = 1.30                           # and how far an arm may cheat
+
+
+def _pose_key(v):
+    return tuple(sorted((k, round(float(x), 3)) for k, x in v.items()))
+
+
+def _descend(start, lo, hi, cost, step=24.0, good=0.003):
+    """Turn a few angles, one at a time and by less and less, until `cost` is small."""
+    best = [min(h, max(l, x)) for x, l, h in zip(start, lo, hi)]
+    err = cost(*best)
+    while step > 0.6 and err > good:
+        moved = False
+        for i in range(len(best)):
+            for sign in (1.0, -1.0):
+                trial = list(best)
+                trial[i] = min(hi[i], max(lo[i], trial[i] + sign * step))
+                e = cost(*trial)
+                if e < err - 1e-6:
+                    best, err, moved = trial, e, True
+        if not moved:
+            step *= 0.5
+    return best, err
+
+
+def _set_arm(joints, side, arm, elbow, flare, cross):
+    out = 1.0 if side == "l" else -1.0
+    joints["shoulder_" + side].rotation_euler = Euler((rad(-arm), rad(-out * flare), rad(-out * cross)), "XYZ")
+    joints["elbow_" + side].rotation_euler = Euler((rad(-elbow), 0, 0), "XYZ")
+
+
+def _place_right_hand(joints, v):
+    key = _pose_key(v)
+    if key not in _RIGHT_HAND:
+        want = SHOULDER_MID + Vector((v.get("hold_x", 0.0), v["hold_y"], v.get("hold_z", 0.0)))
+
+        def miss(arm, elbow, flare, cross):
+            _set_arm(joints, "r", arm, elbow, flare, cross)
+            bpy.context.view_layer.update()
+            return (joints["hand_r"].matrix_world.translation - joints["chest"].matrix_world @ want).length
+
+        start = [v.get("arm_r", 50.0), v.get("elbow_r", 60.0), v.get("flare_r", 0.0), v.get("cross_r", 45.0)]
+        _RIGHT_HAND[key] = _descend(start, (-60.0, 0.0, -50.0, -30.0), (175.0, 135.0, 50.0, 100.0), miss)
+    (arm, elbow, flare, cross), err = _RIGHT_HAND[key]
+    _set_arm(joints, "r", arm, elbow, flare, cross)
+    return err
 
 
 def _aim_grip(joints, v):
@@ -1657,12 +1761,17 @@ def _aim_grip(joints, v):
     somewhere; which way the thing in it points from there is three more, and
     working them out by hand for an arm that is raised, bent and swung across
     the chest is how a crossbow came to be aimed at the man's own elbow."""
-    key = tuple(sorted((k, round(float(x), 3)) for k, x in v.items()))
+    key = _pose_key(v)
     want = Vector((v.get("aim_x", 0.0), v.get("aim_y", -1.0), v.get("aim_z", 0.0)))
     if want.length < 1e-6:
         return
     want.normalize()
     top = v.get("aim_top", 0.0) > 0.5
+    # `edge_x/y/z`: which way the thing's own +X faces, as nearly as it can while
+    # pointing where it is told -- an axe's bit into the swing, not flat to it.
+    edge = Vector((v.get("edge_x", 0.0), v.get("edge_y", 0.0), v.get("edge_z", 0.0)))
+    edge = edge - want * edge.dot(want)
+    edge = edge.normalized() if edge.length > 1e-3 else None
     grip = joints["grip"]
     if key not in _AIMED:
         def miss(rx, ry, rz):
@@ -1673,6 +1782,8 @@ def _aim_grip(joints, v):
             err = 1.0 - nose.dot(want)
             if top:
                 err += 0.5 * (1.0 - (local @ Vector((0, -1, 0))).normalized().dot(Vector((0, 0, 1))))
+            if edge is not None:
+                err += 0.5 * (1.0 - (local @ Vector((1, 0, 0))).normalized().dot(edge))
             return err
 
         best, err = None, 1e9
@@ -1698,39 +1809,71 @@ def _aim_grip(joints, v):
     grip.rotation_euler = Euler((rad(rx), rad(ry), rad(rz)), "XYZ")
 
 
-def _place_left_hand(joints, v):
-    key = tuple(sorted((k, round(float(x), 3)) for k, x in v.items()))
-    if key in _LEFT_HAND:
-        arm, elbow, flare, cross = _LEFT_HAND[key]
-    else:
-        def put(arm, elbow, flare, cross):
-            joints["shoulder_l"].rotation_euler = Euler((rad(-arm), rad(-flare), rad(-cross)), "XYZ")
-            joints["elbow_l"].rotation_euler = Euler((rad(-elbow), 0, 0), "XYZ")
-            bpy.context.view_layer.update()
-            g = joints["grip"].matrix_world
-            mark = g.translation + (g.to_3x3() @ Vector((v.get("left_out", 0.0), v.get("left_under", 0.0), v["left_on"])))
-            return (joints["hand_l"].matrix_world.translation - mark).length
+def _left_mark(joints, v):
+    g = joints["grip"].matrix_world
+    return g.translation + (g.to_3x3() @ Vector((v.get("left_out", 0.0), v.get("left_under", 0.0), v["left_on"])))
 
-        best = [v.get("arm_l", 0.0), v.get("elbow_l", 0.0), v.get("flare_l", 0.0), v.get("cross_l", 0.0)]
-        lo, hi = (-60.0, 0.0, -80.0, -30.0), (175.0, 135.0, 50.0, 100.0)
-        err = put(*best)
-        step = 24.0
-        while step > 0.7 and err > 0.004:
-            moved = False
-            for i in range(4):
-                for sign in (1.0, -1.0):
-                    trial = list(best)
-                    trial[i] = min(hi[i], max(lo[i], trial[i] + sign * step))
-                    e = put(*trial)
-                    if e < err - 1e-5:
-                        best, err, moved = trial, e, True
-            if not moved:
-                step *= 0.5
-        arm, elbow, flare, cross = best
-        _LEFT_HAND[key] = (arm, elbow, flare, cross)
-    joints["shoulder_l"].rotation_euler = Euler((rad(-arm), rad(-flare), rad(-cross)), "XYZ")
-    joints["elbow_l"].rotation_euler = Euler((rad(-elbow), 0, 0), "XYZ")
+
+def _place_left_hand(joints, v):
+    """The left hand onto what the right holds. If the mark is further off than
+    the arm is long, the arm is let out to meet it -- up to ARM_STRETCH, which at
+    forty pixels tall is a pixel of forearm and cannot be seen, where a hand
+    floating beside a hilt can. Returns how far short it still fell."""
+    key = _pose_key(v)
+    if key not in _LEFT_HAND:
+        joints["shoulder_l"].scale = (1.0, 1.0, 1.0)
+
+        def miss(arm, elbow, flare, cross):
+            _set_arm(joints, "l", arm, elbow, flare, cross)
+            bpy.context.view_layer.update()
+            return (joints["hand_l"].matrix_world.translation - _left_mark(joints, v)).length
+
+        start = [v.get("arm_l", 50.0), v.get("elbow_l", 60.0), v.get("flare_l", 0.0), v.get("cross_l", 45.0)]
+        angles, err = _descend(start, (-60.0, 0.0, -80.0, -30.0), (175.0, 135.0, 50.0, 100.0), miss)
+        stretch = 1.0
+        if err > 0.006:
+            # Out of reach: point the straightened arm at the mark and let it out.
+            _set_arm(joints, "l", *angles)
+            bpy.context.view_layer.update()
+            shoulder = joints["shoulder_l"].matrix_world.translation
+            have = (joints["hand_l"].matrix_world.translation - shoulder).length
+            need = (_left_mark(joints, v) - shoulder).length
+            stretch = min(ARM_STRETCH, max(1.0, need / max(have, 1e-6)))
+            joints["shoulder_l"].scale = (stretch, stretch, stretch)
+            angles, err = _descend(angles, (-60.0, 0.0, -80.0, -30.0), (175.0, 135.0, 50.0, 100.0), miss, step=8.0)
+        _LEFT_HAND[key] = (angles, stretch, err)
+    (arm, elbow, flare, cross), stretch, err = _LEFT_HAND[key]
+    joints["shoulder_l"].scale = (stretch, stretch, stretch)
+    _set_arm(joints, "l", arm, elbow, flare, cross)
     joints["grip_l"].rotation_euler = Euler((rad(elbow * 0.8 - 8 - v.get("sword_l", 0.0)), rad(-v.get("grip_y_l", 18.0)), 0), "XYZ")
+    return err
+
+
+def _both_hands_on(joints, v):
+    bpy.context.view_layer.update()
+    left_on = v["two_hands"]
+    chest = joints["chest"].matrix_world
+    hand = chest.inverted() @ joints["hand_r"].matrix_world.translation - SHOULDER_MID
+    root = joints["root"].matrix_world.to_3x3().inverted()
+    grip = joints["grip"].matrix_world.to_3x3()
+    nose = (root @ grip @ Vector((0, 0, -1))).normalized()
+    edge = (root @ grip @ Vector((1, 0, 0))).normalized()
+    # In the chest's own space, which way the pommel lies: the left hand's mark
+    # is that way from the right, and both have to be within an arm of a shoulder.
+    pommel = -(chest.to_3x3().inverted() @ joints["root"].matrix_world.to_3x3() @ nose).normalized() * left_on
+    right, left = Vector((-0.19, 0.0, 0.0)), Vector((0.19, 0.0, 0.0))
+    pocket = Vector((-0.03, -0.11, -0.04))
+    hold = Vector((min(0.05, max(-0.12, hand.x)), hand.y, hand.z))
+    for _ in range(16):
+        if (hold - right).length <= 0.225 and (hold + pommel - left).length <= 0.235 * ARM_STRETCH * 0.96:
+            break
+        hold = hold.lerp(pocket, 0.18)
+    out = dict(v)
+    out.update(hold_x=hold.x, hold_y=hold.y, hold_z=hold.z, aim_x=nose.x, aim_y=nose.y, aim_z=nose.z,
+               edge_x=edge.x, edge_y=edge.y, edge_z=edge.z, left_on=left_on)
+    out.setdefault("cross_r", 40.0)
+    out.setdefault("cross_l", 45.0)
+    return out
 
 
 def apply_pose(joints, extras, v):
@@ -1786,13 +1929,21 @@ def apply_pose(joints, extras, v):
     for eye in extras["eyes"]:
         eye.scale = (1.0, 1.0, max(0.12, 1.0 - shut))
 
-
-# --- rendering ---------------------------------------------------------------
-
+    # What is held with both hands, or has to point somewhere: the right hand is
+    # put where the pose wants it, what it holds is aimed, and then the left is
+    # put on it. In that order -- each stands on the one before.
+    joints["shoulder_l"].scale = (1.0, 1.0, 1.0)
+    if v.get("two_hands", 0.0) > 0.0 and "hold_y" not in v:
+        v = _both_hands_on(joints, v)
+    if "hold_y" in v:
+        _place_right_hand(joints, v)
     if "aim_y" in v or "aim_x" in v or "aim_z" in v:
         _aim_grip(joints, v)
     if "left_on" in v:
         _place_left_hand(joints, v)
+
+
+# --- rendering ---------------------------------------------------------------
 
 
 def setup_world():

@@ -3119,9 +3119,12 @@ int main(int argc, char** argv) {
                     // The strike each makes, which nothing else makes: see
                     // models_for in tools/blender_tiers.py, which this mirrors.
                     const std::map<string, std::set<string>> own = {
-                        {"attack", {"sword", "bow", "staff"}}, {"thrust", {"spear", "dagger"}}, {"bash", {"mace"}},
+                        {"attack", {"sword", "bow", "staff"}}, {"thrust", {"spear", "dagger"}}, {"offstab", {"dagger"}}, {"bash", {"mace"}},
                         {"sweep", {"greatsword", "greataxe"}}, {"hew", {"greataxe"}}, {"shoot", {"crossbow"}},
-                        {"reload", {"crossbow"}}, {"throw", {"knives"}}, {"flick", {"wand"}}, {"invoke", {"grimoire", "orb"}}};
+                        {"reload", {"crossbow"}}, {"throw", {"knives"}}, {"flick", {"wand"}}, {"invoke", {"grimoire", "orb"}},
+                        {"rush_2h", {"greatsword", "greataxe"}}, {"crush_2h", {"greatsword", "greataxe"}},
+                        {"cleave_2h", {"greatsword", "greataxe"}}, {"backhand_2h", {"greatsword", "greataxe"}},
+                        {"spin_2h", {"greatsword", "greataxe"}}};
                     for (const auto& clip : hero ? hero->clips : map<string, AnimClip>{}) {
                         // The work clips hold a tool, not a weapon, and picking herbs holds nothing.
                         if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish" ||
@@ -3137,7 +3140,8 @@ int main(int argc, char** argv) {
                                             "_4_weapon_" + model + ".png";
                         if (!fs::exists(path)) { ++missing; continue; }
                         ++sheets;
-                        if (whose != own.end() && clip.first != "reload" && clip.first != "hew") {
+                        if (whose != own.end() && clip.first != "reload" && clip.first != "hew" && clip.first != "offstab" &&
+                            clip.first.find("_2h") == string::npos) {
                             std::ifstream f(path, std::ios::binary);
                             attack_sheets.insert(std::hash<string>{}(string(
                                 (std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>())));
@@ -3634,6 +3638,13 @@ int main(int argc, char** argv) {
                 Check(net::Decode(net::Encode(told), heard) && heard.patches.size() == 2 && heard.patches[0].kind == 1 &&
                       heard.patches[0].life == 21 && heard.patches[1].kind == 0,
                       "and a rain crosses it as a rain, beside a patch that is only a patch");
+                // A slab mid-swing goes the same way, its facing in the byte a patch ages in.
+                bool turns = true;
+                for (float a : {0.0f, 0.4f, 2.2f, 3.1f, -1.2f, 6.0f}) {
+                    const float back = net::ByteAngle(net::AngleByte(a));
+                    turns &= fabsf(sinf(back) - sinf(a)) < 0.03f && fabsf(cosf(back) - cosf(a)) < 0.03f;
+                }
+                Check(net::PROTOCOL_VERSION >= 6 && turns, "and a direction crosses it in a byte, to within a degree or two");
             }
         }
         // Nova and barrage, and what they cost.
@@ -14169,6 +14180,138 @@ int main(int argc, char** argv) {
                       std::to_string(landed[1]) + " of " + std::to_string(rolls[1]) + ")");
         }
 
+        // --- a dagger in each hand -------------------------------------------------------------------------
+        {
+            const ItemDef* dagger = items.Get("iron_dagger");
+            const ItemDef* sword = items.Get("iron_sword");
+            Check(dagger && dagger->offhand && fabsf(dagger->dual_speed - 0.5f) < 0.001f && dagger->dual_damage < 1.0f &&
+                      dagger->dual_damage > 0.5f && dagger->offhand_clip == "offstab",
+                  "a dagger can be held in the other hand too: a pair is twice as quick, and each blow worth a little less");
+            Check(dagger && sword && dagger->FitsSlot(SLOT_WEAPON) && dagger->FitsSlot(SLOT_SHIELD) && !dagger->FitsSlot(SLOT_HEAD) &&
+                      sword->FitsSlot(SLOT_WEAPON) && !sword->FitsSlot(SLOT_SHIELD), "and nothing else can");
+            int pairable = 0;
+            for (const char* t : kTiers) if (const ItemDef* d = items.Get(string(t) + "_dagger")) pairable += d->offhand;
+            Check(pairable == 12, "every tier's dagger (" + std::to_string(pairable) + ")");
+
+            World w;
+            if (field(w, "player_hero", "wood_sword", SKILL_ATTACK, 40)) {
+                Player& p = w.player;
+                string why;
+                const auto slot_of = [&](const string& id) { for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == id) return i; return -1; };
+                const auto wear = [&](const string& id) { p.inventory.Add(id, 1); return p.EquipFromInventory(slot_of(id), why); };
+                wear("wooden_shield");
+                wear("iron_dagger");
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "iron_dagger" && p.equipment.InSlot(SLOT_SHIELD) == "wooden_shield" &&
+                      !p.equipment.DualWielding(), "one dagger is a weapon like any other: it goes in the right hand, beside the shield");
+                const int one_attack = p.equipment.AttackBonus(), one_strength = p.equipment.StrengthBonus();
+                const int one_defence = p.equipment.DefenceBonus();
+                const int shield_defence = items.Get("wooden_shield") ? items.Get("wooden_shield")->defence_bonus : 0;
+                const float one_speed = p.WeaponSpeed();
+                wear("wood_dagger");
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "iron_dagger" && p.equipment.InSlot(SLOT_SHIELD) == "wood_dagger" &&
+                      p.inventory.Has("wooden_shield") && p.equipment.DualWielding() && p.equipment.Offhand() == items.Get("wood_dagger"),
+                      "a second goes in the left, and the shield into the bag");
+                Check(fabsf(p.WeaponSpeed() - one_speed * 0.5f) < 0.001f, "a pair strikes in half the time (" +
+                      std::to_string(one_speed) + " -> " + std::to_string(p.WeaponSpeed()) + ")");
+                Check(p.equipment.AttackBonus() == one_attack && p.equipment.StrengthBonus() == one_strength &&
+                      p.equipment.DefenceBonus() == one_defence - shield_defence,
+                      "and that is all the second brings: its bonuses are not counted again");
+                const LayerStyle look = p.BuildLayerStyle(&items);
+                Check(look.weapon_model == "dagger_iron" && look.offhand_model == "dagger_wood" && !look.armour[ARMOUR_SHIELD].show,
+                      "both are drawn, each its own tier's, and no shield");
+
+                // Hand after hand.
+                vector<string> clips;
+                for (int i = 0; i < 4; ++i) {
+                    press(w, SDLK_J);
+                    clips.push_back(p.sprite.current);
+                    frames(w, 60);
+                }
+                Check(clips.size() == 4 && clips[0] == "thrust" && clips[1] == "offstab" && clips[2] == "thrust" && clips[3] == "offstab",
+                      "a pair stabs right, left, right, left (" + clips[0] + ", " + clips[1] + ", " + clips[2] + ", " + clips[3] + ")");
+
+                // A third replaces the right hand's; anything else sends the left's back to the bag.
+                wear("bronze_dagger");
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "bronze_dagger" && p.equipment.InSlot(SLOT_SHIELD) == "wood_dagger" &&
+                      p.inventory.Has("iron_dagger"), "with a pair in hand, another dagger takes the right hand's place");
+                Check(p.UnequipSlot(SLOT_WEAPON) && p.equipment.InSlot(SLOT_WEAPON) == "wood_dagger" && p.equipment.InSlot(SLOT_SHIELD).empty() &&
+                      !p.equipment.DualWielding(), "put the right hand's away and the left's changes hands");
+                wear("iron_dagger");
+                Check(p.equipment.DualWielding(), "a pair again");
+                p.EquipFromInventory(slot_of("wooden_shield"), why);
+                Check(p.equipment.InSlot(SLOT_SHIELD) == "wooden_shield" && !p.equipment.DualWielding() && p.inventory.Has("iron_dagger"),
+                      "a shield takes the left hand back");
+                p.EquipFromInventory(slot_of("iron_dagger"), why);
+                Check(p.equipment.DualWielding(), "and a dagger takes it again");
+                wear("iron_sword");
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "iron_sword" && p.equipment.InSlot(SLOT_SHIELD).empty() &&
+                      p.inventory.Has("iron_dagger") && p.inventory.Has("wood_dagger"),
+                      "a sword in the right hand sends both daggers to the bag: a dagger is only held in the left beside another");
+                p.EquipFromInventory(slot_of("wood_dagger"), why);
+                p.EquipFromInventory(slot_of("iron_dagger"), why);
+                wear("iron_greatsword");
+                Check(p.equipment.InSlot(SLOT_WEAPON) == "iron_greatsword" && p.equipment.InSlot(SLOT_SHIELD).empty(),
+                      "and so does anything that takes both hands");
+                Check(p.BuildLayerStyle(&items).offhand_model.empty(), "and the second blade is no longer drawn");
+            }
+
+            // What a blow of a pair is worth, beside one hand's.
+            double dealt[2] = {0, 0};
+            int hits[2] = {0, 0};
+            for (int b = 0; b < 2; ++b) {
+                World w;
+                if (!field(w, "player_hero", "iron_dagger", SKILL_ATTACK, 40)) continue;
+                if (b == 1) w.player.equipment.Equip(SLOT_SHIELD, "iron_dagger");
+                Enemy* cow = sturdy(w, "cow", 16.0f);
+                if (!cow) continue;
+                rng.seed(91);
+                for (int i = 0; i < 160 && hits[b] < 60; ++i) {
+                    cow->statuses.Clear();
+                    cow->x = w.player.x + 16.0f; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                    const int hp = cow->hp;
+                    press(w, SDLK_J);
+                    frames(w, 40);
+                    if (cow->hp < hp) { dealt[b] += hp - cow->hp; ++hits[b]; }
+                }
+            }
+            const double one = dealt[0] / std::max(1, hits[0]), both = dealt[1] / std::max(1, hits[1]);
+            Check(hits[0] >= 30 && hits[1] >= 30 && both < one * 0.9 && both > one * 0.6,
+                  "each blow of a pair lands for about three quarters of one hand's (" + std::to_string(both) + " against " + std::to_string(one) + ")");
+
+            // The sheets the left hand is drawn from.
+            const SpriteDef* hero = sprites.Get("player_hero");
+            int wanted = 0, found = 0;
+            for (const char* clip : {"idle", "walk", "run", "sprint", "jump", "hurt", "block", "death", "thrust", "offstab", "rush",
+                                     "crush", "cleave", "backhand", "spin"}) {
+                const AnimClip* c = hero ? hero->Find(clip) : nullptr;
+                Check(c != nullptr, string("the hero has the clip ") + clip);
+                if (!c) continue;
+                for (const AnimLayer& layer : c->layers) {
+                    if (layer.slot != LayerSlot::WeaponFront) continue;
+                    for (const char* t : kTiers) {
+                        ++wanted;
+                        found += fs::exists(hero->WeaponSheet(layer.sheet, string("off_dagger_") + t));
+                    }
+                }
+            }
+            Check(wanted == 15 * 12 && found == wanted, "every tier's dagger is drawn in the left hand, in every clip a dagger is carried through (" +
+                  std::to_string(found) + " of " + std::to_string(wanted) + ")");
+
+            // And a guest's pair arrives as a pair.
+            Player puppet;
+            puppet.Init(ctx, "player_hero");
+            net::Outfit outfit;
+            outfit.look = "player_hero";
+            outfit.worn.assign(SLOT_COUNT, string());
+            outfit.worn[SLOT_WEAPON] = "iron_dagger";
+            outfit.worn[SLOT_SHIELD] = "wood_dagger";
+            coop::Wear(puppet, outfit, ctx);
+            Check(puppet.equipment.DualWielding(), "a guest with a dagger in each hand is seen with a dagger in each hand");
+            outfit.worn[SLOT_SHIELD] = "iron_sword";
+            coop::Wear(puppet, outfit, ctx);
+            Check(puppet.equipment.InSlot(SLOT_SHIELD).empty(), "and nobody is seen with a sword where a shield goes");
+        }
+
         // --- great weapons: slower, and wider -----------------------------------------------------------
         {
             float swing[2] = {0, 0}, reach[2] = {0, 0};
@@ -14182,6 +14325,76 @@ int main(int argc, char** argv) {
                 if (b == 0) Check(w.player.sprite.current == "sweep", "a greataxe's swing is the two-handed sweep (" + w.player.sprite.current + ")");
             }
             Check(swing[0] > swing[1] * 1.4f && reach[0] > reach[1] * 1.25f, "slower than a sword's by half again, and further");
+
+            // The armoury's strikes last as long as the attack they are: none was
+            // given a rate, and what is not loops at ten frames a second -- so a
+            // great weapon's swing showed its wind-up and was cut off.
+            const SpriteDef* hero = sprites.Get("player_hero");
+            for (const char* name : {"bash", "sweep", "hew", "shoot", "throw", "flick", "invoke"}) {
+                const AnimClip* c = hero ? hero->Find(name) : nullptr;
+                Check(c && c->fit && !c->loop, string(name) + " is played once, over the length of its attack");
+            }
+            for (const char* name : {"offstab", "rush_2h", "crush_2h", "cleave_2h", "backhand_2h", "spin_2h"}) {
+                const AnimClip* c = hero ? hero->Find(name) : nullptr;
+                const AnimClip* like = hero ? hero->Find(string(name) == "offstab" ? "thrust" : string(name).substr(0, string(name).size() - 3)) : nullptr;
+                Check(c && like && !c->loop && !c->fit && c->fps == like->fps && c->frames == like->frames,
+                      string(name) + " keeps the time of the swing it is a version of");
+            }
+            const AnimClip* reload = hero ? hero->Find("reload") : nullptr;
+            Check(reload && reload->loop && !reload->fit, "and spanning a crossbow goes on for as long as it takes");
+            // Light, heavy, and the charged chop: each time the blow is live while
+            // the frame that shows it landing is on the screen.
+            struct Swing { const char* weapon; int skill; SDL_Keycode key; int hold; const char* clip; int lands; };
+            for (const Swing& s : {Swing{"iron_greataxe", SKILL_ATTACK, SDLK_J, 0, "sweep", 3}, Swing{"iron_greataxe", SKILL_ATTACK, SDLK_K, 0, "sweep", 3},
+                                   Swing{"iron_greataxe", SKILL_ATTACK, SDLK_K, 90, "hew", 3}, Swing{"iron_mace", SKILL_ATTACK, SDLK_J, 0, "bash", 2}}) {
+                World w2;
+                if (!field(w2, "player_hero", s.weapon, s.skill, 30)) continue;
+                input.Update(kFrame); key(s.key, true); w2.Update(kFrame, ctx);
+                frames(w2, s.hold);
+                input.Update(kFrame); key(s.key, false); w2.Update(kFrame, ctx);
+                bool seen = false, whole = false;
+                const Player& p = w2.player;
+                const float total = p.Attack().profile.Total();
+                const string playing = p.sprite.current;
+                const AnimClip* c = hero ? hero->Find(playing) : nullptr;
+                const float plays = c ? c->frames / (c->fps * p.sprite.speed_scale) : 0.0f;
+                for (int f = 0; f < 200 && p.Attacking(); ++f) {
+                    frames(w2, 1);
+                    if (p.Attack().InActiveWindow() && p.sprite.Frame() == s.lands) seen = true;
+                    whole |= p.sprite.Frame() == (c ? c->frames - 1 : 0);
+                }
+                Check(c && playing == s.clip && fabsf(plays - total) < 0.02f && seen && whole,
+                      string(s.weapon) + (s.hold ? ", held" : s.key == SDLK_K ? ", heavy" : ", light") + ": the " + s.clip +
+                          " lasts what the attack lasts, lands while the blow is live, and is seen to its end (" +
+                          std::to_string(plays) + " s for " + std::to_string(total) + " s)");
+            }
+            // The combos and the leap are the sword's, made with both hands on the hilt.
+            {
+                World w2, w3;
+                if (field(w2, "player_hero", "iron_greatsword", SKILL_ATTACK, 30) && field(w3, "player_hero", "iron_sword", SKILL_ATTACK, 30)) {
+                    string played[2];
+                    World* both[2] = {&w2, &w3};
+                    for (int i = 0; i < 2; ++i) {
+                        World& wc = *both[i];
+                        sturdy(wc, "cow", 30.0f);
+                        press(wc, SDLK_J);
+                        // The swing, and the gap after it: a press inside either is kept for later.
+                        for (int f = 0; f < 200 && !wc.player.CanAttack(); ++f) frames(wc, 1);
+                        press(wc, SDLK_K);
+                        if (wc.player.Attack().move == ComboMove::Crush) played[i] = wc.player.sprite.current;
+                    }
+                    Check(played[0] == "crush_2h" && played[1] == "crush",
+                          "a greatsword's Crushing Blow is made with both hands, and a sword's with one (" + played[0] + ", " + played[1] + ")");
+                    Check(w2.player.BothHands("rush") == "rush_2h" && w2.player.BothHands("spin") == "spin_2h" &&
+                          w2.player.BothHands("cleave") == "cleave_2h" && w2.player.BothHands("backhand") == "backhand_2h" &&
+                          w3.player.BothHands("rush") == "rush" && w2.player.BothHands("block") == "block",
+                          "and so are the leap, the Cleave, the Backhand and the Cross Cut -- and nothing that is not a swing");
+                    World w4;
+                    if (field(w4, "player_warden", "iron_crossbow", SKILL_RANGED, 30))
+                        Check(w4.player.BothHands("crush") == "crush", "a crossbow takes both hands too, and swings nothing");
+                }
+            }
+
             World w;
             if (field(w, "player_hero", "iron_greataxe", SKILL_ATTACK, 30)) {
                 // Held and let go: the chop.
@@ -14269,14 +14482,21 @@ int main(int argc, char** argv) {
                 press(w, SDLK_J);
                 size_t wide = 0; float wide_life = 0.0f;
                 for (int f = 0; f < 30 && wide == 0; ++f) { frames(w, 1); if (!w.projectiles.empty()) { wide = w.projectiles.size(); wide_life = w.projectiles.front().life; } }
+                // The rest of the breath, a moment behind the first of it and in its gaps.
+                size_t wide_all = wide;
+                for (int f = 0; f < 8; ++f) { frames(w, 1); wide_all = std::max(wide_all, w.projectiles.size()); }
                 frames(w, 50);
                 p.RestoreMana();
                 w.projectiles.clear();
                 press(w, SDLK_K);
                 size_t narrow = 0; float narrow_life = 0.0f;
                 for (int f = 0; f < 40 && narrow == 0; ++f) { frames(w, 1); if (!w.projectiles.empty()) { narrow = w.projectiles.size(); narrow_life = w.projectiles.front().life; } }
+                size_t narrow_all = narrow;
+                for (int f = 0; f < 8; ++f) { frames(w, 1); narrow_all = std::max(narrow_all, w.projectiles.size()); }
                 Check(wide == 5 && narrow == 3 && narrow_life > wide_life * 2.0f,
                       "the Flamethrower is five tongues wide on light and three that reach far on heavy");
+                Check(wide_all == 9 && narrow_all == 5, "and each is a breath, not a volley: a second flight follows in the gaps of the first (" +
+                      std::to_string(wide_all) + ", " + std::to_string(narrow_all) + ")");
             }
         }
         // Water: the cannon throws, the whirlpool drags in.
@@ -16163,6 +16383,33 @@ int main(int argc, char** argv) {
             const string sheet = coop::Guest::MakeSheet(gw, &guest_quests);
             Check(sheet.find("\"x\"") == string::npos && sheet.find("\"hp\"") == string::npos && sheet.find("q_thin_the_herd") != string::npos,
                   "the sheet she sends leaves out where she stands and how hurt she is, which the host knows better");
+        }
+
+        // --- a slab of the ground, swung where a guest can see it ------------------------------------------
+        // Bedrock Sweep was the caster's alone to see: the swing lived in the
+        // caster's world and nothing on the line spoke of it.
+        {
+            World* where = host.WorldOf(1);
+            Check(guest_in && her() && where, "she is still out in the world");
+            if (guest_in && her() && where) {
+                frames(10);
+                gw.slabs.clear();
+                where->AddSlabSwing(her()->x + 20.0f, her()->y - 14.0f, 2.2f, 74.0f, 0.0f);
+                size_t most = 0, total = 0;
+                float faced = -9.0f, length = 0.0f;
+                for (int i = 0; i < 45; ++i) {
+                    frame();
+                    size_t live = 0;
+                    for (const World::SlabSwing& s : gw.slabs) if (s.life > 0.0f) { ++live; faced = s.facing; length = s.length; }
+                    most = std::max(most, live);
+                    total = std::max(total, gw.slabs.size());
+                }
+                Check(most == 1 && total == 1 && fabsf(faced - 2.2f) < 0.03f && fabsf(length - 74.0f) < 1.0f,
+                      "a slab swung on the host is one slab on the guest's screen, swung the same way (" + std::to_string(total) +
+                          " made, facing " + std::to_string(faced) + ")");
+                frames(40);
+                Check(gw.slabs.empty() && where->slabs.empty(), "and gone from both when it is done");
+            }
         }
         fs::remove_all("bin/selftest_net", ec);
     }

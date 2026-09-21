@@ -24,6 +24,13 @@ static void ReadArmoury(const json& o, ItemDef& d) {
         d.charge_reach  = o["charge"].value("reach", 1.0f);
         d.charge_sweep  = o["charge"].value("sweep", 1.0f);
     }
+    // "dual": a second one can be held in the other hand, and what a pair is worth.
+    if (o.contains("dual") && o["dual"].is_object()) {
+        d.offhand      = true;
+        d.dual_speed   = std::clamp(o["dual"].value("speed", 0.5f), 0.25f, 1.0f);
+        d.dual_damage  = std::clamp(o["dual"].value("damage", 1.0f), 0.1f, 2.0f);
+        d.offhand_clip = o["dual"].value("clip", string(""));
+    }
     d.reload    = o.value("reload", 0.0f);
     d.shoots    = o.value("shoots", string(""));
     d.mana_mult = o.value("mana", 1.0f);
@@ -40,6 +47,11 @@ static void ReadArmoury(const json& o, ItemDef& d) {
             d.combos[i].damage = c.value("damage", 1.0f);
         }
     }
+}
+
+bool ItemDef::FitsSlot(int equip_slot) const {
+    if (equip_slot == SLOT_NONE) return false;
+    return equip_slot == slot || (equip_slot == SLOT_SHIELD && slot == SLOT_WEAPON && offhand);
 }
 
 WeaponKind WeaponKindFromName(const string& name) {
@@ -679,6 +691,15 @@ vector<ItemStat> ItemStatLines(const ItemDef& d, const ItemDef* worn, bool compa
             r.value = v;
             rows.push_back(r);
         }
+        // A dagger: what a second one in the other hand does to the first.
+        if (d.offhand) {
+            char v[40];
+            SDL_snprintf(v, sizeof(v), "%.1fx", 1.0f / std::max(0.05f, d.dual_speed));
+            ItemStat r;
+            r.label = "Paired speed";
+            r.value = v;
+            rows.push_back(r);
+        }
     }
 
     // A lamp is not a stat block, but how far it throws is the only number
@@ -905,9 +926,14 @@ void Equipment::Clear() {
 int Equipment::SumBonus(int ItemDef::* field) const {
     int total = 0;
     if (!db) return total;
-    for (const auto& id : slots) {
-        if (id.empty()) continue;
-        if (const ItemDef* d = db->Get(id)) total += d->*field;
+    for (int s = 0; s < SLOT_COUNT; ++s) {
+        if (slots[s].empty()) continue;
+        const ItemDef* d = db->Get(slots[s]);
+        if (!d) continue;
+        // A second dagger is speed, not a second set of bonuses: counted, a pair
+        // would be twice as quick and half as accurate again on top of it.
+        if (s == SLOT_SHIELD && d->slot == SLOT_WEAPON) continue;
+        total += d->*field;
     }
     return total;
 }
@@ -920,8 +946,22 @@ int Equipment::MagicBonus() const    { return SumBonus(&ItemDef::magic_bonus); }
 
 float Equipment::AttackSpeed() const {
     if (!db) return 1.0f;
-    if (const ItemDef* w = db->Get(slots[SLOT_WEAPON])) return w->attack_speed;
+    if (const ItemDef* w = db->Get(slots[SLOT_WEAPON]))
+        return w->attack_speed * (DualWielding() ? w->dual_speed : 1.0f);
     return 1.0f;
+}
+
+const ItemDef* Equipment::Offhand() const {
+    if (!db) return nullptr;
+    const ItemDef* main = db->Get(slots[SLOT_WEAPON]);
+    const ItemDef* off  = db->Get(slots[SLOT_SHIELD]);
+    if (!main || !off || !main->offhand) return nullptr;
+    return (off->slot == SLOT_WEAPON && off->offhand) ? off : nullptr;
+}
+
+float Equipment::DualDamage() const {
+    const ItemDef* main = Weapon();
+    return (main && DualWielding()) ? main->dual_damage : 1.0f;
 }
 
 float Equipment::MoveSpeed() const {
@@ -975,6 +1015,7 @@ SDL_Color Equipment::ArmourTint() const {
                      SLOT_LEGS, SLOT_FEET, SLOT_SHIELD}) {
         const ItemDef* d = db->Get(slots[slot]);
         if (!d) continue;
+        if (d->slot == SLOT_WEAPON) continue;          // a dagger in the off hand is not armour
         // Recolouring stands in for armour we have no art for. A piece that
         // brings its own overlay -- an icon-pack attachment, or one of the
         // character's own plate layers -- is already visible, and tinting the

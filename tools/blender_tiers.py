@@ -83,6 +83,8 @@ bc.PALETTE["string"] = (0.92, 0.88, 0.78)
 bc.PALETTE["rock"] = (0.46, 0.43, 0.42)
 bc.PALETTE["rock_dark"] = (0.30, 0.28, 0.29)
 bc.PALETTE["leather"] = (0.46, 0.31, 0.20)
+bc.PALETTE["orb_glass"] = (0.56, 0.44, 0.96)
+bc.PALETTE["orb_core"] = (0.90, 0.84, 1.00)
 
 _toon = bc.material
 
@@ -638,23 +640,29 @@ def _dress(tier, parts, parent, at_z, reach):
 
 def build_dagger(tier, parent):
     blade, width, guard, extras = SWORDS[tier]
-    blade, width = 0.10 + blade * 0.42, width * 1.15        # short, but not so short it is lost in the fist
+    # Two thirds of a sword's length and half as wide again. It was a cone a
+    # third the length of a sword, and a cone that size is three pixels of blade
+    # and then nothing: the thin half never survives being reduced, so what was
+    # in the fist read as a nail. A broad leaf with a short point keeps its
+    # width nearly to the tip, and that is what reads as a blade at this size.
+    blade, width = 0.15 + blade * 0.36, width * 1.35
     parts = []
     add = lambda *a, **k: parts.append(bc.part(*a, **k))
-    add("hilt", bc.mesh_capsule(0.020, 0.020, 0.085), P(tier, "grip"), parent, loc=(0, 0, 0.05))
-    add("pommel", bc.mesh_ellipsoid(0.026, 0.026, 0.026), P(tier, "dark"), parent, loc=(0, 0, 0.075))
-    add("guard", bc.mesh_ellipsoid(0.060, 0.030, 0.022), P(tier, "accent" if tier != "wood" else "dark"), parent,
+    add("hilt", bc.mesh_capsule(0.022, 0.022, 0.095), P(tier, "grip"), parent, loc=(0, 0, 0.055))
+    add("pommel", bc.mesh_ellipsoid(0.030, 0.030, 0.030), P(tier, "dark"), parent, loc=(0, 0, 0.08))
+    add("guard", bc.mesh_ellipsoid(0.078, 0.034, 0.026), P(tier, "accent" if tier != "wood" else "dark"), parent,
         loc=(0, 0, -0.04))
     if "crystal" in extras:
-        add("blade", mesh_gem(width, width * 0.45, blade * 0.6, sides=4), P(tier, "main"), parent,
+        add("blade", mesh_gem(width, width * 0.5, blade * 0.62, sides=4), P(tier, "main"), parent,
             loc=(0, 0, -0.05 - blade * 0.5))
     else:
-        # A dagger is a point: wide at the guard and nothing at the tip.
-        parts.append(bc.spike("blade", (0, 0, -0.05), (0, 0, -0.05 - blade), width * 0.95, P(tier, "main"), parent,
-                              r_tip=0.006))
-        parts.append(bc.spike("ridge", (0, -0.006, -0.06), (0, -0.006, -0.05 - blade * 0.8), width * 0.32,
-                              glow_or(tier, "light") if "edge" in extras else P(tier, "light"), parent, r_tip=0.004))
-    _dress(tier, parts, parent, -0.04, 0.10)
+        body = blade * 0.66
+        add("blade", bc.mesh_capsule(width, width * 0.8, body, squash_y=0.55), P(tier, "main"), parent, loc=(0, 0, -0.05))
+        parts.append(bc.spike("point", (0, 0, -0.05 - body + 0.02), (0, 0, -0.05 - blade), width * 0.78, P(tier, "main"), parent,
+                              r_tip=0.008))
+        add("ridge", bc.mesh_capsule(width * 0.34, width * 0.22, blade * 0.8, squash_y=0.5),
+            glow_or(tier, "light") if "edge" in extras else P(tier, "light"), parent, loc=(0, -0.006, -0.06))
+    _dress(tier, parts, parent, -0.04, 0.11)
     return parts
 
 
@@ -822,20 +830,26 @@ def build_grimoire(tier, parent):
     forearm is level (and forward, at the hip, when the arm hangs)."""
     blade, width, guard, extras = SWORDS[tier]
     parts = []
-    frame = bc.empty("book_frame", (0.0, -0.035, -0.09), parent)
+    frame = bc.empty("book_frame", (0.0, -0.04, -0.10), parent)
     parts.append(frame)
     add = lambda *a, **k: parts.append(bc.part(*a, **k))
-    w, h = 0.13, 0.19
+    # Big for a book, and the cover a good deal bigger than the pages: in the
+    # hand it is six pixels across, and what makes six pixels a book is a dark
+    # board showing all round two pale pages with a dark gutter between them.
+    # The cover was the tier's pale metal and the pages a hair smaller, and what
+    # that made was a white tile.
+    w, h = 0.16, 0.22
     for side in (-1, 1):
         rot = (0, 0, math.radians(side * 16))
-        add("cover", mesh_box(w, 0.022, h), P(tier, "main"), frame, loc=(side * w * 0.52, 0.016, 0), rot=rot)
-        add("pages", mesh_box(w * 0.92, 0.020, h * 0.92), "string", frame, loc=(side * w * 0.50, -0.004, 0), rot=rot)
-        add("corner", mesh_box(0.03, 0.026, 0.03), P(tier, "accent"), frame, loc=(side * w * 0.95, 0.016, h * 0.42), rot=rot)
-        add("corner", mesh_box(0.03, 0.026, 0.03), P(tier, "accent"), frame, loc=(side * w * 0.95, 0.016, -h * 0.42), rot=rot)
+        add("cover", mesh_box(w, 0.026, h), P(tier, "dark"), frame, loc=(side * w * 0.52, 0.018, 0), rot=rot)
+        add("pages", mesh_box(w * 0.76, 0.022, h * 0.78), "string", frame, loc=(side * w * 0.50, -0.004, 0), rot=rot)
+        add("corner", mesh_box(0.04, 0.030, 0.04), P(tier, "accent"), frame, loc=(side * w * 0.93, 0.016, h * 0.42), rot=rot)
+        add("corner", mesh_box(0.04, 0.030, 0.04), P(tier, "accent"), frame, loc=(side * w * 0.93, 0.016, -h * 0.42), rot=rot)
         # Lines of writing: what says it is a book and not a tile.
-        for k in (-0.05, 0.0, 0.05):
-            add("line", mesh_box(w * 0.6, 0.004, 0.012), P(tier, "dark"), frame, loc=(side * w * 0.50, -0.016, k), rot=rot)
-    add("spine", bc.mesh_capsule(0.018, 0.018, h), P(tier, "dark"), frame, loc=(0, 0.022, h * 0.5))
+        for k in (-0.055, 0.0, 0.055):
+            add("line", mesh_box(w * 0.5, 0.004, 0.018), P(tier, "dark"), frame, loc=(side * w * 0.50, -0.017, k), rot=rot)
+    add("spine", bc.mesh_capsule(0.022, 0.022, h), P(tier, "main"), frame, loc=(0, 0.024, h * 0.5))
+    add("gutter", mesh_box(0.02, 0.012, h * 0.8), P(tier, "dark"), frame, loc=(0, -0.006, 0))
     if PALETTES[tier]["glow"] or "gem" in extras:
         add("sigil", mesh_gem(0.03, 0.012, 0.03), glow_or(tier, "light"), frame, loc=(0, -0.02, 0.0))
     return parts
@@ -844,12 +858,18 @@ def build_grimoire(tier, parent):
 def build_orb(tier, parent):
     """An orb over an open palm, in a claw of the tier's metal."""
     blade, width, guard, extras = SWORDS[tier]
-    r = 0.062 + blade * 0.03
+    # As big as the fist holding it twice over, and well clear of the palm: at
+    # three pixels across and touching the hand it was a button on the glove.
+    r = 0.086 + blade * 0.04
     parts = []
     add = lambda *a, **k: parts.append(bc.part(*a, **k))
-    at = (0.0, -0.10, -0.07)
-    add("orb", bc.mesh_ellipsoid(r, r, r), glow_or(tier, "light") if tier != "wood" else P(tier, "light"), parent, loc=at)
-    add("core", bc.mesh_ellipsoid(r * 0.5, r * 0.5, r * 0.5), P(tier, "main"), parent, loc=(at[0] - r * 0.25, at[1] - r * 0.6, at[2] - r * 0.2))
+    at = (0.0, -0.155, -0.07)
+    # The glass is the colour of what is in it, not of the tier: a tier's pale
+    # metal made a steel orb a white ball, which is a snowball. The tiers that
+    # glow keep their own light; the rest are the violet of a spell with no
+    # element, with the tier in the claw and the ring round it.
+    add("orb", bc.mesh_ellipsoid(r, r, r), P(tier, "glow") if PALETTES[tier]["glow"] else "orb_glass", parent, loc=at)
+    add("core", bc.mesh_ellipsoid(r * 0.5, r * 0.5, r * 0.5), "orb_core", parent, loc=(at[0] - r * 0.25, at[1] - r * 0.6, at[2] - r * 0.2))
     for a in (20, 140, 260):
         dx, dz = math.cos(math.radians(a)), math.sin(math.radians(a))
         parts.append(bc.spike("claw", (0, -0.02, -0.06), (at[0] + dx * r * 1.05, at[1] + r * 0.2, at[2] + dz * r * 1.05), 0.016,
@@ -2022,6 +2042,9 @@ def set_icons(only_tiers, only=None):
 
 # --- weapon layers on the hero --------------------------------------------------------------
 
+# What the left hand will hold as well as the right: see "dual" in data/tiers.json.
+OFFHAND_KINDS = ("dagger",)
+
 def weapon_layers(clip_name, models, out_dir):
     pose_fn, frames, loops = bc.CLIPS[clip_name]
     cols, rows = frames, len(bc.FACINGS)
@@ -2032,7 +2055,7 @@ def weapon_layers(clip_name, models, out_dir):
     bc.setup_world()
     right, up = bc.camera_basis()
 
-    occluders, own_sword, grips = [], [], []
+    occluders, own_sword, grips, grips_left = [], [], [], []
     for row, (facing, turn) in enumerate(bc.FACINGS):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(frames - 1)
@@ -2060,6 +2083,7 @@ def weapon_layers(clip_name, models, out_dir):
                 if key == bc.ARM_SHIELD: own_sword += groups.get(key, [])
                 else:                    occluders += groups.get(key, [])
             grips.append(joints["grip"])
+            grips_left.append(joints["grip_l"])
 
     for ob in occluders:
         ob.hide_render = False
@@ -2072,7 +2096,7 @@ def weapon_layers(clip_name, models, out_dir):
     SPEAR_MODE["thrust"] = clip_name == "thrust"
     # A great weapon is in the hands for anything that swings it, and over the
     # shoulder for everything else.
-    GREAT_MODE["swing"] = clip_name in ("sweep", "hew", "rush", "crush", "cleave", "backhand", "spin")
+    GREAT_MODE["swing"] = clip_name in ("sweep", "hew", "rush", "crush", "cleave", "backhand", "spin") or clip_name.endswith("_2h")
 
     for model in models:
         kind, tier = model.split("_", 1) if "_" in model else (model, "wood")
@@ -2085,6 +2109,20 @@ def weapon_layers(clip_name, models, out_dir):
         bc.write_png(os.path.join(out_dir, "layers", "%s_4_weapon_%s.png" % (clip_name, model)), small)
         for ob in made:
             bpy.data.objects.remove(ob, do_unlink=True)
+        # What can be held in the other hand gets a second sheet, built in that
+        # hand: layers/<clip>_4_weapon_off_<model>.png, drawn beside the first
+        # when there is a pair. A sheet of its own, not a second blade in the
+        # first: one dagger is still the usual thing to be holding.
+        if kind in OFFHAND_KINDS:
+            made = []
+            for grip in grips_left:
+                made += WEAPONS[kind](tier, grip)
+            raw = os.path.join(RENDER_DIR, "layer_%s_off_%s.png" % (clip_name, model))
+            bc.render_to(raw)
+            small = bc.outline(bc.reduce_majority(bc.read_png(raw)))
+            bc.write_png(os.path.join(out_dir, "layers", "%s_4_weapon_off_%s.png" % (clip_name, model)), small)
+            for ob in made:
+                bpy.data.objects.remove(ob, do_unlink=True)
     print("layers %-7s %d models" % (clip_name, len(models)))
 
 
@@ -2111,10 +2149,15 @@ def main():
         # A spear strikes with its own clip and never plays the swing, and
         # nothing but a spear plays the thrust.
         melee = ("sword", "spear", "dagger", "mace", "greatsword", "greataxe")
+        great = ("greatsword", "greataxe")
         kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",),
                  "attack": ("sword", "bow", "staff"),
                  # A spear strikes with a thrust, and so does a dagger.
                  "thrust": ("spear", "dagger"),
+                 # And with a pair of them, every other stab is the left hand's.
+                 "offstab": ("dagger",),
+                 # The combos and the leap with both hands on the hilt: a great weapon's.
+                 "rush_2h": great, "crush_2h": great, "cleave_2h": great, "backhand_2h": great, "spin_2h": great,
                  # The armoury's own strikes: see blender_character.CLIPS.
                  "bash": ("mace",), "sweep": ("greatsword", "greataxe"), "hew": ("greataxe",),
                  "shoot": ("crossbow",), "reload": ("crossbow",), "throw": ("knives",),

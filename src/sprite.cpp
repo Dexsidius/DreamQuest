@@ -70,6 +70,7 @@ bool SpriteLibrary::Load(const string& json_path) {
                 a.frames = std::max(1, c.value().value("frames", 1));
                 a.fps    = c.value().value("fps", 10.0f);
                 a.loop   = c.value().value("loop", true);
+                a.fit    = c.value().value("fit", false);
                 if (c.value().contains("row_frames"))
                     for (const auto& n : c.value()["row_frames"])
                         a.row_frames.push_back(std::max(1, n.get<int>()));
@@ -313,6 +314,19 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         SDL_SetTextureColorMod(tex, 255, 255, 255);
         SDL_SetTextureAlphaMod(tex, 255);
         drew = true;
+
+        // The other hand's, from a sheet of its own the same shape as the first's.
+        // Only beside a weapon that was drawn from its own sheet: a rig without
+        // those has none of these either.
+        if (model_sheet && !style.offhand_model.empty()) {
+            if (SDL_Texture* off = cache.Get(def->WeaponSheet(layer.sheet, "off_" + style.offhand_model))) {
+                SDL_SetTextureColorMod(off, tint.r, tint.g, tint.b);
+                SDL_SetTextureAlphaMod(off, tint.a);
+                SDL_RenderTexture(r, off, &src, &dst);
+                SDL_SetTextureColorMod(off, 255, 255, 255);
+                SDL_SetTextureAlphaMod(off, 255);
+            }
+        }
 
         draw_attachments(layer.slot);
     }

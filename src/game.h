@@ -158,6 +158,9 @@ private:
     // What a piece is weighed against: whatever is in the same slot now.
     const ItemDef* WornAgainst(const ItemDef& d) const;
     string WornAgainstLine(const ItemDef& d) const;
+    // A dagger that would go in the left hand beside the one in the right, and
+    // replace nothing: see Player::EquipFromInventory.
+    bool   GoesInOtherHand(const ItemDef& d) const;
     void DrawCrafting();
     void DrawEnchanting();
     void DrawShop();

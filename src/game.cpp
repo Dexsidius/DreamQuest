@@ -238,7 +238,10 @@ int Game::Start(int argc, char** argv) {
                     if (const ItemDef* d = items.Get(id)) {
                         // What is worn is worn; a bag is shouldered; anything
                         // else just goes in the pack.
-                        if (d->slot != SLOT_NONE) world->player.equipment.Equip(d->slot, id);
+                        // A second dagger goes in the other hand, as it would from the bag.
+                        const ItemDef* right = world->player.equipment.Weapon();
+                        const bool second = d->slot == SLOT_WEAPON && d->offhand && right && right->offhand;
+                        if (d->slot != SLOT_NONE) world->player.equipment.Equip(second ? SLOT_SHIELD : d->slot, id);
                         else if (world->player.inventory.Add(id, 1) > 0 && d->use == "bag") {
                             string why;
                             for (int k = 0; k < world->player.inventory.SlotCount(); ++k)
