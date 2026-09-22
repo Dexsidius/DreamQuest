@@ -170,6 +170,30 @@ public:
     // on it, steps to the next one known. Nothing happens with none known.
     void    SelectArcane(const vector<string>& known);
     const string& ArcaneSpell() const { return arcane_spell; }
+    // Lightning works the way the ancient magic does, and for the same reason:
+    // it has five spells and there are only so many keys. The fifth key
+    // chooses the element, and the fifth key again steps to the next of them
+    // the Magic level reaches. `known` is that list, weakest first.
+    void    SelectElectric(const vector<string>& known);
+    const string& ElectricSpell() const { return electric_spell; }
+    void    SetElectricSpell(const string& id) { electric_spell = id; }
+
+    // --- the battery ----------------------------------------------------------------
+    // Lightning's resource, and nothing else's: a share of a bar, 0 to 1,
+    // empty when a character is made. Zap fills it a little on every hit and
+    // everything else in the school spends it. It is not restored by resting
+    // or by a night's sleep -- it is not a pool, it is what has been stored --
+    // but dying empties it, the way a fight's momentum goes.
+    float   Battery() const { return battery; }
+    void    AddBattery(float share) { battery = std::clamp(battery + share, 0.0f, 1.0f); }
+    void    ClearBattery() { battery = 0.0f; }
+    // Takes at most `want`, and answers with what was actually there to take:
+    // a discharge is worth what it spent.
+    float   SpendBattery(float want) {
+        const float took = std::clamp(std::min(want, battery), 0.0f, 1.0f);
+        battery -= took;
+        return took;
+    }
     // Puts an ancient spell on the fifth slot without choosing the slot: the
     // spellbook's page does this.
     void    SetArcaneSpell(const string& id) { arcane_spell = id; }
@@ -624,6 +648,8 @@ private:
     int   mana = 0, max_mana = 0;
     float mana_fraction = 0.0f;      // regen accrues in fractions of a point
     Element selected_element = Element::Fire;
+    float   battery = 0.0f;               // the lightning's charge, 0 to 1
+    string  electric_spell;               // which of the five is on the button
     string  arcane_spell;                 // the ancient spell chosen with 5
     string  held_spell[4];                // fire, water, earth, air: see HeldSpell
     float   since_hurt = 1.0e6f;

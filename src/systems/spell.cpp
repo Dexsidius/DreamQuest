@@ -31,14 +31,30 @@ bool SpellBook::Load(const string& path) {
         d.projectile  = o.value("projectile", string(""));
         d.arcane      = o.value("school", string("elemental")) == "arcane";
         d.shape       = o.value("shape", string("bolt"));
-        d.slot        = std::clamp(o.value("slot", 1), 1, 4);
+        d.slot        = std::clamp(o.value("slot", 1), 1, MAX_SPELL_SLOT);
         d.taught_by   = o.value("taught_by", string(""));
+        d.battery_gain  = o.value("battery_gain", 0.0f);
+        d.battery_cost  = o.value("battery_cost", 0.0f);
+        d.battery_heavy = o.value("battery_heavy", d.battery_cost);
+        d.battery_needs = o.value("battery_needs", 0.0f);
         if (d.arcane) d.element = Element::Arcane;
         defs[d.id] = d;
     }
 
     SDL_Log("SpellBook: loaded %d spells", static_cast<int>(defs.size()));
     return true;
+}
+
+vector<const SpellDef*> SpellBook::Electric(int magic_level) const {
+    vector<const SpellDef*> out;
+    for (const auto& kv : defs)
+        if (kv.second.element == Element::Electric && !kv.second.arcane && kv.second.level <= magic_level)
+            out.push_back(&kv.second);
+    std::sort(out.begin(), out.end(), [](const SpellDef* a, const SpellDef* b) {
+        if (a->level != b->level) return a->level < b->level;
+        return a->slot < b->slot;
+    });
+    return out;
 }
 
 const SpellDef* SpellBook::Get(const string& id) const {

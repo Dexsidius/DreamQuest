@@ -189,6 +189,10 @@ private:
     // Shared cursor movement for every list-shaped screen.
     void MoveCursor(int& cursor, int count, bool wrap = true);
 
+    // Which of the lightning this character's Magic level reaches, weakest
+    // first. Nothing has to be taught: the level is the whole of the gate.
+    vector<string> KnownElectric() const;
+
     // --- SDL -----------------------------------------------------------------
     SDL_Window*   window = nullptr;
     SDL_Renderer* renderer = nullptr;
@@ -297,7 +301,7 @@ private:
         bool   usable = true;      // known, but out of the Magic level's reach
     };
     struct BookRow {
-        enum class Kind { Spell, Ancient, Ability, Technique } kind = Kind::Spell;
+        enum class Kind { Spell, Ancient, Lightning, Ability, Technique } kind = Kind::Spell;
         Element element = Element::None;
         int     slot = 0;
         string  label;             // "1  Fire", "H + J"
@@ -418,6 +422,7 @@ private:
     // Pushes the saved bindings to both players' inputs.
     void     ApplyBindings();
     int      launch_level = 0;          // --level N: a scratch character starts with its path's skill here
+    float    launch_charge = 0.0f;     // --charge F: how full the lightning's battery starts
     float    launch_hour = -1.0f;       // --hour H: and at this time of day, for looking at the night or a dream
     string   launch_quests;             // --quest a,b: with these quests taken
     string   launch_screen;             // --screen controls|options|map|journal: and this open

@@ -1,7 +1,8 @@
 #include "status.h"
 #include <fstream>
 
-static const char* kStatusIds[STATUS_COUNT] = {"burn", "wet", "concussed", "bleed", "poison", "chill", "frozen"};
+static const char* kStatusIds[STATUS_COUNT] = {"burn", "wet", "concussed", "bleed", "poison", "chill", "frozen",
+                                               "electrified"};
 
 const char* StatusId(Status s) {
     const int i = static_cast<int>(s);
@@ -80,6 +81,8 @@ bool StatusDatabase::Load(const string& path) {
                 if (v.is_string() && ElementFromName(v.get<string>()) != Element::None)
                     d.weak_to.push_back(ElementFromName(v.get<string>()));
         d.weak_mult = o.value("weak_mult", 1.0f);
+        d.invites = kinds(o, "invites");
+        d.invite_mult = o.value("invite_mult", 1.0f);
         if (o.contains("color") && o["color"].is_array() && o["color"].size() >= 3)
             d.color = {static_cast<Uint8>(o["color"][0].get<int>()), static_cast<Uint8>(o["color"][1].get<int>()),
                        static_cast<Uint8>(o["color"][2].get<int>()), 255};

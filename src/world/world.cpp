@@ -890,6 +890,8 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         UpdateSlabs(dt);
         UpdateFalling(dt);
         UpdateClaws(dt);
+        UpdateArcs(dt);
+        UpdateNodes(dt, ctx);
         ShedFromShots();
         ShedFromGround(dt);
         ShedFromStatuses(dt);

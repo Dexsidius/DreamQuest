@@ -327,6 +327,42 @@
     "impact_size": 5
   },
 
+  "arc_zap": {
+    "sprite": "assets/icons/spark.png",
+    "frames": 1,
+    "tint": [252, 236, 120],
+    "speed": 1,
+    "life": 0.1,
+    "radius": 5,
+    "element": "electric",
+    "knockback": 14,
+    "impact_size": 6,
+    "status": {"id": "electrified", "chance": 0.22}
+  },
+  "arc_node": {
+    "sprite": "assets/icons/spark.png",
+    "frames": 1,
+    "tint": [252, 236, 120],
+    "speed": 1,
+    "life": 0.1,
+    "radius": 5,
+    "element": "electric",
+    "knockback": 8,
+    "impact_size": 6,
+    "status": {"id": "electrified", "chance": 0.3}
+  },
+  "arc_thunder": {
+    "sprite": "assets/icons/spark.png",
+    "frames": 1,
+    "tint": [255, 248, 180],
+    "speed": 1,
+    "life": 0.1,
+    "radius": 5,
+    "element": "electric",
+    "knockback": 90,
+    "impact_size": 10,
+    "status": {"id": "electrified", "chance": 0.45}
+  },
   "throwing_knife": {
     "sprite": "assets/effects/throwing_knife.png",
     "frames": 8,

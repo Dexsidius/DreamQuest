@@ -627,12 +627,44 @@ vector<Game::BookRow> Game::SpellbookRows() const {
         else                        spell_rows.push_back(row);
     }
 
-    // --- the fifth: which of the ancient spells is on it ---------------------------------
+    // --- the lightning: which of the five is on the key -----------------------------------
+    // It is chosen the way the ancient magic is, and for the same reason: five
+    // spells, and no staff of its own to put them on the number row. What it
+    // costs of the battery is part of what a choice is, so the note says it.
+    {
+        BookRow row;
+        row.kind = BookRow::Kind::Lightning;
+        row.element = Element::Electric;
+        row.slot = 4;
+        row.label = "Lightning";
+        row.color = ElementColor(Element::Electric);
+        for (const SpellDef* s : spells.Electric(MAX_SKILL_LEVEL)) {
+            BookOption o;
+            o.id = s->id;
+            o.name = s->name;
+            o.usable = s->level <= magic;
+            o.note = o.usable ? spell_note(*s) : "needs Magic " + std::to_string(s->level);
+            if (o.usable) {
+                const int cost = static_cast<int>(std::lround(s->battery_cost * 100.0f));
+                const int gain = static_cast<int>(std::lround(s->battery_gain * 100.0f));
+                if (s->battery_cost >= 1.0f) o.note += "   the whole charge";
+                else if (cost > 0)           o.note += "   " + std::to_string(cost) + "% charge";
+                if (gain > 0)                o.note += "   +" + std::to_string(gain) + "% charge";
+            }
+            o.text = s->description;
+            row.options.push_back(o);
+            if (p.ElectricSpell() == s->id) row.chosen = static_cast<int>(row.options.size()) - 1;
+        }
+        if (row.options.empty()) row.nothing = "Nothing known. Magic 12 for Zap, the first of it.";
+        spell_rows.push_back(row);
+    }
+
+    // --- the sixth: which of the ancient spells is on it ---------------------------------
     {
         BookRow row;
         row.kind = BookRow::Kind::Ancient;
         row.element = Element::Arcane;
-        row.slot = 4;
+        row.slot = 5;
         row.label = "Ancient";
         row.color = ElementColor(Element::Arcane);
         for (const string& id : world->KnownArcane(spells)) {
@@ -727,6 +759,7 @@ void Game::ChooseInBook(const BookRow& row, int option) {
         // there is nothing to choose on them.
         case BookRow::Kind::Spell:     if (!(p.StaffElement() != Element::None && row.slot > 0)) p.HoldSpell(row.element, o.id); break;
         case BookRow::Kind::Ancient:   p.SetArcaneSpell(o.id); break;
+        case BookRow::Kind::Lightning: p.SetElectricSpell(o.id); break;
         case BookRow::Kind::Ability:   p.talents.SetAbility(row.slot, o.id); break;
         case BookRow::Kind::Technique:
             p.talents.SetTechnique(p.talents.HasPath() ? p.talents.Path() : p.Affinity(), o.id);
@@ -783,7 +816,8 @@ void Game::DrawSpellbook(const SDL_FRect& panel) {
 
     for (int i = 0; i < static_cast<int>(rows.size()); ++i) {
         const BookRow& row = rows[i];
-        const bool spell = row.kind == BookRow::Kind::Spell || row.kind == BookRow::Kind::Ancient;
+        const bool spell = row.kind == BookRow::Kind::Spell || row.kind == BookRow::Kind::Ancient ||
+                           row.kind == BookRow::Kind::Lightning;
         if (spell && !spells_headed) {
             spells_headed = true;
             heading(staff ? "Spells" : "Spells, with a staff in hand");

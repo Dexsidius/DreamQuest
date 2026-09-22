@@ -14,6 +14,12 @@
 //  Casting costs mana, which comes from the Magic level and refills over time.
 // -----------------------------------------------------------------------------
 
+// An element has four places a staff of its own puts on the number keys.
+// Lightning has five -- a builder and four things to spend the charge on --
+// and it has no staff: the fifth key chooses the element and steps through
+// them. See Player::SelectElectric.
+static constexpr int MAX_SPELL_SLOT = 5;
+
 struct SpellDef {
     string  id, name, description;
     Element element = Element::Fire;
@@ -36,6 +42,19 @@ struct SpellDef {
     int     slot = 1;
     string  shape = "bolt";
     string  taught_by;          // where it is learned, for the panel to say
+
+    // --- the battery ------------------------------------------------------------
+    // Lightning's own resource, which nothing else uses. A share of the bar,
+    // 0 to 1: what this adds on every enemy it lands on (`battery_gain`), what
+    // it takes to cast at all (`battery_cost`, and `battery_heavy` for a
+    // charged one), and the least that must be stored before it may be cast
+    // (`battery_needs`). A cost of 1 is the whole bar, whatever is in it: see
+    // Player::SpendBattery, which gives back what it actually took so a
+    // discharge can be worth what it spent.
+    float   battery_gain = 0.0f;
+    float   battery_cost = 0.0f;
+    float   battery_heavy = 0.0f;
+    float   battery_needs = 0.0f;
 };
 
 class SpellBook {
@@ -69,6 +88,10 @@ public:
     const map<string, SpellDef>& All() const { return defs; }
     // The ancient spells, in the order they are learned.
     vector<const SpellDef*> Arcane() const;
+    // The lightning, weakest first, out of what this Magic level reaches.
+    // Unlike the ancient magic nothing has to be taught: the level is the
+    // whole of the gate, the way it is for the other four elements.
+    vector<const SpellDef*> Electric(int magic_level) const;
 
     // Mana scales with Magic so a caster gets more casts as well as bigger
     // ones; a non-caster still has a small pool for the first tier.

@@ -14,8 +14,10 @@
     "color": [110, 180, 240],
     "seconds": 6.0,
     "ends": ["burn"],
-    "weak_to": ["air"],
-    "weak_mult": 1.25
+    "weak_to": ["air", "electric"],
+    "weak_mult": 1.25,
+    "invites": ["electrified"],
+    "invite_mult": 2.0
   },
   "concussed": {
     "name": "Concussed",
@@ -59,5 +61,15 @@
     "ends": ["wet", "burn"],
     "then": "chill",
     "boss_share": 0.0
+  },
+  "electrified": {
+    "name": "Arcing",
+    "color": [252, 236, 120],
+    "seconds": 4.0,
+    "dot_share": 0.3,
+    "dot_min": 2,
+    "attack": 0.85,
+    "cooldown": 1.2,
+    "stagger": 0.2
   }
 }

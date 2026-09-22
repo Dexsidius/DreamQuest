@@ -51,6 +51,9 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     if (p.Fallen())     s.flags |= net::PlayerState::Dead;
     if (p.Sprinting())  s.flags |= net::PlayerState::Sprinting;
     if (p.ManaShield()) s.flags |= net::PlayerState::Shielded;
+    // The charge, so a guest's own bar reads right: their world is the host's
+    // and it is the host that put the charge in it.
+    s.battery = static_cast<uint8_t>(std::clamp(p.Battery(), 0.0f, 1.0f) * 255.0f + 0.5f);
     return s;
 }
 
@@ -1145,6 +1148,32 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             ps.kind = net::PatchState::FALLING;
             snap.patches.push_back(ps);
         }
+        // And every bolt of lightning in the air: one line, one way, one
+        // length. They live a fifth of a second, so they go out as they are
+        // made and the guest draws each of them once: see World::HearOfArc.
+        for (const World::Arc& a : w.arcs) {
+            if (a.life <= 0.0f || !near(a.x, a.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
+            net::PatchState ps;
+            ps.x = Px(a.x); ps.y = Px(a.y);
+            ps.radius = static_cast<uint16_t>(std::clamp(a.reach, 0.0f, 65535.0f));
+            ps.element = static_cast<uint8_t>(Element::Electric);
+            ps.life = net::AngleByte(a.facing);
+            ps.max_life = a.look;
+            ps.kind = net::PatchState::ARC;
+            snap.patches.push_back(ps);
+        }
+        // And an Electro-Node standing where it was thrown. What it hits is
+        // settled here; a guest draws the orb and the arcs it is told about.
+        for (const World::Node& n : w.nodes) {
+            if (n.life <= 0.0f || !near(n.x, n.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
+            net::PatchState ps;
+            ps.x = Px(n.x); ps.y = Px(n.y);
+            ps.element = static_cast<uint8_t>(Element::Electric);
+            ps.life = static_cast<uint8_t>(std::clamp(n.life * 10.0f, 0.0f, 255.0f));
+            ps.max_life = static_cast<uint8_t>(std::clamp(n.max_life * 10.0f, 0.0f, 255.0f));
+            ps.kind = net::PatchState::NODE;
+            snap.patches.push_back(ps);
+        }
         // And a claw raked across something.
         for (const World::ClawSwipe& cl : w.claws) {
             if (cl.life <= 0.0f || !near(cl.x, cl.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
@@ -1448,6 +1477,13 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
             hp_applied = me.hp;
         }
 
+        // The charge is the host's to say: it is filled by zaps landing, and
+        // whether a zap landed is settled where the monsters are. Mana is
+        // ours to keep because it is spent at the moment of casting; the
+        // battery is not.
+        me.ClearBattery();
+        me.AddBattery(st.battery / 255.0f);
+
         // Where did the host say that step ended?
         if (snap.ack_seq <= acked && acked != 0) continue;
         acked = snap.ack_seq;
@@ -1511,6 +1547,14 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
     for (const net::PatchState& ps : snap.patches) {
         if (ps.kind == net::PatchState::CLAW) {
             world.HearOfClaw(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius, ps.max_life);
+            continue;
+        }
+        if (ps.kind == net::PatchState::ARC) {
+            world.HearOfArc(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius, ps.max_life);
+            continue;
+        }
+        if (ps.kind == net::PatchState::NODE) {
+            world.HearOfNode(ps.x, ps.y, ps.life / 10.0f, ps.max_life / 10.0f);
             continue;
         }
         if (ps.kind == net::PatchState::FALLING) {
@@ -1596,6 +1640,8 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
         g->hp = a.state.hp;
         g->max_hp = std::max<int>(1, a.state.max_hp);
         g->shield_shown = (a.state.flags & net::PlayerState::Shielded) != 0;
+        g->ClearBattery();
+        g->AddBattery(a.state.battery / 255.0f);
     }
 }
 

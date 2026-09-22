@@ -503,6 +503,95 @@ void World::UpdateClaws(float dt) {
                                [](const ClawSwipe& c) { return c.life <= 0.0f && c.told > 0.3f; }), claws.end());
 }
 
+// --- lightning -----------------------------------------------------------------------------
+
+void World::AddArc(float x, float y, float to_x, float to_y, uint8_t look) {
+    Arc a;
+    a.x = x; a.y = y;
+    a.facing = atan2f(to_y - y, to_x - x);
+    a.reach = std::max(4.0f, Length(to_x - x, to_y - y));
+    a.look = look;
+    a.life = a.max_life = ARC_TIME;
+    // Its own jags, settled once. Anything will do so long as two arcs in the
+    // same frame differ and one arc does not change under the eye.
+    a.seed = static_cast<uint32_t>(static_cast<int>(x * 7.0f) * 73856093 ^
+                                   static_cast<int>(y * 7.0f) * 19349663 ^
+                                   static_cast<int>(a.facing * 512.0f) * 83492791) | 1u;
+    arcs.push_back(a);
+}
+
+void World::HearOfArc(float x, float y, float facing, float reach, uint8_t look) {
+    // The same one twice is one arc: a snapshot says so for as long as it is
+    // in the host's list, and a bolt drawn again every frame is a strobe.
+    for (Arc& a : arcs)
+        if (a.look == look && fabsf(a.x - x) < 3.0f && fabsf(a.y - y) < 3.0f &&
+            fabsf(a.facing - facing) < 0.06f) { a.told = 0.0f; return; }
+    AddArc(x, y, x + cosf(facing) * reach, y + sinf(facing) * reach, look);
+}
+
+void World::UpdateArcs(float dt) {
+    for (Arc& a : arcs) { a.life -= dt; a.told += dt; }
+    arcs.erase(std::remove_if(arcs.begin(), arcs.end(),
+                              [](const Arc& a) { return a.life <= 0.0f && a.told > 0.3f; }), arcs.end());
+}
+
+void World::AddNode(const Node& n) {
+    nodes.push_back(n);
+    // It arcs as it lands rather than waiting out its first interval: a thing
+    // thrown at a monster should do something to the monster it was thrown at.
+    nodes.back().tick = 0.0f;
+}
+
+void World::HearOfNode(float x, float y, float life, float max_life) {
+    for (Node& n : nodes)
+        if (fabsf(n.x - x) < 3.0f && fabsf(n.y - y) < 3.0f) { n.told = 0.0f; n.life = life; return; }
+    Node n;
+    n.x = x; n.y = y;
+    n.lift = LiftAt(x, y);
+    n.life = life;
+    n.max_life = std::max(0.1f, max_life);
+    n.mine = false;               // a guest draws it; the host says what it hits
+    n.tick = NODE_EVERY;
+    nodes.push_back(n);
+}
+
+void World::UpdateNodes(float dt, const GameContext& ctx) {
+    for (Node& n : nodes) {
+        n.life -= dt;
+        n.told += dt;
+        if (!n.mine || n.life <= 0.0f) continue;
+        n.tick -= dt;
+        if (n.tick > 0.0f) continue;
+        n.tick = NODE_EVERY;
+        // It chains: the nearest few it can reach, one arc each. The node is
+        // where the lightning comes from, so the first is not special -- a
+        // second monster walking past is chained as readily as the one it was
+        // thrown at.
+        vector<Enemy*> near;
+        for (auto& e : enemies) {
+            if (!Strikeable(*e)) continue;
+            const SDL_FPoint at = e->GroundCentre();
+            if (Length(at.x - n.x, at.y - n.y) > NODE_REACH + e->GroundRadius()) continue;
+            near.push_back(e.get());
+        }
+        std::sort(near.begin(), near.end(), [&](const Enemy* a, const Enemy* b) {
+            return Length(a->x - n.x, a->y - n.y) < Length(b->x - n.x, b->y - n.y);
+        });
+        if (near.size() > static_cast<size_t>(std::max(1, n.chains))) near.resize(static_cast<size_t>(n.chains));
+        for (Enemy* e : near) {
+            const SDL_FPoint at = e->GroundCentre();
+            AddArc(n.x, n.y - n.lift - 10.0f, at.x, at.y - 22.0f, 0);
+            proc_next = n.status;
+            HitEnemy(*e, n.owner, AttackStyle::Magic, Element::Electric, n.hit_mult, 8.0f,
+                     n.x, n.y, ctx);
+            proc_next = {};
+        }
+        if (!near.empty()) Audio::PlayAt(Sfx::SpellCast, n.x, n.y, 0.35f, 1.9f);
+    }
+    nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
+                               [](const Node& n) { return n.life <= 0.0f && n.told > 0.4f; }), nodes.end());
+}
+
 void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
     // Shots that were owed: let go from where the caster is now, at what they
     // are fighting now.
@@ -528,6 +617,8 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
     UpdateSlabs(dt);
     UpdateFalling(dt);
     UpdateClaws(dt);
+    UpdateArcs(dt);
+    UpdateNodes(dt, ctx);
 
     for (GroundEffect& g : ground_effects) {
         if (g.finished) continue;

@@ -189,6 +189,9 @@ public:
     // How much harder this element bites for what is on it: the wind, on
     // something soaked.
     float  StatusWeakness(Element e) const;
+    // How much more likely a status is to take, for what is already on it:
+    // see StatusDef::invites.
+    float  StatusInvites(Status s) const;
     // What is on it slows it: its pace, and the gap between its swings.
     float  MoveSpeed() const;
     float  AttackCooldown() const;

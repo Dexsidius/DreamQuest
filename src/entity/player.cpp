@@ -68,18 +68,41 @@ void Player::CycleElement(int delta) {
         else SelectSlot(index);
         return;
     }
-    // Elements run Fire, Water, Earth, Air, then the ancient magic if any is
-    // known; None is not selectable.
-    const int count = static_cast<int>(Element::Arcane) - 1 + (arcane_spell.empty() ? 0 : 1);
-    int index = static_cast<int>(selected_element) - 1;
-    index = ((index + delta) % count + count) % count;
-    selected_element = static_cast<Element>(index + 1);
+    // The four, then the lightning if any of it is reached, then the ancient
+    // magic if any of it is known. Stepping is over what is actually there --
+    // a pad has one button for this and it must not land on an empty school.
+    vector<Element> round;
+    for (int i = FIRST_ELEMENT; i <= LAST_ELEMENT; ++i) {
+        const Element e = static_cast<Element>(i);
+        if (e == Element::Arcane && arcane_spell.empty()) continue;
+        if (e == Element::Electric && electric_spell.empty()) continue;
+        round.push_back(e);
+    }
+    if (round.empty()) return;
+    auto it = std::find(round.begin(), round.end(), selected_element);
+    const int at = it == round.end() ? 0 : static_cast<int>(it - round.begin());
+    const int count = static_cast<int>(round.size());
+    selected_element = round[((at + delta) % count + count) % count];
 }
 
 void Player::CycleElement(int delta, const vector<string>& known) {
     if (!known.empty() && std::find(known.begin(), known.end(), arcane_spell) == known.end())
         arcane_spell = known.front();
     CycleElement(delta);
+}
+
+void Player::SelectElectric(const vector<string>& known) {
+    if (known.empty()) return;
+    if (selected_element != Element::Electric || electric_spell.empty()) {
+        // Keep the one chosen before if the level still reaches it; the first
+        // otherwise, which is Zap, which is the one that fills the bar.
+        if (std::find(known.begin(), known.end(), electric_spell) == known.end()) electric_spell = known.front();
+        selected_element = Element::Electric;
+        return;
+    }
+    auto it = std::find(known.begin(), known.end(), electric_spell);
+    const size_t next = (it == known.end()) ? 0 : (static_cast<size_t>(it - known.begin()) + 1) % known.size();
+    electric_spell = known[next];
 }
 
 static int HeldIndex(Element e) {
@@ -1483,6 +1506,9 @@ void Player::Respawn(float sx, float sy) {
     sprinting = winded = false;
     stamina = MaxStamina();
     stamina_delay = 0.0f;
+    // What was stored is lost with the fight it was stored for. Mana and
+    // stamina are pools and come back full; the battery is not a pool.
+    battery = 0.0f;
     climb_hint.clear();
     skills.ResetCurrent();
     SyncHitpoints();
@@ -1732,6 +1758,8 @@ json Player::ToJson() const {
         {"element",   ElementName(selected_element)},
         {"arcane_spell", arcane_spell},
         {"held_spells", HeldToJson(held_spell)},
+        {"electric_spell", electric_spell},
+        {"battery", battery},
         {"spell_slot", spell_slot},
         {"quick_item", quick_item},
         {"skills",    skills.ToJson()},
@@ -1766,6 +1794,8 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     SyncMana();
     arcane_spell = j.value("arcane_spell", string(""));
     HeldFromJson(j.value("held_spells", json::object()), held_spell);
+    electric_spell = j.value("electric_spell", string(""));
+    battery = std::clamp(j.value("battery", 0.0f), 0.0f, 1.0f);
     spell_slot = std::clamp(j.value("spell_slot", 0), 0, 3);
     quick_item   = j.value("quick_item", quick_item);
     selected_element = ElementFromName(j.value("element", string("fire")));
@@ -1806,6 +1836,8 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     mana = std::clamp(j.value("mana", max_mana), 0, max_mana);
     arcane_spell = j.value("arcane_spell", string(""));
     HeldFromJson(j.value("held_spells", json::object()), held_spell);
+    electric_spell = j.value("electric_spell", string(""));
+    battery = std::clamp(j.value("battery", 0.0f), 0.0f, 1.0f);
     spell_slot = std::clamp(j.value("spell_slot", 0), 0, 3);
     quick_item   = j.value("quick_item", quick_item);
     selected_element = ElementFromName(j.value("element", string("fire")));

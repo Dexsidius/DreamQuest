@@ -233,6 +233,16 @@ float Enemy::StatusWeakness(Element e) const {
     return mult;
 }
 
+float Enemy::StatusInvites(Status s) const {
+    float mult = 1.0f;
+    if (!status_db || s == Status::COUNT) return mult;
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+        if (d && std::find(d->invites.begin(), d->invites.end(), s) != d->invites.end()) mult *= d->invite_mult;
+    }
+    return mult;
+}
+
 float Enemy::MoveSpeed() const {
     float speed = def ? def->speed : 0.0f;
     if (status_db)

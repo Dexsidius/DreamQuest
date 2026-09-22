@@ -54,6 +54,9 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     float damage_mult = atk.damage_mult * player.TalentDamage(style, atk.type);
     Element element = Element::None;
     string shape;
+    // The lightning's charge: what this cast took out of the bar (a Discharge
+    // is worth what it spent) and what every enemy it lands on puts back.
+    float battery_spent = 0.0f, battery_gain = 0.0f;
 
     if (style == AttackStyle::Ranged) {
         projectile_id = "arrow";
@@ -69,6 +72,16 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
                             {200, 200, 210, 255});
                     Audio::Play(Sfx::UiError);
                     return;
+                }
+            } else if (player.SelectedElement() == Element::Electric) {
+                // The lightning: the one chosen with the fifth key, if the
+                // Magic level reaches it. It has five and no staff of its own.
+                spell = ctx.spells->Get(player.ElectricSpell());
+                if (spell && spell->level > player.skills.Level(SKILL_MAGIC)) spell = nullptr;
+                if (!spell) {
+                    const vector<const SpellDef*> known = ctx.spells->Electric(player.skills.Level(SKILL_MAGIC));
+                    spell = known.empty() ? nullptr : known.front();
+                    if (spell) player.SetElectricSpell(spell->id);
                 }
             } else {
                 // The strongest the Magic level reaches, unless the
@@ -91,11 +104,29 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             spell->mana * technique_cost * combo_cost *
             (player.equipment.Weapon() ? player.equipment.Weapon()->mana_mult : 1.0f) *
             std::max(0.1f, 1.0f - player.talents.Effect("mana_cost", AttackStyle::Magic)))));
+        // The battery, before the mana: a spell refused for want of charge
+        // should not have cost anything either.
+        //
+        // A charged cast of something that spends the bar spends more of it
+        // and is worth more for it -- that is what `battery_heavy` is -- and
+        // `battery_needs` is the least that may be in the bar at all. A cost
+        // of one is the whole of it, whatever that is, which is the Discharge.
+        const float want = (atk.type != AttackType::Light && spell->battery_heavy > 0.0f)
+                         ? spell->battery_heavy : spell->battery_cost;
+        const float need = std::max(spell->battery_needs, spell->battery_cost >= 1.0f ? 0.0f : want);
+        if (need > 0.0f && player.Battery() + 0.0005f < need) {
+            AddText(std::to_string(static_cast<int>(std::lround(need * 100.0f))) + "% charge needed",
+                    player.x, player.y - 54.0f, {170, 235, 150, 255});
+            Audio::Play(Sfx::UiError);
+            return;
+        }
         if (!player.SpendMana(cost)) {
             AddText("Out of mana", player.x, player.y - 54.0f, {150, 180, 235, 255});
             Audio::Play(Sfx::UiError);
             return;
         }
+        battery_spent = want > 0.0f ? player.SpendBattery(want) : 0.0f;
+        battery_gain = spell->battery_gain;
         projectile_id = spell->projectile;
         damage_mult *= spell->damage_mult;
         element = spell->element;
@@ -368,6 +399,142 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.sure_crit = aimed_shot;
         g.draw = GroundEffect::Draw::Blades;
         AddGroundEffect(g);
+    // --- the lightning -----------------------------------------------------------
+    // Five spells round one resource. Zap fills the bar and everything else
+    // spends it: see SpellDef::battery_cost and Player::Battery. What they all
+    // share is the arc -- a jagged line drawn for a fifth of a second between
+    // two points -- and the chance of leaving the thing they hit arcing, which
+    // is carried on the projectile entry each of them names.
+    } else if (shape == "zap" || shape == "electrocute" || shape == "discharge" ||
+               shape == "node" || shape == "thunder") {
+        const ProjectileDef* def = ctx.projectiles ? ctx.projectiles->Get(projectile_id) : nullptr;
+        const StatusProc leaves = def ? def->status : StatusProc{};
+        const SDL_FPoint hand = Targeting::Muzzle(player);
+        // One thing struck, with an arc drawn to it. Everything here is
+        // instant: lightning that has to fly to its target is not lightning.
+        const auto shock = [&](Enemy& e, float mult, float knock, uint8_t look) {
+            const SDL_FPoint at = e.GroundCentre();
+            AddArc(hand.x, hand.y, at.x, at.y - 22.0f, look);
+            proc_next = leaves;
+            cast_next = casting;
+            HitEnemy(e, player.Profile(), style, element, mult, knock, player.x, player.y, ctx, atk.type);
+            proc_next = {};
+            cast_next = 0;
+            if (battery_gain > 0.0f) player.AddBattery(battery_gain);
+        };
+        // Everything in a cone of `spread` degrees about the aim, out to
+        // `reach`: what three rays of lightning actually catch.
+        const auto in_cone = [&](float centre, float spread, float reach) {
+            vector<Enemy*> out;
+            for (auto& e : enemies) {
+                if (!Strikeable(*e)) continue;
+                const SDL_FPoint at = e->GroundCentre();
+                const float dx = at.x - player.x, dy = at.y - player.y;
+                const float far = Length(dx, dy);
+                if (far > reach + e->GroundRadius()) continue;
+                float off = atan2f(dy, dx) - centre;
+                while (off > 3.14159265f)  off -= 6.2831853f;
+                while (off < -3.14159265f) off += 6.2831853f;
+                // Close in, the angle stops meaning much: anything all but
+                // stood on is in every cone.
+                if (far > 24.0f && fabsf(off) > spread * 0.5f) continue;
+                out.push_back(e.get());
+            }
+            return out;
+        };
+        const float aim_angle = atan2f(aim.y, aim.x);
+        Audio::Play(Sfx::SpellCast, 1.0f, 1.75f);
+
+        if (shape == "zap") {
+            // One target, and the only thing in the school that fills the bar.
+            // What is locked on if anything is; otherwise the nearest thing in
+            // front, so it can be played without lock-on.
+            Enemy* at = nullptr;
+            if (target) {
+                for (auto& e : enemies) if (e.get() == target && Strikeable(*e)) at = e.get();
+            }
+            if (!at) {
+                const vector<Enemy*> ahead = in_cone(aim_angle, 1.22f, 300.0f);   // 70 degrees
+                for (Enemy* e : ahead)
+                    if (!at || Length(e->x - player.x, e->y - player.y) < Length(at->x - player.x, at->y - player.y))
+                        at = e;
+            }
+            if (at) {
+                shock(*at, damage_mult, 14.0f, 0);
+            } else {
+                // Nothing there: it still goes, and still costs, but it fills
+                // nothing -- the bar is built on hits, not on casts.
+                AddArc(hand.x, hand.y, player.x + aim.x * 190.0f, player.y + aim.y * 190.0f - 20.0f, 0);
+            }
+        } else if (shape == "electrocute") {
+            // Three rays in a thirty-degree cone. Each ray is drawn, and what
+            // the cone holds is struck once by whichever ray is nearest it --
+            // three rays are three pictures of one blow, not three blows.
+            const float reach = 210.0f;
+            for (float deg : {-15.0f, 0.0f, 15.0f}) {
+                const float a = aim_angle + deg * 3.14159265f / 180.0f;
+                AddArc(hand.x, hand.y, player.x + cosf(a) * reach, player.y + sinf(a) * reach - 20.0f, 0);
+            }
+            for (Enemy* e : in_cone(aim_angle, 0.5236f, reach)) shock(*e, damage_mult, 26.0f, 0);
+        } else if (shape == "discharge") {
+            // The whole bar at once, in every direction. What it is worth is
+            // what was in the bar: nothing stored, nothing to let go, and the
+            // spell said so before the mana was spent.
+            const float charge = std::clamp(battery_spent, 0.0f, 1.0f);
+            const float reach = 90.0f + 130.0f * charge;
+            const float worth = damage_mult * (0.35f + 2.15f * charge);
+            AddText("Discharge  " + std::to_string(static_cast<int>(charge * 100.0f + 0.5f)) + "%",
+                    player.x, player.y - 58.0f, ElementColor(Element::Electric), 0.9f);
+            // The ring it goes out in, so there is something to see even where
+            // there is nothing to hit.
+            for (int i = 0; i < 10; ++i) {
+                const float a = 6.2831853f * i / 10.0f;
+                AddArc(hand.x, hand.y, player.x + cosf(a) * reach, player.y + sinf(a) * reach - 18.0f, 0);
+            }
+            for (auto& e : enemies) {
+                if (!Strikeable(*e)) continue;
+                const SDL_FPoint at = e->GroundCentre();
+                if (Length(at.x - player.x, at.y - player.y) > reach + e->GroundRadius()) continue;
+                shock(*e, worth, 70.0f + 90.0f * charge, 0);
+            }
+            Audio::Play(Sfx::Impact, 1.0f, 0.8f);
+        } else if (shape == "node") {
+            // An orb left standing where it was thrown, chaining to whatever
+            // comes near it until it runs down: see World::Node.
+            const SDL_FPoint at = strike_point();
+            Node n;
+            n.x = at.x; n.y = at.y + 8.0f;
+            n.lift = LiftAt(n.x, n.y);
+            n.life = n.max_life = atk.type == AttackType::Light ? 5.0f : 7.0f;
+            n.hit_mult = damage_mult * 0.55f;
+            n.chains = atk.type == AttackType::Light ? 2 : 3;
+            n.owner = player.Profile();
+            n.status = leaves;
+            n.from_player = true;
+            n.mine = !visiting;
+            AddNode(n);
+        } else if (shape == "thunder") {
+            // Down out of the sky on the target, and into the ground round it:
+            // the bolt is one arc from above and the ground it breaks is a
+            // burst, so anything standing beside the target takes it too.
+            const SDL_FPoint at = strike_point();
+            const bool heavy = atk.type != AttackType::Light;
+            const float radius = heavy ? 78.0f : 52.0f;
+            AddArc(at.x, at.y - 300.0f, at.x, at.y - 4.0f, 1);
+            // Forks where it lands, so the ground reads as broken rather than lit.
+            for (int i = 0; i < (heavy ? 7 : 5); ++i) {
+                const float a = 6.2831853f * i / (heavy ? 7.0f : 5.0f) + 0.4f;
+                AddArc(at.x, at.y - 4.0f, at.x + cosf(a) * radius * 0.8f, at.y + sinf(a) * radius * 0.5f, 0);
+            }
+            const size_t before = ground_effects.size();
+            strike(radius, 0.08f, damage_mult, element);
+            if (ground_effects.size() > before) {
+                GroundEffect& g = ground_effects.back();
+                g.look = Element::Electric;
+                g.status = leaves;
+            }
+            Audio::PlayAt(Sfx::Impact, at.x, at.y, 1.0f, 0.62f);
+        }
     } else if (shape == "rays") {
         for (float deg : {-12.0f, 0.0f, 12.0f}) {
             const Vec2 d = turned(deg);
@@ -935,7 +1102,10 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
 // bolt of fire, so the element matchup and the XP are applied consistently.
 void World::TryAfflict(Enemy& e, const StatusProc& proc, int blow, const GameContext& ctx) {
     if (!proc.Any() || !ctx.statuses || !ctx.rng || e.hp <= 0) return;
-    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(*ctx.rng) >= proc.chance) return;
+    // What is already on it can make the next thing easier: a soaked monster
+    // is twice as easy to leave arcing. See StatusDef::invites.
+    const float chance = std::clamp(proc.chance * e.StatusInvites(proc.kind), 0.0f, 1.0f);
+    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(*ctx.rng) >= chance) return;
     const bool had = e.Afflicted(proc.kind);
     const Status left = e.Afflict(proc.kind, blow, *ctx.statuses);
     if (left == Status::COUNT) return;

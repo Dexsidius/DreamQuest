@@ -184,6 +184,47 @@ void Game::DrawHud() {
         meta_y = mana_bar.y + mana_bar.h + 6.0f;
     }
 
+    // --- the battery ---------------------------------------------------------
+    // Lightning's charge, standing on its end beside the health and the mana
+    // like a cell in a torch: green, filling from the bottom, with a terminal
+    // on top so it reads as a battery and not as a third pool. Only for a
+    // character whose Magic reaches any of the lightning -- nobody else has a
+    // way to put anything in it, and a bar that can only ever be empty is a
+    // question with no answer.
+    if (!KnownElectric().empty()) {
+        const float cell_w = 22.0f, nub_w = 10.0f, nub_h = 3.0f;
+        const float top = hp_bar.y + nub_h;
+        const float bottom = (p.MaxMana() > 0 ? hp_bar.y + hp_bar.h + 4.0f + 16.0f : hp_bar.y + hp_bar.h);
+        const SDL_FRect cell = {hp_bar.x + hp_bar.w + 10.0f, top, cell_w, bottom - top};
+        const float charge = p.Battery();
+
+        // The terminal, then the case, then what is in it.
+        ui.Fill({cell.x + (cell_w - nub_w) / 2.0f, cell.y - nub_h, nub_w, nub_h}, {124, 98, 52, 255});
+        ui.Fill(cell, {30, 22, 15, 255});
+        ui.Fill({cell.x + 1.0f, cell.y + 1.0f, cell.w - 2.0f, cell.h - 2.0f}, {124, 98, 52, 255});
+        const SDL_FRect glass = {cell.x + 2.0f, cell.y + 2.0f, cell.w - 4.0f, cell.h - 4.0f};
+        ui.Fill(glass, {16, 26, 18, 255});
+        const float fill_h = floorf(glass.h * std::clamp(charge, 0.0f, 1.0f));
+        if (fill_h > 0.0f) {
+            // Brighter the fuller it is, and it breathes at the top of the bar
+            // so a full battery says so without a word.
+            const float pulse = charge >= 0.999f
+                ? 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) * 0.008f) : 0.0f;
+            const SDL_Color green = {static_cast<Uint8>(74 + 60 * charge + 40 * pulse),
+                                     static_cast<Uint8>(176 + 50 * charge + 25 * pulse),
+                                     static_cast<Uint8>(84 + 30 * charge + 60 * pulse), 255};
+            ui.Fill({glass.x, glass.y + glass.h - fill_h, glass.w, fill_h}, green);
+            ui.Fill({glass.x, glass.y + glass.h - fill_h, glass.w, 1.0f},
+                    {static_cast<Uint8>(200), static_cast<Uint8>(255), static_cast<Uint8>(190), 255});
+        }
+        ui.Claim("battery", {cell.x, cell.y - nub_h, cell.w, cell.h + nub_h});
+        // The number under it, small: what a spell's cost is measured against.
+        char pct[16];
+        SDL_snprintf(pct, sizeof(pct), "%d%%", static_cast<int>(charge * 100.0f + 0.5f));
+        ui.TextShadowed(pct, cell.x + cell.w / 2.0f, cell.y + cell.h + 1.0f, TextSize::Small,
+                        charge > 0.0f ? SDL_Color{150, 226, 140, 255} : Palette::TextDim, Align::Center);
+    }
+
     // --- stamina -------------------------------------------------------------
     // Under whichever bar is last, and slimmer, since it changes all the time
     // and wants to be glanced at rather than read. Winded, the bar pulses red
@@ -382,21 +423,25 @@ void Game::DrawHud() {
     if (live) {
         const AttackStyle style = p.Style();
         if (style == AttackStyle::Magic) {
-            static const Element kOrder[5] = {Element::Fire, Element::Water,
-                                              Element::Earth, Element::Air, Element::Arcane};
+            static constexpr int kBoxes = 6;
+            static const Element kOrder[kBoxes] = {Element::Fire, Element::Water, Element::Earth,
+                                                   Element::Air, Element::Electric, Element::Arcane};
             const float box = 30.0f, gap = 5.0f;
-            const float total = box * 5 + gap * 4;
+            const float total = box * kBoxes + gap * (kBoxes - 1);
             const float x0 = ui.ViewWidth() / 2.0f - total / 2.0f;
             const vector<string> arcane_known = world->KnownArcane(spells);
 
             // The line under the boxes first: the bar and its name are one
             // piece of the stack, as wide as the wider of them.
             const bool arcane_on = p.SelectedElement() == Element::Arcane;
+            const bool electric_on = p.SelectedElement() == Element::Electric;
+            const vector<string> electric_known = KnownElectric();
             // An element's own staff: the four boxes are its four spells.
             const Element staff = p.StaffElement();
             const int magic = p.skills.Level(SKILL_MAGIC);
-            const SpellDef* current = arcane_on ? spells.Get(p.ArcaneSpell())
-                                                : p.SpellOf(p.SelectedElement(), spells);
+            const SpellDef* current = arcane_on   ? spells.Get(p.ArcaneSpell())
+                                    : electric_on ? spells.Get(p.ElectricSpell())
+                                                  : p.SpellOf(p.SelectedElement(), spells);
             string line;
             if (current && arcane_on && current->level > p.skills.Level(SKILL_MAGIC)) {
                 line = current->name + "   needs Magic " + std::to_string(current->level);
@@ -404,11 +449,24 @@ void Game::DrawHud() {
                 line = current->name + "   " + std::to_string(current->mana) + " mana";
                 if (arcane_on && arcane_known.size() > 1)
                     line += "   " + input.PromptFor(Action::SelectArcane) + " again: next";
+                if (electric_on && electric_known.size() > 1)
+                    line += "   " + input.PromptFor(Action::SelectElectric) + " again: next";
+                // What it costs of the charge, and whether there is that much.
+                if (electric_on && current->battery_cost > 0.0f) {
+                    const int want = static_cast<int>(std::lround(current->battery_cost * 100.0f));
+                    line += current->battery_cost >= 1.0f ? "   the whole charge"
+                          : "   " + std::to_string(want) + "% charge";
+                } else if (electric_on && current->battery_gain > 0.0f) {
+                    line += "   +" + std::to_string(static_cast<int>(std::lround(current->battery_gain * 100.0f))) + "% charge";
+                }
                 // A staff's technique rides on the same line as the spell.
                 if (const TalentNode* t = p.ActiveTechnique().empty() ? nullptr : skill_trees.Find(p.ActiveTechnique()))
                     line += "     hold " + input.PromptFor(Action::StrongAttack) + ": " + t->name;
             } else {
+                const vector<const SpellDef*> all_electric = electric_on ? spells.Electric(MAX_SKILL_LEVEL)
+                                                                         : vector<const SpellDef*>{};
                 const SpellDef* next = arcane_on ? nullptr
+                                     : electric_on ? (all_electric.empty() ? nullptr : all_electric.front())
                                      : (staff != Element::None && p.SpellSlot() > 0) ? spells.FirstOnSlot(staff, p.SpellSlot() + 1)
                                      : spells.NextFor(p.SelectedElement(), p.skills.Level(SKILL_MAGIC));
                 line = next ? ("Magic " + std::to_string(next->level) + " for " + next->name)
@@ -417,14 +475,20 @@ void Game::DrawHud() {
             const float y0 = stack("element bar", std::max(total, ui.Measure(line, TextSize::Small).x),
                                    box + 4.0f + line_h, 5.0f);
 
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < kBoxes; ++i) {
+                // An element's own staff takes the first four boxes for its
+                // own four spells; the lightning and the ancient magic keep
+                // theirs whatever is in hand.
                 const bool slotted = staff != Element::None && i < 4;
-                const bool on = slotted ? (!arcane_on && p.SpellSlot() == i) : (kOrder[i] == p.SelectedElement());
+                const bool on = slotted ? (!arcane_on && !electric_on && p.SpellSlot() == i)
+                                        : (kOrder[i] == p.SelectedElement());
                 const SDL_FRect r = {x0 + i * (box + gap), y0, box, box};
                 const SDL_Color c = ElementColor(slotted ? staff : kOrder[i]);
                 // The fifth box is lit once any ancient spell is known.
                 const SpellDef* known = kOrder[i] == Element::Arcane
                     ? (arcane_known.empty() ? nullptr : spells.Get(arcane_known.front()))
+                    : kOrder[i] == Element::Electric
+                    ? (electric_known.empty() ? nullptr : spells.Get(p.ElectricSpell().empty() ? electric_known.front() : p.ElectricSpell()))
                     : slotted ? (i == 0 ? spells.Chosen(staff, magic, p.HeldSpell(staff)) : spells.ForSlot(staff, i + 1, magic))
                     : p.SpellOf(kOrder[i], spells);
 
@@ -770,9 +834,15 @@ void Game::DrawHud() {
     if (!live) return;
     string spell_hint;
     if (p.Style() == AttackStyle::Magic)
-        // An element's own staff has four spells on the keys the elements were on.
-        spell_hint = string(input.ActiveDevice() == InputMode::Controller ? "RS " : "1-4 ") +
-                     (p.StaffElement() != Element::None ? "spell    " : "element    ");
+        // An element's own staff has four spells on the keys the elements were
+        // on; otherwise the keys are the elements, as many of them as this
+        // character has anything on.
+        spell_hint = string(input.ActiveDevice() == InputMode::Controller ? "RS " : "1-")
+                   + (input.ActiveDevice() == InputMode::Controller ? ""
+                      : p.StaffElement() != Element::None ? "4 "
+                      : !world->KnownArcane(spells).empty() ? "6 "
+                      : !KnownElectric().empty() ? "5 " : "4 ")
+                   + (p.StaffElement() != Element::None ? "spell    " : "element    ");
 
     const string hint = spell_hint +
                         input.PromptFor(Action::LightAttack) + " attack    " +

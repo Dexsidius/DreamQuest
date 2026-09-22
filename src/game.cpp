@@ -79,8 +79,13 @@ int Game::Start(int argc, char** argv) {
             launch_screen = argv[++i];
         } else if (arg == "--learn" && more) {
             // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
-            // A name that starts "spell:" is an ancient spell to know instead.
+            // A name that starts "spell:" is an ancient spell to know instead,
+            // and one that starts "zap:" is which of the lightning to hold.
             launch_learn = argv[++i];
+        } else if (arg == "--charge" && more) {
+            // With --scratch: start with this much in the lightning's battery,
+            // 0 to 1, for looking at what it pays for.
+            launch_charge = std::clamp(static_cast<float>(SDL_atof(argv[++i])), 0.0f, 1.0f);
         } else if (arg == "--hour" && more) {
             launch_hour = std::clamp(static_cast<float>(SDL_atof(argv[++i])), 0.0f, 23.99f);
         } else if (arg == "--map" && more) {
@@ -217,6 +222,7 @@ int Game::Start(int argc, char** argv) {
             }
             // Dressed for the look of it: requirements are not asked, because
             // what is being looked at is the art.
+            if (launch_charge > 0.0f) world->player.AddBattery(launch_charge);
             if (!launch_learn.empty()) {
                 Player& p = world->player;
                 size_t from = 0;
@@ -225,6 +231,12 @@ int Game::Start(int argc, char** argv) {
                     const string id = launch_learn.substr(from, comma == string::npos ? string::npos : comma - from);
                     // "spell:<id>" is an ancient spell, known as if its tome had been read.
                     if (id.rfind("spell:", 0) == 0) world->SetFlag("recipe:" + id);
+                    // "zap:<id>" chooses which of the lightning is on the fifth
+                    // key, and selects the school, for looking at one of them.
+                    else if (id.rfind("zap:", 0) == 0) {
+                        p.SetElectricSpell(id.substr(4));
+                        p.SelectElement(Element::Electric);
+                    }
                     else if (p.talents.Learn(id, p.skills)) {
                         p.talents.ToggleTechnique(id);
                         // An ability is no use learned but unslotted: put it on
@@ -610,6 +622,12 @@ void Game::PushToast(const string& text, SDL_Color color) {
     if (toasts.size() > 5) toasts.erase(toasts.begin());
 }
 
+vector<string> Game::KnownElectric() const {
+    vector<string> out;
+    for (const SpellDef* s : spells.Electric(world->player.skills.Level(SKILL_MAGIC))) out.push_back(s->id);
+    return out;
+}
+
 void Game::MoveCursor(int& c, int count, bool wrap) {
     if (count <= 0) { c = 0; return; }
     int delta = 0;
@@ -977,14 +995,36 @@ void Game::SeatChores() {
             else                                    me.SelectElement(kElements[i]);
         }
     }
+    // Lightning on the fifth key, and the fifth key again for the next of it:
+    // five spells and no staff of its own to put them on the number row.
+    if (input.Pressed(Action::SelectElectric)) {
+        const vector<string> known = KnownElectric();
+        if (known.empty()) {
+            const SpellDef* next = spells.Electric(MAX_SKILL_LEVEL).empty() ? nullptr : spells.Electric(MAX_SKILL_LEVEL).front();
+            PushToast(next ? "Magic " + std::to_string(next->level) + " for " + next->name + ", the first of the lightning."
+                           : "No lightning known.", Palette::TextDim);
+        } else {
+            world->player.SelectElectric(known);
+            if (const SpellDef* s = spells.Get(world->player.ElectricSpell()))
+                PushToast(s->name + (known.size() > 1 ? "   " + input.PromptFor(Action::SelectElectric) + " again: next" : ""),
+                          ElementColor(Element::Electric));
+        }
+    }
     if (input.Pressed(Action::SelectArcane)) {
         const vector<string> known = world->KnownArcane(spells);
         if (known.empty()) PushToast("You know no ancient magic yet. The college in Fernhollow teaches it.", Palette::TextDim);
         else world->player.SelectArcane(known);
     }
-    // With what is known of the ancient magic, so that the fifth slot is in
+    // With what is known of the ancient magic, so that the sixth slot is in
     // the round: see Player::CycleElement.
-    if (input.Pressed(Action::CycleSpell))  world->player.CycleElement(1, world->KnownArcane(spells));
+    if (input.Pressed(Action::CycleSpell)) {
+        // The lightning is in the round only once some of it is reached, and
+        // its spell has to be set for CycleElement to know that.
+        if (world->player.ElectricSpell().empty())
+            if (const vector<string> known = KnownElectric(); !known.empty())
+                world->player.SetElectricSpell(known.front());
+        world->player.CycleElement(1, world->KnownArcane(spells));
+    }
 
     // --- what is to hand ------------------------------------------------------
     // Guard and interact eats or drinks the quick item; guard and sprint steps

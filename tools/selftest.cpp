@@ -898,8 +898,11 @@ int main(int argc, char** argv) {
         // following it four times comes back to where it started.
         for (int i = 1; i < static_cast<int>(Element::COUNT); ++i) {
             Element e = static_cast<Element>(i);
-            // The ancient magic is a school, not an element: outside the cycle.
-            if (e == Element::Arcane) continue;
+            // The ancient magic is a school, not an element, and the lightning
+            // answers to soaking rather than to the cycle: both are outside it.
+            // A cycle four long cannot take a fifth without changing what all
+            // four already do.
+            if (e == Element::Arcane || e == Element::Electric) continue;
             Element walk = e;
             for (int step = 0; step < 4; ++step) walk = ElementBeats(walk);
             Check(walk == e, string("the ") + ElementName(e) + " cycle closes");
@@ -9702,8 +9705,9 @@ int main(int argc, char** argv) {
             Input in;
             Check(in.PromptFor(Action::LightAttack) == "J" && in.PromptFor(Action::StrongAttack) == "K" && in.PromptFor(Action::Sprint) == "Shift" &&
                   in.PromptFor(Action::Jump) == "Space" && in.PromptFor(Action::Pause) == "Esc" && in.PromptFor(Action::Confirm) == "J" &&
-                  in.PromptFor(Action::Back) == "K" && in.PromptFor(Action::Drop) == "G" && in.PromptFor(Action::SelectArcane) == "5",
-                  "the prompts read as they always did, and the ancient magic's key has one at last");
+                  in.PromptFor(Action::Back) == "K" && in.PromptFor(Action::Drop) == "G" &&
+                  in.PromptFor(Action::SelectElectric) == "5" && in.PromptFor(Action::SelectArcane) == "6",
+                  "the prompts read as they always did, and the lightning took 5 from the ancient magic, which moved along to 6");
             Check(tap(in, SDLK_J).count(Action::LightAttack) && tap(in, SDLK_J).count(Action::Confirm) && tap(in, SDLK_K).count(Action::Back) &&
                   tap(in, SDLK_TAB).count(Action::Menu) && tap(in, SDLK_Q).count(Action::QuestLog) && tap(in, SDLK_RSHIFT).count(Action::Sprint) &&
                   tap(in, SDLK_UP).count(Action::MoveUp) && tap(in, SDLK_W).count(Action::MoveUp),
@@ -15020,6 +15024,32 @@ int main(int argc, char** argv) {
                 // Held up, and then let go of by the clock rather than by hand.
                 Check(p.TryAbility(0, w), "and it can be used");
                 Check(p.ManaShield() && p.ShieldUp(), "used, it is up");
+                // Big enough to have the whole of them inside it. It was a pair
+                // of numbers, 31 tall against a body of 42, which put the dome
+                // at the shoulders and left the head out in the weather: it is
+                // taken from the body now, and this is what holds it there.
+                {
+                    const SDL_FRect body = p.BodyBox();
+                    const float head = p.y - body.y;
+                    const SDL_FPoint dome = World::ShieldDome(p);
+                    Check(dome.y > head + 6.0f,
+                          "and it stands clear over the head, not at the shoulders (" +
+                              std::to_string(static_cast<int>(dome.y)) + " over a body of " +
+                              std::to_string(static_cast<int>(head)) + ")");
+                    Check(dome.x * 2.0f > body.w + 12.0f,
+                          "and is wider than they are, with room to spare (" +
+                              std::to_string(static_cast<int>(dome.x * 2.0f)) + " across a body of " +
+                              std::to_string(static_cast<int>(body.w)) + ")");
+                    Check(dome.x * 2.0f > dome.y * 0.8f && dome.x * 2.0f < dome.y * 1.7f,
+                          "and is a dome and not an egg");
+                    // Whoever is under it, at whatever size: a puppet in
+                    // another rig gets a dome that fits that rig.
+                    Player other;
+                    other.Init(ctx, "player_hero");
+                    const SDL_FRect his = other.BodyBox();
+                    Check(World::ShieldDome(other).y > (other.y - his.y) + 6.0f,
+                          "and the same is true of anybody else's");
+                }
                 const float held = p.ManaShieldLeft();
                 for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
                 Check(p.ShieldUp() && p.ManaShieldLeft() < held, "and running down while it is");
@@ -15223,6 +15253,345 @@ int main(int argc, char** argv) {
         Check(settled_shooters * 6 > settled && settled_shooters * 2 < settled,
               "and about a third of the mines' and the barrow's orcs stand back and shoot (" +
                   std::to_string(settled_shooters) + " of " + std::to_string(settled) + ")");
+    }
+
+    Section("lightning, and the battery that pays for it");
+    {
+        GameContext ctx;
+        std::mt19937 rng(4477);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles;
+        ctx.spells = &spells; ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the element, and where its key stands --------------------------------------
+        Check(ElementFromName("electric") == Element::Electric, "there is an element called electric");
+        Check(static_cast<int>(Element::Electric) < static_cast<int>(Element::Arcane),
+              "and it stands between the four and the ancient magic, which is where its key is");
+        Check(string(ElementName(Element::Electric)) == "electric", "it answers to its name");
+        // Outside the cycle, both ways, against everything: putting a fifth
+        // thing inside a cycle four long changes what all four already do.
+        bool outside = true;
+        for (int i = FIRST_ELEMENT; i <= LAST_ELEMENT; ++i) {
+            const Element e = static_cast<Element>(i);
+            outside &= ElementMultiplier(Element::Electric, e) == 1.0f;
+            outside &= ElementMultiplier(e, Element::Electric) == 1.0f;
+        }
+        Check(outside, "and it neither beats nor is beaten by any of them: it is outside the cycle");
+
+        // --- the five ---------------------------------------------------------------------
+        const vector<const SpellDef*> all = spells.Electric(MAX_SKILL_LEVEL);
+        Check(all.size() == 5, "five spells in the school (" + std::to_string(all.size()) + ")");
+        {
+            std::set<int> slots;
+            bool named = true, carried = true, arcs = true;
+            for (const SpellDef* s : all) {
+                slots.insert(s->slot);
+                named &= !s->name.empty() && !s->description.empty();
+                const ProjectileDef* d = projectiles.Get(s->projectile);
+                carried &= d != nullptr && d->element == Element::Electric;
+                // Every one of them can leave the thing it hits arcing, and
+                // none of them always does.
+                arcs &= d && d->status.kind == Status::Electrified && d->status.chance > 0.1f && d->status.chance < 0.75f;
+            }
+            Check(slots.size() == 5, "each on a place of its own, one to five");
+            Check(named, "each with a name and something said about it");
+            Check(carried, "each carrying the element it throws");
+            Check(arcs, "and each with a chance of leaving what it hits arcing, and none of them sure of it");
+            bool rising = true;
+            for (size_t i = 1; i < all.size(); ++i) rising &= all[i]->level >= all[i - 1]->level;
+            Check(rising && all.front()->id == "zap", "Zap is the first of it, and the rest open above it");
+        }
+        {
+            const SpellDef* zap = spells.Get("zap");
+            const SpellDef* dis = spells.Get("discharge");
+            Check(zap && zap->battery_gain > 0.0f && zap->battery_cost == 0.0f,
+                  "Zap is the one that fills the bar and the one that costs nothing out of it");
+            Check(zap && std::lround(zap->battery_gain * 100.0f) == 5, "five per cent of it a hit");
+            Check(dis && dis->battery_cost >= 1.0f, "Discharge takes the whole of it");
+            int spenders = 0;
+            for (const SpellDef* s : all) if (s->battery_cost > 0.0f) ++spenders;
+            Check(spenders == 4, "and the other four are spent out of it (" + std::to_string(spenders) + ")");
+            for (const SpellDef* s : all)
+                Check(s->battery_gain == 0.0f || s->battery_cost == 0.0f,
+                      string(s->name) + " either fills the bar or spends it, not both");
+        }
+
+        // --- what soaking does to it --------------------------------------------------------
+        {
+            const StatusDef* wet = statuses.Get(Status::Wet);
+            const StatusDef* arc = statuses.Get(Status::Electrified);
+            Check(arc && !arc->name.empty(), "there is a status for being left arcing");
+            Check(wet && std::find(wet->weak_to.begin(), wet->weak_to.end(), Element::Electric) != wet->weak_to.end(),
+                  "and soaking is a weakness to lightning");
+            Check(wet && wet->weak_mult > 1.2f && wet->weak_mult < 1.3f,
+                  "worth a quarter again (" + std::to_string(wet->weak_mult) + ")");
+            Check(wet && std::find(wet->invites.begin(), wet->invites.end(), Status::Electrified) != wet->invites.end() &&
+                  wet->invite_mult > 1.0f,
+                  "and soaking invites it: a soaked thing is easier to leave arcing (x" +
+                      std::to_string(wet->invite_mult) + ")");
+        }
+
+        // --- played ---------------------------------------------------------------------------
+        const auto field = [&](World& w, int magic) {
+            w.player.Init(ctx, "player_wayfarer");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(magic), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(70), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Equip(SLOT_WEAPON, "orichalcum_staff");
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto spawn = [&](World& w, float dx, float dy) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get("orc1");
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = "orc1"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y + dy;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            Enemy* raw = e.get();
+            raw->max_hp = 60000; raw->hp = raw->max_hp;     // it stands there and takes it
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+        const auto known = [&](World& w) {
+            vector<string> out;
+            for (const SpellDef* s : spells.Electric(w.player.skills.Level(SKILL_MAGIC))) out.push_back(s->id);
+            return out;
+        };
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) { for (int f = 0; f < n; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); } };
+        // One cast of whatever is chosen, through the keys the player uses, and
+        // nothing left half-swung after it: a heavy pressed inside an open
+        // chain is a combo, and a combo is not a heavy.
+        // Answers with how many bolts were drawn at the most, because an arc
+        // lives a fifth of a second and is gone long before the swing is over.
+        const auto cast = [&](World& w, bool heavy) {
+            for (int f = 0; f < 180 && (!w.player.CanAttack() || w.player.ComboOpen()); ++f) frames(w, 1);
+            w.arcs.clear();
+            const SDL_Keycode k = heavy ? SDLK_K : SDLK_J;
+            input.Update(kFrame); key(k, true);  w.Update(kFrame, ctx);
+            input.Update(kFrame); key(k, false); w.Update(kFrame, ctx);
+            size_t drawn = w.arcs.size();
+            // Long enough for the swing to reach the frame the spell leaves on.
+            for (int f = 0; f < 60; ++f) { frames(w, 1); drawn = std::max(drawn, w.arcs.size()); }
+            return drawn;
+        };
+        // A cast that should be refused: nothing drawn, and nothing taken out
+        // of the battery. Hit points and mana are no use for this -- a monster
+        // left arcing goes on losing hit points, and mana comes back on its
+        // own, all the while the test is waiting for the hands to come free.
+        const auto refused = [&](World& w, bool heavy, const string& what) {
+            const float was = w.player.Battery();
+            const size_t drawn = cast(w, heavy);
+            Check(drawn == 0 && std::fabs(w.player.Battery() - was) < 0.001f, what);
+        };
+
+        // The fifth key: it chooses the school, then steps through it.
+        {
+            World w;
+            Check(field(w, MAX_SKILL_LEVEL), "a wayfarer who has the whole of it");
+            Player& me = w.player;
+            Check(me.Battery() == 0.0f, "whose battery is empty to start with, as everybody's is");
+            me.SelectElectric(known(w));
+            Check(me.SelectedElement() == Element::Electric, "the fifth key chooses the lightning");
+            Check(me.ElectricSpell() == "zap", "and lands on Zap, which is the one that fills the bar");
+            std::set<string> stepped;
+            for (size_t i = 0; i < all.size(); ++i) { stepped.insert(me.ElectricSpell()); me.SelectElectric(known(w)); }
+            Check(stepped.size() == all.size(), "and the fifth key again steps through every one of them (" +
+                  std::to_string(stepped.size()) + ")");
+            Check(me.ElectricSpell() == "zap", "and comes round again");
+        }
+        // What a level reaches, and what it does not.
+        {
+            World w;
+            Check(field(w, 12), "a wayfarer at Magic 12");
+            Check(known(w).size() == 1 && known(w).front() == "zap", "reaches Zap and nothing else");
+            w.player.skills.ResetCurrent();
+            World w2;
+            field(w2, 11);
+            Check(known(w2).empty(), "and at 11 reaches none of it at all");
+        }
+        // Zap fills the bar; it is the only thing that does.
+        {
+            World w;
+            field(w, MAX_SKILL_LEVEL);
+            Enemy* orc = spawn(w, 70.0f, 0.0f);
+            Check(orc != nullptr, "an orc that will stand there for it");
+            Player& me = w.player;
+            me.SelectElectric(known(w));
+            w.targeting.Force(orc, true);
+            const int before = orc->hp;
+            float rose = 0.0f;
+            size_t bolts = 0;
+            for (int i = 0; i < 12 && rose <= 0.0f; ++i) {
+                const float was = me.Battery();
+                bolts = std::max(bolts, cast(w, false));
+                rose = me.Battery() - was;
+            }
+            Check(orc->hp < before, "a zap takes something off what it is aimed at");
+            Check(std::fabs(rose - 0.05f) < 0.001f, "and puts five per cent in the battery (" +
+                  std::to_string(static_cast<int>(rose * 100.0f + 0.5f)) + "%)");
+            Check(bolts >= 1, "and there is a bolt drawn between the two of them");
+            // On up to the top, and no further.
+            for (int i = 0; i < 40 && me.Battery() < 1.0f; ++i) cast(w, false);
+            Check(me.Battery() >= 0.999f, "zapping on fills it");
+            const float full = me.Battery();
+            cast(w, false);
+            Check(me.Battery() <= full && me.Battery() >= 0.999f, "and a full battery does not overflow");
+
+            // Discharge is worth what was in the bar, and empties it.
+            me.SetElectricSpell("discharge");
+            const int hp_before = orc->hp;
+            cast(w, true);
+            Check(me.Battery() < 0.01f, "a Discharge leaves the bar empty");
+            const int big = hp_before - orc->hp;
+            Check(big > 0, "and takes a great deal off what is standing round the caster");
+            // And on an empty bar it will not go off at all.
+            refused(w, true, "a Discharge on an empty battery does nothing at all");
+
+            // A tenth for an Electrocute, and it will not go off without it.
+            me.SetElectricSpell("electrocute");
+            refused(w, false, "nor will an Electrocute without its tenth");
+            me.AddBattery(0.5f);
+            const int hp3 = orc->hp;
+            const size_t rays = cast(w, false);
+            Check(std::fabs(me.Battery() - 0.4f) < 0.001f, "with charge, an Electrocute takes its tenth (" +
+                  std::to_string(static_cast<int>(me.Battery() * 100.0f + 0.5f)) + "% left)");
+            Check(orc->hp < hp3, "and lands on what is in front of it");
+            Check(rays >= 3, "as three rays (" + std::to_string(rays) + " bolts drawn)");
+
+            // A node is left standing, and goes on working after the cast.
+            me.SetElectricSpell("electro_node");
+            me.AddBattery(0.5f);
+            const size_t nodes_before = w.nodes.size();
+            cast(w, false);
+            Check(w.nodes.size() > nodes_before, "an Electro-Node is left standing where it was thrown");
+            const int hp4 = orc->hp;
+            for (int f = 0; f < 120; ++f) w.Update(kFrame, ctx);      // two seconds of it
+            Check(orc->hp < hp4, "and chains to what is near it without another word from the caster");
+            for (int f = 0; f < 600; ++f) w.Update(kFrame, ctx);      // ten seconds
+            Check(w.nodes.empty(), "and runs down and goes");
+
+            // Call of Thunder wants three tenths, and a charged one half.
+            me.SetElectricSpell("call_of_thunder");
+            me.ClearBattery();
+            me.AddBattery(0.2f);
+            refused(w, false, "a Call of Thunder will not go off on two tenths of a battery");
+            me.AddBattery(0.8f);
+            cast(w, false);
+            Check(std::fabs(me.Battery() - 0.7f) < 0.001f, "on a full one it takes three tenths (" +
+                  std::to_string(static_cast<int>(me.Battery() * 100.0f + 0.5f)) + "% left)");
+            me.ClearBattery();
+            me.AddBattery(1.0f);
+            cast(w, true);
+            Check(std::fabs(me.Battery() - 0.5f) < 0.001f, "and a charged one half of it (" +
+                  std::to_string(static_cast<int>(me.Battery() * 100.0f + 0.5f)) + "% left)");
+        }
+        // Soaked, it bites harder. The same zap, on the same orc, wet and dry.
+        {
+            World w;
+            field(w, MAX_SKILL_LEVEL);
+            Enemy* orc = spawn(w, 70.0f, 0.0f);
+            Player& me = w.player;
+            me.SelectElectric(known(w));
+            w.targeting.Force(orc, true);
+            Check(orc && std::fabs(orc->StatusWeakness(Element::Electric) - 1.0f) < 0.001f,
+                  "a dry orc takes lightning as it comes");
+            orc->Afflict(Status::Wet, 10, statuses);
+            Check(orc->Afflicted(Status::Wet), "soak it");
+            Check(orc->StatusWeakness(Element::Electric) > 1.2f,
+                  "and lightning is worth a quarter again on it (x" +
+                      std::to_string(orc->StatusWeakness(Element::Electric)) + ")");
+            Check(orc->StatusInvites(Status::Electrified) > 1.5f,
+                  "and twice as likely to leave it arcing (x" +
+                      std::to_string(orc->StatusInvites(Status::Electrified)) + ")");
+            // And that it is actually reached where the damage is worked out:
+            // enough casts that the dice cannot explain the difference.
+            const auto pile = [&](bool soaked) {
+                World t;
+                field(t, MAX_SKILL_LEVEL);
+                Enemy* victim = spawn(t, 70.0f, 0.0f);
+                t.targeting.Force(victim, true);
+                t.player.SelectElectric(known(t));
+                const int start = victim->hp;
+                for (int i = 0; i < 40; ++i) {
+                    if (soaked) victim->Afflict(Status::Wet, 10, statuses);
+                    else        victim->statuses.Clear();
+                    t.player.RestoreMana();
+                    cast(t, false);
+                }
+                return start - victim->hp;
+            };
+            const int dry = pile(false), wet = pile(true);
+            Check(wet > dry, "forty zaps into a soaked orc take more off than forty into a dry one (" +
+                  std::to_string(wet) + " against " + std::to_string(dry) + ")");
+        }
+        // Dying empties it. It is what was stored, not a pool that comes back.
+        {
+            World w;
+            field(w, MAX_SKILL_LEVEL);
+            w.player.AddBattery(0.8f);
+            w.player.Rest();
+            Check(w.player.Battery() > 0.7f, "resting does not fill the battery, and does not empty it either");
+            w.player.Respawn(w.player.x, w.player.y);
+            Check(w.player.Battery() == 0.0f, "but dying empties it");
+        }
+        // A save keeps the charge and which of the five is on the key.
+        {
+            World w;
+            field(w, MAX_SKILL_LEVEL);
+            w.player.AddBattery(0.42f);
+            w.player.SetElectricSpell("electrocute");
+            const json saved = w.player.ToJson();
+            World w2;
+            field(w2, MAX_SKILL_LEVEL);
+            w2.player.FromJson(saved, ctx);
+            Check(std::fabs(w2.player.Battery() - 0.42f) < 0.005f, "a save keeps what is in the battery");
+            Check(w2.player.ElectricSpell() == "electrocute", "and which of the five is on the key");
+        }
+        // The one key that changed hands, and what happens to a layout that
+        // was saved before it did.
+        {
+            Bindings b;
+            Check(b.Key(Action::SelectElectric) == SDLK_5 && b.Key(Action::SelectArcane) == SDLK_6,
+                  "5 is the lightning and 6 the ancient magic");
+            // A layout from before, with the ancient magic where it was: the
+            // new defaults stand, because that key was never moved by hand.
+            Bindings old;
+            json j = old.ToJson();
+            j["layout"] = 2;
+            j["keys"][Bindings::Id(Action::SelectArcane)] = "5";
+            j["keys"].erase(Bindings::Id(Action::SelectElectric));
+            Bindings loaded;
+            loaded.FromJson(j);
+            Check(loaded.Key(Action::SelectElectric) == SDLK_5 && loaded.Key(Action::SelectArcane) == SDLK_6,
+                  "an old layout that never moved it gets the new arrangement, not the old one back");
+            // But one that was moved by hand keeps where it was put.
+            json k = old.ToJson();
+            k["layout"] = 2;
+            k["keys"][Bindings::Id(Action::SelectArcane)] = "F1";
+            Bindings mine;
+            mine.FromJson(k);
+            Check(mine.Key(Action::SelectArcane) == SDLK_F1, "and one that was moved by hand keeps where it was put");
+        }
     }
 
     Section("waystones: three towns, woken by hand");

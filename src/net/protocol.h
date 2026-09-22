@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 9;   // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked
+static constexpr uint16_t PROTOCOL_VERSION = 10;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -212,6 +212,10 @@ struct PlayerState {
     float    x = 0.0f, y = 0.0f, lift = 0.0f;
     uint8_t  facing = 0, flags = 0, frame = 0;
     int16_t  hp = 0, max_hp = 0;
+    // The lightning's charge, 0 to 255 for an empty to a full bar. Theirs, so
+    // a friend's battery reads right on their own glass -- and so a puppet is
+    // drawn with the dome, the charge and everything else its owner has.
+    uint8_t  battery = 0;
     std::string clip;
 };
 static constexpr size_t MAX_CLIP = 48;
@@ -257,6 +261,14 @@ struct PatchState {              // burning ground, a rune, a storm
     // Nor is a claw raked across something: `radius` how far it reaches,
     // `max_life` which claw it is, `life` the way it is swiped.
     static constexpr uint8_t CLAW = 35;
+    // Nor is a bolt of lightning: `radius` how far it goes, `life` which way,
+    // `max_life` whether it is an arc between two things or one out of the
+    // sky. Every lightning spell is made of these: see World::Arc.
+    static constexpr uint8_t ARC = 36;
+    // Nor is an Electro-Node standing where it was thrown: `life` and
+    // `max_life` its seconds, in tenths. What it hits is the host's business;
+    // the guest only draws it.
+    static constexpr uint8_t NODE = 37;
 };
 // A direction in a byte, a degree and a half at a time.
 inline uint8_t AngleByte(float radians) {

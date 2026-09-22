@@ -50,9 +50,11 @@ Bindings::Bindings() {
         {Action::Menu, SDLK_TAB}, {Action::Ability, SDLK_F},
         {Action::SelectFire, SDLK_1}, {Action::SelectWater, SDLK_2}, {Action::SelectEarth, SDLK_3},
         {Action::SelectAir, SDLK_4},
-        // The ancient magic, once any of it is known: 5 chooses it, and 5 again
-        // steps through the spells learned.
-        {Action::SelectArcane, SDLK_5}, {Action::CycleSpell, SDLK_R},
+        // Lightning on 5: it chooses the element, and 5 again steps through
+        // whichever of its five the Magic level reaches. The ancient magic
+        // moved along to 6 and works the same way.
+        {Action::SelectElectric, SDLK_5},
+        {Action::SelectArcane, SDLK_6}, {Action::CycleSpell, SDLK_R},
         // G drops the item under the cursor in the bag. Q was the obvious
         // letter, but Q already opens the journal beside P; G sits under the
         // left hand next to the movement keys and nothing else wanted it.
@@ -90,7 +92,7 @@ const vector<Action>& Bindings::Rebindable() {
         Action::Interact, Action::Jump, Action::Sprint,
         Action::Menu, Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
         Action::CycleSpell, Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir,
-        Action::SelectArcane,
+        Action::SelectElectric, Action::SelectArcane,
     };
     return list;
 }
@@ -120,6 +122,7 @@ const char* Bindings::Name(Action a) {
         case Action::SelectWater:  return "Water";
         case Action::SelectEarth:  return "Earth";
         case Action::SelectAir:    return "Air";
+        case Action::SelectElectric: return "Lightning";
         case Action::SelectArcane: return "Ancient magic";
         default:                   return "";
     }
@@ -150,6 +153,7 @@ const char* Bindings::Id(Action a) {
         case Action::SelectWater:  return "water";
         case Action::SelectEarth:  return "earth";
         case Action::SelectAir:    return "air";
+        case Action::SelectElectric: return "lightning";
         case Action::SelectArcane: return "ancient_magic";
         default:                   return "";
     }
@@ -285,7 +289,18 @@ void Bindings::FromJson(const json& j) {
             if (it != j[block].end() && it->is_string()) apply(a, it->get<string>());
         }
     };
-    each("keys", [&](Action a, const string& name) { BindKey(a, SDL_GetKeyFromName(name.c_str())); });
+    // A layout saved before lightning had a key has the ancient magic on 5,
+    // which is lightning's now. Applied as saved it would take 5 back and push
+    // lightning out to 6 -- both would work, and both would be the wrong way
+    // round. Only the one that was never moved is dropped: somebody who put the
+    // ancient magic somewhere of their own keeps where they put it.
+    const bool arcane_was_default = j.value("layout", 1) < 3 && j.contains("keys") &&
+                                    j["keys"].is_object() &&
+                                    j["keys"].value(Id(Action::SelectArcane), string("")) == "5";
+    each("keys", [&](Action a, const string& name) {
+        if (a == Action::SelectArcane && arcane_was_default) return;
+        BindKey(a, SDL_GetKeyFromName(name.c_str()));
+    });
     // A pad laid out before the abilities moved to RB has RB on the skills
     // panel, and would take it straight back: the saved buttons are from
     // another layout, so the new one stands. Keys are as they were saved.
@@ -639,7 +654,7 @@ string Input::PromptFor(Action a) const {
             case Action::Drop:    a = Action::StrongAttack; break;
             // A pad has no button for each element: it steps through them.
             case Action::SelectFire: case Action::SelectWater: case Action::SelectEarth:
-            case Action::SelectAir:  case Action::SelectArcane:
+            case Action::SelectAir:  case Action::SelectElectric: case Action::SelectArcane:
                 a = Action::CycleSpell; break;
             // The skills and the journal are in the menu, on a pad.
             case Action::Skills: case Action::QuestLog:

@@ -429,6 +429,18 @@ void World::DrawSwing(SDL_Renderer* r) const {
     }
 }
 
+// Taken from the body rather than from a pair of numbers, so it covers whoever
+// is under it and goes on covering them if the rig ever grows.
+SDL_FPoint World::ShieldDome(const Player& who) {
+    const SDL_FRect body = who.BodyBox();
+    const float tall = std::max(34.0f, who.y - body.y);    // crown of the head, above the feet
+    const float wide = std::max(20.0f, body.w);
+    const float high = tall + 12.0f;                       // and room to spare over it
+    // Wide enough to read as a dome and not as an egg: never much narrower
+    // than half its own height.
+    return {std::max(wide * 0.5f + 11.0f, high * 0.52f), high};
+}
+
 void World::DrawMotes(SDL_Renderer* r) const {
     if (motes.empty()) return;
     const float z = camera.zoom;
@@ -1337,6 +1349,120 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         }
     }
 
+    // --- the lightning ---------------------------------------------------------
+    // A node standing where it was thrown: a translucent orb with the charge
+    // turning inside it. Under the arcs, because the arcs come out of it.
+    {
+        const float z = camera.zoom;
+        const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        for (const Node& n : nodes) {
+            if (n.life <= 0.0f) continue;
+            const SDL_FPoint at = camera.ToScreen(n.x, n.y - n.lift - 12.0f);
+            // It fades over its last half second and shrinks a little with it,
+            // so a node running out says so before it goes.
+            const float left = std::clamp(n.life / 0.5f, 0.0f, 1.0f);
+            const float beat = 1.0f + 0.08f * sinf(now * 7.0f + n.x * 0.05f);
+            const float rad = 15.0f * z * beat * (0.7f + 0.3f * left);
+            // Glass: filled, but barely -- what is behind it is still read
+            // through it, which is what makes it an orb and not a coin. Drawn
+            // as rows so the fill is an ellipse and not a square.
+            const auto disc = [&](float rr, SDL_Color c) {
+                const int rows = std::max(4, static_cast<int>(rr * 2.0f / z));
+                for (int i = 0; i < rows; ++i) {
+                    const float t = -1.0f + 2.0f * (i + 0.5f) / rows;
+                    const float half = rr * sqrtf(std::max(0.0f, 1.0f - t * t));
+                    SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+                    const SDL_FRect row = {roundf((at.x - half) / z) * z,
+                                           roundf((at.y + t * rr * 0.92f) / z) * z,
+                                           std::max(z, roundf(half * 2.0f / z) * z), z};
+                    SDL_RenderFillRect(r, &row);
+                }
+            };
+            // Pale and a little blue inside, where the ground it stands on is
+            // earth: a yellow orb on brown dirt is a yellow patch of dirt.
+            disc(rad, {206, 230, 255, static_cast<Uint8>(62 * left)});
+            disc(rad * 0.62f, {236, 246, 255, static_cast<Uint8>(76 * left)});
+            // The rim, brightest where the glass is seen edge-on.
+            SDL_SetRenderDrawColor(r, 255, 250, 200, static_cast<Uint8>(225 * left));
+            for (int i = 0; i < 30; ++i) {
+                const float a = 6.2831853f * i / 30.0f;
+                const SDL_FRect px = {roundf((at.x + cosf(a) * rad) / z) * z,
+                                      roundf((at.y + sinf(a) * rad * 0.92f) / z) * z, z, z};
+                SDL_RenderFillRect(r, &px);
+            }
+            // The charge turning inside it, each spark with a short tail so the
+            // eye sees it going round rather than three dots jumping about.
+            for (int i = 0; i < 3; ++i) {
+                for (int tail = 0; tail < 4; ++tail) {
+                    const float a = now * 4.5f - tail * 0.16f + 6.2831853f * i / 3.0f;
+                    const float rr = rad * 0.52f;
+                    SDL_SetRenderDrawColor(r, 255, 255, 235,
+                                           static_cast<Uint8>((230 - tail * 52) * left));
+                    const float w = tail == 0 ? z * 2.0f : z;
+                    const SDL_FRect px = {roundf((at.x + cosf(a) * rr) / z) * z,
+                                          roundf((at.y + sinf(a) * rr * 0.8f) / z) * z, w, w};
+                    SDL_RenderFillRect(r, &px);
+                }
+            }
+        }
+    }
+
+    // An arc: a jagged line drawn for a fifth of a second. The jags are settled
+    // from the arc's own seed rather than rolled each frame -- a bolt redrawn
+    // from new numbers sixty times a second is a flicker and not a bolt -- and
+    // it is drawn three times over: a wide dim body, a core, and a white spine.
+    {
+        const float z = camera.zoom;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        for (const Arc& a : arcs) {
+            if (a.life <= 0.0f) continue;
+            // Bright for the first third and falling away after: lightning is
+            // gone before the eye has finished with it.
+            const float p = a.Progress();
+            const float bright = p < 0.3f ? 1.0f : 1.0f - (p - 0.3f) / 0.7f;
+            if (bright <= 0.0f) continue;
+            const float ax = cosf(a.facing), ay = sinf(a.facing) * 0.9f;
+            const float nx = -sinf(a.facing), ny = cosf(a.facing) * 0.9f;
+            // Steps of about six pixels, and a sideways wander that is widest
+            // in the middle and nothing at either end -- both ends are pinned.
+            const int steps = std::clamp(static_cast<int>(a.reach / 6.0f), 4, 40);
+            uint32_t seed = a.seed;
+            const auto noise = [&]() {
+                seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+                return static_cast<float>(seed & 1023u) / 1023.0f * 2.0f - 1.0f;
+            };
+            const float wander = a.look == 1 ? 9.0f : 6.0f;
+            SDL_FPoint prev = camera.ToScreen(a.x, a.y);
+            for (int i = 1; i <= steps; ++i) {
+                const float t = static_cast<float>(i) / steps;
+                const float off = (i == steps ? 0.0f : noise() * wander * sinf(t * 3.14159265f));
+                const float wx = a.x + ax * a.reach * t + nx * off;
+                const float wy = a.y + ay * a.reach * t + ny * off;
+                const SDL_FPoint now_pt = camera.ToScreen(wx, wy);
+                // Three passes over the same segment, widest and dimmest first.
+                for (int pass = 0; pass < 3; ++pass) {
+                    const float wide = (pass == 0 ? 5.0f : pass == 1 ? 3.0f : 1.0f) * z;
+                    const SDL_Color c = pass == 0 ? SDL_Color{250, 210, 60, 255}
+                                      : pass == 1 ? SDL_Color{255, 244, 150, 255}
+                                                  : SDL_Color{255, 255, 255, 255};
+                    SDL_SetRenderDrawColor(r, c.r, c.g, c.b,
+                                           static_cast<Uint8>((pass == 0 ? 90 : pass == 1 ? 190 : 255) * bright));
+                    // Walked a pixel at a time: SDL_RenderLine will not thicken.
+                    const float dx = now_pt.x - prev.x, dy = now_pt.y - prev.y;
+                    const int n = std::max(1, static_cast<int>(Length(dx, dy) / z));
+                    for (int s = 0; s <= n; ++s) {
+                        const float px = prev.x + dx * s / n, py = prev.y + dy * s / n;
+                        const SDL_FRect q = {roundf((px - wide / 2.0f) / z) * z,
+                                             roundf((py - wide / 2.0f) / z) * z, wide, wide};
+                        SDL_RenderFillRect(r, &q);
+                    }
+                }
+                prev = now_pt;
+            }
+        }
+    }
+
     // A dome of mana over anyone holding the shield up: see Player::ManaShield.
     // Translucent, so what it covers is still read through it -- the point of it
     // is to say the shield is up, not to hide the fight.
@@ -1352,8 +1478,12 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             const float left = who->ManaShieldLeft();
             const float fade = left > 0.0f ? std::clamp(left / 0.5f, 0.0f, 1.0f) : 1.0f;
             const float beat = 1.0f + 0.035f * sinf(now * 4.2f);
+            // Anchored to whoever is under it, every frame, at their feet and
+            // lifted with them: it goes where they go and rises with a jump.
             const SDL_FPoint foot = camera.ToScreen(who->x, who->y - who->draw_lift);
-            const float rx = 20.0f * z * beat, ry = 31.0f * z * beat;
+            // Big enough to have them inside it, head and all: see ShieldDome.
+            const SDL_FPoint size = ShieldDome(*who);
+            const float rx = size.x * z * beat, ry = size.y * z * beat;
             const int rows = std::max(6, static_cast<int>(ry));
             for (int i = 0; i < rows; ++i) {
                 // 0 at the crown of the dome, 1 at the ground.

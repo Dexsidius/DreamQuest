@@ -571,6 +571,63 @@ public:
     void AddSlabDrop(float x, float y, float side, float lift);
     void HearOfSlab(float x, float y, float facing, float radius, float side, bool drop);
 
+    // How big the Mana Shield's dome is over somebody, in world pixels: half
+    // its width, and its height above their feet. Taken from their own body so
+    // that whoever is under it is under the whole of it -- it was a pair of
+    // numbers, 31 tall against a body of 42, which put the dome at the
+    // shoulders and left the head out in the weather. Here rather than buried
+    // in the drawing so the self-test can hold it to covering them.
+    static SDL_FPoint ShieldDome(const Player& who);
+
+    // --- lightning ------------------------------------------------------------------
+    // An arc: a jagged line between two points that is drawn for a moment and
+    // is gone. Every lightning spell is made of these -- the Zap is one, the
+    // Electrocute three, a Discharge one to everything it reaches, the
+    // Electro-Node one on every tick, the Call of Thunder one from out of the
+    // sky -- so the only thing that ever has to cross the wire is "an arc, from
+    // here, that way, this far".
+    //
+    // It is drawn and nothing else: the damage was resolved where it was made.
+    struct Arc {
+        float x = 0, y = 0;              // where it starts
+        float facing = 0, reach = 60.0f; // and which way, and how far
+        uint8_t look = 0;                // 0 an arc between two things, 1 out of the sky
+        float life = 0, max_life = 0.22f, told = 0.0f;
+        // The seed keeps one arc's jags its own, and keeps them still while it
+        // is drawn: a bolt redrawn from new random numbers every frame is a
+        // flicker, not a bolt.
+        uint32_t seed = 1;
+        float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
+    };
+    vector<Arc> arcs;
+    static constexpr float ARC_TIME = 0.22f;
+    void AddArc(float x, float y, float to_x, float to_y, uint8_t look);
+    void HearOfArc(float x, float y, float facing, float reach, uint8_t look);
+    void UpdateArcs(float dt);
+
+    // The Electro-Node: a translucent orb left standing where it was thrown,
+    // that arcs to whatever is near it every so often until it runs down. It
+    // is the one lightning spell that keeps working after the cast.
+    struct Node {
+        float x = 0, y = 0, lift = 0;
+        float life = 0, max_life = 5.0f;
+        float tick = 0.0f;               // until the next chain
+        float hit_mult = 1.0f;
+        int   chains = 2;                // how many it reaches on each tick
+        bool  from_player = true;
+        bool  mine = true;               // this machine resolves it
+        CombatProfile owner;
+        StatusProc status;
+        uint32_t told_id = 0;
+        float told = 0.0f;
+        float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
+    };
+    vector<Node> nodes;
+    static constexpr float NODE_EVERY = 0.55f, NODE_REACH = 132.0f;
+    void AddNode(const Node& n);
+    void HearOfNode(float x, float y, float life, float max_life);
+    void UpdateNodes(float dt, const GameContext& ctx);
+
     // Rolls a status against a monster a blow of `blow` has just landed on, and
     // says so over its head if it takes: see systems/status.h. Nothing is
     // rolled, and nothing left, without the statuses loaded.

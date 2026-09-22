@@ -16,7 +16,7 @@ enum class Action {
     Inventory, QuestLog, Skills, WorldMap, Pause,
     // The way to everything else: inventory, skills, spellbook, journal, map.
     Menu,
-    SelectFire, SelectWater, SelectEarth, SelectAir, SelectArcane, CycleSpell,
+    SelectFire, SelectWater, SelectEarth, SelectAir, SelectElectric, SelectArcane, CycleSpell,
     // Drops what the bag's cursor is on. Read only by the inventory panel.
     Drop,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
@@ -53,7 +53,8 @@ static constexpr int PAD_RIGHT_TRIGGER = 1001;
 // -----------------------------------------------------------------------------
 struct Bindings {
     // Which set of defaults a saved layout was made over: see FromJson.
-    static constexpr int LAYOUT = 2;
+    // 3: a fifth element key, which took 5 from the ancient magic.
+    static constexpr int LAYOUT = 3;
     std::map<Action, SDL_Keycode> keys;
     std::map<Action, int>         buttons;
 

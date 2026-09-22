@@ -380,8 +380,10 @@ down between two moments, `--say "a line"`, and `--shot file.png 5`. A scratch
 game can start anywhere and in anything: `--map brackenwood from_westwold`,
 `--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`,
 `--hour 22`, `--learn trail_legs,broadheads,arrow_rain`, `--quest q_marens_letter`,
-`--screen controls` (or `shop:havenbrook_tannery`, `craft:workbench`,
-`orders:npc_nessa`, `journal`, `map`, `tree`, and the rest).
+`--charge 1.0` (how full [the lightning's battery](#the-lightning-and-the-battery)
+starts), `--learn zap:call_of_thunder` (which of the lightning is on the fifth
+key), `--screen controls` (or `skills:magic`, `shop:havenbrook_tannery`,
+`craft:workbench`, `orders:npc_nessa`, `journal`, `map`, `tree`, and the rest).
 
 **`--audit`** opens every menu in the game at three window sizes, walks each
 list's cursor down every row of it, and prints any line of text drawn outside
@@ -466,7 +468,8 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Skills | `O` | in the menu |
 | Quest journal | `P` or `Q` | in the menu |
 | Select element | `1` `2` `3` `4` | — |
-| The ancient magic, and its next page | `5` | — (it is the fifth stop of *cycle element*) |
+| The lightning, and its next spell | `5` | — (it is a stop of *cycle element*) |
+| The ancient magic, and its next page | `6` | — (it is the last stop of *cycle element*) |
 | Cycle element, the ancient magic included | `R` | Right stick click |
 | The spellbook: what is on every slot | `O`, then `O` twice more | RB, then RB twice more |
 | Drop what the cursor is on (in the bag) | `G` | Y (north) |
@@ -1115,6 +1118,61 @@ button does instead of adding another thing to remember.
 | **Earth** | Lands heavy and bursts a moment later, after a visible wind-up | Slow, high commitment |
 | **Air** | Very fast, long range, and it carries what it hits backwards | Kiting |
 
+There is a fifth on `5` that does not work like any of them: see
+[the lightning](#the-lightning-and-the-battery).
+
+### The lightning, and the battery
+
+`5` is **lightning**, between the four elements and the ancient magic on `6`.
+It is the only school with a **resource of its own**: a battery that starts
+empty, that one spell fills and the other four are spent out of. Nothing in it
+flies -- an arc is a jagged line drawn between two points for a fifth of a
+second and then gone, because lightning that has to travel to its target is
+not lightning.
+
+| | What it does | The battery |
+| --- | --- | --- |
+| **Zap** (Magic 12) | One thread to one thing: whatever is locked on, or the nearest thing in front | **+5%** on every hit |
+| **Discharge** (Magic 20) | The whole battery at once, in every direction | **all of it**, and needs 10% to go at all |
+| **Electrocute** (Magic 32) | Three rays in a thirty-degree cone; anything standing in it takes all three as one blow | **10%** |
+| **Electro-Node** (Magic 44) | A translucent orb set down where your quarry stands, that chains to whatever is near it for five seconds and does not care whether your quarry is still there | **10%**; a charged one 18%, and it stands longer and reaches one more |
+| **Call of Thunder** (Magic 58) | A bolt out of the sky, that breaks the ground round where it lands and takes everything standing beside your quarry with it | **30%**; a charged one **50%**, for half again the ground |
+
+**Discharge is worth what was in the bar.** An empty one is worth a third of
+the spell's damage and a full one two and a half times it, and the ring it goes
+out in grows with the charge too: ninety pixels empty, two hundred and twenty
+full. Zap six times and a Call of Thunder is paid for; zap twenty and a
+Discharge is worth having.
+
+**Five spells and five number keys is one key too many**, so lightning is
+chosen the way the ancient magic is: `5` picks the school, and `5` again steps
+to the next of the five your Magic reaches. The spellbook's **Lightning** row
+does the same thing from the menu, and says what each one costs of the bar. A
+pad has *next element* on the right stick, and the lightning is a stop on it
+once any of it is reached.
+
+**The bar is on the glass beside the health and the mana**: a green cell
+standing on its end with a terminal on top, filling from the bottom, brightest
+and breathing when it is full. It is only drawn for a character whose Magic
+reaches some of the lightning -- nobody else has a way to put anything in it,
+and a bar that can only ever be empty is a question with no answer.
+
+It is **not a pool**. Resting does not fill it and does not empty it; dying
+empties it, because what was stored is lost with the fight it was stored for.
+It is in the save, and in co-op it is the **host's** to say: a zap fills the
+bar by landing, and whether a zap landed is settled where the monsters are.
+(Mana is the guest's own, because mana is spent at the moment of casting.)
+
+**Water on the target, not water in the cycle.** The cycle is four long and a
+fifth thing cannot be put in it without changing what all four already do, so
+lightning stands outside it exactly as the ancient magic does. What it answers
+to instead is **soaking**: anything wet takes lightning a **quarter harder**
+and is **twice as easy** to leave arcing. Both of those are one line each in
+`data/statuses.json`, on the soaking -- `weak_to` was already there and
+`invites` is its pair, the one about what is left behind rather than about the
+damage. Water bolt, then lightning, is a real opening rather than a note in
+the README.
+
 ### What a spell looks like in the air
 
 The four elements were thrown as whatever icon was nearest: fire was the spark
@@ -1216,7 +1274,8 @@ it is chosen. Under the rows, what the chosen thing is and does.
 | Row | What can go on it |
 | --- | --- |
 | `1`-`4`, the elements | **Strongest** (the default: whatever your Magic reaches, and the next tier when you reach that), or **held** to any one spell of that element you can cast. Holding fire to Ember at Magic 25 casts Ember for 4 mana where Pyre is 9 -- for a mage who is out of mana more often than out of damage. A held spell is the plain cast's; Arcane Pulse and Repulse have their own price and still throw the strongest. |
-| `5`, the ancient magic | whichever of the ancient spells you have learned. One out of your Magic's reach is shown in red with the level it wants. |
+| `5`, the lightning | whichever of [the five](#the-lightning-and-the-battery) your Magic reaches, with what each costs of the battery beside it. |
+| `6`, the ancient magic | whichever of the ancient spells you have learned. One out of your Magic's reach is shown in red with the level it wants. |
 | guard + light / heavy / lock on | nothing, or any ability learned. One that is already in another slot **changes places** with what was here, so choosing never drops an ability off the bar. |
 | hold heavy | the plain charged attack, or any technique learned |
 
@@ -1244,12 +1303,13 @@ what throws it says how likely (`"status": {"id", "chance"}` on a projectile in
 | Status | Left by | While it lasts |
 | --- | --- | --- |
 | **Burning** | Ember 30%, Pyre 40%; standing in what they leave burning, a third of that a tick; the Ember Blade 25%; Hellish Rebuke always | Half the blow again, over three seconds. Water puts it out, and nothing soaked can be set burning. |
-| **Soaked** | Spray 40%, Torrent 55% | Six seconds. It cannot burn, the wind bites it a quarter harder -- and an Ice Touch freezes it. |
+| **Soaked** | Spray 40%, Torrent 55% | Six seconds. It cannot burn, the wind and [the lightning](#the-lightning-and-the-battery) bite it a quarter harder, it is twice as easy to leave arcing -- and an Ice Touch freezes it. |
 | **Concussed** | Shardshot 20%, Upheaval 30%, and the same again when the stone bursts | It reels as it takes it, and for four seconds its Attack and its Defence are down a quarter and it is a little slow. |
 | **Bleeding** | any sword, 18% a cut (and Open Wounds, as before) | Half the blow again over four seconds. A second wound adds to the first. |
 | **Poisoned** | Acid Spray, 35% a gout | Four fifths of the blow again over six seconds, and its Defence is down a fifth: its hide gives way. |
 | **Chilled** | Ice Touch, always | Four seconds at six tenths of its pace and a third longer between its swings. |
 | **Frozen** | a chill on something soaked | Held fast for a second and a half; then it thaws into a chill, and is dry. |
+| **Arcing** | any of the lightning: a Zap 22%, an Electro-Node's chain 30%, a Call of Thunder 45% -- and twice that on anything soaked | Four seconds. A third of the blow again over them, its Attack down a sixth and a fifth longer between its swings, and it reels the moment it takes. |
 
 **The wind leaves nothing.** A gust's thing is that it throws what it hits --
 further than anything else any element throws -- and that is all of it.
@@ -1617,6 +1677,15 @@ as a dome and not an arch. You can still see yourself and the fight through it,
 which is the point. It **draws in over the last half second** rather than
 blinking out, so the shield ending is something you see rather than something
 you notice afterwards.
+
+**It is the size of whoever is under it.** It was a pair of numbers -- 31 tall
+against a body of 42 -- so it sat at the shoulders and left the head out in the
+weather. `World::ShieldDome` takes it from the character's own body box now,
+their height and a little over: 54 tall and 56 across for the rig as it stands,
+and right again for any rig that ever replaces it. The self-test holds it to
+clearing the head rather than to those numbers. It is anchored at their feet
+every frame and lifted with `draw_lift`, so it goes where they go and rises
+with a jump.
 
 A friend's shield shows too: `PlayerState::Shielded` is one bit of the wire, and
 `Player::shield_shown` is what a puppet is told -- how long is left is their own
@@ -5169,7 +5238,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **34574 checks** covering:
+and checks all of it — currently **34707 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -6077,6 +6146,26 @@ and checks all of it — currently **34574 checks** covering:
   the west; a warden or a watchman with no round to walk stands at it, and not
   inside a tower; the middle of the road is open all the way through, and the
   gateway is never narrower than two people
+- lightning, and the battery that pays for it: there is an element called
+  electric, it stands between the four and the ancient magic where its key is,
+  and it neither beats nor is beaten by any of them; five spells, each on a
+  place of its own, each carrying the element it throws and a chance -- never a
+  certainty -- of leaving what it hits arcing; Zap is the one that fills the bar
+  and the only one that does, and each of the five either fills it or spends it.
+  Soaking is a weakness to lightning worth a quarter again, and it invites the
+  arcing twice over. Played through: the fifth key chooses the school and the
+  fifth key again steps through every one of the five and comes round; Magic 12
+  reaches Zap and 11 reaches none of it; a zap takes something off what it is
+  aimed at, puts five per cent in the battery and draws a bolt between the two;
+  zapping on fills the bar and a full one does not overflow; a Discharge empties
+  it and is worth what was in it, and on an empty bar goes off neither at all
+  nor for any mana; an Electrocute wants its tenth and draws three rays; an
+  Electro-Node is left standing, chains without another word from the caster and
+  runs down; a Call of Thunder wants three tenths and a charged one half. Forty
+  zaps into a soaked orc take more off than forty into a dry one. Resting
+  neither fills the battery nor empties it and dying does; a save keeps the
+  charge and which of the five is on the key; and a key layout saved before the
+  lightning had one gets the new arrangement unless it was moved by hand
 - orcs that stand back, and a knife that does not twang: every tier's throwing
   knives are thrown and every bow and crossbow is still loosed, and the two
   sounds are not the same buffer; the slinger and the bowman each throw

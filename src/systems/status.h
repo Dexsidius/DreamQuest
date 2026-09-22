@@ -23,6 +23,10 @@
 //               is down while it lasts.
 //    chill      slowed, in its legs and in its arm.
 //    frozen     held fast. It thaws into a chill. The great ones cannot be held.
+//    electrified  arcing. It takes a sharp share of the blow again over a few
+//               seconds, its arm goes slow and its aim goes wide, and it reels
+//               the moment it takes. Anything soaked is twice as easy to leave
+//               arcing: see `invites`.
 //
 //  Defence is where most of them meet the rest of the fight: a blow lands or it
 //  does not by the attacker's Attack against the target's Defence (see
@@ -33,7 +37,7 @@
 //  pointer: the host's goes to a friend's machine as one byte of bits.
 // -----------------------------------------------------------------------------
 
-enum class Status : uint8_t { Burn = 0, Wet, Concussed, Bleed, Poison, Chill, Frozen, COUNT };
+enum class Status : uint8_t { Burn = 0, Wet, Concussed, Bleed, Poison, Chill, Frozen, Electrified, COUNT };
 static constexpr int STATUS_COUNT = static_cast<int>(Status::COUNT);
 
 const char* StatusId(Status s);
@@ -69,6 +73,12 @@ struct StatusDef {
     // Elements that bite harder while it lasts, and by how much.
     vector<Element> weak_to;
     float weak_mult = 1.0f;
+    // Statuses that take hold more easily while this one lasts, and by how
+    // much: a soaked thing is twice as easy to leave arcing. The pair to
+    // `weak_to` -- that one is about the damage, this one about what is left
+    // behind. See World::TryAfflict.
+    vector<Status> invites;
+    float invite_mult = 1.0f;
     // The great ones shake things off: this share of the time, for a boss.
     float boss_share = 0.5f;
 };

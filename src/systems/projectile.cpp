@@ -1,7 +1,7 @@
 #include "projectile.h"
 #include <fstream>
 
-static const char* kElementNames[] = {"none", "fire", "water", "earth", "air", "arcane"};
+static const char* kElementNames[] = {"none", "fire", "water", "earth", "air", "electric", "arcane"};
 
 const char* ElementName(Element e) {
     const int i = static_cast<int>(e);
@@ -27,6 +27,9 @@ SDL_Color ElementColor(Element e) {
         case Element::Water:  return { 96, 172, 235, 255};
         case Element::Earth:  return {186, 146,  86, 255};
         case Element::Air:    return {198, 226, 235, 255};
+        // Lightning, not the battery: the bar the charge fills is green, the
+        // element is the colour of the arc itself.
+        case Element::Electric: return {250, 232, 108, 255};
         case Element::Arcane: return {186, 140, 255, 255};
         default:             return {235, 235, 235, 255};
     }
@@ -44,8 +47,9 @@ Element ElementBeats(Element e) {
 
 float ElementMultiplier(Element attacker, Element defender) {
     if (attacker == Element::None || defender == Element::None) return 1.0f;
-    // The ancient magic stands outside the cycle.
+    // The ancient magic and the lightning stand outside the cycle.
     if (attacker == Element::Arcane || defender == Element::Arcane) return 1.0f;
+    if (attacker == Element::Electric || defender == Element::Electric) return 1.0f;
     if (attacker == defender)                                   return 0.75f;
     if (ElementBeats(attacker) == defender)                     return 1.60f;
     if (ElementBeats(defender) == attacker)                     return 0.60f;
