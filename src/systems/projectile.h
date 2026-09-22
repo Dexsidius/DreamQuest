@@ -239,7 +239,9 @@ struct GroundEffect {
     float drift_x = 0.0f, drift_y = 0.0f;
     bool  follows = false;
     // How it is drawn, where a disc of its colour is not it.
-    enum class Draw : uint8_t { Disc = 0, Rain = 1, Whirlpool = 2, Tornado = 3, Turbulence = 4 };
+    // Blades: the Hail of Blades, which is the tornado's turning column with a
+    // conjured blade on every ring of it instead of a speck of dust.
+    enum class Draw : uint8_t { Disc = 0, Rain = 1, Whirlpool = 2, Tornado = 3, Turbulence = 4, Blades = 5 };
     Draw draw = Draw::Disc;
     // What it looks like, where that is not what it is: a Hellish Rebuke is
     // the ancient magic's and is drawn as the fire it is. None for its own.

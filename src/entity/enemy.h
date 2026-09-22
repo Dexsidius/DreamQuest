@@ -28,6 +28,11 @@ struct EnemyDef {
     float aggro_range = 150.0f;
     float attack_range = 26.0f;
     float attack_cooldown = 1.6f;
+    // What it throws, and from how far. Empty for everything that fights with
+    // its hands. A shooter holds its distance rather than closing: see Chase.
+    string shoots;
+    float shoot_range = 0.0f;
+    float shoot_cooldown = 2.4f;
     float xp_multiplier = 1.0f;
     string loot_table;
     string kill_target;            // what Kill quest objectives match on
@@ -297,6 +302,8 @@ private:
                  float& move_x, float& move_y);
 
     float heavy_timer = 0.0f;     // until the next heavy attack may start
+    float shoot_timer = 0.0f;     // until it may throw again
+    bool  shooting = false;       // this attack is a shot, not a swing
     bool  heavy_landed = false;   // the blow has been delivered this heavy
     bool  swing_landed = false;   // one hit per swing
     float swing_timer = 0.0f;

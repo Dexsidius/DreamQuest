@@ -303,9 +303,9 @@
 
   "ice_touch": {
     "name": "Ice Touch",
-    "desc": "A hand's reach of cold. What it touches is chilled -- slow in its legs and in its arm -- and if it is soaked, it freezes where it stands.",
+    "desc": "Talons of ice grown from your own hand and raked across whatever is in front of you. What they open is chilled -- slow in its legs and in its arm -- and if it is soaked, it freezes where it stands.",
     "school": "arcane",
-    "shape": "bolt",
+    "shape": "claw",
     "tier": 3,
     "level": 20,
     "mana": 7,
@@ -331,9 +331,9 @@
 
   "vampiric_touch": {
     "name": "Vampiric Touch",
-    "desc": "A hand's reach, and half of what it takes from them comes back to you as health. There is no status in it: it is a way of staying up.",
+    "desc": "A claw of your own blood, thrown out at the end of your arm and raked across them. Half of what it takes comes back to you as health. There is no status in it: it is a way of staying up.",
     "school": "arcane",
-    "shape": "bolt",
+    "shape": "claw",
     "tier": 4,
     "level": 28,
     "mana": 12,
@@ -345,9 +345,9 @@
 
   "hail_of_blades": {
     "name": "Hail of Blades",
-    "desc": "A moment after the word is said, conjured blades come down on whatever you are fighting and everything beside it.",
+    "desc": "A moment after the word is said, a swarm of conjured blades turns over whatever you are fighting and everything beside it, and falls on them.",
     "school": "arcane",
-    "shape": "rain",
+    "shape": "blades",
     "tier": 4,
     "level": 32,
     "mana": 15,

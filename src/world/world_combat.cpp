@@ -107,7 +107,8 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     }
 
     if (style == AttackStyle::Ranged) {
-        Audio::Play(Sfx::BowShot);
+        const ItemDef* held = player.equipment.Weapon();
+        Audio::Play(held && held->thrown ? Sfx::KnifeThrow : Sfx::BowShot);
     } else {
         // Each element is pitched a little differently.
         const Element el = player.SelectedElement();
@@ -307,7 +308,12 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 0.5f, true))
                 p->extra_homing += 4.0f;
     } else if (technique == "meteor") {
-        strike(58.0f, 0.6f, damage_mult * 1.5f, element);
+        // An actual meteor, as wide as the ground it covers, falling for as
+        // long as the strike takes to arm.
+        const float radius = 58.0f, wait = 0.6f;
+        const SDL_FPoint at = strike_point();
+        strike(radius, wait, damage_mult * 1.5f, element);
+        AddFalling(at.x, at.y + 8.0f, radius * 2.0f, element, wait, LiftAt(at.x, at.y));
     // --- the ancient spells' shapes ----------------------------------------------
     } else if (shape == "darts") {
         // Three that seek: the old missile that does not miss.
@@ -315,6 +321,53 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             const Vec2 d = turned(deg);
             if (Projectile* p = loose(d.x, d.y, damage_mult, true)) p->extra_homing += 6.0f;
         }
+    } else if (shape == "claw") {
+        // A claw conjured at the hand and raked across whatever is in front of
+        // it. It was a bolt thrown a hand's reach and gone; the reach is the
+        // same, but nothing leaves the hand now. What the bolt carried -- the
+        // Vampiric Touch's leeching, the Ice Touch's chill -- is carried here.
+        const ProjectileDef* def = ctx.projectiles ? ctx.projectiles->Get(projectile_id) : nullptr;
+        const float reach = def ? std::max(40.0f, def->speed * def->life) : 88.0f;
+        AttackProfile swipe;
+        swipe.reach = reach; swipe.width = 44.0f; swipe.sweep_deg = 62.0f;
+        const SDL_FPoint from = player.GroundCentre();
+        const StrikeArc arc = ArcFor(from.x, from.y, player.facing, swipe, 1.0f);
+        for (auto& e : enemies) {
+            if (!Strikeable(*e)) continue;
+            const SDL_FPoint a = e->GroundCentre();
+            if (!ArcHits(arc, a.x, a.y, e->GroundRadius())) continue;
+            if (def) { proc_next = def->status; leech_next = def->leech; }
+            cast_next = casting;
+            HitEnemy(*e, player.Profile(), style, element, damage_mult, def ? def->knockback : 10.0f,
+                     player.x, player.y, ctx);
+            proc_next = {};
+            leech_next = 0.0f;
+            cast_next = 0;
+        }
+        // Ice talons or a thing of flesh and blood: told apart by what the spell
+        // leaves on whatever it rakes.
+        const uint8_t look = (def && def->status.kind == Status::Chill) ? 1 : 0;
+        AddClaw(player.x, player.y - 14.0f, atan2f(aim.y, aim.x), reach, look, player.draw_lift);
+        Audio::PlayAt(look ? Sfx::Swing : Sfx::SwingHeavy, player.x, player.y, 0.9f, look ? 1.25f : 0.85f);
+    } else if (shape == "blades") {
+        // The Hail of Blades: the tornado's turning column, with a conjured
+        // blade on every ring of it. One hit when they arrive, as it always was.
+        const SDL_FPoint at = strike_point();
+        GroundEffect g;
+        g.x = at.x; g.y = at.y + 8.0f;
+        g.radius = 56.0f;
+        g.delay = 0.35f;
+        g.life = g.max_life = 1.15f;              // long enough to be seen turning
+        g.burst = true;
+        g.from_player = true;
+        g.owner = player.Profile();
+        g.element = element;
+        g.style = style;
+        g.hit_mult = damage_mult;
+        g.knockback = 45.0f;
+        g.sure_crit = aimed_shot;
+        g.draw = GroundEffect::Draw::Blades;
+        AddGroundEffect(g);
     } else if (shape == "rays") {
         for (float deg : {-12.0f, 0.0f, 12.0f}) {
             const Vec2 d = turned(deg);

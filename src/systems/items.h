@@ -69,6 +69,9 @@ struct ItemDef {
     // For the combo names and the HUD; empty is the plain weapon of its kind.
     string weapon_class;
     bool   two_handed = false;        // no shield with it, as with a bow
+    // Thrown rather than loosed: knives leave the hand, and want the sound of
+    // that rather than a bowstring's.
+    bool   thrown = false;
     // The share of a target's Defence its point goes past: a dagger's, a bolt's.
     float  armour_pierce = 0.0f;
     // What everything it does is worth, beside a plain weapon of its tier: a
@@ -110,6 +113,18 @@ struct ItemDef {
     // A staff given over to one element: 1 to 4 choose that element's four
     // spells instead of the four elements. None for a staff that is not.
     Element element = Element::None;
+    // Which of an element's four spells this weapon will cast, by slot number,
+    // for fire, water, earth and air. Every one of them derives from that
+    // element's own staff, which is where the four live; a plain staff, a wand,
+    // a grimoire and an orb each reach a different part of it, which is what
+    // makes carrying one rather than another a choice. Empty is the old
+    // behaviour: the element's first spell and nothing else.
+    vector<int> spell_slots[4];
+    const vector<int>& SpellSlotsFor(Element e) const {
+        static const vector<int> none;
+        const int i = static_cast<int>(e) - static_cast<int>(Element::Fire);
+        return (i >= 0 && i < 4) ? spell_slots[i] : none;
+    }
     // The hero's clip for its strikes: "thrust" for a spear. Empty is the
     // ordinary swing.
     string attack_clip;

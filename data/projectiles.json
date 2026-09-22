@@ -311,6 +311,22 @@
     "impact_size": 5
   },
 
+  "orc_rock": {
+    "sprite": "assets/effects/rock_shard_small.png",
+    "frames": 8,
+    "fps": 16,
+    "upright": true,
+    "tint": [255, 255, 255],
+    "speed": 250,
+    "life": 1.1,
+    "radius": 5,
+    "pierce": 0,
+    "knockback": 22,
+    "homing": 1.5,
+    "element": "none",
+    "impact_size": 5
+  },
+
   "throwing_knife": {
     "sprite": "assets/effects/throwing_knife.png",
     "frames": 8,

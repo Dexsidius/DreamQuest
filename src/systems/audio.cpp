@@ -197,6 +197,16 @@ Buf Make(Sfx s) {
         LowpassAll(b, 5000.0f);
         Normalize(b, 0.45f);
         break;
+    case Sfx::KnifeThrow:
+        // A blade leaving the hand: air, and a thin edge of steel turning in
+        // it. There is no string on a knife, so there is nothing to pluck --
+        // the bow's sound on a thrown knife was a bowstring with no bow.
+        b = Blank(0.26f);
+        Hiss(b, 0.0f, 0.17f, 0.75f, 0.004f, 0.05f, 900.0f, 6200.0f, 1300.0f, 61);
+        Tone(b, 0.004f, 0.085f, 2700.0f, 1500.0f, 0.10f, 0.002f, 0.03f, TRI);
+        LowpassAll(b, 9000.0f);
+        Normalize(b, 0.34f);
+        break;
     case Sfx::SpellCast:
         b = Blank(0.45f);
         Tone(b, 0.0f, 0.42f, 480.0f, 1350.0f, 0.35f, 0.05f, 0.14f);

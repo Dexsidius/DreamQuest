@@ -29,6 +29,44 @@
     ],
     "element": "earth"
   },
+  "orc_slinger": {
+    "name": "Orc Slinger",
+    "sprite": "orc1",
+    "hp": 11,
+    "attack": 4,
+    "strength": 5,
+    "defence": 2,
+    "attack_bonus": 4,
+    "strength_bonus": 5,
+    "defence_bonus": 5,
+    "speed": 46,
+    "aggro": 190,
+    "attack_range": 30,
+    "attack_cooldown": 1.7,
+    "loot": "orc_grunt",
+    "kill_target": "orc",
+    "foot_box": [
+      -9,
+      -12,
+      18,
+      12
+    ],
+    "body_box": [
+      -14,
+      -42,
+      28,
+      42
+    ],
+    "element": "earth",
+    "tint": [
+      150,
+      196,
+      140
+    ],
+    "shoots": "orc_rock",
+    "shoot_range": 170.0,
+    "shoot_cooldown": 2.4
+  },
   "orc2": {
     "name": "Orc Raider",
     "sprite": "orc2",
@@ -58,6 +96,44 @@
       42
     ],
     "element": "earth"
+  },
+  "orc_bowman": {
+    "name": "Orc Bowman",
+    "sprite": "orc2",
+    "hp": 24,
+    "attack": 12,
+    "strength": 13,
+    "defence": 7,
+    "attack_bonus": 14,
+    "strength_bonus": 14,
+    "defence_bonus": 16,
+    "speed": 54,
+    "aggro": 235,
+    "attack_range": 32,
+    "attack_cooldown": 1.5,
+    "loot": "orc_raider",
+    "kill_target": "orc",
+    "foot_box": [
+      -9,
+      -12,
+      18,
+      12
+    ],
+    "body_box": [
+      -14,
+      -42,
+      28,
+      42
+    ],
+    "element": "earth",
+    "tint": [
+      150,
+      180,
+      205
+    ],
+    "shoots": "arrow",
+    "shoot_range": 215.0,
+    "shoot_cooldown": 2.0
   },
   "highwayman": {
     "name": "Highwayman",

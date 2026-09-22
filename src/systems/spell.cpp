@@ -82,6 +82,39 @@ const SpellDef* SpellBook::FirstOnSlot(Element e, int slot) const {
     return first;
 }
 
+vector<const SpellDef*> SpellBook::ForWeapon(Element e, const vector<int>& slots, int magic_level) const {
+    vector<const SpellDef*> out;
+    // Slot one is every element's bolt, and a weapon that reaches it offers all
+    // of them -- an Ember is worth having beside a Pyre, being cheaper.
+    for (int slot : slots) {
+        if (slot == 1) {
+            for (const SpellDef* s : Of(e))
+                if (s->level <= magic_level) out.push_back(s);
+        } else if (const SpellDef* s = ForSlot(e, slot, magic_level)) {
+            out.push_back(s);
+        }
+    }
+    std::sort(out.begin(), out.end(), [](const SpellDef* a, const SpellDef* b) {
+        if (a->slot != b->slot) return a->slot < b->slot;
+        if (a->tier != b->tier) return a->tier < b->tier;
+        return a->level < b->level;
+    });
+    out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
+}
+
+const SpellDef* SpellBook::ChosenFor(Element e, const vector<int>& slots, int magic_level,
+                                     const string& held) const {
+    if (!held.empty()) {
+        if (const SpellDef* s = Get(held)) {
+            if (!s->arcane && s->element == e && s->level <= magic_level &&
+                std::find(slots.begin(), slots.end(), s->slot) != slots.end())
+                return s;
+        }
+    }
+    return BestFor(e, magic_level);
+}
+
 vector<const SpellDef*> SpellBook::Of(Element e) const {
     vector<const SpellDef*> out;
     for (const auto& kv : defs)

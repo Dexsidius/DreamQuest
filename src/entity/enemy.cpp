@@ -51,6 +51,9 @@ bool EnemyDatabase::Load(const string& path) {
         d.speed           = o.value("speed", 42.0f);
         d.aggro_range     = o.value("aggro", 150.0f);
         d.attack_range    = o.value("attack_range", 26.0f);
+        d.shoots          = o.value("shoots", string(""));
+        d.shoot_range     = o.value("shoot_range", 0.0f);
+        d.shoot_cooldown  = o.value("shoot_cooldown", 2.4f);
         d.attack_cooldown = o.value("attack_cooldown", 1.6f);
         d.xp_multiplier   = o.value("xp_mult", 1.0f);
         d.loot_table      = o.value("loot", string(""));
@@ -474,6 +477,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     state_timer += dt;
     if (attack_timer > 0.0f) attack_timer -= dt;
     if (heavy_timer > 0.0f && state != State::Heavy) heavy_timer = std::max(0.0f, heavy_timer - dt);
+    if (shoot_timer > 0.0f) shoot_timer = std::max(0.0f, shoot_timer - dt);
 
     // --- health bar trail ---------------------------------------------------------
     // The fill is always exactly hp / max_hp; this only moves the lighter band
@@ -603,10 +607,24 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.8f, 0.55f);
                 break;
             }
+            // Something that throws looses from where it stands rather than
+            // closing: inside its own range, and no nearer than a swing's.
+            if (!def->shoots.empty() && shoot_timer <= 0.0f && attack_timer <= 0.0f &&
+                dist <= def->shoot_range && dist > def->attack_range) {
+                SetState(State::Attack);
+                chase_run = 0.0f;
+                Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
+                shooting = true;
+                swinging = true;
+                swing_landed = false;
+                swing_timer = 0.0f;
+                break;
+            }
             if (dist <= def->attack_range && attack_timer <= 0.0f) {
                 SetState(State::Attack);
                 chase_run = 0.0f;
                 Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.8f);
+                shooting = false;
                 swinging = true;
                 swing_landed = false;
                 swing_timer = 0.0f;
@@ -616,8 +634,11 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // cools down. This used to keep walking until it was within a
             // pixel, so between swings a boar stood exactly where the player
             // was and, drawn after them, hid the character completely.
-            const float standoff = def->attack_range * 0.75f;
-            const float too_close = def->attack_range * 0.4f;
+            // A shooter wants to be out where it can shoot and the player
+            // cannot reach; everything else wants to be at arm's length.
+            const bool afar = !def->shoots.empty() && def->shoot_range > def->attack_range;
+            const float standoff = afar ? def->shoot_range * 0.70f : def->attack_range * 0.75f;
+            const float too_close = afar ? def->shoot_range * 0.42f : def->attack_range * 0.4f;
             if (dist > standoff) {
                 move_x = (dx / dist) * MoveSpeed();
                 move_y = (dy / dist) * MoveSpeed();
@@ -634,7 +655,14 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             swing_timer += dt;
             // The hit lands partway through the swing, not on the first frame,
             // so there is a window to step out of it.
-            if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
+            if (swinging && !swing_landed && swing_timer >= SWING_WINDUP && shooting) {
+                // It throws. What it throws is a projectile like any other and
+                // is resolved where every other shot is: see UpdateProjectiles.
+                swing_landed = true;
+                const float len = std::max(1.0f, dist);
+                world.SpawnProjectile(def->shoots, x, y - 18.0f, dx / len, dy / len,
+                                      Profile(), AttackStyle::Ranged, 1.0f, false, ctx);
+            } else if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
                 swing_landed = true;
                 // On the ground, and not up or down a cliff: see StrikeArc.
                 const SDL_FPoint at = player.GroundCentre();
@@ -654,6 +682,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             }
             if (swing_timer >= ProfileFor(AttackType::Strong).Total()) {
                 swinging = false;
+                if (shooting) shoot_timer = def->shoot_cooldown;
+                shooting = false;
                 attack_timer = AttackCooldown();
                 SetState(State::Chase);
             }

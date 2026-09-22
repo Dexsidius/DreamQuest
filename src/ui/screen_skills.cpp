@@ -14,8 +14,183 @@
 //  Skills
 // =============================================================================
 
+// =============================================================================
+//  Milestones: what a skill's levels are actually for
+// =============================================================================
+
+// Everything the game asks this skill for, and the level it asks at. It is
+// gathered from the things themselves rather than written out anywhere -- the
+// tiers, the recipes, the spells, the character's own tree -- so a new tier or
+// a new spell appears here the day it is added and cannot be forgotten.
+vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
+    const Player& p = world->player;
+    vector<SkillMilestone> out;
+    const auto add = [&](int level, const string& text) {
+        if (text.empty()) return;
+        level = std::clamp(level, 1, MAX_SKILL_LEVEL);
+        for (const auto& m : out)
+            if (m.level == level && m.text == text) return;
+        out.push_back({level, text});
+    };
+    const auto join = [](const vector<string>& parts, bool with_and) {
+        string s;
+        for (size_t i = 0; i < parts.size(); ++i) {
+            if (i) s += (with_and && i + 1 == parts.size()) ? " and " : ", ";
+            s += parts[i];
+        }
+        return s;
+    };
+    const auto capitalised = [](string s) {
+        if (!s.empty() && s[0] >= 'a' && s[0] <= 'z') s[0] = static_cast<char>(s[0] - 'a' + 'A');
+        return s;
+    };
+
+    // --- the character's own tree ----------------------------------------------
+    // Theirs only. The page is their path's, and a hero has no use for a row
+    // of the wayfarer's they will never be offered.
+    const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const TalentTree& tree = skill_trees.Tree(path);
+    if (tree.skill == skill)
+        for (const TalentNode& n : tree.nodes)
+            add(n.level, n.name + (n.ranks > 1 ? " (" + std::to_string(n.ranks) + " ranks)" : string("")));
+
+    // --- what it lets you hold ---------------------------------------------------
+    // A tier's pieces all ask the same level, so they go on one line: "Mithril
+    // bows and hides", not seven rows of mithril. What to call them is decided
+    // by the skill doing the asking, which is how the data is built -- plate
+    // asks Defence, hides Ranged, robes Magic.
+    const auto worn_noun = [&](const ItemDef& d) -> string {
+        if (!d.tool.empty()) return d.tool == "pickaxe" ? "pickaxes" : d.tool + "s";
+        if (d.piece == "bar") return "bars";
+        if (d.slot == SLOT_SHIELD) return "shields";
+        if (d.slot == SLOT_WEAPON) {
+            if (skill == SKILL_RANGED) return "bows";
+            if (skill == SKILL_MAGIC)  return "staves";
+            return "weapons";
+        }
+        if (skill == SKILL_RANGED)  return "hides";
+        if (skill == SKILL_MAGIC)   return "robes";
+        if (skill == SKILL_DEFENCE) return "plate";
+        return "armour";
+    };
+    // (level, tier id) -> the nouns at it, in the order they were met. The
+    // empty tier is everything the tiers did not make, which is listed by name.
+    std::map<std::pair<int, string>, vector<string>> gear;
+    const auto note = [&](std::map<std::pair<int, string>, vector<string>>& into,
+                          int level, const string& tier, const string& noun) {
+        vector<string>& v = into[{level, tier}];
+        if (std::find(v.begin(), v.end(), noun) == v.end()) v.push_back(noun);
+    };
+    for (const auto& kv : items.All()) {
+        const ItemDef& d = kv.second;
+        // An enchanted twin is the piece it was worked from with a charm on
+        // it: it asks nothing the piece did not, and there are hundreds.
+        if (d.id.find('+') != string::npos) continue;
+        const auto req = d.requirements.find(skill);
+        if (req == d.requirements.end()) continue;
+        note(gear, req->second, d.tier, d.tier.empty() ? d.name : worn_noun(d));
+    }
+
+    // --- and what it lets you make ------------------------------------------------
+    // A tier's pieces are not all made at one level -- a wooden shield comes
+    // after a wooden bow -- and the same noun would otherwise be written out
+    // at four levels running. It is said once, at the lowest level it is true
+    // at, which is the level worth aiming for.
+    std::map<std::pair<int, string>, vector<string>> made;
+    {
+        std::set<std::pair<string, string>> said;      // (tier, noun)
+        for (const ItemDef* r : items.Recipes()) {     // sorted by level: see ItemDatabase::Recipes
+            if (CraftSkill(items.StationFor(*r)) != skill) continue;
+            const ItemDef* result = items.Get(r->craft_result);
+            if (!result) continue;
+            const string noun = result->tier.empty() ? result->name : worn_noun(*result);
+            if (!said.insert({result->tier, noun}).second) continue;
+            note(made, r->craft_level, result->tier, noun);
+        }
+    }
+
+    const auto emit = [&](const std::map<std::pair<int, string>, vector<string>>& from, const string& verb) {
+        for (const auto& kv : from) {
+            const TierDef* t = kv.first.second.empty() ? nullptr : items.Tier(kv.first.second);
+            string text;
+            if (t) {
+                // Past three nouns it is the whole tier, and saying so is
+                // shorter and truer than a list that runs off the column.
+                text = t->name + " " + (kv.second.size() > 3 ? "gear" : join(kv.second, true));
+            } else {
+                // Odds and ends, which have nothing in common but a level:
+                // name a few of them and count the rest.
+                vector<string> few(kv.second.begin(), kv.second.begin() + std::min<size_t>(3, kv.second.size()));
+                text = join(few, false);
+                if (kv.second.size() > few.size())
+                    text += " and " + std::to_string(kv.second.size() - few.size()) + " more";
+            }
+            add(kv.first.first, verb.empty() ? capitalised(text) : verb + " " + text);
+        }
+    };
+    emit(gear, "");
+    // Smiths smith, cooks cook: the same three stations under Crafting all
+    // make, which is why the loom and the rack and the bench share a word.
+    emit(made, skill == SKILL_SMITHING ? "Smith" : skill == SKILL_COOKING ? "Cook"
+             : skill == SKILL_BREWING  ? "Brew"  : "Make");
+
+    // --- the things one skill has and no other -------------------------------------
+    if (skill == SKILL_MAGIC) {
+        for (const auto& kv : spells.All()) {
+            const SpellDef& s = kv.second;
+            add(s.level, s.arcane ? s.name + " (ancient)" : s.name);
+        }
+        for (const EnchantDef* e : items.Enchantments())
+            add(e->level, "Work " + e->name + " into a piece");
+    }
+    if (skill == SKILL_MINING)
+        for (const TierDef& t : items.Tiers()) {
+            const ItemDef* ore = t.ore.empty() ? nullptr : items.Get(t.ore);
+            if (ore && t.mining > 1) add(t.mining, "Mine " + ore->name);
+        }
+    if (skill == SKILL_FISHING) {
+        for (const auto& kv : items.All())
+            if (kv.second.fish_level > 0) add(kv.second.fish_level, "Catch " + kv.second.name);
+        for (const auto& m : Gathering::FishingMilestones()) {
+            char buf[96];
+            if (m.three > 0.0f) SDL_snprintf(buf, sizeof(buf), "Three fish in a cast, %d%% of the time",
+                                             static_cast<int>(m.three * 100 + 0.5f));
+            else                SDL_snprintf(buf, sizeof(buf), "Two fish in a cast, %d%% of the time",
+                                             static_cast<int>(m.two * 100 + 0.5f));
+            add(m.level, buf);
+        }
+    }
+    if (skill == SKILL_FORAGING)
+        for (const auto& kv : items.All())
+            if (kv.second.forage_level > 0) add(kv.second.forage_level, "Pick " + kv.second.name);
+
+    std::sort(out.begin(), out.end(), [](const SkillMilestone& a, const SkillMilestone& b) {
+        if (a.level != b.level) return a.level < b.level;
+        return a.text < b.text;
+    });
+    return out;
+}
+
+void Game::SyncMilestones() {
+    if (milestones_for == cursor) return;
+    milestones_for = cursor;
+    milestones = MilestonesFor(cursor);
+    // Open on the first one not yet reached: the page is for planning, and
+    // what is already had is behind you.
+    const int have = world->player.skills.Level(cursor);
+    milestone_row = 0;
+    for (size_t i = 0; i < milestones.size(); ++i)
+        if (milestones[i].level > have) { milestone_row = static_cast<int>(i); break; }
+}
+
 void Game::UpdateSkillsPanel() {
-    if (state_time <= 0.0f) tree_reset_armed = false;
+    if (state_time <= 0.0f) {
+        tree_reset_armed = false;
+        // A fresh opening starts on the level list, and gathers again: a level
+        // won since it was last open moves where the list should open.
+        on_milestones = false;
+        milestones_for = -1;
+    }
 
     // I and O (the shoulder buttons on a pad) step between the level list and
     // the character's tree -- their path's, the only one they have; the panel
@@ -23,10 +198,11 @@ void Game::UpdateSkillsPanel() {
     // ...and what the bosses have left them.
     const int tabs = TAB_COUNT;
     skills_tab = std::clamp(skills_tab, 0, tabs - 1);
-    if (input.Pressed(Action::Inventory)) { skills_tab = (skills_tab + tabs - 1) % tabs; tree_reset_armed = false; Audio::Play(Sfx::UiMove); }
+    if (input.Pressed(Action::Inventory)) { skills_tab = (skills_tab + tabs - 1) % tabs; tree_reset_armed = false; on_milestones = false; Audio::Play(Sfx::UiMove); }
     if (input.Pressed(Action::Skills) || input.Pressed(Action::Ability)) {
         skills_tab = (skills_tab + 1) % tabs;
         tree_reset_armed = false;
+        on_milestones = false;
         Audio::Play(Sfx::UiMove);
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
@@ -35,7 +211,19 @@ void Game::UpdateSkillsPanel() {
     }
 
     if (skills_tab == TAB_SKILLS) {
-        MoveCursor(cursor, SKILL_COUNT);
+        SyncMilestones();
+        // Left and right step between the two columns; up and down walk
+        // whichever has the cursor. There is nothing to step into for a skill
+        // that opens nothing, and Hitpoints is the one.
+        if (milestones.empty()) on_milestones = false;
+        else if (!on_milestones && input.MenuRight()) { on_milestones = true; Audio::Play(Sfx::UiMove); }
+        else if (on_milestones && input.MenuLeft()) { on_milestones = false; Audio::Play(Sfx::UiMove); }
+        if (on_milestones) {
+            MoveCursor(milestone_row, static_cast<int>(milestones.size()), false);
+        } else {
+            MoveCursor(cursor, SKILL_COUNT);
+            SyncMilestones();
+        }
         return;
     }
     if (skills_tab == TAB_BOONS) return;         // the boons are read, not chosen
@@ -165,7 +353,10 @@ void Game::DrawSkillsPanel() {
     // close prompt were both off the glass. (The overflow audit had a size for
     // exactly this and had never actually tested it: see Game::RunAudit.)
     const float fit_w = ui.ViewWidth() - 16.0f, fit_h = ui.ViewHeight() - 16.0f;
-    const SDL_FRect panel = CenteredPanel(ui, std::min(skills_tab == TAB_TREE ? tree_w : 640.0f, fit_w),
+    // The level list carries a second column now -- what the selected skill
+    // opens -- so the Skills page is as wide as the tree's, and every page
+    // still gives way to a window too small to hold it.
+    const SDL_FRect panel = CenteredPanel(ui, std::min(skills_tab == TAB_TREE ? tree_w : 1000.0f, fit_w),
                                           std::min(skills_tab == TAB_TREE ? 690.0f : 640.0f, fit_h));
     ui.Panel(panel);
 
@@ -211,38 +402,29 @@ void Game::DrawSkillsPanel() {
         return;
     }
 
+    // The page is two columns: the levels on the left, and beside them what the
+    // selected one is for. The milestone column takes about a third, and the
+    // level rows lay themselves out in whatever is left rather than at fixed
+    // offsets, so a small window narrows them instead of running them off.
+    const float gap = 16.0f;
+    const float mile_w = std::clamp(panel.w * 0.36f, 250.0f, 372.0f);
+    const float list_w = panel.w - 40.0f - mile_w - gap;
+
     char header[128];
     SDL_snprintf(header, sizeof(header), "Combat %d    Total level %d    Total XP %lld",
                  s.CombatLevel(), s.TotalLevel(), s.TotalXp());
-    ui.Text(header, panel.x + panel.w - 24.0f, panel.y + panel.h - 52.0f, TextSize::Small,
+    ui.Text(header, panel.x + 20.0f + list_w, panel.y + panel.h - 52.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
-
-    // With Fishing selected, its milestones: the chance of more than one fish.
-    if (cursor == SKILL_FISHING) {
-        // One line if it fits and two if it does not: the six milestones ran
-        // off the side of the panel written out in a row.
-        string line = "Catch more than one:";
-        for (const auto& m : Gathering::FishingMilestones()) {
-            char buf[64];
-            if (m.three > 0.0f) SDL_snprintf(buf, sizeof(buf), "  %d: 3 fish %d%%", m.level, static_cast<int>(m.three * 100 + 0.5f));
-            else                SDL_snprintf(buf, sizeof(buf), "  %d: 2 fish %d%%", m.level, static_cast<int>(m.two * 100 + 0.5f));
-            line += buf;
-        }
-        const float wrap = panel.w - 48.0f;
-        const float lines = ui.WrappedHeight(line, wrap, TextSize::Small);
-        ui.TextWrapped(line, panel.x + 24.0f, panel.y + panel.h - 56.0f - lines, wrap, TextSize::Small,
-                       s.Level(SKILL_FISHING) >= 20 ? Palette::Xp : Palette::TextDim);
-    }
 
     // Fourteen rows in whatever is left between the tabs and the footer.
     const float row_h = std::clamp(floorf((panel.h - 58.0f - 134.0f) / static_cast<float>(SKILL_COUNT)), 24.0f, 32.0f);
     for (int i = 0; i < SKILL_COUNT; ++i) {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 58.0f + i * row_h,
-                               panel.w - 40.0f, row_h - 4.0f};
+                               list_w, row_h - 4.0f};
         const bool selected = (i == cursor);
         if (selected) {
             ui.Fill(row, {58, 46, 28, 200});
-            ui.Outline(row, Palette::Highlight, 1.0f);
+            ui.Outline(row, on_milestones ? Palette::BorderDim : Palette::Highlight, 1.0f);
         }
 
         const int level = s.Level(i);
@@ -251,8 +433,10 @@ void Game::DrawSkillsPanel() {
         // A boosted level shows what it is working at right now.
         const int now = s.Current(i);
         const bool boosted = i != SKILL_HITPOINTS && now != level;
+        const float lvl_x = std::max(110.0f, row.w * 0.30f);
+        const float tail = std::max(92.0f, row.w * 0.22f);
         ui.Text(boosted ? std::to_string(now) + "/" + std::to_string(level) : std::to_string(level),
-                row.x + 170.0f, row.y + 4.0f, TextSize::Body,
+                row.x + lvl_x, row.y + 4.0f, TextSize::Body,
                 boosted ? (now > level ? Palette::Xp : SDL_Color{235, 150, 120, 255}) : Palette::Text, Align::Right);
 
         // Progress toward the next level, the way the OSRS skill guide reads.
@@ -261,7 +445,8 @@ void Game::DrawSkillsPanel() {
         const int next = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
         const float frac = (next > here) ? static_cast<float>(xp - here) / (next - here) : 1.0f;
 
-        const SDL_FRect bar = {row.x + 190.0f, row.y + 8.0f, row.w - 320.0f, 14.0f};
+        const SDL_FRect bar = {row.x + lvl_x + 16.0f, row.y + 8.0f,
+                               std::max(24.0f, row.w - lvl_x - 16.0f - tail), 14.0f};
         ui.Bar(bar, frac, Palette::Xp, {26, 34, 26, 235});
 
         char xp_text[48];
@@ -271,8 +456,81 @@ void Game::DrawSkillsPanel() {
                 Palette::TextDim, Align::Right);
     }
 
+    DrawMilestones({panel.x + 20.0f + list_w + gap, panel.y + 58.0f, mile_w, panel.h - 116.0f});
+
     ui.Text(input.PromptFor(Action::Back) + " close", panel.x + panel.w / 2.0f,
             panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
+// Everything the selected skill opens, in the order it opens it, with the
+// experience still owed on whatever the cursor is standing on. Walking it is
+// how a level gets aimed at: see Game::MilestonesFor.
+void Game::DrawMilestones(const SDL_FRect& col) {
+    // Gathered here as well as in the update, so a frame drawn without one --
+    // which is every pass of the layout audit -- still has its list.
+    SyncMilestones();
+    const Skills& s = world->player.skills;
+    const int have = s.Level(cursor);
+    ui.Fill(col, {22, 19, 16, 170});
+    ui.Outline(col, on_milestones ? Palette::Highlight : Palette::BorderDim, on_milestones ? 2.0f : 1.0f);
+
+    // A line trimmed to the width it has, because a long node name in a narrow
+    // window is a line running off a panel: see UI::BeginAudit.
+    const auto fit = [&](string t, float w) {
+        if (ui.Measure(t, TextSize::Small).x <= w) return t;
+        while (t.size() > 2 && ui.Measure(t + "...", TextSize::Small).x > w) t.pop_back();
+        while (!t.empty() && t.back() == ' ') t.pop_back();
+        return t + "...";
+    };
+
+    ui.Text(string(SkillName(cursor)) + " opens", col.x + 10.0f, col.y + 7.0f, TextSize::Body, Palette::Highlight);
+    const float top = col.y + 32.0f;
+    const float foot = 34.0f;                 // the line the cursor's own row explains
+    const float row_h = 21.0f;
+    const int shown = std::max(1, static_cast<int>((col.h - 32.0f - foot) / row_h));
+
+    if (milestones.empty()) {
+        // Strength and Hitpoints: nothing is gated behind either. They are the
+        // two that pay at every level rather than at a few of them.
+        ui.TextWrapped("Nothing in the realm opens at a level of it. What it gives, it gives all the way up.",
+                       col.x + 10.0f, top + 4.0f, col.w - 20.0f, TextSize::Small, Palette::TextDim);
+        return;
+    }
+
+    // Scrolled so the cursor's row is on the page, and no further: the list
+    // does not jump about while it is walked.
+    const int count = static_cast<int>(milestones.size());
+    milestone_row = std::clamp(milestone_row, 0, count - 1);
+    int first = std::clamp(milestone_row - shown / 2, 0, std::max(0, count - shown));
+    for (int i = 0; i < shown && first + i < count; ++i) {
+        const SkillMilestone& m = milestones[first + i];
+        const bool here = (first + i == milestone_row);
+        const bool reached = m.level <= have;
+        const SDL_FRect row = {col.x + 4.0f, top + i * row_h, col.w - 8.0f, row_h - 2.0f};
+        if (here) {
+            ui.Fill(row, on_milestones ? SDL_Color{58, 46, 28, 210} : SDL_Color{38, 32, 24, 170});
+            if (on_milestones) ui.Outline(row, Palette::Highlight, 1.0f);
+        }
+        const SDL_Color c = here ? Palette::Highlight : (reached ? Palette::Text : Palette::TextDim);
+        ui.Text(std::to_string(m.level), row.x + 28.0f, row.y + 2.0f, TextSize::Small,
+                reached ? Palette::Xp : c, Align::Right);
+        ui.Text(fit(m.text, row.w - 42.0f), row.x + 36.0f, row.y + 2.0f, TextSize::Small, c);
+    }
+
+    // What the cursor is standing on costs this much more: the whole point of
+    // the page. Experience owed, not levels, because experience is what the
+    // next hour of play actually pays in.
+    const SkillMilestone& at = milestones[milestone_row];
+    char note[96];
+    if (at.level <= have) SDL_snprintf(note, sizeof(note), "%s %d -- reached", SkillName(cursor), at.level);
+    else SDL_snprintf(note, sizeof(note), "%s %d -- %d xp to go", SkillName(cursor), at.level,
+                      XpForLevel(at.level) - s.Xp(cursor));
+    ui.Text(fit(note, col.w - 20.0f), col.x + 10.0f, col.y + col.h - foot + 6.0f, TextSize::Small,
+            at.level <= have ? Palette::Xp : Palette::Text);
+    // Menu movement is the movement keys: see Input::MenuLeft.
+    ui.Text(fit(on_milestones ? input.PromptFor(Action::MoveLeft) + " back to the skills"
+                              : input.PromptFor(Action::MoveRight) + " walk them", col.w - 20.0f),
+            col.x + 10.0f, col.y + col.h - foot + 20.0f, TextSize::Small, Palette::TextDim);
 }
 
 // -----------------------------------------------------------------------------
@@ -348,7 +606,12 @@ vector<Game::BookRow> Game::SpellbookRows() const {
             strongest.text = best->description + " Always the strongest your Magic can cast" +
                              (next ? ": " + next->name + " at Magic " + std::to_string(next->level) + "." : string("."));
             row.options.push_back(strongest);
-            for (const SpellDef* s : spells.Of(kElements[i])) {
+            // What this weapon reaches of the element, which is not the same
+            // for a staff, a wand, a grimoire and an orb.
+            const vector<int>& slots = p.SpellSlots(kElements[i]);
+            vector<const SpellDef*> offered = slots.empty() ? spells.Of(kElements[i])
+                                                            : spells.ForWeapon(kElements[i], slots, magic);
+            for (const SpellDef* s : offered) {
                 if (s->level > magic) continue;
                 BookOption o;
                 o.id = s->id;

@@ -1834,14 +1834,15 @@ FORGE_PROPS = {
 
 # --- the woodland set: Mossvale, Fernhollow and the Whisperwood ---------------
 
-def cone(name, radius, depth, loc, colour, rot=(0, 0, 0), verts=12, rough=0.8):
-    """A cone along Z, point up. Sharpened stakes and tent poles."""
+def cone(name, radius, depth, loc, colour, rot=(0, 0, 0), verts=12, rough=0.8, emit=0.0):
+    """A cone along Z, point up. Sharpened stakes, tent poles, and the crystals
+    that grow out of an azuryte seam -- which are lit from inside, hence `emit`."""
     bpy.ops.mesh.primitive_cone_add(radius1=radius, radius2=0.0, depth=depth,
                                     location=loc, vertices=verts)
     ob = bpy.context.active_object
     ob.name = name
     ob.rotation_euler = rot
-    ob.data.materials.append(material(name, colour, rough, 0.0, 0.0))
+    ob.data.materials.append(material(name, colour, rough, 0.0, emit))
     return ob
 
 
@@ -4901,6 +4902,150 @@ def scenery_fungus(seed):
     return 0.85
 
 
+# =============================================================================
+#  Ore seams
+#
+#  Every ore used to be the same grey boulder, told apart only by the word the
+#  game printed over it -- so a new miner walked up to iron they could not touch
+#  with nothing on screen to say which of the rocks around them was copper. Each
+#  ore has its own rock now.
+#
+#  Two things do the telling, because one is not enough at forty pixels across:
+#  the colour of the host stone, and *what is growing out of it*. Veins, half
+#  buried nodules, crystals standing proud, banding, glassy chunks -- a shape
+#  survives being reduced to pixel art where a tint alone washes out. Copper is
+#  green veins and coal is black glass even when the two rocks are the same grey.
+# =============================================================================
+PALETTE.update({
+    # What the ore is in: five host stones, cool to warm.
+    "host_pale":   (0.640, 0.624, 0.592), "host_grey": (0.452, 0.444, 0.436),
+    "host_dark":   (0.224, 0.216, 0.232), "host_warm": (0.560, 0.470, 0.360),
+    "host_cool":   (0.396, 0.436, 0.500),
+    # And the ore in it.
+    "ore_copper":     (0.180, 0.720, 0.520),   # malachite: green, not the metal
+    "ore_copper_hot": (0.870, 0.470, 0.220),
+    "ore_iron":       (0.640, 0.310, 0.200),
+    "ore_iron_dk":    (0.420, 0.200, 0.140),
+    "ore_coal":       (0.090, 0.088, 0.104),
+    "ore_coal_lt":    (0.240, 0.238, 0.264),
+    "ore_azuryte":    (0.240, 0.540, 0.960),
+    "ore_azuryte_lt": (0.580, 0.820, 1.000),
+    "ore_damascus":   (0.740, 0.756, 0.792),
+    "ore_damascus_dk": (0.330, 0.340, 0.390),
+    "ore_orichalcum":  (0.930, 0.730, 0.250),
+    "ore_orichalcum_dk": (0.660, 0.455, 0.140),
+    "ore_diamond":    (0.880, 0.960, 1.000),
+    "ore_diamond_dk": (0.620, 0.740, 0.840),
+    "ore_platinum":   (0.820, 0.856, 0.892),
+    "ore_platinum_dk": (0.480, 0.530, 0.600),
+    "ore_demonite":   (0.430, 0.190, 0.560),
+    "ore_demonite_hot": (0.960, 0.200, 0.150),
+})
+
+#            host stones (biggest lump first)       the ore      its accent            how it shows   glow
+ORES = {
+    "copper":     (("host_grey", "crag_dk", "crag"),     "ore_copper",     "ore_copper_hot",     "veins",    0.0),
+    "iron":       (("crag_rust", "crag_dk", "crag"),     "ore_iron",       "ore_iron_dk",        "nodules",  0.0),
+    # Grey rock, not black: jet chunks in a black boulder are a black boulder.
+    "coal":       (("host_grey", "boulder", "host_pale"), "ore_coal",      "ore_coal_lt",        "chunks",   0.0),
+    "azuryte":    (("host_pale", "boulder", "boulder_lt"), "ore_azuryte",  "ore_azuryte_lt",     "crystals", 1.15),
+    "damascus":   (("host_grey", "host_dark", "boulder"), "ore_damascus",  "ore_damascus_dk",    "bands",    0.0),
+    "orichalcum": (("host_warm", "crag_dk", "crag_lt"),  "ore_orichalcum", "ore_orichalcum_dk",  "nodules",  0.0),
+    "diamond":    (("host_pale", "boulder_lt", "boulder"), "ore_diamond",  "ore_diamond_dk",     "crystals", 0.30),
+    "platinum":   (("host_cool", "boulder_dk", "boulder"), "ore_platinum", "ore_platinum_dk",    "nodules",  0.0),
+    "demonite":   (("host_dark", "host_dark", "boulder_dk"), "ore_demonite", "ore_demonite_hot", "crystals", 1.30),
+}
+
+
+def scenery_ore(seed, ore, big=True):
+    """A boulder of the ore's own host stone with the ore showing in it.
+
+    The ore is placed on the surface the camera can see -- up and toward -Y --
+    rather than at some fraction of the way out from the middle of a lump, which
+    is *inside* the rock: the first pass buried every vein and the nine ores came
+    out as nine grey boulders."""
+    host, vein, accent, style, glow = ORES[ore]
+    rng = _rng(seed)
+    base = 0.40 if big else 0.26
+    lumps = []
+    for k in range(rng.randint(2, 3)):
+        a = k / 3.0 * math.tau + rng.uniform(-0.5, 0.5)
+        d = base * rng.uniform(0.0, 0.55) if k else 0.0
+        r = base * (1.0 if k == 0 else rng.uniform(0.45, 0.75))
+        ys, zs = rng.uniform(0.80, 1.05), rng.uniform(0.52, 0.70)
+        x, y = math.cos(a) * d, math.sin(a) * d
+        ob = sphere("lump_%d" % k, r, (x, y, r * 0.55), host[k % 3], rough=0.98)
+        ob.scale = (1.0, ys, zs)
+        ob.rotation_euler = (0, rng.uniform(-0.25, 0.25), 0)
+        lumps.append((x, y, r, ys, zs))
+
+    def spot(i, out=0.90):
+        """A point on the face of one of the lumps, up and toward the camera."""
+        x, y, r, ys, zs = lumps[i % len(lumps)]
+        a = rng.uniform(-2.5, -0.6)                    # round the upright; -Y is the camera
+        t = rng.uniform(0.30, 0.95)                    # 0 at the top, pi/2 at the equator
+        return (x + math.cos(a) * math.sin(t) * r * out,
+                y + math.sin(a) * math.sin(t) * r * ys * out,
+                r * 0.55 + math.cos(t) * r * zs * out,
+                r)
+
+    n = (6 if big else 4)
+    if style == "veins":
+        # Streaks lying along the rock, and a fleck or two of the raw metal.
+        for i in range(n):
+            x, y, z, r = spot(i)
+            ob = sphere("vein_%d" % i, r * rng.uniform(0.22, 0.32), (x, y, z), vein, rough=0.55)
+            ob.scale = (rng.uniform(1.6, 2.6), 0.75, 0.55)
+            ob.rotation_euler = (0, 0, rng.uniform(0, math.tau))
+        for i in range(3 if big else 2):
+            x, y, z, r = spot(i + 1)
+            sphere("fleck_%d" % i, r * 0.16, (x, y, z), accent, rough=0.35)
+    elif style == "nodules":
+        # Half-buried lumps of the metal itself.
+        for i in range(n):
+            x, y, z, r = spot(i)
+            rr = r * (0.30 if i == 0 else rng.uniform(0.17, 0.26))
+            ob = sphere("nodule_%d" % i, rr, (x, y, z), vein if i % 2 == 0 else accent, rough=0.35)
+            ob.scale = (1.0, 0.85, 0.9)
+    elif style == "crystals":
+        # Spikes standing out of the rock, leaning away from where they grew.
+        for i in range(n):
+            x, y, z, r = spot(i, 0.80)
+            h = r * rng.uniform(0.80, 1.20) * (1.45 if i == 0 else 1.0)
+            lean = rng.uniform(0.15, 0.50)
+            a = rng.uniform(0, math.tau)
+            rot = (math.sin(a) * lean, -math.cos(a) * lean, 0)
+            cone("shard_%d" % i, r * rng.uniform(0.19, 0.28), h, (x, y, z + h * 0.30),
+                 vein, rot=rot, verts=6, rough=0.30, emit=glow)
+            if i % 2 == 0:
+                cone("shard_lt_%d" % i, r * 0.12, h * 0.6, (x, y - r * 0.05, z + h * 0.40),
+                     accent, rot=rot, verts=6, rough=0.25, emit=glow * 1.3)
+    elif style == "bands":
+        # Watered steel: pale bands wrapping the rock, one over the other.
+        for i in range(n):
+            x, y, z, r = spot(i)
+            ob = sphere("band_%d" % i, r * rng.uniform(0.30, 0.42), (x, y, z),
+                        vein if i % 2 == 0 else accent, rough=0.45)
+            ob.scale = (rng.uniform(2.0, 2.8), 0.80, 0.34)
+            ob.rotation_euler = (0, rng.uniform(-0.3, 0.3), rng.uniform(-0.6, 0.6))
+    else:   # chunks: coal, which is glassy and breaks square
+        for i in range(n):
+            x, y, z, r = spot(i)
+            blk("chunk_%d" % i, (r * rng.uniform(0.30, 0.46), r * rng.uniform(0.26, 0.38),
+                                 r * rng.uniform(0.26, 0.40)),
+                (x, y, z), vein if i % 3 else accent, rough=0.18,
+                rot=(rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), rng.uniform(0, math.tau)), bev=0.012)
+    return (1.35 if big else 0.95)
+
+
+# Each ore twice over, so a hillside of copper is not the same rock stamped out.
+ORE_NAMES = []
+for _ore in ORES:
+    for _v in range(2):
+        ORE_NAMES.append("ore_%s_%d" % (_ore, _v))
+        ORE_NAMES.append("oresmall_%s_%d" % (_ore, _v))
+
+
 def _scenery_table():
     """Names to (builder, framed pixels), matching what maps and genmaps already
     ask for by name."""
@@ -4917,6 +5062,11 @@ def _scenery_table():
         out["mushroom_%02d" % i] = ((lambda s=i: scenery_mushroom(1000 + s, s in (0, 3))), px)
     for i in range(3):
         out["fungus_%02d" % i] = ((lambda s=i: scenery_fungus(1100 + s)), 32)
+    # One rock per ore, so what is in it can be seen before it is mined.
+    for i, ore in enumerate(ORES):
+        for v in range(2):
+            out["ore_%s_%d" % (ore, v)] = ((lambda o=ore, k=i, j=v: scenery_ore(1300 + k * 10 + j, o, True)), 64)
+            out["oresmall_%s_%d" % (ore, v)] = ((lambda o=ore, k=i, j=v: scenery_ore(1400 + k * 10 + j, o, False)), 32)
     # What a felled tree leaves, at each size of tree.
     out["stump"] = ((lambda: scenery_stump(1200, True)), 48)
     out["stumpsmall"] = ((lambda: scenery_stump(1201, False)), 32)

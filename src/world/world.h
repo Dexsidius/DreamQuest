@@ -501,6 +501,61 @@ public:
         }
     };
     vector<SlabSwing> slabs;
+
+    // Something coming down out of the sky onto a point: the Meteor. It is as
+    // wide as the ground it will cover, so what you see falling is the size of
+    // what is about to be hit -- there is nothing else on the screen saying how
+    // big a meteor is.
+    struct Falling {
+        float x = 0, y = 0;            // where it lands
+        float size = 32.0f;            // across, in world pixels
+        Element element = Element::Fire;
+        float life = 0, max_life = 0.6f, lift = 0, told = 0.0f;
+        // 0 when it is let go, 1 as it strikes. It falls faster the further it
+        // has fallen, which is what tells the eye it is heavy.
+        float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
+        float Above() const { const float p = Progress(); return 1.0f - p * p; }
+        // How far it has to fall, and how far back along its path it starts.
+        // Not much more than its own width again: it is as wide as the ground
+        // it covers, so three times that put it off the top of the screen for
+        // most of the fall and the first thing seen of it was the shadow.
+        float Drop() const { return size * 1.5f; }
+        float Lead() const { return size * 0.55f; }
+    };
+    vector<Falling> falls;
+
+    // A claw conjured at the caster's hand, thrust out and raked across whatever
+    // is in front: the Vampiric Touch's, and the Ice Touch's talons. It reaches
+    // as far as the bolt these spells used to throw, which is a hand's reach and
+    // a little more.
+    struct ClawSwipe {
+        float x = 0, y = 0;            // the hand it comes out of
+        float facing = 0, reach = 88.0f;
+        uint8_t look = 0;              // 0 flesh and blood, 1 ice
+        float life = 0, max_life = 0.42f, lift = 0, told = 0.0f;
+        float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
+        // Out in the first third, raking across the middle third, drawn back in
+        // the last: `Out` is how far, `Rake` is where round, -1 to 1.
+        float Out() const {
+            const float p = Progress();
+            if (p < 0.30f) return 0.25f + 0.75f * (p / 0.30f);
+            if (p < 0.70f) return 1.0f;
+            return 1.0f - 0.55f * ((p - 0.70f) / 0.30f);
+        }
+        float Rake() const {
+            const float p = std::clamp((Progress() - 0.28f) / 0.42f, 0.0f, 1.0f);
+            return -1.0f + 2.0f * (p * p * (3.0f - 2.0f * p));
+        }
+    };
+    vector<ClawSwipe> claws;
+    static constexpr float CLAW_TIME = 0.42f, CLAW_SWEEP = 0.62f;
+    void AddClaw(float x, float y, float facing, float reach, uint8_t look, float lift);
+    void HearOfClaw(float x, float y, float facing, float reach, uint8_t look);
+    void UpdateClaws(float dt);
+
+    void AddFalling(float x, float y, float size, Element element, float seconds, float lift);
+    void HearOfFalling(float x, float y, float size, Element element);
+    void UpdateFalling(float dt);
     // One swing or one drop. The caster's world makes it; a guest's makes the
     // same one from the numbers a snapshot gives it, once, however many
     // snapshots go on saying so -- `told` is how long ago one last did.

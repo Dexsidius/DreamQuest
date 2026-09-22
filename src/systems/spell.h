@@ -58,6 +58,13 @@ public:
     // level can cast, and -- whether or not it can -- the first there is.
     const SpellDef* ForSlot(Element e, int slot, int magic_level) const;
     const SpellDef* FirstOnSlot(Element e, int slot) const;
+    // What a weapon offers for an element: the best castable spell on each of
+    // the slots that weapon reaches, weakest first. See ItemDef::spell_slots.
+    vector<const SpellDef*> ForWeapon(Element e, const vector<int>& slots, int magic_level) const;
+    // And which of those it casts: the one held to, where that is one of them
+    // and within reach, and otherwise the strongest of the element's first --
+    // so widening what a weapon offers never quietly changes what it throws.
+    const SpellDef* ChosenFor(Element e, const vector<int>& slots, int magic_level, const string& held) const;
 
     const map<string, SpellDef>& All() const { return defs; }
     // The ancient spells, in the order they are learned.

@@ -8498,8 +8498,18 @@ int main(int argc, char** argv) {
                 shapes.insert(s->shape);
             }
             Check(ok, "each is arcane, throws something arcane, says where it is learned, and they come in order");
-            Check(shapes.count("bolt") && shapes.count("darts") && shapes.count("rays") && shapes.count("rain") &&
-                  shapes.count("ring"), "and they take every shape there is");
+            // Every shape the engine knows how to throw: if a spell names one
+            // that is not here it will silently come out as a plain bolt.
+            static const std::set<string> kShapes = {
+                "bolt", "darts", "rays", "rain", "ring", "spray", "rebuke", "claw", "blades",
+                "cone", "fire_ring", "wall", "wave", "whirlpool", "turbulence", "tornado",
+                "slab", "stone_rain", "burst"};
+            bool known = true;
+            for (const string& sh : shapes) known &= kShapes.count(sh) > 0;
+            Check(known && shapes.size() >= 6,
+                  "and they do not come out of one mould: " + std::to_string(shapes.size()) + " shapes between them");
+            Check(shapes.count("claw") && shapes.count("blades"),
+                  "the touches are claws raked across, and the Hail is a swarm");
             Check(spells.Get("eldritch_blast") && spells.Get("hail_of_blades") && spells.Get("magic_missile"),
                   "Eldritch Blast, Magic Missile and Hail of Blades are among them");
             Check(ElementMultiplier(Element::Arcane, Element::Fire) == 1.0f &&
@@ -12124,6 +12134,38 @@ int main(int argc, char** argv) {
                     proved = true;
                 }
                 Check(proved, "a meteor lands on a cow that is stood under it");
+
+                // There is an actual meteor in the air, and it is as wide as the
+                // ground it is about to cover. It used to be a disc on the floor
+                // that tightened and then went off with nothing overhead.
+                w.falls.clear();
+                w.ground_effects.clear();
+                w.player.RestoreMana();
+                input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+                frames(w, 80);
+                input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+                float size = 0.0f, high = 0.0f, low = 1e9f, ground = 0.0f;
+                bool  over_it = false;
+                for (int f = 0; f < 90; ++f) {
+                    frames(w, 1);
+                    for (const GroundEffect& g : w.ground_effects)
+                        if (g.element != Element::None && g.radius > 20.0f) ground = g.radius;
+                    for (const World::Falling& fl : w.falls) {
+                        if (fl.life <= 0.0f) continue;
+                        size = fl.size;
+                        high = std::max(high, fl.Above());
+                        low = std::min(low, fl.Above());
+                        // It comes down on the place the strike is armed over.
+                        for (const GroundEffect& g : w.ground_effects)
+                            if (g.radius > 20.0f && fabsf(g.x - fl.x) < 12.0f && fabsf(g.y - fl.y) < 12.0f) over_it = true;
+                    }
+                }
+                Check(size > 0.0f && ground > 0.0f && fabsf(size - ground * 2.0f) < 0.01f,
+                      "a meteor falls, and is as wide across as the ground it covers (" + std::to_string(size) +
+                          " for a circle " + std::to_string(ground * 2.0f) + " across)");
+                Check(high > 0.85f && low < 0.15f, "seen the whole way down, from high up to the ground");
+                Check(over_it, "and it comes down on the spot the strike is armed over");
+                Check(w.falls.empty(), "and is gone once it has struck");
             }
         }
 
@@ -14746,6 +14788,441 @@ int main(int argc, char** argv) {
             const PlayerInput hands = PlayerInput::FromDevice(kb);
             Check(hands.Down(PlayerInput::Block) && hands.Down(PlayerInput::Ability), "on the keys the guard is still the abilities' shift");
         }
+    }
+
+    Section("claws, a swarm of blades, and what a weapon reaches of an element");
+    {
+        GameContext ctx;
+        std::mt19937 rng(9091);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles;
+        ctx.spells = &spells; ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto frames = [&](World& w, int n) { for (int f = 0; f < n; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); } };
+        const auto field = [&](World& w, const char* weapon, int magic) {
+            w.player.Init(ctx, "player_wayfarer");
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(magic), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+            w.player.SyncHitpoints(); w.player.hp = w.player.max_hp;
+            w.player.SyncMana(); w.player.RestoreMana();
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto sturdy = [&](World& w, float dx) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get("cow");
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = "cow"; def.level = 1; def.leash = 600.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            e->max_hp = e->hp = 60000;
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+
+        // --- the two touches are claws, not bolts ------------------------------------------
+        for (const char* id : {"vampiric_touch", "ice_touch"}) {
+            const SpellDef* sp = spells.Get(id);
+            Check(sp && sp->shape == "claw", string(id) + " is raked, not thrown");
+            World w;
+            if (!sp || !field(w, "iron_staff", 70)) continue;
+            Enemy* cow = sturdy(w, 40.0f);
+            w.SetFlag("recipe:spell:" + string(id));
+            w.player.SetArcaneSpell(id);
+            w.player.SelectElement(Element::Arcane);
+            const int hp0 = cow ? cow->hp : 0;
+            w.player.hp = std::max(1, w.player.max_hp / 2);
+            const int mine0 = w.player.hp;
+            bool clawed = false, chilled = false, healed = false;
+            size_t shots = 0;
+            // A blow can miss its roll, so cast until one lands rather than
+            // resting the whole section on a single throw of the dice.
+            for (int go = 0; go < 8 && cow && cow->hp == hp0; ++go) {
+                w.player.RestoreMana();
+                cow->x = w.player.x + 40.0f; cow->y = w.player.y;
+                cow->knock_x = cow->knock_y = 0.0f;
+                for (int f = 0; f < 60 && !w.player.CanAttack(); ++f) frames(w, 1);
+                SDL_Event e{}; e.type = SDL_EVENT_KEY_DOWN; e.key.key = SDLK_J; input.HandleEvent(e);
+                w.Update(kFrame, ctx);
+                e.type = SDL_EVENT_KEY_UP; input.HandleEvent(e);
+                w.Update(kFrame, ctx);
+                for (int f = 0; f < 40; ++f) {
+                    frames(w, 1);
+                    clawed |= !w.claws.empty();
+                    shots = std::max(shots, w.projectiles.size());
+                    chilled |= cow->Afflicted(Status::Chill);
+                    healed |= w.player.hp > mine0;
+                }
+            }
+            Check(clawed, string(id) + " puts a claw out at the end of the arm");
+            Check(shots == 0, "and throws nothing: the bolt is gone");
+            Check(cow && cow->hp < hp0, "and what is in front of it is raked");
+            if (id == string("ice_touch")) Check(chilled, "the ice talons leave it chilled");
+            else                           Check(healed, "the blood claw gives back what it takes");
+        }
+
+        // --- the claw reaches as far as the bolt did ----------------------------------------
+        {
+            const ProjectileDef* d = projectiles.Get("blood_touch");
+            Check(d && fabsf(d->speed * d->life - 88.4f) < 1.0f,
+                  "the bolt it replaces flew a hand's reach and a little more");
+            World w;
+            if (field(w, "iron_staff", 70)) {
+                Enemy* near_one = sturdy(w, 60.0f);
+                Enemy* far_one = sturdy(w, 150.0f);
+                w.SetFlag("recipe:spell:vampiric_touch");
+                w.player.SetArcaneSpell("vampiric_touch");
+                w.player.SelectElement(Element::Arcane);
+                const int near0 = near_one ? near_one->hp : 0, far0 = far_one ? far_one->hp : 0;
+                for (int go = 0; go < 8 && near_one && near_one->hp == near0; ++go) {
+                    w.player.RestoreMana();
+                    near_one->x = w.player.x + 60.0f; near_one->y = w.player.y;
+                    far_one->x = w.player.x + 150.0f; far_one->y = w.player.y;
+                    near_one->knock_x = near_one->knock_y = 0.0f;
+                    for (int f = 0; f < 60 && !w.player.CanAttack(); ++f) frames(w, 1);
+                    SDL_Event e{}; e.type = SDL_EVENT_KEY_DOWN; e.key.key = SDLK_J; input.HandleEvent(e);
+                    w.Update(kFrame, ctx);
+                    e.type = SDL_EVENT_KEY_UP; input.HandleEvent(e);
+                    frames(w, 30);
+                }
+                Check(near_one && near_one->hp < near0, "what is within the claw's reach is raked");
+                Check(far_one && far_one->hp == far0, "and what is beyond it is not");
+            }
+        }
+
+        // --- the Hail is a swarm -------------------------------------------------------------
+        {
+            const SpellDef* sp = spells.Get("hail_of_blades");
+            Check(sp && sp->shape == "blades", "the Hail of Blades is a swarm of them");
+            World w;
+            if (sp && field(w, "iron_staff", 70)) {
+                sturdy(w, 70.0f);
+                w.SetFlag("recipe:spell:hail_of_blades");
+                w.player.SetArcaneSpell("hail_of_blades");
+                w.player.SelectElement(Element::Arcane);
+                SDL_Event e{}; e.type = SDL_EVENT_KEY_DOWN; e.key.key = SDLK_J; input.HandleEvent(e);
+                w.Update(kFrame, ctx);
+                e.type = SDL_EVENT_KEY_UP; input.HandleEvent(e);
+                bool swarm = false;
+                float lived = 0.0f;
+                for (int f = 0; f < 60; ++f) {
+                    frames(w, 1);
+                    for (const GroundEffect& g : w.ground_effects)
+                        if (g.draw == GroundEffect::Draw::Blades) { swarm = true; lived = g.max_life; }
+                }
+                Check(swarm, "it turns over the spot rather than falling out of the sky");
+                Check(lived > 0.8f, "and is there long enough to be seen turning (" + std::to_string(lived) + "s)");
+            }
+        }
+
+        // --- what each magic weapon reaches of an element --------------------------------------
+        {
+            static const char* kWeapons[4] = {"iron_staff", "iron_wand", "iron_grimoire", "iron_orb"};
+            static const Element kElements[4] = {Element::Fire, Element::Water, Element::Earth, Element::Air};
+            std::map<string, std::set<string>> reach;      // weapon -> every spell it can hold
+            int with_lists = 0;
+            for (const char* id : kWeapons) {
+                const ItemDef* d = items.Get(id);
+                Check(d != nullptr, string("there is an ") + id);
+                if (!d) continue;
+                bool all = true;
+                for (Element e : kElements) {
+                    const vector<int>& slots = d->SpellSlotsFor(e);
+                    all &= slots.size() >= 2 && slots.front() == 1;
+                    // Every slot it names is one the element's own staff has.
+                    for (int slot : slots) all &= spells.FirstOnSlot(e, slot) != nullptr;
+                    for (const SpellDef* sp : spells.ForWeapon(e, slots, 99)) reach[id].insert(sp->id);
+                }
+                Check(all, string(d->name) + " reaches the element's bolt and more, all of it the element's own staff's");
+                with_lists += 1;
+            }
+            Check(with_lists == 4, "every generic magic weapon has its lists");
+            // And no two of them reach the same set: that is the point of them.
+            bool differ = true;
+            for (int a = 0; a < 4; ++a)
+                for (int b = a + 1; b < 4; ++b)
+                    differ &= reach[kWeapons[a]] != reach[kWeapons[b]];
+            Check(differ, "and no two weapons offer the same spells");
+            // The elemental staff still has all four of its own.
+            for (Element e : kElements) {
+                const ItemDef* own = items.Get("iron_" + string(ElementName(e)) + "_staff");
+                Check(own && own->element == e, string("the iron ") + ElementName(e) + " staff is still that element's");
+                int have = 0;
+                for (int slot = 1; slot <= 4; ++slot) have += spells.FirstOnSlot(e, slot) != nullptr;
+                Check(have == 4, string(ElementName(e)) + " has all four for it to give");
+            }
+            // Widening what is offered does not change what is thrown by default.
+            World w;
+            if (field(w, "iron_grimoire", 70)) {
+                const SpellDef* best = spells.BestFor(Element::Fire, 70);
+                const SpellDef* cast = w.player.SpellOf(Element::Fire, spells);
+                Check(best && cast == best, "with nothing held to, a weapon still casts the element's strongest bolt");
+                // Held to one of its own, it casts that.
+                const ItemDef* g = items.Get("iron_grimoire");
+                const vector<const SpellDef*> offered = g ? spells.ForWeapon(Element::Fire, g->SpellSlotsFor(Element::Fire), 70)
+                                                          : vector<const SpellDef*>{};
+                const SpellDef* deep = nullptr;
+                for (const SpellDef* sp : offered) if (sp->slot == 4) deep = sp;
+                Check(deep != nullptr, "a grimoire reaches fire's greatest working");
+                if (deep) {
+                    w.player.HoldSpell(Element::Fire, deep->id);
+                    Check(w.player.SpellOf(Element::Fire, spells) == deep, "and held to it, casts it");
+                }
+                // What it does not reach it cannot be held to.
+                const SpellDef* other = spells.ForSlot(Element::Fire, 2, 70);
+                if (other) {
+                    w.player.HoldSpell(Element::Fire, other->id);
+                    Check(w.player.SpellOf(Element::Fire, spells) == best,
+                          "and held to one it does not reach, falls back to the bolt");
+                }
+            }
+        }
+    }
+
+    Section("a meteor overhead, and a dome of mana");
+    {
+        GameContext ctx;
+        std::mt19937 rng(4242);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles;
+        ctx.spells = &spells; ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the shield is a dome, and it goes when the shield does ----------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                Player& p = w.player;
+                LevelUp lu;
+                p.skills.AddXp(SKILL_MAGIC, XpForLevel(70), lu);
+                p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+                p.SyncHitpoints(); p.SyncMana(); p.RestoreMana();
+                Check(!p.ShieldUp(), "no dome over anyone who has not put one up");
+                for (const char* node : {"ward", "seeker", "meteor", "mana_shield"})
+                    p.talents.Learn(node, p.skills);
+                p.talents.SetAbility(0, "mana_shield");
+                Check(p.talents.AbilityNode(0) == "mana_shield", "the Mana Shield is on the bar");
+                // Held up, and then let go of by the clock rather than by hand.
+                Check(p.TryAbility(0, w), "and it can be used");
+                Check(p.ManaShield() && p.ShieldUp(), "used, it is up");
+                const float held = p.ManaShieldLeft();
+                for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
+                Check(p.ShieldUp() && p.ManaShieldLeft() < held, "and running down while it is");
+                for (int f = 0; f < 60 * 12; ++f) w.Update(kFrame, ctx);
+                Check(!p.ManaShield() && !p.ShieldUp(), "and gone when it wears off");
+                // A friend's is their machine's to count: the puppet is only told.
+                Player puppet;
+                puppet.Init(ctx, "player_hero");
+                Check(!puppet.ShieldUp(), "a friend with no shield has no dome");
+                puppet.shield_shown = true;
+                Check(puppet.ShieldUp() && !puppet.ManaShield(),
+                      "and one with a shield has a dome, without their timer being guessed at");
+                Check((net::PlayerState::Shielded & (net::PlayerState::Jumping | net::PlayerState::Blocking |
+                       net::PlayerState::Charging | net::PlayerState::Dead | net::PlayerState::Sprinting |
+                       net::PlayerState::Hurt)) == 0 && net::PROTOCOL_VERSION >= 8,
+                      "and the flag that says so has a bit of the wire to itself");
+            }
+        }
+
+        // --- a friend sees the meteor too --------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                w.AddFalling(w.player.x + 40.0f, w.player.y, 116.0f, Element::Fire, 0.6f, 0.0f);
+                Check(w.falls.size() == 1, "a meteor can be made from the wire");
+                // Told of again and again, as every snapshot does: still one meteor.
+                for (int i = 0; i < 5; ++i) w.HearOfFalling(w.player.x + 40.0f, w.player.y, 116.0f, Element::Fire);
+                Check(w.falls.size() == 1, "and hearing of it again is not a second one");
+                w.HearOfFalling(w.player.x + 300.0f, w.player.y, 116.0f, Element::Fire);
+                Check(w.falls.size() == 2, "but another one somewhere else is another one");
+                Check(net::PatchState::FALLING != net::PatchState::SLAB &&
+                      net::PatchState::FALLING != net::PatchState::SLAB_DROP,
+                      "and it has a kind of its own on the wire");
+            }
+        }
+    }
+
+    Section("every ore is its own rock");
+    {
+        // Each ore has art of its own, in both sizes, twice over; the maps ask
+        // for it by what the rock yields; and no two ores look alike.
+        static const char* kOres[] = {"copper", "iron", "coal", "azuryte", "damascus",
+                                      "orichalcum", "diamond", "platinum", "demonite"};
+        int drawn = 0, wanted = 0;
+        std::set<size_t> looks;
+        for (const char* ore : kOres)
+            for (int v = 0; v < 2; ++v)
+                for (const char* size : {"ore_", "oresmall_"}) {
+                    ++wanted;
+                    const string path = "assets/objects/" + string(size) + ore + "_" + std::to_string(v) + ".png";
+                    if (!fs::exists(path)) continue;
+                    ++drawn;
+                    std::ifstream f(path, std::ios::binary);
+                    looks.insert(std::hash<string>{}(string((std::istreambuf_iterator<char>(f)),
+                                                           std::istreambuf_iterator<char>())));
+                }
+        Check(wanted == 36 && drawn == wanted, "nine ores, two rocks each, in both sizes (" +
+              std::to_string(drawn) + " of " + std::to_string(wanted) + ")");
+        Check(looks.size() == static_cast<size_t>(drawn), "and no two of them are the same picture");
+
+        // What the maps actually place: every rock that yields a known ore is
+        // drawn with that ore's own art, not a plain boulder.
+        int rocks = 0, own = 0, plain = 0;
+        std::set<string> ores_seen;
+        static const std::map<string, string> kYield = {
+            {"copper_ore", "copper"}, {"iron_ore", "iron"}, {"coal", "coal"},
+            {"azuryte_ore", "azuryte"}, {"damascus_ore", "damascus"}, {"orichalcum_ore", "orichalcum"},
+            {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonite_ore", "demonite"}};
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load("maps/" + string(id) + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "rock") continue;
+                const auto want = kYield.find(o.yield);
+                if (want == kYield.end()) continue;
+                ++rocks;
+                const string art = fs::path(o.sprite).stem().string();
+                if (art.rfind("ore_" + want->second + "_", 0) == 0 ||
+                    art.rfind("oresmall_" + want->second + "_", 0) == 0) { ++own; ores_seen.insert(want->second); }
+                else ++plain;
+            }
+        }
+        Check(rocks > 100 && own == rocks && plain == 0,
+              "and every seam and outcrop in the realm is drawn as the ore it holds (" +
+                  std::to_string(own) + " of " + std::to_string(rocks) + ")");
+        Check(ores_seen.size() >= 6, "with most of the ores actually out there to be found (" +
+              std::to_string(ores_seen.size()) + ")");
+    }
+
+    Section("orcs that stand back, and a knife that does not twang");
+    {
+        // --- what a thrown weapon sounds like -------------------------------------------
+        // A knife has no string on it. What it wants is air and an edge turning
+        // in it, not a bowstring; the piece says which by carrying `thrown`.
+        int thrown = 0, loosed = 0;
+        for (const auto& kv : items.All()) {
+            const ItemDef& d = kv.second;
+            if (d.slot != SLOT_WEAPON || d.kind != WeaponKind::Bow) continue;
+            // A bow carries no `shoots` of its own -- it looses the plain arrow
+            // the code falls back to -- so what is counted is every ranged
+            // weapon, not only the ones that name their ammunition.
+            if (d.thrown) ++thrown; else ++loosed;
+            if (d.piece == "knives") Check(d.thrown, d.name + " is thrown");
+            if (d.piece == "bow" || d.piece == "crossbow") Check(!d.thrown, d.name + " is not");
+        }
+        Check(thrown >= 9, "every tier's throwing knives are thrown (" + std::to_string(thrown) + ")");
+        Check(loosed >= thrown, "and the bows and crossbows are still loosed (" + std::to_string(loosed) + ")");
+        Check(Audio::Samples(Sfx::KnifeThrow) != Audio::Samples(Sfx::BowShot),
+              "and the two do not sound alike");
+
+        // --- an orc that fights from the back of the rank --------------------------------
+        const EnemyDef* slinger = enemy_db.Get("orc_slinger");
+        const EnemyDef* bowman  = enemy_db.Get("orc_bowman");
+        Check(slinger && bowman, "there are orcs that shoot");
+        if (slinger && bowman) {
+            for (const EnemyDef* d : {slinger, bowman}) {
+                Check(!d->shoots.empty() && projectiles.Get(d->shoots),
+                      d->name + " throws something the game knows about");
+                Check(d->shoot_range > d->attack_range,
+                      d->name + " shoots from further off than it can reach");
+                Check(d->aggro_range > d->shoot_range,
+                      d->name + " notices a player further off than it shoots -- or it would stand "
+                                "in range of something it cannot see");
+                Check(!d->heavy.enabled, d->name + " has no heavy: it is not a brawler");
+                Check(d->shoot_cooldown > 1.0f, d->name + " is not a machine gun");
+            }
+
+            // It looses from where it stands rather than closing. Put one at the
+            // far end of what it can see and let it be: a shot should leave it
+            // without its ever coming inside a swing's reach.
+            std::mt19937 prng(97);
+            QuestLog shot_log;
+            shot_log.LoadDefinitions("data/quests.json");
+            GameContext pctx;
+            pctx.sprites = &sprites; pctx.items = &items; pctx.enemies = &enemy_db;
+            pctx.projectiles = &projectiles; pctx.spells = &spells; pctx.trees = &trees;
+            pctx.statuses = &statuses; pctx.loot = &loot;
+            pctx.quests = &shot_log; pctx.rng = &prng;
+            World world;
+            world.player.Init(pctx, "player_hero");
+            if (world.LoadMap("overworld", "start", pctx)) {
+                world.enemies.clear();
+                world.clock.Set(1, 12.0f);
+                {
+                    LevelUp up;
+                    world.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(90), up);
+                    world.player.Rest();
+                }
+                EnemySpawnDef def;
+                def.type = "orc_slinger"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                def.x = world.player.x + slinger->shoot_range - 12.0f;
+                def.y = world.player.y;
+                auto e = std::make_unique<Enemy>();
+                e->Init(slinger, def, pctx);
+                Enemy* orc = e.get();
+                world.enemies.push_back(std::move(e));
+                float nearest = 9999.0f;
+                bool shot = false;
+                for (int f = 0; f < 900 && !shot; ++f) {
+                    world.Update(1.0f / 60.0f, pctx);
+                    nearest = std::min(nearest, std::hypot(orc->x - world.player.x, orc->y - world.player.y));
+                    for (const Projectile& p : world.projectiles)
+                        if (!p.from_player) shot = true;
+                }
+                Check(shot, "a slinger looses at a player it can see");
+                Check(nearest > slinger->attack_range,
+                      "and never closes to a swing's reach to do it (" +
+                          std::to_string(static_cast<int>(nearest)) + " px)");
+            }
+        }
+
+        // --- mixed through the ranks, without another orc in the realm --------------------
+        // An overworld post is one of a pool with no group, so each answers for
+        // itself and a band comes out a mixture: see World::ResolveSpawn. A
+        // dungeon settles its own at generation. What must not have happened
+        // either way is the ranks growing.
+        int posts = 0, mixed = 0, settled = 0, settled_shooters = 0;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load("maps/" + string(id) + ".mx")) continue;
+            for (const EnemySpawnDef& s : m.Enemies()) {
+                const vector<string> who = s.pool.empty() ? vector<string>{s.type} : s.pool;
+                if (who.front().rfind("orc", 0) != 0) continue;
+                ++posts;
+                bool shoots = false, swings = false;
+                for (const string& t : who) {
+                    const EnemyDef* d = enemy_db.Get(t);
+                    if (!d) continue;
+                    if (d->shoots.empty()) swings = true; else shoots = true;
+                }
+                if (shoots && swings) ++mixed;
+                if (s.pool.empty()) { ++settled; if (shoots) ++settled_shooters; }
+            }
+        }
+        // 85 was the count before a single shooter was written, and it is the
+        // count after: the ask was a mixture, not more orcs.
+        Check(posts == 85, "the realm keeps exactly the orcs it kept (" + std::to_string(posts) + " posts)");
+        Check(mixed >= 30, "an overworld post is not settled until the day it is walked into (" +
+              std::to_string(mixed) + " of them)");
+        Check(settled_shooters * 6 > settled && settled_shooters * 2 < settled,
+              "and about a third of the mines' and the barrow's orcs stand back and shoot (" +
+                  std::to_string(settled_shooters) + " of " + std::to_string(settled) + ")");
     }
 
     Section("waystones: three towns, woken by hand");

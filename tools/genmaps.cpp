@@ -670,9 +670,25 @@ static void PlaceTree(MapBuilder& m, std::mt19937& rng, int index,
     m.Collision(x - 9, y - 9, 18, 9);
 }
 
+// Which ore is in a rock, by what it yields: the name shown over it, and the
+// art it is drawn with. Every ore used to be the same grey boulder with a
+// different word over it, so a new miner walked up to iron they could not touch
+// with nothing on screen to say which rock was the copper.
+static const std::map<string, string> kOre = {
+    {"copper_ore", "copper"}, {"iron_ore", "iron"}, {"coal", "coal"},
+    {"azuryte_ore", "azuryte"}, {"damascus_ore", "damascus"},
+    {"orichalcum_ore", "orichalcum"},
+    {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonite_ore", "demonite"}};
+
 static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
                       int x, int y, bool big, int level, const string& yield) {
-    const string art = big ? Pick(kRocks, rng) : Pick(kSmallRocks, rng);
+    const auto name = kOre.find(yield);
+    // Two of each, so a hillside of copper is not one rock stamped out; and a
+    // yield with no rock of its own falls back to the plain boulders.
+    const string art = name == kOre.end()
+        ? (big ? Pick(kRocks, rng) : Pick(kSmallRocks, rng))
+        : (big ? "ore_" : "oresmall_") + name->second + "_" +
+              std::to_string(std::uniform_int_distribution<int>(0, 1)(rng));
 
     json& o = m.Object("rock_" + std::to_string(index), "rock", x, y);
     o["sprite"]      = ObjPath(art);
@@ -682,15 +698,6 @@ static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
     // Deeper ore is slower to work and worth more for it.
     o["yield_xp"]    = static_cast<int>((big ? 60 : 24) * (1.0f + level / 12.0f));
     o["gather_time"] = (big ? 3.2f : 2.4f) + level * 0.02f;
-    // Named for the ore, because every ore uses the same rock art: a plain
-    // "outcrop" left a new miner walking up to iron they could not touch with
-    // nothing to say which of the rocks around it was copper.
-    static const std::map<string, string> kOre = {
-        {"copper_ore", "copper"}, {"iron_ore", "iron"}, {"coal", "coal"},
-        {"azuryte_ore", "azuryte"}, {"damascus_ore", "damascus"},
-        {"orichalcum_ore", "orichalcum"},
-        {"diamond_ore", "diamond"}, {"platinum_ore", "platinum"}, {"demonite_ore", "demonite"}};
-    const auto name = kOre.find(yield);
     o["title"]       = (name == kOre.end() ? string("ore") : name->second) + (big ? " seam" : " outcrop");
     // And on each ore a chance the seam gives out. A seam holds more than an
     // outcrop, and deeper ore takes longer to show again.
@@ -1485,8 +1492,8 @@ static void BuildOverworld() {
                 else if (r < 0.075f) { m.Enemy("fox", x, y, 2); ++spawned; }
                 else if (r < 0.10f)  { m.Enemy("boar", x, y, 3); ++spawned; }
             } else if (b == FOOTHILLS) {
-                if (r < 0.06f)       { m.Enemy("orc1", x, y, 2); ++spawned; }
-                else if (r < 0.08f)  { m.Enemy("orc2", x, y, 4); ++spawned; }
+                if (r < 0.06f)       { m.EnemyPool({"orc1", "orc1", "orc_slinger"}, "", x, y, 2, 0); ++spawned; }
+                else if (r < 0.08f)  { m.EnemyPool({"orc2", "orc2", "orc_bowman"}, "", x, y, 4, 0); ++spawned; }
             } else if (b == MIRE) {
                 // The swamp belongs to the lizardmen now.
                 if (fabsf(cx - MIRE_CAMP_X) <= 7 && fabsf(cy - MIRE_CAMP_Y) <= 7) continue;
@@ -1500,15 +1507,15 @@ static void BuildOverworld() {
                 // the swamp has what it had and frogs besides.
                 if (r < 0.045f)      { m.Enemy("frog", x, y, 1, 60.0f, 80.0f); ++spawned; }
                 else if (r < 0.100f) { m.Enemy("lizardman", x, y, 1 + static_cast<int>(Hash2(cx, cy, 99) * 3)); ++spawned; }
-                else if (r < 0.110f) { m.Enemy("orc1", x, y, 5); ++spawned; }
+                else if (r < 0.110f) { m.EnemyPool({"orc1", "orc1", "orc_slinger"}, "", x, y, 5, 0); ++spawned; }
             } else if (b == CURSED) {
-                if (r < 0.09f)       { m.Enemy("orc2", x, y, 8); ++spawned; }
+                if (r < 0.09f)       { m.EnemyPool({"orc2", "orc2", "orc_bowman"}, "", x, y, 8, 0); ++spawned; }
             }
 
             // The Sunken Road is where the orc contract is actually filled --
             // and, under the trees along it, where the highwaymen wait.
             if (b != WATER && road_gap > 2.0f && road_gap < 6.0f && cy > 24 && cy < 74) {
-                if (r > 0.90f) { m.Enemy("orc1", x, y, 3, 24.0f, 200.0f); ++spawned; }
+                if (r > 0.90f) { m.EnemyPool({"orc1", "orc1", "orc_slinger"}, "", x, y, 3, 0, 24.0f, 200.0f); ++spawned; }
                 else if (r > 0.84f && b == GREENWOOD) { m.Enemy("highwayman", x, y, 3, 40.0f, 200.0f); ++spawned; }
             }
         }
@@ -6324,7 +6331,7 @@ int main() {
                  1001u, 60, 46, 9,
                  "dungeon_floor", "dungeon_wall",
                  "overworld", "from_mine",
-                 {{"orc1", 3}, {"orc1", 4}, {"orc2", 5}},
+                 {{"orc1", 3}, {"orc_slinger", 3}, {"orc1", 4}, {"orc2", 5}},
                  "chest_dungeon", 3,
                  "chest_emberfell_key", "key_emberfell",
                  "dungeon_emberfell_2", "rusted_key",
@@ -6335,7 +6342,7 @@ int main() {
                  1002u, 54, 42, 8,
                  "dungeon_floor", "dungeon_wall",
                  "dungeon_emberfell_1", "from_below",
-                 {{"orc2", 7}, {"orc2", 9}, {"orc1", 6}},
+                 {{"orc2", 7}, {"orc_bowman", 7}, {"orc2", 9}, {"orc1", 6}},
                  "chest_dungeon", 3,
                  "", "",
                  "", "",
@@ -6353,7 +6360,7 @@ int main() {
                  2001u, 52, 40, 8,
                  "dungeon_floor", "dungeon_wall",
                  "overworld", "from_barrow",
-                 {{"orc1", 6}, {"orc2", 8}},
+                 {{"orc1", 6}, {"orc_slinger", 6}, {"orc2", 8}},
                  "chest_barrow", 3,
                  "chest_barrow_seal", "seal_barrow",
                  "", "", "", 1,

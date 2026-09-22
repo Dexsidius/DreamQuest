@@ -179,9 +179,19 @@ public:
     void    HoldSpell(Element e, const string& id);
     const SpellDef* SpellOf(Element e, const SpellBook& book) const {
         // An element's own staff casts the spell on the slot chosen; anything
-        // else casts the element's first, the strongest or the one held to.
+        // else casts what it is held to, out of what the weapon in hand reaches
+        // of that element, and the element's strongest first spell otherwise.
         if (StaffElement() == e && spell_slot > 0) return book.ForSlot(e, spell_slot + 1, skills.Level(SKILL_MAGIC));
+        const vector<int>& slots = SpellSlots(e);
+        if (!slots.empty()) return book.ChosenFor(e, slots, skills.Level(SKILL_MAGIC), HeldSpell(e));
         return book.Chosen(e, skills.Level(SKILL_MAGIC), HeldSpell(e));
+    }
+    // Which of an element's four the weapon in hand reaches: see
+    // ItemDef::spell_slots. Empty with nothing in hand that casts.
+    const vector<int>& SpellSlots(Element e) const {
+        static const vector<int> none;
+        const ItemDef* w = equipment.Weapon();
+        return w ? w->SpellSlotsFor(e) : none;
     }
 
     // --- progression ----------------------------------------------------------
@@ -238,6 +248,11 @@ public:
     bool  WarCry() const { return war_cry_timer > 0.0f; }
     bool  ManaShield() const { return mana_shield_timer > 0.0f; }
     float ManaShieldLeft() const { return mana_shield_timer; }
+    // A friend's shield, which is their machine's business to count down: the
+    // puppet is only told whether it is up, so that the dome can be drawn over
+    // them as it is over you.
+    bool  shield_shown = false;
+    bool  ShieldUp() const { return ManaShield() || shield_shown; }
     float WarCryLeft() const { return war_cry_timer; }
     bool  Frenzied() const { return frenzy_timer > 0.0f; }
     float FrenzyLeft() const { return frenzy_timer; }

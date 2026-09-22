@@ -266,6 +266,26 @@ private:
     // The skills panel's pages, in the order their tabs stand.
     enum { TAB_SKILLS = 0, TAB_TREE, TAB_BOOK, TAB_BOONS, TAB_COUNT };
 
+    // --- what a skill's levels are for -----------------------------------------
+    // Beside the level list, everything the selected skill opens and the level
+    // it opens at: the tier of gear it lets you hold, the spell, the recipe,
+    // the row of the tree. A level can be aimed at that way instead of being
+    // waited for, and the page says how much experience the aim costs.
+    struct SkillMilestone {
+        int    level = 1;
+        string text;
+    };
+    vector<SkillMilestone> MilestonesFor(int skill) const;
+    void DrawMilestones(const SDL_FRect& column);
+    // Gathered when the selected skill changes rather than every frame: the
+    // list is the same whatever the level, and only which of it is reached
+    // moves.
+    void SyncMilestones();
+    vector<SkillMilestone> milestones;
+    int  milestones_for = -1;        // the skill `milestones` was gathered for
+    int  milestone_row = 0;
+    bool on_milestones = false;      // which of the two columns takes up and down
+
     // --- the spellbook ---------------------------------------------------------
     // One row for each thing a button does -- the five spell slots, the three
     // abilities carried, the charged attack -- and, for each, everything this

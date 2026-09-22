@@ -225,7 +225,15 @@ int Game::Start(int argc, char** argv) {
                     const string id = launch_learn.substr(from, comma == string::npos ? string::npos : comma - from);
                     // "spell:<id>" is an ancient spell, known as if its tome had been read.
                     if (id.rfind("spell:", 0) == 0) world->SetFlag("recipe:" + id);
-                    else if (p.talents.Learn(id, p.skills)) p.talents.ToggleTechnique(id);
+                    else if (p.talents.Learn(id, p.skills)) {
+                        p.talents.ToggleTechnique(id);
+                        // An ability is no use learned but unslotted: put it on
+                        // the first bar that is free, as the Skills screen would.
+                        const TalentNode* node = p.talents.Database() ? p.talents.Database()->Find(id) : nullptr;
+                        if (node && !node->ability.empty())
+                            for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot)
+                                if (p.talents.AbilityNode(slot).empty()) { p.talents.SetAbility(slot, id); break; }
+                    }
                     if (comma == string::npos) break;
                     from = comma + 1;
                 }
@@ -302,7 +310,15 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "map")       OpenPanel(GameState::WorldMapPage);
                 else if (what == "journal")   OpenPanel(GameState::QuestPanel);
                 else if (what == "inventory") OpenPanel(GameState::Inventory);
-                else if (what == "skills")    { skills_tab = 0; OpenPanel(GameState::SkillsPanel); }
+                else if (what == "skills")    {
+                    skills_tab = 0;
+                    OpenPanel(GameState::SkillsPanel);
+                    // "skills:magic" opens on that skill, for looking at what
+                    // it says the levels are for. After the open: SetState puts
+                    // every panel's cursor back to the top.
+                    for (int k = 0; !arg.empty() && k < SKILL_COUNT; ++k)
+                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0) cursor = k;
+                }
                 else if (what == "menu")      { hub_cursor = 0; OpenPanel(GameState::Hub); }
                 else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_TREE; }
                 else if (what == "spellbook") { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOOK; book_row = 0; }
@@ -1360,7 +1376,17 @@ void Game::RunAudit() {
             {"pause",          GameState::Paused,          [&] { has_session = true; }},
             {"menu",           GameState::Hub,             [&] { hub_cursor = 0; }},
             {"inventory",      GameState::Inventory,       [&] { inventory_cursor = 0; }},
-            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; }},
+            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; cursor = SKILL_ATTACK;
+                                                                 milestones_for = -1; on_milestones = false; }},
+            // The milestone column, on the two skills whose lists are longest
+            // and whose lines are widest -- every spell and enchantment under
+            // Magic, every recipe of every station under Crafting -- with the
+            // cursor in it, which is when it draws its brightest and says what
+            // a level is still owed.
+            {"skills milestones", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; cursor = SKILL_MAGIC;
+                                                                 milestones_for = -1; on_milestones = true; }},
+            {"skills recipes",  GameState::SkillsPanel,    [&] { skills_tab = TAB_SKILLS; cursor = SKILL_CRAFTING;
+                                                                 milestones_for = -1; on_milestones = true; }},
             {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = TAB_TREE; tree_branch = 0; tree_row = 2; }},
             // With the whole tree learned and every ancient spell known: every
             // row has its longest choice somewhere along it.

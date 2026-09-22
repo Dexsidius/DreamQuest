@@ -522,7 +522,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         const SDL_Color c = ElementColor(g.Look());
 
         if (g.draw == GroundEffect::Draw::Whirlpool || g.draw == GroundEffect::Draw::Tornado ||
-            g.draw == GroundEffect::Draw::Turbulence) {
+            g.draw == GroundEffect::Draw::Turbulence || g.draw == GroundEffect::Draw::Blades) {
             const float z = camera.zoom;
             const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
             const float fade = std::clamp(g.life / 0.4f, 0.0f, 1.0f) * std::clamp((g.max_life - g.life) / 0.25f, 0.0f, 1.0f);
@@ -560,6 +560,41 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                            static_cast<int>(64 * k) + 20, 5, {96, 112, 128, static_cast<Uint8>(200 * fade)});
                     dotted(centre.x + sway, centre.y - up, rx * k, ry * 0.30f * k, -now * (7.0f - ring * 0.3f) + ring,
                            static_cast<int>(64 * k) + 20, 5, {236, 246, 252, static_cast<Uint8>(245 * fade)});
+                }
+            } else if (g.draw == GroundEffect::Draw::Blades) {
+                // The Hail of Blades: the tornado's turning column, made of
+                // blades. Each is a short bar drawn along the way it is
+                // travelling -- the tangent of the ring it is on -- with a
+                // bright edge down one side and a dark spine down the other, so
+                // it reads as a blade and not as a dash. They lie flat at the
+                // bottom and stand up as they rise, and the whole swarm turns.
+                fill_disc(centre.x, centre.y, rx * 0.85f, ry * 0.32f, {40, 36, 52, static_cast<Uint8>(80 * fade)});
+                const auto blade = [&](float bx, float by, float ang, float len, Uint8 alpha) {
+                    const float ca = cosf(ang), sa = sinf(ang);
+                    for (float d = -len; d <= len; d += 1.0f) {
+                        const float t = fabsf(d) / len;                 // 0 in the middle, 1 at the ends
+                        const SDL_FRect px = {roundf((bx + ca * d * z) / z) * z,
+                                              roundf((by + sa * d * z) / z) * z, z, z};
+                        // Pale along the edge, dark along the back of it.
+                        SDL_SetRenderDrawColor(r, static_cast<Uint8>(222 - 60 * t),
+                                               static_cast<Uint8>(230 - 50 * t),
+                                               static_cast<Uint8>(248 - 20 * t), alpha);
+                        SDL_RenderFillRect(r, &px);
+                        const SDL_FRect back = {px.x - sa * z, px.y + ca * z, z, z};
+                        SDL_SetRenderDrawColor(r, 62, 58, 86, static_cast<Uint8>(alpha * 0.85f));
+                        SDL_RenderFillRect(r, &back);
+                    }
+                };
+                for (int i = 0; i < 42; ++i) {
+                    const float tier = static_cast<float>(i % 7) / 6.0f;          // where up the column
+                    const float k = 0.42f + 0.52f * tier;
+                    const float up = tier * 24.0f * z;
+                    const float turn = now * (7.4f - 3.0f * tier) + i * 1.43f;
+                    const float bx = centre.x + cosf(turn) * rx * k;
+                    const float by = centre.y - up + sinf(turn) * ry * 0.34f * k;
+                    // Along the ring it is on, and standing up the higher it is.
+                    const float ang = turn + 1.5707963f + tier * 0.9f * (i % 2 ? 1.0f : -1.0f);
+                    blade(bx, by, ang, 3.5f + 2.5f * tier, static_cast<Uint8>(245 * fade));
                 }
             } else {
                 // Turbulence: no shape to it, only the air going every way at
@@ -1073,6 +1108,271 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                       std::max(0.0f, 5.0f - 10.0f * k), 3 + i,
                       static_cast<int>(255.0f * std::clamp(1.0f - (k - 0.55f) / 0.45f, 0.0f, 1.0f)), 0);
             }
+        }
+    }
+
+    // A meteor on its way down, over everything it is about to land on.
+    for (const Falling& f : falls) {
+        if (f.life <= 0.0f) continue;
+        const float z = camera.zoom;
+        const float k = f.Above();                       // 1 when it is let go, 0 as it strikes
+        const float rad = f.size * 0.5f;
+        const SDL_Color c = ElementColor(f.element);
+        // Its shadow, drawing in and darkening under it: the one thing that
+        // says where it is going to land rather than where it is now.
+        const SDL_FPoint down = camera.ToScreen(f.x, f.y - f.lift);
+        fill_disc(down.x, down.y, rad * z * (0.45f + 0.55f * (1.0f - k)), rad * z * 0.34f * (0.45f + 0.55f * (1.0f - k)),
+                  {16, 12, 10, static_cast<Uint8>(50 + 90 * (1.0f - k))});
+        // Where it is: up and back along the way it came.
+        const auto seat = [&](float t) {
+            return camera.ToScreen(f.x - f.Lead() * t, f.y - f.Drop() * t - f.lift);
+        };
+        // The tail: puffs strung out behind it, hottest at the head.
+        for (int i = 8; i >= 1; --i) {
+            const float t = k + static_cast<float>(i) * 0.055f;
+            if (t > 1.25f) continue;
+            const SDL_FPoint at = seat(t);
+            const float w = rad * z * (0.62f - 0.05f * i);
+            if (w <= 1.0f) continue;
+            const Uint8 a = static_cast<Uint8>(std::max(0.0f, 150.0f - 17.0f * i));
+            fill_disc(at.x, at.y, w, w, {c.r, c.g, c.b, a});
+        }
+        const SDL_FPoint at = seat(k);
+        // The light it throws, added rather than painted, so the ground under
+        // it is lit and not covered.
+        if (SDL_Texture* glow = cache.Get("assets/effects/glow.png")) {
+            // Twice across, not five times: this thing is already as wide as the
+            // ground it is about to cover, and a glow five times that is a sunset.
+            const float across = rad * 2.2f * z;
+            const SDL_FRect lit = {at.x - across / 2.0f, at.y - across / 2.0f, across, across};
+            SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_ADD);
+            SDL_SetTextureColorMod(glow, c.r, c.g, c.b);
+            SDL_SetTextureAlphaMod(glow, 150);
+            SDL_RenderTexture(r, glow, nullptr, &lit);
+            SDL_SetTextureAlphaMod(glow, 255);
+            SDL_SetTextureColorMod(glow, 255, 255, 255);
+            SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_BLEND);
+        }
+        // The fire round it, then the rock itself -- set back from the leading
+        // edge, so what burns is the face that is going first.
+        {
+            const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+            const SDL_Color hot = {static_cast<Uint8>(std::min(255, c.r + 60)),
+                                   static_cast<Uint8>(std::min(255, c.g + 70)),
+                                   static_cast<Uint8>(std::min(255, c.b + 40)), 255};
+            for (int i = 0; i < 26; ++i) {
+                const float a = 6.2831853f * i / 26.0f;
+                const float puff = rad * z * (0.19f + 0.07f * sinf(now * 9.0f + i * 1.7f));
+                const float d = rad * z * (0.88f + 0.09f * sinf(now * 7.0f + i * 2.3f));
+                fill_disc(at.x + cosf(a) * d, at.y + sinf(a) * d, puff, puff, {c.r, c.g, c.b, 205});
+            }
+            for (int i = 0; i < 7; ++i) {
+                const float a = 6.2831853f * i / 7.0f + now * 1.6f;
+                const float puff = rad * z * (0.22f + 0.07f * sinf(now * 11.0f + i * 2.9f));
+                fill_disc(at.x + cosf(a) * rad * z * 0.74f, at.y + sinf(a) * rad * z * 0.74f,
+                          puff, puff, {hot.r, hot.g, hot.b, 190});
+            }
+        }
+        const float back_x = f.Lead() / std::max(1.0f, f.Drop()) * rad * 0.22f * z;
+        const float cx = at.x - back_x, cy = at.y - rad * z * 0.20f;
+        // The rock itself: a lit ball with craters cut into it, worked out a
+        // pixel at a time on the sprites' own grid. It was a flat disc with
+        // darker discs laid on it, which is a coin with spots -- what makes a
+        // crater read as a hollow rather than a stain is that the wall facing
+        // the light is the dark one, the wall facing away catches the light,
+        // and a rim stands proud of both.
+        {
+            const int R = std::max(3, static_cast<int>(rad));
+            const float lx = -0.52f, ly = -0.60f, lz = 0.61f;     // the light, from the upper left
+            // Where it is going, on the screen: the face that leads is the face
+            // that is burning.
+            const float vlen = std::max(1.0f, sqrtf(f.Lead() * f.Lead() + f.Drop() * f.Drop()));
+            const float ux = f.Lead() / vlen, uy = f.Drop() / vlen;
+            const auto hash = [](int a, int b) {
+                uint32_t h = static_cast<uint32_t>(a) * 374761393u + static_cast<uint32_t>(b) * 668265263u;
+                h ^= h >> 13; h *= 1274126177u; h ^= h >> 16;
+                return static_cast<int>(h >> 28);                 // 0..15
+            };
+            // The craters, in the rock's own frame so they do not crawl as it falls.
+            struct Pit { float x, y, r; };
+            static const Pit kPits[] = {
+                {-0.34f, -0.24f, 0.32f}, {0.28f, -0.34f, 0.21f}, {0.30f, 0.26f, 0.27f},
+                {-0.16f, 0.42f, 0.19f}, {-0.04f, 0.04f, 0.16f}, {0.52f, -0.04f, 0.14f},
+                {-0.52f, 0.20f, 0.15f},
+            };
+            static const SDL_Color kStone[5] = {
+                {168, 150, 132, 255}, {126, 108, 96, 255}, {94, 78, 70, 255},
+                {66, 53, 48, 255}, {44, 35, 33, 255}};
+            const SDL_Color hot = {static_cast<Uint8>(std::min(255, c.r + 40)),
+                                   static_cast<Uint8>(std::min(255, c.g + 30)),
+                                   static_cast<Uint8>(std::min(255, c.b + 20)), 255};
+            SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+            for (int iy = -R; iy <= R; ++iy) {
+                // One row at a time, in runs of a colour: a fill for every pixel
+                // of something this size is ten thousand draws a frame.
+                int run_from = 0;
+                bool running = false;
+                SDL_Color run_col{0, 0, 0, 0};
+                const float py = cy + static_cast<float>(iy) * z;
+                const auto flush = [&](int to) {
+                    if (!running) return;
+                    SDL_SetRenderDrawColor(r, run_col.r, run_col.g, run_col.b, 255);
+                    const SDL_FRect span = {roundf((cx + static_cast<float>(run_from) * z) / z) * z,
+                                            roundf(py / z) * z,
+                                            static_cast<float>(to - run_from) * z, z};
+                    SDL_RenderFillRect(r, &span);
+                    running = false;
+                };
+                for (int ix = -R; ix <= R; ++ix) {
+                    const float nx = static_cast<float>(ix) / R, ny = static_cast<float>(iy) / R;
+                    const float d2 = nx * nx + ny * ny;
+                    // A broken edge rather than a compass circle.
+                    const float edge = 1.0f - 0.06f * static_cast<float>(hash(ix / 3, iy / 3)) / 15.0f;
+                    if (d2 > edge * edge) { flush(ix); continue; }
+                    const float nz = sqrtf(std::max(0.0f, 1.0f - d2));
+                    float lam = nx * lx + ny * ly + nz * lz;
+                    for (const Pit& pit : kPits) {
+                        const float ox = nx - pit.x, oy = ny - pit.y;
+                        const float rr = sqrtf(ox * ox + oy * oy) / pit.r;
+                        if (rr > 1.22f) continue;
+                        // Inside the bowl the ground tilts toward its middle, so
+                        // the side nearer the light turns away from it.
+                        if (rr < 0.90f) lam -= (ox * lx + oy * ly) / pit.r * 0.80f * (1.0f - 0.45f * rr);
+                        else            lam += 0.20f;                 // the rim, standing proud
+                    }
+                    // A little grain, so the bands are not five clean stripes.
+                    const int g = hash(ix / 2 + 64, iy / 2 + 64);
+                    lam += (g - 7) * 0.006f;
+                    const int band = lam > 0.80f ? 0 : lam > 0.58f ? 1 : lam > 0.36f ? 2 : lam > 0.17f ? 3 : 4;
+                    SDL_Color col = kStone[band];
+                    // Burning up on the way in: the leading face glows, hottest
+                    // at the very edge of it.
+                    const float front = nx * ux + ny * uy;
+                    const float heat = std::clamp((front - 0.28f) / 0.72f, 0.0f, 1.0f) *
+                                       std::clamp((d2 / (edge * edge) - 0.20f) / 0.80f, 0.0f, 1.0f);
+                    if (heat > 0.02f) {
+                        col.r = static_cast<Uint8>(col.r + (hot.r - col.r) * heat);
+                        col.g = static_cast<Uint8>(col.g + (hot.g - col.g) * heat);
+                        col.b = static_cast<Uint8>(col.b + (hot.b - col.b) * heat);
+                    }
+                    if (running && col.r == run_col.r && col.g == run_col.g && col.b == run_col.b) continue;
+                    flush(ix);
+                    run_from = ix;
+                    run_col = col;
+                    running = true;
+                }
+                flush(R + 1);
+            }
+        }
+    }
+
+    // A claw thrown out at the end of the arm and raked across whatever is in
+    // front of it: the Vampiric Touch's, and the Ice Touch's talons. Four
+    // talons and a thumb, each a curve that tapers to a point, drawn from the
+    // knuckle out; then the gashes they leave, which are what say the thing was
+    // scratched rather than merely reached at.
+    for (const ClawSwipe& cl : claws) {
+        if (cl.life <= 0.0f) continue;
+        const float z = camera.zoom;
+        const bool ice = cl.look == 1;
+        // Blood and bone, or ice: a dark body, a bright edge, and a paler point.
+        const SDL_Color dark = ice ? SDL_Color{28, 74, 122, 255} : SDL_Color{74, 12, 22, 255};
+        const SDL_Color mid  = ice ? SDL_Color{120, 196, 240, 255} : SDL_Color{168, 34, 50, 255};
+        const SDL_Color tip  = ice ? SDL_Color{232, 250, 255, 255} : SDL_Color{238, 126, 132, 255};
+        const float a0 = cl.facing + cl.Rake() * CLAW_SWEEP;
+        const float out = cl.Out();
+        const float fade = std::clamp(cl.life / 0.14f, 0.0f, 1.0f);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        const auto dot = [&](float wx, float wy, SDL_Color c, float wide) {
+            const SDL_FPoint at = camera.ToScreen(wx, wy - cl.lift);
+            SDL_SetRenderDrawColor(r, c.r, c.g, c.b, static_cast<Uint8>(c.a * fade));
+            const float w = std::max(z, roundf(wide) * z);
+            const SDL_FRect px = {roundf((at.x - w / 2.0f) / z) * z, roundf((at.y - w / 2.0f) / z) * z, w, w};
+            SDL_RenderFillRect(r, &px);
+        };
+        // One talon: walked from the knuckle to the point, turning as it goes,
+        // thinning as it goes, so it is a hooked claw and not a spike.
+        const auto talon = [&](float kx, float ky, float ang, float len, float curl, float thick) {
+            // A step a pixel: at one every two the talon is a row of beads.
+            const int steps = std::max(6, static_cast<int>(len));
+            float px = kx, py = ky, a = ang;
+            for (int i = 0; i <= steps; ++i) {
+                const float t = static_cast<float>(i) / steps;
+                const float w = std::max(1.0f, thick * (1.0f - t * 0.88f));
+                dot(px, py, dark, w + 1.6f);
+                dot(px, py, t > 0.72f ? tip : mid, w);
+                px += cosf(a) * (len / steps);
+                py += sinf(a) * (len / steps) * 0.72f;
+                a += curl / steps;
+            }
+        };
+        // The knuckle, a little way out along the arm.
+        const float hand = cl.reach * 0.30f * out;
+        const float hx = cl.x + cosf(a0) * hand, hy = cl.y + sinf(a0) * hand * 0.72f;
+        const float len = cl.reach * 0.62f * out;
+        dot(hx, hy, dark, 7.0f);
+        dot(hx - cosf(a0) * 2.0f, hy - sinf(a0) * 1.5f, mid, 4.0f);
+        // Four fingers splayed across the swipe, and a thumb under them.
+        static const float kSplay[4] = {-0.46f, -0.15f, 0.15f, 0.46f};
+        for (int i = 0; i < 4; ++i) {
+            const float side = kSplay[i];
+            const float grip = 0.55f + 0.30f * cl.Rake() * (side > 0.0f ? 1.0f : -1.0f);
+            talon(hx, hy, a0 + side, len * (i == 1 || i == 2 ? 1.0f : 0.82f), grip, 3.4f);
+        }
+        talon(hx, hy, a0 - 0.95f, len * 0.55f, 0.85f, 3.0f);
+        // What it opened: gashes across the far end, once the rake is under way.
+        if (cl.Progress() > 0.38f) {
+            const float gash = std::clamp((cl.Progress() - 0.38f) / 0.30f, 0.0f, 1.0f);
+            const float gx = cl.x + cosf(a0) * cl.reach * 0.86f;
+            const float gy = cl.y + sinf(a0) * cl.reach * 0.86f * 0.72f;
+            for (int i = -1; i <= 1; ++i) {
+                const float across = a0 + 1.5707963f;
+                const float sx = gx + cosf(across) * i * 7.0f, sy = gy + sinf(across) * i * 7.0f * 0.72f;
+                const float half = 9.0f * gash;
+                for (float d = -half; d <= half; d += 1.0f) {
+                    const float t = 1.0f - fabsf(d) / std::max(1.0f, half);
+                    dot(sx + cosf(a0) * d, sy + sinf(a0) * d * 0.72f, t > 0.55f ? tip : mid, t > 0.3f ? 2.0f : 1.0f);
+                }
+            }
+        }
+    }
+
+    // A dome of mana over anyone holding the shield up: see Player::ManaShield.
+    // Translucent, so what it covers is still read through it -- the point of it
+    // is to say the shield is up, not to hide the fight.
+    {
+        const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        vector<const Player*> everyone{&player};
+        for (const auto& g : guests) everyone.push_back(g.get());
+        for (const Player* who : everyone) {
+            if (!who || !who->ShieldUp()) continue;
+            const float z = camera.zoom;
+            // It draws in over the last half second rather than blinking out.
+            const float left = who->ManaShieldLeft();
+            const float fade = left > 0.0f ? std::clamp(left / 0.5f, 0.0f, 1.0f) : 1.0f;
+            const float beat = 1.0f + 0.035f * sinf(now * 4.2f);
+            const SDL_FPoint foot = camera.ToScreen(who->x, who->y - who->draw_lift);
+            const float rx = 20.0f * z * beat, ry = 31.0f * z * beat;
+            const int rows = std::max(6, static_cast<int>(ry));
+            for (int i = 0; i < rows; ++i) {
+                // 0 at the crown of the dome, 1 at the ground.
+                const float t = (i + 0.5f) / rows;
+                const float up = 1.0f - t;
+                const float half = rx * sqrtf(std::max(0.0f, 1.0f - up * up));
+                const float yy = foot.y - ry * up;
+                SDL_SetRenderDrawColor(r, 196, 160, 255, static_cast<Uint8>(46 * fade));
+                const SDL_FRect band = {foot.x - half, yy, half * 2.0f, ry / rows + 1.0f};
+                SDL_RenderFillRect(r, &band);
+                // The skin of it, brighter at the edge where it is seen edge-on.
+                SDL_SetRenderDrawColor(r, 226, 206, 255, static_cast<Uint8>(150 * fade));
+                const SDL_FRect lip_l = {foot.x - half, yy, z, ry / rows + 1.0f};
+                const SDL_FRect lip_r = {foot.x + half - z, yy, z, ry / rows + 1.0f};
+                SDL_RenderFillRect(r, &lip_l);
+                SDL_RenderFillRect(r, &lip_r);
+            }
+            // Where it meets the ground, so it is a dome and not an arch.
+            fill_disc(foot.x, foot.y, rx, rx * 0.34f, {196, 160, 255, static_cast<Uint8>(52 * fade)});
         }
     }
 

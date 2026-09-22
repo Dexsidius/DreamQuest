@@ -137,6 +137,13 @@ if ($Objects) {
     $mush = @(128, 64, 32, 128, 64, 64)
     foreach ($i in 0..5) { $sizes["mushroom_" + $i.ToString("d2")] = $mush[$i] }
     foreach ($i in 0..2) { $sizes["fungus_" + $i.ToString("d2")] = 32 }
+    # One rock per ore, twice over: see ORES in blender_props.py.
+    foreach ($ore in "copper", "iron", "coal", "azuryte", "damascus", "orichalcum", "diamond", "platinum", "demonite") {
+        foreach ($v in 0..1) {
+            $sizes["ore_${ore}_$v"] = 64
+            $sizes["oresmall_${ore}_$v"] = 32
+        }
+    }
     # What a felled tree leaves, at each size of tree.
     $sizes["stump"] = 48
     $sizes["stumpsmall"] = 32
@@ -173,6 +180,12 @@ foreach ($i in 0..5) { [void]$SCENERY_NAMES.Add("mushroom_" + $i.ToString("d2"))
 foreach ($i in 0..2) { [void]$SCENERY_NAMES.Add("fungus_" + $i.ToString("d2")) }
 [void]$SCENERY_NAMES.Add("stump")
 [void]$SCENERY_NAMES.Add("stumpsmall")
+foreach ($ore in "copper", "iron", "coal", "azuryte", "damascus", "orichalcum", "diamond", "platinum", "demonite") {
+    foreach ($v in 0..1) {
+        [void]$SCENERY_NAMES.Add("ore_${ore}_$v")
+        [void]$SCENERY_NAMES.Add("oresmall_${ore}_$v")
+    }
+}
 foreach ($n in "building_house_a", "building_house_b", "building_shop", "building_guild",
                "sign_guild", "chest", "chest_open", "door", "door_open", "campfire", "arrow",
                "guild_noticeboard", "guild_couch", "guild_bench", "guild_settle", "guild_chair",

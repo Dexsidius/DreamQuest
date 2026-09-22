@@ -968,6 +968,150 @@
                                                "w":  64,
                                                "h":  64
                                            },
+                   "objects/ore_azuryte_0":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "objects/ore_azuryte_1":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "objects/ore_coal_0":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
+                   "objects/ore_coal_1":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
+                   "objects/ore_copper_0":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/ore_copper_1":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "objects/ore_damascus_0":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
+                   "objects/ore_damascus_1":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
+                   "objects/ore_demonite_0":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
+                   "objects/ore_demonite_1":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
+                   "objects/ore_diamond_0":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "objects/ore_diamond_1":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "objects/ore_iron_0":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
+                   "objects/ore_iron_1":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
+                   "objects/ore_orichalcum_0":  {
+                                                    "w":  64,
+                                                    "h":  64
+                                                },
+                   "objects/ore_orichalcum_1":  {
+                                                    "w":  64,
+                                                    "h":  64
+                                                },
+                   "objects/ore_platinum_0":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
+                   "objects/ore_platinum_1":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
+                   "objects/oresmall_azuryte_0":  {
+                                                      "w":  32,
+                                                      "h":  32
+                                                  },
+                   "objects/oresmall_azuryte_1":  {
+                                                      "w":  32,
+                                                      "h":  32
+                                                  },
+                   "objects/oresmall_coal_0":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "objects/oresmall_coal_1":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "objects/oresmall_copper_0":  {
+                                                     "w":  32,
+                                                     "h":  32
+                                                 },
+                   "objects/oresmall_copper_1":  {
+                                                     "w":  32,
+                                                     "h":  32
+                                                 },
+                   "objects/oresmall_damascus_0":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "objects/oresmall_damascus_1":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "objects/oresmall_demonite_0":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "objects/oresmall_demonite_1":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "objects/oresmall_diamond_0":  {
+                                                      "w":  32,
+                                                      "h":  32
+                                                  },
+                   "objects/oresmall_diamond_1":  {
+                                                      "w":  32,
+                                                      "h":  32
+                                                  },
+                   "objects/oresmall_iron_0":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "objects/oresmall_iron_1":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "objects/oresmall_orichalcum_0":  {
+                                                         "w":  32,
+                                                         "h":  32
+                                                     },
+                   "objects/oresmall_orichalcum_1":  {
+                                                         "w":  32,
+                                                         "h":  32
+                                                     },
+                   "objects/oresmall_platinum_0":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
+                   "objects/oresmall_platinum_1":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
                    "objects/rock_00":  {
                                            "w":  64,
                                            "h":  64

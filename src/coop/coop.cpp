@@ -50,6 +50,7 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     if (p.IsCharging()) s.flags |= net::PlayerState::Charging;
     if (p.Fallen())     s.flags |= net::PlayerState::Dead;
     if (p.Sprinting())  s.flags |= net::PlayerState::Sprinting;
+    if (p.ManaShield()) s.flags |= net::PlayerState::Shielded;
     return s;
 }
 
@@ -1134,6 +1135,28 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             ps.kind = s.drop ? net::PatchState::SLAB_DROP : net::PatchState::SLAB;
             snap.patches.push_back(ps);
         }
+        // And a meteor in the air, so it is falling on their screen as on ours.
+        for (const World::Falling& f : w.falls) {
+            if (f.life <= 0.0f || !near(f.x, f.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
+            net::PatchState ps;
+            ps.x = Px(f.x); ps.y = Px(f.y);
+            ps.radius = static_cast<uint16_t>(std::clamp(f.size, 0.0f, 65535.0f));
+            ps.element = static_cast<uint8_t>(f.element);
+            ps.kind = net::PatchState::FALLING;
+            snap.patches.push_back(ps);
+        }
+        // And a claw raked across something.
+        for (const World::ClawSwipe& cl : w.claws) {
+            if (cl.life <= 0.0f || !near(cl.x, cl.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
+            net::PatchState ps;
+            ps.x = Px(cl.x); ps.y = Px(cl.y);
+            ps.radius = static_cast<uint16_t>(std::clamp(cl.reach, 0.0f, 65535.0f));
+            ps.element = static_cast<uint8_t>(Element::Arcane);
+            ps.life = net::AngleByte(cl.facing);
+            ps.max_life = cl.look;
+            ps.kind = net::PatchState::CLAW;
+            snap.patches.push_back(ps);
+        }
         server.SendToSeat(seat_no, net::Channel::Unreliable, net::Encode(snap));
     }
 }
@@ -1486,6 +1509,14 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
     }
     world.ground_effects.clear();
     for (const net::PatchState& ps : snap.patches) {
+        if (ps.kind == net::PatchState::CLAW) {
+            world.HearOfClaw(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius, ps.max_life);
+            continue;
+        }
+        if (ps.kind == net::PatchState::FALLING) {
+            world.HearOfFalling(ps.x, ps.y, ps.radius, static_cast<Element>(ps.element));
+            continue;
+        }
         if (ps.kind == net::PatchState::SLAB || ps.kind == net::PatchState::SLAB_DROP) {
             world.HearOfSlab(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius, ps.max_life,
                              ps.kind == net::PatchState::SLAB_DROP);
@@ -1500,7 +1531,7 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         g.delay = ps.active ? 0.0f : 0.1f;
         g.from_player = ps.from_player;
         g.rain = ps.kind == 1;
-        g.draw = static_cast<GroundEffect::Draw>(std::min<uint8_t>(ps.kind, static_cast<uint8_t>(GroundEffect::Draw::Turbulence)));
+        g.draw = static_cast<GroundEffect::Draw>(std::min<uint8_t>(ps.kind, static_cast<uint8_t>(GroundEffect::Draw::Blades)));
         world.ground_effects.push_back(g);
     }
 }
@@ -1564,6 +1595,7 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
         g->draw_lift = lift;
         g->hp = a.state.hp;
         g->max_hp = std::max<int>(1, a.state.max_hp);
+        g->shield_shown = (a.state.flags & net::PlayerState::Shielded) != 0;
     }
 }
 

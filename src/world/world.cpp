@@ -44,6 +44,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     shots_seen.clear();
     queued_shots.clear();
     slabs.clear();
+    falls.clear();
+    claws.clear();
     targeting.Clear();
     gather_index = -1;
     player.StopGathering();
@@ -886,6 +888,8 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         UpdateImpacts(dt);
         UpdateDust(dt);
         UpdateSlabs(dt);
+        UpdateFalling(dt);
+        UpdateClaws(dt);
         ShedFromShots();
         ShedFromGround(dt);
         ShedFromStatuses(dt);

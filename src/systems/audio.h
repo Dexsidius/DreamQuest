@@ -16,7 +16,7 @@
 
 enum class Sfx {
     Swing, SwingHeavy, Hit, HitCrit, Block, EnemyDie, PlayerHurt, PlayerDie,
-    BowShot, SpellCast, Impact,
+    BowShot, KnifeThrow, SpellCast, Impact,
     Pickup, Coins, Chop, Mine, Cook, Burn, ChestOpen, Eat, Equip,
     Footstep, FootstepWood, FootstepStone, Jump, Land,
     Door, Portal, Locked, Winded, Sleep, Wake, Splash,

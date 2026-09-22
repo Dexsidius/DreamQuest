@@ -16,6 +16,7 @@ const char* EquipSlotName(int slot) {
 static void ReadArmoury(const json& o, ItemDef& d) {
     d.weapon_class  = o.value("class", string(""));
     d.two_handed    = o.value("two_handed", false);
+    d.thrown        = o.value("thrown", false);
     d.armour_pierce = std::clamp(o.value("armour_pierce", 0.0f), 0.0f, 0.9f);
     d.damage        = o.value("damage", 1.0f);
     d.charge_clip   = o.value("charge_clip", string(""));
@@ -36,6 +37,19 @@ static void ReadArmoury(const json& o, ItemDef& d) {
     d.mana_mult = o.value("mana", 1.0f);
     d.homing    = o.value("homing", 0.0f);
     d.element   = ElementFromName(o.value("element", string("none")));
+    // "spells": { "fire": [1, 2, 4], ... } -- which of each element's four this
+    // weapon reaches. See ItemDef::spell_slots.
+    if (o.contains("spells") && o["spells"].is_object()) {
+        static const char* kElements[4] = {"fire", "water", "earth", "air"};
+        for (int i = 0; i < 4; ++i) {
+            if (!o["spells"].contains(kElements[i])) continue;
+            d.spell_slots[i].clear();
+            for (const auto& n : o["spells"][kElements[i]]) {
+                const int slot = n.get<int>();
+                if (slot >= 1 && slot <= 4) d.spell_slots[i].push_back(slot);
+            }
+        }
+    }
     if (o.contains("combos") && o["combos"].is_object()) {
         static const char* kMoves[4] = {"crush", "cleave", "backhand", "cross_cut"};
         for (int i = 0; i < 4; ++i) {

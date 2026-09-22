@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 7;   // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped
+static constexpr uint16_t PROTOCOL_VERSION = 9;   // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -206,7 +206,8 @@ struct InputFrames {
 };
 
 struct PlayerState {
-    enum Flag : uint8_t { Jumping = 1, Blocking = 2, Charging = 4, Dead = 8, Sprinting = 16, Hurt = 32 };
+    enum Flag : uint8_t { Jumping = 1, Blocking = 2, Charging = 4, Dead = 8, Sprinting = 16, Hurt = 32,
+                          Shielded = 64 };
     uint8_t  seat = 0;
     float    x = 0.0f, y = 0.0f, lift = 0.0f;
     uint8_t  facing = 0, flags = 0, frame = 0;
@@ -250,6 +251,12 @@ struct PatchState {              // burning ground, a rune, a storm
     // out it is swung, `max_life` how big the square is, and `life` the way it
     // is swung: see AngleByte.
     static constexpr uint8_t SLAB = 32, SLAB_DROP = 33;
+    // Nor is a meteor on its way down: x, y where it will land, `radius` how
+    // wide it is, `element` what it is made of. The guest times the fall.
+    static constexpr uint8_t FALLING = 34;
+    // Nor is a claw raked across something: `radius` how far it reaches,
+    // `max_life` which claw it is, `life` the way it is swiped.
+    static constexpr uint8_t CLAW = 35;
 };
 // A direction in a byte, a degree and a half at a time.
 inline uint8_t AngleByte(float radians) {

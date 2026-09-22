@@ -442,6 +442,67 @@ void World::UpdateSlabs(float dt) {
                                [](const SlabSwing& s) { return s.life <= 0.0f && s.told > 0.3f; }), slabs.end());
 }
 
+void World::AddFalling(float x, float y, float size, Element element, float seconds, float lift) {
+    Falling f;
+    f.x = x; f.y = y;
+    f.size = size;
+    f.element = element;
+    f.life = f.max_life = std::max(0.05f, seconds);
+    f.lift = lift;
+    falls.push_back(f);
+}
+
+void World::HearOfFalling(float x, float y, float size, Element element) {
+    // Told of in every snapshot until it lands, and is one meteor: the same
+    // place and the same size, heard of again, is the one already in the air.
+    for (Falling& f : falls)
+        if (fabsf(f.x - x) < 3.0f && fabsf(f.y - y) < 3.0f) { f.told = 0.0f; return; }
+    AddFalling(x, y, size, element, 0.6f, LiftAt(x, y));
+}
+
+void World::UpdateFalling(float dt) {
+    for (Falling& f : falls) {
+        const bool flying = f.life > 0.0f;
+        f.life -= dt;
+        f.told += dt;
+        // The ground it throws up where it strikes. What it does to anyone
+        // standing there is the ground effect's, which goes off at the same
+        // moment: see "meteor" in FirePlayerProjectile.
+        if (flying && f.life <= 0.0f) {
+            Audio::PlayAt(Sfx::Impact, f.x, f.y, 1.0f, 0.5f);
+            BurstOf(f.element, f.x, f.y, f.lift, 2.0f + f.size / 40.0f, 0.0f, 0.0f);
+            Burst(f.x, f.y, f.size * 0.35f, ElementColor(f.element), 6, 0.6f);
+            for (float w : {-1.0f, 1.0f}) AddDust(f.x + w * f.size * 0.4f, f.y + 2.0f, w, 0.0f);
+        }
+    }
+    falls.erase(std::remove_if(falls.begin(), falls.end(),
+                               [](const Falling& f) { return f.life <= 0.0f && f.told > 0.3f; }), falls.end());
+}
+
+void World::AddClaw(float x, float y, float facing, float reach, uint8_t look, float lift) {
+    ClawSwipe c;
+    c.x = x; c.y = y;
+    c.facing = facing;
+    c.reach = reach;
+    c.look = look;
+    c.life = c.max_life = CLAW_TIME;
+    c.lift = lift;
+    claws.push_back(c);
+}
+
+void World::HearOfClaw(float x, float y, float facing, float reach, uint8_t look) {
+    for (ClawSwipe& c : claws)
+        if (c.look == look && fabsf(c.x - x) < 3.0f && fabsf(c.y - y) < 3.0f &&
+            fabsf(c.facing - facing) < 0.06f) { c.told = 0.0f; return; }
+    AddClaw(x, y, facing, reach, look, LiftAt(x, y));
+}
+
+void World::UpdateClaws(float dt) {
+    for (ClawSwipe& c : claws) { c.life -= dt; c.told += dt; }
+    claws.erase(std::remove_if(claws.begin(), claws.end(),
+                               [](const ClawSwipe& c) { return c.life <= 0.0f && c.told > 0.3f; }), claws.end());
+}
+
 void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
     // Shots that were owed: let go from where the caster is now, at what they
     // are fighting now.
@@ -465,6 +526,8 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         }
     }
     UpdateSlabs(dt);
+    UpdateFalling(dt);
+    UpdateClaws(dt);
 
     for (GroundEffect& g : ground_effects) {
         if (g.finished) continue;

@@ -712,6 +712,11 @@ the same dozen fields off every weapon (`ItemDef`, "the armoury").
 | **Orb** | one | 0.76 | 0.78 of a staff's cast, and **what it throws turns after its target**. |
 | **Fire, Water, Earth, Air staff** | one | 1.05 | [Four spells instead of four elements](#an-elements-own-staff). |
 
+**A thrown knife does not twang.** Throwing knives used to share the bow's
+sound, which is a bowstring on a weapon that has no string: they carry
+`thrown` in `data/tiers.json` now and get a sound of their own -- air, and a
+thin edge turning in it.
+
 **Combos.** The grammar is the sword's -- light-heavy, light-light-heavy,
 heavy-light, both at once -- and each melee weapon has its own four, with its
 own twist (`"combos"` on the piece): a dagger's *Gut Stab* goes past 70% of
@@ -1159,6 +1164,40 @@ How it is done, and why:
   be kept on the shot), and a shot it stops hearing of has met something and
   breaks where it last was.
 
+### What a magic weapon reaches of an element
+
+A plain staff, a wand, a grimoire and an orb all choose an element with `1` to
+`4` -- and each of them **reaches a different part of that element**. Every
+list comes from the element's own staff, which is where an element's four
+spells live; what differs is which of them a weapon can be held to.
+
+| | Reaches | And its own trick |
+| --- | --- | --- |
+| **Staff** | the **whole** element: all four | none -- reach is what a plain staff has |
+| **Wand** | the bolt, the direct strike and the wide one | casts half again as often |
+| **Grimoire** | the bolt, the wide one and the **great working** | every spell costs a sixth less |
+| **Orb** | the bolt, the direct strike and the **great working** | what it throws turns after your quarry |
+
+So for fire a staff can hold Ember, Pyre, Flamethrower, Flame Ring or Wall of
+Fire; a wand everything but the Wall; a grimoire the Flame Ring and the Wall but
+not the Flamethrower; an orb the Flamethrower and the Wall but not the Ring. No
+two of the four offer the same list for any element.
+
+**Slot one is every element's bolt and every weapon has it**, so nothing that
+could be cast before this can no longer be cast, and **with nothing held to, a
+weapon still throws the element's strongest bolt** -- widening what is on the
+menu never quietly changes what the button does. Choosing is the spellbook's
+job, as it always was.
+
+An element's own staff is still the only thing that puts an element's four on
+the keys `1` to `4` and lets you change between them mid-fight: that is what it
+is for, and it is why it gives up the other three elements to do it.
+
+It is one line of data per weapon --
+`"spells": { "fire": [1, 2, 3, 4], ... }` on the piece in `data/tiers.json`,
+read into `ItemDef::spell_slots` -- so a tenth magic weapon declares what it
+reaches and needs no code.
+
 ### The spellbook
 
 What each button does was spread over three places, and one of them was nowhere.
@@ -1374,6 +1413,44 @@ were got wrong first time:
   every combo were quietly worse than they read. Above about level 20 the two
   orderings agree.
 
+### What a level is for
+
+Beside the level list, a second column: **everything the selected skill opens,
+and the level it opens at.** Walk into it with right (left comes back), walk
+down it with up and down, and the line under it says what the thing the cursor
+is on still costs -- `Magic 47 -- 37903 xp to go`. It opens on the first
+milestone not yet reached, because what is already had is behind you.
+
+The list is gathered from the things themselves rather than written down
+anywhere, so a tier, a spell or a recipe added tomorrow appears in it the same
+day and cannot be forgotten:
+
+| Where it comes from | What it reads as |
+| --- | --- |
+| the character's own tree | `30 Ground Slam`, `47 Riposte (2 ranks)` |
+| what a piece asks to be held or worn | `40 Damascus bows and hides` |
+| what a station asks to make it | `40 Smith Damascus gear`, `24 Cook Traveller's Pie` |
+| a spell, and an enchantment | `40 Mana Shield`, `50 Work Wind into a piece` |
+| an ore seam, a fish, a herb | `40 Mine Damascus Ore`, `45 Catch Raw Salmon` |
+| the chance of a second and a third fish | `40 Two fish in a cast, 20% of the time` |
+
+Only the character's **own** tree is in it: a hero has no use for a row of the
+wayfarer's they will never be offered.
+
+Three things the gathering has to do to be readable rather than merely
+complete. A tier's seven pieces all ask the same level, so they are one line
+(`Mithril bows and hides`), and past three nouns it is the whole tier
+(`Smith Mithril gear`). A tier is not all *made* at one level -- a wooden
+shield comes after a wooden bow -- so each noun is said once, at the lowest
+level it is true at, instead of four near-identical lines running. And the
+enchanted twin of every piece is skipped: it asks nothing the piece did not,
+and there are three hundred and thirty-six of them.
+
+**Strength and Hitpoints open nothing.** They are the two that pay at every
+level rather than at a few of them, and the column says so.
+
+`--screen skills:magic` opens the page on a given skill, for looking at it.
+
 ### Skill trees
 
 **A character has one path, and one tree: their path's.** The hero's is the
@@ -1465,6 +1542,85 @@ protocol goes to 4 for it), draws its own. When the last volley has landed the
 circle goes and the arrows already standing get their half second to fade.
 `--learn trail_legs,broadheads,arrow_rain` with `--scratch warden --level 40`
 is a character who can loose one.
+
+#### A claw, not a bolt
+
+The **Vampiric Touch** and the **Ice Touch** threw a small bolt that flew a
+hand's reach and vanished, which is a strange way to draw something whose whole
+description is *touch*. Both are now a **claw conjured at the end of the arm**
+and raked across whatever is in front of you -- the Vampiric Touch's a thing of
+blood, four talons and a thumb in dark red with pale points; the Ice Touch's the
+same hand grown in ice. Nothing leaves the hand.
+
+It reaches exactly as far as the bolt it replaces (`speed * life`, 88 pixels),
+so the range is unchanged, and it carries what the bolt carried -- the leeching
+and the chill are still the projectile's line in `data/projectiles.json`, read
+by the new `"claw"` shape. Each talon is walked from the knuckle to its point,
+turning and thinning as it goes, so it is a hooked claw rather than a spike; the
+hand thrusts out, rakes through the arc, and is drawn back, and the gashes it
+opens are drawn at the far end once the rake is under way. `PatchState::CLAW`
+carries it to a friend's screen.
+
+#### A swarm, not a hail
+
+The **Hail of Blades** was the same delayed strike every other spell of its kind
+is, drawn as a disc on the floor. It is now a **swarm of conjured blades turning
+over the spot** -- the Tornado's column of rings, with a blade on every ring of
+them instead of a speck of dust. Each blade is a short bar drawn along the way
+it is travelling, pale down its edge and dark down its spine so it reads as a
+blade and not a dash; they lie flat at the bottom of the column and stand up as
+they rise, and the whole swarm turns. What it does is unchanged: one hit, when
+they arrive.
+
+#### A meteor you can see coming
+
+The Meteor brought the element down as a circle on the floor that tightened and
+then went off, with nothing overhead. There is **an actual meteor** now, and it
+is **as wide across as the ground it covers** -- a hundred and sixteen pixels,
+because the strike is fifty-eight in radius -- so what is falling is the size of
+what is about to be hit. Nothing else on the screen says how big a meteor is.
+
+It comes in at an angle over about its own width and a half, accelerating, with
+a tail of fire strung out behind it and its shadow drawing in and darkening on
+the ground under it. The corona is six-and-twenty tongues that wander rather
+than a ring -- one disc behind another is a flat annulus, and an annulus does
+not burn. The circle on the ground stays: it is the warning, and it is where
+the damage lands.
+
+**The rock** is shaded as a ball rather than drawn as a disc, a pixel at a time
+on the sprites' own grid: the light comes from the upper left as it does
+everywhere else in the game, the far side falls away into shadow, and the
+lambert is quantised into five bands of stone so it reads as pixel art and not
+as a gradient. Seven **craters** are cut into it, fixed in the rock's own frame
+so they do not crawl as it falls. What makes a crater read as a hollow rather
+than as a stain is which side is dark: inside the bowl the ground tilts toward
+the middle, so the wall *nearer* the light turns away from it and goes dark
+while the far wall catches it, with a rim standing proud of both. The face that
+leads is blended toward the element's colour, hottest at the very edge -- it is
+burning up on the way in. The silhouette wobbles by a few per cent so it is not
+a compass circle.
+
+Each row is emitted as **runs of one colour** rather than a fill per pixel: at
+a hundred and sixteen across that would be ten thousand draw calls a frame, and
+with the runs it holds 72 fps with the meteor filling a third of the screen.
+
+`World::Falling` holds it (`AddFalling`, `HearOfFalling`, `UpdateFalling`), and
+it goes to a friend's screen as `PatchState::FALLING` -- where it lands, how
+wide, what it is made of -- with the guest timing the fall itself.
+
+#### A dome while the shield is up
+
+The Mana Shield was a word in the corner of the screen and nothing else. It is
+**a translucent light purple dome** over the player now, brighter along its
+skin where it is seen edge-on, breathing gently, closed at the foot so it reads
+as a dome and not an arch. You can still see yourself and the fight through it,
+which is the point. It **draws in over the last half second** rather than
+blinking out, so the shield ending is something you see rather than something
+you notice afterwards.
+
+A friend's shield shows too: `PlayerState::Shielded` is one bit of the wire, and
+`Player::shield_shown` is what a puppet is told -- how long is left is their own
+machine's business, not something this one guesses at.
 
 #### Abilities
 
@@ -1701,6 +1857,42 @@ saves, quests and loot tables still find them. Recipes that are not an item's
 own "craft" (one bar makes seven things) are kept alongside the items, and the
 crafting panel scrolls, with icons, now that the anvil alone makes sixty-odd
 things. There is a second anvil in Mossvale.
+
+### Every ore is its own rock
+
+Every seam and outcrop in the realm used to be **the same grey boulder**, told
+apart only by the word printed over it -- so a new miner walked up to iron they
+could not touch with nothing on screen to say which of the rocks around them
+was the copper they could. There are nine rocks now, one per ore, two of each so
+a hillside is not one boulder stamped out, in both sizes: 36 in all, and all 471
+rocks the maps place are drawn as the ore they hold.
+
+Two things do the telling, because one is not enough at forty pixels across --
+the colour of the **host stone**, and **what is growing out of it**:
+
+| Ore | Host | What shows |
+| --- | --- | --- |
+| **Copper** | grey | green malachite veins, with flecks of the raw metal |
+| **Iron** | rust-brown | dull red nodules, half buried |
+| **Coal** | grey | jet chunks that break square and catch the light |
+| **Azuryte** | pale | blue crystals, **lit from inside** |
+| **Damascus** | grey | pale bands wrapping the rock, one over the other |
+| **Orichalcum** | warm tan | gold nuggets |
+| **Diamond** | pale | clear crystals standing proud |
+| **Platinum** | cool blue-grey | pale silver nodules |
+| **Demonite** | near black | purple shards with a red heart, **glowing** |
+
+A shape survives being reduced to pixel art where a tint alone washes out:
+copper is green veins and coal is black glass even where the two host rocks are
+the same grey. `ORES` and `scenery_ore` in `tools/blender_props.py` hold all of
+it, and `PlaceRock` in `tools/genmaps.cpp` picks the art from what the rock
+yields rather than at random.
+
+**Where the first pass went wrong**, for whoever adds a tenth: the ore was
+placed a fraction of the way out from the middle of each lump, which is *inside
+the rock*, and nine ores came out as nine grey boulders. It is placed on the
+surface the camera can see now -- up and toward -Y -- by taking a point on the
+lump's own ellipsoid.
 
 ### The tier art
 
@@ -4613,6 +4805,40 @@ wanders, rots or comes back.
 What the player sees: on a map the others have left, the monsters come for you,
 reach you and hit you, exactly as they do when everyone is together.
 
+### Orcs that stand back
+
+Not every orc closes. **A slinger throws rocks and a bowman looses arrows**, and
+both hold their distance instead of charging: inside their own range, no nearer
+than a swing's, backing off if you walk in. They are the orcs you already knew
+in other colours -- pale green and pale blue -- because what has to read at a
+glance is *that one is shooting*, not that it has a different silhouette.
+
+| | Throws | From | Every | Softer by |
+| --- | --- | --- | --- | --- |
+| Orc Slinger | a rock | 170 px | 2.4 s | 3 hp, 1 defence |
+| Orc Bowman | an arrow | 215 px | 2.0 s | 6 hp, 3 defence |
+
+A shooter is meant to be got at, so it gives up some of the hit points and
+armour its melee twin has, and it has no heavy attack: it is not a brawler.
+Its aggro range is set **above** its shooting range, or it would stand in range
+of something it cannot see and never loose.
+
+**There are no more orcs than there were.** The realm holds the same
+eighty-five orc posts it held before a single shooter was written -- the
+self-test counts them -- and the mixture comes from the posts themselves. On
+the overworld a post is one of a pool with no group, so each answers for itself
+(see `World::ResolveSpawn`): two melee to one shooter, settled by the day's
+hash rather than a roll, which means both machines in a co-op game agree
+without a word and a band that was all axes yesterday has two slingers behind
+it today. In the mines and the barrow the roster is settled when the map is
+generated, and about a third of it shoots.
+
+In the engine it is three fields on a monster -- `shoots`, `shoot_range`,
+`shoot_cooldown` -- and anything in `data/enemies.json` can have them. The
+throw itself rides on the swing that was already there: at the same point in
+the wind-up where a claw would land, a projectile leaves instead, and is
+resolved where every other shot is.
+
 ### What starts a fight, and what ends one
 
 **Two things start one.** Someone inside a monster's aggro range: it has seen
@@ -4943,7 +5169,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **34431 checks** covering:
+and checks all of it — currently **34574 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -5851,6 +6077,16 @@ and checks all of it — currently **34431 checks** covering:
   the west; a warden or a watchman with no round to walk stands at it, and not
   inside a tower; the middle of the road is open all the way through, and the
   gateway is never narrower than two people
+- orcs that stand back, and a knife that does not twang: every tier's throwing
+  knives are thrown and every bow and crossbow is still loosed, and the two
+  sounds are not the same buffer; the slinger and the bowman each throw
+  something the projectile table knows, shoot from further off than they can
+  reach, notice a player from further off still, have no heavy and no machine
+  gun's cooldown. Played through: a slinger looses at a player it can see and
+  never closes to a swing's reach to do it. And the ranks are the ranks they
+  were -- exactly eighty-five orc posts in the realm, thirty-five of them left
+  for the day to settle, and about a third of the mines' and the barrow's
+  standing back
 
 It exits with the number of failures, so CI can use it directly.
 
