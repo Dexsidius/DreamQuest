@@ -1,4 +1,5 @@
 #include "../game.h"
+#include "../systems/shaders.h"
 
 // =============================================================================
 //  Split screen: two players at one machine
@@ -235,7 +236,13 @@ void Game::RenderSplit() {
         SDL_RenderClear(renderer);
         ui.SetViewport(rect.w, rect.h);
         world->camera.SetViewport(rect.w, rect.h);
+        SDL_Texture* scene = Shaders::BeginView(renderer, world->CurrentMap(), world->camera);
+        if (scene) SDL_SetRenderTarget(renderer, scene);
         world->Render(renderer, *textures);
+        if (scene) {
+            SDL_SetRenderTarget(renderer, view_texture[seat]);
+            Shaders::DrawHeat(renderer, scene);
+        }
         DrawNameTags();
         DrawWorldText();
         DrawHud();

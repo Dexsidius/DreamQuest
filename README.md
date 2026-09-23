@@ -50,6 +50,10 @@ step, on a machine that has never seen either:
    on. If you built the game before co-op began, that last package is the one
    you are missing, and `build.ps1` says so.
 
+   Only to change the water, lava or heat shaders (`src/shaders`), also
+   `pacman -S mingw-w64-ucrt-x86_64-shaderc` for `glslc`. The compiled ones
+   are in the repository, so the game builds and draws them without it.
+
    That is the only time the MSYS2 shell is needed; the build itself runs from
    Windows.
 3. Clone the repository. Everything the game loads is in it: `assets/` is the
@@ -121,6 +125,39 @@ had to be dealt with explicitly:
   Explorer never runs the program, so the shortcut and the file itself take the
   `.ico` compiled into the executable as a resource. Both come out of the same
   painting — see [Title art](#title-art).
+
+### What it draws with
+
+The game draws through **SDL's GPU renderer on Vulkan**, which is the same
+`SDL_Render` calls it always made -- no line of the drawing code changed to
+move -- and which lets a few shaders of the game's own ride on top:
+
+- **Water runs.** A river's own tile art slides along its current a pixel at a
+  time, swaying across it, with glints riding the stream and a broken line of
+  foam where it meets the bank. A pond, a lake and the Bayou's open water only
+  sway and glitter. Which way water runs is worked out once per map from the
+  shape of it: a long, narrow run of water is a river and runs along its
+  length (south if it stands upright on the map, east if it lies across); a
+  run wide both ways is still. The Whisperwood's stream runs; Fernhollow's pond
+  does not.
+- **Lava churns.** The crust drifts downstream and bends, the hot specks run
+  under it, a slow wave of heat passes over, and now and then a bubble swells.
+- **The air over lava wavers.** Wherever lava is in view the world is drawn
+  into a texture first and put on the screen shifted a pixel sideways, row by
+  row, over the lava and a little above it -- heat rises -- so the drawbridge's
+  chains, the palace's torches and anyone standing at the edge waver with it.
+
+Everything moves in whole art pixels, never smeared: a tile's pixel is two of
+the world's, and it moves two at a time. The shaders are GLSL in
+`src/shaders`, compiled to SPIR-V in `assets/shaders` by the build, and the
+code that feeds them is `src/systems/shaders.*`.
+
+None of it is needed to play. Without Vulkan the game makes the renderer SDL
+would have picked (Direct3D 11 on Windows) and the water and lava are simply
+still, as they were before. To compare the two, or to get round a driver that
+misbehaves, set `SDL_RENDER_DRIVER=direct3d11` (or `opengl`, ...) before
+starting it; `SDL_GPU_DRIVER=direct3d12` would want the shaders as DXIL, which
+are not built, so it draws without them.
 
 ---
 
@@ -376,7 +413,8 @@ go. Run it as a scheduled task or a service on the always-on machine.
 
 Flags for checking all this without a second pair of hands: `--scratch hero`
 starts a game that is never written anywhere, `--hold D 2 3.5` holds a key
-down between two moments, `--say "a line"`, and `--shot file.png 5`. A scratch
+down between two moments, `--say "a line"`, and `--shot file.png 5` (with
+`--frames 8 0.1`, eight pictures a tenth of a second apart). A scratch
 game can start anywhere and in anything: `--map brackenwood from_westwold`,
 `--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`,
 `--hour 22`, `--learn trail_legs,broadheads,arrow_rain`, `--quest q_marens_letter`,

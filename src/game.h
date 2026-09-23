@@ -386,9 +386,11 @@ private:
     string   launch_join;
     // For checking the screens without a pair of hands: --say sends one line
     // as soon as there is a seat to say it from, and --shot writes the frame
-    // to a PNG after a number of seconds and quits.
+    // to a PNG after a number of seconds and quits (--frames: several, apart).
     string   launch_say, shot_path;
     float    shot_after = 3.0f, run_time = 0.0f;
+    int      shot_frames = 1, shot_taken = 0;
+    float    shot_step = 0.1f;
     // --scratch <character> starts a game that is never written anywhere, so
     // a host can be stood in a world without a save slot being touched; and
     // --hold <key> <from> <to> holds a key down between two moments, which is

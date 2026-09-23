@@ -1,4 +1,5 @@
 #include "map.h"
+#include "../systems/shaders.h"
 #include <fstream>
 #include <filesystem>
 
@@ -96,6 +97,7 @@ bool Map::Load(const string& path) {
             if (!entry.contains("locations")) continue;
 
             textures.push_back(ResolveAsset(entry.value("filepath", string(""))));
+            surfaces.push_back(Shaders::SurfaceOfTile(textures.back()));
             const int tex_index = static_cast<int>(textures.size()) - 1;
 
             const int layer = layer_of.count(tile_name) ? layer_of[tile_name] : LAYER_GROUND;
@@ -346,7 +348,7 @@ bool Map::Load(const string& path) {
 
 void Map::Unload() {
     loaded = false;
-    textures.clear(); tiles.clear(); colliders.clear();
+    textures.clear(); surfaces.clear(); tiles.clear(); colliders.clear();
     collider_water.clear(); water_count = 0;
     portals.clear(); enemies.clear(); npcs.clear(); objects.clear();
     spawns.clear(); chunks.clear();
@@ -636,6 +638,9 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
                                       world.y + world.h * 0.5f);
             world.y -= level * ELEVATION_RISE;
             const SDL_FRect dst = cam.ToScreenRect(world);
+            // Water runs and lava churns (a no-op off the GPU renderer). The
+            // decor and overhead layers have none.
+            if (layer == LAYER_GROUND) Shaders::UseSurface(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)));
 
             if (HasElevation()) {
                 const Uint8 lit = LevelShade(level);
@@ -648,6 +653,7 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
         }
     });
     }
+    if (layer == LAYER_GROUND) Shaders::UseSurface(r, Shaders::PLAIN);
 }
 
 void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,

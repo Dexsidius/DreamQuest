@@ -22,6 +22,21 @@ TEST_SRC="src/camera.cpp src/input.cpp src/sprite.cpp src/texturecache.cpp \
 
 mkdir -p bin
 
+# The water, lava and heat shaders, as SPIR-V, when glslc is about (shaderc);
+# the compiled ones are committed, so without it they are simply kept.
+mkdir -p assets/shaders
+for frag in src/shaders/*.frag; do
+    spv="assets/shaders/$(basename "$frag").spv"
+    if [ ! -f "$spv" ] || [ "$frag" -nt "$spv" ]; then
+        if command -v glslc >/dev/null 2>&1; then
+            echo "  GLSL  $frag"
+            glslc -fshader-stage=frag -O "$frag" -o "$spv"
+        else
+            echo "  glslc not found; $spv is out of date with $frag"
+        fi
+    fi
+done
+
 build_tools() {
     echo "  CC  tools/tilecut.cpp"
     $CXX $FLAGS tools/tilecut.cpp -o bin/tilecut $LIBS

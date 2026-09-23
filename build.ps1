@@ -76,6 +76,25 @@ function Compile-Set($sources) {
     return $objects
 }
 
+# --- shaders ------------------------------------------------------------------
+# The water, lava and heat shaders (src/shaders/*.frag) as SPIR-V for SDL_GPU
+# on Vulkan. The compiled files are committed, so a machine without glslc
+# (pacman -S mingw-w64-ucrt-x86_64-shaderc) still builds and keeps the ones
+# it has; it only cannot change them.
+$glslc = "$Msys\bin\glslc.exe"
+New-Item -ItemType Directory -Force assets\shaders | Out-Null
+foreach ($frag in Get-ChildItem -Path src\shaders -Filter *.frag -File) {
+    $spv = "assets\shaders\$($frag.Name).spv"
+    if ((Test-Path $spv) -and (Get-Item $spv).LastWriteTimeUtc -ge $frag.LastWriteTimeUtc) { continue }
+    if (-not (Test-Path $glslc)) {
+        Write-Warning "glslc not found; $spv is out of date with src\shaders\$($frag.Name)"
+        continue
+    }
+    Write-Host "  GLSL  src\shaders\$($frag.Name)"
+    & $glslc -fshader-stage=frag -O $frag.FullName -o $spv
+    if ($LASTEXITCODE -ne 0) { throw "Could not compile src\shaders\$($frag.Name)." }
+}
+
 # --- tools --------------------------------------------------------------------
 # tilecut and genmaps are standalone; selftest links the game's own systems so
 # it exercises exactly the code the game runs.

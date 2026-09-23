@@ -215,6 +215,11 @@ public:
         static const string none;
         return (t.tex >= 0 && t.tex < static_cast<int>(textures.size())) ? textures[t.tex] : none;
     }
+    // What a texture's tiles are made of, for the water and lava shaders
+    // (Shaders::Surface): 0 plain ground, 1 water, 2 lava.
+    Uint8 SurfaceOf(int tex) const {
+        return (tex >= 0 && tex < static_cast<int>(surfaces.size())) ? surfaces[tex] : 0;
+    }
 
     // --- collision -----------------------------------------------------------
     //
@@ -309,6 +314,7 @@ private:
     SDL_Color background{24, 20, 32, 255};
 
     vector<string>       textures;      // resolved image paths
+    vector<Uint8>        surfaces;      // Shaders::Surface of each, parallel to textures
     vector<TileInstance> tiles;
     vector<SDL_FRect>    colliders;
     // Parallel to `colliders`: which of them are water. A bitmap beside the

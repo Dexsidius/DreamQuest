@@ -1,4 +1,5 @@
 #include "game.h"
+#include "systems/shaders.h"
 #include "systems/gathering.h"
 
 static constexpr float AUTOSAVE_INTERVAL = 120.0f;
@@ -21,6 +22,7 @@ Game::~Game() {
     world_map.Forget();
     Audio::Shutdown();
     ui.Shutdown();
+    Shaders::Shutdown();
     delete textures;
     if (renderer) SDL_DestroyRenderer(renderer);
     if (window)   SDL_DestroyWindow(window);
@@ -116,6 +118,11 @@ int Game::Start(int argc, char** argv) {
         } else if (arg == "--shot" && more) {
             shot_path = argv[++i];
             if (i + 1 < argc && argv[i + 1][0] != '-') shot_after = static_cast<float>(SDL_atof(argv[++i]));
+        } else if (arg == "--frames" && i + 2 < argc) {
+            // With --shot: that many pictures, this many seconds apart, as
+            // name_0.png, name_1.png ... -- for seeing something move.
+            shot_frames = std::max(1, SDL_atoi(argv[++i]));
+            shot_step = std::max(0.0f, static_cast<float>(SDL_atof(argv[++i])));
         }
     }
 
@@ -161,12 +168,15 @@ int Game::Start(int argc, char** argv) {
         SDL_Log("DreamQuest: no window icon (%s): %s", TitleScreen::kIconPath, SDL_GetError());
     }
 
-    renderer = SDL_CreateRenderer(window, nullptr);
+    // SDL's GPU renderer, on Vulkan, for the water and lava shaders -- or
+    // whatever SDL would have made, without them. See systems/shaders.h.
+    renderer = Shaders::CreateRenderer(window);
     if (!renderer) {
         SDL_Log("DreamQuest: could not create renderer: %s", SDL_GetError());
         return 0;
     }
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    Shaders::Init(renderer);
 
     textures = new TextureCache(renderer);
     if (!ui.Init(renderer))
@@ -1608,7 +1618,16 @@ void Game::Render() {
         RenderSplit();
         DrawParty();
     } else if (InGameplayState() && has_session) {
+        // With lava in view the world goes through a texture of its own first,
+        // so the air over the lava can waver on its way to the screen.
+        SDL_Texture* screen = SDL_GetRenderTarget(renderer);
+        SDL_Texture* scene = Shaders::BeginView(renderer, world->CurrentMap(), world->camera);
+        if (scene) SDL_SetRenderTarget(renderer, scene);
         world->Render(renderer, *textures);
+        if (scene) {
+            SDL_SetRenderTarget(renderer, screen);
+            Shaders::DrawHeat(renderer, scene);
+        }
         SDL_SetRenderScale(renderer, ui_scale, ui_scale);
         DrawNameTags();
         DrawWorldText();
@@ -1685,12 +1704,22 @@ void Game::Render() {
     SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
     if (!shot_path.empty() && run_time >= shot_after) {
+        string path = shot_path;
+        if (shot_frames > 1) {
+            const size_t dot = path.find_last_of('.');
+            const string suffix = "_" + std::to_string(shot_taken);
+            path = dot == string::npos ? path + suffix : path.substr(0, dot) + suffix + path.substr(dot);
+        }
         if (SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr)) {
-            IMG_SavePNG(pixels, shot_path.c_str());
+            IMG_SavePNG(pixels, path.c_str());
             SDL_DestroySurface(pixels);
         }
-        shot_path.clear();
-        running = false;
+        if (++shot_taken >= shot_frames) {
+            shot_path.clear();
+            running = false;
+        } else {
+            shot_after += shot_step;
+        }
     }
 
     SDL_RenderPresent(renderer);

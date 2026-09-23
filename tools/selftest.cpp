@@ -29,6 +29,7 @@
 #include "../src/systems/spell.h"
 #include "../src/systems/audio.h"
 #include "../src/systems/shop.h"
+#include "../src/systems/shaders.h"
 #include "../src/entity/player.h"
 #include "../src/ui/minimap.h"
 #include "../src/ui/worldmap.h"
@@ -16905,6 +16906,58 @@ int main(int argc, char** argv) {
               window.visitor_acts[2].a == "logs" && window.visitor_acts[2].n == 3 && window.pickups.empty(),
               "as is E, and a thing dropped: the window decides nothing");
         Check(full.RequestTransition("town_havenbrook", "") && full.TransitionPending(), "a world of one's own still does");
+    }
+
+    Section("water runs, lava churns, and the air over the lava wavers");
+    {
+        using Shaders::SurfaceOfTile;
+        Check(SurfaceOfTile("assets/tiles/water.png") == Shaders::WATER &&
+              SurfaceOfTile("assets/tiles/water_2.png") == Shaders::WATER &&
+              SurfaceOfTile("assets/tiles/bog_water_1.png") == Shaders::WATER,
+              "water and the Bayou's bog water are water to the shaders");
+        Check(SurfaceOfTile("assets/tiles/lava.png") == Shaders::LAVA &&
+              SurfaceOfTile("assets/tiles/lava_1.png") == Shaders::LAVA, "and lava is lava");
+        Check(SurfaceOfTile("assets/props/lava_bridge.png") == Shaders::PLAIN &&
+              SurfaceOfTile("assets/tiles/grass.png") == Shaders::PLAIN && SurfaceOfTile("") == Shaders::PLAIN,
+              "but a lava bridge, grass, or nothing is plain ground");
+        // A new water or lava tile has to be one the shaders know, or it is
+        // drawn still beside water that runs.
+        for (const auto& e : fs::directory_iterator("assets/tiles")) {
+            const string stem = e.path().stem().string();
+            if (stem.find("water") == string::npos && stem.find("lava") == string::npos) continue;
+            Check(SurfaceOfTile(e.path().string()) != Shaders::PLAIN,
+                  "assets/tiles/" + e.path().filename().string() + " is drawn by the water or lava shader");
+        }
+
+        // Each shader is compiled, and what is there is SPIR-V.
+        for (const auto& e : fs::directory_iterator("src/shaders")) {
+            if (e.path().extension() != ".frag") continue;
+            const string spv = "assets/shaders/" + e.path().filename().string() + ".spv";
+            Uint32 magic = 0;
+            std::ifstream in(spv, std::ios::binary);
+            in.read(reinterpret_cast<char*>(&magic), sizeof magic);
+            Check(in.good() && magic == 0x07230203u, spv + " is compiled SPIR-V");
+        }
+
+        // Which way it runs, from the shape of it: Whisperwood's stream is a
+        // river running south, Fernhollow's pond is still water.
+        auto share = [](const char* path, Uint8 surface, auto&& test) {
+            Map m;
+            if (!m.Load(path)) return -1.0f;
+            const Shaders::FieldData f = Shaders::FieldOf(m);
+            int of = 0, pass = 0;
+            for (size_t i = 0; i < f.kind.size(); ++i)
+                if (f.kind[i] == surface) { ++of; pass += test(f.fx[i], f.fy[i]) ? 1 : 0; }
+            return of ? static_cast<float>(pass) / of : -1.0f;
+        };
+        const float south = share("maps/whisperwood_trail.mx", Shaders::WATER,
+                                  [](float x, float y) { return y > 0.5f && std::fabs(x) < 0.3f; });
+        Check(south > 0.7f, "Whisperwood's stream runs south (" + std::to_string(int(south * 100)) + "% of it)");
+        const float still = share("maps/fernhollow.mx", Shaders::WATER,
+                                  [](float x, float y) { return Length(x, y) < 0.25f; });
+        Check(still > 0.7f, "Fernhollow's pond lies still (" + std::to_string(int(still * 100)) + "% of it)");
+        const float lava = share("maps/ashen_path.mx", Shaders::LAVA, [](float, float) { return true; });
+        Check(lava > 0.0f, "the Ashen Path's lava is in its field, for the heat");
     }
 
     Section("co-op M1: messages");
