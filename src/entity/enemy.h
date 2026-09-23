@@ -242,8 +242,13 @@ public:
     static constexpr float LURK_WAIT = 3.5f;     // idle at home before it does
     bool  Lurks() const { return lurks; }
     bool  Submerged() const { return lurks && emerge <= 0.0f; }
+    bool  Afloat() const { return afloat; }
     // Not all the way out of the water, coming or going: nothing can touch it.
     bool  Hidden() const { return lurks && state != State::Dead && emerge < 0.999f; }
+    // How it goes when it dies, for the sprite shader: 0 it fades, 1 the dead
+    // crumble to dust, 2 what burns goes to embers, 3 what is hardly there
+    // goes up into the air.
+    int   DissolveKind() const;
     float Emerged() const { return lurks ? emerge : 1.0f; }
     Uint8 CorpseAlpha() const;
 

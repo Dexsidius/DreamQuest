@@ -199,7 +199,7 @@ SDL_FRect Sprite::WorldBounds(float wx, float wy) const {
 // the character still reads as one thing.
 bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
                         const SDL_FRect& dst, int shown, int row,
-                        SDL_Color tint) const {
+                        SDL_Color tint, const Shaders::SpriteFx* fx) const {
     if (!clip || clip->layers.empty() || !use_layers) return false;
 
     auto blend = [](SDL_Color a, SDL_Color b) {
@@ -310,7 +310,17 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
 
         SDL_SetTextureColorMod(tex, c.r, c.g, c.b);
         SDL_SetTextureAlphaMod(tex, c.a);
+        // What is happening to them is drawn on every layer of them but the
+        // shadow; only the body's outline has flames and sparks round it, or
+        // every sword and helmet would have its own.
+        bool shaded = false;
+        if (fx && layer.slot != LayerSlot::Shadow) {
+            Shaders::SpriteFx on = *fx;
+            on.rim = layer.slot == LayerSlot::Body;
+            shaded = Shaders::UseSprite(r, on, src, tw, th);
+        }
         SDL_RenderTexture(r, tex, &src, &dst);
+        if (shaded) Shaders::EndSprite(r);
         SDL_SetTextureColorMod(tex, 255, 255, 255);
         SDL_SetTextureAlphaMod(tex, 255);
         drew = true;
@@ -334,7 +344,8 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
 }
 
 void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
-                  float wx, float wy, SDL_Color tint, SDL_BlendMode blend, float grow) const {
+                  float wx, float wy, SDL_Color tint, SDL_BlendMode blend, float grow,
+                  const Shaders::SpriteFx* fx) const {
     if (!def || !clip) return;
 
     SDL_Texture* tex = cache.Get(clip->sheet);
@@ -365,12 +376,14 @@ void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     }
     const SDL_FRect dst = cam.ToScreenRect(world);
 
-    if (blend == SDL_BLENDMODE_BLEND && grow == 1.0f && DrawLayers(r, cache, dst, shown, row, tint)) return;
+    if (blend == SDL_BLENDMODE_BLEND && grow == 1.0f && DrawLayers(r, cache, dst, shown, row, tint, fx)) return;
 
     SDL_SetTextureBlendMode(tex, blend);
     SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
     SDL_SetTextureAlphaMod(tex, tint.a);
+    const bool shaded = fx && Shaders::UseSprite(r, *fx, src, tw, th);
     SDL_RenderTexture(r, tex, &src, &dst);
+    if (shaded) Shaders::EndSprite(r);
     SDL_SetTextureColorMod(tex, 255, 255, 255);
     SDL_SetTextureAlphaMod(tex, 255);
     // The cache hands the same texture to everything that draws this sheet.

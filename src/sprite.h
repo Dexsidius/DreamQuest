@@ -2,6 +2,7 @@
 #include "headers.h"
 #include "texturecache.h"
 #include "camera.h"
+#include "systems/shaders.h"
 
 // Animated 4-direction sprites.
 //
@@ -197,10 +198,13 @@ public:
     // `blend` and `grow` let the same frame be drawn as an effect: `grow` scales
     // it about the middle of the frame, so a copy drawn a little larger in one
     // flat colour, behind the real thing, is a halo round its silhouette. That
-    // is how a leader glows red while it charges.
+    // is how a leader glows red while it charges. `fx`, when there is one, is
+    // drawn on it by the sprite shader: a blow's flash, what is on it, its
+    // death (see Shaders::SpriteFx; nothing, off the GPU renderer).
     void Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
               float world_x, float world_y, SDL_Color tint = {255, 255, 255, 255},
-              SDL_BlendMode blend = SDL_BLENDMODE_BLEND, float grow = 1.0f) const;
+              SDL_BlendMode blend = SDL_BLENDMODE_BLEND, float grow = 1.0f,
+              const Shaders::SpriteFx* fx = nullptr) const;
 
     // Draws with no camera transform, for menus and inventory panels.
     void DrawAt(SDL_Renderer* r, TextureCache& cache,
@@ -230,7 +234,7 @@ private:
     // Returns false when this clip has no layer stack to draw.
     bool DrawLayers(SDL_Renderer* r, TextureCache& cache,
                     const SDL_FRect& dst, int shown, int row,
-                    SDL_Color tint) const;
+                    SDL_Color tint, const Shaders::SpriteFx* fx = nullptr) const;
 
     const SpriteDef* def = nullptr;
     const AnimClip*  clip = nullptr;

@@ -93,6 +93,9 @@ public:
     // On the headless server `home.player.absent` is set and it is always true.
     void Update(float dt, net::Server& server, World& home, const GameContext& ctx, bool in_world);
     void Reset(World& home);
+    // Takes its ear out of Audio if it still has it there: the tap it leaves
+    // points back at it, and a sound played after it is gone was a crash.
+    ~Host();
 
     // --- someone at this machine who is not the host ----------------------------
     // Player Two, in split screen. They are a seat in the realm like a friend

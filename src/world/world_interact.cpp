@@ -296,6 +296,26 @@ void World::TryInteract(const GameContext& ctx) {
                     // touch does: a stone is found before it is used.
                     SetFlag(o.id);
                     Burst(o.x, o.y - 40.0f, 90.0f, {150, 220, 255, 255}, 26);
+                    // A ring through the air round it, a pale flash, and its
+                    // light going up off it in motes.
+                    Shock(o.x, o.y - 20.0f, 0.5f, 0.0f);
+                    Flash({170, 228, 255, 255}, 0.28f);
+                    for (int i = 0; i < 28; ++i) {
+                        Mote m;
+                        const float a = 6.2831853f * i / 28.0f;
+                        m.x = o.x + cosf(a) * (10.0f + (i % 5) * 4.0f);
+                        m.y = o.y - 6.0f + sinf(a) * 5.0f;
+                        m.vx = cosf(a) * 8.0f;
+                        m.vy = -26.0f - (i % 7) * 6.0f;
+                        m.gravity = -12.0f;
+                        m.drag = 0.6f;
+                        m.life = m.max_life = 1.1f + (i % 4) * 0.25f;
+                        m.size = (i % 3 == 0) ? 2.0f : 1.0f;
+                        m.lift = LiftAt(o.x, o.y);
+                        m.from = {200, 240, 255, 255};
+                        m.to = {140, 200, 255, 0};
+                        motes.push_back(m);
+                    }
                     AddText("The waystone wakes", o.x, o.y - 84.0f, {170, 228, 255, 255}, 2.4f);
                     Audio::PlayAt(Sfx::QuestStart, o.x, o.y);
                     WorldRequest r;

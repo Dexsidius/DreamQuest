@@ -77,7 +77,7 @@ function Compile-Set($sources) {
 }
 
 # --- shaders ------------------------------------------------------------------
-# The water, lava and heat shaders (src/shaders/*.frag) as SPIR-V for SDL_GPU
+# The fragment shaders (src/shaders/*.frag) as SPIR-V for SDL_GPU
 # on Vulkan. The compiled files are committed, so a machine without glslc
 # (pacman -S mingw-w64-ucrt-x86_64-shaderc) still builds and keeps the ones
 # it has; it only cannot change them.

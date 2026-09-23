@@ -380,7 +380,7 @@ void Game::DrawLoadMenu() {
 // The rows of the Options screen, by name, so adding one is not a renumbering.
 namespace {
 enum OptionRow {
-    OPT_INPUT, OPT_CONTROLS, OPT_ZOOM, OPT_UI_SCALE, OPT_FULLSCREEN, OPT_VSYNC, OPT_FPS, OPT_DAMAGE, OPT_XP,
+    OPT_INPUT, OPT_CONTROLS, OPT_EFFECTS, OPT_ZOOM, OPT_UI_SCALE, OPT_FULLSCREEN, OPT_VSYNC, OPT_FPS, OPT_DAMAGE, OPT_XP,
     OPT_WAYPOINTS,
     OPT_MASTER, OPT_SFX, OPT_AMBIENCE, OPT_BACK, OPT_ROWS
 };
@@ -409,6 +409,12 @@ void Game::UpdateOptions() {
                     controls_cursor = 0;
                     controls_column = input.ActiveDevice() == InputMode::Controller ? 1 : 0;
                     controls_note.clear();
+                    return;
+                }
+                break;
+            case OPT_EFFECTS:
+                if (confirm) {
+                    SetState(GameState::VisualEffects);
                     return;
                 }
                 break;
@@ -474,7 +480,7 @@ static string VolumeLabel(float v) {
 
 void Game::DrawOptions() {
     ui.Dim(0.55f);
-    // Twelve rows now, so they are a little shorter, and shorter again in a
+    // Fifteen rows now, so they are a little shorter, and shorter again in a
     // window that is.
     const float row_count = static_cast<float>(OPT_ROWS);
     const float row_h = std::clamp(floorf((ui.ViewHeight() - 40.0f - 130.0f) / row_count), 30.0f, 40.0f);
@@ -502,6 +508,7 @@ void Game::DrawOptions() {
     const pair<string, string> rows[OPT_ROWS] = {
         {"Input Device",   InputModeLabel(settings.input_mode)},
         {"Controls",       "keys and buttons  >"},
+        {"Visual Effects", string(Shaders::Enabled() ? (settings.visual_effects ? "On" : "Off") : "no Vulkan") + "  >"},
         {"Camera Zoom",    zoom_buf},
         {"Interface Size", scale_buf},
         {"Fullscreen",     settings.fullscreen ? "On" : "Off"},
@@ -527,6 +534,103 @@ void Game::DrawOptions() {
     ui.Text("Left / Right to change     " + input.PromptFor(Action::Back) + " back",
             panel.x + panel.w / 2.0f,
             panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
+// =============================================================================
+//  Visual Effects: the shaders, and the parts of them that can be turned off
+// =============================================================================
+//
+// The first row is all of it: off, the game draws as it did before it had any
+// shaders at all. The rest are the parts some people would rather not have --
+// the screen moving under them, lights flashing at them, colours coming apart
+// -- each on its own, and each greyed out while the whole is off.
+
+namespace {
+enum FxRow { FX_ALL, FX_SHAKE, FX_FLASHES, FX_FRINGING, FX_DISTORTION, FX_BACK, FX_ROWS };
+}
+
+void Game::ApplyVisualEffects() {
+    Shaders::Options o;
+    o.effects = settings.visual_effects;
+    o.shake = settings.screen_shake;
+    o.flashes = settings.flashes;
+    o.fringing = settings.colour_fringing;
+    o.distortion = settings.screen_distortion;
+    Shaders::SetOptions(o);
+}
+
+void Game::UpdateVisualEffects() {
+    MoveCursor(cursor, FX_ROWS);
+    const bool confirm = input.Pressed(Action::Confirm) || input.Pressed(Action::Interact);
+    const bool change = confirm || input.MenuRight() || input.MenuLeft();
+    if (change) {
+        bool* flag = nullptr;
+        switch (cursor) {
+            case FX_ALL:        flag = &settings.visual_effects; break;
+            case FX_SHAKE:      flag = &settings.screen_shake; break;
+            case FX_FLASHES:    flag = &settings.flashes; break;
+            case FX_FRINGING:   flag = &settings.colour_fringing; break;
+            case FX_DISTORTION: flag = &settings.screen_distortion; break;
+            default: break;
+        }
+        if (flag) {
+            *flag = !*flag;
+            ApplyVisualEffects();
+            settings.Save();
+            Audio::Play(Sfx::UiConfirm, 0.7f);
+        } else if (confirm) {
+            SetState(GameState::Options);
+            cursor = OPT_EFFECTS;
+            return;
+        }
+    }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+        SetState(GameState::Options);
+        cursor = OPT_EFFECTS;
+    }
+}
+
+void Game::DrawVisualEffects() {
+    ui.Dim(0.55f);
+    const float row_h = 40.0f;
+    const SDL_FRect panel = CenteredPanel(ui, 600.0f, 170.0f + static_cast<float>(FX_ROWS) * row_h + 60.0f);
+    ui.Panel(panel);
+    ui.Text("Visual Effects", panel.x + panel.w / 2.0f, panel.y + 18.0f, TextSize::Large,
+            Palette::Highlight, Align::Center);
+
+    const bool gpu = Shaders::Enabled();
+    const bool all = settings.visual_effects && gpu;
+    const auto onoff = [](bool v) { return string(v ? "On" : "Off"); };
+    const pair<string, string> rows[FX_ROWS] = {
+        {"Visual Effects",    gpu ? onoff(settings.visual_effects) : string("needs Vulkan")},
+        {"Screen Shake",      onoff(settings.screen_shake)},
+        {"Flashes",           onoff(settings.flashes)},
+        {"Colour Fringing",   onoff(settings.colour_fringing)},
+        {"Screen Distortion", onoff(settings.screen_distortion)},
+        {"Back",              ""},
+    };
+    // What each row does, under the list, for the one the cursor is on.
+    static const char* kWhat[FX_ROWS] = {
+        "Wind in the grass, water that ripples, lit windows, fog, glows and the rest. Off draws the plain look.",
+        "The screen shakes when a meteor lands, a slab is dropped or a boss's blow strikes the ground.",
+        "Struck things flash white or the colour of the spell; the screen flashes with lightning.",
+        "Colours come apart a little at the edges in a dream and in a shockwave.",
+        "Heat over lava and fires, shockwaves and the dream's edges bend the picture.",
+        "",
+    };
+    for (int i = 0; i < FX_ROWS; ++i) {
+        const SDL_FRect row = {panel.x + 16.0f, panel.y + 62.0f + i * row_h, panel.w - 32.0f, row_h - 4.0f};
+        const bool enabled = i == FX_ALL ? gpu : i == FX_BACK ? true : all;
+        ui.MenuItem(row, rows[i].first, i == cursor, enabled, rows[i].second);
+    }
+    const float note_y = panel.y + 62.0f + static_cast<float>(FX_ROWS) * row_h + 14.0f;
+    if (!gpu)
+        ui.Text("The GPU renderer could not be started, so the game is drawn plain.", panel.x + panel.w / 2.0f,
+                note_y, TextSize::Small, Palette::TextDim, Align::Center);
+    else if (cursor >= 0 && cursor < FX_ROWS && kWhat[cursor][0])
+        ui.TextWrapped(kWhat[cursor], panel.x + 30.0f, note_y, panel.w - 60.0f, TextSize::Small, Palette::TextDim);
+    ui.Text("Left / Right to change     " + input.PromptFor(Action::Back) + " back",
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
 }
 
 // =============================================================================

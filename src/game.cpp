@@ -177,6 +177,7 @@ int Game::Start(int argc, char** argv) {
     }
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     Shaders::Init(renderer);
+    ApplyVisualEffects();
 
     textures = new TextureCache(renderer);
     if (!ui.Init(renderer))
@@ -328,6 +329,7 @@ int Game::Start(int argc, char** argv) {
                 const string what = launch_screen.substr(0, colon);
                 const string arg = colon == string::npos ? string() : launch_screen.substr(colon + 1);
                 if (what == "controls")       { OpenPanel(GameState::Options); SetState(GameState::Controls); }
+                else if (what == "effects")   { OpenPanel(GameState::Options); SetState(GameState::VisualEffects); }
                 else if (what == "options")   OpenPanel(GameState::Options);
                 else if (what == "map")       OpenPanel(GameState::WorldMapPage);
                 else if (what == "journal")   OpenPanel(GameState::QuestPanel);
@@ -577,7 +579,8 @@ void Game::SetState(GameState s) {
     // The title screen has its own quiet wind; a session hands over to the map.
     if (s == GameState::MainMenu && !has_session) Audio::SetAmbience("menu", false);
     const bool back_to_menu = (s == GameState::MainMenu) &&
-        (state == GameState::Options || state == GameState::Controls || state == GameState::LoadMenu ||
+        (state == GameState::Options || state == GameState::Controls || state == GameState::VisualEffects ||
+         state == GameState::LoadMenu ||
          state == GameState::CharacterSelect || state == GameState::Multiplayer);
 
     state = s;
@@ -794,6 +797,7 @@ void Game::Update(float dt) {
         case GameState::LoadMenu:        UpdateLoadMenu(); break;
         case GameState::Options:         UpdateOptions(); break;
         case GameState::Controls:        UpdateControls(); break;
+        case GameState::VisualEffects:   UpdateVisualEffects(); break;
         case GameState::Multiplayer:     UpdateMultiplayer(); break;
         case GameState::Play:            UpdatePlay(dt); break;
         case GameState::Paused:          UpdatePaused(); break;
@@ -1422,6 +1426,7 @@ void Game::RunAudit() {
             {"load",           GameState::LoadMenu,        [] {}},
             {"options",        GameState::Options,         [] {}},
             {"controls",       GameState::Controls,        [&] { controls_cursor = 6; }},
+            {"visual effects", GameState::VisualEffects,   [] {}},
             {"play together",  GameState::Multiplayer,     [] {}},
             {"pause",          GameState::Paused,          [&] { has_session = true; }},
             {"menu",           GameState::Hub,             [&] { hub_cursor = 0; }},
@@ -1618,19 +1623,25 @@ void Game::Render() {
         RenderSplit();
         DrawParty();
     } else if (InGameplayState() && has_session) {
-        // With lava in view the world goes through a texture of its own first,
-        // so the air over the lava can waver on its way to the screen.
+        // With the effects on, the world goes through a texture of its own
+        // first, so the post pass can bend and colour it on its way to the
+        // screen. A shake moves the camera for the frame and puts it back.
         SDL_Texture* screen = SDL_GetRenderTarget(renderer);
+        const SDL_FPoint shake = world->ShakeOffset();
+        world->camera.xpos += shake.x;
+        world->camera.ypos += shake.y;
         SDL_Texture* scene = Shaders::BeginView(renderer, world->CurrentMap(), world->camera);
         if (scene) SDL_SetRenderTarget(renderer, scene);
         world->Render(renderer, *textures);
         if (scene) {
             SDL_SetRenderTarget(renderer, screen);
-            Shaders::DrawHeat(renderer, scene);
+            Shaders::DrawPost(renderer, scene);
         }
         SDL_SetRenderScale(renderer, ui_scale, ui_scale);
         DrawNameTags();
         DrawWorldText();
+        world->camera.xpos -= shake.x;
+        world->camera.ypos -= shake.y;
         DrawHud();
         DrawParty();
     } else if (!has_session) {
@@ -1652,6 +1663,7 @@ void Game::Render() {
         case GameState::LoadMenu:        DrawLoadMenu(); break;
         case GameState::Options:         DrawOptions(); break;
         case GameState::Controls:        DrawControls(); break;
+        case GameState::VisualEffects:   DrawVisualEffects(); break;
         case GameState::Multiplayer:     DrawMultiplayer(); break;
         case GameState::Paused:          DrawPaused(); break;
         case GameState::Inventory:       DrawInventory(); break;

@@ -50,7 +50,7 @@ bool Lighting::Prepare(SDL_Renderer* r) {
 }
 
 void Lighting::Render(SDL_Renderer* r, const Camera& cam, SDL_Color ambient,
-                      const vector<Light>& lights) {
+                      const vector<Light>& lights, const vector<SDL_FRect>* lit) {
     const bool daylight = ambient.r >= 254 && ambient.g >= 254 && ambient.b >= 254;
     if (daylight) return;
     if (!Prepare(r)) return;
@@ -71,6 +71,14 @@ void Lighting::Render(SDL_Renderer* r, const Camera& cam, SDL_Color ambient,
         SDL_SetTextureColorMod(glow, l.color.r, l.color.g, l.color.b);
         SDL_SetTextureAlphaMod(glow, static_cast<Uint8>(255.0f * std::clamp(l.intensity, 0.0f, 1.0f)));
         SDL_RenderTexture(r, glow, nullptr, &dst);
+    }
+    if (lit && !lit->empty()) {
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(r, 255, 236, 214, 255);
+        for (const SDL_FRect& w : *lit) {
+            const SDL_FRect dst = cam.ToScreenRect(w);
+            SDL_RenderFillRect(r, &dst);
+        }
     }
 
     SDL_SetRenderTarget(r, previous);

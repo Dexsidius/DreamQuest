@@ -236,15 +236,20 @@ void Game::RenderSplit() {
         SDL_RenderClear(renderer);
         ui.SetViewport(rect.w, rect.h);
         world->camera.SetViewport(rect.w, rect.h);
+        const SDL_FPoint shake = world->ShakeOffset();
+        world->camera.xpos += shake.x;
+        world->camera.ypos += shake.y;
         SDL_Texture* scene = Shaders::BeginView(renderer, world->CurrentMap(), world->camera);
         if (scene) SDL_SetRenderTarget(renderer, scene);
         world->Render(renderer, *textures);
         if (scene) {
             SDL_SetRenderTarget(renderer, view_texture[seat]);
-            Shaders::DrawHeat(renderer, scene);
+            Shaders::DrawPost(renderer, scene);
         }
         DrawNameTags();
         DrawWorldText();
+        world->camera.xpos -= shake.x;
+        world->camera.ypos -= shake.y;
         DrawHud();
         if (world->player.Fallen())
             ui.TextShadowed("You have fallen", rect.w / 2.0f, rect.h * 0.4f, TextSize::Large, {235, 120, 120, 255}, Align::Center);

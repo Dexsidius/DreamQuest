@@ -25,9 +25,11 @@ struct Light {
 
 class Lighting {
 public:
-    // Multiplies the light map over whatever has been drawn so far.
+    // Multiplies the light map over whatever has been drawn so far. `lit`,
+    // world rects, are their own light -- lava -- and the night does not
+    // darken them at all, nor what stands on them.
     void Render(SDL_Renderer* r, const Camera& cam, SDL_Color ambient,
-                const vector<Light>& lights);
+                const vector<Light>& lights, const vector<SDL_FRect>* lit = nullptr);
 
 private:
     bool Prepare(SDL_Renderer* r);

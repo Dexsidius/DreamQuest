@@ -88,6 +88,24 @@ bool Map::Load(const string& path) {
     background = ColorFromJson(dq.contains("background") ? dq["background"] : json(),
                                interior ? SDL_Color{18, 14, 20, 255}
                                         : SDL_Color{34, 48, 34, 255});
+    // Ground fog: how thick, its colour, how much water thickens it, and
+    // where -- a region with a soft edge, or everywhere.
+    fog = Shaders::Fog{};
+    if (dq.contains("fog") && dq["fog"].is_object()) {
+        const json& f = dq["fog"];
+        fog.on = true;
+        fog.density = f.value("density", 0.3f);
+        fog.by_water = f.value("water", 0.0f);
+        fog.drift = f.value("drift", 6.0f);
+        if (f.contains("colour") && f["colour"].is_array() && f["colour"].size() >= 3) {
+            fog.r = f["colour"][0].get<float>() / 255.0f;
+            fog.g = f["colour"][1].get<float>() / 255.0f;
+            fog.b = f["colour"][2].get<float>() / 255.0f;
+        }
+        if (f.contains("region") && f["region"].is_array() && f["region"].size() >= 4)
+            fog.region = {f["region"][0].get<float>(), f["region"][1].get<float>(),
+                          f["region"][2].get<float>(), f["region"][3].get<float>()};
+    }
 
     // ---- tiles (native LevelEdit-Plus section) ------------------------------
     if (root.contains("tiles")) {
@@ -98,6 +116,7 @@ bool Map::Load(const string& path) {
 
             textures.push_back(ResolveAsset(entry.value("filepath", string(""))));
             surfaces.push_back(Shaders::SurfaceOfTile(textures.back()));
+            arts.push_back(&Shaders::ArtOf(textures.back()));
             const int tex_index = static_cast<int>(textures.size()) - 1;
 
             const int layer = layer_of.count(tile_name) ? layer_of[tile_name] : LAYER_GROUND;
@@ -348,7 +367,8 @@ bool Map::Load(const string& path) {
 
 void Map::Unload() {
     loaded = false;
-    textures.clear(); surfaces.clear(); tiles.clear(); colliders.clear();
+    textures.clear(); surfaces.clear(); arts.clear(); tiles.clear(); colliders.clear();
+    fog = Shaders::Fog{};
     collider_water.clear(); water_count = 0;
     portals.clear(); enemies.clear(); npcs.clear(); objects.clear();
     spawns.clear(); chunks.clear();
@@ -562,6 +582,23 @@ void Map::RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) 
             foot.h = std::max(1.0f, 4.0f * cam.zoom);
             SDL_SetRenderDrawColor(r, 34, 40, 28, 96);
             SDL_RenderFillRect(r, &foot);
+            // With the effects on, the shadow goes on past that, softening as
+            // it goes -- the ground at the foot of a bank sees less of the sky
+            // -- and the face darkens toward the bottom, where it is deepest.
+            if (Shaders::Effects()) {
+                const float step = std::max(1.0f, 2.0f * cam.zoom);
+                const int bands = std::clamp(static_cast<int>(drop / 5.0f), 3, 7);
+                for (int b = 0; b < bands; ++b) {
+                    const SDL_FRect soft = {dst.x, foot.y + foot.h + b * step, dst.w, step};
+                    SDL_SetRenderDrawColor(r, 20, 24, 16, static_cast<Uint8>(70.0f * (1.0f - (b + 1.0f) / (bands + 1.0f))));
+                    SDL_RenderFillRect(r, &soft);
+                }
+                for (int b = 0; b < 3; ++b) {
+                    const SDL_FRect deep = {dst.x, dst.y + dst.h - (b + 1) * step, dst.w, step};
+                    SDL_SetRenderDrawColor(r, 14, 10, 6, static_cast<Uint8>(42 - b * 12));
+                    SDL_RenderFillRect(r, &deep);
+                }
+            }
 
             SDL_FRect lineFoot = dst;
             lineFoot.y += dst.h - std::max(1.0f, cam.zoom);
@@ -600,7 +637,7 @@ void Map::RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) 
 }
 
 void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
-                      const Camera& cam, int layer) const {
+                      const Camera& cam, int layer, int passes) const {
     if (!loaded || layer < 0 || layer > 2) return;
     const SDL_FRect view = cam.VisibleWorldRect(96.0f);
 
@@ -618,6 +655,7 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
     // painted straight over the rest of it -- which is how a rug in front of
     // the inn's fireplace came out with its right third missing.
     for (int pass = 0; pass < 2; ++pass) {
+    if (layer == LAYER_GROUND && !(passes & (1 << pass))) continue;
     const bool want_overlay = (pass == 1);
     // The first pass only marks the tiles it draws, so overlays are still
     // unmarked when the second pass reaches them; no reset needed.
@@ -638,9 +676,9 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
                                       world.y + world.h * 0.5f);
             world.y -= level * ELEVATION_RISE;
             const SDL_FRect dst = cam.ToScreenRect(world);
-            // Water runs and lava churns (a no-op off the GPU renderer). The
-            // decor and overhead layers have none.
-            if (layer == LAYER_GROUND) Shaders::UseSurface(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)));
+            // Water runs and lava churns, and a tuft of grass lying on the
+            // ground stirs in the wind (all no-ops off the GPU renderer).
+            Shaders::UseTile(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)), ArtOf(t.tex).kind);
 
             if (HasElevation()) {
                 const Uint8 lit = LevelShade(level);
@@ -653,7 +691,54 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
         }
     });
     }
-    if (layer == LAYER_GROUND) Shaders::UseSurface(r, Shaders::PLAIN);
+    Shaders::UsePlain(r);
+}
+
+void Map::SurfaceRects(const SDL_FRect& rect, Uint8 surface, vector<SDL_FRect>& out) const {
+    if (!loaded) return;
+    static vector<int> seen_stamp;
+    static int stamp_counter = 0;
+    if (seen_stamp.size() != tiles.size()) seen_stamp.assign(tiles.size(), 0);
+    const int stamp = ++stamp_counter;
+    ForEachChunkInRect(rect, [&](const Chunk& c) {
+        for (int idx : c.layers[LAYER_GROUND]) {
+            if (seen_stamp[idx] == stamp) continue;
+            seen_stamp[idx] = stamp;
+            const TileInstance& t = tiles[idx];
+            if (t.overlay || SurfaceOf(t.tex) != surface || !RectsOverlap(t.rect, rect)) continue;
+            SDL_FRect world = t.rect;
+            world.y -= LevelAt(world.x + world.w * 0.5f, world.y + world.h * 0.5f) * ELEVATION_RISE;
+            out.push_back(world);
+        }
+    });
+}
+
+void Map::SurfaceSpots(const SDL_FRect& rect, Uint8 surface, float cell, vector<SDL_FPoint>& out) const {
+    if (!loaded || cell <= 0.0f) return;
+    const int cols = std::max(1, static_cast<int>(std::ceil(rect.w / cell)));
+    const int rows = std::max(1, static_cast<int>(std::ceil(rect.h / cell)));
+    vector<float> sx(static_cast<size_t>(cols) * rows, 0.0f), sy(sx.size(), 0.0f), n(sx.size(), 0.0f);
+    static vector<int> seen_stamp;
+    static int stamp_counter = 0;
+    if (seen_stamp.size() != tiles.size()) seen_stamp.assign(tiles.size(), 0);
+    const int stamp = ++stamp_counter;
+    ForEachChunkInRect(rect, [&](const Chunk& c) {
+        for (int idx : c.layers[LAYER_GROUND]) {
+            if (seen_stamp[idx] == stamp) continue;
+            seen_stamp[idx] = stamp;
+            const TileInstance& t = tiles[idx];
+            if (t.overlay || SurfaceOf(t.tex) != surface) continue;
+            const float x = t.rect.x + t.rect.w * 0.5f, y0 = t.rect.y + t.rect.h * 0.5f;
+            const float y = y0 - LevelAt(x, y0) * ELEVATION_RISE;
+            const int gx = static_cast<int>(std::floor((x - rect.x) / cell));
+            const int gy = static_cast<int>(std::floor((y - rect.y) / cell));
+            if (gx < 0 || gy < 0 || gx >= cols || gy >= rows) continue;
+            const size_t i = static_cast<size_t>(gy) * cols + gx;
+            sx[i] += x; sy[i] += y; n[i] += 1.0f;
+        }
+    });
+    for (size_t i = 0; i < n.size(); ++i)
+        if (n[i] > 0.0f) out.push_back({sx[i] / n[i], sy[i] / n[i]});
 }
 
 void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
@@ -666,9 +751,12 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     SDL_FRect world = t.rect;
     world.y -= HeightAt(world.x + world.w * 0.5f, world.y + world.h);
     const SDL_FRect dst = cam.ToScreenRect(world);
+    const Shaders::PropKind kind = ArtOf(t.tex).kind;
+    if (kind != Shaders::PROP_NONE) Shaders::UseTile(r, Shaders::PLAIN, kind);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, alpha);
     SDL_RenderTexture(r, tex, nullptr, &dst);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, 255);
+    if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
 }
 
 void Map::CollectDecor(const Camera& cam, vector<const TileInstance*>& out) const {

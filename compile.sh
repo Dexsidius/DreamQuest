@@ -22,7 +22,7 @@ TEST_SRC="src/camera.cpp src/input.cpp src/sprite.cpp src/texturecache.cpp \
 
 mkdir -p bin
 
-# The water, lava and heat shaders, as SPIR-V, when glslc is about (shaderc);
+# The fragment shaders, as SPIR-V, when glslc is about (shaderc);
 # the compiled ones are committed, so without it they are simply kept.
 mkdir -p assets/shaders
 for frag in src/shaders/*.frag; do

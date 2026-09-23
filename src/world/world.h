@@ -83,6 +83,21 @@ public:
     void Update(float dt, const GameContext& ctx);
     void Render(SDL_Renderer* r, TextureCache& cache) const;
 
+    // --- the screen's own effects: see world_screen.cpp ----------------------------
+    // A shockwave from a point on the ground: a ring pushed out through the
+    // picture, `strength` 0..1, and the screen shaken by `shake` 0..1. Whatever
+    // lands hard calls it: a meteor, a dropped slab, a bolt from the sky, a
+    // leader's heavy blow.
+    void Shock(float x, float y, float strength, float shake);
+    // The whole view flashed toward a colour, by `amount` at most.
+    void Flash(SDL_Color colour, float amount);
+    // Where a shake puts the camera this frame, in whole world pixels; nothing
+    // when the player has turned shaking off.
+    SDL_FPoint ShakeOffset() const;
+    // How dark it is for what glows: 0 by day, 1 in the dead of night, in a
+    // dream and underground in the dark.
+    float GlowDarkness() const;
+
     // Called by Game when the player presses Interact.
     void TryInteract(const GameContext& ctx);
 
@@ -648,6 +663,24 @@ private:
     uint32_t next_net_id = 1;
     float shown_gather = 0.0f;
     void UpdateDust(float dt);
+
+    // The screen's own effects, and what draws them: see world_screen.cpp.
+    struct ShockRing { float x = 0, y = 0, age = 0, strength = 0; };
+    vector<ShockRing> shocks;
+    float shake = 0.0f, shake_clock = 0.0f;
+    SDL_Color flash_colour{255, 255, 255, 255};
+    float flash_amount = 0.0f;
+    // Rings spreading on the water: a lurker waiting, a swimmer's wake.
+    vector<Shaders::Ripple> ripples;
+    float ripple_clock = 0.0f;
+    int   ripple_tick = 0;
+    std::unordered_map<const Enemy*, SDL_FPoint> swim_seen;
+    static constexpr float SHOCK_TIME = 0.65f, RIPPLE_TIME = 1.6f;
+    void UpdateScreenFx(float dt);
+    Shaders::Frame ScreenFrame(TextureCache& cache) const;
+    void DrawReflections(SDL_Renderer* r, TextureCache& cache, const vector<const TileInstance*>& decor) const;
+    void DrawFloorLight(SDL_Renderer* r) const;
+    void DrawGlows(SDL_Renderer* r, TextureCache& cache, const vector<const TileInstance*>& decor) const;
     // Every shot in the air, by its number: where it was a frame ago, and how
     // far it has gone since it last shed anything. Kept here and not on the
     // shot, because a friend's machine is handed its shots anew with every

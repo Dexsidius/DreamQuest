@@ -421,6 +421,7 @@ void World::UpdateSlabs(float dt) {
                 // Enough to say it struck, and no more: the chunks of it
                 // sliding off are what the eye should be on.
                 Burst(s.x, s.y, s.side * 0.7f, {198, 180, 146, 255}, 3, 0.8f);
+                Shock(s.x, s.y, 0.35f + s.side / 80.0f, 0.25f + s.side / 120.0f);
                 BurstOf(Element::Earth, s.x, s.y, s.lift, 1.0f + s.side / 24.0f, 0.0f, 0.0f);
                 for (float w : {-1.0f, 1.0f})
                     AddDust(s.x + w * s.side, s.y + 2.0f, w, 0.0f);
@@ -472,6 +473,9 @@ void World::UpdateFalling(float dt) {
             Audio::PlayAt(Sfx::Impact, f.x, f.y, 1.0f, 0.5f);
             BurstOf(f.element, f.x, f.y, f.lift, 2.0f + f.size / 40.0f, 0.0f, 0.0f);
             Burst(f.x, f.y, f.size * 0.35f, ElementColor(f.element), 6, 0.6f);
+            Shock(f.x, f.y, std::min(1.0f, 0.6f + f.size / 160.0f), std::min(0.8f, 0.4f + f.size / 200.0f));
+            const SDL_Color c = ElementColor(f.element);
+            Flash(c, 0.10f);
             for (float w : {-1.0f, 1.0f}) AddDust(f.x + w * f.size * 0.4f, f.y + 2.0f, w, 0.0f);
         }
     }
@@ -518,6 +522,12 @@ void World::AddArc(float x, float y, float to_x, float to_y, uint8_t look) {
                                    static_cast<int>(y * 7.0f) * 19349663 ^
                                    static_cast<int>(a.facing * 512.0f) * 83492791) | 1u;
     arcs.push_back(a);
+    // A bolt out of the sky: the ground it strikes rings, and the whole view
+    // goes white for a moment.
+    if (look == 1) {
+        Shock(to_x, to_y, 0.55f, 0.35f);
+        Flash({226, 234, 255, 255}, 0.32f);
+    }
 }
 
 void World::HearOfArc(float x, float y, float facing, float reach, uint8_t look) {

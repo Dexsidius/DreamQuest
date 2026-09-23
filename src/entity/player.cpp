@@ -1085,6 +1085,7 @@ int Player::AbsorbWithMana(int damage) {
     const int want = damage / 2;
     const int paid = std::min(want, mana / MANA_PER_HP);
     mana -= paid * MANA_PER_HP;
+    if (paid > 0) shield_struck = 0.0f;
     return damage - paid;
 }
 
@@ -1173,6 +1174,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     tumble_timer      = std::max(0.0f, tumble_timer - dt);
     war_cry_timer     = std::max(0.0f, war_cry_timer - dt);
     mana_shield_timer = std::max(0.0f, mana_shield_timer - dt);
+    shield_struck     = std::min(99.0f, shield_struck + dt);
     riposte_timer     = std::max(0.0f, riposte_timer - dt);
     hit_run_timer     = std::max(0.0f, hit_run_timer - dt);
     frenzy_timer      = std::max(0.0f, frenzy_timer - dt);
@@ -1481,15 +1483,22 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
 void Player::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
     SDL_Color tint{255, 255, 255, 255};
-    if (hurt_flash > 0.0f)   tint = {255, 110, 110, 255};
-    else if (charging) {
+    // Struck: a flash, a red one -- white would say they had struck something.
+    // Drawn by the sprite shader when it can, else as the red tint it was.
+    Shaders::SpriteFx fx;
+    const bool flash = hurt_flash > 0.0f && Shaders::Effects() && Shaders::GetOptions().flashes;
+    if (flash) fx.flash = {1.0f, 0.42f, 0.36f, std::clamp(hurt_flash / 0.1f, 0.0f, 1.0f) * 0.7f};
+    else if (hurt_flash > 0.0f) tint = {255, 110, 110, 255};
+    if (charging && !flash) {
         // Warm glow that builds with the charge, so the wind-up reads.
         const float t = ChargeRatio(charge_held);
         tint = {255,
                 static_cast<Uint8>(255 - 90 * t),
                 static_cast<Uint8>(255 - 150 * t), 255};
+        // And a glow round them as it fills, with the shader.
+        if (Shaders::Effects() && t > 0.05f) fx.glow = {1.0f, 0.78f, 0.36f, 0.25f + 0.45f * t};
     }
-    sprite.Draw(r, cache, cam, x, y - draw_lift, tint);
+    sprite.Draw(r, cache, cam, x, y - draw_lift, tint, SDL_BLENDMODE_BLEND, 1.0f, fx.Any() ? &fx : nullptr);
 }
 
 void Player::Respawn(float sx, float sy) {

@@ -788,6 +788,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 heavy_landed = true;
                 sprite.Play("attack", true);
                 Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.55f);
+                // The ground rings under it; a boss's shakes the screen.
+                world.Shock(x, y, def->is_boss ? 0.9f : 0.4f, def->is_boss ? 0.6f : 0.18f);
                 const SDL_FPoint at = player.GroundCentre();
                 const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
                 if (level && ArcHits(HeavyArc(), at.x, at.y, player.GroundRadius())) {
@@ -996,6 +998,23 @@ Uint8 Enemy::CorpseAlpha() const {
     return static_cast<Uint8>(255.0f * (1.0f - t));
 }
 
+int Enemy::DissolveKind() const {
+    if (!def) return 0;
+    const string& id = def->id;
+    const auto has = [&](const char* w) { return id.find(w) != string::npos; };
+    // What is hardly there to begin with goes up like smoke.
+    if (has("wisp") || has("ghost") || has("shade") || has("wraith") || has("spirit") || has("specter") ||
+        has("spectre") || has("phantom") || has("gloom") || has("banshee") || has("wight"))
+        return 3;
+    // What burns goes out in embers.
+    if (def->element == Element::Fire || has("demon") || has("imp") || has("cinder") || has("infernal") ||
+        has("abyss") || has("ember") || has("pit_lord") || has("hell"))
+        return 2;
+    // The dead -- what cannot bleed and cannot be poisoned -- crumble.
+    if (def->immune[static_cast<int>(Status::Bleed)] && def->immune[static_cast<int>(Status::Poison)]) return 1;
+    return 0;
+}
+
 void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
     if (CorpseGone()) return;
     // Under the water, or not all the way out of it. The tell is fair warning:
@@ -1008,7 +1027,9 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
         const SDL_FPoint at = cam.ToScreen(x, y - draw_lift);
         const float under = 1.0f - emerge;
         SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-        for (int ring = 0; ring < 2; ++ring) {
+        // With the effects on, the rings are in the water itself: see
+        // World::UpdateRipples.
+        for (int ring = 0; ring < (Shaders::Effects() ? 0 : 2); ++ring) {
             const float t = fmodf(now * 0.55f + ring * 0.5f, 1.0f);
             const float rx = (5.0f + 17.0f * t) * z, ry = rx * 0.42f;
             const Uint8 a = static_cast<Uint8>(95.0f * (1.0f - t) * under);
@@ -1032,13 +1053,36 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
         // still under, and faded by the same.
         sunk = 18.0f * under;
     }
-    SDL_Color tint{255, 255, 255, CorpseAlpha()};
+    // With the effects on, what is happening to it is drawn on it by the
+    // sprite shader, and a tint is only what it was before: see SpriteFx.
+    const bool shaded = Shaders::Effects();
+    const bool flashes = shaded && Shaders::GetOptions().flashes;
+    Shaders::SpriteFx fx;
+    const float dying = (state == State::Dead && corpse_timer > CORPSE_HOLD)
+        ? std::clamp((corpse_timer - CORPSE_HOLD) / CORPSE_FADE, 0.0f, 1.0f) : 0.0f;
+
+    SDL_Color tint{255, 255, 255, shaded ? Uint8{255} : CorpseAlpha()};
     if (lurks && state != State::Dead) tint.a = static_cast<Uint8>(255.0f * std::clamp(emerge, 0.0f, 1.0f));
     if (def) tint = {def->tint.r, def->tint.g, def->tint.b, tint.a};
+    if (shaded) {
+        fx.seed = static_cast<float>((static_cast<int>(home_x) * 31 + static_cast<int>(home_y) * 17) % 97);
+        if (statuses.Any() && state != State::Dead) {
+            fx.burn = statuses.Has(Status::Burn) ? 1.0f : 0.0f;
+            fx.cold = statuses.Has(Status::Frozen) ? 1.0f : statuses.Has(Status::Chill) ? 0.5f : 0.0f;
+            fx.electrified = statuses.Has(Status::Electrified) ? 1.0f : 0.0f;
+            fx.poison = statuses.Has(Status::Poison) ? 1.0f : 0.0f;
+            fx.wet = statuses.Has(Status::Wet) ? 1.0f : 0.0f;
+            fx.bleed = statuses.Has(Status::Bleed) ? 1.0f : 0.0f;
+        }
+        if (dying > 0.0f) {
+            fx.dissolve = dying;
+            fx.dissolve_kind = DissolveKind();
+        }
+    }
     // What is on it shows on it: its own colours pulled toward the status's --
     // blue for the cold and the wet, green for poison, a throb of orange for a
     // burn. Frozen is nearly all of the way there.
-    if (statuses.Any() && state != State::Dead) {
+    if (!shaded && statuses.Any() && state != State::Dead) {
         const auto toward = [&](SDL_Color c, float k) {
             tint = {static_cast<Uint8>(tint.r + (c.r - tint.r) * k), static_cast<Uint8>(tint.g + (c.g - tint.g) * k),
                     static_cast<Uint8>(tint.b + (c.b - tint.b) * k), tint.a};
@@ -1050,20 +1094,34 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
         if (statuses.Has(Status::Chill))  toward({170, 215, 255, 255}, 0.50f);
         if (statuses.Has(Status::Frozen)) toward({190, 232, 255, 255}, 0.85f);
     }
-    if (hurt_flash > 0.0f) tint = {255, 110, 110, tint.a};
+    // A blow flashes it: to white, or the colour of what struck it -- which a
+    // tint cannot do, a tint only ever darkens. Without the shader, or with
+    // flashes turned off, it goes red as it always did.
+    if (hurt_flash > 0.0f) {
+        if (flashes)
+            fx.flash = {flash_color.r / 255.0f, flash_color.g / 255.0f, flash_color.b / 255.0f,
+                        std::clamp(hurt_flash / 0.1f, 0.0f, 1.0f) * 0.85f};
+        else
+            tint = {255, 110, 110, tint.a};
+    }
 
     // Winding up a heavy, it glows red. Two parts: a halo -- its own frame in
     // flat red, a little larger, drawn behind it -- and its own colours pulled
     // towards red. Adding red light on top of the sprite was tried first; on a
     // green orc that comes out beige, not red. Both grow as the charge fills
-    // and throb faster as it nears the end.
+    // and throb faster as it nears the end. With the shader the halo is a
+    // glow round its outline instead, which follows the shape exactly.
     const float charge = HeavyCharge();
     if (charge > 0.0f) {
         const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
         const float pulse = 0.6f + 0.4f * sinf(t * (8.0f + 18.0f * charge));
-        const Uint8 halo_a = static_cast<Uint8>(std::clamp((70.0f + 170.0f * charge) * pulse, 0.0f, 255.0f));
-        const float grow = 1.06f + 0.06f * charge * pulse;
-        sprite.Draw(r, cache, cam, x, y - draw_lift, {255, 36, 20, halo_a}, SDL_BLENDMODE_BLEND, grow);
+        if (shaded) {
+            fx.glow = {1.0f, 0.18f, 0.08f, std::clamp((0.35f + 0.65f * charge) * pulse, 0.0f, 1.0f)};
+        } else {
+            const Uint8 halo_a = static_cast<Uint8>(std::clamp((70.0f + 170.0f * charge) * pulse, 0.0f, 255.0f));
+            const float grow = 1.06f + 0.06f * charge * pulse;
+            sprite.Draw(r, cache, cam, x, y - draw_lift, {255, 36, 20, halo_a}, SDL_BLENDMODE_BLEND, grow);
+        }
         const float k = 0.25f + 0.5f * charge * pulse;
         tint = {tint.r,
                 static_cast<Uint8>(tint.g * (1.0f - k)),
@@ -1072,5 +1130,6 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
     // Lifted by the ground under it, as the player and NPCs are. This drew at
     // the raw feet position, so a monster up on a ledge sank into the cliff --
     // and a health bar placed from the terrain height would have floated off it.
-    sprite.Draw(r, cache, cam, x, y - draw_lift + sunk, tint);
+    sprite.Draw(r, cache, cam, x, y - draw_lift + sunk, tint, SDL_BLENDMODE_BLEND, 1.0f,
+                shaded && fx.Any() ? &fx : nullptr);
 }

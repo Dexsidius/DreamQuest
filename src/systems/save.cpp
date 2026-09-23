@@ -344,6 +344,11 @@ bool Settings::Load(const string& path) {
     p2_look         = j.value("p2_look", p2_look);
     split_stacked   = j.value("split_stacked", split_stacked);
     quest_waypoints = j.value("quest_waypoints", quest_waypoints);
+    visual_effects    = j.value("visual_effects", visual_effects);
+    screen_shake      = j.value("screen_shake", screen_shake);
+    flashes           = j.value("flashes", flashes);
+    colour_fringing   = j.value("colour_fringing", colour_fringing);
+    screen_distortion = j.value("screen_distortion", screen_distortion);
     controls        = j.contains("controls") ? j["controls"] : json();
     recent_hosts.clear();
     if (j.contains("recent_hosts") && j["recent_hosts"].is_array())
@@ -374,6 +379,11 @@ bool Settings::Save(const string& path) const {
         {"p2_name", p2_name},
         {"p2_look", p2_look},
         {"quest_waypoints", quest_waypoints},
+        {"visual_effects", visual_effects},
+        {"screen_shake", screen_shake},
+        {"flashes", flashes},
+        {"colour_fringing", colour_fringing},
+        {"screen_distortion", screen_distortion},
         {"controls", controls},
         {"split_stacked", split_stacked},
         {"recent_hosts", recent_hosts},

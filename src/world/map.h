@@ -2,6 +2,7 @@
 #include "../headers.h"
 #include "../texturecache.h"
 #include "../camera.h"
+#include "../systems/shaders.h"
 
 // -----------------------------------------------------------------------------
 //  Map: loads the LevelEdit-Plus ".mx" export format.
@@ -198,8 +199,10 @@ public:
     const string& Ambient() const { return ambient; }
     SDL_Color BackgroundColor() const { return background; }
 
-    // Draw one layer, culled to what the camera can see.
-    void RenderLayer(SDL_Renderer* r, TextureCache& cache, const Camera& cam, int layer) const;
+    // Draw one layer, culled to what the camera can see. The ground is drawn
+    // in two passes, the floor (1) and what lies on it (2) -- a rug, a bridge
+    // -- and `passes` says which; both, unless something goes between them.
+    void RenderLayer(SDL_Renderer* r, TextureCache& cache, const Camera& cam, int layer, int passes = 3) const;
     // Decor tiles that must interleave with entities by baseline.
     void CollectDecor(const Camera& cam, vector<const TileInstance*>& out) const;
     // Draws a single tile, so the world's sorted pass can interleave decor
@@ -220,6 +223,20 @@ public:
     Uint8 SurfaceOf(int tex) const {
         return (tex >= 0 && tex < static_cast<int>(surfaces.size())) ? surfaces[tex] : 0;
     }
+    // How a texture's scenery moves and lights: see Shaders::ArtOf.
+    const Shaders::Art& ArtOf(int tex) const {
+        static const Shaders::Art none;
+        return (tex >= 0 && tex < static_cast<int>(arts.size()) && arts[tex]) ? *arts[tex] : none;
+    }
+    // Ground fog, from the map's "fog" block; off where it has none.
+    const Shaders::Fog& GroundFog() const { return fog; }
+    // Where the floor is `surface` inside `rect`, as it is drawn (lifted with
+    // its terrain): the lava, for the light map to leave lit.
+    void SurfaceRects(const SDL_FRect& rect, Uint8 surface, vector<SDL_FRect>& out) const;
+    // Where the ground is `surface` inside `rect`: one point, the middle of
+    // what there is, for each `cell`-sized square that has any. Lifted with
+    // the terrain, as it is drawn.
+    void SurfaceSpots(const SDL_FRect& rect, Uint8 surface, float cell, vector<SDL_FPoint>& out) const;
 
     // --- collision -----------------------------------------------------------
     //
@@ -315,6 +332,8 @@ private:
 
     vector<string>       textures;      // resolved image paths
     vector<Uint8>        surfaces;      // Shaders::Surface of each, parallel to textures
+    vector<const Shaders::Art*> arts;   // and how each moves and lights
+    Shaders::Fog         fog;
     vector<TileInstance> tiles;
     vector<SDL_FRect>    colliders;
     // Parallel to `colliders`: which of them are water. A bitmap beside the

@@ -277,6 +277,8 @@ public:
     // them as it is over you.
     bool  shield_shown = false;
     bool  ShieldUp() const { return ManaShield() || shield_shown; }
+    // Seconds since the shield last took a blow, for the ripple across it.
+    float ShieldStruck() const { return shield_struck; }
     float WarCryLeft() const { return war_cry_timer; }
     bool  Frenzied() const { return frenzy_timer > 0.0f; }
     float FrenzyLeft() const { return frenzy_timer; }
@@ -638,6 +640,7 @@ private:
     const void* weak_target = nullptr;
     int   weak_stacks = 0;
     float tumble_timer = 0.0f, war_cry_timer = 0.0f, mana_shield_timer = 0.0f;
+    float shield_struck = 99.0f;
     float riposte_timer = 0.0f, hit_run_timer = 0.0f;
     int   attune_stacks = 0;
     Element attune_element = Element::None;

@@ -102,6 +102,13 @@ struct Settings {
     json   controls;
     // The marker that says where the quest being followed is.
     bool   quest_waypoints = true;
+    // The Visual Effects page: the shaders as a whole, and the parts of them
+    // some people would rather not have -- see Shaders::Options.
+    bool   visual_effects = true;
+    bool   screen_shake = true;
+    bool   flashes = true;
+    bool   colour_fringing = true;
+    bool   screen_distortion = true;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

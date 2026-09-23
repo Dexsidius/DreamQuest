@@ -21,7 +21,8 @@ layout(set = 2, binding = 1) uniform sampler2D u_field;
 layout(set = 3, binding = 0) uniform View {
     vec4 cam;      // camera xpos, ypos, zoom; seconds
     vec4 field;    // world px per field texel; the field's width and height in texels
-    vec4 target;   // the heat pass's; unused here
+    vec4 target;   // the post pass's; unused here
+    vec4 ripples[12];   // world x, y; seconds old; strength (0: none)
 } view;
 
 // A hash without sin(), which some drivers get badly wrong far from zero.
@@ -62,6 +63,26 @@ void main() {
     vec2 across = vec2(-along.y, along.x);
     float sway = floor(sin(dot(cell, along) * 0.62 + t * 2.3) * 1.2 + 0.5);
     vec2 drift = floor(flow * t * 26.0 / texel_px + across * sway);
+
+    // Rings spreading from where something broke the surface -- a lurker
+    // waiting under it, a swimmer's wake. Flat on the water, as wide as they
+    // are old; a ring pushes the art out by a pixel and lightens it.
+    float ring = 0.0;
+    vec2 push = vec2(0.0);
+    for (int i = 0; i < 12; ++i) {
+        vec4 r = view.ripples[i];
+        if (r.w <= 0.0) continue;
+        vec2 d = (cell + 0.5) * texel_px - r.xy;
+        d.y /= 0.45;
+        float dist = length(d);
+        float radius = 3.0 + r.z * 15.0;
+        float fade = clamp(1.0 - r.z / 1.6, 0.0, 1.0) * r.w;
+        if (abs(dist - radius) < texel_px.x * 0.8 && fade > 0.05) {
+            ring = max(ring, fade);
+            if (dist > 0.1) push += d / dist;
+        }
+    }
+    drift -= floor(push * 0.7 + 0.5);
     vec4 c = Texel(v_uv - drift / size, size);
 
     // Glints: the odd bright pixel riding the current, or twinkling in place
@@ -77,6 +98,6 @@ void main() {
     // Both are the water's own colour, lightened: pale blue on the river,
     // a murky grey-green on the Bayou's bog.
     vec3 light = min(c.rgb + vec3(0.38), vec3(1.0));
-    vec3 col = mix(c.rgb, light, max(glint, foam * 0.6));
+    vec3 col = mix(c.rgb, light, max(max(glint, foam * 0.6), ring * 0.55));
     o_color = vec4(col, c.a) * v_color;
 }

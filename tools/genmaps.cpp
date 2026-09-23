@@ -518,6 +518,17 @@ public:
     }
 
     void Interior(bool v) { dq["interior"] = v; }
+    // Ground fog, drawn by the fog shader over the floor and under everyone:
+    // how thick, what colour, how much thicker over and beside water, and --
+    // when `region` has a width -- only in there, fading in at its edges.
+    void Fog(float density, float water, std::array<int, 3> colour, Rect4 region = {0, 0, 0, 0}) {
+        json f;
+        f["density"] = density;
+        f["water"] = water;
+        f["colour"] = json::array({colour[0], colour[1], colour[2]});
+        if (region.w > 0.0f) f["region"] = json::array({region.x + ox, region.y, region.w, region.h});
+        dq["fog"] = f;
+    }
     void Ambient(const string& v) { dq["ambient"] = v; }
     // The line under the zone name on the banner shown when a player walks in.
     void Subtitle(const string& v) { dq["subtitle"] = v; }
@@ -573,6 +584,8 @@ public:
             for (const auto& n : dq["npcs"])
                 people.push_back({{"id", n["id"]}, {"name", n["name"]}, {"x", n["x"]}, {"y", n["y"]}});
             for (const auto& o : dq["objects"]) {
+                // Light on a floor is nothing anybody is sent to.
+                if (o.value("type", string("")) == "glass_light") continue;
                 json t = {{"id", o["id"]}, {"kind", o["type"]}, {"x", o["x"]}, {"y", o["y"]}};
                 if (o.contains("yield")) t["yield"] = o["yield"];
                 // What a bench works as, so a quest that asks for something to
@@ -1783,6 +1796,10 @@ static void BuildOverworld() {
             m.Collision(gx - 60, gy - 22, 34, 22);
             m.Collision(gx + 26, gy - 22, 34, 22);
             MarkWorld("grave", "Hollowrest", gx, gy + 40);
+            // A ground mist over the burying ground, and only there.
+            m.Fog(0.34f, 0.0f, {196, 204, 208},
+                  {static_cast<float>((GRAVE_CX - GRAVE_RX - 1) * OW_CELL), static_cast<float>((GRAVE_CY - GRAVE_RY - 1) * OW_CELL),
+                   (GRAVE_RX * 2 + 2) * OW_CELL, (GRAVE_RY * 2 + 2) * OW_CELL});
             json& sign = m.Object("sign_hollowrest", "sign", gx + 84, gy - 4);
             sign["sprite"] = "assets/props/signpost.png";
             sign["title"]  = "Hollowrest";
@@ -3019,6 +3036,8 @@ static void BuildDungeon(const string& id, const string& display,
     m.Interior(true);
     m.Ambient("dungeon");
     m.Background(12, 12, 18);
+    // The crypt's air lies on its floors, grey and cold, thicker the deeper.
+    if (id.rfind("crypt_", 0) == 0) m.Fog(id == "crypt_1" ? 0.30f : id == "crypt_2" ? 0.36f : 0.42f, 0.0f, {150, 158, 170});
     std::mt19937 rng(seed);
 
     vector<vector<bool>> floor(rows, vector<bool>(cols, false));
@@ -4076,6 +4095,16 @@ static void BuildPalaceFoyer() {
     // The sigil woven into it, twice.
     m.Overlay("props", "palace_sigil", 16 * CELL, 30 * CELL);
     m.Overlay("props", "palace_sigil", 16 * CELL, 44 * CELL);
+    // The light of the high windows over the balconies, in crimson and gold
+    // and violet on the floor between the walkways' shadows, and the great
+    // window over the throne room's doors laid down the runner.
+    {
+        int pane = 0;
+        for (int cy : {18, 30})
+            for (int cx : {7, 24})
+                m.Object("palace_foyer_glass_" + std::to_string(pane++), "glass_light", cx * CELL + 16, cy * CELL + 8);
+        m.Object("palace_foyer_glass_" + std::to_string(pane++), "glass_light", 16 * CELL, 18 * CELL + 8);
+    }
     // Braziers down both sides of it, and columns along the balconies' edges.
     int lamp = 0;
     for (int cy : {9, 20, 31, 42})
@@ -4369,6 +4398,11 @@ static void BuildPalaceThrone() {
         for (int cx : {3, 24}) Piece(m, "palace_pillar", cx * CELL + 16, cy * CELL + 24, 26, 12);
     Piece(m, "demon_statue", 10 * CELL, 31 * CELL + 16, 34, 14);
     Piece(m, "demon_statue", 18 * CELL, 31 * CELL + 16, 34, 14);
+    // His windows' light on the floor between the lava and the walls.
+    for (int cy : {16, 25})
+        for (int cx : {4, 23})
+            m.Object("palace_throne_glass_" + std::to_string(cx) + "_" + std::to_string(cy), "glass_light",
+                     cx * CELL + 16, cy * CELL + 8);
     m.Spawn("entrance", 14 * CELL, 31 * CELL);
     m.Spawn("default",  14 * CELL, 31 * CELL);
     m.Portal(12 * CELL, rows * CELL - 24, 4 * CELL, 24, "palace_foyer", "from_palace_throne", "Back to the hall", false);
@@ -5439,6 +5473,8 @@ static void BuildBayou() {
     m.Ambient("grove");
     m.Subtitle("The deep swamp past the lizardmen's camp. Mind the water");
     m.Background(14, 22, 18);
+    // A low mist, thickest over the open water and beside it.
+    m.Fog(0.17f, 1.1f, {184, 198, 178});
     std::mt19937 rng(9191u);
 
     enum Kind : uint8_t { LAND = 0, WET = 1, DECK = 2, RAMP = 3 };

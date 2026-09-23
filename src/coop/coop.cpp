@@ -194,6 +194,15 @@ bool LoadCharacter(const string& path, Character& out) {
 //  Host
 // -----------------------------------------------------------------------------
 
+// Which Host's ear is in Audio, if any: only that one may take it out.
+static const Host* g_tapped = nullptr;
+
+Host::~Host() {
+    if (g_tapped != this) return;
+    Audio::SetTap(nullptr);
+    g_tapped = nullptr;
+}
+
 void Host::Reset(World& home) {
     seats.clear();
     away.clear();
@@ -210,6 +219,7 @@ void Host::Reset(World& home) {
     since_snapshot = 0.0f;
     heard.clear();
     Audio::SetTap(nullptr);
+    g_tapped = nullptr;
     Audio::SetMuted(0);
 }
 
@@ -319,11 +329,14 @@ void Host::Update(float dt, net::Server& server, World& home, const GameContext&
     // frame -- the host's own world stepping included -- is kept to be told.
     ear_world = &home;
     ear_seat = -1;
-    if (seats.empty()) { Audio::SetTap(nullptr); heard.clear(); }
-    else Audio::SetTap([this](Sfx s, bool placed, float x, float y, float volume, float pitch) {
-        if (heard.size() < 256)
-            heard.push_back({static_cast<uint8_t>(s), placed, x, y, volume, pitch, ear_world, ear_seat});
-    });
+    if (seats.empty()) { Audio::SetTap(nullptr); g_tapped = nullptr; heard.clear(); }
+    else {
+        Audio::SetTap([this](Sfx s, bool placed, float x, float y, float volume, float pitch) {
+            if (heard.size() < 256)
+                heard.push_back({static_cast<uint8_t>(s), placed, x, y, volume, pitch, ear_world, ear_seat});
+        });
+        g_tapped = this;
+    }
 
     SyncRoster(server, home, ctx, in_world);
     home.company = !seats.empty();

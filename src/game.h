@@ -28,6 +28,7 @@ enum class GameState {
     LoadMenu,
     Options,
     Controls,          // which key and which button does what
+    VisualEffects,     // the shaders, and the parts of them that can be turned off
     Multiplayer,       // Play Together: host, join, who is here, the chat line
     Play,
     Paused,
@@ -97,6 +98,9 @@ private:
     void UpdateLoadMenu();
     void UpdateOptions();
     void UpdateControls();
+    void UpdateVisualEffects();
+    // The Visual Effects page's choices, given to the shaders.
+    void ApplyVisualEffects();
     void UpdateMultiplayer();
     void UpdatePlay(float dt);
     void UpdatePaused();
@@ -128,6 +132,7 @@ private:
     void DrawLoadMenu();
     void DrawOptions();
     void DrawControls();
+    void DrawVisualEffects();
     void DrawMultiplayer();
     void DrawHud();
     void DrawWorldText();          // floating damage / pickup text

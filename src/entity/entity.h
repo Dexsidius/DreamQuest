@@ -85,6 +85,9 @@ public:
     bool remove = false;                // world drops it next frame
 
     float hurt_flash = 0.0f;            // seconds of red tint remaining
+    // What the last blow was made of, for the flash it leaves: white for a
+    // plain one, the element's colour for a spell's. Only the shaders use it.
+    SDL_Color flash_color{255, 255, 255, 255};
     float knock_x = 0, knock_y = 0;     // decaying knockback velocity
 
     SDL_FRect foot_box{-8.0f, -11.0f, 16.0f, 11.0f};   // relative to feet

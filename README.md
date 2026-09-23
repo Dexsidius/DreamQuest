@@ -50,7 +50,7 @@ step, on a machine that has never seen either:
    on. If you built the game before co-op began, that last package is the one
    you are missing, and `build.ps1` says so.
 
-   Only to change the water, lava or heat shaders (`src/shaders`), also
+   Only to change the shaders (`src/shaders`), also
    `pacman -S mingw-w64-ucrt-x86_64-shaderc` for `glslc`. The compiled ones
    are in the repository, so the game builds and draws them without it.
 
@@ -142,19 +142,62 @@ move -- and which lets a few shaders of the game's own ride on top:
   does not.
 - **Lava churns.** The crust drifts downstream and bends, the hot specks run
   under it, a slow wave of heat passes over, and now and then a bubble swells.
-- **The air over lava wavers.** Wherever lava is in view the world is drawn
-  into a texture first and put on the screen shifted a pixel sideways, row by
-  row, over the lava and a little above it -- heat rises -- so the drawbridge's
-  chains, the palace's torches and anyone standing at the edge waver with it.
+- **The air wavers** over lava, over forges, hearths and braziers, and behind
+  a fireball -- a pixel sideways, row by row, more above the heat than beside
+  it -- so the drawbridge's chains and anyone at the edge waver with it.
+
+With **Visual Effects** on (Options, then Visual Effects), a good deal more:
+
+- **Blows and what they leave.** A struck monster flashes white, or the
+  colour of the spell that struck it; the player flashes red. What is on a
+  monster is drawn on it rather than tinted over it: flames lick up off a
+  burning one, a frozen one is cracked ice with glints in it, sparks crawl
+  round an electrified one, green bubbles rise through a poisoned one, a sheen
+  slides down a wet one, blood runs down a bleeding one. A leader winding up
+  its heavy glows red round its outline. And they die the way they would: the
+  dead crumble to dust, demons (and the Cinder King) burn out in embers,
+  wraiths and shades go up into the air, and the rest fade.
+- **Things that land hard.** A meteor, a dropped slab, a bolt from the sky and
+  a leader's heavy blow send a shockwave out through the picture; the big ones
+  shake the screen, and lightning from the sky flashes the view white and
+  lights up the night around it. Spells in flight shine through the dark.
+- **The Mana Shield** is a force field -- its skin brightest where it is seen
+  edge-on, a honeycomb faint in it, and a ripple across it from every blow it
+  takes. An **Electro-Node** is a glass orb with the charge swirling in it.
+- **Towns.** Windows are glass by day and light up at dusk; lamps and fires
+  throw a halo into the air after dark; banners, tapestries and tents stir in
+  the wind; the College fountain and the wells have running water; a woken
+  waystone's runes breathe, and waking one sends a ring and a rise of motes
+  off it.
+- **The land.** Grass, reeds, herbs, bushes and trees sway, with gusts
+  rolling across a field as a wave. Things in the water leave rings -- a lurker
+  waiting under the Bayou, a swimming duck's wake -- in place of the drawn
+  rings there were. Whatever stands by water is seen upside down in it, and
+  the palace's towers show dark in their moat with their windows lit. Mist
+  lies on the Bayou's water, over Hollowrest and on the crypt's floors,
+  thicker at night. Lava lights what is round it and stays lit at night.
+  Every place has its own colours -- the Ashen Path and the palace red-orange,
+  the Ice Spire cold, the golden hour warm, the dead of night drained -- and
+  the Reverie's edges swim and its lights bloom, more the deeper you go. The
+  foot of every bank sits in a soft shadow, and in the palace the high
+  windows lay stained-glass light on the floor.
+
+The Visual Effects page turns all of that off at once, for the plain look,
+and has its own switches for the parts some people would rather not have:
+**screen shake**, **flashes**, **colour fringing** and **screen distortion**
+(the heat, the shockwaves and the dream's swim).
 
 Everything moves in whole art pixels, never smeared: a tile's pixel is two of
 the world's, and it moves two at a time. The shaders are GLSL in
-`src/shaders`, compiled to SPIR-V in `assets/shaders` by the build, and the
-code that feeds them is `src/systems/shaders.*`.
+`src/shaders`, compiled to SPIR-V in `assets/shaders` by the build; the code
+that feeds them is `src/systems/shaders.*`, and what the world tells them each
+frame -- and the passes it draws with them -- is `src/world/world_screen.cpp`.
+Which scenery sways, lights or runs is decided from its art's name
+(`Shaders::ArtOf`), so a new tree or banner joins in without being listed.
 
 None of it is needed to play. Without Vulkan the game makes the renderer SDL
-would have picked (Direct3D 11 on Windows) and the water and lava are simply
-still, as they were before. To compare the two, or to get round a driver that
+would have picked (Direct3D 11 on Windows) and draws plain: the water and lava
+still, as they were before, and none of the rest. To compare the two, or to get round a driver that
 misbehaves, set `SDL_RENDER_DRIVER=direct3d11` (or `opengl`, ...) before
 starting it; `SDL_GPU_DRIVER=direct3d12` would want the shaders as DXIL, which
 are not built, so it draws without them.

@@ -1203,6 +1203,15 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         Audio::PlayAt(r.max_hit ? Sfx::HitCrit : Sfx::Hit, e.x, e.y);
 
     e.Damage(damage);
+    // The flash of it, in what it was made of: a sword's is white, a fireball's
+    // orange -- halfway to white, so it still reads as a flash.
+    if (element == Element::None) {
+        e.flash_color = {255, 255, 255, 255};
+    } else {
+        const SDL_Color c = ElementColor(element);
+        e.flash_color = {static_cast<Uint8>((c.r + 255) / 2), static_cast<Uint8>((c.g + 255) / 2),
+                         static_cast<Uint8>((c.b + 255) / 2), 255};
+    }
     // It comes for whoever did that, from wherever they did it.
     e.Provoke(static_cast<int>(player.seat));
     // What it trains is decided by the swing that did it. This line used to

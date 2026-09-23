@@ -46,6 +46,10 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     slabs.clear();
     falls.clear();
     claws.clear();
+    shocks.clear();
+    ripples.clear();
+    swim_seen.clear();
+    shake = flash_amount = 0.0f;
     targeting.Clear();
     gather_index = -1;
     player.StopGathering();
@@ -896,6 +900,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         ShedFromGround(dt);
         ShedFromStatuses(dt);
         UpdateMotes(dt);
+        UpdateScreenFx(dt);
         UpdateElevation(dt);
         for (auto& p : pickups) p.bob += dt * 3.4f;
         UpdateTexts(dt);
@@ -997,6 +1002,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
     ShedFromGround(dt);
     ShedFromStatuses(dt);
     UpdateMotes(dt);
+    UpdateScreenFx(dt);
     UpdateElevation(dt);
     UpdatePickups(dt, ctx);
     UpdateTexts(dt);

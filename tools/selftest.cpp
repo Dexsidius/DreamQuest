@@ -77,6 +77,9 @@ static const char* kMaps[] = {
 };
 
 int main(int argc, char** argv) {
+    // Unbuffered (Windows has no line buffering), so a crash does not take what
+    // was printed before it with it.
+    setvbuf(stdout, nullptr, _IONBF, 0);
     printf("DreamQuest self-test\n");
 
     // --- data files -----------------------------------------------------------
@@ -16958,6 +16961,175 @@ int main(int argc, char** argv) {
         Check(still > 0.7f, "Fernhollow's pond lies still (" + std::to_string(int(still * 100)) + "% of it)");
         const float lava = share("maps/ashen_path.mx", Shaders::LAVA, [](float, float) { return true; });
         Check(lava > 0.0f, "the Ashen Path's lava is in its field, for the heat");
+    }
+
+    Section("wind, windows, fog and the rest: what the shaders make of the world");
+    {
+        // Every shader the game loads is there to load.
+        for (const string& f : Shaders::ShaderFiles()) Check(fs::exists(f), f + " is there for the game to load");
+        Check(Shaders::ShaderFiles().size() == 8, "eight of them: water, lava, post, fog, reflect, sprite, prop, fx");
+
+        // What the art is, from its name.
+        using Shaders::ArtOf;
+        Check(ArtOf("assets/decor/tuft_0.png").kind == Shaders::PROP_GRASS &&
+              ArtOf("assets/props/reeds.png").kind == Shaders::PROP_GRASS &&
+              ArtOf("assets/props/herb_marigold.png").kind == Shaders::PROP_GRASS,
+              "grass, reeds and herbs sway in the wind");
+        Check(ArtOf("assets/objects/tree_03.png").kind == Shaders::PROP_TREE &&
+              ArtOf("assets/objects/bushsmall_02.png").kind == Shaders::PROP_TREE &&
+              ArtOf("assets/props/snow_pine.png").kind == Shaders::PROP_TREE, "and trees and bushes, less");
+        Check(ArtOf("assets/props/banner.png").kind == Shaders::PROP_CLOTH &&
+              ArtOf("assets/props/tapestry_red.png").kind == Shaders::PROP_CLOTH &&
+              ArtOf("assets/props/tent.png").kind == Shaders::PROP_STAKED &&
+              ArtOf("assets/props/college_banner.png").kind == Shaders::PROP_STAKED,
+              "banners and hangings stir; a tent and a banner on a pole only in the middle");
+        Check(ArtOf("assets/objects/building_house_a.png").kind == Shaders::PROP_WINDOWS &&
+              ArtOf("assets/props/inn_building.png").kind == Shaders::PROP_WINDOWS &&
+              ArtOf("assets/props/inn_building.png").glows, "a building's windows are glass by day and shine at night");
+        Check(ArtOf("assets/props/college_fountain.png").kind == Shaders::PROP_FOUNTAIN &&
+              ArtOf("assets/props/well.png").kind == Shaders::PROP_FOUNTAIN, "the College fountain and a well have running water");
+        Check(ArtOf("assets/props/waystone_lit.png").kind == Shaders::PROP_PULSE && ArtOf("assets/props/waystone_lit.png").halo &&
+              ArtOf("assets/props/waystone.png").kind == Shaders::PROP_NONE && !ArtOf("assets/props/waystone.png").halo,
+              "a woken waystone breathes and throws a halo; a sleeping one does neither");
+        for (const char* fire : {"campfire", "hearth", "forge", "palace_brazier", "palace_torch", "palace_hearth"}) {
+            const Shaders::Art& a = ArtOf(string("assets/props/") + fire + ".png");
+            Check(a.hot && a.halo && a.glows, string(fire) + ": the air over it wavers, and it glows after dark");
+        }
+        Check(!ArtOf("assets/props/hay_rick.png").glows && !ArtOf("assets/props/barrel.png").glows &&
+              ArtOf("assets/props/barrel.png").kind == Shaders::PROP_NONE,
+              "a hay rick is yellow and not alight, and a barrel is a barrel");
+        // Every piece of art the maps place that is named for something that
+        // moves is one of the kinds, so a new tree is not the one still tree.
+        {
+            int trees = 0, still = 0;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const TileInstance& t : m.Tiles()) {
+                    const string stem = fs::path(m.TexturePath(t)).stem().string();
+                    if (stem.rfind("tree_", 0) != 0 && stem.rfind("treesmall_", 0) != 0) continue;
+                    ++trees;
+                    still += m.ArtOf(t.tex).kind != Shaders::PROP_TREE;
+                }
+            }
+            Check(trees > 100 && still == 0, "every tree the maps place sways (" + std::to_string(trees) + ")");
+        }
+
+        // Fog: the Bayou's over its water, the crypt's on its floors, and
+        // Hollowrest's over the burying ground and nowhere else on the Hollowmarch.
+        {
+            Map bayou, ow, town;
+            Check(bayou.Load("maps/bayou.mx") && bayou.GroundFog().on && bayou.GroundFog().by_water > 0.5f &&
+                  bayou.GroundFog().region.w == 0.0f, "a mist lies on the Bayou, thickest over its water");
+            bool crypts = true;
+            for (const char* id : {"crypt_1", "crypt_2", "crypt_3"}) {
+                Map c;
+                crypts = crypts && c.Load(string("maps/") + id + ".mx") && c.GroundFog().on;
+            }
+            Check(crypts, "on every floor of the crypt");
+            Check(ow.Load("maps/overworld.mx") && ow.GroundFog().on && ow.GroundFog().region.w > 0.0f,
+                  "and on the Hollowmarch, only inside a region");
+            const SDL_FRect g = ow.GroundFog().region;
+            bool over_graves = false, crypt_door = false;
+            for (const MapObject& o : ow.Objects()) {
+                const bool inside = o.x > g.x && o.x < g.x + g.w && o.y > g.y && o.y < g.y + g.h;
+                if (o.id == "sign_hollowrest") over_graves = inside;
+                if (o.id == "chest_hollowrest") crypt_door = inside;
+            }
+            for (const Portal& p : ow.Portals())
+                if (p.target_map == "crypt_1")
+                    crypt_door = crypt_door && p.rect.x > g.x && p.rect.x < g.x + g.w && p.rect.y > g.y && p.rect.y < g.y + g.h;
+            Check(over_graves && crypt_door && g.w < ow.Width() * 0.3f,
+                  "which is Hollowrest: its gate and its crypt, and not the whole map");
+            Check(town.Load("maps/town_havenbrook.mx") && !town.GroundFog().on, "Havenbrook has none");
+        }
+
+        // Stained glass in the palace, lying on its floors, and nobody sent to it.
+        {
+            Map foyer, throne;
+            int panes = 0;
+            if (foyer.Load("maps/palace_foyer.mx")) for (const MapObject& o : foyer.Objects()) panes += o.type == "glass_light";
+            if (throne.Load("maps/palace_throne.mx")) for (const MapObject& o : throne.Objects()) panes += o.type == "glass_light";
+            Check(panes >= 8, "the palace's windows throw their light on its floors (" + std::to_string(panes) + ")");
+            std::ifstream in("data/waypoints.json");
+            const string all((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            Check(!all.empty() && all.find("glass_light") == string::npos, "and no waypoint points at light on a floor");
+        }
+
+        // The Visual Effects page is kept.
+        {
+            fs::create_directories("bin/selftest_net");
+            const string path = "bin/selftest_net/settings_effects.json";
+            Settings out;
+            out.visual_effects = false; out.screen_shake = false; out.flashes = false;
+            out.colour_fringing = true; out.screen_distortion = false;
+            Check(out.Save(path), "the Visual Effects choices are written");
+            Settings back;
+            Check(back.Load(path) && !back.visual_effects && !back.screen_shake && !back.flashes && back.colour_fringing &&
+                  !back.screen_distortion, "and read back as they were");
+            Settings old;
+            { std::ofstream f(path, std::ios::trunc); f << R"({"zoom": 2.0})"; }
+            Check(old.Load(path) && old.visual_effects && old.screen_shake && old.flashes && old.colour_fringing &&
+                  old.screen_distortion, "settings from before there was a page have everything on");
+            fs::remove(path);
+        }
+
+        // How each thing dies.
+        {
+            GameContext c2;
+            std::mt19937 rng(5);
+            c2.sprites = &sprites; c2.items = &items; c2.enemies = &enemy_db; c2.rng = &rng;
+            const auto kind = [&](const char* type) {
+                EnemySpawnDef def;
+                def.type = type; def.level = 1; def.x = 100.0f; def.y = 100.0f;
+                Enemy e;
+                e.Init(enemy_db.Get(type), def, c2);
+                return e.DissolveKind();
+            };
+            Check(kind("skeleton") == 1 && kind("bone_knight") == 1 && kind("revenant") == 1, "the dead crumble to dust");
+            Check(kind("imp") == 2 && kind("demon") == 2 && kind("abyssal_demon") == 2 && kind("cinder_king") == 2,
+                  "demons, and the Cinder King, burn out in embers");
+            Check(kind("wraith") == 3 && kind("tomb_shade") == 3, "wraiths and shades go up into the air");
+            Check(kind("wolf") == 0 && kind("boar") == 0, "and a wolf or a boar simply fades");
+        }
+
+        // Shockwaves, the shake and the flash: all gone in a moment, and no
+        // shake at all for someone who has turned it off.
+        {
+            GameContext ctx;
+            std::mt19937 rng(77);
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+            ctx.quests = &log; ctx.rng = &rng;
+            constexpr float kFrame = 1.0f / 60.0f;
+            World w;
+            w.player.Init(ctx, "player_wayfarer");
+            Check(w.LoadMap("town_havenbrook", "", ctx), "Havenbrook, to shake");
+            Shaders::Options o;
+            Shaders::SetOptions(o);
+            w.Shock(w.player.x, w.player.y, 1.0f, 1.0f);
+            w.Flash({255, 255, 255, 255}, 0.5f);
+            bool moved = false;
+            for (int f = 0; f < 20; ++f) {
+                w.Update(kFrame, ctx);
+                const SDL_FPoint s = w.ShakeOffset();
+                moved |= s.x != 0.0f || s.y != 0.0f;
+                Check(s.x == roundf(s.x) && s.y == roundf(s.y), "a shake moves the camera by whole pixels");
+            }
+            Check(moved, "a big blow shakes the screen");
+            o.shake = false;
+            Shaders::SetOptions(o);
+            Check(w.ShakeOffset().x == 0.0f && w.ShakeOffset().y == 0.0f, "unless shaking is turned off");
+            o = Shaders::Options{};
+            o.effects = false;
+            Shaders::SetOptions(o);
+            Check(w.ShakeOffset().x == 0.0f && w.ShakeOffset().y == 0.0f, "or the effects are");
+            Shaders::SetOptions(Shaders::Options{});
+            for (int f = 0; f < 60 * 2; ++f) w.Update(kFrame, ctx);
+            Check(w.ShakeOffset().x == 0.0f && w.ShakeOffset().y == 0.0f, "and it has stopped within two seconds");
+            Check(!Shaders::Effects(), "and off the GPU renderer, as here, none of the shader effects are on");
+        }
     }
 
     Section("co-op M1: messages");

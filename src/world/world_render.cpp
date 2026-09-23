@@ -147,6 +147,27 @@ vector<Light> World::CollectLights() const {
         if (g.Look() != Element::Fire || !g.Active()) continue;
         lights.push_back({g.x, g.y, g.radius * 2.2f, {255, 150, 70, 255}, 0.8f * dark});
     }
+
+    if (Shaders::Effects()) {
+        // Lightning lights up the night for the moment it is there: an arc
+        // round its middle, a bolt from the sky wide round where it struck.
+        for (const Arc& a : arcs) {
+            if (a.life <= 0.0f) continue;
+            const float p = a.Progress();
+            const float bright = p < 0.3f ? 1.0f : 1.0f - (p - 0.3f) / 0.7f;
+            if (bright <= 0.0f) continue;
+            const float k = a.look == 1 ? 1.0f : 0.5f;
+            lights.push_back({a.x + cosf(a.facing) * a.reach * k, a.y + sinf(a.facing) * 0.9f * a.reach * k,
+                              a.look == 1 ? 260.0f : 110.0f, {222, 232, 255, 255}, bright * dark});
+        }
+        // Lava lights what is round it, and flickers as it churns.
+        vector<SDL_FPoint> lava;
+        map.SurfaceSpots(camera.VisibleWorldRect(96.0f), Shaders::LAVA, 96.0f, lava);
+        for (const SDL_FPoint& at : lava) {
+            const float f = 0.85f + 0.1f * sinf(t * 2.3f + at.x * 0.031f) + 0.05f * sinf(t * 5.1f + at.y * 0.047f);
+            lights.push_back({at.x, at.y, 120.0f, {255, 118, 48, 255}, 0.7f * dark * f});
+        }
+    }
     return lights;
 }
 
@@ -499,12 +520,23 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     const SDL_Color bg = map.BackgroundColor();
     SDL_SetRenderDrawColor(r, bg.r, bg.g, bg.b, 255);
     SDL_RenderClear(r);
+    // What the shaders are to make of this view: see world_screen.cpp.
+    if (Shaders::Effects()) Shaders::SetFrame(ScreenFrame(cache));
     if (InDream()) RenderStars(r);
 
-    map.RenderLayer(r, cache, camera, LAYER_GROUND);
+    // The floor, then -- in the water, under the bridges and whatever else
+    // lies on it -- what stands beside the water, upside down; then what lies
+    // on the floor.
+    vector<const TileInstance*> decor;
+    map.CollectDecor(camera, decor);
+    map.RenderLayer(r, cache, camera, LAYER_GROUND, 1);
+    DrawReflections(r, cache, decor);
+    map.RenderLayer(r, cache, camera, LAYER_GROUND, 2);
     // The exposed earth on the downhill side of every raised cell, drawn over
     // the ground and under everything that stands on it.
     map.RenderCliffs(r, cache, camera);
+    // The light of the palace's windows, on its floor.
+    DrawFloorLight(r);
 
     // Burning ground and pending eruptions lie on the floor, under everyone.
     // Drawn as a squashed disc rather than a rectangle: a hard-edged box reads
@@ -773,8 +805,6 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     struct Item { float sort_y; int kind; const void* ptr; };
     vector<Item> queue;
 
-    vector<const TileInstance*> decor;
-    map.CollectDecor(camera, decor);
     queue.reserve(decor.size() + enemies.size() + npcs.size() + pickups.size() + 8);
     for (const TileInstance* t : decor) queue.push_back({t->sort_y, 0, t});
 
@@ -851,6 +881,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             if (sort_y > c.sort_y && RectsOverlap(art, c.box)) return true;
         return false;
     };
+
+    // Ground fog lies over the floor and round everyone's ankles.
+    Shaders::DrawFog(r);
 
     for (const Item& it : queue) {
         switch (it.kind) {
@@ -989,11 +1022,17 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 const Uint8 alpha = covers_someone(world, o->y, used ? o->sprite_open : o->sprite)
                                         ? 110 : 255;
 
+                // A tree in the wind, a woken waystone breathing (no-ops off
+                // the GPU renderer).
+                const Shaders::PropKind kind = dulled ? Shaders::PROP_NONE
+                                                      : Shaders::ArtOf(used ? o->sprite_open : o->sprite).kind;
+                if (kind != Shaders::PROP_NONE) Shaders::UseTile(r, Shaders::PLAIN, kind);
                 SDL_SetTextureAlphaMod(tex, alpha);
                 if (dulled) SDL_SetTextureColorMod(tex, 118, 112, 108);
                 SDL_RenderTexture(r, tex, nullptr, &dst);
                 if (dulled) SDL_SetTextureColorMod(tex, 255, 255, 255);
                 SDL_SetTextureAlphaMod(tex, 255);
+                if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
                 break;
             }
         }
@@ -1364,6 +1403,16 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             const float left = std::clamp(n.life / 0.5f, 0.0f, 1.0f);
             const float beat = 1.0f + 0.08f * sinf(now * 7.0f + n.x * 0.05f);
             const float rad = 15.0f * z * beat * (0.7f + 0.3f * left);
+            // With the shader: an orb of glass with the charge swirling
+            // through it and sparking, worked out a pixel at a time.
+            {
+                Shaders::ShapeFx fx;
+                fx.shape = Shaders::SHAPE_NODE;
+                fx.fade = left;
+                fx.colour = {0.74f, 0.88f, 1.0f, 1.0f};
+                const SDL_FRect orb = {at.x - rad, at.y - rad * 0.92f, rad * 2.0f, rad * 1.84f};
+                if (Shaders::DrawShape(r, orb, fx, SDL_BLENDMODE_BLEND)) continue;
+            }
             // Glass: filled, but barely -- what is behind it is still read
             // through it, which is what makes it an orb and not a coin. Drawn
             // as rows so the fill is an ellipse and not a square.
@@ -1484,6 +1533,26 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             // Big enough to have them inside it, head and all: see ShieldDome.
             const SDL_FPoint size = ShieldDome(*who);
             const float rx = size.x * z * beat, ry = size.y * z * beat;
+            // With the shader: a skin brightest where it is seen edge-on, a
+            // honeycomb faint in it, and a ripple across it from a blow it
+            // took -- and its ring on the ground under it.
+            {
+                Shaders::ShapeFx fx;
+                fx.shape = Shaders::SHAPE_DOME;
+                fx.fade = fade;
+                fx.colour = {0.66f, 0.46f, 1.0f, 1.0f};
+                const float foot_ry = rx * 0.34f;
+                fx.foot = foot_ry / std::max(1.0f, ry);
+                const float struck = who->ShieldStruck();
+                if (struck < 0.6f) {
+                    const float h = static_cast<float>(static_cast<int>((now - struck) * 7.0f) % 13);
+                    fx.hit_x = sinf(h * 1.7f) * 0.7f;
+                    fx.hit_y = -0.25f - 0.5f * fabsf(cosf(h * 2.3f));
+                    fx.hit_age = struck / 0.6f;
+                }
+                const SDL_FRect dome = {foot.x - rx, foot.y - ry, rx * 2.0f, ry + foot_ry};
+                if (Shaders::DrawShape(r, dome, fx, SDL_BLENDMODE_BLEND)) continue;
+            }
             const int rows = std::max(6, static_cast<int>(ry));
             for (int i = 0; i < rows; ++i) {
                 // 0 at the crown of the dome, 1 at the ground.
@@ -1549,7 +1618,12 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
 
     // Night, dusk, and the dream's violet, multiplied over everything above,
     // with fires and the player's own glow cut out of it.
-    lighting.Render(r, camera, AmbientLight(), CollectLights());
+    // Lava is its own light: the night leaves it, and what is on it, lit.
+    vector<SDL_FRect> lit;
+    if (Shaders::Effects()) map.SurfaceRects(camera.VisibleWorldRect(32.0f), Shaders::LAVA, lit);
+    lighting.Render(r, camera, AmbientLight(), CollectLights(), &lit);
+    // And what is lit from inside, shining through it: see world_screen.cpp.
+    DrawGlows(r, cache, decor);
 
     // Leaves, fireflies and dust, and the vignette -- over the world, under
     // the bars and the HUD.
