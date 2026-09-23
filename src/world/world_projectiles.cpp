@@ -223,7 +223,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             if (p.from_player) {
                 for (auto& e : enemies) {
                     if (p.finished) break;
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden()) continue;
                     if (!RectsOverlap(box, e->BodyBox())) continue;
 
                     const void* key = e.get();
@@ -632,7 +632,7 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             if (g.follows && g.from_player) { g.x = player.x; g.y = player.y; }
             if (g.pull > 0.0f)
                 for (auto& e : enemies) {
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Def() == nullptr || e->Def()->is_boss) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Def() == nullptr || e->Def()->is_boss) continue;
                     const SDL_FPoint at = e->GroundCentre();
                     const float dx = g.x - at.x, dy = g.y - at.y, far = Length(dx, dy);
                     if (far > g.radius + e->GroundRadius() || far < 6.0f) continue;
@@ -690,7 +690,7 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         if (g.from_player) {
             ActAs(OwnerOf(g.owner_local, g.owner_seat), [&] {
                 for (auto& e : enemies) {
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden()) continue;
                     if (!inside(*e)) continue;
                     if (g.finished && g.once) break;      // a snare holds one thing
                     crit_next = g.sure_crit;

@@ -2860,5 +2860,1696 @@
         "weight": 55
       }
     ]
+  },
+  "bog_lurker": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          48,
+          96
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "mire_croaker": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          52,
+          105
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "swamp_hag": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          57,
+          115
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "rot_shambler": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          60,
+          121
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "fen_gator": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          67,
+          134
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "fen_stalker": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          68,
+          137
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "drowned_one": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          70,
+          140
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "witchlight": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          75,
+          150
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "lizard_shaman": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          80,
+          160
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "orichalcum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "orichalcum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "bayou_matriarch": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          504,
+          840
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "orichalcum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "orichalcum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "tarnished_ring",
+        "weight": 22,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "dream_shard",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "grave_ghoul": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          41,
+          83
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "coal",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "steel_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "bone_archer": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          48,
+          96
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "cryptbound": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          54,
+          108
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "bone_knight": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          62,
+          124
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "azuryte_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "azuryte_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "plague_corpse": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          67,
+          134
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "tomb_shade": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          70,
+          140
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "grave_hound": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          75,
+          150
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "damascus_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "damascus_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "blood_thrall": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          83,
+          166
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "orichalcum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "orichalcum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "bone_colossus": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          91,
+          182
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "orichalcum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "orichalcum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "nosferatu": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          99,
+          198
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "diamond_ingot",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "crypt_warden": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          108,
+          217
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "diamond_ingot",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "vampire_lord": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          4,
+          6
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          639,
+          1065
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "tarnished_ring",
+        "weight": 22,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "dream_shard",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "revenant": {
+    "always": [
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          116,
+          233
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "abyssal_demon": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          121,
+          243
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "rime_revenant": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          124,
+          249
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "weight": 26,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 18,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "chest_crypt_1": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          220,
+          480
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "azuryte_bar",
+        "weight": 22,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "grave_candle",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "bone_amulet",
+        "weight": 16
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 18,
+        "qty": [
+          2,
+          3
+        ]
+      },
+      {
+        "item": "tarnished_ring",
+        "weight": 14
+      },
+      {
+        "item": "azuryte_helm",
+        "weight": 10
+      }
+    ]
+  },
+  "chest_crypt_2": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          420,
+          860
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "damascus_bar",
+        "weight": 22,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "damascus_body",
+        "weight": 12
+      },
+      {
+        "item": "damascus_sword",
+        "weight": 12
+      },
+      {
+        "item": "grave_candle",
+        "weight": 16,
+        "qty": [
+          3,
+          5
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 14,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "diamond_ore",
+        "weight": 14,
+        "qty": [
+          1,
+          3
+        ]
+      }
+    ]
+  },
+  "chest_crypt_3": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          900,
+          1700
+        ]
+      },
+      {
+        "item": "diamond_ore",
+        "qty": [
+          2,
+          5
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "diamond_ingot",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "diamond_sword",
+        "weight": 12
+      },
+      {
+        "item": "diamond_body",
+        "weight": 12
+      },
+      {
+        "item": "platinum_ore",
+        "weight": 16,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 14,
+        "qty": [
+          2,
+          3
+        ]
+      },
+      {
+        "item": "dream_shard",
+        "weight": 14,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "tarnished_ring",
+        "weight": 12,
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "chest_ashcroft": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1800,
+          3200
+        ]
+      },
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          3,
+          6
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "platinum_sword",
+        "weight": 12
+      },
+      {
+        "item": "platinum_body",
+        "weight": 12
+      },
+      {
+        "item": "platinum_legs",
+        "weight": 12
+      },
+      {
+        "item": "dream_shard",
+        "weight": 16,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 14,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "demonite_ore",
+        "weight": 14,
+        "qty": [
+          1,
+          3
+        ]
+      }
+    ]
+  },
+  "chest_bayou": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          260,
+          620
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "damascus_bar",
+        "weight": 20,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "orichalcum_ore",
+        "weight": 16,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "bogbean",
+        "weight": 18,
+        "qty": [
+          3,
+          6
+        ]
+      },
+      {
+        "item": "glowcap",
+        "weight": 14,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16,
+        "qty": [
+          2,
+          3
+        ]
+      },
+      {
+        "item": "bone_amulet",
+        "weight": 8
+      },
+      {
+        "item": "tarnished_ring",
+        "weight": 8
+      }
+    ]
+  },
+  "chest_fen_mother": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1100,
+          2100
+        ]
+      },
+      {
+        "item": "orichalcum_bar",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "orichalcum_sword",
+        "weight": 12
+      },
+      {
+        "item": "orichalcum_body",
+        "weight": 12
+      },
+      {
+        "item": "diamond_ore",
+        "weight": 16,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 14,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "dream_shard",
+        "weight": 14,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "glowcap",
+        "weight": 16,
+        "qty": [
+          4,
+          8
+        ]
+      },
+      {
+        "item": "tarnished_ring",
+        "weight": 12,
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "cinder_king": {
+    "always": [
+      {
+        "item": "demon_horn",
+        "qty": [
+          4,
+          7
+        ]
+      },
+      {
+        "item": "coins",
+        "qty": [
+          3000,
+          5200
+        ]
+      },
+      {
+        "item": "demonite_bar",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "dracon_bar",
+        "weight": 10
+      },
+      {
+        "item": "demonite_greatsword",
+        "weight": 10
+      },
+      {
+        "item": "demonite_body",
+        "weight": 10
+      },
+      {
+        "item": "demonite_helm",
+        "weight": 10
+      },
+      {
+        "item": "demonite_legs",
+        "weight": 10
+      },
+      {
+        "item": "demonite_staff",
+        "weight": 10
+      },
+      {
+        "item": "dream_shard",
+        "weight": 20,
+        "qty": [
+          3,
+          6
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ]
+  },
+  "chest_palace": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1400,
+          2600
+        ]
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          3
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "weight": 20,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "demonite_bar",
+        "weight": 16,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "demon_horn",
+        "weight": 16,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 16,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "dream_shard",
+        "weight": 16,
+        "qty": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "demonite_sword",
+        "weight": 8
+      },
+      {
+        "item": "demonite_legs",
+        "weight": 8
+      }
+    ]
+  },
+  "chest_palace_vault": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          2600,
+          4400
+        ]
+      },
+      {
+        "item": "demonite_bar",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "demonite_body",
+        "weight": 14
+      },
+      {
+        "item": "demonite_helm",
+        "weight": 14
+      },
+      {
+        "item": "demonite_greatsword",
+        "weight": 12
+      },
+      {
+        "item": "demonite_staff",
+        "weight": 12
+      },
+      {
+        "item": "dream_shard",
+        "weight": 18,
+        "qty": [
+          2,
+          5
+        ]
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 16,
+        "qty": [
+          2,
+          4
+        ]
+      },
+      {
+        "item": "dracon_bar",
+        "weight": 4
+      }
+    ]
   }
 }

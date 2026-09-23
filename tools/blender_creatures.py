@@ -2827,6 +2827,12 @@ RUNNERS = {"orc1": 1.45, "orc2": 1.45, "orc3": 1.40,
 # engine asks for "swim" and quietly keeps walking if the rig has no such clip,
 # so this list is the whole of who can be drawn sitting on water.
 SWIMMERS = {"duck": fowl_swim, "goose": fowl_swim}
+
+# Who swims *in* the water rather than on it. A duck sits on the surface; a
+# gator is under it to the eyes. For these the swim sheet is cut at the
+# waterline -- a disc of holdout at the ground of each cell hides whatever is
+# below it -- and throws no shadow, because nothing does on water.
+WATERLINE = set()
 FACINGS = bc.FACINGS
 
 
@@ -2916,9 +2922,14 @@ def build_sheet(creature, clip_index):
             rig.root.location = offset + rig.fall
             cell = right * (bc.FRAME_SPAN * col) - up * (bc.FRAME_SPAN * row)
             keep_in_cell(rig, cell, right, up, creature, clip, facing, col)
+            bodies += rig.parts
+            if clip == "swim" and creature in WATERLINE:
+                water = part("water", E(bc.FRAME_SPAN * 0.5, bc.FRAME_SPAN * 0.5, 0.0005), "shadow", None,
+                             loc=rig.root.location.copy())
+                water.is_holdout = True
+                continue
             shadow = part("shadow", E(shadow_r, shadow_r * 0.7, 0.004), "shadow", None,
                           loc=offset + Vector((0, 0, 0.004)))
-            bodies += rig.parts
             shadows.append(shadow)
 
     bc.setup_camera(frames, len(FACINGS))
@@ -2969,6 +2980,17 @@ def main():
             if clip == "swim" and creature not in SWIMMERS:
                 continue
             build_sheet(creature, index)
+
+
+# The monsters that fill the level ladder -- the Bayou's, Hollowrest Crypt's and
+# the three past them -- are in tools/blender_bestiary.py. They are built from
+# everything above, so this module is handed to it rather than imported by it:
+# run by Blender this file is __main__, and importing it by name would run the
+# whole of it a second time.
+sys.modules.setdefault("blender_creatures", sys.modules[__name__])
+import blender_bestiary  # noqa: E402
+
+blender_bestiary.register()
 
 
 if __name__ == "__main__":

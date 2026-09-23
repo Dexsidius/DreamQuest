@@ -397,6 +397,14 @@ public:
         dq["enemies"].push_back(e);
     }
 
+    // The same, kept under the water until somebody comes too close: see
+    // EnemySpawnDef::lurk. For a monster that swims, at a post in water.
+    void LurkingEnemy(const string& type, int x, int y, int level,
+                      float respawn = 40.0f, float leash = 240.0f) {
+        Enemy(type, x, y, level, respawn, leash);
+        dq["enemies"].back()["lurk"] = true;
+    }
+
     // A post that is not kept by the same thing every day: one of `pool`, the
     // same one for every post in `group`, at `level` to `level + spread`. Which,
     // is the game's to say as the map is walked into -- World::ResolveSpawn.
@@ -489,9 +497,15 @@ public:
     // ignoring it. levels is row-major, one small integer per cell; ramps are
     // rectangles where walking between levels is allowed, which is the only
     // thing that stops a raised map becoming a set of islands.
+    // `face` is the tile an exposed edge is drawn in and `lip` the colour
+    // along its top: a bank of soil with grass over it, unless a map says
+    // otherwise -- the Bayou's raised ground is decking.
     void Elevation(int cell, int cols, int rows,
-                   const vector<int>& levels, const vector<Rect4>& ramps) {
+                   const vector<int>& levels, const vector<Rect4>& ramps,
+                   const string& face = "", std::array<int, 3> lip = {-1, -1, -1}) {
         json e;
+        if (!face.empty()) e["face"] = face;
+        if (lip[0] >= 0) e["lip"] = json::array({lip[0], lip[1], lip[2]});
         e["cell"] = cell;
         e["cols"] = cols;
         e["rows"] = rows;
@@ -1052,6 +1066,10 @@ static Biome BiomeAt(int cx, int cy) {
     // stood on a lawn behind them.
     if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 10 && cy < 90) return ROAD;
     if (OnTrail(cx, cy)) return TRAIL;
+    // The causeway into the Bayou: three cells of packed earth from beside the
+    // lizardmen's camp to the west edge. A trail as far as everything else is
+    // concerned, so no bog forms across it and nothing is put on it.
+    if (cx <= 5 && abs(cy - 80) <= 1) return TRAIL;
 
     if (InGraveyard(cx, cy)) return GRAVEYARD;
     if (cx > 96 && cy < 34 && n > 0.42f) return CURSED;
@@ -1715,6 +1733,23 @@ static void BuildOverworld() {
         for (const auto& g : guards) m.Enemy("lizardman", cx0 + g[0], cy0 + g[1], g[2], 40.0f, 240.0f);
     }
 
+    // --- the way into the Bayou ----------------------------------------------------------
+    // West off the edge of the map along the causeway from the camp: the deep
+    // swamp the lizardmen came out of. A post at the edge says what it is.
+    {
+        const int ey = 80 * OW_CELL + 16;
+        m.Portal(OW_X0 * OW_CELL, ey - 72, 24, 144, "bayou", "from_hollowmarch", "To the Bayou", false);
+        m.Danger(30);      // the Bayou: Combat 30 at the edge, 56 at the bottom of it
+        m.Spawn("from_bayou", OW_X0 * OW_CELL + 88, ey);
+        MarkWorld("path", "The Bayou", OW_X0 * OW_CELL + 40, ey);
+        json& sign = m.Object("sign_bayou", "sign", OW_X0 * OW_CELL + 220, ey - 62);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "The Bayou";
+        sign["text"]   = "WEST: THE BAYOU\n\nPainted on the post in lizardman red, and scratched under it "
+                         "by somebody who could write: the water there is not empty. Do not walk the edge.";
+        m.Collision(OW_X0 * OW_CELL + 204, ey - 72, 32, 10);
+    }
+
     // --- Hollowrest ------------------------------------------------------------------
     // The burying ground: an iron fence round a field of dead grass, a lych
     // gate at the north with a lantern still lit under it, ranks of headstones
@@ -1788,14 +1823,33 @@ static void BuildOverworld() {
         (void)graves;
 
         // The crypt at the head of the yard, and what is in front of it.
+        //
+        // The grille is off it. It stood barred for as long as there was
+        // nothing under it; there are three floors under it now, and the art
+        // says so -- prop crypt_open has the bars gone, the doorway cut dark
+        // and the grille itself left leaning against the wall beside it. The
+        // sign at the gate was always a warning about this door.
+        //
+        // The art is 176px on its bottom edge. Measured off it: the doorway is
+        // 40px wide about the centre with its floor 22px above the bottom, and
+        // the building fills 68px either side of centre.
         {
             const auto [cx0, cy0] = at(GRAVE_CX, GRAVE_CY + 8, 16, 30);
-            m.Prop("props", "crypt", cx0, cy0);
-            m.SortLift("crypt", 74);
-            m.Collision(cx0 - 78, cy0 - 40, 156, 44);
+            m.Prop("props", "crypt_open", cx0, cy0);
+            m.SortLift("crypt_open", 74);
+            // The face either side of the doorway, and the wall behind it: the
+            // gap between them is what you walk into.
+            m.Collision(cx0 - 78, cy0 - 40, 56, 44);
+            m.Collision(cx0 + 22, cy0 - 40, 56, 44);
+            m.Collision(cx0 - 22, cy0 - 40, 44, 18);
+            m.Spawn("from_crypt", cx0, cy0 + 26);
+            m.Portal(cx0 - 20, cy0 - 24, 40, 28, "crypt_1", "entrance",
+                     "Go down into the crypt");
+            MarkWorld("dungeon", "Hollowrest Crypt", cx0, cy0 - 10);
+            m.Danger(34);      // the vaults: its dead are Combat 26-34
             PlaceChest(m, "chest_hollowrest", cx0 - 132, cy0 - 26, "chest_hollowrest");
             // In the aisle in front of its own door, not behind the crypt:
-            // south of it is outside the fence.
+            // south of it is outside the fence. He kept the door shut.
             m.Enemy("barrow_wight", cx0 + 6, cy0 - 56, 1, 0.0f, 200.0f);
         }
 
@@ -3556,19 +3610,79 @@ static void BuildIceSpire() {
 //  lava where the only way over is a scorched ford that burns to walk on.
 //  Imps haunt it, and at the end, where two demons stand guard, the hellgate
 //  opens on the Infernal Pit.
+//
+//  North of the road is where two of those rivers come from: the moat of the
+//  Brimstone Palace. Laid out from a sketch of the user's -- the moat a U of
+//  lava round the palace's forecourt, a dirt road straight up to a drawbridge
+//  over its front, the palace's own guards inside it, the path's own
+//  creatures all round outside, and a field of embers down its east side.
 // =============================================================================
 
 namespace ash {
-static const int CELL = 32, W = 96, H = 40;
-static float TrailY(float cx) { return 20.0f + sinf(cx * 0.07f) * 7.0f + sinf(cx * 0.023f + 2.0f) * 3.0f; }
+static const int CELL = 32, W = 96;
+// The palace country is new, and north of the old road: everything the road
+// had is this many rows further down the map than it used to be.
+static const int NORTH = 44, H = 40 + NORTH;
+// The palace. Its moat's arms are the two eastern rivers, straight along the
+// forecourt's sides; the front of it, three rows of lava, is where they turn
+// south; the palace's front stands on PAL_BASE, and the forecourt lies between
+// -- on a platform PLATFORM levels up, a stair down its front to the bridge.
+static const int MOAT_W = 57, MOAT_E = 80, PAL_BASE = 16, MOAT_FRONT = 27, MOAT_ROWS = 3;
+static const int PLATFORM = 3;                        // 42px: the user asked for at least 36
+// Where the two streams out of the moat are bridged on their way south: rows,
+// the first of the two each bridge spans.
+static const int kCrossings[] = {36, 46};
+static const float PAL_CX = 68.5f;
+static const int BRIDGE_X0 = 67, BRIDGE_X1 = 70;
+
+static float TrailY(float cx) { return NORTH + 20.0f + sinf(cx * 0.07f) * 7.0f + sinf(cx * 0.023f + 2.0f) * 3.0f; }
+// The dirt road from the burnt one up to the drawbridge.
+static float PalaceRoadX(float cy) { return PAL_CX + sinf(cy * 0.21f) * 1.2f; }
 static float LavaX(int river, float cy) {
     static const float kX[] = {30.0f, 57.0f, 80.0f};
-    return kX[river] + sinf(cy * 0.2f + river) * 2.0f;
+    const float wander = sinf((cy - NORTH) * 0.2f + river) * 2.0f;
+    if (river == 0) return kX[0] + wander;
+    // The two out of the moat run straight down its sides and only begin to
+    // wander a few rows south of its front.
+    const float k = std::clamp((cy - (MOAT_FRONT + MOAT_ROWS)) / 6.0f, 0.0f, 1.0f);
+    return kX[river] + wander * k;
 }
 static int RiverAt(int cx, int cy) {
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i) {
+        if (i > 0 && cy < PAL_BASE - 1) continue;           // the moat starts under the palace's corners
         if (fabsf(cx - LavaX(i, static_cast<float>(cy))) < 1.3f) return i;
+    }
     return -1;
+}
+static bool MoatFront(int cx, int cy) {
+    return cy >= MOAT_FRONT && cy < MOAT_FRONT + MOAT_ROWS && cx >= MOAT_W - 1 && cx <= MOAT_E + 1;
+}
+// A bridge over one of the two streams: those cells of it are walked over.
+static bool Crossing(int river, int cy) {
+    if (river < 1) return false;
+    for (int r : kCrossings)
+        if (cy == r || cy == r + 1) return true;
+    return false;
+}
+static bool Bridge(int cx, int cy) { return MoatFront(cx, cy) && cx >= BRIDGE_X0 && cx <= BRIDGE_X1; }
+static bool Forecourt(int cx, int cy) { return cx >= MOAT_W + 2 && cx <= MOAT_E - 2 && cy >= PAL_BASE - 1 && cy < MOAT_FRONT; }
+// What the far banks of the two streams hold, which is why they are bridged:
+// platinum and demonite in the rock, emberbloom in the ash. Cells, and what.
+struct BankOre { int cx, cy; const char* what; };
+static const BankOre kBankOre[] = {
+    {52, 33, "platinum_ore"}, {53, 41, "demonite_ore"}, {51, 50, "platinum_ore"},
+    {50, 37, "emberbloom"},   {54, 45, "emberbloom"},
+    {85, 34, "demonite_ore"}, {84, 42, "platinum_ore"}, {86, 49, "demonite_ore"},
+    {87, 38, "emberbloom"},   {84, 46, "emberbloom"},
+};
+static bool NearBankOre(int cx, int cy) {
+    for (const BankOre& b : kBankOre)
+        if (std::abs(cx - b.cx) <= 1 && std::abs(cy - b.cy) <= 1) return true;
+    return false;
+}
+static bool OnPalaceRoad(int cx, int cy, float half) {
+    return cy >= MOAT_FRONT + MOAT_ROWS && cy <= static_cast<int>(TrailY(PAL_CX)) + 1 &&
+           fabsf(cx + 0.5f - PalaceRoadX(static_cast<float>(cy))) < half;
 }
 }   // namespace ash
 
@@ -3586,12 +3700,22 @@ static void BuildAshenPath() {
             const float v = Fbm(cx * 0.22f, cy * 0.22f, 6262);
             string tile;
             const int river = RiverAt(cx, cy);
-            if (river >= 0) {
+            if (Bridge(cx, cy)) {
+                tile = "lava";                                // under the drawbridge, which is laid over it
+            } else if (river >= 0 && Crossing(river, cy)) {
+                tile = "lava";                                // under a bridge, which is laid over it
+            } else if (river >= 0 || MoatFront(cx, cy)) {
                 tile = "lava";
-                if (gap < 2.4f)
+                if (river >= 0 && gap < 2.4f)
                     m.Hazard(cx * CELL, cy * CELL, CELL, CELL, 6.0f);     // the ford: passable, and it burns
                 else
                     m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            } else if (Forecourt(cx, cy)) {
+                tile = VariantOf("palace_floor", cx, cy);
+            } else if (OnPalaceRoad(cx, cy, 1.1f)) {
+                tile = "dirt";
+            } else if (OnPalaceRoad(cx, cy, 1.9f)) {
+                tile = "dirt_dark";
             } else if (gap < 1.4f) {
                 tile = "ash";
             } else if (gap < 4.0f) {
@@ -3599,7 +3723,7 @@ static void BuildAshenPath() {
             } else {
                 tile = v > 0.6f ? "cursed_ground" : "cinder";
             }
-            m.Ground(VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
+            m.Ground(tile.rfind("palace", 0) == 0 ? tile : VariantOf(tile, cx, cy), cx * CELL, cy * CELL, CELL);
 
             // The edges of the world are cliffs, open only where the path leaves.
             const bool west_exit = cx == 0 && gap < 3.0f;
@@ -3607,14 +3731,37 @@ static void BuildAshenPath() {
             if (edge && !west_exit) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
         }
 
-    // Burnt trees, black glass and ember vents off the path.
+    // Burnt trees, black glass and ember vents off the path -- and none in the
+    // palace's grounds, on its road, or round its moat.
     for (int cy = 1; cy < H - 1; ++cy)
         for (int cx = 1; cx < W - 1; ++cx) {
             const float gap = fabsf(cy - TrailY(static_cast<float>(cx)));
             if (gap < 3.0f || RiverAt(cx, cy) >= 0 || RiverAt(cx + 1, cy) >= 0 || RiverAt(cx - 1, cy) >= 0) continue;
             if (cx > W - 12 && gap < 7.0f) continue;          // the gate's forecourt
+            if (cx >= MOAT_W - 3 && cx <= MOAT_E + 3 && cy <= MOAT_FRONT + 3) continue;
+            if (OnPalaceRoad(cx, cy, 3.5f)) continue;
+            if (NearBankOre(cx, cy)) continue;
+            bool at_bridge = false;
+            for (int rr : kCrossings)
+                for (int i = 1; i <= 2; ++i)
+                    at_bridge = at_bridge || (cy >= rr - 1 && cy <= rr + 2 &&
+                                              fabsf(cx - LavaX(i, static_cast<float>(rr))) < 4.5f);
+            if (at_bridge) continue;
             const float r = Hash2(cx, cy, 6363);
             const int x = cx * CELL + 16, y = cy * CELL + 24;
+            // East of the palace, north of the road: the ember field, where the
+            // ground has opened in a hundred places and nothing grows at all.
+            const bool embers = cx >= MOAT_E + 3 && cy < TrailY(static_cast<float>(cx)) - 6.0f;
+            if (embers) {
+                if (r < 0.15f) {
+                    m.Ground(VariantOf("lava", cx, cy), cx * CELL, cy * CELL, CELL);
+                    m.Hazard(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8, 8.0f);
+                } else if (r < 0.21f) {
+                    m.Prop("props", "obsidian_rock", x, y);
+                    m.Collision(x - 10, y - 8, 20, 8);
+                }
+                continue;
+            }
             if (r < 0.07f) {
                 m.Prop("props", "charred_tree", x, y);
                 m.Collision(x - 8, y - 8, 16, 8);
@@ -3666,7 +3813,577 @@ static void BuildAshenPath() {
     m.Enemy("demon", gx - 90, gy + 60, 1, 90.0f, 200.0f);
     m.Enemy("demon", gx + 90, gy + 60, 2, 90.0f, 200.0f);
 
+    // --- the Brimstone Palace ----------------------------------------------------------------
+    // The forecourt stands on a platform three levels up -- the palace's front,
+    // its towers and everything in the forecourt stand on it with it -- with a
+    // face of the palace's dark stone down into the moat, and a stair down its
+    // front to the drawbridge, the one way up.
+    {
+        vector<int> level(static_cast<size_t>(W) * H, 0);
+        for (int cy = PAL_BASE - 1; cy < MOAT_FRONT; ++cy)
+            for (int cx = MOAT_W + 2; cx <= MOAT_E - 2; ++cx)
+                level[static_cast<size_t>(cy) * W + cx] = PLATFORM;
+        for (int k = 1; k < PLATFORM; ++k)                      // the stair: 2 at its head, 1 at its foot
+            for (int cx = BRIDGE_X0; cx <= BRIDGE_X1; ++cx)
+                level[static_cast<size_t>(MOAT_FRONT - k) * W + cx] = k;
+        const vector<Rect4> ramps = {{static_cast<float>(BRIDGE_X0 * CELL),
+                                      static_cast<float>((MOAT_FRONT - PLATFORM) * CELL),
+                                      static_cast<float>((BRIDGE_X1 - BRIDGE_X0 + 1) * CELL),
+                                      static_cast<float>((PLATFORM + 1) * CELL)}};
+        m.Elevation(CELL, W, H, level, ramps, "assets/tiles/palace_wallface.png", {206, 158, 66});
+    }
+    // The bridges over the streams out of the moat, and what is on their far banks.
+    for (int r : kCrossings)
+        for (int i = 1; i <= 2; ++i) {
+            const float x = (LavaX(i, r + 0.5f) + 0.5f) * CELL;
+            // The art stands on the foot of its square; the bridge is its lower half.
+            m.Overlay("props", "lava_bridge", static_cast<int>(x), (r + 1) * CELL - 32);
+        }
+    {
+        int rocks = 900, herbs = 900;
+        for (const BankOre& b : kBankOre) {
+            const int x = b.cx * CELL + 16, y = b.cy * CELL + 24;
+            if (string(b.what) == "emberbloom") PlaceHerb(m, b.what, x, y, herbs);
+            else PlaceRock(m, rng, rocks++, x, y, true, string(b.what) == "demonite_ore" ? 80 : 70, b.what);
+        }
+    }
+    const int px = static_cast<int>(PAL_CX * CELL);
+    const int base_y = PAL_BASE * CELL + 16;              // the foot of the palace's steps
+    // Its front, and a tower at each corner standing in the head of the moat.
+    m.Prop("props", "palace_keep", px, base_y);
+    m.Prop("props", "palace_tower", (MOAT_W + 2) * CELL, base_y - 8);
+    m.Prop("props", "palace_tower", (MOAT_E - 1) * CELL, base_y - 8);
+    // The front is solid to the foot of the gatehouse; the steps up to the door
+    // are not, and the door is the way in.
+    m.Collision((MOAT_W - 1) * CELL, 0, (MOAT_E - MOAT_W + 3) * CELL, base_y - 58);
+    for (int s : {-1, 1}) {
+        const int tx = s < 0 ? (MOAT_W + 2) * CELL : (MOAT_E - 1) * CELL;
+        m.Collision(tx - 48, base_y - 80, 96, 72);
+    }
+    m.Portal(px - 26, base_y - 64, 52, 24, "palace_foyer", "entrance", "Enter the Brimstone Palace", true);
+    m.Danger(75);
+    m.Requires(60);
+    m.Spawn("from_palace", px, base_y + 44);
+    // Torches either side of the steps, braziers in the forecourt's corners,
+    // and a demon in stone either side of the bridge's end -- all lit after dark.
+    const auto light = [&](const string& id, const string& art, int x, int y, int cw) {
+        json& o = m.Object(id, "lamp", x, y);
+        o["sprite"] = "assets/props/" + art + ".png";
+        m.Collision(x - cw / 2, y - 8, cw, 8);
+    };
+    light("palace_torch_w", "palace_torch", px - 92, base_y + 6, 12);
+    light("palace_torch_e", "palace_torch", px + 92, base_y + 6, 12);
+    light("palace_brazier_sw", "palace_brazier", (MOAT_W + 3) * CELL, (MOAT_FRONT - 1) * CELL, 22);
+    light("palace_brazier_se", "palace_brazier", (MOAT_E - 2) * CELL, (MOAT_FRONT - 1) * CELL, 22);
+    light("palace_brazier_nw", "palace_brazier", (MOAT_W + 4) * CELL, (PAL_BASE + 2) * CELL, 22);
+    light("palace_brazier_ne", "palace_brazier", (MOAT_E - 3) * CELL, (PAL_BASE + 2) * CELL, 22);
+    for (int s : {-1, 1}) {
+        const int sx = px + s * 3 * CELL;
+        m.Prop("props", "demon_statue", sx, (MOAT_FRONT - 1) * CELL + 8);
+        m.Collision(sx - 18, (MOAT_FRONT - 1) * CELL - 6, 36, 14);
+    }
+    // The drawbridge, laid over the moat's front where the road meets it.
+    m.Overlay("props", "drawbridge", (BRIDGE_X0 + 2) * CELL, (MOAT_FRONT + 2) * CELL);
+    // A board where the road leaves the burnt one.
+    {
+        const int sy = static_cast<int>(TrailY(PAL_CX)) - 3;
+        const int sx = static_cast<int>(PalaceRoadX(static_cast<float>(sy)) * CELL) + 3 * CELL;
+        json& o = m.Object("sign_brimstone", "sign", sx, sy * CELL + 16);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A post of black iron";
+        o["text"]   = "THE BRIMSTONE PALACE\n\nHis road. His bridge. His house.\n\n"
+                      "Scratched under it, in a hand that shook: they are not like the ones on the path. "
+                      "Seventy, and more, and do not go at night.";
+        m.Collision(sx - 16, sy * CELL + 6, 32, 10);
+    }
+    // Its guards, inside the moat: the palace's own.
+    m.Enemy("abyssal_demon", (MOAT_W + 5) * CELL + 16, (PAL_BASE + 3) * CELL + 16, 1, 120.0f, 220.0f);
+    m.Enemy("abyssal_demon", (MOAT_E - 5) * CELL + 16, (PAL_BASE + 3) * CELL + 16, 2, 120.0f, 220.0f);
+    m.Enemy("revenant", (MOAT_W + 6) * CELL + 16, (MOAT_FRONT - 3) * CELL + 16, 1, 120.0f, 200.0f);
+    m.Enemy("revenant", (MOAT_E - 6) * CELL + 16, (MOAT_FRONT - 3) * CELL + 16, 1, 120.0f, 200.0f);
+    // On the road up to it, and round it: what lives on the Ashen Path, grown
+    // bigger for living this close. None of them nearer the burnt road than
+    // nine rows, so the path itself is no harder than it was.
+    const int road[][4] = {   // cx, cy, level, demon?
+        {62, 32, 20, 1}, {76, 34, 19, 1}, {60, 38, 24, 0}, {75, 40, 23, 0}, {64, 44, 18, 1}, {73, 46, 22, 0}};
+    for (const auto& e : road)
+        m.Enemy(e[3] ? "demon" : "imp", e[0] * CELL + 16, e[1] * CELL + 16, e[2], 60.0f, 220.0f);
+    const int west[][3] = {{40, 14, 16}, {48, 10, 18}, {46, 24, 15}, {36, 32, 14}, {50, 36, 17}, {42, 46, 13}};
+    for (const auto& e : west)
+        m.Enemy("imp", e[0] * CELL + 16, e[1] * CELL + 16, e[2], 60.0f, 220.0f);
+    m.Enemy("demon", 52 * CELL + 16, 20 * CELL + 16, 12, 60.0f, 220.0f);
+    m.Enemy("imp", 88 * CELL + 16, 20 * CELL + 16, 16, 60.0f, 220.0f);
+    m.Enemy("imp", 86 * CELL + 16, 36 * CELL + 16, 15, 60.0f, 220.0f);
+
     m.Write("maps");
+}
+
+// =============================================================================
+//  The Brimstone Palace
+//
+//  palace_foyer      the great hall, from the user's sketch of it: a crimson
+//                    runner from the doors to the throne room's, balconies
+//                    down both sides, and three walkways crossing overhead
+//                    from one to the other. Off the west balcony, the ballroom
+//                    and the dining hall; off the east, the chambers wing; and
+//                    from the floor a stair down to the dungeon.
+//  palace_ballroom   a chequer of black and blood marble, chandeliers, an organ
+//  palace_dining     a banquet laid under two chandeliers, a hearth of lava
+//  palace_chambers   a corridor of bedchambers, the king's at the end of it
+//  palace_dungeon    cells behind bars, and a room with a rack in it
+//  palace_throne     the Cinder King's, on a dais between two channels of lava
+//
+//  Abyssal Demons and demons keep the halls, and Revenants and Bone Knights
+//  guard them; its master waits in the throne room.
+// =============================================================================
+
+namespace pal {
+static const int CELL = 32;
+
+struct Door { char side; int a, b; };
+
+// A hall of the palace. The back wall is `back` rows deep and seen -- its top
+// courses plain and the crimson band along its foot -- and the other three
+// are seen from above. A door is a gap: 'S' in the front wall, 'E' or 'W' in
+// a side wall, from a to b. `floor` names a cell's tile where it is not the
+// basalt: the runner, the marble, the dark under a walkway; empty for basalt.
+static void Hall(MapBuilder& m, int cols, int rows, int back, const vector<Door>& doors,
+                 const std::function<string(int, int)>& floor = nullptr) {
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            const bool backwall = cy < back, front = cy == rows - 1, west = cx == 0, east = cx == cols - 1;
+            bool gap = false;
+            for (const Door& d : doors) {
+                if (d.side == 'S' && front && cx >= d.a && cx <= d.b) gap = true;
+                if (d.side == 'E' && east && cy >= d.a && cy <= d.b) gap = true;
+                if (d.side == 'W' && west && cy >= d.a && cy <= d.b) gap = true;
+            }
+            const bool solid = (backwall || front || west || east) && !gap;
+            string tile;
+            if (solid) {
+                if (backwall && !west && !east)
+                    tile = cy == back - 1 ? VariantOf("palace_wall", cx, cy) : string("palace_wallface");
+                else
+                    tile = "palace_walltop";
+            } else {
+                if (floor) tile = floor(cx, cy);
+                if (tile.empty()) tile = VariantOf("palace_floor", cx, cy);
+            }
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+}
+
+// A wall inside a room: the top of it, as the side walls are drawn.
+static void Wall(MapBuilder& m, int cx0, int cy0, int cx1, int cy1) {
+    for (int cy = cy0; cy <= cy1; ++cy)
+        for (int cx = cx0; cx <= cx1; ++cx) {
+            m.Ground("palace_walltop", cx * CELL, cy * CELL, CELL);
+            m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+}
+
+// The runner's cells, a column at a time: its gold-bordered edges and its field.
+static string Runner(int cx, int c0, int c1) {
+    if (cx == c0) return "palace_carpet_l";
+    if (cx == c1) return "palace_carpet_r";
+    return "palace_carpet";
+}
+
+// A standing thing with a foot to walk into, and a lit one.
+static void Piece(MapBuilder& m, const string& art, int x, int y, int cw, int ch) {
+    m.Prop("props", art, x, y);
+    if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+}
+static void Light(MapBuilder& m, const string& id, const string& art, int x, int y, int cw) {
+    json& o = m.Object(id, "lamp", x, y);
+    o["sprite"] = "assets/props/" + art + ".png";
+    m.Collision(x - cw / 2, y - 8, cw, 8);
+}
+static void Look(MapBuilder& m, const string& subtitle) {
+    m.Interior(true);
+    m.Subtitle(subtitle);
+    m.Background(14, 10, 14);
+}
+}   // namespace pal
+
+static void BuildPalaceFoyer() {
+    using namespace pal;
+    const int cols = 32, rows = 50, back = 5;
+    const int run0 = 12, run1 = 19;                       // the runner: eight cells, gold at its edges
+    const int bal_w0 = 1, bal_w1 = 4, bal_e0 = 27, bal_e1 = 30;
+    const int bal_top = back, bal_end = 42;               // balconies, rows 5-42, stairs below them
+    const int walk_rows[3] = {11, 23, 35};                // three walkways overhead, three rows deep each
+    const auto under_walk = [&](int cy) {
+        for (int w : walk_rows) if (cy >= w && cy <= w + 2) return true;
+        return false;
+    };
+    MapBuilder m("palace_foyer", "The Brimstone Palace", cols * CELL, rows * CELL);
+    Look(m, "His hall, and the long walk up it");
+
+    Hall(m, cols, rows, back,
+         {{'S', 14, 17}, {'W', 12, 13}, {'W', 28, 29}, {'E', 20, 21}},
+         [&](int cx, int cy) -> string {
+             if (cx >= run0 && cx <= run1) return Runner(cx, run0, run1);
+             // A narrower runner along each balcony, up its stairs, so a
+             // gallery reads as a gallery and not as more of the floor.
+             if (cy >= back && cy <= bal_end + 2) {
+                 if (cx == bal_w0 + 1 || cx == bal_e0 + 1) return "palace_carpet_l";
+                 if (cx == bal_w0 + 2 || cx == bal_e0 + 2) return "palace_carpet_r";
+             }
+             if (under_walk(cy) && cx > bal_w1 && cx < bal_e0) return VariantOf("palace_floor_dark", cx, cy);
+             return "";
+         });
+
+    // --- the balconies, on real height, and the stairs up to them ----------------------
+    // Three levels up, the height of a doorway: the walkways go across at the
+    // same height, over the heads of whoever is on the runner. The side walls
+    // rise with them, and so do the doorways in them onto the rooms.
+    vector<int> level(static_cast<size_t>(cols) * rows, 0);
+    const auto at = [&](int cx, int cy) -> int& { return level[static_cast<size_t>(cy) * cols + cx]; };
+    for (int cy = bal_top; cy <= bal_end; ++cy)
+        for (int cx : {0, bal_w0, bal_w0 + 1, bal_w0 + 2, bal_w1, bal_e0, bal_e0 + 1, bal_e0 + 2, bal_e1, cols - 1})
+            at(cx, cy) = 3;
+    vector<Rect4> ramps;
+    for (int c0 : {bal_w0, bal_e0}) {
+        for (int cx = c0; cx < c0 + 4; ++cx) { at(cx, bal_end + 1) = 2; at(cx, bal_end + 2) = 1; }
+        ramps.push_back({static_cast<float>(c0 * CELL), static_cast<float>(bal_end * CELL),
+                         4.0f * CELL, 4.0f * CELL});
+    }
+    m.Elevation(CELL, cols, rows, level, ramps, "assets/tiles/palace_wallface.png", {206, 158, 66});
+
+    // A rail along each balcony's edge, but where a walkway meets it.
+    for (int cy = bal_top; cy <= bal_end; ++cy) {
+        if (under_walk(cy)) continue;
+        m.Prop("props", "palace_baluster", bal_w1 * CELL + 26, cy * CELL + 30);
+        m.Prop("props", "palace_baluster", bal_e0 * CELL + 6, cy * CELL + 30);
+    }
+    // The walkways: lengths of bridge laid end to end from one balcony's edge to
+    // the other's, on the layer drawn over everyone, lifted to the balconies'
+    // height. The floor under each is in its shadow.
+    for (int w : walk_rows)
+        for (int k = 0; k < 11; ++k)
+            m.Prop("props", "palace_walkway", (bal_w1 + 2 + 2 * k) * CELL, (w + 3) * CELL - 42, 2);
+
+    // --- the runner, and what stands along it ------------------------------------------
+    // The throne room's doors, at the head of it.
+    const int door_x = 16 * CELL, door_y = back * CELL + 6;
+    m.Prop("props", "throne_door", door_x, door_y);
+    m.Portal(door_x - 40, door_y - 10, 80, 22, "palace_throne", "entrance", "Enter the throne room", true);
+    m.Danger(84);
+    m.Spawn("from_palace_throne", door_x, door_y + 44);
+    for (int cx : {8, 24}) m.Prop("props", "palace_banner", cx * CELL, back * CELL + 2);
+    // The sigil woven into it, twice.
+    m.Overlay("props", "palace_sigil", 16 * CELL, 30 * CELL);
+    m.Overlay("props", "palace_sigil", 16 * CELL, 44 * CELL);
+    // Braziers down both sides of it, and columns along the balconies' edges.
+    int lamp = 0;
+    for (int cy : {9, 20, 31, 42})
+        for (int cx : {run0 - 2, run1 + 2})
+            Light(m, "palace_foyer_brazier_" + std::to_string(lamp++), "palace_brazier", cx * CELL + 16, cy * CELL + 24, 22);
+    for (int cy : {8, 18, 30, 41})
+        for (int cx : {bal_w1 + 1, bal_e0 - 1})
+            Piece(m, "palace_pillar", cx * CELL + 16, cy * CELL + 24, 26, 12);
+    // The way in, with a demon in stone either side of it.
+    Piece(m, "demon_statue", 9 * CELL + 16, 47 * CELL + 16, 34, 14);
+    Piece(m, "demon_statue", 22 * CELL + 16, 47 * CELL + 16, 34, 14);
+    m.Spawn("entrance", 16 * CELL, 47 * CELL);
+    m.Spawn("default",  16 * CELL, 47 * CELL);
+    m.Portal(14 * CELL, rows * CELL - 24, 4 * CELL, 24, "ashen_path", "from_palace", "Out to the Ashen Path", false);
+
+    // --- the doors off the balconies, and the stair down -------------------------------
+    struct SideDoor { int cx, cy; const char* map; const char* spawn; const char* label; };
+    const SideDoor sides[] = {
+        {0,        12, "palace_ballroom",  "from_palace_ballroom", "The ballroom"},
+        {0,        28, "palace_dining",    "from_palace_dining",   "The dining hall"},
+        {cols - 1, 20, "palace_chambers",  "from_palace_chambers", "The chambers wing"},
+    };
+    for (const SideDoor& d : sides) {
+        const bool west = d.cx == 0;
+        m.Portal(west ? 0 : cols * CELL - 24, d.cy * CELL, 24, 2 * CELL, d.map, "entrance", d.label, false);
+        m.Spawn(d.spawn, (west ? 3 : cols - 3) * CELL, d.cy * CELL + 32);
+        // A brazier either side of it on the balcony, so a door in a wall seen
+        // end on is still a door.
+        const int bx = west ? 2 * CELL + 8 : (cols - 2) * CELL - 8;
+        Light(m, string("palace_foyer_door_") + d.map + "_a", "palace_brazier", bx, (d.cy - 1) * CELL + 20, 18);
+        Light(m, string("palace_foyer_door_") + d.map + "_b", "palace_brazier", bx, (d.cy + 3) * CELL + 12, 18);
+    }
+    const int sx = 24 * CELL, sy = 44 * CELL + 16;
+    m.Prop("props", "dungeon_stairs_down", sx, sy + 2);
+    m.SortLift("dungeon_stairs_down", 40);
+    m.Portal(sx - 24, sy - 44, 48, 40, "palace_dungeon", "entrance", "Down to the dungeon", true);
+    m.Spawn("from_palace_dungeon", sx, sy + 34);
+
+    // --- who keeps it ----------------------------------------------------------------------
+    // Abyssal Demons and demons in the hall, Revenants and Bone Knights on guard,
+    // one of them up on each balcony.
+    const auto post = [&](const char* type, int cx, int cy, int lv) {
+        m.Enemy(type, cx * CELL + 16, cy * CELL + 16, lv, 120.0f, 200.0f);
+    };
+    post("revenant", 13, 8, 1);
+    post("abyssal_demon", 16, 16, 2);
+    post("bone_knight", 22, 17, 27);
+    post("demon", 9, 21, 22);
+    post("abyssal_demon", 16, 28, 1);
+    post("demon", 23, 33, 21);
+    post("bone_knight", 10, 38, 28);
+    post("revenant", 21, 40, 1);
+    post("bone_knight", 2, 19, 27);
+    post("bone_knight", 29, 31, 27);
+    post("demon", 2, 36, 21);
+    m.Write("maps");
+}
+
+static void BuildPalaceBallroom() {
+    using namespace pal;
+    const int cols = 30, rows = 22, back = 4;
+    MapBuilder m("palace_ballroom", "The Ballroom", cols * CELL, rows * CELL);
+    Look(m, "The dead still dance here, to an organ nobody plays");
+    Hall(m, cols, rows, back, {{'E', 10, 11}}, [&](int cx, int cy) -> string {
+        if (cx >= 5 && cx <= 24 && cy >= 6 && cy <= 19) {
+            const bool dark = ((cx + cy) & 1) != 0;
+            const bool alt = ((cx * 3 + cy * 5) % 7) < 3;
+            return string(dark ? "palace_marble_a" : "palace_marble_b") + (alt ? "_1" : "");
+        }
+        if ((cy == 10 || cy == 11) && cx >= 25) return "palace_carpet";
+        return "";
+    });
+    Piece(m, "pipe_organ", 15 * CELL, back * CELL + 22, 180, 30);
+    Piece(m, "demon_statue", 10 * CELL, back * CELL + 22, 34, 14);
+    Piece(m, "demon_statue", 20 * CELL, back * CELL + 22, 34, 14);
+    for (int cx : {3, 6, 24, 27}) Piece(m, "palace_mirror", cx * CELL, back * CELL + 6, 30, 8);
+    // Chandeliers, hung over the floor on the layer drawn over everyone.
+    for (const auto& c : {std::pair<int, int>{10, 10}, {20, 10}, {15, 16}})
+        m.Prop("props", "palace_chandelier", c.first * CELL, c.second * CELL, 2);
+    int lamp = 0;
+    for (const auto& c : {std::pair<int, int>{2, 6}, {27, 6}, {2, 19}, {27, 19}})
+        Light(m, "palace_ballroom_brazier_" + std::to_string(lamp++), "palace_brazier", c.first * CELL + 16, c.second * CELL + 24, 22);
+    PlaceChest(m, "chest_palace_ballroom", 25 * CELL + 16, back * CELL + 40, "chest_palace");
+    m.Spawn("entrance", (cols - 3) * CELL, 11 * CELL);
+    m.Spawn("default",  (cols - 3) * CELL, 11 * CELL);
+    m.Portal(cols * CELL - 24, 10 * CELL, 24, 2 * CELL, "palace_foyer", "from_palace_ballroom", "Back to the hall", false);
+    // Two of the dead in the middle of the floor, still turning; the rest keep
+    // the walls.
+    m.Enemy("revenant", 13 * CELL, 12 * CELL, 2, 120.0f, 200.0f);
+    m.Enemy("revenant", 17 * CELL, 12 * CELL, 2, 120.0f, 200.0f);
+    m.Enemy("abyssal_demon", 15 * CELL, 17 * CELL, 1, 120.0f, 200.0f);
+    m.Enemy("demon", 7 * CELL, 15 * CELL, 23, 120.0f, 200.0f);
+    m.Enemy("demon", 23 * CELL, 15 * CELL, 22, 120.0f, 200.0f);
+    m.Write("maps");
+}
+
+static void BuildPalaceDining() {
+    using namespace pal;
+    const int cols = 30, rows = 18, back = 4;
+    MapBuilder m("palace_dining", "The Dining Hall", cols * CELL, rows * CELL);
+    Look(m, "Dinner is always laid, and never cleared");
+    Hall(m, cols, rows, back, {{'E', 8, 9}}, [&](int cx, int cy) -> string {
+        if ((cy == 8 || cy == 9) && cx >= 25) return "palace_carpet";
+        return "";
+    });
+    // The banquet: two tables end to end, a chair to every place.
+    const int ty = 10 * CELL + 4;
+    for (int tx : {15 * CELL - 88, 15 * CELL + 88}) {
+        Piece(m, "palace_table", tx, ty, 176, 24);
+        for (int off : {-64, -22, 22, 64}) {
+            Piece(m, "high_chair", tx + off, ty - 30, 0, 0);
+            Piece(m, "high_chair_back", tx + off, ty + 16, 18, 8);
+        }
+        m.Prop("props", "palace_chandelier", tx, ty - 34, 2);
+    }
+    // The hearth, the sideboard and the casks.
+    Piece(m, "palace_hearth", 5 * CELL, back * CELL + 22, 110, 24);
+    Piece(m, "bottle_shelf", 22 * CELL, back * CELL + 16, 60, 14);
+    Piece(m, "keg_rack", 26 * CELL, back * CELL + 16, 60, 14);
+    for (int cx : {10, 14, 18}) m.Prop("props", "palace_banner", cx * CELL, back * CELL + 2);
+    // Columns down the room, and his demons in stone either side of the door.
+    for (int cx : {6, 24})
+        for (int cy : {7, 14}) Piece(m, "palace_pillar", cx * CELL + 16, cy * CELL + 24, 26, 12);
+    Piece(m, "demon_statue", 27 * CELL, 6 * CELL + 16, 34, 14);
+    Piece(m, "demon_statue", 27 * CELL, 12 * CELL + 16, 34, 14);
+    Piece(m, "barrel", 24 * CELL + 16, back * CELL + 40, 22, 10);
+    Piece(m, "barrel", 25 * CELL + 16, back * CELL + 48, 22, 10);
+    int lamp = 0;
+    for (const auto& c : {std::pair<int, int>{2, 15}, {27, 15}})
+        Light(m, "palace_dining_brazier_" + std::to_string(lamp++), "palace_brazier", c.first * CELL + 16, c.second * CELL + 24, 22);
+    PlaceChest(m, "chest_palace_dining", 2 * CELL + 16, back * CELL + 72, "chest_palace");
+    m.Spawn("entrance", (cols - 3) * CELL, 9 * CELL);
+    m.Spawn("default",  (cols - 3) * CELL, 9 * CELL);
+    m.Portal(cols * CELL - 24, 8 * CELL, 24, 2 * CELL, "palace_foyer", "from_palace_dining", "Back to the hall", false);
+    m.Enemy("demon", 11 * CELL, 13 * CELL, 22, 120.0f, 200.0f);
+    m.Enemy("demon", 18 * CELL, 13 * CELL, 23, 120.0f, 200.0f);
+    m.Enemy("bone_knight", 7 * CELL, 7 * CELL, 28, 120.0f, 200.0f);
+    m.Enemy("bone_knight", 22 * CELL, 7 * CELL, 28, 120.0f, 200.0f);
+    m.Enemy("abyssal_demon", 24 * CELL, 13 * CELL, 1, 120.0f, 200.0f);
+    m.Write("maps");
+}
+
+static void BuildPalaceChambers() {
+    using namespace pal;
+    const int cols = 34, rows = 24, back = 4;
+    MapBuilder m("palace_chambers", "The Chambers Wing", cols * CELL, rows * CELL);
+    Look(m, "Where the palace sleeps, when it sleeps");
+    // A corridor east from the door, three bedchambers either side of it.
+    const auto corridor = [](int cy) { return cy >= 10 && cy <= 13; };
+    Hall(m, cols, rows, back, {{'W', 11, 12}}, [&](int cx, int cy) -> string {
+        if (corridor(cy) && (cy == 11 || cy == 12)) return "palace_carpet";
+        return "";
+    });
+    // The rooms' walls: across between them, and along the corridor with a
+    // doorway into each. North rooms rows 4-8, south rooms rows 15-22.
+    for (int wx : {11, 22}) {
+        Wall(m, wx, back, wx, 8);
+        Wall(m, wx, 15, wx, rows - 2);
+    }
+    const int doors[3] = {5, 16, 27};
+    for (int cx = 1; cx < cols - 1; ++cx) {
+        bool gap = false;
+        for (int d : doors) gap = gap || cx == d || cx == d + 1;
+        if (!gap) { Wall(m, cx, 9, cx, 9); Wall(m, cx, 14, cx, 14); }
+    }
+    // Furnishing: a bed, a wardrobe, a nightstand and a rug in each, and in the
+    // middle of the south side the king's own, larger, with his desk and a chest.
+    const int rooms[6][3] = {{1, 4, 0}, {12, 4, 0}, {23, 4, 0}, {1, 15, 1}, {12, 15, 2}, {23, 15, 1}};
+    int k = 0;
+    for (const auto& r : rooms) {
+        const int x0 = r[0] * CELL, y0 = r[1] * CELL;
+        const bool south = r[2] > 0, royal = r[2] == 2;
+        const int bed_y = y0 + (south ? 4 : 3) * CELL;
+        Piece(m, "palace_bed", x0 + 3 * CELL, bed_y, 56, 40);
+        Piece(m, "wardrobe", x0 + 8 * CELL, y0 + CELL + 20, 44, 14);
+        Piece(m, "nightstand", x0 + 5 * CELL + 8, bed_y - 30, 20, 8);
+        if (south) Piece(m, "palace_mirror", x0 + 9 * CELL, y0 + 6 * CELL + 24, 30, 8);
+        if (royal) {
+            Piece(m, "writing_desk", x0 + 7 * CELL, y0 + 6 * CELL, 46, 12);
+            PlaceChest(m, "chest_palace_chambers", x0 + 9 * CELL, y0 + 3 * CELL + 16, "chest_palace_vault");
+            m.Prop("props", "palace_banner", x0 + 5 * CELL, y0 + 2);
+        }
+        Light(m, "palace_chambers_brazier_" + std::to_string(k++), "palace_brazier", x0 + CELL, y0 + (south ? 7 : 3) * CELL + 20, 18);
+    }
+    m.Spawn("entrance", 3 * CELL, 12 * CELL);
+    m.Spawn("default",  3 * CELL, 12 * CELL);
+    m.Portal(0, 11 * CELL, 24, 2 * CELL, "palace_foyer", "from_palace_chambers", "Back to the hall", false);
+    m.Enemy("revenant", 12 * CELL, 12 * CELL, 1, 120.0f, 200.0f);
+    m.Enemy("revenant", 25 * CELL, 11 * CELL, 2, 120.0f, 200.0f);
+    m.Enemy("bone_knight", 17 * CELL, 18 * CELL, 28, 120.0f, 200.0f);
+    m.Enemy("bone_knight", 6 * CELL, 7 * CELL, 27, 120.0f, 200.0f);
+    m.Enemy("demon", 28 * CELL, 7 * CELL, 22, 120.0f, 200.0f);
+    m.Write("maps");
+}
+
+static void BuildPalaceDungeon() {
+    using namespace pal;
+    const int cols = 30, rows = 26, back = 3;
+    MapBuilder m("palace_dungeon", "The Palace Dungeon", cols * CELL, rows * CELL);
+    Look(m, "What he keeps, and what is left of it");
+    m.Background(10, 8, 10);
+    // Flags underfoot rather than polish, and a corridor east and west through
+    // the middle: cells north of it and south of it, behind bars.
+    Hall(m, cols, rows, back, {}, [&](int cx, int cy) -> string {
+        (void)cx;
+        return VariantOf((cy >= 11 && cy <= 14) ? "dungeon_floor" : "dungeon_floor_dark", cx, cy);
+    });
+    for (int wx : {7, 14, 21, 28}) Wall(m, wx, back, wx, 10);             // between the north cells
+    for (int wx : {14, 21, 28}) Wall(m, wx, 15, wx, rows - 2);            // and the south ones
+    // The rack room's own wall along the corridor, with a way in the middle of it.
+    Wall(m, 1, 15, 5, 15);
+    Wall(m, 9, 15, 13, 15);
+    // The landing at the foot of the stair, in the north-west; the way up.
+    const int ex = 3 * CELL + 16, stair_base = back * CELL + 72;
+    m.Prop("props", "dungeon_stairs_up", ex, stair_base);
+    m.SortLift("dungeon_stairs_up", 90);
+    m.Portal(ex - 20, stair_base - 38, 40, 36, "palace_foyer", "from_palace_dungeon", "Up to the hall", true);
+    m.Collision(ex - 26, stair_base - 72, 52, 34);
+    m.Collision(ex - 26, stair_base - 38, 6, 38);
+    m.Collision(ex + 20, stair_base - 38, 6, 38);
+    m.Spawn("entrance", ex, stair_base + 22);
+    m.Spawn("default",  ex, stair_base + 22);
+    // Bars across the cells' fronts. The middle north cell's are broken open.
+    const auto bars = [&](int cx0, int cx1, int y, bool open_door) {
+        for (int cx = cx0; cx + 1 <= cx1; cx += 2) {
+            const bool door = open_door && cx == cx0 + 2;
+            if (door) continue;
+            m.Prop("props", cx == cx0 ? "cell_door" : "cell_bars", (cx + 1) * CELL, y);
+            m.Collision(cx * CELL, y - 10, 2 * CELL, 10);
+        }
+    };
+    bars(8, 13, 11 * CELL - 2, true);
+    bars(15, 20, 11 * CELL - 2, false);
+    bars(22, 27, 11 * CELL - 2, false);
+    bars(15, 20, 15 * CELL + 8, false);
+    bars(22, 27, 15 * CELL + 8, false);
+    // What is in the cells: chains on the walls, somebody's bones, the webs.
+    for (int cx : {10, 17, 24}) Piece(m, "wall_shackles", cx * CELL, back * CELL + 10, 0, 0);
+    Piece(m, "iron_cage", 18 * CELL, 8 * CELL, 30, 12);
+    Piece(m, "iron_cage", 25 * CELL, 21 * CELL, 30, 12);
+    for (const auto& c : {std::pair<int, int>{27, 4}, {9, 4}, {27, 23}, {16, 23}})
+        m.Prop("props", "cobweb", c.first * CELL, c.second * CELL + 8);
+    PlaceChest(m, "chest_palace_dungeon", 11 * CELL, 5 * CELL + 16, "chest_palace_vault");
+    // The room with the rack in it, open to the corridor, south-west.
+    Piece(m, "torture_rack", 6 * CELL, 20 * CELL, 76, 30);
+    Piece(m, "wall_shackles", 3 * CELL, 16 * CELL + 10, 0, 0);
+    Piece(m, "wall_shackles", 11 * CELL, 16 * CELL + 10, 0, 0);
+    Piece(m, "iron_cage", 11 * CELL, 23 * CELL, 30, 12);
+    Light(m, "palace_dungeon_brazier_a", "palace_brazier", 2 * CELL + 16, 23 * CELL + 16, 22);
+    Light(m, "palace_dungeon_brazier_b", "palace_brazier", 12 * CELL + 16, 13 * CELL + 30, 22);
+    Light(m, "palace_dungeon_brazier_c", "palace_brazier", 27 * CELL + 16, 13 * CELL + 30, 22);
+    // Its jailers, and what got out.
+    m.Enemy("bone_knight", 10 * CELL, 12 * CELL + 16, 29, 120.0f, 200.0f);
+    m.Enemy("bone_knight", 20 * CELL, 13 * CELL, 29, 120.0f, 200.0f);
+    m.Enemy("revenant", 26 * CELL, 12 * CELL + 16, 2, 120.0f, 200.0f);
+    m.Enemy("rime_revenant", 7 * CELL, 22 * CELL, 1, 120.0f, 200.0f);
+    m.Write("maps");
+}
+
+static void BuildPalaceThrone() {
+    using namespace pal;
+    const int cols = 28, rows = 34, back = 5;
+    const int run0 = 11, run1 = 16;
+    MapBuilder m("palace_throne", "The Throne Room", cols * CELL, rows * CELL);
+    Look(m, "The Cinder King receives");
+    const auto lava = [](int cx, int cy) { return (cx == 7 || cx == 8 || cx == 19 || cx == 20) && cy >= 11 && cy <= 30; };
+    Hall(m, cols, rows, back, {{'S', 12, 15}}, [&](int cx, int cy) -> string {
+        if (lava(cx, cy)) return "lava";
+        if (cx >= run0 && cx <= run1 && cy >= 9) return Runner(cx, run0, run1);
+        return "";
+    });
+    // Two channels of lava either side of the runner: it can be walked through,
+    // and it burns.
+    for (int cy = 11; cy <= 30; ++cy)
+        for (int cx : {7, 8, 19, 20}) m.Hazard(cx * CELL + 2, cy * CELL + 2, CELL - 4, CELL - 4, 12.0f);
+    // The dais, two levels up, with its steps down the middle of its front.
+    vector<int> level(static_cast<size_t>(cols) * rows, 0);
+    for (int cy = back; cy <= 8; ++cy)
+        for (int cx = 7; cx <= 20; ++cx) level[static_cast<size_t>(cy) * cols + cx] = 2;
+    for (int cx = 12; cx <= 15; ++cx) level[static_cast<size_t>(9) * cols + cx] = 1;
+    vector<Rect4> ramps = {{12.0f * CELL, 8.0f * CELL, 4.0f * CELL, 3.0f * CELL}};
+    m.Elevation(CELL, cols, rows, level, ramps, "assets/tiles/palace_wallface.png", {206, 158, 66});
+    // The throne on it, braziers at its corners, and his banners behind.
+    Piece(m, "demon_throne", 14 * CELL, 7 * CELL + 20, 120, 40);
+    Light(m, "palace_throne_brazier_w", "palace_brazier", 8 * CELL + 16, 8 * CELL + 20, 22);
+    Light(m, "palace_throne_brazier_e", "palace_brazier", 19 * CELL + 16, 8 * CELL + 20, 22);
+    for (int cx : {5, 9, 19, 23}) m.Prop("props", "palace_banner", cx * CELL, back * CELL + 2);
+    PlaceRelicChest(m, "chest_cinder_king", 18 * CELL, 6 * CELL + 16, "heart_of_cinders", "");
+    // Columns down both sides, and his demons in stone at the door.
+    for (int cy : {12, 18, 24, 30})
+        for (int cx : {3, 24}) Piece(m, "palace_pillar", cx * CELL + 16, cy * CELL + 24, 26, 12);
+    Piece(m, "demon_statue", 10 * CELL, 31 * CELL + 16, 34, 14);
+    Piece(m, "demon_statue", 18 * CELL, 31 * CELL + 16, 34, 14);
+    m.Spawn("entrance", 14 * CELL, 31 * CELL);
+    m.Spawn("default",  14 * CELL, 31 * CELL);
+    m.Portal(12 * CELL, rows * CELL - 24, 4 * CELL, 24, "palace_foyer", "from_palace_throne", "Back to the hall", false);
+    // He stands at the foot of his dais.
+    m.Enemy("cinder_king", 14 * CELL, 12 * CELL, 1, 0.0f, 900.0f);
+    m.Write("maps");
+}
+
+static void BuildBrimstonePalace() {
+    BuildPalaceFoyer();
+    BuildPalaceBallroom();
+    BuildPalaceDining();
+    BuildPalaceChambers();
+    BuildPalaceDungeon();
+    BuildPalaceThrone();
 }
 
 // =============================================================================
@@ -4544,6 +5261,585 @@ static void BuildBrackenwood() {
 }
 
 // --- Mossvale ------------------------------------------------------------------
+
+// =============================================================================
+//  The Bayou
+//
+//  The deep swamp west of the lizardmen's camp, laid out from a guide the
+//  user drew in LevelEdit-Plus (exports/Bayou/Bayou.mx in that tree). None of
+//  the guide's art is used: it says where things go. Its dark ground is the
+//  track; its rings of puddles are the shores of the water; its pillars are the
+//  corners of decks raised on stilts over two lakes, and its rising posts the
+//  ramps up to them; its runs of medium ground are palisades of sharpened
+//  stakes round two camps, with a gate wherever it left a gap; its flowers are
+//  herbs; its bushes are the map's four corners; and its enemy icons are posts.
+//  The tables below were made from it by tools/bayou_guide.py, moved into the
+//  game's frame, and are the only place any of that lives.
+//
+//  What lives in the water does not show itself: the Drowned, the Fen Gators
+//  and the Bog Lurkers wait under it and come up when somebody walks too near
+//  the edge (EnemySpawnDef::lurk). A ripple is all there is to see.
+// =============================================================================
+// ---- generated from the Bayou guide by tools/bayou_guide.py: edit that, not this ----
+static const int BY_W = 226, BY_H = 88, BY_CELL = 32;
+static const std::vector<std::pair<int, int>> kBayouLake_entrance = {{5878, 381}, {5889, 336}, {5845, 29}, {6895, 29}, {6862, 334}, {6837, 367}, {6796, 422}, {6736, 459}, {6649, 510}, {6606, 524}, {6488, 547}, {6373, 552}, {6262, 551}, {6117, 542}, {6004, 487}, {5916, 457}, {5900, 417}};
+static const std::vector<std::pair<int, int>> kBayouLake_southeast = {{6195, 2497}, {6300, 2434}, {6434, 2379}, {6565, 2355}, {6711, 2336}, {6879, 2327}, {6961, 2353}, {7024, 2386}, {7032, 2442}, {6740, 2495}, {6850, 2501}, {7029, 2548}, {6946, 2545}, {6605, 2544}, {6345, 2683}, {6431, 2611}, {6378, 2646}, {6485, 2562}, {6255, 2687}, {6157, 2631}, {6145, 2545}};
+static const std::vector<std::pair<int, int>> kBayouLake_village_n = {{1751, 26}, {2079, 20}, {2424, 20}, {2712, 20}, {2969, 92}, {3108, 120}, {3235, 348}, {3202, 585}, {3007, 655}, {2664, 668}, {2204, 652}, {1927, 556}, {1741, 335}};
+static const std::vector<std::pair<int, int>> kBayouLake_pond_b = {{2675, 1401}, {2712, 1324}, {2853, 1226}, {2930, 1241}, {3020, 1286}, {3083, 1339}, {3106, 1430}, {3082, 1529}, {2983, 1603}, {2795, 1601}, {2667, 1519}};
+static const std::vector<std::pair<int, int>> kBayouLake_pond_a = {{1170, 1370}, {1276, 1300}, {1468, 1235}, {1725, 1231}, {1828, 1316}, {1887, 1471}, {1794, 1667}, {1499, 1751}, {1278, 1747}, {1141, 1680}, {1132, 1514}};
+static const std::vector<std::pair<int, int>> kBayouLake_glade = {{325, 604}, {399, 427}, {618, 433}, {776, 568}, {809, 712}, {734, 893}, {468, 938}, {301, 745}};
+static const std::vector<std::pair<int, int>> kBayouLake_pond_sw = {{3207, 2445}, {3363, 2388}, {3559, 2376}, {3727, 2416}, {3724, 2607}, {3587, 2749}, {3253, 2704}, {3230, 2579}};
+static const std::vector<std::pair<int, int>> kBayouLake_village_s = {{347, 2255}, {360, 2126}, {456, 2131}, {600, 2131}, {876, 2214}, {1044, 2235}, {1227, 2116}, {1471, 2098}, {1732, 2093}, {1945, 2088}, {2196, 2165}, {2440, 2243}, {2542, 2425}, {2573, 2715}, {2310, 2713}, {1986, 2721}, {1859, 2728}, {1562, 2712}, {1242, 2696}, {941, 2683}, {453, 2672}, {356, 2426}};
+static const std::vector<const std::vector<std::pair<int, int>>*> kBayouLakes = {&kBayouLake_entrance, &kBayouLake_southeast, &kBayouLake_village_n, &kBayouLake_pond_b, &kBayouLake_pond_a, &kBayouLake_glade, &kBayouLake_pond_sw, &kBayouLake_village_s};
+static const int kDeck_n_west[4] = {60, 4, 75, 15};   // cells: x0, y0, x1, y1 (exclusive)
+static const int kDeck_n_east[4] = {81, 4, 99, 15};   // cells: x0, y0, x1, y1 (exclusive)
+static const int kDeck_s_west[4] = {15, 70, 35, 79};   // cells: x0, y0, x1, y1 (exclusive)
+static const int kDeck_s_east[4] = {45, 71, 59, 81};   // cells: x0, y0, x1, y1 (exclusive)
+static const int kRampCols[2] = {64, 87};   // the north decks' ramps, by cell column
+static const std::vector<std::pair<int, int>> kCampNorth = {{3850, 486}, {3871, 455}, {3902, 426}, {3943, 390}, {3990, 359}, {4027, 358}, {4068, 352}, {4104, 352}, {4153, 350}, {4186, 351}, {4220, 349}, {4269, 350}, {4317, 346}, {4367, 343}, {4406, 342}, {4446, 346}, {4490, 346}, {4533, 372}, {4566, 381}, {4613, 396}, {4643, 414}, {4675, 449}, {4664, 486}, {4636, 520}, {4605, 551}, {4596, 599}, {4566, 640}, {4536, 677}, {4487, 686}, {4434, 692}, {4392, 703}, {4350, 707}, {4116, 711}, {4072, 709}, {4029, 706}, {3988, 704}, {3955, 696}, {3923, 674}, {3894, 646}, {3865, 621}, {3837, 600}, {3810, 572}, {3809, 540}, {3825, 511}};
+static const std::vector<std::pair<int, int>> kCampMid = {{4517, 1471}, {4546, 1409}, {4578, 1347}, {4622, 1286}, {4670, 1228}, {4732, 1164}, {4830, 1148}, {4926, 1151}, {5008, 1151}, {5078, 1148}, {5364, 1146}, {5428, 1147}, {5515, 1146}, {5590, 1148}, {5671, 1154}, {5734, 1151}, {5793, 1161}, {5840, 1176}, {5874, 1227}, {5898, 1275}, {5918, 1353}, {5928, 1424}, {5944, 1519}, {5947, 1624}, {5916, 1714}, {5860, 1749}, {5794, 1769}, {5746, 1784}, {5682, 1796}, {5605, 1797}, {5518, 1802}, {5432, 1812}, {5143, 1818}, {5097, 1817}, {5038, 1818}, {4977, 1815}, {4931, 1813}, {4876, 1807}, {4829, 1807}, {4764, 1798}, {4698, 1785}, {4634, 1775}, {4576, 1753}, {4531, 1742}, {4490, 1676}, {4492, 1596}, {4497, 1536}};
+static const int kCampNorthMid[2] = {4227, 506}, kCampMidMid[2] = {5214, 1504};
+static const std::vector<std::pair<int, int>> kTrackEntry = {{7169, 334}, {7138, 364}, {7103, 395}, {7065, 433}, {7031, 463}, {6992, 499}, {6954, 534}, {6907, 569}, {6864, 602}, {6813, 643}, {6752, 679}, {6721, 714}, {6659, 797}, {6541, 871}, {6474, 954}};
+static const std::vector<std::pair<int, int>> kTrackLoop = {{6474, 954}, {6314, 910}, {6083, 883}, {5769, 888}, {5598, 921}, {5391, 934}, {5203, 881}, {5044, 858}, {4881, 841}, {4690, 851}, {4445, 870}, {4249, 948}, {4139, 991}, {3976, 1053}, {3886, 1113}, {3823, 1213}, {3786, 1332}, {3755, 1425}, {3734, 1541}, {3773, 1676}, {3822, 1803}, {3879, 1964}, {3968, 2072}, {4055, 2152}, {4170, 2235}, {4423, 2229}, {4671, 2226}, {4953, 2226}, {5299, 2230}, {5634, 2230}, {5896, 2228}, {6120, 2159}, {6196, 2060}, {6262, 1896}, {6235, 1740}, {6269, 1580}, {6260, 1386}, {6262, 1191}, {6230, 1084}, {6302, 1003}, {6474, 954}};
+static const std::vector<std::pair<int, int>> kTrackWest = {{3886, 1113}, {3760, 1133}, {3540, 1132}, {3393, 1131}, {3318, 1130}, {3103, 1123}, {2901, 1122}, {2688, 1124}, {2498, 1123}, {2295, 1118}, {2097, 1113}, {1897, 1121}, {1675, 1126}, {1460, 1121}, {1258, 1123}, {1038, 1103}, {886, 1083}, {765, 1089}, {548, 1097}, {319, 1117}};
+static const std::vector<std::pair<int, int>> kTrackSpur = {{886, 1083}, {887, 925}, {890, 810}, {876, 617}, {845, 476}, {820, 364}, {810, 269}, {811, 144}, {814, 54}};
+static const std::vector<std::pair<int, int>> kTrackWay0 = {{4249, 948}, {4233, 854}, {4233, 714}};
+static const std::vector<std::pair<int, int>> kTrackWay1 = {{5203, 881}, {5221, 1014}, {5221, 1147}};
+static const std::vector<std::pair<int, int>> kTrackWay2 = {{5299, 2230}, {5288, 2014}, {5288, 1817}};
+static const std::vector<std::pair<int, int>> kTrackWay3 = {{2037, 1118}, {2037, 954}, {2037, 724}};
+static const std::vector<std::pair<int, int>> kTrackWay4 = {{2773, 1124}, {2773, 954}, {2773, 724}};
+static const std::vector<std::pair<int, int>> kTrackWay5 = {{2295, 1118}, {2271, 1404}, {2181, 1774}, {1901, 1954}, {1671, 2044}};
+static const std::vector<const std::vector<std::pair<int, int>>*> kBayouTracks = {&kTrackEntry, &kTrackLoop, &kTrackWest, &kTrackSpur, &kTrackWay0, &kTrackWay1, &kTrackWay2, &kTrackWay3, &kTrackWay4, &kTrackWay5};
+static const std::vector<std::pair<int, int>> kBayouFlowers = {{592, 962}, {338, 892}, {280, 814}, {279, 677}, {324, 535}, {535, 400}, {735, 444}, {778, 971}, {484, 2036}, {745, 2026}, {1073, 2042}, {1420, 2026}, {1711, 2021}, {1916, 2022}, {1886, 1878}, {2170, 1987}, {2425, 2056}, {2634, 2224}, {2673, 2489}, {2742, 2722}, {3016, 2640}, {3044, 2416}, {3136, 2124}, {2821, 2021}, {2716, 1784}, {2774, 1723}, {2567, 1620}, {2374, 1570}, {2116, 1592}};
+static const std::vector<std::pair<int, int>> kBayouDark = {{5267, 396}, {5407, 402}, {5652, 395}, {5656, 460}, {5340, 470}, {5541, 520}, {5405, 637}, {5795, 609}, {7088, 2260}, {7092, 2352}, {7096, 2503}, {7093, 2608}, {7087, 2740}, {6977, 2751}, {6739, 2768}, {6577, 2768}, {6410, 2768}, {6241, 2768}, {6055, 2757}, {5941, 2736}, {7042, 2192}, {7001, 2087}, {6897, 2043}, {6753, 2066}, {6617, 2067}, {6719, 1963}, {6788, 1911}, {6914, 1825}, {6965, 1961}, {6943, 1702}, {6899, 1600}, {6692, 1676}, {6851, 1711}, {6646, 1799}, {6542, 1702}, {6548, 1535}, {6711, 1378}, {6802, 1412}, {6755, 1312}, {6608, 1255}, {6497, 1333}, {6591, 1393}, {6592, 1132}, {6438, 1166}, {6561, 1090}, {6704, 951}, {6821, 934}, {6963, 984}, {7093, 835}, {7061, 716}, {6977, 766}, {6846, 788}, {7140, 573}, {7118, 1119}, {6935, 1219}, {7075, 1414}, {7065, 1627}};
+struct BayouPost { const char* type; int x, y, level; bool lurk; const char* pool[3]; };
+static const BayouPost kBayouPosts[] = {
+    {"bog_lurker", 5987, 386, 1, true, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 5923, 398, 1, true, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 6442, 406, 2, true, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 6726, 359, 1, true, {nullptr, nullptr, nullptr}},
+    {"mire_croaker", 6221, 628, 1, false, {nullptr, nullptr, nullptr}},
+    {"mire_croaker", 6562, 622, 1, false, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 6895, 2433, 1, true, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 6542, 2453, 1, true, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 6267, 2562, 1, true, {nullptr, nullptr, nullptr}},
+    {"mire_croaker", 6156, 2424, 1, false, {nullptr, nullptr, nullptr}},
+    {"mire_croaker", 6534, 2317, 1, false, {nullptr, nullptr, nullptr}},
+    {"fen_stalker", 6845, 2273, 1, false, {nullptr, nullptr, nullptr}},
+    {"rot_shambler", 5848, 2536, 1, false, {nullptr, nullptr, nullptr}},
+    {"rot_shambler", 5029, 1914, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 5504, 1951, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4524, 1900, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4378, 1633, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4408, 1475, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4482, 1271, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4583, 1155, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4336, 1364, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4265, 1610, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4314, 1888, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4762, 2009, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 5800, 1916, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 5990, 1823, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 6052, 1620, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 6040, 1372, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 6004, 1170, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 5750, 1038, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 5508, 1019, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4957, 1024, 1, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"rot_shambler", 4725, 1012, 2, false, {"rot_shambler", "bog_lurker", "rot_shambler"}},
+    {"lizard_shaman", 4004, 431, 1, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 3966, 486, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 4001, 560, 2, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 4377, 392, 1, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 4500, 432, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 4513, 505, 2, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 4409, 558, 1, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 4329, 566, 2, false, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 4128, 461, 3, false, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 4157, 528, 3, false, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 4310, 457, 3, false, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 4291, 535, 3, false, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 4214, 624, 3, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 5105, 1186, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 5346, 1188, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 5144, 1700, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 5413, 1702, 2, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 5113, 1420, 1, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 5132, 1544, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 5645, 1285, 2, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 5686, 1548, 1, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 4773, 1509, 2, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 4855, 1326, 1, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 4862, 1644, 2, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 5790, 1404, 1, false, {nullptr, nullptr, nullptr}},
+    {"lizard_shaman", 4734, 1408, 1, false, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 2757, 1444, 1, true, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 2857, 1341, 1, true, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 2989, 1447, 1, true, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 2836, 1525, 1, true, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 1322, 1393, 1, true, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 1322, 1542, 1, true, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 1669, 1571, 3, true, {nullptr, nullptr, nullptr}},
+    {"witchlight", 3633, 2293, 1, false, {nullptr, nullptr, nullptr}},
+    {"rot_shambler", 3650, 2332, 2, false, {nullptr, nullptr, nullptr}},
+    {"witchlight", 3708, 2347, 1, false, {nullptr, nullptr, nullptr}},
+    {"rot_shambler", 3745, 2310, 2, false, {nullptr, nullptr, nullptr}},
+    {"witchlight", 3758, 2256, 1, false, {nullptr, nullptr, nullptr}},
+    {"rot_shambler", 3722, 2227, 2, false, {nullptr, nullptr, nullptr}},
+    {"witchlight", 3673, 2239, 1, false, {nullptr, nullptr, nullptr}},
+    {"rot_shambler", 3646, 2265, 2, false, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 1982, 542, 1, true, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 2694, 633, 3, true, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 1851, 790, 2, false, {nullptr, nullptr, nullptr}},
+    {"swamp_hag", 2381, 807, 2, false, {nullptr, nullptr, nullptr}},
+    {"mire_croaker", 3266, 556, 2, false, {nullptr, nullptr, nullptr}},
+    {"witchlight", 1707, 433, 1, false, {nullptr, nullptr, nullptr}},
+    {"witchlight", 1692, 212, 1, false, {nullptr, nullptr, nullptr}},
+    {"witchlight", 1660, 56, 1, false, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 1989, 2570, 2, true, {nullptr, nullptr, nullptr}},
+    {"fen_gator", 2382, 2595, 2, true, {nullptr, nullptr, nullptr}},
+    {"mire_croaker", 2312, 2118, 2, false, {nullptr, nullptr, nullptr}},
+    {"bog_lurker", 2560, 2307, 4, false, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 1790, 2654, 2, true, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 1359, 2654, 2, true, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 937, 2647, 2, true, {nullptr, nullptr, nullptr}},
+    {"drowned_one", 513, 2640, 2, true, {nullptr, nullptr, nullptr}},
+    {"fen_stalker", 6802, 1412, 1, false, {nullptr, nullptr, nullptr}},
+    {"fen_stalker", 6943, 1702, 1, false, {nullptr, nullptr, nullptr}},
+    {"fen_stalker", 6897, 2043, 1, false, {nullptr, nullptr, nullptr}},
+    {"fen_stalker", 6963, 984, 1, false, {nullptr, nullptr, nullptr}},
+};
+// ---- end of the generated tables ----
+
+static bool InsidePoly(const std::vector<std::pair<int, int>>& poly, float x, float y) {
+    bool in = false;
+    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
+        const float xi = static_cast<float>(poly[i].first), yi = static_cast<float>(poly[i].second);
+        const float xj = static_cast<float>(poly[j].first), yj = static_cast<float>(poly[j].second);
+        if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) in = !in;
+    }
+    return in;
+}
+
+static float DistToLine(const std::vector<std::pair<int, int>>& line, float x, float y) {
+    float best = 1e9f;
+    for (size_t i = 0; i + 1 < line.size(); ++i) {
+        const float ax = static_cast<float>(line[i].first), ay = static_cast<float>(line[i].second);
+        const float vx = line[i + 1].first - ax, vy = line[i + 1].second - ay, len2 = vx * vx + vy * vy;
+        float t = len2 > 0.0f ? ((x - ax) * vx + (y - ay) * vy) / len2 : 0.0f;
+        t = std::clamp(t, 0.0f, 1.0f);
+        best = std::min(best, hypotf(ax + vx * t - x, ay + vy * t - y));
+    }
+    return best;
+}
+
+static void BuildBayou() {
+    const int CELL = BY_CELL, W = BY_W, H = BY_H;
+    MapBuilder m("bayou", "The Bayou", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("The deep swamp past the lizardmen's camp. Mind the water");
+    m.Background(14, 22, 18);
+    std::mt19937 rng(9191u);
+
+    enum Kind : uint8_t { LAND = 0, WET = 1, DECK = 2, RAMP = 3 };
+    vector<uint8_t> kind(static_cast<size_t>(W) * H, LAND);
+    vector<int> level(static_cast<size_t>(W) * H, 0);
+    vector<uint8_t> keep(static_cast<size_t>(W) * H, 0);     // nothing solid goes here
+    const auto at = [&](int cx, int cy) { return static_cast<size_t>(cy) * W + cx; };
+    const auto mid = [&](int c) { return static_cast<float>(c * CELL + CELL / 2); };
+    const auto reserve = [&](int px, int py, int r) {
+        const int cx = px / CELL, cy = py / CELL;
+        for (int y = cy - r; y <= cy + r; ++y)
+            for (int x = cx - r; x <= cx + r; ++x)
+                if (x >= 0 && y >= 0 && x < W && y < H) keep[at(x, y)] = 1;
+    };
+
+    // --- the water: inside every ring the guide drew --------------------------------
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx)
+            for (const auto* lake : kBayouLakes)
+                if (InsidePoly(*lake, mid(cx), mid(cy))) { kind[at(cx, cy)] = WET; break; }
+
+    // --- the decks, the bridge between the southern two, and the ramps -----------
+    // Raised four levels on stilts. Everything round them is water, so the only
+    // way on is the ramp; a deck's edge is a drop into the lake.
+    const int* decks[4] = {kDeck_n_west, kDeck_n_east, kDeck_s_west, kDeck_s_east};
+    for (const int* d : decks)
+        for (int cy = d[1]; cy < d[3]; ++cy)
+            for (int cx = d[0]; cx < d[2]; ++cx) { kind[at(cx, cy)] = DECK; level[at(cx, cy)] = 4; }
+    // The bridge: the south village's far deck is reached across the near one.
+    const int bridge_y0 = (std::max(kDeck_s_west[1], kDeck_s_east[1]) + std::min(kDeck_s_west[3], kDeck_s_east[3])) / 2 - 1;
+    const int bridge_y1 = bridge_y0 + 2;
+    for (int cy = bridge_y0; cy < bridge_y1; ++cy)
+        for (int cx = kDeck_s_west[2]; cx < kDeck_s_east[0]; ++cx) { kind[at(cx, cy)] = DECK; level[at(cx, cy)] = 4; }
+
+    vector<Rect4> ramps;
+    vector<std::pair<int, int>> ramp_feet;      // where each ramp comes down, in px
+    // A ramp two cells wide, from a deck's edge out over the water to the first
+    // dry ground and a row past it, stepping down three levels to one. The
+    // guide drew its posts rising five times toward the deck; five steps of
+    // one level would lift the deck seventy pixels, which is a tower, not a
+    // hut on stilts.
+    const auto ramp = [&](int c0, int from_row, int dir) {
+        vector<int> rows;
+        for (int k = 0, cy = from_row; k < 10 && cy >= 1 && cy < H - 1; ++k, cy += dir) {
+            rows.push_back(cy);
+            const bool dry = kind[at(c0, cy)] != WET && kind[at(c0 + 1, cy)] != WET;
+            if (dry && k >= 3) break;
+        }
+        const int n = static_cast<int>(rows.size());
+        for (int k = 0; k < n; ++k) {
+            const int lv = std::max(1, 3 - (3 * k) / n);
+            for (int cx = c0; cx <= c0 + 1; ++cx) { kind[at(cx, rows[k])] = RAMP; level[at(cx, rows[k])] = lv; }
+        }
+        const int lo = std::min(rows.front(), rows.back()) - 1, hi = std::max(rows.front(), rows.back()) + 1;
+        ramps.push_back({static_cast<float>(c0 * CELL), static_cast<float>(lo * CELL),
+                         2.0f * CELL, static_cast<float>((hi - lo + 1) * CELL)});
+        ramp_feet.push_back({c0 * CELL + CELL, (rows.back() + dir) * CELL + CELL / 2});
+    };
+    ramp(kRampCols[0] - 1, kDeck_n_west[3], +1);
+    ramp(kRampCols[1] - 1, kDeck_n_east[3], +1);
+    ramp((kDeck_s_east[0] + kDeck_s_east[2]) / 2 - 1, kDeck_s_east[1] - 1, -1);
+    // Decking is a drop at its edges, and a face of planks rather than a bank of
+    // earth: see Map::cliff_texture.
+    m.Elevation(CELL, W, H, level, ramps, "assets/tiles/plank_floor_dark.png", {118, 92, 58});
+
+    // --- what the ground is ------------------------------------------------------------
+    const auto on_track = [&](float x, float y, float r) {
+        for (const auto* t : kBayouTracks) if (DistToLine(*t, x, y) < r) return true;
+        return false;
+    };
+    const auto in_camp = [&](float x, float y) { return InsidePoly(kCampNorth, x, y) || InsidePoly(kCampMid, x, y); };
+    const auto dark_here = [&](float x, float y) {
+        const float wob = 22.0f * (Fbm(x * 0.01f, y * 0.01f, 3131) - 0.5f);
+        for (const auto& p : kBayouDark)
+            if (hypotf(x - p.first, y - p.second) < 76.0f + wob) return true;
+        return false;
+    };
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float x = mid(cx), y = mid(cy);
+            // Broad and quiet: a bayou is sedge from one bank to the next, with
+            // mud where the water has been and peat in the low places. Cell
+            // noise at a fine grain laid mud and grass out as a checkerboard.
+            const float v = Fbm(cx * 0.07f, cy * 0.07f, 9292);
+            bool damp = false;
+            for (int y2 = cy - 2; y2 <= cy + 2 && !damp; ++y2)
+                for (int x2 = cx - 2; x2 <= cx + 2 && !damp; ++x2)
+                    damp = x2 >= 0 && y2 >= 0 && x2 < W && y2 < H && kind[at(x2, y2)] == WET;
+            string tile;
+            switch (kind[at(cx, cy)]) {
+                case WET:  tile = VariantOf("bog_water", cx, cy); break;
+                case DECK: tile = VariantOf("plank_floor", cx, cy); break;
+                case RAMP: tile = VariantOf("plank_floor", cx, cy); break;
+                default:
+                    if (on_track(x, y, 40.0f))  tile = VariantOf(v > 0.55f ? "dirt_dark" : "dirt", cx, cy);
+                    else if (in_camp(x, y))     tile = VariantOf("dirt_dark", cx, cy);
+                    // The guide's dark grass: the thicket down the east side and
+                    // the undergrowth north of the loop. `grass_dark` is jade,
+                    // whatever it is called; this is the dull dark olive of
+                    // ground nothing has walked on.
+                    // (marsh_dark was flecked through it and read, at the
+                    // game's zoom, as a scatter of black pits.)
+                    else if (dark_here(x, y))   tile = VariantOf("marsh_ground", cx, cy);
+                    else if (damp)              tile = VariantOf(Hash2(cx, cy, 9393) < 0.7f ? "swamp_mud" : "swamp_grass", cx, cy);
+                    else tile = VariantOf(v > 0.68f ? "peat" : "swamp_grass", cx, cy);
+            }
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (kind[at(cx, cy)] == WET) m.Water(cx * CELL, cy * CELL, CELL, CELL);
+            if (kind[at(cx, cy)] != LAND || on_track(x, y, 56.0f)) keep[at(cx, cy)] = 1;
+        }
+
+    // --- the edge, open on the east where the track comes in -----------------------------
+    const int gate_row = kTrackEntry.front().second / CELL;
+    for (int cx = 0; cx < W; ++cx) { m.Collision(cx * CELL, 0, CELL, CELL); m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL); }
+    for (int cy = 0; cy < H; ++cy) {
+        m.Collision(0, cy * CELL, CELL, CELL);
+        if (abs(cy - gate_row) > 2) m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
+    }
+    m.Portal(W * CELL - 24, gate_row * CELL + 16 - 72, 24, 144, "overworld", "from_bayou", "To the Hollowmarch", false);
+    m.Spawn("from_hollowmarch", W * CELL - 104, gate_row * CELL + 16);
+    m.Spawn("default",          W * CELL - 104, gate_row * CELL + 16);
+    reserve(W * CELL - 104, gate_row * CELL + 16, 4);
+
+    // --- who lives here, first: everything else keeps clear of them -----------------------
+    for (const BayouPost& p : kBayouPosts) reserve(p.x, p.y, 1);
+
+    // --- the camps: stakes round them, with a gate wherever the guide left a gap ----------
+    // Laid along the ring the guide drew. A horizontal run is the palisade
+    // seen face-on; a run down the side is its stakes seen one behind the
+    // other. The collision is laid separately and continuously, in short
+    // pieces along the line, so no angle of wall has a gap to slip through.
+    const auto stake_ring = [&](const vector<std::pair<int, int>>& ring) {
+        const size_t n = ring.size();
+        float since = 1e9f;
+        for (size_t i = 0; i < n; ++i) {
+            const auto a = ring[i], b = ring[(i + 1) % n];
+            const float dx = static_cast<float>(b.first - a.first), dy = static_cast<float>(b.second - a.second);
+            const float len = hypotf(dx, dy);
+            if (len > 150.0f) {
+                // A gate: a painted totem either side of the way in.
+                for (const auto& g : {a, b}) {
+                    m.Prop("props", "lizard_totem", g.first, g.second + 8);
+                    m.Collision(g.first - 8, g.second, 16, 8);
+                }
+                since = 1e9f;
+                continue;
+            }
+            const bool across = fabsf(dx) >= fabsf(dy);
+            const float step = across ? 50.0f : 22.0f;
+            for (float t = 0.0f; t < len; t += 4.0f) {
+                const int x = a.first + static_cast<int>(dx * t / len), y = a.second + static_cast<int>(dy * t / len);
+                if (static_cast<int>(t) % 12 == 0) m.Collision(x - 10, y - 14, 20, 16);
+                since += 4.0f;
+                if (since < step) continue;
+                since = 0.0f;
+                m.Prop("props", across ? "palisade" : "palisade_side", x, y);
+            }
+        }
+    };
+    stake_ring(kCampNorth);
+    stake_ring(kCampMid);
+
+    // What stands inside: huts, a fire, a totem, a chest -- each wherever it
+    // can go without being on top of somebody or up against the stakes.
+    const auto clear_of_posts = [&](int x, int y, float r) {
+        for (const BayouPost& p : kBayouPosts) if (hypotf(static_cast<float>(p.x - x), static_cast<float>(p.y - y)) < r) return false;
+        return true;
+    };
+    const auto furnish = [&](const vector<std::pair<int, int>>& ring, const int c[2], int huts, const string& chest_id) {
+        const auto inside = [&](int x, int y, float margin) {
+            if (!InsidePoly(ring, static_cast<float>(x), static_cast<float>(y))) return false;
+            for (const auto& p : ring) if (hypotf(static_cast<float>(p.first - x), static_cast<float>(p.second - y)) < margin) return false;
+            return true;
+        };
+        // The fire at the middle.
+        json& fire = m.Object("range_" + chest_id, "range", c[0], c[1] + 6);
+        fire["sprite"] = "assets/props/campfire_ring.png";
+        fire["title"]  = "Camp fire";
+        m.Collision(c[0] - 16, c[1] - 4, 32, 10);
+        reserve(c[0], c[1], 1);
+        int placed = 0;
+        for (int ring_r = 170; ring_r <= 520 && placed < huts; ring_r += 70)
+            for (int k = 0; k < 12 && placed < huts; ++k) {
+                const float a = 6.2831853f * k / 12.0f + ring_r * 0.01f;
+                const int x = c[0] + static_cast<int>(cosf(a) * ring_r), y = c[1] + static_cast<int>(sinf(a) * ring_r * 0.55f);
+                if (!inside(x, y - 20, 90.0f) || !clear_of_posts(x, y - 20, 96.0f)) continue;
+                bool apart = true;
+                for (int ox = -3; ox <= 3 && apart; ++ox)
+                    for (int oy = -2; oy <= 1 && apart; ++oy) {
+                        const int px = x / CELL + ox, py = y / CELL + oy;
+                        if (px >= 0 && py >= 0 && px < W && py < H && keep[at(px, py)]) apart = false;
+                    }
+                if (!apart) continue;
+                m.Prop("props", "lizard_hut", x, y);
+                m.Collision(x - 42, y - 26, 84, 26);
+                reserve(x, y - 20, 2);
+                ++placed;
+            }
+        // A chest where the shamans keep what they took.
+        for (int k = 0; k < 24; ++k) {
+            const float a = 6.2831853f * k / 24.0f;
+            const int x = c[0] + static_cast<int>(cosf(a) * 110.0f), y = c[1] + static_cast<int>(sinf(a) * 70.0f);
+            if (!inside(x, y, 70.0f) || !clear_of_posts(x, y, 60.0f) || keep[at(x / CELL, y / CELL)]) continue;
+            PlaceChest(m, chest_id, x, y, "chest_bayou");
+            reserve(x, y, 1);
+            break;
+        }
+    };
+    furnish(kCampNorth, kCampNorthMid, 2, "chest_bayou_north_camp");
+    furnish(kCampMid, kCampMidMid, 4, "chest_bayou_great_camp");
+    // Nothing grows inside the stakes.
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx)
+            if (in_camp(mid(cx), mid(cy))) keep[at(cx, cy)] = 1;
+
+    // --- the stilt villages -------------------------------------------------------------
+    // Huts along the back of each deck, pilings under its front edge (the only
+    // edge of a deck on stilts anybody sees from here: the ones behind are under
+    // the boards), and whoever lives on it.
+    const auto deck_px = [&](const int* d) {
+        return std::array<int, 4>{d[0] * CELL, d[1] * CELL, d[2] * CELL, d[3] * CELL};
+    };
+    const auto pilings = [&](int x0, int x1, int y, int skip_x0 = -1, int skip_x1 = -1) {
+        for (int x = x0 + 12; x <= x1 - 12; x += 4 * CELL) {
+            if (x >= skip_x0 && x <= skip_x1) continue;
+            m.Prop("props", "bayou_piling", x, y);
+        }
+        m.Prop("props", "bayou_piling", x1 - 12, y);
+    };
+    const auto huts_on = [&](const int* d, int count) {
+        const auto r = deck_px(d);
+        const int span = r[2] - r[0];
+        for (int i = 0; i < count; ++i) {
+            const int x = r[0] + span * (2 * i + 1) / (2 * count), y = r[1] + 4 * CELL + 8;
+            m.Prop("props", "bayou_hut", x, y);
+            m.Collision(x - 40, y - 24, 80, 24);
+            // What a stilt village keeps outside its doors: a barrel of
+            // something, crates and sacks off a boat. Beside each hut, never
+            // in front of it, so the boards stay a place to walk and fight.
+            const int side = (i % 2 == 0) ? -1 : 1;
+            m.Prop("props", i % 3 == 1 ? "crates_sacks" : "barrel", x + side * 62, y + 14);
+            m.Collision(x + side * 62 - 14, y + 4, 28, 12);
+        }
+    };
+    {
+        const auto nw = deck_px(kDeck_n_west), ne = deck_px(kDeck_n_east);
+        const int rw = (kRampCols[0] - 1) * CELL, re = (kRampCols[1] - 1) * CELL;
+        huts_on(kDeck_n_west, 2);
+        huts_on(kDeck_n_east, 3);
+        pilings(nw[0], nw[2], nw[3] + 8, rw - 8, rw + 2 * CELL + 8);
+        pilings(ne[0], ne[2], ne[3] + 8, re - 8, re + 2 * CELL + 8);
+        // Shamans on the boards, where they can see who comes up the ramp.
+        m.Enemy("lizard_shaman", (nw[0] + nw[2]) / 2 - 90, nw[3] - 2 * CELL, 1, 60.0f, 200.0f);
+        m.Enemy("lizard_shaman", (nw[0] + nw[2]) / 2 + 110, nw[3] - 3 * CELL, 1, 60.0f, 200.0f);
+        m.Enemy("lizard_shaman", (ne[0] + ne[2]) / 2 - 140, ne[3] - 2 * CELL, 2, 60.0f, 200.0f);
+        m.Enemy("swamp_hag",     (ne[0] + ne[2]) / 2 + 150, ne[3] - 3 * CELL, 3, 60.0f, 200.0f);
+        PlaceChest(m, "chest_bayou_north_village", ne[2] - 2 * CELL, ne[1] + 5 * CELL + 20, "chest_bayou");
+    }
+    {
+        const auto sw = deck_px(kDeck_s_west), se = deck_px(kDeck_s_east);
+        huts_on(kDeck_s_east, 2);
+        // The Mother of the Fen's own: the great hut, in the middle of the back
+        // of the far deck, and her hoard beside it.
+        const int gx = (sw[0] + sw[2]) / 2, gy = sw[1] + 4 * CELL + 16;
+        m.Prop("props", "bayou_hut_great", gx, gy);
+        m.Collision(gx - 58, gy - 30, 116, 30);
+        pilings(sw[0], sw[2], sw[3] + 8);
+        pilings(se[0], se[2], se[3] + 8);
+        pilings(sw[2], se[0], bridge_y1 * CELL + 8);
+        m.Enemy("lizard_shaman", (se[0] + se[2]) / 2 - 110, se[3] - 2 * CELL, 2, 60.0f, 200.0f);
+        m.Enemy("lizard_shaman", (se[0] + se[2]) / 2 + 110, se[3] - 2 * CELL, 2, 60.0f, 200.0f);
+        PlaceChest(m, "chest_bayou_south_village", se[2] - 2 * CELL, se[1] + 5 * CELL + 16, "chest_bayou");
+        // She waits in the middle of her deck; nobody comes at her but across
+        // the bridge.
+        m.Enemy("bayou_matriarch", gx, sw[3] - 3 * CELL, 1, 600.0f, 280.0f);
+        PlaceChest(m, "chest_fen_mother", gx + 130, gy + 30, "chest_fen_mother");
+    }
+
+    // --- the water's edges: reeds on the bank, lilies and drowned trees in it ----------------
+    const auto wet = [&](int cx, int cy) {
+        return cx >= 0 && cy >= 0 && cx < W && cy < H && kind[at(cx, cy)] == WET;
+    };
+    // Two rows further to the south than to the north: a deck is lifted four
+    // levels, nearly two cells, so it lies over the water up to two rows north
+    // of where it stands. Anything put there draws over its planks.
+    const auto near_deck = [&](int cx, int cy, int r) {
+        for (int y = cy - r; y <= cy + r + 2; ++y)
+            for (int x = cx - r; x <= cx + r; ++x)
+                if (x >= 0 && y >= 0 && x < W && y < H && (kind[at(x, y)] == DECK || kind[at(x, y)] == RAMP)) return true;
+        return false;
+    };
+    std::map<string, vector<string>> pools;
+    const auto pool = [&](const string& prefix) -> const vector<string>& {
+        auto it = pools.find(prefix);
+        if (it != pools.end()) return it->second;
+        vector<string> names;
+        for (int i = 0; i < 16 && g_manifest.Has("decor/" + prefix + "_" + std::to_string(i)); ++i)
+            names.push_back(prefix + "_" + std::to_string(i));
+        return pools[prefix] = names;
+    };
+    int trees = 0;
+    for (int cy = 2; cy < H - 2; ++cy)
+        for (int cx = 2; cx < W - 2; ++cx) {
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            const float r = Hash2(cx, cy, 7171);
+            const bool shore = !wet(cx, cy) && (wet(cx + 1, cy) || wet(cx - 1, cy) || wet(cx, cy + 1) || wet(cx, cy - 1));
+            if (wet(cx, cy)) {
+                if (near_deck(cx, cy, 1)) continue;
+                const bool edge = !wet(cx + 1, cy) || !wet(cx - 1, cy) || !wet(cx, cy + 1) || !wet(cx, cy - 1);
+                if (r < 0.07f) m.Prop("props", "lily_pads", x, y + 8);
+                // A cypress standing in the shallows, the way a bayou's do.
+                else if (edge && r < 0.13f && !near_deck(cx, cy, 3)) { m.Prop("props", "swamp_tree", x, y); ++trees; }
+                continue;
+            }
+            if (keep[at(cx, cy)]) continue;
+            if (shore) {
+                if (r < 0.34f) m.Prop("props", "reeds", x, y + 4);
+                continue;
+            }
+            const bool dark = dark_here(static_cast<float>(x), static_cast<float>(y));
+            if (r < (dark ? 0.075f : 0.026f)) {
+                m.Prop("props", "swamp_tree", x, y);
+                m.Collision(x - 8, y - 8, 16, 8);
+                ++trees;
+            } else if (r < (dark ? 0.13f : 0.045f)) {
+                m.Prop("objects", dark ? Pick(kBushes, rng) : Pick(kFungus, rng), x, y);
+            } else if (r < 0.16f) {
+                const vector<string>& names = pool(dark ? "tuft_dark" : (Hash2(cx, cy, 7272) < 0.7f ? "sedge" : "puddle"));
+                if (!names.empty())
+                    m.Overlay("decor", names[static_cast<size_t>(Hash2(cx, cy, 7373) * 1000.0f) % names.size()],
+                              x + static_cast<int>(Hash2(cx, cy, 7474) * 14.0f) - 7,
+                              y + static_cast<int>(Hash2(cx, cy, 7575) * 14.0f) - 7);
+            }
+        }
+
+    // --- herbs, where the guide drew flowers ------------------------------------------------
+    // Bogbean at the water's edge, glowcap where it is shaded and dry.
+    int herb_i = 0;
+    for (const auto& f : kBayouFlowers) {
+        const int cx = f.first / CELL, cy = f.second / CELL;
+        bool by_water = false;
+        for (int y = cy - 3; y <= cy + 3 && !by_water; ++y)
+            for (int x = cx - 3; x <= cx + 3 && !by_water; ++x) by_water = wet(x, y);
+        if (wet(cx, cy)) continue;
+        PlaceHerb(m, by_water ? "bogbean" : "glowcap", f.first, f.second, herb_i);
+    }
+
+    // --- where the tracks give out ------------------------------------------------------------
+    // The north spur and the west road both run off into the reeds. Something
+    // was left at the end of each by whoever walked them last.
+    {
+        const auto s = kTrackSpur.back();
+        PlaceChest(m, "chest_bayou_spur", s.first + 28, s.second + 40, "chest_bayou");
+        const auto w = kTrackWest.back();
+        PlaceChest(m, "chest_bayou_west", w.first + 20, w.second - 40, "chest_bayou");
+    }
+
+    // --- the posts ------------------------------------------------------------------------------
+    // Whatever lurks, lurks at the edge. It is woken by somebody within
+    // Enemy::LURK_WAKE, and nobody can walk on water: one the guide drew out in
+    // the middle of a lake would wait there for ever. So each is moved to the
+    // nearest water a cell or two out from something walkable -- a bank, a
+    // ramp, a deck -- which is where it was meant to be waiting anyway.
+    const auto shore_px = [&](int cx, int cy) {
+        float best = 1e9f;
+        for (int y = cy - 4; y <= cy + 4; ++y)
+            for (int x = cx - 4; x <= cx + 4; ++x)
+                if (x >= 0 && y >= 0 && x < W && y < H && kind[at(x, y)] != WET)
+                    best = std::min(best, hypotf(static_cast<float>((x - cx) * CELL), static_cast<float>((y - cy) * CELL)));
+        return best;
+    };
+    const auto at_the_edge = [&](int px, int py) {
+        const int ox = px / CELL, oy = py / CELL;
+        std::pair<int, int> best{px, py};
+        float best_d = 1e9f;
+        for (int y = oy - 8; y <= oy + 8; ++y)
+            for (int x = ox - 8; x <= ox + 8; ++x) {
+                if (!wet(x, y) || !wet(x + 1, y) || !wet(x - 1, y) || !wet(x, y + 1) || !wet(x, y - 1)) continue;
+                if (shore_px(x, y) > 72.0f) continue;
+                // Not under the lifted edge of a deck, where it would come up
+                // drawn over the boards.
+                bool under = false;
+                for (int k = 1; k <= 2 && !under; ++k)
+                    under = y + k < H && (kind[at(x, y + k)] == DECK || kind[at(x, y + k)] == RAMP);
+                if (under) continue;
+                const float d = hypotf(static_cast<float>((x - ox) * CELL), static_cast<float>((y - oy) * CELL));
+                if (d < best_d) { best_d = d; best = {x * CELL + 16, y * CELL + 16}; }
+            }
+        return best;
+    };
+    for (const BayouPost& p : kBayouPosts) {
+        if (p.lurk) {
+            const auto e = at_the_edge(p.x, p.y);
+            m.LurkingEnemy(p.type, e.first, e.second, p.level);
+        }
+        else if (p.pool[0]) m.EnemyPool({p.pool[0], p.pool[1], p.pool[2]}, "", p.x, p.y, p.level, 0);
+        else m.Enemy(p.type, p.x, p.y, p.level, 32.0f, 240.0f);
+    }
+    std::printf("  the Bayou: %d trees, %zu ramps, %d herbs\n", trees, ramps.size(), herb_i);
+    m.Write("maps");
+}
 
 static void BuildMossvale() {
     const int CELL = 32, W = 58, H = 46;
@@ -6326,6 +7622,8 @@ int main() {
     BuildDreamDark();
     BuildIceSpire();
     BuildAshenPath();
+    BuildBrimstonePalace();
+    BuildBayou();
 
     BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",
                  1001u, 60, 46, 9,
@@ -6366,6 +7664,46 @@ int main() {
                  "", "", "", 1,
                  {{"diamond_ore", 60}, {"azuryte_ore", 30}}, 0,
                  "chest_barrow_hoard", "drowned_king_boots", "q_drowned_hoard");
+
+    // Hollowrest Crypt: three floors under the mausoleum at the head of the
+    // burying ground, and the reason the sign at the gate says to shut the
+    // gate. Each floor is worse than the one over it -- the vaults where the
+    // family's own are, the ossuary where everybody else's bones were stacked
+    // when the vaults filled, and under both of those a room nobody in
+    // Havenbrook admits was dug -- and each has chests that are worth the walk
+    // down. Nothing is locked: the way down is fighting, not fetching a key.
+    BuildDungeon("crypt_1", "Hollowrest Crypt, the Vaults",
+                 3101u, 48, 38, 8,
+                 "cellar_floor", "dungeon_wall",
+                 "overworld", "from_crypt",
+                 {{"grave_ghoul", 1}, {"bone_archer", 1}, {"grave_ghoul", 3}, {"cryptbound", 1}},
+                 "chest_crypt_1", 3,
+                 "", "",
+                 "crypt_2", "",
+                 "", 1);
+    BuildDungeon("crypt_2", "Hollowrest Crypt, the Ossuary",
+                 3102u, 54, 42, 9,
+                 "dungeon_floor", "dungeon_wall",
+                 "crypt_1", "from_below",
+                 {{"bone_knight", 1}, {"plague_corpse", 1}, {"tomb_shade", 1}, {"grave_hound", 1},
+                  {"bone_knight", 3}},
+                 "chest_crypt_2", 3,
+                 "", "",
+                 "crypt_3", "",
+                 "", 1,
+                 {{"azuryte_ore", 30}, {"diamond_ore", 60}});
+    BuildDungeon("crypt_3", "Hollowrest Crypt, the Black Vault",
+                 3103u, 58, 44, 9,
+                 "dungeon_floor", "dungeon_wall",
+                 "crypt_2", "from_below",
+                 {{"blood_thrall", 1}, {"bone_colossus", 1}, {"nosferatu", 1},
+                  {"blood_thrall", 4}, {"crypt_warden", 1}},
+                 "chest_crypt_3", 4,
+                 "", "",
+                 "", "",
+                 "vampire_lord", 1,
+                 {{"diamond_ore", 60}, {"platinum_ore", 70}}, 0,
+                 "chest_ashcroft", "ashcroft_signet", "");
 
     // The well under Havenbrook: two dark floors, four chambers to a floor.
     BuildWellFloor("well_shallow", "The Well, Upper Workings",

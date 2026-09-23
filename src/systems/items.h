@@ -69,6 +69,10 @@ struct ItemDef {
     // For the combo names and the HUD; empty is the plain weapon of its kind.
     string weapon_class;
     bool   two_handed = false;        // no shield with it, as with a bow
+    // A share of what a blow takes that comes back as health. It was only ever
+    // a projectile's (the Vampiric Touch's) and a talent's; worn, it is what
+    // makes a vampire's own ring worth digging three floors down for.
+    float  leech = 0.0f;
     // Thrown rather than loosed: knives leave the hand, and want the sound of
     // that rather than a bowstring's.
     bool   thrown = false;
@@ -456,6 +460,8 @@ public:
     bool HasPassive(const string& id) const;
     // The furthest a worn light throws; 0 when nothing worn is lit.
     float LightRadius() const;
+    // What everything worn leeches, added together: see ItemDef::leech.
+    float Leech() const;
     // What the equipped weapon is; Melee when nothing is held.
     WeaponKind Kind() const;
     // Colour for the worn weapon layers, and for the body when armour is worn.

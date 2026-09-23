@@ -61,6 +61,7 @@ bool EnemyDatabase::Load(const string& path) {
         d.scale           = o.value("scale", 1.0f);
         d.is_boss         = o.value("boss", false);
         d.swims           = o.value("swims", false);
+        d.paddles         = o.value("paddles", d.swims);
         if (o.contains("immune") && o["immune"].is_array())
             for (const auto& v : o["immune"])
                 if (v.is_string() && StatusFromId(v.get<string>()) != Status::COUNT)
@@ -132,6 +133,10 @@ void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContex
     night        = spawn.night;
     night_chance = spawn.chance;
     night_group  = spawn.group;
+    lurks        = spawn.lurk;
+    emerge       = lurks ? 0.0f : 1.0f;
+    rising       = false;
+    sink_wait    = 0.0f;
 
     if (def) {
         // Levels scale the stat block, so the same monster can staff an early
@@ -277,6 +282,7 @@ void Enemy::Pose(const Posed& p) {
     if (state == State::Heavy && def) state_timer = (p.heavy / 255.0f) * def->heavy.windup;
     if (state == State::Dead) corpse_timer = CORPSE_HOLD + (1.0f - p.alpha / 255.0f) * CORPSE_FADE;
     else corpse_timer = 0.0f;
+    if (lurks && state != State::Dead) emerge = p.alpha / 255.0f;
     hurt_flash = p.hurt ? std::max(hurt_flash, 0.08f) : 0.0f;
     bar_revealed = p.bar;
     bar_trail = std::max(HealthFraction(), bar_trail - 0.02f);
@@ -291,7 +297,8 @@ Enemy::Posed Enemy::Told() const {
     p.state = static_cast<uint8_t>(state);
     p.frame = static_cast<uint8_t>(std::clamp(sprite.Frame(), 0, 255));
     p.heavy = static_cast<uint8_t>(std::lround(HeavyCharge() * 255.0f));
-    p.alpha = CorpseAlpha();
+    // A lurker's alpha is how far out of the water it is.
+    p.alpha = (lurks && state != State::Dead) ? static_cast<uint8_t>(std::lround(emerge * 255.0f)) : CorpseAlpha();
     p.hurt = hurt_flash > 0.0f;
     p.bar = bar_revealed;
     p.hp = hp;
@@ -406,6 +413,10 @@ void Enemy::Revive() {
     attack_timer = 0.0f;
     respawn_at = 0.0f;
     remove = false;
+    // Back under, if that is where it lives.
+    emerge = lurks ? 0.0f : 1.0f;
+    rising = false;
+    sink_wait = 0.0f;
     // A fresh monster: no bar until it is attacked again, and a body to draw.
     last_hp = hp;
     bar_trail = 1.0f;
@@ -533,6 +544,61 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     const float dist = Length(dx, dy);
     const float home_dist = Length(x - home_x, y - home_y);
 
+    // --- lurking --------------------------------------------------------------
+    // See Enemy::Hidden. Handled before everything else, because under the
+    // water there is nothing else: it does not wander, does not hear a fight
+    // across the bog, and cannot be knocked about by anything.
+    if (lurks) {
+        if (emerge <= 0.0f && !rising) {
+            knock_x = knock_y = 0.0f;
+            if (!player.IsDead() && dist < LURK_WAKE) {
+                rising = true;
+                // `size` is a multiplier on a bolt's splash, not a radius: 1.4
+                // is a body breaking the surface, and 16 was a ring the width
+                // of the screen.
+                world.BurstOf(Element::Water, x, y, draw_lift, 1.4f, 0.0f, -1.0f);
+                Audio::PlayAt(Sfx::Splash, x, y, 0.95f, 0.8f);
+            } else {
+                sprite.Update(dt);
+                return;
+            }
+        }
+        if (rising) {
+            emerge = std::min(1.0f, emerge + dt / LURK_RISE);
+            sprite.Update(dt);
+            if (emerge < 1.0f) return;          // coming up: it cannot act yet
+            rising = false;
+            // At whoever woke it -- but only seen, not hurt: somebody who backs
+            // off out of sight is let go, and it goes back into the water. One
+            // that has been struck is provoked like anything else, and follows.
+            chase_run = 0.0f;
+            SetState(State::Chase);
+        } else {
+            // Home, in its own water, with nobody near: after a while it goes
+            // back under, and comes up whole the next time.
+            const bool resting = state == State::Idle && world.map.InWater(x, y) &&
+                                 (player.IsDead() || dist > LURK_WAKE * 1.8f);
+            sink_wait = resting ? sink_wait + dt : 0.0f;
+            if (sink_wait > LURK_WAIT) {
+                emerge = std::max(0.0f, emerge - dt / LURK_SINK);
+                if (emerge <= 0.0f) {
+                    sink_wait = 0.0f;
+                    hp = max_hp;
+                    last_hp = hp;
+                    bar_trail = 1.0f;
+                    bar_revealed = false;
+                    provoked = false;
+                    statuses.Clear();
+                    world.BurstOf(Element::Water, x, y, draw_lift, 0.7f, 0.0f, -1.0f);
+                }
+                sprite.Update(dt);
+                return;
+            }
+            // Disturbed on the way down: back up.
+            if (emerge < 1.0f) emerge = std::min(1.0f, emerge + dt / LURK_RISE);
+        }
+    }
+
     // --- knockback ------------------------------------------------------------
     // Braced while winding up a heavy: knocked about, it would drift out of
     // the reach it is charging into and the blow would go wide of what the
@@ -559,8 +625,15 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             break;
 
         case State::Idle: {
+            // Something that lurks does not amble about its post: it waits in
+            // its water, and goes back under if it is left there. Wandering it
+            // would step up on to the bank, where it can never sink again.
+            if (lurks) {
+                if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
+                break;
+            }
             // Waterfowl keep their own counsel: see Enemy::Paddle.
-            if (def->swims) {
+            if (def->swims && def->paddles) {
                 Paddle(world, ctx, dt, move_x, move_y);
                 if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
                 break;
@@ -925,7 +998,42 @@ Uint8 Enemy::CorpseAlpha() const {
 
 void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
     if (CorpseGone()) return;
+    // Under the water, or not all the way out of it. The tell is fair warning:
+    // rings on the surface where something waits, a bubble now and then --
+    // enough for somebody watching the water to walk round it.
+    float sunk = 0.0f;
+    if (lurks && state != State::Dead && emerge < 1.0f) {
+        const float z = cam.zoom;
+        const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f + (home_x + home_y) * 0.013f;
+        const SDL_FPoint at = cam.ToScreen(x, y - draw_lift);
+        const float under = 1.0f - emerge;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        for (int ring = 0; ring < 2; ++ring) {
+            const float t = fmodf(now * 0.55f + ring * 0.5f, 1.0f);
+            const float rx = (5.0f + 17.0f * t) * z, ry = rx * 0.42f;
+            const Uint8 a = static_cast<Uint8>(95.0f * (1.0f - t) * under);
+            SDL_SetRenderDrawColor(r, 196, 222, 226, a);
+            const int dots = 14 + ring * 4;
+            for (int i = 0; i < dots; ++i) {
+                const float ang = 6.2831853f * i / dots;
+                const SDL_FRect px = {roundf((at.x + cosf(ang) * rx) / z) * z,
+                                      roundf((at.y + sinf(ang) * ry) / z) * z, z, z};
+                SDL_RenderFillRect(r, &px);
+            }
+        }
+        if (fmodf(now * 0.8f, 1.0f) < 0.18f) {
+            SDL_SetRenderDrawColor(r, 220, 236, 238, static_cast<Uint8>(150.0f * under));
+            const SDL_FRect bubble = {roundf((at.x + 3.0f * z) / z) * z, roundf((at.y - 2.0f * z) / z) * z,
+                                      2.0f * z, 2.0f * z};
+            SDL_RenderFillRect(r, &bubble);
+        }
+        if (emerge <= 0.0f) return;
+        // Coming up out of it (or going down into it): drawn sunk by what is
+        // still under, and faded by the same.
+        sunk = 18.0f * under;
+    }
     SDL_Color tint{255, 255, 255, CorpseAlpha()};
+    if (lurks && state != State::Dead) tint.a = static_cast<Uint8>(255.0f * std::clamp(emerge, 0.0f, 1.0f));
     if (def) tint = {def->tint.r, def->tint.g, def->tint.b, tint.a};
     // What is on it shows on it: its own colours pulled toward the status's --
     // blue for the cold and the wet, green for poison, a throb of orange for a
@@ -964,5 +1072,5 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
     // Lifted by the ground under it, as the player and NPCs are. This drew at
     // the raw feet position, so a monster up on a ledge sank into the cliff --
     // and a health bar placed from the terrain height would have floated off it.
-    sprite.Draw(r, cache, cam, x, y - draw_lift, tint);
+    sprite.Draw(r, cache, cam, x, y - draw_lift + sunk, tint);
 }

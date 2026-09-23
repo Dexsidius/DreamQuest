@@ -71,6 +71,8 @@ static const char* kMaps[] = {
     "mossvale_weavers", "college_grounds", "college_training", "college_classroom",
     "dreamworld", "dreamworld_2", "dreamworld_3",
     "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
+    "crypt_1", "crypt_2", "crypt_3", "bayou",
+    "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers", "palace_dungeon", "palace_throne",
 };
 
 int main(int argc, char** argv) {
@@ -217,6 +219,36 @@ int main(int argc, char** argv) {
             Check(sprites.Has(d->sprite), it.key() + " sprite '" + d->sprite + "' exists");
             if (!d->loot_table.empty())
                 Check(loot.Has(d->loot_table), it.key() + " loot '" + d->loot_table + "' exists");
+        }
+    }
+
+    Section("the monsters that fill the ladder are drawn as themselves");
+    {
+        // The twenty-five added to close the gaps in the level ladder were
+        // first put out in other monsters' sheets, tinted and scaled. Each has
+        // its own now, modelled in tools/blender_bestiary.py; a def pointed
+        // back at a borrowed sheet, or a tint left over it, is how that comes
+        // undone without anybody noticing.
+        const char* kLadder[] = {
+            "bog_lurker", "mire_croaker", "swamp_hag", "rot_shambler", "fen_gator", "fen_stalker",
+            "drowned_one", "witchlight", "lizard_shaman", "bayou_matriarch", "grave_ghoul", "bone_archer",
+            "cryptbound", "bone_knight", "plague_corpse", "tomb_shade", "grave_hound", "blood_thrall",
+            "bone_colossus", "nosferatu", "crypt_warden", "vampire_lord", "revenant", "abyssal_demon",
+            "rime_revenant"};
+        for (const char* id : kLadder) {
+            const EnemyDef* d = enemy_db.Get(id);
+            Check(d && d->sprite == id, string(id) + " is drawn from a sheet of its own");
+            Check(d && d->tint.r == 255 && d->tint.g == 255 && d->tint.b == 255 && d->scale == 1.0f,
+                  string(id) + " wears no tint and is not stretched to size");
+            const SpriteDef* s = sprites.Get(id);
+            if (!s) continue;
+            for (const char* clip : {"idle", "walk", "attack", "hurt", "death"})
+                Check(s->Find(clip) != nullptr, string(id) + " has its own " + clip);
+        }
+        // What waits under the water is drawn sunk in it when it swims.
+        for (const char* id : {"bog_lurker", "fen_gator", "drowned_one"}) {
+            const SpriteDef* s = sprites.Get(id);
+            Check(s && s->Find("swim") != nullptr, string(id) + " swims low in the water");
         }
     }
 
@@ -450,7 +482,9 @@ int main(int argc, char** argv) {
                            "fernhollow_cottage", "fernhollow_college", "mossvale", "fernhollow", "whisperwood_trail", "dreamworld",
                            "mossvale_weavers", "college_grounds", "college_training", "college_classroom",
                            "dreamworld_2", "dreamworld_3",
-                           "house_inn_cellar", "ice_spire_peak", "ashen_path"}) {
+                           "house_inn_cellar", "ice_spire_peak", "ashen_path",
+                           "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers",
+                           "palace_dungeon", "palace_throne"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -6405,8 +6439,10 @@ int main(int argc, char** argv) {
                     grave_ground += static_cast<int>(it.value()["locations"].size());
             Check(grave_ground > 100, "Hollowrest is ground of its own, not a patch of meadow (" +
                   std::to_string(grave_ground) + " cells)");
-            for (const char* prop : {"grave_fence", "lych_gate", "crypt", "gravestone", "gravestone_cross",
-                                     "grave_mound"})
+            // The crypt is the opened one: the grille came off it when there
+            // was finally something under it to go down to. See prop_crypt.
+            for (const char* prop : {"grave_fence", "lych_gate", "crypt_open", "gravestone",
+                                     "gravestone_cross", "grave_mound"})
                 Check(mx["tiles"].contains(prop), string("the graveyard has its ") + prop);
             int stones = 0;
             for (const char* prop : {"gravestone", "gravestone_cross"})
@@ -10202,6 +10238,7 @@ int main(int argc, char** argv) {
         const Area kAreas[] = {
             {"westwold", 5}, {"brackenwood", 20}, {"dungeon_emberfell_1", 10}, {"dungeon_barrow", 20},
             {"ice_spire_peak", 34}, {"dreamworld_2", 25}, {"dreamworld_3", 50},
+            {"crypt_1", 34}, {"bayou", 30}, {"palace_foyer", 75},
         };
         for (const Area& a : kAreas) {
             Map m;
@@ -10611,14 +10648,15 @@ int main(int argc, char** argv) {
         // The jetty is not water: it is what you fish from.
         Check(!pond.InWater(26 * 32 + 16, 16 * 32 + 8), "the jetty is not water");
         // Every other map's water is a plain wall, so nothing can swim anywhere
-        // it was not meant to.
+        // it was not meant to -- except the Bayou's, which is swimmable on
+        // purpose: its drowned and its gators live in it. See EnemySpawnDef::lurk.
         int watery = 0;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
-            if (m.HasWater()) ++watery;
+            if (m.HasWater() && string(id) != "bayou") ++watery;
         }
-        Check(watery == 1, "and it is the only water in the world anything can swim in (" +
+        Check(watery == 1, "and it is the only water in the world anything can swim in, but the Bayou's (" +
               std::to_string(watery) + ")");
 
         // --- who is on it -------------------------------------------------------
@@ -10772,13 +10810,20 @@ int main(int argc, char** argv) {
             const LootTable* t = loot.Get(who);
             Check(t && !t->always.empty(), string(who) + " leaves supper");
         }
-        // The swim clip is a real sheet, and only these two have one.
-        int swim_sheets = 0;
+        // The swim clip is a real sheet, and only these have one: the two
+        // birds that sit on the water, and the Bayou's three that wait sunk in
+        // it (drawn to the waterline, blender_creatures.py's WATERLINE).
+        const std::set<string> sheet_swimmers = {"duck", "goose", "bog_lurker", "fen_gator", "drowned_one"};
+        int swim_sheets = 0, strays = 0;
         for (const string& id : sprites.Ids())
             if (const SpriteDef* d = sprites.Get(id))
-                if (d->Find("swim")) ++swim_sheets;
-        Check(swim_sheets == 2, "the drake and the goose are drawn sitting on the water, and nothing else is (" +
-              std::to_string(swim_sheets) + ")");
+                if (d->Find("swim")) {
+                    ++swim_sheets;
+                    if (!sheet_swimmers.count(id)) ++strays;
+                }
+        Check(swim_sheets == 5 && strays == 0,
+              "the drake and the goose are drawn sitting on the water, the Bayou's three sunk in it, and "
+              "nothing else is (" + std::to_string(swim_sheets) + ")");
     }
 
     Section("what each blow trains, and other things that were quietly broken");
@@ -15592,6 +15637,318 @@ int main(int argc, char** argv) {
             mine.FromJson(k);
             Check(mine.Key(Action::SelectArcane) == SDLK_F1, "and one that was moved by hand keeps where it was put");
         }
+    }
+
+    Section("the Bayou, and what waits in its water");
+    {
+        GameContext ctx;
+        std::mt19937 rng(8181);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles;
+        ctx.spells = &spells; ctx.statuses = &statuses;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the way there, and back ----------------------------------------------------
+        Map ow, bay;
+        Check(ow.Load("maps/overworld.mx") && bay.Load("maps/bayou.mx"), "the Hollowmarch and the Bayou both load");
+        bool out = false, back = false;
+        for (const Portal& p : ow.Portals()) out |= p.target_map == "bayou";
+        for (const Portal& p : bay.Portals()) back |= p.target_map == "overworld";
+        Check(out && back, "the Hollowmarch leads to the Bayou and the Bayou back");
+        {
+            SDL_FPoint s{};
+            Check(bay.Spawn("from_hollowmarch", s) && !bay.InWater(s.x, s.y), "and you arrive on dry ground");
+        }
+
+        // --- who lives there ------------------------------------------------------------------
+        std::set<string> here;
+        int lurking = 0;
+        for (const EnemySpawnDef& e : bay.Enemies()) {
+            for (const string& t : e.pool.empty() ? vector<string>{e.type} : e.pool) here.insert(t);
+            lurking += e.lurk;
+        }
+        for (const char* t : {"bog_lurker", "mire_croaker", "swamp_hag", "rot_shambler", "fen_gator", "fen_stalker",
+                              "drowned_one", "witchlight", "lizard_shaman", "bayou_matriarch"})
+            Check(here.count(t) > 0, string(t) + " lives in the Bayou");
+        Check(lurking >= 15, "and a good many of them wait under the water (" + std::to_string(lurking) + ")");
+
+        // --- whatever lurks, anywhere, can be reached -----------------------------------------
+        // In water, able to be in it, and near enough to something walkable that
+        // somebody standing there wakes it -- or it waits for ever.
+        int bad_place = 0, cannot_swim = 0, out_of_reach = 0, under_deck = 0, total = 0;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (!e.lurk) continue;
+                ++total;
+                if (!m.InWater(e.x, e.y)) ++bad_place;
+                for (const string& t : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                    const EnemyDef* d = enemy_db.Get(t);
+                    if (!d || !d->swims || d->paddles) ++cannot_swim;
+                }
+                float nearest = 1e9f;
+                for (float oy = -160.0f; oy <= 160.0f; oy += 8.0f)
+                    for (float ox = -160.0f; ox <= 160.0f; ox += 8.0f)
+                        if (!m.InWater(e.x + ox, e.y + oy)) nearest = std::min(nearest, hypotf(ox, oy));
+                if (nearest > Enemy::LURK_WAKE - 16.0f) ++out_of_reach;
+                if (m.HasElevation() && (m.LevelAt(e.x, e.y + 32.0f) > 0 || m.LevelAt(e.x, e.y + 64.0f) > 0)) ++under_deck;
+            }
+        }
+        Check(total == lurking, "every lurking post in the world is in the Bayou (" + std::to_string(total) + ")");
+        Check(bad_place == 0, "every one of them is in water (" + std::to_string(bad_place) + " are not)");
+        Check(cannot_swim == 0, "and is something that swims, and keeps to its post rather than paddling about");
+        Check(out_of_reach == 0, "and waits near enough to a bank, a ramp or a deck to be woken (" +
+              std::to_string(out_of_reach) + " too far out)");
+        Check(under_deck == 0, "and not under the lifted edge of a deck, where it would come up over the boards");
+
+        // --- the stilt villages ---------------------------------------------------------------
+        Check(bay.HasElevation(), "the Bayou has decks raised above the water");
+        {
+            int raised = 0;
+            for (float y = 16.0f; y < 88 * 32; y += 32.0f)
+                for (float x = 16.0f; x < 226 * 32; x += 32.0f) raised += bay.LevelAt(x, y) >= 4;
+            Check(raised > 300, "four decks and a bridge, four levels up (" + std::to_string(raised) + " cells)");
+            const EnemySpawnDef* mother = nullptr;
+            for (const EnemySpawnDef& e : bay.Enemies()) if (e.type == "bayou_matriarch") mother = &e;
+            Check(mother && bay.LevelAt(mother->x, mother->y) >= 4, "the Mother of the Fen waits up on her deck");
+            // Off the edge of a deck is a drop, not a step: the only way on is a ramp.
+            bool walled = false;
+            if (mother)
+                for (float dy = 32.0f; dy < 200.0f && !walled; dy += 8.0f)
+                    if (bay.LevelAt(mother->x, mother->y + dy) == 0)
+                        walled = bay.LevelChangeBlocked(mother->x, mother->y + dy - 8.0f, mother->x, mother->y + dy);
+            Check(walled, "and stepping off a deck's edge into the water is blocked");
+        }
+
+        // --- lurking, played --------------------------------------------------------------------
+        // A post from the map, a player well away, and then close.
+        const EnemySpawnDef* post = nullptr;
+        for (const EnemySpawnDef& e : bay.Enemies()) if (e.lurk && e.type == "bog_lurker") { post = &e; break; }
+        Check(post != nullptr, "a Bog Lurker waiting in the water to try it on");
+        if (post) {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("bayou", "", ctx)) {
+                w.enemies.clear();
+                w.clock.Set(1, 12.0f);
+                {
+                    LevelUp up;
+                    w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(90), up);
+                    w.player.Rest();
+                }
+                // The nearest dry ground to it, and somewhere well back from that.
+                SDL_FPoint bank{post->x, post->y}, far_off{post->x, post->y};
+                float best = 1e9f;
+                for (float oy = -160.0f; oy <= 160.0f; oy += 8.0f)
+                    for (float ox = -160.0f; ox <= 160.0f; ox += 8.0f) {
+                        if (w.map.InWater(post->x + ox, post->y + oy)) continue;
+                        const float d = hypotf(ox, oy);
+                        if (d < best) { best = d; bank = {post->x + ox, post->y + oy}; }
+                    }
+                const float ux = (bank.x - post->x) / std::max(1.0f, best), uy = (bank.y - post->y) / std::max(1.0f, best);
+                far_off = {post->x + ux * 420.0f, post->y + uy * 420.0f};
+
+                const EnemyDef* stats = enemy_db.Get(post->type);
+                auto e = std::make_unique<Enemy>();
+                e->Init(stats, *post, ctx);
+                Enemy* lurker = e.get();
+                w.enemies.push_back(std::move(e));
+
+                w.player.x = far_off.x; w.player.y = far_off.y;
+                for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
+                Check(lurker->Hidden() && lurker->Submerged(), "under the water, it cannot be seen");
+                Check(!Targeting::Targetable(*lurker), "or picked out and locked on to");
+                const float was_x = lurker->x, was_y = lurker->y;
+                // Close, but not too close: a little further than it wakes at.
+                w.player.x = post->x + ux * (Enemy::LURK_WAKE + 30.0f);
+                w.player.y = post->y + uy * (Enemy::LURK_WAKE + 30.0f);
+                for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
+                Check(lurker->Submerged() && lurker->x == was_x && lurker->y == was_y,
+                      "somebody passing a little way off does not wake it, and it does not stir");
+                // Too close.
+                w.player.x = bank.x; w.player.y = bank.y;
+                w.Update(kFrame, ctx);
+                Check(!lurker->Submerged() && lurker->Hidden(), "somebody at the edge wakes it, and it starts to come up");
+                for (int f = 0; f < 20; ++f) w.Update(kFrame, ctx);
+                Check(lurker->Hidden(), "and nothing can touch it while it is still coming up");
+                for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
+                Check(!lurker->Hidden() && Targeting::Targetable(*lurker), "then it is out, and can be fought");
+                Check(lurker->Engaged(), "and it is coming for them");
+
+                // Back off without striking it: it was only woken, not
+                // hurt, and it lets them go and goes back under.
+                const auto until_under = [&](int seconds) {
+                    for (int f = 0; f < 60 * seconds; ++f) {
+                        w.Update(kFrame, ctx);
+                        if (lurker->Submerged()) return true;
+                    }
+                    return false;
+                };
+                w.player.x = far_off.x; w.player.y = far_off.y;
+                Check(until_under(25), "somebody who backs off is let go, and it goes back under");
+                Check(w.map.InWater(lurker->x, lurker->y), "in the water, where it lives");
+
+                // Now struck, and run from: it follows as far as anything
+                // does, gives up, and comes up whole the next time.
+                w.player.x = bank.x; w.player.y = bank.y;
+                for (int f = 0; f < 90; ++f) w.Update(kFrame, ctx);
+                Check(!lurker->Hidden(), "woken again by the same edge");
+                lurker->hp = std::max(1, lurker->max_hp / 3);
+                w.Update(kFrame, ctx);
+                const float map_w = 226.0f * 32.0f, map_h = 88.0f * 32.0f;
+                w.player.x = std::clamp(post->x + ux * 1600.0f, 64.0f, map_w - 64.0f);
+                w.player.y = std::clamp(post->y + uy * 1600.0f, 64.0f, map_h - 64.0f);
+                Check(until_under(60), "one that was hurt follows, gives up, and goes back under");
+                Check(lurker->hp == lurker->max_hp, "and it comes up whole the next time");
+
+                // What a friend's machine is told: how far out of the water it is.
+                const Enemy::Posed told = lurker->Told();
+                Check(told.alpha == 0, "a friend's machine is told it is under (alpha 0)");
+                Enemy puppet;
+                puppet.Init(stats, *post, ctx);
+                Enemy::Posed out_of_it = told;
+                out_of_it.alpha = 255;
+                puppet.Pose(out_of_it);
+                Check(!puppet.Hidden(), "and draws it out of the water when told it is");
+                puppet.Pose(told);
+                Check(puppet.Hidden(), "and under it when told that");
+            }
+        }
+
+        // --- a map drawn for it -------------------------------------------------------------
+        int stakes = 0, huts = 0, pilings = 0;
+        {
+            std::ifstream f("maps/bayou.mx");
+            const json mx = json::parse(f, nullptr, false);
+            if (mx.is_object() && mx.contains("tiles"))
+                for (auto it = mx["tiles"].begin(); it != mx["tiles"].end(); ++it) {
+                    const int n = static_cast<int>(it.value()["locations"].size());
+                    if (it.key() == "palisade" || it.key() == "palisade_side") stakes += n;
+                    if (it.key() == "bayou_hut" || it.key() == "bayou_hut_great") huts += n;
+                    if (it.key() == "bayou_piling") pilings += n;
+                }
+        }
+        Check(stakes > 80, "two camps behind palisades of stakes (" + std::to_string(stakes) + ")");
+        Check(huts >= 8, "huts up on the decks of two stilt villages (" + std::to_string(huts) + ")");
+        Check(pilings >= 12, "standing on pilings (" + std::to_string(pilings) + ")");
+        int herbs = 0;
+        for (const MapObject& o : bay.Objects()) herbs += o.type == "herb";
+        Check(herbs >= 25, "and herbs where the guide drew flowers (" + std::to_string(herbs) + ")");
+    }
+
+    Section("the Brimstone Palace, and its king");
+    {
+        // --- the way in, over the moat --------------------------------------------------
+        Map ash, foyer;
+        Check(ash.Load("maps/ashen_path.mx") && foyer.Load("maps/palace_foyer.mx"),
+              "the Ashen Path and the palace's hall both load");
+        const Portal* door = nullptr;
+        for (const Portal& p : ash.Portals())
+            if (p.target_map == "palace_foyer") door = &p;
+        Check(door && door->requires_interact && door->danger_level >= 70 && door->min_combat >= 60,
+              "the Ashen Path has the palace's door: warned about, and shut below Combat 60");
+        bool out = false;
+        for (const Portal& p : foyer.Portals()) out |= p.target_map == "ashen_path";
+        Check(out, "and its hall leads back out to the path");
+        // The moat's front is lava from arm to arm but for the drawbridge.
+        int bridge = 0, moat = 0;
+        for (int cx = 56; cx <= 81; ++cx) {
+            const SDL_FRect feet{cx * 32.0f + 8.0f, 27 * 32.0f + 20.0f, 16.0f, 12.0f};
+            if (ash.Blocked(feet)) ++moat; else ++bridge;
+        }
+        Check(bridge == 4 && moat == 22, "the moat is crossed on the drawbridge and nowhere else (" +
+                                             std::to_string(bridge) + " open)");
+        // The forecourt and the palace's front stand on a platform, a stair
+        // down its front to the bridge: at least the 36px the user asked for.
+        Check(ash.HasElevation() && ash.LevelAt(68.5f * 32, 20 * 32.0f) * ELEVATION_RISE >= 36.0f,
+              "the palace's platform stands at least 36px up (" +
+                  std::to_string(static_cast<int>(ash.LevelAt(68.5f * 32, 20 * 32.0f) * ELEVATION_RISE)) + "px)");
+        Check(ash.LevelAt(68 * 32 + 16, 26 * 32 + 16) == 1 && ash.LevelAt(68 * 32 + 16, 25 * 32 + 16) == 2,
+              "and a stair climbs it from the drawbridge");
+        // The two streams out of the moat are bridged on their way south, and
+        // what is on their far banks is worth the walk: the sweep over every
+        // map's usable things above walks to each of these.
+        int bank_ore = 0, bank_herbs = 0;
+        for (const MapObject& o : ash.Objects()) {
+            if (o.type == "rock" && (o.yield == "platinum_ore" || o.yield == "demonite_ore")) ++bank_ore;
+            if (o.type == "herb" && o.yield == "emberbloom") ++bank_herbs;
+        }
+        Check(bank_ore >= 6 && bank_herbs >= 4, "platinum, demonite and emberbloom on the streams' far banks (" +
+              std::to_string(bank_ore) + " seams, " + std::to_string(bank_herbs) + " herbs)");
+        int bridges = 0;
+        for (const TileInstance& t : ash.Tiles())
+            if (ash.TexturePath(t).find("lava_bridge") != string::npos) ++bridges;
+        Check(bridges == 4, "and each stream is bridged twice (" + std::to_string(bridges) + " bridges)");
+        // Its own guards inside the moat, and what lives on the path outside it
+        // kept off the burnt road itself.
+        std::set<string> court;
+        for (const EnemySpawnDef& e : ash.Enemies())
+            if (e.x > 57 * 32.0f && e.x < 80 * 32.0f && e.y < 27 * 32.0f) court.insert(e.type);
+        Check(court.count("abyssal_demon") && court.count("revenant"), "Abyssal Demons and Revenants hold the forecourt");
+
+        // --- the hall ---------------------------------------------------------------------
+        // Balconies up both sides on real height, reached by stairs, and three
+        // walkways crossing overhead on the layer drawn over everyone.
+        Check(foyer.HasElevation() && foyer.LevelAt(2 * 32 + 16, 20 * 32) == 3 && foyer.LevelAt(29 * 32 + 16, 20 * 32) == 3,
+              "the balconies stand three levels up");
+        Check(foyer.LevelAt(16 * 32, 20 * 32) == 0, "and the runner between them is the floor");
+        int walkways = 0;
+        for (const TileInstance& t : foyer.Tiles())
+            if (t.layer == LAYER_OVERHEAD && foyer.TexturePath(t).find("palace_walkway") != string::npos) ++walkways;
+        Check(walkways == 33, "three walkways cross overhead from balcony to balcony (" + std::to_string(walkways) + " lengths)");
+        std::set<string> rooms;
+        for (const Portal& p : foyer.Portals()) rooms.insert(p.target_map);
+        for (const char* r : {"palace_ballroom", "palace_dining", "palace_chambers", "palace_dungeon", "palace_throne"}) {
+            Check(rooms.count(r) > 0, string("the hall has a way into ") + r);
+            Map room;
+            bool back = false;
+            if (room.Load(string("maps/") + r + ".mx"))
+                for (const Portal& p : room.Portals()) back |= p.target_map == "palace_foyer";
+            Check(back, string(r) + " has a way back to the hall");
+        }
+        // The side rooms' doors are up on the balconies, where the stairs go.
+        for (const Portal& p : foyer.Portals())
+            if (p.target_map == "palace_ballroom" || p.target_map == "palace_dining" || p.target_map == "palace_chambers")
+                Check(foyer.LevelAt(p.rect.x + p.rect.w / 2, p.rect.y + p.rect.h / 2) == 3,
+                      p.target_map + "'s door opens off a balcony");
+
+        // --- who keeps it --------------------------------------------------------------------
+        // Abyssal Demons and demons, Revenants and Bone Knights, and nothing
+        // else; and it is the top of the ladder, past where the crypt ends.
+        const std::set<string> keepers = {"abyssal_demon", "demon", "revenant", "rime_revenant", "bone_knight", "cinder_king"};
+        vector<int> shown;
+        int strangers = 0;
+        for (const char* r : {"palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers", "palace_dungeon", "palace_throne"}) {
+            Map room;
+            if (!room.Load(string("maps/") + r + ".mx")) continue;
+            for (const EnemySpawnDef& e : room.Enemies()) {
+                if (!keepers.count(e.type)) ++strangers;
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (d && !d->is_boss) shown.push_back(Enemy::ShownLevelOf(*d, e.level));
+            }
+        }
+        std::sort(shown.begin(), shown.end());
+        Check(strangers == 0, "only the palace's own keep it");
+        Check(!shown.empty() && shown.front() >= 68 && shown[shown.size() / 2] >= 70,
+              "all of them past the crypt's end, the middle of them at " +
+                  std::to_string(shown.empty() ? 0 : shown[shown.size() / 2]));
+
+        // --- and its master ---------------------------------------------------------------------
+        Map throne;
+        Check(throne.Load("maps/palace_throne.mx"), "the throne room loads");
+        int kings = 0;
+        for (const EnemySpawnDef& e : throne.Enemies()) kings += e.type == "cinder_king";
+        const EnemyDef* king = enemy_db.Get("cinder_king");
+        Check(kings == 1 && king && king->is_boss, "the Cinder King waits in the throne room");
+        Check(king && Enemy::ShownLevelOf(*king, 1) >= 80, "and he is the top of the ladder: Combat " +
+              std::to_string(king ? Enemy::ShownLevelOf(*king, 1) : 0));
+        bool relic = false;
+        for (const MapObject& o : throne.Objects()) relic |= o.loot_item == "heart_of_cinders";
+        Check(relic && items.Get("heart_of_cinders"), "and behind him, on his dais, the Heart of Cinders");
+        Check(throne.HasElevation() && throne.LevelAt(14 * 32, 6 * 32) == 2, "his throne stands on a dais two levels up");
     }
 
     Section("waystones: three towns, woken by hand");

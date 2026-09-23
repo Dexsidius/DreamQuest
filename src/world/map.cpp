@@ -135,6 +135,10 @@ bool Map::Load(const string& path) {
         // Which tile an exposed bank is made of. A map in a cave would want
         // stone; the overworld wants soil.
         cliff_texture = ResolveAsset(e.value("face", string("assets/tiles/dirt_dark.png")));
+        cliff_lip = {108, 138, 74, 255};
+        if (e.contains("lip") && e["lip"].is_array() && e["lip"].size() >= 3)
+            cliff_lip = {static_cast<Uint8>(e["lip"][0].get<int>()), static_cast<Uint8>(e["lip"][1].get<int>()),
+                         static_cast<Uint8>(e["lip"][2].get<int>()), 255};
         elev_cell = e.value("cell", 32.0f);
         elev_cols = e.value("cols", 0);
         elev_rows = e.value("rows", 0);
@@ -224,6 +228,7 @@ bool Map::Load(const string& path) {
             d.group   = e.value("group", string(""));
             d.spread  = std::max(0, e.value("spread", 0));
             d.night   = e.value("night", false);
+            d.lurk    = e.value("lurk", false);
             d.chance  = std::clamp(e.value("chance", 1.0f), 0.0f, 1.0f);
             enemies.push_back(d);
         }
@@ -544,7 +549,7 @@ void Map::RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) 
             // terrace look like it is sitting on something.
             SDL_FRect lip = dst;
             lip.h = std::max(1.0f, 2.0f * cam.zoom);
-            SDL_SetRenderDrawColor(r, 108, 138, 74, 255);
+            SDL_SetRenderDrawColor(r, cliff_lip.r, cliff_lip.g, cliff_lip.b, 255);
             SDL_RenderFillRect(r, &lip);
 
             // The shadow the bank throws on the ground below it. More than

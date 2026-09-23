@@ -77,6 +77,7 @@ $sizes = @{
     totem_broodmother = 32; totem_lizardman_chief = 32; totem_barrow_wight = 32; totem_orc3 = 32
     totem_well_warden = 32; totem_den_mother = 32; totem_nightmare_troll = 32; totem_wyvern_matriarch = 32
     totem_pit_lord = 32; totem_frost_dragon = 32; totem_nightmare_dragon = 32
+    totem_vampire_lord = 32; totem_bayou_matriarch = 32
     # The college at Fernhollow: its buildings, its court, and its chambers.
     college_hall = 352; college_wing = 256; college_gate = 224; college_fountain = 112; college_statue = 96
     college_column = 64; college_banner = 72; college_lamp = 72; hedge = 56; topiary = 56; stone_bench = 56
@@ -99,12 +100,13 @@ $sizes = @{
     # The Emberfell mine's way in, on the overworld.
     mine_adit = 256
     # The swamp, the Ice Spire, the Ashen Path and the inn's cellar.
+    bayou_hut = 112; bayou_hut_great = 152; bayou_piling = 64
     reeds = 48; lily_pads = 40; swamp_tree = 72; lizard_hut = 128; lizard_totem = 56; ice_spire = 112; ice_crystal = 40; snow_pine = 80; wyvern_nest = 72; charred_tree = 72; obsidian_rock = 40; hellgate = 144; cellar_hatch = 48; cobweb = 40
     barrow_mound = 208; dungeon_stairs_up = 96; dungeon_stairs_down = 80
     sawmill = 144; ore_cart = 96; rowboat = 128
     gravestone = 48; gravestone_cross = 52; grave_mound = 64; grave_fence = 72
     spring_basin = 112
-    lych_gate = 144; crypt = 176
+    lych_gate = 144; crypt = 176; crypt_open = 176
     herb_marigold = 40; herb_marigold_picked = 40
     herb_brookmint = 40; herb_brookmint_picked = 40
     herb_nettle = 40; herb_nettle_picked = 40
@@ -117,6 +119,13 @@ $sizes = @{
     herb_flax = 40; herb_flax_picked = 40
     # The Westwold's steadings and the Brackenwood's den.
     tanning_rack = 64; hay_rick = 56; rail_fence = 64; bear_den = 144
+    # The Brimstone Palace (tools/blender_palace.py).
+    palace_keep = 576; palace_tower = 320; palace_torch = 64; drawbridge = 128; lava_bridge = 128
+    throne_door = 224; palace_walkway = 112; palace_pillar = 144; palace_brazier = 72; palace_banner = 88
+    demon_statue = 96; palace_sigil = 96; palace_baluster = 44; palace_chandelier = 84; pipe_organ = 208
+    palace_mirror = 88; palace_table = 192; palace_hearth = 140; palace_bed = 120; cell_bars = 84
+    cell_door = 84; wall_shackles = 64; torture_rack = 96; iron_cage = 76; demon_throne = 200
+    totem_cinder_king = 32
 }
 
 # The scenery sizes, built to the same names the maps already use. Ten trees and

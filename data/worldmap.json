@@ -3,10 +3,18 @@
     "ashen_path": {
       "exits": [
         "overworld",
-        "dungeon_infernal"
+        "dungeon_infernal",
+        "palace_foyer"
       ],
       "kind": "land",
       "name": "The Ashen Path"
+    },
+    "bayou": {
+      "exits": [
+        "overworld"
+      ],
+      "kind": "land",
+      "name": "The Bayou"
     },
     "brackenwood": {
       "exits": [
@@ -38,6 +46,29 @@
       ],
       "kind": "interior",
       "name": "The Practice Hall"
+    },
+    "crypt_1": {
+      "exits": [
+        "overworld",
+        "crypt_2"
+      ],
+      "kind": "dungeon",
+      "name": "Hollowrest Crypt, the Vaults"
+    },
+    "crypt_2": {
+      "exits": [
+        "crypt_1",
+        "crypt_3"
+      ],
+      "kind": "dungeon",
+      "name": "Hollowrest Crypt, the Ossuary"
+    },
+    "crypt_3": {
+      "exits": [
+        "crypt_2"
+      ],
+      "kind": "dungeon",
+      "name": "Hollowrest Crypt, the Black Vault"
     },
     "dreamworld": {
       "exits": [
@@ -209,11 +240,60 @@
         "dungeon_emberfell_1",
         "dungeon_barrow",
         "whisperwood_trail",
+        "bayou",
+        "crypt_1",
         "ice_spire_peak",
         "ashen_path"
       ],
       "kind": "land",
       "name": "The Hollowmarch"
+    },
+    "palace_ballroom": {
+      "exits": [
+        "palace_foyer"
+      ],
+      "kind": "interior",
+      "name": "The Ballroom"
+    },
+    "palace_chambers": {
+      "exits": [
+        "palace_foyer"
+      ],
+      "kind": "interior",
+      "name": "The Chambers Wing"
+    },
+    "palace_dining": {
+      "exits": [
+        "palace_foyer"
+      ],
+      "kind": "interior",
+      "name": "The Dining Hall"
+    },
+    "palace_dungeon": {
+      "exits": [
+        "palace_foyer"
+      ],
+      "kind": "interior",
+      "name": "The Palace Dungeon"
+    },
+    "palace_foyer": {
+      "exits": [
+        "palace_throne",
+        "ashen_path",
+        "palace_ballroom",
+        "palace_dining",
+        "palace_chambers",
+        "palace_dungeon"
+      ],
+      "kind": "interior",
+      "name": "The Brimstone Palace"
+    },
+    "palace_throne": {
+      "exits": [
+        "palace_foyer"
+      ],
+      "kind": "interior",
+      "name": "The Throne Room"
     },
     "town_havenbrook": {
       "exits": [
@@ -313,10 +393,22 @@
       "y": 2576
     },
     {
+      "kind": "path",
+      "label": "The Bayou",
+      "x": 40,
+      "y": 2576
+    },
+    {
       "kind": "grave",
       "label": "Hollowrest",
       "x": 1872,
       "y": 3196
+    },
+    {
+      "kind": "dungeon",
+      "label": "Hollowrest Crypt",
+      "x": 1872,
+      "y": 3796
     },
     {
       "kind": "path",

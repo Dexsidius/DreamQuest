@@ -312,6 +312,70 @@
                                         "w":  16,
                                         "h":  16
                                     },
+                   "tiles/palace_carpet":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/palace_carpet_l":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/palace_carpet_r":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/palace_floor":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/palace_floor_1":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "tiles/palace_floor_2":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "tiles/palace_floor_dark":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "tiles/palace_floor_dark_1":  {
+                                                     "w":  32,
+                                                     "h":  32
+                                                 },
+                   "tiles/palace_marble_a":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/palace_marble_a_1":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "tiles/palace_marble_b":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/palace_marble_b_1":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "tiles/palace_wall":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/palace_wall_1":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/palace_wallface":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/palace_walltop":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
                    "tiles/peat":  {
                                       "w":  16,
                                       "h":  16
@@ -1296,6 +1360,18 @@
                                               "w":  208,
                                               "h":  208
                                           },
+                   "props/bayou_hut":  {
+                                           "w":  112,
+                                           "h":  112
+                                       },
+                   "props/bayou_hut_great":  {
+                                                 "w":  152,
+                                                 "h":  152
+                                             },
+                   "props/bayou_piling":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "props/bear_den":  {
                                           "w":  144,
                                           "h":  144
@@ -1336,6 +1412,14 @@
                                           "w":  48,
                                           "h":  48
                                       },
+                   "props/cell_bars":  {
+                                           "w":  84,
+                                           "h":  84
+                                       },
+                   "props/cell_door":  {
+                                           "w":  84,
+                                           "h":  84
+                                       },
                    "props/cellar_hatch":  {
                                               "w":  48,
                                               "h":  48
@@ -1428,6 +1512,10 @@
                                        "w":  176,
                                        "h":  176
                                    },
+                   "props/crypt_open":  {
+                                            "w":  176,
+                                            "h":  176
+                                        },
                    "props/crystal_pylon":  {
                                                "w":  64,
                                                "h":  64
@@ -1436,10 +1524,22 @@
                                                "w":  80,
                                                "h":  80
                                            },
+                   "props/demon_statue":  {
+                                              "w":  96,
+                                              "h":  96
+                                          },
+                   "props/demon_throne":  {
+                                              "w":  200,
+                                              "h":  200
+                                          },
                    "props/dining_table":  {
                                               "w":  56,
                                               "h":  56
                                           },
+                   "props/drawbridge":  {
+                                            "w":  128,
+                                            "h":  128
+                                        },
                    "props/dream_ladder_down":  {
                                                    "w":  80,
                                                    "h":  80
@@ -1636,10 +1736,18 @@
                                          "w":  88,
                                          "h":  88
                                      },
+                   "props/iron_cage":  {
+                                           "w":  76,
+                                           "h":  76
+                                       },
                    "props/keg_rack":  {
                                           "w":  72,
                                           "h":  72
                                       },
+                   "props/lava_bridge":  {
+                                             "w":  128,
+                                             "h":  128
+                                         },
                    "props/lectern":  {
                                          "w":  56,
                                          "h":  56
@@ -1708,6 +1816,62 @@
                                           "w":  96,
                                           "h":  96
                                       },
+                   "props/palace_baluster":  {
+                                                 "w":  44,
+                                                 "h":  44
+                                             },
+                   "props/palace_banner":  {
+                                               "w":  88,
+                                               "h":  88
+                                           },
+                   "props/palace_bed":  {
+                                            "w":  120,
+                                            "h":  120
+                                        },
+                   "props/palace_brazier":  {
+                                                "w":  72,
+                                                "h":  72
+                                            },
+                   "props/palace_chandelier":  {
+                                                   "w":  84,
+                                                   "h":  84
+                                               },
+                   "props/palace_hearth":  {
+                                               "w":  140,
+                                               "h":  140
+                                           },
+                   "props/palace_keep":  {
+                                             "w":  576,
+                                             "h":  576
+                                         },
+                   "props/palace_mirror":  {
+                                               "w":  88,
+                                               "h":  88
+                                           },
+                   "props/palace_pillar":  {
+                                               "w":  144,
+                                               "h":  144
+                                           },
+                   "props/palace_sigil":  {
+                                              "w":  96,
+                                              "h":  96
+                                          },
+                   "props/palace_table":  {
+                                              "w":  192,
+                                              "h":  192
+                                          },
+                   "props/palace_torch":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
+                   "props/palace_tower":  {
+                                              "w":  320,
+                                              "h":  320
+                                          },
+                   "props/palace_walkway":  {
+                                                "w":  112,
+                                                "h":  112
+                                            },
                    "props/palisade":  {
                                           "w":  64,
                                           "h":  64
@@ -1716,6 +1880,10 @@
                                                "w":  64,
                                                "h":  64
                                            },
+                   "props/pipe_organ":  {
+                                            "w":  208,
+                                            "h":  208
+                                        },
                    "props/quench_trough":  {
                                                "w":  56,
                                                "h":  56
@@ -1828,6 +1996,10 @@
                                       "w":  72,
                                       "h":  72
                                   },
+                   "props/throne_door":  {
+                                             "w":  224,
+                                             "h":  224
+                                         },
                    "props/tool_rack":  {
                                            "w":  64,
                                            "h":  64
@@ -1836,11 +2008,23 @@
                                          "w":  56,
                                          "h":  56
                                      },
+                   "props/torture_rack":  {
+                                              "w":  96,
+                                              "h":  96
+                                          },
                    "props/totem_barrow_wight":  {
                                                     "w":  32,
                                                     "h":  32
                                                 },
+                   "props/totem_bayou_matriarch":  {
+                                                       "w":  32,
+                                                       "h":  32
+                                                   },
                    "props/totem_broodmother":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "props/totem_cinder_king":  {
                                                    "w":  32,
                                                    "h":  32
                                                },
@@ -1876,6 +2060,10 @@
                                                 "w":  32,
                                                 "h":  32
                                             },
+                   "props/totem_vampire_lord":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
                    "props/totem_well_warden":  {
                                                    "w":  32,
                                                    "h":  32
@@ -1896,6 +2084,10 @@
                                               "w":  40,
                                               "h":  40
                                           },
+                   "props/wall_shackles":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
                    "props/wardrobe":  {
                                           "w":  64,
                                           "h":  64

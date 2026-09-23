@@ -16,6 +16,7 @@ const char* EquipSlotName(int slot) {
 static void ReadArmoury(const json& o, ItemDef& d) {
     d.weapon_class  = o.value("class", string(""));
     d.two_handed    = o.value("two_handed", false);
+    d.leech         = o.value("leech", 0.0f);
     d.thrown        = o.value("thrown", false);
     d.armour_pierce = std::clamp(o.value("armour_pierce", 0.0f), 0.0f, 0.9f);
     d.damage        = o.value("damage", 1.0f);
@@ -996,6 +997,14 @@ float Equipment::LightRadius() const {
     for (int s = 0; s < SLOT_COUNT; ++s)
         if (const ItemDef* d = db->Get(slots[s])) best = std::max(best, d->light_radius);
     return best;
+}
+
+float Equipment::Leech() const {
+    if (!db) return 0.0f;
+    float sum = 0.0f;
+    for (int s = 0; s < SLOT_COUNT; ++s)
+        if (const ItemDef* d = db->Get(slots[s])) sum += d->leech;
+    return sum;
 }
 
 bool Equipment::HasPassive(const string& id) const {

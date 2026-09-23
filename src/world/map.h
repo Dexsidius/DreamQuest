@@ -101,6 +101,10 @@ struct EnemySpawnDef {
     // and once killed it is gone until the next night. See World::Abroad.
     bool   night = false;
     float  chance = 1.0f;
+    // Kept under the water until somebody comes too close to the edge, and
+    // then it comes up out of it: see Enemy::Hidden. Only means anything for a
+    // post in water, and a monster that swims.
+    bool   lurk = false;
 };
 
 // Somewhere a walking villager stops, and for how long.
@@ -323,6 +327,9 @@ private:
     // Height grid. Empty on a map that does not use elevation.
     vector<uint8_t>   elev;
     string cliff_texture;         // what an exposed bank is made of
+    // What rolls over its top edge: grass, on a bank of earth; the lip of a
+    // plank, on a deck in the Bayou.
+    SDL_Color cliff_lip{108, 138, 74, 255};
     vector<SDL_FRect> ramps;
     int   elev_cols = 0, elev_rows = 0;
     float elev_cell = 32.0f;

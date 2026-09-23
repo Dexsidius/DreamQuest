@@ -16,11 +16,11 @@ was a game with no pictures in it. Everything has since been replaced.
 | What | Made by |
 | --- | --- |
 | The three playable characters, their armour layers in three cuts, and the town NPCs -- the `magister`, and the college's `apprentice` and `adept`, who also have the cast clip (`make_character.ps1 -Look apprentice,adept,magister -Only idle,walk,attack -Style plate`) | `tools/blender_character.py` (`make_character.ps1`) |
-| Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`) |
-| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`) |
+| Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`); the twenty-five that fill the level ladder -- the Bayou's, Hollowrest Crypt's and the three past them -- are in `tools/blender_bestiary.py`, registered into the same table and rendered the same way |
+| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`); the Brimstone Palace's -- its front, towers, torches, drawbridge and all its furniture -- are in `tools/blender_palace.py`, registered into the same table |
 | The scenery and buildings -- trees, rocks, bushes, mushrooms, houses, the guild hall, chests, doors, the campfire | `tools/blender_props.py` (`make_props.ps1 -Objects`) |
 | Every ore, bar, weapon and armour icon, and the weapon in the hero's hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
-| All 104 ground and interior tiles, the college's own set last | `tools/make_ground.ps1` |
+| All 120 ground and interior tiles, the college's own set and then the Brimstone Palace's last | `tools/make_ground.ps1` |
 | Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
 | The hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
 | The minimap bezel and the HUD fittings | `tools/make_ui.ps1` |

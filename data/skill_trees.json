@@ -1025,6 +1025,30 @@
       "effects": {
         "mana_regen": 0.12
       }
+    },
+    {
+      "id": "boon_ironhide",
+      "name": "Ironhide",
+      "text": "+6% Defence",
+      "effects": {
+        "defence": 0.06
+      }
+    },
+    {
+      "id": "boon_quickstep",
+      "name": "Quickstep",
+      "text": "You dodge 4% of what comes at you",
+      "effects": {
+        "evade": 0.04
+      }
+    },
+    {
+      "id": "boon_cinderheart",
+      "name": "Cinderheart",
+      "text": "You hit 4% harder",
+      "effects": {
+        "damage": 0.04
+      }
     }
   ],
   "totems": [
@@ -1128,6 +1152,34 @@
       "effects": {
         "damage": 0.08,
         "charged_damage": 0.15
+      }
+    },
+    {
+      "item": "totem_vampire_lord",
+      "boss": "vampire_lord",
+      "name": "The Red Thirst",
+      "text": "A twentieth of what you take comes back to you",
+      "effects": {
+        "lifesteal": 0.05
+      }
+    },
+    {
+      "item": "totem_bayou_matriarch",
+      "boss": "bayou_matriarch",
+      "name": "Fenborn",
+      "text": "You walk 10% quicker",
+      "effects": {
+        "move_speed": 0.1
+      }
+    },
+    {
+      "item": "totem_cinder_king",
+      "boss": "cinder_king",
+      "name": "Crown of Cinders",
+      "text": "10% more damage, and 10% more health",
+      "effects": {
+        "damage": 0.1,
+        "max_health": 0.1
       }
     }
   ]

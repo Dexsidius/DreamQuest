@@ -2201,5 +2201,917 @@
       26
     ],
     "element": "none"
+  },
+  "bog_lurker": {
+    "name": "Bog Lurker",
+    "sprite": "bog_lurker",
+    "hp": 71,
+    "attack": 26,
+    "strength": 26,
+    "defence": 26,
+    "attack_bonus": 27,
+    "strength_bonus": 26,
+    "defence_bonus": 29,
+    "speed": 52,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.75,
+    "loot": "bog_lurker",
+    "kill_target": "lizardman",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -23,
+      -46,
+      46,
+      46
+    ],
+    "element": "earth",
+    "swims": true,
+    "paddles": false
+  },
+  "mire_croaker": {
+    "name": "Mire Croaker",
+    "sprite": "mire_croaker",
+    "hp": 77,
+    "attack": 29,
+    "strength": 29,
+    "defence": 29,
+    "attack_bonus": 30,
+    "strength_bonus": 29,
+    "defence_bonus": 32,
+    "speed": 40,
+    "aggro": 205,
+    "attack_range": 30,
+    "attack_cooldown": 1.73,
+    "shoots": "croaker_spit",
+    "shoot_range": 180.0,
+    "shoot_cooldown": 2.6,
+    "loot": "mire_croaker",
+    "kill_target": "croaker",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -16,
+      -40,
+      32,
+      40
+    ],
+    "element": "water"
+  },
+  "swamp_hag": {
+    "name": "Swamp Hag",
+    "sprite": "swamp_hag",
+    "hp": 91,
+    "attack": 32,
+    "strength": 32,
+    "defence": 31,
+    "attack_bonus": 34,
+    "strength_bonus": 32,
+    "defence_bonus": 34,
+    "speed": 48,
+    "aggro": 225,
+    "attack_range": 30,
+    "attack_cooldown": 1.72,
+    "shoots": "hag_hex",
+    "shoot_range": 200.0,
+    "shoot_cooldown": 3.0,
+    "loot": "swamp_hag",
+    "kill_target": "hag",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -46,
+      28,
+      46
+    ],
+    "element": "earth"
+  },
+  "rot_shambler": {
+    "name": "Rot Shambler",
+    "sprite": "rot_shambler",
+    "hp": 154,
+    "attack": 33,
+    "strength": 33,
+    "defence": 28,
+    "attack_bonus": 35,
+    "strength_bonus": 33,
+    "defence_bonus": 31,
+    "speed": 34,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.71,
+    "loot": "rot_shambler",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -22,
+      -40,
+      44,
+      40
+    ],
+    "element": "earth",
+    "immune": [
+      "poison"
+    ]
+  },
+  "fen_gator": {
+    "name": "Fen Gator",
+    "sprite": "fen_gator",
+    "hp": 48,
+    "attack": 41,
+    "strength": 41,
+    "defence": 42,
+    "attack_bonus": 43,
+    "strength_bonus": 41,
+    "defence_bonus": 46,
+    "speed": 66,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.69,
+    "loot": "fen_gator",
+    "kill_target": "gator",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -22,
+      -48,
+      44,
+      48
+    ],
+    "element": "water",
+    "swims": true,
+    "paddles": false
+  },
+  "fen_stalker": {
+    "name": "Fen Stalker",
+    "sprite": "fen_stalker",
+    "hp": 65,
+    "attack": 43,
+    "strength": 43,
+    "defence": 37,
+    "attack_bonus": 45,
+    "strength_bonus": 43,
+    "defence_bonus": 41,
+    "speed": 78,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.68,
+    "loot": "fen_stalker",
+    "kill_target": "spider",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -19,
+      -42,
+      38,
+      42
+    ],
+    "element": "earth"
+  },
+  "drowned_one": {
+    "name": "Drowned One",
+    "sprite": "drowned_one",
+    "hp": 109,
+    "attack": 38,
+    "strength": 38,
+    "defence": 46,
+    "attack_bonus": 40,
+    "strength_bonus": 38,
+    "defence_bonus": 51,
+    "speed": 44,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.68,
+    "loot": "drowned_one",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -16,
+      -40,
+      32,
+      40
+    ],
+    "element": "water",
+    "immune": [
+      "poison",
+      "bleed"
+    ],
+    "swims": true,
+    "paddles": false
+  },
+  "witchlight": {
+    "name": "Witchlight",
+    "sprite": "witchlight",
+    "hp": 67,
+    "attack": 51,
+    "strength": 51,
+    "defence": 32,
+    "attack_bonus": 54,
+    "strength_bonus": 51,
+    "defence_bonus": 35,
+    "speed": 88,
+    "aggro": 215,
+    "attack_range": 30,
+    "attack_cooldown": 1.67,
+    "shoots": "witch_spark",
+    "shoot_range": 190.0,
+    "shoot_cooldown": 2.2,
+    "loot": "witchlight",
+    "kill_target": "witchlight",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -44,
+      28,
+      44
+    ],
+    "element": "electric",
+    "swims": true,
+    "paddles": false
+  },
+  "lizard_shaman": {
+    "name": "Lizard Shaman",
+    "sprite": "lizard_shaman",
+    "hp": 170,
+    "attack": 44,
+    "strength": 44,
+    "defence": 43,
+    "attack_bonus": 46,
+    "strength_bonus": 44,
+    "defence_bonus": 47,
+    "speed": 50,
+    "aggro": 235,
+    "attack_range": 30,
+    "attack_cooldown": 1.65,
+    "shoots": "shaman_bolt",
+    "shoot_range": 210.0,
+    "shoot_cooldown": 2.4,
+    "loot": "lizard_shaman",
+    "kill_target": "lizardman",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -20,
+      -74,
+      40,
+      74
+    ],
+    "element": "water"
+  },
+  "bayou_matriarch": {
+    "name": "The Mother of the Fen",
+    "sprite": "bayou_matriarch",
+    "hp": 191,
+    "attack": 51,
+    "strength": 51,
+    "defence": 49,
+    "attack_bonus": 54,
+    "strength_bonus": 51,
+    "defence_bonus": 54,
+    "speed": 54,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.62,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 2.5,
+      "cooldown": 9.0
+    },
+    "loot": "bayou_matriarch",
+    "kill_target": "lizardman",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -30,
+      -98,
+      60,
+      98
+    ],
+    "element": "water",
+    "immune": [
+      "poison",
+      "wet"
+    ],
+    "boss": true
+  },
+  "grave_ghoul": {
+    "name": "Grave Ghoul",
+    "sprite": "grave_ghoul",
+    "hp": 50,
+    "attack": 23,
+    "strength": 23,
+    "defence": 23,
+    "attack_bonus": 24,
+    "strength_bonus": 23,
+    "defence_bonus": 25,
+    "speed": 46,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.77,
+    "loot": "grave_ghoul",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -40,
+      28,
+      40
+    ],
+    "element": "earth",
+    "immune": [
+      "poison"
+    ]
+  },
+  "bone_archer": {
+    "name": "Bone Archer",
+    "sprite": "bone_archer",
+    "hp": 91,
+    "attack": 26,
+    "strength": 26,
+    "defence": 22,
+    "attack_bonus": 27,
+    "strength_bonus": 26,
+    "defence_bonus": 24,
+    "speed": 44,
+    "aggro": 250,
+    "attack_range": 30,
+    "attack_cooldown": 1.75,
+    "shoots": "arrow",
+    "shoot_range": 225.0,
+    "shoot_cooldown": 2.2,
+    "loot": "bone_archer",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -40,
+      28,
+      40
+    ],
+    "element": "none",
+    "immune": [
+      "poison",
+      "bleed"
+    ]
+  },
+  "cryptbound": {
+    "name": "Cryptbound",
+    "sprite": "cryptbound",
+    "hp": 74,
+    "attack": 30,
+    "strength": 30,
+    "defence": 30,
+    "attack_bonus": 32,
+    "strength_bonus": 30,
+    "defence_bonus": 33,
+    "speed": 58,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.73,
+    "loot": "cryptbound",
+    "kill_target": "wraith",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -40,
+      28,
+      40
+    ],
+    "element": "air",
+    "immune": [
+      "bleed",
+      "poison"
+    ]
+  },
+  "bone_knight": {
+    "name": "Bone Knight",
+    "sprite": "bone_knight",
+    "hp": 62,
+    "attack": 34,
+    "strength": 34,
+    "defence": 46,
+    "attack_bonus": 36,
+    "strength_bonus": 34,
+    "defence_bonus": 51,
+    "speed": 42,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.7,
+    "loot": "bone_knight",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -50,
+      28,
+      50
+    ],
+    "element": "none",
+    "immune": [
+      "poison",
+      "bleed"
+    ]
+  },
+  "plague_corpse": {
+    "name": "Plague Corpse",
+    "sprite": "plague_corpse",
+    "hp": 186,
+    "attack": 36,
+    "strength": 36,
+    "defence": 31,
+    "attack_bonus": 38,
+    "strength_bonus": 36,
+    "defence_bonus": 34,
+    "speed": 34,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.69,
+    "loot": "plague_corpse",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -46,
+      28,
+      46
+    ],
+    "element": "earth",
+    "immune": [
+      "poison"
+    ]
+  },
+  "tomb_shade": {
+    "name": "Tomb Shade",
+    "sprite": "tomb_shade",
+    "hp": 44,
+    "attack": 46,
+    "strength": 46,
+    "defence": 38,
+    "attack_bonus": 48,
+    "strength_bonus": 46,
+    "defence_bonus": 42,
+    "speed": 62,
+    "aggro": 220,
+    "attack_range": 30,
+    "attack_cooldown": 1.68,
+    "shoots": "shade_wail",
+    "shoot_range": 195.0,
+    "shoot_cooldown": 2.8,
+    "loot": "tomb_shade",
+    "kill_target": "wraith",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -60,
+      28,
+      60
+    ],
+    "element": "air",
+    "immune": [
+      "bleed",
+      "poison"
+    ]
+  },
+  "grave_hound": {
+    "name": "Grave Hound",
+    "sprite": "grave_hound",
+    "hp": 42,
+    "attack": 50,
+    "strength": 50,
+    "defence": 41,
+    "attack_bonus": 52,
+    "strength_bonus": 50,
+    "defence_bonus": 45,
+    "speed": 84,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.67,
+    "loot": "grave_hound",
+    "kill_target": "hound",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -16,
+      -40,
+      32,
+      40
+    ],
+    "element": "air"
+  },
+  "blood_thrall": {
+    "name": "Blood Thrall",
+    "sprite": "blood_thrall",
+    "hp": 70,
+    "attack": 53,
+    "strength": 53,
+    "defence": 45,
+    "attack_bonus": 56,
+    "strength_bonus": 53,
+    "defence_bonus": 50,
+    "speed": 68,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.64,
+    "loot": "blood_thrall",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -40,
+      28,
+      40
+    ],
+    "element": "none"
+  },
+  "bone_colossus": {
+    "name": "Bone Colossus",
+    "sprite": "bone_colossus",
+    "hp": 219,
+    "attack": 47,
+    "strength": 47,
+    "defence": 59,
+    "attack_bonus": 49,
+    "strength_bonus": 47,
+    "defence_bonus": 65,
+    "speed": 38,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.61,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.2,
+      "cooldown": 10.0
+    },
+    "loot": "bone_colossus",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -30,
+      -70,
+      60,
+      70
+    ],
+    "element": "earth",
+    "immune": [
+      "poison",
+      "bleed"
+    ]
+  },
+  "nosferatu": {
+    "name": "Nosferatu",
+    "sprite": "nosferatu",
+    "hp": 69,
+    "attack": 66,
+    "strength": 66,
+    "defence": 53,
+    "attack_bonus": 69,
+    "strength_bonus": 66,
+    "defence_bonus": 58,
+    "speed": 72,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.59,
+    "loot": "nosferatu",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -56,
+      28,
+      56
+    ],
+    "element": "none",
+    "immune": [
+      "poison"
+    ]
+  },
+  "crypt_warden": {
+    "name": "Crypt Warden",
+    "sprite": "crypt_warden",
+    "hp": 176,
+    "attack": 59,
+    "strength": 59,
+    "defence": 77,
+    "attack_bonus": 62,
+    "strength_bonus": 59,
+    "defence_bonus": 85,
+    "speed": 60,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.56,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 2.4,
+      "cooldown": 9.5
+    },
+    "loot": "crypt_warden",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -18,
+      -72,
+      36,
+      72
+    ],
+    "element": "air",
+    "immune": [
+      "poison",
+      "bleed"
+    ]
+  },
+  "vampire_lord": {
+    "name": "Lord Ashcroft",
+    "sprite": "vampire_lord",
+    "hp": 273,
+    "attack": 68,
+    "strength": 68,
+    "defence": 55,
+    "attack_bonus": 71,
+    "strength_bonus": 68,
+    "defence_bonus": 61,
+    "speed": 76,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.54,
+    "heavy": {
+      "windup": 1.6,
+      "damage": 2.7,
+      "cooldown": 8.5,
+      "reach": 1.5,
+      "knockback": 260.0
+    },
+    "loot": "vampire_lord",
+    "kill_target": "undead",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -21,
+      -74,
+      42,
+      74
+    ],
+    "element": "none",
+    "immune": [
+      "poison",
+      "bleed",
+      "chill"
+    ],
+    "boss": true
+  },
+  "revenant": {
+    "name": "Revenant",
+    "sprite": "revenant",
+    "hp": 153,
+    "attack": 73,
+    "strength": 73,
+    "defence": 63,
+    "attack_bonus": 77,
+    "strength_bonus": 73,
+    "defence_bonus": 69,
+    "speed": 70,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.53,
+    "loot": "revenant",
+    "kill_target": "wraith",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -16,
+      -52,
+      32,
+      52
+    ],
+    "element": "air",
+    "immune": [
+      "poison",
+      "bleed"
+    ]
+  },
+  "abyssal_demon": {
+    "name": "Abyssal Demon",
+    "sprite": "abyssal_demon",
+    "hp": 166,
+    "attack": 76,
+    "strength": 76,
+    "defence": 66,
+    "attack_bonus": 80,
+    "strength_bonus": 76,
+    "defence_bonus": 73,
+    "speed": 72,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.52,
+    "heavy": {
+      "windup": 1.2,
+      "damage": 2.3,
+      "cooldown": 9.0
+    },
+    "loot": "abyssal_demon",
+    "kill_target": "demon",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -21,
+      -74,
+      42,
+      74
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ]
+  },
+  "rime_revenant": {
+    "name": "Rime Revenant",
+    "sprite": "rime_revenant",
+    "hp": 328,
+    "attack": 65,
+    "strength": 65,
+    "defence": 85,
+    "attack_bonus": 68,
+    "strength_bonus": 65,
+    "defence_bonus": 94,
+    "speed": 56,
+    "aggro": 160,
+    "attack_range": 30,
+    "attack_cooldown": 1.51,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 2.5,
+      "cooldown": 9.5
+    },
+    "loot": "rime_revenant",
+    "kill_target": "troll",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -30,
+      -72,
+      60,
+      72
+    ],
+    "element": "water",
+    "immune": [
+      "chill",
+      "wet"
+    ]
+  },
+  "cinder_king": {
+    "name": "The Cinder King",
+    "sprite": "cinder_king",
+    "hp": 800,
+    "attack": 67,
+    "strength": 70,
+    "defence": 66,
+    "attack_bonus": 70,
+    "strength_bonus": 72,
+    "defence_bonus": 68,
+    "speed": 64,
+    "aggro": 280,
+    "attack_range": 44,
+    "attack_cooldown": 1.8,
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.8,
+      "cooldown": 8.0,
+      "reach": 1.6,
+      "width": 1.3,
+      "knockback": 300.0
+    },
+    "loot": "cinder_king",
+    "kill_target": "cinder_king",
+    "foot_box": [
+      -14,
+      -14,
+      28,
+      14
+    ],
+    "body_box": [
+      -30,
+      -96,
+      60,
+      96
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "boss": true
   }
 }

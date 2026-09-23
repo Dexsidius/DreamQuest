@@ -117,7 +117,7 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
              {104, 206, 116, 255}, 3.0f);
     for (const auto& n : world.npcs) if (!n->Away()) blip(n->x, n->y, {104, 176, 240, 255}, 3.0f);
     for (const auto& e : world.enemies) {
-        if (e->CurrentState() == Enemy::State::Dead) continue;
+        if (e->CurrentState() == Enemy::State::Dead || e->Hidden()) continue;
         blip(e->x, e->y, {214, 72, 60, 255}, 3.0f);
     }
 

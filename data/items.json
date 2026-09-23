@@ -2238,5 +2238,67 @@
   "value": 1350,
   "learn": "spell:hellish_rebuke",
   "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "ashcroft_signet": {
+  "name": "Ashcroft's Signet",
+  "desc": "Heavy red gold, the crest worn smooth by a thumb that kept turning it. It is warm when you pick it up and it does not stop being warm. What it takes out of whatever you hit, it gives to you.",
+  "slot": "ring",
+  "value": 4200,
+  "bonus": {
+   "attack": 14,
+   "strength": 12,
+   "magic": 10
+  },
+  "leech": 0.08,
+  "req": {
+   "Attack": 55
+  },
+  "tags": [
+   "legendary"
+  ],
+  "icon": "assets/icons/tiers/tarnished_ring.png"
+ },
+ "totem_vampire_lord": {
+  "name": "Totem of Lord Ashcroft",
+  "desc": "A signet ring of red gold hammered flat and nailed to a black stake. He was put down fifteen times in the Black Vault before he left this behind. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: The Red Thirst.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_vampire_lord.png",
+  "keep": true
+ },
+ "totem_bayou_matriarch": {
+  "name": "Totem of the Fen",
+  "desc": "Reed, tooth and river clay, bound with her own shed hide. It is still damp, and it stays damp. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Fenborn.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_bayou_matriarch.png",
+  "keep": true
+ },
+ "heart_of_cinders": {
+  "name": "Heart of Cinders",
+  "desc": "A coal on a chain of black gold, taken from the Cinder King's chest. It has not gone out and you do not think it will. It beats, a little slower than yours. Whoever wears it hits harder, and is harder to put down.",
+  "slot": "amulet",
+  "value": 7200,
+  "bonus": {
+   "attack": 18,
+   "strength": 20,
+   "magic": 16,
+   "defence": 12
+  },
+  "req": {
+   "Attack": 70
+  },
+  "tags": [
+   "legendary"
+  ],
+  "icon": "assets/icons/amulet.png"
+ },
+ "totem_cinder_king": {
+  "name": "Totem of the Cinder King",
+  "desc": "A black stake with his horns on it, and between them a ring of gold that has not cooled. He fell fifteen times at the foot of his own throne before he left this behind. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Crown of Cinders.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_cinder_king.png",
+  "keep": true
  }
 }

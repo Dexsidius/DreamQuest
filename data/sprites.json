@@ -1,4 +1,42 @@
 {
+    "abyssal_demon":  {
+                          "dir":  "assets/characters/abyssal_demon/",
+                          "rows":  4,
+                          "anchor_y":  81,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "adept":  {
                   "dir":  "assets/characters/adept/",
                   "rows":  4,
@@ -273,6 +311,44 @@
                                        }
                           }
             },
+    "bayou_matriarch":  {
+                            "dir":  "assets/characters/bayou_matriarch/",
+                            "rows":  4,
+                            "anchor_y":  135,
+                            "scale":  1,
+                            "clips":  {
+                                          "attack":  {
+                                                         "sheet":  "attack.png",
+                                                         "frames":  6,
+                                                         "fps":  16,
+                                                         "loop":  false
+                                                     },
+                                          "death":  {
+                                                        "sheet":  "death.png",
+                                                        "frames":  6,
+                                                        "fps":  9,
+                                                        "loop":  false
+                                                    },
+                                          "hurt":  {
+                                                       "sheet":  "hurt.png",
+                                                       "frames":  3,
+                                                       "fps":  12,
+                                                       "loop":  false
+                                                   },
+                                          "idle":  {
+                                                       "sheet":  "idle.png",
+                                                       "frames":  4,
+                                                       "fps":  8,
+                                                       "loop":  true
+                                                   },
+                                          "walk":  {
+                                                       "sheet":  "walk.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  true
+                                                   }
+                                      }
+                        },
     "bear":  {
                  "dir":  "assets/characters/bear/",
                  "rows":  4,
@@ -317,6 +393,44 @@
                                         }
                            }
              },
+    "blood_thrall":  {
+                         "dir":  "assets/characters/blood_thrall/",
+                         "rows":  4,
+                         "anchor_y":  54,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "boar":  {
                  "dir":  "assets/characters/boar/",
                  "rows":  4,
@@ -361,6 +475,164 @@
                                         }
                            }
              },
+    "bog_lurker":  {
+                       "dir":  "assets/characters/bog_lurker/",
+                       "rows":  4,
+                       "anchor_y":  54,
+                       "scale":  1,
+                       "clips":  {
+                                     "attack":  {
+                                                    "sheet":  "attack.png",
+                                                    "frames":  6,
+                                                    "fps":  16,
+                                                    "loop":  false
+                                                },
+                                     "death":  {
+                                                   "sheet":  "death.png",
+                                                   "frames":  6,
+                                                   "fps":  9,
+                                                   "loop":  false
+                                               },
+                                     "hurt":  {
+                                                  "sheet":  "hurt.png",
+                                                  "frames":  3,
+                                                  "fps":  12,
+                                                  "loop":  false
+                                              },
+                                     "idle":  {
+                                                  "sheet":  "idle.png",
+                                                  "frames":  4,
+                                                  "fps":  8,
+                                                  "loop":  true
+                                              },
+                                     "swim":  {
+                                                  "sheet":  "swim.png",
+                                                  "frames":  4,
+                                                  "fps":  6,
+                                                  "loop":  true
+                                              },
+                                     "walk":  {
+                                                  "sheet":  "walk.png",
+                                                  "frames":  6,
+                                                  "fps":  10,
+                                                  "loop":  true
+                                              }
+                                 }
+                   },
+    "bone_archer":  {
+                        "dir":  "assets/characters/bone_archer/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
+    "bone_colossus":  {
+                          "dir":  "assets/characters/bone_colossus/",
+                          "rows":  4,
+                          "anchor_y":  95,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
+    "bone_knight":  {
+                        "dir":  "assets/characters/bone_knight/",
+                        "rows":  4,
+                        "anchor_y":  61,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
     "chicken":  {
                     "dir":  "assets/characters/chicken/",
                     "rows":  4,
@@ -399,6 +671,44 @@
                                            }
                               }
                 },
+    "cinder_king":  {
+                        "dir":  "assets/characters/cinder_king/",
+                        "rows":  4,
+                        "anchor_y":  122,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
     "citizen1":  {
                      "dir":  "assets/characters/citizen1/",
                      "rows":  4,
@@ -549,6 +859,82 @@
                                        }
                           }
             },
+    "crypt_warden":  {
+                         "dir":  "assets/characters/crypt_warden/",
+                         "rows":  4,
+                         "anchor_y":  81,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
+    "cryptbound":  {
+                       "dir":  "assets/characters/cryptbound/",
+                       "rows":  4,
+                       "anchor_y":  54,
+                       "scale":  1,
+                       "clips":  {
+                                     "attack":  {
+                                                    "sheet":  "attack.png",
+                                                    "frames":  6,
+                                                    "fps":  16,
+                                                    "loop":  false
+                                                },
+                                     "death":  {
+                                                   "sheet":  "death.png",
+                                                   "frames":  6,
+                                                   "fps":  9,
+                                                   "loop":  false
+                                               },
+                                     "hurt":  {
+                                                  "sheet":  "hurt.png",
+                                                  "frames":  3,
+                                                  "fps":  12,
+                                                  "loop":  false
+                                              },
+                                     "idle":  {
+                                                  "sheet":  "idle.png",
+                                                  "frames":  4,
+                                                  "fps":  8,
+                                                  "loop":  true
+                                              },
+                                     "walk":  {
+                                                  "sheet":  "walk.png",
+                                                  "frames":  6,
+                                                  "fps":  10,
+                                                  "loop":  true
+                                              }
+                                 }
+                   },
     "deer":  {
                  "dir":  "assets/characters/deer/",
                  "rows":  4,
@@ -631,6 +1017,50 @@
                                          }
                             }
               },
+    "drowned_one":  {
+                        "dir":  "assets/characters/drowned_one/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "swim":  {
+                                                   "sheet":  "swim.png",
+                                                   "frames":  4,
+                                                   "fps":  6,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
     "duck":  {
                  "dir":  "assets/characters/duck/",
                  "rows":  4,
@@ -675,6 +1105,88 @@
                                         }
                            }
              },
+    "fen_gator":  {
+                      "dir":  "assets/characters/fen_gator/",
+                      "rows":  4,
+                      "anchor_y":  81,
+                      "scale":  1,
+                      "clips":  {
+                                    "attack":  {
+                                                   "sheet":  "attack.png",
+                                                   "frames":  6,
+                                                   "fps":  16,
+                                                   "loop":  false
+                                               },
+                                    "death":  {
+                                                  "sheet":  "death.png",
+                                                  "frames":  6,
+                                                  "fps":  9,
+                                                  "loop":  false
+                                              },
+                                    "hurt":  {
+                                                 "sheet":  "hurt.png",
+                                                 "frames":  3,
+                                                 "fps":  12,
+                                                 "loop":  false
+                                             },
+                                    "idle":  {
+                                                 "sheet":  "idle.png",
+                                                 "frames":  4,
+                                                 "fps":  8,
+                                                 "loop":  true
+                                             },
+                                    "swim":  {
+                                                 "sheet":  "swim.png",
+                                                 "frames":  4,
+                                                 "fps":  6,
+                                                 "loop":  true
+                                             },
+                                    "walk":  {
+                                                 "sheet":  "walk.png",
+                                                 "frames":  6,
+                                                 "fps":  10,
+                                                 "loop":  true
+                                             }
+                                }
+                  },
+    "fen_stalker":  {
+                        "dir":  "assets/characters/fen_stalker/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
     "fighter2":  {
                      "dir":  "assets/characters/fighter2/",
                      "rows":  4,
@@ -895,6 +1407,82 @@
                                          }
                             }
               },
+    "grave_ghoul":  {
+                        "dir":  "assets/characters/grave_ghoul/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
+    "grave_hound":  {
+                        "dir":  "assets/characters/grave_hound/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
     "hare":  {
                  "dir":  "assets/characters/hare/",
                  "rows":  4,
@@ -1181,6 +1769,44 @@
                                        }
                           }
             },
+    "lizard_shaman":  {
+                          "dir":  "assets/characters/lizard_shaman/",
+                          "rows":  4,
+                          "anchor_y":  81,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "lizardman":  {
                       "dir":  "assets/characters/lizardman/",
                       "rows":  4,
@@ -1299,6 +1925,82 @@
                                             }
                                }
                  },
+    "mire_croaker":  {
+                         "dir":  "assets/characters/mire_croaker/",
+                         "rows":  4,
+                         "anchor_y":  54,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
+    "nosferatu":  {
+                      "dir":  "assets/characters/nosferatu/",
+                      "rows":  4,
+                      "anchor_y":  61,
+                      "scale":  1,
+                      "clips":  {
+                                    "attack":  {
+                                                   "sheet":  "attack.png",
+                                                   "frames":  6,
+                                                   "fps":  16,
+                                                   "loop":  false
+                                               },
+                                    "death":  {
+                                                  "sheet":  "death.png",
+                                                  "frames":  6,
+                                                  "fps":  9,
+                                                  "loop":  false
+                                              },
+                                    "hurt":  {
+                                                 "sheet":  "hurt.png",
+                                                 "frames":  3,
+                                                 "fps":  12,
+                                                 "loop":  false
+                                             },
+                                    "idle":  {
+                                                 "sheet":  "idle.png",
+                                                 "frames":  4,
+                                                 "fps":  8,
+                                                 "loop":  true
+                                             },
+                                    "walk":  {
+                                                 "sheet":  "walk.png",
+                                                 "frames":  6,
+                                                 "fps":  10,
+                                                 "loop":  true
+                                             }
+                                }
+                  },
     "orc1":  {
                  "dir":  "assets/characters/orc1/",
                  "rows":  4,
@@ -1469,6 +2171,44 @@
                                        }
                           }
             },
+    "plague_corpse":  {
+                          "dir":  "assets/characters/plague_corpse/",
+                          "rows":  4,
+                          "anchor_y":  54,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "player_hero":  {
                         "dir":  "assets/characters/player_hero/",
                         "rows":  4,
@@ -2186,12 +2926,112 @@
                                                                              "sheet":  "layers/backhand_2h_3_body.png"
                                                                          },
                                                                          {
+                                                                             "slot":  "weapon_greatsword_damascus",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_damascus.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_bronze",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_bronze.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_diamond",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_diamond.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_wood",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_wood.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_azuryte",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_azuryte.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_steel",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_steel.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_dracon",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_dracon.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_platinum",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_platinum.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_steel",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_steel.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_wood",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_wood.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_enchanted",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_enchanted.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_iron",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_iron.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_orichalcum",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_orichalcum.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_platinum",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_platinum.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_bronze",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_bronze.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_damascus",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_damascus.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_demonite",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_demonite.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greatsword_demonite",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greatsword_demonite.png"
+                                                                         },
+                                                                         {
                                                                              "slot":  "weapon_front",
                                                                              "sheet":  "layers/backhand_2h_4_weapon_front.png"
                                                                          },
                                                                          {
+                                                                             "slot":  "weapon_greataxe_azuryte",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_azuryte.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_enchanted",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_enchanted.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_orichalcum",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_orichalcum.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_dracon",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_dracon.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_iron",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_iron.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "weapon_greataxe_diamond",
+                                                                             "sheet":  "layers/backhand_2h_4_weapon_greataxe_diamond.png"
+                                                                         },
+                                                                         {
                                                                              "slot":  "head",
                                                                              "sheet":  "layers/backhand_2h_5_head.png"
+                                                                         },
+                                                                         {
+                                                                             "slot":  "armour_legs_ornate",
+                                                                             "sheet":  "layers/backhand_2h_6_armour_legs_ornate.png"
                                                                          },
                                                                          {
                                                                              "slot":  "armour_legs_light",
@@ -2202,16 +3042,12 @@
                                                                              "sheet":  "layers/backhand_2h_6_armour_legs.png"
                                                                          },
                                                                          {
-                                                                             "slot":  "armour_legs_ornate",
-                                                                             "sheet":  "layers/backhand_2h_6_armour_legs_ornate.png"
+                                                                             "slot":  "armour_body_light",
+                                                                             "sheet":  "layers/backhand_2h_7_armour_body_light.png"
                                                                          },
                                                                          {
                                                                              "slot":  "armour_body_ornate",
                                                                              "sheet":  "layers/backhand_2h_7_armour_body_ornate.png"
-                                                                         },
-                                                                         {
-                                                                             "slot":  "armour_body_light",
-                                                                             "sheet":  "layers/backhand_2h_7_armour_body_light.png"
                                                                          },
                                                                          {
                                                                              "slot":  "armour_body",
@@ -3783,12 +4619,112 @@
                                                                            "sheet":  "layers/cleave_2h_3_body.png"
                                                                        },
                                                                        {
+                                                                           "slot":  "weapon_greatsword_damascus",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_damascus.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_bronze",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_bronze.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_diamond",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_diamond.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_wood",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_wood.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_azuryte",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_azuryte.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_steel",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_steel.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_dracon",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_dracon.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_platinum",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_platinum.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_steel",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_steel.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_wood",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_wood.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_enchanted",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_enchanted.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_iron",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_iron.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_orichalcum",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_orichalcum.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_platinum",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_platinum.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_bronze",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_bronze.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_damascus",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_damascus.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_demonite",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_demonite.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greatsword_demonite",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greatsword_demonite.png"
+                                                                       },
+                                                                       {
                                                                            "slot":  "weapon_front",
                                                                            "sheet":  "layers/cleave_2h_4_weapon_front.png"
                                                                        },
                                                                        {
+                                                                           "slot":  "weapon_greataxe_azuryte",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_azuryte.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_enchanted",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_enchanted.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_orichalcum",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_orichalcum.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_dracon",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_dracon.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_iron",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_iron.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "weapon_greataxe_diamond",
+                                                                           "sheet":  "layers/cleave_2h_4_weapon_greataxe_diamond.png"
+                                                                       },
+                                                                       {
                                                                            "slot":  "head",
                                                                            "sheet":  "layers/cleave_2h_5_head.png"
+                                                                       },
+                                                                       {
+                                                                           "slot":  "armour_legs_ornate",
+                                                                           "sheet":  "layers/cleave_2h_6_armour_legs_ornate.png"
                                                                        },
                                                                        {
                                                                            "slot":  "armour_legs_light",
@@ -3799,16 +4735,12 @@
                                                                            "sheet":  "layers/cleave_2h_6_armour_legs.png"
                                                                        },
                                                                        {
-                                                                           "slot":  "armour_legs_ornate",
-                                                                           "sheet":  "layers/cleave_2h_6_armour_legs_ornate.png"
+                                                                           "slot":  "armour_body_light",
+                                                                           "sheet":  "layers/cleave_2h_7_armour_body_light.png"
                                                                        },
                                                                        {
                                                                            "slot":  "armour_body_ornate",
                                                                            "sheet":  "layers/cleave_2h_7_armour_body_ornate.png"
-                                                                       },
-                                                                       {
-                                                                           "slot":  "armour_body_light",
-                                                                           "sheet":  "layers/cleave_2h_7_armour_body_light.png"
                                                                        },
                                                                        {
                                                                            "slot":  "armour_body",
@@ -4311,12 +5243,112 @@
                                                                           "sheet":  "layers/crush_2h_3_body.png"
                                                                       },
                                                                       {
+                                                                          "slot":  "weapon_greatsword_damascus",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_damascus.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_bronze",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_bronze.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_diamond",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_diamond.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_wood",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_wood.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_azuryte",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_azuryte.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_steel",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_steel.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_dracon",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_dracon.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_platinum",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_platinum.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_steel",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_steel.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_wood",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_wood.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_enchanted",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_enchanted.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_iron",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_iron.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_orichalcum",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_orichalcum.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_platinum",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_platinum.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_bronze",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_bronze.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_damascus",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_damascus.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_demonite",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_demonite.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greatsword_demonite",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greatsword_demonite.png"
+                                                                      },
+                                                                      {
                                                                           "slot":  "weapon_front",
                                                                           "sheet":  "layers/crush_2h_4_weapon_front.png"
                                                                       },
                                                                       {
+                                                                          "slot":  "weapon_greataxe_azuryte",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_azuryte.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_enchanted",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_enchanted.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_orichalcum",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_orichalcum.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_dracon",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_dracon.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_iron",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_iron.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_greataxe_diamond",
+                                                                          "sheet":  "layers/crush_2h_4_weapon_greataxe_diamond.png"
+                                                                      },
+                                                                      {
                                                                           "slot":  "head",
                                                                           "sheet":  "layers/crush_2h_5_head.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_ornate",
+                                                                          "sheet":  "layers/crush_2h_6_armour_legs_ornate.png"
                                                                       },
                                                                       {
                                                                           "slot":  "armour_legs_light",
@@ -4327,16 +5359,12 @@
                                                                           "sheet":  "layers/crush_2h_6_armour_legs.png"
                                                                       },
                                                                       {
-                                                                          "slot":  "armour_legs_ornate",
-                                                                          "sheet":  "layers/crush_2h_6_armour_legs_ornate.png"
+                                                                          "slot":  "armour_body_light",
+                                                                          "sheet":  "layers/crush_2h_7_armour_body_light.png"
                                                                       },
                                                                       {
                                                                           "slot":  "armour_body_ornate",
                                                                           "sheet":  "layers/crush_2h_7_armour_body_ornate.png"
-                                                                      },
-                                                                      {
-                                                                          "slot":  "armour_body_light",
-                                                                          "sheet":  "layers/crush_2h_7_armour_body_light.png"
                                                                       },
                                                                       {
                                                                           "slot":  "armour_body",
@@ -9874,12 +10902,112 @@
                                                                          "sheet":  "layers/rush_2h_3_body.png"
                                                                      },
                                                                      {
+                                                                         "slot":  "weapon_greatsword_damascus",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_damascus.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_bronze",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_bronze.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_diamond",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_diamond.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_wood",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_wood.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_azuryte",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_azuryte.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_steel",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_steel.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_dracon",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_dracon.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_platinum",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_platinum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_steel",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_steel.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_wood",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_wood.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_enchanted",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_enchanted.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_iron",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_iron.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_orichalcum",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_orichalcum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_platinum",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_platinum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_bronze",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_bronze.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_damascus",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_damascus.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_demonite",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_demonite.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_demonite",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greatsword_demonite.png"
+                                                                     },
+                                                                     {
                                                                          "slot":  "weapon_front",
                                                                          "sheet":  "layers/rush_2h_4_weapon_front.png"
                                                                      },
                                                                      {
+                                                                         "slot":  "weapon_greataxe_azuryte",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_azuryte.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_enchanted",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_enchanted.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_orichalcum",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_orichalcum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_dracon",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_dracon.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_iron",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_iron.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_diamond",
+                                                                         "sheet":  "layers/rush_2h_4_weapon_greataxe_diamond.png"
+                                                                     },
+                                                                     {
                                                                          "slot":  "head",
                                                                          "sheet":  "layers/rush_2h_5_head.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_ornate",
+                                                                         "sheet":  "layers/rush_2h_6_armour_legs_ornate.png"
                                                                      },
                                                                      {
                                                                          "slot":  "armour_legs_light",
@@ -9890,16 +11018,12 @@
                                                                          "sheet":  "layers/rush_2h_6_armour_legs.png"
                                                                      },
                                                                      {
-                                                                         "slot":  "armour_legs_ornate",
-                                                                         "sheet":  "layers/rush_2h_6_armour_legs_ornate.png"
+                                                                         "slot":  "armour_body_light",
+                                                                         "sheet":  "layers/rush_2h_7_armour_body_light.png"
                                                                      },
                                                                      {
                                                                          "slot":  "armour_body_ornate",
                                                                          "sheet":  "layers/rush_2h_7_armour_body_ornate.png"
-                                                                     },
-                                                                     {
-                                                                         "slot":  "armour_body_light",
-                                                                         "sheet":  "layers/rush_2h_7_armour_body_light.png"
                                                                      },
                                                                      {
                                                                          "slot":  "armour_body",
@@ -10535,12 +11659,112 @@
                                                                          "sheet":  "layers/spin_2h_3_body.png"
                                                                      },
                                                                      {
+                                                                         "slot":  "weapon_greatsword_damascus",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_damascus.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_bronze",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_bronze.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_diamond",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_diamond.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_wood",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_wood.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_azuryte",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_azuryte.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_steel",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_steel.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_dracon",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_dracon.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_platinum",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_platinum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_steel",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_steel.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_wood",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_wood.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_enchanted",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_enchanted.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_iron",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_iron.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_orichalcum",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_orichalcum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_platinum",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_platinum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_bronze",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_bronze.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_damascus",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_damascus.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_demonite",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_demonite.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greatsword_demonite",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greatsword_demonite.png"
+                                                                     },
+                                                                     {
                                                                          "slot":  "weapon_front",
                                                                          "sheet":  "layers/spin_2h_4_weapon_front.png"
                                                                      },
                                                                      {
+                                                                         "slot":  "weapon_greataxe_azuryte",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_azuryte.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_enchanted",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_enchanted.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_orichalcum",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_orichalcum.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_dracon",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_dracon.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_iron",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_iron.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_greataxe_diamond",
+                                                                         "sheet":  "layers/spin_2h_4_weapon_greataxe_diamond.png"
+                                                                     },
+                                                                     {
                                                                          "slot":  "head",
                                                                          "sheet":  "layers/spin_2h_5_head.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_ornate",
+                                                                         "sheet":  "layers/spin_2h_6_armour_legs_ornate.png"
                                                                      },
                                                                      {
                                                                          "slot":  "armour_legs_light",
@@ -10551,16 +11775,12 @@
                                                                          "sheet":  "layers/spin_2h_6_armour_legs.png"
                                                                      },
                                                                      {
-                                                                         "slot":  "armour_legs_ornate",
-                                                                         "sheet":  "layers/spin_2h_6_armour_legs_ornate.png"
+                                                                         "slot":  "armour_body_light",
+                                                                         "sheet":  "layers/spin_2h_7_armour_body_light.png"
                                                                      },
                                                                      {
                                                                          "slot":  "armour_body_ornate",
                                                                          "sheet":  "layers/spin_2h_7_armour_body_ornate.png"
-                                                                     },
-                                                                     {
-                                                                         "slot":  "armour_body_light",
-                                                                         "sheet":  "layers/spin_2h_7_armour_body_light.png"
                                                                      },
                                                                      {
                                                                          "slot":  "armour_body",
@@ -19258,6 +20478,120 @@
                                        }
                           }
             },
+    "revenant":  {
+                     "dir":  "assets/characters/revenant/",
+                     "rows":  4,
+                     "anchor_y":  68,
+                     "scale":  1,
+                     "clips":  {
+                                   "attack":  {
+                                                  "sheet":  "attack.png",
+                                                  "frames":  6,
+                                                  "fps":  16,
+                                                  "loop":  false
+                                              },
+                                   "death":  {
+                                                 "sheet":  "death.png",
+                                                 "frames":  6,
+                                                 "fps":  9,
+                                                 "loop":  false
+                                             },
+                                   "hurt":  {
+                                                "sheet":  "hurt.png",
+                                                "frames":  3,
+                                                "fps":  12,
+                                                "loop":  false
+                                            },
+                                   "idle":  {
+                                                "sheet":  "idle.png",
+                                                "frames":  4,
+                                                "fps":  8,
+                                                "loop":  true
+                                            },
+                                   "walk":  {
+                                                "sheet":  "walk.png",
+                                                "frames":  6,
+                                                "fps":  10,
+                                                "loop":  true
+                                            }
+                               }
+                 },
+    "rime_revenant":  {
+                          "dir":  "assets/characters/rime_revenant/",
+                          "rows":  4,
+                          "anchor_y":  95,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
+    "rot_shambler":  {
+                         "dir":  "assets/characters/rot_shambler/",
+                         "rows":  4,
+                         "anchor_y":  54,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "sheep":  {
                   "dir":  "assets/characters/sheep/",
                   "rows":  4,
@@ -19410,6 +20744,120 @@
                                           }
                              }
                },
+    "swamp_hag":  {
+                      "dir":  "assets/characters/swamp_hag/",
+                      "rows":  4,
+                      "anchor_y":  68,
+                      "scale":  1,
+                      "clips":  {
+                                    "attack":  {
+                                                   "sheet":  "attack.png",
+                                                   "frames":  6,
+                                                   "fps":  16,
+                                                   "loop":  false
+                                               },
+                                    "death":  {
+                                                  "sheet":  "death.png",
+                                                  "frames":  6,
+                                                  "fps":  9,
+                                                  "loop":  false
+                                              },
+                                    "hurt":  {
+                                                 "sheet":  "hurt.png",
+                                                 "frames":  3,
+                                                 "fps":  12,
+                                                 "loop":  false
+                                             },
+                                    "idle":  {
+                                                 "sheet":  "idle.png",
+                                                 "frames":  4,
+                                                 "fps":  8,
+                                                 "loop":  true
+                                             },
+                                    "walk":  {
+                                                 "sheet":  "walk.png",
+                                                 "frames":  6,
+                                                 "fps":  10,
+                                                 "loop":  true
+                                             }
+                                }
+                  },
+    "tomb_shade":  {
+                       "dir":  "assets/characters/tomb_shade/",
+                       "rows":  4,
+                       "anchor_y":  61,
+                       "scale":  1,
+                       "clips":  {
+                                     "attack":  {
+                                                    "sheet":  "attack.png",
+                                                    "frames":  6,
+                                                    "fps":  16,
+                                                    "loop":  false
+                                                },
+                                     "death":  {
+                                                   "sheet":  "death.png",
+                                                   "frames":  6,
+                                                   "fps":  9,
+                                                   "loop":  false
+                                               },
+                                     "hurt":  {
+                                                  "sheet":  "hurt.png",
+                                                  "frames":  3,
+                                                  "fps":  12,
+                                                  "loop":  false
+                                              },
+                                     "idle":  {
+                                                  "sheet":  "idle.png",
+                                                  "frames":  4,
+                                                  "fps":  8,
+                                                  "loop":  true
+                                              },
+                                     "walk":  {
+                                                  "sheet":  "walk.png",
+                                                  "frames":  6,
+                                                  "fps":  10,
+                                                  "loop":  true
+                                              }
+                                 }
+                   },
+    "vampire_lord":  {
+                         "dir":  "assets/characters/vampire_lord/",
+                         "rows":  4,
+                         "anchor_y":  81,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "vask":  {
                  "dir":  "assets/characters/vask/",
                  "rows":  4,
@@ -19448,6 +20896,44 @@
                                         }
                            }
              },
+    "witchlight":  {
+                       "dir":  "assets/characters/witchlight/",
+                       "rows":  4,
+                       "anchor_y":  41,
+                       "scale":  1,
+                       "clips":  {
+                                     "attack":  {
+                                                    "sheet":  "attack.png",
+                                                    "frames":  6,
+                                                    "fps":  16,
+                                                    "loop":  false
+                                                },
+                                     "death":  {
+                                                   "sheet":  "death.png",
+                                                   "frames":  6,
+                                                   "fps":  9,
+                                                   "loop":  false
+                                               },
+                                     "hurt":  {
+                                                  "sheet":  "hurt.png",
+                                                  "frames":  3,
+                                                  "fps":  12,
+                                                  "loop":  false
+                                              },
+                                     "idle":  {
+                                                  "sheet":  "idle.png",
+                                                  "frames":  4,
+                                                  "fps":  8,
+                                                  "loop":  true
+                                              },
+                                     "walk":  {
+                                                  "sheet":  "walk.png",
+                                                  "frames":  6,
+                                                  "fps":  10,
+                                                  "loop":  true
+                                              }
+                                 }
+                   },
     "wolf":  {
                  "dir":  "assets/characters/wolf/",
                  "rows":  4,

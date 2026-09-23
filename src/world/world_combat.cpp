@@ -771,6 +771,8 @@ void World::Burst(float x, float y, float radius, SDL_Color color, int count, fl
 
 bool World::Strikeable(const Enemy& e) const {
     if (e.Dead() || e.CurrentState() == Enemy::State::Dead) return false;
+    // Under the water: there is nothing there to hit. See Enemy::Hidden.
+    if (e.Hidden()) return false;
     return std::abs(map.LevelAt(e.x, e.y) - map.LevelAt(player.x, player.y)) <= 1;
 }
 
@@ -1234,7 +1236,8 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     }
 
     // The Vampiric Touch's share comes back with the talent's.
-    const float steal = player.talents.Effect("lifesteal", style) + leech_next;
+    const float steal = player.talents.Effect("lifesteal", style) + leech_next +
+                        player.equipment.Leech();
     if (steal > 0.0f && !player.IsDead()) {
         lifesteal_bank += damage * steal;
         const int whole = static_cast<int>(lifesteal_bank);

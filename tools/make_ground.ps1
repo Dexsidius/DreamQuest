@@ -615,4 +615,141 @@ $bmp.Save((Join-Path $tiles "college_carpet.png"), [System.Drawing.Imaging.Image
 $bmp.Dispose()
 $made++
 
+# --- the Brimstone Palace ----------------------------------------------------------
+# Black basalt polished to a shine, with the fire under the palace showing
+# through its joints; walls of the same stone banded in crimson and gold; a
+# crimson runner with a gold border, laid a cell at a time so its edges are
+# tiles of their own; and the ballroom's chequer of black and blood marble.
+# Appended last: this file is one random sequence, and anything added before
+# the end re-rolls every tile after it.
+$pgold    = [System.Drawing.Color]::FromArgb(255, 206, 158, 66)
+$pgoldDk  = [System.Drawing.Color]::FromArgb(255, 138, 96, 36)
+$pcrimson = [System.Drawing.Color]::FromArgb(255, 122, 18, 30)
+$pblack   = [System.Drawing.Color]::FromArgb(255, 18, 12, 14)
+
+foreach ($t in @(@{ name = "palace_floor";      rgb = @(48, 42, 48); mortar = @(132, 38, 24); variants = 3 },
+                 @{ name = "palace_floor_dark"; rgb = @(34, 30, 36); mortar = @(96, 28, 20);  variants = 2 })) {
+    for ($v = 0; $v -lt $t.variants; $v++) {
+        # One great slab to a cell, laid square: a palace floor is a grid of
+        # dressed stone, and a running bond of small blocks read as brick.
+        $bmp = New-Masonry 32 $t.rgb $t.mortar 32 32 0.10 $true
+        # Polish: a few bright flecks where the light catches the stone.
+        for ($k = 0; $k -lt 5; $k++) {
+            $x = RandInt 32; $y = RandInt 32
+            if ((($x % 16) -ne 15) -and (($y % 16) -ne 15)) { $bmp.SetPixel($x, $y, (Shade ($bmp.GetPixel($x, $y)) 0.30)) }
+        }
+        $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# The back wall: dark ashlar with a crimson band across its lower half, gold
+# above and below it, and a gold horn every sixteen pixels along the band.
+for ($v = 0; $v -lt 2; $v++) {
+    $bmp = New-Masonry 32 @(60, 52, 58) @(24, 20, 24) 8 16 0.18 $true
+    for ($x = 0; $x -lt 32; $x++) {
+        for ($y = 17; $y -le 26; $y++) {
+            $c = if ($y -eq 17 -or $y -eq 26) { $pgold } else { Shade $pcrimson (((($x * 5 + $y * 3) % 5) - 2) * 0.03) }
+            $bmp.SetPixel($x, $y, $c)
+        }
+        if (($x % 16) -eq 8) {
+            foreach ($d in @(@(-2, 1), @(-1, 0), @(0, -1), @(1, 0), @(2, 1), @(0, 0), @(0, 1), @(0, 2))) {
+                $bmp.SetPixel($x + $d[0], 21 + $d[1], $pgold)
+            }
+        }
+    }
+    $name = if ($v -eq 0) { "palace_wall" } else { "palace_wall_1" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# Its top course, plain, and darker toward the foot where the band begins.
+$bmp = New-Masonry 32 @(58, 50, 56) @(22, 18, 22) 8 16 0.18 $true
+for ($y = 26; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) { $bmp.SetPixel($x, $y, (Shade ($bmp.GetPixel($x, $y)) (-0.06 * ($y - 25)))) }
+}
+$bmp.Save((Join-Path $tiles "palace_wallface.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# The tops of the side walls, seen from above: heavy capstones with a gold
+# coping along the inner edge.
+$bmp = New-Masonry 32 @(72, 64, 70) @(30, 26, 30) 16 32 0.10 $true
+for ($y = 0; $y -lt 32; $y++) { $bmp.SetPixel(0, $y, $pgoldDk); $bmp.SetPixel(31, $y, $pgoldDk) }
+$bmp.Save((Join-Path $tiles "palace_walltop.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# The runner. A damask lattice in a darker crimson over the field, a gold pip
+# where the lattice crosses, and it tiles every way. _l and _r are its edges: a
+# black selvedge, a gold border and a dark line inside it.
+function New-Runner($edge) {
+    $bmp = New-Tile $pcrimson
+    for ($y = 0; $y -lt 32; $y++) {
+        for ($x = 0; $x -lt 32; $x++) {
+            $d = [math]::Abs((($x + 8) % 16) - 8) + [math]::Abs((($y + 8) % 16) - 8)
+            $c = $pcrimson
+            if ($d -eq 8) { $c = Shade $pcrimson (-0.30) }
+            elseif ($d -eq 7) { $c = Shade $pcrimson 0.06 }
+            elseif ($d -le 1) { $c = if ($d -eq 0) { $pgold } else { Shade $pcrimson (-0.20) } }
+            elseif ((($x * 3 + $y * 7) % 11) -eq 0) { $c = Shade $pcrimson (-0.08) }
+            $bmp.SetPixel($x, $y, $c)
+        }
+    }
+    if ($edge -ne "") {
+        for ($y = 0; $y -lt 32; $y++) {
+            for ($i = 0; $i -lt 8; $i++) {
+                $x = if ($edge -eq "l") { $i } else { 31 - $i }
+                $c = switch ($i) {
+                    0 { $pblack } 1 { $pblack } 2 { $pgoldDk } 3 { $pgold } 4 { $pgold } 5 { $pgoldDk }
+                    6 { Shade $pcrimson (-0.40) } default { Shade $pcrimson (-0.15) }
+                }
+                # A gold stitch across the border every eight pixels.
+                if (($i -eq 3 -or $i -eq 4) -and (($y % 8) -eq 0)) { $c = $pgoldDk }
+                $bmp.SetPixel($x, $y, $c)
+            }
+        }
+    }
+    return $bmp
+}
+foreach ($e in @(@("", "palace_carpet"), @("l", "palace_carpet_l"), @("r", "palace_carpet_r"))) {
+    $bmp = New-Runner $e[0]
+    $bmp.Save((Join-Path $tiles "$($e[1]).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
+# The ballroom's chequer: a cell of black marble veined white, and one of
+# blood-red marble veined black. Laid alternately, a cell at a time.
+foreach ($m in @(@("palace_marble_a", @(28, 24, 30), 0.18), @("palace_marble_a_1", @(30, 26, 32), 0.18),
+                 @("palace_marble_b", @(118, 22, 30), -0.18), @("palace_marble_b_1", @(112, 20, 28), -0.18))) {
+    $base = [System.Drawing.Color]::FromArgb(255, $m[1][0], $m[1][1], $m[1][2])
+    $bmp = New-Tile $base
+    for ($y = 0; $y -lt 32; $y++) {
+        for ($x = 0; $x -lt 32; $x++) {
+            $c = Shade $base (((($x * 13 + $y * 7) % 9) - 4) * 0.012)
+            if ($x -eq 31 -or $y -eq 31) { $c = Shade $base (-0.35) }
+            elseif ($x -eq 0 -or $y -eq 0) { $c = Shade $base 0.16 }
+            $bmp.SetPixel($x, $y, $c)
+        }
+    }
+    # A vein or two, running on the diagonal and wandering as it goes.
+    for ($k = 0; $k -lt 2; $k++) {
+        $vx = 1 + (RandInt 12); $vy = 1 + (RandInt 10)
+        for ($n = 0; $n -lt 26; $n++) {
+            $px = [math]::Min(30, [math]::Max(1, $vx)); $py = [math]::Min(30, [math]::Max(1, $vy))
+            $bmp.SetPixel($px, $py, (Shade ($bmp.GetPixel($px, $py)) $m[2]))
+            if ((RandInt 3) -ne 0) { $vx += 1 }
+            if ((RandInt 3) -ne 0) { $vy += 1 }
+            if ($vy -gt 30 -or $vx -gt 30) { break }
+        }
+    }
+    $bmp.Save((Join-Path $tiles "$($m[0]).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

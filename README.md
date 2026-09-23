@@ -133,8 +133,8 @@ there is nothing to download first.
 | What | Made by |
 | --- | --- |
 | Characters, their armour layers and the town NPCs | `blender_character.py` |
-| Every monster | `blender_creatures.py` |
-| Props, scenery, buildings, chests, doors | `blender_props.py` |
+| Every monster | `blender_creatures.py`, and the twenty-five that fill the level ladder `blender_bestiary.py` |
+| Props, scenery, buildings, chests, doors | `blender_props.py`, and the Brimstone Palace's `blender_palace.py` |
 | Ores, bars, weapons, armour icons, the weapon in hand | `blender_tiers.py` |
 | 93 ground and interior tiles | `make_ground.ps1` |
 | Ground decals, item icons, the HUD | `make_decals.ps1`, `make_icons.ps1`, `make_ui.ps1` |
@@ -4215,7 +4215,10 @@ with the Whisperwood trail leaving from the east.
 | `dreamworld` | The Reverie, reached only by sleeping: five cloud islands over the void |
 | `house_inn_cellar` | Under the Barley and Bell, down a hatch behind the bar: rats, spiders and a broodmother |
 | `ice_spire_peak` | North off the foothills, Combat 30: a climb through trolls to the wyverns' summit |
-| `ashen_path` | East off the Hollowmarch below the Cursed Reach, Combat 40: a burnt road across rivers of lava |
+| `ashen_path` | East off the Hollowmarch below the Cursed Reach, Combat 40: a burnt road across rivers of lava, and north of it the Brimstone Palace behind its moat |
+| `palace_foyer` | The Brimstone Palace's hall, Combat 75: the runner, the balconies and the walkways over it |
+| `palace_ballroom`, `palace_dining`, `palace_chambers`, `palace_dungeon` | The palace's rooms: three off the balconies, and the dungeon down a stair |
+| `palace_throne` | The Cinder King's throne room, at the head of the runner |
 | `dungeon_infernal` | The Infernal Pit, through the hellgate at the Ashen Path's end: imps, demons and the Pit Lord |
 | `westwold` | The Westwold, out of Havenbrook's west gate, Combat 5: open downs, Hidewater steading, the river Wend, wolves, and the Howling Fells in the west |
 | `brackenwood` | The Brackenwood, north off the Westwold's fork, Combat 20: old forest, bears, the Den Mother, and the Old Growth |
@@ -4748,7 +4751,291 @@ The Mire belongs to the **lizardmen**. They are scattered through it, and in its
 south their camp stands round a fire: three huts up on stilts, painted totems,
 and their chief.
 
+### The Bayou
+
+West of the lizardmen's camp a causeway of packed earth runs off the edge of
+the Hollowmarch, and past it is the swamp they came out of: **the Bayou**, the
+widest map in the game (226 cells by 88), advised at **Combat 30** at the way in
+and **56** at the far end of it. A signpost at the edge says, in lizardman red
+and a scratched hand under it, not to walk the edge.
+
+It was **laid out from a guide the user drew in LevelEdit-Plus** --
+`exports/Bayou/Bayou.mx` in that tree -- in which none of the art is used; it
+says where things go. `tools/bayou_guide.py` turns it into the tables at the
+head of `BuildBayou` in `tools/genmaps.cpp`, moved into the game's frame, and
+nothing else reads the guide:
+
+| The guide's | What it became |
+| --- | --- |
+| bushes | the map's four corners |
+| dark ground | the track: in from the east, round a loop, a road west and a spur north |
+| rings of puddles | the shores of eight bodies of water, filled inside each ring |
+| pillars | the corners of four decks raised on stilts over two lakes |
+| rising posts | the ramps up to the northern decks |
+| medium ground | palisades of sharpened stakes round two camps, with a gate wherever it left a gap |
+| flowers | herbs: bogbean by the water, glowcap where it is dry |
+| dark grass | the thicket down the east side, dull olive, full of spiders |
+| enemy icons | posts -- all ninety of them, each given what the place asked for |
+
+**What lives in the water does not show itself.** The Drowned, the Fen Gators
+and the Bog Lurkers wait *under* it: not drawn, not targetable, not struck by
+anything -- a pair of rings on the surface and a bubble now and then is all there
+is of one. Walk within **104px** of it and it comes up, in a splash, over six
+tenths of a second in which nothing can touch it, and then it is at you. Back
+off out of sight and it lets you go and sinks again after a few seconds at home,
+whole; strike it and run and it follows like anything else, gives up, and sinks
+whole all the same. A post is marked `"lurk"` in the map (`EnemySpawnDef::lurk`,
+`Enemy::Hidden`), and how far out of the water it is travels to a friend's
+machine as its **alpha** -- which is what alpha already meant for a body
+fading -- so co-op needed nothing new on the wire.
+
+Two rules the generator keeps about where they wait. **At the edge:** one drawn
+in the middle of a lake could never be woken by somebody who cannot walk on
+water, so every lurker is moved to the nearest water a cell or two out from a
+bank, a ramp or a deck. **Not under a deck's lifted edge:** a deck is raised
+four levels, nearly two cells, so it lies over the water up to two rows north of
+it, and anything there draws over the boards. The self-test holds both, for
+every lurking post in the world.
+
+Lurkers swim to hunt, not to potter: `EnemyDef::paddles` (default: whatever
+`swims` is) is what the ducks do, and the Bayou's swimmers turn it off and wait
+still at their post.
+
+**The stilt villages** stand on **real elevation**: each deck is four levels up,
+so its edge is a drop into the lake and the only way on is its ramp, which steps
+up one level at a time. Everything raised in the Bayou is decking, so its
+elevation block names **a face of dark planks and a wooden lip** instead of a
+bank of soil with grass over it (`"face"` and the new `"lip"` in the map's
+elevation block). Pilings stand under each deck's front edge -- the only edge
+of a deck on stilts anybody sees from here; the ones behind are under the
+boards. The huts are **`bayou_hut`**, the lizardmen's hut with its own legs and
+ladder taken away, because a hut on stilts stood on a deck on stilts is a hut
+on stilts on stilts. The northern village has two decks with a ramp each, as the
+guide drew them; the southern one's far deck is reached only across a raised
+bridge from the near one, and on it, in front of the great hut, waits **the
+Mother of the Fen**.
+
+| Where | What waits there |
+| --- | --- |
+| the crescent lake by the way in | Bog Lurkers under the water, Mire Croakers on the bank |
+| round the great camp | Rot Shamblers and Bog Lurkers, by the day |
+| the two camps | Swamp Hags and Lizard Shamans behind the stakes, lizardmen on the gate |
+| the east thicket | Fen Stalkers |
+| the south-east lake | Fen Gators under it, croakers and a stalker on its banks |
+| the witch ring, at the loop's south-west corner | Witchlights, and the dead they keep dancing |
+| the ponds by the west road | the Drowned, a gator, a lurker |
+| the northern village | Lizard Shamans on the decks, hags on the shore, the Drowned under it, witchlights over its water |
+| the southern village | shamans on the near deck, gators and the Drowned all round, and **the Mother of the Fen** (56) |
+
+Seven chests: one in each camp, one on each village's near deck, the Mother's
+hoard beside her hut, and one at the end of each track that runs off into the
+reeds.
+
+### Hollowrest Crypt
+
+The mausoleum at the head of Hollowrest was always **barred** -- the four
+"columns" on its front were an iron grille. It is open now: the art is
+`crypt_open`, with the bars gone, the doorway cut dark and the grille left
+leaning against the wall beside it, because somebody took it off. The sign at
+the gate always said to shut the gate.
+
+**Three floors, and no keys**: the way down is fighting.
+
+| Floor | Its dead | Combat |
+| --- | --- | --- |
+| **The Vaults** | Grave Ghouls, Bone Archers, Cryptbound | 26-34 |
+| **The Ossuary** | Bone Knights, Plague Corpses, Tomb Shades, Grave Hounds | 39-47 |
+| **The Black Vault** | Blood Thralls, Bone Colossi, Nosferatu, a Crypt Warden -- and **Lord Ashcroft** | 52-71 |
+
+Each floor's chests are better than the floor above's, and behind Lord Ashcroft
+is his own: **Ashcroft's Signet**, a ring that gives back 8% of what a blow takes.
+That needed `ItemDef::leech` -- worn gear can leech now, folded into the leech
+the Vampiric Touch already had -- because otherwise the ring would have been a
+stat block with a vampire's name on it.
+
+(A blender note: `blk()` stacks solids and does not cut holes. The first open
+doorway was set back into the building and the wall in front of it simply hid
+it; a doorway has to stand proud of the face to be seen.)
+
+### The Brimstone Palace
+
+North of the Ashen Path's burnt road, where two of its three rivers of fire
+come from, stands **the Brimstone Palace**. It was laid out from two sketches of
+the user's -- its front, and its hall -- and the Ashen Path was grown forty-four
+rows north to hold it (everything the path had is that much further down the
+map than it was, and none of it is any harder).
+
+**Outside.** A dirt road leaves the burnt one and runs straight north to a
+**drawbridge** over the front of the palace's **moat**: a U of lava round its
+forecourt whose two arms are the path's middle and eastern rivers, straight
+along the forecourt's sides and only beginning to wander once they are south of
+it. The forecourt stands on a **platform three levels up** -- 42 pixels, over
+the 36 the user asked for, so the palace has some depth to it -- with a face of
+the palace's dark stone and a gold lip down into the moat, and a stair up its
+front from the bridge, the only way on. Everything in the forecourt stands up
+there with it: the palace's front and its towers, braziers at the corners, a
+demon in stone either side of the stair's head, and two Abyssal Demons and two
+Revenants on guard. Up a flight of grey steps,
+between two torches, is the door -- crimson outside, gold inside, a horned skull
+over it -- with a round tower at each corner standing in the head of the moat.
+On the road up to it and all round it, what lives on the Ashen Path lives here
+too, grown bigger for living this close (imps and demons at 49-71, none of them
+nearer the burnt road than nine rows); and down the palace's east side lies a
+field of embers, where the ground has opened in a hundred places. The two
+streams out of the moat are **bridged twice each** on their way south -- basalt
+slabs with a parapet, seen from above like the drawbridge -- because the first
+build walled the road off from the land either side of it, and on those far
+banks are platinum and demonite in the rock and emberbloom in the ash. A post where
+the road leaves the burnt one says whose road it is. The door is warned about
+at Combat 75, and shut below 60.
+
+**The hall**, `palace_foyer`, is the sketch: a crimson runner with a gold border
+from the doors to the throne room's; **balconies** down both sides on real
+height -- three levels up, with a narrower runner of their own, a rail along
+their edges and stairs down at their foot; and **three walkways crossing
+overhead** from one balcony to the other. The walkways are lengths of bridge
+laid end to end on the layer drawn over everyone and lifted to the balconies'
+height, so whoever walks up the runner passes under them, and the floor under
+each is in its shadow. They cannot be walked on: a map has one height to a
+cell, and a bridge over a floor somebody walks on would be two. Columns stand
+along the balconies' edges, braziers down the runner, and the palace's sigil is
+woven into the runner twice.
+
+Off the balconies, through doors in the side walls, are the rooms; a stair in
+the floor goes down, and the doors at the head of the runner open on the king:
+
+| Room | Off | What is in it | Who keeps it |
+| --- | --- | --- | --- |
+| the Ballroom | the west balcony | a chequer of black and blood marble, three chandeliers overhead, an organ with a red light in it, mirrors | two Revenants still dancing, an Abyssal Demon, demons |
+| the Dining Hall | the west balcony | a banquet laid on two tables under two chandeliers, high-backed chairs, a hearth of lava | demons at the table, Bone Knights serving, an Abyssal Demon at its head |
+| the Chambers Wing | the east balcony | a corridor of six bedchambers with four-posters, the king's in the middle of the south side | Revenants in the corridor, Bone Knights and a demon in the rooms |
+| the Dungeon | a stair from the floor | cells behind bars (one broken open, with a chest in it), and a room with a rack in it | Bone Knights for jailers, a Revenant, and a Rime Revenant that got out |
+| the Throne Room | the doors at the head of the runner | a dais two levels up with the throne on it, a channel of lava either side of the runner that burns to walk through, columns, banners | **the Cinder King** |
+
+Everything in it is at the top of the ladder -- Abyssal Demons (76-78),
+Revenants (73-75), the Rime Revenant (78), and demons and Bone Knights grown to
+match them (69-75) -- which is where the three monsters written to stand past
+the crypt finally stand, and what closes 75-79.
+
+**The Cinder King** (84, a boss) is the palace's master and the highest thing
+in the game: a demon lord in black plate trimmed with gold, ram's horns and a
+crown of burning gold between them, a mantle of black lined with crimson, and a
+greatsword with an edge that glows. He waits at the foot of his dais. Behind him,
+beside the throne, is the **Heart of Cinders**, an amulet: a coal on a chain that
+has not gone out. His first fall is a skill point and a boon (**Cinderheart**, 4%
+more damage), his fifteenth his totem (**Crown of Cinders**: 10% more damage and
+10% more health until dawn). Chests in the ballroom, the dining hall, the king's
+bedchamber and the broken cell hold platinum and demonite -- the last two the
+better -- and he himself drops demonite gear and, now and then, a Dracon bar.
+
+Its art is its own. `tools/blender_palace.py` has the front, the towers, the
+torches, the drawbridge and all of the hall's and the rooms' furniture -- twenty-five
+props, registered into `blender_props.py`'s table the way the bestiary is into
+the creatures' -- and the palace's tiles are appended to `tools/make_ground.ps1`:
+basalt with the fire showing in its joints, the banded wall, the runner and its
+gold edges, the ballroom's marble. The Cinder King is in
+`tools/blender_bestiary.py` with the monsters that fill the ladder.
+
+Two notes for whoever renders next. The drawbridge lies on the lava like the
+floor does, so it is rendered from straight above (`TOP_DOWN`) and laid as an
+overlay. And `make_props.ps1` steps colour to a coarse ladder: a dark brown seen
+from straight above landed on olive, and the first drawbridge was green, so its
+timber is lighter and redder than the palace's own.
+
 ## Monsters
+
+### Filling the ladder
+
+A survey of every post in the game against `Enemy::ShownLevelOf` found fifteen
+of the seventy-nine levels with **no ordinary monster at all** -- 36, 38, 42-44,
+57, 68, 70-72, 75-79 -- the waking world thinning out past 50, and gear running
+twenty levels past the hardest thing to wear it against. Twenty-five monsters
+were added to fill it, each **solved backwards from the level it had to show**:
+`ShownLevelOf` inverted, given a target and a shape (a sack of hit points, a
+hard hitter, something armoured) and searched for the numbers that land on it
+exactly. Each is **its own creature**, modelled and animated for it -- see
+[their art](#their-art).
+
+| Where | Who | Levels |
+| --- | --- | --- |
+| [the Bayou](#the-bayou) | Bog Lurker, Mire Croaker, Swamp Hag, Rot Shambler, Fen Gator, Fen Stalker, Drowned One, Witchlight, Lizard Shaman, **the Mother of the Fen** | 30-56 |
+| [Hollowrest Crypt](#hollowrest-crypt) | Grave Ghoul, Bone Archer, Cryptbound, Bone Knight, Plague Corpse, Tomb Shade, Grave Hound, Blood Thrall, Bone Colossus, Nosferatu, Crypt Warden, **Lord Ashcroft** | 26-71 |
+| [the Brimstone Palace](#the-brimstone-palace) | Revenant, Abyssal Demon, Rime Revenant -- with demons and Bone Knights grown to match them -- and **the Cinder King** | 69-84 |
+
+Every hole is closed -- 36, 38, 42-44, 57, 68, 70-72 and, now that the last
+three stand in the Brimstone Palace, 75-79 -- and the Cinder King at 84 is the
+top of it.
+
+**A monster cannot leave anything on you.** The first draft gave these a status
+their blows could leave and a leech; the player has no `StatusSet` -- statuses
+are a thing the player does to monsters -- so both were data nothing reads, and
+went. What a monster *shrugs off* (`immune`) is real and kept.
+
+**A new boss costs more than a stat block**, and the self-test holds all of it:
+a boon for every path (the count of boons each path can be given has to be at
+least the count of bosses), a totem in `data/skill_trees.json`, the totem's item,
+and the totem's art (`_totem(post, band, cap)` in `tools/blender_props.py`).
+
+#### Their art
+
+They first went out in other monsters' sheets -- a lizardman tinted green for
+the Bog Lurker, a frog at 2.3 times its size for the Mire Croaker, the ankou in
+red for Lord Ashcroft -- and each now has **its own**: a rig of joints and
+rounded parts in `tools/blender_bestiary.py`, built from the same parts, cel
+shading and outline as every monster in `blender_creatures.py` and registered
+into its table, so `.\tools\make_creatures.ps1 -Only fen_gator` renders one like
+any other -- idle, walk, attack, hurt and death, four facings each.
+
+| Who | Drawn as |
+| --- | --- |
+| Bog Lurker | a hunched hulk off the lake bottom, all back and arm, moss on the hump and the eyes on top of the head |
+| Mire Croaker | a toad the size of a pig, whose throat fills before it spits |
+| Swamp Hag | bent over a crooked staff with a skull and a green light hung off the crook |
+| Rot Shambler | peat on two stumps of root, a root club for one arm and somebody's skull in the front of it |
+| Fen Gator | long, low, splayed, and mostly jaw |
+| Fen Stalker | a mantis as tall as a man, the colour of dry reeds, scythes folded |
+| Drowned One | swollen and grey-blue, wound in chain, dragging the anchor that took it down |
+| Witchlight | a green flame with a face in it and three motes going round |
+| Lizard Shaman | robed and feathered, a bird's skull over the snout, a light caught in a three-pronged staff |
+| the Mother of the Fen | a lizardwoman grown into something nearer a crocodile, crowned in bone and reed |
+| Grave Ghoul | crouched on long legs with longer arms, ears like a bat's and a mouth too wide |
+| Bone Archer | a skeleton in an archer's hood, a longbow and a quiver |
+| Cryptbound | wound in grave linen, chained over it, shackled at both wrists |
+| Bone Knight | a skeleton in a great helm, breastplate and red tabard, behind a kite shield |
+| Plague Corpse | swollen with the sickness, boils that glow and the air round it green |
+| Tomb Shade | a shadow come off a tomb wall, with a pale mask for a face |
+| Grave Hound | half hound and half skeleton, in a spiked collar with the chain snapped |
+| Blood Thrall | a servant of the house in the rags of its livery, hands up and blood on its chin |
+| Bone Colossus | every spare bone in the vault, skulls packed in its ribcage and a horned skull for a head |
+| Nosferatu | bald, pointed and rat-toothed, in a black coat to the chin, all fingers |
+| Crypt Warden | a tall knight in plate gone green, a halberd, and a lantern at its belt |
+| Lord Ashcroft | dressed for dinner: crimson doublet, white stock, a cape red inside with its collar up, a rapier |
+| Revenant | blackened plate with fire in its cracks, and half a greatsword |
+| Abyssal Demon | long and thin and the colour of the dark between stars, seams of fire, a scorpion's tail |
+| Rime Revenant | a giant frozen into its armour, icicles off every edge, and an axe of ice |
+| the Cinder King | a demon lord in black plate trimmed with gold, ram's horns and a burning crown, a mantle lined in crimson, and a greatsword with an edge that glows |
+
+Three things the first monsters did not need, so that twenty-five could be
+written without guessing:
+
+- **Each is fitted to a height on screen.** `Rig.fit` measures the rig through
+  the camera, stood in its idle, and scales it to so many pixels -- set from what
+  it was drawn as in the borrowed sheet, so none of them changed size in the
+  world by much.
+- **A pose's offsets are in the model's own units**, scaled with it: a lunge
+  written for a ghoul is the same lunge on the Bone Colossus.
+- **A swimmer is drawn sunk in the water.** The Bog Lurker, the Fen Gator and
+  the Drowned One have a `swim` clip rendered with a disc of holdout at the
+  waterline (`WATERLINE` in `blender_creatures.py`), so what shows of one coming
+  across the lake at you is the hump, the head and the eyes.
+
+A staff only stands up straight when the chest's lean, the arm's swing and the
+hand's turn add up to nothing, and the first Swamp Hag held hers out like a
+lance; the builders now say the sum in a comment beside each idle. Their **hit
+boxes** had been one size for all twenty-five, whatever was drawn; each is now
+measured off its own idle, the way every older monster's is about the size of
+what you see -- the Mother of the Fen and the Bone Colossus are something a
+sword can find.
 
 ### A monster's level is what it fights like
 
@@ -5238,7 +5525,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **34707 checks** covering:
+and checks all of it — currently **36826 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -6176,6 +6463,35 @@ and checks all of it — currently **34707 checks** covering:
   were -- exactly eighty-five orc posts in the realm, thirty-five of them left
   for the day to settle, and about a third of the mines' and the barrow's
   standing back
+- the Bayou, and what waits in its water: the Hollowmarch leads there and back
+  and you arrive on dry ground; all ten of its monsters live in it and more than
+  fifteen wait under the water; every lurking post in the world is in water,
+  swims without paddling about, waits near enough to a bank, a ramp or a deck to
+  be woken, and not under a deck's lifted edge; four decks and a bridge stand
+  four levels up with the Mother of the Fen on hers, and stepping off a deck's
+  edge is blocked. Played through: a Bog Lurker under the water cannot be seen
+  or locked on to; somebody passing a little way off does not wake it and it
+  does not stir; somebody at the edge wakes it, nothing can touch it while it
+  comes up, then it is out and coming for them; somebody who backs off is let go
+  and it goes back under, in its water; one that was struck follows, gives up,
+  and comes up whole; and a friend's machine draws it under or out by the alpha
+  it is told. Two camps behind palisades, huts on the decks on pilings, and herbs
+  where the guide drew flowers
+- the twenty-five monsters that fill the level ladder are each drawn from a
+  sheet of their own, with all five clips and no tint left over it, and the
+  three that wait under the water swim low in it
+- the Brimstone Palace: the Ashen Path has its door, warned about and shut
+  below Combat 60, and its hall leads back out; the moat is crossed on the
+  drawbridge and nowhere else; Abyssal Demons and Revenants hold the
+  forecourt, on a platform at least 36px up with a stair from the bridge; each
+  stream out of the moat is bridged twice, with ore and emberbloom on its far
+  banks; the palace's six rooms are in the sweep that walks to everything
+  usable; the hall's balconies stand three levels up over a floor-level
+  runner, three walkways (thirty-three lengths) cross overhead, and the three
+  side rooms' doors open off the balconies; every room leads back to the hall;
+  only the palace's own keep it, all of them past the crypt's end; and the
+  Cinder King, the top of the ladder, waits in the throne room with the Heart
+  of Cinders on his dais two levels up
 
 It exits with the number of failures, so CI can use it directly.
 

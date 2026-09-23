@@ -44,6 +44,10 @@ struct EnemyDef {
     // said which of its collision is water -- everywhere else a pond is a
     // wall to everything, which is how it has always been.
     bool  swims = false;
+    // Whether it potters between the water and the bank when left alone, the
+    // way the ducks do. Something that swims to hunt -- a gator, the drowned --
+    // keeps to its post instead, in the water it came out of.
+    bool  paddles = false;
     // What the creature is aligned to, for the elemental matchup. Untyped
     // monsters take normal damage from everything.
     Element element = Element::None;
@@ -222,6 +226,25 @@ public:
     // After its death animation the body holds briefly, fades, and is gone. The
     // entity stays in the world's list, invisible, to count down its respawn.
     bool  CorpseGone() const;
+
+    // --- lurking ----------------------------------------------------------------
+    // Something that waits under the water for whoever comes too close to the
+    // edge: see EnemySpawnDef::lurk. Under, it is not drawn, not struck and not
+    // targeted -- a ripple on the surface is all there is of it -- and it
+    // comes up out of the water when a player is within LURK_WAKE. Left alone
+    // at home in the water for a while, it goes back under, whole again.
+    //
+    // How far out it is travels to a friend's machine as its alpha, which is
+    // what alpha already meant for a body fading: nothing new on the wire.
+    static constexpr float LURK_WAKE = 104.0f;   // how close is too close
+    static constexpr float LURK_RISE = 0.6f;     // seconds to come up
+    static constexpr float LURK_SINK = 0.8f;     // and to go back down
+    static constexpr float LURK_WAIT = 3.5f;     // idle at home before it does
+    bool  Lurks() const { return lurks; }
+    bool  Submerged() const { return lurks && emerge <= 0.0f; }
+    // Not all the way out of the water, coming or going: nothing can touch it.
+    bool  Hidden() const { return lurks && state != State::Dead && emerge < 0.999f; }
+    float Emerged() const { return lurks ? emerge : 1.0f; }
     Uint8 CorpseAlpha() const;
 
     // How much stronger than its kind this one is: 1 is the stat block in
@@ -272,6 +295,10 @@ private:
 
     float leash = 220.0f;
     bool  provoked = false;       // it has been hurt: it does not need to see them
+    bool  lurks = false;          // see Hidden
+    float emerge = 1.0f;          // 0 under the water, 1 all the way out
+    bool  rising = false;         // coming up, and cannot act until it is
+    float sink_wait = 0.0f;       // how long it has sat at home with nobody near
     float chase_run = 0.0f;       // ground covered in this chase since anything happened
     float grudge = 0.0f;
     int   grudge_seat = -1;

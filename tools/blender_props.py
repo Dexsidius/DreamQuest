@@ -3134,6 +3134,10 @@ PALETTE.update({
     "tt_pit":       (0.160, 0.130, 0.140),  "tt_pit_b":     (1.000, 0.450, 0.150),
     "tt_frost":     (0.620, 0.855, 0.945),  "tt_frost_b":   (0.960, 0.990, 1.000),
     "tt_dread":     (0.250, 0.160, 0.360),  "tt_dread_b":   (0.800, 0.400, 1.000),
+    # Lord Ashcroft: black wood and the red gold of his own signet, flattened
+    # and nailed to it. The Mother of the Fen: river clay and reed.
+    "tt_vamp":      (0.115, 0.090, 0.105),  "tt_vamp_b":    (0.880, 0.170, 0.230),
+    "tt_fen":       (0.235, 0.290, 0.205),  "tt_fen_b":     (0.560, 0.780, 0.480),
 })
 
 
@@ -3217,6 +3221,8 @@ def prop_totem_wyvern_matriarch(): return _totem("tt_wyvern", "tt_wyvern_b", "wi
 def prop_totem_pit_lord():         return _totem("tt_pit", "tt_pit_b", "great_horns")
 def prop_totem_frost_dragon():     return _totem("tt_frost", "tt_frost_b", "spikes")
 def prop_totem_nightmare_dragon(): return _totem("tt_dread", "tt_dread_b", "spikes")
+def prop_totem_vampire_lord():     return _totem("tt_vamp", "tt_vamp_b", "skull", eye_emit=2.1)
+def prop_totem_bayou_matriarch():  return _totem("tt_fen", "tt_fen_b", "tusks")
 
 
 def prop_totem_circle():
@@ -3248,6 +3254,8 @@ TOTEM_PROPS = {
     "totem_pit_lord":         (prop_totem_pit_lord, 32),
     "totem_frost_dragon":     (prop_totem_frost_dragon, 32),
     "totem_nightmare_dragon": (prop_totem_nightmare_dragon, 32),
+    "totem_vampire_lord":     (prop_totem_vampire_lord, 32),
+    "totem_bayou_matriarch":  (prop_totem_bayou_matriarch, 32),
 }
 
 
@@ -4071,6 +4079,67 @@ def prop_lizard_hut():
     return (2.6, BUILDING_ELEVATION)
 
 
+def prop_bayou_hut(great=False):
+    """A lizardman hut built on a deck rather than up its own legs: the same
+    woven wall and shaggy reed cone as the Mire's huts, sat flat on the boards
+    of a stilt village in the Bayou. The stilts are the deck's, not the hut's --
+    a hut on legs stood on a deck on legs is a hut on stilts on stilts.
+
+    `great` is the Mother of the Fen's: wider, a second tier of thatch, bone
+    charms strung round the eaves and a pair of skulls either side of the door."""
+    r = 0.86 if great else 0.66
+    cyl("sill", r + 0.10, 0.08, (0, 0, 0.04), "hut_wood", verts=20)
+    cyl("wall", r, 0.66, (0, 0, 0.41), "twig", verts=20)
+    # Uprights in the weave, so the wall reads as built of poles and not as a
+    # brown drum.
+    for k in range(10 if great else 8):
+        a = k / (10 if great else 8) * math.tau
+        cyl("pole_%d" % k, 0.035, 0.72, (math.cos(a) * r, math.sin(a) * r, 0.40), "hut_wood", verts=6)
+    blk("door", (0.34 if great else 0.28, 0.07, 0.50), (0, -r - 0.005, 0.32), "char", bev=0)
+    blk("lintel", (0.46 if great else 0.38, 0.08, 0.07), (0, -r - 0.01, 0.60), "hut_wood", bev=0)
+    bpy.ops.mesh.primitive_cone_add(radius1=r + 0.36, radius2=0.04, depth=0.95 if great else 0.86,
+                                    location=(0, 0, 1.18 if great else 1.12), vertices=20)
+    roof = bpy.context.active_object
+    roof.data.materials.append(material("roof", "hut_thatch", 0.95))
+    fringe = 14 if great else 12
+    for k in range(fringe):
+        a = k / fringe * math.tau
+        cone("fringe_%d" % k, 0.12, 0.22, (math.cos(a) * (r + 0.26), math.sin(a) * (r + 0.26), 0.66),
+             "hut_thatch", rot=(math.pi, 0, 0), verts=5)
+    if great:
+        # A second, smaller cone over the first: the house of somebody who
+        # matters, seen from across the water.
+        bpy.ops.mesh.primitive_cone_add(radius1=0.52, radius2=0.03, depth=0.52, location=(0, 0, 1.78), vertices=16)
+        top = bpy.context.active_object
+        top.data.materials.append(material("roof_top", "reed_dk", 0.95))
+        for k in range(8):
+            a = k / 8 * math.tau + 0.2
+            sphere("charm_%d" % k, 0.055, (math.cos(a) * (r + 0.30), math.sin(a) * (r + 0.30), 0.60), "bone_white")
+        for sx in (-1, 1):
+            cyl("stake_%d" % sx, 0.035, 0.70, (sx * 0.34, -r - 0.10, 0.35), "hut_wood", verts=6)
+            sphere("skull_%d" % sx, 0.09, (sx * 0.34, -r - 0.10, 0.74), "bone_white")
+        blk("paint", (0.50, 0.03, 0.06), (0, -r - 0.02, 0.70), "paint_red", bev=0)
+    else:
+        sphere("skull", 0.08, (0, -r - 0.03, 0.72), "bone_white")
+    return (3.1 if great else 2.3, BUILDING_ELEVATION)
+
+
+def prop_bayou_piling():
+    """A stilt under a Bayou deck: a thick post driven into the bog, bound with
+    rope near the top and green with slime where the water has been, and a dark
+    ring of wet round its foot. It stands under the front edge of a deck, where
+    a deck on stilts is seen from; the ones behind are under the boards."""
+    cyl("post", 0.13, 1.10, (0, 0, 0.55), "hut_wood", verts=10)
+    cyl("cap", 0.145, 0.05, (0, 0, 1.10), "bog_bark", verts=10)
+    for k, z in enumerate((0.86, 0.96)):
+        cyl("rope_%d" % k, 0.14, 0.035, (0, 0, z), "cattail", verts=10)
+    # Slime to the tide line, and the water standing round the foot.
+    cyl("slime", 0.136, 0.34, (0, 0, 0.17), "swamp_moss", verts=10)
+    cyl("wet", 0.30, 0.012, (0, 0, 0.006), (0.10, 0.14, 0.12), verts=16)
+    cyl("ring", 0.22, 0.014, (0, 0, 0.008), (0.30, 0.38, 0.34), verts=16)
+    return 1.6
+
+
 def prop_lizard_totem():
     """A carved post with a lizard skull on top and red painted bands."""
     cyl("post", 0.12, 1.3, (0, 0, 0.65), "hut_wood", verts=10)
@@ -4637,9 +4706,15 @@ def prop_lych_gate():
     return (3.6, BUILDING_ELEVATION)
 
 
-def prop_crypt():
+def prop_crypt(barred=True):
     """The mausoleum at the head of the yard: a stone house for one family,
-    with a barred door, a pediment, and urns either side of the step."""
+    with a pediment and urns either side of the step.
+
+    `barred` is how it stood for as long as nobody had been down there: an iron
+    grille across the doorway. Opened, the bars are gone, the dark is cut deeper
+    and wider so it reads as somewhere you can walk, and the grille is left
+    leaning against the wall beside it -- somebody took it off, and the yard
+    should say so."""
     import random
     rng = random.Random(11)
     W, D, H = 2.10, 1.70, 1.15
@@ -4661,10 +4736,28 @@ def prop_crypt():
                 "granite", rot=(0, sx * math.radians(26), 0), bev=0)
     blk("ridge", (0.18, D + 0.18, 0.10), (0, 0, 0.18 + H + 0.52), "granite_lt", bev=0.03)
     blk("pediment", (W * 0.78, 0.12, 0.34), (0, -D / 2 - 0.02, 0.18 + H + 0.18), "granite_lt", bev=0.03)
-    # The doorway: dark, barred, with a step up to it.
-    blk("dark", (0.86, 0.30, 0.98), (0, -D / 2 + 0.16, 0.66), "crypt_dark", bev=0)
-    for k in range(4):
-        cyl("bar_%d" % k, 0.025, 1.00, (-0.27 + k * 0.18, -D / 2 + 0.02, 0.70), "grave_iron", verts=8)
+    # The doorway: dark, with a step up to it -- barred, or open and deeper.
+    if barred:
+        blk("dark", (0.86, 0.30, 0.98), (0, -D / 2 + 0.16, 0.66), "crypt_dark", bev=0)
+        for k in range(4):
+            cyl("bar_%d" % k, 0.025, 1.00, (-0.27 + k * 0.18, -D / 2 + 0.02, 0.70), "grave_iron", verts=8)
+    else:
+        # Wider and taller than the barred one, and kept FLUSH with the front
+        # face. Set back into the building it is simply hidden by the wall in
+        # front of it -- blk stacks solids, it does not cut holes -- and the
+        # doorway renders as pale stone.
+        blk("dark", (1.02, 0.34, 1.08), (0, -D / 2 - 0.06, 0.70), "crypt_dark", bev=0)
+        # A sill of the same dark at the foot of it, so the threshold reads as
+        # floor going in rather than as a picture hung on the wall.
+        blk("sill", (1.02, 0.26, 0.10), (0, -D / 2 - 0.06, 0.21), "crypt_dark", bev=0)
+        # A jamb either side, so the opening has an edge and is not a smear.
+        for sx in (-1, 1):
+            blk("jamb_%d" % sx, (0.14, 0.26, 1.14), (sx * 0.580, -D / 2 - 0.08, 0.70),
+                "granite_lt", bev=0.02)
+        # The grille that used to be in it, leaning against the wall.
+        for k in range(4):
+            cyl("leaned_%d" % k, 0.025, 0.96, (0.80 + k * 0.05, -D / 2 - 0.04, 0.50),
+                "grave_iron", rot=(math.radians(16), 0, math.radians(13)), verts=8)
     blk("lintel", (0.96, 0.18, 0.16), (0, -D / 2 + 0.02, 1.28), "granite_lt", bev=0.03)
     blk("step", (1.10, 0.36, 0.10), (0, -D / 2 - 0.20, 0.10), "granite_dk", bev=0.02)
     # Urns on the step, and moss creeping up the north side.
@@ -4706,6 +4799,10 @@ def prop_spring_basin():
 AREA_PROPS = {
     "reeds": (prop_reeds, 48), "lily_pads": (prop_lily_pads, 40), "swamp_tree": (prop_swamp_tree, 72),
     "lizard_hut": (prop_lizard_hut, 128), "lizard_totem": (prop_lizard_totem, 56),
+    # The Bayou: huts that sit on a stilt village's deck, the Mother of the
+    # Fen's, and the stilts under the front edge of each deck.
+    "bayou_hut": (prop_bayou_hut, 112), "bayou_hut_great": (lambda: prop_bayou_hut(great=True), 152),
+    "bayou_piling": (prop_bayou_piling, 64),
     "ice_spire": (prop_ice_spire, 112), "ice_crystal": (prop_ice_crystal, 40), "snow_pine": (prop_snow_pine, 80),
     "wyvern_nest": (prop_wyvern_nest, 72), "charred_tree": (prop_charred_tree, 72),
     "obsidian_rock": (prop_obsidian_rock, 40), "hellgate": (prop_hellgate, 144),
@@ -4717,6 +4814,9 @@ AREA_PROPS = {
     "gravestone": (prop_gravestone, 48), "gravestone_cross": (prop_gravestone_cross, 52),
     "grave_mound": (prop_grave_mound, 64), "grave_fence": (prop_grave_fence, 72),
     "lych_gate": (prop_lych_gate, 144), "crypt": (prop_crypt, 176),
+    # The same building with the grille off it: what Hollowrest has once there
+    # is a way down. See prop_crypt.
+    "crypt_open": (lambda: prop_crypt(barred=False), 176),
 }
 HERB_PROPS.update(AREA_PROPS)
 
@@ -5421,6 +5521,15 @@ PROPS.update(HERB_PROPS)
 PROPS.update(TOTEM_PROPS)
 PROPS.update(COLLEGE_PROPS)
 PROPS.update(CLOTHIER_PROPS)
+
+# The Brimstone Palace's props are in tools/blender_palace.py, built with the
+# tools above. This module is handed to it rather than imported by it: run by
+# Blender this file is __main__, and importing it by name would run it twice.
+sys.modules.setdefault("blender_props", sys.modules[__name__])
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import blender_palace  # noqa: E402
+
+PROPS.update(blender_palace.PROPS)
 
 
 def main():
