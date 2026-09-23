@@ -1275,8 +1275,19 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     e.knock_y += (dy / len) * knockback;
 }
 
+void World::AfflictPlayer(const StatusProc& proc, int blow, float charm_x, float charm_y) {
+    if (!proc.Any() || !statuses_now || player.IsDead() || player.hp <= 0) return;
+    const float chance = std::clamp(proc.chance * player.StatusInvites(proc.kind), 0.0f, 1.0f);
+    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(afflict_dice) >= chance) return;
+    const bool had = player.Afflicted(proc.kind);
+    const Status took = player.Afflict(proc.kind, blow, *statuses_now, charm_x, charm_y);
+    if (took == Status::COUNT || (had && took == proc.kind)) return;
+    if (const StatusDef* d = statuses_now->Get(took))
+        AddText(d->name + "!", player.x, player.y - 70.0f, d->color, 1.3f);
+}
+
 int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
-                     float knock_x, float knock_y) {
+                     float knock_x, float knock_y, const StatusProc& leaves, float charm_x, float charm_y) {
     if (damage <= 0 || player.IsDead() || player.resting || player.Untouchable()) return 0;
     // Slippery: on the move, some of them simply miss.
     const float evade = player.talents.Global("evade");
@@ -1320,10 +1331,18 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
     const float push = b.taken > 0 ? 1.0f : 0.35f;
     player.knock_x += knock_x * push;
     player.knock_y += knock_y * push;
+    // What gets past the guard can leave something behind -- and wakes them
+    // from a charm, unless it is another charm.
+    if (b.taken > 0 && !player.IsDead()) {
+        if (statuses_now) player.ShakeOff(*statuses_now, leaves.kind);
+        if (charm_x < 0.0f || charm_y < 0.0f) { charm_x = from_x; charm_y = from_y; }
+        AfflictPlayer(leaves, b.taken, charm_x, charm_y);
+    }
     return b.taken;
 }
 
-int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y) {
+int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
+                          const StatusProc& leaves) {
     if (player.resting || player.Untouchable()) return 0;
     player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
@@ -1355,5 +1374,9 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     player.GrantXp(SKILL_DEFENCE, std::max(1, damage));
     player.knock_x += knock_x * push;
     player.knock_y += knock_y * push;
+    if (damage > 0 && !player.IsDead()) {
+        if (statuses_now) player.ShakeOff(*statuses_now, leaves.kind);
+        AfflictPlayer(leaves, damage, from_x, from_y);
+    }
     return damage;
 }

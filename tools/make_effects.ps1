@@ -26,6 +26,7 @@
 #    glow                   a soft round light, added under what burns
 #    acid_glob, acid_wake   the Acid Spray's gouts: the water orb and its wake, in green
 #    blood_orb, blood_wake  the Vampiric Touch: the same, in red
+#    hex_rot, hex_charm, hex_befuddle (+ _wake)   the Swamp Hag's three hexes
 #    frost_shard            the Ice Touch: the stone shard, cut in ice
 #    throwing_knife         a knife going end over end
 #    air_slash              the Air Slash: the greater gust's edge, with nothing behind it
@@ -633,6 +634,23 @@ $blood  = [System.Drawing.Color[]]@((Argb 255 84 12 22), (Argb 236 140 22 36), (
 $bloodW = [System.Drawing.Color[]]@((Argb 255 255 190 180), (Argb 240 226 80 84), (Argb 235 170 30 44), (Argb 235 104 14 28))
 Save-Strip "blood_orb"  ([Fx]::Orb(16, 6.4, $N, 9, $blood)) 8 8
 Save-Strip "blood_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 59, $bloodW, (Argb 200 64 8 18))) 18 6
+
+# --- the Swamp Hag's hexes, each its own colour so a player can tell at a glance
+#     which is coming: her rot a sickly yellow-green, her charm rose, and her
+#     befuddling violet with a gold light in it. The same orb and wake as the
+#     acid and the blood.
+$rot   = [System.Drawing.Color[]]@((Argb 255 46 58 14), (Argb 234 96 118 28), (Argb 230 150 170 46), (Argb 240 204 218 96), (Argb 255 240 248 176))
+$rotW  = [System.Drawing.Color[]]@((Argb 255 240 248 176), (Argb 240 186 204 80), (Argb 235 124 146 38), (Argb 235 70 88 20))
+Save-Strip "hex_rot"       ([Fx]::Orb(16, 6.4, $N, 73, $rot)) 8 8
+Save-Strip "hex_rot_wake"  ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 79, $rotW, (Argb 200 40 50 12))) 18 6
+$charm  = [System.Drawing.Color[]]@((Argb 255 112 20 72), (Argb 236 196 58 132), (Argb 232 242 108 180), (Argb 240 255 170 214), (Argb 255 255 228 242))
+$charmW = [System.Drawing.Color[]]@((Argb 255 255 228 242), (Argb 240 250 140 200), (Argb 235 214 76 152), (Argb 235 128 26 84))
+Save-Strip "hex_charm"      ([Fx]::Orb(16, 6.4, $N, 83, $charm)) 8 8
+Save-Strip "hex_charm_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 89, $charmW, (Argb 200 96 16 60))) 18 6
+$muddle  = [System.Drawing.Color[]]@((Argb 255 56 24 108), (Argb 236 108 58 188), (Argb 232 160 110 236), (Argb 240 236 198 118), (Argb 255 255 244 190))
+$muddleW = [System.Drawing.Color[]]@((Argb 255 255 244 190), (Argb 240 214 170 250), (Argb 235 136 88 214), (Argb 235 70 34 128))
+Save-Strip "hex_befuddle"      ([Fx]::Orb(16, 6.4, $N, 97, $muddle)) 8 8
+Save-Strip "hex_befuddle_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 101, $muddleW, (Argb 200 50 20 96))) 18 6
 
 $ice = [System.Drawing.Color[]]@((Argb 255 244 252 255), (Argb 255 190 230 252), (Argb 250 128 186 236), (Argb 250 78 130 204))
 Save-Strip "frost_shard" ([Fx]::Shard(20, 6.6, $N, 47, $ice, (Argb 255 255 255 255), (Argb 255 40 72 130))) 10 10

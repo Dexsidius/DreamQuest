@@ -17132,6 +17132,276 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("what the monsters leave on the player: poison, a charm, a confusion");
+    {
+        GameContext ctx;
+        std::mt19937 rng(4242);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the data --------------------------------------------------------------------
+        const StatusDef* charm = statuses.Get(Status::Charm);
+        const StatusDef* confused = statuses.Get(Status::Confused);
+        Check(charm && confused && charm->players_only && confused->players_only && charm->breaks_on_hit,
+              "a charm and a confusion are statuses, the player's alone, and a blow breaks a charm");
+        const std::set<string> gentle = {"deer", "hare", "chicken", "sheep", "pig", "cow", "frog", "duck", "goose"};
+        int fighters = 0, leaving = 0;
+        bool known = true, calm = true;
+        for (const auto& [id, d] : enemy_db.All()) {
+            if (gentle.count(id)) { calm &= !d.on_hit.Any() && !d.heavy.status.Any(); continue; }
+            ++fighters;
+            leaving += d.on_hit.Any() ? 1 : 0;
+            known &= !d.on_hit.Any() || statuses.Get(d.on_hit.kind) != nullptr;
+            known &= !d.heavy.status.Any() || statuses.Get(d.heavy.status.kind) != nullptr;
+        }
+        Check(fighters > 70 && leaving == fighters,
+              "every monster that fights can leave something on the player (" + std::to_string(leaving) + " of " +
+              std::to_string(fighters) + ")");
+        Check(known && calm, "each of them a status there is, and nothing on the deer, the hares or the farmyard");
+        bool shots_leave = true;
+        string bare;
+        for (const auto& [id, d] : enemy_db.All()) {
+            vector<string> shots = d.spells;
+            if (!d.shoots.empty()) shots.push_back(d.shoots);
+            for (const string& s : shots) {
+                const ProjectileDef* pd = projectiles.Get(s);
+                if (!pd || !pd->status.Any()) { shots_leave = false; bare = id + "'s " + s; }
+            }
+        }
+        Check(shots_leave, "every monster's shot is one there is, and leaves something" + (bare.empty() ? string() : " (not " + bare + ")"));
+        const EnemyDef* spider = enemy_db.Get("spider");
+        Check(spider && spider->on_hit.kind == Status::Poison, "a spider's bite poisons");
+        const EnemyDef* hag = enemy_db.Get("swamp_hag");
+        std::set<int> hexes;
+        if (hag)
+            for (const string& s : hag->spells)
+                if (const ProjectileDef* pd = projectiles.Get(s)) hexes.insert(static_cast<int>(pd->status.kind));
+        Check(hag && hag->spells.size() >= 3 && hexes.count(static_cast<int>(Status::Poison)) &&
+              hexes.count(static_cast<int>(Status::Charm)) && hexes.count(static_cast<int>(Status::Confused)),
+              "the Swamp Hag casts a rot, a charm and a befuddling");
+        {
+            const ProjectileDef* arrow = projectiles.Get("arrow");
+            const ProjectileDef* barbed = projectiles.Get("barbed_arrow");
+            Check(arrow && !arrow->status.Any() && barbed && barbed->status.Any() &&
+                  enemy_db.Get("orc_bowman")->shoots == "barbed_arrow",
+                  "the player's arrows leave nothing on a monster; the monsters' archers loose barbed ones");
+        }
+
+        // --- a monster's shot is as sure as its swing ----------------------------------------
+        {
+            EnemySpawnDef def;
+            def.type = "swamp_hag"; def.level = 1; def.x = 100.0f; def.y = 100.0f;
+            Enemy h;
+            h.Init(hag, def, ctx);
+            Player target;
+            target.Init(ctx, "player_warden");
+            target.skills.SetCurrent(SKILL_DEFENCE, 30);
+            const float shot = HitChanceFor(h.Profile(), target.Profile(), AttackStyle::Ranged);
+            const float swing = HitChanceFor(h.Profile(), target.Profile(), AttackStyle::Melee);
+            Check(shot > 0.5f && fabsf(shot - swing) < 0.05f,
+                  "a hag's hex lands as often as her claws would (" + std::to_string(static_cast<int>(shot * 100.0f)) +
+                  "% against " + std::to_string(static_cast<int>(swing * 100.0f)) + "%) -- it used to be a level-1 archer's");
+        }
+
+        // --- a monster is never charmed ------------------------------------------------------
+        {
+            EnemySpawnDef def;
+            def.type = "orc1"; def.level = 1; def.x = 100.0f; def.y = 100.0f;
+            Enemy orc;
+            orc.Init(enemy_db.Get("orc1"), def, ctx);
+            Check(orc.Afflict(Status::Charm, 5, statuses) == Status::COUNT &&
+                  orc.Afflict(Status::Confused, 5, statuses) == Status::COUNT && !orc.statuses.Any(),
+                  "a monster cannot be charmed or confused");
+        }
+
+        const auto fresh = [&](World& w, const char* map) {
+            w.player.Init(ctx, "player_warden");
+            const bool ok = w.LoadMap(map, "", ctx);
+            w.player.hands_external = true;
+            w.player.hands = PlayerInput{};
+            w.Update(kFrame, ctx);           // the statuses are the frame's context's
+            return ok;
+        };
+
+        // --- poison ----------------------------------------------------------------------------
+        {
+            World w;
+            Check(fresh(w, "town_havenbrook"), "Havenbrook, to be poisoned in");
+            const int hp0 = w.player.hp;
+            w.AfflictPlayer({Status::Poison, 1.0f}, 4, w.player.x, w.player.y);
+            Check(w.player.Afflicted(Status::Poison), "a sure poison takes");
+            for (int f = 0; f < 60 * 7; ++f) w.Update(kFrame, ctx);
+            Check(!w.player.Afflicted(Status::Poison) && w.player.hp <= hp0 - 3 && w.player.hp > 0,
+                  "it hurts over six seconds, at least three, and runs out (" + std::to_string(hp0 - w.player.hp) + ")");
+            w.AfflictPlayer({Status::Poison, 1.0f}, 4, w.player.x, w.player.y);
+            w.player.Rest();
+            Check(!w.player.statuses.Any(), "a night's rest clears what is on them");
+        }
+        // A spider's bite, again and again: about as often as its data says.
+        {
+            World w;
+            fresh(w, "town_havenbrook");
+            int took = 0;
+            const int tries = 400;
+            for (int i = 0; i < tries; ++i) {
+                w.player.statuses.Clear();
+                w.player.hp = w.player.max_hp;
+                w.HitPlayer(1, CombatProfile{}, w.player.x + 20.0f, w.player.y, 0.0f, 0.0f, spider->on_hit);
+                took += w.player.Afflicted(Status::Poison) ? 1 : 0;
+            }
+            const float rate = static_cast<float>(took) / tries;
+            Check(rate > 0.17f && rate < 0.33f,
+                  "a spider's bite poisons about a quarter of the time (" + std::to_string(static_cast<int>(rate * 100.0f)) + "%)");
+        }
+
+        // --- a charm ---------------------------------------------------------------------------
+        {
+            World w;
+            fresh(w, "overworld");
+            w.player.y -= 200.0f;
+            const float x0 = w.player.x, y0 = w.player.y;
+            w.AfflictPlayer({Status::Charm, 1.0f}, 1, x0 + 160.0f, y0);
+            Check(w.player.Charmed(), "a sure charm takes");
+            for (int f = 0; f < 60; ++f) {
+                w.player.hands = PlayerInput{};
+                w.player.hands.pressed = PlayerInput::Light;
+                w.Update(kFrame, ctx);
+            }
+            Check(w.player.x > x0 + 25.0f && fabsf(w.player.y - y0) < 8.0f,
+                  "charmed, they walk to whoever cast it with no hand on the keys (" +
+                  std::to_string(static_cast<int>(w.player.x - x0)) + " px)");
+            Check(!w.player.Attack().Active(), "and cannot bring themselves to strike");
+            w.HitPlayer(1, CombatProfile{}, x0 - 30.0f, y0);
+            Check(!w.player.Charmed(), "the next blow breaks the charm");
+        }
+
+        // --- a confusion -----------------------------------------------------------------------
+        {
+            World a, b;
+            fresh(a, "overworld"); fresh(b, "overworld");
+            a.player.y -= 200.0f; b.player.y -= 200.0f;
+            b.AfflictPlayer({Status::Confused, 1.0f}, 1, 0.0f, 0.0f);
+            const float ax = a.player.x, bx = b.player.x;
+            for (int f = 0; f < 45; ++f) {
+                a.player.hands.move = {1.0f, 0.0f};
+                b.player.hands.move = {1.0f, 0.0f};
+                a.Update(kFrame, ctx);
+                b.Update(kFrame, ctx);
+            }
+            Check(a.player.x > ax + 20.0f && b.player.x < bx - 20.0f, "confused, pushing right walks them left");
+        }
+
+        // --- the frost, and the chill it leaves -------------------------------------------------
+        {
+            World w;
+            fresh(w, "overworld");
+            w.player.y -= 200.0f;
+            w.AfflictPlayer({Status::Frozen, 1.0f}, 1, 0.0f, 0.0f);
+            const float x0 = w.player.x;
+            for (int f = 0; f < 30; ++f) { w.player.hands.move = {1.0f, 0.0f}; w.Update(kFrame, ctx); }
+            Check(w.player.Afflicted(Status::Frozen) && w.player.x == x0, "frozen, they cannot move");
+            float held = 0.5f;
+            while (w.player.Afflicted(Status::Frozen) && held < 5.0f) { w.Update(kFrame, ctx); held += kFrame; }
+            Check(held < statuses.Get(Status::Frozen)->seconds && w.player.Afflicted(Status::Chill),
+                  "a player is held for less time than a monster would be, and thaws into a chill");
+        }
+        {
+            World a, b;
+            fresh(a, "overworld"); fresh(b, "overworld");
+            a.player.y -= 200.0f; b.player.y -= 200.0f;
+            b.AfflictPlayer({Status::Chill, 1.0f}, 1, 0.0f, 0.0f);
+            const float ax = a.player.x, bx = b.player.x;
+            for (int f = 0; f < 40; ++f) {
+                a.player.hands.move = {1.0f, 0.0f};
+                b.player.hands.move = {1.0f, 0.0f};
+                a.Update(kFrame, ctx);
+                b.Update(kFrame, ctx);
+            }
+            const float ratio = (b.player.x - bx) / std::max(1.0f, a.player.x - ax);
+            Check(ratio > 0.5f && ratio < 0.7f, "a chill slows them to six tenths (" + std::to_string(ratio) + ")");
+        }
+        {
+            World w;
+            fresh(w, "overworld");
+            w.player.skills.SetCurrent(SKILL_DEFENCE, 40);
+            const int d0 = w.player.Profile().defence_level;
+            w.AfflictPlayer({Status::Concussed, 1.0f}, 1, 0.0f, 0.0f);
+            Check(w.player.Profile().defence_level < d0, "concussed, they guard worse");
+        }
+
+        // --- the Swamp Hag's hexes, in turn, through her own hands ---------------------------------
+        {
+            World w;
+            fresh(w, "overworld");
+            w.player.y -= 200.0f;
+            {
+                LevelUp up;
+                w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(90), up);
+                w.player.Rest();
+            }
+            const float px = w.player.x, py = w.player.y;
+            w.enemies.clear();
+            EnemySpawnDef def;
+            def.type = "swamp_hag"; def.level = 1; def.leash = 600.0f; def.respawn = 0.0f;
+            def.x = px + 150.0f; def.y = py;
+            auto e = std::make_unique<Enemy>();
+            e->Init(hag, def, ctx);
+            w.enemies.push_back(std::move(e));
+            vector<string> cast;
+            std::set<uint32_t> seen;
+            for (int f = 0; f < 60 * 20 && cast.size() < 4; ++f) {
+                w.player.x = px; w.player.y = py;
+                w.player.hp = w.player.max_hp;
+                w.player.statuses.Clear();
+                w.player.hands = PlayerInput{};
+                w.Update(kFrame, ctx);
+                for (const Projectile& p : w.projectiles)
+                    if (!p.from_player && p.def && seen.insert(p.net_id).second) cast.push_back(p.def->id);
+            }
+            Check(cast.size() == 4 && cast[0] == hag->spells[0] && cast[1] == hag->spells[1] &&
+                  cast[2] == hag->spells[2] && cast[3] == hag->spells[3],
+                  "she casts her hexes in turn: " + (cast.empty() ? string("nothing") : cast[0] + (cast.size() > 1 ? ", " + cast[1] : string()) +
+                                                     (cast.size() > 2 ? ", " + cast[2] : string()) + (cast.size() > 3 ? ", " + cast[3] : string())));
+        }
+
+        // --- a friend, confused on both machines, walks the same ------------------------------------
+        {
+            World mine, theirs;
+            mine.player.Init(ctx, "player_warden");
+            theirs.player.Init(ctx, "player_hero");
+            mine.LoadMap("overworld", "", ctx);
+            theirs.LoadMap("overworld", "", ctx);
+            mine.player.hands_external = true;
+            Player* guest = theirs.AddGuest(1, "Oona", "player_warden", ctx);
+            mine.Update(kFrame, ctx);
+            theirs.Update(kFrame, ctx);
+            if (guest) {
+                mine.player.x = guest->x; mine.player.y = guest->y;
+                guest->Afflict(Status::Confused, 1, statuses, 0.0f, 0.0f);
+                // Their own machine is told which, as a snapshot tells it.
+                mine.player.ShowStatuses(guest->statuses.Bits(), guest->charm_x, guest->charm_y);
+                PlayerInput h;
+                h.move = {1.0f, 0.3f};
+                const PlayerInput sent = h.Quantised();
+                bool same = true;
+                for (int f = 0; f < 20; ++f) {
+                    mine.player.hands = sent;
+                    mine.player.ShowStatuses(guest->statuses.Bits(), guest->charm_x, guest->charm_y);
+                    mine.Update(kFrame, ctx);
+                    theirs.StepGuest(*guest, sent, kFrame, ctx);
+                    same &= mine.player.x == guest->x && mine.player.y == guest->y;
+                }
+                Check(same, "a confused friend steers on their own machine as the host steers them");
+            }
+            Check(guest != nullptr, "a friend to confuse");
+        }
+    }
+
     Section("co-op M1: messages");
     {
         using namespace net;
@@ -17155,12 +17425,14 @@ int main(int argc, char** argv) {
         Snapshot snap; snap.time_ms = 123456; snap.ack_seq = 77; snap.day = 3; snap.hours = 21.25f;
         PlayerState ps; ps.seat = 1; ps.x = 1234.5678f; ps.y = -0.125f; ps.lift = 6.5f; ps.facing = 2; ps.flags = PlayerState::Jumping;
         ps.frame = 5; ps.hp = 31; ps.max_hp = 40; ps.clip = "attack_light_2";
+        ps.statuses = 0x0301; ps.charm_x = 1500; ps.charm_y = -20;
         snap.players = {ps, ps};
         survives("Snapshot", Encode(snap), [&](const Bytes& x) {
             Snapshot o; return Decode(x, o) && o.time_ms == 123456 && o.ack_seq == 77 && o.day == 3 && o.hours == 21.25f &&
                                o.players.size() == 2 && o.players[1].x == 1234.5678f && o.players[1].y == -0.125f &&
                                o.players[1].lift == 6.5f && o.players[1].clip == "attack_light_2" && o.players[1].frame == 5 &&
-                               o.players[1].hp == 31 && o.players[1].flags == PlayerState::Jumping; });
+                               o.players[1].hp == 31 && o.players[1].flags == PlayerState::Jumping &&
+                               o.players[1].statuses == 0x0301 && o.players[1].charm_x == 1500 && o.players[1].charm_y == -20; });
         Enter enter; enter.map = "town_havenbrook"; enter.x = 640.25f; enter.y = 512.0f; enter.day = 9; enter.hours = 6.5f;
         survives("Enter", Encode(enter), [&](const Bytes& x) {
             Enter o; return Decode(x, o) && o.map == "town_havenbrook" && o.x == 640.25f && o.y == 512.0f && o.day == 9 && o.hours == 6.5f; });

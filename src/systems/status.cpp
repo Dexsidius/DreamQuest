@@ -2,7 +2,7 @@
 #include <fstream>
 
 static const char* kStatusIds[STATUS_COUNT] = {"burn", "wet", "concussed", "bleed", "poison", "chill", "frozen",
-                                               "electrified"};
+                                               "electrified", "charm", "confused"};
 
 const char* StatusId(Status s) {
     const int i = static_cast<int>(s);
@@ -71,6 +71,9 @@ bool StatusDatabase::Load(const string& path) {
         d.stagger   = o.value("stagger", 0.0f);
         d.holds     = o.value("holds", false);
         d.boss_share = o.value("boss_share", 0.5f);
+        d.player_share  = o.value("player_share", 1.0f);
+        d.players_only  = o.value("players_only", false);
+        d.breaks_on_hit = o.value("breaks_on_hit", false);
         d.ends       = kinds(o, "ends");
         d.blocked_by = kinds(o, "blocked_by");
         d.if_has  = StatusFromId(o.value("if_has", string("")));

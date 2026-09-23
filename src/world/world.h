@@ -115,13 +115,29 @@ public:
     // gets past it is taken, shown and trains Defence the way a hit always
     // has. Every monster swing and every shot comes through here, so blocking
     // cannot be forgotten by one of them. Returns the damage actually taken.
+    // `leaves` is what the blow can leave on them if it gets through -- a
+    // spider's poison, a hag's charm -- and a charm draws them to (charm_x,
+    // charm_y), the attacker's own place unless a shot says where it came from.
     int HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
-                  float knock_x = 0.0f, float knock_y = 0.0f);
+                  float knock_x = 0.0f, float knock_y = 0.0f, const StatusProc& leaves = {},
+                  float charm_x = -1.0f, float charm_y = -1.0f);
     // A leader's heavy attack landing. No shield stops it, and one raised
     // against it makes it worse: the guard shatters, the bar empties and the
     // blow lands harder. Returns the damage taken.
     static constexpr float HEAVY_BLOCK_PUNISH = 1.5f;
-    int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y);
+    int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
+                       const StatusProc& leaves = {});
+    // Rolls a status against the player a blow of `blow` just landed on, and
+    // says so over their head if it takes. Its own dice, never the context's:
+    // a fight that leaves nothing throws exactly the numbers it always did.
+    // Nothing is rolled without the statuses loaded.
+    void AfflictPlayer(const StatusProc& proc, int blow, float charm_x, float charm_y);
+    // Those dice start from the same place in every world, which is what keeps
+    // the self-test's fights the same fight each run. The game seeds its own
+    // from the machine, and hands each world it makes a draw from the last,
+    // or every session would open with the same run of luck.
+    void SeedDice(uint32_t seed) { afflict_dice.seed(seed); }
+    uint32_t DrawSeed() { return static_cast<uint32_t>(afflict_dice()); }
 
     void SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx);
     // Puts an item on the ground. `by_player` is one dropped from the bag,
@@ -799,6 +815,10 @@ private:
     uint32_t OpenCast(int skill, int xp);
     void  PayCast(uint32_t id);
     void  ForgetSpentCasts();
+    // What a monster's blow leaves on the player: rolled on these, and read
+    // from the statuses the frame's context last carried.
+    std::mt19937 afflict_dice{0xA11C7u};
+    const StatusDatabase* statuses_now = nullptr;
     // Whether a blow slips past someone on the move. HitPlayer is handed no
     // dice, and only ever decides anything on the host.
     std::mt19937 evade_dice{0x51199u};

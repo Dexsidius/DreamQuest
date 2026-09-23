@@ -158,6 +158,7 @@ int main(int argc, char* argv[]) {
     ctx.rng = &rng;
 
     World home;
+    home.SeedDice(std::random_device{}());
     home.player.absent = true;
     LoadWorld(world_path, home);
     if (!home.LoadMap(start_map, "", ctx)) {

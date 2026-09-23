@@ -52,6 +52,11 @@ bool EnemyDatabase::Load(const string& path) {
         d.aggro_range     = o.value("aggro", 150.0f);
         d.attack_range    = o.value("attack_range", 26.0f);
         d.shoots          = o.value("shoots", string(""));
+        if (o.contains("spells") && o["spells"].is_array())
+            for (const auto& v : o["spells"])
+                if (v.is_string() && !v.get<string>().empty()) d.spells.push_back(v.get<string>());
+        if (d.shoots.empty() && !d.spells.empty()) d.shoots = d.spells.front();
+        d.on_hit          = StatusProcFromJson(o.contains("on_hit") ? o["on_hit"] : json());
         d.shoot_range     = o.value("shoot_range", 0.0f);
         d.shoot_cooldown  = o.value("shoot_cooldown", 2.4f);
         d.attack_cooldown = o.value("attack_cooldown", 1.6f);
@@ -82,6 +87,7 @@ bool EnemyDatabase::Load(const string& path) {
             d.heavy.cooldown  = h.value("cooldown", d.heavy.cooldown);
             d.heavy.opening   = h.value("opening", d.heavy.opening);
             d.heavy.knockback = h.value("knockback", d.heavy.knockback);
+            d.heavy.status    = StatusProcFromJson(h.contains("status") ? h["status"] : json());
         }
 
         d.foot_box = BoxFromJson(o.contains("foot_box") ? o["foot_box"] : json(), d.foot_box);
@@ -182,6 +188,13 @@ CombatProfile Enemy::Profile() const {
             p.defence_level = std::max(1, static_cast<int>(p.defence_level * d->defence));
             p.defence_bonus = static_cast<int>(p.defence_bonus * d->defence);
         }
+    // What it throws is as sure and as hard as what it swings. A shot is
+    // resolved on the Ranged level and bonus -- one number for the aim and the
+    // weight both, as a player's arrow is -- and a monster had none, so every
+    // hex, spit, bolt and arrow a monster loosed was a level-1 archer's: it
+    // nearly always missed, and when it did not it did a point.
+    p.ranged_level = p.magic_level = std::max(1, (p.attack_level + p.strength_level) / 2);
+    p.ranged_bonus = p.magic_bonus = (p.attack_bonus + p.strength_bonus) / 2;
     return p;
 }
 
@@ -200,7 +213,9 @@ Status Enemy::Afflict(Status kind, int blow, const StatusDatabase& db) {
     if (state == State::Dead || hp <= 0 || kind == Status::COUNT) return Status::COUNT;
     status_db = &db;
     const StatusDef* d = db.Get(kind);
-    if (!d || ImmuneTo(kind)) return Status::COUNT;
+    // A charm or a confusion is the player's to suffer: nothing is ever cast
+    // on a monster that would do either, and nothing on one would draw it.
+    if (!d || ImmuneTo(kind) || d->players_only) return Status::COUNT;
     const auto lasts = [&](const StatusDef& of) { return of.seconds * (def->is_boss ? of.boss_share : 1.0f); };
 
     // A chill on something soaked is frozen -- where it can be: the great ones
@@ -303,7 +318,8 @@ Enemy::Posed Enemy::Told() const {
     p.bar = bar_revealed;
     p.hp = hp;
     p.clip = sprite.current;
-    p.statuses = statuses.Bits();
+    // A byte on the wire: what a monster can have is the first eight.
+    p.statuses = static_cast<uint8_t>(statuses.Bits() & 0xFF);
     return p;
 }
 
@@ -696,7 +712,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 dist <= def->shoot_range && dist > def->attack_range) {
                 SetState(State::Attack);
                 chase_run = 0.0f;
-                Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
+                // A caster is heard casting, and not loosing an arrow.
+                if (def->spells.empty()) Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
+                else                     Audio::PlayAt(Sfx::SpellCast, x, y, 0.55f, 0.8f);
                 shooting = true;
                 swinging = true;
                 swing_landed = false;
@@ -743,8 +761,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 // is resolved where every other shot is: see UpdateProjectiles.
                 swing_landed = true;
                 const float len = std::max(1.0f, dist);
-                world.SpawnProjectile(def->shoots, x, y - 18.0f, dx / len, dy / len,
-                                      Profile(), AttackStyle::Ranged, 1.0f, false, ctx);
+                // A caster's spells in turn; what does less harm than a plain
+                // bolt says so in its own `power`.
+                const string& shot = def->spells.empty() ? def->shoots : def->spells[casts++ % def->spells.size()];
+                const ProjectileDef* pd = ctx.projectiles ? ctx.projectiles->Get(shot) : nullptr;
+                world.SpawnProjectile(shot, x, y - 18.0f, dx / len, dy / len,
+                                      Profile(), AttackStyle::Ranged, pd ? pd->power : 1.0f, false, ctx);
             } else if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
                 swing_landed = true;
                 // On the ground, and not up or down a cliff: see StrikeArc.
@@ -757,7 +779,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     } else if (r.hit) {
                         const float len = std::max(1.0f, dist);
                         world.HitPlayer(r.damage, Profile(), x, y,
-                                        (dx / len) * 55.0f, (dy / len) * 55.0f);
+                                        (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit);
                     } else {
                         world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                     }
@@ -794,9 +816,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
                 if (level && ArcHits(HeavyArc(), at.x, at.y, player.GroundRadius())) {
                     const float len = std::max(1.0f, dist);
+                    StatusProc leaves = def->heavy.status;
+                    if (!leaves.Any() && def->on_hit.Any())
+                        leaves = {def->on_hit.kind, std::min(1.0f, def->on_hit.chance * 2.0f)};
                     world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
                                          (dx / len) * def->heavy.knockback,
-                                         (dy / len) * def->heavy.knockback);
+                                         (dy / len) * def->heavy.knockback, leaves);
                 } else {
                     world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                 }

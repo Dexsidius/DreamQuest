@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 10;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery
+static constexpr uint16_t PROTOCOL_VERSION = 11;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -216,6 +216,11 @@ struct PlayerState {
     // a friend's battery reads right on their own glass -- and so a puppet is
     // drawn with the dome, the charge and everything else its owner has.
     uint8_t  battery = 0;
+    // What a monster has left on them (StatusSet::Bits), and where a charm is
+    // drawing them: their own machine steers them as the host does, and every
+    // machine draws it on them.
+    uint16_t statuses = 0;
+    int16_t  charm_x = 0, charm_y = 0;
     std::string clip;
 };
 static constexpr size_t MAX_CLIP = 48;

@@ -554,7 +554,39 @@ public:
     void ApplySheet(const json& j, const GameContext& ctx);
     void SetMana(int v) { mana = std::clamp(v, 0, max_mana); }
 
+    // --- what a monster has left on them -------------------------------------
+    // A spider's poison, a wolf's bite left bleeding, the frost's chill, a
+    // hag's charm or befuddling: see World::AfflictPlayer, which rolls for it,
+    // and data/statuses.json for what each does. Poison, burns and bleeding
+    // hurt over time; a chill slows them and a frost holds them; a charm walks
+    // them to whoever cast it and will not let them strike; a confusion turns
+    // left into right. Dying, waking and resting clear the lot.
+    StatusSet statuses;
+    float charm_x = 0.0f, charm_y = 0.0f;   // where a charm draws them
+    bool  Afflicted(Status s) const { return statuses.Has(s); }
+    bool  Charmed() const { return statuses.Has(Status::Charm); }
+    bool  Confused() const { return statuses.Has(Status::Confused); }
+    bool  Held() const;                     // frozen: they cannot move or act
+    // As Enemy::Afflict: the status that took (a chill on the soaked is a
+    // frost), or COUNT if nothing did.
+    Status Afflict(Status kind, int blow, const StatusDatabase& db, float from_x, float from_y);
+    // A blow landing: whatever the next blow ends (a charm) ends, unless it is
+    // `except`, the one the blow brings. True if something did.
+    bool  ShakeOff(const StatusDatabase& db, Status except);
+    float StatusInvites(Status s) const;    // a soaked player is easier to leave arcing
+    float StatusSpeed() const;              // how much their feet are slowed
+    // A friend's machine is not told how long each has to run, only which are
+    // on them and where a charm is drawing them: enough to steer as the host
+    // will, and to draw them.
+    void  ShowStatuses(uint16_t bits, float cx, float cy);
+
 private:
+    const StatusDatabase* status_db = nullptr;
+    // Counts what is on them down, and -- where this machine decides such
+    // things -- deals what it owes.
+    void TickStatuses(float dt, World& world);
+    // The hearts over someone charmed, the stars round someone confused.
+    void DrawDazes(SDL_Renderer* r, const Camera& cam) const;
     void HandleAttackInput(const PlayerInput& in, float dt, const World& world);
     // What this seat is fighting, or null: only the local seat has targeting.
     const class Enemy* CurrentTarget(const World& world) const;

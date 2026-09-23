@@ -324,7 +324,8 @@
     "knockback": 22,
     "homing": 1.5,
     "element": "none",
-    "impact_size": 5
+    "impact_size": 5,
+    "status": {"id": "concussed", "chance": 0.15}
   },
 
   "arc_zap": {
@@ -373,21 +374,26 @@
     "radius": 7,
     "knockback": 24,
     "element": "earth",
-    "impact_size": 7
+    "impact_size": 7,
+    "status": {"id": "poison", "chance": 0.3}
   },
   "hag_hex": {
-    "sprite": "assets/effects/blood_orb.png",
+    "sprite": "assets/effects/hex_rot.png",
+    "tail": {"sprite": "assets/effects/hex_rot_wake.png", "frames": 8, "pivot": [18, 6]},
     "frames": 8,
-    "fps": 14,
+    "fps": 12,
     "upright": true,
-    "tint": [150, 200, 130],
+    "tint": [255, 255, 255],
+    "trail_color": [190, 206, 80],
     "speed": 270,
     "life": 1.6,
     "radius": 7,
     "homing": 1.6,
     "knockback": 18,
     "element": "earth",
-    "impact_size": 8
+    "impact_size": 8,
+    "glow": 30,
+    "status": {"id": "poison", "chance": 0.35}
   },
   "witch_spark": {
     "sprite": "assets/icons/spark.png",
@@ -399,7 +405,81 @@
     "radius": 6,
     "knockback": 30,
     "element": "electric",
-    "impact_size": 7
+    "impact_size": 7,
+    "status": {"id": "electrified", "chance": 0.3}
+  },
+  "hag_charm": {
+    "_comment": "The Swamp Hag's beguiling hex: little harm in it, and whoever it lands on walks to her.",
+    "sprite": "assets/effects/hex_charm.png",
+    "tail": {"sprite": "assets/effects/hex_charm_wake.png", "frames": 8, "pivot": [18, 6]},
+    "frames": 8,
+    "fps": 12,
+    "upright": true,
+    "tint": [255, 255, 255],
+    "trail_color": [250, 140, 200],
+    "speed": 235,
+    "life": 1.9,
+    "radius": 7,
+    "homing": 1.8,
+    "knockback": 0,
+    "element": "arcane",
+    "glow": 34,
+    "power": 0.45,
+    "impact_size": 8,
+    "status": {"id": "charm", "chance": 0.55}
+  },
+  "hag_befuddle": {
+    "_comment": "The Swamp Hag's befuddling hex: a bubble of it, and which way is which comes out backwards.",
+    "sprite": "assets/effects/hex_befuddle.png",
+    "tail": {"sprite": "assets/effects/hex_befuddle_wake.png", "frames": 8, "pivot": [18, 6]},
+    "frames": 8,
+    "fps": 12,
+    "upright": true,
+    "tint": [255, 255, 255],
+    "trail_color": [190, 150, 250],
+    "speed": 250,
+    "life": 1.8,
+    "radius": 7,
+    "homing": 1.6,
+    "knockback": 10,
+    "element": "arcane",
+    "glow": 30,
+    "power": 0.6,
+    "impact_size": 8,
+    "status": {"id": "confused", "chance": 0.6}
+  },
+  "witch_lure": {
+    "_comment": "A witchlight's lure: the light a traveller follows into the water.",
+    "sprite": "assets/icons/spark.png",
+    "frames": 1,
+    "spin": true,
+    "tint": [255, 214, 236],
+    "speed": 300,
+    "life": 1.5,
+    "radius": 6,
+    "homing": 1.4,
+    "knockback": 0,
+    "element": "arcane",
+    "glow": 30,
+    "power": 0.4,
+    "impact_size": 7,
+    "status": {"id": "charm", "chance": 0.4}
+  },
+  "barbed_arrow": {
+    "_comment": "A monster's arrow: the player's own bow looses plain ones.",
+    "sprite": "assets/objects/arrow.png",
+    "speed": 400,
+    "life": 1.5,
+    "radius": 4,
+    "scale": 0.6,
+    "sprite_angle": -90,
+    "pierce": 0,
+    "knockback": 26,
+    "homing": 6.0,
+    "element": "none",
+    "tint": [236, 214, 200],
+    "impact_size": 4,
+    "status": {"id": "bleed", "chance": 0.15}
   },
   "shaman_bolt": {
     "sprite": "assets/effects/water_orb.png",
@@ -413,7 +493,8 @@
     "homing": 2.0,
     "knockback": 40,
     "element": "water",
-    "impact_size": 8
+    "impact_size": 8,
+    "status": {"id": "wet", "chance": 0.35}
   },
   "shade_wail": {
     "sprite": "assets/effects/air_slash.png",
@@ -426,7 +507,8 @@
     "pierce": 1,
     "knockback": 55,
     "element": "air",
-    "impact_size": 9
+    "impact_size": 9,
+    "status": {"id": "confused", "chance": 0.25}
   },
   "throwing_knife": {
     "sprite": "assets/effects/throwing_knife.png",

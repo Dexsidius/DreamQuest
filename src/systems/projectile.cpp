@@ -95,6 +95,7 @@ bool ProjectileDatabase::Load(const string& path) {
         d.bounce_damping = o.value("bounce_damping", 0.25f);
         d.impact_size    = o.value("impact_size", 5.0f);
         d.knockback = o.value("knockback", 40.0f);
+        d.power     = std::max(0.0f, o.value("power", 1.0f));
         d.homing    = o.value("homing", 0.0f);
         d.element = ElementFromName(o.value("element", string("none")));
         d.tint = ColorFromJson(o.contains("tint") ? o["tint"] : json(),

@@ -210,6 +210,7 @@ Bytes Encode(const Snapshot& m) {
         w.U8(p.facing); w.U8(p.flags); w.U8(p.frame);
         w.I16(p.hp); w.I16(p.max_hp);
         w.U8(p.battery);
+        w.U16(p.statuses); w.I16(p.charm_x); w.I16(p.charm_y);
         w.Str(p.clip, MAX_CLIP);
     }
     const auto count = [&](size_t have, size_t limit) {
@@ -261,6 +262,7 @@ bool Decode(const Bytes& b, Snapshot& out) {
         p.facing = r.U8(); p.flags = r.U8(); p.frame = r.U8();
         p.hp = r.I16(); p.max_hp = r.I16();
         p.battery = r.U8();
+        p.statuses = r.U16(); p.charm_x = r.I16(); p.charm_y = r.I16();
         p.clip = r.Str(MAX_CLIP);
         if (!r.Ok()) return false;
         out.players.push_back(std::move(p));

@@ -5,8 +5,10 @@
 // -----------------------------------------------------------------------------
 //  Status effects.
 //
-//  What a blow can leave on a monster besides the damage: it burns, it is
-//  soaked, it is concussed, it bleeds, it is poisoned, it is chilled or frozen.
+//  What a blow can leave on a monster -- or, from a monster, on the player --
+//  besides the damage: it burns, it is soaked, it is concussed, it bleeds, it
+//  is poisoned, it is chilled or frozen; and, cast on the player only, it is
+//  charmed or confused.
 //  A blow does not always leave one -- what throws it says how likely that is
 //  (`StatusProc`, on a projectile in data/projectiles.json and on a weapon in
 //  data/tiers.json and data/items.json) -- and what one does while it lasts is
@@ -27,6 +29,14 @@
 //               seconds, its arm goes slow and its aim goes wide, and it reels
 //               the moment it takes. Anything soaked is twice as easy to leave
 //               arcing: see `invites`.
+//    charm      (players only) beguiled: they walk to whoever cast it and
+//               cannot bring themselves to strike. The next blow breaks it.
+//    confused   (players only) befuddled: which way is which is backwards.
+//
+//  On the player a status runs for `player_share` of its time -- a player held
+//  frozen for as long as a monster is is a player watching themselves die --
+//  and what hinders is felt the same way a monster feels it: slower feet, a
+//  worse Attack and Defence. See Player::Afflict.
 //
 //  Defence is where most of them meet the rest of the fight: a blow lands or it
 //  does not by the attacker's Attack against the target's Defence (see
@@ -37,7 +47,8 @@
 //  pointer: the host's goes to a friend's machine as one byte of bits.
 // -----------------------------------------------------------------------------
 
-enum class Status : uint8_t { Burn = 0, Wet, Concussed, Bleed, Poison, Chill, Frozen, Electrified, COUNT };
+enum class Status : uint8_t { Burn = 0, Wet, Concussed, Bleed, Poison, Chill, Frozen, Electrified, Charm, Confused,
+                              COUNT };
 static constexpr int STATUS_COUNT = static_cast<int>(Status::COUNT);
 
 const char* StatusId(Status s);
@@ -81,6 +92,12 @@ struct StatusDef {
     float invite_mult = 1.0f;
     // The great ones shake things off: this share of the time, for a boss.
     float boss_share = 0.5f;
+    // On a player: this share of the time. And whether only a player can have
+    // it at all (a monster is never charmed), and whether the next blow that
+    // lands ends it (the pain of it wakes them from a charm).
+    float player_share = 1.0f;
+    bool  players_only = false;
+    bool  breaks_on_hit = false;
 };
 
 class StatusDatabase {
@@ -106,7 +123,7 @@ struct StatusProc {
 // Reads {"id": "burn", "chance": 0.3}; nothing for anything else.
 StatusProc StatusProcFromJson(const json& j);
 
-// What a monster has on it now.
+// What a monster -- or a player -- has on it now.
 struct StatusSet {
     float left[STATUS_COUNT] = {};     // seconds still to run
     float rate[STATUS_COUNT] = {};     // damage a second still owed
@@ -114,9 +131,9 @@ struct StatusSet {
 
     bool    Has(Status s) const { return left[static_cast<int>(s)] > 0.0f; }
     bool    Any() const { for (float l : left) if (l > 0.0f) return true; return false; }
-    uint8_t Bits() const {
-        uint8_t b = 0;
-        for (int i = 0; i < STATUS_COUNT; ++i) if (left[i] > 0.0f) b |= static_cast<uint8_t>(1u << i);
+    uint16_t Bits() const {
+        uint16_t b = 0;
+        for (int i = 0; i < STATUS_COUNT; ++i) if (left[i] > 0.0f) b |= static_cast<uint16_t>(1u << i);
         return b;
     }
     void    End(Status s) { const int i = static_cast<int>(s); left[i] = rate[i] = bank[i] = 0.0f; }

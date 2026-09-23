@@ -1427,6 +1427,63 @@ What else is so:
 - **Nothing is rolled without the statuses loaded**, so every test written
   before them is a test of the same game it was.
 
+### What the monsters leave on you
+
+It goes both ways now. **Every monster that fights can leave something on the
+player** -- `"on_hit"` in `data/enemies.json` for its blows, `"status"` on its
+shot in `data/projectiles.json`, and a brute's heavy slam can carry its own
+(`"heavy": {"status": ...}`; without one, a heavy is the monster's own `on_hit`
+at twice the chance). The deer, the hares and the farmyard leave nothing.
+
+| Who | What |
+| --- | --- |
+| Spiders, the Broodmother, the Gloom Spider; zombies, slimes, ghouls, rot shamblers, plague corpses; the Mire Croaker's spit | **Poisoned** -- a spider a quarter of the time |
+| Rats, foxes, boars, wolves, bears, bats, hounds, gators, fen stalkers, bone knights, the Nosferatu and his thralls; orc blades and the monsters' **barbed arrows** | **Bleeding** |
+| Imps, demons, the Pit Lord, the Warchief, the Cinder King | **Burning** |
+| Ice trolls, wyverns, wraiths, revenants, cryptbound, the Crypt Warden, tomb shades | **Chilled** -- and a frost dragon's slam, or a rime revenant's, can **freeze** |
+| Bog lurkers, the drowned, the Thing in the Spring, the Lizard Shaman's bolt | **Soaked** |
+| A witchlight's spark | **Arcing** |
+| Orc slingers' stones; the heavy slams of bears, trolls, chiefs and bosses | **Concussed** |
+| Banshees, the Night Terror, the Wailing Dream, a tomb shade's wail | **Confused** |
+
+**The Swamp Hags cast.** A hag stands off and throws her hexes in turn -- no
+dice choose which (`"spells"` in `data/enemies.json`), and each is its own
+colour so you can see what is coming:
+
+- the **rot hex**, sickly green, poisons (35%);
+- the **beguiling hex**, rose, does little harm and **charms** (55%): for two
+  and a half seconds your feet take you to her, slowly, and you cannot bring
+  yourself to strike, guard or jump. The next blow that lands on you breaks it.
+- the **befuddling hex**, violet with a gold light in it, **confuses** (60%):
+  for four seconds, which way is which is backwards -- push right and you go
+  left.
+
+Witchlights have a lure among their sparks that charms as well; a
+will-o'-the-wisp is the light a traveller follows into the water.
+
+On the player a status does what it does to a monster -- a poison, a burn or a
+bleed hurts over time (in its colour, without the flash or the lost sprint of a
+blow), a chill slows your feet, a concussion or a poison lowers your Defence,
+arcing your Attack -- except that **a frost holds you for six tenths as long**
+and a concussion lasts seven tenths: a player held as long as a monster is is
+a player watching themselves die. A chip beside your bars names each one and
+how long it has left; a charmed player flushes pink with hearts rising off
+them, and stars go round the head of a confused one. **Dying, waking and a
+night's rest clear the lot.** A shield that catches a blow catches what it
+carries with it.
+
+A friend's machine is told what is on them, and where a charm is drawing them,
+in the snapshot (protocol 11), and steers them as the host does -- or every
+step would be pulled back. The dice for all this are the world's own, never the
+fight's, so a fight that leaves nothing throws exactly the numbers it did.
+
+**Monsters' shots land now.** A monster's combat sheet never had a Ranged
+level, so every hex, spit, bolt and arrow a monster loosed was rolled as a
+level-1 archer's: nearly all missed, and the rest did a point. A shot is now as
+sure and as hard as the monster's own blows -- which makes the orc slingers and
+bowmen on the Hollowmarch, and every caster in the Bayou, what they were meant
+to be.
+
 ### The effectiveness cycle
 
 ```

@@ -1680,7 +1680,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         if (e->statuses.Any()) {
             static const SDL_Color kPip[STATUS_COUNT] = {
                 {255, 150, 60, 255}, {110, 180, 240, 255}, {236, 214, 120, 255}, {200, 60, 70, 255},
-                {140, 210, 90, 255}, {170, 220, 250, 255}, {232, 246, 255, 255}};
+                {140, 210, 90, 255}, {170, 220, 250, 255}, {232, 246, 255, 255}, {252, 236, 120, 255},
+                {255, 140, 200, 255}, {196, 160, 255, 255}};
             const float side = static_cast<float>(std::max(6, bh + 1));
             float px = bx;
             for (int i = 0; i < STATUS_COUNT; ++i) {

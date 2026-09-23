@@ -54,6 +54,9 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     // The charge, so a guest's own bar reads right: their world is the host's
     // and it is the host that put the charge in it.
     s.battery = static_cast<uint8_t>(std::clamp(p.Battery(), 0.0f, 1.0f) * 255.0f + 0.5f);
+    s.statuses = p.statuses.Bits();
+    s.charm_x = static_cast<int16_t>(std::clamp(std::lround(p.charm_x), -32768L, 32767L));
+    s.charm_y = static_cast<int16_t>(std::clamp(std::lround(p.charm_y), -32768L, 32767L));
     return s;
 }
 
@@ -569,6 +572,7 @@ World* Host::WorldFor(const string& map, World& home, const GameContext& ctx, bo
     if (it != away.end()) return it->second.get();
 
     auto w = std::make_unique<World>();
+    w->SeedDice(home.DrawSeed());
     w->player.absent = true;
     w->player.seat = Player::NO_SEAT;
     w->journal = false;               // not while it loads: "visited" is nobody's news
@@ -593,6 +597,7 @@ void Host::SplitOff(World& home) {
     for (const auto& g : home.guests) anyone |= !g->puppet;
     if (!anyone) return;
     auto w = std::make_unique<World>();
+    w->SeedDice(home.DrawSeed());
     w->player.absent = true;
     w->player.seat = Player::NO_SEAT;
     w->company = true;
@@ -1496,6 +1501,9 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         // battery is not.
         me.ClearBattery();
         me.AddBattery(st.battery / 255.0f);
+        // What is on us is the host's to say too: a charm steers us, and we
+        // steer as the host will, or it would pull us back every step.
+        me.ShowStatuses(st.statuses, st.charm_x, st.charm_y);
 
         // Where did the host say that step ended?
         if (snap.ack_seq <= acked && acked != 0) continue;
@@ -1655,6 +1663,7 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
         g->shield_shown = (a.state.flags & net::PlayerState::Shielded) != 0;
         g->ClearBattery();
         g->AddBattery(a.state.battery / 255.0f);
+        g->ShowStatuses(a.state.statuses, a.state.charm_x, a.state.charm_y);
     }
 }
 

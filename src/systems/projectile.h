@@ -73,6 +73,9 @@ struct ProjectileDef {
 
     int   pierce    = 0;        // extra targets it passes through
     float knockback = 40.0f;
+    // A monster's shot: its damage, as a share of the monster's own. A hex
+    // that charms need not also hurt.
+    float power = 1.0f;
     // Radians a second it may turn toward the monster it was loosed at, so a
     // shot at something moving still arrives. Zero flies straight.
     float homing    = 0.0f;
@@ -119,6 +122,7 @@ struct Projectile {
     const ProjectileDef* def = nullptr;
     float x = 0, y = 0;
     float vx = 0, vy = 0;
+    float from_x = 0, from_y = 0;   // where it was loosed from: a charm draws its victim there
     float angle = 0.0f;          // radians of travel, for drawing
     float spin_angle = 0.0f;
     float life = 0.0f;

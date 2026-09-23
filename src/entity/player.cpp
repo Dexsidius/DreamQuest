@@ -322,7 +322,146 @@ CombatProfile Player::Profile() const {
         case AttackStyle::Magic:  p.magic_bonus  += AFFINITY_BONUS; break;
         default:                  p.attack_bonus += AFFINITY_BONUS; break;
     }
+    // What is on them: a concussed or poisoned player guards worse, a
+    // concussed or arcing one swings worse, as a monster would.
+    if (status_db && statuses.Any()) {
+        float attack = 1.0f, defence = 1.0f;
+        for (int i = 0; i < STATUS_COUNT; ++i) {
+            const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+            if (!d) continue;
+            attack *= d->attack;
+            defence *= d->defence;
+        }
+        const auto scale = [](int level, float k) { return std::max(1, static_cast<int>(std::lround(level * k))); };
+        p.attack_level  = scale(p.attack_level, attack);
+        p.ranged_level  = scale(p.ranged_level, attack);
+        p.magic_level   = scale(p.magic_level, attack);
+        p.defence_level = scale(p.defence_level, defence);
+    }
     return p;
+}
+
+bool Player::Held() const {
+    if (!statuses.Any()) return false;
+    if (!status_db) return statuses.Has(Status::Frozen);
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+        if (d && d->holds) return true;
+    }
+    return false;
+}
+
+Status Player::Afflict(Status kind, int blow, const StatusDatabase& db, float from_x, float from_y) {
+    if (dead || hp <= 0 || kind == Status::COUNT) return Status::COUNT;
+    status_db = &db;
+    const StatusDef* d = db.Get(kind);
+    if (!d) return Status::COUNT;
+    const auto lasts = [](const StatusDef& of) { return of.seconds * of.player_share; };
+    // A chill on someone soaked is a frost, as it is on a monster.
+    if (d->becomes != Status::COUNT && d->if_has != Status::COUNT && statuses.Has(d->if_has)) {
+        const StatusDef* other = db.Get(d->becomes);
+        if (other && lasts(*other) > 0.0f) { kind = d->becomes; d = other; }
+    }
+    for (Status stops : d->blocked_by) if (statuses.Has(stops)) return Status::COUNT;
+    const float seconds = lasts(*d);
+    if (seconds <= 0.0f) return Status::COUNT;
+    for (Status over : d->ends) statuses.End(over);
+
+    const int i = static_cast<int>(kind);
+    if (d->dot_share > 0.0f) {
+        const float fresh = std::max(static_cast<float>(d->dot_min), static_cast<float>(blow) * d->dot_share);
+        const float owed = statuses.left[i] * statuses.rate[i];
+        const float total = d->stacks ? owed + fresh : std::max(owed, fresh);
+        statuses.rate[i] = total / seconds;
+    }
+    statuses.left[i] = std::max(statuses.left[i], seconds);
+    if (kind == Status::Charm) { charm_x = from_x; charm_y = from_y; }
+    // Held fast or beguiled, whatever they were winding up comes to nothing.
+    if (d->holds || kind == Status::Charm) {
+        charging = strong_armed = false;
+        charge_held = 0.0f;
+        sprinting = false;
+    }
+    return kind;
+}
+
+bool Player::ShakeOff(const StatusDatabase& db, Status except) {
+    bool any = false;
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const Status s = static_cast<Status>(i);
+        if (s == except || statuses.left[i] <= 0.0f) continue;
+        const StatusDef* d = db.Get(s);
+        if (d && d->breaks_on_hit) { statuses.End(s); any = true; }
+    }
+    return any;
+}
+
+float Player::StatusInvites(Status s) const {
+    float mult = 1.0f;
+    if (!status_db || s == Status::COUNT) return mult;
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+        if (d && std::find(d->invites.begin(), d->invites.end(), s) != d->invites.end()) mult *= d->invite_mult;
+    }
+    return mult;
+}
+
+float Player::StatusSpeed() const {
+    float mult = 1.0f;
+    if (!status_db || !statuses.Any()) return mult;
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr;
+        if (d) mult *= d->speed;
+    }
+    return mult;
+}
+
+void Player::ShowStatuses(uint16_t bits, float cx, float cy) {
+    // Kept on a moment past what was said, so they last until the next word
+    // about them: a snapshot comes several times a second.
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        if ((bits >> i) & 1u) statuses.left[i] = std::max(statuses.left[i], 0.4f);
+        else                  statuses.End(static_cast<Status>(i));
+    }
+    charm_x = cx;
+    charm_y = cy;
+}
+
+void Player::TickStatuses(float dt, World& world) {
+    if (!statuses.Any()) return;
+    // A friend's machine is told what is on them and how hurt they are; only
+    // the host counts what a poison owes.
+    const bool mine = !world.visiting;
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        if (statuses.left[i] <= 0.0f) continue;
+        const Status kind = static_cast<Status>(i);
+        const StatusDef* d = status_db ? status_db->Get(kind) : nullptr;
+        const float step = std::min(dt, statuses.left[i]);
+        statuses.left[i] -= step;
+        if (mine && hp > 0 && statuses.rate[i] > 0.0f) {
+            statuses.bank[i] += statuses.rate[i] * step;
+            const int whole = static_cast<int>(statuses.bank[i]);
+            if (whole > 0) {
+                statuses.bank[i] -= static_cast<float>(whole);
+                // Taken without the flash, the sound or the lost sprint of a
+                // blow: a burn ticks several times a second, and each tick
+                // treated as a blow would drown out the blows themselves.
+                const float flash = hurt_flash;
+                Damage(whole);
+                hurt_flash = flash;
+                heard_hp = hp;
+                skills.SetCurrent(SKILL_HITPOINTS, hp);
+                world.AddText(std::to_string(whole), x + 10.0f, y - 38.0f,
+                              d ? d->color : SDL_Color{200, 60, 70, 255}, 0.7f);
+            }
+        }
+        if (statuses.left[i] <= 0.0f) {
+            statuses.End(kind);
+            // A frost thaws into a chill.
+            if (mine && d && d->then != Status::COUNT && status_db && hp > 0)
+                Afflict(d->then, 0, *status_db, charm_x, charm_y);
+        }
+    }
 }
 
 void Player::GrantXp(int skill, int amount) {
@@ -1193,6 +1332,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // Frenzy: the chain does not lapse between blows.
     if (frenzy_timer > 0.0f && chain_hits > 0) chain_show = std::max(chain_show, CHAIN_HOLD);
     if (hurt_flash > 0.0f) hurt_flash = std::max(0.0f, hurt_flash - dt);
+    if (ctx.statuses) status_db = ctx.statuses;
+    if (!dead) TickStatuses(dt, world);
     // Every source of damage lowers hp; listening for that catches them all.
     if (heard_hp >= 0 && hp < heard_hp && hp > 0) {
         Audio::Play(Sfx::PlayerHurt);
@@ -1226,6 +1367,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         combo = 0;
         BreakChain();
         jumping = false;
+        statuses.Clear();
         sprite.Play("death", true);
         Audio::Play(Sfx::PlayerDie);
     }
@@ -1251,18 +1393,33 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     Vec2 move{0, 0};
     moving = false;
     // The hands, never the device: see player_input.h.
+    // Held fast or beguiled, the hands are not theirs: no swing, no guard, no
+    // jump, and their feet go where the charm draws them or nowhere at all.
+    const bool bound = Held() || Charmed();
     if (!input_locked) {
         move = hands.move;
+        if (Held()) {
+            move = {0.0f, 0.0f};
+        } else if (Charmed()) {
+            // To whoever cast it, and no nearer than arm's length.
+            const float cdx = charm_x - x, cdy = charm_y - y;
+            const float far = Length(cdx, cdy);
+            move = far > 28.0f ? Vec2{cdx / far, cdy / far} : Vec2{0.0f, 0.0f};
+        } else if (Confused()) {
+            // Which way is which is backwards.
+            move = {-move.x, -move.y};
+        }
         moving = Length(move.x, move.y) > 0.3f;
         move_axis = move;
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
-        blocking = hands.Down(PlayerInput::Block) && CanBlock();
+        blocking = !bound && hands.Down(PlayerInput::Block) && CanBlock();
         // The abilities' shift held and an attack button: an ability, if one
         // is carried there, and the press is the ability's, not a swing. The
         // shift is RB on a pad and the guard on the keys: see Action::Ability.
         PlayerInput for_attacks = hands;
-        if (hands.Down(PlayerInput::Ability)) {
+        if (bound) for_attacks.down = for_attacks.pressed = for_attacks.released = 0;
+        if (!bound && hands.Down(PlayerInput::Ability)) {
             for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
                 const uint8_t button = slot == 0 ? PlayerInput::Light : slot == 1 ? PlayerInput::Strong : PlayerInput::Target;
                 if (!talents.Ability(slot)) continue;
@@ -1294,7 +1451,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         if (plan.ok && plan.levels != 0 && Length(move.x, move.y) > 0.3f)
             climb_hint = plan.levels > 0 ? "Climb up" : "Drop down";
 
-        if (hands.Pressed(PlayerInput::Jump) && !attack.Active() && !charging) {
+        if (!bound && hands.Pressed(PlayerInput::Jump) && !attack.Active() && !charging) {
             jumping      = true;
             sprinting    = false;
             jump_timer   = 0.0f;
@@ -1379,6 +1536,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- movement ------------------------------------------------------------
     float speed = move_speed * (1.0f + talents.Global("move_speed"));
+    // A chill in the legs, a head still ringing, a charm's slow walk.
+    speed *= StatusSpeed();
     if (hit_run_timer > 0.0f) speed *= 1.0f + talents.Effect("hit_run", AttackStyle::Ranged);
     if (Passive(PASSIVE_MARSHSTRIDE)) speed *= MARSHSTRIDE_SPEED;
     // Boots and charms: hide boots are a twentieth, an enchantment more.
@@ -1498,7 +1657,84 @@ void Player::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) con
         // And a glow round them as it fills, with the shader.
         if (Shaders::Effects() && t > 0.05f) fx.glow = {1.0f, 0.78f, 0.36f, 0.25f + 0.45f * t};
     }
+    // What a monster has left on them shows on them, as it does on a monster:
+    // drawn by the sprite shader, or as a pull of their colours toward the
+    // status's without it.
+    if (statuses.Any() && !dead) {
+        if (Shaders::Effects()) {
+            fx.seed = 7.0f + static_cast<float>(seat);
+            fx.burn = statuses.Has(Status::Burn) ? 1.0f : 0.0f;
+            fx.cold = statuses.Has(Status::Frozen) ? 1.0f : statuses.Has(Status::Chill) ? 0.5f : 0.0f;
+            fx.electrified = statuses.Has(Status::Electrified) ? 1.0f : 0.0f;
+            fx.poison = statuses.Has(Status::Poison) ? 1.0f : 0.0f;
+            fx.wet = statuses.Has(Status::Wet) ? 1.0f : 0.0f;
+            fx.bleed = statuses.Has(Status::Bleed) ? 1.0f : 0.0f;
+        } else {
+            const auto toward = [&](SDL_Color c, float k) {
+                tint = {static_cast<Uint8>(tint.r + (c.r - tint.r) * k), static_cast<Uint8>(tint.g + (c.g - tint.g) * k),
+                        static_cast<Uint8>(tint.b + (c.b - tint.b) * k), tint.a};
+            };
+            const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+            if (statuses.Has(Status::Wet))    toward({150, 190, 255, 255}, 0.35f);
+            if (statuses.Has(Status::Poison)) toward({150, 230, 120, 255}, 0.45f);
+            if (statuses.Has(Status::Burn))   toward({255, 150, 80, 255}, 0.30f + 0.20f * sinf(t * 14.0f));
+            if (statuses.Has(Status::Chill))  toward({170, 215, 255, 255}, 0.50f);
+            if (statuses.Has(Status::Frozen)) toward({190, 232, 255, 255}, 0.85f);
+        }
+        // Beguiled, they are a little flushed.
+        if (Charmed()) tint = {tint.r, static_cast<Uint8>(tint.g * 0.84f), static_cast<Uint8>(tint.b * 0.92f), tint.a};
+    }
     sprite.Draw(r, cache, cam, x, y - draw_lift, tint, SDL_BLENDMODE_BLEND, 1.0f, fx.Any() ? &fx : nullptr);
+    if (!dead && (Charmed() || Confused())) DrawDazes(r, cam);
+}
+
+void Player::DrawDazes(SDL_Renderer* r, const Camera& cam) const {
+    // Over their head, in whole art pixels, drawn the plain way so it reads
+    // with the effects off as well as on: hearts rising off someone charmed,
+    // and stars going round the head of someone who does not know which way
+    // is which.
+    const float z = cam.zoom;
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    const float head = y - draw_lift + body_box.y - 4.0f;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    const auto pixel = [&](float wx, float wy, int px, int py) {
+        const SDL_FPoint at = cam.ToScreen(wx, wy);
+        const SDL_FRect d = {roundf(at.x / z) * z + px * z, roundf(at.y / z) * z + py * z, z, z};
+        SDL_RenderFillRect(r, &d);
+    };
+    if (Charmed()) {
+        // .X.X.
+        // XXXXX
+        // .XXX.
+        // ..X..
+        static const char* kHeart[4] = {".X.X.", "XXXXX", ".XXX.", "..X.."};
+        for (int k = 0; k < 3; ++k) {
+            const float t = fmodf(now * 0.8f + k / 3.0f, 1.0f);
+            const float hx = x + (k == 0 ? -9.0f : k == 1 ? 7.0f : -1.0f) + sinf(now * 3.0f + k * 2.0f) * 2.0f;
+            const float hy = head - 2.0f - t * 16.0f;
+            const Uint8 a = static_cast<Uint8>(255.0f * std::clamp((1.0f - t) * 1.6f, 0.0f, 1.0f));
+            for (int row = 0; row < 4; ++row)
+                for (int col = 0; col < 5; ++col) {
+                    if (kHeart[row][col] != 'X') continue;
+                    // A lighter pixel where the light catches it.
+                    if (row == 1 && col == 1) SDL_SetRenderDrawColor(r, 255, 214, 236, a);
+                    else                      SDL_SetRenderDrawColor(r, 240, 96, 170, a);
+                    pixel(hx, hy, col - 2, row - 2);
+                }
+        }
+    }
+    if (Confused()) {
+        // Three little stars going round, the far side of the circle dimmer.
+        for (int k = 0; k < 3; ++k) {
+            const float a = now * 4.2f + k * 2.0943951f;
+            const float sx = x + cosf(a) * 11.0f, sy = head - 2.0f + sinf(a) * 3.0f;
+            const Uint8 alpha = static_cast<Uint8>(sinf(a) > 0.0f ? 255 : 170);
+            SDL_SetRenderDrawColor(r, 255, 236, 120, alpha);
+            pixel(sx, sy, 0, -1); pixel(sx, sy, -1, 0); pixel(sx, sy, 1, 0); pixel(sx, sy, 0, 1);
+            SDL_SetRenderDrawColor(r, 255, 255, 236, alpha);
+            pixel(sx, sy, 0, 0);
+        }
+    }
 }
 
 void Player::Respawn(float sx, float sy) {
@@ -1513,6 +1749,7 @@ void Player::Respawn(float sx, float sy) {
     charging = strong_armed = false;
     jumping = false;
     sprinting = winded = false;
+    statuses.Clear();
     stamina = MaxStamina();
     stamina_delay = 0.0f;
     // What was stored is lost with the fight it was stored for. Mana and
@@ -1529,6 +1766,7 @@ void Player::Respawn(float sx, float sy) {
 
 void Player::Rest() {
     if (dead) return;
+    statuses.Clear();
     SyncHitpoints();
     hp = max_hp;
     skills.SetCurrent(SKILL_HITPOINTS, hp);

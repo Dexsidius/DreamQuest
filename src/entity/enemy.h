@@ -16,6 +16,9 @@ struct HeavyAttackDef {
     float cooldown  = 9.0f;   // seconds between one and the next
     float opening   = 3.5f;   // seconds into a fight before the first
     float knockback = 220.0f;
+    // What it can leave on whoever it lands on: a brute's slam concusses. None
+    // given, it is the monster's own `on_hit` at twice the chance.
+    StatusProc status;
 };
 
 // Stat block for one kind of monster, from data/enemies.json.
@@ -31,6 +34,14 @@ struct EnemyDef {
     // What it throws, and from how far. Empty for everything that fights with
     // its hands. A shooter holds its distance rather than closing: see Chase.
     string shoots;
+    // A caster's spells: thrown in turn, one each time it shoots, so the Swamp
+    // Hag's rot, beguiling and befuddling hexes come round in order and no
+    // dice are thrown to choose. `shoots` is the first of them.
+    vector<string> spells;
+    // What its blows can leave on the player: a spider's poison, a wolf's
+    // bleeding bite, the frost's chill. Its shots carry their own, in
+    // data/projectiles.json.
+    StatusProc on_hit;
     float shoot_range = 0.0f;
     float shoot_cooldown = 2.4f;
     float xp_multiplier = 1.0f;
@@ -322,6 +333,7 @@ private:
     // Half of those somewheres are wet, so it spends its day going in and
     // out of the pond of its own accord.
     bool  afloat = false;         // over water this frame
+    unsigned casts = 0;           // spells thrown, for which is next: see EnemyDef::spells
     bool  has_goal = false;
     float goal_x = 0.0f, goal_y = 0.0f;
     bool  goal_wet = false;       // the goal is a place in the water

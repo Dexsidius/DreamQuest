@@ -1,5 +1,5 @@
 {
-  "_comment": "What a blow can leave on a monster: see src/systems/status.h. 'dot_share' is the share of the blow that lands again, spread over 'seconds'. 'speed', 'attack', 'defence' and 'cooldown' multiply the monster's own while the status lasts. A boss keeps a status for 'boss_share' of the time, and is never held.",
+  "_comment": "What a blow can leave on a monster, or a monster's on the player: see src/systems/status.h. 'dot_share' is the share of the blow that lands again, spread over 'seconds'. 'speed', 'attack', 'defence' and 'cooldown' multiply the monster's (or the player's) own while the status lasts. A boss keeps a status for 'boss_share' of the time, and is never held; a player keeps one for 'player_share' of it. 'players_only' is never put on a monster; 'breaks_on_hit' ends at the next blow that lands.",
 
   "burn": {
     "name": "Burning",
@@ -26,7 +26,8 @@
     "attack": 0.75,
     "defence": 0.75,
     "speed": 0.85,
-    "stagger": 0.35
+    "stagger": 0.35,
+    "player_share": 0.7
   },
   "bleed": {
     "name": "Bleeding",
@@ -60,7 +61,8 @@
     "holds": true,
     "ends": ["wet", "burn"],
     "then": "chill",
-    "boss_share": 0.0
+    "boss_share": 0.0,
+    "player_share": 0.6
   },
   "electrified": {
     "name": "Arcing",
@@ -71,5 +73,19 @@
     "attack": 0.85,
     "cooldown": 1.2,
     "stagger": 0.2
+  },
+  "charm": {
+    "name": "Charmed",
+    "color": [255, 140, 200],
+    "seconds": 2.4,
+    "speed": 0.6,
+    "players_only": true,
+    "breaks_on_hit": true
+  },
+  "confused": {
+    "name": "Confused",
+    "color": [196, 160, 255],
+    "seconds": 4.0,
+    "players_only": true
   }
 }

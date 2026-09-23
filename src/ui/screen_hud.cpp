@@ -225,6 +225,40 @@ void Game::DrawHud() {
                         charge > 0.0f ? SDL_Color{150, 226, 140, 255} : Palette::TextDim, Align::Center);
     }
 
+    // --- what is on them ----------------------------------------------------
+    // Beside the bars, a chip for each thing a monster has left on them: its
+    // colour, its name, and how long it has to run -- a poison is worth
+    // knowing the end of, and a charm or a confusion is worth knowing the
+    // name of, since it explains why the keys stopped answering. A friend's
+    // machine is told which, and not for how long.
+    if (p.statuses.Any()) {
+        float cx = hp_bar.x + hp_bar.w + 10.0f + (KnownElectric().empty() ? 0.0f : 32.0f);
+        const float cy = hp_bar.y;
+        const float h = line_h + 6.0f;
+        const float x0 = cx;
+        for (int i = 0; i < STATUS_COUNT; ++i) {
+            const float left = p.statuses.left[i];
+            if (left <= 0.0f) continue;
+            const StatusDef* d = status_db.Get(static_cast<Status>(i));
+            if (!d) continue;
+            string label = d->name;
+            if (left > 0.5f) label += "  " + std::to_string(static_cast<int>(ceilf(left)));
+            const float w = ui.Measure(label, TextSize::Small).x + 24.0f;
+            ui.Fill({cx, cy, w, h}, {24, 18, 15, 220});
+            ui.Fill({cx, cy, w, 1.0f}, {124, 98, 52, 255});
+            ui.Fill({cx, cy + h - 1.0f, w, 1.0f}, {74, 56, 28, 255});
+            // Its colour, as a pip, and it throbs in the last second.
+            const bool ending = left < 1.0f && fmodf(static_cast<float>(SDL_GetTicks()) * 0.006f, 1.0f) < 0.5f;
+            const SDL_Color c = d->color;
+            ui.Fill({cx + 5.0f, cy + (h - 10.0f) / 2.0f, 10.0f, 10.0f}, {14, 10, 8, 255});
+            ui.Fill({cx + 6.0f, cy + (h - 8.0f) / 2.0f, 8.0f, 8.0f},
+                    ending ? SDL_Color{static_cast<Uint8>(c.r / 2), static_cast<Uint8>(c.g / 2), static_cast<Uint8>(c.b / 2), 255} : c);
+            ui.TextShadowed(label, cx + 19.0f, cy + 3.0f, TextSize::Small, c);
+            cx += w + 4.0f;
+        }
+        ui.Claim("what is on them", {x0, cy, cx - x0, h});
+    }
+
     // --- stamina -------------------------------------------------------------
     // Under whichever bar is last, and slimmer, since it changes all the time
     // and wants to be glanced at rather than read. Winded, the bar pulses red

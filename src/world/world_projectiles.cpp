@@ -33,6 +33,8 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
     p.def = def;
     p.x = x;
     p.y = y;
+    p.from_x = x;
+    p.from_y = y;
     p.vx = (dir_x / len) * def->speed;
     p.vy = (dir_y / len) * def->speed;
     p.angle = atan2f(p.vy, p.vx);
@@ -262,9 +264,15 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 ActAs(*struck, [&] {
                     DamageResult r = RollAttack(p.owner, player.Profile(), p.style,
                                                 p.damage_mult, *ctx.rng);
-                    if (r.hit && r.damage > 0) {
-                        // Where the shot came from is back along its flight.
-                        HitPlayer(r.damage, p.owner, p.x - p.vx, p.y - p.vy);
+                    // A hex that lands does what it does even when it barely
+                    // scratches: a hit of nothing is a hit of one, for a shot
+                    // that carries a status.
+                    const bool carries = p.def->status.Any();
+                    if (r.hit && (r.damage > 0 || carries)) {
+                        // Where the shot came from is back along its flight;
+                        // what it leaves draws them to where it was loosed.
+                        HitPlayer(std::max(1, r.damage), p.owner, p.x - p.vx, p.y - p.vy, 0.0f, 0.0f,
+                                  p.def->status, p.from_x, p.from_y);
                     } else {
                         AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                     }

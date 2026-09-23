@@ -701,6 +701,7 @@ bool World::ObjectPresent(const MapObject& o) const {
 void World::Update(float dt, const GameContext& ctx) {
     quest_log = ctx.quests;
     host_quests = ctx.quests;
+    statuses_now = ctx.statuses;
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
         fade += fade_dir * fade_speed * dt;

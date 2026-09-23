@@ -5,7 +5,7 @@
 static constexpr float AUTOSAVE_INTERVAL = 120.0f;
 static constexpr float MAX_FRAME_DT      = 0.05f;   // clamp after a stall
 
-Game::Game() : rng(std::random_device{}()) {}
+Game::Game() : rng(std::random_device{}()) { home_world.SeedDice(std::random_device{}()); }
 
 Game::~Game() {
     // Say goodbye while there is still a frame to say it in: friends are told

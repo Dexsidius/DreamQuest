@@ -27,7 +27,11 @@
       28,
       42
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.08
+    }
   },
   "orc_slinger": {
     "name": "Orc Slinger",
@@ -65,7 +69,11 @@
     ],
     "shoots": "orc_rock",
     "shoot_range": 170.0,
-    "shoot_cooldown": 2.4
+    "shoot_cooldown": 2.4,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.06
+    }
   },
   "orc2": {
     "name": "Orc Raider",
@@ -95,7 +103,11 @@
       28,
       42
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.12
+    }
   },
   "orc_bowman": {
     "name": "Orc Bowman",
@@ -131,9 +143,13 @@
       180,
       205
     ],
-    "shoots": "arrow",
+    "shoots": "barbed_arrow",
     "shoot_range": 215.0,
-    "shoot_cooldown": 2.0
+    "shoot_cooldown": 2.0,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.08
+    }
   },
   "highwayman": {
     "name": "Highwayman",
@@ -162,7 +178,11 @@
       -30,
       16,
       30
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "orc3": {
     "name": "Orc Warchief",
@@ -181,7 +201,11 @@
     "heavy": {
       "windup": 1.4,
       "damage": 2.4,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "orc_warchief",
     "kill_target": "orc_warchief",
@@ -198,7 +222,11 @@
       32,
       46
     ],
-    "element": "fire"
+    "element": "fire",
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.2
+    }
   },
   "boar": {
     "name": "Wild Boar",
@@ -228,7 +256,11 @@
       24,
       24
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "deer": {
     "name": "Red Deer",
@@ -288,7 +320,11 @@
       20,
       20
     ],
-    "element": "air"
+    "element": "air",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.1
+    }
   },
   "hare": {
     "name": "Hare",
@@ -353,7 +389,11 @@
       28,
       42
     ],
-    "element": "air"
+    "element": "air",
+    "on_hit": {
+      "id": "confused",
+      "chance": 0.12
+    }
   },
   "dread_boar": {
     "name": "Dread Boar",
@@ -388,7 +428,11 @@
       24,
       24
     ],
-    "element": "water"
+    "element": "water",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "nightmare_brute": {
     "name": "Nightmare Brute",
@@ -412,7 +456,11 @@
     "heavy": {
       "windup": 1.4,
       "damage": 2.2,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.4
+      }
     },
     "loot": "nightmare_brute",
     "kill_target": "nightmare_brute",
@@ -428,7 +476,11 @@
       32,
       46
     ],
-    "element": "fire"
+    "element": "fire",
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.15
+    }
   },
   "rat": {
     "name": "Cellar Rat",
@@ -458,7 +510,11 @@
       20,
       18
     ],
-    "element": "none"
+    "element": "none",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.1
+    }
   },
   "spider": {
     "name": "Cellar Spider",
@@ -488,7 +544,11 @@
       30,
       22
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.25
+    }
   },
   "broodmother": {
     "name": "Broodmother",
@@ -507,7 +567,11 @@
     "heavy": {
       "windup": 1.2,
       "damage": 2.2,
-      "cooldown": 8.0
+      "cooldown": 8.0,
+      "status": {
+        "id": "poison",
+        "chance": 0.8
+      }
     },
     "loot": "broodmother",
     "kill_target": "broodmother",
@@ -530,7 +594,11 @@
       150,
       214
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.35
+    }
   },
   "lizardman": {
     "name": "Lizardman",
@@ -560,7 +628,11 @@
       44,
       62
     ],
-    "element": "water"
+    "element": "water",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.12
+    }
   },
   "lizardman_chief": {
     "name": "Lizardman Chief",
@@ -579,7 +651,11 @@
     "heavy": {
       "windup": 1.3,
       "damage": 2.3,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.45
+      }
     },
     "loot": "lizardman_chief",
     "kill_target": "lizardman",
@@ -602,7 +678,11 @@
       190,
       120
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "ice_troll": {
     "name": "Ice Troll",
@@ -633,7 +713,11 @@
       68
     ],
     "element": "water",
-    "scale": 1.15
+    "scale": 1.15,
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.25
+    }
   },
   "wyvern": {
     "name": "Frost Wyvern",
@@ -652,7 +736,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.2,
-      "cooldown": 12.0
+      "cooldown": 12.0,
+      "status": {
+        "id": "chill",
+        "chance": 0.6
+      }
     },
     "loot": "wyvern",
     "kill_target": "wyvern",
@@ -669,7 +757,11 @@
       80
     ],
     "element": "air",
-    "scale": 1.3
+    "scale": 1.3,
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "wyvern_matriarch": {
     "name": "Wyvern Matriarch",
@@ -688,7 +780,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.5,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "chill",
+        "chance": 0.7
+      }
     },
     "loot": "wyvern_matriarch",
     "kill_target": "wyvern",
@@ -711,7 +807,11 @@
       230,
       255
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.3
+    }
   },
   "imp": {
     "name": "Imp",
@@ -741,7 +841,11 @@
       20,
       28
     ],
-    "element": "fire"
+    "element": "fire",
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.2
+    }
   },
   "demon": {
     "name": "Demon",
@@ -772,7 +876,11 @@
       64
     ],
     "element": "fire",
-    "scale": 1.15
+    "scale": 1.15,
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.25
+    }
   },
   "pit_lord": {
     "name": "The Pit Lord",
@@ -791,7 +899,11 @@
     "heavy": {
       "windup": 1.6,
       "damage": 2.6,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "pit_lord",
     "kill_target": "pit_lord",
@@ -814,7 +926,11 @@
       110,
       190
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    }
   },
   "frost_dragon": {
     "name": "Hoarfang",
@@ -833,7 +949,11 @@
     "heavy": {
       "windup": 1.8,
       "damage": 2.8,
-      "cooldown": 10.0
+      "cooldown": 10.0,
+      "status": {
+        "id": "frozen",
+        "chance": 0.4
+      }
     },
     "loot": "frost_dragon",
     "kill_target": "frost_dragon",
@@ -856,7 +976,11 @@
       240,
       255
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.35
+    }
   },
   "zombie": {
     "name": "Shambler",
@@ -889,7 +1013,11 @@
     "element": "earth",
     "immune": [
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.2
+    }
   },
   "skeleton": {
     "name": "Skeleton",
@@ -923,7 +1051,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.12
+    }
   },
   "wraith": {
     "name": "Wraith",
@@ -957,7 +1089,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "barrow_wight": {
     "name": "The Hollowrest Wight",
@@ -976,7 +1112,11 @@
     "heavy": {
       "windup": 1.4,
       "damage": 2.4,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.45
+      }
     },
     "loot": "barrow_wight",
     "kill_target": "wraith",
@@ -1003,7 +1143,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.25
+    }
   },
   "slime": {
     "name": "Cellar Slime",
@@ -1036,7 +1180,11 @@
     "element": "water",
     "immune": [
       "bleed"
-    ]
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.2
+    }
   },
   "bat": {
     "name": "Well Bat",
@@ -1066,7 +1214,11 @@
       28,
       30
     ],
-    "element": "air"
+    "element": "air",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "hound": {
     "name": "Pit Hound",
@@ -1096,7 +1248,11 @@
       40,
       34
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "ankou": {
     "name": "Ankou",
@@ -1130,7 +1286,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "banshee": {
     "name": "Banshee",
@@ -1164,7 +1324,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "confused",
+      "chance": 0.2
+    }
   },
   "well_warden": {
     "name": "The Thing in the Spring",
@@ -1183,7 +1347,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.5,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.45
+      }
     },
     "loot": "well_warden",
     "kill_target": "well_warden",
@@ -1210,7 +1378,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.4
+    }
   },
   "wolf": {
     "name": "Grey Wolf",
@@ -1240,7 +1412,11 @@
       32,
       30
     ],
-    "element": "air"
+    "element": "air",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.18
+    }
   },
   "bear": {
     "name": "Brown Bear",
@@ -1270,7 +1446,11 @@
       56,
       50
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "den_mother": {
     "name": "The Den Mother",
@@ -1289,7 +1469,11 @@
     "heavy": {
       "windup": 1.3,
       "damage": 2.2,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "den_mother",
     "kill_target": "bear",
@@ -1312,7 +1496,11 @@
       206,
       190
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "greatwolf": {
     "name": "Greatwolf",
@@ -1348,7 +1536,11 @@
       226,
       232,
       250
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "dire_bear": {
     "name": "Dire Bear",
@@ -1367,7 +1559,11 @@
     "heavy": {
       "windup": 1.3,
       "damage": 2.0,
-      "cooldown": 11.0
+      "cooldown": 11.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "dire_bear",
     "kill_target": "bear",
@@ -1389,7 +1585,11 @@
       150,
       140,
       152
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "gloom_spider": {
     "name": "Gloom Spider",
@@ -1424,7 +1624,11 @@
       176,
       128,
       255
-    ]
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.25
+    }
   },
   "pale_stag": {
     "name": "Pale Stag",
@@ -1459,7 +1663,11 @@
       214,
       196,
       255
-    ]
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.1
+    }
   },
   "dusk_wolf": {
     "name": "Dusk Wolf",
@@ -1494,7 +1702,11 @@
       178,
       140,
       255
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "dream_wolf": {
     "name": "Dreamfang",
@@ -1530,7 +1742,11 @@
       130,
       255
     ],
-    "scale": 1.15
+    "scale": 1.15,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "dream_lizardman": {
     "name": "Sleepwalker",
@@ -1565,7 +1781,11 @@
       170,
       140,
       250
-    ]
+    ],
+    "on_hit": {
+      "id": "confused",
+      "chance": 0.15
+    }
   },
   "dream_wraith": {
     "name": "Night Terror",
@@ -1604,7 +1824,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "confused",
+      "chance": 0.2
+    }
   },
   "dream_bat": {
     "name": "Gloomwing",
@@ -1639,7 +1863,11 @@
       190,
       140,
       255
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "dream_skeleton": {
     "name": "Hollow Sleeper",
@@ -1678,7 +1906,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.12
+    }
   },
   "nightmare_troll": {
     "name": "The Sleepless",
@@ -1719,7 +1951,15 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.3,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
+    },
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
     }
   },
   "dream_bear": {
@@ -1756,7 +1996,11 @@
       120,
       235
     ],
-    "scale": 1.2
+    "scale": 1.2,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "dream_hound": {
     "name": "Nightmare Hound",
@@ -1791,7 +2035,11 @@
       180,
       110,
       240
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "dream_demon": {
     "name": "Dream Fiend",
@@ -1827,7 +2075,11 @@
       170,
       120,
       245
-    ]
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.25
+    }
   },
   "dream_banshee": {
     "name": "Wailing Dream",
@@ -1866,7 +2118,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "confused",
+      "chance": 0.25
+    }
   },
   "dream_wyvern": {
     "name": "Night Wyvern",
@@ -1885,7 +2141,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.2,
-      "cooldown": 12.0
+      "cooldown": 12.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.4
+      }
     },
     "loot": "dream_wyvern",
     "kill_target": "nightmare",
@@ -1907,7 +2167,11 @@
       156,
       120,
       240
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "dream_ankou": {
     "name": "Pale Reaper",
@@ -1946,7 +2210,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "nightmare_dragon": {
     "name": "The Unwaking",
@@ -1965,7 +2233,11 @@
     "heavy": {
       "windup": 1.8,
       "damage": 2.6,
-      "cooldown": 10.0
+      "cooldown": 10.0,
+      "status": {
+        "id": "frozen",
+        "chance": 0.35
+      }
     },
     "loot": "nightmare_dragon",
     "kill_target": "nightmare_unwaking",
@@ -1988,7 +2260,11 @@
       96,
       232
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.3
+    }
   },
   "chicken": {
     "name": "Hen",
@@ -2232,7 +2508,11 @@
     ],
     "element": "earth",
     "swims": true,
-    "paddles": false
+    "paddles": false,
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.35
+    }
   },
   "mire_croaker": {
     "name": "Mire Croaker",
@@ -2265,7 +2545,11 @@
       32,
       40
     ],
-    "element": "water"
+    "element": "water",
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.2
+    }
   },
   "swamp_hag": {
     "name": "Swamp Hag",
@@ -2298,7 +2582,17 @@
       28,
       46
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.15
+    },
+    "spells": [
+      "hag_hex",
+      "hag_charm",
+      "hag_hex",
+      "hag_befuddle"
+    ]
   },
   "rot_shambler": {
     "name": "Rot Shambler",
@@ -2331,7 +2625,11 @@
     "element": "earth",
     "immune": [
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.3
+    }
   },
   "fen_gator": {
     "name": "Fen Gator",
@@ -2363,7 +2661,11 @@
     ],
     "element": "water",
     "swims": true,
-    "paddles": false
+    "paddles": false,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "fen_stalker": {
     "name": "Fen Stalker",
@@ -2393,7 +2695,11 @@
       38,
       42
     ],
-    "element": "earth"
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "drowned_one": {
     "name": "Drowned One",
@@ -2429,7 +2735,11 @@
       "bleed"
     ],
     "swims": true,
-    "paddles": false
+    "paddles": false,
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.4
+    }
   },
   "witchlight": {
     "name": "Witchlight",
@@ -2464,7 +2774,16 @@
     ],
     "element": "electric",
     "swims": true,
-    "paddles": false
+    "paddles": false,
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.15
+    },
+    "spells": [
+      "witch_spark",
+      "witch_spark",
+      "witch_lure"
+    ]
   },
   "lizard_shaman": {
     "name": "Lizard Shaman",
@@ -2497,7 +2816,11 @@
       40,
       74
     ],
-    "element": "water"
+    "element": "water",
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.2
+    }
   },
   "bayou_matriarch": {
     "name": "The Mother of the Fen",
@@ -2516,7 +2839,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.5,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "bayou_matriarch",
     "kill_target": "lizardman",
@@ -2537,7 +2864,11 @@
       "poison",
       "wet"
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "grave_ghoul": {
     "name": "Grave Ghoul",
@@ -2570,7 +2901,11 @@
     "element": "earth",
     "immune": [
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.25
+    }
   },
   "bone_archer": {
     "name": "Bone Archer",
@@ -2586,7 +2921,7 @@
     "aggro": 250,
     "attack_range": 30,
     "attack_cooldown": 1.75,
-    "shoots": "arrow",
+    "shoots": "barbed_arrow",
     "shoot_range": 225.0,
     "shoot_cooldown": 2.2,
     "loot": "bone_archer",
@@ -2607,7 +2942,11 @@
     "immune": [
       "poison",
       "bleed"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.1
+    }
   },
   "cryptbound": {
     "name": "Cryptbound",
@@ -2641,7 +2980,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "bone_knight": {
     "name": "Bone Knight",
@@ -2675,7 +3018,11 @@
     "immune": [
       "poison",
       "bleed"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    }
   },
   "plague_corpse": {
     "name": "Plague Corpse",
@@ -2708,7 +3055,11 @@
     "element": "earth",
     "immune": [
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.35
+    }
   },
   "tomb_shade": {
     "name": "Tomb Shade",
@@ -2745,7 +3096,11 @@
     "immune": [
       "bleed",
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "grave_hound": {
     "name": "Grave Hound",
@@ -2775,7 +3130,11 @@
       32,
       40
     ],
-    "element": "air"
+    "element": "air",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
   },
   "blood_thrall": {
     "name": "Blood Thrall",
@@ -2805,7 +3164,11 @@
       28,
       40
     ],
-    "element": "none"
+    "element": "none",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "bone_colossus": {
     "name": "Bone Colossus",
@@ -2824,7 +3187,11 @@
     "heavy": {
       "windup": 1.3,
       "damage": 2.2,
-      "cooldown": 10.0
+      "cooldown": 10.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "bone_colossus",
     "kill_target": "undead",
@@ -2844,7 +3211,11 @@
     "immune": [
       "poison",
       "bleed"
-    ]
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.1
+    }
   },
   "nosferatu": {
     "name": "Nosferatu",
@@ -2877,7 +3248,11 @@
     "element": "none",
     "immune": [
       "poison"
-    ]
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
   },
   "crypt_warden": {
     "name": "Crypt Warden",
@@ -2896,7 +3271,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.4,
-      "cooldown": 9.5
+      "cooldown": 9.5,
+      "status": {
+        "id": "concussed",
+        "chance": 0.45
+      }
     },
     "loot": "crypt_warden",
     "kill_target": "undead",
@@ -2916,7 +3295,11 @@
     "immune": [
       "poison",
       "bleed"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "vampire_lord": {
     "name": "Lord Ashcroft",
@@ -2937,7 +3320,11 @@
       "damage": 2.7,
       "cooldown": 8.5,
       "reach": 1.5,
-      "knockback": 260.0
+      "knockback": 260.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.4
+      }
     },
     "loot": "vampire_lord",
     "kill_target": "undead",
@@ -2959,7 +3346,11 @@
       "bleed",
       "chill"
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.3
+    }
   },
   "revenant": {
     "name": "Revenant",
@@ -2993,7 +3384,11 @@
     "immune": [
       "poison",
       "bleed"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    }
   },
   "abyssal_demon": {
     "name": "Abyssal Demon",
@@ -3012,7 +3407,11 @@
     "heavy": {
       "windup": 1.2,
       "damage": 2.3,
-      "cooldown": 9.0
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.4
+      }
     },
     "loot": "abyssal_demon",
     "kill_target": "demon",
@@ -3031,7 +3430,11 @@
     "element": "fire",
     "immune": [
       "burn"
-    ]
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    }
   },
   "rime_revenant": {
     "name": "Rime Revenant",
@@ -3050,7 +3453,11 @@
     "heavy": {
       "windup": 1.5,
       "damage": 2.5,
-      "cooldown": 9.5
+      "cooldown": 9.5,
+      "status": {
+        "id": "frozen",
+        "chance": 0.35
+      }
     },
     "loot": "rime_revenant",
     "kill_target": "troll",
@@ -3070,7 +3477,11 @@
     "immune": [
       "chill",
       "wet"
-    ]
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.3
+    }
   },
   "cinder_king": {
     "name": "The Cinder King",
@@ -3092,7 +3503,11 @@
       "cooldown": 8.0,
       "reach": 1.6,
       "width": 1.3,
-      "knockback": 300.0
+      "knockback": 300.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
     },
     "loot": "cinder_king",
     "kill_target": "cinder_king",
@@ -3112,6 +3527,10 @@
     "immune": [
       "burn"
     ],
-    "boss": true
+    "boss": true,
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.35
+    }
   }
 }
