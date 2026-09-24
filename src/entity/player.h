@@ -210,6 +210,18 @@ public:
         if (!slots.empty()) return book.ChosenFor(e, slots, skills.Level(SKILL_MAGIC), HeldSpell(e));
         return book.Chosen(e, skills.Level(SKILL_MAGIC), HeldSpell(e));
     }
+    // What there is to choose between in the slot chosen now, in order: for
+    // fire, water, earth and air what the weapon in hand reaches of it that
+    // the Magic level casts (as the spellbook's page offers it); an element's
+    // own staff's four; the lightning and the ancient magic known. `arcane`
+    // and `electric` are the ids known of those two, as Game works them out.
+    vector<const SpellDef*> SpellChoices(const SpellBook& book, const vector<string>& arcane,
+                                         const vector<string>& electric) const;
+    // One along that list (`step` -1 or 1), and round. False, changing
+    // nothing, with fewer than two to choose from. Everything it sets is on
+    // the character sheet, which is how a friend's host hears of it.
+    bool StepSpell(int step, const SpellBook& book, const vector<string>& arcane,
+                   const vector<string>& electric);
     // Which of an element's four the weapon in hand reaches: see
     // ItemDef::spell_slots. Empty with nothing in hand that casts.
     const vector<int>& SpellSlots(Element e) const {

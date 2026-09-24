@@ -9875,6 +9875,57 @@ int main(int argc, char** argv) {
             Check(press(SDL_GAMEPAD_BUTTON_LEFT_STICK).count(Action::Target), "and the lock is on the stick the jump came off");
         }
 
+        // --- the right stick pushed: the spell in the slot -------------------------------------------------
+        {
+            Input in;
+            const auto push = [&](float x) {
+                SDL_Event e{};
+                e.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+                e.gaxis.axis = SDL_GAMEPAD_AXIS_RIGHTX;
+                e.gaxis.value = static_cast<Sint16>(std::clamp(x, -1.0f, 1.0f) * 32767.0f);
+                return in.HandleEvent(e);
+            };
+            const Bindings shipped_now;
+            Check(shipped_now.Button(Action::SpellNext) == PAD_RS_RIGHT && shipped_now.Button(Action::SpellPrev) == PAD_RS_LEFT &&
+                  Bindings::ButtonLabel(PAD_RS_RIGHT) == "RS-Right" && Bindings::ButtonLabel(PAD_RS_LEFT) == "RS-Left" &&
+                  shipped_now.Key(Action::SpellNext) == SDLK_RIGHTBRACKET && shipped_now.Key(Action::SpellPrev) == SDLK_LEFTBRACKET &&
+                  shipped_now.Button(Action::CycleSpell) == SDL_GAMEPAD_BUTTON_RIGHT_STICK,
+                  "the spell in the slot is on the right stick pushed left and right (and [ and ]); clicking it is still the next element");
+            in.Update(dt);
+            push(0.9f);
+            const bool right = in.Pressed(Action::SpellNext) && !in.Pressed(Action::SpellPrev);
+            in.Update(dt);
+            push(0.95f);
+            const bool once = !in.Pressed(Action::SpellNext);
+            push(0.5f);                                   // not back far enough to count as let go
+            push(0.9f);
+            const bool held = !in.Pressed(Action::SpellNext);
+            push(0.0f);
+            in.Update(dt);
+            push(-0.9f);
+            const bool left = in.Pressed(Action::SpellPrev) && !in.Pressed(Action::SpellNext);
+            push(0.0f);
+            in.Update(dt);
+            push(0.9f);
+            const bool again = in.Pressed(Action::SpellNext);
+            push(0.0f);
+            Check(right && once && held && left && again,
+                  "pushed right it is the next spell, left the one before; held over it is one step, and it has to come back before it steps again");
+
+            // Kept as a name, and movable like a trigger.
+            Bindings b;
+            Check(b.BindButton(Action::SpellNext, SDL_GAMEPAD_BUTTON_RIGHT_STICK) == Action::CycleSpell &&
+                  b.Button(Action::CycleSpell) == PAD_RS_RIGHT, "the next spell can go on the stick's click, and the next element takes the push");
+            Bindings back;
+            back.FromJson(b.ToJson());
+            Check(back == b && back.ToJson()["buttons"].value("next_element", string("")) == "rightstickright",
+                  "and a push of the stick is saved and read back by name");
+            Bindings old;
+            old.FromJson(json{{"layout", Bindings::LAYOUT}, {"buttons", {{"light_attack", "x"}}}});
+            Check(old.Button(Action::SpellNext) == PAD_RS_RIGHT && old.Button(Action::SpellPrev) == PAD_RS_LEFT,
+                  "a pad laid out before there was a spell step gets it on the stick");
+        }
+
         // --- being told what a key is -----------------------------------------------------------------------
         {
             Input in;
@@ -15039,6 +15090,73 @@ int main(int argc, char** argv) {
                     Check(w.player.SpellOf(Element::Fire, spells) == best,
                           "and held to one it does not reach, falls back to the bolt");
                 }
+            }
+        }
+
+        // --- the right stick: stepping through the spells in the slot chosen ---------------------------
+        {
+            const vector<string> none;
+            // A grimoire's fire: its three, round and back to where it began.
+            World w;
+            if (field(w, "iron_grimoire", 70)) {
+                Player& p = w.player;
+                p.SelectElement(Element::Fire);
+                const vector<const SpellDef*> list = p.SpellChoices(spells, none, none);
+                const ItemDef* g = items.Get("iron_grimoire");
+                const size_t reach = g ? spells.ForWeapon(Element::Fire, g->SpellSlotsFor(Element::Fire), 70).size() : 0;
+                Check(g && list.size() == reach && list.size() >= 3,
+                      "a grimoire's fire slot offers what the grimoire reaches of fire, every tier of the bolt with it (" +
+                      std::to_string(list.size()) + ")");
+                const SpellDef* start = p.SpellOf(Element::Fire, spells);
+                vector<string> seen;
+                for (size_t i = 0; i < list.size(); ++i) {
+                    Check(p.StepSpell(1, spells, none, none), "a step along");
+                    seen.push_back(p.SpellOf(Element::Fire, spells)->id);
+                }
+                const std::set<string> distinct(seen.begin(), seen.end());
+                Check(distinct.size() == list.size() && seen.back() == start->id,
+                      "stepping right goes through every one of them once and comes round to the first");
+                Check(p.HeldSpell(Element::Fire).empty(),
+                      "and back on the first it is held to nothing, so it goes on growing with the Magic level");
+                p.StepSpell(-1, spells, none, none);
+                Check(p.SpellOf(Element::Fire, spells)->id == seen[seen.size() - 2], "left steps back the way it came");
+                Check(p.SpellOf(Element::Water, spells) == spells.ChosenFor(Element::Water, g->SpellSlotsFor(Element::Water), 70, ""),
+                      "and it changed the fire slot, not the water");
+            }
+            // An element's own staff: its four slots.
+            World s;
+            if (field(s, "iron_fire_staff", 70)) {
+                Player& p = s.player;
+                p.SelectSlot(0);
+                Check(p.SpellChoices(spells, none, none).size() == 4, "a fire staff's slot offers its four");
+                p.StepSpell(1, spells, none, none);
+                Check(p.SpellSlot() == 1, "and a step moves to the next of them");
+                p.StepSpell(-1, spells, none, none);
+                p.StepSpell(-1, spells, none, none);
+                Check(p.SpellSlot() == 3, "and round the other way");
+            }
+            // The lightning and the ancient magic step through what is known of them.
+            World l;
+            if (field(l, "iron_staff", 70)) {
+                Player& p = l.player;
+                vector<string> electric;
+                for (const SpellDef* e : spells.Electric(70)) electric.push_back(e->id);
+                vector<string> arcane;
+                for (const SpellDef* a : spells.Arcane()) if (arcane.size() < 3) arcane.push_back(a->id);
+                p.SetElectricSpell(electric.front());
+                p.SelectElement(Element::Electric);
+                p.StepSpell(1, spells, arcane, electric);
+                Check(electric.size() > 1 && p.ElectricSpell() == electric[1], "on the lightning, the next of it the level reaches");
+                p.StepSpell(-1, spells, arcane, electric);
+                p.StepSpell(-1, spells, arcane, electric);
+                Check(p.ElectricSpell() == electric.back(), "and back round to the last");
+                p.SetArcaneSpell(arcane.front());
+                p.SelectElement(Element::Arcane);
+                p.StepSpell(1, spells, arcane, electric);
+                Check(p.ArcaneSpell() == arcane[1] && p.SelectedElement() == Element::Arcane,
+                      "on the ancient magic, the next spell known, and the slot stays chosen");
+                Check(!p.StepSpell(1, spells, vector<string>{arcane.front()}, electric),
+                      "with only one known there is nowhere to step");
             }
         }
     }

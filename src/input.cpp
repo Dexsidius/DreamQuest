@@ -55,6 +55,8 @@ Bindings::Bindings() {
         // moved along to 6 and works the same way.
         {Action::SelectElectric, SDLK_5},
         {Action::SelectArcane, SDLK_6}, {Action::CycleSpell, SDLK_R},
+        // The spell in the slot, back and on: the brackets, which read as it.
+        {Action::SpellPrev, SDLK_LEFTBRACKET}, {Action::SpellNext, SDLK_RIGHTBRACKET},
         // G drops the item under the cursor in the bag. Q was the obvious
         // letter, but Q already opens the journal beside P; G sits under the
         // left hand next to the movement keys and nothing else wanted it.
@@ -75,6 +77,9 @@ Bindings::Bindings() {
         // Clicking the right stick steps through the elements; the d-pad and
         // both sticks are already spoken for.
         {Action::CycleSpell, SDL_GAMEPAD_BUTTON_RIGHT_STICK},
+        // And pushed left or right, the spell in the element chosen: the stick
+        // was only ever clicked.
+        {Action::SpellPrev, PAD_RS_LEFT}, {Action::SpellNext, PAD_RS_RIGHT},
         // Left stick click, because every face button is already an attack,
         // interact or back, and a jump you have to take a thumb off the stick
         // for is one you cannot steer.
@@ -91,7 +96,8 @@ const vector<Action>& Bindings::Rebindable() {
         Action::LightAttack, Action::StrongAttack, Action::Target, Action::Block, Action::Ability,
         Action::Interact, Action::Jump, Action::Sprint,
         Action::Menu, Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
-        Action::CycleSpell, Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir,
+        Action::CycleSpell, Action::SpellPrev, Action::SpellNext,
+        Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir,
         Action::SelectElectric, Action::SelectArcane,
     };
     return list;
@@ -118,6 +124,8 @@ const char* Bindings::Name(Action a) {
         case Action::WorldMap:     return "Map";
         case Action::Drop:         return "Drop (in the bag)";
         case Action::CycleSpell:   return "Next element";
+        case Action::SpellPrev:    return "Previous spell";
+        case Action::SpellNext:    return "Next spell";
         case Action::SelectFire:   return "Fire";
         case Action::SelectWater:  return "Water";
         case Action::SelectEarth:  return "Earth";
@@ -149,6 +157,8 @@ const char* Bindings::Id(Action a) {
         case Action::WorldMap:     return "map";
         case Action::Drop:         return "drop";
         case Action::CycleSpell:   return "next_element";
+        case Action::SpellPrev:    return "previous_spell";
+        case Action::SpellNext:    return "next_spell";
         case Action::SelectFire:   return "fire";
         case Action::SelectWater:  return "water";
         case Action::SelectEarth:  return "earth";
@@ -178,6 +188,7 @@ bool Bindings::KeyFree(SDL_Keycode key) {
 
 bool Bindings::ButtonFree(int button) {
     if (button == PAD_LEFT_TRIGGER || button == PAD_RIGHT_TRIGGER) return true;
+    if (button == PAD_RS_LEFT || button == PAD_RS_RIGHT) return true;
     if (button < 0 || button >= SDL_GAMEPAD_BUTTON_COUNT) return false;
     switch (button) {
         case SDL_GAMEPAD_BUTTON_DPAD_UP: case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
@@ -258,6 +269,8 @@ string Bindings::ButtonLabel(int button) {
         case SDL_GAMEPAD_BUTTON_TOUCHPAD:       return "Pad";
         case PAD_LEFT_TRIGGER:                  return "LT";
         case PAD_RIGHT_TRIGGER:                 return "RT";
+        case PAD_RS_LEFT:                       return "RS-Left";
+        case PAD_RS_RIGHT:                      return "RS-Right";
         default:                                return button < 0 ? "" : "B" + std::to_string(button);
     }
 }
@@ -270,6 +283,8 @@ json Bindings::ToJson() const {
     for (const auto& kv : buttons) {
         if (kv.second == PAD_LEFT_TRIGGER)       b[Id(kv.first)] = "lefttrigger";
         else if (kv.second == PAD_RIGHT_TRIGGER) b[Id(kv.first)] = "righttrigger";
+        else if (kv.second == PAD_RS_LEFT)       b[Id(kv.first)] = "rightstickleft";
+        else if (kv.second == PAD_RS_RIGHT)      b[Id(kv.first)] = "rightstickright";
         else if (const char* n = SDL_GetGamepadStringForButton(static_cast<SDL_GamepadButton>(kv.second)))
             b[Id(kv.first)] = n;
     }
@@ -311,8 +326,10 @@ void Bindings::FromJson(const json& j) {
         return;
     }
     each("buttons", [&](Action a, const string& name) {
-        if (name == "lefttrigger")       BindButton(a, PAD_LEFT_TRIGGER);
-        else if (name == "righttrigger") BindButton(a, PAD_RIGHT_TRIGGER);
+        if (name == "lefttrigger")          BindButton(a, PAD_LEFT_TRIGGER);
+        else if (name == "righttrigger")    BindButton(a, PAD_RIGHT_TRIGGER);
+        else if (name == "rightstickleft")  BindButton(a, PAD_RS_LEFT);
+        else if (name == "rightstickright") BindButton(a, PAD_RS_RIGHT);
         else BindButton(a, static_cast<int>(SDL_GetGamepadButtonFromString(name.c_str())));
     });
 }
@@ -369,6 +386,7 @@ void Input::ReleaseAll() {
         if (state[i].padbtn) Set(static_cast<Action>(i), false, true);
     }
     trigger_held[0] = trigger_held[1] = false;
+    rs_held[0] = rs_held[1] = false;
 }
 
 void Input::SetBindings(const Bindings& b) {
@@ -512,7 +530,10 @@ bool Input::HandleEvent(const SDL_Event& e) {
                 if (listening == ListenFor::Button && !heard.any && e.gaxis.value > 20000) {
                     if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)  { heard.any = true; heard.button = PAD_LEFT_TRIGGER; }
                     if (e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) { heard.any = true; heard.button = PAD_RIGHT_TRIGGER; }
+                    if (e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTX)        { heard.any = true; heard.button = PAD_RS_RIGHT; }
                 }
+                if (listening == ListenFor::Button && !heard.any && e.gaxis.value < -20000 &&
+                    e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTX) { heard.any = true; heard.button = PAD_RS_LEFT; }
                 // The stick still has to be tracked, or it is wherever it was when this began.
                 if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) stick.x = e.gaxis.value / 32767.0f;
                 if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY) stick.y = e.gaxis.value / 32767.0f;
@@ -579,6 +600,18 @@ bool Input::HandleEvent(const SDL_Event& e) {
                 if (it == padmap.end()) continue;
                 if (!trigger_held[side] && v > 0.5f)  { trigger_held[side] = true;  PadSet(it->second, true); }
                 if (trigger_held[side] && v < 0.35f)  { trigger_held[side] = false; PadSet(it->second, false); }
+            }
+            // The right stick, pushed well over to a side, is a press of that
+            // side; it has to come most of the way back before it can be
+            // pressed again, so one push is one step.
+            if (e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHTX) {
+                for (int side = 0; side < 2; ++side) {
+                    const float out = side == 0 ? -v : v;
+                    const auto it = padmap.find(side == 0 ? PAD_RS_LEFT : PAD_RS_RIGHT);
+                    if (it == padmap.end()) continue;
+                    if (!rs_held[side] && out > 0.6f)  { rs_held[side] = true;  PadSet(it->second, true); }
+                    if (rs_held[side] && out < 0.35f)  { rs_held[side] = false; PadSet(it->second, false); }
+                }
             }
             if (mode == InputMode::Auto && fabsf(v) > 0.6f) active = InputMode::Controller;
             return true;

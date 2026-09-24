@@ -477,13 +477,19 @@ void Game::DrawHud() {
                                     : electric_on ? spells.Get(p.ElectricSpell())
                                                   : p.SpellOf(p.SelectedElement(), spells);
             string line;
+            // With more than one to choose between in the slot, the name has
+            // a mark either side: the right stick, pushed, steps through them.
+            const bool choosing = SpellsInSlot().size() > 1;
+            const string named = current ? (choosing ? "< " + current->name + " >" : current->name) : string();
             if (current && arcane_on && current->level > p.skills.Level(SKILL_MAGIC)) {
-                line = current->name + "   needs Magic " + std::to_string(current->level);
+                line = named + "   needs Magic " + std::to_string(current->level);
             } else if (current) {
-                line = current->name + "   " + std::to_string(current->mana) + " mana";
-                if (arcane_on && arcane_known.size() > 1)
+                line = named + "   " + std::to_string(current->mana) + " mana";
+                // The keys still step through them the way they always did;
+                // a pad says which way it steps now.
+                if (arcane_on && arcane_known.size() > 1 && input.ActiveDevice() != InputMode::Controller)
                     line += "   " + input.PromptFor(Action::SelectArcane) + " again: next";
-                if (electric_on && electric_known.size() > 1)
+                if (electric_on && electric_known.size() > 1 && input.ActiveDevice() != InputMode::Controller)
                     line += "   " + input.PromptFor(Action::SelectElectric) + " again: next";
                 // What it costs of the charge, and whether there is that much.
                 if (electric_on && current->battery_cost > 0.0f) {
@@ -540,10 +546,12 @@ void Game::DrawHud() {
                         Align::Center);
             }
 
+            // Just changed, it lights up for a moment, so the eye goes to it.
+            const SDL_Color spell_col = !current ? Palette::TextDim
+                                      : spell_flash > 0.0f ? Palette::Highlight
+                                                           : ElementColor(p.SelectedElement());
             ui.TextShadowed(line, ui.ViewWidth() / 2.0f, y0 + box + 4.0f,
-                            TextSize::Small,
-                            current ? ElementColor(p.SelectedElement()) : Palette::TextDim,
-                            Align::Center);
+                            TextSize::Small, spell_col, Align::Center);
         }
 
         // The technique a held heavy attack will come out as, from the tree --

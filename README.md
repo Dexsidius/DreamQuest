@@ -552,9 +552,26 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | The lightning, and its next spell | `5` | — (it is a stop of *cycle element*) |
 | The ancient magic, and its next page | `6` | — (it is the last stop of *cycle element*) |
 | Cycle element, the ancient magic included | `R` | Right stick click |
+| **The spell in the slot chosen**, back and on | `[` `]` | **Right stick pushed left / right** |
 | The spellbook: what is on every slot | `O`, then `O` twice more | RB, then RB twice more |
 | Drop what the cursor is on (in the bag) | `G` | Y (north) |
 | Pause | `Esc` | Start |
+
+**Changing a slot's spell mid-fight.** Push the right stick left or right
+(or press `[` / `]`) and the slot that is chosen -- the lit box in the bar --
+steps to the spell before or after it, out of what that slot has on offer: for
+fire, water, earth and air, what the weapon in hand reaches of the element that
+the Magic level casts (a grimoire's fire is Ember, Pyre, Flame Ring and Wall of
+Fire; a wand's trades the Wall for the Flamethrower); on an element's own
+staff, its four; on the
+lightning and the ancient magic, what is known of them. It is the spellbook
+page's choice, made without the trip to the menu, and it is kept the same way
+-- in the save, and on a friend's host. The name under the bar has a `<` and a
+`>` round it wherever there is more than one to choose, and lights up for a
+moment when it changes. Landing back on the weapon's first bolt lets go of it,
+so it goes on growing with the Magic level as it always did. A push is one
+step: the stick has to come most of the way back before it steps again. Both
+are on the Controls page, where they can be moved like anything else.
 
 In menus the fighting keys double up the way a controller's face buttons do:
 `J`, `E`, `Space` or `Enter` confirms, and `K`, `Backspace` or `Esc` backs out.

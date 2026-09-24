@@ -317,6 +317,14 @@ private:
     };
     vector<BookRow> SpellbookRows() const;
     void ChooseInBook(const BookRow& row, int option);
+    // The spell in the slot that is chosen, one along (`step` is -1 or 1),
+    // out of what that slot has on offer: the right stick pushed left or right
+    // in the middle of a fight, where the spellbook's page is a trip to the
+    // menu. Says so on the spell's line under the bar, which lights up.
+    void StepSpell(int step);
+    // What there is to step through in the slot chosen, as StepSpell would.
+    vector<const SpellDef*> SpellsInSlot() const;
+    float spell_flash = 0.0f;
     void UpdateSpellbook();
     void DrawSpellbook(const SDL_FRect& panel);
     int  book_row = 0;

@@ -17,6 +17,10 @@ enum class Action {
     // The way to everything else: inventory, skills, spellbook, journal, map.
     Menu,
     SelectFire, SelectWater, SelectEarth, SelectAir, SelectElectric, SelectArcane, CycleSpell,
+    // The spell in the slot that is chosen, one along either way: what the
+    // weapon in hand reaches of that element, or the lightning and the ancient
+    // magic known. The right stick pushed left and right on a pad.
+    SpellPrev, SpellNext,
     // Drops what the bag's cursor is on. Read only by the inventory panel.
     Drop,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
@@ -30,6 +34,10 @@ enum class InputMode { Auto = 0, KeyboardMouse = 1, Controller = 2 };
 // bound like them: these stand beside SDL's own button numbers in a binding.
 static constexpr int PAD_LEFT_TRIGGER  = 1000;
 static constexpr int PAD_RIGHT_TRIGGER = 1001;
+// And so is the right stick pushed to one side or the other: the sticks steer
+// and nothing is held on them, but a push left or right is a press.
+static constexpr int PAD_RS_LEFT  = 1002;
+static constexpr int PAD_RS_RIGHT = 1003;
 
 // -----------------------------------------------------------------------------
 //  Which key and which button does what.
@@ -196,6 +204,7 @@ private:
     ListenFor listening = ListenFor::Nothing;
     Heard     heard;
     bool      trigger_held[2] = {false, false};
+    bool      rs_held[2] = {false, false};      // the right stick pushed left, right
 
     SDL_Gamepad* pad = nullptr;
     SDL_JoystickID pad_id = 0;

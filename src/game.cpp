@@ -866,6 +866,7 @@ void Game::Update(float dt) {
 
 void Game::UpdatePlay(float dt) {
     ServeSeat(0);
+    spell_flash = std::max(0.0f, spell_flash - dt);
     // The first thing a new character sees: a note of welcome, on the
     // parchment a sign is read on, saying where they are and what the keys
     // do. Once, and only on a new game -- a load puts the player back mid-story.
@@ -1039,6 +1040,10 @@ void Game::SeatChores() {
                 world->player.SetElectricSpell(known.front());
         world->player.CycleElement(1, world->KnownArcane(spells));
     }
+    // The spell in the slot, back and on: the right stick pushed left or right
+    // on a pad, the brackets on the keys.
+    if (input.Pressed(Action::SpellNext))      StepSpell(1);
+    else if (input.Pressed(Action::SpellPrev)) StepSpell(-1);
 
     // --- what is to hand ------------------------------------------------------
     // Guard and interact eats or drinks the quick item; guard and sprint steps

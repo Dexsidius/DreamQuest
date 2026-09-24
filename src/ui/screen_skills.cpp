@@ -767,6 +767,25 @@ void Game::ChooseInBook(const BookRow& row, int option) {
     }
 }
 
+vector<const SpellDef*> Game::SpellsInSlot() const {
+    return world->player.SpellChoices(spells, world->KnownArcane(spells), KnownElectric());
+}
+
+void Game::StepSpell(int step) {
+    Player& p = world->player;
+    if (p.Style() != AttackStyle::Magic) return;
+    const vector<string> arcane = world->KnownArcane(spells), electric = KnownElectric();
+    if (!p.StepSpell(step, spells, arcane, electric)) {
+        const vector<const SpellDef*> list = p.SpellChoices(spells, arcane, electric);
+        PushToast(list.empty() ? string("Nothing to cast here yet.")
+                               : "Only " + list.front()->name + " here, for now.", Palette::TextDim);
+        Audio::Play(Sfx::UiError);
+        return;
+    }
+    spell_flash = 0.6f;
+    Audio::Play(Sfx::UiMove);
+}
+
 void Game::UpdateSpellbook() {
     const vector<BookRow> rows = SpellbookRows();
     const int count = static_cast<int>(rows.size());

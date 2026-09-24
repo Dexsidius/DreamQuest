@@ -138,6 +138,75 @@ static void HeldFromJson(const json& j, string held[4]) {
     }
 }
 
+vector<const SpellDef*> Player::SpellChoices(const SpellBook& book, const vector<string>& arcane,
+                                             const vector<string>& electric) const {
+    const int magic = skills.Level(SKILL_MAGIC);
+    const Element e = SelectedElement();
+    vector<const SpellDef*> out;
+    const auto known = [&](const vector<string>& ids) {
+        for (const string& id : ids)
+            if (const SpellDef* s = book.Get(id)) out.push_back(s);
+    };
+    if (e == Element::Arcane) {
+        known(arcane);
+    } else if (e == Element::Electric) {
+        known(electric);
+    } else if (StaffElement() != Element::None) {
+        // An element's own staff: its four spells are its four slots.
+        for (int slot = 0; slot < 4; ++slot)
+            if (const SpellDef* s = slot == 0 ? book.Chosen(StaffElement(), magic, HeldSpell(StaffElement()))
+                                              : book.ForSlot(StaffElement(), slot + 1, magic))
+                out.push_back(s);
+    } else {
+        const vector<int>& slots = SpellSlots(e);
+        const vector<const SpellDef*> offered = slots.empty() ? book.Of(e) : book.ForWeapon(e, slots, magic);
+        for (const SpellDef* s : offered) if (s->level <= magic) out.push_back(s);
+    }
+    return out;
+}
+
+bool Player::StepSpell(int step, const SpellBook& book, const vector<string>& arcane,
+                       const vector<string>& electric) {
+    const vector<const SpellDef*> list = SpellChoices(book, arcane, electric);
+    const int n = static_cast<int>(list.size());
+    if (n < 2 || step == 0) return false;
+    const int magic = skills.Level(SKILL_MAGIC);
+    const Element e = SelectedElement();
+    const auto along = [&](int at) { return ((at + step) % n + n) % n; };
+
+    if (e == Element::Arcane || e == Element::Electric) {
+        const string& now = e == Element::Arcane ? arcane_spell : electric_spell;
+        int at = 0;
+        for (int i = 0; i < n; ++i) if (list[i]->id == now) at = i;
+        (e == Element::Arcane ? arcane_spell : electric_spell) = list[along(at)]->id;
+        return true;
+    }
+    if (StaffElement() != Element::None) {
+        // The slots with a spell on them, and from the one chosen.
+        vector<int> open;
+        for (int slot = 0; slot < 4; ++slot)
+            if (slot == 0 ? book.Chosen(StaffElement(), magic, HeldSpell(StaffElement())) != nullptr
+                          : book.ForSlot(StaffElement(), slot + 1, magic) != nullptr)
+                open.push_back(slot);
+        const int m = static_cast<int>(open.size());
+        int at = 0;
+        for (int i = 0; i < m; ++i) if (open[i] == spell_slot) at = i;
+        SelectSlot(open[((at + step) % m + m) % m]);
+        return true;
+    }
+    const SpellDef* now = SpellOf(e, book);
+    int at = 0;
+    for (int i = 0; i < n; ++i) if (now && list[i]->id == now->id) at = i;
+    const SpellDef* next = list[along(at)];
+    // The weapon's first is where an element starts, and held to nothing it
+    // goes on growing with the Magic level -- held to by name it would stay the
+    // tier it is. So landing on it lets go.
+    const vector<int>& slots = SpellSlots(e);
+    const SpellDef* first = slots.empty() ? book.Chosen(e, magic, string()) : book.ChosenFor(e, slots, magic, string());
+    HoldSpell(e, first && next->id == first->id ? string() : next->id);
+    return true;
+}
+
 void Player::SelectArcane(const vector<string>& known) {
     if (known.empty()) return;
     if (selected_element != Element::Arcane || arcane_spell.empty()) {
