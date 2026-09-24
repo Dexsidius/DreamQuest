@@ -171,6 +171,12 @@ struct ItemDef {
     // Cannot be dropped from the bag: keys, letters, seals -- anything a
     // quest handed over exactly once and could not hand over again.
     bool  keep = false;
+    // A strange thing found in the world: having it in the bag starts this
+    // quest, however it got there, and `found` is what the player is told as
+    // it does -- so a pickup that began something says so. See
+    // Game::NoticeFinds.
+    string starts_quest;
+    string found;
     // An enchanted piece: which enchantment it carries, and the plain piece
     // it was worked into. Both empty on everything else. See EnchantDef.
     string enchant, base_item;
@@ -400,6 +406,20 @@ public:
     ItemStack& Slot(int i) { return items[i]; }
     int SlotCount() const { return static_cast<int>(items.size()); }
     void Clear();
+
+    // Picks up what is in slot `from` and puts it down in `to`: the two change
+    // places, or -- the same thing, and a thing that stacks -- the one joins
+    // the other. False, changing nothing, for a slot out of range or an empty
+    // one to move from, or the same slot twice.
+    bool Move(int from, int to);
+    // Tidies the bag: every stack of a thing that stacks joined into one,
+    // everything sorted by what it is (see SortRank), and the gaps all at the
+    // end. Nothing is lost and nothing is added; only where things are.
+    void Reorganize();
+    // Where a thing goes when the bag is tidied: coins first, then what is
+    // worn and wielded, tools, what is eaten and drunk, what things are made
+    // of, what is only worth selling, and a quest's things last. Lower first.
+    static int SortRank(const ItemDef* d, const string& id);
 
     int  Coins() const { return Count("coins"); }
     bool SpendCoins(int amount) { return Remove("coins", amount); }

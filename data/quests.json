@@ -2877,5 +2877,584 @@
   "req": {
    "Brewing": 36
   }
+ },
+ "q_shut_the_crypt": {
+  "name": "Shut the Crypt",
+  "source": "npc",
+  "giver": "npc_brask",
+  "level": 36,
+  "summary": "Watchman Brask walks the same round every night, and lately the round has a noise in it: something scratching under Hollowrest. Brask would like it to stop, and would like not to be the one who goes down.",
+  "stages": [
+   {
+    "desc": "Put down the dead walking in the Vaults of Hollowrest Crypt",
+    "type": "kill",
+    "target": "undead",
+    "map": "crypt_1",
+    "count": 8
+   },
+   {
+    "desc": "Put down the shades on the crypt's second floor",
+    "type": "kill",
+    "target": "wraith",
+    "map": "crypt_2",
+    "count": 6
+   },
+   {
+    "desc": "Tell Watchman Brask the scratching has stopped",
+    "type": "talk",
+    "target": "npc_brask"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 1400,
+    "Strength": 1400,
+    "Defence": 1100,
+    "Hitpoints": 800
+   },
+   "coins": 1100,
+   "items": [
+    {
+     "id": "healing_draught",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "Brask listens at the gate for a long minute. \"Nothing. Good. I will still walk the long way round it.\""
+ },
+ "q_toll_at_the_bridge": {
+  "name": "The Toll at the Bridge",
+  "source": "npc",
+  "giver": "npc_carter",
+  "level": 8,
+  "summary": "Hollis the Carter does not stop at the bridge for anybody, and the men who wait there have started standing in the road. Hollis would like the road back.",
+  "stages": [
+   {
+    "desc": "Drive off the highwaymen waiting on the Westwold road",
+    "type": "kill",
+    "target": "highwayman",
+    "map": "westwold",
+    "count": 4
+   },
+   {
+    "desc": "Tell Hollis the Carter the road is clear",
+    "type": "talk",
+    "target": "npc_carter"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 300,
+    "Strength": 300,
+    "Defence": 150,
+    "Hitpoints": 200
+   },
+   "coins": 240,
+   "items": [
+    {
+     "id": "cooked_boar",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Hollis counts the coins twice out of habit. \"First run in a month I will not have to whip the horse.\""
+ },
+ "q_white_pelts": {
+  "name": "White Pelts",
+  "source": "npc",
+  "giver": "npc_ranger",
+  "level": 20,
+  "summary": "Sorrel carries wolf pelts to Ivo for a living. Ivo has asked for white ones -- the greatwolves off the Westwold's high ground -- and Sorrel has seen what wears them.",
+  "stages": [
+   {
+    "desc": "Bring Sorrel three greatwolf pelts from the Westwold",
+    "type": "deliver",
+    "target": "greatwolf_pelt",
+    "to": "npc_ranger",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Ranged": 900,
+    "Attack": 700,
+    "Defence": 600,
+    "Hitpoints": 500
+   },
+   "coins": 900,
+   "items": [
+    {
+     "id": "hunters_focus",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Sorrel runs a hand through the fur the wrong way and nods. \"Ivo will say they are too big. Ivo will pay anyway.\""
+ },
+ "q_hags_of_the_bayou": {
+  "name": "The Singers in the Bayou",
+  "source": "npc",
+  "giver": "npc_ilse",
+  "level": 35,
+  "summary": "Warden Ilse keeps a gate nobody attacks, and it is dull. The ferry has started bringing up folk from the Bayou with their wits turned round and a tune they cannot stop humming, and that is not.",
+  "stages": [
+   {
+    "desc": "Kill the Swamp Hags singing in the Bayou",
+    "type": "kill",
+    "target": "hag",
+    "map": "bayou",
+    "count": 4
+   },
+   {
+    "desc": "Tell Warden Ilse the singing has stopped",
+    "type": "talk",
+    "target": "npc_ilse"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 1200,
+    "Strength": 1200,
+    "Defence": 1000,
+    "Magic": 600,
+    "Hitpoints": 700
+   },
+   "coins": 1000,
+   "items": [
+    {
+     "id": "fen_bitters",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Ilse writes something on the gate board, crosses it out, and writes it again smaller. \"There. Quiet post.\""
+ },
+ "q_horns_for_the_forge": {
+  "name": "Horns for the Forge",
+  "source": "npc",
+  "giver": "npc_garrow",
+  "level": 50,
+  "summary": "There is an old smith's story that demon horn, ground fine and thrown on the coals, burns hot enough to work the hard metals. Garrow the Smith would like to find out, and would like somebody else to fetch the horns.",
+  "stages": [
+   {
+    "desc": "Bring Garrow four demon horns from the Ashen Path",
+    "type": "deliver",
+    "target": "demon_horn",
+    "to": "npc_garrow",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 2500,
+    "Attack": 1000,
+    "Strength": 1000
+   },
+   "coins": 1800,
+   "items": [
+    {
+     "id": "platinum_bar",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "The first horn goes on the coals and the forge goes white. Garrow laughs out loud, which nobody in Mossvale can remember hearing before."
+ },
+ "q_the_den_mother": {
+  "name": "The Den Mother",
+  "source": "npc",
+  "giver": "npc_hale",
+  "level": 26,
+  "summary": "Hale the Trapper has lost three lines of traps and one good dog to the she-bear who keeps the den in the Brackenwood. Hale would like her gone, and does not expect to be the one who does it.",
+  "stages": [
+   {
+    "desc": "Kill the Den Mother in her den",
+    "type": "kill",
+    "target": "den_mother",
+    "map": "brackenwood",
+    "count": 1
+   },
+   {
+    "desc": "Tell Hale the Den Mother is dead",
+    "type": "talk",
+    "target": "npc_hale"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 900,
+    "Strength": 900,
+    "Defence": 700,
+    "Hitpoints": 600
+   },
+   "coins": 800,
+   "items": [
+    {
+     "id": "hunters_focus",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Hale goes out to the den the next morning to see for certain, and comes back with a new line of traps and nothing to say, which is how Hale says thank you."
+ },
+ "q_bears_in_the_brackenwood": {
+  "name": "Bears in the Brackenwood",
+  "source": "npc",
+  "giver": "npc_sela",
+  "level": 22,
+  "summary": "The Mossvale lodge buys its hides from trappers in the Brackenwood, and the trappers have stopped going in: the bears have come down onto the paths. Warden Sela would like the paths back before the reeve asks again.",
+  "stages": [
+   {
+    "desc": "Thin out the bears on the Brackenwood's paths",
+    "type": "kill",
+    "target": "bear",
+    "map": "brackenwood",
+    "count": 8
+   },
+   {
+    "desc": "Tell Warden Sela the paths are clear",
+    "type": "talk",
+    "target": "npc_sela"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 1000,
+    "Strength": 1000,
+    "Defence": 800,
+    "Hitpoints": 600
+   },
+   "coins": 800,
+   "items": [
+    {
+     "id": "cooked_trout",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "Word goes to the lodge the same day. The first hides come in a week later, with a bottle from the lodge-master for the warden at the gate."
+ },
+ "q_doll_in_the_reeds": {
+  "name": "The Doll in the Reeds",
+  "source": "note",
+  "giver": "curio_reed_doll",
+  "level": 45,
+  "summary": "A reed doll hung on a post in the Bayou, thorns through its heart and red thread round its neck. The lizardfolk hang them where their matriarch has passed, and taking one down is a challenge. It has been heard.",
+  "stages": [
+   {
+    "desc": "Kill the lizardfolk who come looking for their doll",
+    "type": "kill",
+    "target": "lizardman",
+    "map": "bayou",
+    "count": 6
+   },
+   {
+    "desc": "Kill the Bayou Matriarch, whose doll it is",
+    "type": "kill",
+    "target": "bayou_matriarch",
+    "map": "bayou",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 2500,
+    "Strength": 2500,
+    "Defence": 2000,
+    "Hitpoints": 1500,
+    "Magic": 800
+   },
+   "coins": 2400,
+   "items": [
+    {
+     "id": "fen_bitters",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "With the matriarch dead the thorns work loose from the doll on their own, and the red thread goes brown. It is only reeds now."
+ },
+ "q_drowned_locket": {
+  "name": "The Drowned Locket",
+  "source": "note",
+  "giver": "curio_drowned_locket",
+  "level": 35,
+  "summary": "A locket in the Bayou mud, the hinge rusted shut, and something inside it that knocks. The drowned in the Bayou do not lie still, and one of them may be looking for it. Mira of the Shrine at Fernhollow knows about things that knock.",
+  "stages": [
+   {
+    "desc": "Lay the Bayou's restless dead back down",
+    "type": "kill",
+    "target": "undead",
+    "map": "bayou",
+    "count": 6
+   },
+   {
+    "desc": "Take the locket to Mira of the Shrine at Fernhollow",
+    "type": "deliver",
+    "target": "drowned_locket",
+    "to": "npc_mira",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Magic": 800,
+    "Attack": 600,
+    "Defence": 1000,
+    "Hitpoints": 800
+   },
+   "coins": 900,
+   "items": [
+    {
+     "id": "healing_draught",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "There was a curl of hair in the locket, tied with thread. Mira laid it on the shrine stones and said a name the locket did not have written in it, and the knocking stopped."
+ },
+ "q_tongueless_bell": {
+  "name": "The Tongueless Bell",
+  "source": "note",
+  "giver": "curio_bell_clapper",
+  "level": 38,
+  "summary": "The iron tongue of a bell, lying in the grass at Hollowrest as if it had been dropped in a hurry. Somewhere under the graveyard a bell is trying to ring without it. Old Perrin in Havenbrook is old enough to remember when it still could.",
+  "stages": [
+   {
+    "desc": "Go down to the second floor of Hollowrest Crypt, where the bell is",
+    "type": "reach",
+    "target": "crypt_2"
+   },
+   {
+    "desc": "Put down the dead gathered under the tongueless bell",
+    "type": "kill",
+    "target": "undead",
+    "map": "crypt_2",
+    "count": 6
+   },
+   {
+    "desc": "Take the clapper to Old Perrin in Havenbrook",
+    "type": "deliver",
+    "target": "bell_clapper",
+    "to": "npc_perrin",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 1200,
+    "Strength": 1200,
+    "Defence": 1000,
+    "Hitpoints": 800
+   },
+   "coins": 1000,
+   "items": [
+    {
+     "id": "bone_amulet",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Perrin took the clapper to the smith. On the next still evening Havenbrook heard a bell it had forgotten it used to hear."
+ },
+ "q_ashcroft_letter": {
+  "name": "A Letter Sealed in Black",
+  "source": "note",
+  "giver": "curio_ashcroft_letter",
+  "level": 60,
+  "summary": "A letter in black wax, lying on the second floor of Hollowrest Crypt and addressed to the Guild of Havenbrook. The seal is Lord Ashcroft's, and Lord Ashcroft is supposed to be dead. Whatever he is now, he is at the bottom of the crypt.",
+  "stages": [
+   {
+    "desc": "Find Lord Ashcroft at the bottom of Hollowrest Crypt, and end him",
+    "type": "kill",
+    "target": "vampire_lord",
+    "map": "crypt_3",
+    "count": 1
+   },
+   {
+    "desc": "Take the letter to Guild Master Orlend in Havenbrook",
+    "type": "deliver",
+    "target": "ashcroft_letter",
+    "to": "npc_guildmaster",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 4000,
+    "Strength": 4000,
+    "Defence": 3000,
+    "Hitpoints": 2500
+   },
+   "coins": 3500,
+   "items": [
+    {
+     "id": "stoneskin_draught",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "The letter was an offer: Ashcroft's crypt left alone, and in return the guild's dead left alone. A Guild Master sixty years gone had signed it. Orlend burned it in the grate and did not say which."
+ },
+ "q_cinder_invitation": {
+  "name": "An Invitation in Cinders",
+  "source": "note",
+  "giver": "curio_cinder_invitation",
+  "level": 80,
+  "summary": "An invitation lying on the Ashen Path, gold-edged and written in scorch marks: the Cinder King requests the pleasure of your company at the Brimstone Palace. Your name was not on it until you picked it up.",
+  "stages": [
+   {
+    "desc": "Present yourself at the Brimstone Palace",
+    "type": "reach",
+    "target": "palace_foyer"
+   },
+   {
+    "desc": "Take your seat in the palace's dining hall",
+    "type": "reach",
+    "target": "palace_dining"
+   },
+   {
+    "desc": "Decline the Cinder King's hospitality, permanently",
+    "type": "kill",
+    "target": "cinder_king",
+    "map": "palace_throne",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 7000,
+    "Strength": 7000,
+    "Defence": 5500,
+    "Hitpoints": 4000,
+    "Magic": 2000
+   },
+   "coins": 6000,
+   "items": [
+    {
+     "id": "diamond_ingot",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "When the Cinder King falls, the invitation in your pack goes cold for the first time. The party is over."
+ },
+ "q_rime_key": {
+  "name": "The Rime Key",
+  "source": "note",
+  "giver": "curio_rime_key",
+  "level": 75,
+  "summary": "A key of ice that does not melt, lying in the dungeon under the Brimstone Palace with SPIREWATCH scratched into it. Something frozen was keeping it, and has noticed it gone. Elder Vask in Havenbrook was one of the Spirewatch.",
+  "stages": [
+   {
+    "desc": "Kill the Rime Revenant that was keeping the key",
+    "type": "kill",
+    "target": "troll",
+    "map": "palace_dungeon",
+    "count": 1
+   },
+   {
+    "desc": "Bring the Rime Key to Elder Vask in Havenbrook",
+    "type": "deliver",
+    "target": "rime_key",
+    "to": "npc_elder",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 5000,
+    "Strength": 5000,
+    "Defence": 4000,
+    "Hitpoints": 3000
+   },
+   "coins": 4500,
+   "items": [
+    {
+     "id": "stoneskin_draught",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Vask has told the story of the Spirewatch for fifty years with the end missing. Now he knows how it ended."
+ },
+ "q_bloodied_collar": {
+  "name": "The Bloodied Collar",
+  "source": "note",
+  "giver": "curio_bloodied_collar",
+  "level": 8,
+  "summary": "A sheepdog's collar in the Westwold grass, bitten through, the brass tag reading JUNIPER. The wolves that cross the Wend at night have been taking more than sheep. Farmer Aldous keeps a flock out on the Westwold.",
+  "stages": [
+   {
+    "desc": "Hunt the wolves that cross into the Westwold",
+    "type": "kill",
+    "target": "wolf",
+    "map": "westwold",
+    "count": 6
+   },
+   {
+    "desc": "Take the collar to Farmer Aldous",
+    "type": "deliver",
+    "target": "bloodied_collar",
+    "to": "npc_aldous",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 350,
+    "Strength": 350,
+    "Defence": 250,
+    "Hitpoints": 250
+   },
+   "coins": 300,
+   "items": [
+    {
+     "id": "cooked_boar",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Juniper's collar hangs on the nail by Aldous's gate, where she used to sit."
+ },
+ "q_antler_circlet": {
+  "name": "The Antler Circlet",
+  "source": "note",
+  "giver": "curio_antler_circlet",
+  "level": 22,
+  "summary": "An antler circlet in the Brackenwood, green wire and two tines, with tooth marks in it and a trapper's mark cut into the wire. The wolves in the wood have got bold. Hale the Trapper will know whose mark it is.",
+  "stages": [
+   {
+    "desc": "Drive back the wolves that have got bold in the Brackenwood",
+    "type": "kill",
+    "target": "wolf",
+    "map": "brackenwood",
+    "count": 6
+   },
+   {
+    "desc": "Take the circlet to Hale the Trapper",
+    "type": "deliver",
+    "target": "antler_circlet",
+    "to": "npc_hale",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Attack": 800,
+    "Strength": 800,
+    "Defence": 600,
+    "Ranged": 500,
+    "Hitpoints": 500
+   },
+   "coins": 700,
+   "items": [
+    {
+     "id": "tarnished_ring",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Hale bent the wire straight and gave the circlet back to the girl it was made for. She said it was ruined, and wore it anyway."
  }
 }

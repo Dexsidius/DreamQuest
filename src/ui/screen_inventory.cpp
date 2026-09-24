@@ -33,6 +33,21 @@ void DrawItemPlaceholder(UI& ui, const ItemDef* def, const string& id,
             TextSize::Small, Palette::Text, Align::Center);
 }
 
+// The tidy-up, as a button beside a panel's title, with the key it is on.
+void ReorganizeButton(UI& ui, const string& label, float x, float y) {
+    const float w = ui.Measure(label, TextSize::Small).x + 20.0f;
+    const SDL_FRect b = {x, y, w, 24.0f};
+    ui.Fill(b, {58, 46, 28, 235});
+    ui.Outline(b, Palette::Border, 1.0f);
+    ui.Text(label, b.x + 10.0f, b.y + 4.0f, TextSize::Small, Palette::Text);
+}
+
+// A quest's things stay in the bag while they are wanted. A thing found that
+// started something is a keepsake once that is over, and goes like anything.
+bool MustKeep(const ItemDef* d, const QuestLog& quests) {
+    return d && d->keep && !(!d->starts_quest.empty() && quests.IsComplete(d->starts_quest));
+}
+
 } // namespace
 
 // =============================================================================
@@ -44,7 +59,27 @@ void Game::UpdateInventory() {
     constexpr int COLS = 7;
     const int slots = p.inventory.SlotCount();
     inventory_cursor = std::clamp(inventory_cursor, 0, slots - 1);
-    if (state_time <= 0.0f) drop_armed = -1;
+    if (state_time <= 0.0f) { drop_armed = -1; inventory_held = -1; }
+    if (inventory_held >= slots) inventory_held = -1;
+
+    // Tidy the lot: every stack joined, everything by what it is, the gaps at
+    // the end. The button that steps through the elements, which in a bag has
+    // nothing to step through.
+    if (input.Pressed(Action::CycleSpell)) {
+        p.inventory.Reorganize();
+        inventory_held = -1;
+        drop_armed = -1;
+        inventory_cursor = 0;
+        PushToast("Bag reorganized.", Palette::Xp);
+        Audio::Play(Sfx::Equip, 0.6f);
+        return;
+    }
+    // Put back where it was, rather than the bag closing with it in hand.
+    if (inventory_held >= 0 && input.Pressed(Action::Back)) {
+        inventory_held = -1;
+        Audio::Play(Sfx::UiMove);
+        return;
+    }
 
     if (inventory_on_equipment) {
         MoveCursor(equipment_cursor, SLOT_COUNT);
@@ -65,6 +100,27 @@ void Game::UpdateInventory() {
         if (input.MenuUp())    inventory_cursor = std::max(inventory_cursor - COLS, 0);
         if (inventory_cursor != grid_before || inventory_on_equipment) Audio::Play(Sfx::UiMove);
         if (inventory_cursor != grid_before) drop_armed = -1;
+
+        // Lift what is under the cursor, and put it down again somewhere else:
+        // the two change places, or join if they are the same. While something
+        // is lifted, confirming puts it down.
+        const bool place = inventory_held >= 0 && input.Pressed(Action::Confirm);
+        if (input.Pressed(Action::Ability) || place) {
+            if (inventory_held < 0) {
+                if (!p.inventory.Slot(inventory_cursor).Empty()) {
+                    inventory_held = inventory_cursor;
+                    Audio::Play(Sfx::UiMove);
+                }
+            } else {
+                if (inventory_held != inventory_cursor) {
+                    p.inventory.Move(inventory_held, inventory_cursor);
+                    Audio::Play(Sfx::Pickup, 0.6f);
+                }
+                inventory_held = -1;
+                drop_armed = -1;
+            }
+            return;
+        }
 
         if (input.Pressed(Action::Confirm)) {
             const ItemStack& s = p.inventory.Slot(inventory_cursor);
@@ -191,7 +247,7 @@ void Game::UpdateInventory() {
             const ItemDef* def = s.Empty() ? nullptr : items.Get(s.id);
             if (s.Empty()) {
                 drop_armed = -1;
-            } else if (def && def->keep) {
+            } else if (MustKeep(def, *quests)) {
                 PushToast("You had better hold on to that.", Palette::TextDim);
                 Audio::Play(Sfx::UiError);
             } else if (s.qty > 1 && drop_armed != inventory_cursor) {
@@ -245,6 +301,8 @@ void Game::DrawInventory() {
     ui.Text(header, panel.x + panel.w - 24.0f, panel.y + 22.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
 
+    ReorganizeButton(ui, input.PromptFor(Action::CycleSpell) + "  Reorganize", panel.x + 170.0f, panel.y + 18.0f);
+
     // --- item grid -----------------------------------------------------------
     // Centred in the width the four-row grid has, so smaller squares do not
     // drift left of the text under them.
@@ -259,11 +317,12 @@ void Game::DrawInventory() {
         const SDL_FRect r = {grid_x + col * (cell + gap), grid_y + row * (cell + gap),
                              cell, cell};
         const bool selected = (!inventory_on_equipment && i == inventory_cursor);
+        const bool lifted = i == inventory_held;
         if (selected) lit = r;
 
         ui.Fill(r, {34, 27, 22, 235});
-        ui.Outline(r, selected ? Palette::Highlight : Palette::BorderDim,
-                   selected ? 2.0f : 1.0f);
+        ui.Outline(r, lifted ? SDL_Color{255, 214, 96, 255} : selected ? Palette::Highlight : Palette::BorderDim,
+                   selected || lifted ? 2.0f : 1.0f);
 
         const ItemStack& s = p.inventory.Slot(i);
         if (s.Empty()) continue;
@@ -271,8 +330,11 @@ void Game::DrawInventory() {
         const ItemDef* def = items.Get(s.id);
         SDL_Texture* tex = (def && !def->icon.empty()) ? textures->Get(def->icon) : nullptr;
         const SDL_FRect inner = {r.x + 6.0f, r.y + 6.0f, r.w - 12.0f, r.h - 12.0f};
+        // What is lifted is shown faint where it was: it is in the hand now.
+        if (tex && lifted) SDL_SetTextureAlphaMod(tex, 90);
         if (tex) SDL_RenderTexture(renderer, tex, nullptr, &inner);
         else     DrawItemPlaceholder(ui, def, s.id, inner);
+        if (tex && lifted) SDL_SetTextureAlphaMod(tex, 255);
 
         if (s.qty > 1)
             ui.TextShadowed(std::to_string(s.qty), r.x + r.w - 4.0f, r.y + r.h - 18.0f,
@@ -280,6 +342,18 @@ void Game::DrawInventory() {
         // What is to hand wears a gold corner.
         if (!p.QuickItem().empty() && s.id == p.QuickItem())
             ui.Fill({r.x + 2.0f, r.y + 2.0f, 8.0f, 8.0f}, {255, 214, 96, 255});
+    }
+
+    // And in the hand, over the square it would go down in.
+    if (inventory_held >= 0 && !inventory_on_equipment && lit.w > 0.0f) {
+        const ItemStack& held = p.inventory.Slot(inventory_held);
+        const ItemDef* hd = held.Empty() ? nullptr : items.Get(held.id);
+        SDL_Texture* tex = (hd && !hd->icon.empty()) ? textures->Get(hd->icon) : nullptr;
+        const SDL_FRect in_hand = {lit.x - 4.0f, lit.y - 8.0f, lit.w - 8.0f, lit.h - 8.0f};
+        if (tex) SDL_RenderTexture(renderer, tex, nullptr, &in_hand);
+        if (held.qty > 1)
+            ui.TextShadowed(std::to_string(held.qty), in_hand.x + in_hand.w, in_hand.y + in_hand.h - 14.0f,
+                            TextSize::Small, Palette::Highlight, Align::Right);
     }
 
     // --- equipment -----------------------------------------------------------
@@ -379,10 +453,14 @@ void Game::DrawInventory() {
 
     const ItemDef* under_cursor = sel_id.empty() ? nullptr : items.Get(sel_id);
     const bool can_hand = !inventory_on_equipment && under_cursor && under_cursor->consumable;
-    ui.Text(input.PromptFor(Action::Confirm) + " use / equip     " +
-            (can_hand ? input.PromptFor(Action::Target) + " keep to hand     " : string()) +
-            input.PromptFor(Action::Drop) + " drop     " +
-            input.PromptFor(Action::Back) + " close",
+    ui.Text(inventory_held >= 0
+                ? input.PromptFor(Action::Ability) + " or " + input.PromptFor(Action::Confirm) + " put it down here     " +
+                  input.PromptFor(Action::Back) + " put it back"
+                : input.PromptFor(Action::Confirm) + " use / equip     " +
+                  (can_hand ? input.PromptFor(Action::Target) + " keep to hand     " : string()) +
+                  input.PromptFor(Action::Ability) + " move     " +
+                  input.PromptFor(Action::Drop) + " drop     " +
+                  input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -617,6 +695,16 @@ void Game::UpdateStorage() {
     storage_bag_cursor = std::clamp(storage_bag_cursor, 0, std::max(0, bag_slots - 1));
     if (cursor != before || storage_on_chest != side_before) Audio::Play(Sfx::UiMove);
 
+    // --- tidying ------------------------------------------------------------------
+    // Whichever side the cursor is on: the pack after the stowing, or the chest.
+    if (input.Pressed(Action::CycleSpell)) {
+        (storage_on_chest ? chest : p.inventory).Reorganize();
+        cursor = 0;
+        PushToast(storage_on_chest ? "Chest reorganized." : "Pack reorganized.", Palette::Xp);
+        Audio::Play(Sfx::Equip, 0.6f);
+        return;
+    }
+
     // --- by the armful ---------------------------------------------------------
     // The drop button, which in a chest has nothing to drop. From the pack it
     // stows everything the chest already has some of -- the ore goes with the
@@ -634,7 +722,7 @@ void Game::UpdateStorage() {
             if (stack.Empty()) continue;
             if (!storage_on_chest) {
                 const ItemDef* d = items.Get(stack.id);
-                if (stack.id == "coins" || (d && d->keep)) continue;
+                if (stack.id == "coins" || MustKeep(d, *quests)) continue;
                 if (!everything && !to.Has(stack.id, 1)) continue;
             }
             const int moved = to.Add(stack.id, stack.qty);
@@ -709,6 +797,9 @@ void Game::DrawStorage() {
     const SDL_FRect panel = CenteredPanel(ui, bag_w + box_w + 96.0f, grid_h + 168.0f);
     ui.Panel(panel);
     ui.Text(storage_title, panel.x + 24.0f, panel.y + 16.0f, TextSize::Large, Palette::Highlight);
+    // Whichever side the cursor is on is the side that is tidied.
+    ReorganizeButton(ui, input.PromptFor(Action::CycleSpell) + (storage_on_chest ? "  Reorganize the chest" : "  Reorganize your pack"),
+                     panel.x + 48.0f + ui.Measure(storage_title, TextSize::Large).x, panel.y + 20.0f);
 
     const float grid_y = panel.y + 76.0f;
     const float bag_x  = panel.x + 24.0f;
@@ -764,6 +855,7 @@ void Game::DrawStorage() {
     ui.Text(input.PromptFor(Action::Confirm) + " move one   -   hold " +
                 input.PromptFor(Action::Sprint) + " for the stack   -   " +
                 input.PromptFor(Action::Drop) + (storage_on_chest ? " take all" : " stow alike") + "   -   " +
+                input.PromptFor(Action::CycleSpell) + (storage_on_chest ? " tidy the chest" : " tidy the pack") + "   -   " +
                 input.PromptFor(Action::Back) + " close",
             panel.x + panel.w - 24.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Right);

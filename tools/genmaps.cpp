@@ -619,6 +619,7 @@ public:
                     dq["enemies"].size(), dq["objects"].size(), width, height);
     }
 
+    const string& Id() const { return id; }
     int Width() const { return width; }
     int Height() const { return height; }
 
@@ -1144,6 +1145,82 @@ static int ElevationAt(int cx, int cy) {
     // with two- and three-level edges read as ground.
     const int level = static_cast<int>(std::floor(h * 0.62f + 0.2f));
     return std::clamp(level, 0, 3);
+}
+
+// A strange thing lying where somebody will come across it: an item that
+// starts a quest as it goes into the bag (its `starts_quest` in items.json),
+// drawn on the ground as its own icon with a glint to it. Nothing guards it
+// and nothing asks for a level first -- whoever finds it has found it, and what
+// they can make of it is theirs to find out.
+//
+// Put near a monster's post, since what it starts is usually the thing that
+// lives there: `near` is the post's kind (a pool counts when it can be one),
+// `nth` which of them, and (dx, dy) the step from it. Or near a fixed point,
+// with `near` empty. Either way on the nearest ground a player can stand on.
+struct Curio {
+    const char* map;
+    const char* item;
+    const char* quest;
+    const char* title;       // "Pick up <title>"
+    const char* near;
+    int nth, x, y;           // with `near`, (x, y) is the step from the post
+};
+static const Curio kCurios[] = {
+    {"bayou",          "reed_doll",         "q_doll_in_the_reeds", "the reed doll",        "bog_lurker",     2, -46, 30},
+    {"bayou",          "drowned_locket",    "q_drowned_locket",    "the drowned locket",   "rot_shambler",   0, 40, -36},
+    {"overworld",      "bell_clapper",      "q_tongueless_bell",   "the bell clapper",     "",               0,
+                       (GRAVE_CX + 3) * OW_CELL + 12, (GRAVE_CY - 8) * OW_CELL + 20},
+    {"crypt_2",        "ashcroft_letter",   "q_ashcroft_letter",   "the sealed letter",    "bone_knight",    0, 44, 28},
+    {"ashen_path",     "cinder_invitation", "q_cinder_invitation", "the invitation",       "",               0, 2208, 1180},
+    {"palace_dungeon", "rime_key",          "q_rime_key",          "the key of ice",       "rime_revenant",  0, 52, 20},
+    {"westwold",       "bloodied_collar",   "q_bloodied_collar",   "the bloodied collar",  "wolf",           1, 48, 26},
+    {"brackenwood",    "antler_circlet",    "q_antler_circlet",    "the antler circlet",   "wolf",           0, 44, 30},
+};
+
+static void PlaceCurios(MapBuilder& m) {
+    for (const Curio& c : kCurios) {
+        if (m.Id() != c.map) continue;
+        int x = c.x, y = c.y;
+        if (c.near[0]) {
+            int seen = 0;
+            bool found = false;
+            for (const auto& e : m.dq["enemies"]) {
+                if (e.value("night", false)) continue;
+                bool kind = e.value("type", string()) == c.near;
+                if (e.contains("pool"))
+                    for (const auto& p : e["pool"]) kind |= p.get<string>() == c.near;
+                if (!kind || seen++ != c.nth) continue;
+                x = e["x"].get<int>() - m.ox + c.x;
+                y = e["y"].get<int>() + c.y;
+                found = true;
+                break;
+            }
+            if (!found) {
+                std::fprintf(stderr, "genmaps: %s has no %s post #%d for the %s\n", c.map, c.near, c.nth, c.item);
+                std::exit(1);
+            }
+        }
+        // Out from there in widening rings to the first open ground.
+        int px = x, py = y;
+        bool open = m.Clear(px, py);
+        for (int r = 8; !open && r <= 192; r += 8)
+            for (int a = 0; a < 24 && !open; ++a) {
+                const float t = a * 6.2831853f / 24.0f;
+                px = x + static_cast<int>(lroundf(cosf(t) * r));
+                py = y + static_cast<int>(lroundf(sinf(t) * r));
+                open = m.Clear(px, py);
+            }
+        if (!open) {
+            std::fprintf(stderr, "genmaps: nowhere to put the %s in %s\n", c.item, c.map);
+            std::exit(1);
+        }
+        json& o = m.Object(string("curio_") + c.item, "curio", px, py);
+        o["sprite"]       = string("assets/icons/") + c.item + ".png";
+        o["item"]         = c.item;
+        o["item_qty"]     = 1;
+        o["starts_quest"] = c.quest;
+        o["title"]        = c.title;
+    }
 }
 
 static void BuildOverworld() {
@@ -1986,6 +2063,7 @@ static void BuildOverworld() {
         std::printf("  the Hollowmarch by night: %d posts\n", m.night_posts);
     }
 
+    PlaceCurios(m);
     m.Write("maps");
     WriteWorldMap("data", (OW_W - OW_X0) * OW_CELL, OW_PX_H, m.ox);
 }
@@ -3245,6 +3323,7 @@ static void BuildDungeon(const string& id, const string& display,
         m.Spawn("from_below", sx, sy);
     }
 
+    PlaceCurios(m);
     m.Write("maps");
 }
 
@@ -3934,6 +4013,7 @@ static void BuildAshenPath() {
     m.Enemy("imp", 88 * CELL + 16, 20 * CELL + 16, 16, 60.0f, 220.0f);
     m.Enemy("imp", 86 * CELL + 16, 36 * CELL + 16, 15, 60.0f, 220.0f);
 
+    PlaceCurios(m);
     m.Write("maps");
 }
 
@@ -4361,6 +4441,7 @@ static void BuildPalaceDungeon() {
     m.Enemy("bone_knight", 20 * CELL, 13 * CELL, 29, 120.0f, 200.0f);
     m.Enemy("revenant", 26 * CELL, 12 * CELL + 16, 2, 120.0f, 200.0f);
     m.Enemy("rime_revenant", 7 * CELL, 22 * CELL, 1, 120.0f, 200.0f);
+    PlaceCurios(m);
     m.Write("maps");
 }
 
@@ -5094,6 +5175,7 @@ static void BuildWestwold() {
         }
     std::printf("  the Westwold by night: %d posts\n", m.night_posts);
 
+    PlaceCurios(m);
     m.Write("maps");
 }
 
@@ -5291,6 +5373,7 @@ static void BuildBrackenwood() {
         }
     std::printf("  the Brackenwood by night: %d posts\n", m.night_posts);
 
+    PlaceCurios(m);
     m.Write("maps");
 }
 
@@ -5874,6 +5957,7 @@ static void BuildBayou() {
         else m.Enemy(p.type, p.x, p.y, p.level, 32.0f, 240.0f);
     }
     std::printf("  the Bayou: %d trees, %zu ramps, %d herbs\n", trees, ramps.size(), herb_i);
+    PlaceCurios(m);
     m.Write("maps");
 }
 

@@ -2300,5 +2300,109 @@
   "value": 0,
   "icon": "assets/props/totem_cinder_king.png",
   "keep": true
+ },
+ "reed_doll": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Reed Doll",
+  "desc": "A doll of plaited reeds bound with red thread, thorns pushed through its middle. The lizardfolk hang these where their matriarch has walked.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/reed_doll.png",
+  "keep": true,
+  "starts_quest": "q_doll_in_the_reeds",
+  "found": "The reed doll's thorns prick your palm, and out in the Bayou something hisses back. Picking it up has started something."
+ },
+ "drowned_locket": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Drowned Locket",
+  "desc": "A tin locket green with the Bayou, its hinge rusted shut. Something small rattles inside.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/drowned_locket.png",
+  "keep": true,
+  "starts_quest": "q_drowned_locket",
+  "found": "Something in the locket knocks twice, like a knuckle on a door. Picking it up has started something."
+ },
+ "bell_clapper": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Bell Clapper",
+  "desc": "The iron tongue of a bell, as long as your forearm and as cold as a grave. Somebody wrenched it out and dropped it in the graveyard grass.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/bell_clapper.png",
+  "keep": true,
+  "starts_quest": "q_tongueless_bell",
+  "found": "The clapper is colder than it has any right to be, and from under the ground, very faintly, a bell tries to ring. Picking it up has started something."
+ },
+ "ashcroft_letter": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Ashcroft's Letter",
+  "desc": "A letter sealed in black wax with a bat, addressed in a thin old hand to the Guild of Havenbrook. The seal has never been broken.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/ashcroft_letter.png",
+  "keep": true,
+  "starts_quest": "q_ashcroft_letter",
+  "found": "The black wax is warm under your thumb, as though it had just been sealed. Picking it up has started something."
+ },
+ "cinder_invitation": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Cinder Invitation",
+  "desc": "A card of heavy paper edged in gold, the writing burned into it rather than inked. It requests the pleasure of your company.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/cinder_invitation.png",
+  "keep": true,
+  "starts_quest": "q_cinder_invitation",
+  "found": "The card is warm, and as you read it your name scorches itself into the space left for a guest. Picking it up has started something."
+ },
+ "rime_key": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Rime Key",
+  "desc": "A key of blue ice that does not melt, even here. Scratched into its bow, very small: SPIREWATCH.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/rime_key.png",
+  "keep": true,
+  "starts_quest": "q_rime_key",
+  "found": "The key burns cold through your glove, and at the far end of the dungeon something frozen starts to move. Picking it up has started something."
+ },
+ "bloodied_collar": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Bloodied Collar",
+  "desc": "A dog's leather collar with a brass tag, chewed through and dark with old blood. The tag says JUNIPER.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/bloodied_collar.png",
+  "keep": true,
+  "starts_quest": "q_bloodied_collar",
+  "found": "The brass tag says JUNIPER, and somewhere across the Westwold a wolf howls and another answers. Picking it up has started something."
+ },
+ "antler_circlet": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Antler Circlet",
+  "desc": "Two antler tines bound into a ring with green wire, the kind a child wears to the midsummer fair. There are tooth marks on one side.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/antler_circlet.png",
+  "keep": true,
+  "starts_quest": "q_antler_circlet",
+  "found": "There is a trapper's mark cut into the wire, and not far off a wolf is watching you. Picking it up has started something."
  }
 }

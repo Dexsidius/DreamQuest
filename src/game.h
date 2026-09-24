@@ -83,7 +83,7 @@ private:
     // What dialogue conditions are judged against, right now.
     DialogueContext MakeDialogueContext() const;
     void GrantQuestRewards(const string& quest_id);
-    void PushToast(const string& text, SDL_Color color = Palette::Text);
+    void PushToast(const string& text, SDL_Color color = Palette::Text, float life = 3.2f);
 
     // --- state helpers -------------------------------------------------------
     void SetState(GameState s);
@@ -247,6 +247,8 @@ private:
     int  cursor = 0;             // selection in the current list screen
     int  main_menu_cursor = 0;   // restored when a sub-screen backs out to the menu
     int  inventory_cursor = 0;
+    // A stack lifted to be put down somewhere else in the bag, or -1.
+    int  inventory_held = -1;
     int  equipment_cursor = 0;
     bool inventory_on_equipment = false;
     // The journal's tabs: 0 the story, 1 the tutorials, 2 everything else.
@@ -322,6 +324,10 @@ private:
     // in the middle of a fight, where the spellbook's page is a trip to the
     // menu. Says so on the spell's line under the bar, which lights up.
     void StepSpell(int step);
+    // A strange thing in the bag whose quest has not begun: begins it, and
+    // says so -- the item's own line, then the quest's banner. However it got
+    // there: picked up off the ground, out of a chest, off a body.
+    void NoticeFinds();
     // What there is to step through in the slot chosen, as StepSpell would.
     vector<const SpellDef*> SpellsInSlot() const;
     float spell_flash = 0.0f;

@@ -145,6 +145,12 @@ public:
     void Notify(const QuestEvent& e, const class Inventory& inv);
     // Collect objectives are satisfied by holding items, so re-check on pickup.
     void RefreshCollectObjectives(const class Inventory& inv);
+    // A strange thing found starts what it starts by being in the bag, however
+    // it got there: every quest a thing held names (`starts_quest`) that has not
+    // been begun is begun, and the things that began them are handed back so
+    // the player can be told. Nothing is asked first -- no level, no quest
+    // before it; what they can make of it is theirs to find out.
+    vector<const struct ItemDef*> StartFromFinds(const class Inventory& bag, const class ItemDatabase& items);
 
     vector<string> Active() const;
     vector<string> Completed() const;

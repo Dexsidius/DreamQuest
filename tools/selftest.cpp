@@ -17520,6 +17520,303 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("side quests in the new country: asked for in town, or begun by what is found; and a tidy bag");
+    {
+        // Whoever gives each, by the opening of their conversation.
+        const vector<pair<string, string>> town = {
+            {"q_shut_the_crypt", "brask_root"},       {"q_toll_at_the_bridge", "carter_root"},
+            {"q_white_pelts", "sorrel_root"},         {"q_hags_of_the_bayou", "ilse_root"},
+            {"q_horns_for_the_forge", "garrow_root"}, {"q_the_den_mother", "hale_root"},
+            {"q_bears_in_the_brackenwood", "sela_root"}};
+        const vector<string> finds = {"reed_doll", "drowned_locket", "bell_clapper", "ashcroft_letter",
+                                      "cinder_invitation", "rime_key", "bloodied_collar", "antler_circlet"};
+        const Skills novice;
+
+        // Picks the first visible option leading to `next` (or, with `next`
+        // empty, the first that starts `quest`), and does what it does through
+        // the function the game uses.
+        struct Talk {
+            QuestLog log;
+            Inventory inv;
+            Skills sk;
+            std::set<string> flags;
+            DialogueContext dc;
+        };
+        const auto begin = [&](Talk& t, const string& npc) {
+            t.dc.quests = &t.log; t.dc.inventory = &t.inv; t.dc.skills = &t.sk; t.dc.flags = &t.flags; t.dc.npc = npc;
+        };
+        const auto pick = [&](Talk& t, DialogueRunner& r, const std::function<bool(const DialogueOption&)>& want) {
+            for (size_t i = 0; i < r.VisibleOptions().size(); ++i)
+                if (want(*r.VisibleOptions()[i])) {
+                    r.MoveSelection(static_cast<int>(i) - r.Selected());
+                    r.Choose(t.dc);
+                    for (const DialogueAction& a : r.TakeActions()) ApplyDialogueAction(a, t.log, t.inv, t.sk, t.dc.npc);
+                    return true;
+                }
+            return false;
+        };
+
+        // --- in town: offered to anybody, taken at once -------------------------------------------------------
+        for (const auto& [id, opening] : town) {
+            Talk t;
+            t.log.LoadDefinitions("data/quests.json");
+            t.inv = Inventory(&items);
+            const QuestDef* d = t.log.Definition(id);
+            Check(d != nullptr, id + " is a quest");
+            if (!d) continue;
+            Check(d->source == QuestSource::Npc && d->requirements.empty() && d->combat_level == 0 &&
+                      d->prerequisites.empty() && t.log.CanStart(id, novice),
+                  id + " asks nothing first: a new character can take it (it is advised at " +
+                      std::to_string(d->recommended_level) + ")");
+            begin(t, d->giver);
+            DialogueRunner r;
+            r.Begin(&dialogue, opening, d->giver, "them", t.dc);
+            bool ungated = false;
+            for (const DialogueOption* o : r.VisibleOptions())
+                if (o->condition.quest == id && o->condition.quest_state == "available")
+                    ungated = o->condition.combat == 0 && o->condition.skill.empty() && o->condition.after.empty();
+            Check(ungated, id + ": the giver offers it from their first words, to anybody");
+            Check(pick(t, r, [&](const DialogueOption& o) { return o.condition.quest == id && o.condition.quest_state == "available"; }) &&
+                      pick(t, r, [&](const DialogueOption& o) { return o.action.start_quest == id; }) && t.log.IsActive(id),
+                  id + ": asked about, and taken");
+        }
+
+        // --- one of each through to the end ----------------------------------------------------------------------
+        {
+            // Said: four highwaymen on the Westwold road, and back to Hollis.
+            Talk t;
+            t.log.LoadDefinitions("data/quests.json");
+            t.inv = Inventory(&items);
+            begin(t, "npc_carter");
+            t.log.Start("q_toll_at_the_bridge");
+            const auto kill = [&](const string& what, const string& where, const string& boss = "") {
+                QuestEvent e;
+                e.type = ObjectiveType::Kill; e.target = what; e.secondary = boss; e.map_id = where;
+                t.log.Notify(e, t.inv);
+            };
+            for (int i = 0; i < 4; ++i) kill("highwayman", "overworld");
+            Check(t.log.Stage("q_toll_at_the_bridge") == 0, "highwaymen on the Hollowmarch are not the ones on the Westwold road");
+            for (int i = 0; i < 4; ++i) kill("highwayman", "westwold");
+            Check(t.log.Stage("q_toll_at_the_bridge") == 1, "four on the Westwold road are");
+            DialogueRunner r;
+            r.Begin(&dialogue, "carter_root", "npc_carter", "Hollis", t.dc);
+            Check(pick(t, r, [&](const DialogueOption& o) { return o.action.advance_quest == "npc_carter"; }) &&
+                      t.log.IsComplete("q_toll_at_the_bridge"),
+                  "and telling Hollis finishes it");
+
+            // A boss by name: a bear is a bear, the Den Mother is also herself.
+            t.log.Start("q_the_den_mother");
+            t.log.Start("q_bears_in_the_brackenwood");
+            kill("bear", "brackenwood");
+            Check(t.log.Stage("q_the_den_mother") == 0 && t.log.Counter("q_bears_in_the_brackenwood") == 1,
+                  "any bear counts for Sela, and is not the Den Mother");
+            kill("bear", "brackenwood", "den_mother");
+            Check(t.log.Stage("q_the_den_mother") == 1 && t.log.Counter("q_bears_in_the_brackenwood") == 2,
+                  "the Den Mother counts as herself for Hale, and as a bear for Sela");
+        }
+        {
+            // Handed over: three white pelts to Sorrel, and not before there are three.
+            Talk t;
+            t.log.LoadDefinitions("data/quests.json");
+            t.inv = Inventory(&items);
+            begin(t, "npc_ranger");
+            t.log.Start("q_white_pelts");
+            const auto hand_in = [&] {
+                DialogueRunner r;
+                r.Begin(&dialogue, "sorrel_root", "npc_ranger", "Sorrel", t.dc);
+                return pick(t, r, [&](const DialogueOption& o) { return o.action.take_item == "greatwolf_pelt"; });
+            };
+            t.inv.Add("greatwolf_pelt", 2);
+            Check(!hand_in(), "two pelts are not three: nothing to hand over");
+            t.inv.Add("greatwolf_pelt", 1);
+            Check(hand_in() && t.log.IsComplete("q_white_pelts") && t.inv.Count("greatwolf_pelt") == 0,
+                  "three are, and Sorrel takes all three");
+        }
+
+        // --- the things found ---------------------------------------------------------------------------------------
+        std::map<string, string> where;           // item -> the map it lies in
+        for (const char* map_id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + map_id + ".mx")) continue;
+            for (const MapObject& o : m.Objects())
+                if (o.type == "curio") {
+                    Check(!where.count(o.loot_item), o.loot_item + " lies in one place only");
+                    where[o.loot_item] = map_id;
+                    const ItemDef* d = items.Get(o.loot_item);
+                    Check(d && d->starts_quest == o.starts_quest && o.id == "curio_" + o.loot_item &&
+                              !o.title.empty() && o.sprite == d->icon,
+                          string(map_id) + ": " + o.id + " is the " + (d ? d->name : o.loot_item) + ", drawn as itself");
+                }
+        }
+        for (const string& item : finds) {
+            const ItemDef* d = items.Get(item);
+            Check(d != nullptr, item + " is an item");
+            if (!d) continue;
+            const QuestDef* q = quests.Definition(d->starts_quest);
+            Check(q && q->source == QuestSource::Note && q->giver == "curio_" + item && q->requirements.empty() &&
+                      q->combat_level == 0 && q->prerequisites.empty(),
+                  item + " starts " + d->starts_quest + ", and asks nothing first");
+            Check(d->keep && !d->stackable && d->found.find("started something") != string::npos &&
+                      fs::exists(d->icon),
+                  item + ": kept, one of a kind, has its own icon, and says it has started something");
+            Check(where.count(item) > 0, item + " is lying somewhere (" + (where.count(item) ? where[item] : string("nowhere")) + ")");
+        }
+        const std::set<string> country = {"bayou", "overworld", "crypt_2", "ashen_path", "palace_dungeon", "westwold", "brackenwood"};
+        std::set<string> lying;
+        for (const auto& kv : where) lying.insert(kv.second);
+        Check(lying == country, "and between them they are in every one of the new places");
+
+        // --- picked up, in the world -------------------------------------------------------------------------------------
+        {
+            GameContext ctx;
+            std::mt19937 rng(7117);
+            QuestLog log;
+            log.LoadDefinitions("data/quests.json");
+            Input input;
+            ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+            ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+            ctx.statuses = &statuses; ctx.input = &input; ctx.dialogue = &dialogue;
+            const auto frames = [&](World& w, int n) {
+                for (int f = 0; f < n; ++f) { input.Update(1.0f / 60.0f); w.Update(1.0f / 60.0f, ctx); }
+            };
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(2, 10.0f);
+            const bool loaded = w.LoadMap("westwold", "", ctx);
+            Check(loaded, "the Westwold loads");
+            w.enemies.clear();
+            const MapObject* collar = nullptr;
+            for (const MapObject& o : w.CurrentMap().Objects())
+                if (o.id == "curio_bloodied_collar") collar = &o;
+            Check(collar && w.ObjectPresent(*collar), "the collar is lying in the Westwold grass");
+            bool beside = false;
+            if (collar)
+                for (float a = 1.57f; a < 1.57f + 6.28f && !beside; a += 0.4f) {
+                    w.player.x = collar->x + cosf(a) * 16.0f;
+                    w.player.y = collar->y + sinf(a) * 16.0f;
+                    frames(w, 2);
+                    beside = w.player.interact.kind == InteractTarget::Object &&
+                             &w.CurrentMap().Objects()[w.player.interact.index] == collar;
+                }
+            Check(beside && w.player.interact.label == "Pick up the bloodied collar",
+                  "standing by it, it can be picked up (" + w.player.interact.label + ")");
+            if (beside && collar) {
+                w.TryInteract(ctx);
+                frames(w, 1);
+                Check(w.player.inventory.Count("bloodied_collar") == 1, "and goes straight into the bag");
+                Check(!w.ObjectPresent(*collar), "and is not on the ground any more");
+                // What the game does every frame after: the bag noticed.
+                const auto begun = log.StartFromFinds(w.player.inventory, items);
+                Check(begun.size() == 1 && begun[0]->id == "bloodied_collar" && log.IsActive("q_bloodied_collar") &&
+                          log.TakeJustStarted().size() == 1,
+                      "having it starts what it starts, and says which, so the player is told");
+                Check(log.StartFromFinds(w.player.inventory, items).empty(), "once");
+                frames(w, 2);
+                Check(!(w.player.interact.kind == InteractTarget::Object &&
+                        &w.CurrentMap().Objects()[w.player.interact.index] == collar),
+                      "where it was there is nothing to pick up");
+
+                // Six wolves on the Westwold and it goes back to Aldous, who
+                // has the collar off them for it -- and it does not turn up in
+                // the grass again.
+                for (int i = 0; i < 6; ++i) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Kill; e.target = "wolf"; e.map_id = "westwold";
+                    log.Notify(e, w.player.inventory);
+                }
+                Talk t;
+                begin(t, "npc_aldous");
+                t.dc.quests = &log; t.dc.inventory = &w.player.inventory;
+                DialogueRunner r;
+                r.Begin(&dialogue, "aldous_root", "npc_aldous", "Aldous", t.dc);
+                bool given = false;
+                for (size_t i = 0; i < r.VisibleOptions().size() && !given; ++i)
+                    if (r.VisibleOptions()[i]->action.take_item == "bloodied_collar") {
+                        r.MoveSelection(static_cast<int>(i) - r.Selected());
+                        r.Choose(t.dc);
+                        for (const DialogueAction& a : r.TakeActions())
+                            ApplyDialogueAction(a, log, w.player.inventory, w.player.skills, "npc_aldous");
+                        given = true;
+                    }
+                Check(given && log.IsComplete("q_bloodied_collar") && w.player.inventory.Count("bloodied_collar") == 0,
+                      "six wolves, and the collar handed to Aldous, finish it");
+                Check(!w.ObjectPresent(*collar), "and the collar does not turn up in the grass again");
+            }
+
+            // Found by somebody who has not found it: there it is.
+            QuestLog other;
+            other.LoadDefinitions("data/quests.json");
+            ctx.quests = &other;
+            World w2;
+            w2.player = Player();
+            w2.player.Init(ctx, "player_hero");
+            w2.clock.Set(2, 10.0f);
+            if (w2.LoadMap("bayou", "", ctx)) {
+                frames(w2, 1);
+                int present = 0;
+                for (const MapObject& o : w2.CurrentMap().Objects())
+                    if (o.type == "curio") present += w2.ObjectPresent(o);
+                Check(present == 2, "the Bayou has its two strange things lying about for a newcomer (" + std::to_string(present) + ")");
+            }
+        }
+
+        // --- the bag: a thing moved, and the lot tidied ------------------------------------------------------------------
+        {
+            for (const char* id : {"bronze_sword", "iron_helm", "logs", "healing_draught", "bones", "raw_boar", "coins"})
+                Check(items.Get(id) != nullptr, string(id) + " is an item, to tidy");
+            Inventory bag(&items);
+            const auto put = [&](int slot, const string& id, int qty) { bag.Slot(slot).id = id; bag.Slot(slot).qty = qty; };
+            put(3, "logs", 4);
+            put(9, "reed_doll", 1);
+            put(12, "healing_draught", 1);
+            put(15, "logs", 6);
+            put(17, "bronze_sword", 1);
+            put(20, "coins", 30);
+            put(21, "iron_helm", 1);
+            put(24, "bones", 2);
+            put(27, "raw_boar", 1);
+            put(26, "coins", 12);
+            std::map<string, int> before;
+            for (int i = 0; i < bag.SlotCount(); ++i) if (!bag.Slot(i).Empty()) before[bag.Slot(i).id] += bag.Slot(i).qty;
+
+            // Moved: into a gap, onto something else, onto its own kind.
+            Check(bag.Move(12, 0) && bag.Slot(0).id == "healing_draught" && bag.Slot(12).Empty(), "moved into a gap, it goes there");
+            Check(bag.Move(0, 17) && bag.Slot(0).id == "bronze_sword" && bag.Slot(17).id == "healing_draught",
+                  "moved onto something, the two change places");
+            Check(bag.Move(3, 15) && bag.Slot(15).qty == 10 && bag.Slot(3).Empty(), "moved onto its own kind, they are one stack");
+            Check(!bag.Move(3, 5) && !bag.Move(5, 5) && !bag.Move(0, 99), "an empty square, the same square or no square moves nothing");
+
+            bag.Reorganize();
+            std::map<string, int> after;
+            int last_full = -1, first_gap = bag.SlotCount();
+            for (int i = 0; i < bag.SlotCount(); ++i) {
+                if (bag.Slot(i).Empty()) { first_gap = std::min(first_gap, i); continue; }
+                after[bag.Slot(i).id] += bag.Slot(i).qty;
+                last_full = i;
+            }
+            Check(after == before, "tidied, nothing is lost and nothing is added");
+            Check(last_full < first_gap, "the gaps are all at the end");
+            Check(bag.Slot(0).id == "coins" && bag.Slot(0).qty == 42 && bag.Count("coins") == 42,
+                  "the coins are one purse, and it is first");
+            int rank = -1;
+            bool ordered = true;
+            for (int i = 0; i <= last_full; ++i) {
+                const int k = Inventory::SortRank(items.Get(bag.Slot(i).id), bag.Slot(i).id);
+                ordered &= k >= rank;
+                rank = k;
+            }
+            Check(ordered && bag.Slot(last_full).id == "reed_doll",
+                  "then what is worn and wielded, what is used, what is eaten, what things are made of -- and a quest's things last");
+            vector<string> once;
+            for (int i = 0; i <= last_full; ++i) once.push_back(bag.Slot(i).id);
+            bag.Reorganize();
+            vector<string> twice;
+            for (int i = 0; i <= last_full; ++i) twice.push_back(bag.Slot(i).id);
+            Check(once == twice, "and tidying a tidy bag changes nothing");
+        }
+    }
+
     Section("co-op M1: messages");
     {
         using namespace net;

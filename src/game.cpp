@@ -625,11 +625,11 @@ bool Game::InGameplayState() const {
     }
 }
 
-void Game::PushToast(const string& text, SDL_Color color) {
+void Game::PushToast(const string& text, SDL_Color color, float life) {
     Toast t;
     t.text = text;
     t.color = color;
-    t.life = t.max_life = 3.2f;
+    t.life = t.max_life = life;
     toasts.push_back(t);
     // Keep the stack short so it never covers the play area.
     if (toasts.size() > 5) toasts.erase(toasts.begin());
@@ -864,6 +864,30 @@ void Game::Update(float dt) {
                             world->player.y + world->player.LookAhead().y, dt);
 }
 
+void Game::NoticeFinds() {
+    // What was picked up says so: in its own words, a line at a time so it
+    // fits beside the map on half a screen too, and left up long enough to be
+    // read -- then the journal's "quest started" for what it started.
+    for (const ItemDef* d : quests->StartFromFinds(world->player.inventory, items)) {
+        const string said = d->found.empty() ? "The " + d->name + " has started something." : d->found;
+        string line;
+        size_t at = 0;
+        while (at < said.size()) {
+            const size_t gap = said.find(' ', at);
+            const string word = said.substr(at, gap == string::npos ? string::npos : gap - at);
+            at = gap == string::npos ? said.size() : gap + 1;
+            const string wider = line.empty() ? word : line + " " + word;
+            if (!line.empty() && ui.Measure(wider, TextSize::Small).x > 520.0f) {
+                PushToast(line, Palette::Highlight, 7.0f);
+                line = word;
+            } else {
+                line = wider;
+            }
+        }
+        if (!line.empty()) PushToast(line, Palette::Highlight, 7.0f);
+    }
+}
+
 void Game::UpdatePlay(float dt) {
     ServeSeat(0);
     spell_flash = std::max(0.0f, spell_flash - dt);
@@ -961,6 +985,7 @@ void Game::SeatChores() {
     // quest for something already carried. Only a handful of quests are ever
     // active, so settling them every frame costs nothing.
     quests->RefreshCollectObjectives(world->player.inventory);
+    NoticeFinds();
 
     // Progression feedback raised by the player during the update.
     const vector<LevelUp> ups = world->player.TakeLevelUps();

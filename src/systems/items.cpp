@@ -1,6 +1,7 @@
 #include "items.h"
 #include "skills.h"
 #include <fstream>
+#include <tuple>
 
 static const char* kSlotNames[SLOT_COUNT] = {
     "weapon", "shield", "head", "body", "hands", "legs", "feet", "amulet", "ring"
@@ -137,6 +138,8 @@ bool ItemDatabase::Load(const string& path, bool required) {
         d.block_stamina = o.value("block_stamina", 1.0f);
         d.move_speed    = o.value("move_speed", 0.0f);
         d.keep          = o.value("keep", false);
+        d.starts_quest  = o.value("starts_quest", string(""));
+        d.found         = o.value("found", string(""));
 
         if (o.contains("tint")) {
             const json& t = o["tint"];
@@ -838,6 +841,59 @@ int Inventory::Add(const string& id, int qty) {
         if (s.Empty()) { s.id = id; s.qty = 1; --remaining; }
     }
     return qty - remaining;
+}
+
+bool Inventory::Move(int from, int to) {
+    const int n = SlotCount();
+    if (from < 0 || to < 0 || from >= n || to >= n || from == to || items[from].Empty()) return false;
+    ItemStack& a = items[from];
+    ItemStack& b = items[to];
+    const ItemDef* def = db ? db->Get(a.id) : nullptr;
+    if (!b.Empty() && b.id == a.id && (!def || def->stackable)) {
+        b.qty += a.qty;
+        a.Clear();
+        return true;
+    }
+    std::swap(a, b);
+    return true;
+}
+
+int Inventory::SortRank(const ItemDef* d, const string& id) {
+    if (id == "coins") return 0;
+    if (!d) return 90;
+    if (d->keep) return 80;                                     // a quest's things
+    if (d->slot == SLOT_WEAPON) return 10;
+    if (d->slot != SLOT_NONE) return 11 + static_cast<int>(d->slot);   // then the rest of what is worn, by where
+    if (!d->tool.empty() || d->use == "light" || d->use == "camp" || d->use == "bag") return 30;
+    if (d->consumable) return 40;
+    if (!d->learn.empty()) return 45;                           // recipes and tomes
+    const auto tagged = [&](const char* t) { return std::find(d->tags.begin(), d->tags.end(), t) != d->tags.end(); };
+    if (tagged("trophy") || tagged("gem")) return 70;
+    return 50;                                                  // what things are made of
+}
+
+void Inventory::Reorganize() {
+    // Every stack of a thing that stacks, into one; everything else a slot each.
+    vector<ItemStack> all;
+    for (const ItemStack& s : items) {
+        if (s.Empty()) continue;
+        const ItemDef* def = db ? db->Get(s.id) : nullptr;
+        const bool stackable = def ? def->stackable : true;
+        bool joined = false;
+        if (stackable)
+            for (ItemStack& t : all)
+                if (t.id == s.id) { t.qty += s.qty; joined = true; break; }
+        if (!joined) all.push_back(s);
+    }
+    // By what it is, then within that by tier (the better further along),
+    // name and id, so the same bag always tidies the same way.
+    const auto key = [&](const ItemStack& s) {
+        const ItemDef* d = db ? db->Get(s.id) : nullptr;
+        return std::make_tuple(SortRank(d, s.id), d ? d->tier_index : -1, d ? d->name : s.id, s.id);
+    };
+    std::stable_sort(all.begin(), all.end(), [&](const ItemStack& a, const ItemStack& b) { return key(a) < key(b); });
+    for (ItemStack& s : items) s.Clear();
+    for (size_t i = 0; i < all.size() && i < items.size(); ++i) items[i] = all[i];
 }
 
 void Inventory::Resize(int slots) {

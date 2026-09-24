@@ -694,6 +694,18 @@ void World::ApplyTransition(const GameContext& ctx) {
 // -----------------------------------------------------------------------------
 
 bool World::ObjectPresent(const MapObject& o) const {
+    // A curio lies where it was left until whoever is looking has picked it
+    // up: while its quest has not been begun and it is not in their bag. So a
+    // friend finds their own, and a thing picked up and handed over does not
+    // turn up again where it was found.
+    if (o.type == "curio") {
+        if (!o.loot_item.empty() && player.inventory.Has(o.loot_item, 1)) return false;
+        if (!o.starts_quest.empty() && quest_log && !quest_log->relay &&
+            quest_log->Status(o.starts_quest) != QuestStatus::NotStarted) return false;
+        if (!o.starts_quest.empty() && quest_log && quest_log->relay &&
+            quest_log->relay_active.count(o.starts_quest)) return false;
+        return true;
+    }
     if (o.needs_quest.empty()) return true;
     return quest_log && quest_log->IsActive(o.needs_quest);
 }

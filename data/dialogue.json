@@ -234,6 +234,31 @@
   "text": "The guild takes contracts, not applicants. If you want work, the board outside is where work lives.",
   "options": [
    {
+    "text": "The letter. Lord Ashcroft is dead, properly.",
+    "next": "orlend_letter_done",
+    "if": {
+     "quest": "q_ashcroft_letter",
+     "state": "active",
+     "stage": 1,
+     "has_item": "ashcroft_letter",
+     "qty": 1
+    },
+    "action": {
+     "take": "ashcroft_letter",
+     "take_qty": 1
+    }
+   },
+   {
+    "text": "A letter for the guild, sealed in black wax.",
+    "next": "orlend_letter_hint",
+    "if": {
+     "quest": "q_ashcroft_letter",
+     "state": "active",
+     "stage": 0,
+     "has_item": "ashcroft_letter"
+    }
+   },
+   {
     "text": "Your ledger mentions a second chamber.",
     "next": "orlend_hoard_offer",
     "if": {
@@ -1318,6 +1343,31 @@
   "text": "Speak softly by the stones. Not for their sake. For mine.",
   "options": [
    {
+    "text": "The locket. The drowned are quiet.",
+    "next": "mira_locket_done",
+    "if": {
+     "quest": "q_drowned_locket",
+     "state": "active",
+     "stage": 1,
+     "has_item": "drowned_locket",
+     "qty": 1
+    },
+    "action": {
+     "take": "drowned_locket",
+     "take_qty": 1
+    }
+   },
+   {
+    "text": "I found a locket in the Bayou. It knocks.",
+    "next": "mira_locket_hint",
+    "if": {
+     "quest": "q_drowned_locket",
+     "state": "active",
+     "stage": 0,
+     "has_item": "drowned_locket"
+    }
+   },
+   {
     "text": "Here are the two haunches.",
     "next": "mira_done",
     "if": {
@@ -1626,6 +1676,34 @@
   "speaker": "Warden Sela",
   "text": "Warden Sela. You came up the trail? Then you already know more about it than the reeve does.",
   "options": [
+   {
+    "text": "Anything you need done?",
+    "next": "sela_bears_offer",
+    "if": {
+     "quest": "q_bears_in_the_brackenwood",
+     "state": "available"
+    }
+   },
+   {
+    "text": "The Brackenwood's paths are clear.",
+    "next": "sela_bears_done",
+    "if": {
+     "quest": "q_bears_in_the_brackenwood",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_sela"
+    }
+   },
+   {
+    "text": "About the bears.",
+    "next": "sela_bears_waiting",
+    "if": {
+     "quest": "q_bears_in_the_brackenwood",
+     "state": "active"
+    }
+   },
    {
     "text": "What should I watch for?",
     "next": "sela_warn"
@@ -1979,6 +2057,37 @@
   "speaker": "Garrow the Smith",
   "text": "Iron from the south road, coal from wherever I can get it. Buying or selling?",
   "options": [
+   {
+    "text": "What would make that anvil sing?",
+    "next": "garrow_horns_offer",
+    "if": {
+     "quest": "q_horns_for_the_forge",
+     "state": "available"
+    }
+   },
+   {
+    "text": "Four demon horns.",
+    "next": "garrow_horns_done",
+    "if": {
+     "quest": "q_horns_for_the_forge",
+     "state": "active",
+     "stage": 0,
+     "has_item": "demon_horn",
+     "qty": 4
+    },
+    "action": {
+     "take": "demon_horn",
+     "take_qty": 4
+    }
+   },
+   {
+    "text": "About the horns.",
+    "next": "garrow_horns_waiting",
+    "if": {
+     "quest": "q_horns_for_the_forge",
+     "state": "active"
+    }
+   },
    {
     "text": "Show me your bars.",
     "next": "end",
@@ -2810,6 +2919,31 @@
   "text": "An old man in a rocking chair, a blanket over his knees and a stick across them. The chair goes on rocking. He does not look up when you come in.",
   "options": [
    {
+    "text": "The Rime Key. What kept it is dead.",
+    "next": "elder_key_done",
+    "if": {
+     "quest": "q_rime_key",
+     "state": "active",
+     "stage": 1,
+     "has_item": "rime_key",
+     "qty": 1
+    },
+    "action": {
+     "take": "rime_key",
+     "take_qty": 1
+    }
+   },
+   {
+    "text": "I found a key with SPIREWATCH scratched on it.",
+    "next": "elder_key_hint",
+    "if": {
+     "quest": "q_rime_key",
+     "state": "active",
+     "stage": 0,
+     "has_item": "rime_key"
+    }
+   },
+   {
     "text": "They say something took the Ice Spire.",
     "next": "elder_offer",
     "if": {
@@ -3310,6 +3444,31 @@
   "text": "Three ewes since the new moon. They come over the Wend at night, and the fence is for sheep, not for wolves.",
   "options": [
    {
+    "text": "Juniper's collar. The wolves are dealt with.",
+    "next": "aldous_collar_done",
+    "if": {
+     "quest": "q_bloodied_collar",
+     "state": "active",
+     "stage": 1,
+     "has_item": "bloodied_collar",
+     "qty": 1
+    },
+    "action": {
+     "take": "bloodied_collar",
+     "take_qty": 1
+    }
+   },
+   {
+    "text": "I found a collar. The tag says Juniper.",
+    "next": "aldous_collar_hint",
+    "if": {
+     "quest": "q_bloodied_collar",
+     "state": "active",
+     "stage": 0,
+     "has_item": "bloodied_collar"
+    }
+   },
+   {
     "text": "Wolves?",
     "next": "aldous_wolves"
    },
@@ -3333,6 +3492,59 @@
   "speaker": "Hale the Trapper",
   "text": "Walk soft and keep downwind. They hear better than you and they smell better than both of us.",
   "options": [
+   {
+    "text": "The circlet. The wolves have backed off.",
+    "next": "hale_circlet_done",
+    "if": {
+     "quest": "q_antler_circlet",
+     "state": "active",
+     "stage": 1,
+     "has_item": "antler_circlet",
+     "qty": 1
+    },
+    "action": {
+     "take": "antler_circlet",
+     "take_qty": 1
+    }
+   },
+   {
+    "text": "I found this circlet in the wood.",
+    "next": "hale_circlet_hint",
+    "if": {
+     "quest": "q_antler_circlet",
+     "state": "active",
+     "stage": 0,
+     "has_item": "antler_circlet"
+    }
+   },
+   {
+    "text": "What happened to your traps?",
+    "next": "hale_den_offer",
+    "if": {
+     "quest": "q_the_den_mother",
+     "state": "available"
+    }
+   },
+   {
+    "text": "The Den Mother is dead.",
+    "next": "hale_den_done",
+    "if": {
+     "quest": "q_the_den_mother",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_hale"
+    }
+   },
+   {
+    "text": "About the Den Mother.",
+    "next": "hale_den_waiting",
+    "if": {
+     "quest": "q_the_den_mother",
+     "state": "active"
+    }
+   },
    {
     "text": "Tell me about the bears.",
     "next": "hale_bears"
@@ -3411,6 +3623,31 @@
   "text": "Tobin has put his onions up a penny. A penny! I remember when the board had one notice on it and it was about a lost pig.",
   "options": [
    {
+    "text": "I brought the bell's tongue back.",
+    "next": "perrin_bell_done",
+    "if": {
+     "quest": "q_tongueless_bell",
+     "state": "active",
+     "stage": 2,
+     "has_item": "bell_clapper",
+     "qty": 1
+    },
+    "action": {
+     "take": "bell_clapper",
+     "take_qty": 1
+    }
+   },
+   {
+    "text": "Do you remember a bell at Hollowrest?",
+    "next": "perrin_bell_hint",
+    "if": {
+     "quest": "q_tongueless_bell",
+     "state": "active",
+     "stage": 0,
+     "has_item": "bell_clapper"
+    }
+   },
+   {
     "text": "And now?",
     "next": "perrin_now"
    },
@@ -3434,6 +3671,42 @@
   "speaker": "Watchman Brask",
   "text": "South gate, west gate, guild hall, and round again. Corrin stands still and I walk. We have agreed it is fair.",
   "options": [
+   {
+    "text": "You look like somebody who has heard something.",
+    "next": "brask_crypt_offer",
+    "if": {
+     "quest": "q_shut_the_crypt",
+     "state": "available"
+    }
+   },
+   {
+    "text": "The crypt is quiet now.",
+    "next": "brask_crypt_done",
+    "if": {
+     "quest": "q_shut_the_crypt",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_brask"
+    }
+   },
+   {
+    "text": "About the crypt.",
+    "next": "brask_crypt_waiting",
+    "if": {
+     "quest": "q_shut_the_crypt",
+     "state": "active"
+    }
+   },
+   {
+    "text": "Heard anything from Hollowrest?",
+    "next": "brask_crypt_after",
+    "if": {
+     "quest": "q_shut_the_crypt",
+     "state": "complete"
+    }
+   },
    {
     "text": "Anything to watch for?",
     "next": "brask_watch"
@@ -3489,6 +3762,34 @@
   "text": "Hides out of Hidewater, cloth back. It is a better road than it was, now the gate is open, but I do not stop at the bridge for anybody. There are men there who would like me to.",
   "options": [
    {
+    "text": "Who would like you to stop?",
+    "next": "carter_toll_offer",
+    "if": {
+     "quest": "q_toll_at_the_bridge",
+     "state": "available"
+    }
+   },
+   {
+    "text": "The road is clear.",
+    "next": "carter_toll_done",
+    "if": {
+     "quest": "q_toll_at_the_bridge",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_carter"
+    }
+   },
+   {
+    "text": "About the bridge.",
+    "next": "carter_toll_waiting",
+    "if": {
+     "quest": "q_toll_at_the_bridge",
+     "state": "active"
+    }
+   },
+   {
     "text": "Safe road.",
     "next": "end"
    }
@@ -3498,6 +3799,37 @@
   "speaker": "Sorrel",
   "text": "Wolf pelts for Ivo, and then I am back out before the light goes. If you are heading west, cross the Wend in daylight and do not camp on the far bank.",
   "options": [
+   {
+    "text": "You look like you want something carried.",
+    "next": "sorrel_pelts_offer",
+    "if": {
+     "quest": "q_white_pelts",
+     "state": "available"
+    }
+   },
+   {
+    "text": "Three white pelts.",
+    "next": "sorrel_pelts_done",
+    "if": {
+     "quest": "q_white_pelts",
+     "state": "active",
+     "stage": 0,
+     "has_item": "greatwolf_pelt",
+     "qty": 3
+    },
+    "action": {
+     "take": "greatwolf_pelt",
+     "take_qty": 3
+    }
+   },
+   {
+    "text": "About the white pelts.",
+    "next": "sorrel_pelts_waiting",
+    "if": {
+     "quest": "q_white_pelts",
+     "state": "active"
+    }
+   },
    {
     "text": "What is past the river?",
     "next": "sorrel_west"
@@ -3546,6 +3878,34 @@
   "speaker": "Warden Ilse",
   "text": "Welcome to Fernhollow. It is a gate, a pond and eleven people, and I am the one who is awake.",
   "options": [
+   {
+    "text": "Anything I can do for the gate?",
+    "next": "ilse_hags_offer",
+    "if": {
+     "quest": "q_hags_of_the_bayou",
+     "state": "available"
+    }
+   },
+   {
+    "text": "The hags are dead.",
+    "next": "ilse_hags_done",
+    "if": {
+     "quest": "q_hags_of_the_bayou",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_ilse"
+    }
+   },
+   {
+    "text": "About the hags.",
+    "next": "ilse_hags_waiting",
+    "if": {
+     "quest": "q_hags_of_the_bayou",
+     "state": "active"
+    }
+   },
    {
     "text": "What is there to see?",
     "next": "ilse_see"
@@ -4331,6 +4691,465 @@
   "options": [
    {
     "text": "Thank you, Councillor.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_crypt_offer": {
+  "speaker": "Watchman Brask",
+  "text": "Brask stops walking, which Brask does not do.\n\n\"Hollowrest. The graveyard out on the Hollowmarch. Somebody went and opened the crypt under it -- cut the bars, the fools -- and now on my round, when the wind is right, I can hear it. Scratching. Something down there doing what the dead are not supposed to do, which is anything.\"\n\n\"The guild will not send anybody for a noise. You are not the guild.\"",
+  "options": [
+   {
+    "text": "I will go down and quiet it.",
+    "next": "brask_crypt_accept",
+    "action": {
+     "start_quest": "q_shut_the_crypt"
+    }
+   },
+   {
+    "text": "Not my business.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_crypt_accept": {
+  "speaker": "Watchman Brask",
+  "text": "\"Two floors, the gravedigger says, before the stairs get worse. Put down whatever is walking on the first, and whatever is floating on the second, and I will call that quiet. Nobody is asking you to go to the bottom.\"\n\nThe round starts again. \"Nobody is stopping you, either.\"",
+  "options": [
+   {
+    "text": "Two floors.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_crypt_waiting": {
+  "speaker": "Watchman Brask",
+  "text": "\"Still hear it. Fainter, maybe. The Vaults first, then the floor below -- the ones that walk, then the ones you cannot quite see.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_crypt_done": {
+  "speaker": "Watchman Brask",
+  "text": "Brask listens, as if it could be heard from here, and nods.\n\n\"I will take your word, and the guild's purse will take mine. Here. And these -- the herbalist says they are for cuts. I say they are for courage.\"",
+  "options": [
+   {
+    "text": "Walk safe.",
+    "next": "end"
+   }
+  ]
+ },
+ "brask_crypt_after": {
+  "speaker": "Watchman Brask",
+  "text": "\"Quiet since. Quiet as a crypt ought to be.\" A pause. \"I did not mean that as a joke.\"",
+  "options": [
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "carter_toll_offer": {
+  "speaker": "Hollis the Carter",
+  "text": "\"Men with a rope across the Westwold road and a story about a toll. There is no toll. There was never a toll. There is a man called Dace with a crossbow, and whoever he has drinking with him that week.\"\n\n\"Four of them, last I counted, and I did not stop to count well. Move them on and I will make it worth the walk.\"",
+  "options": [
+   {
+    "text": "I will move them on.",
+    "next": "carter_toll_accept",
+    "action": {
+     "start_quest": "q_toll_at_the_bridge"
+    }
+   },
+   {
+    "text": "Pay the toll, then.",
+    "next": "end"
+   }
+  ]
+ },
+ "carter_toll_accept": {
+  "speaker": "Hollis the Carter",
+  "text": "\"Out of the west gate and along the road. They sit where the hedges close in -- you will see the rope before you see them. Do not let Dace talk. He is good at it.\"",
+  "options": [
+   {
+    "text": "I will not.",
+    "next": "end"
+   }
+  ]
+ },
+ "carter_toll_waiting": {
+  "speaker": "Hollis the Carter",
+  "text": "\"Still there? Then I am still going round by the fields, and the fields are killing my axle.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "carter_toll_done": {
+  "speaker": "Hollis the Carter",
+  "text": "\"Clear? Truly?\" Hollis looks west, as if it could be seen from here. \"Then take this, and take the meat as well -- my wife cooked for somebody who would be home late, and I will be home early.\"",
+  "options": [
+   {
+    "text": "Safe road.",
+    "next": "end"
+   }
+  ]
+ },
+ "sorrel_pelts_offer": {
+  "speaker": "Sorrel",
+  "text": "\"Something killed, first. Ivo wants white pelts -- greatwolf, off the high ground in the Westwold where the grass goes pale. Big as a pony and they hunt in threes. I take the grey ones; I do not go up there.\"\n\n\"Three pelts. I will pay what Ivo pays me, and a little over, for the part where you are bitten.\"",
+  "options": [
+   {
+    "text": "Three white pelts. Done.",
+    "next": "sorrel_pelts_accept",
+    "action": {
+     "start_quest": "q_white_pelts"
+    }
+   },
+   {
+    "text": "I like my throat.",
+    "next": "end"
+   }
+  ]
+ },
+ "sorrel_pelts_accept": {
+  "speaker": "Sorrel",
+  "text": "\"Out of the west gate. The greatwolves keep to the open, north of the road -- they want to see you coming. Let them.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "sorrel_pelts_waiting": {
+  "speaker": "Sorrel",
+  "text": "\"Three, white, and not chewed. Ivo is fussy about chewed.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "sorrel_pelts_done": {
+  "speaker": "Sorrel",
+  "text": "Sorrel lays them over one arm and they cover it from shoulder to wrist. \"That is a winter of Ivo complaining about the size. Here -- and the focus draughts, for the next thing you go looking for that you should not.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_hags_offer": {
+  "speaker": "Warden Ilse",
+  "text": "\"For the gate, no. For the ferry, maybe. Three times this month it has brought folk up from the Bayou who could not say their own names -- one walked into the water smiling, and the ferryman had to pull him out by the collar.\"\n\n\"They all hum the same tune. The Swamp Hags sing it out there to draw you in, and once you have it your feet follow it. I would like four fewer singers.\"",
+  "options": [
+   {
+    "text": "Four fewer. I will see to it.",
+    "next": "ilse_hags_accept",
+    "action": {
+     "start_quest": "q_hags_of_the_bayou"
+    }
+   },
+   {
+    "text": "I do not sing.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_hags_accept": {
+  "speaker": "Warden Ilse",
+  "text": "\"Hit them before they finish a verse. What they throw at you turns you round, or makes you want to walk to them -- either way, keep swinging, and it wears off. The Bayou is off the Hollowmarch; the ferryman will tell you it is haunted. The ferryman says a lot of things.\"",
+  "options": [
+   {
+    "text": "Four.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_hags_waiting": {
+  "speaker": "Warden Ilse",
+  "text": "\"The ferry came in this morning with a woman humming. Not your fault. Yet.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_hags_done": {
+  "speaker": "Warden Ilse",
+  "text": "\"Four.\" Ilse says it the way somebody else might say *finally*. \"The ferryman will be glad, and louder about it than I am. Take this. And the bitters -- they taste like the Bayou, which is the point of them.\"",
+  "options": [
+   {
+    "text": "Quiet post.",
+    "next": "end"
+   }
+  ]
+ },
+ "garrow_horns_offer": {
+  "speaker": "Garrow the Smith",
+  "text": "\"Heat. More than coal gives. There is an old smith's story -- demon horn, ground to grit and thrown on the fire, burns hot enough to work platinum without the metal laughing at you.\"\n\n\"I do not know if it is true. I would like to. The things that grow them are out on the Ashen Path, past the Hollowmarch, and I am a smith, not a hero. Four horns.\"",
+  "options": [
+   {
+    "text": "Four horns. I will bring them.",
+    "next": "garrow_horns_accept",
+    "action": {
+     "start_quest": "q_horns_for_the_forge"
+    }
+   },
+   {
+    "text": "Coal will do.",
+    "next": "end"
+   }
+  ]
+ },
+ "garrow_horns_accept": {
+  "speaker": "Garrow the Smith",
+  "text": "\"It is the big ones that grow the good horns. Do not bring me a horn off something I could have trodden on. I will know.\"",
+  "options": [
+   {
+    "text": "Four.",
+    "next": "end"
+   }
+  ]
+ },
+ "garrow_horns_waiting": {
+  "speaker": "Garrow the Smith",
+  "text": "\"The fire is ready. The fire is always ready. It is the horns that are not.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "garrow_horns_done": {
+  "speaker": "Garrow the Smith",
+  "text": "Garrow weighs the horns one by one, sniffs one, and grins. \"If this works you have made me the only smith this side of the Hollowmarch who can work platinum. If it does not, you have made me a smith with four horns. Either way, take the bars. I will not be needing the old stock.\"",
+  "options": [
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_den_offer": {
+  "speaker": "Hale the Trapper",
+  "text": "\"She did. The Den Mother. Biggest bear in the Brackenwood, and she knows what a trap is now -- springs them with a stick, or near enough, and eats what is in them. Took my dog when he went to look.\"\n\n\"Her den is in the rocks not far from here. The bears you see on the trail are hers, one way or another. I would not go in. You look like you might.\"",
+  "options": [
+   {
+    "text": "I will go in.",
+    "next": "hale_den_accept",
+    "action": {
+     "start_quest": "q_the_den_mother"
+    }
+   },
+   {
+    "text": "Leave her be.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_den_accept": {
+  "speaker": "Hale the Trapper",
+  "text": "\"She stands up before she charges. When she stands up, do not be in front of her. That is all I know, and I learned it from a long way off.\"",
+  "options": [
+   {
+    "text": "I will remember.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_den_waiting": {
+  "speaker": "Hale the Trapper",
+  "text": "\"Still hear her at night. Or I think I do. Same thing, when you are trying to sleep.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_den_done": {
+  "speaker": "Hale the Trapper",
+  "text": "Hale is quiet a long time. \"He was a good dog.\" Then, brisker: \"Here. Coin, and a draught to keep your eye steady -- I was saving it for the day I went in myself, and now I will not have to.\"",
+  "options": [
+   {
+    "text": "He was.",
+    "next": "end"
+   }
+  ]
+ },
+ "sela_bears_offer": {
+  "speaker": "Warden Sela",
+  "text": "\"Need done. Yes. The lodge buys its hides from trappers out in the Brackenwood, past the Westwold, and the trappers have stopped going in -- the bears are on the paths, in daylight, in twos. So no hides, so the lodge is short, so the reeve asks me why, as though I keep the bears.\"\n\n\"Eight of them off the paths and the trappers will go back. Mind the big one. There is always a big one.\"",
+  "options": [
+   {
+    "text": "Eight bears. I will go.",
+    "next": "sela_bears_accept",
+    "action": {
+     "start_quest": "q_bears_in_the_brackenwood"
+    }
+   },
+   {
+    "text": "Ask the reeve to go.",
+    "next": "end"
+   }
+  ]
+ },
+ "sela_bears_accept": {
+  "speaker": "Warden Sela",
+  "text": "\"Out of Havenbrook's west gate, across the Westwold, and where the trees close in, that is the Brackenwood. Hale the trapper camps in there, and knows where they are thickest.\"",
+  "options": [
+   {
+    "text": "Eight.",
+    "next": "end"
+   }
+  ]
+ },
+ "sela_bears_waiting": {
+  "speaker": "Warden Sela",
+  "text": "\"The lodge sent a boy to ask again this morning. I told him about you. Do not make me a liar.\"",
+  "options": [
+   {
+    "text": "I am on it.",
+    "next": "end"
+   }
+  ]
+ },
+ "sela_bears_done": {
+  "speaker": "Warden Sela",
+  "text": "\"Clear?\" Sela chalks it on the slate by the gate. \"Good. The lodge will have its hides and the reeve will have one thing fewer to ask me about. Take this -- and the trout. The lodge sent it up for whoever did it.\"",
+  "options": [
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "mira_locket_hint": {
+  "speaker": "Mira of the Shrine",
+  "text": "She does not take it. She holds her hand over it, flat, as if it were warm.\n\n\"Someone wants this back and cannot come for it -- not walking, anyway. Out in the Bayou the drowned get up again. Lay a few of them down, so whoever it is can hear themselves think, and then bring it here. The stones will know what to do with it better than I will.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "mira_locket_done": {
+  "speaker": "Mira of the Shrine",
+  "text": "\"Give it here.\" She works the hinge with a pin until it gives. A curl of hair, tied with thread. She lays it on the shrine stones and says a name under her breath, and the knocking, which you had stopped hearing, stops.\n\n\"There. Take what the shrine has. It does not need coins, and I do not need thanking.\"",
+  "options": [
+   {
+    "text": "Rest easy.",
+    "next": "end"
+   }
+  ]
+ },
+ "perrin_bell_hint": {
+  "speaker": "Old Perrin",
+  "text": "Perrin takes one look at the clapper and sits down on the nearest step.\n\n\"The Hollowrest bell. They rang it for burials when I was small, and when they barred the crypt they took it down and hung it inside, over the stairs. So it would ring, see, if anything down there ever got up and walked.\"\n\n\"And somebody has had its tongue out. Well. That tells you who.\" A look. \"Go down and see. And bring that back after -- it wants putting somewhere it can do some good.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "perrin_bell_done": {
+  "speaker": "Old Perrin",
+  "text": "\"Not a sound out of the place while you were down there, I expect. That is the trouble with a bell with no tongue.\" Perrin turns the clapper over. \"I will get it to the smith. Hollowrest can have a bell that rings again, and I can have something to talk about that is not onions. Here -- my father dug that amulet out of the churchyard and never knew what to do with it.\"",
+  "options": [
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "orlend_letter_hint": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend looks at the seal and does not reach for it.\n\n\"Ashcroft. I know the name from the ledger -- the last lord of the house under Hollowrest, dead before my grandparents' time. If that seal is his, and the wax is fresh, then he is not as dead as the ledger says.\"\n\n\"Keep it shut. Go to the bottom of the crypt and find out what he is now. Then bring it back and I will open it with a clear conscience.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "orlend_letter_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend breaks the seal and reads it twice.\n\n\"An offer. His crypt left alone, and in return, the guild's dead left alone. Signed, on our side, by a Guild Master sixty years gone.\" The letter is folded, once. \"The guild kept its side. You have just ended his. The purse is yours -- and the draughts. Whoever signed this owes you that much.\"\n\nThe letter goes into the grate.",
+  "options": [
+   {
+    "text": "Burn it.",
+    "next": "end"
+   }
+  ]
+ },
+ "elder_key_hint": {
+  "speaker": "Elder Vask",
+  "text": "The chair stops.\n\nHe does not take it. His hands stay on the stick. \"That is the gatehouse key. Tamsin carried it. Tamsin went back up for the others, the night it came down, and did not come back.\"\n\n\"Something was keeping it, you say. Something cold.\" A long breath. \"Then it came down off the mountain with her key and has been sitting on it ever since. Put it down. Then bring me the key.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "elder_key_done": {
+  "speaker": "Elder Vask",
+  "text": "He holds the key a long time. It does not melt in his hands either.\n\n\"Fifty years I have told that story with the end missing. Now I know it.\" He sets the key on the blanket over his knees. \"Take the purse. And the draughts -- you will be going somewhere cold again, I expect. Your sort always are.\"",
+  "options": [
+   {
+    "text": "Rest, Elder.",
+    "next": "end"
+   }
+  ]
+ },
+ "aldous_collar_hint": {
+  "speaker": "Farmer Aldous",
+  "text": "Aldous takes it out of your hand, looks at the tag, and gives it back.\n\n\"Juniper. Best dog I ever had, and she went after them on her own the night they took the third ewe. I told myself she had run off.\" A pause. \"You are going to tell me you will deal with them. Deal with them, then. And bring that back after -- I would like to hang it on the gate.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "aldous_collar_done": {
+  "speaker": "Farmer Aldous",
+  "text": "\"On the gate, where she used to sit.\" He hangs it there himself, on the nail by the latch, and stands looking at it. \"Take the coin. Take the meat too; my wife will cook more, she always does. Six wolves. It is not enough for Juniper, but it is a start.\"",
+  "options": [
+   {
+    "text": "She was a good dog.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_circlet_hint": {
+  "speaker": "Hale the Trapper",
+  "text": "Hale turns the circlet over and finds the mark in the wire.\n\n\"Mine. I made it for my sister's girl, for the fair. She dropped it running, the day the wolves came into the clearing -- she got up a tree, and we got her down, and nobody went back for the circlet.\"\n\n\"The same wolves have followed my lines ever since, eating what is in the traps. Thin them for me, and I will give it back to her myself.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_circlet_done": {
+  "speaker": "Hale the Trapper",
+  "text": "\"Tooth marks and all.\" Hale bends the wire straight with a thumb. \"She will say it is ruined, and wear it anyway. Here -- a pair of rings I pulled out of a wolf's den last spring. Somebody lost them the way she nearly did.\"",
+  "options": [
+   {
+    "text": "Give her my best.",
     "next": "end"
    }
   ]

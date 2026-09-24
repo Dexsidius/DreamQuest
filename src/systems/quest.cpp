@@ -202,6 +202,18 @@ bool QuestLog::CanStart(const string& id, const Skills& skills) const {
     return MeetsRequirements(*d, skills);
 }
 
+vector<const ItemDef*> QuestLog::StartFromFinds(const Inventory& bag, const ItemDatabase& items) {
+    vector<const ItemDef*> begun;
+    for (int i = 0; i < bag.SlotCount(); ++i) {
+        const string& id = bag.Slot(i).id;
+        if (id.empty()) continue;
+        const ItemDef* d = items.Get(id);
+        if (!d || d->starts_quest.empty() || Status(d->starts_quest) != QuestStatus::NotStarted) continue;
+        if (Start(d->starts_quest)) begun.push_back(d);
+    }
+    return begun;
+}
+
 bool QuestLog::Start(const string& id) {
     const QuestDef* d = Definition(id);
     if (!d) return false;
@@ -279,7 +291,11 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
         if (!d || p.stage >= static_cast<int>(d->stages.size())) continue;
 
         const QuestStage& st = d->stages[p.stage];
-        if (st.type != e.type || st.target != e.target) continue;
+        // A boss's kill says what kind of thing it was (a chief is a
+        // "lizardman", for the contracts) and, as its second word, which one:
+        // a stage can name either.
+        const bool named = st.type == ObjectiveType::Kill && !e.secondary.empty() && st.target == e.secondary;
+        if (st.type != e.type || (st.target != e.target && !named)) continue;
         if (!st.map_id.empty() && st.map_id != e.map_id) continue;
         if (st.type == ObjectiveType::Deliver && st.deliver_to != e.secondary) continue;
 

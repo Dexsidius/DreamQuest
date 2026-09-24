@@ -92,6 +92,8 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             label = (o.type == "range" ? "Cook at the " : "Use the ") + noun;
         } else if (o.type == "waystone") {
             label = Flagged(o.id) ? "Touch the waystone" : "Wake the waystone";
+        } else if (o.type == "curio") {
+            label = ObjectPresent(o) ? "Pick up " + (o.title.empty() ? string("the thing") : o.title) : string();
         } else if (o.type == "totem_circle") {
             label = player.talents.PlacedTotem().empty() ? "Touch the ring"
                   : player.talents.TotemAwake()          ? "Touch the totem"
@@ -290,6 +292,26 @@ void World::TryInteract(const GameContext& ctx) {
                         : o.station == "loom" ? string("Loom")
                         : o.station == "rack" ? string("Tanning Rack") : string("Workbench");
                 requests.push_back(r);
+            } else if (o.type == "curio") {
+                // Straight into the bag: it is the having of it that starts
+                // what it starts (see Game::NoticeFinds), and a thing kicked
+                // across the ground first would only be a second thing to find.
+                if (!ObjectPresent(o) || o.loot_item.empty()) break;
+                const int got = player.inventory.Add(o.loot_item, std::max(1, o.loot_qty));
+                if (got <= 0) {
+                    AddText("No room in the bag.", o.x, o.y - 30.0f, {255, 140, 140, 255});
+                    Audio::Play(Sfx::UiError);
+                    break;
+                }
+                Audio::Play(Sfx::Pickup);
+                if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    e.map_id = map_id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
             } else if (o.type == "waystone") {
                 if (!Flagged(o.id)) {
                     // The first hand on it wakes it, and that is all the first

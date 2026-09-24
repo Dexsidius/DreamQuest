@@ -555,6 +555,8 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | **The spell in the slot chosen**, back and on | `[` `]` | **Right stick pushed left / right** |
 | The spellbook: what is on every slot | `O`, then `O` twice more | RB, then RB twice more |
 | Drop what the cursor is on (in the bag) | `G` | Y (north) |
+| Lift a thing and put it down elsewhere (in the bag) | `F` | RB |
+| **Reorganize** the bag, or the chest's side the cursor is on | `R` | Right stick click |
 | Pause | `Esc` | Start |
 
 **Changing a slot's spell mid-fight.** Push the right stick left or right
@@ -713,7 +715,30 @@ destroying a thing as the game gets, and all the destroying a thing needs.
 Keys, letters and seals cannot be dropped ("You had better hold on to that").
 Each was handed over exactly once by somebody who could not hand it over
 again, and a house key on the floor of a map you have left is a house you can
-never get into. An item says so with `"keep": true` in `data/items.json`.
+never get into. An item says so with `"keep": true` in `data/items.json`. A
+strange thing found in the world is kept the same way until the quest it
+started is finished, and after that it is yours to drop.
+
+### Moving things, and tidying the bag
+
+`F` -- RB on a controller -- **lifts** what the cursor is on. It shows faint in
+its own square with a gold edge, and in your hand over whichever square the
+cursor moves to; `F` again, or `J`, puts it down there. Onto an empty square it
+goes there; onto something else the two change places; onto more of the same
+thing they become one stack. `K` puts it back where it came from.
+
+`R` -- a click of the right stick -- is the **Reorganize** button beside the
+bag's title. Every stack of a thing that stacks is joined into one, everything
+is sorted by what it is, and the gaps all go to the end: coins first, then what
+is worn and wielded (weapons, then the rest by where it is worn), tools and
+lights, what is eaten and drunk, recipes and tomes, what things are made of,
+trophies and gems, and a quest's things last. Within each, by tier and then by
+name, so the same bag always tidies the same way and tidying a tidy bag
+changes nothing. Nothing is added and nothing is lost (`Inventory::Reorganize`,
+with the order in `Inventory::SortRank`).
+
+The storage chest has the same button: `R` tidies whichever side the cursor
+is on -- the pack after a round of stowing, or the chest itself.
 
 ### A bigger bag
 
@@ -4063,6 +4088,11 @@ Quests reach you three ways, all of them live:
   Reverie posts its own notices.
 - **Elder Vask**, in the guild hall, has been waiting fifty years for somebody
   who could climb the Ice Spire and kill what is sitting on it.
+- **Side quests in the new country** -- seven people in the towns want
+  something done in the Westwold, the Brackenwood, the Bayou, Hollowrest Crypt
+  or on the Ashen Path, and eight strange things lie out there that start a
+  quest of their own when they are picked up. See *Side quests in the new
+  country*, below.
 
 ### Waypoints: where the quest is
 
@@ -4341,6 +4371,65 @@ copper and Wendel's pike, are now in these books.
 The **Dreamer's Slate** stands on the Reverie's central island and carries the
 reverie dailies. The hunts can only be finished asleep, before the dream ends
 at dawn; the shards for Mira are gathered in the Reverie and handed in awake.
+
+### Side quests in the new country
+
+Fifteen of them, and **none asks anything first** -- no level, no quest before
+it. Each has a level it is *advised* at, shown in the journal, and that is all:
+a new character can take the crypt from Watchman Brask on their first morning,
+and find out on the stairs what it means.
+
+Given in town, from the first thing the person says:
+
+| Quest | Who | What | Advised |
+| --- | --- | --- | --- |
+| The Toll at the Bridge | Hollis the Carter, Havenbrook | four highwaymen on the Westwold road, then back to Hollis | 8 |
+| White Pelts | Sorrel, Havenbrook | three greatwolf pelts off the Westwold's high ground | 20 |
+| Bears in the Brackenwood | Warden Sela, Mossvale | eight bears off the Brackenwood's paths | 22 |
+| The Den Mother | Hale the Trapper, the Brackenwood | the Den Mother herself | 26 |
+| The Singers in the Bayou | Warden Ilse, Fernhollow | four Swamp Hags | 35 |
+| Shut the Crypt | Watchman Brask, Havenbrook | eight of the dead in the Vaults, six shades on the floor below | 36 |
+| Horns for the Forge | Garrow the Smith, Mossvale | four demon horns from the Ashen Path | 50 |
+
+Found lying in the world -- each drawn on the ground as its own icon, a little
+off the grass with a faint light under it and a glint every few seconds:
+
+| Thing | Where | Starts | Ends with | Advised |
+| --- | --- | --- | --- | --- |
+| Bloodied Collar | the Westwold, among the wolves | The Bloodied Collar | six wolves, and the collar to Farmer Aldous | 8 |
+| Antler Circlet | the Brackenwood | The Antler Circlet | six wolves, and the circlet to Hale | 22 |
+| Drowned Locket | the Bayou | The Drowned Locket | six of the drowned dead, and the locket to Mira | 35 |
+| Bell Clapper | Hollowrest graveyard | The Tongueless Bell | down to the crypt's second floor, six dead, and the clapper to Old Perrin | 38 |
+| Reed Doll | the Bayou | The Doll in the Reeds | six lizardfolk, then the Bayou Matriarch | 45 |
+| Ashcroft's Letter | Hollowrest Crypt, second floor | A Letter Sealed in Black | Lord Ashcroft, and the letter to Guild Master Orlend | 60 |
+| Rime Key | the Palace Dungeon | The Rime Key | the Rime Revenant, and the key to Elder Vask | 75 |
+| Cinder Invitation | the Ashen Path | An Invitation in Cinders | the palace, its dining hall, and the Cinder King | 80 |
+
+**Picking one up says so.** The thing's own line comes up in gold -- *"The
+brass tag says JUNIPER, and somewhere across the Westwold a wolf howls and
+another answers. Picking it up has started something."* -- held for seven
+seconds and wrapped to fit beside the map on half a split screen, and the
+journal's *Quest started* follows it. Whoever the thing belongs to knows it on
+sight: take it to them before the work is done and they say what it is and
+what to do; after, and they take it.
+
+How it works: an item with `"starts_quest"` in `data/items.json` starts that
+quest by being **in the bag**, however it got there
+(`QuestLog::StartFromFinds`, called each frame by `Game::NoticeFinds`), and its
+`"found"` is the line shown. The thing on the ground is a map object of type
+`curio` placed by `PlaceCurios` in `tools/genmaps.cpp`, from a table of which
+monster's post it lies beside -- walked out in rings to the nearest open
+ground. It lies there until **you** have it: while its quest is not begun and
+it is not in your bag (`World::ObjectPresent`), so it does not come back after
+it has been handed over, and in co-op each player finds their own. The quest's
+giver is the curio's id, which is what the self-test's "every quest has a giver
+somewhere" counts.
+
+Two smaller changes came with them. A kill stage can name a boss by its own id
+(`"den_mother"`) as well as by the family it belongs to (`"bear"`): the Den
+Mother counts for Hale as herself and for Sela as one of the eight bears. And a
+found thing is kept in the bag only while its quest wants it -- once that is
+over it is a keepsake, and can be dropped or stowed like anything else.
 
 ---
 

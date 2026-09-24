@@ -1003,6 +1003,51 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             }
             case 3: {
                 const MapObject* o = static_cast<const MapObject*>(it.ptr);
+                // A strange thing in the grass: its own icon, lifted a little
+                // off the ground, with a faint light under it and now and then
+                // a glint off it -- so somebody looking finds it, and somebody
+                // passing might.
+                if (o->type == "curio") {
+                    SDL_Texture* tex = cache.Get(o->sprite);
+                    if (!tex) break;
+                    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+                    const float seed = static_cast<float>((static_cast<int>(o->x) * 7 + static_cast<int>(o->y) * 13) % 97);
+                    const float ox = o->x, oy = o->y - LiftAt(o->x, o->y);
+                    const float bob = roundf(sinf(now * 2.2f + seed) * 1.5f);
+                    if (SDL_Texture* glow = cache.Get("assets/effects/glow.png")) {
+                        const float across = 30.0f + 4.0f * sinf(now * 1.7f + seed);
+                        const SDL_FRect lit = camera.ToScreenRect({ox - across / 2.0f, oy - 9.0f - across / 2.0f, across, across});
+                        SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_ADD);
+                        SDL_SetTextureColorMod(glow, 255, 234, 170);
+                        SDL_SetTextureAlphaMod(glow, 80);
+                        SDL_RenderTexture(r, glow, nullptr, &lit);
+                        SDL_SetTextureAlphaMod(glow, 255);
+                        SDL_SetTextureColorMod(glow, 255, 255, 255);
+                        SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_BLEND);
+                    }
+                    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+                    SDL_SetRenderDrawColor(r, 0, 0, 0, 70);
+                    const SDL_FRect shadow = camera.ToScreenRect({ox - 5.0f, oy - 2.0f, 10.0f, 2.0f});
+                    SDL_RenderFillRect(r, &shadow);
+                    const SDL_FRect dst = camera.ToScreenRect({ox - 8.0f, oy - 19.0f + bob, 16.0f, 16.0f});
+                    SDL_RenderTexture(r, tex, nullptr, &dst);
+                    // The glint: a four-pointed star on its shoulder, opening
+                    // and closing again, once every few seconds.
+                    const float cycle = fmodf(now + seed * 0.13f, 2.6f);
+                    if (cycle < 0.45f) {
+                        const float k = sinf(cycle / 0.45f * 3.14159265f);
+                        const float arm = 1.0f + floorf(k * 2.6f);
+                        const float z = camera.zoom;
+                        const SDL_FPoint c = camera.ToScreen(ox + 5.0f, oy - 16.0f + bob);
+                        const float cx = roundf(c.x / z) * z, cy = roundf(c.y / z) * z;
+                        SDL_SetRenderDrawColor(r, 255, 250, 222, static_cast<Uint8>(255.0f * std::min(1.0f, k * 1.4f)));
+                        const SDL_FRect across = {cx - arm * z, cy, (2.0f * arm + 1.0f) * z, z};
+                        const SDL_FRect down = {cx, cy - arm * z, z, (2.0f * arm + 1.0f) * z};
+                        SDL_RenderFillRect(r, &across);
+                        SDL_RenderFillRect(r, &down);
+                    }
+                    break;
+                }
                 // A picked plant, a felled tree, a worked-out seam: drawn as
                 // their after-picture when they have one. A seam has none --
                 // it is still a rock -- so it is drawn dark and dull instead.
