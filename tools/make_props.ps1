@@ -126,6 +126,10 @@ $sizes = @{
     palace_mirror = 88; palace_table = 192; palace_hearth = 140; palace_bed = 120; cell_bars = 84
     cell_door = 84; wall_shackles = 64; torture_rack = 96; iron_cage = 76; demon_throne = 200
     totem_cinder_king = 32
+    # Purgatory's Plateau and the dream's mirror (tools/blender_stronghold.py).
+    stronghold_wall = 144; stronghold_wall_v = 96; stronghold_tower = 172; stronghold_gate = 256
+    stronghold_keep = 416; soul_brazier = 70; purgatory_arch = 276; bone_spire = 102; salt_pillar = 96
+    steam_vent = 90; dragon_skull = 180; dream_mirror = 124; totem_cerberus = 32
 }
 
 # The scenery sizes, built to the same names the maps already use. Ten trees and

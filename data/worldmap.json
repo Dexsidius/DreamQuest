@@ -3,6 +3,7 @@
     "ashen_path": {
       "exits": [
         "overworld",
+        "plateau_ascent",
         "dungeon_infernal",
         "palace_foyer"
       ],
@@ -70,6 +71,13 @@
       "kind": "dungeon",
       "name": "Hollowrest Crypt, the Black Vault"
     },
+    "dream_havenbrook": {
+      "exits": [
+        "dreamworld_3"
+      ],
+      "kind": "land",
+      "name": "Havenbrook, Dreaming"
+    },
     "dreamworld": {
       "exits": [
         "dreamworld_2"
@@ -87,7 +95,8 @@
     },
     "dreamworld_3": {
       "exits": [
-        "dreamworld_2"
+        "dreamworld_2",
+        "dream_havenbrook"
       ],
       "kind": "land",
       "name": "The Dreaming Dark"
@@ -294,6 +303,47 @@
       ],
       "kind": "interior",
       "name": "The Throne Room"
+    },
+    "plateau_ascent": {
+      "exits": [
+        "ashen_path",
+        "plateau_flats",
+        "plateau_terraces"
+      ],
+      "kind": "land",
+      "name": "The Pale Ascent"
+    },
+    "plateau_flats": {
+      "exits": [
+        "plateau_ascent",
+        "plateau_stronghold"
+      ],
+      "kind": "land",
+      "name": "The Scoured Flats"
+    },
+    "plateau_stronghold": {
+      "exits": [
+        "plateau_flats",
+        "plateau_terraces",
+        "stronghold_keep"
+      ],
+      "kind": "land",
+      "name": "The Stronghold"
+    },
+    "plateau_terraces": {
+      "exits": [
+        "plateau_ascent",
+        "plateau_stronghold"
+      ],
+      "kind": "land",
+      "name": "The Brine Terraces"
+    },
+    "stronghold_keep": {
+      "exits": [
+        "plateau_stronghold"
+      ],
+      "kind": "interior",
+      "name": "The Keep"
     },
     "town_havenbrook": {
       "exits": [

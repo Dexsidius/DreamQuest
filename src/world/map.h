@@ -106,6 +106,18 @@ struct EnemySpawnDef {
     // then it comes up out of it: see Enemy::Hidden. Only means anything for a
     // post in water, and a monster that swims.
     bool   lurk = false;
+    // A post that walks the map rather than keeping its ground: whatever holds
+    // it goes round `route`, a loop of points laid out about the map, and comes
+    // for anybody who strays too near -- see Enemy::Roam. Where on the loop the
+    // day finds it, and whether it is out at all that day (`chance`, a share of
+    // days as a night post's is of nights), are the day's to say: see
+    // World::RoamDraw. Everybody's machine works both out the same way.
+    vector<SDL_FPoint> route;
+    // A post whose level is worked out rather than written: the least spawn
+    // level at which whatever the day put here shows at least this, so that a
+    // pool of bosses of every natural strength all come out close to it. 0
+    // means the written level stands. See Enemy::LevelToShow.
+    int    shown = 0;
 };
 
 // Somewhere a walking villager stops, and for how long.

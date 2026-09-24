@@ -142,6 +142,19 @@ bool World::KeptTonight(const string& map_id, int day, int index, const string& 
     return static_cast<float>(h & 0xFFFFu) / 65536.0f < chance;
 }
 
+World::RoamDay World::RoamDraw(const string& map_id, int day, int index, float chance, int points) {
+    uint32_t h = 2166136261u;
+    for (char c : map_id) h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+    h = (h ^ static_cast<uint32_t>(day)) * 16777619u;
+    h = (h ^ 0x726f616du) * 16777619u;                         // "roam"
+    h = (h ^ static_cast<uint32_t>(index)) * 16777619u;
+    h ^= h >> 15; h *= 2246822519u; h ^= h >> 13; h *= 3266489917u; h ^= h >> 16;
+    RoamDay d;
+    d.out = chance >= 1.0f || (chance > 0.0f && static_cast<float>(h & 0xFFFFu) / 65536.0f < chance);
+    d.start = points > 0 ? static_cast<int>((h >> 16) % static_cast<uint32_t>(points)) : 0;
+    return d;
+}
+
 bool World::Abroad(const Enemy& e) const {
     return e.night && clock.IsNight() && !InDream() &&
            KeptTonight(map_id, clock.QuestDay(), e.post, e.night_group, e.night_chance) &&
@@ -231,7 +244,7 @@ bool World::SlainToday(const string& map, int post) const {
 void World::SpawnEntitiesFromMap(const GameContext& ctx) {
     int post = 0;
     for (const auto& written : map.Enemies()) {
-        const EnemySpawnDef def = ResolveSpawn(written, map_id, clock.QuestDay(), post++);
+        EnemySpawnDef def = ResolveSpawn(written, map_id, clock.QuestDay(), post++);
         // A monster already killed this session stays dead until its timer
         // brings it back; flags cover the permanent ones.
         const EnemyDef* stats = ctx.enemies ? ctx.enemies->Get(def.type) : nullptr;
@@ -239,9 +252,19 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
             SDL_Log("World: unknown enemy type '%s'", def.type.c_str());
             continue;
         }
+        // Scaled to how strong it should look, whatever the day put here, with
+        // the day's spread on top of that.
+        if (def.shown > 0) def.level = Enemy::PostLevel(*stats, def) + (def.level - written.level);
         auto e = std::make_unique<Enemy>();
         e->Init(stats, def, ctx);
         e->post = post - 1;
+        // A roamer is somewhere different on its loop each day, and some days
+        // not out at all.
+        const RoamDay roam = e->Roams() ? RoamDraw(map_id, clock.QuestDay(), e->post, def.chance,
+                                                   static_cast<int>(e->route.size()))
+                                        : RoamDay{};
+        if (e->Roams()) e->StartRoute(roam.start);
+        if (!roam.out) e->LieDead();
         // Killed already today: it keeps its place in the list, which friends
         // count monsters by, and is not there.
         if (stats->is_boss && SlainToday(map_id, e->post)) e->LieDead();

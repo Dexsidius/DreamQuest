@@ -4551,5 +4551,670 @@
         "weight": 4
       }
     ]
+  },
+  "dragon_earth": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          160,
+          340
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 20
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 24
+      }
+    ]
+  },
+  "dragon_fire": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          160,
+          340
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "ember_shard",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 24
+      }
+    ]
+  },
+  "dragon_water": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          160,
+          340
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "starlily_panacea",
+        "weight": 12
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 24
+      }
+    ]
+  },
+  "dragon_air": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          160,
+          340
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 20
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 24
+      }
+    ]
+  },
+  "dragon_lightning": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          160,
+          340
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "demonite_bar",
+        "weight": 12
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 24
+      }
+    ]
+  },
+  "greater_demon": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          180,
+          360
+        ]
+      },
+      {
+        "item": "demon_horn",
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 24
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "demon_hide",
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "cerberus": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          2600,
+          4200
+        ]
+      },
+      {
+        "item": "demon_horn",
+        "qty": [
+          3,
+          5
+        ]
+      },
+      {
+        "item": "demonite_bar",
+        "qty": [
+          2,
+          3
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "dracon_bar",
+        "weight": 10
+      },
+      {
+        "item": "demonite_greatsword",
+        "weight": 8
+      },
+      {
+        "item": "demonite_body",
+        "weight": 8
+      },
+      {
+        "item": "demonite_helm",
+        "weight": 8
+      },
+      {
+        "item": "demonite_legs",
+        "weight": 8
+      },
+      {
+        "item": "demonite_staff",
+        "weight": 8
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 20
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 30
+      }
+    ]
+  },
+  "chest_stronghold": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1600,
+          2800
+        ]
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 22
+      },
+      {
+        "item": "demonite_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "demon_horn",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "item": "demonite_sword",
+        "weight": 8
+      },
+      {
+        "item": "demonite_legs",
+        "weight": 8
+      },
+      {
+        "item": "dracon_bar",
+        "weight": 3
+      }
+    ]
+  },
+  "chest_keep_vault": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          3200,
+          5200
+        ]
+      },
+      {
+        "item": "demonite_bar",
+        "qty": [
+          3,
+          5
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "dracon_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 10
+      },
+      {
+        "item": "demonite_body",
+        "weight": 12
+      },
+      {
+        "item": "demonite_helm",
+        "weight": 12
+      },
+      {
+        "item": "demonite_greatsword",
+        "weight": 12
+      },
+      {
+        "item": "demonite_staff",
+        "weight": 12
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 18
+      },
+      {
+        "item": "dream_shard",
+        "qty": [
+          2,
+          5
+        ],
+        "weight": 12
+      }
+    ]
+  },
+  "dream_grunt": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          120,
+          240
+        ],
+        "weight": 24
+      },
+      {
+        "item": "dread_hide",
+        "weight": 14
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_raider": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          150,
+          300
+        ],
+        "weight": 24
+      },
+      {
+        "item": "platinum_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_shambler": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          110,
+          230
+        ],
+        "weight": 24
+      },
+      {
+        "item": "bones",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 14
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
+  },
+  "dream_knight": {
+    "always": [
+      {
+        "item": "dream_shard"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "dream_shard",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 30
+      },
+      {
+        "item": "coins",
+        "qty": [
+          180,
+          340
+        ],
+        "weight": 24
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 12
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      },
+      {
+        "item": "nothing",
+        "weight": 16
+      }
+    ]
   }
 }

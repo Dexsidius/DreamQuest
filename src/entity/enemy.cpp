@@ -127,6 +127,47 @@ int Enemy::ShownLevelOf(const EnemyDef& def, int spawn_level) {
 
 int Enemy::ShownLevel() const { return def ? ShownLevelOf(*def, level) : level; }
 
+int Enemy::LevelToShow(const EnemyDef& def, int shown) {
+    int lv = 1;
+    while (lv < 250 && ShownLevelOf(def, lv) < shown) ++lv;
+    return lv;
+}
+
+int Enemy::PostLevel(const EnemyDef& def, const EnemySpawnDef& spawn) {
+    return spawn.shown > 0 ? LevelToShow(def, spawn.shown) : spawn.level;
+}
+
+void Enemy::StartRoute(int at) {
+    if (route.empty()) return;
+    const int n = static_cast<int>(route.size());
+    route_at = ((at % n) + n) % n;
+    x = route[route_at].x;
+    y = route[route_at].y;
+    NextWaypoint();
+}
+
+void Enemy::NextWaypoint() {
+    if (route.empty()) return;
+    route_at = (route_at + 1) % static_cast<int>(route.size());
+    home_x = route[route_at].x;
+    home_y = route[route_at].y;
+    roam_best = 1e9f;
+    roam_stuck = 0.0f;
+}
+
+void Enemy::Roam(float dt, float& move_x, float& move_y) {
+    const float tx = route[route_at].x - x, ty = route[route_at].y - y;
+    const float d = Length(tx, ty);
+    if (d < 16.0f) { NextWaypoint(); return; }
+    // Walked into something it cannot get round -- a tree between two points
+    // the map says are in a line, a friend stood in a gateway: after a while
+    // without getting any nearer it gives that point up and makes for the next.
+    if (d < roam_best - 4.0f) { roam_best = d; roam_stuck = 0.0f; }
+    else if ((roam_stuck += dt) > ROAM_STUCK) { NextWaypoint(); return; }
+    move_x = tx / d * MoveSpeed() * ROAM_PACE;
+    move_y = ty / d * MoveSpeed() * ROAM_PACE;
+}
+
 void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContext& ctx) {
     def     = d;
     status_db = ctx.statuses;
@@ -140,6 +181,8 @@ void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContex
     night_chance = spawn.chance;
     night_group  = spawn.group;
     lurks        = spawn.lurk;
+    route        = spawn.route;
+    route_at     = 0;
     emerge       = lurks ? 0.0f : 1.0f;
     rising       = false;
     sink_wait    = 0.0f;
@@ -645,6 +688,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // its water, and goes back under if it is left there. Wandering it
             // would step up on to the bank, where it can never sink again.
             if (lurks) {
+                if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
+                break;
+            }
+            // A roamer walks its loop rather than drifting round a post.
+            if (Roams()) {
+                Roam(dt, move_x, move_y);
                 if (!player.IsDead() && dist < def->aggro_range) { chase_run = 0.0f; SetState(State::Chase); }
                 break;
             }

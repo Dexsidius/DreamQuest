@@ -251,6 +251,11 @@ bool Map::Load(const string& path) {
             d.night   = e.value("night", false);
             d.lurk    = e.value("lurk", false);
             d.chance  = std::clamp(e.value("chance", 1.0f), 0.0f, 1.0f);
+            d.shown   = std::max(0, e.value("shown", 0));
+            if (e.contains("route") && e["route"].is_array())
+                for (const auto& p : e["route"])
+                    if (p.is_array() && p.size() >= 2)
+                        d.route.push_back({p[0].get<float>(), p[1].get<float>()});
             enemies.push_back(d);
         }
 

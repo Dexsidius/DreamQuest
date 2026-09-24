@@ -386,29 +386,31 @@ const Art& ArtOf(const string& path) {
         a.kind = PROP_STAKED;
     else if (prefix({"building_"}) ||
              any({"clothier_shop", "inn_building", "herbalist_cottage", "mossvale_lodge", "mage_college",
-                  "college_hall", "college_wing", "palace_keep", "palace_tower"}))
+                  "college_hall", "college_wing", "palace_keep", "palace_tower", "stronghold_keep", "stronghold_tower",
+                  "stronghold_gate"}))
         a.kind = PROP_WINDOWS;
     else if (any({"college_fountain", "well", "spring_basin", "quench_trough"}))
         a.kind = PROP_FOUNTAIN;
-    else if (any({"waystone_lit", "crystal_pylon", "ice_crystal"}))
+    else if (any({"waystone_lit", "crystal_pylon", "ice_crystal", "dream_mirror"}))
         a.kind = PROP_PULSE;
 
     // Fires: the air over them wavers, and they glow and throw a halo after dark.
     a.hot = any({"campfire", "campfire_ring", "hearth", "cottage_hearth", "inn_fireplace", "forge",
                  "palace_brazier", "palace_hearth", "palace_torch", "hellgate"});
     // Lights that are not fires, and fires, have a halo.
-    a.halo = a.hot || any({"candlestand", "palace_chandelier", "college_lamp", "waystone_lit"});
+    a.halo = a.hot || any({"candlestand", "palace_chandelier", "college_lamp", "waystone_lit", "soul_brazier",
+                           "purgatory_arch"});
     // What is lit from inside and should shine through the dark: every lit
     // window, every fire and light, and a few things that glow of themselves.
     a.glows = a.kind == PROP_WINDOWS || a.halo || a.kind == PROP_PULSE ||
               any({"herb_glowcap", "herb_moonpetal", "herb_emberbloom", "spell_circle", "demon_throne",
-                   "throne_door", "ice_spire", "enchanting_table", "totem_cinder_king"});
+                   "throne_door", "ice_spire", "enchanting_table", "totem_cinder_king", "totem_cerberus", "steam_vent"});
     return known.emplace(path, a).first->second;
 }
 
 Surface SurfaceOfTile(const string& path) {
     const string stem = std::filesystem::path(path).stem().string();
-    if (IsNumbered(stem, "water") || IsNumbered(stem, "bog_water")) return WATER;
+    if (IsNumbered(stem, "water") || IsNumbered(stem, "bog_water") || IsNumbered(stem, "brine")) return WATER;
     if (IsNumbered(stem, "lava")) return LAVA;
     return PLAIN;
 }

@@ -432,6 +432,11 @@ public:
     // It is always in the list, up or not, because friends count monsters by
     // their place in it; by day it lies the way a boss killed today does.
     static bool KeptTonight(const string& map_id, int day, int index, const string& group, float chance);
+    // A roaming post's day: whether it is out at all (`chance` of days), and
+    // which point of its loop of `points` the day finds it on. A pure hash of
+    // map, day and post, so a friend's machine agrees without being told.
+    struct RoamDay { bool out = true; int start = 0; };
+    static RoamDay RoamDraw(const string& map_id, int day, int index, float chance, int points);
     bool Abroad(const Enemy& e) const;
     // Whether this map has any such posts at all: what the nightfall note says.
     bool HasNightPosts() const;

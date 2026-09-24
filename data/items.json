@@ -2404,5 +2404,13 @@
   "keep": true,
   "starts_quest": "q_antler_circlet",
   "found": "There is a trapper's mark cut into the wire, and not far off a wolf is watching you. Picking it up has started something."
+ },
+ "totem_cerberus": {
+  "name": "Totem of Cerberus",
+  "desc": "A black stake hung with three iron collars, their spikes still hot. It walked round the Stronghold fifteen times with you at its heels before it left this behind. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Collar of Cerberus.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_cerberus.png",
+  "keep": true
  }
 }

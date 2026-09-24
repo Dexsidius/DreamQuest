@@ -74,6 +74,8 @@ static const char* kMaps[] = {
     "house_inn_cellar", "ice_spire_peak", "ashen_path", "dungeon_infernal",
     "crypt_1", "crypt_2", "crypt_3", "bayou",
     "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers", "palace_dungeon", "palace_throne",
+    "plateau_ascent", "plateau_flats", "plateau_terraces", "plateau_stronghold", "stronghold_keep",
+    "dream_havenbrook",
 };
 
 int main(int argc, char** argv) {
@@ -6044,8 +6046,10 @@ int main(int argc, char** argv) {
                 if (string(id) == "overworld" && e.x < (34 + 20) * 32 && e.type.rfind("lizardman", 0) == 0) types["mire"].insert(e.type);
                 const int lv = effective(e.type, e.level);
                 // The dragon is not part of the peak's spread: it is the thing
-                // at the top of it, and it is checked on its own below.
-                if (e.type == "frost_dragon") continue;
+                // at the top of it, and it is checked on its own below. Nor is
+                // what comes out at night, or walks the map: that is by design
+                // stronger than what lives there, and has tests of its own.
+                if (e.type == "frost_dragon" || e.night || !e.route.empty()) continue;
                 auto& rg = range[id];
                 rg.first = std::max(rg.first, lv);
                 rg.second = rg.second == 0 ? lv : std::min(rg.second, lv);
@@ -6423,8 +6427,8 @@ int main(int argc, char** argv) {
                 Map m;
                 m.Load("maps/ashen_path.mx");
                 const vector<WorldMark> marks = pages.MarksOf(m);
-                Check(count(marks, "dungeon") == 1 && count(marks, "path") == 1,
-                      "the Ashen Path's: the way back, and the pit at the end of it");
+                Check(count(marks, "dungeon") == 1 && count(marks, "path") == 2,
+                      "the Ashen Path's: the way back, the climb to the plateau, and the pit at the end of it");
             }
         }
 
@@ -9471,9 +9475,24 @@ int main(int argc, char** argv) {
             return d ? (d->attack_level + d->strength_level + d->defence_level + 3 * (level - 1)) : 0;
         };
         int hardest_regular[3] = {0, 0, 0}, easiest_regular[3] = {9999, 9999, 9999}, guardian[3] = {0, 0, 0};
+        int walkers[3] = {0, 0, 0};
         std::set<string> seen_types[3];
         for (int i = 0; i < 3 && loaded; ++i) {
             for (const EnemySpawnDef& e : depth[i].Enemies()) {
+                // What walks a dream is the waking world's own: one of a pool of
+                // its bosses, whose kill counts toward its totem the same as it
+                // would awake. Not one of the depth's nightmares, and not its
+                // guardian; checked on its own below.
+                if (!e.route.empty()) {
+                    bool bosses = !e.pool.empty();
+                    for (const string& t : e.pool) {
+                        const EnemyDef* d = enemy_db.Get(t);
+                        bosses &= d && d->is_boss && trees.TotemOf(t) != nullptr;
+                    }
+                    Check(bosses, string(kDepths[i]) + ": what walks it is a boss of the waking world, with a totem to earn");
+                    ++walkers[i];
+                    continue;
+                }
                 if (e.pool.empty()) {
                     const EnemyDef* d = enemy_db.Get(e.type);
                     Check(d && d->is_boss == (i > 0) && d->tint.r != 255, string(kDepths[i]) + ": " + e.type + " keeps its post every night, and is a nightmare");
@@ -9502,6 +9521,8 @@ int main(int argc, char** argv) {
             Check(easiest_regular[1] > hardest_regular[0] && easiest_regular[2] > hardest_regular[1],
                   "the easiest thing at each depth is harder than the hardest thing above it");
             Check(guardian[1] > guardian[0] && guardian[2] > guardian[1], "and so are the three that do not move");
+            Check(walkers[0] == 0 && walkers[1] == 0 && walkers[2] == 1,
+                  "and at the bottom, something walks the bridges between the islands");
             for (const string& t : seen_types[1]) Check(!seen_types[0].count(t) && !seen_types[2].count(t), t + " belongs to the second depth only");
             Check(enemy_db.Get("nightmare_troll") && enemy_db.Get("nightmare_troll")->name == "The Sleepless" &&
                   enemy_db.Get("nightmare_dragon") && enemy_db.Get("nightmare_dragon")->name == "The Unwaking",
@@ -10294,6 +10315,8 @@ int main(int argc, char** argv) {
             {"westwold", 5}, {"brackenwood", 20}, {"dungeon_emberfell_1", 10}, {"dungeon_barrow", 20},
             {"ice_spire_peak", 34}, {"dreamworld_2", 25}, {"dreamworld_3", 50},
             {"crypt_1", 34}, {"bayou", 30}, {"palace_foyer", 75},
+            {"plateau_ascent", 53}, {"plateau_flats", 59}, {"plateau_terraces", 61}, {"plateau_stronghold", 66},
+            {"stronghold_keep", 67}, {"dream_havenbrook", 54},
         };
         for (const Area& a : kAreas) {
             Map m;
@@ -10302,7 +10325,7 @@ int main(int argc, char** argv) {
             for (const EnemySpawnDef& e : m.Enemies())
                 for (const string& type : e.pool.empty() ? vector<string>{e.type} : e.pool) {
                     const EnemyDef* d = enemy_db.Get(type);
-                    if (d && !d->is_boss) levels.push_back(Enemy::ShownLevelOf(*d, e.level));
+                    if (d && !d->is_boss && !e.night) levels.push_back(Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)));
                 }
             Check(!levels.empty(), string(a.map) + " has something living in it");
             if (levels.empty()) continue;
@@ -12305,7 +12328,9 @@ int main(int argc, char** argv) {
         constexpr float kFrame = 1.0f / 60.0f;
 
         // --- where, and what ---------------------------------------------------------------
-        const std::set<string> wilds = {"overworld", "whisperwood_trail", "westwold", "brackenwood"};
+        const std::set<string> wilds = {"overworld", "whisperwood_trail", "westwold", "brackenwood",
+                                        "bayou", "ice_spire_peak", "ashen_path", "plateau_ascent", "plateau_flats",
+                                        "plateau_terraces", "plateau_stronghold"};
         int posts_all = 0;
         for (const char* id : kMaps) {
             Map m;
@@ -15398,8 +15423,12 @@ int main(int argc, char** argv) {
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load("maps/" + string(id) + ".mx")) continue;
+            // The waking world's standing ranks: not the Warchief walking the
+            // high country on some days, nor anything in a dream.
+            if (string(id) == "dream_havenbrook") continue;
             for (const EnemySpawnDef& s : m.Enemies()) {
                 const vector<string> who = s.pool.empty() ? vector<string>{s.type} : s.pool;
+                if (!s.route.empty()) continue;
                 if (who.front().rfind("orc", 0) != 0) continue;
                 ++posts;
                 bool shoots = false, swings = false;
@@ -17247,6 +17276,296 @@ int main(int argc, char** argv) {
             for (int f = 0; f < 60 * 2; ++f) w.Update(kFrame, ctx);
             Check(w.ShakeOffset().x == 0.0f && w.ShakeOffset().y == 0.0f, "and it has stopped within two seconds");
             Check(!Shaders::Effects(), "and off the GPU renderer, as here, none of the shader effects are on");
+        }
+    }
+
+    Section("Purgatory's Plateau, bosses abroad in the high country, and Havenbrook dreaming");
+    {
+        GameContext ctx;
+        std::mt19937 rng(7070);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input; ctx.dialogue = &dialogue;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto load = [](const string& id) { Map m; m.Load("maps/" + id + ".mx"); return m; };
+        const auto leads = [&](const string& from, const string& to) {
+            for (const Portal& p : load(from).Portals()) if (p.target_map == to) return true;
+            return false;
+        };
+
+        // --- the four, and the way up to them --------------------------------------------------
+        const vector<string> plateau = {"plateau_ascent", "plateau_flats", "plateau_terraces", "plateau_stronghold"};
+        Check(leads("ashen_path", "plateau_ascent") && leads("plateau_ascent", "ashen_path"),
+              "a road climbs from the Ashen Path onto the plateau, and back down");
+        Check(leads("plateau_ascent", "plateau_flats") && leads("plateau_flats", "plateau_ascent") &&
+              leads("plateau_ascent", "plateau_terraces") && leads("plateau_terraces", "plateau_ascent") &&
+              leads("plateau_flats", "plateau_stronghold") && leads("plateau_stronghold", "plateau_flats") &&
+              leads("plateau_terraces", "plateau_stronghold") && leads("plateau_stronghold", "plateau_terraces"),
+              "four maps, each joined to the two beside it: round the square either way to the Stronghold");
+        Check(leads("plateau_stronghold", "stronghold_keep") && leads("stronghold_keep", "plateau_stronghold"),
+              "and the Stronghold's keep is a door, with a way back out");
+        std::set<string> grounds;
+        for (const string& id : plateau) {
+            const Map m = load(id);
+            int lo = 99, hi = 0, kinds_on = 0;
+            std::set<string> kinds;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (e.night || !e.route.empty()) continue;
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (!d || d->is_boss) continue;
+                kinds.insert(e.type);
+                lo = std::min(lo, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)));
+                hi = std::max(hi, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e) + e.spread));
+            }
+            (void)kinds_on;
+            Check(lo >= 50 && hi <= 70 && kinds.size() >= 3,
+                  id + ": what lives there is fifty to seventy (" + std::to_string(lo) + "-" + std::to_string(hi) + "), " +
+                      std::to_string(kinds.size()) + " kinds");
+        }
+        // Each its own ground: the road through them all, and apart from it nothing shared by all four.
+        {
+            std::map<string, int> seen;
+            for (const string& id : plateau) {
+                std::ifstream in("maps/" + id + ".mx");
+                json j;
+                in >> j;
+                std::set<string> fams;
+                for (auto it = j["tiles"].begin(); it != j["tiles"].end(); ++it) {
+                    string f = it.value().value("filepath", string(""));
+                    if (f.find("assets/tiles/") == string::npos) continue;
+                    f = f.substr(f.find_last_of('/') + 1);
+                    f = f.substr(0, f.find('.'));
+                    const size_t us = f.find_last_of('_');
+                    if (us != string::npos && isdigit(static_cast<unsigned char>(f.back()))) f = f.substr(0, us);
+                    fams.insert(f);
+                }
+                for (const string& f : fams) ++seen[f];
+            }
+            bool own = true;
+            for (const auto& kv : seen) if (kv.second == 4 && kv.first != "plateau_road") own = false;
+            Check(own, "the four have a ground each: nothing laid under all of them but the road");
+        }
+        {
+            const Map keep = load("stronghold_keep");
+            int lo = 99, hi = 0;
+            for (const EnemySpawnDef& e : keep.Enemies()) {
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (!d || d->is_boss) continue;
+                lo = std::min(lo, Enemy::ShownLevelOf(*d, e.level));
+                hi = std::max(hi, Enemy::ShownLevelOf(*d, e.level));
+            }
+            Check(lo >= 64 && hi <= 70, "the keep's garrison is the best of it, at the top of the seventy (" + std::to_string(lo) +
+                                            "-" + std::to_string(hi) + ")");
+        }
+
+        // --- the five dragons, the Greater Demon and the dog ------------------------------------------
+        const vector<pair<string, string>> dragons = {{"dragon_fire", "burn"}, {"dragon_water", "chill"},
+                                                      {"dragon_earth", "concussed"}, {"dragon_air", "bleed"},
+                                                      {"dragon_lightning", "electrified"}};
+        std::set<Element> elements;
+        bool breath = true, marked = true;
+        for (const auto& [id, status] : dragons) {
+            const EnemyDef* d = enemy_db.Get(id);
+            if (!d) { breath = false; continue; }
+            elements.insert(d->element);
+            const ProjectileDef* p = projectiles.Get(d->shoots);
+            breath &= p != nullptr && d->shoot_range > 0.0f && sprites.Has(d->sprite) && d->tint.r == 255;
+            marked &= d->on_hit.Any() && statuses.Get(d->on_hit.kind) && string(StatusId(d->on_hit.kind)) == status;
+        }
+        Check(elements.size() == 5, "five dragons, one of each element: fire, water, earth, air and the lightning");
+        Check(breath, "each breathes its element from a distance, and is drawn as itself, not a tint of another");
+        Check(marked, "and each leaves its element's mark: burning, chilled, concussed, bleeding, electrified");
+        const EnemyDef* demon = enemy_db.Get("greater_demon");
+        const EnemyDef* cerberus = enemy_db.Get("cerberus");
+        Check(demon && !demon->is_boss && demon->heavy.enabled && sprites.Has("greater_demon") &&
+                  Enemy::ShownLevelOf(*demon, 1) >= 58,
+              "the Greater Demon: its own art, a heavy blow, and stronger than any demon below it");
+        Check(cerberus && cerberus->is_boss && trees.TotemOf("cerberus") && fs::exists("assets/props/totem_cerberus.png") &&
+                  items.Get("totem_cerberus") && Enemy::ShownLevelOf(*cerberus, 1) == 70,
+              "Cerberus is a boss at seventy, with a totem to earn and the art for it");
+        {
+            const Map m = load("plateau_stronghold");
+            int dogs = 0;
+            bool occasional = false, round = false;
+            for (const EnemySpawnDef& e : m.Enemies())
+                if (e.type == "cerberus") {
+                    ++dogs;
+                    occasional = e.chance > 0.0f && e.chance < 1.0f;
+                    round = e.route.size() >= 6;
+                }
+            Check(dogs == 1 && occasional && round, "and it walks round the Stronghold's walls -- on some days, not all");
+        }
+
+        // --- bosses abroad in the high country -------------------------------------------------------------
+        // Every map a boss walks: one of a pool of them, shown at fifty or more,
+        // on a loop that can be walked leg by leg, and a different place on it
+        // each day.
+        const std::map<string, int> walked = {{"bayou", 1}, {"ashen_path", 1}, {"ice_spire_peak", 1}, {"dreamworld_3", 1},
+                                              {"plateau_ascent", 1}, {"plateau_flats", 1}, {"plateau_terraces", 1},
+                                              {"plateau_stronghold", 1}, {"dream_havenbrook", 2}};
+        int loops = 0;
+        for (const auto& [id, want] : walked) {
+            const Map m = load(id);
+            int found = 0;
+            bool good = true;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (e.route.empty()) continue;
+                ++found;
+                const vector<string> kinds = e.pool.empty() ? vector<string>{e.type} : e.pool;
+                for (const string& t : kinds) {
+                    const EnemyDef* d = enemy_db.Get(t);
+                    good &= d && d->is_boss && trees.TotemOf(t) != nullptr &&
+                            Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)) >= 50;
+                }
+                good &= e.route.size() >= 4 && !e.night && e.respawn <= 0.0f;
+                for (const SDL_FPoint& p : e.route)
+                    good &= !m.Blocked({p.x - 6.0f, p.y - 6.0f, 12.0f, 6.0f});
+            }
+            loops += found;
+            Check(found == want && good, id + ": " + std::to_string(want) + " boss" + (want > 1 ? "es" : "") +
+                                             " walking it, fifty or over, with a totem to earn, on open ground");
+        }
+        {
+            int out = 0, moved = 0;
+            for (int day = 1; day <= 200; ++day) {
+                const World::RoamDay a = World::RoamDraw("bayou", day, 90, 0.6f, 12);
+                const World::RoamDay b = World::RoamDraw("bayou", day, 90, 0.6f, 12);
+                out += a.out;
+                moved += a.start != World::RoamDraw("bayou", day + 1, 90, 0.6f, 12).start;
+                Check(a.out == b.out && a.start == b.start && a.start >= 0 && a.start < 12, "the same day, the same answer");
+            }
+            Check(out > 100 && out < 140 && moved > 150,
+                  "out on about six days in ten (" + std::to_string(out) + " of 200), somewhere else each day");
+            Check(World::RoamDraw("x", 3, 1, 1.0f, 5).out && !World::RoamDraw("x", 3, 1, 0.0f, 5).out,
+                  "always is always, and never is never");
+        }
+
+        // --- a boss walking its loop, played -------------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            Enemy* dog = nullptr;
+            int day = 1;
+            for (; day < 60 && !dog; ++day) {
+                w.clock.Set(day, 12.0f);
+                if (!w.LoadMap("plateau_stronghold", "from_flats", ctx)) break;
+                for (auto& e : w.enemies)
+                    if (e->TypeId() == "cerberus" && !e->Dead()) dog = e.get();
+            }
+            Check(dog != nullptr, "some day Cerberus is out");
+            if (dog) {
+                // Far off, where it cannot see anyone.
+                w.player.x = 3 * 32 + 16;
+                w.player.y = 28 * 32 + 16;
+                const float x0 = dog->x, y0 = dog->y;
+                const int at0 = dog->route_at;
+                int passed = 0, last = at0;
+                for (int f = 0; f < 60 * 40; ++f) {
+                    input.Update(kFrame);
+                    w.Update(kFrame, ctx);
+                    if (dog->route_at != last) { ++passed; last = dog->route_at; }
+                }
+                Check(Length(dog->x - x0, dog->y - y0) > 120.0f && passed >= 3 && dog->CurrentState() == Enemy::State::Idle,
+                      "left alone, it walks its loop, point after point (" + std::to_string(passed) + " in forty seconds)");
+                // Walked up to.
+                w.player.x = dog->x + 90.0f;
+                w.player.y = dog->y;
+                for (int f = 0; f < 10; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); }
+                Check(dog->CurrentState() == Enemy::State::Chase || dog->CurrentState() == Enemy::State::Attack ||
+                          dog->CurrentState() == Enemy::State::Heavy,
+                      "and whoever comes too near, it comes for");
+            }
+            // Something between two points that it cannot get round: it gives the point up.
+            const Map& here = w.CurrentMap();
+            // Beside the fort's west wall, making for a point inside it.
+            SDL_FPoint wall{22 * 32 + 16.0f, 14 * 32 + 16.0f};
+            SDL_FPoint a{19 * 32 + 16.0f, 14 * 32 + 16.0f};
+            for (int k = 0; k < 20 && here.Blocked({a.x - 12, a.y - 12, 24, 12}); ++k) a.y += 32.0f;
+            SDL_FPoint c{a.x - 96.0f, a.y + 96.0f};
+            for (int k = 0; k < 20 && here.Blocked({c.x - 8, c.y - 10, 16, 10}); ++k) c.y += 32.0f;
+            EnemySpawnDef s;
+            s.type = "greater_demon";
+            s.x = a.x; s.y = a.y;
+            s.route = {a, wall, c};
+            Enemy stuck;
+            stuck.Init(enemy_db.Get("greater_demon"), s, ctx);
+            stuck.StartRoute(0);
+            w.player.x = 60 * 32; w.player.y = 50 * 32;
+            for (int f = 0; f < 60 * 12 && stuck.route_at == 1; ++f) stuck.Update(kFrame, w, ctx);
+            Check(stuck.route_at == 2, "(it made for the next point, " + std::to_string(stuck.route_at) + ")");
+            Check(here.Blocked({wall.x - 8, wall.y - 10, 16, 10}) && stuck.route_at != 1,
+                  "and a point it cannot reach, it gives up after a moment and goes on to the next");
+        }
+
+        // --- Havenbrook, dreaming ------------------------------------------------------------------------------
+        {
+            const Map dream = load("dream_havenbrook");
+            const Map town = load("town_havenbrook");
+            Check(dream.Ambient() == "dream" && dream.DreamDepth() == 4 && dream.Npcs().empty(),
+                  "Havenbrook dreaming: a dream, a depth below the Dreaming Dark, and nobody in it");
+            Check(leads("dreamworld_3", "dream_havenbrook") && leads("dream_havenbrook", "dreamworld_3") &&
+                      dream.Portals().size() == 1,
+                  "the mirror at the bottom of the dream goes there, and one mirror back is its only way out");
+            Check(dream.Width() == town.Width() && dream.Height() == town.Height(),
+                  "and it is Havenbrook: the same town, laid the same way");
+            bool mirror = false;
+            {
+                std::ifstream in("maps/dreamworld_3.mx");
+                json j;
+                in >> j;
+                for (auto it = j["tiles"].begin(); it != j["tiles"].end(); ++it)
+                    mirror |= it.value().value("filepath", string("")).find("dream_mirror") != string::npos;
+            }
+            Check(mirror && fs::exists("assets/props/dream_mirror.png"), "and the mirror is there to be seen, not a door in the air");
+            bool dreamt = true, fifty = true;
+            int orcs = 0, dead = 0, fixed = 0, walking = 0, always = 0;
+            for (const EnemySpawnDef& e : dream.Enemies()) {
+                const vector<string> kinds = e.pool.empty() ? vector<string>{e.type} : e.pool;
+                const EnemyDef* first = enemy_db.Get(kinds.front());
+                if (first && first->is_boss) {
+                    bool totems = true;
+                    for (const string& t : kinds) totems &= trees.TotemOf(t) != nullptr;
+                    Check(totems, "every boss in the dream has a totem, and its kill counts toward it");
+                    if (e.route.empty()) ++fixed;
+                    else { ++walking; always += e.chance >= 1.0f; }
+                    continue;
+                }
+                for (const string& t : kinds) {
+                    const EnemyDef* d = enemy_db.Get(t);
+                    if (!d) { dreamt = false; continue; }
+                    const LootTable* lt = loot.Get(d->loot_table);
+                    dreamt &= d->kill_target == "nightmare" && d->tint.r != 255 && lt && !lt->always.empty() &&
+                              lt->always.front().item == "dream_shard";
+                    fifty &= Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)) >= 50;
+                    orcs += d->sprite.rfind("orc", 0) == 0;
+                    dead += d->sprite == "zombie" || d->sprite == "skeleton" || d->sprite == "wraith" ||
+                            d->sprite == "grave_ghoul" || d->sprite == "bone_knight";
+                }
+            }
+            Check(dreamt, "every monster in it is a nightmare's version of one -- tinted, a nightmare to the slate, "
+                          "and it leaves a shard");
+            Check(fifty, "and every one of them is fifty or more, whatever the night makes of it");
+            Check(orcs > 0 && dead > 0, "the orcs and the dead, both");
+            Check(fixed >= 3 && walking >= 1 && always >= 1,
+                  "bosses in their places (" + std::to_string(fixed) + "), and one walking the town every night");
+
+            // A night in it.
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(3, 23.0f);
+            Check(w.LoadMap("dream_havenbrook", "from_mirror", ctx) && w.InDream(), "stepped into, it is a dream");
+            int alive_bosses = 0, low = 99;
+            for (const auto& e : w.enemies) {
+                if (e->Dead() || !e->Def()) continue;
+                if (e->Def()->is_boss) ++alive_bosses;
+                else low = std::min(low, e->ShownLevel());
+            }
+            Check(alive_bosses >= 4 && low >= 50,
+                  "and on the night: " + std::to_string(alive_bosses) + " bosses about, and nothing under fifty (" +
+                      std::to_string(low) + ")");
         }
     }
 

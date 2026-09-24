@@ -2992,6 +2992,11 @@ import blender_bestiary  # noqa: E402
 
 blender_bestiary.register()
 
+# And what lives on Purgatory's Plateau, built from both of the above.
+import blender_plateau  # noqa: E402
+
+blender_plateau.register()
+
 
 if __name__ == "__main__":
     main()

@@ -752,4 +752,104 @@ foreach ($m in @(@("palace_marble_a", @(28, 24, 30), 0.18), @("palace_marble_a_1
     $made++
 }
 
+# --- Purgatory's Plateau ------------------------------------------------------------
+# Four maps, and a ground of its own for each: pale ash and scree on the climb up
+# from the Ashen Path, white salt cracked into plates on the flats, wet dark stone
+# and brine on the terraces, and bone-dust and grey flagstones about the
+# Stronghold -- with a road of trodden gravel through all four, and the keep's
+# floor and walls. On a seed of its own, so nothing above is re-rolled.
+$script:seed = 20260924
+$Size = 16
+
+# Salt crust: long straight dark cracks across a pale field, meeting at angles,
+# and a pale lip along one side of each so the plates read as raised.
+function Add-Cracks($bmp, $base, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        $across = ($i % 2) -eq 0
+        $len = 7 + (RandInt 9)
+        for ($k = 0; $k -lt $len; $k++) {
+            Set-Wrapped $bmp $x $y (Shade $base (-0.28))
+            if ($across) { Set-Wrapped $bmp $x ($y - 1) (Shade $base 0.40) } else { Set-Wrapped $bmp ($x - 1) $y (Shade $base 0.40) }
+            # A crack wanders: mostly straight on, now and then a step aside.
+            $bend = if ((RandInt 3) -eq 0) { (RandInt 2) * 2 - 1 } else { 0 }
+            if ($across) { $x += 1; $y += $bend } else { $y += 1; $x += $bend }
+        }
+    }
+}
+
+$plateau = @(
+    @{ name = "pale_ash";     rgb = @(158, 152, 146); kind = "sand";  variants = 3 },
+    @{ name = "scree";        rgb = @(116, 110, 108); kind = "earth"; variants = 3 },
+    @{ name = "salt_flat";    rgb = @(218, 222, 226); kind = "salt";  variants = 3 },
+    @{ name = "salt_crust";   rgb = @(192, 200, 210); kind = "sand";  variants = 2 },
+    @{ name = "brine_stone";  rgb = @( 76,  96, 102); kind = "earth"; variants = 3 },
+    @{ name = "brine";        rgb = @( 50,  96, 110); kind = "water"; variants = 3 },
+    @{ name = "bone_dust";    rgb = @(172, 164, 146); kind = "sand";  variants = 3 },
+    @{ name = "plateau_road"; rgb = @(134, 126, 116); kind = "earth"; variants = 2 }
+)
+foreach ($f in $plateau) {
+    $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])
+    for ($v = 0; $v -lt $f.variants; $v++) {
+        $bmp = New-Tile $base
+        switch ($f.kind) {
+            "earth" { Add-Speckle $bmp $base 62 0.08 0.12; Add-Grit $bmp $base 9 2 }
+            "sand"  { Add-Speckle $bmp $base 78 0.07 0.08; Add-Grit $bmp $base 3 1 }
+            "salt"  { Add-Speckle $bmp $base 40 0.04 0.05; Add-Cracks $bmp $base 3 }
+            "water" { Add-Speckle $bmp $base 30 0.05 0.10; Add-Ripples $bmp $base 6 }
+        }
+        $name = if ($v -eq 0) { $f.name } else { "$($f.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# The Stronghold's flagstones and the keep's floor: big square slabs of the pale
+# basalt; the keep's with the pale fire showing in its joints, as the palace's
+# shows red.
+foreach ($t in @(@{ name = "stronghold_flag";      rgb = @(104, 100, 102); mortar = @(58, 56, 60); variants = 3 },
+                 @{ name = "stronghold_flag_dark"; rgb = @(84, 80, 84);    mortar = @(48, 46, 50); variants = 2 },
+                 @{ name = "keep_floor";           rgb = @(70, 70, 76);    mortar = @(62, 96, 92);   variants = 3 },
+                 @{ name = "keep_floor_dark";      rgb = @(54, 54, 60);    mortar = @(50, 76, 72);   variants = 2 })) {
+    for ($v = 0; $v -lt $t.variants; $v++) {
+        $bmp = New-Masonry 32 $t.rgb $t.mortar 32 32 0.10 $true
+        $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# The keep's walls, face and top: grey ashlar with a band of bone across it and a
+# pale eye every sixteen pixels -- the Stronghold's banner, cut in the stone.
+$sbone = [System.Drawing.Color]::FromArgb(255, 214, 206, 184)
+$ssoul = [System.Drawing.Color]::FromArgb(255, 150, 244, 214)
+for ($v = 0; $v -lt 2; $v++) {
+    $bmp = New-Masonry 32 @(78, 76, 82) @(34, 32, 38) 8 16 0.18 $true
+    for ($x = 0; $x -lt 32; $x++) {
+        foreach ($y in @(18, 25)) { $bmp.SetPixel($x, $y, $sbone) }
+        if (($x % 16) -eq 8) {
+            foreach ($d in @(@(-1, 0), @(0, -1), @(1, 0), @(0, 1))) { $bmp.SetPixel($x + $d[0], 21 + $d[1], $sbone) }
+            $bmp.SetPixel($x, 21, $ssoul)
+        }
+    }
+    $name = if ($v -eq 0) { "keep_wall" } else { "keep_wall_1" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+$bmp = New-Masonry 32 @(76, 74, 80) @(32, 30, 36) 8 16 0.18 $true
+for ($y = 26; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) { $bmp.SetPixel($x, $y, (Shade ($bmp.GetPixel($x, $y)) (-0.06 * ($y - 25)))) }
+}
+$bmp.Save((Join-Path $tiles "keep_wallface.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+$bmp = New-Masonry 32 @(92, 90, 96) @(40, 38, 44) 16 32 0.10 $true
+for ($y = 0; $y -lt 32; $y++) { $bmp.SetPixel(0, $y, $sbone); $bmp.SetPixel(31, $y, $sbone) }
+$bmp.Save((Join-Path $tiles "keep_walltop.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

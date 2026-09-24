@@ -3552,6 +3552,10 @@ live somewhere worse, a few of them, off the roads.
 | The Westwold, east of the Wend | hares, deer, foxes | **bats** over the downs, and the **walking dead** |
 | ...west of it | wolves | a **bear** down from the Brackenwood, or a **wraith** |
 | The Brackenwood | wolves, bears | **wraiths**, the deep well's **grave-walkers**, and **banshees** |
+| The Bayou | lizardfolk, hags, the drowned | **blood thralls** and **grave hounds** up out of Hollowrest, and a **nosferatu** or two in the deep south |
+| The Ice Spire | ice trolls, wyverns | the white **greatwolves** off the Fells, and one of the Spirewatch's **shades** |
+| The Ashen Path | imps, demons | **Greater Demons**, down the road from the plateau |
+| Purgatory's Plateau, all four | dragons, Greater Demons | **Revenants** and **Abyssal Demons** |
 
 The rules it was built to:
 
@@ -3583,6 +3587,15 @@ The rules it was built to:
 - **At dawn they go to ground.** Not a death: no cry, no loot, nothing
   counted. It stands as it was and fades. One in the middle of a fight
   finishes the fight first.
+
+The high country's visitors -- everything from the Bayou up -- are chosen by
+`genmaps` itself, by these same rules: `PlaceNightVisitors` reads
+`data/enemies.json`, works out every post's shown level with the game's own
+formula, and for each open spot on a lattice takes the first of a short list
+of candidates that is a stranger there, stronger than its neighbours, and not
+by too much. So a new region gets its nights right the first time, and the
+self-test checks the result the same way it checks the lowlands. Ten a map on
+the plateau, twelve on the Ashen Path, fourteen in the Bayou, six on the Spire.
 
 How: a spawn in a map can be marked `"night": true` with a `"chance"`
 (`EnemySpawnDef::night`, `chance`). It is **always in the monster list, up or
@@ -5186,6 +5199,84 @@ overlay. And `make_props.ps1` steps colour to a coarse ladder: a dark brown seen
 from straight above landed on olive, and the first drawbridge was green, so its
 timber is lighter and redder than the palace's own.
 
+### Purgatory's Plateau
+
+Past the Bayou, the crypt and the Pit, the waking world had almost nothing to
+fight from **50 to 70** (see the level survey). **Purgatory's Plateau** is that
+band: four maps round a square, climbed onto from the north-west corner of the
+Ashen Path, where a road leaves the burnt one, runs north past the first river
+of fire and goes up under an arch of bones.
+
+```
+    the Scoured Flats  --  the Stronghold  (and its keep)
+          |                     |
+    the Pale Ascent    --  the Brine Terraces
+          |
+    the Ashen Path
+```
+
+Each of the four has a **ground of its own**, and nothing laid under all four
+but the road that joins them (`make_ground.ps1`, appended on a seed of its own
+so no other tile changed):
+
+| Map | Ground | What lives there | Levels |
+| --- | --- | --- | --- |
+| **The Pale Ascent** | pale ash and scree, bone spires, a dragon's skull | Basalt and Pyre Dragons, Demons, a few Greater Demons toward the north | 50-60 |
+| **The Scoured Flats** | white salt cracked into plates, salt pillars, a ring of them round a chest | Gale and Pyre Dragons, Greater Demons | 57-63 |
+| **The Brine Terraces** | wet dark stone, brine pools with steam off them | Brine and Gale Dragons, Greater Demons | 58-64 |
+| **The Stronghold** | bone-dust outside, flagstones within | Storm and Gale Dragons round it, Greater Demons in the courtyard | 63-70 |
+| **the Keep** | the fort's own hall: pillars, pale braziers, a vault | the Stronghold's best Greater Demons, and a Storm Dragon on the vault | 67-70 |
+
+**The monsters.** The five **elemental dragons** are one dragon -- Hoarfang's
+frame, heavier or lighter -- dressed five ways, so that what tells them apart at
+forty pixels is never only the colour: the Pyre Dragon is split along its sides
+to the fire inside it; the Brine Dragon has fins where the others have spikes,
+and barbels; the Basalt Dragon carries slabs of rock on its back with amber in
+the cracks; the Gale Dragon is pale and feathered; the Storm Dragon is
+thunderhead-dark with a bolt drawn down each flank. Each breathes its element
+from a distance and leaves its element's mark: burning, soaked and chilled,
+concussed, bleeding, electrified. The **Greater Demon** is the Demon grown to
+what the Demon is afraid of: blood-red under obsidian plate, four horns, a mane
+of fire, a cleaver. **Cerberus** is the boss of it: three heads that bite in
+turn, fire in the throats, a snake for a tail -- and on some days (six in ten)
+it walks round the Stronghold's walls, outside them. It has its own boon and
+its own totem, the *Collar of Cerberus*. All seven are Blender rigs of their
+own (`tools/blender_plateau.py`); the Stronghold, the arch, the plateau's
+scenery, Cerberus's totem and the dream's mirror are props
+(`tools/blender_stronghold.py`).
+
+**Posted by the level they show.** `genmaps` reads `data/enemies.json` and
+posts every monster on the plateau by the level it will be *shown* at
+(`SpawnToShow`), not by a nudge to its stat block, so a map's spread is what
+was asked for.
+
+### Havenbrook, dreaming
+
+At the bottom of the Reverie, down the dead end in the east of the Dreaming
+Dark where the starlilies grow, there is a **standing mirror**. Stepped through,
+it is **Havenbrook** -- the same streets, roofs, well and pond -- as a nightmare
+has it: nobody in it, nothing that opens, sells or answers, the doors only
+pictures of doors and the gates opening on the dark, and a violet fog over all
+of it. It is a fourth depth of the dream, so it pays three extra shards a kill.
+
+- **What walks its streets** is the orcs and the dead, dreamt: Nightmare
+  Grunts, Slingers, Bowmen and Raiders, the Sleepwalking Dead, Hollow Ghouls,
+  Nightmare Knights, Hollow Sleepers and Night Terrors -- each a tinted
+  nightmare of its kind that answers to the Dreamer's Slate and leaves a shard,
+  and **every one of them shown at fifty or more**, whatever the night makes
+  of it (a post says the level it is to look, and the game scales whatever
+  the night put there to it).
+- **The bosses of the waking world** stand in it every night -- the Orc Warchief
+  in the square, the Hollowrest Wight on the guild hall's steps, the
+  Broodmother in the farmyard -- and **one more walks the town every night**
+  (a Vampire Lord, the Pit Lord, the Den Mother, the Lizardman Chief or the
+  Thing in the Spring), with a second on half the nights. They are the real
+  bosses, not dreams of them: **every kill counts toward that boss's totem**,
+  so the fifteen kills a totem takes can be had at night as well as by day.
+- It was made from the town itself: `BuildDreamHavenbrook` copies the finished
+  Havenbrook map, takes its people, doors and beasts out and puts its dream
+  in, so the one cannot drift from the other.
+
 ## Monsters
 
 ### Filling the ladder
@@ -5463,6 +5554,42 @@ get well out of sight; one that has been hurt does not need to see them. The
 stride counted is the one it meant to take, not the one the map allowed, so
 something walking into the foot of a cliff after an archer on top of it tires
 of that as fast as of a long run.
+
+### Bosses abroad
+
+In the high country a boss does not only keep its lair. On some days **one of
+a pool of bosses walks the map** -- starting somewhere different on it each
+day, going round a loop laid about the map, and coming for anybody who strays
+within its reach. When it loses them it goes back to where it left the loop
+and walks on.
+
+| Where | Who (one a day) | Shown at | Out |
+| --- | --- | --- | --- |
+| The Bayou | Lizardman Chief, Broodmother, Den Mother, the Thing in the Spring | 52 | 6 days in 10 |
+| The Ice Spire, on the track | Den Mother, Hollowrest Wight, Broodmother, Lizardman Chief | 50 | 6 in 10 |
+| The Ashen Path, on the track worn round the north | Pit Lord, Orc Warchief, Lord Ashcroft, Hollowrest Wight | 62 | 6 in 10 |
+| The Pale Ascent | Orc Warchief, Lizardman Chief, Den Mother, Broodmother | 58 | 5 in 10 |
+| The Scoured Flats | Pit Lord, Lord Ashcroft, Wyvern Matriarch | 64 | 5 in 10 |
+| The Brine Terraces | the Mother of the Fen, the Thing in the Spring, the Sleepless | 64 | 5 in 10 |
+| The Stronghold, round its walls | Cerberus | 70 | 6 in 10 |
+| The Dreaming Dark, over the bridges | the Sleepless, Hollowrest Wight, Lord Ashcroft | 62 | 7 in 10 |
+| Havenbrook, dreaming | (see above) | 62 and 58 | every night, and half |
+
+They are the bosses themselves: a first kill is a skill point and a boon, and
+every kill counts toward the totem, the same as in their lairs. Killed, one
+stays dead until the next day.
+
+How: a post can carry a **`route`** -- a loop of points -- and a **`shown`**
+level (`EnemySpawnDef`). With `shown`, whatever the day picks from the pool is
+scaled to look that strong (`Enemy::LevelToShow`), so a Broodmother and a Pit
+Lord come out alike. `World::RoamDraw` is a hash of map, day and post that says
+whether it is out and where on its loop it starts, so a friend's machine agrees
+without being told. The monster walks at half its pace a point at a time, its
+home the point it is making for (`Enemy::Roam`); a point it cannot reach it
+gives up after three seconds and makes for the next. `genmaps` lays the loops
+-- round an ellipse, along a track, over the bridges between the dream's
+islands, or, where no loop will go, out and back along the map's own posts --
+and only ever with legs a monster can walk in a straight line.
 
 ### What a boss leaves, the first time
 

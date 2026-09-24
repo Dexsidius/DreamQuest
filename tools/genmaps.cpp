@@ -467,6 +467,74 @@ public:
     void DreamDepth(int depth) { dq["dream_depth"] = depth; }
 
     // Returns the NPC so a trader can be given its shop: m.Npc(...)["shop"] = id.
+    // The height of the ground at (x, y), from the elevation grid if the map
+    // has one, and whether it is on a ramp -- the only places the height may
+    // change underfoot.
+    int LevelAt(int x, int y) const {
+        if (!dq.contains("elevation")) return 0;
+        const json& e = dq["elevation"];
+        const int cell = e.value("cell", 32), cols = e.value("cols", 0), rows = e.value("rows", 0);
+        const int cx = (x + ox) / cell, cy = y / cell;
+        if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) return 0;
+        return e["levels"][static_cast<size_t>(cy) * cols + cx].get<int>();
+    }
+    bool OnRamp(int x, int y) const {
+        if (!dq.contains("elevation")) return false;
+        for (const auto& r : dq["elevation"]["ramps"]) {
+            const int rx = r[0], ry = r[1], rw = r[2], rh = r[3];
+            if (x + ox >= rx && x + ox < rx + rw && y >= ry && y < ry + rh) return true;
+        }
+        return false;
+    }
+    // True when something walking straight from one point to the other never
+    // stands anywhere a player could not, and never changes height except on
+    // a ramp. What a roamer's loop is made of: it walks in straight lines.
+    // `side` is how far either side of the line it must be clear as well: a
+    // monster is wider than a line, but a bridge two planks wide is only just
+    // wider than a monster, and there it is the line or nothing.
+    bool Walkable(int x0, int y0, int x1, int y1, int side = 6) const {
+        const float len = std::sqrt(static_cast<float>((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)));
+        const int steps = std::max(1, static_cast<int>(len / 8.0f));
+        int level = LevelAt(x0, y0);
+        for (int i = 0; i <= steps; ++i) {
+            const int x = x0 + (x1 - x0) * i / steps, y = y0 + (y1 - y0) * i / steps;
+            if (!Clear(x, y)) return false;
+            if (side > 0 && (!Clear(x - side, y) || !Clear(x + side, y))) return false;
+            const int here = LevelAt(x, y);
+            if (here != level) {
+                if (!OnRamp(x, y)) return false;
+                level = here;
+            }
+        }
+        return true;
+    }
+    // A post that walks the map: see EnemySpawnDef::route. `route` is in map
+    // pixels, as everything placed is; `shown` > 0 has the game scale whatever
+    // the day picks from `pool` to look that strong, and `chance` is the share
+    // of days it is out at all. Put before the night posts, which keep the end
+    // of the list to themselves.
+    void RoamingEnemy(const vector<string>& pool, int shown, int spread, float chance,
+                      const vector<std::array<int, 2>>& route, float respawn = 0.0f, float leash = 320.0f) {
+        json e;
+        e["type"]    = pool.front();
+        e["x"]       = route.front()[0] + ox;
+        e["y"]       = route.front()[1];
+        e["level"]   = 1;
+        e["respawn"] = respawn;
+        e["leash"]   = leash;
+        if (pool.size() > 1) e["pool"] = pool;
+        if (shown > 0) e["shown"] = shown;
+        if (spread > 0) e["spread"] = spread;
+        if (chance < 1.0f) e["chance"] = chance;
+        json r = json::array();
+        for (const auto& p : route) r.push_back(json::array({p[0] + ox, p[1]}));
+        e["route"] = r;
+        json& list = dq["enemies"];
+        size_t at = 0;
+        while (at < list.size() && !list[at].value("night", false)) ++at;
+        list.insert(list.begin() + static_cast<std::ptrdiff_t>(at), e);
+    }
+
     json& Npc(const string& npc_id, const string& name, const string& sprite,
               int x, int y, const string& dialogue, int facing = 0,
               bool wanders = false) {
@@ -597,7 +665,7 @@ public:
             for (const auto& e : dq["enemies"]) {
                 // Not what comes out at night: a contract for wolves is filled
                 // where wolves live, not where two might be after dark.
-                if (e.value("night", false)) continue;
+                if (e.value("night", false) || e.contains("route")) continue;
                 json types = e.contains("pool") ? e["pool"] : json::array({e["type"]});
                 posts.push_back({{"types", types}, {"x", e["x"]}, {"y", e["y"]}});
             }
@@ -620,6 +688,8 @@ public:
     }
 
     const string& Id() const { return id; }
+    // For a map made from another -- Havenbrook's dream is Havenbrook's copy.
+    void Rename(const string& new_id, const string& new_display) { id = new_id; display = new_display; }
     int Width() const { return width; }
     int Height() const { return height; }
 
@@ -1177,6 +1247,272 @@ static const Curio kCurios[] = {
     {"brackenwood",    "antler_circlet",    "q_antler_circlet",    "the antler circlet",   "wolf",           0, 44, 30},
 };
 
+// --- how strong a post looks -------------------------------------------------
+// The game's own Enemy::ShownLevelOf, over data/enemies.json, so that a map can
+// post a monster by the level it will be shown at rather than by a nudge to its
+// stat block -- and so the night visitors can be chosen here by the very rules
+// the self-test holds them to, instead of by guessing and seeing what fails.
+static const json& EnemyData() {
+    static json data;
+    static bool loaded = false;
+    if (!loaded) {
+        loaded = true;
+        std::ifstream in("data/enemies.json");
+        if (!in) {
+            std::fprintf(stderr, "genmaps: cannot read data/enemies.json\n");
+            std::exit(1);
+        }
+        in >> data;
+    }
+    return data;
+}
+static const json& EnemyOf(const string& type) {
+    const json& all = EnemyData();
+    if (!all.contains(type)) {
+        std::fprintf(stderr, "genmaps: no enemy '%s' in data/enemies.json\n", type.c_str());
+        std::exit(1);
+    }
+    return all[type];
+}
+static int ShownOf(const string& type, int spawn_level) {
+    const json& d = EnemyOf(type);
+    const int bump = std::max(0, spawn_level - 1);
+    const float hp = std::max(1, d.value("hp", 10)) * (1.0f + 0.12f * bump);
+    const float hp_level = std::clamp(sqrtf(std::max(0.0f, hp - 6.0f)) * 3.4f, 1.0f, 99.0f);
+    const float att = static_cast<float>(d.value("attack", 1) + bump);
+    const float str = static_cast<float>(d.value("strength", 1) + bump);
+    const float dfn = static_cast<float>(d.value("defence", 1) + bump);
+    const float base = 0.25f * (dfn + hp_level);
+    const float melee = 0.325f * (att + str);
+    return std::clamp(static_cast<int>(floorf(base + melee)), 1, 99);
+}
+static bool BossType(const string& type) { return EnemyOf(type).value("boss", false); }
+// The least spawn level at which `type` shows `shown` or more: Enemy::LevelToShow.
+static int SpawnToShow(const string& type, int shown) {
+    int lv = 1;
+    while (lv < 250 && ShownOf(type, lv) < shown) ++lv;
+    return lv;
+}
+
+// A roaming post laid on a loop of cells the caller has chosen -- a track up a
+// mountain, the bridges between islands, the ground round a fort -- rather than
+// round an ellipse. Each point is taken as given if it is open ground in a
+// walkable line from the last, and otherwise moved a cell or three until it
+// is; a point that cannot be had is left out. The loop has to close.
+static void RoamOn(MapBuilder& m, const vector<string>& pool, int shown, int spread, float chance,
+                   const vector<std::array<int, 2>>& cells, int cell = 32, int offset = 16,
+                   bool narrow = false) {
+    // On a narrow way -- a bridge between two islands -- the loop runs along
+    // its middle with the monster's feet a little below the line, so that
+    // the box they stand in straddles it, and nothing either side is asked of.
+    const int side = narrow ? 0 : 6, lift = narrow ? 5 : 0;
+    static const int kNudge[][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {2, 0}, {-2, 0}, {0, 2}, {0, -2},
+                                    {1, 1}, {-1, -1}, {1, -1}, {-1, 1}, {3, 0}, {-3, 0}, {0, 3}, {0, -3}};
+    vector<std::array<int, 2>> route;
+    for (const auto& c : cells)
+        for (const auto& d : kNudge) {
+            const int x = (c[0] + d[0]) * cell + offset, y = (c[1] + d[1]) * cell + offset + lift;
+            if (!m.Clear(x, y)) continue;
+            if (!route.empty() && !m.Walkable(route.back()[0], route.back()[1], x, y, side)) continue;
+            route.push_back({x, y});
+            break;
+        }
+    while (route.size() >= 4 && !m.Walkable(route.back()[0], route.back()[1], route.front()[0], route.front()[1], side))
+        route.pop_back();
+    if (route.size() < 4) {
+        std::fprintf(stderr, "genmaps: %s: no loop to roam on the cells given\n", m.Id().c_str());
+        std::exit(1);
+    }
+    m.RoamingEnemy(pool, shown, spread, chance, route);
+}
+
+// --- what comes out at night, chosen ------------------------------------------------
+// For every point of a lattice over the map that is open ground well away from
+// anywhere safe, the first of `options` that keeps the self-test's rules there:
+// nothing of its kind lives within twenty cells by day; it is stronger than the
+// run of what does live within twenty-five, and by no more than twenty-four
+// levels. Half kept on any night, never respawning, a pack's post each. As many
+// as the map can hold without overdoing it -- a fifth of the day's posts abroad
+// on a night, with half kept -- and never fewer than six.
+struct NightOption { vector<string> pool; int level, spread; };
+static void PlaceNightVisitors(MapBuilder& m, const vector<NightOption>& options, int step,
+                               const std::function<bool(int, int)>& open_ground, int most = 14) {
+    struct DayPost { string type; float x, y; int shown; };
+    vector<DayPost> day;
+    for (const auto& e : m.dq["enemies"]) {
+        if (e.value("night", false)) continue;
+        const string type = e.value("type", string(""));
+        day.push_back({type, e["x"].get<float>(), e["y"].get<float>(),
+                       BossType(type) ? -1 : ShownOf(type, e.value("level", 1))});
+    }
+    const int cap = std::min(most, static_cast<int>(day.size() * 0.4f));
+    const int cols = m.Width() / 32, rows = m.Height() / 32;
+    int placed = 0;
+    for (int gy = step / 2 + 1; gy < rows - 2 && placed < cap; gy += step)
+        for (int gx = step / 2 + 1; gx < cols - 2 && placed < cap; gx += step) {
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, 3031) * 5.0f) - 2;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, 3032) * 5.0f) - 2;
+            if (cx < 2 || cy < 2 || cx >= cols - 2 || cy >= rows - 2 || !open_ground(cx, cy)) continue;
+            const int x = cx * 32 + 16, y = cy * 32 + 16;
+            if (!m.Clear(x, y) || !m.Clear(x - 12, y) || !m.Clear(x + 12, y) || m.NearestHaven(x, y) < 360.0f) continue;
+            const float fx = static_cast<float>(x + m.ox), fy = static_cast<float>(y);
+            float sum = 0.0f;
+            int count = 0;
+            for (const DayPost& d : day) {
+                if (d.shown < 0) continue;
+                if (std::hypot(d.x - fx, d.y - fy) < 800.0f) { sum += static_cast<float>(d.shown); ++count; }
+            }
+            for (const NightOption& o : options) {
+                bool strangers = true;
+                for (const DayPost& d : day)
+                    if (d.shown >= 0 && std::hypot(d.x - fx, d.y - fy) < 640.0f &&
+                        std::find(o.pool.begin(), o.pool.end(), d.type) != o.pool.end())
+                        strangers = false;
+                if (!strangers) continue;
+                int low = 99, high = 0;
+                for (const string& t : o.pool) {
+                    low = std::min(low, ShownOf(t, o.level));
+                    high = std::max(high, ShownOf(t, o.level + o.spread));
+                }
+                if (count > 0) {
+                    const float usual = sum / count;
+                    if (!(low > usual) || high > usual + 24.0f) continue;
+                }
+                m.NightEnemy(o.pool, "night_" + std::to_string(cx) + "_" + std::to_string(cy), x, y, o.level, o.spread,
+                             0.5f);
+                ++placed;
+                break;
+            }
+        }
+    if (placed < 6) {
+        std::fprintf(stderr, "genmaps: %s: only %d places for night visitors (the self-test wants six)\n",
+                     m.Id().c_str(), placed);
+        std::exit(1);
+    }
+    std::printf("  %s by night: %d posts\n", m.Id().c_str(), placed);
+}
+
+// A loop for something that walks the map: `n` points round an ellipse about
+// (cx, cy) with radii (rx, ry), each moved in toward the middle until it is on
+// open ground and in a straight, walkable line from the one before -- a roamer
+// walks straight, and a tree between two of its points is a tree it walks into
+// all day. Points that cannot be had are left out; the loop has to close.
+static vector<std::array<int, 2>> RoamRoute(const MapBuilder& m, int cx, int cy, int rx, int ry, int n) {
+    vector<std::array<int, 2>> route;
+    for (int i = 0; i < n; ++i) {
+        const float a0 = 6.2831853f * i / n;
+        bool placed = false;
+        for (int s = 0; s < 14 && !placed; ++s) {
+            const float scale = 1.0f - 0.05f * s;
+            for (float jitter : {0.0f, 0.12f, -0.12f, 0.24f, -0.24f}) {
+                const float a = a0 + jitter;
+                const int x = cx + static_cast<int>(lroundf(cosf(a) * rx * scale));
+                const int y = cy + static_cast<int>(lroundf(sinf(a) * ry * scale));
+                if (!m.Clear(x, y)) continue;
+                if (!route.empty() && !m.Walkable(route.back()[0], route.back()[1], x, y)) continue;
+                route.push_back({x, y});
+                placed = true;
+                break;
+            }
+        }
+    }
+    // Closed: the last point walks back to the first.
+    while (route.size() >= 4 && !m.Walkable(route.back()[0], route.back()[1], route.front()[0], route.front()[1]))
+        route.pop_back();
+    if (route.size() < 4) route.clear();
+    return route;
+}
+
+// Where no ring will go -- a swamp that is more water than land, a camp of
+// stakes in every clearing -- a way made of the map's own posts instead: from
+// the one nearest (cx, cy), on to the nearest not yet walked to that can be
+// walked to in a line, and so on, and then back the same way. Out and back
+// always closes, and every point of it is ground something already stands on.
+static vector<std::array<int, 2>> RoamChain(const MapBuilder& m, int cx, int cy, int points) {
+    vector<std::array<int, 2>> spots;
+    for (const auto& e : m.dq["enemies"]) {
+        if (e.value("night", false) || e.contains("route") || e.value("lurk", false)) continue;
+        const int x = e["x"].get<int>() - m.ox, y = e["y"].get<int>();
+        if (m.Clear(x, y) && m.Clear(x - 8, y) && m.Clear(x + 8, y)) spots.push_back({x, y});
+    }
+    vector<std::array<int, 2>> chain;
+    if (spots.empty()) return chain;
+    size_t at = 0;
+    for (size_t i = 1; i < spots.size(); ++i)
+        if (std::hypot(spots[i][0] - cx, spots[i][1] - cy) < std::hypot(spots[at][0] - cx, spots[at][1] - cy)) at = i;
+    vector<bool> used(spots.size(), false);
+    chain.push_back(spots[at]);
+    used[at] = true;
+    while (static_cast<int>(chain.size()) < points) {
+        int best = -1;
+        float best_d = 900.0f;
+        for (size_t i = 0; i < spots.size(); ++i) {
+            if (used[i]) continue;
+            const float d = std::hypot(static_cast<float>(spots[i][0] - chain.back()[0]),
+                                       static_cast<float>(spots[i][1] - chain.back()[1]));
+            if (d < 120.0f || d >= best_d) continue;
+            if (!m.Walkable(chain.back()[0], chain.back()[1], spots[i][0], spots[i][1])) continue;
+            best = static_cast<int>(i);
+            best_d = d;
+        }
+        if (best < 0) break;
+        used[best] = true;
+        chain.push_back(spots[best]);
+    }
+    if (chain.size() < 3) return {};
+    for (int i = static_cast<int>(chain.size()) - 2; i >= 1; --i) chain.push_back(chain[i]);
+    return chain;
+}
+
+// What walks each map that has something walking it. The bosses come out at
+// `shown` whatever their own strength, one of the pool a day, and each day
+// somewhere else on the loop -- which is laid round the map at (cx, cy) with
+// radii (rx, ry), all as fractions of its size.
+struct Roamer {
+    const char* map;
+    vector<string> pool;
+    int shown, spread;
+    float chance;
+    float cx, cy, rx, ry;
+    int points;
+};
+static const vector<Roamer>& Roamers() {
+    static const vector<Roamer> list = {
+        // The waking world's high country: one of a pool of bosses a day,
+        // somewhere different on the loop each day, some days none.
+        {"bayou",            {"lizardman_chief", "broodmother", "den_mother", "well_warden"}, 52, 2, 0.6f,
+         0.50f, 0.50f, 0.30f, 0.30f, 12},
+        {"plateau_ascent",   {"orc3", "lizardman_chief", "den_mother", "broodmother"}, 58, 2, 0.5f,
+         0.50f, 0.50f, 0.34f, 0.30f, 12},
+        {"plateau_flats",    {"pit_lord", "vampire_lord", "wyvern_matriarch"}, 64, 2, 0.5f,
+         0.50f, 0.50f, 0.34f, 0.30f, 12},
+        {"plateau_terraces", {"bayou_matriarch", "well_warden", "nightmare_troll"}, 64, 2, 0.5f,
+         0.50f, 0.50f, 0.19f, 0.20f, 12},
+        // Havenbrook, dreaming: one walking the town every night, and on half
+        // of them a second.
+        {"dream_havenbrook", {"vampire_lord", "pit_lord", "den_mother", "lizardman_chief", "well_warden"}, 62, 2, 1.0f,
+         0.46f, 0.52f, 0.34f, 0.30f, 14},
+        {"dream_havenbrook", {"wyvern_matriarch", "bayou_matriarch", "nightmare_troll"}, 58, 2, 0.5f,
+         0.50f, 0.50f, 0.24f, 0.22f, 12},
+    };
+    return list;
+}
+
+static void PlaceRoamers(MapBuilder& m) {
+    for (const Roamer& r : Roamers()) {
+        if (m.Id() != r.map) continue;
+        const int w = m.Width(), h = m.Height();
+        const int cx = static_cast<int>(w * r.cx) - m.ox, cy = static_cast<int>(h * r.cy);
+        auto route = RoamRoute(m, cx, cy, static_cast<int>(w * r.rx), static_cast<int>(h * r.ry), r.points);
+        if (route.empty()) route = RoamChain(m, cx, cy, r.points);
+        if (route.size() < 4) {
+            std::fprintf(stderr, "genmaps: no way to roam in %s about (%d, %d)\n", m.Id().c_str(), cx, cy);
+            std::exit(1);
+        }
+        m.RoamingEnemy(r.pool, r.shown, r.spread, r.chance, route);
+    }
+}
+
 static void PlaceCurios(MapBuilder& m) {
     for (const Curio& c : kCurios) {
         if (m.Id() != c.map) continue;
@@ -1185,7 +1521,7 @@ static void PlaceCurios(MapBuilder& m) {
             int seen = 0;
             bool found = false;
             for (const auto& e : m.dq["enemies"]) {
-                if (e.value("night", false)) continue;
+                if (e.value("night", false) || e.contains("route")) continue;
                 bool kind = e.value("type", string()) == c.near;
                 if (e.contains("pool"))
                     for (const auto& p : e["pool"]) kind |= p.get<string>() == c.near;
@@ -2070,6 +2406,8 @@ static void BuildOverworld() {
 
 // --- town --------------------------------------------------------------------
 
+static void BuildDreamHavenbrook(const MapBuilder& town);
+
 static void BuildTown() {
     // Sixteen columns wider than it was, for the farm: everything else in the
     // town is placed from the west wall or from the crossroads, and the fence,
@@ -2585,6 +2923,7 @@ static void BuildTown() {
     }
 
     m.Write("maps");
+    BuildDreamHavenbrook(m);
 }
 
 // --- interiors ---------------------------------------------------------------
@@ -3697,6 +4036,18 @@ static void BuildIceSpire() {
         PlaceChest(m, "chest_dragon_hoard", dx - 40, dy + 34, "chest_peak");
     }
 
+    // Something walking the track below the summit, up one side and down the
+    // other, on some days: none of the camp at its foot, none of the dragon's
+    // ground at its top.
+    {
+        vector<std::array<int, 2>> loop;
+        for (int cy = 64; cy >= 18; cy -= 4) loop.push_back({static_cast<int>(PathX(static_cast<float>(cy)) - 1.5f), cy});
+        for (int cy = 20; cy <= 62; cy += 4) loop.push_back({static_cast<int>(PathX(static_cast<float>(cy)) + 1.5f), cy});
+        RoamOn(m, {"den_mother", "barrow_wight", "broodmother", "lizardman_chief"}, 50, 2, 0.6f, loop);
+    }
+    // After dark: the white wolves off the Fells, and the Spirewatch's own dead.
+    PlaceNightVisitors(m, {{{"greatwolf"}, 1, 0}, {{"tomb_shade"}, 1, 1}}, 5,
+                       [](int cx, int cy) { return Open(cx, cy) && Gap(cx, cy) > 1.5f && cy > 12 && cy < H - 10; });
     m.Write("maps");
 }
 
@@ -3778,6 +4129,22 @@ static bool NearBankOre(int cx, int cy) {
         if (std::abs(cx - b.cx) <= 1 && std::abs(cy - b.cy) <= 1) return true;
     return false;
 }
+// The climb to Purgatory's Plateau: a road north off the burnt one, west of
+// the first river, to a gap in the cliff at the top of the map.
+static const int PLAT_X = 14;
+static float PlateauRoadX(float cy) { return PLAT_X + sinf(cy * 0.17f) * 1.5f; }
+static bool OnPlateauRoad(int cx, int cy, float half) {
+    const float x = PlateauRoadX(static_cast<float>(cy));
+    return cy <= TrailY(x) && fabsf(cx - x) < half;
+}
+// A track worn in the cinders between the first river and the moat, in a
+// ring, by something that walks it: see the roaming post at the foot of
+// BuildAshenPath. Nothing grows on it.
+static const float PATROL_CX = 44.0f, PATROL_CY = 26.0f, PATROL_RX = 8.0f, PATROL_RY = 14.0f;
+static bool OnPatrol(int cx, int cy) {
+    const float dx = (cx + 0.5f - PATROL_CX) / PATROL_RX, dy = (cy + 0.5f - PATROL_CY) / PATROL_RY;
+    return fabsf(sqrtf(dx * dx + dy * dy) - 1.0f) < 0.15f;
+}
 static bool OnPalaceRoad(int cx, int cy, float half) {
     return cy >= MOAT_FRONT + MOAT_ROWS && cy <= static_cast<int>(TrailY(PAL_CX)) + 1 &&
            fabsf(cx + 0.5f - PalaceRoadX(static_cast<float>(cy))) < half;
@@ -3814,6 +4181,12 @@ static void BuildAshenPath() {
                 tile = "dirt";
             } else if (OnPalaceRoad(cx, cy, 1.9f)) {
                 tile = "dirt_dark";
+            } else if (OnPlateauRoad(cx, cy, 1.1f)) {
+                tile = "dirt";
+            } else if (OnPlateauRoad(cx, cy, 1.9f)) {
+                tile = "dirt_dark";
+            } else if (OnPatrol(cx, cy)) {
+                tile = "ash";
             } else if (gap < 1.4f) {
                 tile = "ash";
             } else if (gap < 4.0f) {
@@ -3825,8 +4198,9 @@ static void BuildAshenPath() {
 
             // The edges of the world are cliffs, open only where the path leaves.
             const bool west_exit = cx == 0 && gap < 3.0f;
+            const bool north_exit = cy == 0 && fabsf(cx - PlateauRoadX(0.0f)) < 1.6f;
             const bool edge = cx == 0 || cy == 0 || cy == H - 1 || cx == W - 1;
-            if (edge && !west_exit) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            if (edge && !west_exit && !north_exit) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
         }
 
     // Burnt trees, black glass and ember vents off the path -- and none in the
@@ -3838,6 +4212,8 @@ static void BuildAshenPath() {
             if (cx > W - 12 && gap < 7.0f) continue;          // the gate's forecourt
             if (cx >= MOAT_W - 3 && cx <= MOAT_E + 3 && cy <= MOAT_FRONT + 3) continue;
             if (OnPalaceRoad(cx, cy, 3.5f)) continue;
+            if (OnPlateauRoad(cx, cy, 3.5f) || (cy < 13 && fabsf(cx - PLAT_X) < 6.0f)) continue;
+            if (OnPatrol(cx, cy) || OnPatrol(cx + 1, cy) || OnPatrol(cx - 1, cy)) continue;
             if (NearBankOre(cx, cy)) continue;
             bool at_bridge = false;
             for (int rr : kCrossings)
@@ -3884,6 +4260,30 @@ static void BuildAshenPath() {
         o["text"]   = "Three rivers of fire cross the path ahead. Where it fords them the ground will burn "
                       "your feet: cross quickly, or jump.\n\nAt the end, the gate. Beyond it, the pit.";
         m.Collision(134, wy - 80, 32, 10);
+    }
+
+    // --- the way up to Purgatory's Plateau --------------------------------------------------
+    // The arch of bones at the head of the climb, the gap in the cliff behind
+    // it, and a stone at the foot of the road where it leaves the burnt one.
+    {
+        // Ten rows down, so all of it stands on the map: it is nine cells tall.
+        const int ax = static_cast<int>(PlateauRoadX(10.0f) * CELL) + 16, ay = 10 * CELL;
+        m.Prop("props", "purgatory_arch", ax, ay);
+        m.Collision(ax - 92, ay - 22, 46, 22);
+        m.Collision(ax + 46, ay - 22, 46, 22);
+        const int top = static_cast<int>(PlateauRoadX(0.0f) * CELL) + 16;
+        m.Portal(top - 64, 0, 128, 24, "plateau_ascent", "from_ashen", "Up onto Purgatory's Plateau", false);
+        m.Danger(50);
+        m.Spawn("from_plateau", top, 3 * CELL + 16);
+        const int fy = static_cast<int>(TrailY(PlateauRoadX(60.0f))) - 4;
+        const int fx = static_cast<int>(PlateauRoadX(static_cast<float>(fy)) * CELL) + 3 * CELL;
+        json& o = m.Object("sign_plateau_road", "sign", fx, fy * CELL);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A stone at the foot of a road";
+        o["text"]   = "UP\n\nThe road north climbs out of the ash to Purgatory's Plateau.\n\n"
+                      "Somebody has scratched a dragon under the word, and under that, five of them, "
+                      "and under those: FIFTY. AT LEAST.";
+        m.Collision(fx - 16, fy * CELL - 10, 32, 10);
     }
 
     // --- imps along the way, and the gate's two guards ------------------------------------
@@ -4014,6 +4414,27 @@ static void BuildAshenPath() {
     m.Enemy("imp", 86 * CELL + 16, 36 * CELL + 16, 15, 60.0f, 220.0f);
 
     PlaceCurios(m);
+    // On some days, one of a pool of bosses walking the track worn round the
+    // north of the path, somewhere different on it each day.
+    {
+        vector<std::array<int, 2>> loop;
+        for (int k = 0; k < 14; ++k) {
+            const float a = k * 6.2831853f / 14.0f;
+            loop.push_back({static_cast<int>(PATROL_CX + cosf(a) * PATROL_RX), static_cast<int>(PATROL_CY + sinf(a) * PATROL_RY)});
+        }
+        RoamOn(m, {"pit_lord", "orc3", "vampire_lord", "barrow_wight"}, 62, 2, 0.6f, loop);
+    }
+    // At night: the plateau's own come down its road -- Greater Demons and the
+    // Pyre Dragons -- and worse into the palace country. None on the burnt
+    // road itself, in the moat, or on the climb.
+    PlaceNightVisitors(m, {{{"greater_demon"}, 1, 1}, {{"dragon_fire", "dragon_earth"}, 1, 1}, {{"abyssal_demon"}, 1, 0}}, 7,
+                       [&](int cx, int cy) {
+                           if (fabsf(cy - TrailY(static_cast<float>(cx))) < 7.0f) return false;
+                           if (RiverAt(cx, cy) >= 0 || RiverAt(cx + 1, cy) >= 0 || RiverAt(cx - 1, cy) >= 0) return false;
+                           if (cx >= MOAT_W - 4 && cx <= MOAT_E + 4 && cy <= MOAT_FRONT + 5) return false;
+                           if (OnPlateauRoad(cx, cy, 4.0f) || OnPalaceRoad(cx, cy, 4.0f) || OnPatrol(cx, cy)) return false;
+                           return true;
+                       });
     m.Write("maps");
 }
 
@@ -5958,6 +6379,10 @@ static void BuildBayou() {
     }
     std::printf("  the Bayou: %d trees, %zu ramps, %d herbs\n", trees, ramps.size(), herb_i);
     PlaceCurios(m);
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, {{{"blood_thrall", "grave_hound"}, 1, 0}, {{"nosferatu"}, 1, 0},
+                           {{"tomb_shade", "grave_hound"}, 1, 0}, {{"dragon_water"}, 1, 0}}, 9,
+                       [](int, int) { return true; });
     m.Write("maps");
 }
 
@@ -7345,6 +7770,125 @@ static void PlaceWakingStone(MapBuilder& m, const string& id, int x, int y) {
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
+// =============================================================================
+//  Havenbrook, dreaming
+//
+//  Through the mirror at the bottom of the Dreaming Dark: Havenbrook exactly as
+//  it stands -- the same streets, the same roofs, the well in the square -- as a
+//  nightmare has it. Nobody lives in it. Nothing in it opens, sells or answers;
+//  the doors are only the pictures of doors, and past the gates there is only
+//  the dark. What walks its streets are the orcs and the dead, dreamt fifty
+//  levels strong and more, and the bosses of the waking world: some in their
+//  places every night, and at least one walking the town, a different one on a
+//  different road each night.
+//
+//  Built from the town itself, as it was built: a copy of the finished map with
+//  its people, its doors and its beasts taken out and its dream put in, so the
+//  one can never drift from the other.
+// =============================================================================
+static void BuildDreamHavenbrook(const MapBuilder& town) {
+    const int CELL = 32;
+    MapBuilder m = town;
+    m.Rename("dream_havenbrook", "Havenbrook, Dreaming");
+    json& dq = m.dq;
+    dq["ambient"]  = "dream";
+    dq["subtitle"] = "The town as a nightmare has it";
+    dq["dream_depth"] = 4;
+    dq["background"] = json::array({12, 8, 22, 255});
+    m.Fog(0.30f, 0.0f, {150, 118, 214});
+
+    // Nobody lives here.
+    dq["npcs"] = json::array();
+    // The ways out are shut -- the gates open on the dark -- and the doors are
+    // pictures of doors.
+    for (const auto& p : dq["portals"])
+        if (!p.value("interact", true)) dq["collision"].push_back(p["rect"]);
+    dq["portals"] = json::array();
+    // Everything that was something to use is only something to look at.
+    json kept = json::array();
+    for (const auto& o : dq["objects"]) {
+        if (!o.contains("sprite")) continue;
+        const string type = o.value("type", string(""));
+        if (type == "lamp" || type == "glass_light") { kept.push_back(o); continue; }
+        json d;
+        d["id"]     = "dream_" + o["id"].get<string>();
+        d["type"]   = "decor";
+        d["x"]      = o["x"];
+        d["y"]      = o["y"];
+        d["sprite"] = o["sprite"];
+        if (o.contains("title")) d["title"] = o["title"];
+        kept.push_back(d);
+    }
+    dq["objects"] = kept;
+    dq["enemies"] = json::array();
+    dq["spawns"]  = json::object();
+
+    // --- the mirror, in the square -----------------------------------------------------------
+    int mx = 21 * CELL, my = 28 * CELL;
+    for (int r = 0; r < 12 && !(m.Clear(mx, my) && m.Clear(mx, my + 40)); ++r) mx += 16;
+    m.Prop("props", "dream_mirror", mx, my);
+    m.Collision(mx - 40, my - 14, 80, 14);
+    m.Portal(mx - 34, my - 30, 68, 40, "dreamworld_3", "from_havenbrook", "Step back through the mirror", true);
+    m.Spawn("from_mirror", mx, my + 40);
+    m.Spawn("default", mx, my + 40);
+    PlaceWakingStone(m, "dream_waking_stone_havenbrook", mx - 90, my + 30);
+    {
+        json& o = m.Object("dream_voice_havenbrook", "sign", mx + 90, my + 30);
+        o["sprite"] = ObjPath("rocksmall_02");
+        o["title"]  = "A voice in the dream";
+        o["text"]   = "Havenbrook. You know the square. You know the well.\n\n"
+                      "Nobody is here, and everything that is here should not be: the orcs from under "
+                      "Emberfell, and the dead from under Hollowrest, and them -- the ones you have killed "
+                      "and killed again, standing about the town as though they lived in it.\n\n"
+                      "They count, here, the same as awake. And you cannot die in a dream.";
+        m.Collision(mx + 80, my + 22, 20, 8);
+    }
+
+    // --- the orcs and the dead ---------------------------------------------------------------
+    // A lattice over the streets and yards, each post the orcs' or the dead's
+    // by the block it stands in, every one of them shown at fifty or more.
+    const vector<string> orcs = {"dream_grunt", "dream_slinger", "dream_bowman", "dream_raider"};
+    const vector<string> dead = {"dream_shambler", "dream_ghoul", "dream_knight", "dream_skeleton", "dream_wraith"};
+    const int W = m.Width() / CELL, H = m.Height() / CELL;
+    int posts = 0;
+    // A street's worth of them to a street, not a crowd: every sixth cell
+    // or so, and not every one of those.
+    for (int gy = 4; gy < H - 3; gy += 6)
+        for (int gx = 4; gx < W - 3; gx += 6) {
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, 9191) * 3.0f) - 1;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, 9192) * 3.0f) - 1;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (Hash2(cx, cy, 9195) > 0.62f) continue;
+            if (!m.Clear(x, y) || !m.Clear(x - 14, y) || !m.Clear(x + 14, y)) continue;
+            if (std::hypot(static_cast<float>(x - mx), static_cast<float>(y - my)) < 300.0f) continue;
+            const int block = (cx / 12) * 7 + (cy / 10);
+            const bool orc = Hash2(block, 3, 9193) < 0.5f;
+            const string group = string(orc ? "orcs_" : "dead_") + std::to_string(block);
+            m.EnemyPool(orc ? orcs : dead, group, x, y, 1, 2, 60.0f, 240.0f);
+            m.dq["enemies"].back()["shown"] = 50 + static_cast<int>(Hash2(cx, cy, 9194) * 8.0f);
+            ++posts;
+        }
+
+    // --- the bosses in their places ---------------------------------------------------------------
+    // The Warchief in the square, the Wight on the guild hall's steps, the
+    // Broodmother in the farmyard: every night, and every one of them a kill
+    // that counts toward its totem.
+    const auto boss = [&](const string& type, int cx, int cy, int shown) {
+        int x = cx * CELL + 16, y = cy * CELL + 16;
+        for (int r = 0; r < 10 && !m.Clear(x, y); ++r) y += 16;
+        m.Enemy(type, x, y, 1, 0.0f, 300.0f);
+        m.dq["enemies"].back()["shown"] = shown;
+    };
+    boss("orc3", 36, 29, 60);
+    boss("barrow_wight", 28, 17, 58);
+    boss("broodmother", 61, 17, 56);
+
+    // --- and at least one walking the town --------------------------------------------------------
+    std::printf("  dream_havenbrook: %d posts of orcs and the dead\n", posts);
+    PlaceRoamers(m);
+    m.Write("maps");
+}
+
 // The posts on one island: `spots` are cells from its middle, all in one group,
 // so whichever of the pool comes tonight comes as a pack.
 static void DreamPack(MapBuilder& m, const DreamField& f, int isle, const string& group,
@@ -7717,7 +8261,505 @@ static void BuildDreamDark() {
             PlaceRock(m, rng, 970 + k++, px(s.cx + sp[0]), px(s.cy + sp[1]), true, 80, "demonite_ore");
     }
 
+    // --- the mirror -----------------------------------------------------------------------
+    // Down the dead end in the east, where the starlilies grow: a standing
+    // mirror, and in it Havenbrook -- not as it is.
+    {
+        const DreamIsle& s = isles[11];
+        const int mx = px(s.cx), my = px(s.cy - 2.0f);
+        m.Prop("props", "dream_mirror", mx, my);
+        m.Collision(mx - 40, my - 14, 80, 14);
+        m.Portal(mx - 34, my - 30, 68, 40, "dream_havenbrook", "from_mirror", "Step through the mirror", true);
+        m.Spawn("from_havenbrook", mx, my + 40);
+    }
+    // --- and something walking the bridges ------------------------------------------------------
+    {
+        vector<std::array<int, 2>> loop;
+        for (int i : {1, 3, 7, 8, 9, 6, 2, 5, 4})
+            loop.push_back({static_cast<int>(isles[i].cx), static_cast<int>(isles[i].cy)});
+        RoamOn(m, {"nightmare_troll", "barrow_wight", "vampire_lord"}, 62, 2, 0.7f, loop, CELL, 0, true);
+    }
     m.Write("maps");
+}
+
+// =============================================================================
+//  Purgatory's Plateau
+//
+//  Four maps round a square, each joined to the two beside it, climbed onto
+//  from the north-west corner of the Ashen Path:
+//
+//      the Scoured Flats  --  the Stronghold  (and its keep)
+//            |                     |
+//      the Pale Ascent    --  the Brine Terraces
+//            |
+//      the Ashen Path
+//
+//  Fifty to seventy, which the waking world had almost nothing at: the five
+//  elemental dragons, the Greater Demons, and Cerberus walking round the
+//  Stronghold on the days it is out. Every one of the four has a ground of its
+//  own -- pale ash and scree, white salt, wet stone and brine, bone-dust and
+//  flagstones -- and what lives on each is posted by the level it is shown at.
+// =============================================================================
+namespace plat {
+static const int CELL = 32, W = 72, H = 56;
+using wold::Pt;
+
+struct Exit {
+    char side;          // 'N', 'S', 'E' or 'W'
+    int at;             // the cell along that edge the road leaves by
+    const char* to;     // where it goes
+    const char* there;  // and where it puts you there
+    const char* here;   // where somebody coming the other way arrives here
+    const char* label;
+};
+
+// A point `d` cells in from where an exit leaves.
+static Pt Inside(const Exit& e, float d) {
+    switch (e.side) {
+        case 'N': return {static_cast<float>(e.at), d};
+        case 'S': return {static_cast<float>(e.at), H - 1 - d};
+        case 'W': return {d, static_cast<float>(e.at)};
+        default:  return {W - 1 - d, static_cast<float>(e.at)};
+    }
+}
+
+static bool AtExit(const vector<Exit>& exits, int cx, int cy) {
+    for (const Exit& e : exits) {
+        const bool edge = (e.side == 'N' && cy == 0) || (e.side == 'S' && cy == H - 1) ||
+                          (e.side == 'W' && cx == 0) || (e.side == 'E' && cx == W - 1);
+        const int along = (e.side == 'N' || e.side == 'S') ? cx : cy;
+        if (edge && abs(along - e.at) <= 1) return true;
+    }
+    return false;
+}
+
+// The roads: from each way out, round a bend, to the middle of the map.
+static vector<vector<Pt>> Roads(const vector<Exit>& exits, Pt hub, uint32_t seed) {
+    vector<vector<Pt>> roads;
+    for (const Exit& e : exits) {
+        const Pt a = Inside(e, -1.0f), b = Inside(e, 5.0f);
+        const Pt bend = {(b.x + hub.x) / 2.0f + (Hash2(e.at, e.side, seed) - 0.5f) * 10.0f,
+                         (b.y + hub.y) / 2.0f + (Hash2(e.side, e.at, seed + 1) - 0.5f) * 8.0f};
+        roads.push_back({a, b, bend, hub});
+    }
+    return roads;
+}
+
+// What every one of the four has: its ground, cliffs round the edge but where
+// a road leaves, the ways out, and where you arrive by each.
+static void Frame(MapBuilder& m, const vector<Exit>& exits, const vector<vector<Pt>>& roads,
+                  const std::function<string(int, int, float)>& ground) {
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const float gap = wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+            const string tile = gap < 1.3f ? VariantOf("plateau_road", cx, cy) : ground(cx, cy, gap);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            const bool edge = cx == 0 || cy == 0 || cx == W - 1 || cy == H - 1;
+            if (edge && !AtExit(exits, cx, cy)) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+    for (const Exit& e : exits) {
+        switch (e.side) {
+            case 'N': m.Portal(e.at * CELL - 64, 0, 160, 24, e.to, e.there, e.label, false); break;
+            case 'S': m.Portal(e.at * CELL - 64, H * CELL - 24, 160, 24, e.to, e.there, e.label, false); break;
+            case 'W': m.Portal(0, e.at * CELL - 64, 24, 160, e.to, e.there, e.label, false); break;
+            default:  m.Portal(W * CELL - 24, e.at * CELL - 64, 24, 160, e.to, e.there, e.label, false); break;
+        }
+        const Pt in = Inside(e, 3.0f);
+        m.Spawn(e.here, static_cast<int>(in.x) * CELL + 16, static_cast<int>(in.y) * CELL + 16);
+    }
+}
+
+// A standing thing with a foot to walk into.
+static void Stand(MapBuilder& m, const string& art, int x, int y, int cw, int ch) {
+    m.Prop("props", art, x, y);
+    m.Collision(x - cw / 2, y - ch, cw, ch);
+}
+
+// Scenery off the roads: `place` is given each cell's middle and a number of
+// its own, and puts up whatever stands there.
+static void Scatter(const vector<vector<Pt>>& roads, uint32_t salt, float clear_of_road,
+                    const std::function<void(int, int, int, int, float, float)>& place) {
+    for (int cy = 2; cy < H - 2; ++cy)
+        for (int cx = 2; cx < W - 2; ++cx) {
+            const float gap = wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+            if (gap < clear_of_road) continue;
+            place(cx, cy, cx * CELL + 16, cy * CELL + 24, Hash2(cx, cy, salt), gap);
+        }
+}
+
+// What lives on a map, on a lattice off its roads: `who` names the kind that
+// stands at a point and the level it is to be shown at, or nothing.
+struct Kind { const char* type = nullptr; int shown = 0; };
+static void Posts(MapBuilder& m, const vector<vector<Pt>>& roads, int step, uint32_t salt,
+                  const std::function<Kind(int, int, float)>& who) {
+    for (int gy = 3; gy < H - 3; gy += step)
+        for (int gx = 3; gx < W - 3; gx += step) {
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, salt) * 3.0f) - 1;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, salt + 1) * 3.0f) - 1;
+            const float gap = wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+            if (gap < 2.5f) continue;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            // Room for a dragon's feet, and nobody met on the doorstep.
+            if (!m.Clear(x, y) || !m.Clear(x - 20, y) || !m.Clear(x + 20, y) || m.NearestHaven(x, y) < 260.0f) continue;
+            const Kind k = who(cx, cy, Hash2(cx, cy, salt + 7));
+            if (!k.type) continue;
+            m.Enemy(k.type, x, y, SpawnToShow(k.type, k.shown), 90.0f, 280.0f);
+        }
+}
+
+// The common scenery of the plateau, shared out a little differently on each.
+static void Bones(MapBuilder& m, int x, int y, float r) {
+    if (r < 0.020f)      Stand(m, "bone_spire", x, y, 34, 12);
+    else if (r < 0.040f) Stand(m, "obsidian_rock", x, y, 20, 8);
+    else if (r < 0.060f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+}
+
+static void Sign(MapBuilder& m, const string& id, int x, int y, const string& title, const string& text) {
+    json& o = m.Object(id, "sign", x, y);
+    o["sprite"] = "assets/props/signpost.png";
+    o["title"]  = title;
+    o["text"]   = text;
+    m.Collision(x - 16, y - 10, 32, 10);
+}
+
+static const vector<NightOption> kNights = {
+    {{"abyssal_demon", "revenant"}, 1, 0},
+    {{"nosferatu", "crypt_warden"}, 1, 0},
+    {{"rime_revenant"}, 1, 0},
+    {{"greater_demon"}, 1, 1},
+};
+}   // namespace plat
+
+// --- the Pale Ascent: where the climb comes out ------------------------------------------
+static void BuildPlateauAscent() {
+    using namespace plat;
+    MapBuilder m("plateau_ascent", "The Pale Ascent", W * CELL, H * CELL);
+    m.Ambient("ash");
+    m.Subtitle("Purgatory's Plateau, at the top of the climb");
+    m.Background(40, 38, 38);
+    m.Fog(0.10f, 0.0f, {206, 204, 206});
+    const vector<Exit> exits = {
+        {'S', 36, "ashen_path", "from_plateau", "from_ashen", "Down to the Ashen Path"},
+        {'N', 36, "plateau_flats", "from_ascent", "from_flats", "To the Scoured Flats"},
+        {'E', 28, "plateau_terraces", "from_ascent", "from_terraces", "To the Brine Terraces"},
+    };
+    const auto roads = Roads(exits, {36.0f, 29.0f}, 5151u);
+    Frame(m, exits, roads, [](int cx, int cy, float gap) {
+        const float v = Fbm(cx * 0.2f, cy * 0.2f, 5252);
+        return VariantOf(gap < 3.0f || v < 0.52f ? "pale_ash" : "scree", cx, cy);
+    });
+    m.Spawn("default", 36 * CELL + 16, (H - 4) * CELL + 16);
+
+    // The skull of something that did not make it up, off the road to the west.
+    Stand(m, "dragon_skull", 17 * CELL, 17 * CELL, 150, 44);
+    Scatter(roads, 5353u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        if (abs(cx - 17) < 5 && abs(cy - 16) < 4) return;
+        if (r < 0.020f && gap > 5.0f) { Stand(m, "charred_tree", x, y, 16, 8); return; }
+        Bones(m, x, y, r);
+    });
+    Sign(m, "sign_plateau_ascent", 39 * CELL, (H - 5) * CELL, "A pillar of bleached stone",
+         "PURGATORY'S PLATEAU\n\nWhat is up here is not what is down there. Dragons, of every kind the sky has, "
+         "and the demons that keep the Stronghold at the top of it.\n\n"
+         "Scratched under it: fifty, at the least. Seventy by the fort. And a dog at the gate that is three dogs.");
+
+    Posts(m, roads, 8, 5454u, [](int cx, int cy, float r) -> Kind {
+        if (cy < 12 && r < 0.22f) return {"greater_demon", 60};
+        if (r < 0.40f) return {"dragon_earth", 52 + static_cast<int>(r * 100) % 5};
+        if (r < 0.62f) return {"dragon_fire", 55 + static_cast<int>(r * 100) % 2};
+        if (r < 0.80f) return {"demon", 50 + static_cast<int>(r * 100) % 5};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Scoured Flats: salt, and the wind across it ----------------------------------------
+static void BuildPlateauFlats() {
+    using namespace plat;
+    MapBuilder m("plateau_flats", "The Scoured Flats", W * CELL, H * CELL);
+    m.Ambient("snow");
+    m.Subtitle("Purgatory's Plateau: salt, and the wind across it");
+    m.Background(58, 60, 64);
+    const vector<Exit> exits = {
+        {'S', 36, "plateau_ascent", "from_flats", "from_ascent", "To the Pale Ascent"},
+        {'E', 28, "plateau_stronghold", "from_flats", "from_stronghold", "To the Stronghold"},
+    };
+    const auto roads = Roads(exits, {36.0f, 29.0f}, 6161u);
+    Frame(m, exits, roads, [](int cx, int cy, float gap) {
+        const float v = Fbm(cx * 0.16f, cy * 0.16f, 6262);
+        const bool rim = cx < 4 || cy < 4 || cx > W - 5 || cy > H - 5;
+        if (rim && v > 0.45f) return VariantOf("pale_ash", cx, cy);
+        return VariantOf(gap < 2.6f || v > 0.58f ? "salt_crust" : "salt_flat", cx, cy);
+    });
+    m.Spawn("default", 36 * CELL + 16, (H - 4) * CELL + 16);
+
+    // A ring of salt standing where something was burned, in the north-west.
+    for (int k = 0; k < 7; ++k) {
+        const float a = k * 6.2831853f / 7.0f;
+        Stand(m, "salt_pillar", static_cast<int>((18 + cosf(a) * 5.0f) * CELL), static_cast<int>((15 + sinf(a) * 4.0f) * CELL),
+              40, 12);
+    }
+    Scatter(roads, 6363u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (abs(cx - 18) < 8 && abs(cy - 15) < 7) return;
+        if (r < 0.012f) { Stand(m, "salt_pillar", x, y, 40, 12); return; }
+        if (r < 0.022f) { Stand(m, "bone_spire", x, y, 34, 12); return; }
+        if (r < 0.040f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    PlaceChest(m, "chest_salt_ring", 18 * CELL, 15 * CELL + 16, "chest_stronghold");
+
+    Posts(m, roads, 8, 6464u, [](int cx, int cy, float r) -> Kind {
+        (void)cx; (void)cy;
+        if (r < 0.34f) return {"dragon_air", 61 + static_cast<int>(r * 100) % 3};
+        if (r < 0.58f) return {"dragon_fire", 57 + static_cast<int>(r * 100) % 4};
+        if (r < 0.78f) return {"greater_demon", 60 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Brine Terraces: the pools the steam comes off ---------------------------------------
+static void BuildPlateauTerraces() {
+    using namespace plat;
+    MapBuilder m("plateau_terraces", "The Brine Terraces", W * CELL, H * CELL);
+    m.Ambient("ash");
+    m.Subtitle("Purgatory's Plateau: the pools the steam comes off");
+    m.Background(30, 44, 48);
+    m.Fog(0.18f, 0.9f, {196, 226, 226});
+    const vector<Exit> exits = {
+        {'W', 28, "plateau_ascent", "from_terraces", "from_ascent", "To the Pale Ascent"},
+        {'N', 36, "plateau_stronghold", "from_terraces", "from_stronghold", "To the Stronghold"},
+    };
+    const auto roads = Roads(exits, {36.0f, 30.0f}, 7171u);
+    // The pools, and nowhere near the roads.
+    struct Pool { float cx, cy, rx, ry; };
+    const Pool pools[] = {{16, 14, 6, 3.5f}, {56, 12, 7, 4}, {14, 42, 5, 3}, {50, 42, 8, 4.5f}, {60, 28, 4, 3}};
+    const auto in_pool = [&](int cx, int cy) {
+        for (const Pool& p : pools) {
+            const float dx = (cx - p.cx) / p.rx, dy = (cy - p.cy) / p.ry;
+            if (dx * dx + dy * dy <= 1.0f) return true;
+        }
+        return false;
+    };
+    Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        if (in_pool(cx, cy)) return VariantOf("brine", cx, cy);
+        const float v = Fbm(cx * 0.2f, cy * 0.2f, 7272);
+        return VariantOf(v > 0.6f ? "scree" : "brine_stone", cx, cy);
+    });
+    for (int cy = 1; cy < H - 1; ++cy) {
+        int run = -1;
+        for (int cx = 1; cx <= W - 1; ++cx) {
+            const bool wet = cx < W - 1 && in_pool(cx, cy);
+            if (wet && run < 0) run = cx;
+            // A wall to everything, as every pond but Fernhollow's and the
+            // Bayou's is: nothing on the plateau swims.
+            if (!wet && run >= 0) { m.Collision(run * CELL, cy * CELL, (cx - run) * CELL, CELL); run = -1; }
+        }
+    }
+    m.Spawn("default", 4 * CELL + 16, 28 * CELL + 16);
+
+    Scatter(roads, 7373u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (in_pool(cx, cy) || in_pool(cx, cy + 1) || in_pool(cx + 1, cy) || in_pool(cx - 1, cy)) return;
+        bool shore = false;
+        for (int dy = -2; dy <= 2; ++dy)
+            for (int dx = -2; dx <= 2; ++dx) shore = shore || in_pool(cx + dx, cy + dy);
+        if (shore && r < 0.10f) { Stand(m, "steam_vent", x, y, 40, 12); return; }
+        Bones(m, x, y, r);
+    });
+
+    Posts(m, roads, 8, 7474u, [&](int cx, int cy, float r) -> Kind {
+        if (in_pool(cx, cy)) return {};
+        if (r < 0.40f) return {"dragon_water", 58 + static_cast<int>(r * 100) % 6};
+        if (r < 0.60f) return {"dragon_air", 61 + static_cast<int>(r * 100) % 4};
+        if (r < 0.76f) return {"greater_demon", 62 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !in_pool(cx, cy) && wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Stronghold ------------------------------------------------------------------------
+static void BuildPlateauStronghold() {
+    using namespace plat;
+    MapBuilder m("plateau_stronghold", "The Stronghold", W * CELL, H * CELL);
+    m.Ambient("ash");
+    m.Subtitle("Purgatory's Plateau: the fort at the top of it, and the dog at its gate");
+    m.Background(34, 32, 34);
+    m.Fog(0.08f, 0.0f, {200, 196, 196});
+    const vector<Exit> exits = {
+        {'W', 28, "plateau_flats", "from_stronghold", "from_flats", "To the Scoured Flats"},
+        {'S', 36, "plateau_terraces", "from_stronghold", "from_terraces", "To the Brine Terraces"},
+    };
+    // The fort: walls on these cells, the gate in the middle of the south wall.
+    const int x0 = 22, x1 = 50, y0 = 5, y1 = 23, gx = 36;
+    const auto in_fort = [&](int cx, int cy) { return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; };
+    const auto roads = Roads(exits, {36.0f, static_cast<float>(y1 + 3)}, 8181u);
+    Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        if (in_fort(cx, cy)) return VariantOf(cy > 16 || Fbm(cx * 0.3f, cy * 0.3f, 8282) > 0.4f ? "stronghold_flag"
+                                                                                                 : "stronghold_flag_dark", cx, cy);
+        const float v = Fbm(cx * 0.2f, cy * 0.2f, 8383);
+        return VariantOf(v > 0.55f ? "scree" : "bone_dust", cx, cy);
+    });
+    // The road on from the gate to the keep's door.
+    for (int cy = 16; cy <= y1; ++cy)
+        for (int cx = gx - 1; cx <= gx + 1; ++cx) m.Ground(VariantOf("plateau_road", cx, cy), cx * CELL, cy * CELL, CELL);
+    m.Spawn("default", 34 * CELL + 16, (H - 4) * CELL + 16);
+
+    // --- the walls -----------------------------------------------------------------------
+    const int gate_x = gx * CELL + 16, gate_y = (y1 + 1) * CELL;
+    for (int cx = x0 + 2; cx <= x1 - 1; cx += 4) m.Prop("props", "stronghold_wall", cx * CELL + 16, (y0 + 1) * CELL);
+    m.Collision(x0 * CELL, y0 * CELL, (x1 - x0 + 1) * CELL, CELL);
+    for (int cx = x0 + 2; cx <= x1 - 1; cx += 4) {
+        if (abs(cx * CELL + 16 - gate_x) < 240) continue;
+        m.Prop("props", "stronghold_wall", cx * CELL + 16, gate_y);
+    }
+    // And a length either side laid right up to the gatehouse's towers, so
+    // the south wall does not stop short of its own gate.
+    for (int s : {-1, 1}) m.Prop("props", "stronghold_wall", gate_x + s * 168, gate_y);
+    m.Collision(x0 * CELL, y1 * CELL, gate_x - 112 - x0 * CELL, CELL);
+    m.Collision(gate_x + 112, y1 * CELL, (x1 + 1) * CELL - (gate_x + 112), CELL);
+    for (int wx : {x0, x1}) {
+        for (int cy = y0 + 4; cy <= y1; cy += 4) m.Prop("props", "stronghold_wall_v", wx * CELL + 16, (cy + 1) * CELL);
+        m.Collision(wx * CELL, y0 * CELL, CELL, (y1 - y0 + 1) * CELL);
+    }
+    // The gatehouse: its two towers are solid, the way between them is not.
+    m.Prop("props", "stronghold_gate", gate_x, gate_y + 12);
+    m.Collision(gate_x - 112, gate_y - 70, 70, 82);
+    m.Collision(gate_x + 42, gate_y - 70, 70, 82);
+    // A tower at each corner.
+    for (int tx : {x0, x1})
+        for (int ty : {y0, y1}) {
+            m.Prop("props", "stronghold_tower", tx * CELL + 16, (ty + 1) * CELL + 12);
+            m.Collision(tx * CELL + 16 - 44, (ty + 1) * CELL + 12 - 44, 88, 44);
+        }
+
+    // --- the keep ----------------------------------------------------------------------------
+    const int keep_x = gx * CELL + 16, keep_y = 16 * CELL;
+    m.Prop("props", "stronghold_keep", keep_x, keep_y);
+    m.Collision(keep_x - 160, (y0 + 1) * CELL, 320, keep_y - 38 - (y0 + 1) * CELL);
+    m.Portal(keep_x - 24, keep_y - 46, 48, 26, "stronghold_keep", "entrance", "Enter the keep", true);
+    m.Danger(68);
+    m.Spawn("from_keep", keep_x, keep_y + 34);
+    const auto light = [&](const string& id, int x, int y) {
+        json& o = m.Object(id, "lamp", x, y);
+        o["sprite"] = "assets/props/soul_brazier.png";
+        m.Collision(x - 12, y - 8, 24, 8);
+    };
+    light("stronghold_brazier_w", (gx - 4) * CELL, 18 * CELL);
+    light("stronghold_brazier_e", (gx + 5) * CELL, 18 * CELL);
+    light("stronghold_brazier_gw", gate_x - 150, gate_y + 40);
+    light("stronghold_brazier_ge", gate_x + 150, gate_y + 40);
+    PlaceChest(m, "chest_stronghold", (x0 + 4) * CELL, 20 * CELL, "chest_stronghold");
+    Sign(m, "sign_stronghold", gate_x + 190, gate_y + 86, "A bone set upright in the road",
+         "THE STRONGHOLD\n\nWhoever built it, it is the Greater Demons' now: they keep the courtyard and the keep, "
+         "and the Storm Dragons have the ground round it.\n\n"
+         "And some days something walks round the walls. Three heads. It does not sleep, and it does not "
+         "stop at the gate.");
+
+    // --- its garrison, and what has the ground round it ----------------------------------------
+    const int court[][3] = {{26, 19, 64}, {46, 19, 66}, {30, 21, 65}, {42, 21, 67}, {28, 17, 68}, {44, 17, 69}};
+    for (const auto& c : court)
+        m.Enemy("greater_demon", c[0] * CELL + 16, c[1] * CELL + 16, SpawnToShow("greater_demon", c[2]), 120.0f, 220.0f);
+    Scatter(roads, 8484u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (cx >= x0 - 3 && cx <= x1 + 3 && cy >= y0 - 2 && cy <= y1 + 4) return;
+        Bones(m, x, y, r);
+    });
+    Posts(m, roads, 8, 8585u, [&](int cx, int cy, float r) -> Kind {
+        if (cx >= x0 - 3 && cx <= x1 + 3 && cy >= y0 - 2 && cy <= y1 + 3) return {};
+        if (r < 0.34f) return {"dragon_lightning", 64 + static_cast<int>(r * 100) % 5};
+        if (r < 0.52f) return {"dragon_air", 63 + static_cast<int>(r * 100) % 4};
+        if (r < 0.74f) return {"greater_demon", 64 + static_cast<int>(r * 100) % 7};
+        return {};
+    });
+
+    // Cerberus: on the days it is out, round the walls, outside them.
+    RoamOn(m, {"cerberus"}, 0, 0, 0.6f,
+           {{x0 - 3, y0 - 2}, {gx, y0 - 2}, {x1 + 3, y0 - 2}, {x1 + 3, (y0 + y1) / 2}, {x1 + 3, y1 + 3},
+            {gx + 6, y1 + 4}, {gx - 6, y1 + 4}, {x0 - 3, y1 + 3}, {x0 - 3, (y0 + y1) / 2}});
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !(cx >= x0 - 4 && cx <= x1 + 4 && cy >= y0 - 3 && cy <= y1 + 5) &&
+               wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the keep ---------------------------------------------------------------------------------
+static void BuildStrongholdKeep() {
+    const int CELL = 32, cols = 26, rows = 30, back = 3;
+    MapBuilder m("stronghold_keep", "The Keep", cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Subtitle("Inside the Stronghold");
+    m.Background(12, 12, 14);
+    const int door0 = 12, door1 = 13;
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            const bool backwall = cy < back, front = cy == rows - 1, west = cx == 0, east = cx == cols - 1;
+            const bool gap = front && cx >= door0 && cx <= door1;
+            const bool solid = (backwall || front || west || east) && !gap;
+            string tile;
+            if (solid) tile = backwall && !west && !east ? (cy == back - 1 ? VariantOf("keep_wall", cx, cy) : string("keep_wallface"))
+                                                         : string("keep_walltop");
+            else tile = VariantOf((cx >= 11 && cx <= 14) ? "keep_floor_dark" : "keep_floor", cx, cy);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+    // The vault: a wall across the top of the hall with a way through the middle.
+    for (int cx = 1; cx < cols - 1; ++cx) {
+        if (cx >= 11 && cx <= 14) continue;
+        m.Ground("keep_walltop", cx * CELL, 9 * CELL, CELL);
+        m.Collision(cx * CELL, 9 * CELL, CELL, CELL);
+    }
+    m.Portal(door0 * CELL, rows * CELL - 24, (door1 - door0 + 1) * CELL, 24, "plateau_stronghold", "from_keep",
+             "Leave the keep", false);
+    m.Spawn("entrance", 13 * CELL, (rows - 3) * CELL);
+    m.Spawn("default",  13 * CELL, (rows - 3) * CELL);
+    // Pillars down both sides of the hall, braziers of the pale fire between.
+    for (int cy : {13, 18, 23}) {
+        for (int cx : {6, 20}) {
+            m.Prop("props", "palace_pillar", cx * CELL, cy * CELL + 16);
+            m.Collision(cx * CELL - 20, cy * CELL + 2, 40, 14);
+        }
+    }
+    int lamp = 0;
+    for (int cy : {15, 20})
+        for (int cx : {6, 20}) {
+            json& o = m.Object("keep_brazier_" + std::to_string(lamp++), "lamp", cx * CELL, cy * CELL + 16);
+            o["sprite"] = "assets/props/soul_brazier.png";
+            m.Collision(cx * CELL - 12, cy * CELL + 8, 24, 8);
+        }
+    for (int cx : {4, 21}) {
+        m.Prop("props", "demon_statue", cx * CELL, 6 * CELL);
+        m.Collision(cx * CELL - 18, 6 * CELL - 14, 36, 14);
+    }
+    PlaceChest(m, "chest_keep_vault", 13 * CELL, 5 * CELL, "chest_keep_vault");
+    // Its garrison: the Stronghold's best, and a Storm Dragon in the vault.
+    const int garrison[][3] = {{9, 16, 66}, {17, 16, 67}, {9, 21, 68}, {17, 21, 68}, {13, 12, 69}};
+    for (const auto& g : garrison)
+        m.Enemy("greater_demon", g[0] * CELL, g[1] * CELL, SpawnToShow("greater_demon", g[2]), 150.0f, 200.0f);
+    m.Enemy("dragon_lightning", 13 * CELL, 7 * CELL, SpawnToShow("dragon_lightning", 70), 150.0f, 200.0f);
+    m.Write("maps");
+}
+
+static void BuildPurgatoryPlateau() {
+    BuildPlateauAscent();
+    BuildPlateauFlats();
+    BuildPlateauTerraces();
+    BuildPlateauStronghold();
+    BuildStrongholdKeep();
 }
 
 // --- main --------------------------------------------------------------------
@@ -7743,6 +8785,7 @@ int main() {
     BuildIceSpire();
     BuildAshenPath();
     BuildBrimstonePalace();
+    BuildPurgatoryPlateau();
     BuildBayou();
 
     BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",

@@ -700,5 +700,175 @@
       255
     ],
     "impact_size": 9
+  },
+  "drake_flame": {
+      "status": {
+          "id": "burn",
+          "chance": 0.45
+      },
+      "sprite": "assets/effects/fireball_greater.png",
+      "frames": 8,
+      "fps": 14,
+      "pivot": [
+          43,
+          13
+      ],
+      "glow": 62,
+      "tint": [
+          255,
+          255,
+          255
+      ],
+      "speed": 300,
+      "life": 1.4,
+      "radius": 8,
+      "knockback": 40,
+      "homing": 1.2,
+      "element": "fire",
+      "patch": {
+          "time": 3.6,
+          "radius": 30,
+          "damage": 3,
+          "tick": 0.5
+      },
+      "impact_size": 12
+  },
+  "drake_tide": {
+      "status": {
+          "id": "wet",
+          "chance": 0.6
+      },
+      "sprite": "assets/effects/water_orb_greater.png",
+      "frames": 8,
+      "fps": 10,
+      "upright": true,
+      "pivot": [
+          13,
+          13
+      ],
+      "tail": {
+          "sprite": "assets/effects/water_wake_greater.png",
+          "frames": 8,
+          "pivot": [
+              34,
+              11
+          ]
+      },
+      "tint": [
+          255,
+          255,
+          255
+      ],
+      "speed": 290,
+      "life": 1.4,
+      "radius": 8,
+      "knockback": 60,
+      "element": "water",
+      "impact_size": 12,
+      "homing": 1.2
+  },
+  "drake_stone": {
+      "status": {
+          "id": "concussed",
+          "chance": 0.3
+      },
+      "sprite": "assets/effects/rock_shard_greater.png",
+      "frames": 8,
+      "fps": 12,
+      "upright": true,
+      "tint": [
+          255,
+          255,
+          255
+      ],
+      "speed": 260,
+      "life": 1.5,
+      "radius": 9,
+      "knockback": 90,
+      "element": "earth",
+      "impact_size": 11,
+      "homing": 1.0
+  },
+  "drake_gale": {
+      "sprite": "assets/effects/gust_greater.png",
+      "frames": 8,
+      "fps": 14,
+      "pivot": [
+          38,
+          17
+      ],
+      "tint": [
+          255,
+          255,
+          255
+      ],
+      "speed": 360,
+      "life": 1.2,
+      "radius": 8,
+      "knockback": 200,
+      "homing": 1.2,
+      "element": "air",
+      "bounces": 3,
+      "bounce_damping": 0.14,
+      "impact_size": 11,
+      "status": {
+          "id": "bleed",
+          "chance": 0.25
+      }
+  },
+  "drake_spark": {
+      "sprite": "assets/icons/spark.png",
+      "frames": 1,
+      "spin": true,
+      "tint": [
+          255,
+          246,
+          150
+      ],
+      "speed": 440,
+      "life": 1.1,
+      "radius": 6,
+      "knockback": 40,
+      "element": "electric",
+      "impact_size": 7,
+      "status": {
+          "id": "electrified",
+          "chance": 0.45
+      },
+      "homing": 1.6,
+      "scale": 1.6,
+      "glow": 40
+  },
+  "cerberus_fire": {
+      "status": {
+          "id": "burn",
+          "chance": 0.5
+      },
+      "sprite": "assets/effects/fireball.png",
+      "frames": 8,
+      "fps": 14,
+      "pivot": [
+          30,
+          9
+      ],
+      "glow": 44,
+      "tint": [
+          255,
+          200,
+          150
+      ],
+      "speed": 320,
+      "life": 1.1,
+      "radius": 6,
+      "knockback": 30,
+      "homing": 1.4,
+      "element": "fire",
+      "patch": {
+          "time": 2.4,
+          "radius": 22,
+          "damage": 2,
+          "tick": 0.55
+      },
+      "impact_size": 9
   }
 }

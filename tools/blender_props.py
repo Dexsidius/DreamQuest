@@ -5531,6 +5531,12 @@ import blender_palace  # noqa: E402
 
 PROPS.update(blender_palace.PROPS)
 
+# And Purgatory's Plateau's -- the Stronghold, the arch, what stands about the
+# plateau, Cerberus's totem and the dream's mirror -- the same way.
+import blender_stronghold  # noqa: E402
+
+PROPS.update(blender_stronghold.PROPS)
+
 
 def main():
     only = None

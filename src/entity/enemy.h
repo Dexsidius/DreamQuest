@@ -279,6 +279,27 @@ public:
     // damage, the same hit points. Only the number is honest now.
     int   ShownLevel() const;
     static int ShownLevelOf(const EnemyDef& def, int spawn_level);
+    // The other way: the least spawn level at which `def` shows `shown` or
+    // more. For a post that says how strong it should look (EnemySpawnDef::
+    // shown) and leaves the stat block to be scaled to it.
+    static int LevelToShow(const EnemyDef& def, int shown);
+    // The spawn level a post's monster of this kind is made at, before the
+    // day's spread: the written level, or -- with EnemySpawnDef::shown -- the
+    // one it takes to look that strong.
+    static int PostLevel(const EnemyDef& def, const EnemySpawnDef& spawn);
+
+    // --- roaming --------------------------------------------------------------
+    // A monster that walks the map instead of keeping a post: see
+    // EnemySpawnDef::route. It goes round the loop a point at a time, and its
+    // home is the point it is making for -- so a chase it gives up brings it
+    // back to the loop where it left it, and it goes on from there.
+    vector<SDL_FPoint> route;
+    int   route_at = 0;               // the point it is making for
+    bool  Roams() const { return !route.empty(); }
+    // Stood on point `at` of its loop, making for the next.
+    void  StartRoute(int at);
+    static constexpr float ROAM_PACE  = 0.5f;    // of its running speed: it is walking
+    static constexpr float ROAM_STUCK = 3.0f;    // seconds getting no nearer before it gives a point up
 
     float home_x = 0, home_y = 0;
 
@@ -347,6 +368,11 @@ private:
     // The whole of the waterfowl idle: returns the step to take this frame.
     void  Paddle(World& world, const GameContext& ctx, float dt,
                  float& move_x, float& move_y);
+    // The whole of a roamer's idle, the same way.
+    void  Roam(float dt, float& move_x, float& move_y);
+    void  NextWaypoint();
+    float roam_best = 1e9f;       // the nearest it has come to the point it is making for
+    float roam_stuck = 0.0f;      // how long it has come no nearer
 
     float heavy_timer = 0.0f;     // until the next heavy attack may start
     float shoot_timer = 0.0f;     // until it may throw again
