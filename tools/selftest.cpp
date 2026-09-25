@@ -16,6 +16,7 @@
 #include "../src/sprite.h"
 #include "../src/world/map.h"
 #include "../src/world/world.h"
+#include "../src/world/ambience.h"
 #include "../src/systems/items.h"
 #include "../src/systems/loot.h"
 #include "../src/systems/quest.h"
@@ -76,6 +77,8 @@ static const char* kMaps[] = {
     "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers", "palace_dungeon", "palace_throne",
     "plateau_ascent", "plateau_flats", "plateau_terraces", "plateau_stronghold", "stronghold_keep",
     "dream_havenbrook",
+    "hex_drowns", "hex_strand", "hex_fens", "hex_temple", "hex_sanctum",
+    "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
 };
 
 int main(int argc, char** argv) {
@@ -10301,8 +10304,10 @@ int main(int argc, char** argv) {
             Enemy beast;
             beast.Init(enemy_db.Get("dire_bear"), def, ctx);
             const EnemyDef* d = enemy_db.Get("dire_bear");
-            Check(d && beast.max_hp == d->hp && beast.level == 1 && beast.ShownLevel() > 60,
-                  "a dire bear has its own hit points, is spawn level 1, and says Combat " + std::to_string(beast.ShownLevel()));
+            Check(d && beast.max_hp == static_cast<int>(d->hp * Enemy::Toughness(beast.ShownLevel())) &&
+                      beast.level == 1 && beast.ShownLevel() > 60,
+                  "a dire bear has its own hit points (and its toughness on them), is spawn level 1, and says Combat " +
+                      std::to_string(beast.ShownLevel()));
             const CombatProfile p = beast.Profile();
             Check(d && p.attack_level == d->attack_level && p.strength_level == d->strength_level &&
                   p.defence_level == d->defence_level, "and fights with exactly the numbers it always did");
@@ -10317,6 +10322,9 @@ int main(int argc, char** argv) {
             {"crypt_1", 34}, {"bayou", 30}, {"palace_foyer", 75},
             {"plateau_ascent", 53}, {"plateau_flats", 59}, {"plateau_terraces", 61}, {"plateau_stronghold", 66},
             {"stronghold_keep", 67}, {"dream_havenbrook", 54},
+            {"hex_drowns", 57}, {"hex_strand", 59}, {"hex_fens", 61}, {"hex_temple", 63}, {"hex_sanctum", 64},
+            {"frost_barrows", 62}, {"frost_mere", 64}, {"frost_glacier", 67}, {"frost_howe", 71},
+            {"frost_howe_hall", 73},
         };
         for (const Area& a : kAreas) {
             Map m;
@@ -12330,7 +12338,9 @@ int main(int argc, char** argv) {
         // --- where, and what ---------------------------------------------------------------
         const std::set<string> wilds = {"overworld", "whisperwood_trail", "westwold", "brackenwood",
                                         "bayou", "ice_spire_peak", "ashen_path", "plateau_ascent", "plateau_flats",
-                                        "plateau_terraces", "plateau_stronghold"};
+                                        "plateau_terraces", "plateau_stronghold", "hex_drowns", "hex_strand",
+                                        "hex_fens", "hex_temple", "frost_barrows", "frost_mere", "frost_glacier",
+                                        "frost_howe"};
         int posts_all = 0;
         for (const char* id : kMaps) {
             Map m;
@@ -17292,7 +17302,10 @@ int main(int argc, char** argv) {
         constexpr float kFrame = 1.0f / 60.0f;
         const auto load = [](const string& id) { Map m; m.Load("maps/" + id + ".mx"); return m; };
         const auto leads = [&](const string& from, const string& to) {
-            for (const Portal& p : load(from).Portals()) if (p.target_map == to) return true;
+            // The map held by name: a range over a temporary's list would
+            // outlive the temporary.
+            const Map m = load(from);
+            for (const Portal& p : m.Portals()) if (p.target_map == to) return true;
             return false;
         };
 
@@ -17566,6 +17579,523 @@ int main(int argc, char** argv) {
             Check(alive_bosses >= 4 && low >= 50,
                   "and on the night: " + std::to_string(alive_bosses) + " bosses about, and nothing under fifty (" +
                       std::to_string(low) + ")");
+        }
+    }
+
+    Section("the Hexmire, and monsters that take more killing");
+    {
+        GameContext ctx;
+        std::mt19937 rng(9191);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input; ctx.dialogue = &dialogue;
+        const auto load = [](const string& id) { Map m; m.Load("maps/" + id + ".mx"); return m; };
+        const auto leads = [&](const string& from, const string& to) {
+            // The map held by name: a range over a temporary's list would
+            // outlive the temporary.
+            const Map m = load(from);
+            for (const Portal& p : m.Portals()) if (p.target_map == to) return true;
+            return false;
+        };
+
+        // --- tougher, and no higher -----------------------------------------------------------------
+        {
+            bool rising = true;
+            for (int lv = 2; lv <= 99; ++lv) rising &= Enemy::Toughness(lv) >= Enemy::Toughness(lv - 1);
+            Check(std::abs(Enemy::Toughness(1) - Enemy::TOUGH_LOW) < 1e-4f &&
+                      std::abs(Enemy::Toughness(Enemy::TOUGH_FULL) - Enemy::TOUGH_HIGH) < 1e-4f &&
+                      std::abs(Enemy::Toughness(99) - Enemy::TOUGH_HIGH) < 1e-4f && rising &&
+                      Enemy::TOUGH_LOW > 1.0f && Enemy::TOUGH_HIGH >= 2.0f,
+                  "every monster has more hit points than its block says: a little more at the bottom, twice as many "
+                  "from fifty up, and never fewer the stronger it shows");
+            bool matches = true, same_level = true;
+            for (const auto& [id, d] : enemy_db.All())
+                for (int lv : {1, 5, 20}) {
+                    EnemySpawnDef def;
+                    def.type = id; def.level = lv; def.x = 100.0f; def.y = 100.0f;
+                    Enemy e;
+                    e.Init(&d, def, ctx);
+                    const int shown = Enemy::ShownLevelOf(d, lv);
+                    matches &= e.max_hp == std::max(1, static_cast<int>(d.hp * (1.0f + 0.12f * (lv - 1)) *
+                                                                        Enemy::Toughness(shown)));
+                    same_level &= e.ShownLevel() == shown;
+                }
+            Check(matches, "each one's pool is its block's, grown with its level, and then by its toughness");
+            Check(same_level, "and the number over its head is what it was: the level ladder has not moved");
+            const EnemyDef* rat = enemy_db.Get("rat");
+            const EnemyDef* king = enemy_db.Get("cinder_king");
+            if (rat && king) {
+                EnemySpawnDef a, b;
+                a.type = "rat"; a.level = 1; b.type = "cinder_king"; b.level = 1;
+                Enemy r, k;
+                r.Init(rat, a, ctx);
+                k.Init(king, b, ctx);
+                Check(r.max_hp < rat->hp * 2 && k.max_hp == king->hp * 2 && k.max_hp < 65535,
+                      "a cellar rat is only a little tougher (" + std::to_string(r.max_hp) + "); the Cinder King has "
+                      "twice his (" + std::to_string(k.max_hp) + "), and it still goes down the wire");
+            }
+        }
+
+        // --- the four, and the way into them ------------------------------------------------------------
+        const vector<string> mire = {"hex_drowns", "hex_strand", "hex_fens", "hex_temple"};
+        Check(leads("bayou", "hex_drowns") && leads("hex_drowns", "bayou"),
+              "the Bayou's west spur goes on north into the Hexmire, and back");
+        Check(leads("hex_drowns", "hex_fens") && leads("hex_fens", "hex_drowns") &&
+                  leads("hex_drowns", "hex_strand") && leads("hex_strand", "hex_drowns") &&
+                  leads("hex_fens", "hex_temple") && leads("hex_temple", "hex_fens") &&
+                  leads("hex_strand", "hex_temple") && leads("hex_temple", "hex_strand"),
+              "four maps, each joined to the two beside it: round the square either way to the temple");
+        Check(leads("hex_temple", "hex_sanctum") && leads("hex_sanctum", "hex_temple"),
+              "and the temple is a door, with a way back out");
+        {
+            bool gate = false;
+            std::ifstream in("maps/bayou.mx");
+            json j;
+            in >> j;
+            for (auto it = j["tiles"].begin(); it != j["tiles"].end(); ++it)
+                gate |= it.value().value("filepath", string("")).find("hex_gateway") != string::npos;
+            Check(gate && fs::exists("assets/props/hex_gateway.png"),
+                  "the way in is built -- the cult's gateway over the track -- not a gap in a hedge");
+        }
+        for (const string& id : mire) {
+            const Map m = load(id);
+            int lo = 99, hi = 0;
+            std::set<string> kinds;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (e.night || !e.route.empty()) continue;
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (!d || d->is_boss) continue;
+                kinds.insert(e.type);
+                lo = std::min(lo, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)));
+                hi = std::max(hi, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e) + e.spread));
+            }
+            Check(lo >= 55 && hi <= 65 && kinds.size() >= 4,
+                  id + ": what lives there is fifty-five to sixty-five (" + std::to_string(lo) + "-" + std::to_string(hi) +
+                      "), " + std::to_string(kinds.size()) + " kinds -- no great step from the Bayou");
+        }
+        {
+            std::map<string, int> seen;
+            for (const string& id : mire) {
+                std::ifstream in("maps/" + id + ".mx");
+                json j;
+                in >> j;
+                std::set<string> fams;
+                for (auto it = j["tiles"].begin(); it != j["tiles"].end(); ++it) {
+                    string f = it.value().value("filepath", string(""));
+                    if (f.find("assets/tiles/") == string::npos) continue;
+                    f = f.substr(f.find_last_of('/') + 1);
+                    f = f.substr(0, f.find('.'));
+                    const size_t us = f.find_last_of('_');
+                    if (us != string::npos && isdigit(static_cast<unsigned char>(f.back()))) f = f.substr(0, us);
+                    fams.insert(f);
+                }
+                int own = 0;
+                for (const string& f : fams) own += f.rfind("temple_", 0) == 0 || f == "blackwater" || f == "cypress_litter" ||
+                                                    f == "shell_sand" || f == "lagoon" || f == "tide_flat" || f == "hex_clay" ||
+                                                    f == "fen_sedge" || f == "drowned_loam";
+                Check(own > 0, id + " is laid on the Hexmire's own ground, not the Bayou's");
+                for (const string& f : fams) ++seen[f];
+            }
+            bool apart = true;
+            for (const auto& kv : seen) if (kv.second == 4 && kv.first != "hex_road") apart = false;
+            Check(apart, "the four have a ground each: nothing laid under all of them but the causeway");
+        }
+
+        // --- the cult, and the Shellbacks ---------------------------------------------------------------
+        const vector<string> cult = {"hex_cultist", "hex_blowgunner", "voodoo_shaman", "hex_zealot"};
+        const vector<string> shells = {"shellback_clawfighter", "shellback_snapper", "shellback_elder"};
+        bool drawn = true, cultists = true;
+        for (const string& id : cult) {
+            const EnemyDef* d = enemy_db.Get(id);
+            drawn &= d && sprites.Has(d->sprite) && d->sprite == id && d->tint.r == 255;
+            cultists &= d && d->kill_target == "cultist" && !d->is_boss && d->on_hit.Any();
+        }
+        for (const string& id : shells) {
+            const EnemyDef* d = enemy_db.Get(id);
+            drawn &= d && sprites.Has(d->sprite) && d->sprite == id && d->tint.r == 255;
+        }
+        Check(drawn, "the cult and the Shellbacks are each drawn as themselves, not a tint of something else");
+        Check(cultists, "four of the cult, every one a cultist to a quest, and every one leaves something on you");
+        {
+            const EnemyDef* shaman = enemy_db.Get("voodoo_shaman");
+            std::set<int> hexes;
+            if (shaman)
+                for (const string& sp : shaman->spells)
+                    if (const ProjectileDef* pd = projectiles.Get(sp)) hexes.insert(static_cast<int>(pd->status.kind));
+            Check(shaman && hexes.count(static_cast<int>(Status::Bleed)) && hexes.count(static_cast<int>(Status::Charm)) &&
+                      hexes.count(static_cast<int>(Status::Confused)),
+                  "the Voodoo Shaman's pins make you bleed, and its other hexes charm you or turn you round");
+            const EnemyDef* gun = enemy_db.Get("hex_blowgunner");
+            const ProjectileDef* dart = gun ? projectiles.Get(gun->shoots) : nullptr;
+            Check(dart && dart->status.kind == Status::Poison, "a blowgunner's darts are poisoned");
+        }
+        {
+            bool hard = true, clawed = true;
+            for (const string& id : shells) {
+                const EnemyDef* d = enemy_db.Get(id);
+                if (!d) { hard = false; continue; }
+                hard &= d->defence_level * 4 >= d->attack_level * 5 && d->defence_bonus >= d->defence_level * 13 / 10;
+                clawed &= d->on_hit.kind == Status::Bleed || d->heavy.status.kind == Status::Bleed;
+            }
+            const EnemyDef* claw = enemy_db.Get("shellback_clawfighter");
+            const EnemyDef* man = enemy_db.Get("hex_cultist");
+            Check(hard && claw && man && claw->defence_level > man->defence_level + 10,
+                  "a Shellback's shell: far more defence than attack, and far more than a cultist of its level");
+            Check(clawed, "and its claws open you up");
+        }
+        const EnemyDef* priest = enemy_db.Get("hex_priest");
+        Check(priest && priest->is_boss && Enemy::ShownLevelOf(*priest, 1) == 65 && trees.TotemOf("hex_priest") &&
+                  items.Get("totem_hex_priest") && fs::exists("assets/props/totem_hex_priest.png") &&
+                  sprites.Has("hex_priest") && priest->spells.size() >= 3,
+              "the Voodoo High Priest: a boss at sixty-five, hexes of his own, a totem to earn and the art for it");
+        {
+            const Map sanctum = load("hex_sanctum");
+            int priests = 0, lo = 99, hi = 0;
+            for (const EnemySpawnDef& e : sanctum.Enemies()) {
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (!d) continue;
+                if (e.type == "hex_priest") { ++priests; continue; }
+                lo = std::min(lo, Enemy::ShownLevelOf(*d, e.level));
+                hi = std::max(hi, Enemy::ShownLevelOf(*d, e.level));
+            }
+            Check(priests == 1 && lo >= 62 && hi <= 65,
+                  "he keeps the sanctum, among the cult's best (" + std::to_string(lo) + "-" + std::to_string(hi) + ")");
+        }
+
+        // --- bosses abroad, and what comes at night -------------------------------------------------------
+        for (const string& id : mire) {
+            const Map m = load(id);
+            int walking = 0, night = 0;
+            bool good = true;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (e.night) ++night;
+                if (e.route.empty()) continue;
+                ++walking;
+                for (const string& t : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                    const EnemyDef* d = enemy_db.Get(t);
+                    good &= d && d->is_boss && trees.TotemOf(t) != nullptr &&
+                            Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)) >= 55;
+                }
+                good &= e.route.size() >= 4 && e.chance > 0.0f && e.chance < 1.0f;
+                for (const SDL_FPoint& pt : e.route) good &= !m.Blocked({pt.x - 6.0f, pt.y - 6.0f, 12.0f, 6.0f});
+            }
+            Check(walking == 1 && good && night >= 6,
+                  id + ": a boss walks it on some days, with a totem to earn, and " + std::to_string(night) +
+                      " posts of the dead come out at night");
+        }
+
+        // --- the High Priest, at home ---------------------------------------------------------------------
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(4, 12.0f);
+            Check(w.LoadMap("hex_sanctum", "entrance", ctx), "the sanctum loads");
+            const Enemy* found = nullptr;
+            for (const auto& e : w.enemies)
+                if (e->TypeId() == "hex_priest" && !e->Dead()) found = e.get();
+            Check(found && found->ShownLevel() == 65 && found->max_hp == static_cast<int>(priest->hp * Enemy::TOUGH_HIGH),
+                  "and he is there, at sixty-five, with twice his block's hit points");
+        }
+    }
+
+    Section("the Frostreach, the thin ice of the Glass Mere, and the wind on the mountain");
+    {
+        GameContext ctx;
+        std::mt19937 rng(6464);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input; ctx.dialogue = &dialogue;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto load = [](const string& id) { Map m; m.Load("maps/" + id + ".mx"); return m; };
+        const auto leads = [&](const string& from, const string& to) {
+            // The map held by name: a range over a temporary's list would
+            // outlive the temporary.
+            const Map m = load(from);
+            for (const Portal& p : m.Portals()) if (p.target_map == to) return true;
+            return false;
+        };
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto tiles_of = [](const string& id) {
+            std::ifstream in("maps/" + id + ".mx");
+            json j;
+            in >> j;
+            std::set<string> fams, props;
+            for (auto it = j["tiles"].begin(); it != j["tiles"].end(); ++it) {
+                string f = it.value().value("filepath", string(""));
+                const string stem = f.substr(f.find_last_of('/') + 1, f.find('.') == string::npos ? string::npos
+                                                                                                   : f.rfind('.') - f.find_last_of('/') - 1);
+                if (f.find("assets/props/") != string::npos) { props.insert(stem); continue; }
+                if (f.find("assets/tiles/") == string::npos) continue;
+                string fam = stem;
+                const size_t us = fam.find_last_of('_');
+                if (us != string::npos && isdigit(static_cast<unsigned char>(fam.back()))) fam = fam.substr(0, us);
+                fams.insert(fam);
+            }
+            return std::make_pair(fams, props);
+        };
+
+        // --- the four, the way to them, and what is in them --------------------------------------
+        const vector<string> reach = {"frost_barrows", "frost_mere", "frost_glacier", "frost_howe"};
+        Check(leads("ice_spire_peak", "frost_barrows") && leads("frost_barrows", "ice_spire_peak"),
+              "a way west off the Ice Spire's track to the Frostreach, and back");
+        Check(leads("frost_barrows", "frost_mere") && leads("frost_mere", "frost_barrows") &&
+                  leads("frost_barrows", "frost_glacier") && leads("frost_glacier", "frost_barrows") &&
+                  leads("frost_mere", "frost_howe") && leads("frost_howe", "frost_mere") &&
+                  leads("frost_glacier", "frost_howe") && leads("frost_howe", "frost_glacier"),
+              "four maps round a square, either way to the Howe");
+        Check(leads("frost_howe", "frost_howe_hall") && leads("frost_howe_hall", "frost_howe") &&
+                  leads("frost_mere", "frost_cabin") && leads("frost_cabin", "frost_mere"),
+              "the Howe goes down into its hall, and the cabin on the Mere is a door -- both with a way out");
+        std::map<string, int> shared;
+        int trolls = 0;
+        for (const string& id : reach) {
+            const Map m = load(id);
+            int lo = 99, hi = 0;
+            std::set<string> kinds;
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (e.night || !e.route.empty()) continue;
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (!d || d->is_boss) continue;
+                kinds.insert(e.type);
+                trolls += e.type == "ice_troll" || e.type == "frostback_troll";
+                lo = std::min(lo, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e)));
+                hi = std::max(hi, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, e) + e.spread));
+            }
+            Check(lo >= 60 && hi <= 75 && kinds.size() >= 3,
+                  id + ": sixty to seventy-five (" + std::to_string(lo) + "-" + std::to_string(hi) + "), " +
+                      std::to_string(kinds.size()) + " kinds");
+            for (const string& f : tiles_of(id).first) ++shared[f];
+        }
+        {
+            bool apart = true;
+            for (const auto& kv : shared) if (kv.second == 4 && kv.first != "frost_road") apart = false;
+            Check(apart, "the four have a ground each: nothing laid under all of them but the road");
+            Check(trolls >= 20, "and the trolls are many: " + std::to_string(trolls) + " posts of ice trolls and frostbacks");
+            const Map hall = load("frost_howe_hall");
+            int lo = 99, hi = 0, lords = 0;
+            for (const EnemySpawnDef& e : hall.Enemies()) {
+                const EnemyDef* d = enemy_db.Get(e.type);
+                if (!d) continue;
+                lords += e.type == "undead_warlord";
+                lo = std::min(lo, Enemy::ShownLevelOf(*d, e.level));
+                hi = std::max(hi, Enemy::ShownLevelOf(*d, e.level));
+            }
+            Check(lords >= 3 && lo >= 70 && hi <= 75,
+                  "the Howe's hall: the warlords and their dead at the top of it (" + std::to_string(lo) + "-" +
+                      std::to_string(hi) + ")");
+        }
+        {
+            int snowmen = 0, igloos = 0;
+            for (const string& id : {string("ice_spire_peak"), string("frost_barrows"), string("frost_mere"),
+                                     string("frost_glacier")}) {
+                const auto props = tiles_of(id).second;
+                snowmen += props.count("snowman");
+                igloos += props.count("igloo");
+            }
+            Check(snowmen >= 4 && igloos >= 2 && fs::exists("assets/props/snowman.png") && fs::exists("assets/props/igloo.png"),
+                  "snowmen and igloos on the mountain and off it");
+        }
+
+        // --- the monsters ---------------------------------------------------------------------------
+        const vector<string> fresh = {"draugr", "draugr_archer", "undead_warlord", "frostback_troll", "abominable_snowman"};
+        bool drawn = true;
+        for (const string& id : fresh) {
+            const EnemyDef* d = enemy_db.Get(id);
+            drawn &= d && d->sprite == id && sprites.Has(d->sprite) && d->tint.r == 255 && d->on_hit.Any();
+        }
+        Check(drawn, "draugr, their bowmen and warlords, the Frostback Troll and the Snowman: each drawn as itself");
+        {
+            const EnemyDef* bow = enemy_db.Get("draugr_archer");
+            const ProjectileDef* arrow = bow ? projectiles.Get(bow->shoots) : nullptr;
+            const EnemyDef* lord = enemy_db.Get("undead_warlord");
+            const EnemyDef* troll = enemy_db.Get("ice_troll");
+            const EnemyDef* back = enemy_db.Get("frostback_troll");
+            Check(arrow && arrow->status.kind == Status::Chill && enemy_db.Get("draugr")->kill_target == "draugr",
+                  "the draugr are the frozen dead: their bowmen's arrows leave a chill");
+            Check(lord && !lord->is_boss && lord->heavy.enabled && Enemy::ShownLevelOf(*lord, 1) > 70,
+                  "a warlord is no boss, but past seventy with a blow to be feared");
+            Check(troll && back && back->kill_target == troll->kill_target && back->hp > troll->hp * 3 &&
+                      !back->shoots.empty() && projectiles.Get(back->shoots),
+                  "a Frostback is an ice troll to a quest, and far more of one -- and it throws the ice");
+        }
+        const EnemyDef* yeti = enemy_db.Get("abominable_snowman");
+        Check(yeti && yeti->is_boss && trees.TotemOf("abominable_snowman") && items.Get("totem_abominable") &&
+                  fs::exists("assets/props/totem_abominable.png") && Enemy::ShownLevelOf(*yeti, 1) >= 70,
+              "the Abominable Snowman: a boss, with a totem to earn and the art for it");
+        if (yeti) {
+            const std::set<string> rare = {"ruby", "bone_amulet", "copper_ring", "ember_shard", "herbal_tonic"};
+            int found = 0;
+            for (int k = 0; k < 400; ++k)
+                for (const auto& d : loot.Roll(yeti->loot_table)) found += rare.count(d.item) ? 1 : 0;
+            Check(found >= 400 * 2, "and what it drops is the rare table's, several times over (" +
+                                        std::to_string(found / 4) + " rare things in a hundred kills)");
+        }
+        {
+            int walks = 0;
+            float chance = 0.0f;
+            for (const string& id : {string("frost_glacier"), string("frost_mere")}) {
+                const Map m = load(id);
+                for (const EnemySpawnDef& e : m.Enemies())
+                    if (e.type == "abominable_snowman") {
+                        ++walks;
+                        chance += e.chance;
+                        bool open = e.route.size() >= 4;
+                        for (const SDL_FPoint& pt : e.route) open &= !m.Blocked({pt.x - 6.0f, pt.y - 6.0f, 12.0f, 6.0f});
+                        Check(open && e.chance > 0.0f && e.chance <= 0.25f, id + ": the Snowman walks it, rarely, on open ground");
+                    }
+            }
+            Check(walks == 2 && chance < 0.5f, "rare: out on the glacier or round the Mere on about a third of days at most");
+        }
+
+        // --- the Glass Mere ------------------------------------------------------------------------
+        const Map mere = load("frost_mere");
+        {
+            int weak = 0;
+            float area = 0.0f;
+            for (const ThinIce& t : mere.ThinIces()) { area += t.rect.w * t.rect.h; weak += t.weak > 0.0f; }
+            SDL_FPoint door{}, out{};
+            const bool spawns = mere.Spawn("from_cabin", out);
+            for (const Portal& p : mere.Portals()) if (p.target_map == "frost_cabin") door = {p.rect.x + p.rect.w / 2, p.rect.y + p.rect.h / 2};
+            Check(area > 600.0f * 400.0f && weak > 10, "the Mere is thin ice from shore to shore, with darker patches in it");
+            Check(spawns && !mere.ThinIceAt(out.x, out.y) && !mere.ThinIceAt(door.x, door.y) &&
+                      mere.ThinIceAt(out.x, out.y + 140.0f),
+                  "the cabin stands on land in the middle of it, with ice all round");
+        }
+        // Where the ice starts on the east shore, level with the islet.
+        float shore_x = 0.0f, lane_y = 32 * 32 + 16;
+        for (const ThinIce& t : mere.ThinIces())
+            if (t.weak <= 0.0f && lane_y >= t.rect.y && lane_y < t.rect.y + t.rect.h) shore_x = std::max(shore_x, t.rect.x + t.rect.w);
+        Check(shore_x > 1000.0f, "(found the east shore: " + std::to_string(static_cast<int>(shore_x)) + ")");
+        struct Crossing { bool broke = false; int hp_before = 0, hp_after = 0; float back_x = 0, back_y = 0, most = 0;
+                          size_t cracks = 0; bool on_land = false, soaked = false; vector<World::VisitorAct> acts; };
+        const auto cross = [&](bool sprint, float seconds, float then_rest, bool visiting) {
+            Crossing c;
+            World w;
+            w.visiting = visiting;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(3, 12.0f);
+            if (!w.LoadMap("frost_mere", "from_barrows", ctx)) return c;
+            w.enemies.clear();
+            w.player.x = shore_x + 40.0f;
+            w.player.y = lane_y;
+            c.hp_before = w.player.hp;
+            key(SDLK_A, true);
+            if (sprint) key(SDLK_LSHIFT, true);
+            const int frames = static_cast<int>(seconds * 60.0f);
+            for (int f = 0; f < frames && !c.broke; ++f) {
+                input.Update(kFrame);
+                w.Update(kFrame, ctx);
+                c.most = std::max(c.most, w.IceStrain());
+                c.broke |= w.ThroughTheIce();
+            }
+            key(SDLK_A, false);
+            key(SDLK_LSHIFT, false);
+            c.cracks = w.IceCracks();
+            for (int f = 0; f < static_cast<int>(then_rest * 60.0f); ++f) {
+                input.Update(kFrame);
+                w.Update(kFrame, ctx);
+                c.broke |= w.ThroughTheIce();
+            }
+            c.hp_after = w.player.hp;
+            c.back_x = w.player.x;
+            c.back_y = w.player.y;
+            c.on_land = !w.CurrentMap().ThinIceAt(w.player.x, w.player.y);
+            c.soaked = w.player.Afflicted(Status::Wet) || w.player.Afflicted(Status::Chill) || w.player.Afflicted(Status::Frozen);
+            c.acts = w.visitor_acts;
+            return c;
+        };
+        {
+            const Crossing walk = cross(false, 4.0f, 0.5f, false);
+            Check(!walk.broke && walk.most < 0.5f && walk.hp_after == walk.hp_before,
+                  "walked across, the ice bears you -- a dark patch groans, no more (strain at most " +
+                      std::to_string(walk.most).substr(0, 4) + ")");
+            const Crossing run = cross(true, 5.0f, World::ICE_SINK_TIME + 0.5f, false);
+            Check(run.cracks > 3, "sprint on it and it cracks behind you (" + std::to_string(run.cracks) + " lengths of crack)");
+            Check(run.broke, "keep sprinting and it gives way");
+            const int lost = run.hp_before - run.hp_after;
+            Check(lost >= static_cast<int>(run.hp_before * 0.3f) && run.hp_after > 0 && run.soaked,
+                  "the water takes a third of you (" + std::to_string(lost) + " of " + std::to_string(run.hp_before) +
+                      "), never all of you, and you come out soaked and chilled");
+            Check(run.on_land && Length(run.back_x - (shore_x + 40.0f), run.back_y - lane_y) < 160.0f,
+                  "and you come out on the shore you set off from, to try again");
+            const Crossing stop = cross(true, 1.1f, 3.0f, false);
+            Check(!stop.broke && stop.most > 0.2f, "stop before it goes, and it settles under you");
+            // A friend's own window foresees it -- the crack, the going under,
+            // the shore -- and leaves what it costs them to the host.
+            const Crossing foresee = cross(true, 5.0f, World::ICE_SINK_TIME + 0.2f, true);
+            Check(foresee.broke && foresee.on_land && foresee.hp_after == foresee.hp_before && foresee.acts.empty(),
+                  "on a friend's own machine it is foreseen -- through, and out on the shore -- and the cost left to the host");
+        }
+        {
+            // The host, with a friend on the Mere: the friend sprints out onto
+            // the ice while the host stands on the shore.
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(3, 12.0f);
+            Check(w.LoadMap("frost_mere", "from_barrows", ctx), "the Mere loads, with a friend on it");
+            w.enemies.clear();
+            Player* g = w.AddGuest(2, "Friend", "", ctx);
+            g->x = shore_x + 40.0f;
+            g->y = lane_y;
+            const int host_hp = w.player.hp, friend_hp = g->hp;
+            PlayerInput run;
+            run.move = {-1.0f, 0.0f};
+            run.down = PlayerInput::Sprint;
+            bool under = false;
+            for (int f = 0; f < 60 * 5; ++f) {
+                input.Update(kFrame);
+                w.StepGuest(*g, run, kFrame, ctx);
+                w.Update(kFrame, ctx);
+                under |= g->under_ice;
+            }
+            for (int f = 0; f < 60 * 2; ++f) {
+                input.Update(kFrame);
+                w.StepGuest(*g, PlayerInput{}, kFrame, ctx);
+                w.Update(kFrame, ctx);
+            }
+            const int lost = friend_hp - g->hp;
+            const bool soaked = g->Afflicted(Status::Wet) || g->Afflicted(Status::Chill) || g->Afflicted(Status::Frozen);
+            Check(under && lost >= static_cast<int>(friend_hp * 0.3f) && g->hp > 0 && soaked &&
+                      !w.CurrentMap().ThinIceAt(g->x, g->y) && Length(g->x - (shore_x + 40.0f), g->y - lane_y) < 160.0f,
+                  "a friend who sprints onto it goes through just as the host would: " + std::to_string(lost) + " of " +
+                      std::to_string(friend_hp) + ", soaked and chilled, out on the shore -- and not drawn while under");
+            Check(w.player.hp == host_hp && w.IceStrain() == 0.0f,
+                  "and the host on the shore is none the worse: each has their own footing on it");
+        }
+
+        // --- the wind ------------------------------------------------------------------------------
+        {
+            Camera cam{640.0f, 360.0f};
+            Ambience snow, grove;
+            snow.SetKind("snow", false);
+            grove.SetKind("grove", false);
+            float most = 0.0f, grove_most = 0.0f;
+            bool calmed = false;
+            for (int f = 0; f < 60 * 120; ++f) {
+                snow.Update(kFrame, cam);
+                grove.Update(kFrame, cam);
+                most = std::max(most, snow.Gust());
+                grove_most = std::max(grove_most, grove.Gust());
+                if (most > 0.9f && snow.Gust() <= 0.0f) calmed = true;
+            }
+            Check(most > 0.9f && calmed && grove_most == 0.0f,
+                  "on the mountain the wind gets up in flurries and drops again; nowhere else");
+            bool snowy = true;
+            for (const string& id : {string("ice_spire_peak"), string("frost_barrows"), string("frost_mere"),
+                                     string("frost_glacier"), string("frost_howe")})
+                snowy &= load(id).Ambient() == "snow";
+            Check(snowy, "and the Spire and the Frostreach are all mountain");
         }
     }
 

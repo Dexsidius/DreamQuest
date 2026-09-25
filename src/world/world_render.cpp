@@ -537,6 +537,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     map.RenderCliffs(r, cache, camera);
     // The light of the palace's windows, on its floor.
     DrawFloorLight(r);
+    // Cracks in the ice, and the holes where it gave way.
+    DrawIce(r);
 
     // Burning ground and pending eruptions lie on the floor, under everyone.
     // Drawn as a squashed disc rather than a rectangle: a hard-edged box reads
@@ -840,10 +842,11 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         if (n->Away() || !RectsOverlap(n->BodyBox(), view)) continue;
         queue.push_back({n->SortY(), 1, n.get()});
     }
-    if (!player.IsDead() || player.DeathTimer() > 0.0f)
+    // Gone through the ice: under the water, a moment after the splash.
+    if ((!player.IsDead() || player.DeathTimer() > 0.0f) && !player.under_ice)
         queue.push_back({player.SortY(), 1, &player});
     for (const auto& g : guests)
-        if (RectsOverlap(g->BodyBox(), view)) queue.push_back({g->SortY(), 1, g.get()});
+        if (!g->under_ice && RectsOverlap(g->BodyBox(), view)) queue.push_back({g->SortY(), 1, g.get()});
 
     std::stable_sort(queue.begin(), queue.end(),
                      [](const Item& a, const Item& b) { return a.sort_y < b.sort_y; });
@@ -1800,5 +1803,48 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         for (int i = 0; i < 6; ++i) row(-5.0f + i, outline[i], ink);
         const int core[] = {7, 5, 3, 1};
         for (int i = 0; i < 4; ++i) row(-4.0f + i, core[i], fill);
+    }
+}
+
+void World::DrawIce(SDL_Renderer* r) const {
+    if (ice_cracks.empty() && ice_holes.empty()) return;
+    const float z = camera.zoom;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // A line of whole pixels, so a crack is drawn as the ground is.
+    const auto line = [&](SDL_FPoint a, SDL_FPoint b, SDL_Color c) {
+        const SDL_FPoint s0 = camera.ToScreen(a.x, a.y), s1 = camera.ToScreen(b.x, b.y);
+        const float len = Length(s1.x - s0.x, s1.y - s0.y);
+        const int n = std::max(1, static_cast<int>(len / z));
+        SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+        for (int i = 0; i <= n; ++i) {
+            const float t = static_cast<float>(i) / n;
+            const SDL_FRect px = {floorf((s0.x + (s1.x - s0.x) * t) / z) * z, floorf((s0.y + (s1.y - s0.y) * t) / z) * z, z, z};
+            SDL_RenderFillRect(r, &px);
+        }
+    };
+    for (const IceHole& h : ice_holes) {
+        const float fade = std::clamp((ICE_HOLE_LIFE - h.age) / 6.0f, 0.0f, 1.0f);
+        const SDL_FPoint c = camera.ToScreen(h.at.x, h.at.y);
+        const float rx = 22.0f * z, ry = 13.0f * z;
+        for (int ring = 0; ring < 2; ++ring) {
+            const float k = ring ? 0.78f : 1.0f;
+            const SDL_Color col = ring ? SDL_Color{16, 32, 52, static_cast<Uint8>(230 * fade)}
+                                       : SDL_Color{226, 240, 255, static_cast<Uint8>(200 * fade)};
+            SDL_SetRenderDrawColor(r, col.r, col.g, col.b, col.a);
+            const int rows = std::max(3, static_cast<int>(ry * k * 2.0f / z));
+            for (int i = 0; i < rows; ++i) {
+                const float t = (i + 0.5f) / rows * 2.0f - 1.0f;
+                const float half = rx * k * sqrtf(std::max(0.0f, 1.0f - t * t));
+                const SDL_FRect span = {floorf((c.x - half) / z) * z, floorf((c.y + t * ry * k) / z) * z,
+                                        floorf(half * 2.0f / z) * z, z};
+                SDL_RenderFillRect(r, &span);
+            }
+        }
+    }
+    for (const IceCrack& c : ice_cracks) {
+        const float fade = std::clamp((ICE_CRACK_LIFE - c.age) / 8.0f, 0.0f, 1.0f);
+        // A pale lip along it, and the dark of the water showing in the crack.
+        line({c.a.x, c.a.y - 1.0f}, {c.b.x, c.b.y - 1.0f}, {236, 246, 255, static_cast<Uint8>(170 * fade)});
+        line(c.a, c.b, {38, 70, 104, static_cast<Uint8>(220 * fade)});
     }
 }

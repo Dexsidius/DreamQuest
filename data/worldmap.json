@@ -12,7 +12,8 @@
     },
     "bayou": {
       "exits": [
-        "overworld"
+        "overworld",
+        "hex_drowns"
       ],
       "kind": "land",
       "name": "The Bayou"
@@ -153,12 +154,102 @@
       "kind": "interior",
       "name": "The Ferry Cottage"
     },
+    "frost_barrows": {
+      "exits": [
+        "ice_spire_peak",
+        "frost_mere",
+        "frost_glacier"
+      ],
+      "kind": "land",
+      "name": "The Draugr Barrows"
+    },
+    "frost_cabin": {
+      "exits": [
+        "frost_mere"
+      ],
+      "kind": "interior",
+      "name": "Old Harl's Cabin"
+    },
+    "frost_glacier": {
+      "exits": [
+        "frost_barrows",
+        "frost_howe"
+      ],
+      "kind": "land",
+      "name": "The Rimefall Glacier"
+    },
+    "frost_howe": {
+      "exits": [
+        "frost_glacier",
+        "frost_mere",
+        "frost_howe_hall"
+      ],
+      "kind": "land",
+      "name": "The Warlord's Howe"
+    },
+    "frost_howe_hall": {
+      "exits": [
+        "frost_howe"
+      ],
+      "kind": "interior",
+      "name": "The Howe"
+    },
+    "frost_mere": {
+      "exits": [
+        "frost_barrows",
+        "frost_howe",
+        "frost_cabin"
+      ],
+      "kind": "land",
+      "name": "The Glass Mere"
+    },
     "guild_hall": {
       "exits": [
         "town_havenbrook"
       ],
       "kind": "interior",
       "name": "Havenbrook Guild Hall"
+    },
+    "hex_drowns": {
+      "exits": [
+        "bayou",
+        "hex_fens",
+        "hex_strand"
+      ],
+      "kind": "land",
+      "name": "The Cypress Drowns"
+    },
+    "hex_fens": {
+      "exits": [
+        "hex_drowns",
+        "hex_temple"
+      ],
+      "kind": "land",
+      "name": "The Candle Fens"
+    },
+    "hex_sanctum": {
+      "exits": [
+        "hex_temple"
+      ],
+      "kind": "interior",
+      "name": "The Sanctum"
+    },
+    "hex_strand": {
+      "exits": [
+        "hex_drowns",
+        "hex_temple"
+      ],
+      "kind": "land",
+      "name": "Shellback Strand"
+    },
+    "hex_temple": {
+      "exits": [
+        "hex_fens",
+        "hex_strand",
+        "hex_sanctum"
+      ],
+      "kind": "land",
+      "name": "The Hexmire Temple"
     },
     "house_elder": {
       "exits": [
@@ -199,7 +290,8 @@
     },
     "ice_spire_peak": {
       "exits": [
-        "overworld"
+        "overworld",
+        "frost_barrows"
       ],
       "kind": "land",
       "name": "Ice Spire Peak"

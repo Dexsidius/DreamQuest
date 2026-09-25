@@ -287,6 +287,18 @@ public:
     // day's spread: the written level, or -- with EnemySpawnDef::shown -- the
     // one it takes to look that strong.
     static int PostLevel(const EnemyDef& def, const EnemySpawnDef& spawn);
+    // How much more health a monster shown at `shown` has than its stat block
+    // says: TOUGH_LOW at level 1, rising in a straight line to TOUGH_HIGH at
+    // TOUGH_FULL and flat after it. Everything died too fast, and nowhere more
+    // than high up, where one charged blow is a quarter of a bar.
+    //
+    // Only the pool: ShownLevelOf still reads the stat block's hit points, so
+    // no number over any head moves, and a monster posted "at 60" is still the
+    // monster the level ladder says is 60. It is the same thing, harder to kill.
+    static float Toughness(int shown);
+    static constexpr float TOUGH_LOW  = 1.3f;
+    static constexpr float TOUGH_HIGH = 2.0f;
+    static constexpr int   TOUGH_FULL = 50;
 
     // --- roaming --------------------------------------------------------------
     // A monster that walks the map instead of keeping a post: see

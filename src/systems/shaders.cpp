@@ -378,7 +378,7 @@ const Art& ArtOf(const string& path) {
     Art a;
     if (prefix({"tuft_", "dry_tuft_", "sedge_", "flowers_", "herb_"}) || any({"reeds", "guild_plant"}))
         a.kind = PROP_GRASS;
-    else if (prefix({"tree_", "treesmall_", "bush_", "bushsmall_"}) || any({"snow_pine", "swamp_tree", "charred_tree"}))
+    else if (prefix({"tree_", "treesmall_", "bush_", "bushsmall_"}) || any({"snow_pine", "swamp_tree", "charred_tree", "cypress_tree", "bottle_tree"}))
         a.kind = PROP_TREE;
     else if (prefix({"tapestry_"}) || any({"banner", "palace_banner", "guild_banner"}))
         a.kind = PROP_CLOTH;
@@ -387,7 +387,7 @@ const Art& ArtOf(const string& path) {
     else if (prefix({"building_"}) ||
              any({"clothier_shop", "inn_building", "herbalist_cottage", "mossvale_lodge", "mage_college",
                   "college_hall", "college_wing", "palace_keep", "palace_tower", "stronghold_keep", "stronghold_tower",
-                  "stronghold_gate"}))
+                  "stronghold_gate", "hex_temple"}))
         a.kind = PROP_WINDOWS;
     else if (any({"college_fountain", "well", "spring_basin", "quench_trough"}))
         a.kind = PROP_FOUNTAIN;
@@ -399,18 +399,20 @@ const Art& ArtOf(const string& path) {
                  "palace_brazier", "palace_hearth", "palace_torch", "hellgate"});
     // Lights that are not fires, and fires, have a halo.
     a.halo = a.hot || any({"candlestand", "palace_chandelier", "college_lamp", "waystone_lit", "soul_brazier",
-                           "purgatory_arch"});
+                           "purgatory_arch", "hex_lantern", "candle_shrine", "hex_gateway", "stockade_gate"});
     // What is lit from inside and should shine through the dark: every lit
     // window, every fire and light, and a few things that glow of themselves.
     a.glows = a.kind == PROP_WINDOWS || a.halo || a.kind == PROP_PULSE ||
               any({"herb_glowcap", "herb_moonpetal", "herb_emberbloom", "spell_circle", "demon_throne",
-                   "throne_door", "ice_spire", "enchanting_table", "totem_cinder_king", "totem_cerberus", "steam_vent"});
+                   "throne_door", "ice_spire", "enchanting_table", "totem_cinder_king", "totem_cerberus", "steam_vent",
+                   "totem_hex_priest", "fetish_pole", "hex_altar", "poto_mitan", "bottle_tree"});
     return known.emplace(path, a).first->second;
 }
 
 Surface SurfaceOfTile(const string& path) {
     const string stem = std::filesystem::path(path).stem().string();
-    if (IsNumbered(stem, "water") || IsNumbered(stem, "bog_water") || IsNumbered(stem, "brine")) return WATER;
+    if (IsNumbered(stem, "water") || IsNumbered(stem, "bog_water") || IsNumbered(stem, "brine") ||
+        IsNumbered(stem, "blackwater") || IsNumbered(stem, "lagoon")) return WATER;
     if (IsNumbered(stem, "lava")) return LAVA;
     return PLAIN;
 }

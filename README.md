@@ -3556,6 +3556,8 @@ live somewhere worse, a few of them, off the roads.
 | The Ice Spire | ice trolls, wyverns | the white **greatwolves** off the Fells, and one of the Spirewatch's **shades** |
 | The Ashen Path | imps, demons | **Greater Demons**, down the road from the plateau |
 | Purgatory's Plateau, all four | dragons, Greater Demons | **Revenants** and **Abyssal Demons** |
+| The Hexmire, all four | the cult, the Shellbacks | the dead its drums call up: **nosferatu**, **crypt wardens**, **Revenants**, an **Abyssal Demon** |
+| The Frostreach, all four | draugr, trolls, warlords | the frozen dead: **crypt wardens**, **Rime Revenants**, **Revenants** and an **Abyssal Demon** |
 
 The rules it was built to:
 
@@ -5250,6 +5252,121 @@ posts every monster on the plateau by the level it will be *shown* at
 (`SpawnToShow`), not by a nudge to its stat block, so a map's spread is what
 was asked for.
 
+### The Hexmire
+
+The Bayou tops out in the fifties; Purgatory's Plateau starts at fifty and
+climbs to seventy by way of dragons. The **Hexmire** is the step between, at
+**55 to 65**: four maps round a square north of the Bayou, reached where the
+Bayou's west spur used to run off the top of the map and stop. The spur's
+chest is still at its end; past it now stands the cult's **gateway** -- two
+black posts and a beam hung with skulls, bottles and jars of green light.
+
+```
+    the Candle Fens    --  the Hexmire Temple  (and its sanctum)
+          |                        |
+    the Cypress Drowns --  Shellback Strand
+          |
+    the Bayou
+```
+
+| Map | Ground | What lives there | Levels |
+| --- | --- | --- | --- |
+| **The Cypress Drowns** | black loam and cypress litter round black water, bald cypress hung with moss | cultists, blowgunners, Shellback Clawfighters, the drowned, hags | 55-58 |
+| **Shellback Strand** | crushed shell and tide-flat down to a lagoon; the Shellbacks' village of shell-roofed huts round a cook fire | Clawfighters and Snappers, two Elders at the fire, cult raiders on the road | 57-64 |
+| **The Candle Fens** | red clay and yellow sedge; three rings of fetish poles round candle shrines, bottle trees | Voodoo Shamans at the rings, cultists, blowgunners, Zealots | 59-63 |
+| **The Hexmire Temple** | the cult's stockade on chalked ochre earth, the thatched temple in it | Zealots and Shamans in the yard; outside, the cult, and a war-band of Shellback Elders come up from the strand | 61-65 |
+| **the Sanctum** | red boards, daub walls, the painted post everything turns round, the altar | the cult's best, and **the Voodoo High Priest** | 63-65 |
+
+**The cult.** Humans: the **Voodoo Cultist** with a machete (you bleed), the
+**Cultist Blowgunner** (poisoned darts), the **Voodoo Shaman** -- whose pins
+make you bleed and whose other hexes charm you toward it or turn you round --
+and the **Cultist Zealot**, masked, with a two-handed cleaver and a heavy blow
+that leaves you reeling. Over them all, in the sanctum, the **Voodoo High
+Priest**: a boss at 65 with hexes of his own, a boon, and a totem to earn,
+*The Priest's Poppet* (+5% crit, and 5% of blows miss you on the move).
+
+**The Shellbacks.** An old race of the swamp -- upright tortoises, as tall as a
+man, a shell no blade goes through and claws like billhooks. Their defence is
+far above their attack and far above a cultist's of the same level, so most
+swings glance off; what gets through their guard is paid back in bleeding. The
+**Clawfighter**, the **Snapper** (a heavy lunge with its beak that opens you
+up) and the **Elder**, huge and mossy, whose slam knocks you back and leaves
+you reeling. They are at war with the cult, and do not ask whose side you are
+on. (Tortle-like, from the tabletop; the name is the game's own.)
+
+Each of the four has a boss walking it on some days (see *Bosses abroad*), the
+temple's round its stakes, and the dead come out at night. All eight monsters
+are Blender rigs of their own (`tools/blender_hexmire.py`); the gateway,
+cypress, huts, poles, shrines, stockade, temple, sanctum furniture and the
+totem are props (`tools/blender_hexmire_props.py`); the ten grounds and the
+sanctum's floor and walls are in `make_ground.ps1` on a seed of their own.
+
+### The Frostreach
+
+The Ice Spire was one track up one mountain. Now, a third of the way up, a gap
+opens in the cliffs on the west side between two runestones, and past it is
+the **Frostreach**: four maps round a square at **60 to 75** -- the step between
+the Hexmire and the Brimstone Palace, under Hoarfang's 79 at the summit.
+
+```
+    the Warlord's Howe  --  the Rimefall Glacier
+          |                        |
+    the Glass Mere      --  the Draugr Barrows  --  Ice Spire Peak
+```
+
+| Map | Ground | What lives there | Levels |
+| --- | --- | --- | --- |
+| **The Draugr Barrows** | snow-crusted heath, frozen turf; long sealed mounds, rings of runestones | draugr and draugr bowmen out of the mounds, ice trolls, white greatwolves | 60-64 |
+| **The Glass Mere** | a frozen lake -- pale ice, darker patches -- and the trapper's cabin on an islet in the middle; a hunters' camp of igloos on the west shore | ice trolls and Frostbacks on the shores, draugr, wolves; two draugr bowmen on the islet | 62-68 |
+| **The Rimefall Glacier** | white ice split with blue crevasses nothing crosses; a ring of snowmen nobody built | Frostback and ice trolls, frost wyverns, greatwolves | 64-70 |
+| **The Warlord's Howe** | grey stone and rime; the great barrow of the barrow-kings, runestones and pale blue fires up to its door | **Undead Warlords**, their draugr, Frostbacks | 68-74 |
+| **the Howe** | its hall: frost-rimed flagstones, the barrow-kings laid in stone down both sides, the eldest's seat at its head | the warlords and their dead | 72-75 |
+| **Old Harl's Cabin** | the trapper's: a hearth, a bed, his journal -- and his chest | nobody, now | |
+
+**The monsters.** The **Draugr** are the mountain's old dead -- blue-grey,
+ring-mailed, a notched sword and a rimed shield -- and they leave a chill; the
+**Draugr Bowmen** shoot frost-headed arrows that do the same. Their lords, the
+**Undead Warlords**, are no bosses but past seventy, in blackened plate under a
+crown of antlers, with a greataxe whose heavy blow leaves you chilled. The
+**Frostback Troll** is the Ice Troll grown old and huge, ice growing out of its
+back, and it throws lumps of the glacier. And on some days -- one in five on
+the glacier, rarer round the Mere -- **the Abominable Snowman** walks: a boss at
+74, with a first-kill boon and a totem, *Pelt of the Abominable*, and every kill
+**rolls the rare-drop table six times** over, on top of its coins and platinum.
+
+**Snowmen and igloos** stand about the mountain now: at the Spire's camp, on the
+heath, in the hunters' camp by the Mere, and in a ring on the glacier.
+
+**The Glass Mere's ice.** The whole lake is thin ice (`"thin_ice"` in a map,
+`World::UpdateThinIce`). It bears a walker. It does not bear a runner:
+
+- **Sprint** on it and it cracks behind you -- the crack drawn on the ice,
+  following you and forking as it goes -- and the ice groans ("The ice
+  cracks!", then "It won't hold!"). Keep sprinting for about **two and a half
+  seconds** and it gives way.
+- **Stop, or walk**, and it settles. A jump come down on it strains it too.
+- The **darker patches** are weaker: they strain a little even under a walker.
+- **Falling in** costs **a third of your health** (never all of it), leaves you
+  soaked and chilled -- and a chill on the soaked is a frost -- and after a
+  moment in the black water you **climb out on the last dry ground you stood
+  on**, to try again. The hole stays open a while, and the cracks for longer.
+- There is nothing to do about the two draugr bowmen shooting at you from the
+  islet but walk. Old Harl's journal says as much.
+
+In co-op a friend who goes through gets exactly what the host would: the host
+steps every player's footing on the ice -- each their own strain, kept in their
+seat, so one player's sprint never cracks it under another -- and deals the
+fall, the water's bite and the chill to a friend as to itself, as it does lava.
+A friend's own window only foresees it (the crack, the going under, the shore)
+so it feels at once, and is told what it cost. Whoever is under the water is not
+drawn on anyone's screen (`net::PlayerState::Under`); split-screen Player Two is
+a friend like any other.
+
+**Flurries.** Snow fell on the mountain; now the wind gets up. Every fifteen to
+thirty seconds a gust blows for five to nine: the snow driven sideways, streaks
+of it low and fast over the ground, and the whole view whitened a little, rising
+and dying away (`Ambience::Gust`). Anywhere with `"ambient": "snow"`.
+
 ### Havenbrook, dreaming
 
 At the bottom of the Reverie, down the dead end in the east of the Dreaming
@@ -5408,6 +5525,24 @@ say what they hold now: the **Emberfell Mine** at Combat 10 rather than 6, and
 **the Barrow** at 20 rather than 10. The self-test holds every advised area to
 the middle of what actually lives beyond the door, within a dozen levels, and
 holds the Hollowmarch to being mostly things a new character can fight.
+
+### Harder to kill
+
+Monsters died too fast, and nowhere faster than high up, where one charged
+blow took a quarter of a bar. So every monster now has **more hit points than
+its stat block says**, by how strong it shows: three tenths as many again at
+level 1, rising in a straight line to **twice as many from level 50 up**
+(`Enemy::Toughness`). A cellar rat is barely tougher; a Greater Demon, Cerberus
+or the Cinder King takes twice the killing.
+
+| Shown level | 1 | 10 | 20 | 30 | 40 | 50 and up |
+| --- | --- | --- | --- | --- | --- | --- |
+| Hit points, times | 1.30 | 1.43 | 1.57 | 1.71 | 1.86 | 2.00 |
+
+It is only the pool. The number over every head is worked out from the stat
+block exactly as before, so nothing's level moved and the level ladder -- and
+every advised area -- still means what it did. A friend on an older build would
+draw every bar wrong, so the co-op protocol went up to 12.
 
 
 | Monster | Where | Effective level | Leaves |
@@ -5572,6 +5707,14 @@ and walks on.
 | The Scoured Flats | Pit Lord, Lord Ashcroft, Wyvern Matriarch | 64 | 5 in 10 |
 | The Brine Terraces | the Mother of the Fen, the Thing in the Spring, the Sleepless | 64 | 5 in 10 |
 | The Stronghold, round its walls | Cerberus | 70 | 6 in 10 |
+| The Cypress Drowns | the Mother of the Fen, Lizardman Chief, the Thing in the Spring, Den Mother | 58 | 5 in 10 |
+| Shellback Strand | Wyvern Matriarch, the Mother of the Fen, Broodmother | 60 | 5 in 10 |
+| The Candle Fens | Lord Ashcroft, Hollowrest Wight, the Sleepless | 62 | 5 in 10 |
+| The Hexmire Temple, round its stakes | Pit Lord, Lord Ashcroft, the Mother of the Fen, Orc Warchief | 64 | 6 in 10 |
+| The Draugr Barrows | Hollowrest Wight, Lord Ashcroft, Den Mother | 66 | 5 in 10 |
+| The Warlord's Howe | Pit Lord, Lord Ashcroft, Wyvern Matriarch, the Sleepless | 72 | 5 in 10 |
+| The Rimefall Glacier, along its roads | the Abominable Snowman | 74 | 2 in 10 |
+| The Glass Mere, round the shore | the Abominable Snowman | 74 | 15 in 100 |
 | The Dreaming Dark, over the bridges | the Sleepless, Hollowrest Wight, Lord Ashcroft | 62 | 7 in 10 |
 | Havenbrook, dreaming | (see above) | 62 and 58 | every night, and half |
 

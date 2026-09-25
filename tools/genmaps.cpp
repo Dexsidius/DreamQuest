@@ -338,6 +338,15 @@ public:
         dq["spawns"][name] = json::array({x + ox, y});
     }
 
+    // Ice that bears a walker and not a runner: see World::UpdateThinIce.
+    // `weak` is a darker patch that strains under a walker too.
+    void ThinIce(int x, int y, int w, int h, float weak = 0.0f) {
+        json t;
+        t["rect"] = json::array({x + ox, y, w, h});
+        if (weak > 0.0f) t["weak"] = weak;
+        dq["thin_ice"].push_back(t);
+    }
+
     // True when a player standing with their feet at (x, y) touches none of
     // the collision placed so far. The foot box matches the self-test's.
     bool Clear(int x, int y) const {
@@ -1488,6 +1497,21 @@ static const vector<Roamer>& Roamers() {
          0.50f, 0.50f, 0.34f, 0.30f, 12},
         {"plateau_terraces", {"bayou_matriarch", "well_warden", "nightmare_troll"}, 64, 2, 0.5f,
          0.50f, 0.50f, 0.19f, 0.20f, 12},
+        // The Hexmire, a band on from the Bayou's (its temple's is round the
+        // stockade: see BuildHexTemple).
+        {"hex_drowns",       {"bayou_matriarch", "lizardman_chief", "well_warden", "den_mother"}, 58, 2, 0.5f,
+         0.50f, 0.50f, 0.30f, 0.30f, 12},
+        {"hex_strand",       {"wyvern_matriarch", "bayou_matriarch", "broodmother"}, 60, 2, 0.5f,
+         0.36f, 0.62f, 0.18f, 0.22f, 12},
+        {"hex_fens",         {"vampire_lord", "barrow_wight", "nightmare_troll"}, 62, 2, 0.5f,
+         0.50f, 0.52f, 0.30f, 0.28f, 12},
+        // The Frostreach: bosses of the waking world on the heath and at the
+        // Howe. (The Abominable Snowman's walks are laid in BuildFrostGlacier
+        // and BuildFrostMere.)
+        {"frost_barrows",    {"barrow_wight", "vampire_lord", "den_mother"}, 66, 2, 0.5f,
+         0.50f, 0.50f, 0.30f, 0.30f, 12},
+        {"frost_howe",       {"pit_lord", "vampire_lord", "wyvern_matriarch", "nightmare_troll"}, 72, 2, 0.5f,
+         0.50f, 0.64f, 0.32f, 0.20f, 12},
         // Havenbrook, dreaming: one walking the town every night, and on half
         // of them a second.
         {"dream_havenbrook", {"vampire_lord", "pit_lord", "den_mother", "lizardman_chief", "well_warden"}, 62, 2, 1.0f,
@@ -3882,8 +3906,12 @@ static float Width(int cy) {
     if (cy < 12)     w += (12 - cy) * 1.0f;            // the summit
     return w;
 }
+// The way west to the Frostreach: a gap in the cliffs off the track, a third
+// of the way up, from the track to the edge of the map.
+static const int FROST_ROW = 34;
 static bool Open(int cx, int cy) {
     if (cx < 1 || cy < 1 || cx >= W - 1 || cy >= H) return false;
+    if (abs(cy - FROST_ROW) <= 2 && cx < PathX(static_cast<float>(cy))) return true;
     return Gap(cx, cy) < Width(cy) + (Fbm(cx * 0.3f, cy * 0.3f, 8484) - 0.5f) * 3.0f;
 }
 }   // namespace peak
@@ -3903,8 +3931,8 @@ static void BuildIceSpire() {
             string tile;
             if (!Open(cx, cy)) {
                 tile = "crag";
-                // The exit at the foot of the track stays open.
-                const bool exit = cy == H - 1 && Gap(cx, cy) < 3.0f;
+                // The exit at the foot of the track stays open, and the way west.
+                const bool exit = (cy == H - 1 && Gap(cx, cy) < 3.0f) || (cx == 0 && abs(cy - FROST_ROW) <= 1);
                 if (!exit) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
             } else if (Gap(cx, cy) < 1.4f) {
                 tile = "frost_rock";                       // the trodden track
@@ -3964,6 +3992,42 @@ static void BuildIceSpire() {
                          "Wyverns above the frozen pools. They are not slow.\n\n"
                          "Rest here. Go up one fight at a time.";
         m.Collision(fx + 44, fy - 120, 32, 10);
+    }
+
+    // --- the way west, to the Frostreach ------------------------------------------------------
+    {
+        m.Portal(0, FROST_ROW * CELL - 64, 24, 160, "frost_barrows", "from_spire", "West to the Frostreach", false);
+        m.Danger(60);
+        m.Spawn("from_frostreach", 3 * CELL + 16, FROST_ROW * CELL + 16);
+        // Two runestones either side of where it leaves the track, and a stone
+        // at the mouth of it that says where it goes.
+        const int mx = static_cast<int>(PathX(static_cast<float>(FROST_ROW))) - 3;
+        for (int s : {-1, 1}) {
+            const int x = mx * CELL + 16, y = (FROST_ROW + s * 3) * CELL + (s > 0 ? 8 : 28);
+            m.Prop("props", "runestone", x, y);
+            m.Collision(x - 13, y - 10, 26, 10);
+        }
+        json& o = m.Object("sign_peak_frostreach", "sign", (mx - 3) * CELL, (FROST_ROW - 2) * CELL + 8);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A runestone, and words under the runes";
+        o["text"]   = "WEST: THE FROSTREACH\n\nThe barrows of the mountain's old dead, the Glass Mere, the "
+                      "glacier, and the Howe of the barrow-kings. Sixty, and up to seventy-five.\n\n"
+                      "And something white and tall that is not a troll. Do not follow the tracks.";
+        m.Collision((mx - 3) * CELL - 16, (FROST_ROW - 2) * CELL - 2, 32, 10);
+    }
+    // Snowmen at the camp, and an igloo somebody built and left.
+    {
+        const int ix = fx + 200, iy = fy - 96;
+        if (m.Clear(ix, iy) && m.Clear(ix - 40, iy) && m.Clear(ix + 40, iy)) {
+            m.Prop("props", "igloo", ix, iy);
+            m.Collision(ix - 42, iy - 66, 84, 46);
+            m.Collision(ix - 21, iy - 20, 42, 14);
+        }
+        for (const auto& sm : {std::pair<int, int>{150, 10}, {-190, -20}, {-60, -150}})
+            if (m.Clear(fx + sm.first, fy + sm.second) && m.Clear(fx + sm.first - 10, fy + sm.second)) {
+                m.Prop("props", "snowman", fx + sm.first, fy + sm.second);
+                m.Collision(fx + sm.first - 10, fy + sm.second - 15, 20, 11);
+            }
     }
 
     // Monsters on and beside the track at a given height, stood on open snow.
@@ -6092,7 +6156,13 @@ static void BuildBayou() {
 
     // --- the edge, open on the east where the track comes in -----------------------------
     const int gate_row = kTrackEntry.front().second / CELL;
-    for (int cx = 0; cx < W; ++cx) { m.Collision(cx * CELL, 0, CELL, CELL); m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL); }
+    // Open on the north too, where the west spur runs off the top of the map:
+    // the way into the Hexmire.
+    const int hex_col = kTrackSpur.back().first / CELL;
+    for (int cx = 0; cx < W; ++cx) {
+        if (abs(cx - hex_col) > 1) m.Collision(cx * CELL, 0, CELL, CELL);
+        m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
+    }
     for (int cy = 0; cy < H; ++cy) {
         m.Collision(0, cy * CELL, CELL, CELL);
         if (abs(cy - gate_row) > 2) m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
@@ -6101,6 +6171,29 @@ static void BuildBayou() {
     m.Spawn("from_hollowmarch", W * CELL - 104, gate_row * CELL + 16);
     m.Spawn("default",          W * CELL - 104, gate_row * CELL + 16);
     reserve(W * CELL - 104, gate_row * CELL + 16, 4);
+
+    // --- the Hexmire's gateway, over the spur where it leaves ------------------------------
+    // The cult's: two black posts and a beam hung with everything it hangs up,
+    // so nobody walks north out of the Bayou thinking it is more of the same.
+    {
+        // Ten rows down: it is six cells tall, and the spur's chest is at its end.
+        const int hx = kTrackSpur.back().first, gy = 10 * CELL;
+        m.Portal(hx - 64, 0, 128, 24, "hex_drowns", "from_bayou", "North into the Hexmire", false);
+        m.Danger(55);
+        m.Spawn("from_hexmire", hx, 3 * CELL + 16);
+        m.Prop("props", "hex_gateway", hx, gy);
+        m.Collision(hx - 88, gy - 16, 28, 16);
+        m.Collision(hx + 60, gy - 16, 28, 16);
+        reserve(hx, gy, 4);
+        json& o = m.Object("sign_bayou_hexmire", "sign", hx + 112, gy + 56);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A post by the gateway";
+        o["text"]   = "NORTH: THE HEXMIRE\n\nThe cult that hung this up keeps the swamp past it, and the "
+                      "Shellbacks keep the shore. Neither is friendly, and neither is anything the Bayou has.\n\n"
+                      "Cut into the post: FIFTY-FIVE, AND UP.";
+        m.Collision(hx + 96, gy + 46, 32, 10);
+        reserve(hx + 112, gy + 56, 1);
+    }
 
     // --- who lives here, first: everything else keeps clear of them -----------------------
     for (const BayouPost& p : kBayouPosts) reserve(p.x, p.y, 1);
@@ -8348,11 +8441,11 @@ static vector<vector<Pt>> Roads(const vector<Exit>& exits, Pt hub, uint32_t seed
 // What every one of the four has: its ground, cliffs round the edge but where
 // a road leaves, the ways out, and where you arrive by each.
 static void Frame(MapBuilder& m, const vector<Exit>& exits, const vector<vector<Pt>>& roads,
-                  const std::function<string(int, int, float)>& ground) {
+                  const std::function<string(int, int, float)>& ground, const char* road = "plateau_road") {
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
             const float gap = wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
-            const string tile = gap < 1.3f ? VariantOf("plateau_road", cx, cy) : ground(cx, cy, gap);
+            const string tile = gap < 1.3f ? VariantOf(road, cx, cy) : ground(cx, cy, gap);
             m.Ground(tile, cx * CELL, cy * CELL, CELL);
             const bool edge = cx == 0 || cy == 0 || cx == W - 1 || cy == H - 1;
             if (edge && !AtExit(exits, cx, cy)) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
@@ -8762,6 +8855,1037 @@ static void BuildPurgatoryPlateau() {
     BuildStrongholdKeep();
 }
 
+// =============================================================================
+//  The Hexmire: four maps north of the Bayou, and the sanctum in the temple
+// =============================================================================
+//
+// Climbed into from the Bayou's north-west, where the west spur ran off the
+// top of the map and stopped: 55 to 65, the band just past the Bayou's own.
+//
+//     the Candle Fens    --  the Hexmire Temple  (and its sanctum)
+//           |                        |
+//     the Cypress Drowns --  Shellback Strand
+//           |
+//     the Bayou
+//
+// Built on Purgatory's Plateau's frame (plat::): the same size of map, the same
+// ways out and roads, posts laid by the level they are to show. The cult has
+// the fens and the temple; the Shellbacks -- turtle-folk, shells no blade goes
+// through and claws like billhooks -- have the strand, and are at war with it.
+namespace hexm {
+using plat::CELL;
+using plat::W;
+using plat::H;
+using plat::Exit;
+using plat::Kind;
+
+// Water nothing on foot goes into: a wall along every run of it, row by row,
+// as the Brine Terraces' pools have. It is drawn as water all the same.
+static void WallOffWater(MapBuilder& m, const std::function<bool(int, int)>& wet) {
+    for (int cy = 1; cy < H - 1; ++cy) {
+        int run = -1;
+        for (int cx = 1; cx <= W - 1; ++cx) {
+            const bool w = cx < W - 1 && wet(cx, cy);
+            if (w && run < 0) run = cx;
+            if (!w && run >= 0) { m.Collision(run * CELL, cy * CELL, (cx - run) * CELL, CELL); run = -1; }
+        }
+    }
+}
+
+static bool NearWet(const std::function<bool(int, int)>& wet, int cx, int cy, int r) {
+    for (int dy = -r; dy <= r; ++dy)
+        for (int dx = -r; dx <= r; ++dx)
+            if (wet(cx + dx, cy + dy)) return true;
+    return false;
+}
+
+// One of the cult's green jars on a pole, lit after dark.
+static void Lantern(MapBuilder& m, const string& id, int x, int y) {
+    if (!m.Clear(x, y) || !m.Clear(x, y - 12)) return;
+    json& o = m.Object(id, "lamp", x, y);
+    o["sprite"] = "assets/props/hex_lantern.png";
+    m.Collision(x - 8, y - 8, 16, 8);
+}
+
+// A jar beside each road, where it bends.
+static void RoadLights(MapBuilder& m, const vector<vector<wold::Pt>>& roads, const string& map) {
+    int n = 0;
+    for (const auto& r : roads) {
+        const wold::Pt p = r[2];
+        Lantern(m, map + "_lantern_" + std::to_string(n++), static_cast<int>(p.x + 2.5f) * CELL + 16,
+                static_cast<int>(p.y) * CELL + 16);
+    }
+}
+
+// A ring of the cult's poles round a shrine, where they gather.
+static void RitualRing(MapBuilder& m, int cx, int cy, float r, int poles) {
+    for (int k = 0; k < poles; ++k) {
+        const float a = k * 6.2831853f / poles;
+        plat::Stand(m, "fetish_pole", static_cast<int>((cx + cosf(a) * r) * CELL) + 16,
+                    static_cast<int>((cy + sinf(a) * r * 0.8f) * CELL) + 16, 18, 8);
+    }
+    plat::Stand(m, "candle_shrine", cx * CELL + 16, cy * CELL + 16, 34, 10);
+    plat::Stand(m, "hex_drum", (cx - 2) * CELL + 16, (cy + 1) * CELL + 16, 24, 10);
+    plat::Stand(m, "hex_drum", (cx + 2) * CELL + 16, (cy + 1) * CELL + 16, 24, 10);
+}
+
+// What comes out at night: the dead, from the crypts and further, that the
+// drums call up the swamp -- by the same rules as everywhere (PlaceNightVisitors).
+static const vector<NightOption> kNights = {
+    {{"nosferatu", "crypt_warden"}, 1, 0},
+    {{"revenant"}, 1, 0},
+    {{"abyssal_demon"}, 1, 0},
+};
+}   // namespace hexm
+
+// --- the Cypress Drowns: black water under the cypress -------------------------------
+static void BuildHexDrowns() {
+    using namespace hexm;
+    MapBuilder m("hex_drowns", "The Cypress Drowns", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("The Hexmire: black water under the cypress");
+    m.Background(16, 20, 16);
+    m.Fog(0.20f, 1.0f, {150, 170, 140});
+    const vector<Exit> exits = {
+        {'S', 36, "bayou", "from_hexmire", "from_bayou", "Back to the Bayou"},
+        {'N', 36, "hex_fens", "from_drowns", "from_fens", "To the Candle Fens"},
+        {'E', 28, "hex_strand", "from_drowns", "from_strand", "To Shellback Strand"},
+    };
+    const auto roads = plat::Roads(exits, {36.0f, 28.0f}, 9151u);
+    const auto wet = [&](int cx, int cy) {
+        if (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4) return false;
+        if (wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) < 4.0f) return false;
+        return Fbm(cx * 0.11f, cy * 0.11f, 9252) > 0.60f;
+    };
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        if (wet(cx, cy)) return VariantOf("blackwater", cx, cy);
+        const float v = Fbm(cx * 0.18f, cy * 0.18f, 9353);
+        return VariantOf(gap > 2.0f && v > 0.62f ? "cypress_litter" : "drowned_loam", cx, cy);
+    }, "hex_road");
+    WallOffWater(m, wet);
+    m.Spawn("default", 36 * CELL + 16, (H - 4) * CELL + 16);
+
+    plat::Scatter(roads, 9454u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        if (wet(cx, cy) || wet(cx, cy + 1) || wet(cx - 1, cy) || wet(cx + 1, cy)) return;
+        const bool shore = NearWet(wet, cx, cy, 2);
+        if (r < 0.040f && gap > 4.0f && !NearWet(wet, cx, cy, 2)) { plat::Stand(m, "cypress_tree", x, y, 40, 14); return; }
+        if (shore && r < 0.09f) {
+            if (r < 0.04f) plat::Stand(m, "cypress_knees", x, y, 26, 8);
+            else m.Prop("props", "reeds", x, y);
+            return;
+        }
+        if (r < 0.050f && gap > 4.0f) { plat::Stand(m, "swamp_tree", x, y, 16, 8); return; }
+        if (r < 0.058f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    RoadLights(m, roads, "hex_drowns");
+    plat::Sign(m, "sign_hex_drowns", 39 * CELL, (H - 5) * CELL, "A post hung with a jar",
+               "THE HEXMIRE\n\nPast here the cult keeps the swamp: the drums at night are theirs, and the lights "
+               "in the jars. North, their fens, and their temple beyond. East, the Shellbacks' strand -- turtle-folk, "
+               "as tall as a man, with claws like billhooks. They are at war with the cult, and will not stop to ask "
+               "whose side you are on.\n\nScratched under it: FIFTY-FIVE. AND IT GETS WORSE.");
+
+    plat::Posts(m, roads, 7, 9555u, [&](int cx, int cy, float r) -> Kind {
+        if (NearWet(wet, cx, cy, 1)) return {};
+        if (r < 0.26f) return {"hex_cultist", 55 + static_cast<int>(r * 100) % 3};
+        if (r < 0.46f) return {"shellback_clawfighter", 56 + static_cast<int>(r * 100) % 3};
+        if (r < 0.60f) return {"hex_blowgunner", 57 + static_cast<int>(r * 100) % 2};
+        if (r < 0.72f) return {"drowned_one", 55 + static_cast<int>(r * 100) % 3};
+        if (r < 0.80f) return {"swamp_hag", 56 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !NearWet(wet, cx, cy, 1) && wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- Shellback Strand: the turtle-folk's shore ---------------------------------------------
+static void BuildHexStrand() {
+    using namespace hexm;
+    MapBuilder m("hex_strand", "Shellback Strand", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("The Hexmire: the Shellbacks' shore, and their village on it");
+    m.Background(40, 62, 60);
+    m.Fog(0.10f, 0.6f, {196, 214, 208});
+    const vector<Exit> exits = {
+        {'W', 28, "hex_drowns", "from_strand", "from_drowns", "To the Cypress Drowns"},
+        {'N', 36, "hex_temple", "from_strand", "from_temple", "To the Hexmire Temple"},
+    };
+    const auto roads = plat::Roads(exits, {30.0f, 30.0f}, 9161u);
+    // The lagoon: the east of the map, its shore wandering down the length of it.
+    const auto shore_x = [](int cy) { return 47.0f + (Fbm(cy * 0.09f, 2.5f, 9262) - 0.5f) * 14.0f; };
+    const auto lagoon = [&](int cx, int cy) {
+        return cy >= 1 && cy <= H - 2 && cx <= W - 2 && static_cast<float>(cx) > shore_x(cy) &&
+               wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 3.0f;
+    };
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        if (lagoon(cx, cy)) return VariantOf("lagoon", cx, cy);
+        const float d = shore_x(cy) - static_cast<float>(cx);
+        if (d < 3.0f) return VariantOf("shell_sand", cx, cy);
+        const float v = Fbm(cx * 0.12f, cy * 0.12f, 9264);
+        return VariantOf(v > 0.58f ? "tide_flat" : "shell_sand", cx, cy);
+    }, "hex_road");
+    WallOffWater(m, lagoon);
+    m.Spawn("default", 4 * CELL + 16, 28 * CELL + 16);
+
+    // --- the village: round shell-roofed houses about a fire -------------------------------
+    const int vx = 17, vy = 14;
+    const int huts[][2] = {{9, 8}, {19, 6}, {27, 11}, {7, 17}, {26, 20}, {14, 22}};
+    for (const auto& h : huts) plat::Stand(m, "shellback_hut", h[0] * CELL + 16, h[1] * CELL + 16, 124, 40);
+    {
+        json& fire = m.Object("range_shellback_fire", "range", vx * CELL + 16, vy * CELL + 16);
+        fire["sprite"] = "assets/props/campfire_ring.png";
+        fire["title"]  = "Cook fire";
+        m.Collision(vx * CELL + 16 - 16, vy * CELL + 6, 32, 10);
+    }
+    for (const auto& d : {std::pair<int, int>{-3, -2}, {3, 2}}) plat::Stand(m, "hex_drum", (vx + d.first) * CELL + 16,
+                                                                              (vy + d.second) * CELL + 16, 24, 10);
+    const auto in_village = [&](int cx, int cy) { return abs(cx - vx) <= 13 && abs(cy - vy) <= 11; };
+    plat::Scatter(roads, 9365u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (lagoon(cx, cy) || lagoon(cx + 1, cy) || lagoon(cx - 1, cy) || lagoon(cx, cy + 1)) return;
+        if (in_village(cx, cy)) {
+            if (r < 0.03f && abs(cx - vx) + abs(cy - vy) > 4) plat::Stand(m, "shell_midden", x, y, 34, 8);
+            return;
+        }
+        const float d = shore_x(cy) - static_cast<float>(cx);
+        if (d < 5.0f && r < 0.06f) { plat::Stand(m, "driftwood", x, y, 50, 8); return; }
+        if (d < 5.0f && r < 0.09f) { plat::Stand(m, "shell_midden", x, y, 34, 8); return; }
+        if (r < 0.006f && d > 12.0f) { plat::Stand(m, "cypress_tree", x, y, 40, 14); return; }
+        if (r < 0.016f) { plat::Stand(m, "driftwood", x, y, 50, 8); return; }
+        if (r < 0.03f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    PlaceChest(m, "chest_strand", (vx + 1) * CELL + 16, (vy - 5) * CELL + 16, "chest_hexmire");
+    plat::Sign(m, "sign_hex_strand", 7 * CELL, 25 * CELL, "A turtle's shell nailed to a post",
+               "SHELLBACK STRAND\n\nWhat is painted on the shell is not a word anyone reads. What is scratched round "
+               "it is: THEY DO NOT TRADE. THEY DO NOT TALK. THEIR ELDERS ARE WORSE.");
+
+    // --- who lives here: the village's own round its fire, and the rest along the shore -------
+    const int elders[][3] = {{vx - 2, vy + 3, 63}, {vx + 4, vy - 1, 64}};
+    for (const auto& e : elders)
+        m.Enemy("shellback_elder", e[0] * CELL + 16, e[1] * CELL + 16, SpawnToShow("shellback_elder", e[2]), 120.0f,
+                240.0f);
+    const int guards[][3] = {{vx - 6, vy - 1, 60}, {vx + 7, vy + 4, 61}, {vx, vy + 6, 60}, {vx + 1, vy - 7, 61}};
+    for (const auto& g : guards)
+        m.Enemy("shellback_snapper", g[0] * CELL + 16, g[1] * CELL + 16, SpawnToShow("shellback_snapper", g[2]), 90.0f,
+                260.0f);
+    plat::Posts(m, roads, 8, 9566u, [&](int cx, int cy, float r) -> Kind {
+        if (in_village(cx, cy) || lagoon(cx, cy) || lagoon(cx + 1, cy)) return {};
+        if (r < 0.34f) return {"shellback_clawfighter", 57 + static_cast<int>(r * 100) % 3};
+        if (r < 0.56f) return {"shellback_snapper", 60 + static_cast<int>(r * 100) % 2};
+        if (r < 0.70f) return {"hex_cultist", 58 + static_cast<int>(r * 100) % 2};
+        if (r < 0.80f) return {"hex_blowgunner", 58 + static_cast<int>(r * 100) % 2};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !in_village(cx, cy) && !NearWet(lagoon, cx, cy, 1) &&
+               wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Candle Fens: where the cult keeps its rites --------------------------------------
+static void BuildHexFens() {
+    using namespace hexm;
+    MapBuilder m("hex_fens", "The Candle Fens", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("The Hexmire: red clay, and the cult's candles in it");
+    m.Background(34, 22, 18);
+    m.Fog(0.14f, 0.8f, {186, 170, 140});
+    const vector<Exit> exits = {
+        {'S', 36, "hex_drowns", "from_fens", "from_drowns", "To the Cypress Drowns"},
+        {'E', 28, "hex_temple", "from_fens", "from_temple", "To the Hexmire Temple"},
+    };
+    const auto roads = plat::Roads(exits, {34.0f, 30.0f}, 9171u);
+    // Where the cult gathers: three rings of poles round three shrines.
+    const int rings[][2] = {{15, 13}, {55, 12}, {17, 42}};
+    const auto near_ring = [&](int cx, int cy, int r) {
+        for (const auto& g : rings)
+            if (std::hypot(static_cast<float>(cx - g[0]), static_cast<float>(cy - g[1])) <= r + 0.5f) return true;
+        return false;
+    };
+    const auto wet = [&](int cx, int cy) {
+        if (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4 || near_ring(cx, cy, 7)) return false;
+        if (wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) < 4.0f) return false;
+        return Fbm(cx * 0.12f, cy * 0.12f, 9272) > 0.64f;
+    };
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        if (wet(cx, cy)) return VariantOf("blackwater", cx, cy);
+        (void)gap;
+        if (near_ring(cx, cy, 5)) return VariantOf("hex_clay", cx, cy);
+        const float v = Fbm(cx * 0.13f, cy * 0.13f, 9373);
+        return VariantOf(v > 0.64f ? "hex_clay" : "fen_sedge", cx, cy);
+    }, "hex_road");
+    WallOffWater(m, wet);
+    m.Spawn("default", 36 * CELL + 16, (H - 4) * CELL + 16);
+
+    for (const auto& g : rings) RitualRing(m, g[0], g[1], 4.0f, 6);
+    PlaceChest(m, "chest_candle_fens", rings[0][0] * CELL + 16, (rings[0][1] - 2) * CELL + 16, "chest_hexmire");
+    plat::Scatter(roads, 9474u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        if (near_ring(cx, cy, 6) || wet(cx, cy) || wet(cx, cy + 1) || wet(cx - 1, cy) || wet(cx + 1, cy)) return;
+        if (NearWet(wet, cx, cy, 2) && r < 0.08f) { m.Prop("props", "reeds", x, y); return; }
+        if (r < 0.010f && gap > 4.0f) { plat::Stand(m, "bottle_tree", x, y, 20, 8); return; }
+        if (r < 0.018f) { plat::Stand(m, "fetish_pole", x, y, 18, 8); return; }
+        if (r < 0.026f) { plat::Stand(m, "candle_shrine", x, y, 34, 10); return; }
+        if (r < 0.040f && gap > 4.0f) { plat::Stand(m, "swamp_tree", x, y, 16, 8); return; }
+        if (r < 0.048f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    RoadLights(m, roads, "hex_fens");
+    plat::Sign(m, "sign_hex_fens", 39 * CELL, (H - 5) * CELL, "A post with a doll nailed to it",
+               "THE CANDLE FENS\n\nWhere the cult keeps its rites. The rings of poles are where they gather; the "
+               "shamans stand in the middle of them, and what they throw is worse than an arrow -- it finds you, and "
+               "some of it turns you round, or makes you walk to them.\n\nThe doll has a pin through it.");
+
+    // The shamans at their rings, with their people round them.
+    for (const auto& g : rings) {
+        m.Enemy("voodoo_shaman", g[0] * CELL + 16, (g[1] + 2) * CELL + 16, SpawnToShow("voodoo_shaman", 61), 90.0f,
+                240.0f);
+        m.Enemy("hex_zealot", (g[0] + 5) * CELL + 16, (g[1] + 3) * CELL + 16, SpawnToShow("hex_zealot", 62), 90.0f,
+                260.0f);
+    }
+    plat::Posts(m, roads, 8, 9575u, [&](int cx, int cy, float r) -> Kind {
+        if (near_ring(cx, cy, 5) || NearWet(wet, cx, cy, 1)) return {};
+        if (r < 0.26f) return {"voodoo_shaman", 59 + static_cast<int>(r * 100) % 3};
+        if (r < 0.48f) return {"hex_cultist", 59 + static_cast<int>(r * 100) % 2};
+        if (r < 0.62f) return {"hex_blowgunner", 59 + static_cast<int>(r * 100) % 3};
+        if (r < 0.74f) return {"hex_zealot", 62 + static_cast<int>(r * 100) % 2};
+        if (r < 0.80f) return {"swamp_hag", 60 + static_cast<int>(r * 100) % 2};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !near_ring(cx, cy, 6) && !NearWet(wet, cx, cy, 1) &&
+               wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Hexmire Temple: the cult's stockade, and the temple in it -------------------------
+static void BuildHexTemple() {
+    using namespace hexm;
+    MapBuilder m("hex_temple", "The Hexmire Temple", W * CELL, H * CELL);
+    m.Ambient("grove");
+    m.Subtitle("The Hexmire: the cult's stockade, and the temple in it");
+    m.Background(30, 22, 18);
+    m.Fog(0.12f, 0.8f, {180, 176, 150});
+    const vector<Exit> exits = {
+        {'W', 28, "hex_fens", "from_temple", "from_fens", "To the Candle Fens"},
+        {'S', 36, "hex_strand", "from_temple", "from_strand", "To Shellback Strand"},
+    };
+    // The stockade: stakes on these cells, the gate in the middle of the south side.
+    const int x0 = 22, x1 = 50, y0 = 5, y1 = 23, gx = 36;
+    const auto in_yard = [&](int cx, int cy) { return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; };
+    const auto round_yard = [&](int cx, int cy, int pad) {
+        return cx >= x0 - pad && cx <= x1 + pad && cy >= y0 - pad && cy <= y1 + pad + 1;
+    };
+    const auto roads = plat::Roads(exits, {36.0f, static_cast<float>(y1 + 3)}, 9181u);
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        if (in_yard(cx, cy)) return VariantOf("temple_earth", cx, cy);
+        const float v = Fbm(cx * 0.13f, cy * 0.13f, 9282);
+        return VariantOf(v > 0.64f ? "drowned_loam" : "fen_sedge", cx, cy);
+    }, "hex_road");
+    for (int cy = 16; cy <= y1; ++cy)
+        for (int cx = gx - 1; cx <= gx + 1; ++cx) m.Ground(VariantOf("hex_road", cx, cy), cx * CELL, cy * CELL, CELL);
+    m.Spawn("default", 34 * CELL + 16, (H - 4) * CELL + 16);
+
+    // --- the stockade ---------------------------------------------------------------------
+    const int gate_x = gx * CELL + 16, gate_y = (y1 + 1) * CELL;
+    for (int cx = x0 + 2; cx <= x1 - 1; cx += 4) m.Prop("props", "stockade_wall", cx * CELL + 16, (y0 + 1) * CELL);
+    m.Collision(x0 * CELL, y0 * CELL, (x1 - x0 + 1) * CELL, CELL);
+    for (int cx = x0 + 2; cx <= x1 - 1; cx += 4) {
+        if (abs(cx * CELL + 16 - gate_x) < 230) continue;
+        m.Prop("props", "stockade_wall", cx * CELL + 16, gate_y);
+    }
+    for (int s : {-1, 1}) m.Prop("props", "stockade_wall", gate_x + s * 168, gate_y);
+    m.Collision(x0 * CELL, y1 * CELL, gate_x - 56 - x0 * CELL, CELL);
+    m.Collision(gate_x + 56, y1 * CELL, (x1 + 1) * CELL - (gate_x + 56), CELL);
+    for (int wx : {x0, x1}) {
+        for (int cy = y0 + 4; cy <= y1; cy += 4) m.Prop("props", "stockade_wall_v", wx * CELL + 16, (cy + 1) * CELL);
+        m.Collision(wx * CELL, y0 * CELL, CELL, (y1 - y0 + 1) * CELL);
+    }
+    m.Prop("props", "stockade_gate", gate_x, gate_y + 10);
+    m.Collision(gate_x - 110, gate_y - 16, 50, 26);
+    m.Collision(gate_x + 60, gate_y - 16, 50, 26);
+    for (int tx : {x0, x1})
+        for (int ty : {y0, y1}) plat::Stand(m, "fetish_pole", tx * CELL + 16, (ty + 1) * CELL + 14, 18, 8);
+
+    // --- the temple ---------------------------------------------------------------------------
+    const int tx = gx * CELL + 16, ty = 16 * CELL;
+    m.Prop("props", "hex_temple", tx, ty);
+    m.Collision(tx - 152, (y0 + 1) * CELL, 304, ty - 44 - (y0 + 1) * CELL);
+    for (int s : {-1, 1}) {
+        m.Collision(tx + s * 74 - 6, ty - 8, 12, 8);           // the poles either side of the porch
+        m.Collision(tx + s * 38 - 6, ty - 30, 12, 8);          // the porch's own posts
+    }
+    m.Portal(tx - 24, ty - 44, 48, 22, "hex_sanctum", "entrance", "Enter the temple", true);
+    m.Danger(63);
+    m.Spawn("from_sanctum", tx, ty + 34);
+    for (const auto& p : {std::pair<int, int>{-5, 18}, {5, 18}, {-5, 21}, {5, 21}})
+        plat::Stand(m, "fetish_pole", (gx + p.first) * CELL + 16, p.second * CELL + 16, 18, 8);
+    plat::Stand(m, "candle_shrine", (gx - 8) * CELL + 16, 19 * CELL + 16, 34, 10);
+    plat::Stand(m, "candle_shrine", (gx + 8) * CELL + 16, 19 * CELL + 16, 34, 10);
+    plat::Stand(m, "hex_drum", (gx - 8) * CELL + 16, 21 * CELL + 16, 24, 10);
+    plat::Stand(m, "hex_drum", (gx + 8) * CELL + 16, 21 * CELL + 16, 24, 10);
+    plat::Stand(m, "bottle_tree", (x0 + 3) * CELL + 16, (y1 - 2) * CELL + 16, 20, 8);
+    plat::Stand(m, "bottle_tree", (x1 - 3) * CELL + 16, (y1 - 2) * CELL + 16, 20, 8);
+    Lantern(m, "hex_temple_lantern_gw", gate_x - 150, gate_y + 42);
+    Lantern(m, "hex_temple_lantern_ge", gate_x + 150, gate_y + 42);
+    Lantern(m, "hex_temple_lantern_yw", (gx - 3) * CELL, 23 * CELL - 8);
+    Lantern(m, "hex_temple_lantern_ye", (gx + 4) * CELL, 23 * CELL - 8);
+    PlaceChest(m, "chest_hex_temple", (x1 - 4) * CELL, 20 * CELL, "chest_hexmire");
+    plat::Sign(m, "sign_hex_temple", gate_x + 190, gate_y + 86, "A skull on a stake by the road",
+               "THE HEXMIRE TEMPLE\n\nThe cult's. Its zealots keep the yard and its shamans the temple, and in the "
+               "sanctum, the one they all answer to: the High Priest.\n\nSome days something else walks round the "
+               "stakes. The Shellbacks' elders have come up the road to the gate more than once. None of them went "
+               "back down it.");
+
+    // --- its garrison, and what has the ground round it ------------------------------------------
+    const int yard[][4] = {{26, 19, 62, 0}, {46, 19, 63, 0}, {30, 21, 62, 1}, {42, 21, 63, 1}, {28, 16, 64, 0},
+                           {44, 16, 64, 1}};
+    for (const auto& c : yard) {
+        const char* type = c[3] ? "voodoo_shaman" : "hex_zealot";
+        m.Enemy(type, c[0] * CELL + 16, c[1] * CELL + 16, SpawnToShow(type, c[2]), 120.0f, 220.0f);
+    }
+    plat::Scatter(roads, 9484u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (round_yard(cx, cy, 3)) return;
+        if (r < 0.014f) { plat::Stand(m, "cypress_tree", x, y, 40, 14); return; }
+        if (r < 0.022f) { plat::Stand(m, "fetish_pole", x, y, 18, 8); return; }
+        if (r < 0.034f) { plat::Stand(m, "swamp_tree", x, y, 16, 8); return; }
+        if (r < 0.044f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    plat::Posts(m, roads, 8, 9585u, [&](int cx, int cy, float r) -> Kind {
+        if (round_yard(cx, cy, 3)) return {};
+        // A war-band of the Shellbacks, come up from the strand, on the south-east.
+        if (cx > 40 && cy > 30 && r < 0.40f) return {"shellback_elder", 64 + static_cast<int>(r * 100) % 2};
+        if (r < 0.30f) return {"hex_zealot", 62 + static_cast<int>(r * 100) % 3};
+        if (r < 0.52f) return {"voodoo_shaman", 61 + static_cast<int>(r * 100) % 3};
+        if (r < 0.66f) return {"hex_blowgunner", 61 + static_cast<int>(r * 100) % 2};
+        if (r < 0.76f) return {"shellback_snapper", 62 + static_cast<int>(r * 100) % 2};
+        return {};
+    });
+
+    // One of a pool of bosses, some days, round the stakes outside them.
+    RoamOn(m, {"pit_lord", "vampire_lord", "bayou_matriarch", "orc3"}, 64, 1, 0.6f,
+           {{x0 - 3, y0 - 2}, {gx, y0 - 2}, {x1 + 3, y0 - 2}, {x1 + 3, (y0 + y1) / 2}, {x1 + 3, y1 + 3},
+            {gx + 6, y1 + 4}, {gx - 6, y1 + 4}, {x0 - 3, y1 + 3}, {x0 - 3, (y0 + y1) / 2}});
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !round_yard(cx, cy, 4) && wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the sanctum ---------------------------------------------------------------------------
+static void BuildHexSanctum() {
+    const int CELL = 32, cols = 26, rows = 30, back = 3;
+    MapBuilder m("hex_sanctum", "The Sanctum", cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Subtitle("Inside the Hexmire Temple");
+    m.Background(14, 8, 6);
+    const int door0 = 12, door1 = 13;
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            const bool backwall = cy < back, front = cy == rows - 1, west = cx == 0, east = cx == cols - 1;
+            const bool gap = front && cx >= door0 && cx <= door1;
+            const bool solid = (backwall || front || west || east) && !gap;
+            string tile;
+            if (solid) tile = backwall && !west && !east ? (cy == back - 1 ? VariantOf("sanctum_wall", cx, cy)
+                                                                            : string("sanctum_wallface"))
+                                                         : string("sanctum_walltop");
+            else tile = VariantOf((cx >= 11 && cx <= 14) ? "sanctum_floor_dark" : "sanctum_floor", cx, cy);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+    m.Portal(door0 * CELL, rows * CELL - 24, (door1 - door0 + 1) * CELL, 24, "hex_temple", "from_sanctum",
+             "Leave the temple", false);
+    m.Spawn("entrance", 13 * CELL, (rows - 3) * CELL);
+    m.Spawn("default",  13 * CELL, (rows - 3) * CELL);
+    // The post everything turns round, in the middle of the floor; the altar at
+    // the back, and the High Priest before it.
+    m.Prop("props", "poto_mitan", 13 * CELL, 17 * CELL);
+    m.Collision(13 * CELL - 16, 17 * CELL - 12, 32, 12);
+    m.Prop("props", "hex_altar", 13 * CELL, 6 * CELL);
+    m.Collision(13 * CELL - 44, 6 * CELL - 16, 88, 16);
+    for (int cy : {11, 16, 21})
+        for (int cx : {5, 21}) {
+            m.Prop("props", "fetish_pole", cx * CELL, cy * CELL + 16);
+            m.Collision(cx * CELL - 9, cy * CELL + 8, 18, 8);
+        }
+    int lamp = 0;
+    for (int cy : {13, 19, 24})
+        for (int cx : {3, 23}) {
+            json& o = m.Object("sanctum_lantern_" + std::to_string(lamp++), "lamp", cx * CELL, cy * CELL + 16);
+            o["sprite"] = "assets/props/hex_lantern.png";
+            m.Collision(cx * CELL - 8, cy * CELL + 8, 16, 8);
+        }
+    for (int cx : {8, 18}) {
+        m.Prop("props", "candle_shrine", cx * CELL, 5 * CELL);
+        m.Collision(cx * CELL - 17, 5 * CELL - 10, 34, 10);
+        m.Prop("props", "hex_drum", cx * CELL, 8 * CELL);
+        m.Collision(cx * CELL - 12, 8 * CELL - 10, 24, 10);
+    }
+    PlaceChest(m, "chest_sanctum", 21 * CELL, 5 * CELL, "chest_sanctum");
+    // Its congregation: shamans and zealots down both sides, and the High Priest.
+    const int flock[][4] = {{9, 13, 63, 1}, {17, 13, 64, 1}, {9, 20, 63, 0}, {17, 20, 64, 0}, {13, 23, 64, 0}};
+    for (const auto& f : flock) {
+        const char* type = f[3] ? "voodoo_shaman" : "hex_zealot";
+        m.Enemy(type, f[0] * CELL, f[1] * CELL, SpawnToShow(type, f[2]), 150.0f, 200.0f);
+    }
+    m.Enemy("hex_priest", 13 * CELL, 9 * CELL, 1, 150.0f, 260.0f);
+    m.Write("maps");
+}
+
+static void BuildHexmire() {
+    BuildHexDrowns();
+    BuildHexStrand();
+    BuildHexFens();
+    BuildHexTemple();
+    BuildHexSanctum();
+}
+
+// =============================================================================
+//  The Frostreach: four maps west of the Ice Spire, the Howe under the fourth,
+//  and the trapper's cabin in the middle of the Glass Mere
+// =============================================================================
+//
+// Off the Spire's track a third of the way up, through a gap in the cliffs
+// between two runestones: 60 to 75, between the Hexmire and the Brimstone
+// Palace, and under Hoarfang's 79.
+//
+//     the Warlord's Howe  --  the Rimefall Glacier
+//           |                        |
+//     the Glass Mere      --  the Draugr Barrows  --  Ice Spire Peak
+//
+// Built on the plateau's frame (plat::) like the Hexmire. What is new is the
+// Mere: a frozen lake, thin ice over all of it (World::UpdateThinIce), the
+// trapper's cabin on an islet in the middle, and nothing to be done about the
+// draugr shooting at you from it but walk.
+namespace frost {
+using plat::CELL;
+using plat::W;
+using plat::H;
+using plat::Exit;
+using plat::Kind;
+
+// The edge of every map: pines and spires of ice thick along it, so a wall of
+// cells reads as the mountain closing in rather than a border.
+static void Rim(MapBuilder& m, const vector<Exit>& exits, uint32_t salt) {
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx) {
+            const int edge = std::min(std::min(cx, cy), std::min(W - 1 - cx, H - 1 - cy));
+            if (edge > 2) continue;
+            bool near_exit = false;
+            for (const Exit& e : exits) {
+                const plat::Pt p = plat::Inside(e, 0.0f);
+                near_exit |= std::hypot(cx - p.x, cy - p.y) < 6.0f;
+            }
+            if (near_exit) continue;
+            const float r = Hash2(cx, cy, salt);
+            const int x = cx * CELL + 16, y = cy * CELL + 28;
+            if (edge == 1 && r < 0.40f) m.Prop("props", r < 0.12f ? "ice_spire" : "snow_pine", x, y);
+            else if (edge == 2 && r < 0.18f) m.Prop("props", "snow_pine", x, y);
+        }
+}
+
+// A light for after dark: the pale blue fire the dead keep.
+static void Brazier(MapBuilder& m, const string& id, int x, int y) {
+    if (!m.Clear(x, y)) return;
+    json& o = m.Object(id, "lamp", x, y);
+    o["sprite"] = "assets/props/frost_brazier.png";
+    m.Collision(x - 13, y - 18, 26, 14);
+}
+
+// What is solid of each, measured off its art: `up` is how far above the
+// point it stands on its solid part begins, `deep` how far back it runs.
+static void Solid(MapBuilder& m, const string& art, int x, int y, int w, int up, int deep) {
+    m.Prop("props", art, x, y);
+    m.Collision(x - w / 2, y - up - deep, w, deep);
+}
+// A barrow of the Frostreach: its mound, and the two stones at its door.
+static void Barrow(MapBuilder& m, int x, int y) {
+    Solid(m, "frost_barrow", x, y, 150, 20, 60);
+    for (int s : {-1, 1}) m.Collision(x + s * 42 - 6, y - 12, 12, 6);
+}
+static void Igloo(MapBuilder& m, int x, int y) {
+    Solid(m, "igloo", x, y, 84, 20, 46);
+    m.Collision(x - 21, y - 20, 42, 14);
+}
+
+static void Snowman(MapBuilder& m, int x, int y) {
+    if (!m.Clear(x, y) || !m.Clear(x - 10, y) || !m.Clear(x + 10, y)) return;
+    Solid(m, "snowman", x, y, 20, 4, 11);
+}
+
+// What the dark brings up out of the barrows, and down off the glacier: the
+// frozen dead, by the same rules as everywhere (PlaceNightVisitors).
+static const vector<NightOption> kNights = {
+    {{"crypt_warden"}, 1, 0},
+    {{"rime_revenant"}, 1, 0},
+    {{"revenant", "abyssal_demon"}, 1, 0},
+};
+}   // namespace frost
+
+// --- the Draugr Barrows: the heath of the dead -------------------------------------------
+static void BuildFrostBarrows() {
+    using namespace frost;
+    MapBuilder m("frost_barrows", "The Draugr Barrows", W * CELL, H * CELL);
+    m.Ambient("snow");
+    m.Subtitle("The Frostreach: where the old dead of the mountain were laid");
+    m.Background(206, 214, 224);
+    m.Fog(0.10f, 0.0f, {226, 234, 242});
+    const vector<Exit> exits = {
+        {'E', 28, "ice_spire_peak", "from_frostreach", "from_spire", "Back to the Ice Spire"},
+        {'W', 28, "frost_mere", "from_barrows", "from_mere", "To the Glass Mere"},
+        {'N', 36, "frost_glacier", "from_barrows", "from_glacier", "To the Rimefall Glacier"},
+    };
+    const auto roads = plat::Roads(exits, {36.0f, 30.0f}, 10151u);
+    plat::Frame(m, exits, roads, [](int cx, int cy, float gap) {
+        const float v = Fbm(cx * 0.14f, cy * 0.14f, 10252);
+        return VariantOf(gap > 3.0f && v > 0.64f ? "frozen_turf" : "frost_heath", cx, cy);
+    }, "frost_road");
+    Rim(m, exits, 10353u);
+    m.Spawn("default", (W - 5) * CELL + 16, 28 * CELL + 16);
+
+    // The barrows: long mounds, sealed, with their stones, in two rows either
+    // side of the road north -- and rings of runestones between.
+    const int mounds[][2] = {{14, 10}, {24, 8}, {50, 9}, {60, 13}, {12, 42}, {24, 46}, {52, 44}, {62, 40}};
+    for (const auto& b : mounds) Barrow(m, b[0] * CELL + 16, b[1] * CELL + 16);
+    for (const auto& ring : {std::pair<int, int>{16, 26}, {56, 26}})
+        for (int k = 0; k < 5; ++k) {
+            const float a = k * 6.2831853f / 5.0f + 0.3f;
+            plat::Stand(m, "runestone", static_cast<int>((ring.first + cosf(a) * 3.5f) * CELL) + 16,
+                        static_cast<int>((ring.second + sinf(a) * 2.8f) * CELL) + 16, 26, 10);
+        }
+    PlaceChest(m, "chest_barrows_ring", 16 * CELL + 16, 26 * CELL + 16, "chest_frostreach");
+    Snowman(m, 42 * CELL + 16, 22 * CELL + 16);
+    Snowman(m, 30 * CELL + 16, 36 * CELL + 16);
+    plat::Scatter(roads, 10454u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        for (const auto& b : mounds) if (abs(cx - b[0]) < 4 && abs(cy - b[1]) < 3) return;
+        if (abs(cx - 16) < 5 && abs(cy - 26) < 4) return;
+        if (abs(cx - 56) < 5 && abs(cy - 26) < 4) return;
+        if (r < 0.018f) { plat::Stand(m, "snow_pine", x, y, 20, 8); return; }
+        if (r < 0.026f) { plat::Stand(m, "runestone", x, y, 26, 10); return; }
+        if (r < 0.034f) { plat::Stand(m, "ice_crystal", x, y, 16, 6); return; }
+        if (r < 0.044f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    Brazier(m, "barrows_brazier_w", 16 * CELL, 30 * CELL);
+    Brazier(m, "barrows_brazier_e", 56 * CELL, 30 * CELL);
+    plat::Sign(m, "sign_frost_barrows", (W - 7) * CELL, 25 * CELL, "A stone with a rune cut in it",
+               "THE FROSTREACH\n\nThe mountain's old dead were laid in these mounds with their swords, and they "
+               "do not stay in them. West, the Glass Mere, and the trapper's house in the middle of it. North, the "
+               "glacier and its trolls; past that, the Howe, where the dead have lords.\n\n"
+               "Under it, in charcoal: SIXTY. AND SOMETHING BIG AND WHITE THAT WALKS.");
+
+    plat::Posts(m, roads, 8, 10555u, [&](int cx, int cy, float r) -> Kind {
+        for (const auto& b : mounds) if (abs(cx - b[0]) < 4 && abs(cy - b[1]) < 3) return {};
+        if (r < 0.30f) return {"draugr", 62 + static_cast<int>(r * 100) % 2};
+        if (r < 0.46f) return {"draugr_archer", 64};
+        if (r < 0.64f) return {"ice_troll", 60 + static_cast<int>(r * 100) % 3};
+        if (r < 0.78f) return {"greatwolf", 60 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Glass Mere: a frozen lake, and a house in the middle of it -----------------------
+static void BuildFrostMere() {
+    using namespace frost;
+    MapBuilder m("frost_mere", "The Glass Mere", W * CELL, H * CELL);
+    m.Ambient("snow");
+    m.Subtitle("The Frostreach: the ice bears a walker");
+    m.Background(196, 214, 226);
+    m.Fog(0.12f, 0.4f, {220, 232, 244});
+    const vector<Exit> exits = {
+        {'E', 28, "frost_barrows", "from_mere", "from_barrows", "To the Draugr Barrows"},
+        {'N', 36, "frost_howe", "from_mere", "from_howe", "To the Warlord's Howe"},
+    };
+    // The roads keep to the north and east shores and meet in the north-east;
+    // the lake has the rest.
+    const auto roads = plat::Roads(exits, {58.0f, 11.0f}, 10161u);
+    const float lx = 30.0f, ly = 32.0f, lrx = 21.0f, lry = 16.0f;       // the lake
+    const float ix = 30.0f, iy = 32.0f, irx = 4.6f, iry = 3.6f;         // the islet in it
+    const auto ell = [](float cx, float cy, float x, float y, float rx, float ry) {
+        const float dx = (x - cx) / rx, dy = (y - cy) / ry;
+        return dx * dx + dy * dy;
+    };
+    const auto lake = [&](int cx, int cy) {
+        const float wob = (Fbm(cx * 0.2f, cy * 0.2f, 10262) - 0.5f) * 0.25f;
+        return ell(lx, ly, cx + 0.5f, cy + 0.5f, lrx, lry) < 1.0f + wob && ell(ix, iy, cx + 0.5f, cy + 0.5f, irx, iry) > 1.0f;
+    };
+    const auto islet = [&](int cx, int cy) { return ell(ix, iy, cx + 0.5f, cy + 0.5f, irx, iry) <= 1.0f; };
+    const auto weak = [&](int cx, int cy) { return lake(cx, cy) && Fbm(cx * 0.16f, cy * 0.16f, 10263) > 0.60f; };
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        if (lake(cx, cy)) return VariantOf(weak(cx, cy) ? "lake_ice_dark" : "lake_ice", cx, cy);
+        if (islet(cx, cy)) return VariantOf("rime_stone", cx, cy);
+        const float v = Fbm(cx * 0.15f, cy * 0.15f, 10264);
+        return VariantOf(v > 0.66f ? "frozen_turf" : "snow", cx, cy);
+    }, "frost_road");
+    // The ice: all of the lake, a row at a time, and the dark patches over it
+    // again -- weaker, so they strain under a walker too.
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int pass = 0; pass < 2; ++pass) {
+            int run = -1;
+            for (int cx = 1; cx <= W - 1; ++cx) {
+                const bool in = cx < W - 1 && (pass == 0 ? lake(cx, cy) : weak(cx, cy));
+                if (in && run < 0) run = cx;
+                if (!in && run >= 0) {
+                    m.ThinIce(run * CELL, cy * CELL, (cx - run) * CELL, CELL, pass == 0 ? 0.0f : 0.18f);
+                    run = -1;
+                }
+            }
+        }
+    Rim(m, exits, 10365u);
+    m.Spawn("default", (W - 5) * CELL + 16, 28 * CELL + 16);
+
+    // --- the cabin, on its islet ------------------------------------------------------------
+    const int hx = static_cast<int>(ix * CELL), hy = static_cast<int>((iy + 1.6f) * CELL);
+    // Its walls are 134 across with the log-ends, from 35 to 87 above where it
+    // stands; the door is in the middle of them, its step in front.
+    m.Prop("props", "trapper_cabin", hx, hy);
+    m.Collision(hx - 67, hy - 87, 134, 52);
+    m.Portal(hx - 18, hy - 44, 36, 18, "frost_cabin", "entrance", "Go into the cabin", true);
+    m.Spawn("from_cabin", hx, hy + 22);
+    Solid(m, "woodpile", hx + 100, hy - 30, 55, 5, 14);
+    Solid(m, "pelt_rack", hx - 104, hy - 34, 61, 5, 4);
+    // The trapper's holes in the ice round it, where the fish were.
+    for (const auto& h : {std::pair<int, int>{-190, 60}, {170, 80}, {40, 150}, {-80, 190}})
+        Solid(m, "ice_hole", hx + h.first, hy + h.second, 30, 8, 26);
+
+    // --- the hunters' camp on the west shore, long left ----------------------------------------
+    const int campx = 4 * CELL, campy = 12 * CELL;
+    for (const auto& g : {std::pair<int, int>{0, 0}, {120, -40}, {60, 90}})
+        Igloo(m, campx + 60 + g.first, campy + g.second);
+    {
+        json& fire = m.Object("range_mere_camp", "range", campx + 170, campy + 60);
+        fire["sprite"] = "assets/props/campfire_ring.png";
+        fire["title"]  = "A cold fire, easily lit";
+        m.Collision(campx + 154, campy + 50, 32, 10);
+    }
+    Solid(m, "broken_sled", campx + 230, campy + 10, 54, 13, 14);
+    Snowman(m, campx + 240, campy + 100);
+    Snowman(m, campx + 30, campy + 130);
+    plat::Sign(m, "sign_frost_mere", 54 * CELL, 17 * CELL, "A board nailed to a stake at the water's edge",
+               "THE GLASS MERE\n\nThe ice bears a walker. It does not bear a runner: run on it and it cracks behind "
+               "you, and if you keep running it lets you in. The dark patches are worse; mind them walking too.\n\n"
+               "The house in the middle was Old Harl's. He walked out to it every winter for forty years. Walk.");
+
+    plat::Scatter(roads, 10466u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (lake(cx, cy) || islet(cx, cy)) return;
+        bool shore = false;
+        for (int dy = -2; dy <= 2 && !shore; ++dy)
+            for (int dx = -2; dx <= 2 && !shore; ++dx) shore = lake(cx + dx, cy + dy);
+        if (shore) return;
+        if (cx < 14 && cy > 6 && cy < 20) return;                 // the camp
+        if (r < 0.024f) { plat::Stand(m, "snow_pine", x, y, 20, 8); return; }
+        if (r < 0.032f) { plat::Stand(m, "ice_crystal", x, y, 16, 6); return; }
+        if (r < 0.042f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+
+    // --- who is here: the shores, and the cabin's keepers --------------------------------------
+    // Two draugr bowmen on the islet, who will shoot at anyone coming across
+    // the ice -- and nothing to do about it but walk.
+    for (int s : {-1, 1})
+        m.Enemy("draugr_archer", hx + s * 72, hy + 44, SpawnToShow("draugr_archer", 65), 90.0f, 160.0f);
+    plat::Posts(m, roads, 8, 10567u, [&](int cx, int cy, float r) -> Kind {
+        if (lake(cx, cy) || islet(cx, cy) || lake(cx + 1, cy) || lake(cx - 1, cy)) return {};
+        if (cx < 14 && cy > 6 && cy < 20) return {};
+        if (r < 0.28f) return {"ice_troll", 62 + static_cast<int>(r * 100) % 4};
+        if (r < 0.44f) return {"frostback_troll", 67 + static_cast<int>(r * 100) % 2};
+        if (r < 0.62f) return {"draugr", 62 + static_cast<int>(r * 100) % 3};
+        if (r < 0.76f) return {"greatwolf", 62 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    // The rare thing that walks round the lake, some days: on the shore, all the way round.
+    {
+        vector<std::array<int, 2>> loop;
+        for (int k = 0; k < 16; ++k) {
+            const float a = k * 6.2831853f / 16.0f;
+            loop.push_back({static_cast<int>(lx + cosf(a) * (lrx + 3.5f)), static_cast<int>(ly + sinf(a) * (lry + 3.0f))});
+        }
+        RoamOn(m, {"abominable_snowman"}, 0, 0, 0.15f, loop);
+    }
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !lake(cx, cy) && !islet(cx, cy) && !(cx < 14 && cy > 6 && cy < 20) &&
+               wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Rimefall Glacier: the trolls' ice ----------------------------------------------------
+static void BuildFrostGlacier() {
+    using namespace frost;
+    MapBuilder m("frost_glacier", "The Rimefall Glacier", W * CELL, H * CELL);
+    m.Ambient("snow");
+    m.Subtitle("The Frostreach: the trolls' ice, split with blue");
+    m.Background(214, 232, 242);
+    m.Fog(0.14f, 0.0f, {232, 242, 250});
+    const vector<Exit> exits = {
+        {'S', 36, "frost_barrows", "from_glacier", "from_barrows", "To the Draugr Barrows"},
+        {'W', 28, "frost_howe", "from_glacier", "from_howe", "To the Warlord's Howe"},
+    };
+    const auto roads = plat::Roads(exits, {36.0f, 28.0f}, 10171u);
+    // Crevasses: long cracks of blue across the glacier, nothing crosses; laid
+    // along wandering lines, never over a road.
+    const auto crevasse = [&](int cx, int cy) {
+        if (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4) return false;
+        if (wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) < 3.5f) return false;
+        if (abs(cx - 54) < 9 && abs(cy - 14) < 8) return false;          // the ring of snowmen
+        const float v = Fbm(cx * 0.09f, cy * 0.09f, 10272);
+        return fabsf(v - 0.5f) < 0.022f;
+    };
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        if (crevasse(cx, cy)) return VariantOf("blue_ice", cx, cy);
+        const float v = Fbm(cx * 0.2f, cy * 0.2f, 10273);
+        return VariantOf(v > 0.64f ? "snow" : "glacier_ice", cx, cy);
+    }, "frost_road");
+    for (int cy = 1; cy < H - 1; ++cy)
+        for (int cx = 1; cx < W - 1; ++cx)
+            if (crevasse(cx, cy)) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+    Rim(m, exits, 10375u);
+    m.Spawn("default", 36 * CELL + 16, (H - 4) * CELL + 16);
+
+    // The snowmen nobody built, in a ring on the ice where the white thing sleeps.
+    const int dx = 54, dy = 14;
+    for (int k = 0; k < 7; ++k) {
+        const float a = k * 6.2831853f / 7.0f;
+        Snowman(m, static_cast<int>((dx + cosf(a) * 4.5f) * CELL), static_cast<int>((dy + sinf(a) * 3.5f) * CELL));
+    }
+    PlaceChest(m, "chest_glacier_ring", dx * CELL, dy * CELL, "chest_frostreach");
+    plat::Scatter(roads, 10476u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (crevasse(cx, cy) || crevasse(cx, cy + 1) || crevasse(cx - 1, cy) || crevasse(cx + 1, cy)) return;
+        if (abs(cx - dx) < 7 && abs(cy - dy) < 6) return;
+        if (r < 0.020f) { plat::Stand(m, "ice_spire", x, y, 40, 14); return; }
+        if (r < 0.036f) { plat::Stand(m, "ice_crystal", x, y, 16, 6); return; }
+        if (r < 0.044f) { plat::Stand(m, "snow_pine", x, y, 20, 8); return; }
+        if (r < 0.052f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+    plat::Sign(m, "sign_frost_glacier", 39 * CELL, (H - 5) * CELL, "A troll's thighbone driven into the ice",
+               "THE RIMEFALL GLACIER\n\nTrolls. The big ones grow ice out of their backs, and throw it.\n\n"
+               "Somebody has scratched a tall shape with long arms under it, and a ring round it, and the word: "
+               "RUN.");
+
+    plat::Posts(m, roads, 8, 10577u, [&](int cx, int cy, float r) -> Kind {
+        if (crevasse(cx, cy) || crevasse(cx + 1, cy) || crevasse(cx - 1, cy)) return {};
+        if (abs(cx - dx) < 6 && abs(cy - dy) < 5) return {};
+        if (r < 0.30f) return {"frostback_troll", 67 + static_cast<int>(r * 100) % 4};
+        if (r < 0.52f) return {"ice_troll", 64 + static_cast<int>(r * 100) % 4};
+        if (r < 0.66f) return {"wyvern", 64 + static_cast<int>(r * 100) % 4};
+        if (r < 0.78f) return {"greatwolf", 64 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    // Some days, the white thing: along the trodden ways, since nothing else on
+    // the glacier goes far in a line -- from the west road to the south and back.
+    {
+        const auto& south = roads[0];
+        const auto& west = roads[1];
+        vector<std::array<int, 2>> loop;
+        for (const wold::Pt* p : {&west[1], &west[2], &west[3], &south[2], &south[1], &south[2], &west[3], &west[2]})
+            loop.push_back({static_cast<int>(p->x), static_cast<int>(p->y)});
+        RoamOn(m, {"abominable_snowman"}, 0, 0, 0.2f, loop);
+    }
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !crevasse(cx, cy) && wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Warlord's Howe: where the dead have lords ---------------------------------------------
+static void BuildFrostHowe() {
+    using namespace frost;
+    MapBuilder m("frost_howe", "The Warlord's Howe", W * CELL, H * CELL);
+    m.Ambient("snow");
+    m.Subtitle("The Frostreach: the barrow of the barrow-kings");
+    m.Background(170, 180, 194);
+    m.Fog(0.12f, 0.0f, {206, 216, 228});
+    const vector<Exit> exits = {
+        {'E', 28, "frost_glacier", "from_howe", "from_glacier", "To the Rimefall Glacier"},
+        {'S', 36, "frost_mere", "from_howe", "from_mere", "To the Glass Mere"},
+    };
+    const int hx = 36 * CELL + 16, hy = 17 * CELL;
+    const auto roads = plat::Roads(exits, {36.0f, 26.0f}, 10181u);
+    plat::Frame(m, exits, roads, [&](int cx, int cy, float gap) {
+        (void)gap;
+        const float v = Fbm(cx * 0.16f, cy * 0.16f, 10282);
+        return VariantOf(v > 0.62f ? "rime_stone" : (v > 0.56f ? "frozen_turf" : "snow"), cx, cy);
+    }, "frost_road");
+    // The road on up to the Howe's door.
+    for (int cy = 17; cy <= 26; ++cy)
+        for (int cx = 35; cx <= 37; ++cx) m.Ground(VariantOf("frost_road", cx, cy), cx * CELL, cy * CELL, CELL);
+    Rim(m, exits, 10385u);
+    m.Spawn("default", (W - 5) * CELL + 16, 28 * CELL + 16);
+
+    // The Howe: its mound (307 across, from 61 to 199 above where it stands),
+    // the dry-stone walls either side of its door, the standing stones and
+    // braziers that flank the steps -- and the doorway, 58 wide in the middle,
+    // its threshold 37 up at the top of the steps.
+    m.Prop("props", "howe_hall", hx, hy);
+    m.Collision(hx - 153, hy - 199, 306, 138);
+    for (int s : {-1, 1}) {
+        m.Collision(s < 0 ? hx - 143 : hx + 64, hy - 77, 79, 22);
+        m.Collision(hx + s * 59 - 7, hy - 52, 14, 8);
+        m.Collision(hx + s * 67 - 12, hy - 22, 24, 18);
+    }
+    m.Portal(hx - 24, hy - 52, 48, 22, "frost_howe_hall", "entrance", "Go down into the Howe", true);
+    m.Danger(72);
+    m.Spawn("from_howe_hall", hx, hy + 34);
+    // The way up to it: runestones either side, pale fires between.
+    for (int k = 0; k < 4; ++k)
+        for (int s : {-1, 1}) {
+            const int y = (19 + k * 2) * CELL;
+            if (k % 2 == 0) plat::Stand(m, "runestone", hx + s * 96, y, 26, 10);
+            else Brazier(m, "howe_brazier_" + std::to_string(k) + (s < 0 ? "w" : "e"), hx + s * 96, y);
+        }
+    const int mounds[][2] = {{12, 10}, {60, 10}, {10, 44}, {60, 46}, {20, 30}};
+    for (const auto& b : mounds) Barrow(m, b[0] * CELL + 16, b[1] * CELL + 16);
+    PlaceChest(m, "chest_howe_yard", (36 + 7) * CELL, 22 * CELL, "chest_frostreach");
+    plat::Sign(m, "sign_frost_howe", 39 * CELL, 44 * CELL, "A spear stood up with a helm on it",
+               "THE WARLORD'S HOWE\n\nThe barrow of the barrow-kings. The draugr below are theirs, and so are the "
+               "ones in armour you will not get through quickly. Inside, their hall, and the eldest of them on his "
+               "seat.\n\nSeventy, and more.");
+    plat::Scatter(roads, 10486u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
+        (void)gap;
+        if (abs(cx - 36) < 9 && cy < 28) return;
+        for (const auto& b : mounds) if (abs(cx - b[0]) < 4 && abs(cy - b[1]) < 3) return;
+        if (r < 0.020f) { plat::Stand(m, "snow_pine", x, y, 20, 8); return; }
+        if (r < 0.030f) { plat::Stand(m, "runestone", x, y, 26, 10); return; }
+        if (r < 0.040f) m.Prop("objects", kSmallRocks[static_cast<int>(r * 1000) % 4], x, y);
+    });
+
+    // Warlords before the door, and their dead about the barrows.
+    const int guards[][3] = {{31, 21, 71}, {41, 21, 72}, {33, 25, 73}};
+    for (const auto& g : guards)
+        m.Enemy("undead_warlord", g[0] * CELL + 16, g[1] * CELL + 16, SpawnToShow("undead_warlord", g[2]), 120.0f, 220.0f);
+    plat::Posts(m, roads, 8, 10587u, [&](int cx, int cy, float r) -> Kind {
+        if (abs(cx - 36) < 9 && cy < 28) return {};
+        for (const auto& b : mounds) if (abs(cx - b[0]) < 4 && abs(cy - b[1]) < 3) return {};
+        if (r < 0.26f) return {"undead_warlord", 71 + static_cast<int>(r * 100) % 3};
+        if (r < 0.46f) return {"draugr", 68 + static_cast<int>(r * 100) % 3};
+        if (r < 0.62f) return {"draugr_archer", 68 + static_cast<int>(r * 100) % 3};
+        if (r < 0.76f) return {"frostback_troll", 68 + static_cast<int>(r * 100) % 3};
+        return {};
+    });
+    PlaceRoamers(m);
+    PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
+        return !(abs(cx - 36) < 10 && cy < 29) && wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
+    }, 10);
+    m.Write("maps");
+}
+
+// --- the Howe itself ---------------------------------------------------------------------------
+static void BuildFrostHoweHall() {
+    const int CELL = 32, cols = 26, rows = 30, back = 3;
+    MapBuilder m("frost_howe_hall", "The Howe", cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Subtitle("Under the Warlord's Howe");
+    m.Background(10, 12, 16);
+    const int door0 = 12, door1 = 13;
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            const bool backwall = cy < back, front = cy == rows - 1, west = cx == 0, east = cx == cols - 1;
+            const bool gap = front && cx >= door0 && cx <= door1;
+            const bool solid = (backwall || front || west || east) && !gap;
+            string tile;
+            if (solid) tile = backwall && !west && !east ? (cy == back - 1 ? VariantOf("howe_wall", cx, cy)
+                                                                            : string("howe_wallface"))
+                                                         : string("howe_walltop");
+            else tile = VariantOf((cx >= 11 && cx <= 14) ? "howe_floor_dark" : "howe_floor", cx, cy);
+            m.Ground(tile, cx * CELL, cy * CELL, CELL);
+            if (solid) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+    m.Portal(door0 * CELL, rows * CELL - 24, (door1 - door0 + 1) * CELL, 24, "frost_howe", "from_howe_hall",
+             "Climb out of the Howe", false);
+    m.Spawn("entrance", 13 * CELL, (rows - 3) * CELL);
+    m.Spawn("default",  13 * CELL, (rows - 3) * CELL);
+    // The barrow-kings laid down both sides of the hall, and the eldest's seat at its head.
+    for (int cy : {11, 16, 21})
+        for (int cx : {5, 21}) {
+            frost::Solid(m, "stone_coffin", cx * CELL, cy * CELL + 16, 76, 6, 25);
+        }
+    frost::Solid(m, "draugr_throne", 13 * CELL, 6 * CELL, 86, 11, 32);
+    int lamp = 0;
+    for (int cy : {9, 14, 19, 24})
+        for (int cx : {2, 24}) {
+            json& o = m.Object("howe_brazier_" + std::to_string(lamp++), "lamp", cx * CELL, cy * CELL + 16);
+            o["sprite"] = "assets/props/frost_brazier.png";
+            m.Collision(cx * CELL - 12, cy * CELL + 8, 24, 8);
+        }
+    for (int cx : {7, 19}) {
+        m.Prop("props", "runestone", cx * CELL, 5 * CELL);
+        m.Collision(cx * CELL - 13, 5 * CELL - 10, 26, 10);
+    }
+    PlaceChest(m, "chest_howe", 21 * CELL, 5 * CELL, "chest_howe");
+    // The eldest on his seat's step, his warlords down the hall, and their dead.
+    const int hall[][4] = {{13, 8, 75, 0}, {9, 13, 73, 0}, {17, 13, 73, 0}, {9, 19, 72, 1}, {17, 19, 72, 2},
+                           {13, 23, 72, 1}};
+    for (const auto& h : hall) {
+        const char* type = h[3] == 0 ? "undead_warlord" : (h[3] == 1 ? "draugr" : "draugr_archer");
+        m.Enemy(type, h[0] * CELL, h[1] * CELL, SpawnToShow(type, h[2]), 150.0f, 200.0f);
+    }
+    m.Write("maps");
+}
+
+// --- the trapper's cabin -------------------------------------------------------------------
+// Old Harl's: a hearth, a bed, a table, his pelts, his journal -- and the
+// chest he kept everything worth keeping in, for whoever walked out to it.
+static void BuildFrostCabin() {
+    const int CELL = 32, cols = 14, rows = 11;
+    MapBuilder m("frost_cabin", "Old Harl's Cabin", cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Subtitle("Out on the ice, and warm");
+    m.Background(20, 16, 14);
+    RoomShell(m, cols, rows, CELL, "plank_floor", "log_wall", cols / 2 - 1, cols / 2);
+    const int dx = (cols / 2) * CELL;
+    m.Spawn("entrance", dx, (rows - 2) * CELL);
+    m.Spawn("default",  dx, (rows - 2) * CELL);
+    m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "frost_mere", "from_cabin", "Back out onto the ice", false);
+    {
+        json& o = m.Object("range_harl", "range", 3 * CELL, 3 * CELL + 10);
+        o["sprite"] = "assets/props/cottage_hearth.png";
+        o["title"]  = "Harl's hearth";
+        m.Collision(3 * CELL - 32, 3 * CELL - 16, 64, 26);
+    }
+    PlaceBed(m, "bed_harl", "bed_single", 11 * CELL + 8, 5 * CELL, 30, 36);
+    m.Prop("props", "table_round", 6 * CELL, 6 * CELL + 8);
+    m.Collision(6 * CELL - 20, 6 * CELL - 4, 40, 12);
+    m.Prop("props", "tavern_chair", 4 * CELL + 16, 6 * CELL + 10);
+    frost::Solid(m, "pelt_rack", 8 * CELL, 3 * CELL + 10, 61, 5, 4);
+    PlaceChest(m, "chest_trapper", 11 * CELL + 8, 8 * CELL, "chest_trapper");
+    {
+        json& o = m.Object("journal_harl", "sign", 3 * CELL + 16, 8 * CELL);
+        o["sprite"] = "assets/props/lectern.png";
+        o["title"]  = "Harl's journal";
+        o["text"]   = "Fortieth winter on the Mere.\n\nThe dead are up on the heath again, and the Howe's lords walk "
+                      "further every year. The trolls took the east shore. The white one came round the lake twice "
+                      "this month; it does not come onto the ice. Nothing does, that knows it.\n\nThe ice will "
+                      "carry anyone who walks. I have told every fool who ran at it, and pulled out most of them.\n\n"
+                      "What I have is in the chest. I will not need it where I am going.";
+        m.Collision(3 * CELL + 2, 8 * CELL - 10, 28, 10);
+    }
+    m.Write("maps");
+}
+
+static void BuildFrostreach() {
+    BuildFrostBarrows();
+    BuildFrostMere();
+    BuildFrostGlacier();
+    BuildFrostHowe();
+    BuildFrostHoweHall();
+    BuildFrostCabin();
+}
+
 // --- main --------------------------------------------------------------------
 
 int main() {
@@ -8787,6 +9911,8 @@ int main() {
     BuildBrimstonePalace();
     BuildPurgatoryPlateau();
     BuildBayou();
+    BuildHexmire();
+    BuildFrostreach();
 
     BuildDungeon("dungeon_emberfell_1", "Emberfell Mine, Upper Workings",
                  1001u, 60, 46, 9,

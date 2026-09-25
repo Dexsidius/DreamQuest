@@ -137,6 +137,11 @@ int Enemy::PostLevel(const EnemyDef& def, const EnemySpawnDef& spawn) {
     return spawn.shown > 0 ? LevelToShow(def, spawn.shown) : spawn.level;
 }
 
+float Enemy::Toughness(int shown) {
+    const float t = std::clamp(static_cast<float>(shown - 1) / static_cast<float>(TOUGH_FULL - 1), 0.0f, 1.0f);
+    return TOUGH_LOW + (TOUGH_HIGH - TOUGH_LOW) * t;
+}
+
 void Enemy::StartRoute(int at) {
     if (route.empty()) return;
     const int n = static_cast<int>(route.size());
@@ -189,9 +194,10 @@ void Enemy::Init(const EnemyDef* d, const EnemySpawnDef& spawn, const GameContex
 
     if (def) {
         // Levels scale the stat block, so the same monster can staff an early
-        // field and a deep dungeon floor.
+        // field and a deep dungeon floor; and every monster is tougher than
+        // its block by how strong it shows (Toughness).
         const float s = 1.0f + 0.12f * (level - 1);
-        max_hp = std::max(1, static_cast<int>(def->hp * s));
+        max_hp = std::max(1, static_cast<int>(def->hp * s * Toughness(ShownLevelOf(*def, level))));
         foot_box = def->foot_box;
         body_box = def->body_box;
         if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(def->sprite));

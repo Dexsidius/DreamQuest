@@ -870,5 +870,165 @@
           "tick": 0.55
       },
       "impact_size": 9
+  },
+  "blowgun_dart": {
+      "sprite": "assets/objects/arrow.png",
+      "speed": 440,
+      "life": 1.0,
+      "radius": 4,
+      "scale": 0.7,
+      "sprite_angle": -90,
+      "knockback": 10,
+      "homing": 6.0,
+      "element": "none",
+      "tint": [
+          170,
+          220,
+          120
+      ],
+      "impact_size": 4,
+      "status": {
+          "id": "poison",
+          "chance": 0.4
+      }
+  },
+  "voodoo_pins": {
+      "sprite": "assets/effects/hex_rot.png",
+      "tail": {
+          "sprite": "assets/effects/hex_rot_wake.png",
+          "frames": 8,
+          "pivot": [
+              18,
+              6
+          ]
+      },
+      "frames": 8,
+      "fps": 12,
+      "upright": true,
+      "tint": [
+          255,
+          150,
+          150
+      ],
+      "trail_color": [
+          210,
+          60,
+          70
+      ],
+      "speed": 260,
+      "life": 1.6,
+      "radius": 7,
+      "homing": 1.5,
+      "knockback": 18,
+      "element": "earth",
+      "impact_size": 8,
+      "glow": 30,
+      "status": {
+          "id": "bleed",
+          "chance": 0.45
+      }
+  },
+  "priest_hex": {
+      "sprite": "assets/effects/hex_rot.png",
+      "tail": {
+          "sprite": "assets/effects/hex_rot_wake.png",
+          "frames": 8,
+          "pivot": [
+              18,
+              6
+          ]
+      },
+      "frames": 8,
+      "fps": 12,
+      "upright": true,
+      "tint": [
+          220,
+          170,
+          255
+      ],
+      "trail_color": [
+          150,
+          60,
+          200
+      ],
+      "speed": 300,
+      "life": 1.6,
+      "radius": 7,
+      "homing": 1.8,
+      "knockback": 40,
+      "element": "earth",
+      "impact_size": 8,
+      "glow": 44,
+      "status": {
+          "id": "poison",
+          "chance": 0.5
+      },
+      "scale": 1.5
+  },
+  "frost_arrow": {
+      "sprite": "assets/objects/arrow.png",
+      "speed": 420,
+      "life": 1.5,
+      "radius": 4,
+      "scale": 0.6,
+      "sprite_angle": -90,
+      "knockback": 26,
+      "homing": 6.0,
+      "element": "water",
+      "tint": [
+          190,
+          230,
+          255
+      ],
+      "impact_size": 4,
+      "status": {
+          "id": "chill",
+          "chance": 0.35
+      }
+  },
+  "ice_chunk": {
+      "status": {
+          "id": "concussed",
+          "chance": 0.3
+      },
+      "sprite": "assets/effects/rock_shard_greater.png",
+      "frames": 8,
+      "fps": 12,
+      "upright": true,
+      "tint": [
+          196,
+          230,
+          255
+      ],
+      "speed": 240,
+      "life": 1.5,
+      "radius": 9,
+      "knockback": 110,
+      "element": "water",
+      "impact_size": 11,
+      "homing": 1.0
+  },
+  "yeti_snowball": {
+      "status": {
+          "id": "chill",
+          "chance": 0.55
+      },
+      "sprite": "assets/effects/rock_shard_greater.png",
+      "frames": 8,
+      "fps": 12,
+      "upright": true,
+      "tint": [
+          240,
+          248,
+          255
+      ],
+      "speed": 260,
+      "life": 1.5,
+      "radius": 13,
+      "knockback": 140,
+      "element": "water",
+      "impact_size": 11,
+      "homing": 1.0,
+      "scale": 1.4
   }
 }

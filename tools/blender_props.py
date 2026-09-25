@@ -5537,6 +5537,17 @@ import blender_stronghold  # noqa: E402
 
 PROPS.update(blender_stronghold.PROPS)
 
+# And the Hexmire's, north of the Bayou -- the cult's gateway, stockade and
+# temple, the Shellbacks' huts, the cypress and the High Priest's totem.
+import blender_hexmire_props  # noqa: E402
+
+PROPS.update(blender_hexmire_props.PROPS)
+
+# And the Frostreach's, off the Ice Spire -- the trapper's cabin, the barrows and the Howe.
+import blender_frostreach_props  # noqa: E402
+
+PROPS.update(blender_frostreach_props.PROPS)
+
 
 def main():
     only = None

@@ -21,9 +21,16 @@ public:
     // and under the HUD.
     void Render(SDL_Renderer* r, const Camera& cam) const;
 
+    // Flurries, on the mountain: every so often the wind gets up for a few
+    // seconds -- the snow driven sideways, streaks of it low over the ground,
+    // the view gone white round the edges -- and then drops again. 0 in the
+    // calm, 1 at the height of a gust.
+    float Gust() const { return gust; }
+    static constexpr float GUST_RISE = 1.5f, GUST_FALL = 2.0f;
+
 private:
     enum class Kind { None, Field, Town, Forest, Grove, Dungeon, Dream, Snow, Ash };
-    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP, SNOW, EMBER };
+    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP, SNOW, EMBER, FLURRY };
 
     struct Mote {
         float x = 0, y = 0;          // world position
@@ -41,4 +48,5 @@ private:
     vector<Mote> motes;
     std::mt19937 rng{20260913u};
     bool seeded = false;
+    float gust = 0.0f, gust_wait = 7.0f, gust_age = -1.0f, gust_len = 0.0f;
 };

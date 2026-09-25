@@ -12,6 +12,26 @@
                                        "w":  16,
                                        "h":  16
                                    },
+                   "tiles/blackwater":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/blackwater_1":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/blackwater_2":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/blue_ice":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/blue_ice_1":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
                    "tiles/bog_water":  {
                                            "w":  16,
                                            "h":  16
@@ -144,6 +164,18 @@
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/cypress_litter":  {
+                                                "w":  16,
+                                                "h":  16
+                                            },
+                   "tiles/cypress_litter_1":  {
+                                                  "w":  16,
+                                                  "h":  16
+                                              },
+                   "tiles/cypress_litter_2":  {
+                                                  "w":  16,
+                                                  "h":  16
+                                              },
                    "tiles/dirt":  {
                                       "w":  16,
                                       "h":  16
@@ -164,6 +196,18 @@
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/drowned_loam":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/drowned_loam_1":  {
+                                                "w":  16,
+                                                "h":  16
+                                            },
+                   "tiles/drowned_loam_2":  {
+                                                "w":  16,
+                                                "h":  16
+                                            },
                    "tiles/dungeon_floor":  {
                                                "w":  32,
                                                "h":  32
@@ -180,6 +224,18 @@
                                               "w":  32,
                                               "h":  32
                                           },
+                   "tiles/fen_sedge":  {
+                                           "w":  16,
+                                           "h":  16
+                                       },
+                   "tiles/fen_sedge_1":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/fen_sedge_2":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
                    "tiles/forge_brick":  {
                                              "w":  32,
                                              "h":  32
@@ -204,6 +260,26 @@
                                               "w":  32,
                                               "h":  32
                                           },
+                   "tiles/frost_heath":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/frost_heath_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/frost_heath_2":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/frost_road":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/frost_road_1":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
                    "tiles/frost_rock":  {
                                             "w":  16,
                                             "h":  16
@@ -212,6 +288,26 @@
                                               "w":  16,
                                               "h":  16
                                           },
+                   "tiles/frozen_turf":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/frozen_turf_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/glacier_ice":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/glacier_ice_1":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/glacier_ice_2":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
                    "tiles/grass":  {
                                        "w":  16,
                                        "h":  16
@@ -304,6 +400,62 @@
                                            "w":  32,
                                            "h":  32
                                        },
+                   "tiles/hex_clay":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/hex_clay_1":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/hex_clay_2":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/hex_road":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/hex_road_1":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/howe_floor":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
+                   "tiles/howe_floor_1":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/howe_floor_2":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/howe_floor_dark":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/howe_floor_dark_1":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
+                   "tiles/howe_wall":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
+                   "tiles/howe_wall_1":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/howe_wallface":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/howe_walltop":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
                    "tiles/ice":  {
                                      "w":  16,
                                      "h":  16
@@ -352,6 +504,38 @@
                                               "w":  32,
                                               "h":  32
                                           },
+                   "tiles/lagoon":  {
+                                        "w":  16,
+                                        "h":  16
+                                    },
+                   "tiles/lagoon_1":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/lagoon_2":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/lake_ice":  {
+                                          "w":  16,
+                                          "h":  16
+                                      },
+                   "tiles/lake_ice_1":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/lake_ice_2":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/lake_ice_dark":  {
+                                               "w":  16,
+                                               "h":  16
+                                           },
+                   "tiles/lake_ice_dark_1":  {
+                                                 "w":  16,
+                                                 "h":  16
+                                             },
                    "tiles/lava":  {
                                       "w":  16,
                                       "h":  16
@@ -360,6 +544,10 @@
                                         "w":  16,
                                         "h":  16
                                     },
+                   "tiles/log_wall":  {
+                                          "w":  32,
+                                          "h":  32
+                                      },
                    "tiles/marsh_dark":  {
                                             "w":  16,
                                             "h":  16
@@ -504,6 +692,18 @@
                                                 "w":  16,
                                                 "h":  16
                                             },
+                   "tiles/rime_stone":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/rime_stone_1":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/rime_stone_2":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
                    "tiles/road":  {
                                       "w":  32,
                                       "h":  32
@@ -536,6 +736,42 @@
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/sanctum_floor":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/sanctum_floor_1":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/sanctum_floor_2":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
+                   "tiles/sanctum_floor_dark":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
+                   "tiles/sanctum_floor_dark_1":  {
+                                                      "w":  32,
+                                                      "h":  32
+                                                  },
+                   "tiles/sanctum_wall":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/sanctum_wall_1":  {
+                                                "w":  32,
+                                                "h":  32
+                                            },
+                   "tiles/sanctum_wallface":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "tiles/sanctum_walltop":  {
+                                                 "w":  32,
+                                                 "h":  32
+                                             },
                    "tiles/sand":  {
                                       "w":  16,
                                       "h":  16
@@ -560,6 +796,18 @@
                                          "w":  16,
                                          "h":  16
                                      },
+                   "tiles/shell_sand":  {
+                                            "w":  16,
+                                            "h":  16
+                                        },
+                   "tiles/shell_sand_1":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/shell_sand_2":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
                    "tiles/snow":  {
                                       "w":  16,
                                       "h":  16
@@ -609,6 +857,26 @@
                                              "h":  16
                                          },
                    "tiles/swamp_mud_2":  {
+                                             "w":  16,
+                                             "h":  16
+                                         },
+                   "tiles/temple_earth":  {
+                                              "w":  16,
+                                              "h":  16
+                                          },
+                   "tiles/temple_earth_1":  {
+                                                "w":  16,
+                                                "h":  16
+                                            },
+                   "tiles/temple_earth_2":  {
+                                                "w":  16,
+                                                "h":  16
+                                            },
+                   "tiles/tide_flat":  {
+                                           "w":  16,
+                                           "h":  16
+                                       },
+                   "tiles/tide_flat_1":  {
                                              "w":  16,
                                              "h":  16
                                          },
@@ -1548,9 +1816,21 @@
                                               "w":  72,
                                               "h":  72
                                           },
+                   "props/bottle_tree":  {
+                                             "w":  124,
+                                             "h":  124
+                                         },
+                   "props/broken_sled":  {
+                                             "w":  72,
+                                             "h":  72
+                                         },
                    "props/campfire_ring":  {
                                                "w":  48,
                                                "h":  48
+                                           },
+                   "props/candle_shrine":  {
+                                               "w":  52,
+                                               "h":  52
                                            },
                    "props/candlestand":  {
                                              "w":  64,
@@ -1672,6 +1952,14 @@
                                                "w":  80,
                                                "h":  80
                                            },
+                   "props/cypress_knees":  {
+                                               "w":  48,
+                                               "h":  48
+                                           },
+                   "props/cypress_tree":  {
+                                              "w":  186,
+                                              "h":  186
+                                          },
                    "props/demon_statue":  {
                                               "w":  96,
                                               "h":  96
@@ -1688,6 +1976,10 @@
                                               "w":  180,
                                               "h":  180
                                           },
+                   "props/draugr_throne":  {
+                                               "w":  128,
+                                               "h":  128
+                                           },
                    "props/drawbridge":  {
                                             "w":  128,
                                             "h":  128
@@ -1704,6 +1996,10 @@
                                               "w":  124,
                                               "h":  124
                                           },
+                   "props/driftwood":  {
+                                           "w":  84,
+                                           "h":  84
+                                       },
                    "props/dungeon_stairs_down":  {
                                                      "w":  80,
                                                      "h":  80
@@ -1728,10 +2024,22 @@
                                             "w":  56,
                                             "h":  56
                                         },
+                   "props/fetish_pole":  {
+                                             "w":  128,
+                                             "h":  128
+                                         },
                    "props/forge":  {
                                        "w":  96,
                                        "h":  96
                                    },
+                   "props/frost_barrow":  {
+                                              "w":  176,
+                                              "h":  176
+                                          },
+                   "props/frost_brazier":  {
+                                               "w":  64,
+                                               "h":  64
+                                           },
                    "props/gate_tower":  {
                                             "w":  104,
                                             "h":  104
@@ -1860,6 +2168,26 @@
                                                    "w":  168,
                                                    "h":  168
                                                },
+                   "props/hex_altar":  {
+                                           "w":  104,
+                                           "h":  104
+                                       },
+                   "props/hex_drum":  {
+                                          "w":  46,
+                                          "h":  46
+                                      },
+                   "props/hex_gateway":  {
+                                             "w":  230,
+                                             "h":  230
+                                         },
+                   "props/hex_lantern":  {
+                                             "w":  84,
+                                             "h":  84
+                                         },
+                   "props/hex_temple":  {
+                                            "w":  384,
+                                            "h":  384
+                                        },
                    "props/high_chair":  {
                                             "w":  48,
                                             "h":  48
@@ -1868,14 +2196,26 @@
                                                  "w":  48,
                                                  "h":  48
                                              },
+                   "props/howe_hall":  {
+                                           "w":  352,
+                                           "h":  352
+                                       },
                    "props/ice_crystal":  {
                                              "w":  40,
                                              "h":  40
                                          },
+                   "props/ice_hole":  {
+                                          "w":  48,
+                                          "h":  48
+                                      },
                    "props/ice_spire":  {
                                            "w":  112,
                                            "h":  112
                                        },
+                   "props/igloo":  {
+                                       "w":  128,
+                                       "h":  128
+                                   },
                    "props/ingot_crate":  {
                                              "w":  44,
                                              "h":  44
@@ -2036,9 +2376,17 @@
                                                "w":  64,
                                                "h":  64
                                            },
+                   "props/pelt_rack":  {
+                                           "w":  72,
+                                           "h":  72
+                                       },
                    "props/pipe_organ":  {
                                             "w":  208,
                                             "h":  208
+                                        },
+                   "props/poto_mitan":  {
+                                            "w":  132,
+                                            "h":  132
                                         },
                    "props/purgatory_arch":  {
                                                 "w":  276,
@@ -2068,6 +2416,10 @@
                                      "w":  88,
                                      "h":  88
                                  },
+                   "props/runestone":  {
+                                           "w":  72,
+                                           "h":  72
+                                       },
                    "props/salt_pillar":  {
                                              "w":  96,
                                              "h":  96
@@ -2076,6 +2428,14 @@
                                          "w":  144,
                                          "h":  144
                                      },
+                   "props/shell_midden":  {
+                                              "w":  60,
+                                              "h":  60
+                                          },
+                   "props/shellback_hut":  {
+                                               "w":  160,
+                                               "h":  160
+                                           },
                    "props/shop_counter":  {
                                               "w":  96,
                                               "h":  96
@@ -2088,6 +2448,10 @@
                                            "w":  80,
                                            "h":  80
                                        },
+                   "props/snowman":  {
+                                         "w":  56,
+                                         "h":  56
+                                     },
                    "props/soul_brazier":  {
                                               "w":  70,
                                               "h":  70
@@ -2116,10 +2480,26 @@
                                             "w":  90,
                                             "h":  90
                                         },
+                   "props/stockade_gate":  {
+                                               "w":  220,
+                                               "h":  220
+                                           },
+                   "props/stockade_wall":  {
+                                               "w":  144,
+                                               "h":  144
+                                           },
+                   "props/stockade_wall_v":  {
+                                                 "w":  96,
+                                                 "h":  96
+                                             },
                    "props/stone_bench":  {
                                              "w":  56,
                                              "h":  56
                                          },
+                   "props/stone_coffin":  {
+                                              "w":  96,
+                                              "h":  96
+                                          },
                    "props/strongbox":  {
                                            "w":  44,
                                            "h":  44
@@ -2204,6 +2584,10 @@
                                               "w":  96,
                                               "h":  96
                                           },
+                   "props/totem_abominable":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
                    "props/totem_barrow_wight":  {
                                                     "w":  32,
                                                     "h":  32
@@ -2236,6 +2620,10 @@
                                                     "w":  32,
                                                     "h":  32
                                                 },
+                   "props/totem_hex_priest":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
                    "props/totem_lizardman_chief":  {
                                                        "w":  32,
                                                        "h":  32
@@ -2276,6 +2664,10 @@
                                                 "w":  64,
                                                 "h":  64
                                             },
+                   "props/trapper_cabin":  {
+                                               "w":  224,
+                                               "h":  224
+                                           },
                    "props/travel_chest":  {
                                               "w":  40,
                                               "h":  40
@@ -2315,6 +2707,10 @@
                    "props/well_dry":  {
                                           "w":  56,
                                           "h":  56
+                                      },
+                   "props/woodpile":  {
+                                          "w":  64,
+                                          "h":  64
                                       },
                    "props/workbench":  {
                                            "w":  80,

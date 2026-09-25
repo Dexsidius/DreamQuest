@@ -226,6 +226,16 @@ bool Map::Load(const string& path) {
             hazards.push_back(hz);
         }
 
+    if (dq.contains("thin_ice"))
+        for (const auto& t : dq["thin_ice"]) {
+            ThinIce ice;
+            const json& r = t.value("rect", json::array());
+            if (r.is_array() && r.size() >= 4)
+                ice.rect = {r[0].get<float>(), r[1].get<float>(), r[2].get<float>(), r[3].get<float>()};
+            ice.weak = t.value("weak", 0.0f);
+            thin_ice.push_back(ice);
+        }
+
     // ---- spawn points --------------------------------------------------------
     if (dq.contains("spawns"))
         for (auto it = dq["spawns"].begin(); it != dq["spawns"].end(); ++it) {
@@ -930,6 +940,14 @@ const Hazard* Map::HazardAt(const SDL_FRect& box) const {
             box.y < h.rect.y + h.rect.h && h.rect.y < box.y + box.h)
             return &h;
     return nullptr;
+}
+
+const ThinIce* Map::ThinIceAt(float x, float y) const {
+    const ThinIce* found = nullptr;
+    for (const ThinIce& t : thin_ice)
+        if (x >= t.rect.x && x < t.rect.x + t.rect.w && y >= t.rect.y && y < t.rect.y + t.rect.h)
+            if (!found || t.weak > found->weak) found = &t;
+    return found;
 }
 
 const Portal* Map::PortalAt(const SDL_FRect& box) const {

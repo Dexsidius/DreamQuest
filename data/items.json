@@ -2412,5 +2412,21 @@
   "value": 0,
   "icon": "assets/props/totem_cerberus.png",
   "keep": true
+ },
+ "totem_hex_priest": {
+  "name": "Totem of the High Priest",
+  "desc": "A stake of black cypress with a poppet of sacking bound to it, its heart stuck through with a pin for every time you came through his sanctum and left him on its floor. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: The Priest's Poppet.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_hex_priest.png",
+  "keep": true
+ },
+ "totem_abominable": {
+  "name": "Totem of the Abominable Snowman",
+  "desc": "A post of blue ice that does not melt, a tuft of long white fur frozen into the top of it. Fifteen times you found the thing in the snow and fifteen times you walked away. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: Pelt of the Abominable.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/props/totem_abominable.png",
+  "keep": true
  }
 }

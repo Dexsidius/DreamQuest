@@ -5216,5 +5216,765 @@
         "weight": 16
       }
     ]
+  },
+  "hex_cultist": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          150,
+          300
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 24
+      },
+      {
+        "item": "orichalcum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "voodoo_shaman": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          180,
+          340
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 20
+      },
+      {
+        "item": "mana_tonic",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "diamond_ingot",
+        "weight": 12
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 28
+      }
+    ]
+  },
+  "hex_zealot": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          200,
+          380
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "diamond_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 20
+      },
+      {
+        "item": "platinum_ore",
+        "weight": 12
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 28
+      }
+    ]
+  },
+  "shellback": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          160,
+          320
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 26
+      },
+      {
+        "item": "diamond_ingot",
+        "weight": 14
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 16
+      },
+      {
+        "table": "rare_drops",
+        "weight": 5
+      },
+      {
+        "item": "nothing",
+        "weight": 28
+      }
+    ]
+  },
+  "shellback_elder": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          240,
+          420
+        ]
+      },
+      {
+        "item": "diamond_ore",
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 22
+      },
+      {
+        "item": "platinum_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 26
+      }
+    ]
+  },
+  "hex_priest": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          2200,
+          3600
+        ]
+      },
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          2,
+          3
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "diamond_greatsword",
+        "weight": 8
+      },
+      {
+        "item": "diamond_body",
+        "weight": 8
+      },
+      {
+        "item": "diamond_helm",
+        "weight": 8
+      },
+      {
+        "item": "diamond_legs",
+        "weight": 8
+      },
+      {
+        "item": "diamond_staff",
+        "weight": 8
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 20
+      },
+      {
+        "item": "mana_tonic",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 24
+      }
+    ]
+  },
+  "chest_hexmire": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1200,
+          2200
+        ]
+      },
+      {
+        "item": "diamond_ore",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 22
+      },
+      {
+        "item": "platinum_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "mana_tonic",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 16
+      },
+      {
+        "item": "diamond_sword",
+        "weight": 8
+      },
+      {
+        "item": "diamond_legs",
+        "weight": 8
+      },
+      {
+        "item": "platinum_bar",
+        "weight": 4
+      }
+    ]
+  },
+  "chest_sanctum": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          2400,
+          4000
+        ]
+      },
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "diamond_body",
+        "weight": 12
+      },
+      {
+        "item": "diamond_helm",
+        "weight": 12
+      },
+      {
+        "item": "diamond_greatsword",
+        "weight": 12
+      },
+      {
+        "item": "diamond_staff",
+        "weight": 12
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          2,
+          4
+        ],
+        "weight": 18
+      },
+      {
+        "item": "dream_shard",
+        "qty": [
+          2,
+          5
+        ],
+        "weight": 12
+      }
+    ]
+  },
+  "draugr": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          180,
+          340
+        ]
+      },
+      {
+        "item": "bones"
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 24
+      },
+      {
+        "item": "diamond_ingot",
+        "weight": 16
+      },
+      {
+        "item": "herbal_tonic",
+        "weight": 14
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "undead_warlord": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          320,
+          560
+        ]
+      },
+      {
+        "item": "platinum_ore",
+        "qty": [
+          1,
+          2
+        ]
+      }
+    ],
+    "rolls": 2,
+    "table": [
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 20
+      },
+      {
+        "item": "demonite_ore",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 14
+      },
+      {
+        "item": "platinum_greataxe",
+        "weight": 4
+      },
+      {
+        "item": "platinum_helm",
+        "weight": 4
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 10
+      },
+      {
+        "table": "rare_drops",
+        "weight": 8
+      },
+      {
+        "item": "nothing",
+        "weight": 30
+      }
+    ]
+  },
+  "frostback_troll": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          240,
+          420
+        ]
+      }
+    ],
+    "rolls": 1,
+    "table": [
+      {
+        "item": "platinum_ore",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 26
+      },
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "wyvern_scale",
+        "weight": 12
+      },
+      {
+        "table": "rare_drops",
+        "weight": 6
+      },
+      {
+        "item": "nothing",
+        "weight": 28
+      }
+    ]
+  },
+  "abominable_snowman": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          2600,
+          4400
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          2,
+          3
+        ]
+      }
+    ],
+    "rolls": 6,
+    "table": [
+      {
+        "table": "rare_drops",
+        "weight": 75
+      },
+      {
+        "item": "ruby",
+        "weight": 8
+      },
+      {
+        "item": "demonite_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 8
+      },
+      {
+        "item": "dracon_bar",
+        "weight": 4
+      },
+      {
+        "item": "moonlit_draught",
+        "weight": 5
+      }
+    ]
+  },
+  "chest_frostreach": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1400,
+          2400
+        ]
+      },
+      {
+        "item": "platinum_ore",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "diamond_ingot",
+        "qty": [
+          1,
+          3
+        ],
+        "weight": 20
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily_panacea",
+        "weight": 14
+      },
+      {
+        "item": "wyvern_scale",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 12
+      },
+      {
+        "item": "platinum_sword",
+        "weight": 6
+      },
+      {
+        "item": "platinum_legs",
+        "weight": 6
+      },
+      {
+        "table": "rare_drops",
+        "weight": 10
+      }
+    ]
+  },
+  "chest_trapper": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          1800,
+          3000
+        ]
+      },
+      {
+        "item": "moonlit_draught"
+      }
+    ],
+    "rolls": 4,
+    "table": [
+      {
+        "table": "rare_drops",
+        "weight": 40
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 12
+      },
+      {
+        "item": "bag_rucksack",
+        "weight": 4
+      },
+      {
+        "item": "ruby",
+        "weight": 8
+      },
+      {
+        "item": "platinum_body",
+        "weight": 5
+      },
+      {
+        "item": "platinum_bow",
+        "weight": 5
+      }
+    ]
+  },
+  "chest_howe": {
+    "always": [
+      {
+        "item": "coins",
+        "qty": [
+          3000,
+          5000
+        ]
+      },
+      {
+        "item": "platinum_bar",
+        "qty": [
+          2,
+          4
+        ]
+      }
+    ],
+    "rolls": 3,
+    "table": [
+      {
+        "item": "demonite_bar",
+        "qty": [
+          1,
+          2
+        ],
+        "weight": 16
+      },
+      {
+        "item": "dracon_bar",
+        "weight": 6
+      },
+      {
+        "item": "platinum_greataxe",
+        "weight": 10
+      },
+      {
+        "item": "platinum_body",
+        "weight": 10
+      },
+      {
+        "item": "platinum_helm",
+        "weight": 10
+      },
+      {
+        "item": "starlily_panacea",
+        "qty": [
+          2,
+          3
+        ],
+        "weight": 14
+      },
+      {
+        "table": "rare_drops",
+        "weight": 14
+      }
+    ]
   }
 }

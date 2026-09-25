@@ -288,6 +288,10 @@ public:
     // puppet is only told whether it is up, so that the dome can be drawn over
     // them as it is over you.
     bool  shield_shown = false;
+    // Gone through the ice and not out yet: not drawn. Set by the world
+    // stepping them (World::UpdateThinIce), or for a friend's puppet by the
+    // host's word (net::PlayerState::Under).
+    bool  under_ice = false;
     bool  ShieldUp() const { return ManaShield() || shield_shown; }
     // Seconds since the shield last took a blow, for the ripple across it.
     float ShieldStruck() const { return shield_struck; }

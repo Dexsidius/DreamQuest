@@ -1,4 +1,42 @@
 {
+    "abominable_snowman":  {
+                               "dir":  "assets/characters/abominable_snowman/",
+                               "rows":  4,
+                               "anchor_y":  122,
+                               "scale":  1,
+                               "clips":  {
+                                             "attack":  {
+                                                            "sheet":  "attack.png",
+                                                            "frames":  6,
+                                                            "fps":  16,
+                                                            "loop":  false
+                                                        },
+                                             "death":  {
+                                                           "sheet":  "death.png",
+                                                           "frames":  6,
+                                                           "fps":  9,
+                                                           "loop":  false
+                                                       },
+                                             "hurt":  {
+                                                          "sheet":  "hurt.png",
+                                                          "frames":  3,
+                                                          "fps":  12,
+                                                          "loop":  false
+                                                      },
+                                             "idle":  {
+                                                          "sheet":  "idle.png",
+                                                          "frames":  4,
+                                                          "fps":  8,
+                                                          "loop":  true
+                                                      },
+                                             "walk":  {
+                                                          "sheet":  "walk.png",
+                                                          "frames":  6,
+                                                          "fps":  10,
+                                                          "loop":  true
+                                                      }
+                                         }
+                           },
     "abyssal_demon":  {
                           "dir":  "assets/characters/abyssal_demon/",
                           "rows":  4,
@@ -1251,6 +1289,82 @@
                                                 }
                                    }
                      },
+    "draugr":  {
+                   "dir":  "assets/characters/draugr/",
+                   "rows":  4,
+                   "anchor_y":  61,
+                   "scale":  1,
+                   "clips":  {
+                                 "attack":  {
+                                                "sheet":  "attack.png",
+                                                "frames":  6,
+                                                "fps":  16,
+                                                "loop":  false
+                                            },
+                                 "death":  {
+                                               "sheet":  "death.png",
+                                               "frames":  6,
+                                               "fps":  9,
+                                               "loop":  false
+                                           },
+                                 "hurt":  {
+                                              "sheet":  "hurt.png",
+                                              "frames":  3,
+                                              "fps":  12,
+                                              "loop":  false
+                                          },
+                                 "idle":  {
+                                              "sheet":  "idle.png",
+                                              "frames":  4,
+                                              "fps":  8,
+                                              "loop":  true
+                                          },
+                                 "walk":  {
+                                              "sheet":  "walk.png",
+                                              "frames":  6,
+                                              "fps":  10,
+                                              "loop":  true
+                                          }
+                             }
+               },
+    "draugr_archer":  {
+                          "dir":  "assets/characters/draugr_archer/",
+                          "rows":  4,
+                          "anchor_y":  61,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "drowned_one":  {
                         "dir":  "assets/characters/drowned_one/",
                         "rows":  4,
@@ -1597,6 +1711,44 @@
                                                 }
                                    }
                      },
+    "frostback_troll":  {
+                            "dir":  "assets/characters/frostback_troll/",
+                            "rows":  4,
+                            "anchor_y":  95,
+                            "scale":  1,
+                            "clips":  {
+                                          "attack":  {
+                                                         "sheet":  "attack.png",
+                                                         "frames":  6,
+                                                         "fps":  16,
+                                                         "loop":  false
+                                                     },
+                                          "death":  {
+                                                        "sheet":  "death.png",
+                                                        "frames":  6,
+                                                        "fps":  9,
+                                                        "loop":  false
+                                                    },
+                                          "hurt":  {
+                                                       "sheet":  "hurt.png",
+                                                       "frames":  3,
+                                                       "fps":  12,
+                                                       "loop":  false
+                                                   },
+                                          "idle":  {
+                                                       "sheet":  "idle.png",
+                                                       "frames":  4,
+                                                       "fps":  8,
+                                                       "loop":  true
+                                                   },
+                                          "walk":  {
+                                                       "sheet":  "walk.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  true
+                                                   }
+                                      }
+                        },
     "goose":  {
                   "dir":  "assets/characters/goose/",
                   "rows":  4,
@@ -1799,6 +1951,158 @@
                                         }
                            }
              },
+    "hex_blowgunner":  {
+                           "dir":  "assets/characters/hex_blowgunner/",
+                           "rows":  4,
+                           "anchor_y":  54,
+                           "scale":  1,
+                           "clips":  {
+                                         "attack":  {
+                                                        "sheet":  "attack.png",
+                                                        "frames":  6,
+                                                        "fps":  16,
+                                                        "loop":  false
+                                                    },
+                                         "death":  {
+                                                       "sheet":  "death.png",
+                                                       "frames":  6,
+                                                       "fps":  9,
+                                                       "loop":  false
+                                                   },
+                                         "hurt":  {
+                                                      "sheet":  "hurt.png",
+                                                      "frames":  3,
+                                                      "fps":  12,
+                                                      "loop":  false
+                                                  },
+                                         "idle":  {
+                                                      "sheet":  "idle.png",
+                                                      "frames":  4,
+                                                      "fps":  8,
+                                                      "loop":  true
+                                                  },
+                                         "walk":  {
+                                                      "sheet":  "walk.png",
+                                                      "frames":  6,
+                                                      "fps":  10,
+                                                      "loop":  true
+                                                  }
+                                     }
+                       },
+    "hex_cultist":  {
+                        "dir":  "assets/characters/hex_cultist/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
+    "hex_priest":  {
+                       "dir":  "assets/characters/hex_priest/",
+                       "rows":  4,
+                       "anchor_y":  95,
+                       "scale":  1,
+                       "clips":  {
+                                     "attack":  {
+                                                    "sheet":  "attack.png",
+                                                    "frames":  6,
+                                                    "fps":  16,
+                                                    "loop":  false
+                                                },
+                                     "death":  {
+                                                   "sheet":  "death.png",
+                                                   "frames":  6,
+                                                   "fps":  9,
+                                                   "loop":  false
+                                               },
+                                     "hurt":  {
+                                                  "sheet":  "hurt.png",
+                                                  "frames":  3,
+                                                  "fps":  12,
+                                                  "loop":  false
+                                              },
+                                     "idle":  {
+                                                  "sheet":  "idle.png",
+                                                  "frames":  4,
+                                                  "fps":  8,
+                                                  "loop":  true
+                                              },
+                                     "walk":  {
+                                                  "sheet":  "walk.png",
+                                                  "frames":  6,
+                                                  "fps":  10,
+                                                  "loop":  true
+                                              }
+                                 }
+                   },
+    "hex_zealot":  {
+                       "dir":  "assets/characters/hex_zealot/",
+                       "rows":  4,
+                       "anchor_y":  81,
+                       "scale":  1,
+                       "clips":  {
+                                     "attack":  {
+                                                    "sheet":  "attack.png",
+                                                    "frames":  6,
+                                                    "fps":  16,
+                                                    "loop":  false
+                                                },
+                                     "death":  {
+                                                   "sheet":  "death.png",
+                                                   "frames":  6,
+                                                   "fps":  9,
+                                                   "loop":  false
+                                               },
+                                     "hurt":  {
+                                                  "sheet":  "hurt.png",
+                                                  "frames":  3,
+                                                  "fps":  12,
+                                                  "loop":  false
+                                              },
+                                     "idle":  {
+                                                  "sheet":  "idle.png",
+                                                  "frames":  4,
+                                                  "fps":  8,
+                                                  "loop":  true
+                                              },
+                                     "walk":  {
+                                                  "sheet":  "walk.png",
+                                                  "frames":  6,
+                                                  "fps":  10,
+                                                  "loop":  true
+                                              }
+                                 }
+                   },
     "highwayman":  {
                        "dir":  "assets/characters/highwayman/",
                        "rows":  4,
@@ -20902,6 +21206,120 @@
                                          }
                             }
               },
+    "shellback_clawfighter":  {
+                                  "dir":  "assets/characters/shellback_clawfighter/",
+                                  "rows":  4,
+                                  "anchor_y":  61,
+                                  "scale":  1,
+                                  "clips":  {
+                                                "attack":  {
+                                                               "sheet":  "attack.png",
+                                                               "frames":  6,
+                                                               "fps":  16,
+                                                               "loop":  false
+                                                           },
+                                                "death":  {
+                                                              "sheet":  "death.png",
+                                                              "frames":  6,
+                                                              "fps":  9,
+                                                              "loop":  false
+                                                          },
+                                                "hurt":  {
+                                                             "sheet":  "hurt.png",
+                                                             "frames":  3,
+                                                             "fps":  12,
+                                                             "loop":  false
+                                                         },
+                                                "idle":  {
+                                                             "sheet":  "idle.png",
+                                                             "frames":  4,
+                                                             "fps":  8,
+                                                             "loop":  true
+                                                         },
+                                                "walk":  {
+                                                             "sheet":  "walk.png",
+                                                             "frames":  6,
+                                                             "fps":  10,
+                                                             "loop":  true
+                                                         }
+                                            }
+                              },
+    "shellback_elder":  {
+                            "dir":  "assets/characters/shellback_elder/",
+                            "rows":  4,
+                            "anchor_y":  81,
+                            "scale":  1,
+                            "clips":  {
+                                          "attack":  {
+                                                         "sheet":  "attack.png",
+                                                         "frames":  6,
+                                                         "fps":  16,
+                                                         "loop":  false
+                                                     },
+                                          "death":  {
+                                                        "sheet":  "death.png",
+                                                        "frames":  6,
+                                                        "fps":  9,
+                                                        "loop":  false
+                                                    },
+                                          "hurt":  {
+                                                       "sheet":  "hurt.png",
+                                                       "frames":  3,
+                                                       "fps":  12,
+                                                       "loop":  false
+                                                   },
+                                          "idle":  {
+                                                       "sheet":  "idle.png",
+                                                       "frames":  4,
+                                                       "fps":  8,
+                                                       "loop":  true
+                                                   },
+                                          "walk":  {
+                                                       "sheet":  "walk.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  true
+                                                   }
+                                      }
+                        },
+    "shellback_snapper":  {
+                              "dir":  "assets/characters/shellback_snapper/",
+                              "rows":  4,
+                              "anchor_y":  68,
+                              "scale":  1,
+                              "clips":  {
+                                            "attack":  {
+                                                           "sheet":  "attack.png",
+                                                           "frames":  6,
+                                                           "fps":  16,
+                                                           "loop":  false
+                                                       },
+                                            "death":  {
+                                                          "sheet":  "death.png",
+                                                          "frames":  6,
+                                                          "fps":  9,
+                                                          "loop":  false
+                                                      },
+                                            "hurt":  {
+                                                         "sheet":  "hurt.png",
+                                                         "frames":  3,
+                                                         "fps":  12,
+                                                         "loop":  false
+                                                     },
+                                            "idle":  {
+                                                         "sheet":  "idle.png",
+                                                         "frames":  4,
+                                                         "fps":  8,
+                                                         "loop":  true
+                                                     },
+                                            "walk":  {
+                                                         "sheet":  "walk.png",
+                                                         "frames":  6,
+                                                         "fps":  10,
+                                                         "loop":  true
+                                                     }
+                                        }
+                          },
     "skeleton":  {
                      "dir":  "assets/characters/skeleton/",
                      "rows":  4,
@@ -21092,6 +21510,44 @@
                                               }
                                  }
                    },
+    "undead_warlord":  {
+                           "dir":  "assets/characters/undead_warlord/",
+                           "rows":  4,
+                           "anchor_y":  95,
+                           "scale":  1,
+                           "clips":  {
+                                         "attack":  {
+                                                        "sheet":  "attack.png",
+                                                        "frames":  6,
+                                                        "fps":  16,
+                                                        "loop":  false
+                                                    },
+                                         "death":  {
+                                                       "sheet":  "death.png",
+                                                       "frames":  6,
+                                                       "fps":  9,
+                                                       "loop":  false
+                                                   },
+                                         "hurt":  {
+                                                      "sheet":  "hurt.png",
+                                                      "frames":  3,
+                                                      "fps":  12,
+                                                      "loop":  false
+                                                  },
+                                         "idle":  {
+                                                      "sheet":  "idle.png",
+                                                      "frames":  4,
+                                                      "fps":  8,
+                                                      "loop":  true
+                                                  },
+                                         "walk":  {
+                                                      "sheet":  "walk.png",
+                                                      "frames":  6,
+                                                      "fps":  10,
+                                                      "loop":  true
+                                                  }
+                                     }
+                       },
     "vampire_lord":  {
                          "dir":  "assets/characters/vampire_lord/",
                          "rows":  4,
@@ -21168,6 +21624,44 @@
                                         }
                            }
              },
+    "voodoo_shaman":  {
+                          "dir":  "assets/characters/voodoo_shaman/",
+                          "rows":  4,
+                          "anchor_y":  81,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "witchlight":  {
                        "dir":  "assets/characters/witchlight/",
                        "rows":  4,

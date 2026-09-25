@@ -37,6 +37,11 @@ struct SeatState {
     int    gather_index = -1;
     float  gather_timer = 0.0f, gather_needed = 0.0f;
     float  hazard_timer = 0.0f, gate_note_timer = 0.0f, lifesteal_bank = 0.0f;
+    // Their footing on thin ice: see World::IceStrain.
+    float  ice_strain = 0.0f, ice_grace = 0.0f, ice_sink = -1.0f;
+    SDL_FPoint ice_safe{}, ice_mark{}, ice_fell{};
+    bool   ice_safe_known = false, ice_was_up = false;
+    int    ice_warned = 0;
     bool   portals_armed = true, arrival_released = true;
     // A way through a door, asked for and not yet taken. For a friend the
     // host takes them through it: see coop::Host.
@@ -326,6 +331,31 @@ public:
     bool    visiting = false;
     struct VisitorAct { int kind = 0; string a, b; int n = 0; };   // kinds are net::Action's
     vector<VisitorAct> visitor_acts;
+
+    // --- thin ice ------------------------------------------------------------------------
+    // A frozen lake bears a walker. Sprint on it and it cracks behind you,
+    // the crack running as long as the sprint does; let it run too long and
+    // it gives way: through into the black water, out again on the last dry
+    // ground stood on, soaked, chilled and a third of your health the poorer.
+    // Stop, or walk, and it settles. A jump come down on it strains it too.
+    // Every player's own: a friend's is kept in their seat (SeatState) and
+    // swapped in with them, so the host's own strain and theirs never mix.
+    // As with lava, the host decides: the fall, the water's bite and the chill
+    // are dealt to a friend exactly as to the host, by the host. A friend's
+    // own window only foresees it -- the crack, the going under, the shore --
+    // so that it feels at once; what it cost them it is told.
+    float IceStrain() const { return ice_strain; }
+    bool  ThroughTheIce() const { return ice_sink >= 0.0f; }
+    size_t IceCracks() const { return ice_cracks.size(); }
+    static constexpr float ICE_SPRINT_TIME = 2.4f;    // of sprinting unbroken, and it goes
+    static constexpr float ICE_LANDING     = 0.22f;   // a jump come down on it
+    static constexpr float ICE_SETTLE_WALK = 0.18f;   // a second, walking on sound ice
+    static constexpr float ICE_SETTLE_REST = 0.5f;    // a second, standing still
+    static constexpr float ICE_SETTLE_LAND = 1.2f;    // a second, off it
+    static constexpr float ICE_SINK_TIME   = 0.9f;    // going under, before the shore
+    static constexpr float ICE_GRACE       = 2.5f;    // after, before it can crack again
+    static constexpr float ICE_FALL_SHARE  = 0.35f;   // of their health, what the cold water takes
+    static constexpr float ICE_CRACK_LIFE  = 45.0f, ICE_HOLE_LIFE = 30.0f;
     // True while anyone else is in the realm, on this map or another. A night
     // slept through then waits for everyone: see Sleep.
     bool    company = false;
@@ -701,6 +731,19 @@ private:
     Shaders::Frame ScreenFrame(TextureCache& cache) const;
     void DrawReflections(SDL_Renderer* r, TextureCache& cache, const vector<const TileInstance*>& decor) const;
     void DrawFloorLight(SDL_Renderer* r) const;
+    // The ice: see IceStrain.
+    float ice_strain = 0.0f, ice_grace = 0.0f, ice_sink = -1.0f;
+    SDL_FPoint ice_safe{}, ice_mark{}, ice_fell{};
+    bool  ice_safe_known = false, ice_was_up = false;
+    int   ice_warned = 0;
+    struct IceCrack { SDL_FPoint a, b; float age = 0.0f; };
+    vector<IceCrack> ice_cracks;
+    struct IceHole { SDL_FPoint at; float age = 0.0f; };
+    vector<IceHole> ice_holes;
+    void UpdateThinIce(float dt, const GameContext& ctx);
+    void AgeIce(float dt);
+    void BreakIce(const GameContext& ctx);
+    void DrawIce(SDL_Renderer* r) const;
     void DrawGlows(SDL_Renderer* r, TextureCache& cache, const vector<const TileInstance*>& decor) const;
     // Every shot in the air, by its number: where it was a frame ago, and how
     // far it has gone since it last shed anything. Kept here and not on the

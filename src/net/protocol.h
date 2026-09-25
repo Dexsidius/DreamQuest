@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 11;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them
+static constexpr uint16_t PROTOCOL_VERSION = 12;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under)
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -207,7 +207,7 @@ struct InputFrames {
 
 struct PlayerState {
     enum Flag : uint8_t { Jumping = 1, Blocking = 2, Charging = 4, Dead = 8, Sprinting = 16, Hurt = 32,
-                          Shielded = 64 };
+                          Shielded = 64, Under = 128 };   // Under: through the ice, not to be drawn
     uint8_t  seat = 0;
     float    x = 0.0f, y = 0.0f, lift = 0.0f;
     uint8_t  facing = 0, flags = 0, frame = 0;

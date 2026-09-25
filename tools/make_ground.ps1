@@ -852,4 +852,247 @@ $bmp.Save((Join-Path $tiles "keep_walltop.png"), [System.Drawing.Imaging.ImageFo
 $bmp.Dispose()
 $made++
 
+# --- the Hexmire ------------------------------------------------------------------
+# Four maps north of the Bayou, and again a ground of its own for each: black
+# loam and rust cypress-litter round black water in the Drowns; crushed shell,
+# wet tide-flat and a clear lagoon on the Shellbacks' strand; red clay and
+# yellow sedge in the cult's fens; packed ochre earth, chalked, in the temple's
+# yard -- a trodden causeway through all four, and the sanctum's floor and
+# walls. On a seed of its own, so nothing above is re-rolled.
+$script:seed = 20260925
+$Size = 16
+
+# Cypress litter: short rust needles lying every way, darker and lighter.
+function Add-Needles($bmp, $base, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        $dx = (RandInt 3) - 1; $dy = if ($dx -eq 0) { 1 } else { (RandInt 2) }
+        $c = if ((Rand) -lt 0.5) { Shade $base 0.22 } else { Shade $base (-0.24) }
+        for ($k = 0; $k -lt 3; $k++) { Set-Wrapped $bmp ($x + $k * $dx) ($y + $k * $dy) $c }
+    }
+}
+# Crushed shell: little bright chips, some pink, each with a shadow under it.
+function Add-Shells($bmp, $base, $count) {
+    $pink = [System.Drawing.Color]::FromArgb(255, 236, 196, 188)
+    $white = [System.Drawing.Color]::FromArgb(255, 246, 240, 228)
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        $c = if ((RandInt 3) -eq 0) { $pink } else { $white }
+        Set-Wrapped $bmp $x $y $c
+        if ((RandInt 2) -eq 0) { Set-Wrapped $bmp ($x + 1) $y $c }
+        Set-Wrapped $bmp $x ($y + 1) (Shade $base (-0.18))
+    }
+}
+# Chalk: a pale fleck here and there, and now and then a short stroke of one,
+# where a mark on the ground has been walked half away.
+function Add-Chalk($bmp, $base, $count) {
+    $chalk = [System.Drawing.Color]::FromArgb(255, 226, 214, 190)
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        Set-Wrapped $bmp $x $y $chalk
+        if ((RandInt 3) -eq 0) { Set-Wrapped $bmp ($x + 1) $y (Shade $chalk (-0.12)); Set-Wrapped $bmp ($x + 2) $y (Shade $chalk (-0.2)) }
+    }
+}
+
+$hexmire = @(
+    @{ name = "drowned_loam";   rgb = @( 58,  66,  46); kind = "earth";   variants = 3 },
+    @{ name = "cypress_litter"; rgb = @( 84,  66,  44); kind = "litter";  variants = 3 },
+    @{ name = "blackwater";     rgb = @( 38,  42,  32); kind = "water";   variants = 3 },
+    @{ name = "shell_sand";     rgb = @(206, 194, 170); kind = "shell";   variants = 3 },
+    @{ name = "tide_flat";      rgb = @(152, 144, 122); kind = "earth";   variants = 2 },
+    @{ name = "lagoon";         rgb = @( 52, 108, 100); kind = "water";   variants = 3 },
+    @{ name = "hex_clay";       rgb = @(128,  66,  48); kind = "earth";   variants = 3 },
+    @{ name = "fen_sedge";      rgb = @(124, 118,  62); kind = "grass";   variants = 3 },
+    @{ name = "temple_earth";   rgb = @(156, 108,  64); kind = "chalked"; variants = 3 },
+    @{ name = "hex_road";       rgb = @(112,  92,  68); kind = "earth";   variants = 2 }
+)
+foreach ($f in $hexmire) {
+    $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])
+    for ($v = 0; $v -lt $f.variants; $v++) {
+        $bmp = New-Tile $base
+        switch ($f.kind) {
+            "earth"   { Add-Speckle $bmp $base 62 0.08 0.12; Add-Grit $bmp $base 8 2 }
+            "grass"   { Add-Speckle $bmp $base 54 0.10 0.10; Add-Blades $bmp $base 12; Add-Grit $bmp $base 3 1 }
+            "litter"  { Add-Speckle $bmp $base 40 0.08 0.10; Add-Needles $bmp $base 9 }
+            "shell"   { Add-Speckle $bmp $base 60 0.06 0.07; Add-Shells $bmp $base 6 }
+            "chalked" { Add-Speckle $bmp $base 60 0.07 0.10; Add-Grit $bmp $base 5 1; Add-Chalk $bmp $base 3 }
+            "water"   { Add-Speckle $bmp $base 30 0.05 0.10; Add-Ripples $bmp $base 5 }
+        }
+        $name = if ($v -eq 0) { $f.name } else { "$($f.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# The sanctum: a floor of dark boards oiled red, and walls of ochre daub between
+# black cypress posts with a band painted round them at shoulder height -- red,
+# and a row of white marks along it.
+$Size = 32
+foreach ($t in @(@{ name = "sanctum_floor";      rgb = @(98, 54, 42); mortar = @(44, 24, 20); variants = 3 },
+                 @{ name = "sanctum_floor_dark"; rgb = @(78, 44, 36); mortar = @(38, 20, 18); variants = 2 })) {
+    for ($v = 0; $v -lt $t.variants; $v++) {
+        $bmp = New-Masonry 32 $t.rgb $t.mortar 8 32 0.06 $true "scatter"
+        $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+$hred = [System.Drawing.Color]::FromArgb(255, 150, 40, 34)
+$hwhite = [System.Drawing.Color]::FromArgb(255, 226, 216, 196)
+for ($v = 0; $v -lt 2; $v++) {
+    $bmp = New-Plaster 32 @(152, 112, 76) @(44, 32, 26)
+    for ($x = 0; $x -lt 32; $x++) {
+        foreach ($y in @(12, 13, 14, 15)) { $bmp.SetPixel($x, $y, $(if ($y -eq 12) { Shade $hred 0.12 } else { $hred })) }
+        if (($x % 8) -eq 4) { $bmp.SetPixel($x, 13, $hwhite); $bmp.SetPixel($x, 14, $hwhite) }
+    }
+    $name = if ($v -eq 0) { "sanctum_wall" } else { "sanctum_wall_1" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+$bmp = New-Plaster 32 @(140, 102, 70) @(44, 32, 26)
+for ($y = 24; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) { $bmp.SetPixel($x, $y, (Shade ($bmp.GetPixel($x, $y)) (-0.05 * ($y - 23)))) }
+}
+$bmp.Save((Join-Path $tiles "sanctum_wallface.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+# The top of the wall is its thatch, seen from above: straw laid in courses.
+$thatch = [System.Drawing.Color]::FromArgb(255, 132, 106, 62)
+$bmp = New-Tile $thatch
+for ($y = 0; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) {
+        $c = $thatch
+        if (($y % 6) -eq 5) { $c = Shade $thatch (-0.30) }
+        elseif ((($x * 5 + $y * 3) % 7) -eq 0) { $c = Shade $thatch 0.14 }
+        elseif ((($x * 3 + $y) % 5) -eq 0) { $c = Shade $thatch (-0.10) }
+        $bmp.SetPixel($x, $y, $c)
+    }
+}
+$bmp.Save((Join-Path $tiles "sanctum_walltop.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# --- the Frostreach -------------------------------------------------------------------
+# Four maps off the Ice Spire, and a ground each again: snow-crusted heath and
+# frozen turf round the draugr barrows; the Glass Mere's lake ice, pale where it
+# will bear a walker and dark where it will not; the glacier's white ice split
+# with blue crevasses; the grey stone and rime about the Warlord's Howe -- a
+# trodden way of slush through all four -- and the Howe's own floor and walls,
+# and the trapper's log walls. On a seed of their own, as before.
+$script:seed = 20260926
+$Size = 16
+
+# Heather under snow: dark tufts showing through a pale crust.
+function Add-Tufts($bmp, $tuft, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        Set-Wrapped $bmp $x $y $tuft
+        Set-Wrapped $bmp ($x + 1) $y (Shade $tuft 0.15)
+        if ((RandInt 2) -eq 0) { Set-Wrapped $bmp $x ($y - 1) (Shade $tuft 0.25) }
+    }
+}
+# Ice seen from above: long pale streaks, and a fine dark line here and there
+# -- the old cracks that have frozen over.
+function Add-IceLines($bmp, $base, $count, $dark) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        $len = 4 + (RandInt 6)
+        $c = if ($dark) { Shade $base (-0.22) } else { Shade $base 0.30 }
+        for ($k = 0; $k -lt $len; $k++) { Set-Wrapped $bmp ($x + $k) ($y + [int]($k / 4)) $c }
+    }
+}
+
+$frost = @(
+    @{ name = "frost_heath";  rgb = @(206, 214, 222); kind = "heath";  variants = 3 },
+    @{ name = "frozen_turf";  rgb = @(176, 188, 182); kind = "grass";  variants = 2 },
+    @{ name = "lake_ice";     rgb = @(156, 192, 210); kind = "ice";    variants = 3 },
+    @{ name = "lake_ice_dark";rgb = @( 92, 128, 152); kind = "blackice"; variants = 2 },
+    @{ name = "glacier_ice";  rgb = @(204, 230, 240); kind = "ice";    variants = 3 },
+    @{ name = "blue_ice";     rgb = @(118, 172, 206); kind = "blackice"; variants = 2 },
+    @{ name = "rime_stone";   rgb = @(142, 150, 160); kind = "earth";  variants = 3 },
+    @{ name = "frost_road";   rgb = @(158, 154, 150); kind = "earth";  variants = 2 }
+)
+$heather = [System.Drawing.Color]::FromArgb(255, 92, 70, 84)
+foreach ($f in $frost) {
+    $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])
+    for ($v = 0; $v -lt $f.variants; $v++) {
+        $bmp = New-Tile $base
+        switch ($f.kind) {
+            "heath"    { Add-Speckle $bmp $base 60 0.05 0.06; Add-Tufts $bmp $heather 5 }
+            "grass"    { Add-Speckle $bmp $base 54 0.12 0.08; Add-Blades $bmp $base 8; Add-Grit $bmp $base 2 1 }
+            "earth"    { Add-Speckle $bmp $base 62 0.08 0.12; Add-Grit $bmp $base 8 2 }
+            "ice"      { Add-Speckle $bmp $base 36 0.06 0.05; Add-IceLines $bmp $base 3 $false; Add-IceLines $bmp $base 1 $true }
+            "blackice" { Add-Speckle $bmp $base 30 0.05 0.08; Add-IceLines $bmp $base 2 $false; Add-IceLines $bmp $base 2 $true }
+        }
+        $name = if ($v -eq 0) { $f.name } else { "$($f.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
+# The Howe's floor and walls: dark flagstones with frost in the joints, and
+# the barrow's inside walls of dry-laid stone.
+$Size = 32
+foreach ($t in @(@{ name = "howe_floor";      rgb = @(78, 82, 90); mortar = @(170, 196, 214); variants = 3 },
+                 @{ name = "howe_floor_dark"; rgb = @(62, 66, 74); mortar = @(136, 160, 180); variants = 2 })) {
+    for ($v = 0; $v -lt $t.variants; $v++) {
+        $bmp = New-Masonry 32 $t.rgb $t.mortar 16 16 0.14 $true
+        $name = if ($v -eq 0) { $t.name } else { "$($t.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+$hrime = [System.Drawing.Color]::FromArgb(255, 214, 232, 244)
+for ($v = 0; $v -lt 2; $v++) {
+    $bmp = New-Masonry 32 @(84, 86, 92) @(36, 38, 44) 8 12 0.22 $true "scatter"
+    for ($x = 0; $x -lt 32; $x++) { if ((($x * 7 + $v * 3) % 5) -lt 2) { $bmp.SetPixel($x, 0, $hrime) } }
+    $name = if ($v -eq 0) { "howe_wall" } else { "howe_wall_1" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+$bmp = New-Masonry 32 @(80, 82, 88) @(34, 36, 42) 8 12 0.22 $true "scatter"
+for ($y = 24; $y -lt 32; $y++) {
+    for ($x = 0; $x -lt 32; $x++) { $bmp.SetPixel($x, $y, (Shade ($bmp.GetPixel($x, $y)) (-0.05 * ($y - 23)))) }
+}
+$bmp.Save((Join-Path $tiles "howe_wallface.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+$bmp = New-Masonry 32 @(100, 104, 112) @(44, 46, 52) 16 32 0.10 $true
+for ($y = 0; $y -lt 32; $y++) { $bmp.SetPixel(0, $y, $hrime); $bmp.SetPixel(31, $y, $hrime) }
+$bmp.Save((Join-Path $tiles "howe_walltop.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
+# The trapper's walls: round logs laid one on another, a dark line of chinking
+# between each, and the end-grain of a log every so often.
+$logc = [System.Drawing.Color]::FromArgb(255, 92, 62, 40)
+$chink = [System.Drawing.Color]::FromArgb(255, 196, 184, 160)
+$bmp = New-Tile $logc
+for ($y = 0; $y -lt 32; $y++) {
+    $band = $y % 8
+    for ($x = 0; $x -lt 32; $x++) {
+        # Each log round: lit along its top, dark under it, and pale chinking
+        # of moss and clay between one log and the next.
+        $c = $logc
+        if ($band -eq 7) { $c = $chink }
+        elseif ($band -eq 0) { $c = Shade $logc 0.30 }
+        elseif ($band -eq 1) { $c = Shade $logc 0.16 }
+        elseif ($band -ge 5) { $c = Shade $logc (-0.22) }
+        if ((($x * 5 + $y * 3) % 13) -eq 0 -and $band -gt 0 -and $band -lt 7) { $c = Shade $c (-0.12) }
+        $bmp.SetPixel($x, $y, $c)
+    }
+    # A log's cut end at the tile's edge, every other course: the corner of
+    # the cabin, where the logs cross.
+    if (($y % 16) -lt 7) { $bmp.SetPixel(0, $y, (Shade $logc 0.40)); $bmp.SetPixel(1, $y, (Shade $logc 0.24)) }
+}
+$bmp.Save((Join-Path $tiles "log_wall.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

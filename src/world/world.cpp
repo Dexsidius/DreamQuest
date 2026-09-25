@@ -50,6 +50,12 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     ripples.clear();
     swim_seen.clear();
     shake = flash_amount = 0.0f;
+    ice_cracks.clear();
+    ice_holes.clear();
+    ice_strain = ice_grace = 0.0f;
+    ice_sink = -1.0f;
+    ice_safe_known = false;
+    ice_warned = 0;
     targeting.Clear();
     gather_index = -1;
     player.StopGathering();
@@ -424,6 +430,15 @@ void World::SwapSeat(Player& who, SeatState& s) {
     std::swap(gather_timer, s.gather_timer);
     std::swap(gather_needed, s.gather_needed);
     std::swap(hazard_timer, s.hazard_timer);
+    std::swap(ice_strain, s.ice_strain);
+    std::swap(ice_grace, s.ice_grace);
+    std::swap(ice_sink, s.ice_sink);
+    std::swap(ice_safe, s.ice_safe);
+    std::swap(ice_mark, s.ice_mark);
+    std::swap(ice_fell, s.ice_fell);
+    std::swap(ice_safe_known, s.ice_safe_known);
+    std::swap(ice_was_up, s.ice_was_up);
+    std::swap(ice_warned, s.ice_warned);
     std::swap(gate_note_timer, s.gate_note_timer);
     std::swap(lifesteal_bank, s.lifesteal_bank);
     std::swap(portals_armed, s.portals_armed);
@@ -779,6 +794,7 @@ void World::Update(float dt, const GameContext& ctx) {
     // by StepGuest, to their own clock, acting as them.
     if (!player.absent) UpdateSeat(dt, ctx);
     UpdateShared(dt, ctx);
+    AgeIce(dt);
     if (!visiting && !player.absent) CollectPickups(dt, ctx);
     FlushKills(ctx);
 
@@ -827,6 +843,9 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     player.Update(dt, *this, ctx);
 
     player.input_locked = locked_by_game;
+    // Thin ice is the player's own, whoever's window this is: see IceStrain.
+    UpdateThinIce(dt, ctx);
+    if (ice_sink >= 0.0f) player.input_locked = true;
 
     // A dream lasts as long as the night. Dying in one ends it early, a moment
     // into the fall, before the game can treat it as a real death.
@@ -1077,4 +1096,160 @@ void World::UpdateElevation(float dt) {
     for (auto& g : guests) if (!g->puppet) walker(*g);
     for (auto& e : enemies) settle(e->draw_lift, map.HeightAt(e->x, e->y));
     for (auto& n : npcs)    settle(n->draw_lift, map.HeightAt(n->x, n->y));
+}
+
+// --- thin ice -------------------------------------------------------------------------------
+// The cracks and holes are the map's, whoever made them: they fade once a frame.
+void World::AgeIce(float dt) {
+    for (IceCrack& c : ice_cracks) c.age += dt;
+    ice_cracks.erase(std::remove_if(ice_cracks.begin(), ice_cracks.end(),
+                                    [](const IceCrack& c) { return c.age > ICE_CRACK_LIFE; }),
+                     ice_cracks.end());
+    for (IceHole& h : ice_holes) h.age += dt;
+    ice_holes.erase(std::remove_if(ice_holes.begin(), ice_holes.end(),
+                                   [](const IceHole& h) { return h.age > ICE_HOLE_LIFE; }),
+                    ice_holes.end());
+}
+
+// The footing of whoever is `player` just now: the host's own, or -- acting as
+// them -- a friend's, with their seat's strain swapped in (SwapSeat).
+void World::UpdateThinIce(float dt, const GameContext& ctx) {
+    player.under_ice = false;
+    if (map.ThinIces().empty()) return;
+    if (ice_grace > 0.0f) ice_grace -= dt;
+    if (player.IsDead() || transition_pending) { ice_sink = -1.0f; return; }
+    // A friend's window foresees; the host decides and says so. Its words and
+    // sounds reach the friend from the host, so the window keeps its own quiet.
+    const bool decides = !visiting;
+    // Whose screen this is: the host's own, a seat looked through here, or --
+    // acting for a friend down the wire -- nobody's here.
+    const bool seen_here = !acting || seat_states[player.seat].viewed;
+
+    // Going under: a moment in the black water, then out on the shore.
+    if (ice_sink >= 0.0f) {
+        ice_sink += dt;
+        player.x = ice_fell.x;
+        player.y = ice_fell.y;
+        player.under_ice = ice_sink > 0.15f;
+        if (ice_sink >= ICE_SINK_TIME) {
+            ice_sink = -1.0f;
+            player.under_ice = false;
+            SDL_FPoint to = ice_safe;
+            if (!ice_safe_known || map.ThinIceAt(to.x, to.y)) to = map.DefaultSpawn();
+            player.x = to.x;
+            player.y = to.y;
+            if (seen_here) camera.SnapTo(player.x, player.y);
+            ice_grace = ICE_GRACE;
+            ice_strain = 0.0f;
+            ice_warned = 0;
+            if (decides) {
+                Audio::PlayAt(Sfx::Splash, player.x, player.y);
+                AddText("You drag yourself out onto the shore", player.x, player.y - 60.0f, {206, 232, 255, 255}, 2.4f);
+            }
+        }
+        return;
+    }
+
+    const bool up = player.IsJumping();
+    const ThinIce* ice = map.ThinIceAt(player.x, player.y);
+    const bool moving = Length(player.hands.move.x, player.hands.move.y) > 0.1f;
+    if (!ice) {
+        if (!up) {
+            ice_safe = {player.x, player.y};
+            ice_safe_known = true;
+        }
+        ice_strain = std::max(0.0f, ice_strain - ICE_SETTLE_LAND * dt);
+        if (ice_strain < 0.2f) ice_warned = 0;
+        ice_mark = {player.x, player.y};
+        ice_was_up = up;
+        return;
+    }
+
+    const float before = ice_strain;
+    if (ice_grace <= 0.0f) {
+        if (ice_was_up && !up) ice_strain += ICE_LANDING;
+        if (up) {
+            // In the air it bears nothing.
+        } else if (moving && player.Sprinting()) {
+            ice_strain += dt / ICE_SPRINT_TIME;
+        } else if (moving) {
+            ice_strain += dt * ice->weak;
+            if (ice->weak <= 0.0f) ice_strain -= ICE_SETTLE_WALK * dt;
+        } else {
+            ice_strain -= ICE_SETTLE_REST * dt;
+        }
+    } else {
+        ice_strain -= ICE_SETTLE_REST * dt;
+    }
+    ice_strain = std::clamp(ice_strain, 0.0f, 1.0f);
+    ice_was_up = up;
+
+    // The crack follows whoever is making it, and forks as it goes on.
+    const float step = Length(player.x - ice_mark.x, player.y - ice_mark.y);
+    if (ice_strain > before && ice_strain > 0.06f && step > 12.0f) {
+        const float nx = -(player.y - ice_mark.y) / step, ny = (player.x - ice_mark.x) / step;
+        const float wob = (static_cast<float>(afflict_dice() % 100) / 100.0f - 0.5f) * 8.0f;
+        const SDL_FPoint to = {player.x + nx * wob, player.y + ny * wob};
+        ice_cracks.push_back({ice_mark, to, 0.0f});
+        if (ice_strain > 0.4f && afflict_dice() % 3 == 0) {
+            const float side = (afflict_dice() % 2) ? 1.0f : -1.0f;
+            const float len = 10.0f + 16.0f * ice_strain;
+            ice_cracks.push_back({to, {to.x + nx * side * len + (to.x - ice_mark.x) * 0.3f,
+                                       to.y + ny * side * len + (to.y - ice_mark.y) * 0.3f}, 0.0f});
+        }
+        ice_mark = to;
+    } else if (ice_strain <= before) {
+        ice_mark = {player.x, player.y};
+    }
+
+    if (ice_strain > 0.35f && ice_warned < 1) {
+        ice_warned = 1;
+        if (decides) {
+            AddText("The ice cracks!", player.x, player.y - 52.0f, {214, 236, 255, 255}, 1.4f);
+            Audio::PlayAt(Sfx::Block, player.x, player.y, 0.7f, 0.6f);
+        }
+    } else if (ice_strain > 0.7f && ice_warned < 2) {
+        ice_warned = 2;
+        if (decides) {
+            AddText("It won't hold!", player.x, player.y - 52.0f, {255, 200, 170, 255}, 1.4f);
+            Audio::PlayAt(Sfx::Block, player.x, player.y, 0.9f, 0.45f);
+        }
+        Shock(player.x, player.y, 0.15f, seen_here ? 0.25f : 0.0f);
+    }
+    if (ice_strain >= 1.0f) BreakIce(ctx);
+}
+
+void World::BreakIce(const GameContext& ctx) {
+    ice_sink = 0.0f;
+    ice_fell = {player.x, player.y};
+    ice_holes.push_back({ice_fell, 0.0f});
+    for (int k = 0; k < 6; ++k) {
+        const float a = k * 1.0472f + 0.3f;
+        ice_cracks.push_back({ice_fell, {ice_fell.x + cosf(a) * 34.0f, ice_fell.y + sinf(a) * 24.0f}, 0.0f});
+    }
+    const bool seen_here = !acting || seat_states[player.seat].viewed;
+    Burst(player.x, player.y - 6.0f, 26.0f, {196, 226, 255, 255}, 26);
+    Shock(player.x, player.y, 0.35f, seen_here ? 0.5f : 0.0f);
+    if (seen_here) Flash({180, 214, 255, 255}, 0.35f);
+    ice_strain = 0.0f;
+    // A friend's own window stops here: the rest is the host's to deal, to
+    // them as to anyone, and it tells them.
+    if (visiting) return;
+
+    Audio::PlayAt(Sfx::Splash, player.x, player.y, 1.0f, 0.8f);
+    AddText("The ice gives way!", player.x, player.y - 52.0f, {160, 210, 255, 255}, 1.6f);
+    // The water: a third of them, never all of it, and they come out soaked
+    // and chilled -- a chill on the soaked is a frost, and it holds them a
+    // moment on the shore.
+    const int dmg = std::min(std::max(1, static_cast<int>(std::lround(player.max_hp * ICE_FALL_SHARE))),
+                             std::max(0, player.hp - 1));
+    if (dmg > 0) {
+        player.Damage(dmg);
+        player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+        AddText(std::to_string(dmg), player.x, player.y - 40.0f, {150, 200, 255, 255});
+    }
+    if (ctx.statuses) {
+        player.Afflict(Status::Wet, 0, *ctx.statuses, player.x, player.y);
+        player.Afflict(Status::Chill, 0, *ctx.statuses, player.x, player.y);
+    }
 }

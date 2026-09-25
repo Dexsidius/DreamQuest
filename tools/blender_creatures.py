@@ -2997,6 +2997,16 @@ import blender_plateau  # noqa: E402
 
 blender_plateau.register()
 
+# And the Hexmire's: the swamp cult and the Shellbacks.
+import blender_hexmire  # noqa: E402
+
+blender_hexmire.register()
+
+# And the Frostreach's: the draugr and their Warlords, the Frostback Troll and the Snowman.
+import blender_frostreach  # noqa: E402
+
+blender_frostreach.register()
+
 
 if __name__ == "__main__":
     main()

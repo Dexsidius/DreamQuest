@@ -51,6 +51,7 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     if (p.Fallen())     s.flags |= net::PlayerState::Dead;
     if (p.Sprinting())  s.flags |= net::PlayerState::Sprinting;
     if (p.ManaShield()) s.flags |= net::PlayerState::Shielded;
+    if (p.under_ice)    s.flags |= net::PlayerState::Under;
     // The charge, so a guest's own bar reads right: their world is the host's
     // and it is the host that put the charge in it.
     s.battery = static_cast<uint8_t>(std::clamp(p.Battery(), 0.0f, 1.0f) * 255.0f + 0.5f);
@@ -1661,6 +1662,7 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
         g->hp = a.state.hp;
         g->max_hp = std::max<int>(1, a.state.max_hp);
         g->shield_shown = (a.state.flags & net::PlayerState::Shielded) != 0;
+        g->under_ice = (a.state.flags & net::PlayerState::Under) != 0;
         g->ClearBattery();
         g->AddBattery(a.state.battery / 255.0f);
         g->ShowStatuses(a.state.statuses, a.state.charm_x, a.state.charm_y);

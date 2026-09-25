@@ -20,6 +20,9 @@ void Ambience::SetKind(const string& ambient, bool interior) {
     // wherever the camera used to be.
     motes.clear();
     seeded = false;
+    gust = 0.0f;
+    gust_age = -1.0f;
+    gust_wait = 7.0f;
 }
 
 Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
@@ -66,6 +69,14 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.speed = Range(rng, 1.0f, 2.0f);
             m.size  = Range(rng, 1.0f, 2.2f);
             break;
+        case FLURRY:
+            // Driven snow, low and fast: only seen while a gust is blowing.
+            m.color = {240, 246, 255, static_cast<Uint8>(Range(rng, 140.0f, 220.0f))};
+            m.vx    = Range(rng, -300.0f, -190.0f);
+            m.vy    = Range(rng, 8.0f, 34.0f);
+            m.speed = Range(rng, 1.5f, 3.0f);
+            m.size  = Range(rng, 1.0f, 1.6f);
+            break;
         case EMBER:
             // Sparks lifting off the burning ground, with grey ash drifting.
             m.color = (rng() % 3) ? SDL_Color{255, 150, 60, 255} : SDL_Color{150, 140, 136, 200};
@@ -110,8 +121,10 @@ void Ambience::Populate(const SDL_FRect& view) {
     for (int i = 0; i < dust; ++i)   motes.push_back(Make(DUST, view));
     if (kind == Kind::Dream)
         for (int i = 0; i < 60; ++i) motes.push_back(Make(WISP, view));
-    if (kind == Kind::Snow)
+    if (kind == Kind::Snow) {
         for (int i = 0; i < 90; ++i) motes.push_back(Make(SNOW, view));
+        for (int i = 0; i < 80; ++i) motes.push_back(Make(FLURRY, view));
+    }
     if (kind == Kind::Ash)
         for (int i = 0; i < 46; ++i) motes.push_back(Make(EMBER, view));
 }
@@ -122,6 +135,22 @@ void Ambience::Update(float dt, const Camera& cam) {
     if (!seeded) {
         Populate(view);
         seeded = true;
+    }
+
+    // The wind, on the mountain: a gust every so often, rising and dying away.
+    if (kind == Kind::Snow) {
+        if (gust_age < 0.0f) {
+            gust_wait -= dt;
+            if (gust_wait <= 0.0f) {
+                gust_age = 0.0f;
+                gust_len = Range(rng, 5.0f, 9.0f);
+            }
+        } else if ((gust_age += dt) >= gust_len) {
+            gust_age = -1.0f;
+            gust_wait = Range(rng, 14.0f, 30.0f);
+        }
+        gust = gust_age < 0.0f ? 0.0f
+                               : std::clamp(std::min(gust_age / GUST_RISE, (gust_len - gust_age) / GUST_FALL), 0.0f, 1.0f);
     }
 
     const float margin = 40.0f;
@@ -150,8 +179,12 @@ void Ambience::Update(float dt, const Camera& cam) {
                 m.y += m.vy * dt;
                 break;
             case SNOW:
-                m.x += (m.vx + sinf(m.phase) * 9.0f) * dt;
-                m.y += m.vy * dt;
+                m.x += (m.vx - 150.0f * gust + sinf(m.phase) * 9.0f) * dt;
+                m.y += m.vy * (1.0f - 0.35f * gust) * dt;
+                break;
+            case FLURRY:
+                m.x += m.vx * (0.35f + 0.65f * gust) * dt;
+                m.y += (m.vy + sinf(m.phase) * 12.0f) * dt;
                 break;
             case EMBER:
                 m.x += (m.vx + sinf(m.phase) * 7.0f) * dt;
@@ -229,6 +262,17 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 SDL_RenderFillRect(r, &q);
                 break;
             }
+            case FLURRY: {
+                // A streak along the wind, as long as the gust is strong.
+                const Uint8 a = static_cast<Uint8>(m.color.a * gust);
+                if (a < 8) break;
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, a);
+                const float len = roundf((3.0f + 6.0f * gust) * z);
+                const float h = std::max(1.0f, roundf(m.size * z * 0.8f));
+                const SDL_FRect q = {roundf(p.x - len / 2.0f), roundf(p.y), len, h};
+                SDL_RenderFillRect(r, &q);
+                break;
+            }
             case SNOW:
             case POLLEN:
             case DUST: {
@@ -239,6 +283,15 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 break;
             }
         }
+    }
+
+    // A gust whitens the whole view a little: the air thick with snow.
+    if (kind == Kind::Snow && gust > 0.02f) {
+        int w = 0, h = 0;
+        SDL_GetCurrentRenderOutputSize(r, &w, &h);
+        SDL_SetRenderDrawColor(r, 236, 244, 255, static_cast<Uint8>(52.0f * gust));
+        const SDL_FRect all = {0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h)};
+        SDL_RenderFillRect(r, &all);
     }
 
     // The vignette: the edges of the screen darken under a canopy or

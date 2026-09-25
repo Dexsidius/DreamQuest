@@ -81,6 +81,15 @@ struct Hazard {
     string kind = "fire";
 };
 
+// Ice that will not bear a runner: a frozen lake. Walked on it holds; sprinted
+// on, it cracks, and a crack run too long gives way under them -- see
+// World::UpdateThinIce. `weak` is a patch darker than the rest, that strains
+// a little under a walker too: this much of the way to breaking a second.
+struct ThinIce {
+    SDL_FRect rect{};
+    float weak = 0.0f;
+};
+
 struct EnemySpawnDef {
     string type;             // key into data/enemies.json
     float  x = 0, y = 0;
@@ -314,6 +323,9 @@ public:
     const vector<MapObject>&     Objects() const { return objects; }
     const vector<Portal>&        Portals() const { return portals; }
     const vector<Hazard>&        Hazards() const { return hazards; }
+    const vector<ThinIce>&       ThinIces() const { return thin_ice; }
+    // The thin ice under a point, or null; where two overlap, the weaker.
+    const ThinIce* ThinIceAt(float x, float y) const;
     // The hazard under a box, or null.
     const Hazard* HazardAt(const SDL_FRect& box) const;
     // Objects that are not in the file: the player's own camp. They last until
@@ -356,6 +368,7 @@ private:
 
     vector<Portal>        portals;
     vector<Hazard>        hazards;
+    vector<ThinIce>       thin_ice;
     vector<EnemySpawnDef> enemies;
     vector<NpcDef>        npcs;
     vector<MapObject>     objects;

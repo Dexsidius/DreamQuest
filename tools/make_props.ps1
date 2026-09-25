@@ -130,6 +130,15 @@ $sizes = @{
     stronghold_wall = 144; stronghold_wall_v = 96; stronghold_tower = 172; stronghold_gate = 256
     stronghold_keep = 416; soul_brazier = 70; purgatory_arch = 276; bone_spire = 102; salt_pillar = 96
     steam_vent = 90; dragon_skull = 180; dream_mirror = 124; totem_cerberus = 32
+    # The Hexmire (tools/blender_hexmire_props.py).
+    hex_gateway = 230; cypress_tree = 186; cypress_knees = 48; hex_lantern = 84; shellback_hut = 160
+    shell_midden = 60; driftwood = 84; fetish_pole = 128; candle_shrine = 52; hex_drum = 46; bottle_tree = 124
+    stockade_wall = 144; stockade_wall_v = 96; stockade_gate = 220; hex_temple = 384; poto_mitan = 132
+    hex_altar = 104; totem_hex_priest = 32
+    # The Frostreach (tools/blender_frostreach_props.py).
+    snowman = 56; igloo = 128; trapper_cabin = 224; frost_barrow = 176; runestone = 72; howe_hall = 352
+    frost_brazier = 64; pelt_rack = 72; woodpile = 64; broken_sled = 72; ice_hole = 48; draugr_throne = 128
+    stone_coffin = 96; totem_abominable = 32
 }
 
 # The scenery sizes, built to the same names the maps already use. Ten trees and

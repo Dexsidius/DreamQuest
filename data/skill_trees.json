@@ -1057,6 +1057,22 @@
       "effects": {
         "speed": 0.02
       }
+    },
+    {
+      "id": "boon_hexward",
+      "name": "Hexward",
+      "text": "+8% maximum mana",
+      "effects": {
+        "max_mana": 0.08
+      }
+    },
+    {
+      "id": "boon_thick_fur",
+      "name": "Thick Fur",
+      "text": "+6% maximum health",
+      "effects": {
+        "max_health": 0.06
+      }
     }
   ],
   "totems": [
@@ -1198,6 +1214,26 @@
       "effects": {
         "move_speed": 0.08,
         "lifesteal": 0.04
+      }
+    },
+    {
+      "item": "totem_hex_priest",
+      "boss": "hex_priest",
+      "name": "The Priest's Poppet",
+      "text": "+5% chance to strike critically, and on the move 5% of blows simply miss you",
+      "effects": {
+        "crit": 0.05,
+        "evade": 0.05
+      }
+    },
+    {
+      "item": "totem_abominable",
+      "boss": "abominable_snowman",
+      "name": "Pelt of the Abominable",
+      "text": "+12% maximum health, and on the move 6% of blows simply miss you",
+      "effects": {
+        "max_health": 0.12,
+        "evade": 0.06
       }
     }
   ]
