@@ -199,23 +199,51 @@ float HitChance(const CombatProfile& attacker, const CombatProfile& defender) {
     return att / (2.0f * (def + 1.0f));
 }
 
-DamageResult RollMelee(const CombatProfile& attacker, const CombatProfile& defender,
-                       float damage_mult, std::mt19937& rng, bool floor_damage) {
+// --- a monster's blow on the player -----------------------------------------------------
+
+static int StyleMax(const CombatProfile& p, AttackStyle style) {
+    int level = p.strength_level, bonus = p.strength_bonus;
+    if (style == AttackStyle::Ranged) { level = p.ranged_level; bonus = p.ranged_bonus; }
+    else if (style == AttackStyle::Magic) { level = p.magic_level; bonus = p.magic_bonus; }
+    return BaseMaxHit(level, bonus);
+}
+
+float MonsterThrough(const CombatProfile& monster, const CombatProfile& player, AttackStyle style) {
+    return std::clamp(MONSTER_THROUGH * HitChanceFor(monster, player, style), 0.0f, 1.0f);
+}
+
+int MonsterMinimum(const CombatProfile& monster, AttackStyle style, float damage_mult) {
+    const int top = Scaled(StyleMax(monster, style), damage_mult);
+    return std::max(1, static_cast<int>(std::lround(top * MONSTER_MIN_SHARE)));
+}
+
+// One face of the die: what that roll does once armour has taken its share.
+static int BlowFor(int face, float damage_mult, float through, int least) {
+    return std::max(least, static_cast<int>(std::lround(Scaled(face, damage_mult) * through)));
+}
+
+DamageResult RollMonsterBlow(const CombatProfile& monster, const CombatProfile& player,
+                             AttackStyle style, float damage_mult, std::mt19937& rng) {
     DamageResult r;
-
-    std::uniform_real_distribution<float> chance(0.0f, 1.0f);
-    if (chance(rng) > HitChance(attacker, defender)) return r;   // splash
-
-    // As in RollAttack: the multiplier scales what came up rather than the die
-    // it came up on, and only the player's rolls have a floor under them.
-    const int base = BaseMaxHit(attacker.strength_level, attacker.strength_bonus);
-    std::uniform_int_distribution<int> roll(floor_damage ? 1 : 0, base);
-    r.damage  = roll(rng);
+    const int top = StyleMax(monster, style);
+    std::uniform_int_distribution<int> roll((top + 1) / 2, top);
+    const int face = roll(rng);
     r.hit     = true;
-    if (r.damage > 0) r.damage = Scaled(r.damage, damage_mult);
-    else if (damage_mult >= CHARGE_MIN_MULT) r.damage = 1;
-    r.max_hit = (base > 1 && r.damage >= Scaled(base, damage_mult));
+    r.damage  = BlowFor(face, damage_mult, MonsterThrough(monster, player, style),
+                        MonsterMinimum(monster, style, damage_mult));
+    r.max_hit = (top > 1 && face >= top);
     return r;
+}
+
+float ExpectedMonsterBlow(const CombatProfile& monster, const CombatProfile& player,
+                          AttackStyle style, float damage_mult) {
+    const int top = StyleMax(monster, style);
+    const float through = MonsterThrough(monster, player, style);
+    const int least = MonsterMinimum(monster, style, damage_mult);
+    float sum = 0.0f;
+    int n = 0;
+    for (int face = (top + 1) / 2; face <= top; ++face, ++n) sum += static_cast<float>(BlowFor(face, damage_mult, through, least));
+    return n > 0 ? sum / n : 0.0f;
 }
 
 SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,

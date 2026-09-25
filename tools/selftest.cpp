@@ -1038,17 +1038,18 @@ int main(int argc, char** argv) {
             const int player_max = MaxHit(fresh, 1.0f);
             const float player_acc = HitChance(fresh, b);
             const int boar_max = MaxHit(b, 1.0f);
-            const float boar_acc = HitChance(b, fresh);
+            // A monster's blow always lands; armour decides how hard.
+            const float boar_blow = ExpectedMonsterBlow(b, fresh, AttackStyle::Melee, 1.0f);
 
             printf("     starting character: max %d, accuracy %.0f%%\n",
                    player_max, player_acc * 100.0f);
-            printf("     boar (%d hp):        max %d, accuracy %.0f%%\n",
-                   boar->hp, boar_max, boar_acc * 100.0f);
+            printf("     boar (%d hp):        max %d, every blow lands for %.1f on average\n",
+                   boar->hp, boar_max, boar_blow);
 
             // A new character must be able to win the first fight the level 1
             // board quest sends them into.
             const float player_dps = player_acc * (player_max / 2.0f);
-            const float boar_dps   = boar_acc * (boar_max / 2.0f) / boar->attack_cooldown;
+            const float boar_dps   = boar_blow / boar->attack_cooldown;
             const float swings_to_kill = boar->hp / std::max(0.01f, player_dps);
             const float player_time = swings_to_kill * 0.25f;
             const float boar_time   = 10.0f / std::max(0.01f, boar_dps);
@@ -1064,6 +1065,101 @@ int main(int argc, char** argv) {
         Check(ChargeRatio(CHARGE_FULL_TIME) >= 0.99f, "full charge at the full time");
         Check(ChargeMultiplier(1.0f) > ChargeMultiplier(0.0f), "charging increases damage");
         Check(ChargeMultiplier(1.0f) >= 3.0f, "a full charge hits about three times as hard");
+    }
+
+    Section("a monster's blow lands, and armour decides how hard");
+    {
+        std::mt19937 dice(2609);
+        CombatProfile orc;
+        orc.attack_level = orc.strength_level = 50;
+        orc.attack_bonus = orc.strength_bonus = 40;
+        orc.ranged_level = orc.magic_level = 50;
+        orc.ranged_bonus = orc.magic_bonus = 40;
+        CombatProfile bare;                              // level 1, nothing on
+        CombatProfile worn = bare;
+        worn.defence_level = 50;
+        worn.defence_bonus = 250;                        // about orichalcum plate
+        CombatProfile fortress = worn;
+        fortress.defence_level = 99;
+        fortress.defence_bonus = 5000;                   // more than any harness can give
+
+        const int top = MaxHitFor(orc, AttackStyle::Melee, 1.0f);
+        const int least = MonsterMinimum(orc, AttackStyle::Melee, 1.0f);
+        bool all_land = true, in_range = true, fortress_floor = true;
+        double sum_bare = 0.0, sum_worn = 0.0;
+        for (int i = 0; i < 4000; ++i) {
+            const DamageResult a = RollMonsterBlow(orc, bare, AttackStyle::Melee, 1.0f, dice);
+            const DamageResult b = RollMonsterBlow(orc, worn, AttackStyle::Melee, 1.0f, dice);
+            const DamageResult c = RollMonsterBlow(orc, fortress, AttackStyle::Melee, 1.0f, dice);
+            all_land &= a.hit && b.hit && c.hit && a.damage > 0 && b.damage > 0 && c.damage > 0;
+            in_range &= a.damage <= top && b.damage <= top && a.damage >= least && b.damage >= least;
+            fortress_floor &= c.damage >= least;
+            sum_bare += a.damage;
+            sum_worn += b.damage;
+        }
+        Check(all_land, "a monster's blow always lands, and always does something");
+        Check(in_range, "never more than its top hit, never less than its least");
+        Check(least >= 1 && least == std::max(1, static_cast<int>(std::lround(top * MONSTER_MIN_SHARE))),
+              "the least a blow does is a share of the monster's top hit (" + std::to_string(least) + " of " +
+                  std::to_string(top) + ")");
+        Check(fortress_floor, "however much is worn, the least still gets through");
+        Check(sum_worn < sum_bare * 0.6,
+              "armour and Defence take the weight off (" + std::to_string(sum_worn / 4000.0).substr(0, 4) + " against " +
+                  std::to_string(sum_bare / 4000.0).substr(0, 4) + " a blow)");
+        Check(std::fabs(ExpectedMonsterBlow(orc, worn, AttackStyle::Melee, 1.0f) - sum_worn / 4000.0) < 0.25,
+              "and ExpectedMonsterBlow is what the dice come to");
+        {
+            // Each of the two counts on its own: more Defence, less felt; more
+            // worn, less felt; a sharper monster, more of it gets through.
+            CombatProfile skilled = worn, heavier = worn, sharper = orc;
+            skilled.defence_level += 30;
+            heavier.defence_bonus += 150;
+            sharper.attack_level += 30;
+            const float base = ExpectedMonsterBlow(orc, worn, AttackStyle::Melee, 1.0f);
+            Check(ExpectedMonsterBlow(orc, skilled, AttackStyle::Melee, 1.0f) < base &&
+                      ExpectedMonsterBlow(orc, heavier, AttackStyle::Melee, 1.0f) < base &&
+                      ExpectedMonsterBlow(sharper, worn, AttackStyle::Melee, 1.0f) > base,
+                  "the Defence level and what is worn each soften a blow; the monster's Attack sharpens it");
+        }
+        // Shots and hexes the same, on the monster's ranged numbers.
+        {
+            bool shots_land = true;
+            for (int i = 0; i < 500; ++i) shots_land &= RollMonsterBlow(orc, worn, AttackStyle::Ranged, 0.8f, dice).damage >= 1;
+            Check(shots_land, "a monster's shot lands the same way");
+        }
+
+        // What a fight costs is what it did: over the roster from level 21 up,
+        // against a character of the monster's own level in that level's tier
+        // of plate, the average blow is within about a tenth of the old
+        // hit-or-miss average (the user's choice, 2026-09-25).
+        {
+            const std::pair<int, const char*> kTiers[] = {{20, "steel"}, {30, "azuryte"}, {40, "damascus"}, {50, "orichalcum"},
+                                                           {60, "diamond"}, {70, "platinum"}, {80, "demonite"}, {88, "dracon"},
+                                                           {95, "enchanted"}};
+            vector<float> ratios;
+            for (const auto& [id, def] : enemy_db.All()) {
+                if (def.aggro_range <= 0.0f) continue;
+                const int shown = Enemy::ShownLevelOf(def, 1);
+                if (shown < 21) continue;
+                const char* tier = "steel";
+                for (const auto& [lv, name] : kTiers) if (lv <= shown) tier = name;
+                CombatProfile me;
+                me.attack_level = me.strength_level = me.defence_level = shown;
+                for (const char* piece : {"_helm", "_body", "_legs", "_shield"})
+                    if (const ItemDef* d = items.Get(string(tier) + piece)) me.defence_bonus += d->defence_bonus;
+                CombatProfile them;
+                them.attack_level = def.attack_level; them.strength_level = def.strength_level;
+                them.attack_bonus = def.attack_bonus; them.strength_bonus = def.strength_bonus;
+                const float old_way = HitChanceFor(them, me, AttackStyle::Melee) * MaxHitFor(them, AttackStyle::Melee, 1.0f) / 2.0f;
+                if (old_way <= 0.05f) continue;
+                ratios.push_back(ExpectedMonsterBlow(them, me, AttackStyle::Melee, 1.0f) / old_way);
+            }
+            std::sort(ratios.begin(), ratios.end());
+            const float median = ratios.empty() ? 0.0f : ratios[ratios.size() / 2];
+            printf("     %zu monsters from level 21: a blow now does x%.2f the old average (median)\n", ratios.size(), median);
+            Check(ratios.size() >= 40 && median > 0.85f && median < 1.2f,
+                  "a fight at the right level costs about what it did (x" + std::to_string(median).substr(0, 4) + ")");
+        }
     }
 
     // --- loot rolls -----------------------------------------------------------
@@ -14111,6 +14207,12 @@ int main(int argc, char** argv) {
                     // Hellish Rebuke: fire where it stands, burning -- and harder as an answer.
                     w.player.SetArcaneSpell("hellish_rebuke");
                     w.player.hp = w.player.max_hp;
+                    // Unhurt first. The cow answers what it has been dealt, and
+                    // a monster's blow that reaches you always lands now (see
+                    // RollMonsterBlow), so wait the window out with it far away.
+                    cow->x = w.player.x + 3000.0f;
+                    frames(w, static_cast<int>((Player::REBUKE_WINDOW + 0.5f) / kFrame));
+                    Check(w.player.SinceHurt() > Player::REBUKE_WINDOW, "the caster has not been hurt for a while");
                     reset(120.0f);
                     w.ground_effects.clear();
                     press(w, SDLK_J);

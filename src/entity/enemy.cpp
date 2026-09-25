@@ -828,16 +828,13 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 const SDL_FPoint at = player.GroundCentre();
                 const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
                 if (!player.IsDead() && level && ArcHits(SwingArc(), at.x, at.y, player.GroundRadius())) {
-                    DamageResult r = RollMelee(Profile(), player.Profile(), 1.0f, *ctx.rng);
-                    if (r.hit && r.damage <= 0) {
-                        world.AddText("0", player.x, player.y - 44.0f, {120, 160, 220, 255});
-                    } else if (r.hit) {
-                        const float len = std::max(1.0f, dist);
-                        world.HitPlayer(r.damage, Profile(), x, y,
-                                        (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this);
-                    } else {
-                        world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
-                    }
+                    // It lands: what the player wears and knows decides how
+                    // hard (see RollMonsterBlow). Not being in the arc, a
+                    // block and a parry are the ways out of it.
+                    const DamageResult r = RollMonsterBlow(Profile(), player.Profile(), AttackStyle::Melee, 1.0f, *ctx.rng);
+                    const float len = std::max(1.0f, dist);
+                    world.HitPlayer(r.damage, Profile(), x, y,
+                                    (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this);
                 }
             }
             if (swing_timer >= ProfileFor(AttackType::Strong).Total()) {

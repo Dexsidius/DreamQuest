@@ -264,20 +264,13 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 }
             } else if (Player* struck = PlayerTouching(box)) {
                 ActAs(*struck, [&] {
-                    DamageResult r = RollAttack(p.owner, player.Profile(), p.style,
-                                                p.damage_mult, *ctx.rng);
-                    // A hex that lands does what it does even when it barely
-                    // scratches: a hit of nothing is a hit of one, for a shot
-                    // that carries a status.
-                    const bool carries = p.def->status.Any();
-                    if (r.hit && (r.damage > 0 || carries)) {
-                        // Where the shot came from is back along its flight;
-                        // what it leaves draws them to where it was loosed.
-                        HitPlayer(std::max(1, r.damage), p.owner, p.x - p.vx, p.y - p.vy, 0.0f, 0.0f,
-                                  p.def->status, p.from_x, p.from_y);
-                    } else {
-                        AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
-                    }
+                    // A shot that reaches them lands, as a swing does: see
+                    // RollMonsterBlow. Where it came from is back along its
+                    // flight; what it leaves draws them to where it was loosed.
+                    const DamageResult r = RollMonsterBlow(p.owner, player.Profile(), p.style,
+                                                           p.damage_mult, *ctx.rng);
+                    HitPlayer(r.damage, p.owner, p.x - p.vx, p.y - p.vy, 0.0f, 0.0f,
+                              p.def->status, p.from_x, p.from_y);
                 });
                 {
                     const float speed = std::max(1.0f, Length(p.vx, p.vy));

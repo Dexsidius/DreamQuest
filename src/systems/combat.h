@@ -115,30 +115,59 @@ struct DamageResult {
     bool max_hit = false;     // rolled the top of the range, worth flashing
 };
 
-// Accuracy roll then damage roll.
+// The player's attacks: an accuracy roll, then a damage roll.
 //
 // `floor_damage` starts the damage die at 1 instead of 0, so a swing that beat
-// the accuracy roll always does something. It is passed for the player's
-// attacks and not for the monsters': a hit of your own that lands for nothing
-// reads as the game ignoring you, where a monster rolling low is just a quiet
-// moment. Making it symmetric raised every monster's average damage by half
-// at low levels, which is the opposite of what it is for.
-DamageResult RollMelee(const CombatProfile& attacker, const CombatProfile& defender,
-                       float damage_mult, std::mt19937& rng, bool floor_damage = false);
-
-// Rolls an attack of any style. Melee is identical to RollMelee.
+// the accuracy roll always does something. The player's attacks pass it: a hit
+// of your own that lands for nothing reads as the game ignoring you.
 DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defender,
                         AttackStyle style, float damage_mult, std::mt19937& rng,
                         bool floor_damage = false);
 
 int MaxHit(const CombatProfile& p, float damage_mult);
 
-// --- what armour is for, against a blow that cannot miss ---------------------------
-// Defence makes an ordinary swing miss, and against an ordinary swing that is
-// all it needs to do. A monster's heavy attack has no accuracy roll -- it is
-// telegraphed, and the answer to it is to not be there -- so every point of
-// Defence and every plate a character had on did nothing at all against the
-// one blow in the game most likely to kill them: a frost dragon's came to
+// --- a monster's blow on the player: it lands, and armour decides how hard -------------
+// A monster's ordinary swing or shot used to roll to hit against the player's
+// Defence, the way the player's own attacks roll against a monster's, and at a
+// fight of the player's own level it missed four blows in five. With a block,
+// a parry, a tumble and a step out of the arc all in the player's hands, a
+// second chance of nothing happening -- rolled by the game, not earned -- made
+// the blows that did land feel arbitrary, and made armour a thing that turned
+// blows into misses rather than a thing that takes the weight off them.
+//
+// So a blow that reaches you lands, every time. The die runs from half the
+// monster's top hit to all of it, and what gets through is a share of that:
+//
+//     through = MONSTER_THROUGH x HitChanceFor(monster, player, style)
+//
+// the same weighing of the monster's Attack against your Defence level and
+// the defence of what you wear that used to decide whether it missed, now
+// deciding how much of it you feel. Whatever you wear, the blow does at least
+// MONSTER_MIN_SHARE of the monster's top hit, and never less than a point.
+//
+// MONSTER_THROUGH is set so a fight costs what it did (the user's call,
+// 2026-09-25): against a character of the monster's own level in that level's
+// tier of plate, hide or robe, the average blow over the roster from level 21
+// up is within a tenth of what it was. Below level 20 a guaranteed point is
+// more than a rat or a boar used to average, so the first fights bite about
+// twice as hard. Bare skin takes three to four times what a matching set does.
+// A heavy blow keeps its own rule: see HeavySoak.
+static constexpr float MONSTER_THROUGH   = 0.65f;
+static constexpr float MONSTER_MIN_SHARE = 0.05f;
+DamageResult RollMonsterBlow(const CombatProfile& monster, const CombatProfile& player,
+                             AttackStyle style, float damage_mult, std::mt19937& rng);
+// The share of a blow that gets through, 0..1, and the least one can do.
+float MonsterThrough(const CombatProfile& monster, const CombatProfile& player, AttackStyle style);
+int   MonsterMinimum(const CombatProfile& monster, AttackStyle style, float damage_mult);
+// What a blow does on average: the mean over the die, exactly as it is rolled.
+float ExpectedMonsterBlow(const CombatProfile& monster, const CombatProfile& player,
+                          AttackStyle style, float damage_mult);
+
+// --- what armour is for, against a heavy blow ---------------------------------------
+// A monster's heavy attack never had an accuracy roll -- it is telegraphed,
+// and the answer to it is to not be there -- so when Defence only made blows
+// miss, every point of it and every plate a character had on did nothing at
+// all against the one blow in the game most likely to kill them: a frost dragon's came to
 // seventy-six to ninety-five, against a most-there-could-ever-be of ninety-nine
 // hit points, whoever was wearing what.
 //

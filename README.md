@@ -1689,27 +1689,78 @@ self-test checks that.
 
 ### How a swing resolves
 
-Two rolls, in `src/systems/combat.cpp`. First accuracy: `(level + 8) x (bonus +
+Your swing is two rolls, in `src/systems/combat.cpp`. First accuracy: `(level + 8) x (bonus +
 64)` for the attacker against the same for the defender's Defence, and the
 larger of the two wins more often. Note the `+64` -- at low levels the gear
-bonus is most of that number, which is why a starting character feels the lack
-of armour more than the lack of levels. Then damage: an integer rolled up to
+bonus is most of that number. Then damage: an integer rolled up to
 `floor(0.5 + (strength + 8) x (strength bonus + 64) / 280)`, the swing's own
-multiplier applied to whatever came up.
+multiplier applied to whatever came up. A monster's blow on you is resolved
+differently: it always lands, and your armour decides how hard (see
+[When a monster strikes](#when-a-monster-strikes)).
 
-Two details of that are the difference between "unlucky" and "unfair", and both
+Two details of your roll are the difference between "unlucky" and "unfair", and both
 were got wrong first time:
 
-- **The player's damage die starts at 1, monsters' start at 0.** A hit of your
-  own that lands for nothing reads as the game ignoring you; a monster rolling
-  low is just a quiet moment. Symmetrical flooring was tried and it raised
-  every early monster's average damage by half, which is the opposite of the
-  point.
+- **Your damage die starts at 1.** A hit of your own that lands for nothing
+  reads as the game ignoring you.
 - **The multiplier scales the roll, not the die.** The light chain's links are
   x0.72, x0.82 and x1.10. Scaling the die and truncating it to an int collapsed
   a level 1 character's 1-2 range to 1-1 on the opening links, so two thirds of
   every combo were quietly worse than they read. Above about level 20 the two
   orderings agree.
+
+### When a monster strikes
+
+**A monster's blow that reaches you lands, every time.** It used to roll to hit
+against your Defence the way yours rolls against a monster's. At a fight of
+your own level it missed about four blows in five against plate and three in
+four against hides or robes. With a block, a parry, a tumble and a step out of
+the swing all in your hands, a second chance of nothing happening, rolled by
+the game rather than earned, made the blows that did land feel arbitrary. It
+also made armour a thing that turned blows into misses instead of a thing
+that takes the weight off them.
+
+Now:
+
+- **The die** runs from half the monster's top hit to all of it.
+- **What gets through** is `0.65 x` the old chance to hit: the monster's Attack
+  weighed against your Defence level and the defence of what you wear. The
+  same numbers that used to decide *whether* a blow landed now decide *how
+  hard*. Levelling Defence and wearing better armour both soften every blow,
+  and a concussed or poisoned character guards worse and feels more of it.
+- **The guaranteed least** a blow does, whatever you wear, is a twentieth of
+  the monster's top hit, and never less than a point.
+
+Shots and hexes follow the same rule on the monster's ranged numbers. The ways
+out of a blow are yours: be somewhere else when it swings, tumble through it,
+block it, parry it, or take Slippery or Sure Feet. The "miss" that still shows
+over you means you stepped out of a heavy blow's reach.
+
+The `0.65` was chosen so that a fight costs what it did (the call made on
+25 September 2026). Against a character of the monster's own level in that
+level's tier, the average blow across the roster works out as follows:
+
+| Monster level | Plate | Hides | Robes |
+| --- | --- | --- | --- |
+| 1-20 | x2.3 | x1.6 | x1.7 |
+| 21-40 | x1.1 | x1.0 | x1.0 |
+| 41-60 | x1.0 | x1.0 | x1.0 |
+| 61-80 | x1.0 | x1.0 | x1.0 |
+| 81-99 | x1.1 | x1.0 | x1.0 |
+
+The first twenty levels bite harder because a guaranteed point is more than a
+weak monster used to average: a boar landed about one swing in two on a new
+character in wooden armour, for 0.7 of a point a swing, and now every swing is
+a point. Bare skin takes three to
+four times what a matching set of armour takes, which is the point of armour.
+
+A leader's heavy blow keeps its own rule (`SoakHeavy`): no roll to hit, top of
+its range, a share soaked by armour. The self-test's "a monster's blow lands"
+section holds the rest: every blow lands and stays between its least and its
+top, armour and Defence each soften it, and the roster's median stays within
+a band of the old average.
+The code is `RollMonsterBlow`, `MonsterThrough` and `MonsterMinimum` in
+`src/systems/combat.h`.
 
 ### What a level is for
 
@@ -4102,12 +4153,15 @@ who work with them. Every character used to start with the sword, which sent
 two of the three into their first fight with the one weapon their affinity
 does nothing for.
 
-The armour is not generosity, it is the accuracy formula.
-Defence is `(level + 8) x (bonus + 64)`, so at level 1 the bonus from what you
-are wearing is most of the number: with an empty body slot a boar hits a new
-character 60% of the time and an orc 65%, while they hit back at about 42%.
-Twenty-six points of defence bonus brings that to 44% and 50%, and the first
-hour stops feeling arranged against you.
+The armour is not generosity. Defence is `(level + 8) x (bonus + 64)`, so at
+level 1 the bonus from what you are wearing is most of the number, and it
+decides how much of every blow gets through (see
+[When a monster strikes](#when-a-monster-strikes)). Against the very first
+monsters it cannot show yet: an orc grunt, a boar or a wolf tops out at three
+or four, and nearly every blow comes to the guaranteed single point whatever
+you wear. It tells once the monsters hit harder than that. By the middle
+levels a matching set lets through only a tenth to a sixth of each blow, and
+bare skin takes three to four times as much.
 
 ### Learning a trade
 
