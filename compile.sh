@@ -15,10 +15,17 @@ LIBS="-lSDL3 -lSDL3_image -lSDL3_ttf -lenet"
 
 GAME_SRC="src/*.cpp src/world/*.cpp src/entity/*.cpp src/systems/*.cpp src/ui/*.cpp src/net/*.cpp src/coop/*.cpp"
 # Everything except the files that own main() and the Game class (game.cpp,
-# and ui/screens.cpp with the screen_*.cpp it was cut into), for the self-test.
-TEST_SRC="src/camera.cpp src/input.cpp src/sprite.cpp src/texturecache.cpp \
-          src/ui/ui.cpp src/ui/minimap.cpp src/world/*.cpp src/entity/*.cpp src/systems/*.cpp \
-          src/net/*.cpp src/coop/*.cpp"
+# lobby.cpp, splitscreen.cpp, and ui/screens.cpp with the screen_*.cpp it was
+# cut into), for the self-test and the server -- the same list build.ps1 takes.
+# Worked out from GAME_SRC rather than written out: it used to be written out,
+# and a file added under src/ui (worldmap.cpp, titlescreen.cpp) was missing
+# from it, so the self-test would not link on Linux.
+TEST_SRC=$(for f in $GAME_SRC; do
+    case "$f" in
+        src/main.cpp|src/game.cpp|src/ui/screens.cpp|src/ui/lobby.cpp|src/ui/splitscreen.cpp|src/ui/screen_*.cpp) ;;
+        *) printf '%s ' "$f" ;;
+    esac
+done)
 
 mkdir -p bin
 

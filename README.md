@@ -85,6 +85,13 @@ Install SDL3, SDL3_image, SDL3_ttf and ENet (`libenet-dev`, `enet`), then:
 ./compile_and_run.sh
 ```
 
+SDL has to be **3.4 or later**: the shaders are handed to the renderer with
+`SDL_SetGPURenderState`, which 3.2 does not have. Where the package manager has
+no SDL3 or an older one (Ubuntu 24.04 has none), SDL, SDL_image and SDL_ttf
+build from their `release-3.x` tags with CMake. `./compile.sh test` builds
+and runs the self-test, `./compile.sh tools` only builds it, and
+`./compile.sh server` the headless co-op server.
+
 ### Other build targets
 
 | Command | What it does |
