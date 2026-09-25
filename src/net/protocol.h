@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 12;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under)
+static constexpr uint16_t PROTOCOL_VERSION = 13;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under). 13: a combo's, a parry's and a riposte's marks (Delta::Mark), and a parry owed its riposte (Delta::parried)
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -351,6 +351,20 @@ struct Delta {
     struct Xp      { uint8_t skill = 0; int32_t amount = 0; };
     struct Quest   { uint8_t type = 0; std::string target, secondary, map; int32_t amount = 1; };
     struct Sound   { uint8_t sfx = 0, volume = 255, pitch = 100; bool placed = false; int16_t x = 0, y = 0; };
+    // What a combo, a parry or a riposte drew (World::StrikeNote), for a
+    // friend's window to draw too. `kind` 0 is a mark in the fx shader's
+    // strike shapes, 1 a shock through the picture (strength in `radius`,
+    // shake in p[0], and whose blow it was in `seat`: only their screen
+    // shakes), 2 a burst of sparks (turn in p[0]). For show only.
+    struct Mark {
+        uint8_t kind = 0, shape = 0, seat = 0;
+        int16_t x = 0, y = 0;
+        float   radius = 0.0f, lift = 0.0f;
+        float   p[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        int8_t  grows = -1;
+        float   grows_from = 0.0f, grows_to = 0.0f, life = 0.0f, delay = 0.0f, seed = 0.0f;
+        uint8_t r = 255, g = 255, b = 255, a = 255, count = 0;
+    };
     std::vector<Text>  texts;
     std::vector<std::string> flags;
     std::vector<std::pair<std::string, double>> picked;
@@ -360,10 +374,14 @@ struct Delta {
     std::vector<Quest> quests;
     std::vector<std::string> chain;      // a blow of yours landed: its name, for the counter
     std::vector<Sound> sounds;
+    std::vector<Mark>  marks;
+    // Blows of yours caught outright on a dagger: your window owes the
+    // riposte too, and says so.
+    uint8_t parried = 0;
     std::string ledger;                  // the traders' day, when it changes
     bool Empty() const {
         return texts.empty() && flags.empty() && picked.empty() && panels.empty() && bag.empty() && xp.empty() &&
-               quests.empty() && chain.empty() && sounds.empty() && ledger.empty();
+               quests.empty() && chain.empty() && sounds.empty() && marks.empty() && parried == 0 && ledger.empty();
     }
 };
 static constexpr size_t MAX_MAP_ID = 48;

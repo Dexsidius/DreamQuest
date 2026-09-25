@@ -52,6 +52,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     shake = flash_amount = 0.0f;
     ice_cracks.clear();
     ice_holes.clear();
+    strikes.clear();
+    strike_log.clear();
     ice_strain = ice_grace = 0.0f;
     ice_sink = -1.0f;
     ice_safe_known = false;
@@ -795,6 +797,7 @@ void World::Update(float dt, const GameContext& ctx) {
     if (!player.absent) UpdateSeat(dt, ctx);
     UpdateShared(dt, ctx);
     AgeIce(dt);
+    UpdateStrikes(dt);
     if (!visiting && !player.absent) CollectPickups(dt, ctx);
     FlushKills(ctx);
 
@@ -1099,6 +1102,8 @@ void World::UpdateElevation(float dt) {
 }
 
 // --- thin ice -------------------------------------------------------------------------------
+bool World::SeenHere() { return !acting || seat_states[player.seat].viewed; }
+
 // The cracks and holes are the map's, whoever made them: they fade once a frame.
 void World::AgeIce(float dt) {
     for (IceCrack& c : ice_cracks) c.age += dt;
@@ -1123,7 +1128,7 @@ void World::UpdateThinIce(float dt, const GameContext& ctx) {
     const bool decides = !visiting;
     // Whose screen this is: the host's own, a seat looked through here, or --
     // acting for a friend down the wire -- nobody's here.
-    const bool seen_here = !acting || seat_states[player.seat].viewed;
+    const bool seen_here = SeenHere();
 
     // Going under: a moment in the black water, then out on the shore.
     if (ice_sink >= 0.0f) {
@@ -1227,7 +1232,7 @@ void World::BreakIce(const GameContext& ctx) {
         const float a = k * 1.0472f + 0.3f;
         ice_cracks.push_back({ice_fell, {ice_fell.x + cosf(a) * 34.0f, ice_fell.y + sinf(a) * 24.0f}, 0.0f});
     }
-    const bool seen_here = !acting || seat_states[player.seat].viewed;
+    const bool seen_here = SeenHere();
     Burst(player.x, player.y - 6.0f, 26.0f, {196, 226, 255, 255}, 26);
     Shock(player.x, player.y, 0.35f, seen_here ? 0.5f : 0.0f);
     if (seen_here) Flash({180, 214, 255, 255}, 0.35f);

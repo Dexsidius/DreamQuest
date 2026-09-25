@@ -175,7 +175,9 @@ public:
     // Reeling from a blow -- the Crushing Blow's -- for this long: no moving,
     // no swinging. A leader braced in its heavy's wind-up shrugs it off, and
     // the dead are past it.
-    void  Stagger(float seconds);
+    // Reeling for `seconds`. A heavy blow being wound up shrugs it off -- unless
+    // `force`: the heavy blow itself caught on a parry.
+    void  Stagger(float seconds, bool force = false);
     // What a player's abilities leave on it. Marked, it takes a quarter more
     // from every blow, whoever's. Sundered, its defence is down by a third.
     static constexpr float MARK_DAMAGE = 0.25f, SUNDER_SHARE = 0.67f;

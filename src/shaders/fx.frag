@@ -8,6 +8,14 @@
 //   2 stained glass     the light of a high window lying on the floor: a lancet,
 //                       leaded into panes of crimson, gold, violet and blue
 //   3 a halo            the lit air round a lamp or a brazier after dark
+//   4 a slash           a crescent swept round, bright at its head and edge
+//   5 an impact         a flash, rays and a spreading ring where a blow lands
+//   6 a thrust          a line driven out, widest at its point
+//   7 a cross cut       two strokes crossing
+//   8 a casting circle  two rings on the ground, ticks turning between them
+//
+// Shapes 4 to 8 are the combo strikes' (World::DrawStrikes) and read their
+// four numbers from `hit`.
 //
 // Worked in world pixels (`size` says how many screen pixels one is), so the
 // shapes are as square-edged as everything else.
@@ -109,6 +117,108 @@ void main() {
             a = lead ? 0.0 : 0.55 * soft;
         }
         a *= fade;
+    } else if (kind == 4) {
+        // A slash: a crescent swept from angle hit.x through hit.y radians,
+        // drawn as far as hit.z of the way round -- brightest at its head and
+        // along its outer edge, where the blade is -- with sparks thrown off
+        // near the head. hit.w is how thick it is, as a share of its radius.
+        vec2 p = q * 2.0 - 1.0;
+        float r = length(p);
+        float sweep = fx.hit.y, head = fx.hit.z, thick = max(fx.hit.w, 0.02);
+        float inner = 1.0 - thick;
+        if (r > inner && r < 1.0) {
+            float d = atan(p.y, p.x) - fx.hit.x;
+            float s = (sweep >= 0.0 ? mod(d, 6.2831853) : mod(-d, 6.2831853)) / max(abs(sweep), 0.001);
+            if (s <= head) {
+                float behind = head - s;
+                float tail = clamp(1.0 - behind / 0.55, 0.0, 1.0);
+                float edge = (r - inner) / thick;
+                float core = smoothstep(0.45, 0.95, edge);
+                a = tail * (0.35 + 0.65 * core);
+                rgb = mix(c, vec3(1.0), core * tail * 0.75);
+                if (behind < 0.25 && Hash(floor(p * 18.0) + fx.kind.w + floor(t * 20.0)) > 0.93) { a = 1.0; rgb = vec3(1.0); }
+            }
+        }
+        a *= fade;
+    } else if (kind == 5) {
+        // A blow landing: a flash at its heart, rays thrown out that shorten as
+        // it goes, and a ring spreading. hit.x runs 0..1 over its life, hit.y
+        // is how many rays (none under three), hit.z flattens it onto the
+        // ground (1 round), hit.w is the ring's width (0 none).
+        float prog = fx.hit.x, spikes = fx.hit.y, squash = max(fx.hit.z, 0.2), ring_w = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= squash;
+        float r = length(p);
+        float ray = 0.0;
+        if (spikes >= 2.5) {
+            float ang = atan(p.y, p.x);
+            float k = floor((ang + 3.14159265) / 6.2831853 * spikes);
+            float mid = (k + 0.5) / spikes * 6.2831853 - 3.14159265;
+            float off = abs(ang - mid) * r;
+            float len = (0.55 + 0.45 * Hash(vec2(k, fx.kind.w))) * (1.0 - prog * 0.6);
+            if (r < len && off < 0.07 * (1.0 - r / len) + 0.02) ray = (1.0 - r / len) * (1.0 - prog * 0.8);
+        }
+        float heart = exp(-r * r / 0.012) * (1.0 - prog) * 0.75;
+        float ring = 0.0;
+        if (ring_w > 0.0) {
+            float rr = abs(r - (0.25 + 0.75 * prog));
+            if (rr < ring_w) ring = (1.0 - rr / ring_w) * (1.0 - prog);
+        }
+        a = max(max(ray, heart), ring);
+        rgb = mix(c, vec3(1.0), max(heart, ray * 0.5));
+        a *= fade;
+    } else if (kind == 6) {
+        // A thrust: a line driven out from hit.w along angle hit.x, as far as
+        // hit.y of the way to the edge, widest and brightest at its point.
+        float ang = fx.hit.x, head = fx.hit.y, width = max(fx.hit.z, 0.01), from = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        vec2 dir = vec2(cos(ang), sin(ang));
+        float along = dot(p, dir);
+        float across = abs(dot(p, vec2(-dir.y, dir.x)));
+        if (along > from && along < head) {
+            float taper = (along - from) / max(head - from, 0.001);
+            float w = width * (0.3 + 0.7 * taper);
+            if (across < w) {
+                float core = 1.0 - across / w;
+                a = taper * (0.4 + 0.6 * core);
+                rgb = mix(c, vec3(1.0), core * taper * 0.8);
+            }
+        }
+        a *= fade;
+    } else if (kind == 7) {
+        // A cross cut: two strokes crossing on angle hit.x, the second coming
+        // a moment after the first, both grown by hit.y; hit.z their width.
+        float ang = fx.hit.x, prog = fx.hit.y, width = max(fx.hit.z, 0.01);
+        vec2 p = q * 2.0 - 1.0;
+        for (int i = 0; i < 2; ++i) {
+            float grow = clamp(prog * 2.0 - float(i) * 0.5, 0.0, 1.0);
+            float a2 = ang + (i == 0 ? 0.785398 : -0.785398);
+            vec2 dir = vec2(cos(a2), sin(a2));
+            float along = dot(p, dir);
+            float across = abs(dot(p, vec2(-dir.y, dir.x)));
+            if (abs(along) < grow * 0.9 && across < width) {
+                float core = 1.0 - across / width;
+                float v = (0.5 + 0.5 * core) * (0.4 + 0.6 * (1.0 - abs(along) / 0.9));
+                if (v > a) { a = v; rgb = mix(c, vec3(1.0), core * 0.8); }
+            }
+        }
+        a *= fade;
+    } else if (kind == 8) {
+        // A circle cast on the ground: two rings, ticks turning between them.
+        // hit.x opens it and lets it go; hit.z flattens it onto the ground.
+        float prog = fx.hit.x, squash = max(fx.hit.z, 0.2);
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= squash;
+        float r = length(p);
+        float open = smoothstep(0.0, 0.3, prog);
+        if (abs(r - 0.92 * open) < 0.05) a = 0.9;
+        else if (abs(r - 0.62 * open) < 0.035) a = 0.7;
+        else if (r > 0.62 * open && r < 0.92 * open) {
+            float tick = fract((atan(p.y, p.x) + t * 1.8) / 6.2831853 * 16.0);
+            if (tick < 0.18) a = 0.55;
+        }
+        rgb = mix(c, vec3(1.0), a > 0.8 ? 0.5 : 0.1);
+        a *= fade * (1.0 - smoothstep(0.7, 1.0, prog));
     } else {
         vec2 p = q * 2.0 - 1.0;
         float r = length(p);

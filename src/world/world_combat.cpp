@@ -224,6 +224,20 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     if (atk.move != ComboMove::None) {
         AddText(player.ComboLabel(atk.move), player.x, player.y - 58.0f, {255, 232, 150, 255}, 0.8f);
         const float base = damage_mult / std::max(0.01f, atk.damage_mult);
+        // What it looked like as it went, and -- for where they strike -- which
+        // combo every shot of it was.
+        const size_t first_shot = projectiles.size();
+        struct Mark {
+            World& w; size_t first; ComboMove move; AttackStyle style; float mx, my, angle;
+            ~Mark() {
+                Element el = Element::None;
+                for (size_t i = first; i < w.projectiles.size(); ++i) {
+                    w.projectiles[i].combo = move;
+                    if (w.projectiles[i].def) el = w.projectiles[i].def->element;
+                }
+                w.ComboShotFx(move, style, el, mx, my, angle);
+            }
+        } mark{*this, first_shot, atk.move, style, muzzle.x, muzzle.y, atan2f(aim.y, aim.x)};
         if (style == AttackStyle::Ranged) {
             switch (atk.move) {
                 case ComboMove::Crush:      // Split Shot: three arrows in a narrow fan
@@ -1060,8 +1074,11 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
 
     // A combo says its name over the player as it comes out -- the weapon's
     // own name for it, where it has one.
-    if (atk.move != ComboMove::None)
+    if (atk.move != ComboMove::None) {
         AddText(player.ComboLabel(atk.move), player.x, player.y - 58.0f, {255, 232, 150, 255}, 0.8f);
+        ComboSwingFx(atk.move, in_hand);
+    }
+    if (atk.riposte) AddText("Riposte!", player.x, player.y - 58.0f, {255, 214, 110, 255}, 0.9f);
 
     // The Cross Cut is a turn on the spot: it strikes everything round the
     // player as far as the blade reaches, the way Whirlwind does.
@@ -1089,6 +1106,8 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
                  player.x, player.y, ctx, atk.type);
         // The Crushing Blow leaves what it lands on reeling.
         if (atk.move == ComboMove::Crush && e->hp < before) e->Stagger(CRUSH_STAGGER);
+        if (atk.move != ComboMove::None) ComboHitFx(atk.move, in_hand, *e);
+        if (atk.riposte) RiposteFx(e->x, e->y - 18.0f, atan2f(e->y - player.y, e->x - player.x));
     }
 
     // The chain: one more for a swing that met something, and over for one
@@ -1125,6 +1144,14 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     std::uniform_real_distribution<float> unit(0.0f, 1.0f);
     bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style);
     if (crit_next) crit = true;             // loosed with Take Aim
+    // A riposte, the lunge a parry owes: it always lands critically.
+    if (style == AttackStyle::Melee && player.Attack().riposte) crit = true;
+    // What a parry left open (Counter) takes the next blow harder.
+    if (player.Opened(&e)) {
+        damage_mult *= 1.0f + Player::OPENING_BONUS;
+        player.SpendOpening();
+        AddText("Opening!", e.x, e.y - 72.0f, {255, 214, 140, 255}, 0.8f);
+    }
     // Executioner: what is nearly down is always struck critically.
     const float execute = player.talents.Effect("execute", style);
     if (execute > 0.0f && e.HealthFraction() < execute) crit = true;
@@ -1286,8 +1313,20 @@ void World::AfflictPlayer(const StatusProc& proc, int blow, float charm_x, float
         AddText(d->name + "!", player.x, player.y - 70.0f, d->color, 1.3f);
 }
 
+void World::Parried(Enemy* by, float from_x, float from_y, bool heavy) {
+    const int rank = player.CounterRank();
+    if (by) by->Stagger(Player::PARRY_STAGGER + (heavy ? Player::PARRY_HEAVY_STAGGER : 0.0f) +
+                        (rank >= 1 ? Player::OPENING_STAGGER : 0.0f), heavy);
+    player.NoteParry(by);
+    player.NoteBlock();              // caught outright is caught all the same: Riposte
+    const float mx =player.x + (from_x - player.x) * 0.35f, my = player.y - 22.0f + (from_y - player.y) * 0.35f;
+    ParryFx(mx, my, atan2f(from_y - player.y, from_x - player.x));
+    AddText(rank >= 2 ? "Parried!  Riposte!" : "Parried!", player.x, player.y - 58.0f, {236, 244, 255, 255}, 1.0f);
+    Audio::PlayAt(Sfx::Block, player.x, player.y, 1.0f, 1.55f);
+}
+
 int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
-                     float knock_x, float knock_y, const StatusProc& leaves, float charm_x, float charm_y) {
+                     float knock_x, float knock_y, const StatusProc& leaves, float charm_x, float charm_y, Enemy* by) {
     if (damage <= 0 || player.IsDead() || player.resting || player.Untouchable()) return 0;
     // Slippery: on the move, some of them simply miss.
     const float evade = player.talents.Global("evade");
@@ -1301,7 +1340,15 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
         knock_x = knock_y = 0.0f;
     }
-    const BlockOutcome b = player.TryBlock(damage, CombatLevelOf(attacker), from_x, from_y);
+    // A dagger's parry: caught outright in its first moment, and after that a
+    // poor guard. With no dagger raised, the shield, as ever.
+    bool parried = false;
+    const BlockOutcome parry = player.TryParry(damage, CombatLevelOf(attacker), from_x, from_y, parried);
+    if (parried) {
+        Parried(by, from_x, from_y, false);
+        return 0;
+    }
+    const BlockOutcome b = player.Parrying() ? parry : player.TryBlock(damage, CombatLevelOf(attacker), from_x, from_y);
 
     if (b.blocked > 0) {
         AddText("blocked " + std::to_string(b.blocked), player.x, player.y - 58.0f,
@@ -1342,8 +1389,14 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
 }
 
 int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
-                          const StatusProc& leaves) {
+                          const StatusProc& leaves, Enemy* by) {
     if (player.resting || player.Untouchable()) return 0;
+    if (damage > 0 && !player.IsDead() && player.ParryOpen() && player.ParryFacing(from_x, from_y)) {
+        // Even a leader's heavy blow, caught in the moment, goes nowhere --
+        // and leaves the leader reeling the longer for it.
+        Parried(by, from_x, from_y, true);
+        return 0;
+    }
     player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
     // What is worn takes its share first: see HeavySoak. Before the guard is
@@ -1358,9 +1411,9 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
         push = 0.0f;
     }
-    if (player.GuardFacing(from_x, from_y)) {
-        // Met with a shield: it goes straight through, and takes the guard
-        // and the breath with it.
+    if (player.GuardFacing(from_x, from_y) || player.ParryFacing(from_x, from_y)) {
+        // Met with a shield -- or a dagger past its moment: it goes straight
+        // through, and takes the guard and the breath with it.
         damage = static_cast<int>(std::lround(damage * HEAVY_BLOCK_PUNISH));
         player.ShatterGuard();
         push = player.StandingFast() ? 0.0f : 1.6f;

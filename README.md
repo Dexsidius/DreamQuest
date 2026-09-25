@@ -681,6 +681,31 @@ the player goes through `World::HitPlayer`, so no monster or projectile can skip
 the shield. The guard pose is its own clip, `block`, rendered for every character,
 armour cut and tier weapon.
 
+### Parrying
+
+A **dagger with no shield behind it** does not block: the same button raises it
+to **parry**. A pair of daggers parries too, since a second dagger is not a
+shield. A dagger with a shield in the other hand blocks with the shield.
+
+The parry's first quarter of a second is **the moment**. Every blow from in
+front that lands in it is caught outright: nothing gets through, not even a
+leader's heavy blow that shatters a shield's guard. Each catch costs 6 breath
+and trains Defence the way a block does. Whoever threw the blow **reels** for six
+tenths of a second, or a full second if it was a leader's heavy blow, which a
+leader braced in its wind-up cannot shrug off.
+
+Held past the moment, the parry is only a **poor guard**. It turns aside 35% of
+a blow at a wooden shield's price in breath, and breaks like any guard when the
+bar runs out. Once you let go, the next moment is ready after about half a
+second. Raise it again sooner and you get the guard, not the moment, so tapping
+B over and over is not a wall. A blow from behind still finds your back.
+
+Everything else is the block's: you step slowly while it is up, and you cannot
+swing or sprint. It plays the `block` clip. The HUD reads *Parry!* during the
+moment and *Parrying* after it. The rules are `Player::TryParry` and
+`World::Parried`. A blow comes through `World::HitPlayer` (a leader's heavy
+through `HeavyHitPlayer`), which asks the dagger before it asks a shield.
+
 ### Sprinting
 
 Hold `Shift` (or the left trigger) while moving to sprint at 1.6 times running
@@ -1119,6 +1144,39 @@ thrust is a line driven out instead; the Crushing Blow adds a streak down the
 middle; the Cross Cut's crescent is the whole circle; and each combo has its
 own tint, so what came out can be told from across the room
 (`World::DrawSwing`).
+
+**And every combo leaves marks.** With Visual Effects on, the swing is drawn by
+the fx shader rather than in lines: a soft, glowing sweep that brightens toward
+its leading edge and throws sparks off it, or a driven line for a thrust. Each
+of the twelve melee combos, the four shots and the staff's four casts also
+leaves marks of its own, in the swing and on whatever it strikes. Each weapon
+family has its own four colours, so no two of the twenty melee combos look
+alike:
+
+| | Light, Heavy | Light, Light, Heavy | Heavy, Light | Both together |
+| --- | --- | --- | --- | --- |
+| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, dust | **Cleave**: the crescent, then its wind a beat later, wider; sparks | **Backhand**: the sweep runs back the other way; a snap of light | **Cross Cut**: a ring cut on the ground round the feet; an X on every body |
+| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints thrown out all round |
+| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind | **Backswing**: a snap | **Ground Slam**: the floor goes out from under everything, dust, a big shock |
+| Greatsword | **Overhead Cleave**: a wider, harder ground break | **Reaping Sweep**: in red, and it bleeds | **Pommel Strike**: stars | **Whirlwind**: two rings, one after the other |
+| Greataxe | **Hew**: the widest break, blood | **Felling Sweep** | **Haft Check**: stars | **Maelstrom**: two rings; blood-red crosses |
+| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; blood where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands |
+| Staff | **Surge**: a casting circle under the caster; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round |
+
+The staff's marks take the colour of what it casts: fire orange, frost pale
+blue, and so on. A **parry** is a white flash with rays, a cross and sparks
+thrown back. A **riposte** is a gold thrust, then a gold cross and flash on what
+it strikes. The heavy ones shock the air, and they shake the screen only for
+whoever made them.
+
+The five shapes are in `src/shaders/fx.frag`, kinds 4 to 8: a **slash** (a
+sweep with a bright leading edge), an **impact** (a flash, rays and a ring,
+which can be flattened onto the ground), a **thrust**, a **cross** and a
+**casting circle** (two rings and runes turning between them). Each is drawn per
+pixel and snapped to the world's pixels, so it stays pixel art. The table of
+what each combo gets is `src/world/world_strikes.cpp`, and it is all for show:
+it touches no hit, number or dice roll. With Visual Effects off, or on a
+machine without Vulkan, the old line crescent is drawn and the marks are not.
 
 **The chain counter.** Under the target frame, every melee swing that lands
 one after another is counted -- the number large, and beneath it what each
@@ -1989,6 +2047,28 @@ It is a move of its own, not a technique, so it does not take the charged
 attack's place and can be used alongside Whirlwind, Ground Slam or Lunge. The leap
 has its own clip, `rush`, rendered for every character, armour cut, and tier sword
 and spear -- a bow or a staff never makes it.
+
+#### Counter
+
+Footwork's second node is **Counter**, at Attack 30, with two ranks. It needs
+Rushing Strike above it, and it is for daggers: it works on what a
+[parry](#parrying) catches.
+
+- **First rank: an opening.** A parried monster reels 0.8 seconds longer. For
+  the next two and a half seconds, your next blow on *that* monster lands 30%
+  harder, and "Opening!" rises off it.
+- **Second rank: the riposte.** For one second after a parry, a light attack
+  becomes a **riposte**, even with the guard still up. You lunge up to 40 pixels
+  at whoever you parried (or your target, or straight ahead) and drive the dagger
+  in, fast. It hits for 1.4 times a light's damage and **always crits**. It is
+  drawn as a gold thrust and lands as a gold cross. The HUD shows
+  *Riposte: J* (or your key) while one is owed.
+
+Both ranks stack with the opening, so a riposte at the second rank lands 30%
+harder on top of the crit. The guard branch's older **Riposte** passive (the
+next hit 30% harder for three seconds after a block) also counts a parry as a
+block. The rules are `Player::NoteParry` and `StartRiposte`, and the damage is in
+`World::HitEnemy`.
 
 
 ---

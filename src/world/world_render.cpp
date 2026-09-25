@@ -399,6 +399,10 @@ void World::DrawSwing(SDL_Renderer* r) const {
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
 
     const bool thrust = atk.move == ComboMove::None && player.AttackClip() == "thrust";
+    // With the effects on the shader draws it, and the combo's own marks
+    // (the Crushing Blow's streak falling onto the ground among them): see
+    // world_strikes.cpp.
+    if (DrawSwingShaded(r, cx, cy, base, half, reach, sweep, alpha, thrust)) return;
     // Every stroke is laid over a dark one two pixels wider, so the pale
     // crescent reads on the forest floor and the mine's flags as well as on
     // grass: on dark ground a light line alone was as good as invisible.
@@ -1629,6 +1633,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     // The player's swing, over everything at ground level: it is the one
     // thing on screen that says where a blow is landing.
     DrawSwing(r);
+    // What the combos leave, over it.
+    DrawStrikes(r);
     DrawArrowRain(r);
 
     // Impact marks last a fifth of a second and are drawn over everything at

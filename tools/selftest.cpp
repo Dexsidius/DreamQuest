@@ -3313,9 +3313,10 @@ int main(int argc, char** argv) {
                     if (r == SkillTrees::ROWS - 1 && (n->ranks != 1 || !n->Passive())) ranks_ok = false;
                 }
             if (tech != 3 || abilities != 6) techniques = false;
+            // The three full branches' ranks; Footwork's are its own.
             int total = 0;
-            for (const TalentNode& n : t.nodes) total += n.ranks;
-            if (total < 42 || total > 43) ranks_ok = false;
+            for (const TalentNode& n : t.nodes) total += n.branch < 3 ? n.ranks : 0;
+            if (total != 42) ranks_ok = false;
             // Levels come slower the higher they are, so the rows come closer:
             // nothing past the first ability is more than eight levels on.
             for (int r = 4; r < SkillTrees::ROWS; ++r)
@@ -3326,7 +3327,7 @@ int main(int argc, char** argv) {
                 "kill_stamina", "defence", "stamina_regen", "riposte", "low_hp_damage", "lifesteal", "rushing_strike",
                 "projectile_speed", "long_shot", "move_speed", "hit_run", "pierce", "stamina", "first_blood", "mana_cost",
                 "attunement", "mana_regen", "crit_mana", "homing", "elemental",
-                "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana"};
+                "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana", "counter"};
             for (const TalentNode& n : t.nodes)
                 for (const auto& [effect, amount] : n.effects)
                     if (!known.count(effect)) { effects_known = false; SDL_Log("  unknown effect '%s' on %s", effect.c_str(), n.id.c_str()); }
@@ -3343,6 +3344,10 @@ int main(int argc, char** argv) {
                   "the melee tree has a fourth branch, Footwork");
             Check(rush && rush->id == "rushing_strike" && rush->level == 15 &&
                   rush->effects.count("rushing_strike"), "Rushing Strike is in it, at Attack 15");
+            const TalentNode* counter = melee.At(3, 2);
+            Check(counter && counter->id == "counter" && counter->ranks == 2 && counter->level == 30 &&
+                      counter->effects.count("counter"),
+                  "and Counter beside it, at Attack 30, in two ranks: the opening, then the riposte");
             Check(trees.Tree(AttackStyle::Ranged).BranchCount() == 3 && trees.Tree(AttackStyle::Magic).BranchCount() == 3,
                   "the ranged and magic trees keep their three");
         }
@@ -18099,6 +18104,265 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("a dagger's parry, Counter, and what every combo looks like");
+    {
+        Input input;
+        std::mt19937 rng(515);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.statuses = &statuses; ctx.trees = &trees;
+        ctx.input = &input;       ctx.rng = &rng;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "the Hollowmarch loads, for a fight");
+        w.enemies.clear();
+        const auto frames = [&](int n) {
+            for (int f = 0; f < n; ++f) {
+                input.Update(1.0f / 60.0f);
+                w.Update(1.0f / 60.0f, ctx);
+            }
+        };
+        const auto tap = [&](SDL_Keycode k) {
+            input.Update(1.0f / 60.0f);
+            key(k, true);
+            w.Update(1.0f / 60.0f, ctx);
+            input.Update(1.0f / 60.0f);
+            key(k, false);
+            w.Update(1.0f / 60.0f, ctx);
+        };
+
+        // --- who parries -----------------------------------------------------------------------
+        Player& me = w.player;
+        {
+            // Enough of a character to take a blow that gets through.
+            LevelUp up;
+            me.skills.AddXp(SKILL_HITPOINTS, XpForLevel(30), up);
+            me.Rest();
+        }
+        me.equipment.Unequip(SLOT_SHIELD);
+        me.equipment.Equip(SLOT_WEAPON, "iron_dagger");
+        Check(me.ParryStyle(), "a dagger with nothing behind it parries");
+        me.equipment.Equip(SLOT_SHIELD, "wooden_shield");
+        Check(!me.ParryStyle() && me.Shield(), "a dagger with a shield behind it blocks with the shield");
+        me.equipment.Unequip(SLOT_SHIELD);
+        me.equipment.Equip(SLOT_WEAPON, "iron_sword");
+        Check(!me.ParryStyle(), "and a sword never parries");
+        me.equipment.Equip(SLOT_WEAPON, "iron_dagger");
+
+        // Something in front of them to throw the blows: an orc of the ranks,
+        // whose blows a new character's breath can pay to guard.
+        me.facing = FACE_RIGHT;
+        me.sprite.facing = FACE_RIGHT;
+        EnemySpawnDef def;
+        def.type = "orc1";
+        def.level = 1;
+        def.x = me.x + 34.0f;
+        def.y = me.y;
+        def.respawn = 0.0f;
+        w.enemies.push_back(std::make_unique<Enemy>());
+        Enemy& orc = *w.enemies.back();
+        orc.Init(enemy_db.Get("orc1"), def, ctx);
+        // Kept where it is, and both kept fresh: a Warchief's blows cost a guard
+        // more breath than a new character has, and the parry is what is tested.
+        const auto keep_still = [&]() {
+            orc.x = me.x + 34.0f; orc.y = me.y; orc.hp = orc.max_hp; me.Rest();
+            me.facing = FACE_RIGHT; me.sprite.facing = FACE_RIGHT;
+        };
+        // And out of the way while the test waits, or it fights on its own.
+        const auto away = [&]() { orc.x = me.x + 3000.0f; };
+        // How long a stagger lasts: frames until it is over, the orc kept in place.
+        const auto reel = [&]() {
+            int n = 0;
+            while (orc.Staggered() && n < 600) { keep_still(); frames(1); ++n; }
+            return n / 60.0f;
+        };
+
+        // --- the parry -----------------------------------------------------------------------
+        keep_still();
+        key(SDLK_H, true);
+        frames(3);
+        Check(me.Parrying() && me.ParryOpen() && !me.Blocking(), "B raised with a dagger is a parry, and its first moment is open");
+        int before = me.hp;
+        int took = w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+        Check(took == 0 && me.hp == before && orc.Staggered(), "a blow caught in the moment does nothing, and leaves its thrower reeling");
+        const float plain_reel = reel();
+        Check(plain_reel > Player::PARRY_STAGGER * 0.7f && plain_reel < Player::PARRY_STAGGER + 0.4f,
+              "for a moment (" + std::to_string(plain_reel).substr(0, 4) + "s)");
+        away();
+        frames(24);
+        Check(me.Parrying() && !me.ParryOpen(), "held on past its moment, it is only a guard");
+        keep_still();
+        before = me.hp;
+        took = w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+        Check(took > 0 && took < 14, "and a poor one: some of the blow gets through (" + std::to_string(took) + " of 14)");
+        away();
+        key(SDLK_H, false);
+        frames(1);
+        key(SDLK_H, true);
+        frames(1);
+        Check(me.Parrying() && !me.ParryOpen(), "let go and raised again at once, there is no fresh moment");
+        key(SDLK_H, false);
+        frames(40);
+        key(SDLK_H, true);
+        frames(1);
+        Check(me.ParryOpen(), "after a rest, there is");
+        keep_still();
+        took = w.HeavyHitPlayer(40, orc.x, orc.y, 0.0f, 0.0f, {}, &orc);
+        Check(took == 0 && orc.Staggered(), "even a leader's heavy blow, caught in the moment, goes nowhere");
+        reel();
+        away();
+        key(SDLK_H, false);
+        frames(40);
+        {
+            // From behind, the parry is no help at all.
+            key(SDLK_H, true);
+            frames(1);
+            me.Rest();
+            took = w.HitPlayer(14, orc.Profile(), me.x - 40.0f, me.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+            Check(took == 14, "and a blow from behind finds the back");
+            key(SDLK_H, false);
+            frames(40);
+        }
+
+        // --- Counter --------------------------------------------------------------------------
+        {
+            LevelUp up;
+            me.skills.AddXp(SKILL_ATTACK, XpForLevel(30), up);
+        }
+        Check(me.talents.CanLearn("counter", me.skills) == Talents::Why::Prerequisite,
+              "Counter is Rushing Strike's upgrade: not before it");
+        Check(me.talents.Learn("rushing_strike", me.skills) &&
+                  me.talents.CanLearn("counter", me.skills) == Talents::Why::Ok && me.talents.Learn("counter", me.skills),
+              "and learned after it, at Attack 30");
+        Check(me.CounterRank() == 1, "one rank of it");
+        keep_still();
+        key(SDLK_H, true);
+        frames(2);
+        w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+        Check(me.Opened(&orc) && !me.RiposteOwed(), "the first rank: a parry leaves them open");
+        const float open_reel = reel();
+        away();
+        Check(open_reel > plain_reel + Player::OPENING_STAGGER * 0.7f,
+              "staggered longer (" + std::to_string(open_reel).substr(0, 4) + "s against " +
+                  std::to_string(plain_reel).substr(0, 4) + "s)");
+        key(SDLK_H, false);
+        frames(40);
+        Check(me.talents.Learn("counter", me.skills) && me.CounterRank() == 2, "and the second rank");
+        keep_still();
+        key(SDLK_H, true);
+        frames(2);
+        w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+        Check(me.RiposteOwed(), "a parry now owes a riposte");
+        keep_still();
+        const int orc_before = orc.hp;
+        tap(SDLK_J);
+        Check(me.Attack().riposte && me.Attacking(), "and the light attack, the guard still up, is the lunge");
+        bool struck = false;
+        for (int f = 0; f < 30 && !struck; ++f) {
+            frames(1);
+            struck = orc.hp < orc_before;
+        }
+        Check(struck, "that lands on whoever was parried");
+        key(SDLK_H, false);
+        frames(60);
+        Check(!me.RiposteOwed(), "and is spent");
+        {
+            // The guard branch's Riposte counts a blow caught on the dagger as one
+            // caught on a shield: the next hit is owed the harder for it.
+            LevelUp up;
+            me.skills.AddXp(SKILL_ATTACK, XpForLevel(47), up);
+            bool learned = true;
+            for (const char* id : {"thick_skin", "second_wind", "lunge", "bash", "riposte"}) learned &= me.talents.Learn(id, me.skills);
+            Check(learned, "the guard branch down to Riposte, for the test");
+            me.SpendRiposte();
+            keep_still();
+            key(SDLK_H, true);
+            frames(2);
+            w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+            Check(me.RiposteReady(), "and a parry arms Riposte the way a block on a shield does");
+            reel();
+            away();
+            key(SDLK_H, false);
+            frames(60);
+        }
+
+        // --- what every combo looks like ------------------------------------------------------------
+        const vector<string> weapons = {"iron_sword", "iron_dagger", "iron_mace", "iron_greatsword", "iron_greataxe"};
+        const ComboMove moves[] = {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut};
+        const auto look = [&](const World& world, size_t from) {
+            string sig;
+            const auto& list = world.Strikes();
+            for (size_t i = from; i < list.size(); ++i) {
+                const World::Strike& st = list[i];
+                sig += std::to_string(static_cast<int>(st.shape)) + ":" + std::to_string(static_cast<int>(st.colour.r * 255)) + "," +
+                       std::to_string(static_cast<int>(st.colour.g * 255)) + "," + std::to_string(static_cast<int>(st.colour.b * 255)) + ";";
+            }
+            return sig;
+        };
+        std::set<string> melee_looks;
+        bool every_melee = true;
+        for (const string& weapon : weapons) {
+            World wf;
+            wf.player.Init(ctx, "player_hero");
+            wf.LoadMap("overworld", "start", ctx);
+            wf.player.equipment.Unequip(SLOT_SHIELD);
+            wf.player.equipment.Equip(SLOT_WEAPON, weapon);
+            const ItemDef* in_hand = wf.player.equipment.Weapon();
+            for (ComboMove m : moves) {
+                const size_t from = wf.Strikes().size();
+                wf.ComboSwingFx(m, in_hand);
+                wf.ComboHitFx(m, in_hand, orc);
+                const string sig = look(wf, from);
+                every_melee &= !sig.empty();
+                melee_looks.insert(sig);
+            }
+        }
+        Check(every_melee && melee_looks.size() == 20,
+              "the sword's, the dagger's, the mace's, the greatsword's and the greataxe's combos -- twenty, and each "
+              "leaves marks of its own (" + std::to_string(melee_looks.size()) + " looks)");
+        std::set<string> far_looks;
+        bool every_far = true;
+        for (AttackStyle style : {AttackStyle::Ranged, AttackStyle::Magic}) {
+            World wf;
+            wf.player.Init(ctx, "player_hero");
+            wf.LoadMap("overworld", "start", ctx);
+            for (ComboMove m : moves) {
+                const size_t from = wf.Strikes().size();
+                wf.ComboShotFx(m, style, style == AttackStyle::Magic ? Element::Fire : Element::None, 100.0f, 100.0f, 0.0f);
+                wf.ComboShotHitFx(m, style, style == AttackStyle::Magic ? Element::Fire : Element::None, 160.0f, 100.0f, 0.0f);
+                const string sig = look(wf, from);
+                every_far &= !sig.empty();
+                far_looks.insert(std::to_string(static_cast<int>(style)) + sig);
+            }
+        }
+        Check(every_far && far_looks.size() == 8,
+              "the bow's four and the staff's four, each marked as it is loosed and where it strikes");
+        {
+            const size_t from = w.Strikes().size();
+            w.ParryFx(10.0f, 10.0f, 0.0f);
+            const size_t mid = w.Strikes().size();
+            w.RiposteFx(10.0f, 10.0f, 0.0f);
+            Check(mid > from && w.Strikes().size() > mid && look(w, from) != look(w, mid),
+                  "and a parry and a riposte have their own");
+        }
+        {
+            std::ifstream spv("assets/shaders/fx.frag.spv", std::ios::binary);
+            uint32_t magic = 0;
+            spv.read(reinterpret_cast<char*>(&magic), 4);
+            std::ifstream frag("src/shaders/fx.frag");
+            const string text((std::istreambuf_iterator<char>(frag)), std::istreambuf_iterator<char>());
+            Check(magic == 0x07230203 && text.find("kind == 8") != string::npos,
+                  "drawn by the fx shader's strike shapes, compiled");
+        }
+    }
+
     Section("what the monsters leave on the player: poison, a charm, a confusion");
     {
         GameContext ctx;
@@ -18704,6 +18968,31 @@ int main(int argc, char** argv) {
         survives("Outfit", Encode(outfit), [&](const Bytes& x) {
             Outfit o; return Decode(x, o) && o.seat == 2 && o.look == "player_wayfarer" && o.worn.size() == 3 &&
                              o.worn[0] == "wood_staff" && o.worn[1].empty() && o.worn[2] == "wood_body"; });
+        {
+            // A riposte's marks, and a parry owed its riposte.
+            Delta delta;
+            delta.parried = 2;
+            Delta::Mark mark;
+            mark.kind = 0; mark.shape = 7; mark.seat = 1; mark.x = -120; mark.y = 3400;
+            mark.radius = 22.5f; mark.lift = 4.0f; mark.p[0] = 1.25f; mark.p[3] = -0.5f;
+            mark.grows = 1; mark.grows_from = 0.05f; mark.grows_to = 1.0f; mark.life = 0.3f; mark.delay = 0.04f; mark.seed = 17.0f;
+            mark.r = 255; mark.g = 214; mark.b = 110; mark.a = 200; mark.count = 12;
+            delta.marks = {mark, mark};
+            Delta::Text said; said.text = "Riposte!"; said.x = 10; said.y = 20;
+            delta.texts.push_back(said);
+            survives("Delta", Encode(delta), [&](const Bytes& x) {
+                Delta o;
+                if (!Decode(x, o) || o.marks.size() != 2 || o.texts.size() != 1) return false;
+                const Delta::Mark& k = o.marks[1];
+                return o.parried == 2 && o.texts[0].text == "Riposte!" && k.kind == 0 && k.shape == 7 && k.seat == 1 &&
+                       k.x == -120 && k.y == 3400 && k.radius == 22.5f && k.lift == 4.0f && k.p[0] == 1.25f && k.p[3] == -0.5f &&
+                       k.grows == 1 && k.grows_from == 0.05f && k.grows_to == 1.0f && k.life == 0.3f && k.delay == 0.04f &&
+                       k.seed == 17.0f && k.r == 255 && k.g == 214 && k.b == 110 && k.a == 200 && k.count == 12; });
+            Delta only_marks; only_marks.marks = {mark};
+            Delta only_parry; only_parry.parried = 1;
+            Check(Delta().Empty() && !only_marks.Empty() && !only_parry.Empty(),
+                  "marks alone, or a parry alone, are worth sending; nothing is not");
+        }
         Check(IsGameMessage(PeekType(Encode(snap))) && !IsGameMessage(PeekType(Encode(Say{"hi"}))),
               "the game's messages are told from the door's by their number");
     }
@@ -19068,7 +19357,7 @@ int main(int argc, char** argv) {
         GameContext hctx;
         hctx.sprites = &sprites;   hctx.items = &items;       hctx.loot = &loot;
         hctx.quests = &host_quests; hctx.dialogue = &dialogue; hctx.enemies = &enemy_db;
-        hctx.projectiles = &projectiles; hctx.spells = &spells;
+        hctx.projectiles = &projectiles; hctx.spells = &spells; hctx.trees = &trees;
         hctx.input = &hin;         hctx.rng = &hrng;
         GameContext gctx = hctx;
         gctx.quests = &guest_quests; gctx.input = &gin; gctx.rng = &grng;
@@ -19248,6 +19537,41 @@ int main(int argc, char** argv) {
                 flew_here |= !gw.projectiles.empty();
             }
             Check(flew_there && hers && flew_here, "an arrow she looses is the host's arrow, marked as hers, and is seen in her window");
+
+            // She parries on a dagger. The blow is caught where the monsters
+            // are; the marks of it are drawn in her window too, and the riposte
+            // is owed there as well, so her window says so and lunges with her.
+            gw.player.equipment.Unequip(SLOT_SHIELD);
+            gw.player.equipment.Equip(SLOT_WEAPON, "iron_dagger");
+            const bool learned = gw.player.talents.Learn("rushing_strike", gw.player.skills) &&
+                                 gw.player.talents.Learn("counter", gw.player.skills) &&
+                                 gw.player.talents.Learn("counter", gw.player.skills);
+            frames(30);
+            Check(learned && her()->ParryStyle() && her()->CounterRank() == 2,
+                  "her dagger, and Counter learned twice on her machine, are the host's copy's too");
+            press(gin, SDLK_H, true);
+            frames(3);
+            const int parries = her()->Parries();
+            bool caught = false;
+            hw.AsSeat(*her(), hctx, [&](const GameContext&) {
+                Player& she = hw.player;
+                const float ax = she.facing == FACE_LEFT ? -30.0f : she.facing == FACE_RIGHT ? 30.0f : 0.0f;
+                const float ay = she.facing == FACE_UP ? -30.0f : she.facing == FACE_DOWN ? 30.0f : 0.0f;
+                caught = she.ParryOpen() && hw.HitPlayer(10, boar.Profile(), she.x + ax, she.y + ay, 0.0f, 0.0f, {}) == 0;
+            });
+            Check(caught && her()->Parries() == parries + 1 && her()->RiposteOwed(),
+                  "B held on her machine raises the parry on the host's copy, and a blow in its moment is caught there");
+            bool marked = false, owed = false;
+            for (int f = 0; f < 24; ++f) {
+                frame();
+                for (const World::Strike& st : gw.Strikes())
+                    marked |= st.shape == Shaders::SHAPE_CROSS && st.colour.g > 0.97f && st.colour.b > 0.85f && st.colour.b < 0.88f;
+                owed |= gw.player.RiposteOwed();
+            }
+            Check(marked, "the parry's cross is drawn in her window too, as the host drew it");
+            Check(owed, "and her window owes the riposte: the HUD says so, and a light attack lunges");
+            press(gin, SDLK_H, false);
+            frames(70);
         }
 
         // --- a tree, felled for everyone ---------------------------------------------------------------------

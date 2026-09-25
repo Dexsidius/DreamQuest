@@ -526,6 +526,50 @@ public:
     // broken, and a longer wait before stamina starts coming back.
     void  ShatterGuard();
 
+    // --- parrying ---------------------------------------------------------------
+    // A dagger has no shield behind it: B raises it to parry instead. The
+    // first moment of the stance catches a blow outright -- nothing gets
+    // through, and whoever threw it is left reeling -- and after that it is a
+    // poor guard, stopping a little of each blow for some breath. Letting go
+    // and raising it again opens a fresh moment, though not straight away. A
+    // dagger with a shield behind it blocks with the shield, as anything does.
+    static constexpr float PARRY_WINDOW        = 0.25f;  // the moment that catches a blow outright
+    static constexpr float PARRY_REST          = 0.45f;  // after letting go, before a fresh moment
+    static constexpr float PARRY_GUARD         = 0.35f;  // of a blow, what the stance stops after it
+    static constexpr float PARRY_STAMINA       = 6.0f;   // what catching one costs
+    static constexpr float PARRY_STAGGER       = 0.6f;   // how long the parried reel
+    static constexpr float PARRY_HEAVY_STAGGER = 0.4f;   // and longer, if it was a leader's heavy blow
+    // Counter (Footwork). Rank one leaves whoever was parried open: staggered
+    // longer, and the next blow on them lands harder. Rank two owes a
+    // riposte: a light attack within a moment of the parry is a lunge at
+    // them that always lands critically.
+    static constexpr float OPENING_STAGGER = 0.8f, OPENING_BONUS = 0.3f, OPENING_TIME = 2.5f;
+    static constexpr float RIPOSTE_TIME = 1.0f, RIPOSTE_DAMAGE = 1.4f, RIPOSTE_REACH = 90.0f,
+                           RIPOSTE_LUNGE = 40.0f;
+    bool  ParryStyle() const;               // a dagger in hand and no shield: B parries
+    bool  CanParry() const;
+    bool  Parrying() const { return parrying; }
+    bool  ParryOpen() const { return parrying && parry_age <= PARRY_WINDOW; }
+    float ParryAge() const { return parry_age; }
+    // Whether a blow from (from_x, from_y) would meet the parry at all.
+    bool  ParryFacing(float from_x, float from_y) const;
+    // A blow on the parry: caught outright (`parried`), or -- after the
+    // moment -- what the poor guard made of it, as TryBlock says it.
+    BlockOutcome TryParry(int damage, int attacker_level, float from_x, float from_y, bool& parried);
+    // The world says a parry landed on `who` (a monster, or null for a shot):
+    // the opening, and the riposte owed, as far as Counter goes.
+    void  NoteParry(const void* who);
+    // How many blows have been caught outright: the host counts a friend's,
+    // and tells their window so it owes the riposte too.
+    int   Parries() const { return parries; }
+    int   CounterRank() const;
+    bool  Opened(const void* who) const { return who && who == opened && opening_timer > 0.0f; }
+    void  SpendOpening() { opening_timer = 0.0f; opened = nullptr; }
+    bool  RiposteOwed() const { return riposte_owed > 0.0f; }
+    float RiposteOwedLeft() const { return riposte_owed; }
+    // The lunge itself, at whoever was parried when they are near enough.
+    bool  StartRiposte(const World& world);
+
     // --- gathering ------------------------------------------------------------
     // While chopping, mining or fishing, the player turns to the work, plays
     // that clip, and holds the tool rather than the weapon.
@@ -668,6 +712,14 @@ private:
 
     bool  sprinting = false;
     bool  blocking = false;
+    bool  parrying = false;
+    float parry_age = 0.0f, parry_rest = 0.0f;
+    float opening_timer = 0.0f, riposte_owed = 0.0f;
+    int   parries = 0;
+    const void* opened = nullptr;
+    const void* riposte_on = nullptr;
+    bool  lunging = false;
+    float lunge_dx = 0.0f, lunge_dy = 0.0f, lunge_left = 0.0f;
     bool  rushing = false;
     float rush_cooldown = 0.0f;
     float rush_dx = 0.0f, rush_dy = 0.0f;   // unit direction of the leap

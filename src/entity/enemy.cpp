@@ -434,8 +434,8 @@ void Enemy::SetState(State s) {
     }
 }
 
-void Enemy::Stagger(float seconds) {
-    if (state == State::Dead || state == State::Heavy) return;
+void Enemy::Stagger(float seconds, bool force) {
+    if (state == State::Dead || (state == State::Heavy && !force)) return;
     hurt_for = std::max(hurt_for, seconds);
     swinging = false;
     swing_landed = false;
@@ -834,7 +834,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     } else if (r.hit) {
                         const float len = std::max(1.0f, dist);
                         world.HitPlayer(r.damage, Profile(), x, y,
-                                        (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit);
+                                        (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this);
                     } else {
                         world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                     }
@@ -876,7 +876,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                         leaves = {def->on_hit.kind, std::min(1.0f, def->on_hit.chance * 2.0f)};
                     world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
                                          (dx / len) * def->heavy.knockback,
-                                         (dy / len) * def->heavy.knockback, leaves);
+                                         (dy / len) * def->heavy.knockback, leaves, this);
                 } else {
                     world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                 }

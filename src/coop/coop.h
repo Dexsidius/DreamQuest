@@ -135,6 +135,7 @@ private:
         std::map<string, int> mirror;       // their bag, as their machine believes it
         uint16_t heals = 0;
         int      chain = 0;
+        int      parries = 0;               // blows they caught outright, as last told
         uint16_t aim_id = 0;
         bool     aim_locked = false;
         net::Delta tell;                    // what is theirs to hear next
@@ -232,7 +233,7 @@ private:
     struct Beast { std::deque<std::pair<uint32_t, net::EnemyState>> heard; float silent = 0.0f; bool shown = false; };
 
     void OnSnapshot(const net::Snapshot& snap, net::Client& client, World& world, const GameContext& ctx);
-    void OnDelta(const net::Delta& d, World& world, const GameContext& ctx);
+    void OnDelta(const net::Delta& d, World& world, const GameContext& ctx, uint8_t my_seat);
     void PosePuppets(float dt, net::Client& client, World& world, const GameContext& ctx);
     void PoseBeasts(float dt, World& world);
     void SendActs(net::Client& client, World& world);

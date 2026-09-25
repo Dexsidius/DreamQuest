@@ -123,15 +123,16 @@ public:
     // `leaves` is what the blow can leave on them if it gets through -- a
     // spider's poison, a hag's charm -- and a charm draws them to (charm_x,
     // charm_y), the attacker's own place unless a shot says where it came from.
+    // `by` is the monster that swung, when one did: a parry leaves it reeling.
     int HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
                   float knock_x = 0.0f, float knock_y = 0.0f, const StatusProc& leaves = {},
-                  float charm_x = -1.0f, float charm_y = -1.0f);
+                  float charm_x = -1.0f, float charm_y = -1.0f, class Enemy* by = nullptr);
     // A leader's heavy attack landing. No shield stops it, and one raised
     // against it makes it worse: the guard shatters, the bar empties and the
     // blow lands harder. Returns the damage taken.
     static constexpr float HEAVY_BLOCK_PUNISH = 1.5f;
     int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
-                       const StatusProc& leaves = {});
+                       const StatusProc& leaves = {}, class Enemy* by = nullptr);
     // Rolls a status against the player a blow of `blow` just landed on, and
     // says so over their head if it takes. Its own dice, never the context's:
     // a fight that leaves nothing throws exactly the numbers it always did.
@@ -331,6 +332,47 @@ public:
     bool    visiting = false;
     struct VisitorAct { int kind = 0; string a, b; int n = 0; };   // kinds are net::Action's
     vector<VisitorAct> visitor_acts;
+
+    // --- the marks a combo leaves: see world_strikes.cpp ---------------------------------------
+    // Drawn by the fx shader's strike shapes, for show only, and only with the
+    // visual effects on.
+    struct Strike {
+        Shaders::Shape shape = Shaders::SHAPE_IMPACT;
+        float x = 0, y = 0;              // on the ground, world px
+        float radius = 20;               // half the square it is drawn in
+        float lift = 0;                  // drawn this far above the ground point
+        float p[4] = {0, 0, 0, 0};       // its four numbers (see fx.frag)
+        int   grows = -1;                // which of them runs over its life, -1 none
+        float grows_from = 0, grows_to = 1;
+        float age = 0, life = 0.3f, delay = 0;
+        SDL_FColor colour{1, 1, 1, 1};
+        float seed = 0;
+    };
+    const vector<Strike>& Strikes() const { return strikes; }
+    // What the strikes drew, written down while `journal` is set for the host
+    // to tell friends, whose windows never swing and so never draw them: a
+    // mark, a shock through the picture (with whose blow it was, since only
+    // their screen shakes), or a burst of sparks. Drained by coop::Host, and
+    // drawn at the other end by ReplayStrike.
+    struct StrikeNote {
+        enum Kind : uint8_t { MARK = 0, SHOCK = 1, BURST = 2 } kind = MARK;
+        Strike mark;                                    // MARK
+        float x = 0, y = 0, size = 0, amount = 0;       // SHOCK: strength, shake. BURST: radius, turn
+        uint8_t seat = 0;                               // SHOCK
+        SDL_Color colour{255, 255, 255, 255};           // BURST
+        int count = 0;                                  // BURST
+    };
+    vector<StrikeNote> strike_log;
+    // One drawn in a friend's window, whose own seat is `my_seat`.
+    void ReplayStrike(const StrikeNote& note, uint8_t my_seat);
+    // The combos' marks: as a swing lands, on each thing it lands on, as a
+    // shot is loosed and where it strikes; and a parry's, and a riposte's.
+    void ComboSwingFx(ComboMove move, const ItemDef* weapon);
+    void ComboHitFx(ComboMove move, const ItemDef* weapon, const Enemy& e);
+    void ComboShotFx(ComboMove move, AttackStyle style, Element element, float x, float y, float angle);
+    void ComboShotHitFx(ComboMove move, AttackStyle style, Element element, float x, float y, float angle);
+    void ParryFx(float x, float y, float angle);
+    void RiposteFx(float x, float y, float angle);
 
     // --- thin ice ------------------------------------------------------------------------
     // A frozen lake bears a walker. Sprint on it and it cracks behind you,
@@ -731,6 +773,22 @@ private:
     Shaders::Frame ScreenFrame(TextureCache& cache) const;
     void DrawReflections(SDL_Renderer* r, TextureCache& cache, const vector<const TileInstance*>& decor) const;
     void DrawFloorLight(SDL_Renderer* r) const;
+    vector<Strike> strikes;
+    uint32_t strike_seed = 0;
+    void AddStrike(const Strike& s);
+    // Shock and Burst, for the strikes: written down for friends as well.
+    void StrikeShock(float x, float y, float strength, float shake);
+    void StrikeBurst(float x, float y, float radius, SDL_Color colour, int count, float turn = 0.0f);
+    void UpdateStrikes(float dt);
+    void DrawStrikes(SDL_Renderer* r) const;
+    bool DrawSwingShaded(SDL_Renderer* r, float cx, float cy, float base, float half, float reach, float sweep,
+                         float alpha, bool thrust) const;
+    // Whether whoever is `player` just now is looked at on this machine: the
+    // host's own, or a seat drawn here -- not a friend down the wire the host
+    // is acting for. The screen shakes and flashes only for them.
+    bool SeenHere();
+    // A parry landing on the player: the stagger, the opening, the riposte owed.
+    void Parried(class Enemy* by, float from_x, float from_y, bool heavy);
     // The ice: see IceStrain.
     float ice_strain = 0.0f, ice_grace = 0.0f, ice_sink = -1.0f;
     SDL_FPoint ice_safe{}, ice_mark{}, ice_fell{};

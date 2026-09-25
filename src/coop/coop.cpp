@@ -46,7 +46,7 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     s.hp     = static_cast<int16_t>(std::clamp(p.hp, 0, 32767));
     s.max_hp = static_cast<int16_t>(std::clamp(p.max_hp, 0, 32767));
     if (p.IsJumping())  s.flags |= net::PlayerState::Jumping;
-    if (p.Blocking())   s.flags |= net::PlayerState::Blocking;
+    if (p.Blocking() || p.Parrying()) s.flags |= net::PlayerState::Blocking;
     if (p.IsCharging()) s.flags |= net::PlayerState::Charging;
     if (p.Fallen())     s.flags |= net::PlayerState::Dead;
     if (p.Sprinting())  s.flags |= net::PlayerState::Sprinting;
@@ -107,6 +107,65 @@ std::map<string, int> Counts(const Inventory& bag) {
 }
 
 int16_t Px(float v) { return static_cast<int16_t>(std::clamp(std::lround(v), -32768l, 32767l)); }
+
+uint8_t Byte(float unit) { return static_cast<uint8_t>(std::clamp(unit, 0.0f, 1.0f) * 255.0f + 0.5f); }
+
+net::Delta::Mark ToMark(const World::StrikeNote& n) {
+    net::Delta::Mark m;
+    m.kind = static_cast<uint8_t>(n.kind);
+    if (n.kind == World::StrikeNote::MARK) {
+        const World::Strike& s = n.mark;
+        m.shape = static_cast<uint8_t>(s.shape);
+        m.x = Px(s.x); m.y = Px(s.y);
+        m.radius = s.radius; m.lift = s.lift;
+        for (int i = 0; i < 4; ++i) m.p[i] = s.p[i];
+        m.grows = static_cast<int8_t>(std::clamp(s.grows, -1, 3));
+        m.grows_from = s.grows_from; m.grows_to = s.grows_to;
+        m.life = s.life; m.delay = s.delay; m.seed = s.seed;
+        m.r = Byte(s.colour.r); m.g = Byte(s.colour.g); m.b = Byte(s.colour.b); m.a = Byte(s.colour.a);
+    } else {
+        m.x = Px(n.x); m.y = Px(n.y);
+        m.radius = n.size;
+        m.p[0] = n.amount;
+        m.seat = n.seat;
+        m.r = n.colour.r; m.g = n.colour.g; m.b = n.colour.b; m.a = n.colour.a;
+        m.count = static_cast<uint8_t>(std::clamp(n.count, 0, 64));
+    }
+    return m;
+}
+
+// Read from the wire: nothing trusted, everything kept in the bounds a
+// strike ever has, so a bad packet draws nothing strange.
+bool FromMark(const net::Delta::Mark& m, World::StrikeNote& n) {
+    const auto fine = [](float v, float lo, float hi) { return std::isfinite(v) ? std::clamp(v, lo, hi) : lo; };
+    if (m.kind > World::StrikeNote::BURST) return false;
+    n.kind = static_cast<World::StrikeNote::Kind>(m.kind);
+    if (n.kind == World::StrikeNote::MARK) {
+        if (m.shape < Shaders::SHAPE_SLASH || m.shape > Shaders::SHAPE_CIRCLE) return false;
+        World::Strike& s = n.mark;
+        s.shape = static_cast<Shaders::Shape>(m.shape);
+        s.x = m.x; s.y = m.y;
+        s.radius = fine(m.radius, 0.0f, 400.0f);
+        s.lift = fine(m.lift, -200.0f, 200.0f);
+        for (int i = 0; i < 4; ++i) s.p[i] = fine(m.p[i], -64.0f, 64.0f);
+        s.grows = std::clamp<int>(m.grows, -1, 3);
+        s.grows_from = fine(m.grows_from, -64.0f, 64.0f);
+        s.grows_to = fine(m.grows_to, -64.0f, 64.0f);
+        s.age = 0.0f;
+        s.life = fine(m.life, 0.01f, 3.0f);
+        s.delay = fine(m.delay, 0.0f, 1.0f);
+        s.seed = fine(m.seed, 0.0f, 1000.0f);
+        s.colour = {m.r / 255.0f, m.g / 255.0f, m.b / 255.0f, m.a / 255.0f};
+    } else {
+        n.x = m.x; n.y = m.y;
+        n.size = fine(m.radius, 0.0f, n.kind == World::StrikeNote::SHOCK ? 1.0f : 400.0f);
+        n.amount = fine(m.p[0], n.kind == World::StrikeNote::SHOCK ? 0.0f : -64.0f, n.kind == World::StrikeNote::SHOCK ? 1.0f : 64.0f);
+        n.seat = m.seat;
+        n.colour = {m.r, m.g, m.b, m.a};
+        n.count = std::min<int>(m.count, 64);
+    }
+    return true;
+}
 
 uint8_t ClipIndex(const SpriteDef* def, const string& name) {
     if (!def) return 0;
@@ -998,6 +1057,12 @@ void Host::Gather(uint8_t seat_no, Seat& s) {
         s.tell.chain.push_back("");         // broken
     }
     s.chain = chain;
+
+    // A blow they caught on a dagger is caught here; their window owes the
+    // riposte too, so it lunges when they press for it and the HUD says so.
+    const int parries = g->Parries();
+    if (parries > s.parries) s.tell.parried = static_cast<uint8_t>(std::min(255, s.tell.parried + (parries - s.parries)));
+    s.parries = parries;
 }
 
 void Host::Journals(World& home) {
@@ -1013,6 +1078,14 @@ void Host::Journals(World& home) {
             for (auto& [seat_no, s] : seats) if (s.where == w) s.tell.texts.push_back(out);
         }
         w->text_log.clear();
+        // What the strikes drew there. A friend's window never swings -- its
+        // blows are all resolved here -- so it never draws them itself.
+        for (const World::StrikeNote& n : w->strike_log) {
+            const net::Delta::Mark out = ToMark(n);
+            for (auto& [seat_no, s] : seats)
+                if (s.where == w && s.tell.marks.size() < 96) s.tell.marks.push_back(out);
+        }
+        w->strike_log.clear();
     }
     // A chest opened or a tree felled is so everywhere, for everyone.
     for (World* w : worlds) {
@@ -1373,7 +1446,7 @@ void Guest::Update(float dt, net::Client& client, World& world, const GameContex
             }
             case net::MsgType::Delta: {
                 net::Delta d;
-                if (net::Decode(bytes, d)) OnDelta(d, world, ctx);
+                if (net::Decode(bytes, d)) OnDelta(d, world, ctx, client.Seat());
                 break;
             }
             default: break;
@@ -1417,7 +1490,7 @@ void Guest::SendActs(net::Client& client, World& world) {
     world.shops.sales.clear();
 }
 
-void Guest::OnDelta(const net::Delta& d, World& world, const GameContext& ctx) {
+void Guest::OnDelta(const net::Delta& d, World& world, const GameContext& ctx, uint8_t my_seat) {
     Player& me = world.player;
     for (const net::Delta::Text& t : d.texts)
         world.AddText(t.text, t.x, t.y, {t.r, t.g, t.b, t.a}, t.life / 10.0f);
@@ -1446,6 +1519,14 @@ void Guest::OnDelta(const net::Delta& d, World& world, const GameContext& ctx) {
             if (e.type == ObjectiveType::Kill && !e.secondary.empty()) world.AwardBoss(e.secondary, ctx);
         }
     for (const string& label : d.chain) { if (label.empty()) me.BreakChain(); else me.CountChainHit(label); }
+    // A blow we caught on the dagger, caught where the monsters are: the
+    // riposte is owed here too. At whom is the host's to settle.
+    if (d.parried) me.NoteParry(nullptr);
+    // What the strikes drew near us, ours and everyone's.
+    for (const net::Delta::Mark& m : d.marks) {
+        World::StrikeNote n;
+        if (FromMark(m, n)) world.ReplayStrike(n, my_seat);
+    }
     for (const net::Delta::Sound& s : d.sounds) {
         const Sfx sfx = static_cast<Sfx>(std::min<uint8_t>(s.sfx, static_cast<uint8_t>(Sfx::Count) - 1));
         if (s.placed) Audio::PlayAt(sfx, s.x, s.y, s.volume / 255.0f, s.pitch / 100.0f);

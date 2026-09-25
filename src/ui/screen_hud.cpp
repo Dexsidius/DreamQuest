@@ -430,6 +430,10 @@ void Game::DrawHud() {
         if (me.Overloaded())   running += "Overloaded   ";
         if (me.Invoking())     running += "Invoking   ";
         if (me.RiposteReady()) running += "Riposte ready   ";
+        // A dagger's parry: its moment, and then the poor guard after it; and
+        // the riposte a parry left owed (Counter), with the button that makes it.
+        if (me.Parrying())     running += me.ParryOpen() ? "Parry!   " : "Parrying   ";
+        if (me.RiposteOwed())  running += "Riposte: " + input.PromptFor(Action::LightAttack) + "   ";
         if (!running.empty()) ui.TextShadowed(running, running_x, ay + 6.0f, TextSize::Small, {255, 214, 140, 255});
 
         if (rows_up > 0) corner[0] = {18.0f, ay, 214.0f, 30.0f * static_cast<float>(rows_up) - 4.0f};

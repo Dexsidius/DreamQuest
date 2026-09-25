@@ -303,6 +303,18 @@
         "effects": {
           "rushing_strike": 1
         }
+      },
+      {
+        "id": "counter",
+        "name": "Counter",
+        "branch": 3,
+        "row": 2,
+        "level": 30,
+        "ranks": 2,
+        "desc": "Daggers; after Rushing Strike. A parry leaves them open: staggered longer, and your next blow on them lands 30% harder. At the second rank, a light attack within a moment of a parry is a riposte -- a lunge at them that always lands critically.",
+        "effects": {
+          "counter": 1
+        }
       }
     ]
   },

@@ -242,6 +242,8 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                         pierce_next = p.def->armour_pierce;
                         HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
                                  p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
+                        if (p.combo != ComboMove::None)
+                            ComboShotHitFx(p.combo, p.style, p.element, e->x, e->y - 20.0f, atan2f(p.vy, p.vx));
                         crit_next = false;
                         cast_next = 0;
                         proc_next = {};

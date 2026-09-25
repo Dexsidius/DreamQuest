@@ -455,6 +455,15 @@ Bytes Encode(const Delta& m) {
         const Delta::Sound& snd = m.sounds[i];
         w.U8(snd.sfx); w.U8(snd.volume); w.U8(snd.pitch); w.Bool(snd.placed); w.I16(snd.x); w.I16(snd.y);
     }
+    for (size_t i = 0, c = count(m.marks.size()); i < c; ++i) {
+        const Delta::Mark& k = m.marks[i];
+        w.U8(k.kind); w.U8(k.shape); w.U8(k.seat); w.I16(k.x); w.I16(k.y);
+        w.F32(k.radius); w.F32(k.lift);
+        for (float v : k.p) w.F32(v);
+        w.I8(k.grows); w.F32(k.grows_from); w.F32(k.grows_to); w.F32(k.life); w.F32(k.delay); w.F32(k.seed);
+        w.U8(k.r); w.U8(k.g); w.U8(k.b); w.U8(k.a); w.U8(k.count);
+    }
+    w.U8(m.parried);
     w.Str(m.ledger, MAX_JSON);
     return w.Take();
 }
@@ -516,6 +525,18 @@ bool Decode(const Bytes& b, Delta& out) {
         snd.sfx = r.U8(); snd.volume = r.U8(); snd.pitch = r.U8(); snd.placed = r.Bool(); snd.x = r.I16(); snd.y = r.I16();
         out.sounds.push_back(snd);
     }
+    if (!count(c)) return false;
+    for (uint16_t i = 0; i < c; ++i) {
+        Delta::Mark k;
+        k.kind = r.U8(); k.shape = r.U8(); k.seat = r.U8(); k.x = r.I16(); k.y = r.I16();
+        k.radius = r.F32(); k.lift = r.F32();
+        for (float& v : k.p) v = r.F32();
+        k.grows = r.I8(); k.grows_from = r.F32(); k.grows_to = r.F32(); k.life = r.F32(); k.delay = r.F32(); k.seed = r.F32();
+        k.r = r.U8(); k.g = r.U8(); k.b = r.U8(); k.a = r.U8(); k.count = r.U8();
+        if (!r.Ok()) return false;
+        out.marks.push_back(k);
+    }
+    out.parried = r.U8();
     out.ledger = r.Str(MAX_JSON);
     return r.Done();
 }

@@ -154,6 +154,9 @@ struct Projectile {
     float knockback_mult = 1.0f;
     float extra_homing = 0.0f;
     bool  sure_crit = false;     // loosed with Take Aim: it strikes critically, whatever the dice say
+    // Loosed as a combo (a Split Shot, a Surge...): where it strikes is marked
+    // for it (World::ComboShotHitFx). The host's alone: never on the wire.
+    ComboMove combo = ComboMove::None;
     // Thrown for practice, at a training dummy: it flies `show_left` pixels,
     // bursts there, and on the way touches nobody -- not a monster, not a
     // player who walks through the line of it -- and leaves nothing burning.

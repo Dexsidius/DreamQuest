@@ -261,6 +261,9 @@ struct AttackState {
     // Let go: the wind-up is over. And what it was let go with -- Take Aim, or
     // Overload -- which the shot spends at that moment.
     bool       loosed = false, empowered = false;
+    // A riposte: the lunge a parry leaves owed (the Counter talent). It
+    // always lands critically.
+    bool       riposte = false;
     AttackProfile profile;
 
     bool Active() const { return type != AttackType::None; }
@@ -272,6 +275,6 @@ struct AttackState {
     bool Finished() const { return Active() && timer >= profile.Total(); }
     void Clear() {
         type = AttackType::None; move = ComboMove::None; timer = 0.0f;
-        consumed = loosed = empowered = false;
+        consumed = loosed = empowered = riposte = false;
     }
 };

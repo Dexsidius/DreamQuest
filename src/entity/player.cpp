@@ -634,6 +634,125 @@ bool Player::CanBlock() const {
            !guard_broken && stamina > 0.0f && gather_clip.empty();
 }
 
+bool Player::ParryStyle() const {
+    const ItemDef* w = equipment.Weapon();
+    return w && w->weapon_class == "dagger" && !Shield();
+}
+
+bool Player::CanParry() const {
+    return ParryStyle() && !dead && !jumping && !attack.Active() && !charging && !strong_armed &&
+           !guard_broken && stamina > 0.0f && gather_clip.empty();
+}
+
+bool Player::ParryFacing(float from_x, float from_y) const {
+    return parrying && InFrontOf(facing, from_x - x, from_y - y);
+}
+
+BlockOutcome Player::TryParry(int damage, int attacker_level, float from_x, float from_y, bool& parried) {
+    parried = false;
+    BlockOutcome none;
+    none.taken = std::max(0, damage);
+    if (!parrying || damage <= 0 || !InFrontOf(facing, from_x - x, from_y - y)) return none;
+    if (ParryOpen()) {
+        // Caught outright: every blow that comes in the moment, for a little
+        // breath each.
+        parried = true;
+        BlockOutcome out;
+        out.blocked = damage;
+        out.stamina = std::min(PARRY_STAMINA, std::max(0.0f, stamina));
+        stamina = std::max(0.0f, stamina - PARRY_STAMINA);
+        stamina_delay = STAMINA_DELAY;
+        BankXp(SKILL_DEFENCE, damage * BLOCK_XP_PER_DAMAGE);
+        return out;
+    }
+    // After the moment, a poor guard: a dagger is not a shield.
+    BlockOutcome out = ResolveBlock(damage, attacker_level, PARRY_GUARD, 1.0f, stamina);
+    stamina = std::max(0.0f, stamina - out.stamina);
+    stamina_delay = STAMINA_DELAY;
+    BankXp(SKILL_DEFENCE, out.blocked * BLOCK_XP_PER_DAMAGE);
+    if (out.broke) {
+        guard_broken = true;
+        parrying = false;
+        Audio::Play(Sfx::Winded);
+    }
+    return out;
+}
+
+int Player::CounterRank() const {
+    return static_cast<int>(talents.Effect("counter", AttackStyle::Melee) + 0.01f);
+}
+
+void Player::NoteParry(const void* who) {
+    ++parries;
+    const int rank = CounterRank();
+    if (rank >= 1 && who) {
+        opened = who;
+        opening_timer = OPENING_TIME;
+    }
+    if (rank >= 2) {
+        riposte_on = who;
+        riposte_owed = RIPOSTE_TIME;
+    }
+}
+
+bool Player::StartRiposte(const World& world) {
+    if (riposte_owed <= 0.0f || Style() != AttackStyle::Melee || attack.Active()) return false;
+    // At whoever was parried, if they are still near; otherwise at whatever
+    // is being fought; otherwise straight ahead.
+    float dx = 0.0f, dy = 0.0f;
+    const Enemy* at = nullptr;
+    for (const auto& e : world.enemies)
+        if (e.get() == riposte_on && !e->Dead()) at = e.get();
+    if (!at) at = CurrentTarget(world);
+    if (at && Length(at->x - x, at->y - y) <= RIPOSTE_REACH) { dx = at->x - x; dy = at->y - y; }
+    else {
+        dx = facing == FACE_RIGHT ? 1.0f : facing == FACE_LEFT ? -1.0f : 0.0f;
+        dy = facing == FACE_DOWN ? 1.0f : facing == FACE_UP ? -1.0f : 0.0f;
+    }
+    const float len = Length(dx, dy);
+    if (len < 0.001f) return false;
+    lunge_dx = dx / len;
+    lunge_dy = dy / len;
+    // Close in, but stop short of walking into them.
+    lunge_left = std::clamp(len - 22.0f, 0.0f, RIPOSTE_LUNGE);
+    lunging = true;
+    if (fabsf(lunge_dx) > fabsf(lunge_dy)) facing = lunge_dx > 0 ? FACE_RIGHT : FACE_LEFT;
+    else                                   facing = lunge_dy > 0 ? FACE_DOWN  : FACE_UP;
+    sprite.facing = facing;
+
+    // Quick out, and harder than a light blow: the thrust a dagger has.
+    const AttackProfile& light = ProfileFor(AttackType::Light, 0);
+    AttackProfile p = light;
+    p.windup      = 0.06f;
+    p.active      = 0.10f;
+    p.recover     = 0.18f;
+    p.cooldown    = 0.10f;
+    p.damage_mult = light.damage_mult * RIPOSTE_DAMAGE;
+    p.reach       = 36.0f;
+    p.knockback   = 90.0f;
+    p.move_scale  = 0.0f;
+    ShapeForWeapon(p);
+    combo = 0;
+    combo_window = 0.0f;
+    attack.type        = AttackType::Light;
+    attack.move        = ComboMove::None;
+    attack.profile     = p;
+    attack.rate        = 1.0f;
+    attack.damage_mult = p.damage_mult;
+    attack.reach_scale = 1.0f;
+    attack.combo       = 0;
+    attack.timer       = 0.0f;
+    attack.consumed    = false;
+    attack.riposte     = true;
+    riposte_owed = 0.0f;
+    parrying = false;
+    sprite.speed_scale = 1.0f;
+    sprite.Play(AttackClip(), true);
+    FitSwing();
+    Audio::Play(Sfx::SwingHeavy, 1.0f, 1.35f);
+    return true;
+}
+
 bool Player::GuardFacing(float from_x, float from_y) const {
     return blocking && Shield() && InFrontOf(facing, from_x - x, from_y - y);
 }
@@ -643,6 +762,7 @@ void Player::ShatterGuard() {
     stamina_delay = STAMINA_DELAY * 2.0f;
     guard_broken = true;
     blocking = false;
+    parrying = false;
     sprinting = false;
     Audio::Play(Sfx::Winded);
 }
@@ -1104,6 +1224,7 @@ void Player::UpdateAttack(float dt) {
             combo = 0;
         }
         rushing = false;
+        lunging = false;
         attack_cooldown = attack.profile.cooldown;
         cooldown_total  = std::max(0.0001f, attack.profile.cooldown);
         attack.Clear();
@@ -1325,7 +1446,7 @@ float Player::WeaponSpeed() const {
 void Player::UpdateAnimation(const Vec2& move) {
     if (dead) { sprite.Play("death"); return; }
     if (attack.Active()) return;                     // attack clip owns the frames
-    if (blocking) {
+    if (blocking || parrying) {
         // Guard up, stepping or not. A rig with no guard pose stands in its
         // idle rather than walking with its shield down.
         const bool has_clip = sprite.Def() && sprite.Def()->Find("block");
@@ -1384,6 +1505,11 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     mana_shield_timer = std::max(0.0f, mana_shield_timer - dt);
     shield_struck     = std::min(99.0f, shield_struck + dt);
     riposte_timer     = std::max(0.0f, riposte_timer - dt);
+    if (parrying) parry_age += dt;
+    parry_rest        = std::max(0.0f, parry_rest - dt);
+    opening_timer     = std::max(0.0f, opening_timer - dt);
+    riposte_owed      = std::max(0.0f, riposte_owed - dt);
+    if (opening_timer <= 0.0f) opened = nullptr;
     hit_run_timer     = std::max(0.0f, hit_run_timer - dt);
     frenzy_timer      = std::max(0.0f, frenzy_timer - dt);
     stand_fast_timer  = std::max(0.0f, stand_fast_timer - dt);
@@ -1482,7 +1608,15 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         move_axis = move;
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
-        blocking = !bound && hands.Down(PlayerInput::Block) && CanBlock();
+        // With a dagger and no shield, the same button parries instead.
+        const bool parry_style = ParryStyle();
+        const bool was_parrying = parrying;
+        blocking = !parry_style && !bound && hands.Down(PlayerInput::Block) && CanBlock();
+        parrying = parry_style && !bound && hands.Down(PlayerInput::Block) && CanParry();
+        // A fresh moment only after a rest from the last: held down and
+        // tapped again at once, it is only the poor guard.
+        if (parrying && !was_parrying) parry_age = parry_rest > 0.0f ? PARRY_WINDOW + 1.0f : 0.0f;
+        if (!parrying && was_parrying) parry_rest = PARRY_REST;
         // The abilities' shift held and an attack button: an ability, if one
         // is carried there, and the press is the ability's, not a swing. The
         // shift is RB on a pad and the guard on the keys: see Action::Ability.
@@ -1496,7 +1630,11 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
                 for_attacks.pressed &= static_cast<uint8_t>(~button);
             }
         }
-        if (blocking) {
+        // A parry that landed owes a riposte: the light attack, even with the
+        // stance still held, is the lunge.
+        if (!bound && riposte_owed > 0.0f && for_attacks.Pressed(PlayerInput::Light) && StartRiposte(world))
+            for_attacks.pressed &= static_cast<uint8_t>(~PlayerInput::Light);
+        if (blocking || parrying) {
             strong_armed = charging = false;
             charge_held = 0.0f;
         } else {
@@ -1543,6 +1681,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     } else {
         climb_hint.clear();
         blocking = false;
+        if (parrying) parry_rest = PARRY_REST;
+        parrying = false;
         // Dropping input mid-charge should not leave a swing armed.
         strong_armed = false;
         charging = false;
@@ -1555,7 +1695,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // going on. A light tilt stays a walk however hard the button is held.
     sprinting = !input_locked && hands.Down(PlayerInput::Sprint) &&
                 Length(move.x, move.y) >= RUN_THRESHOLD &&
-                !attack.Active() && !charging && !strong_armed && !blocking &&
+                !attack.Active() && !charging && !strong_armed && !blocking && !parrying &&
                 sprint_lockout <= 0.0f && !winded && stamina > 0.0f;
 
     // Stamina: spent by the second while sprinting, back after a breather.
@@ -1614,7 +1754,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk
-    else if (blocking)        speed *= BLOCK_MOVE_SCALE;
+    else if (blocking || parrying) speed *= BLOCK_MOVE_SCALE;
 
     float dx = move.x * speed * dt;
     float dy = move.y * speed * dt;
@@ -1626,6 +1766,13 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
             dx += rush_dx * (RUSH_DISTANCE / flight) * dt;
             dy += rush_dy * (RUSH_DISTANCE / flight) * dt;
         }
+    }
+    // The riposte's lunge: its distance through the wind-up, and no further.
+    if (lunging && lunge_left > 0.0f) {
+        const float step = std::min(lunge_left, RIPOSTE_LUNGE / std::max(0.01f, attack.profile.windup) * dt);
+        dx += lunge_dx * step;
+        dy += lunge_dy * step;
+        lunge_left -= step;
     }
 
     // Knockback rides on top of steering and decays quickly.

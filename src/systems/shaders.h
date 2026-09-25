@@ -152,13 +152,17 @@ bool UseSprite(SDL_Renderer* renderer, const SpriteFx& fx, const SDL_FRect& src,
 void EndSprite(SDL_Renderer* renderer);
 
 // A shape of light over `dst` (screen pixels).
-enum Shape { SHAPE_DOME = 0, SHAPE_NODE = 1, SHAPE_GLASS = 2, SHAPE_HALO = 3 };
+enum Shape { SHAPE_DOME = 0, SHAPE_NODE = 1, SHAPE_GLASS = 2, SHAPE_HALO = 3,
+             // The combo strikes' marks (World::DrawStrikes). Each reads its
+             // four numbers from hit_x, hit_y, hit_age and extra: see fx.frag.
+             SHAPE_SLASH = 4, SHAPE_IMPACT = 5, SHAPE_THRUST = 6, SHAPE_CROSS = 7, SHAPE_CIRCLE = 8 };
 struct ShapeFx {
     Shape shape = SHAPE_HALO;
     float fade = 1.0f, seed = 0.0f;
     SDL_FColor colour{1, 1, 1, 1};       // a is the strength
     float foot = 0.0f;                   // the dome: its ring on the ground, as a share of its height
     float hit_x = 0, hit_y = 0, hit_age = -1.0f;   // the dome: where it was struck, how long ago (0..1)
+    float extra = 0.0f;                            // the fourth of a strike's numbers
 };
 bool DrawShape(SDL_Renderer* renderer, const SDL_FRect& dst, const ShapeFx& fx, SDL_BlendMode blend);
 

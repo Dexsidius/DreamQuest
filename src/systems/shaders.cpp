@@ -675,7 +675,7 @@ bool DrawShape(SDL_Renderer* renderer, const SDL_FRect& dst, const ShapeFx& fx, 
     Put(b.kind, static_cast<float>(fx.shape), fx.fade, g_seconds, fx.seed);
     Put(b.colour, fx.colour.r, fx.colour.g, fx.colour.b, fx.colour.a);
     Put(b.size, dst.w, dst.h, g_cam[2], fx.foot);
-    Put(b.hit, fx.hit_x, fx.hit_y, fx.hit_age, 0.0f);
+    Put(b.hit, fx.hit_x, fx.hit_y, fx.hit_age, fx.extra);
     SDL_SetGPURenderStateFragmentUniforms(s, 0, &b, sizeof b);
     Set(renderer, s);
     SDL_SetTextureBlendMode(g_white, blend);
