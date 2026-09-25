@@ -569,7 +569,7 @@ void Game::DrawSleepPrompt() {
     ui.Fill({panel.x + 40.0f, panel.y + 64.0f, panel.w - 80.0f, 1.0f}, {140, 116, 78, 255});
 
     // How much night is left to spend, which is what the choice is about.
-    const float to_dawn = world->clock.SecondsToDawn() / WorldClock::SECONDS_PER_HOUR;
+    const float to_dawn = world->clock.HoursToDawn();
     const int hours_left = std::max(1, static_cast<int>(to_dawn + 0.5f));
     ui.Text("It is " + world->clock.TimeText() + ". Dawn is " + std::to_string(hours_left) +
             (hours_left == 1 ? " hour off." : " hours off."),

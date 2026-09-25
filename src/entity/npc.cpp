@@ -96,14 +96,13 @@ void Npc::Update(float dt, World& world, const GameContext& ctx) {
 
     // --- a round, by the clock -------------------------------------------------
     if (Walks()) {
-        const double now = (static_cast<double>(world.clock.Day()) * 24.0 + world.clock.Hours()) *
-                           WorldClock::SECONDS_PER_HOUR + phase;
+        const double now = world.WorldSeconds() + phase;
         const double round_no = std::floor(now / round_time);
         const float want = static_cast<float>(now - round_no * round_time);
         // A round may begin only inside their hours, and is always finished.
         bool out = true;
         if (from_hour != to_hour) {
-            const double began = (round_no * round_time - phase) / WorldClock::SECONDS_PER_HOUR;
+            const double began = WorldClock::HoursAt(round_no * round_time - phase);
             const float hour = static_cast<float>(began - std::floor(began / 24.0) * 24.0);
             out = from_hour < to_hour ? (hour >= from_hour && hour < to_hour)
                                       : (hour >= from_hour || hour < to_hour);

@@ -718,6 +718,11 @@ private:
     void  StartCombo(ComboMove move, AttackType type, const World& world);
     // Fires the strong or charged attack the heavy button's hold decided on.
     void  FireStrong(bool charged, float ratio, const World& world);
+    // The charged heavy with Whirlwind chosen: a spin of as many turns as the
+    // charge bought (see WhirlProfile).
+    void  StartWhirl(float ratio, const World& world);
+    // Puts the spin clip on the frame drawn nearest how far the spin has got.
+    void  ShowWhirlFrame();
     // The clip a combo plays: its own, or the plain swing on a rig without it.
     string ComboClip(ComboMove move) const;
 

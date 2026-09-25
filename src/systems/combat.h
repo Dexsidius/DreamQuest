@@ -91,6 +91,27 @@ float ChargeRatio(float held_time);
 // Damage multiplier for a charged release at that ratio.
 float ChargeMultiplier(float ratio);
 
+// Whirlwind: the melee technique that makes a charged heavy a spin. The
+// player turns on the spot with the blade held out, WHIRL_TURN seconds a turn
+// (times the weapon's speed, like every swing), for WHIRL_MIN_TURNS turns at
+// the least charge up to WHIRL_MAX_TURNS held to the full, and everything round
+// them is struck once a turn at WHIRL_TURN_DAMAGE. They can still drift about
+// at WHIRL_MOVE of a walk while they turn. The spin is the whole swing: its
+// wind-up is the first quarter of the first turn, and its recovery the last
+// quarter of the last, so it ends facing the way it began.
+static constexpr float WHIRL_TURN        = 0.45f;
+static constexpr int   WHIRL_MIN_TURNS   = 3;
+static constexpr int   WHIRL_MAX_TURNS   = 6;
+static constexpr float WHIRL_TURN_DAMAGE = 0.7f;
+static constexpr float WHIRL_MOVE        = 0.5f;
+// A turn shoves what it strikes this share of a charged swing's push, so it
+// stays in reach of the next turn; the last turn throws it the whole way.
+static constexpr float WHIRL_TURN_PUSH   = 0.35f;
+// How many turns a charge at that ratio buys.
+int WhirlTurns(float charge_ratio);
+// The spin's timing and shape at a speed of one: see ScaleForSpeed.
+AttackProfile WhirlProfile(int turns);
+
 // The numbers a combatant brings to a swing, a shot or a cast.
 struct CombatProfile {
     int attack_level = 1, strength_level = 1, defence_level = 1;
@@ -293,9 +314,18 @@ struct AttackState {
     // A riposte: the lunge a parry leaves owed (the Counter talent). It
     // always lands critically.
     bool       riposte = false;
+    // A Whirlwind: `turns` turns of `turn` seconds each, the whole swing, and
+    // how many of them have begun -- each strikes as it does. None is any
+    // other swing.
+    int        turns = 0, turns_begun = 0;
+    float      turn = 0.0f;
     AttackProfile profile;
 
     bool Active() const { return type != AttackType::None; }
+    bool Whirling() const { return Active() && turns > 0; }
+    // How far round a Whirlwind has turned, in turns: one full turn a `turn`,
+    // from the moment it was let go.
+    float Turned() const { return turns > 0 ? timer / std::max(0.01f, turn) : 0.0f; }
     // True only during the frames where the hitbox should be tested.
     bool InActiveWindow() const {
         return Active() && timer >= profile.windup &&
@@ -305,5 +335,7 @@ struct AttackState {
     void Clear() {
         type = AttackType::None; move = ComboMove::None; timer = 0.0f;
         consumed = loosed = empowered = riposte = false;
+        turns = turns_begun = 0;
+        turn = 0.0f;
     }
 };

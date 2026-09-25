@@ -105,6 +105,36 @@ void Pluck(Buf& b, float start, float f, float amp, float dur, float damp, uint3
     }
 }
 
+// A throat: a buzzing saw over a sine an octave down, its pitch climbing to
+// a peak `peak_at` of the way through and falling away after, roughened by a
+// fast flutter in its loudness and a slow wander in its pitch -- a growl, a
+// snarl, a roar. `rough` 0 is a clean tone, 1 a beast.
+void Growl(Buf& b, float start, float dur, float f0, float f_peak, float f1, float peak_at,
+           float amp, float attack, float decay, float rough, uint32_t seed) {
+    Noise n(seed);
+    const size_t s0 = static_cast<size_t>(start * RATE);
+    const size_t len = static_cast<size_t>(dur * RATE);
+    const float flutter_c = Coef(38.0f), wander_c = Coef(5.0f);
+    float ph = 0.0f, sub = 0.0f, flutter = 0.0f, wander = 0.0f;
+    for (size_t i = 0; i < len && s0 + i < b.size(); ++i) {
+        const float t = static_cast<float>(i) / RATE;
+        const float k = t / dur;
+        float f = k < peak_at ? f0 * std::pow(f_peak / f0, k / std::max(0.001f, peak_at))
+                              : f_peak * std::pow(f1 / f_peak, (k - peak_at) / std::max(0.001f, 1.0f - peak_at));
+        // The filtered noise is small: these bring the wander to about five
+        // per cent of the pitch and the flutter to about a third of the level.
+        wander += (n.Next() - wander) * wander_c;
+        f *= 1.0f + 4.5f * rough * wander;
+        ph  += f / RATE;          ph  -= std::floor(ph);
+        sub += f * 0.5f / RATE;   sub -= std::floor(sub);
+        flutter += (n.Next() - flutter) * flutter_c;
+        const float am = std::clamp(1.0f + 12.0f * rough * flutter, 0.0f, 2.0f);
+        const float v = 0.65f * Osc(SAW, ph) + 0.55f * Osc(SINE, sub);
+        const float tail = std::min(1.0f, (dur - t) * 200.0f);
+        b[s0 + i] += v * am * amp * Env(t, attack, decay) * tail;
+    }
+}
+
 void LowpassAll(Buf& b, float hz) {
     const float c = Coef(hz);
     float lp = 0.0f;
@@ -477,6 +507,48 @@ Buf Make(Sfx s) {
         Hiss(b, 0.0f, 0.15f, 1.0f, 0.030f, 0.030f, 6500.0f, 2600.0f, 1900.0f, 91);
         LowpassAll(b, 10000.0f);
         Normalize(b, 0.30f);
+        break;
+    case Sfx::Breath:
+        // A dragon's breath going out of it -- fire, frost, stone, gale or
+        // sparks, pitched and seasoned for each where it is played: a throaty
+        // whoomph as the jaws open, then a long roaring rush of air forced out
+        // hard, brightening to its height and darkening as it is spent, over
+        // a growl in the throat and a rumble in the chest. Nothing like a
+        // bowstring, which is what it used to be heard as.
+        b = Blank(1.15f);
+        Hiss(b, 0.00f, 0.14f, 0.9f, 0.004f, 0.050f, 380.0f, 900.0f, 60.0f, 111);
+        Hiss(b, 0.03f, 0.45f, 1.0f, 0.060f, 0.400f, 1400.0f, 4200.0f, 300.0f, 112);
+        Hiss(b, 0.40f, 0.70f, 0.85f, 0.020f, 0.300f, 4200.0f, 900.0f, 250.0f, 113);
+        Growl(b, 0.0f, 0.95f, 62.0f, 84.0f, 52.0f, 0.25f, 0.45f, 0.05f, 0.45f, 1.0f, 114);
+        Tone(b, 0.0f, 0.9f, 55.0f, 38.0f, 0.4f, 0.03f, 0.35f);
+        LowpassAll(b, 6000.0f);
+        Normalize(b, 0.60f);
+        break;
+    case Sfx::Roar:
+        // A dragon rearing back into its heavy blow: a deep rattling throat
+        // that climbs and falls away, a second voice a fifth over it for its
+        // bulk, a gale of breath through both and a rumble under them.
+        b = Blank(1.35f);
+        Growl(b, 0.00f, 1.30f, 70.0f, 128.0f, 58.0f, 0.3f, 1.0f, 0.20f, 0.55f, 1.0f, 101);
+        Growl(b, 0.02f, 1.25f, 105.0f, 190.0f, 88.0f, 0.3f, 0.45f, 0.22f, 0.50f, 0.8f, 102);
+        Hiss(b, 0.00f, 0.42f, 0.55f, 0.12f, 0.40f, 600.0f, 2400.0f, 180.0f, 103);
+        Hiss(b, 0.38f, 0.92f, 0.50f, 0.02f, 0.45f, 2400.0f, 700.0f, 180.0f, 104);
+        Tone(b, 0.0f, 1.2f, 48.0f, 36.0f, 0.5f, 0.08f, 0.5f);
+        LowpassAll(b, 2400.0f);
+        Normalize(b, 0.60f);
+        break;
+    case Sfx::Bite:
+        // A dragon's bite: a snarl as it lunges, then the jaws slamming shut --
+        // a hard clack of teeth and the thud of the jaw behind it -- about when
+        // the blow lands, a third of a second in (Enemy's SWING_WINDUP).
+        b = Blank(0.46f);
+        Growl(b, 0.00f, 0.30f, 120.0f, 175.0f, 110.0f, 0.4f, 0.5f, 0.03f, 0.16f, 1.0f, 121);
+        Hiss(b, 0.00f, 0.28f, 0.25f, 0.04f, 0.12f, 1600.0f, 900.0f, 250.0f, 122);
+        Tone(b, 0.29f, 0.09f, 420.0f, 150.0f, 1.1f, 0.0008f, 0.020f);
+        Hiss(b, 0.29f, 0.03f, 1.4f, 0.0003f, 0.006f, 7000.0f, 4000.0f, 1800.0f, 123);
+        Tone(b, 0.29f, 0.03f, 2600.0f, 2100.0f, 0.3f, 0.0005f, 0.006f, TRI);
+        LowpassAll(b, 9000.0f);
+        Normalize(b, 0.55f);
         break;
     default:
         b = Blank(0.01f);

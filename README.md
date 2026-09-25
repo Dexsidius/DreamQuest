@@ -85,6 +85,13 @@ Install SDL3, SDL3_image, SDL3_ttf and ENet (`libenet-dev`, `enet`), then:
 ./compile_and_run.sh
 ```
 
+SDL has to be **3.4 or later**: the shaders are handed to the renderer with
+`SDL_SetGPURenderState`, which 3.2 does not have. Where the package manager has
+no SDL3 or an older one (Ubuntu 24.04 has none), SDL, SDL_image and SDL_ttf
+build from their `release-3.x` tags with CMake. `./compile.sh test` builds
+and runs the self-test, `./compile.sh tools` only builds it, and
+`./compile.sh server` the headless co-op server.
+
 ### Other build targets
 
 | Command | What it does |
@@ -324,7 +331,8 @@ pressing **Start on the second one** does the same without the menu.
 - **Panels are whoever opened them.** Their bag, skills, journal, the shops
   and conversations are the same panels, served to Player Two, with their
   controller's prompts and a line saying whose it is. A panel takes the whole
-  screen and stops the game for both, as a panel always has.
+  screen and stops the game for both, as a panel always has -- unless the
+  game is hosted online as well, when a panel stops nothing (see *Menus* below).
 - **Falling.** Player Two, fallen, reads the same screen and is got up in
   Havenbrook; Player One is wherever they were.
 
@@ -377,6 +385,16 @@ the halves without a second pair of hands.
   place as they have it -- the boar half dead, the coins on the ground. A map
   nobody is on is let go after a minute; what happened there that matters is
   in the world's flags.
+- **Menus.** Hosting, or in someone else's game, a panel or the pause menu
+  does not stop the world: the monsters, the villagers, the shots in the air
+  and the clock go on, and your character stands where you left it, hands off,
+  until you are back. It used to stop -- the host's map stood still for
+  everyone on it while friends' swings went on landing, and a guest's window
+  froze while the host's clock ran -- and closing the panel played it all back
+  in a rush, the villagers hurrying round their rounds to where the clock had
+  them. What the world has to say while a panel is open -- a toast, a death --
+  waits for it to close. Alone, and two at one machine with nobody across the
+  wire, a panel still stops the game (`Game::WorldRunsUnderPanels`).
 - **The night.** A bed asks how you would spend it, and each of you answers
   for yourself. *Go into the Reverie* takes you to the dream, which is a map
   like any other, while the others keep the evening. *Sleep through the night*,
@@ -1115,8 +1133,9 @@ drop from that, however many snapshots go on saying so. `PROTOCOL_VERSION` 7.
 ### Combos
 
 With a melee weapon, **what the last swing was decides what the next press
-means.** A light attack leaves a window of about four tenths of a second open;
-so does a plain strong attack. Inside it:
+means.** A light attack leaves a window of about four tenths of a second open,
+counted from the moment the next swing may start; so does a plain strong
+attack. Inside it:
 
 | Pressed | Comes out as | What it does |
 | --- | --- | --- |
@@ -1147,6 +1166,15 @@ Two things fell out of building it:
   moment the next swing may start, so a chain no longer hangs on a
   frame-perfect tap. The two buttons are kept apart, so two presses inside one
   swing still read as together.
+- **The window waits out the gap.** It used to start running out the moment
+  a swing ended, through the gap after it, and the gap a plain strong leaves
+  is 0.4s times the weapon's speed: a sword's left the window a frame, and a
+  greatsword's (0.58s), a greataxe's, a mace's or a spear's outlasted it, so
+  Heavy, Light never came out as the Backhand with any of them. Now it only
+  counts down once a swing may start, and a press the window has a combo for
+  -- the one the HUD is offering -- is kept for the whole of the gap rather
+  than a quarter second of it, so a light tapped as a greatsword's heavy ends
+  is its Pommel Strike the moment the gap is over.
 
 **The same grammar with every weapon.** A bow and a staff read the presses
 the same way and put their own move at the end of them:
@@ -1210,9 +1238,10 @@ one after another is counted -- the number large, and beneath it what each
 swing was: "Light > Light > Light > Crushing Blow". It shows from the second
 hit, holds for a moment and a half after the last and fades, and turns amber at
 five and ember at eight. A swing that meets nothing ends it, and so does a blow
-taken -- so a shield raised at the right moment keeps a run alive. A whirlwind
-or a Cross Cut that strikes three monsters is one hit of the chain, named for
-what it was. It is `Player::ChainHits` and `ChainTrail`, counted by the world
+taken -- so a shield raised at the right moment keeps a run alive. A Cross Cut
+that strikes three monsters is one hit of the chain, named for what it was; a
+Whirlwind is one a turn, and a turn that meets nothing after the first (what
+the first turns threw back) leaves the chain as it was. It is `Player::ChainHits` and `ChainTrail`, counted by the world
 where a swing is resolved.
 
 "Together" is the two buttons within about five frames of each other, either
@@ -1878,9 +1907,26 @@ about two thousand, and the first press says the sum before the second takes it.
 attack, so holding and releasing `K` comes out as the technique, and the HUD
 says what a held heavy attack will do ("Hold K: Whirlwind").
 
+**Whirlwind is a spin that goes on.** It used to be one strike all round,
+played on the plain charged swing, so nothing on the screen turned. Now the
+player turns on the spot with the blade held out -- the Cross Cut's `spin`
+clip, and its `spin_2h` for a greatsword or a greataxe -- for three turns, or
+up to six the longer `K` was held (`WhirlTurns`), and everything round them as
+far as the blade reaches is struck as each turn begins, at 0.7x a turn
+(`WHIRL_TURN_DAMAGE`). A turn is 0.45 seconds, times the weapon's speed like
+every swing, so a greatsword turns slower and further. A turn only nudges what
+it strikes, so it is still there for the next; the last throws it clear. The
+player can drift about at half a walk while spinning, and the spin ends facing
+the way it began. The clip was drawn as one turn eased in and out, which played
+over and over would lurch at the facing, so the Whirlwind turns at an even pace
+and shows whichever frame was drawn nearest the angle it has reached
+(`Player::ShowWhirlFrame`). A crescent in the Cross Cut's colour follows the
+blade round, and each turn cuts a ring on the ground and throws off sparks,
+which a friend sees too (`World::WhirlFx`).
+
 | Style | Technique | What it does |
 | --- | --- | --- |
-| Melee | **Whirlwind** | Spins, striking everything around you |
+| Melee | **Whirlwind** | Spins with the blade held out, striking everything around you every turn: three turns, up to six held to the full, drifting as you steer |
 | Melee | **Ground Slam** | Slams the ground, hitting and throwing back everything nearby |
 | Melee | **Lunge** | Dashes forward, striking everything in the way |
 | Ranged | **Piercing Shot** | One fast, heavy arrow that passes through everything in its path |
@@ -2501,7 +2547,8 @@ fells a tree no sooner; it only gets the logs out faster.
 | Ore outcrop | 1 in 3 | 0.75 of a game hour, likewise |
 | Dream crystal | 1 in 4 | 0.5 of a game hour |
 
-A game hour is half a real minute, so an oak is back in under a minute of play.
+A game hour by day is half a real minute, so an oak is back in under a minute
+of play; a night's hours are slower (see [Day and night](#day-and-night)).
 What is down is written into the save beside the picked herbs, so a stump is
 still a stump after a reload, and sleeping through the night brings everything
 back. A node's chance and its time are `deplete` and `regrow` on the object in
@@ -4000,9 +4047,18 @@ both families.
 
 ## Day and night
 
-A day lasts twelve real minutes: half a minute to the hour. The light starts to
-go at six in the evening, it is fully dark by half past eight, dawn begins at
-five and full daylight is back at seven. The clock only runs while you are
+An hour of the day lasts half a real minute, and an hour of the night -- from
+eight in the evening to five in the morning -- two minutes and a bit, so **the
+night lasts twenty real minutes**, and a day and a night together twenty-seven
+and a half. The light starts to go at six in the evening, it is fully dark by
+half past eight, dawn begins at five and full daylight is back at seven.
+
+The night used to be four and a half minutes, at the day's pace. Whatever moves
+by the clock in real time -- a villager's round, a bug's flight, the bees --
+is timed by the clock's count of real seconds (`WorldClock::Seconds`), which
+takes each hour at its own length, so none of it slows to a crawl after dark.
+A dream still lasts until dawn, so a dream begun as night falls is twenty
+minutes long. The clock only runs while you are
 playing, and it is saved, so a night is still a night after a reload. A new
 game starts at nine in the morning of day one.
 
@@ -4381,8 +4437,8 @@ shadowed, because flat text over a moonlit sky is hard to read.
 ## Sound
 
 There are no audio files. `src/systems/audio.cpp` synthesises every effect at
-start-up -- 43 of them, from tones, filtered noise, struck-metal partials and
-Karplus-Strong plucked strings -- and plays them through one SDL3 audio stream
+start-up -- 46 of them, from tones, filtered noise, struck-metal partials,
+Karplus-Strong plucked strings and rattling throats -- and plays them through one SDL3 audio stream
 with a small mixer.
 
 - **Combat:** swings (pitched up through a light chain, heavier for strong and
@@ -4393,6 +4449,8 @@ with a small mixer.
   below).
 - **Things thrown:** a knife leaving the hand, going in and going by; a rock,
   a lump of ice or a snowball leaving a monster's.
+- **Dragons:** a breath going out, a roar into a heavy blow, and a bite (see
+  **A dragon's voice**, below).
 - **The world:** footsteps by distance walked -- earth outdoors, planks indoors,
   stone in the mines -- chopping and mining strikes while you work, cooking and
   burning, chests, doors, locked doors, portals, pickups and coins, eating and
@@ -4426,6 +4484,27 @@ for a sound a friend's own window plays for itself and is never sent to her
 (`coop::OwnSound`, which the self-test asks about all three). A guest on an
 older build would take a number it does not know for its last sound -- the
 quest fanfare, on every knife -- so they came with protocol 14.
+
+**A dragon's voice.** The five elemental dragons breathed their element at
+you and were heard loosing an arrow: nothing marked a breath as anything but a
+shot off a string, so it fell to the bowstring every shooter played at the
+start of its wind-up. In close they were heard swinging, like an orc. Now a
+breath says it is one -- `"breath": true` on `drake_flame`, `drake_tide`,
+`drake_stone`, `drake_gale` and `drake_spark`, and on the Cerberus's
+`cerberus_fire`, in `data/projectiles.json` -- and is heard as it **leaves the
+mouth**, and a dragon has a voice of its own (`"voice": "dragon"` in
+`data/enemies.json`):
+
+| Sound | What it is | How it is made |
+| --- | --- | --- |
+| `Breath` | fire, frost, stone, gale or sparks breathed out | a throaty whoomph as the jaws open, then a roaring rush of noise brightening to 4 kHz and darkening as it is spent, over a growl in the throat and a rumble in the chest: about a second. Played lower for stone, higher for a gale, with a fire's crackle (`Burn`) under a flame, a wave's slap (`Splash`) under a tide and a quick high crackle under sparks (`Enemy::Breathe`) |
+| `Roar` | a dragon rearing back into its heavy blow | two rattling throats a fifth apart climbing from 70 to 128 Hz and falling away, with a gale of breath through them and a rumble under both, over a second and a quarter. Where a leader's heavy is heard as a swing |
+| `Bite` | a dragon's ordinary blow | a snarl as it lunges, then its jaws slamming shut a third of a second in, when the blow lands: a clack of teeth and the thud of the jaw |
+
+The throats are `Growl` in `audio.cpp`: a buzzing saw over a sine an octave
+down, its pitch rising to a peak and falling, roughened by a fast flutter in its
+loudness and a slow wander in its pitch. The three are appended after `Whiff`
+and came with protocol 15, as the three before them came with 14.
 
 **Ambience** is generated live, per map kind, and cross-fades on every map
 change: wind with slow swells and birdsong in the forest, groves and fields;
@@ -6187,9 +6266,9 @@ says so -- `"thrown": true` on `orc_rock`, and on the frostback troll's
 airy `Throw` at the moment it **leaves the hand**, a third of a second into the
 wind-up, from where the monster stands -- and lower the bigger the thing
 thrown, so the snowman's snowball is not heard as a slinger's pebble. A
-wind-up that is broken off throws nothing and is heard as nothing. Bowmen, archers, dragons, spitting croakers
+wind-up that is broken off throws nothing and is heard as nothing. Bowmen, archers, spitting croakers
 and every other shooter still twang at the start, as they did; casters still
-cast.
+cast; and a dragon breathes (see **A dragon's voice**).
 
 ### What starts a fight, and what ends one
 
@@ -6807,7 +6886,10 @@ and checks all of it — currently **61823 checks** covering:
   one; a heavy after one light is the Crushing Blow, out on the press, and the
   orc reels for about a second and does not swing back; the Cleave's sweep
   reaches a monster off to the side the finisher does not; a light after a
-  strong is the Backhand and the chain goes on from it; both buttons on one
+  strong is the Backhand and the chain goes on from it -- with a greatsword,
+  a greataxe, a mace and a spear too, whose heavies leave a longer gap than the
+  window, and a light pressed the moment a greatsword's heavy ends is kept
+  through its gap and comes out as the Backhand; both buttons on one
   frame, or two frames apart either way round, are the Cross Cut, which costs
   its stamina and strikes the monster behind as well as in front; winded there
   is none; a bow has no combos; a press inside a swing comes out the moment
@@ -6932,7 +7014,11 @@ and checks all of it — currently **61823 checks** covering:
   above and a point, and unlearning gives them back; a melee node helps a sword
   and not a bow, and a global one helps both
 - in real fights: a whirlwind strikes all four deer round the player where a
-  plain charged swing strikes the ones in front, a lunge carries the player
+  plain charged swing strikes the ones in front, and goes on turning -- six
+  turns held to the full and three let go early, then stopped; a deer at the
+  player's side struck once a turn; the spin clip's frames shown round in order,
+  every one of them each turn, ending facing the way it began; and steered, the
+  player drifting while it turns -- a lunge carries the player
   forward, a volley looses five arrows, a piercing shot passes through a crowd,
   arrow rain and meteor call strikes down; an arrow rain is seen coming, comes
   down for two seconds and more in seven volleys, hits what stands under it
@@ -6943,7 +7029,9 @@ and checks all of it — currently **61823 checks** covering:
   twice the mana less Focus, flurry quickens a sword and not a bow, and learned
   nodes survive a save
 - the clock's dusk only darkens, dawn is half light and warm, half a minute is
-  an hour, midnight turns the day, a bed takes you from 19:00 to 04:00 and a
+  an hour by day, the night is twenty minutes from nightfall and played through
+  a frame at a time while the day is as long as ever, a step across nightfall
+  goes at each side's pace, midnight turns the day, a bed takes you from 19:00 to 04:00 and a
   dream is over at 05:00, and skipping to dawn lands on the right morning
 - there are beds indoors and campsites outdoors, the dreamworld has an arrival
   point, one waking stone, dream crystals, tinted nightmares and no portals, and
@@ -6996,7 +7084,7 @@ and checks all of it — currently **61823 checks** covering:
   no use at Mining 1, a bronze one mines copper with the mining animation, and
   walking away stops it; the pond wants a rod, a level 1 fisher with one lands a
   minnow and trains Fishing, and at Fishing 99 some casts land more than one fish
-- every one of the 43 sounds is audible, short, finite and under clipping;
+- every one of the 46 sounds is audible, short, finite and under clipping;
   each ambience, the dream's and a night outdoors included, is audible, stays
   in the background and fades out when cleared; forty hits at once are
   voice-capped and never exceed full scale
@@ -7585,7 +7673,13 @@ and checks all of it — currently **61823 checks** covering:
   slinger looses at a player it can see, never closes to a swing's reach to do
   it, and is heard throwing once, from where it stands and at its rock's pitch,
   with no bowstring in it,
-  while a bowman is still heard loosing an arrow. And the ranks are the ranks they
+  while a bowman is still heard loosing an arrow. A dragon's breath is no
+  bowstring or throw, its roar no heavy swing and its bite no swing; a breath
+  and a roar go on and a bite is quick, and a friend is told all three on
+  protocol 15; each of the five dragons breathes what it shoots and has a
+  dragon's voice, and is heard breathing once and never loosing an arrow, the
+  fire dragon's crackling; and in close the Pyre Dragon roars into its heavy blow
+  and bites, and is never heard swinging. And the ranks are the ranks they
   were -- exactly eighty-five orc posts in the realm, thirty-five of them left
   for the day to settle, and about a third of the mines' and the barrow's
   standing back

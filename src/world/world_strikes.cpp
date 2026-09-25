@@ -490,13 +490,31 @@ void World::RiposteFx(float x, float y, float angle) {
     StrikeShock(x, y, 0.3f, 0.25f);
 }
 
+// --- the Whirlwind ----------------------------------------------------------------------
+
+void World::WhirlFx(const ItemDef* weapon, float radius, bool last) {
+    // In the Cross Cut's colour: the other turn on the spot.
+    const SDL_FColor c = kColour[FamilyOf(weapon)][3];
+    const SDL_FPoint g = player.GroundCentre();
+    AddStrike(MkImpact(g.x, g.y, radius + 8.0f, 0.0f, 0.45f, 0.1f, c, 0.35f));
+    StrikeBurst(g.x, g.y - 12.0f, radius, {230, 236, 255, 255}, last ? 14 : 7,
+                static_cast<float>(strike_seed++ % 7) * 0.4f);
+    if (last) {
+        Strike again = MkImpact(g.x, g.y, radius + 22.0f, 0.0f, 0.45f, 0.08f, c, 0.45f);
+        again.delay = 0.08f;
+        AddStrike(again);
+        StrikeShock(g.x, g.y, 0.3f, 0.2f);
+    }
+}
+
 // --- the swing itself, drawn by the shader -----------------------------------------------
 
 bool World::DrawSwingShaded(SDL_Renderer* r, float cx, float cy, float base, float half, float reach, float sweep,
                             float alpha, bool thrust) const {
     if (!Shaders::Effects()) return false;
     const AttackState& atk = player.Attack();
-    const int m = MoveIndex(atk.move);
+    // A Whirlwind is drawn in the Cross Cut's colour, the other turn on the spot.
+    const int m = atk.Whirling() ? 3 : MoveIndex(atk.move);
     const Family f = FamilyOf(player.equipment.Weapon());
     SDL_FColor c = m >= 0 ? kColour[f][m] : SDL_FColor{1.0f, 0.96f, 0.8f, 1.0f};
     if (atk.riposte) c = Rgb(255, 214, 110);
@@ -513,8 +531,9 @@ bool World::DrawSwingShaded(SDL_Renderer* r, float cx, float cy, float base, flo
         fx.extra = 0.05f;
     } else {
         fx.shape = Shaders::SHAPE_SLASH;
-        // A backhand comes back the other way.
-        const bool back = atk.move == ComboMove::Backhand;
+        // A backhand comes back the other way, and so does a Whirlwind: the
+        // spin turns anticlockwise on the screen (see World::DrawSwing).
+        const bool back = atk.move == ComboMove::Backhand || atk.Whirling();
         fx.hit_x = back ? base + half : base - half;
         fx.hit_y = back ? -2.0f * half : 2.0f * half;
         fx.hit_age = sweep;
@@ -527,6 +546,7 @@ bool World::DrawSwingShaded(SDL_Renderer* r, float cx, float cy, float base, flo
             case ComboMove::CrossCut: thick = 0.24f; break;
             default: break;
         }
+        if (atk.Whirling()) thick = 0.24f;
         if (f == GREAT || f == AXE) thick *= 1.2f;
         fx.extra = thick;
     }

@@ -3647,6 +3647,64 @@ int main(int argc, char** argv) {
             const int plain = round(false), spun = round(true);
             Check(plain <= 2, "a plain charged swing strikes what is in front (" + std::to_string(plain) + " of 4)");
             Check(spun == 4, "a whirlwind strikes all four deer around the player (" + std::to_string(spun) + ")");
+
+            // And it goes on turning. Held for `hold` frames and let go, with a
+            // deer kept at the player's side: how many turns the spin was, how
+            // many of them reached the deer (the chain counts each -- a deer
+            // never strikes back to end it -- where the dice may miss one), the
+            // frames of the spin clip it showed in the order it showed them,
+            // and how far the player drifted, steering right the whole time.
+            struct Spin { int turns = 0, reached = 0; string clip; vector<int> shown; float drift = 0; bool ended = false; };
+            const auto spin = [&](int hold, bool steer) {
+                Spin out;
+                World w;
+                if (!fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge", "flurry", "whirlwind"}, "whirlwind"))
+                    return out;
+                Enemy* deer = spawn(w, "deer", 0.0f, 30.0f);
+                if (!deer) return out;
+                deer->hp = deer->max_hp = 100000;
+                const auto keep = [&]() {
+                    deer->x = w.player.x; deer->y = w.player.y + 30.0f;
+                    deer->knock_x = deer->knock_y = 0.0f;
+                };
+                input.Update(dt); key(SDLK_K, true); keep(); w.Update(dt, ctx);
+                for (int f = 0; f < hold; ++f) { input.Update(dt); keep(); w.Update(dt, ctx); }
+                if (steer) key(SDLK_D, true);
+                input.Update(dt); key(SDLK_K, false); keep(); w.Update(dt, ctx);
+                const float x0 = w.player.x;
+                out.clip = w.player.sprite.current;
+                for (int f = 0; f < 600 && w.player.Attack().Active(); ++f) {
+                    out.turns = std::max(out.turns, w.player.Attack().turns_begun);
+                    out.reached = std::max(out.reached, w.player.ChainHits());
+                    if (out.shown.empty() || out.shown.back() != w.player.sprite.Frame())
+                        out.shown.push_back(w.player.sprite.Frame());
+                    input.Update(dt); keep(); w.Update(dt, ctx);
+                }
+                out.reached = std::max(out.reached, w.player.ChainHits());
+                if (steer) key(SDLK_D, false);
+                out.drift = w.player.x - x0;
+                out.ended = !w.player.Attack().Active();
+                return out;
+            };
+            const Spin full = spin(80, false), short_hold = spin(16, false), steered = spin(80, true);
+            Check(full.ended && full.turns == WHIRL_MAX_TURNS && short_hold.turns == WHIRL_MIN_TURNS,
+                  "a full charge spins " + std::to_string(full.turns) + " turns and a short one " +
+                  std::to_string(short_hold.turns) + ", and then it stops");
+            Check(full.reached == full.turns && short_hold.reached == short_hold.turns,
+                  "the deer at the player's side is struck once a turn (" + std::to_string(full.reached) + " and " +
+                  std::to_string(short_hold.reached) + " blows)");
+            Check(full.clip == "spin", "the player turns with the blade held out: the spin clip (" + full.clip + ")");
+            // Round and round in order: each frame shown is the one after the
+            // last, the spin's drawn turn less its closing frame, which is its
+            // first again.
+            bool in_order = full.shown.size() > 1;
+            for (size_t i = 1; i < full.shown.size(); ++i) in_order &= full.shown[i] == (full.shown[i - 1] + 1) % 7;
+            Check(in_order && full.shown.size() >= static_cast<size_t>(7 * WHIRL_MAX_TURNS - 2),
+                  "its frames go round in order, every one of them each turn (" + std::to_string(full.shown.size()) +
+                  " frames shown)");
+            Check(!full.shown.empty() && full.shown.back() == 0, "and it ends facing the way it began");
+            Check(fabsf(full.drift) < 1.0f && steered.drift > 40.0f,
+                  "and steered, the player drifts while turning (" + std::to_string(static_cast<int>(steered.drift)) + " px)");
         }
         // Lunge: the player covers ground.
         {
@@ -5409,15 +5467,45 @@ int main(int argc, char** argv) {
             c.Set(1, 19.0f);
             Check(c.Warmth() > 0.9f, "sunset is warm");
 
-            c.Set(1, 23.5f);
+            c.Set(1, 10.0f);
             c.Advance(WorldClock::SECONDS_PER_HOUR);
+            Check(c.Day() == 1 && fabsf(c.Hours() - 11.0f) < 0.01f, "by day, half a minute is an hour");
+            c.Set(1, 23.5f);
+            c.Advance(WorldClock::NIGHT_SECONDS_PER_HOUR);
             Check(c.Day() == 2 && fabsf(c.Hours() - 0.5f) < 0.01f,
-                  "half a minute is an hour, and midnight starts the next day");
+                  "by night an hour is two minutes and a bit, and midnight starts the next day");
             Check(c.TimeText() == "00:30", "the clock reads 00:30");
 
+            // The night is twenty minutes, however it is counted: from nightfall,
+            // to dawn; or played through a frame at a time.
+            c.Set(2, WorldClock::NIGHT_START);
+            Check(fabsf(c.SecondsToDawn() - 20.0f * 60.0f) < 0.1f,
+                  "from nightfall, dawn is twenty real minutes away (" + std::to_string(c.SecondsToDawn()) + "s)");
+            int night_frames = 0;
+            while (c.IsNight() && night_frames < 2 * 60 * 60 * 60) { c.Advance(1.0f / 60.0f); ++night_frames; }
+            Check(c.Day() == 3 && fabsf(night_frames / 60.0f - 20.0f * 60.0f) < 0.1f,
+                  "and played through a frame at a time, it lasts twenty minutes (" +
+                  std::to_string(night_frames / 60.0f) + "s)");
+            c.Set(2, WorldClock::NIGHT_END);
+            int day_frames = 0;
+            while (!c.IsNight() && day_frames < 2 * 60 * 60 * 60) { c.Advance(1.0f / 60.0f); ++day_frames; }
+            Check(fabsf(day_frames / 60.0f - 15.0f * WorldClock::SECONDS_PER_HOUR) < 0.1f,
+                  "while the day from dawn to nightfall is as long as ever (" + std::to_string(day_frames / 60.0f) + "s)");
+            // A step across nightfall goes at each side's pace.
+            c.Set(2, WorldClock::NIGHT_START - 0.5f);
+            c.Advance(0.5f * WorldClock::SECONDS_PER_HOUR + 0.5f * WorldClock::NIGHT_SECONDS_PER_HOUR);
+            Check(fabsf(c.Hours() - (WorldClock::NIGHT_START + 0.5f)) < 0.001f,
+                  "a step across nightfall takes the evening's half hour at the day's pace and the next at the night's");
+            bool round_trip = true;
+            for (double h = 24.0; h < 72.0; h += 0.37)
+                round_trip &= fabs(WorldClock::HoursAt(WorldClock::SecondsAt(h)) - h) < 1e-6;
+            Check(round_trip && fabs(WorldClock::SecondsAt(48.0) - WorldClock::SecondsAt(24.0) - WorldClock::DAY_SECONDS) < 1e-6,
+                  "real seconds and hours on the clock go back and forth, a day and a night apart");
+
             c.Set(3, 23.0f);
-            Check(fabsf(c.SecondsToDawn() - 6.0f * WorldClock::SECONDS_PER_HOUR) < 0.1f,
-                  "from eleven, dawn is six hours of real half-minutes away");
+            Check(fabsf(c.SecondsToDawn() - 6.0f * WorldClock::NIGHT_SECONDS_PER_HOUR) < 0.1f &&
+                  fabsf(c.HoursToDawn() - 6.0f) < 0.001f,
+                  "from eleven, dawn is six of the night's hours away");
             Check(!c.DreamOver(), "a dream at eleven is not over");
             c.SkipToDawn();
             Check(c.Day() == 4 && c.Hours() == WorldClock::NIGHT_END && c.DreamOver(),
@@ -7596,8 +7684,8 @@ int main(int argc, char** argv) {
             for (int k = 0; k < 4; ++k) {
                 const MapObject o = spot(("bug_" + std::to_string(k)).c_str(), kinds[k], 400.0f, 300.0f);
                 float lo = 1e9f, hi = -1e9f;
-                World::BugPose last = World::BugFlight(o, 50.0);
-                for (double h = 50.0; h < 52.0; h += 0.02 / WorldClock::SECONDS_PER_HOUR) {
+                World::BugPose last = World::BugFlight(o, 1500.0);
+                for (double h = 1500.0; h < 1560.0; h += 0.02) {
                     const World::BugPose b = World::BugFlight(o, h), again = World::BugFlight(o, h);
                     within &= fabsf(b.x - o.x) <= World::BUG_RANGE + 0.01f && fabsf(b.y - o.y) <= World::BUG_RANGE + 0.01f;
                     agrees &= b.x == again.x && b.y == again.y && b.hover == again.hover;
@@ -9175,6 +9263,34 @@ int main(int argc, char** argv) {
                 tap(w2, SDLK_J); settle(w2);
                 tap(w2, SDLK_K);
                 Check(w2.player.Attack().move == ComboMove::Cleave, "or the next heavy the Cleave");
+            }
+            // A slow weapon's heavy leaves a longer gap after it than the
+            // window lasts -- a greatsword's is 0.58s -- and the window used
+            // to run out inside it, so the Backhand could not be thrown with
+            // one, or with a greataxe, a mace or a spear.
+            for (const char* slow : {"bronze_greatsword", "bronze_greataxe", "bronze_mace", "bronze_spear"}) {
+                World w3;
+                if (!arena(w3, slow)) continue;
+                tap(w3, SDLK_K); settle(w3);
+                Check(w3.player.ComboOpen() && w3.player.NextCombo(true) == ComboMove::Backhand,
+                      string("with a ") + slow + " the window is still open when the next swing may start");
+                tap(w3, SDLK_J);
+                Check(w3.player.Attack().move == ComboMove::Backhand,
+                      string("and a light then is its Backhand (") + slow + ")");
+            }
+            // A light pressed the moment the heavy ends, while the HUD offers
+            // the Backhand, is kept through the whole of the gap -- not only
+            // the last quarter second of it -- and comes out as the Backhand.
+            World w4;
+            if (arena(w4, "bronze_greatsword")) {
+                tap(w4, SDLK_K);
+                for (int f = 0; f < 120 && w4.player.Attack().Active(); ++f) frames(w4, 1);
+                Check(!w4.player.CanAttack() && w4.player.NextCombo(true) == ComboMove::Backhand,
+                      "a greatsword's heavy ends in a gap, with the Backhand offered");
+                tap(w4, SDLK_J);
+                for (int f = 0; f < 120 && !w4.player.Attack().Active(); ++f) frames(w4, 1);
+                Check(w4.player.Attack().move == ComboMove::Backhand,
+                      "and a light pressed at the start of it comes out as the Backhand when the gap ends");
             }
         }
 
@@ -16906,6 +17022,74 @@ int main(int argc, char** argv) {
             const Loosed bow = stand_off(bowman, "orc_bowman");
             Check(bow.shot && heard(bow, Sfx::BowShot) == 1 && heard(bow, Sfx::Throw) == 0,
                   "while a bowman is still heard loosing an arrow (" + std::to_string(heard(bow, Sfx::BowShot)) + ")");
+
+            // --- a dragon breathes, roars and bites -------------------------------------------
+            // Its breath used to be heard as an arrow: nothing said it was
+            // anything but a shot off a string. Now it is breathed, heard as it
+            // leaves the mouth; and in close a dragon roars into its heavy blow
+            // and bites, where it used to be heard swinging like an orc.
+            Check(differs(Sfx::Breath, Sfx::BowShot) && differs(Sfx::Breath, Sfx::Throw) && differs(Sfx::Roar, Sfx::SwingHeavy) &&
+                      differs(Sfx::Bite, Sfx::Swing) && differs(Sfx::Bite, Sfx::Roar) && differs(Sfx::Breath, Sfx::Roar),
+                  "a dragon's breath is no bowstring, its roar no heavy swing, and its bite no swing");
+            Check(seconds(Sfx::Breath) > 0.7f && seconds(Sfx::Breath) < 1.5f && seconds(Sfx::Roar) > 0.9f &&
+                      seconds(Sfx::Roar) < 1.6f && seconds(Sfx::Bite) > 0.3f && seconds(Sfx::Bite) < 0.6f,
+                  "a breath and a roar go on, and a bite is quick (" + std::to_string(seconds(Sfx::Breath)) + ", " +
+                      std::to_string(seconds(Sfx::Roar)) + ", " + std::to_string(seconds(Sfx::Bite)) + " s)");
+            Check(!coop::OwnSound(Sfx::Breath) && !coop::OwnSound(Sfx::Roar) && !coop::OwnSound(Sfx::Bite) &&
+                      net::PROTOCOL_VERSION >= 15,
+                  "and a friend is told all three (protocol " + std::to_string(net::PROTOCOL_VERSION) + ")");
+            const char* const dragons[] = {"dragon_fire", "dragon_water", "dragon_earth", "dragon_air", "dragon_lightning"};
+            for (const char* id : dragons) {
+                const EnemyDef* d = enemy_db.Get(id);
+                const ProjectileDef* breath = d ? projectiles.Get(d->shoots) : nullptr;
+                Check(d && d->DragonVoice() && breath && breath->breath && !breath->thrown,
+                      string(id) + " breathes what it shoots, and has a dragon's voice");
+                if (!d) continue;
+                const Loosed l = stand_off(d, id);
+                Check(l.shot && heard(l, Sfx::Breath) == 1 && heard(l, Sfx::BowShot) == 0,
+                      string(id) + " is heard breathing and not loosing an arrow (" + std::to_string(heard(l, Sfx::Breath)) +
+                          " breaths, " + std::to_string(heard(l, Sfx::BowShot)) + " bowstrings)");
+                if (string(id) == "dragon_fire")
+                    Check(heard(l, Sfx::Burn) == 1, "and a fire dragon's breath crackles as it goes");
+            }
+            // In close: kept a step from the player, who is kept alive, for ten
+            // seconds -- long enough for the first heavy's opening. Let be, it
+            // would back off after its first bite to breathe from range.
+            if (const EnemyDef* d = enemy_db.Get("dragon_fire")) {
+                vector<Sfx> close;
+                World world;
+                world.player.Init(pctx, "player_hero");
+                if (world.LoadMap("overworld", "start", pctx)) {
+                    world.enemies.clear();
+                    world.clock.Set(1, 12.0f);
+                    {
+                        LevelUp up;
+                        world.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(90), up);
+                        world.player.Rest();
+                    }
+                    EnemySpawnDef def;
+                    def.type = "dragon_fire"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                    def.x = world.player.x + 30.0f;
+                    def.y = world.player.y;
+                    auto e = std::make_unique<Enemy>();
+                    e->Init(d, def, pctx);
+                    Enemy* dragon = e.get();
+                    world.enemies.push_back(std::move(e));
+                    Audio::SetTap([&close](Sfx s, bool, float, float, float, float) { close.push_back(s); });
+                    for (int f = 0; f < 600; ++f) {
+                        world.player.hp = world.player.max_hp;
+                        dragon->x = world.player.x + 30.0f;
+                        dragon->y = world.player.y;
+                        dragon->knock_x = dragon->knock_y = 0.0f;
+                        world.Update(1.0f / 60.0f, pctx);
+                    }
+                    Audio::SetTap(nullptr);
+                }
+                const auto count = [&](Sfx s) { return static_cast<int>(std::count(close.begin(), close.end(), s)); };
+                Check(count(Sfx::Roar) >= 1 && count(Sfx::Bite) >= 1 && count(Sfx::Swing) == 0 && count(Sfx::SwingHeavy) == 0,
+                      "and in close it roars into its heavy blow and bites, and is never heard swinging (" +
+                          std::to_string(count(Sfx::Roar)) + " roars, " + std::to_string(count(Sfx::Bite)) + " bites)");
+            }
         }
 
         // --- mixed through the ranks, without another orc in the realm --------------------
@@ -21141,8 +21325,8 @@ int main(int argc, char** argv) {
             Check(gw.player.interact.kind == InteractTarget::Object && gw.player.interact.index == bi_obj &&
                   gw.player.interact.label == "Catch the swallowtail butterfly",
                   "her window's prompt finds the butterfly (" + gw.player.interact.label + ")");
-            const World::BugPose seen = World::BugFlight(gw.map.Objects()[bi_obj], gw.GameHours());
-            const World::BugPose there = World::BugFlight(hw.map.Objects()[bi_obj], hw.GameHours());
+            const World::BugPose seen = World::BugFlight(gw.map.Objects()[bi_obj], gw.WorldSeconds());
+            const World::BugPose there = World::BugFlight(hw.map.Objects()[bi_obj], hw.WorldSeconds());
             Check(Length(seen.x - there.x, seen.y - there.y) < 2.5f,
                   "and her window has it flying where the host's does, with nothing sent about it");
             const int had = gw.player.inventory.Count("swallowtail");

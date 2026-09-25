@@ -941,6 +941,10 @@ void Player::FitSwing() {
 }
 
 void Player::FireStrong(bool charged, float ratio, const World& world) {
+    if (charged && Style() == AttackStyle::Melee && ActiveTechnique() == "whirlwind") {
+        StartWhirl(ratio, world);
+        return;
+    }
     const float speed = WeaponSpeed();
     attack.type    = charged ? AttackType::Charged : AttackType::Strong;
     attack.move    = ComboMove::None;
@@ -972,6 +976,61 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     combo        = 0;
     combo_window = 0.0f;
     after_strong = false;
+}
+
+void Player::StartWhirl(float ratio, const World& world) {
+    const float speed = WeaponSpeed();
+    const int turns   = WhirlTurns(ratio);
+    attack.type        = AttackType::Charged;
+    attack.move        = ComboMove::None;
+    attack.profile     = ScaleForSpeed(WhirlProfile(turns), speed);
+    ShapeForWeapon(attack.profile);
+    attack.rate        = speed;
+    attack.damage_mult = attack.profile.damage_mult;
+    attack.reach_scale = 1.0f;
+    attack.combo       = 0;
+    attack.timer       = 0.0f;
+    attack.consumed    = false;
+    attack.turns       = turns;
+    attack.turns_begun = 0;
+    // The same slowing ScaleForSpeed gave the rest of it.
+    attack.turn        = WHIRL_TURN * std::clamp(speed, 0.35f, 3.0f);
+    TurnToTarget(world);
+    // The Cross Cut's turn on the spot, the blade held out level, over and
+    // over: its frames are chosen as it goes (ShowWhirlFrame), not played.
+    const string spin = BothHands("spin");
+    sprite.speed_scale = 1.0f;
+    sprite.Play(sprite.Def() && sprite.Def()->Find(spin) ? spin : AttackClip(), true);
+    ShowWhirlFrame();
+    Audio::Play(Sfx::SwingHeavy, 1.0f, 1.1f);
+    combo        = 0;
+    combo_window = 0.0f;
+    after_strong = false;
+}
+
+void Player::ShowWhirlFrame() {
+    if (!attack.Whirling() || sprite.current.rfind("spin", 0) != 0) return;
+    const AnimClip* c = sprite.Def() ? sprite.Def()->Find(sprite.current) : nullptr;
+    if (!c || c->frames < 3) return;
+    // The spin was drawn as one turn eased in and out, for the Cross Cut: its
+    // frame i is smoothstep(i / (frames - 1)) of the way round, and the last
+    // is the first again (tools/blender_character.py, pose_spin). Played over
+    // and over at any rate it would lurch, slow at the facing and quick behind
+    // it, so the Whirlwind turns at an even pace and shows whichever frame was
+    // drawn nearest the angle it has got to.
+    const float turned = attack.Turned();
+    const float along = turned - floorf(turned);
+    const int drawn = c->frames - 1;
+    int best = 0;
+    float best_gap = 2.0f;
+    for (int i = 0; i < drawn; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(drawn);
+        const float at = t * t * (3.0f - 2.0f * t);
+        float gap = fabsf(along - at);
+        gap = std::min(gap, 1.0f - gap);
+        if (gap < best_gap) { best_gap = gap; best = i; }
+    }
+    sprite.SetFrame(best);
 }
 
 string Player::ComboClip(ComboMove move) const {
@@ -1073,10 +1132,16 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
     // and used the instant the next swing may start, so a chain does not hang
     // on a frame-perfect tap. The two buttons are kept apart, so two presses
     // inside one swing still read as "together".
+    //
+    // A press the open window has a combo for is kept for the whole of the gap
+    // before the swing, however long a slow weapon's is: the HUD is offering
+    // that combo, and a light pressed as a greatsword's heavy ended used to be
+    // dropped a quarter second later, with most of its gap still to go.
     if (raw_light  && !CanAttack()) buf_light  = BUFFER_WINDOW;
     if (raw_strong && !CanAttack()) buf_strong = BUFFER_WINDOW;
-    if (buf_light  > 0.0f) buf_light  = std::max(0.0f, buf_light  - dt);
-    if (buf_strong > 0.0f) buf_strong = std::max(0.0f, buf_strong - dt);
+    const bool gap = ComboOpen() && !attack.Active() && attack_cooldown > 0.0f;
+    if (buf_light  > 0.0f && !(gap && NextCombo(true)  != ComboMove::None)) buf_light  = std::max(0.0f, buf_light  - dt);
+    if (buf_strong > 0.0f && !(gap && NextCombo(false) != ComboMove::None)) buf_strong = std::max(0.0f, buf_strong - dt);
     bool light_press = raw_light, strong_press = raw_strong;
     if (CanAttack()) {
         if (buf_light  > 0.0f) light_press  = true;
@@ -1215,6 +1280,15 @@ void Player::UpdateAttack(float dt) {
         return;
     }
     attack.timer += dt;
+    // A Whirlwind strikes as each turn begins, the first as its wind-up ends:
+    // the swing is armed again for the world to land, and the blade is heard
+    // going round. Each turn a little higher, as it gathers speed.
+    while (attack.Whirling() && attack.turns_begun < attack.turns &&
+           attack.timer >= attack.profile.windup + attack.turns_begun * attack.turn) {
+        ++attack.turns_begun;
+        attack.consumed = false;
+        if (attack.turns_begun > 1) Audio::Play(Sfx::SwingHeavy, 0.85f, 1.1f + 0.05f * attack.turns_begun);
+    }
     // Let go. A breath held or a spell overloaded goes into this one, and is
     // spent here rather than in the world, so a friend's window -- where the
     // world decides nothing -- spends it at the same moment the host does.
@@ -1560,7 +1634,12 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     heard_hp = hp;
     if (sprint_lockout > 0.0f) sprint_lockout = std::max(0.0f, sprint_lockout - dt);
     if (rush_cooldown > 0.0f) rush_cooldown = std::max(0.0f, rush_cooldown - dt);
-    if (combo_window > 0.0f) {
+    // The window is for the next swing, so it only starts to run out once one
+    // may start. It used to run through the gap after the swing as well, and
+    // the gap a heavy leaves is 0.4s times the weapon's speed: a sword's left
+    // the window a frame or two, and a greatsword's (0.58s), a greataxe's, a
+    // mace's or a spear's outlasted it -- the Backhand could never be thrown.
+    if (combo_window > 0.0f && attack_cooldown <= 0.0f) {
         combo_window -= dt;
         if (combo_window <= 0.0f) { combo = 0; after_strong = false; }
     }
@@ -1878,6 +1957,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     UpdateAnimation(move);
     sprite.style = BuildLayerStyle(item_db);
     sprite.Update(dt);
+    ShowWhirlFrame();
     skills.SetCurrent(SKILL_HITPOINTS, hp);
 }
 

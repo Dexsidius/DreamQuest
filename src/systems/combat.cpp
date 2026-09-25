@@ -94,6 +94,27 @@ AttackProfile ScaleForSpeed(const AttackProfile& p, float speed) {
     return out;
 }
 
+int WhirlTurns(float charge_ratio) {
+    const float r = std::clamp(charge_ratio, 0.0f, 1.0f);
+    return WHIRL_MIN_TURNS + static_cast<int>(std::lround(r * (WHIRL_MAX_TURNS - WHIRL_MIN_TURNS)));
+}
+
+AttackProfile WhirlProfile(int turns) {
+    turns = std::max(1, turns);
+    // The charged swing's reach and push, turned all the way round. It strikes
+    // at the start of every turn: the first a quarter of the way into the
+    // spin, the last with half a turn of the active time still to run -- room
+    // for a slow frame to land in -- and a quarter turn after that to stop.
+    AttackProfile p = kCharged;
+    p.windup      = 0.25f * WHIRL_TURN;
+    p.active      = (turns - 0.5f) * WHIRL_TURN;
+    p.recover     = 0.25f * WHIRL_TURN;
+    p.damage_mult = WHIRL_TURN_DAMAGE;
+    p.knockback   = kCharged.knockback * WHIRL_TURN_PUSH;
+    p.move_scale  = WHIRL_MOVE;
+    return p;
+}
+
 float ChargeRatio(float held_time) {
     if (held_time <= CHARGE_HOLD_THRESHOLD) return 0.0f;
     const float t = (held_time - CHARGE_HOLD_THRESHOLD) /

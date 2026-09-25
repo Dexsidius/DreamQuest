@@ -85,6 +85,11 @@ struct ProjectileDef {
     // going in (Sfx::KnifeHit) or going by (Sfx::Whiff). See Enemy::Update
     // and World::UpdateProjectiles.
     bool  thrown    = false;
+    // Breathed out, not loosed or thrown: a dragon's fire, frost, stone, gale
+    // or sparks, a hellhound's flame. Heard as it leaves the mouth (Sfx::Breath,
+    // with a little of the element in it) instead of as an arrow at the start
+    // of the wind-up. See Enemy::Update.
+    bool  breath    = false;
     // The pitch a monster's throw is heard at: the bigger what leaves the
     // hand, the lower, so a boss's snowball is not heard as a slinger's
     // pebble. A rock about 1, a troll's ice about 0.9, a snowball 0.7.

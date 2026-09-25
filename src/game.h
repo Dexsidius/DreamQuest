@@ -90,6 +90,14 @@ private:
     void OpenPanel(GameState panel);   // remembers where to return to
     void ClosePanel();
     bool InGameplayState() const;
+    // Whether the world goes on while a panel or a menu is open: only with
+    // somebody else's game to keep up with -- hosting, or a guest in theirs.
+    // Alone, and two at one machine with nobody across the wire, a panel
+    // stops it, as it always has.
+    bool WorldRunsUnderPanels() const;
+    // One step of the world behind a panel: the character stands where it was
+    // left, hands off, while everything round it goes on.
+    void StepWorldUnderPanel(float dt);
 
     // --- per-state input -----------------------------------------------------
     void UpdateMainMenu();

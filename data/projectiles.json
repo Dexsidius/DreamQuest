@@ -727,6 +727,7 @@
       "knockback": 40,
       "homing": 1.2,
       "element": "fire",
+      "breath": true,
       "patch": {
           "time": 3.6,
           "radius": 30,
@@ -766,6 +767,7 @@
       "radius": 8,
       "knockback": 60,
       "element": "water",
+      "breath": true,
       "impact_size": 12,
       "homing": 1.2
   },
@@ -788,6 +790,7 @@
       "radius": 9,
       "knockback": 90,
       "element": "earth",
+      "breath": true,
       "impact_size": 11,
       "homing": 1.0
   },
@@ -810,6 +813,7 @@
       "knockback": 200,
       "homing": 1.2,
       "element": "air",
+      "breath": true,
       "bounces": 3,
       "bounce_damping": 0.14,
       "impact_size": 11,
@@ -832,6 +836,7 @@
       "radius": 6,
       "knockback": 40,
       "element": "electric",
+      "breath": true,
       "impact_size": 7,
       "status": {
           "id": "electrified",
@@ -865,6 +870,7 @@
       "knockback": 30,
       "homing": 1.4,
       "element": "fire",
+      "breath": true,
       "patch": {
           "time": 2.4,
           "radius": 22,
