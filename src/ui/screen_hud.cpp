@@ -364,6 +364,9 @@ void Game::DrawHud() {
         const ItemDef* quick_def = quick.empty() ? nullptr : items.Get(quick);
         const int rows_up = carrying + (quick_def ? 1 : 0);
         const float ay = ui.ViewHeight() - 40.0f - 30.0f * static_cast<float>(std::max(1, rows_up));
+        // Where what is running is written, beside the top box -- pushed along
+        // when the top box is what is to hand and has its tab beside it.
+        float running_x = 240.0f;
         if (quick_def && live) {
             const int have = me.inventory.Count(quick);
             const SDL_FRect box = {18.0f, ay + static_cast<float>(carrying) * 30.0f, 214.0f, 26.0f};
@@ -384,6 +387,18 @@ void Game::DrawHud() {
                     have > 0 ? Palette::Text : SDL_Color{150, 110, 100, 255});
             ui.Text("x" + std::to_string(have), box.x + box.w - 8.0f, box.y + 4.0f, TextSize::Small,
                     have > 0 ? Palette::TextDim : SDL_Color{200, 110, 100, 255}, Align::Right);
+            // Anything else that could be to hand -- a potion, another dish --
+            // and a tab beside the box that says how to step to it, so the
+            // slot is not taken for the one thing it happens to hold. (The
+            // bag's lock-on button puts one there directly.)
+            if (me.QuickChoices().size() > 1) {
+                const string next = input.PromptFor(input.ShiftAction()) + "+" + input.PromptFor(Action::Sprint) + " next";
+                const SDL_FRect tab = {box.x + box.w + 4.0f, box.y, 14.0f + 7.2f * static_cast<float>(next.size()), box.h};
+                ui.Fill(tab, {18, 15, 13, 170});
+                ui.Outline(tab, Palette::BorderDim, 1.0f);
+                ui.Text(next, tab.x + 7.0f, tab.y + 4.0f, TextSize::Small, Palette::TextDim);
+                if (carrying == 0) running_x = tab.x + tab.w + 10.0f;
+            }
         }
         int drawn = 0;
         for (int slot = 0; slot < SkillTrees::ABILITY_SLOTS; ++slot) {
@@ -415,7 +430,7 @@ void Game::DrawHud() {
         if (me.Overloaded())   running += "Overloaded   ";
         if (me.Invoking())     running += "Invoking   ";
         if (me.RiposteReady()) running += "Riposte ready   ";
-        if (!running.empty()) ui.TextShadowed(running, 240.0f, ay + 6.0f, TextSize::Small, {255, 214, 140, 255});
+        if (!running.empty()) ui.TextShadowed(running, running_x, ay + 6.0f, TextSize::Small, {255, 214, 140, 255});
 
         if (rows_up > 0) corner[0] = {18.0f, ay, 214.0f, 30.0f * static_cast<float>(rows_up) - 4.0f};
         if (!running.empty()) corner[1] = {240.0f, ay + 6.0f, ui.Measure(running, TextSize::Small).x, line_h};

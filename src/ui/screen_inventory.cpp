@@ -303,6 +303,19 @@ void Game::DrawInventory() {
 
     ReorganizeButton(ui, input.PromptFor(Action::CycleSpell) + "  Reorganize", panel.x + 170.0f, panel.y + 18.0f);
 
+    // What is to hand, and how to change it: any potion or dish can be, not
+    // only the one the slot happens to hold.
+    {
+        string hand = p.QuickItem();
+        if (hand.empty() && !p.QuickChoices().empty()) hand = p.QuickChoices().front();
+        const ItemDef* hd = hand.empty() ? nullptr : items.Get(hand);
+        const string use = input.PromptFor(input.ShiftAction()) + "+" + input.PromptFor(Action::Interact);
+        const string line = hd ? "To hand (" + use + "): " + hd->name + "    " + input.PromptFor(Action::Target) +
+                                     " on a potion or dish puts it there"
+                               : input.PromptFor(Action::Target) + " on a potion or dish keeps it to hand for " + use;
+        ui.Text(line, panel.x + panel.w - 24.0f, panel.y + 40.0f, TextSize::Small, {230, 200, 120, 255}, Align::Right);
+    }
+
     // --- item grid -----------------------------------------------------------
     // Centred in the width the four-row grid has, so smaller squares do not
     // drift left of the text under them.
