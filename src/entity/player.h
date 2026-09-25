@@ -640,6 +640,27 @@ public:
     // will, and to draw them.
     void  ShowStatuses(uint16_t bits, float cx, float cy);
 
+    // --- what they have drunk against it -----------------------------------------
+    // A ward (a Cinderbug or a Rimeshell Ward, see ItemDef::ward): while one
+    // runs, the statuses it names cannot take on them at all, whatever throws
+    // them -- Afflict refuses them. Seconds left, a status at a time, so a ward
+    // against two things (the frost's chill and its freeze) sets both, and a
+    // second draught refreshes rather than adds. They ride in the character
+    // sheet, so the host -- who decides what takes on a friend -- knows a
+    // friend's; and they end with a death, like a boost.
+    float WardLeft(Status s) const {
+        const int i = static_cast<int>(s);
+        return (i >= 0 && i < STATUS_COUNT) ? ward_left[i] : 0.0f;
+    }
+    bool  Warded(Status s) const { return WardLeft(s) > 0.0f; }
+    void  SetWard(Status s, float seconds) {
+        const int i = static_cast<int>(s);
+        if (i >= 0 && i < STATUS_COUNT) ward_left[i] = std::max(0.0f, seconds);
+    }
+    void  ClearWards() { for (float& w : ward_left) w = 0.0f; }
+    // Burning ground, under a ward against burning: half the bite.
+    static constexpr float FIRE_WARD_GROUND = 0.5f;
+
 private:
     const StatusDatabase* status_db = nullptr;
     // Counts what is on them down, and -- where this machine decides such
@@ -746,6 +767,7 @@ private:
     Element attune_element = Element::None;
 
     float boost_timer = 0.0f;
+    float ward_left[STATUS_COUNT] = {};   // see WardLeft
     const ItemDef* meal = nullptr;
     float meal_left = 0.0f;
     int   mana = 0, max_mana = 0;

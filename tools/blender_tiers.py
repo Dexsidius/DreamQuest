@@ -3,17 +3,24 @@
 #
 #  Run headless (tools/make_tiers.ps1 does this):
 #      blender --background --python tools/blender_tiers.py -- [icons] [layers]
-#          [--only CLIP,CLIP] [--models sword_iron,bow_wood]
+#          [sets] [hands] [feet] [--only CLIP,CLIP] [--models sword_iron,bow_wood]
+#          [--tiers iron,steel] [--names gauntlets_iron,hide_feet_iron]
 #
 #  Wood, Bronze, Iron, Steel, Azuryte, Damascus, Diamond, Platinum, Demonite.
-#  Every tier gets its own ore, bar, sword, bow, staff, shield, helm, cuirass and
-#  greaves, modelled here from the same rounded parts and cel shading as the
-#  player hero (tools/blender_character.py, which this imports), so the icons
-#  and the weapon in the hero's hand are the same object seen two ways:
+#  Every tier gets its own ore, bar, sword, bow, staff, shield, helm, cuirass,
+#  greaves, gauntlets and boots, modelled here from the same rounded parts and
+#  cel shading as the player hero (tools/blender_character.py, which this
+#  imports), so the icons and the weapon in the hero's hand are the same object
+#  seen two ways:
 #
 #    icons    One 32px inventory icon per item, rendered at four times the size
 #             and reduced by majority colour with the hero's selective outline,
 #             into assets/icons/tiers/.
+#    sets     The hide and robe sets' icons, their hides, cloth and dyes.
+#    hands    Only the gloves: plate's gauntlets and both sets' gloves.
+#    feet     Only the boots: plate's, the ranger's striders, the mage's
+#             slippers. Neither redraws anything else, so new pieces can be
+#             added without re-rendering every committed icon.
 #    layers   For the sword, bow and staff of every tier, a weapon layer for
 #             each of the hero's clips -- layers/<clip>_4_weapon_<model>.png --
 #             posed in the hero's hand frame by frame and cut by the body and
@@ -1061,6 +1068,174 @@ def build_legs(tier, parent):
     return parts
 
 
+# Gloves and boots come in pairs, so they are drawn as pairs: one a little behind
+# and above the other, each on its own holder so it can lean. A single glove at
+# 32px is a mitten; two, thumbs out, are unmistakably a pair of hands.
+
+def _pair(parent, name, at, lean):
+    holder = bc.empty(name, at, parent)
+    holder.rotation_euler = (0.0, math.radians(lean), 0.0)
+    return holder
+
+
+def _hand(parent, parts, side, palm, fingers, thumb):
+    """The shape every glove shares, seen from the back, fingers up: a hand, four
+    fingers of different lengths in two alternating shades -- at 32px a finger
+    is two pixels wide, and the change of shade is what tells one from the next
+    -- and the thumb out to the `side`."""
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    add("hand", bc.mesh_ellipsoid(0.100, 0.062, 0.100), palm, parent, loc=(0, 0, 0.03))
+    #          index   middle  ring    little
+    for k, (x, top) in enumerate(((0.066, 0.262), (0.022, 0.292), (-0.022, 0.282), (-0.066, 0.240))):
+        r = 0.029 if k < 3 else 0.026
+        add("finger", bc.mesh_capsule(r, r * 0.95, top - r - 0.10, squash_y=0.85), fingers[k % 2], parent,
+            loc=(side * x, 0, top - r))
+    parts.append(bc.spike("thumb", (side * 0.075, -0.01, 0.00), (side * 0.168, -0.024, 0.088), 0.038, thumb,
+                          parent, r_tip=0.029))
+
+
+def _gauntlet(tier, parent, parts, side, front):
+    """One plate gauntlet: a flared cuff, a shell over the hand, a ridge over
+    the knuckles, the fingers and thumb in plate."""
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    i = TIERS.index(tier)
+    main, light, dark = P(tier, "main"), P(tier, "light"), P(tier, "dark")
+    shell = main if front else dark
+    edge = light if front else main
+    cuff_r = 0.122 if i >= 3 else 0.108
+    add("cuff", bc.mesh_frustum(0.084, cuff_r, 0.16, squash_y=0.7), shell, parent, loc=(0, 0, -0.06))
+    add("cuff_rim", bc.mesh_torus(cuff_r, 0.022), P(tier, "accent") if tier in ("steel", "platinum") else edge,
+        parent, loc=(0, 0, -0.215))
+    parts[-1].scale = (1.0, 0.7, 1.0)
+    _hand(parent, parts, side, shell, (shell, edge), shell)
+    add("knuckles", bc.mesh_ellipsoid(0.106, 0.070, 0.030), edge if i >= 2 else dark, parent, loc=(0, -0.004, 0.11))
+    if tier == "wood":
+        # Bark over hide, lashed on.
+        for z, r in ((-0.03, 0.092), (-0.13, 0.098)):
+            add("strap", bc.mesh_torus(r, 0.02), "leather", parent, loc=(0, 0, z))
+            parts[-1].scale = (1.0, 0.72, 1.0)
+    if tier == "bronze":
+        add("rivet", bc.mesh_ellipsoid(0.02, 0.02, 0.02), light, parent, loc=(0, -0.062, 0.04))
+    if not front:
+        return
+    if tier == "azuryte" or tier == "platinum":
+        add("gem", mesh_gem(0.035, 0.03, 0.04), P(tier, "glow"), parent, loc=(0, -0.066, 0.035))
+    if tier == "damascus":
+        # The watered steel: a pale seam down the back of the hand.
+        add("seam", bc.mesh_ellipsoid(0.022, 0.03, 0.09), light, parent, loc=(0, -0.05, 0.05))
+    if tier == "orichalcum":
+        # Red gold banded round the cuff, following its flare.
+        for z, r in ((-0.11, 0.092), (-0.17, 0.106)):
+            add("band", bc.mesh_torus(r, 0.017), P(tier, "accent"), parent, loc=(0, 0, z))
+            parts[-1].scale = (1.0, 0.7, 1.0)
+    if tier == "diamond":
+        for dx in (-0.06, 0.0, 0.06):
+            add("crystal", mesh_gem(0.022, 0.022, 0.05, sides=4), light, parent, loc=(dx, -0.04, 0.125))
+    if tier == "platinum":
+        parts.append(bc.spike("wing", (-side * 0.09, 0, -0.12), (-side * 0.20, 0, -0.02), 0.035,
+                              P(tier, "accent"), parent))
+    if tier == "demonite":
+        # Horns off the cuff, the helm's in little: out where the silhouette
+        # shows them, since a spike pointing at the camera is a dot.
+        for s in (-1, 1):
+            parts.append(bc.spike("spike", (s * 0.09, 0, -0.12), (s * 0.20, -0.02, -0.03), 0.03, light, parent))
+        add("eye", mesh_gem(0.03, 0.025, 0.03), P(tier, "glow"), parent, loc=(0, -0.066, 0.03))
+    if tier == "dracon":
+        # Claws on the fingertips.
+        for x, top in ((0.066, 0.262), (0.022, 0.292), (-0.022, 0.282)):
+            parts.append(bc.spike("claw", (side * x, -0.01, top - 0.02), (side * x * 1.25, -0.03, top + 0.06), 0.02,
+                                  P(tier, "accent"), parent))
+        add("eye", mesh_gem(0.03, 0.025, 0.03), P(tier, "glow"), parent, loc=(0, -0.066, 0.03))
+    if tier == "enchanted":
+        for dx, dz in ((-0.07, -0.10), (0.07, -0.10)):
+            add("shard", mesh_gem(0.026, 0.026, 0.06, sides=4), P(tier, "accent"), parent, loc=(dx, -0.07, dz))
+        add("rune", mesh_gem(0.035, 0.03, 0.04), P(tier, "glow"), parent, loc=(0, -0.066, 0.035))
+
+
+def build_gauntlets(tier, parent):
+    parts = []
+    back = _pair(parent, "left", (-0.13, 0.10, 0.05), -10)
+    _gauntlet(tier, back, parts, -1, False)
+    front = _pair(parent, "right", (0.08, -0.04, -0.02), 8)
+    _gauntlet(tier, front, parts, 1, True)
+    return parts
+
+
+def _sabaton(tier, parent, parts, front):
+    """One plate boot side on, the toe to the right: a flared top, a shin
+    plate, a round cop over the ankle, and the foot as overlapping lames that
+    narrow to the toe."""
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    i = TIERS.index(tier)
+    main, light, dark = P(tier, "main"), P(tier, "light"), P(tier, "dark")
+    shell = main if front else dark
+    edge = light if front else main
+    top = 0.36
+    add("cuff", bc.mesh_ellipsoid(0.094, 0.06, 0.034), P(tier, "accent") if tier in ("steel", "platinum", "orichalcum")
+        else edge, parent, loc=(0, 0, top))
+    add("shaft", bc.mesh_ellipsoid(0.078, 0.052, 0.14), shell, parent, loc=(0, 0, top - 0.13))
+    add("shin", bc.mesh_ellipsoid(0.030, 0.050, 0.11), edge, parent, loc=(0.058, -0.004, top - 0.12))
+    add("ankle", bc.mesh_ellipsoid(0.072, 0.056, 0.056), edge if i >= 2 else shell, parent, loc=(-0.005, 0, top - 0.25))
+    for k in range(3):
+        add("lame", bc.mesh_ellipsoid(0.062 - k * 0.006, 0.052, 0.046 - k * 0.006), shell if k % 2 == 0 else edge,
+            parent, loc=(0.045 + k * 0.045, 0, top - 0.295 - k * 0.012))
+    if i >= 3:
+        # A pointed toe from steel up: the plate goes beyond the foot.
+        parts.append(bc.spike("toe", (0.15, 0, top - 0.33), (0.23, 0, top - 0.345), 0.036, dark, parent, r_tip=0.012))
+    else:
+        add("toe", bc.mesh_ellipsoid(0.05, 0.047, 0.036), dark, parent, loc=(0.165, 0, top - 0.33))
+    add("sole", bc.mesh_ellipsoid(0.14, 0.05, 0.016), "hide_sole", parent, loc=(0.06, 0, top - 0.365))
+    add("heel", bc.mesh_ellipsoid(0.036, 0.046, 0.03), "hide_sole", parent, loc=(-0.05, 0, top - 0.35))
+    if tier == "wood":
+        # Lashed on, and deeper than the leg so the lashing shows round it.
+        for b in range(2):
+            add("strap", mesh_box(0.17, 0.108, 0.022), "leather", parent, loc=(0, 0, top - 0.07 - b * 0.10))
+    if not front:
+        return
+    if tier == "bronze":
+        add("rivet", bc.mesh_ellipsoid(0.018, 0.02, 0.018), light, parent, loc=(0.0, -0.05, top - 0.25))
+    if tier in ("azuryte", "platinum"):
+        add("gem", mesh_gem(0.03, 0.026, 0.034), P(tier, "glow"), parent, loc=(-0.005, -0.056, top - 0.25))
+    if tier == "damascus":
+        for z in (0.06, 0.16):
+            add("rivet", bc.mesh_ellipsoid(0.018, 0.02, 0.018), dark, parent, loc=(0.02, -0.05, top - z))
+    if tier == "orichalcum":
+        add("band", mesh_box(0.16, 0.056, 0.022), P(tier, "accent"), parent, loc=(0, -0.004, top - 0.17))
+    if tier == "diamond":
+        for dx in (-0.04, 0.03):
+            add("crystal", mesh_gem(0.022, 0.022, 0.05, sides=4), light, parent, loc=(dx, -0.02, top + 0.04))
+    if tier == "platinum":
+        # A wing at the heel, the messenger's kind.
+        parts.append(bc.spike("wing", (-0.06, 0.0, top - 0.24), (-0.19, 0.0, top - 0.14), 0.035,
+                              P(tier, "accent"), parent))
+    if tier == "demonite":
+        parts.append(bc.spike("spike", (0.06, -0.02, top - 0.10), (0.16, -0.04, top - 0.03), 0.026, light, parent))
+        parts.append(bc.spike("spur", (-0.06, 0, top - 0.33), (-0.15, 0, top - 0.36), 0.024, light, parent))
+        add("eye", mesh_gem(0.028, 0.024, 0.03), P(tier, "glow"), parent, loc=(-0.005, -0.056, top - 0.25))
+    if tier == "dracon":
+        parts.append(bc.spike("fin", (-0.05, 0, top - 0.02), (-0.13, 0, top + 0.06), 0.03, P(tier, "accent"), parent))
+        parts.append(bc.spike("claw", (0.20, 0, top - 0.34), (0.26, -0.01, top - 0.30), 0.02, P(tier, "accent"), parent))
+        add("eye", mesh_gem(0.028, 0.024, 0.03), P(tier, "glow"), parent, loc=(-0.005, -0.056, top - 0.25))
+    if tier == "enchanted":
+        for dz in (0.08, 0.18):
+            add("shard", mesh_gem(0.024, 0.024, 0.055, sides=4), P(tier, "accent"), parent, loc=(0.0, -0.05, top - dz))
+        add("rune", mesh_gem(0.028, 0.024, 0.03), P(tier, "glow"), parent, loc=(-0.005, -0.056, top - 0.25))
+
+
+def build_sabatons(tier, parent):
+    parts = []
+    _sabaton(tier, _pair(parent, "left", (-0.11, 0.07, 0.02), 0), parts, False)
+    _sabaton(tier, _pair(parent, "right", (0.05, -0.04, -0.02), 0), parts, True)
+    return parts
+
+
+# Plate's gloves and boots: the piece key in data/tiers.json, the slot, and how
+# each is shown. Laid out in the picture plane already, so neither turns.
+#                   file        slot     builder          tilt spin fill
+PLATE_PAIR_JOBS = (("gauntlets", "hands", build_gauntlets, 0,   0,   0.9),
+                   ("boots",     "feet",  build_sabatons,  0,   0,   0.9))
+
+
 def build_ore(tier, parent):
     """A lump of rock with the tier showing through it: nuggets, veins or
     crystals. Wood has no ore; bronze is worked from copper ore."""
@@ -1185,6 +1360,8 @@ def all_icons(only_tiers):
                 ("helm_" + tier,   build_helm,   0,    20,  0.88),
                 ("body_" + tier,   build_body,   0,    14,  0.9),
                 ("legs_" + tier,   build_legs,   0,    14,  0.88)]
+        jobs += [(key + "_" + tier, builder, tilt, spin, fill)
+                 for key, _slot, builder, tilt, spin, fill in PLATE_PAIR_JOBS]
         armoury = [("dagger_" + tier,     build_dagger,     -135, 0,  0.80),
                    ("mace_" + tier,       build_mace,       -135, 0,  0.95),
                    ("greatsword_" + tier, build_greatsword, -135, 0,  1.0),
@@ -1360,7 +1537,16 @@ POTIONS = {
     "emberfire_elixir":  ((1.00, 0.46, 0.10), True,  "flask"),
     "moonlit_draught":   ((0.62, 0.72, 1.00), True,  "flask"),
     "starlily_panacea":  ((1.00, 0.90, 0.56), True,  "star"),
+    # The brews made from bugs and honey. A ward is its own bottle: squat, with
+    # a band round its middle and the cork sealed down, so the two that keep
+    # something off read as a pair and not as two more draughts.
+    "swallowtail_draught": ((0.98, 0.80, 0.20), False, "round"),
+    "honeyed_draught":     ((0.90, 0.56, 0.12), False, "tall"),
+    "skimmer_tonic":       ((0.16, 0.62, 0.70), False, "tall"),
+    "cinderbug_ward":      ((0.96, 0.34, 0.10), True,  "ward"),
+    "rimeshell_ward":      ((0.62, 0.86, 1.00), True,  "ward"),
 }
+bc.PALETTE.update({"ward_band": (0.70, 0.54, 0.24), "ward_band_lt": (0.88, 0.74, 0.40)})
 for _name, (_rgb, _glow, _shape) in POTIONS.items():
     bc.PALETTE["potion_%s" % _name] = _rgb
     bc.PALETTE["potion_%s_glow" % _name] = _rgb
@@ -1382,6 +1568,12 @@ def build_potion(name, parent):
         parts.append(bc.part("body", bc.mesh_ellipsoid(0.15, 0.10, 0.12), liquid, parent, loc=(0, 0, -0.10)))
         parts.append(bc.part("shoulder", bc.mesh_capsule(0.05, 0.10, 0.08), liquid, parent, loc=(0, 0, 0.02)))
         neck_z = 0.07
+    elif shape == "ward":
+        parts.append(bc.part("body", bc.mesh_ellipsoid(0.16, 0.12, 0.12), liquid, parent, loc=(0, 0, -0.09)))
+        parts.append(bc.part("band", bc.mesh_torus(0.155, 0.022), "ward_band", parent, loc=(0, 0, -0.09)))
+        parts.append(bc.part("stud", bc.mesh_ellipsoid(0.03, 0.02, 0.03), "ward_band_lt", parent,
+                             loc=(0, -0.125, -0.09)))
+        neck_z = 0.03
     else:
         parts.append(bc.part("body", bc.mesh_ellipsoid(0.13, 0.11, 0.13), liquid, parent, loc=(0, 0, -0.08)))
         neck_z = 0.05
@@ -1394,6 +1586,10 @@ def build_potion(name, parent):
     parts.append(bc.part("cork", bc.mesh_capsule(0.036, 0.034, 0.06), "cork", parent, loc=(0, 0, neck_z + 0.13)))
     parts.append(bc.part("shine", bc.mesh_ellipsoid(0.022, 0.02, 0.05), "glass_shine", parent,
                          loc=(-0.07, -0.10, -0.06)))
+    if shape == "ward":
+        # The cork sealed down with wax: kept, not sipped.
+        parts.append(bc.part("wax", bc.mesh_ellipsoid(0.05, 0.045, 0.035), "seal", parent,
+                             loc=(0, 0, neck_z + 0.16)))
     if shape == "star":
         # A glint of starlight beside the bottle, not over it.
         for a in (0, 90):
@@ -1635,6 +1831,103 @@ HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "gl
               "emberbloom", "moonpetal", "starlily"]
 
 
+# --- bugs, caught for brewing -----------------------------------------------------------------------
+# Each seen from above, lying in the picture: a butterfly with its wings
+# spread, a dragonfly across the square, two beetles. What tells them apart at
+# thirty pixels is the colour first -- yellow and black, blue-green, a red back
+# and an ember tail, pale frost -- and the outline second.
+
+BUG_ICONS = ["swallowtail", "marsh_dragonfly", "firebug", "rime_beetle"]
+
+bc.PALETTE.update({
+    "swt_yellow": (0.98, 0.82, 0.22), "swt_black": (0.10, 0.08, 0.07), "swt_blue": (0.26, 0.46, 0.92),
+    "swt_red": (0.92, 0.34, 0.14), "swt_body": (0.18, 0.14, 0.11),
+    "df_body": (0.20, 0.66, 0.80), "df_body_dk": (0.08, 0.30, 0.52), "df_thorax": (0.16, 0.56, 0.44),
+    "df_eye": (0.40, 0.90, 0.70), "df_wing": (0.80, 0.93, 0.97), "df_vein": (0.46, 0.66, 0.74),
+    "fb_head": (0.14, 0.08, 0.07), "fb_back": (0.66, 0.14, 0.08), "fb_back_lt": (0.86, 0.30, 0.14),
+    "firebug_glow": (1.00, 0.56, 0.12), "firebug_core_glow": (1.00, 0.88, 0.46),
+    "rime_head": (0.12, 0.17, 0.34), "rime_shell": (0.60, 0.80, 0.96), "rime_shell_dk": (0.36, 0.52, 0.76),
+    "rime_frost": (0.94, 0.97, 1.00),
+})
+
+
+def _beetle(parent, parts, head, back, back_lt, seam, leg):
+    """A beetle's body from above, head up: legs out to the sides, a head, a
+    shield behind it and the two wing-cases meeting down the back."""
+    for side in (-1, 1):
+        for k, z in enumerate((0.06, -0.04, -0.14)):
+            parts.append(bc.spike("leg", (side * 0.08, 0.01, z), (side * 0.22, 0.01, z + (0.06 - k * 0.06)),
+                                  0.016, leg, parent, r_tip=0.010))
+        parts.append(bc.spike("feeler", (side * 0.03, 0.0, 0.20), (side * 0.12, 0.0, 0.32), 0.010, leg, parent,
+                              r_tip=0.007))
+    parts.append(bc.part("head", bc.mesh_ellipsoid(0.07, 0.05, 0.06), head, parent, loc=(0, 0, 0.19)))
+    parts.append(bc.part("shield", bc.mesh_ellipsoid(0.11, 0.06, 0.07), back, parent, loc=(0, 0, 0.10)))
+    for side in (-1, 1):
+        parts.append(bc.part("case", bc.mesh_ellipsoid(0.085, 0.07, 0.19), back, parent,
+                             loc=(side * 0.07, 0, -0.08)))
+        parts.append(bc.part("sheen", bc.mesh_ellipsoid(0.03, 0.02, 0.09), back_lt, parent,
+                             loc=(side * 0.08, -0.06, -0.02)))
+    parts.append(bc.part("seam", mesh_box(0.012, 0.02, 0.34), seam, parent, loc=(0, -0.07, -0.08)))
+
+
+def build_bug(name, parent):
+    parts = []
+    if name == "swallowtail":
+        # Black wings under yellow ones, a size larger, so every wing has its
+        # black edge; black bars across the yellow; the hind wings' blue spots,
+        # the red eye by the body, and the tails.
+        for side in (-1, 1):
+            fore, hind = (35 if side > 0 else 145), (-40 if side > 0 else 220)
+            parts.append(_leaf(parent, "fore_k", (0, 0.012, 0.04), 0.34, 0.22, fore, "swt_black", depth=0.010))
+            parts.append(_leaf(parent, "fore", (side * 0.02, 0, 0.045), 0.28, 0.17, fore, "swt_yellow", depth=0.012))
+            parts.append(_leaf(parent, "hind_k", (0, 0.012, -0.02), 0.26, 0.19, hind, "swt_black", depth=0.010))
+            parts.append(_leaf(parent, "hind", (side * 0.02, 0, -0.025), 0.20, 0.14, hind, "swt_yellow", depth=0.012))
+            for k in range(2):
+                a = math.radians(fore)
+                r0 = 0.10 + k * 0.09
+                parts.append(bc.part("bar", mesh_box(0.022, 0.02, 0.10), "swt_black", parent,
+                                     loc=(math.cos(a) * r0, -0.012, 0.045 + math.sin(a) * r0),
+                                     rot=(0, -a + math.radians(90), 0)))
+            a = math.radians(hind)
+            parts.append(bc.part("blue", bc.mesh_ellipsoid(0.026, 0.02, 0.022), "swt_blue", parent,
+                                 loc=(math.cos(a) * 0.16, -0.016, -0.025 + math.sin(a) * 0.16)))
+            parts.append(bc.part("eye", bc.mesh_ellipsoid(0.024, 0.02, 0.024), "swt_red", parent,
+                                 loc=(side * 0.06, -0.016, -0.10)))
+            parts.append(bc.spike("tail", (math.cos(a) * 0.18, 0.0, -0.025 + math.sin(a) * 0.18),
+                                  (math.cos(a) * 0.20 - side * 0.02, 0.0, -0.30), 0.02, "swt_black", parent,
+                                  r_tip=0.012))
+            parts.append(bc.spike("feeler", (side * 0.01, 0.0, 0.16), (side * 0.07, 0.0, 0.28), 0.009, "swt_black",
+                                  parent, r_tip=0.007))
+        parts.append(bc.part("body", bc.mesh_ellipsoid(0.03, 0.03, 0.15), "swt_body", parent, loc=(0, -0.02, 0.0)))
+    elif name == "marsh_dragonfly":
+        # Along the square's diagonal once render_icon has turned it: a long
+        # barred body, a thorax, two great eyes, and four glassy wings.
+        for side in (-1, 1):
+            for k, (z, ln) in enumerate(((0.16, 0.34), (0.08, 0.31))):
+                ang = 90 - side * (90 - 8 - k * 10)
+                parts.append(_leaf(parent, "wing_v", (0, 0.01, z), ln + 0.02, 0.10, ang, "df_vein", depth=0.008))
+                parts.append(_leaf(parent, "wing", (0, 0.0, z), ln, 0.08, ang, "df_wing", depth=0.010))
+        parts.append(bc.part("thorax", bc.mesh_ellipsoid(0.05, 0.05, 0.08), "df_thorax", parent, loc=(0, -0.02, 0.12)))
+        for side in (-1, 1):
+            parts.append(bc.part("eye", bc.mesh_ellipsoid(0.045, 0.045, 0.045), "df_eye", parent,
+                                 loc=(side * 0.035, -0.02, 0.23)))
+        for k in range(7):
+            parts.append(bc.part("seg", bc.mesh_ellipsoid(0.026, 0.026, 0.032),
+                                 "df_body" if k % 2 == 0 else "df_body_dk", parent, loc=(0, -0.02, 0.03 - k * 0.055)))
+    elif name == "firebug":
+        _beetle(parent, parts, "fb_head", "fb_back", "fb_back_lt", "fb_head", "fb_head")
+        parts.append(bc.part("ember", bc.mesh_ellipsoid(0.10, 0.07, 0.08), "firebug_glow", parent,
+                             loc=(0, -0.02, -0.26)))
+        parts.append(bc.part("core", bc.mesh_ellipsoid(0.05, 0.04, 0.04), "firebug_core_glow", parent,
+                             loc=(0, -0.08, -0.27)))
+    else:  # rime_beetle
+        _beetle(parent, parts, "rime_head", "rime_shell", "rime_frost", "rime_shell_dk", "rime_head")
+        for (x, z) in ((-0.10, -0.14), (0.06, -0.20), (0.10, 0.02)):
+            parts.append(bc.part("rime", bc.mesh_ellipsoid(0.022, 0.02, 0.022), "rime_frost", parent,
+                                 loc=(x, -0.075, z)))
+    return parts
+
+
 # --- the larder ------------------------------------------------------------------------------------
 # What a farm gives and what a fire makes of it. Each is one readable shape at
 # thirty pixels: a bowl is a bowl, a pie is a pie, a skewer is three lumps on a
@@ -1652,7 +1945,8 @@ bc.PALETTE.update({
     "wool_white": (0.93, 0.91, 0.86), "wool_dk":   (0.78, 0.75, 0.70),
     "tea":        (0.72, 0.82, 0.62), "mug":       (0.56, 0.52, 0.50),
     "skewer":     (0.66, 0.50, 0.30), "frog_leg":  (0.74, 0.62, 0.42),
-    "honey":      (0.88, 0.62, 0.18),
+    "honey":      (0.88, 0.62, 0.18), "honey_lt":  (0.98, 0.80, 0.36),
+    "jar_cloth":  (0.88, 0.82, 0.68), "jar_cloth_dk": (0.66, 0.56, 0.42),
 })
 
 
@@ -1719,6 +2013,14 @@ def build_dish(name, parent):
         add("milk", bc.mesh_ellipsoid(0.20, 0.16, 0.03), "milk_white", parent, loc=(0, 0, 0.09))
         add("band", bc.mesh_torus(0.20, 0.022), "crock_dk", parent, loc=(0, 0, -0.04))
         add("handle", bc.mesh_torus(0.19, 0.018), "crock_dk", parent, loc=(0, 0, 0.16), rot=(math.radians(90), 0, 0))
+    elif name == "honey":
+        # A squat jar of it, gold to the brim, a cloth tied over the top and
+        # a drip running down the side.
+        add("jar", bc.mesh_capsule(0.19, 0.18, 0.22), "honey", parent, loc=(0, 0, 0.08))
+        add("light", bc.mesh_ellipsoid(0.05, 0.03, 0.11), "honey_lt", parent, loc=(-0.10, -0.15, -0.02))
+        add("cloth", bc.mesh_ellipsoid(0.23, 0.20, 0.06), "jar_cloth", parent, loc=(0, 0, 0.22))
+        add("tie", bc.mesh_torus(0.19, 0.022), "jar_cloth_dk", parent, loc=(0, 0, 0.17))
+        add("drip", bc.mesh_capsule(0.028, 0.022, 0.10), "honey_lt", parent, loc=(0.13, -0.12, 0.16))
     elif name == "wool":
         for k, (x, y, z, r) in enumerate(((0, 0, 0, 0.24), (-0.12, -0.05, 0.10, 0.15), (0.13, 0.03, 0.08, 0.16),
                                           (0.02, -0.08, -0.14, 0.14), (-0.10, 0.06, -0.12, 0.13))):
@@ -1728,7 +2030,7 @@ def build_dish(name, parent):
 
 
 FOOD_ICONS = ["hearty_stew", "fishermans_broth", "hunters_skewers", "travellers_pie", "moonpetal_tea",
-              "honeyed_oats", "frog_legs", "egg", "milk", "wool"]
+              "honeyed_oats", "frog_legs", "egg", "milk", "wool", "honey"]
 
 
 def food_icons(only=None):
@@ -1747,6 +2049,13 @@ def brewing_icons(only=None):
         if only and name not in only:
             continue
         render_icon(name, lambda t, p, n=name: build_herb(n, p), "wood", 0, 0, 0.9)
+        count += 1
+    for name in BUG_ICONS:
+        if only and name not in only:
+            continue
+        # The dragonfly lies across the square, corner to corner.
+        tilt = 42 if name == "marsh_dragonfly" else 0
+        render_icon(name, lambda t, p, n=name: build_bug(n, p), "wood", tilt, 0, 0.9)
         count += 1
     for name in ["vial"] + list(POTIONS):
         if only and name not in only:
@@ -1880,6 +2189,110 @@ def build_skirt(tier, parent):
     return parts
 
 
+# Gloves and boots for both sets, in pairs the way plate's are (see _pair): the
+# ranger's are leather with fur at the wrist and a laced strider to the calf,
+# the mage's are fine cloth with a trimmed cuff and a slipper with a curled toe.
+
+def _soft_glove(parent, parts, side, front, robe):
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    main, dark = ("set_main", "set_dark") if front else ("set_dark", "set_main")
+    if robe:
+        # A long cuff flaring back toward the elbow, trimmed at both ends, and
+        # a stud of gold on the back of the hand.
+        add("cuff", bc.mesh_frustum(0.082, 0.120, 0.18, squash_y=0.7), main, parent, loc=(0, 0, -0.05))
+        for z, r, w in ((-0.23, 0.120, 0.026), (-0.07, 0.088, 0.018)):
+            add("trim", bc.mesh_torus(r, w), "set_light", parent, loc=(0, 0, z))
+            parts[-1].scale = (1.0, 0.7, 1.0)
+    else:
+        # A flared leather cuff, and a ruff of fur where it meets the wrist.
+        add("cuff", bc.mesh_frustum(0.084, 0.112, 0.14, squash_y=0.7), dark, parent, loc=(0, 0, -0.08))
+        fur = "set_fur" if front else "set_fur_dk"
+        add("fur", bc.mesh_torus(0.094, 0.036), fur, parent, loc=(0, 0, -0.06))
+        parts[-1].scale = (1.0, 0.74, 1.0)
+        for k in range(4):
+            a = math.radians(-54 + k * 36)
+            parts.append(bc.spike("tuft", (math.sin(a) * 0.10, -0.03, -0.06), (math.sin(a) * 0.145, -0.05, -0.10),
+                                  0.026, fur, parent, r_tip=0.012))
+    _hand(parent, parts, side, main, (main, dark), main)
+    if not front:
+        return
+    if robe:
+        add("stud", mesh_gem(0.032, 0.028, 0.036), "platinum_accent", parent, loc=(0, -0.062, 0.04))
+    else:
+        # Laced across the back of the hand.
+        for b in range(2):
+            add("lace", mesh_box(0.10, 0.03, 0.024), "set_light", parent, loc=(0, -0.058, 0.02 + b * 0.05),
+                rot=(0, math.radians(22 if b % 2 else -22), 0))
+
+
+def build_hide_gloves(tier, parent):
+    parts = []
+    _soft_glove(_pair(parent, "left", (-0.13, 0.10, 0.05), -10), parts, -1, False, robe=False)
+    _soft_glove(_pair(parent, "right", (0.08, -0.04, -0.02), 8), parts, 1, True, robe=False)
+    return parts
+
+
+def build_robe_gloves(tier, parent):
+    parts = []
+    _soft_glove(_pair(parent, "left", (-0.13, 0.10, 0.05), -10), parts, -1, False, robe=True)
+    _soft_glove(_pair(parent, "right", (0.08, -0.04, -0.02), 8), parts, 1, True, robe=True)
+    return parts
+
+
+def _strider(parent, parts, front):
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    main, dark = ("set_main", "set_dark") if front else ("set_dark", "set_main")
+    top = 0.40
+    fur = "set_fur" if front else "set_fur_dk"
+    add("shaft", bc.mesh_ellipsoid(0.074, 0.05, 0.16), main, parent, loc=(0, 0, top - 0.15))
+    add("fur", bc.mesh_ellipsoid(0.096, 0.06, 0.036), fur, parent, loc=(0, 0, top - 0.01))
+    for k in range(3):
+        parts.append(bc.spike("tuft", (-0.05 + k * 0.05, -0.03, top + 0.0), (-0.06 + k * 0.055, -0.04, top + 0.05),
+                              0.022, fur, parent, r_tip=0.01))
+    add("ankle", bc.mesh_ellipsoid(0.07, 0.05, 0.05), main, parent, loc=(0, 0, top - 0.28))
+    add("foot", bc.mesh_ellipsoid(0.125, 0.05, 0.046), main, parent, loc=(0.06, 0, top - 0.34))
+    add("toe", bc.mesh_ellipsoid(0.05, 0.046, 0.038), dark, parent, loc=(0.16, 0, top - 0.34))
+    add("sole", bc.mesh_ellipsoid(0.135, 0.05, 0.015), "hide_sole", parent, loc=(0.06, 0, top - 0.38))
+    add("heel", bc.mesh_ellipsoid(0.035, 0.045, 0.028), "hide_sole", parent, loc=(-0.05, 0, top - 0.37))
+    # Wound with thongs from the ankle to the calf, deep enough to go round
+    # the leg rather than vanish into it.
+    for b in range(3):
+        add("wrap", mesh_box(0.16, 0.108, 0.022), dark, parent, loc=(0.0, 0.0, top - 0.08 - b * 0.07),
+            rot=(0, math.radians(18 if b % 2 else -18), 0))
+
+
+def build_striders(tier, parent):
+    parts = []
+    _strider(_pair(parent, "left", (-0.11, 0.07, 0.03), 0), parts, False)
+    _strider(_pair(parent, "right", (0.05, -0.04, -0.02), 0), parts, True)
+    return parts
+
+
+def _slipper(parent, parts, front):
+    """A soft slipper side on, tipped toward the camera so the mouth of it
+    shows, with a toe that runs past the foot and curls back over, tasselled."""
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    main, dark = ("set_main", "set_dark") if front else ("set_dark", "set_main")
+    add("sole", bc.mesh_ellipsoid(0.17, 0.058, 0.02), "hide_sole", parent, loc=(0, 0, 0))
+    add("vamp", bc.mesh_ellipsoid(0.12, 0.060, 0.056), main, parent, loc=(0.03, 0, 0.045))
+    add("quarter", bc.mesh_ellipsoid(0.076, 0.060, 0.062), main, parent, loc=(-0.08, 0, 0.055))
+    add("mouth", bc.mesh_ellipsoid(0.074, 0.046, 0.022), "hide_sole", parent, loc=(-0.055, 0, 0.098))
+    add("trim", bc.mesh_torus(0.076, 0.017), "set_light", parent, loc=(-0.055, 0, 0.098))
+    parts[-1].scale = (1.0, 0.64, 1.0)
+    parts.append(bc.spike("toe", (0.12, 0, 0.04), (0.225, 0, 0.075), 0.046, main, parent, r_tip=0.02))
+    parts.append(bc.spike("curl", (0.222, 0, 0.07), (0.196, 0, 0.14), 0.022, main, parent, r_tip=0.013))
+    add("tassel", bc.mesh_ellipsoid(0.032, 0.032, 0.032), "set_light", parent, loc=(0.19, 0, 0.152))
+
+
+def build_slippers(tier, parent):
+    parts = []
+    for name, at, front in (("left", (-0.09, 0.10, 0.10), False), ("right", (0.03, -0.04, -0.02), True)):
+        holder = _pair(parent, name, at, 0)
+        holder.rotation_euler = (math.radians(24), 0.0, 0.0)
+        _slipper(holder, parts, front)
+    return parts
+
+
 def build_dye(tier, parent):
     """A stoppered pot of it, and a drip down the side so the colour shows."""
     parts = []
@@ -1996,24 +2409,58 @@ bc.PALETTE.update({
 })
 
 
+# Each set's pieces: the key in data/tiers.json, the builder, how far it is turned
+# and how much of the square it fills. Gloves and boots are laid out side on in
+# pairs already, so they are not turned.
+SET_JOBS = {"hide": (("head", build_coif, 16, 0.88), ("body", build_jerkin, 16, 0.9), ("legs", build_chaps, 16, 0.88),
+                     ("hands", build_hide_gloves, 0, 0.9), ("feet", build_striders, 0, 0.9)),
+            "robe": (("head", build_hat, 16, 0.92), ("body", build_robe_top, 16, 0.92), ("legs", build_skirt, 16, 0.9),
+                     ("hands", build_robe_gloves, 0, 0.9), ("feet", build_slippers, 0, 0.9))}
+
+
+def pair_icons(only_tiers, slots, only=None):
+    """Only the gloves and boots -- plate's gauntlets and boots and both sets'
+    hands and feet -- for the slots and tiers asked for, so adding them
+    re-renders nothing that was already there (`-What icons` redraws hundreds of
+    committed pictures, none of them byte for byte). `-What hands,feet`."""
+    colours = _set_colours()
+    count = 0
+    for tier in only_tiers:
+        for key, slot, builder, tilt, spin, fill in PLATE_PAIR_JOBS:
+            name = key + "_" + tier
+            if slot not in slots or (only and name not in only):
+                continue
+            render_icon(name, builder, tier, tilt, spin, fill)
+            count += 1
+        for kind, pieces in SET_JOBS.items():
+            if (kind, tier) not in colours:
+                continue
+            for piece, builder, spin, fill in pieces:
+                name = "%s_%s_%s" % (kind, piece, tier)
+                if piece not in slots or (only and name not in only):
+                    continue
+                _use_colour(colours[(kind, tier)])
+                render_icon(name, builder, tier, 0, spin, fill)
+                count += 1
+    print("icons %d gloves and boots" % count)
+
+
 def set_icons(only_tiers, only=None):
     import json
     colours = _set_colours()
     with open(os.path.join(bc.ROOT, "data", "tiers.json"), encoding="utf-8") as f:
         sets = json.load(f).get("sets", {})
     count = 0
-    jobs = {"hide": (("head", build_coif, 0.88), ("body", build_jerkin, 0.9), ("legs", build_chaps, 0.88)),
-            "robe": (("head", build_hat, 0.92), ("body", build_robe_top, 0.92), ("legs", build_skirt, 0.9))}
     for tier in only_tiers:
-        for kind, pieces in jobs.items():
+        for kind, pieces in SET_JOBS.items():
             if (kind, tier) not in colours:
                 continue
-            for piece, builder, fill in pieces:
+            for piece, builder, spin, fill in pieces:
                 name = "%s_%s_%s" % (kind, piece, tier)
                 if only and name not in only:
                     continue
                 _use_colour(colours[(kind, tier)])
-                render_icon(name, builder, tier, 0, 16, fill)
+                render_icon(name, builder, tier, 0, spin, fill)
                 count += 1
             dye = sets.get(kind, {}).get("tiers", {}).get(tier, {}).get("dye")
             if dye and (not only or dye["id"] in only):
@@ -2190,6 +2637,10 @@ def main():
         food_icons(set(names) if names else None)
     if "sets" in wanted:
         set_icons(tiers, set(names) if names else None)
+    # `hands` and `feet`: just the gloves and the boots of every kind.
+    pairs = [slot for slot in ("hands", "feet") if slot in wanted]
+    if pairs:
+        pair_icons(tiers, pairs, set(names) if names else None)
     if "layers" in wanted:
         for clip in clips:
             wanted_models = models_for(clip)

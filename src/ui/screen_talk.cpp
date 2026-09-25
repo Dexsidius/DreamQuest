@@ -440,6 +440,8 @@ void Game::UpdateTotemRing() {
         // Some blessings are health, or mana: the pools are what they now are.
         p.SyncHitpoints();
         p.SyncMana();
+        // And the house takes its colours: a breath of its light, as it wakes.
+        if (def && def->house) world->Flash(def->light, 0.35f);
         // Two lines: a toast is one line from the right-hand edge, and the
         // Pit Lord's blessing alone is most of a narrow window.
         PushToast(what + " wakes, until dawn.", {255, 214, 120, 255});

@@ -137,7 +137,7 @@ void Game::DrawCrafting() {
 
     // Say where the rest is made, so a missing recipe reads as "elsewhere"
     // rather than "gone".
-    ui.Text(cauldron ? "Brewing: herbs and a vial. A recipe has to be learned before it can be brewed."
+    ui.Text(cauldron ? "Brewing: herbs or bugs, and a vial. A recipe has to be learned before it can be brewed."
             : anvil  ? "Smithing: anything made from metal. Wood and leather are worked at a workbench."
             // One line, and it has to fit the panel at 1280x720: --audit counts
             // anything wider as a runoff, and it is right to.
@@ -304,9 +304,14 @@ void Game::UpdateEnchanting() {
             string why;
             const int slot = n > 0 ? targets[enchant_target] : -1;
             const string piece = slot >= 0 ? p.inventory.Slot(slot).id : string();
-            if (::Enchanting::Work(items, *e, p.inventory, slot, why)) {
-                p.GrantXp(SKILL_MAGIC, e->xp);
-                const ItemDef* made = items.Get(items.EnchantedId(piece, e->id));
+            // A weapon's charm is worked at the highest tier the Magic level reaches.
+            const int tier = e->Tiered() ? e->TierFor(p.skills.Level(SKILL_MAGIC)) : 0;
+            const ItemDef* was = items.Get(piece);
+            const string plain = was && !was->base_item.empty() ? was->base_item : piece;
+            if (::Enchanting::Work(items, *e, p.inventory, slot, why, tier)) {
+                p.GrantXp(SKILL_MAGIC, e->XpAt(tier));
+                const ItemDef* made = items.Get(e->Tiered() ? items.EnchantedId(plain, e->id + "_" + std::to_string(tier))
+                                                            : items.EnchantedId(piece, e->id));
                 PushToast("Enchanted: " + (made ? made->name : piece) + ".", Palette::Xp);
                 Audio::Play(Sfx::SpellCast);
                 quests->RefreshCollectObjectives(p.inventory);
@@ -333,7 +338,7 @@ void Game::DrawEnchanting() {
     ui.Text("Magic " + std::to_string(p.skills.Level(SKILL_MAGIC)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
-    ui.Text("A charm worked into a worn piece, for Magic. Each is learned before it is worked.",
+    ui.Text("A charm worked into a worn piece or a weapon, for Magic. Each is learned first.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -364,7 +369,9 @@ void Game::DrawEnchanting() {
             ui.Fill(row, {58, 46, 28, 210});
             ui.Outline(row, Palette::Highlight, 1.0f);
         }
-        ui.Text(known ? e->name : string("Unknown enchantment"), row.x + 10.0f, row.y + 5.0f,
+        // A weapon's charm shows the tier the Magic level reaches.
+        const int reach = e->Tiered() ? e->TierFor(p.skills.Level(SKILL_MAGIC)) : 0;
+        ui.Text(known ? e->NameAt(reach) : string("Unknown enchantment"), row.x + 10.0f, row.y + 5.0f,
                 TextSize::Small,
                 !unlocked ? SDL_Color{120, 110, 100, 255}
                           : (selected ? Palette::Highlight : Palette::Text));
@@ -379,25 +386,40 @@ void Game::DrawEnchanting() {
     const float dw = panel.w - list_w - 64.0f;
     float y = panel.y + 62.0f;
     const bool known = world->KnowsEnchantment(e->id);
+    // A weapon's charm is shown at the tier the Magic level reaches, or its
+    // first while it reaches none.
+    const int magic = p.skills.Level(SKILL_MAGIC);
+    const int reach = e->Tiered() ? e->TierFor(magic) : 0;
+    const int shown = e->Tiered() ? std::max(1, reach) : 0;
 
-    ui.Text(known ? e->name : string("Unknown enchantment"), dx, y, TextSize::Body, Palette::Highlight);
+    ui.Text(known ? e->NameAt(shown) : string("Unknown enchantment"), dx, y, TextSize::Body, Palette::Highlight);
     y += 28.0f;
     if (!known)
         y += ui.TextWrapped("You have not learned this yet." + (e->from.empty() ? string("") : " " + e->from),
                             dx, y, dw, TextSize::Small, {235, 150, 120, 255}) + 8.0f;
-    if (!e->text.empty())
-        y += ui.TextWrapped(e->text, dx, y, dw, TextSize::Small, Palette::TextDim) + 8.0f;
+    const string does = e->Tiered() ? e->EffectAt(shown) : e->text;
+    if (!does.empty())
+        y += ui.TextWrapped(does, dx, y, dw, TextSize::Small, Palette::TextDim) + 8.0f;
+    if (e->Tiered()) {
+        string tiers = "Tier " + string(RomanNumeral(shown)) + " of " + string(RomanNumeral(e->TierCount()));
+        if (shown < e->TierCount()) tiers += "; the next at Magic " + std::to_string(e->LevelAt(reach < 1 ? 1 : shown + 1));
+        if (reach < 1) tiers = "Opens at Magic " + std::to_string(e->LevelAt(1));
+        ui.Text(tiers, dx, y, TextSize::Small, Palette::Text);
+        y += 20.0f;
+    }
     {
         string fits = "Fits: ";
-        for (size_t i = 0; i < e->slots.size(); ++i)
-            fits += string(i ? ", " : "") + EquipSlotName(e->slots[i]);
+        if (!e->fits.empty()) fits += e->fits;
+        else
+            for (size_t i = 0; i < e->slots.size(); ++i)
+                fits += string(i ? ", " : "") + EquipSlotName(e->slots[i]);
         ui.Text(fits, dx, y, TextSize::Small, Palette::Text);
         y += 22.0f;
     }
 
     ui.Text("Materials", dx, y, TextSize::Small, Palette::Highlight);
     y += 20.0f;
-    for (const auto& in : e->inputs) {
+    for (const auto& in : e->InputsAt(shown)) {
         const ItemDef* mat = items.Get(in.first);
         const int held = p.inventory.Count(in.first);
         char line[128];
@@ -408,7 +430,7 @@ void Game::DrawEnchanting() {
         y += 18.0f;
     }
     y += 10.0f;
-    ui.Text(std::to_string(e->xp) + " Magic XP", dx, y, TextSize::Small, Palette::TextDim);
+    ui.Text(std::to_string(e->XpAt(shown)) + " Magic XP", dx, y, TextSize::Small, Palette::TextDim);
     y += 26.0f;
 
     const vector<int> targets = ::Enchanting::Targets(items, *e, p.inventory);
@@ -432,6 +454,18 @@ void Game::DrawEnchanting() {
                 SDL_RenderTexture(renderer, tex, nullptr, &ic);
             }
         ui.Text(line, dx + 28.0f, y, TextSize::Small, Palette::Xp);
+        // A weapon that carries a charm already: raised, or swapped.
+        if (d && e->Tiered() && !d->enchant.empty()) {
+            const EnchantDef* has = items.Enchantment(d->enchant);
+            const string was = has ? has->NameAt(d->enchant_tier) : d->enchant;
+            string note;
+            if (d->enchant == e->id)
+                note = d->enchant_tier >= reach ? "It already carries " + was + "."
+                                                 : "Raises " + was + " to " + string(RomanNumeral(reach)) + ".";
+            else
+                note = "Replaces " + was + ".";
+            ui.Text(note, dx, y + 22.0f, TextSize::Small, {235, 200, 140, 255});
+        }
     }
 
     ui.Text(input.PromptFor(Action::Confirm) + " enchant     left / right choose the piece     " +

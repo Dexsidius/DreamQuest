@@ -143,6 +143,10 @@
      "after": [
       "q_ore_for_the_forge"
      ]
+    },
+    {
+     "item": "scroll_enchant_ferocity",
+     "stock": 1
     }
    ]
   },
@@ -258,6 +262,14 @@
     },
     {
      "item": "azuryte_bow",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_quickdraw",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_multishot",
      "stock": 1
     }
    ]
@@ -417,6 +429,18 @@
     {
      "item": "steel_pickaxe",
      "stock": 1
+    },
+    {
+     "item": "scroll_cinderbug_ward",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_precision",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_brand_embers",
+     "stock": 1
     }
    ]
   },
@@ -428,6 +452,7 @@
    "markup": 1.2,
    "buys": {
     "herb": 0.8,
+    "bug": 0.8,
     "fish": 0.55,
     "raw": 0.5,
     "bones": 0.5,
@@ -455,6 +480,14 @@
     },
     {
      "item": "scroll_enchant_warding",
+     "stock": 1
+    },
+    {
+     "item": "scroll_skimmer_tonic",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_thrift",
      "stock": 1
     }
    ]
@@ -629,6 +662,18 @@
     {
      "item": "azuryte_staff",
      "stock": 1
+    },
+    {
+     "item": "scroll_rimeshell_ward",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_affliction",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_sorcery",
+     "stock": 1
     }
    ]
   },
@@ -706,6 +751,10 @@
     },
     {
      "item": "scroll_fen_bitters",
+     "stock": 1
+    },
+    {
+     "item": "scroll_swallowtail_draught",
      "stock": 1
     }
    ]
@@ -798,6 +847,14 @@
     },
     {
      "item": "scroll_enchant_insight",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_brand_venom",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_brand_frost",
      "stock": 1
     }
    ]
@@ -895,6 +952,10 @@
     {
      "item": "damascus_sword",
      "stock": 1
+    },
+    {
+     "item": "scroll_enchant_vampiric",
+     "stock": 1
     }
    ]
   },
@@ -928,6 +989,14 @@
      "stock": 1
     },
     {
+     "item": "wood_hide_hands",
+     "stock": 1
+    },
+    {
+     "item": "wood_hide_feet",
+     "stock": 1
+    },
+    {
      "item": "bronze_hide_head",
      "stock": 1
     },
@@ -937,6 +1006,14 @@
     },
     {
      "item": "bronze_hide_legs",
+     "stock": 1
+    },
+    {
+     "item": "bronze_hide_hands",
+     "stock": 1
+    },
+    {
+     "item": "bronze_hide_feet",
      "stock": 1
     },
     {
@@ -1000,6 +1077,14 @@
      "stock": 1
     },
     {
+     "item": "wood_robe_hands",
+     "stock": 1
+    },
+    {
+     "item": "wood_robe_feet",
+     "stock": 1
+    },
+    {
      "item": "bronze_robe_head",
      "stock": 1
     },
@@ -1009,6 +1094,18 @@
     },
     {
      "item": "bronze_robe_legs",
+     "stock": 1
+    },
+    {
+     "item": "bronze_robe_hands",
+     "stock": 1
+    },
+    {
+     "item": "bronze_robe_feet",
+     "stock": 1
+    },
+    {
+     "item": "scroll_honeyed_draught",
      "stock": 1
     }
    ]
@@ -1057,6 +1154,18 @@
     },
     {
      "item": "iron_hide_legs",
+     "stock": 1
+    },
+    {
+     "item": "iron_hide_hands",
+     "stock": 1
+    },
+    {
+     "item": "iron_hide_feet",
+     "stock": 1
+    },
+    {
+     "item": "scroll_enchant_brand_bleeding",
      "stock": 1
     }
    ]

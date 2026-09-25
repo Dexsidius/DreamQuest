@@ -1095,4 +1095,42 @@ $bmp.Save((Join-Path $tiles "log_wall.png"), [System.Drawing.Imaging.ImageFormat
 $bmp.Dispose()
 $made++
 
+# --- the house, undyed -----------------------------------------------------------------
+# The house at Mossvale takes the colours of whatever totem stands in its ring,
+# and the game does that by multiplying the floor and the walls by the totem's
+# colours as it draws them. A multiply only ever darkens, so warm oak planks
+# could be made redder or browner and never pale: Hoarfang's room would have
+# been a muddy teal. These are the same boards and the same timber-framed
+# plaster as plank_floor and plaster_wall_warm, in no colour at all -- pale
+# grey, so the totem's colour is what they come out as. A little more grain in
+# the boards than the oak has, because a board with no colour of its own has
+# only its grain to say it is wood.
+#
+# Last, and on a seed of their own, as ever: nothing above moves.
+$script:seed = 20260927
+$Size = 32
+for ($v = 0; $v -lt 3; $v++) {
+    $bmp = New-Masonry 32 @(226, 224, 220) @(132, 130, 128) 8 32 0.07 $true "scatter"
+    # Grain: short runs a shade darker along the boards, never across a joint.
+    for ($i = 0; $i -lt 9; $i++) {
+        $x = RandInt 32
+        $y = 1 + 8 * (RandInt 4) + (RandInt 5)
+        $len = 3 + (RandInt 6)
+        for ($k = 0; $k -lt $len; $k++) {
+            $c = $bmp.GetPixel((($x + $k) % 32), $y)
+            if ($c.R -gt 150) { Set-Wrapped $bmp ($x + $k) $y (Shade $c (-0.07)) }
+        }
+    }
+    $name = if ($v -eq 0) { "plank_floor_pale" } else { "plank_floor_pale_$v" }
+    $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    $made++
+}
+# The timber is a mid grey rather than dark, so under a dark totem's colour the
+# frame is still a shade darker than the plaster between it and not black.
+$bmp = New-Plaster 32 @(240, 238, 234) @(112, 108, 104)
+$bmp.Save((Join-Path $tiles "plaster_wall_pale.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+$made++
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

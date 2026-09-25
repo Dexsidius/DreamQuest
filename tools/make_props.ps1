@@ -139,7 +139,20 @@ $sizes = @{
     snowman = 56; igloo = 128; trapper_cabin = 224; frost_barrow = 176; runestone = 72; howe_hall = 352
     frost_brazier = 64; pelt_rack = 72; woodpile = 64; broken_sled = 72; ice_hole = 48; draugr_throne = 128
     stone_coffin = 96; totem_abominable = 32
+    # Farmer Aldous's bees in the Westwold (tools/blender_farm_props.py).
+    beehive = 56; beehive_blue = 56; beehive_green = 56; bee_skep = 36; bee_shed = 96; lavender_bed = 64
+    # The house at Mossvale, dressed for whatever stands in its ring.
+    house_rug = 160; house_rug_trim = 160; tapestry_house = 64; tapestry_house_trim = 64
 }
+
+# Pieces the game colours itself, as two pictures laid one on the other: the
+# cloth, and its trim over it (see "the house at Mossvale" in
+# blender_props.py). Each trim goes with its cloth: both lose their colour --
+# the game's tint is the only colour they have -- the trim is outlined only
+# where it meets nothing, not where it meets its own cloth, only the cloth
+# throws a shadow, and the two are sat on the floor by the same amount, or the
+# trim lands a pixel off the cloth it was worked on.
+$LAYERED = @{ house_rug = "house_rug_trim"; tapestry_house = "tapestry_house_trim" }
 
 # The scenery sizes, built to the same names the maps already use. Ten trees and
 # ten saplings, eight rocks and eight small ones, the same for bushes, six
@@ -412,7 +425,7 @@ function Add-ContactShadow($buf, $depth = 3, $alpha = 92) {
 # the forge stood twenty-three pixels above where it was placed, and a player
 # could walk "behind" it while visibly in front. So the drawn pixels (shadow
 # included) are moved down until they touch the bottom, keeping the square.
-function Set-OnFloor($buf, $name) {
+function Get-FloorShift($buf, $name) {
     $top = -1; $bottom = -1
     for ($y = 0; $y -lt $buf.h -and $top -lt 0; $y++) {
         for ($x = 0; $x -lt $buf.w; $x++) {
@@ -424,18 +437,59 @@ function Set-OnFloor($buf, $name) {
             if ($buf.bytes[$y * $buf.stride + $x * 4 + 3] -gt 0) { $bottom = $y; break }
         }
     }
-    if ($top -lt 0) { return }
+    if ($top -lt 0) { return -1 }
     if ($top -eq 0) {
         Write-Warning "  ! $name touches the top of its frame and may be cut off"
     }
-    $shift = ($buf.h - 1) - $bottom
-    if ($shift -le 0) { return }
+    return ($buf.h - 1) - $bottom
+}
 
+function Move-Down($buf, $shift) {
+    if ($shift -le 0) { return }
     $moved = New-Object byte[] $buf.bytes.Length
     for ($y = $buf.h - 1; $y -ge $shift; $y--) {
         [Array]::Copy($buf.bytes, ($y - $shift) * $buf.stride, $moved, $y * $buf.stride, $buf.w * 4)
     }
     $buf.bytes = $moved
+}
+
+function Set-OnFloor($buf, $name) {
+    Move-Down $buf (Get-FloorShift $buf $name)
+}
+
+# --- the undyed pieces ------------------------------------------------------------
+# No colour at all: the light in the render is warm, and a warm white tinted
+# with a totem's blue comes out a shade of green.
+function Set-Grey($buf) {
+    for ($y = 0; $y -lt $buf.h; $y++) {
+        for ($x = 0; $x -lt $buf.w; $x++) {
+            $i = $y * $buf.stride + $x * 4
+            $v = [byte][math]::Min(255, [int](0.114 * $buf.bytes[$i] + 0.587 * $buf.bytes[$i + 1] + 0.299 * $buf.bytes[$i + 2] + 0.5))
+            $buf.bytes[$i] = $v; $buf.bytes[$i + 1] = $v; $buf.bytes[$i + 2] = $v
+        }
+    }
+}
+
+# A trim's outline, only where neither it nor its cloth has anything: along the
+# border of a rug a dark rim either side of the band read as three bands.
+function Add-OuterOutline($buf, $under, $darken = 0.62) {
+    $orig = $buf.bytes.Clone()
+    $empty = { param($x, $y)
+        if ($x -lt 0 -or $y -lt 0 -or $x -ge $buf.w -or $y -ge $buf.h) { return $true }
+        $i = $y * $buf.stride + $x * 4 + 3
+        return $orig[$i] -lt 250 -and $under.bytes[$i] -lt 250
+    }
+    for ($y = 0; $y -lt $buf.h; $y++) {
+        for ($x = 0; $x -lt $buf.w; $x++) {
+            $i = $y * $buf.stride + $x * 4
+            if ($orig[$i + 3] -lt 250) { continue }
+            if (-not ((& $empty ($x - 1) $y) -or (& $empty ($x + 1) $y) -or
+                      (& $empty $x ($y - 1)) -or (& $empty $x ($y + 1)))) { continue }
+            for ($c = 0; $c -lt 3; $c++) {
+                $buf.bytes[$i + $c] = [byte][int]([double]$buf.bytes[$i + $c] * $darken)
+            }
+        }
+    }
 }
 
 # --- run ---------------------------------------------------------------------
@@ -453,6 +507,15 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
     }
 
     $size = $sizes[$name]
+    # A trim is done with its cloth, below: asked for alone, it is done with it all the same.
+    $cloth = $null
+    foreach ($k in $LAYERED.Keys) { if ($LAYERED[$k] -eq $name) { $cloth = $k } }
+    if ($cloth) {
+        if ($Only.Count -gt 0 -and $Only -notcontains $cloth) {
+            Write-Warning "  ! $name is done with ${cloth}; pass both to -Only"
+        }
+        continue
+    }
     $bmp = [System.Drawing.Bitmap]::FromFile($file.FullName)
     try {
         if ($bmp.Width % $size -ne 0) {
@@ -462,6 +525,27 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
         }
         $buf = Resize-Box (Read-Pixels $bmp) $size
     } finally { $bmp.Dispose() }
+
+    if ($LAYERED.ContainsKey($name)) {
+        $trimName = $LAYERED[$name]
+        $bmp = [System.Drawing.Bitmap]::FromFile((Join-Path $renders "$trimName.png"))
+        try { $trim = Resize-Box (Read-Pixels $bmp) $size } finally { $bmp.Dispose() }
+        foreach ($b in @($buf, $trim)) { Set-Grey $b; Flatten $b }
+        Add-OuterOutline $trim $buf
+        Add-Outline $buf
+        Add-ContactShadow $buf
+        # Sat down by whichever of the two reaches lower.
+        $a = Get-FloorShift $buf $name
+        $b2 = Get-FloorShift $trim $trimName
+        $shift = if ($a -lt 0) { $b2 } elseif ($b2 -lt 0) { $a } else { [math]::Min($a, $b2) }
+        Move-Down $buf $shift
+        Move-Down $trim $shift
+        Write-Pixels $buf (Join-Path $outDir "$name.png")
+        Write-Pixels $trim (Join-Path $outDir "$trimName.png")
+        Write-Host ("  {0,-14} {1}x{1}, and {2}" -f $name, $size, $trimName)
+        $done += 2
+        continue
+    }
 
     Flatten $buf
     Add-Outline $buf

@@ -283,6 +283,19 @@ LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
             s.armour[w.layer].show = true;
             s.armour[w.layer].tint = d->tint;
             s.armour[w.layer].cut = d->armour_cut;
+            // A hide or a robe is one colour from the hood to the hem, and a
+            // glove in that colour at the end of a sleeve in that colour is
+            // two pixels nobody sees: the dark shade it is rendered in is
+            // only seven tenths of the sleeve's. So the set's gloves are worn
+            // a shade under their own colour -- still the tier's, and still
+            // plainly the set's, but a glove. Plate is left alone: a
+            // gauntlet is metal and a cuff over cloth, and reads already.
+            if (w.layer == ARMOUR_HANDS && (d->armour_cut == "hide" || d->armour_cut == "robe")) {
+                SDL_Color& t = s.armour[w.layer].tint;
+                t.r = static_cast<Uint8>(t.r * 13 / 20);
+                t.g = static_cast<Uint8>(t.g * 13 / 20);
+                t.b = static_cast<Uint8>(t.b * 13 / 20);
+            }
         }
     }
 
@@ -426,11 +439,15 @@ Status Player::Afflict(Status kind, int blow, const StatusDatabase& db, float fr
     const StatusDef* d = db.Get(kind);
     if (!d) return Status::COUNT;
     const auto lasts = [](const StatusDef& of) { return of.seconds * of.player_share; };
+    // Warded against it, nothing takes: not from a blow, not from a fall
+    // through the ice, not as a frost thawing into a chill.
+    if (Warded(kind)) return Status::COUNT;
     // A chill on someone soaked is a frost, as it is on a monster.
     if (d->becomes != Status::COUNT && d->if_has != Status::COUNT && statuses.Has(d->if_has)) {
         const StatusDef* other = db.Get(d->becomes);
         if (other && lasts(*other) > 0.0f) { kind = d->becomes; d = other; }
     }
+    if (Warded(kind)) return Status::COUNT;
     for (Status stops : d->blocked_by) if (statuses.Has(stops)) return Status::COUNT;
     const float seconds = lasts(*d);
     if (seconds <= 0.0f) return Status::COUNT;
@@ -1043,8 +1060,12 @@ void Player::Pose(float px, float py, Facing face, const string& clip, int frame
 void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& world) {
     const float speed = WeaponSpeed();
     // The combos read the same with every weapon; what comes out of them is
-    // the weapon's own. So nothing here asks what is in hand.
-    const bool  melee = true;
+    // the weapon's own. So nothing here asks what is in hand -- but whether
+    // there are any: a crossbow has none. Every bolt is its own shot and the
+    // crossbow is spanned again after it. That used to be said and not done:
+    // once a quick reload ended inside the combo window, it chained them.
+    const ItemDef* held = equipment.Weapon();
+    const bool  combos = !(held && held->weapon_class == "crossbow");
     const bool  raw_light  = in.Pressed(PlayerInput::Light);
     const bool  raw_strong = in.Pressed(PlayerInput::Strong);
 
@@ -1075,7 +1096,7 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
     // It needs the breath it spends. The test used to be "any breath at all",
     // and the spend below is clamped at nothing, so on an empty bar it cost one
     // frame's regeneration and could be thrown about once a second for ever.
-    const bool together = melee && !jumping && stamina >= CROSS_CUT_STAMINA && !winded &&
+    const bool together = combos && !jumping && stamina >= CROSS_CUT_STAMINA && !winded &&
         ((light_press && strong_press && CanAttack()) ||
          (raw_strong && fresh_light) ||
          (raw_light && fresh_hold && CanAttack()));
@@ -1104,7 +1125,7 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
     const bool rushed = light_press && CanAttack() && !strong_armed && combo_window <= 0.0f &&
                         sprinting && StartRush(world);
     if (!rushed && light_press && CanAttack() && !strong_armed) {
-        if (melee && after_strong && combo_window > 0.0f) {
+        if (combos && after_strong && combo_window > 0.0f) {
             // A light on the heels of a heavy: the Backhand. It stands in for
             // the first two links, so the chain goes on from it -- the next
             // light is the finisher, the next heavy the Cleave.
@@ -1142,7 +1163,7 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
 
     // --- the heavy button ------------------------------------------------------
     if (strong_press && CanAttack() && !strong_armed) {
-        if (melee && combo_window > 0.0f && !after_strong) {
+        if (combos && combo_window > 0.0f && !after_strong) {
             // A heavy inside the chain comes out on the press, with no hold:
             // the Crushing Blow after one light, the Cleave after two.
             StartCombo(combo == 0 ? ComboMove::Crush : ComboMove::Cleave, AttackType::Strong, world);
@@ -1563,6 +1584,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         BreakChain();
         jumping = false;
         statuses.Clear();
+        ClearWards();
         sprite.Play("death", true);
         Audio::Play(Sfx::PlayerDie);
     }
@@ -1820,6 +1842,9 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         SyncMana();
     }
 
+    // --- wards wearing off ----------------------------------------------------------
+    for (float& w : ward_left) if (w > 0.0f) w = std::max(0.0f, w - dt);
+
     // --- boosts wearing off -----------------------------------------------------
     // Hitpoints is its own thing -- it drains with damage -- so only the
     // levels a potion can lift drift back toward the real level.
@@ -1966,6 +1991,7 @@ void Player::Respawn(float sx, float sy) {
     jumping = false;
     sprinting = winded = false;
     statuses.Clear();
+    ClearWards();
     stamina = MaxStamina();
     stamina_delay = 0.0f;
     // What was stored is lost with the fight it was stored for. Mana and
@@ -2062,9 +2088,15 @@ bool Player::Consume(int slot, string& why_not) {
         const int target = level + ItemDef::BoostGain(b.second, level);
         if (skills.Current(b.first) < target) helps = true;
     }
+    // A ward is worth drinking again once the last one has begun to run down:
+    // it starts again from the top rather than adding to what is left.
+    const float ward_full = def->ward_minutes * 60.0f;
+    for (Status s : def->ward)
+        if (WardLeft(s) < ward_full - 1.0f) helps = true;
     if (!helps) {
-        why_not = def->boosts.empty() && def->mana == 0 ? "You are already at full health."
-                                                        : "It would do nothing for you right now.";
+        why_not = !def->ward.empty()                        ? "The last one has hardly begun to wear off."
+                : def->boosts.empty() && def->mana == 0     ? "You are already at full health."
+                                                            : "It would do nothing for you right now.";
         return false;
     }
 
@@ -2087,6 +2119,7 @@ bool Player::Consume(int slot, string& why_not) {
         skills.SetCurrent(b.first, std::max(skills.Current(b.first), target));
     }
     if (!def->boosts.empty()) boost_timer = 0.0f;
+    for (Status s : def->ward) SetWard(s, ward_full);
     skills.SetCurrent(SKILL_HITPOINTS, hp);
     inventory.RemoveSlot(slot, 1);
     return true;
@@ -2210,8 +2243,31 @@ bool Player::UseQuickItem(string& why_not) {
     return false;
 }
 
+// Wards in the character sheet: a status's id and the seconds it has left,
+// rounded up to the next five. A friend's sheet goes to the host whenever it
+// changes: to the second, a running ward would send one every second; to the
+// five, one every five, and the host's copy counts down between them itself.
+static json WardsToJson(const Player& p) {
+    json w = json::object();
+    for (int i = 0; i < STATUS_COUNT; ++i) {
+        const float left = p.WardLeft(static_cast<Status>(i));
+        if (left > 0.0f) w[StatusId(static_cast<Status>(i))] = static_cast<int>(ceilf(left / 5.0f)) * 5;
+    }
+    return w;
+}
+
+static void WardsFromJson(Player& p, const json& j) {
+    p.ClearWards();
+    if (!j.contains("wards") || !j["wards"].is_object()) return;
+    for (auto it = j["wards"].begin(); it != j["wards"].end(); ++it) {
+        const Status s = StatusFromId(it.key());
+        if (s != Status::COUNT && it.value().is_number())
+            p.SetWard(s, std::clamp(it.value().get<float>(), 0.0f, 3600.0f));
+    }
+}
+
 json Player::ToJson() const {
-    return json{
+    json j = json{
         {"sprite",    sprite_id},
         {"x",         x},
         {"y",         y},
@@ -2231,6 +2287,10 @@ json Player::ToJson() const {
         {"equipment", equipment.ToJson()},
         {"talents",   talents.ToJson()},
     };
+    // Only while one runs, so a sheet or a save without any is what it was.
+    json wards = WardsToJson(*this);
+    if (!wards.empty()) j["wards"] = std::move(wards);
+    return j;
 }
 
 void Player::ApplySheet(const json& j, const GameContext& ctx) {
@@ -2264,6 +2324,9 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;
     if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;
+    // What a friend has drunk against burning or the frost is the host's to
+    // honour: the host decides what takes on them.
+    WardsFromJson(*this, j);
 }
 
 void Player::FromJson(const json& j, const GameContext& ctx) {
@@ -2306,6 +2369,7 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     selected_element = ElementFromName(j.value("element", string("fire")));
     if (selected_element == Element::None) selected_element = Element::Fire;
     if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;
+    WardsFromJson(*this, j);
     dead = false;
     death_timer = 0.0f;
     sprite.facing = facing;

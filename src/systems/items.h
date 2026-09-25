@@ -180,6 +180,27 @@ struct ItemDef {
     // An enchanted piece: which enchantment it carries, and the plain piece
     // it was worked into. Both empty on everything else. See EnchantDef.
     string enchant, base_item;
+    // --- a weapon's charm -------------------------------------------------------------
+    // A weapon's charm comes in tiers (see EnchantDef::tiers): which one this
+    // is, I to VI, and 0 on everything that is not a weapon with a charm on it.
+    // `charm` is what the charm does, as data/enchantments.json names it
+    // ("crit", "shots", "bleed", ...), and `charm_amount` how much, for the stat
+    // block to say. The charm itself acts through the fields it changes: the
+    // four below, read where a blow or a shot is worked out, and the ones
+    // baked into the twin -- leech, damage, reload, mana_mult and on_hit. Only
+    // the weapon in the main hand counts: a second dagger brings its speed.
+    int    enchant_tier = 0;
+    string charm;
+    float  charm_amount = 0.0f;
+    // Affliction: added to the chance of whatever status a blow of it leaves.
+    float  proc_bonus = 0.0f;
+    // Precision and Ferocity: added to a blow's chance of striking critically,
+    // and to what a critical blow is worth.
+    float  crit_chance = 0.0f, crit_damage = 0.0f;
+    // Multishot: arrows or bolts let off beside each one, fanned out either
+    // side of it, each worth this share of a plain one.
+    int    extra_shots = 0;
+    static constexpr float EXTRA_SHOT_SHARE = 0.6f;
 
     map<int, int> requirements;       // SkillId -> level needed to equip
 
@@ -236,6 +257,22 @@ struct ItemDef {
     int    forage_level = 0;
     int    forage_xp = 0;
     string grows;
+    // A bug: the Foraging level it is caught at, its XP, and where it lives
+    // ("forest", "bayou", "lava", "ice"). Caught bare-handed off a map object
+    // of type "bug" rather than picked, so it has none of a herb's rules --
+    // no plant art, no place in the herb count -- but a brew made from one is
+    // brewed at its level all the same: see GatherLevel.
+    int    catch_level = 0;
+    int    catch_xp = 0;
+    string lives;
+    // The Foraging level of whatever this is, picked or caught: what a brew
+    // made from it asks of the brewer. Zero for anything nobody gathers.
+    int    GatherLevel() const { return std::max(forage_level, catch_level); }
+
+    // A ward: drunk, the statuses listed here cannot take on the drinker for
+    // `ward_minutes`. A second one refreshes the first. See Player::Warded.
+    vector<Status> ward;
+    float  ward_minutes = 0.0f;
 
     // What using it from the bag does, beyond eating and wearing: "camp"
     // pitches a camp where the player stands.
@@ -298,7 +335,50 @@ struct EnchantDef {
     float move_speed = 0.0f;
     map<string, int> inputs;            // item id -> quantity
     string from;                        // where it is learned, for the table to say
+
+    // --- a weapon's charm ---------------------------------------------------------
+    // Where a worn piece's charm has one strength, a weapon's has tiers, I to
+    // VI, each opened by a Magic level and each dearer than the last. It is
+    // learned once, from one scroll, and every tier the Magic level reaches
+    // comes with it. A weapon carries one charm: a higher tier of the one it
+    // has upgrades it in place, and a different charm replaces it. The twins
+    // are "<weapon>+<charm>_<tier>", the Iron Bow of Multishot III. For a
+    // charm with tiers, `level`, `xp`, `value` and `inputs` above are its
+    // first tier's.
+    struct Tier {
+        float amount = 0.0f;            // what it does there: 0.12 is +12%, 3 is three arrows
+        int   level = 1, xp = 0, value = 0;
+        map<string, int> inputs;
+    };
+    vector<Tier> tiers;                 // empty for a worn piece's charm
+    // What it does: "proc", "crit", "cast", "reload", "shots", "leech",
+    // "crit_damage", "brand" or "mana". A Brand says which status it leaves.
+    string effect;
+    Status brand = Status::COUNT;
+    // Which weapons take it, by what they do rather than what they are called
+    // (see ItemDatabase::Takes), and the same said for the table: "any weapon".
+    string takes, fits;
+
+    bool Tiered() const { return !tiers.empty(); }
+    int  TierCount() const { return static_cast<int>(tiers.size()); }
+    // The highest tier a Magic level reaches, 1..TierCount(); 0 below the first.
+    // A worn piece's charm is its one tier, at `level`.
+    int  TierFor(int magic) const;
+    // Tier `tier` (1-based), or null when there is no such tier.
+    const Tier* TierAt(int tier) const;
+    // What working tier `tier` asks and pays; a worn piece's charm ignores it.
+    int  LevelAt(int tier) const;
+    int  XpAt(int tier) const;
+    const map<string, int>& InputsAt(int tier) const;
+    // What it does at a tier, the way the stat block says it: "+12% crit
+    // chance", "3 extra arrows at 60%". The worn piece's charm's `text`.
+    string EffectAt(int tier) const;
+    // "Precision IV": the name with the tier, or the plain name for tier 0.
+    string NameAt(int tier) const;
 };
+
+// I to X, for the tiers of a weapon's charm; empty for anything else.
+const char* RomanNumeral(int n);
 
 // One material tier, in order from wood to demonrite.
 struct TierDef {
@@ -511,5 +591,7 @@ vector<int> Targets(const ItemDatabase& db, const EnchantDef& e, const Inventory
 // puts the enchanted piece back. Says why it could not, otherwise. Whether
 // the enchantment is known and whether the Magic level is enough are the
 // caller's to check: neither lives in a bag.
-bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why);
+// A weapon's charm is worked at a `tier` (1..its tier count): raised in place
+// on a weapon that has it lower, or put on in place of another charm.
+bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why, int tier = 0);
 }

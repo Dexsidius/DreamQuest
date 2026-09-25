@@ -97,6 +97,14 @@ void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx) {
 
 bool PrivateFlag(const string& key) { return World::PrivateFlag(key); }
 
+// A range, not only a list: the menus and the fanfares are the window's own.
+// New sounds are appended past QuestComplete so they fall outside it.
+bool OwnSound(Sfx k) {
+    return k == Sfx::Swing || k == Sfx::SwingHeavy || k == Sfx::Jump || k == Sfx::Land || k == Sfx::Footstep ||
+           k == Sfx::FootstepWood || k == Sfx::FootstepStone || k == Sfx::Winded || k == Sfx::Sleep || k == Sfx::Wake ||
+           k == Sfx::Equip || k == Sfx::Eat || (k >= Sfx::UiMove && k <= Sfx::QuestComplete);
+}
+
 namespace {
 
 std::map<string, int> Counts(const Inventory& bag) {
@@ -892,14 +900,8 @@ void Host::Sounds() {
     // cannot know is. A sound with a place goes to everyone on that map, and
     // their machine fades it by distance; one without goes only to whoever's
     // step made it.
-    const auto own = [](uint8_t s) {
-        const Sfx k = static_cast<Sfx>(s);
-        return k == Sfx::Swing || k == Sfx::SwingHeavy || k == Sfx::Jump || k == Sfx::Land || k == Sfx::Footstep ||
-               k == Sfx::FootstepWood || k == Sfx::FootstepStone || k == Sfx::Winded || k == Sfx::Sleep || k == Sfx::Wake ||
-               k == Sfx::Equip || k == Sfx::Eat || (k >= Sfx::UiMove && k <= Sfx::QuestComplete);
-    };
     for (const Heard& h : heard) {
-        if (own(h.sfx)) continue;
+        if (OwnSound(static_cast<Sfx>(h.sfx))) continue;
         net::Delta::Sound out;
         out.sfx = h.sfx;
         out.volume = static_cast<uint8_t>(std::clamp(h.volume, 0.0f, 1.0f) * 255.0f);

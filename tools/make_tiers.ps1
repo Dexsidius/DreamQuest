@@ -4,6 +4,8 @@
 #      .\tools\make_tiers.ps1                       # icons and weapon layers
 #      .\tools\make_tiers.ps1 -What icons           # just the inventory icons
 #      .\tools\make_tiers.ps1 -What sets            # the hide and robe sets, their hides and dyes
+#      .\tools\make_tiers.ps1 -What hands,feet      # only the gloves and boots, plate, hide and robe
+#      .\tools\make_tiers.ps1 -What feet -Tiers iron -Names boots_iron
 #      .\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
 #
 #  tools/blender_tiers.py models every tier's ore, bar, weapons and armour from
@@ -19,7 +21,7 @@ param(
     [string[]]$Only = @(),
     [string[]]$Tiers = @(),
     [string[]]$Models = @(),
-    # With -What brewing: only these herb, potion or recipe icons.
+    # With -What brewing, food, sets, hands or feet: only these icons.
     [string[]]$Names = @()
 )
 

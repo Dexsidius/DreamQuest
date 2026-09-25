@@ -220,6 +220,33 @@ public:
     const string& Ambient() const { return ambient; }
     SDL_Color BackgroundColor() const { return background; }
 
+    // --- a room dressed for what stands in its ring ------------------------------
+    // A map's `themed` block (written by genmaps; docs/MAP_FORMAT.md) says
+    // which of its tile groups are the floor and the walls, with a pale
+    // "undyed" picture for each, and which are cloth, trim, or the plain things
+    // that are there only while nothing stands in the ring. While the dress is
+    // on, the floor and walls are drawn from their undyed pictures in the
+    // dress's colours, the cloth and trim are drawn in theirs, and the plain
+    // things are put away; while it is off the room is as it always was.
+    // Which dress is the world's to say, every frame, for whoever the frame is
+    // drawn for (World::HouseDress): it is that player's totem, not the room's.
+    enum DressRole : Uint8 { DRESS_NONE = 0, DRESS_FLOOR, DRESS_WALL, DRESS_CLOTH, DRESS_TRIM, DRESS_PLAIN };
+    struct Dress {
+        bool on = false;
+        SDL_Color floor{255, 255, 255, 255}, wall{255, 255, 255, 255}, cloth{255, 255, 255, 255},
+                  trim{255, 255, 255, 255};
+    };
+    bool HasDress() const { return has_dress; }
+    // Where the ring's light stands, in world pixels.
+    SDL_FPoint DressLight() const { return dress_light; }
+    void SetDress(const Dress& d) const { dress = d; }
+    const Dress& CurrentDress() const { return dress; }
+    DressRole DressRoleOf(int tex) const {
+        return (tex >= 0 && tex < static_cast<int>(dress_role.size())) ? static_cast<DressRole>(dress_role[tex]) : DRESS_NONE;
+    }
+    // Whether a tile of this texture is put away under the present dress.
+    bool DressHides(int tex) const;
+
     // Draw one layer, culled to what the camera can see. The ground is drawn
     // in two passes, the floor (1) and what lies on it (2) -- a rug, a bridge
     // -- and `passes` says which; both, unless something goes between them.
@@ -356,6 +383,16 @@ private:
 
     vector<string>       textures;      // resolved image paths
     vector<Uint8>        surfaces;      // Shaders::Surface of each, parallel to textures
+    // The dress (see HasDress): a role and, for the floor and walls, the undyed
+    // picture of every texture; what is on just now; where the light stands.
+    vector<Uint8>        dress_role;
+    vector<string>       dress_undyed;
+    bool                 has_dress = false;
+    SDL_FPoint           dress_light{};
+    mutable Dress        dress;
+    // The picture a tile draws under the present dress, and its tint; null
+    // when it is put away.
+    SDL_Texture* DressedTexture(TextureCache& cache, int tex, SDL_Color& tint) const;
     vector<const Shaders::Art*> arts;   // and how each moves and lights
     Shaders::Fog         fog;
     vector<TileInstance> tiles;

@@ -71,6 +71,11 @@ int Game::Start(int argc, char** argv) {
             never_save = true;
         } else if (arg == "--level" && more) {
             launch_level = std::clamp(SDL_atoi(argv[++i]), 1, 99);
+        } else if (arg == "--skills" && more) {
+            // With --scratch: these skills at these levels, "Foraging:50,Fishing:20",
+            // for looking at what a level opens -- a catch, a cast -- without
+            // earning it first.
+            launch_skills = argv[++i];
         } else if (arg == "--audit") {
             launch_audit = true;
             launch_scratch = launch_scratch.empty() ? "hero" : launch_scratch;
@@ -82,7 +87,8 @@ int Game::Start(int argc, char** argv) {
         } else if (arg == "--learn" && more) {
             // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
             // A name that starts "spell:" is an ancient spell to know instead,
-            // and one that starts "zap:" is which of the lightning to hold.
+            // "enchant:" a charm for the enchanting table, and one that starts
+            // "zap:" is which of the lightning to hold.
             launch_learn = argv[++i];
         } else if (arg == "--charge" && more) {
             // With --scratch: start with this much in the lightning's battery,
@@ -97,6 +103,10 @@ int Game::Start(int argc, char** argv) {
         } else if (arg == "--bag" && more) {
             // With --scratch: put these in the pack, comma separated, worn or not.
             launch_bag = argv[++i];
+        } else if (arg == "--totem" && more) {
+            // With --scratch: this totem stands in the ring at home, awake --
+            // or asleep, written totem_orc3:asleep -- for looking at the house.
+            launch_totem = argv[++i];
         } else if (arg == "--at" && i + 2 < argc) {
             // With --scratch and --map: stood at this point of it, in pixels,
             // rather than at a spawn -- for looking at somewhere no door leads to.
@@ -231,6 +241,25 @@ int Game::Start(int argc, char** argv) {
                 p.Rest();
                 p.TakeLevelUps(); p.TakeXpDrops();
             }
+            if (!launch_skills.empty()) {
+                LevelUp up;
+                Player& p = world->player;
+                size_t from = 0;
+                while (from <= launch_skills.size()) {
+                    const size_t comma = launch_skills.find(',', from);
+                    const string one = launch_skills.substr(from, comma == string::npos ? string::npos : comma - from);
+                    const size_t colon = one.find(':');
+                    const int skill = colon == string::npos ? -1 : SkillFromName(one.substr(0, colon));
+                    if (skill >= 0) {
+                        const int want = XpForLevel(std::clamp(SDL_atoi(one.c_str() + colon + 1), 1, 99));
+                        const int have = p.skills.Xp(skill);
+                        if (want > have) p.skills.AddXp(skill, want - have, up);
+                    }
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+                p.TakeLevelUps(); p.TakeXpDrops();
+            }
             // Dressed for the look of it: requirements are not asked, because
             // what is being looked at is the art.
             if (launch_charge > 0.0f) world->player.AddBattery(launch_charge);
@@ -241,7 +270,8 @@ int Game::Start(int argc, char** argv) {
                     const size_t comma = launch_learn.find(',', from);
                     const string id = launch_learn.substr(from, comma == string::npos ? string::npos : comma - from);
                     // "spell:<id>" is an ancient spell, known as if its tome had been read.
-                    if (id.rfind("spell:", 0) == 0) world->SetFlag("recipe:" + id);
+                    // "enchant:<id>" the same, a charm as if its scroll had been read.
+                    if (id.rfind("spell:", 0) == 0 || id.rfind("enchant:", 0) == 0) world->SetFlag("recipe:" + id);
                     // "zap:<id>" chooses which of the lightning is on the fifth
                     // key, and selects the school, for looking at one of them.
                     else if (id.rfind("zap:", 0) == 0) {
@@ -291,6 +321,18 @@ int Game::Start(int argc, char** argv) {
                     if (items.Get(id)) world->player.inventory.Add(id, 1);
                     if (comma == string::npos) break;
                     from = comma + 1;
+                }
+            }
+            if (!launch_totem.empty()) {
+                const size_t colon = launch_totem.find(':');
+                const string item = launch_totem.substr(0, colon);
+                if (skill_trees.Totem(item)) {
+                    world->player.talents.PlaceTotem(item, world->clock.QuestDay());
+                    // Asleep: stood there yesterday and not touched since.
+                    if (colon != string::npos && launch_totem.substr(colon + 1) == "asleep") {
+                        world->player.talents.PlaceTotem(item, world->clock.QuestDay() - 1);
+                        world->player.talents.SetToday(world->clock.QuestDay());
+                    }
                 }
             }
             if (!launch_slay.empty()) {
@@ -1337,21 +1379,33 @@ void Game::RunAudit() {
     LevelUp up;
     for (int s2 = 0; s2 < SKILL_COUNT; ++s2) p.skills.AddXp(s2, XpForLevel(70), up);
     p.SyncHitpoints(); p.hp = p.max_hp; p.SyncMana(); p.RestoreMana();
-    for (const char* id : {"dragonhide_hide_head", "dragonhide_hide_body", "dragonhide_hide_legs",
+    // An id in either list that names nothing is said out loud. These lists
+    // once carried "dragonhide_hide_*" (the dragon's hides are dracon's),
+    // "orichalcum_sword+might" (a weapon takes no charm) and a jerkin "of the
+    // Wind" (a charm for the feet), and all of them were skipped without a word
+    // for as long as they were there.
+    const auto known = [&](const char* id) {
+        if (items.Get(id)) return true;
+        std::printf("audit: the character is posed with \"%s\", which is no item\n", id);
+        return false;
+    };
+    for (const char* id : {"dracon_hide_head", "dracon_hide_body", "dracon_hide_legs",
                            "bag_haversack", "bag_rucksack", "greatwolf_pelt", "dream_shard", "starlily_panacea",
                            "demonite_greatsword", "wyvern_scale", "herbal_tonic", "dire_bear_hide",
-                           // A piece with a passive on it and an enchanted one,
+                           // A piece with a passive on it and enchanted ones,
                            // so the line the stat block prints for those is
                            // swept in the shop's sell tab rather than assumed
-                           // to fit.
-                           "drowned_king_boots", "orichalcum_sword+might", "dragonhide_hide_body+the_wind"})
-        if (items.Get(id)) p.inventory.Add(id, 99);
+                           // to fit -- and the longest name there is.
+                           "drowned_king_boots", "orichalcum_gauntlets+might", "dracon_hide_feet+the_wind",
+                           "orichalcum_gauntlets+hawks_eye", "orichalcum_water_staff+affliction_6"})
+        if (known(id)) p.inventory.Add(id, 99);
     // And wearing something in every slot, because the stat block in the shop
     // and at the anvil writes "Instead of <what you have on>": the longest
     // line it can draw is the longest item name in the game.
-    for (const char* id : {"orichalcum_sword", "orichalcum_shield", "dragonhide_hide_head",
-                           "dragonhide_hide_body", "dragonhide_hide_legs"})
-        if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_NONE) p.equipment.Equip(d->slot, id);
+    for (const char* id : {"orichalcum_sword", "orichalcum_shield", "dracon_hide_head",
+                           "dracon_hide_body", "dracon_hide_legs", "orichalcum_gauntlets+hawks_eye",
+                           "dracon_hide_feet+swiftness"})
+        if (known(id)) if (const ItemDef* d = items.Get(id)) if (d->slot != SLOT_NONE) p.equipment.Equip(d->slot, id);
     for (const auto& kv : quests->Definitions()) quests->Start(kv.first);
     quests->TakeJustStarted();
 
@@ -1557,7 +1611,7 @@ void Game::RunAudit() {
             // Orichalcum Greatsword" -- are all down the far end of it.
             else if (name == "crafting" || name == "smithing" || name == "brewing" ||
                      name == "cooking" || name == "weaving" || name == "tanning") { target = &craft_cursor; steps = 130; }
-            else if (name == "enchanting") { target = &enchant_cursor; steps = 12; }
+            else if (name == "enchanting") { target = &enchant_cursor; steps = 24; }
             else if (name == "shop" || name == "shop sell" || name == "shop gear") { target = &shop_cursor; steps = 30; }
             else if (name == "board")     { target = &board_cursor; steps = 30; }
             else if (name == "travel")    { target = &travel_cursor; steps = 3; }

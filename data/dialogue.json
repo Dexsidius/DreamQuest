@@ -3374,7 +3374,7 @@
  },
  "orla_sets": {
   "speaker": "Orla the Tanner",
-  "text": "A coif, a jerkin and chaps, cut on a tanner's frame. Mine are there, along the north side, and you may use them. Two hides, four and three, and thread to sew them. Hide will not stop what plate stops. It does not foul a bowstring either. It is an archer's wear, and it puts weight behind an arrow the way plate does behind a sword arm. It does nothing at all for a swordsman.",
+  "text": "A coif, a jerkin and chaps, and gloves and striders for the hands and feet, all cut on a tanner's frame. Mine are there, along the north side, and you may use them. Two hides, four and three, one and two, and thread to sew them. Hide will not stop what plate stops. It does not foul a bowstring either. It is an archer's wear, and it puts weight behind an arrow the way plate does behind a sword arm. It does nothing at all for a swordsman.",
   "options": [
    {
     "text": "What do you buy?",
@@ -3413,7 +3413,7 @@
  },
  "isolde_robes": {
   "speaker": "Isolde the Weaver",
-  "text": "Three things. Cloth: three stalks of flax to the bolt at any bench, or two skeins of spider silk if you have a cellar to clear. Dye: a herb and a vial, in the vat there. Nobody needs teaching to boil a flower. Then cut and sew: a hat, a robe and a skirt. The herb decides the grade. Marigold is homespun, brookmint is what novices wear, and it goes on up to flowers that only open in dreams. A robe keeps out very little, and it carries a spell further than anything else you can put on.",
+  "text": "Three things. Cloth: three stalks of flax to the bolt at any bench, or two skeins of spider silk if you have a cellar to clear. Dye: a herb and a vial, in the vat there. Nobody needs teaching to boil a flower. Then cut and sew: a hat, a robe and a skirt, and gloves and slippers to go with them. The herb decides the grade. Marigold is homespun, brookmint is what novices wear, and it goes on up to flowers that only open in dreams. A robe keeps out very little, and it carries a spell further than anything else you can put on.",
   "options": [
    {
     "text": "Where does flax grow?",
@@ -3473,7 +3473,35 @@
     "next": "aldous_wolves"
    },
    {
+    "text": "Are those your hives, west of the field?",
+    "next": "aldous_hives"
+   },
+   {
     "text": "I am sorry to hear it.",
+    "next": "end"
+   }
+  ]
+ },
+ "aldous_hives": {
+  "speaker": "Farmer Aldous",
+  "text": "Eight of them, and the shed of skeps my father kept. The wolves leave the bees alone, which is more than they do for the sheep. Help yourself to the honey -- they make more in a few hours if you leave them some -- and go slow. They know a fast hand for a thief.",
+  "options": [
+   {
+    "text": "What is the honey good for?",
+    "next": "aldous_honey"
+   },
+   {
+    "text": "I will go slow.",
+    "next": "end"
+   }
+  ]
+ },
+ "aldous_honey": {
+  "speaker": "Farmer Aldous",
+  "text": "My wife's oats, first of all. Then anybody with a cauldron: it sweetens a draught, and the wards against fire and frost will not hold without it. The bugs that go in with it you will have to catch yourself.",
+  "options": [
+   {
+    "text": "Thank you.",
     "next": "end"
    }
   ]
@@ -4052,7 +4080,7 @@
  },
  "wynn_teach": {
   "speaker": "Wynn the Clothier",
-  "text": "Cloth first. Flax off the riverbank, three stems to a bolt, or a fleece off the farm at Havenbrook, which gives two -- and spider silk if you are the sort who goes into cellars.\n\nThen the bolt, the thread and a pot of dye make the piece: a hat, a robe, a skirt. The dye is what sets the colour and the tier, and Oona will sell you the first of them.\n\nBring me what you make. I post three orders a day and I pay in coin and in the doing of it.",
+  "text": "Cloth first. Flax off the riverbank, three stems to a bolt, or a fleece off the farm at Havenbrook, which gives two -- and spider silk if you are the sort who goes into cellars.\n\nThen the bolt, the thread and a pot of dye make the piece: a hat, a robe, a skirt, gloves, slippers. The dye is what sets the colour and the tier, and Oona will sell you the first of them.\n\nBring me what you make. I post three orders a day and I pay in coin and in the doing of it.",
   "options": [
    {
     "text": "Let me see the book.",

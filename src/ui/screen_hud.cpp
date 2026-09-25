@@ -319,9 +319,11 @@ void Game::DrawHud() {
     // --- the time ------------------------------------------------------------
     // A sun or a moon and the hour, under the vitals. In a dream it counts
     // down to dawn instead, which is when the dream ends.
+    float under_clock = meta_y + 2.0f * (line_h + 4.0f);   // where the meal and the wards go
     {
         const WorldClock& c = world->clock;
         const float y = meta_y + line_h + 4.0f;
+        under_clock = y + line_h + 6.0f;
         const bool moon = world->InDream() || c.IsNight() || string(c.Phase()) == "Dusk";
         glyph_plate({18.0f, y - 2.0f, glyph, line_h + 4.0f},
                     moon ? "assets/icons/hud_moon.png" : "assets/icons/hud_sun.png");
@@ -882,13 +884,42 @@ void Game::DrawHud() {
         }
     }
 
-    // What was last eaten, under the vitals, while it lasts: a meal is worth
-    // knowing about, and worth knowing the end of.
+    // What was last eaten, under the vitals and the clock, while it lasts: a
+    // meal is worth knowing about, and worth knowing the end of. (It sat at a
+    // fixed height once, which the clock's line has since grown down over.)
     if (const ItemDef* dish = p.Meal()) {
         const int left = static_cast<int>(p.MealLeft());
         char fed[96];
         SDL_snprintf(fed, sizeof(fed), "%s  %d:%02d", dish->name.c_str(), left / 60, left % 60);
-        ui.TextShadowed(fed, 18.0f, 16.0f + 3.0f * 22.0f + 26.0f, TextSize::Small, {186, 226, 150, 255});
+        ui.TextShadowed(fed, 18.0f, under_clock, TextSize::Small, {186, 226, 150, 255});
+    }
+    // And under that, a ward drunk against something, with its time: what it
+    // keeps off, by name, in that thing's own colour. A frost ward keeps off
+    // two, drunk at the same moment, and says both on one line.
+    {
+        float ward_y = under_clock + (p.Meal() ? line_h + 2.0f : 0.0f);
+        bool said[STATUS_COUNT] = {};
+        for (int i = 0; i < STATUS_COUNT; ++i) {
+            const float left = p.WardLeft(static_cast<Status>(i));
+            if (left <= 0.0f || said[i]) continue;
+            string names;
+            for (int k = i; k < STATUS_COUNT; ++k) {
+                const float other = p.WardLeft(static_cast<Status>(k));
+                // One draught sets its statuses to the same moment; two drunk
+                // a breath apart are two lines.
+                if (said[k] || other <= 0.0f || fabsf(other - left) > 0.05f) continue;
+                said[k] = true;
+                const StatusDef* d = status_db.Get(static_cast<Status>(k));
+                names += (names.empty() ? "" : ", ") + (d ? d->name : string(StatusId(static_cast<Status>(k))));
+            }
+            const StatusDef* first = status_db.Get(static_cast<Status>(i));
+            const SDL_Color c = first ? first->color : SDL_Color{200, 220, 255, 255};
+            const int secs = static_cast<int>(ceilf(left));
+            char line[128];
+            SDL_snprintf(line, sizeof(line), "Ward: %s  %d:%02d", names.c_str(), secs / 60, secs % 60);
+            ui.TextShadowed(line, 18.0f, ward_y, TextSize::Small, c);
+            ward_y += line_h + 2.0f;
+        }
     }
 
     // --- controls hint -------------------------------------------------------

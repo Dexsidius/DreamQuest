@@ -192,6 +192,18 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         const float a = atan2f(aim.y, aim.x) + degrees * 3.14159265f / 180.0f;
         return Vec2{cosf(a), sinf(a)};
     };
+    // Multishot: the charm on a bow or a crossbow lets off more beside a shot,
+    // fanned out either side of it from `start` degrees, seven apart, each
+    // worth three fifths of a plain one (`plain_mult`). None of them is a sure
+    // crit: an aimed shot's certainty is the arrow it was aimed with.
+    const int extra = (style == AttackStyle::Ranged && in_hand && !in_hand->thrown) ? in_hand->extra_shots : 0;
+    const auto multishot = [&](float start, float plain_mult) {
+        for (int k = 0; k < extra; ++k) {
+            const float side = (k % 2 == 0) ? 1.0f : -1.0f;
+            const Vec2 d = turned(side * (start + 7.0f * static_cast<float>(k / 2)));
+            if (Projectile* p = loose(d.x, d.y, plain_mult * ItemDef::EXTRA_SHOT_SHARE, false)) p->sure_crit = false;
+        }
+    };
     // Where a strike from above lands: the target, or a little way ahead.
     const auto strike_point = [&]() {
         if (target) return Targeting::AimPoint(*target);
@@ -216,6 +228,11 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.sure_crit = aimed_shot;
         AddGroundEffect(g);
     };
+
+    // Whatever is let off next -- a combo's shot too -- a crossbow has to be
+    // spanned again after it. It used to be set below the combos, which
+    // return early, so a combo bolt left the crossbow spanned.
+    struct Respan { Player& who; ~Respan() { who.StartReload(); } } respan{player};
 
     // --- the combos, at range ---------------------------------------------------
     // The same grammar as the sword's, with the weapon's own move at the end
@@ -245,6 +262,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
                         const Vec2 d = turned(deg);
                         loose(d.x, d.y, base * 0.7f, deg == 0.0f);
                     }
+                    multishot(16.0f, base);
                     break;
                 case ComboMove::Cleave:     // Barbed Shot: one heavy arrow that passes through and throws
                     if (Projectile* p = loose(aim.x, aim.y, base * 1.6f, true)) {
@@ -262,6 +280,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
                         const Vec2 d = turned(deg);
                         loose(d.x, d.y, base * 0.9f, true);
                     }
+                    multishot(9.0f, base);
                     break;
                 default: break;
             }
@@ -294,8 +313,6 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         return;
     }
 
-    // Whatever is let off next, a crossbow has to be spanned again after it.
-    struct Respan { Player& who; ~Respan() { who.StartReload(); } } respan{player};
     const bool fan = in_hand && in_hand->weapon_class == "knives" && atk.type != AttackType::Light &&
                      atk.move == ComboMove::None;
     if (fan) {
@@ -748,6 +765,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         for (int i = 1; i < 8; ++i) queued_shots.push_back({0.07f * i, projectile_id, damage_mult, (i % 2 ? 1.0f : -1.0f) * 2.5f * ((i + 1) / 2), casting});
     } else {
         loose(aim.x, aim.y, damage_mult, true);
+        multishot(7.0f, damage_mult);
         // Spell Echo: a plain bolt is sometimes followed by a second, for
         // nothing, a little off the line of the first.
         const float echo = style == AttackStyle::Magic ? player.talents.Effect("echo", style) : 0.0f;
@@ -1142,7 +1160,11 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     // The player's talents. Everything that reaches this function is the
     // player hitting something, so they apply to all of it.
     std::uniform_real_distribution<float> unit(0.0f, 1.0f);
-    bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style);
+    // And the charm on the weapon in hand: Precision, Ferocity, Affliction.
+    const ItemDef* charmed = player.equipment.Weapon();
+    const float charm_crit = charmed ? charmed->crit_chance : 0.0f;
+    const float charm_crit_damage = charmed ? charmed->crit_damage : 0.0f;
+    bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style) + charm_crit;
     if (crit_next) crit = true;             // loosed with Take Aim
     // A riposte, the lunge a parry owes: it always lands critically.
     if (style == AttackStyle::Melee && player.Attack().riposte) crit = true;
@@ -1155,7 +1177,7 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     // Executioner: what is nearly down is always struck critically.
     const float execute = player.talents.Effect("execute", style);
     if (execute > 0.0f && e.HealthFraction() < execute) crit = true;
-    if (crit) damage_mult *= 1.5f + player.talents.Effect("crit_damage", style);
+    if (crit) damage_mult *= 1.5f + player.talents.Effect("crit_damage", style) + charm_crit_damage;
 
     // The passives that ask where, when and on what. Each is its tree's, so a
     // hero's Momentum does nothing for a bow in the hero's hand.
@@ -1211,6 +1233,9 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
 
     if (!r.hit) {
         AddText("miss", e.x, e.y - 46.0f, {150, 150, 168, 235});
+        // A thrown knife that misses is heard going by. Nothing else's miss
+        // makes a sound, so a swing's is left as it was: see knife_next.
+        if (knife_next) Audio::PlayAt(Sfx::Whiff, e.x, e.y);
         return;
     }
 
@@ -1225,8 +1250,14 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         Audio::PlayAt(Sfx::Block, e.x, e.y);
         return;
     }
-    // A killing blow is heard as the death, not as a hit on top of it.
-    if (damage < e.hp)
+    // A knife is heard going in, the throw that kills as much as any: a thin
+    // blade sinking into something is not a blow, and without it a killing
+    // throw was heard only as the death, with nothing of the knife in it.
+    // A killing blow of anything else is heard as the death, not as a hit
+    // on top of it.
+    if (knife_next)
+        Audio::PlayAt(Sfx::KnifeHit, e.x, e.y);
+    else if (damage < e.hp)
         Audio::PlayAt(r.max_hit ? Sfx::HitCrit : Sfx::Hit, e.x, e.y);
 
     e.Damage(damage);
@@ -1268,6 +1299,8 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
             if (const ItemDef* blade = player.equipment.Weapon()) proc = blade->on_hit;
         // A combo that always leaves its mark: the mace's Skull Crack.
         if (twist && twist->status != Status::COUNT) proc = {twist->status, 1.0f};
+        // Affliction: whatever it leaves, it leaves more often.
+        if (proc.Any() && charmed) proc.chance += charmed->proc_bonus;
         TryAfflict(e, proc, damage, ctx);
     }
 
@@ -1306,6 +1339,16 @@ void World::AfflictPlayer(const StatusProc& proc, int blow, float charm_x, float
     if (!proc.Any() || !statuses_now || player.IsDead() || player.hp <= 0) return;
     const float chance = std::clamp(proc.chance * player.StatusInvites(proc.kind), 0.0f, 1.0f);
     if (std::uniform_real_distribution<float>(0.0f, 1.0f)(afflict_dice) >= chance) return;
+    // Warded against it, it does not take -- and says so, when it would have,
+    // so a ward is seen to be doing something. The roll is made all the same:
+    // the dice run on as they would have without the draught.
+    if (player.Warded(proc.kind)) {
+        const StatusDef* d = statuses_now->Get(proc.kind);
+        const SDL_Color c = d ? d->color : SDL_Color{200, 220, 255, 255};
+        AddText("warded", player.x, player.y - 70.0f, {static_cast<Uint8>((c.r + 255) / 2),
+                static_cast<Uint8>((c.g + 255) / 2), static_cast<Uint8>((c.b + 255) / 2), 255}, 0.9f);
+        return;
+    }
     const bool had = player.Afflicted(proc.kind);
     const Status took = player.Afflict(proc.kind, blow, *statuses_now, charm_x, charm_y);
     if (took == Status::COUNT || (had && took == proc.kind)) return;

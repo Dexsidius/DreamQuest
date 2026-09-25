@@ -1,5 +1,5 @@
 {
- "_comment": "Material tiers. Every tier makes the same pieces, and the game builds the items and their recipes from this file: see ItemDatabase::LoadTiers. A piece's stats are its tier's power times the piece's factors; its requirement is the tier's level in the piece's skill. 'ids' and 'names' keep the items that existed before tiers under their old ids, so saves, quests and loot tables still find them. Axes and pickaxes are tools rather than gear: carried, not worn, needing the tier's level in Woodcutting or Mining, and each tier works faster by its 'tool_speed'. Three kinds of armour, one for each way of fighting, and each helps only its own: a tier's metal helm, cuirass and greaves carry 'style_bonus' -- Attack and Strength, scaled by the tier's weapon power -- and 'sets' are the two that are not metal, the ranger's hides and the mage's robes, built for every tier by the same loader. A set piece's defence is the tier's armour power times its 'defence', its Ranged or Magic bonus the tier's weapon power times its 'style', and it needs the tier's level in the set's skill. Hides are cut from the tier's own hide, which something has to be killed for; robes from bolts of cloth and the tier's dye, which is brewed from the herb named.",
+ "_comment": "Material tiers. Every tier makes the same pieces, and the game builds the items and their recipes from this file: see ItemDatabase::LoadTiers. A piece's stats are its tier's power times the piece's factors; its requirement is the tier's level in the piece's skill. 'ids' and 'names' keep the items that existed before tiers under their old ids, so saves, quests and loot tables still find them. Axes and pickaxes are tools rather than gear: carried, not worn, needing the tier's level in Woodcutting or Mining, and each tier works faster by its 'tool_speed'. Three kinds of armour, one for each way of fighting, and each helps only its own: a tier's metal helm, cuirass, greaves, gauntlets and boots carry 'style_bonus' -- Attack and Strength, scaled by the tier's weapon power -- and 'sets' are the two that are not metal, the ranger's hides and the mage's robes, built for every tier by the same loader. A set piece's defence is the tier's armour power times its 'defence', its Ranged or Magic bonus the tier's weapon power times its 'style', and it needs the tier's level in the set's skill. Hides are cut from the tier's own hide, which something has to be killed for; robes from bolts of cloth and the tier's dye, which is brewed from the herb named. A piece's 'layer' names the character sheet it is drawn on: 'hands' is the gauntlet layer, and 'feet' names no sheet at all, so boots of every kind are worn without being drawn -- and, having a layer, without washing the character in their colour either.",
  "pieces": {
   "sword": {
    "slot": "weapon",
@@ -186,6 +186,44 @@
    "style_bonus": {
     "attack": 0.12,
     "strength": 0.15
+   }
+  },
+  "gauntlets": {
+   "slot": "hands",
+   "skill": "Defence",
+   "noun": "Gauntlets",
+   "power": "armour",
+   "bonus": {
+    "defence": 0.3
+   },
+   "value": 30,
+   "bars": 2,
+   "extra": {},
+   "craft_offset": 1,
+   "desc": "Lames over the knuckles and a flared cuff. A good grip on a hilt, and on nothing smaller.",
+   "layer": "hands",
+   "style_bonus": {
+    "attack": 0.08,
+    "strength": 0.1
+   }
+  },
+  "boots": {
+   "slot": "feet",
+   "skill": "Defence",
+   "noun": "Boots",
+   "power": "armour",
+   "bonus": {
+    "defence": 0.35
+   },
+   "value": 34,
+   "bars": 2,
+   "extra": {},
+   "craft_offset": 2,
+   "desc": "Plate from the ankle to the toe over a hobnailed sole. Nobody creeps up on anything in them.",
+   "layer": "feet",
+   "style_bonus": {
+    "attack": 0.072,
+    "strength": 0.08
    }
   },
   "axe": {
@@ -752,6 +790,8 @@
     "helm": "Barkwood Helm",
     "body": "Barkwood Cuirass",
     "legs": "Barkwood Greaves",
+    "gauntlets": "Barkwood Gauntlets",
+    "boots": "Barkwood Boots",
     "pickaxe": "Wooden Pickaxe",
     "spear": "Fire-hardened Spear"
    },
@@ -783,6 +823,14 @@
     },
     "legs": {
      "logs": 3,
+     "hide": 1
+    },
+    "gauntlets": {
+     "logs": 1,
+     "hide": 1
+    },
+    "boots": {
+     "logs": 2,
      "hide": 1
     },
     "axe": {
@@ -1141,6 +1189,30 @@
      "value": 32,
      "craft_offset": 2,
      "desc": "Wrapped to the knee and soft underfoot."
+    },
+    "hands": {
+     "noun": "Gloves",
+     "slot": "hands",
+     "layer": "hands",
+     "defence": 0.21,
+     "style": 0.15,
+     "material": 1,
+     "thread": 1,
+     "value": 24,
+     "craft_offset": 1,
+     "desc": "Two fingers left thin for the string, and fur at the wrist."
+    },
+    "feet": {
+     "noun": "Striders",
+     "slot": "feet",
+     "layer": "feet",
+     "defence": 0.25,
+     "style": 0.15,
+     "material": 2,
+     "thread": 1,
+     "value": 26,
+     "craft_offset": 1,
+     "desc": "Soft-soled and laced to the calf, for a long way on foot without being heard."
     }
    },
    "tiers": {
@@ -1315,6 +1387,32 @@
      "value": 30,
      "craft_offset": 2,
      "desc": "To the ankle. Walking in it is a skill, and not one of the listed ones."
+    },
+    "hands": {
+     "noun": "Gloves",
+     "slot": "hands",
+     "layer": "hands",
+     "defence": 0.14,
+     "style": 0.16,
+     "material": 1,
+     "thread": 1,
+     "dye": 1,
+     "value": 22,
+     "craft_offset": 1,
+     "desc": "Fine enough to turn a page, and to shape a spell without fumbling it."
+    },
+    "feet": {
+     "noun": "Slippers",
+     "slot": "feet",
+     "layer": "feet",
+     "defence": 0.16,
+     "style": 0.16,
+     "material": 1,
+     "thread": 1,
+     "dye": 1,
+     "value": 24,
+     "craft_offset": 1,
+     "desc": "Pointed at the toe and silent on a library floor. Less use in a bog."
     }
    },
    "tiers": {

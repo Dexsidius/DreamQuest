@@ -22,6 +22,10 @@ enum class Sfx {
     Door, Portal, Locked, Winded, Sleep, Wake, Splash,
     UiMove, UiConfirm, UiBack, UiError,
     LevelUp, QuestStart, QuestComplete,
+    // Appended, never inserted: the numbers are what co-op sends (Delta::Sound),
+    // and everything from UiMove to QuestComplete is taken for a guest's own
+    // sound and never sent to her.
+    Throw, KnifeHit, Whiff,
     Count
 };
 

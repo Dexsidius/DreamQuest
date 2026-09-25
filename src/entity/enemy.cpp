@@ -767,9 +767,13 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 dist <= def->shoot_range && dist > def->attack_range) {
                 SetState(State::Attack);
                 chase_run = 0.0f;
-                // A caster is heard casting, and not loosing an arrow.
-                if (def->spells.empty()) Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
-                else                     Audio::PlayAt(Sfx::SpellCast, x, y, 0.55f, 0.8f);
+                // A caster is heard casting, and not loosing an arrow. What is
+                // thrown by hand -- a slinger's rock, a troll's lump of ice --
+                // has no string to twang: it is heard when it leaves the hand,
+                // below, and not at the start of the wind-up.
+                const ProjectileDef* ammo = ctx.projectiles ? ctx.projectiles->Get(def->shoots) : nullptr;
+                if (!def->spells.empty())        Audio::PlayAt(Sfx::SpellCast, x, y, 0.55f, 0.8f);
+                else if (!ammo || !ammo->thrown) Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
                 shooting = true;
                 swinging = true;
                 swing_landed = false;
@@ -822,6 +826,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 const ProjectileDef* pd = ctx.projectiles ? ctx.projectiles->Get(shot) : nullptr;
                 world.SpawnProjectile(shot, x, y - 18.0f, dx / len, dy / len,
                                       Profile(), AttackStyle::Ranged, pd ? pd->power : 1.0f, false, ctx);
+                // Thrown: heard now, as it leaves the hand, and lower the
+                // bigger the thing thrown.
+                if (pd && pd->thrown) Audio::PlayAt(Sfx::Throw, x, y, 0.6f, pd->ThrowPitch());
             } else if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
                 swing_landed = true;
                 // On the ground, and not up or down a cliff: see StrikeArc.

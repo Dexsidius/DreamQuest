@@ -883,8 +883,11 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
             if (hazard_timer <= 0.0f) {
                 hazard_timer = HAZARD_TICK;
                 // Ground that burns takes half as much out of anyone wearing
-                // the Drowned King's boots.
-                const float share = player.Passive(Player::PASSIVE_MARSHSTRIDE) ? 0.5f : 1.0f;
+                // the Drowned King's boots, and half out of anyone warded
+                // against burning -- the two do not add up to nothing.
+                const bool fire_warded = h->kind == "fire" && player.Warded(Status::Burn);
+                const float share = (player.Passive(Player::PASSIVE_MARSHSTRIDE) || fire_warded)
+                                        ? std::min(0.5f, Player::FIRE_WARD_GROUND) : 1.0f;
                 const int dmg = std::max(1, static_cast<int>(std::lround(h->dps * HAZARD_TICK * share)));
                 player.Damage(dmg);
                 player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);

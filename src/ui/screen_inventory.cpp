@@ -556,8 +556,16 @@ float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
     const bool compare = (d.slot != SLOT_NONE) && !GoesInOtherHand(d);
 
     if (d.slot != SLOT_NONE) {
-        ui.Text(WornAgainstLine(d), x, y, TextSize::Small, Palette::TextDim);
-        y += row + 2.0f;
+        // The longest names in the game are enchanted gloves -- "Instead of
+        // Orichalcum Gauntlets of the Hawk's Eye" -- and a narrow pane cannot
+        // hold them on one line, so one that does not fit takes two.
+        const string head = WornAgainstLine(d);
+        if (ui.Measure(head, TextSize::Small).x <= w) {
+            ui.Text(head, x, y, TextSize::Small, Palette::TextDim);
+            y += row + 2.0f;
+        } else {
+            y += ui.TextWrapped(head, x, y, w, TextSize::Small, Palette::TextDim) + 2.0f;
+        }
     }
     for (const ItemStat& r : ItemStatLines(d, worn, compare)) {
         ui.Text(r.label, x, y, TextSize::Small, Palette::Text);
@@ -582,6 +590,18 @@ float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
             const int gain = ItemDef::BoostGain(b.second, p.skills.Level(b.first));
             char buf[64];
             SDL_snprintf(buf, sizeof(buf), "+%d %s   ", gain, SkillName(b.first));
+            line += buf;
+        }
+        // A ward says what it keeps off, and for how long.
+        if (!d.ward.empty()) {
+            string names;
+            for (Status s : d.ward) {
+                const StatusDef* sd = status_db.Get(s);
+                names += (names.empty() ? "" : ", ") + (sd ? sd->name : string(StatusId(s)));
+            }
+            char buf[96];
+            SDL_snprintf(buf, sizeof(buf), "wards off %s for %d min   ", names.c_str(),
+                         static_cast<int>(d.ward_minutes + 0.5f));
             line += buf;
         }
         if (!line.empty()) y += ui.TextWrapped(line, x, y, w, TextSize::Small, Palette::Xp);

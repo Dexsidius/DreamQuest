@@ -1,6 +1,7 @@
 #pragma once
 #include "../world/world.h"
 #include "../net/session.h"
+#include "../systems/audio.h"
 #include <deque>
 
 // ---------------------------------------------------------------------------
@@ -63,6 +64,11 @@ void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx);
 // than the world's: never told to anyone else, and sent to the host in the
 // Sheet so it can answer for them.
 bool PrivateFlag(const string& key);
+
+// Which sounds a friend's own window already plays for her own character --
+// her swing, her footfall, her menus -- and so are never sent to her. Every
+// other sound the host hears is told: a monster's throw, a knife going in.
+bool OwnSound(Sfx s);
 
 // --- a character, kept ---------------------------------------------------------
 // A guest's character lives on their own machine: the player, the journal,

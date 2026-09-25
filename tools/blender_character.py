@@ -482,13 +482,16 @@ ARMOUR_GROUPS = (ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD)
 #   ornate  demonite and above -- horned helm, winged pauldrons, a heavier skirt
 #
 # And two that are not metal at all, worn by whoever does not fight with a
-# blade. They are a set of three -- head, body, legs -- so only those groups are
-# rendered for them:
+# blade. They have no shield -- that is a tier piece in its own cut -- so only
+# head, body, hands and legs are rendered for them. Their boots are worn but
+# not drawn: the feet are the soft boots and slippers inside the legs group.
 #
 #   hide    the ranger's leathers -- a fur-lined hood, a jerkin with a fur
-#           collar and a quiver on the back, bracers, wrapped legs, soft boots
+#           collar and a quiver on the back, bracers, wrapped legs, soft boots,
+#           and dark gloves with fur at the wrist
 #   robe    the mage's -- a pointed hat with a brim, a mantled robe with bell
-#           sleeves, and a skirt to the ankle
+#           sleeves, a skirt to the ankle, and cloth gloves with a band wound
+#           round the knuckles
 ARMOUR_STYLES = ("light", "plate", "ornate", "hide", "robe")
 SOFT_STYLES = ("hide", "robe")
 ARMOUR_STYLE = "plate"
@@ -854,6 +857,19 @@ def build_soft_armour(g, joints, chest, skirt, head_tilt, head_c):
                 part("soft_boot_" + side, mesh_ellipsoid(0.082, 0.116, 0.060), "plate_dk", kn,
                      loc=(0, -0.038, -0.152)),
             ]
+        # --- gloves: dark leather over the mitten and a thick ring of fur at
+        # the wrist, where it laps over the end of the bracer. Both are well
+        # outside the hand: a glove the size of the hand it covers is two
+        # pixels of colour at this scale, and the fur is what says "glove"
+        # rather than "a darker hand".
+        for side in ("r", "l"):
+            ha = joints["hand_" + side]
+            g[ARM_HANDS] += [
+                part("glove_" + side, mesh_ellipsoid(0.078, 0.072, 0.084), "plate_dk", ha,
+                     loc=(0, 0, -0.020)),
+                part("glove_fur_" + side, mesh_torus(0.068, 0.036), "plate_lt", ha,
+                     loc=(0, 0, 0.042)),
+            ]
         # --- hood: a cap set back on the skull with a fur-lined brow, a drape
         # behind and a peak. Like the helm it is not cut by the head, so nothing
         # of it may come below the brow at the front.
@@ -891,6 +907,25 @@ def build_soft_armour(g, joints, chest, skirt, head_tilt, head_c):
             part("sleeve_bell_" + side, mesh_capsule(0.064, 0.094, 0.098), "plate", el),
             part("sleeve_trim_" + side, mesh_torus(0.090, 0.017), "plate_lt", el,
                  loc=(0, 0, -0.100)),
+        ]
+    # --- gloves: dark cloth over the mitten, a pale band wound round the
+    # knuckles and a pale turned-back cuff. The robe and its sleeves are the
+    # middle shade, and the light one is barely lighter than that once the
+    # tier's colour is multiplied in: gloves in either vanished into the
+    # sleeve they hang from, so the glove is the dark shade. From behind, the
+    # flared skirt hides the hand and the forearm fills the cuff, so the cuff
+    # is all that shows. The hands layer is drawn over the bell of the
+    # sleeve, so nothing of the glove may reach up the forearm: a longer cuff
+    # is painted on top of the sleeve and the sleeve looks tucked into it.
+    for side in ("r", "l"):
+        ha = joints["hand_" + side]
+        g[ARM_HANDS] += [
+            part("glove_" + side, mesh_ellipsoid(0.072, 0.066, 0.080), "plate_dk", ha,
+                 loc=(0, 0, -0.022)),
+            part("glove_wrap_" + side, mesh_torus(0.066, 0.014), "plate_lt", ha,
+                 loc=(0, 0, -0.044)),
+            part("glove_cuff_" + side, mesh_torus(0.066, 0.026), "plate_lt", ha,
+                 loc=(0, 0, 0.032)),
         ]
     # --- the skirt: a cone from the hips to the ankle. It hangs from the hips
     # rather than from the legs, so a walk swings the feet out from under the
@@ -2171,9 +2206,10 @@ def build_sheet(clip_name, out_dir):
     suffix = "_" + ARMOUR_STYLE if alt else ""
     if alt:
         order = [(l, i) for l, i in order if l in ARMOUR_GROUPS]
-    # Hides and robes are head, body and legs: there is no hide gauntlet to draw.
+    # Hides and robes are head, body, hands and legs. There is no hide shield:
+    # a shield is a tier piece and wears its own tier's cut.
     if ARMOUR_STYLE in SOFT_STYLES:
-        order = [(l, i) for l, i in order if l in (ARM_LEGS, ARM_BODY, ARM_HEAD)]
+        order = [(l, i) for l, i in order if l != ARM_SHIELD]
 
     written = []
     for layer, index in order:

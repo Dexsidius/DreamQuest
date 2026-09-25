@@ -325,6 +325,7 @@
     "homing": 1.5,
     "element": "none",
     "impact_size": 5,
+    "thrown": true,
     "status": {"id": "concussed", "chance": 0.15}
   },
 
@@ -523,7 +524,8 @@
     "homing": 5.0,
     "element": "none",
     "tint": [255, 255, 255],
-    "impact_size": 4
+    "impact_size": 4,
+    "thrown": true
   },
 
   "flame_jet": {
@@ -1006,7 +1008,8 @@
       "knockback": 110,
       "element": "water",
       "impact_size": 11,
-      "homing": 1.0
+      "homing": 1.0,
+      "thrown": true
   },
   "yeti_snowball": {
       "status": {
@@ -1029,6 +1032,7 @@
       "element": "water",
       "impact_size": 11,
       "homing": 1.0,
-      "scale": 1.4
+      "scale": 1.4,
+      "thrown": true
   }
 }

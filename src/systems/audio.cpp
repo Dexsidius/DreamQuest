@@ -443,6 +443,41 @@ Buf Make(Sfx s) {
         Normalize(b, 0.45f);
         break;
     }
+    case Sfx::Throw:
+        // Something let go of by hand -- a rock, a lump of ice, a snowball --
+        // and nothing but air: no string, no steel. The arm coming over is a
+        // dark swell that brightens, and the thing leaving falls away from
+        // it, so it reads as one "fwoo-sh". A Swing starts bright and only
+        // falls; a knife's throw is thin and sharp at the front; this is
+        // softer and fuller than either, with a muffled puff where it leaves.
+        b = Blank(0.24f);
+        Hiss(b, 0.00f, 0.13f, 1.0f, 0.060f, 0.050f, 700.0f, 2400.0f, 260.0f, 71);
+        Hiss(b, 0.08f, 0.15f, 0.7f, 0.010f, 0.050f, 2400.0f, 900.0f, 320.0f, 72);
+        Hiss(b, 0.07f, 0.05f, 0.45f, 0.004f, 0.015f, 520.0f, 300.0f, 80.0f, 73);
+        LowpassAll(b, 6000.0f);
+        Normalize(b, 0.34f);
+        break;
+    case Sfx::KnifeHit:
+        // A blade going into something: a short, dull thunk -- higher and
+        // shorter than Hit's blow, and muffled by what it went into -- with a
+        // thin bright tick of the point on top of it.
+        b = Blank(0.17f);
+        Tone(b, 0.0f, 0.14f, 240.0f, 105.0f, 0.9f, 0.001f, 0.028f);
+        Hiss(b, 0.0f, 0.045f, 0.6f, 0.0005f, 0.010f, 1400.0f, 600.0f, 150.0f, 81);
+        Tone(b, 0.0f, 0.03f, 3300.0f, 2900.0f, 0.22f, 0.0005f, 0.008f, TRI);
+        Hiss(b, 0.0f, 0.012f, 0.35f, 0.0003f, 0.003f, 9000.0f, 7000.0f, 3000.0f, 82);
+        LowpassAll(b, 8000.0f);
+        Normalize(b, 0.50f);
+        break;
+    case Sfx::Whiff:
+        // A blade through empty air: the edge and not the arm, so thinner and
+        // quicker than a Swing -- a swell and gone, falling as it goes by. It
+        // is the knife's throw turned round: that one rises as it leaves.
+        b = Blank(0.16f);
+        Hiss(b, 0.0f, 0.15f, 1.0f, 0.030f, 0.030f, 6500.0f, 2600.0f, 1900.0f, 91);
+        LowpassAll(b, 10000.0f);
+        Normalize(b, 0.30f);
+        break;
     default:
         b = Blank(0.01f);
         break;

@@ -121,6 +121,14 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             p.finished = true;
             BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
                     std::max(0.75f, p.def->radius / 6.0f) * 0.5f, 0.0f, 0.0f);
+            // A thrown knife that struck nothing is heard going by, once. It
+            // is the sound of its whole flight, so it is placed halfway along
+            // it: at the end of a knife's range (some 240 px) a sound fades to
+            // two-fifths, and the thrower is the one it is for. Halfway it is
+            // still heard off to the side the knife went. What pierced
+            // something on the way was heard going in, and is not a miss.
+            if (p.from_player && p.def->thrown && !p.show && p.already_hit.empty())
+                Audio::PlayAt(Sfx::Whiff, (p.x + p.from_x) * 0.5f, (p.y + p.from_y) * 0.5f);
         }
 
         // Homing: turn toward the monster it was loosed at, no faster than the
@@ -238,8 +246,13 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                         crit_next = p.sure_crit;
                         cast_next = p.cast_id;
                         proc_next = p.def->status;
+                        // An arrow, a bolt or a knife leaves nothing of its
+                        // own; a Brand on the bow that loosed it does.
+                        if (!proc_next.Any() && p.style == AttackStyle::Ranged)
+                            if (const ItemDef* bow = player.equipment.Weapon()) proc_next = bow->on_hit;
                         leech_next = p.def->leech;
                         pierce_next = p.def->armour_pierce;
+                        knife_next = p.def->thrown;
                         HitEnemy(*e, p.owner, p.style, p.element, p.damage_mult,
                                  p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
                         if (p.combo != ComboMove::None)
@@ -249,6 +262,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                         proc_next = {};
                         leech_next = 0.0f;
                         pierce_next = 0.0f;
+                        knife_next = false;
                     });
                     // It breaks on what it strikes, back the way it came --
                     // and on everything it goes through, which is how a bolt

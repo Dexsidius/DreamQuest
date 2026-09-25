@@ -676,10 +676,26 @@
                                                     "w":  32,
                                                     "h":  32
                                                 },
+                   "tiles/plank_floor_pale":  {
+                                                  "w":  32,
+                                                  "h":  32
+                                              },
+                   "tiles/plank_floor_pale_1":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
+                   "tiles/plank_floor_pale_2":  {
+                                                    "w":  32,
+                                                    "h":  32
+                                                },
                    "tiles/plaster_wall":  {
                                               "w":  32,
                                               "h":  32
                                           },
+                   "tiles/plaster_wall_pale":  {
+                                                   "w":  32,
+                                                   "h":  32
+                                               },
                    "tiles/plaster_wall_warm":  {
                                                    "w":  32,
                                                    "h":  32
@@ -1796,6 +1812,26 @@
                                             "w":  64,
                                             "h":  64
                                         },
+                   "props/bee_shed":  {
+                                          "w":  96,
+                                          "h":  96
+                                      },
+                   "props/bee_skep":  {
+                                          "w":  36,
+                                          "h":  36
+                                      },
+                   "props/beehive":  {
+                                         "w":  56,
+                                         "h":  56
+                                     },
+                   "props/beehive_blue":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
+                   "props/beehive_green":  {
+                                               "w":  56,
+                                               "h":  56
+                                           },
                    "props/bellows":  {
                                          "w":  56,
                                          "h":  56
@@ -2196,6 +2232,14 @@
                                                  "w":  48,
                                                  "h":  48
                                              },
+                   "props/house_rug":  {
+                                           "w":  160,
+                                           "h":  160
+                                       },
+                   "props/house_rug_trim":  {
+                                                "w":  160,
+                                                "h":  160
+                                            },
                    "props/howe_hall":  {
                                            "w":  352,
                                            "h":  352
@@ -2244,6 +2288,10 @@
                                              "w":  128,
                                              "h":  128
                                          },
+                   "props/lavender_bed":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "props/lectern":  {
                                          "w":  56,
                                          "h":  56
@@ -2548,6 +2596,14 @@
                                                 "w":  64,
                                                 "h":  64
                                             },
+                   "props/tapestry_house":  {
+                                                "w":  64,
+                                                "h":  64
+                                            },
+                   "props/tapestry_house_trim":  {
+                                                     "w":  64,
+                                                     "h":  64
+                                                 },
                    "props/tapestry_red":  {
                                               "w":  64,
                                               "h":  64

@@ -734,6 +734,70 @@
   },
   "icon": "assets/icons/tiers/starlily.png"
  },
+ "swallowtail": {
+  "tags": [
+   "bug",
+   "brewing"
+  ],
+  "name": "Swallowtail Butterfly",
+  "desc": "Yellow barred with black, and a tail to each hind wing. It drifts between the trees of the Whisperwood and the Brackenwood, and a slow hand can close round one.",
+  "stack": true,
+  "value": 10,
+  "catch": {
+   "level": 9,
+   "xp": 55,
+   "lives": "forest"
+  },
+  "icon": "assets/icons/tiers/swallowtail.png"
+ },
+ "marsh_dragonfly": {
+  "tags": [
+   "bug",
+   "brewing"
+  ],
+  "name": "Marsh Dragonfly",
+  "desc": "Blue-green and as quick as a thrown knife. It hunts the Bayou's open water and rests on the reeds at the edge of it.",
+  "stack": true,
+  "value": 30,
+  "catch": {
+   "level": 32,
+   "xp": 142,
+   "lives": "bayou"
+  },
+  "icon": "assets/icons/tiers/marsh_dragonfly.png"
+ },
+ "firebug": {
+  "tags": [
+   "bug",
+   "brewing"
+  ],
+  "name": "Firebug",
+  "desc": "A beetle with an ember for a tail, warm through the jar. It lives where the lava runs on the Ashen Path.",
+  "stack": true,
+  "value": 54,
+  "catch": {
+   "level": 50,
+   "xp": 223,
+   "lives": "lava"
+  },
+  "icon": "assets/icons/tiers/firebug.png"
+ },
+ "rime_beetle": {
+  "tags": [
+   "bug",
+   "brewing"
+  ],
+  "name": "Rime Beetle",
+  "desc": "A hard little beetle glazed with a frost that never melts. It picks its way over the ice of the high cold.",
+  "stack": true,
+  "value": 77,
+  "catch": {
+   "level": 62,
+   "xp": 287,
+   "lives": "ice"
+  },
+  "icon": "assets/icons/tiers/rime_beetle.png"
+ },
  "vial": {
   "tags": [
    "brewing",
@@ -1090,6 +1154,202 @@
   "desc": "Brewing notes in a careful hand. Read it to learn to brew Starlily Panacea.",
   "value": 428,
   "learn": "starlily_panacea",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "swallowtail_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Swallowtail Draught",
+  "desc": "As bright as the wing it was made from, and it leaves the eye as quick. Boosts Attack by 3 and a twelfth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Attack": [
+    3,
+    0.08
+   ]
+  },
+  "recipe_from": "Hob sells the recipe from his pack in the Whisperwood.",
+  "craft": {
+   "result": "swallowtail_draught",
+   "qty": 1,
+   "xp": 38,
+   "level": 9,
+   "inputs": {
+    "swallowtail": 2,
+    "marigold": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/swallowtail_draught.png"
+ },
+ "scroll_swallowtail_draught": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Swallowtail Draught",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Swallowtail Draught.",
+  "value": 74,
+  "learn": "swallowtail_draught",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "honeyed_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Honeyed Draught",
+  "desc": "Sweet enough to get down on the run. Restores 30 hitpoints and all stamina.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "heal": 30,
+  "stamina": true,
+  "recipe_from": "Isolde sells the recipe at Hidewater in the Westwold.",
+  "craft": {
+   "result": "honeyed_draught",
+   "qty": 1,
+   "xp": 45,
+   "level": 12,
+   "inputs": {
+    "honey": 1,
+    "marigold": 1,
+    "nettle": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/honeyed_draught.png"
+ },
+ "scroll_honeyed_draught": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Honeyed Draught",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Honeyed Draught.",
+  "value": 92,
+  "learn": "honeyed_draught",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "skimmer_tonic": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Skimmer Tonic",
+  "desc": "Blue-green and never quite still in the glass. Restores 60 mana and boosts Magic by 3 and a tenth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "mana": 60,
+  "boost": {
+   "Magic": [
+    3,
+    0.1
+   ]
+  },
+  "recipe_from": "Oona sells the recipe in Mossvale.",
+  "craft": {
+   "result": "skimmer_tonic",
+   "qty": 1,
+   "xp": 86,
+   "level": 32,
+   "inputs": {
+    "marsh_dragonfly": 2,
+    "bogbean": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/skimmer_tonic.png"
+ },
+ "scroll_skimmer_tonic": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Skimmer Tonic",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Skimmer Tonic.",
+  "value": 212,
+  "learn": "skimmer_tonic",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "cinderbug_ward": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Cinderbug Ward",
+  "desc": "Warm through the glass, and it keeps the warmth in rather than letting more in. For five minutes nothing can set you burning, and burning ground bites half as hard.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "ward": {
+   "statuses": [
+    "burn"
+   ],
+   "minutes": 5
+  },
+  "recipe_from": "Garrow sells the recipe at his smithy in Mossvale.",
+  "craft": {
+   "result": "cinderbug_ward",
+   "qty": 1,
+   "xp": 130,
+   "level": 50,
+   "inputs": {
+    "firebug": 2,
+    "emberbloom": 1,
+    "honey": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/cinderbug_ward.png"
+ },
+ "scroll_cinderbug_ward": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Cinderbug Ward",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Cinderbug Ward.",
+  "value": 320,
+  "learn": "cinderbug_ward",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "rimeshell_ward": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Rimeshell Ward",
+  "desc": "As cold as the beetle and as hard to get into. For five minutes no frost can chill you or freeze you.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "ward": {
+   "statuses": [
+    "chill",
+    "frozen"
+   ],
+   "minutes": 5
+  },
+  "recipe_from": "The College copying room in Fernhollow sells the recipe.",
+  "craft": {
+   "result": "rimeshell_ward",
+   "qty": 1,
+   "xp": 168,
+   "level": 62,
+   "inputs": {
+    "rime_beetle": 2,
+    "mountain_sage": 1,
+    "honey": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/rimeshell_ward.png"
+ },
+ "scroll_rimeshell_ward": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Rimeshell Ward",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Rimeshell Ward.",
+  "value": 392,
+  "learn": "rimeshell_ward",
   "icon": "assets/icons/tiers/recipe_scroll.png"
  },
  "scroll_enchant_warding": {
@@ -1621,6 +1881,17 @@
   "value": 9,
   "icon": "assets/icons/tiers/milk.png"
  },
+ "honey": {
+  "tags": [
+   "food",
+   "farm"
+  ],
+  "name": "Honey",
+  "desc": "Thick and gold and smelling of clover, taken warm from the hives by Farmer Aldous's fields in the Westwold.",
+  "stack": true,
+  "value": 8,
+  "icon": "assets/icons/tiers/honey.png"
+ },
  "wool": {
   "tags": [
    "cloth",
@@ -1959,7 +2230,7 @@
    "dish"
   ],
   "name": "Honeyed Oats",
-  "desc": "Oats, milk and what the hedgerow gave up. The first thing anybody learns to make that is not simply burnt.",
+  "desc": "Oats and milk, an egg beaten in, and honey from the Westwold hives over the top. The first thing anybody learns to make that is not simply burnt.",
   "stack": true,
   "value": 45,
   "consume": true,
@@ -1980,7 +2251,8 @@
    "station": "range",
    "inputs": {
     "milk": 1,
-    "egg": 1
+    "egg": 1,
+    "honey": 1
    }
   }
  },
@@ -2428,5 +2700,125 @@
   "value": 0,
   "icon": "assets/props/totem_abominable.png",
   "keep": true
+ },
+ "scroll_enchant_affliction": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Affliction",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Affliction, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:affliction",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_precision": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Precision",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Precision, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:precision",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_sorcery": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Sorcery",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Sorcery, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:sorcery",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_quickdraw": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Quickdraw",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Quickdraw, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:quickdraw",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_multishot": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Multishot",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Multishot, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:multishot",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_vampiric": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Vampiric",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Vampiric, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:vampiric",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_ferocity": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Ferocity",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Ferocity, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:ferocity",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_brand_bleeding": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Brand of Bleeding",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn the Brand of Bleeding, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:brand_bleeding",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_brand_venom": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Brand of Venom",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn the Brand of Venom, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:brand_venom",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_brand_frost": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Brand of Frost",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn the Brand of Frost, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:brand_frost",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_brand_embers": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Brand of Embers",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn the Brand of Embers, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:brand_embers",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "scroll_enchant_thrift": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Charm: Thrift",
+  "desc": "A rune for a weapon, and the words to say over it at every strength the hand can manage. Read it to learn Thrift, worked into a weapon at an enchanting table.",
+  "value": 220,
+  "learn": "enchant:thrift",
+  "icon": "assets/icons/tiers/enchant_scroll.png"
  }
 }

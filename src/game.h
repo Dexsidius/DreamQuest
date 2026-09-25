@@ -424,6 +424,7 @@ private:
     // helmet sitting in the bag -- which is exactly the case the card beside
     // the cursor is for.
     string   launch_bag;
+    string   launch_totem;       // --totem: stood in the ring at home, awake or ":asleep"
     float    launch_at_x = -1.0f, launch_at_y = -1.0f;   // --at x y: stood here, on the map it starts on
     string   launch_slay;        // --slay a,b,c: bosses this scratch character has already brought down
     // Where the quest being followed is, for whoever's HUD is being drawn:
@@ -443,6 +444,7 @@ private:
     // Pushes the saved bindings to both players' inputs.
     void     ApplyBindings();
     int      launch_level = 0;          // --level N: a scratch character starts with its path's skill here
+    string   launch_skills;             // --skills Foraging:50,Fishing:20: and these skills at these levels
     float    launch_charge = 0.0f;     // --charge F: how full the lightning's battery starts
     float    launch_hour = -1.0f;       // --hour H: and at this time of day, for looking at the night or a dream
     string   launch_quests;             // --quest a,b: with these quests taken

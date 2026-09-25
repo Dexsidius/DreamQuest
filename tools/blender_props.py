@@ -3964,6 +3964,153 @@ CLOTHIER_PROPS = {
 
 
 # -----------------------------------------------------------------------------
+#  The house at Mossvale, dressed for a totem
+#
+#  While a totem stands in the ring the room takes its colours: the boards, the
+#  walls, a rug round the ring and hangings on the back wall. The game does it
+#  by multiplying pictures by the totem's colours as it draws them, and a
+#  multiply only darkens -- so these are undyed, pale grey cloth, and each piece
+#  is two pictures laid one on the other: the cloth, tinted with the totem's
+#  cloth colour, and its trim (border, fringe, rod, the ring worked on it)
+#  tinted with its trim colour. A `layer` of "cloth" builds only the one and
+#  "trim" only the other; both are framed the same, and make_props.ps1 sits
+#  them on the floor together and takes the colour out of both.
+#
+#  The cloth has two greys of its own, the pale ground and a deeper field,
+#  which the tint turns into two shades of one colour: a rug of one flat
+#  colour is a mat.
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "undyed":      (0.860, 0.860, 0.860),
+    "undyed_dk":   (0.600, 0.600, 0.600),
+    "undyed_trim": (0.920, 0.920, 0.920),
+})
+
+
+def _flat_ring(name, radius, width, z, colour):
+    bpy.ops.mesh.primitive_torus_add(major_radius=radius, minor_radius=width, location=(0, 0, z),
+                                     major_segments=40, minor_segments=6)
+    ob = bpy.context.active_object
+    ob.name = name
+    ob.scale = (1.0, 1.0, 0.25)
+    ob.data.materials.append(material(name, colour, 0.95))
+    return ob
+
+
+def _house_rug(layer):
+    """The rug the ring stands on: a pale ground, a deeper field inside a
+    worked border, a lozenge in the middle under the ring and a circle worked
+    round it, and a fringe at either end. Seen from as high as the ring is,
+    so it lies on the boards rather than standing up off them."""
+    W, D = 2.40, 1.50
+    if layer == "cloth":
+        blk("ground", (W, D, 0.02), (0, 0, 0.010), "undyed", rough=0.95, bev=0)
+        blk("field", (1.78, 0.96, 0.022), (0, 0, 0.011), "undyed_dk", rough=0.95, bev=0)
+        # The lozenge the ring sits in, in the ground's colour, and a small one
+        # in each end of the field.
+        blk("lozenge", (0.62, 0.62, 0.024), (0, 0, 0.012), "undyed", rot=(0, 0, math.radians(45)),
+            rough=0.95, bev=0)
+        for sx in (-1, 1):
+            blk("end_lozenge_%d" % sx, (0.22, 0.22, 0.024), (sx * 0.64, 0, 0.012), "undyed",
+                rot=(0, 0, math.radians(45)), rough=0.95, bev=0)
+    else:
+        # The border, a band between the ground and the field.
+        bw = 0.09
+        for sy in (-1, 1):
+            blk("band_x_%d" % sy, (1.98, bw, 0.03), (0, sy * (0.48 + bw / 2), 0.015), "undyed_trim", rough=0.9, bev=0)
+        for sx in (-1, 1):
+            blk("band_y_%d" % sx, (bw, 1.14, 0.03), (sx * (0.89 + bw / 2), 0, 0.015), "undyed_trim", rough=0.9, bev=0)
+        # Rosettes where the band turns a corner.
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                blk("rosette_%d_%d" % (sx, sy), (0.17, 0.17, 0.034), (sx * 0.935, sy * 0.525, 0.017), "undyed_trim",
+                    rot=(0, 0, math.radians(45)), rough=0.9, bev=0)
+        # The circle round the ring, and the points of the compass on it.
+        _flat_ring("circle", 0.44, 0.035, 0.03, "undyed_trim")
+        for k in range(4):
+            a = k * math.pi / 2
+            blk("point_%d" % k, (0.10, 0.10, 0.034), (math.cos(a) * 0.44, math.sin(a) * 0.44, 0.017), "undyed_trim",
+                rot=(0, 0, math.radians(45)), rough=0.9, bev=0)
+        # A fringe at either end: tassels, chunky, or it is a hem.
+        for sx in (-1, 1):
+            for k in range(9):
+                y = -0.64 + k * 0.16
+                blk("tassel_%d_%d" % (sx, k), (0.12, 0.07, 0.026), (sx * (W / 2 + 0.05), y, 0.013), "undyed_trim",
+                    rough=0.95, bev=0)
+    return (2.9, 62.0)
+
+
+def _cloth_shape(name, outline, y, depth, colour):
+    """A flat piece of cloth facing the camera, cut to `outline` -- (x, z)
+    points round its edge -- and `depth` thick, its face at `y`. A banner's
+    point made from a square turned on its corner half-buried in the banner
+    rendered its buried half black."""
+    n = len(outline)
+    verts = [(x, y, z) for x, z in outline] + [(x, y + depth, z) for x, z in outline]
+    faces = [tuple(range(n - 1, -1, -1)), tuple(range(n, 2 * n))]
+    faces += [(k, (k + 1) % n, n + (k + 1) % n, n + k) for k in range(n)]
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    ob = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(ob)
+    ob.data.materials.append(material(name, colour, 0.95))
+    return ob
+
+
+def _house_hanging(layer):
+    """A banner for the back wall: hung from a rod, a pale ground with a
+    deeper panel down the middle, bordered, a ring worked on it with a totem
+    post through it, and a pointed tail with a tassel at the point."""
+    if layer == "cloth":
+        _cloth_shape("ground", [(-0.43, 1.78), (0.43, 1.78), (0.43, 0.62), (0.0, 0.22), (-0.43, 0.62)],
+                     0.01, 0.04, "undyed")
+        _cloth_shape("panel", [(-0.25, 1.64), (0.25, 1.64), (0.25, 0.72), (0.0, 0.48), (-0.25, 0.72)],
+                     -0.005, 0.015, "undyed_dk")
+    else:
+        cyl("rod", 0.045, 1.14, (0, -0.03, 1.80), "undyed_trim", rot=(0, math.radians(90), 0), verts=10)
+        for sx in (-1, 1):
+            sphere("rod_end_%d" % sx, 0.075, (sx * 0.58, -0.03, 1.80), "undyed_trim")
+        # A band along the head of it, and down both edges to where the point begins.
+        blk("head", (0.86, 0.04, 0.10), (0, -0.02, 1.72), "undyed_trim", rough=0.9, bev=0)
+        for sx in (-1, 1):
+            blk("edge_%d" % sx, (0.09, 0.04, 1.10), (sx * 0.385, -0.02, 1.17), "undyed_trim", rough=0.9, bev=0)
+        # The ring, and the totem post through it: what stands at home.
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.18, minor_radius=0.05, location=(0, -0.03, 1.26),
+                                         rotation=(math.radians(90), 0, 0), major_segments=28, minor_segments=6)
+        ob = bpy.context.active_object
+        ob.name = "ring"
+        ob.data.materials.append(material("ring", "undyed_trim", 0.9))
+        blk("post", (0.08, 0.04, 0.60), (0, -0.03, 1.26), "undyed_trim", rough=0.9, bev=0)
+        # A band across the foot of the panel.
+        blk("foot_band", (0.50, 0.04, 0.08), (0, -0.02, 0.80), "undyed_trim", rough=0.9, bev=0)
+        # The tassel at the point.
+        cyl("cord", 0.022, 0.12, (0, -0.01, 0.18), "undyed_trim", verts=6)
+        cone("tassel", 0.075, 0.18, (0, -0.01, 0.06), "undyed_trim", verts=8)
+    # Down a little in the frame, or the rod's ends run off the top of it;
+    # make_props.ps1 sits it on the bottom of the image whatever.
+    for ob in bpy.context.scene.objects:
+        if ob.type == "MESH":
+            ob.location.z -= 0.25
+    return 2.0
+
+
+def prop_house_rug():          return _house_rug("cloth")
+def prop_house_rug_trim():     return _house_rug("trim")
+def prop_tapestry_house():     return _house_hanging("cloth")
+def prop_tapestry_house_trim(): return _house_hanging("trim")
+
+
+HOUSE_PROPS = {
+    "house_rug":           (prop_house_rug, 160),
+    "house_rug_trim":      (prop_house_rug_trim, 160),
+    "tapestry_house":      (prop_tapestry_house, 64),
+    "tapestry_house_trim": (prop_tapestry_house_trim, 64),
+}
+
+
+# -----------------------------------------------------------------------------
 #  The swamp, the Ice Spire, the Ashen Path and the inn's cellar
 # -----------------------------------------------------------------------------
 
@@ -5521,6 +5668,7 @@ PROPS.update(HERB_PROPS)
 PROPS.update(TOTEM_PROPS)
 PROPS.update(COLLEGE_PROPS)
 PROPS.update(CLOTHIER_PROPS)
+PROPS.update(HOUSE_PROPS)
 
 # The Brimstone Palace's props are in tools/blender_palace.py, built with the
 # tools above. This module is handed to it rather than imported by it: run by
@@ -5547,6 +5695,12 @@ PROPS.update(blender_hexmire_props.PROPS)
 import blender_frostreach_props  # noqa: E402
 
 PROPS.update(blender_frostreach_props.PROPS)
+
+# And Farmer Aldous's apiary in the Westwold -- the painted hives, the skep,
+# the bee shed and the lavender.
+import blender_farm_props  # noqa: E402
+
+PROPS.update(blender_farm_props.PROPS)
 
 
 def main():

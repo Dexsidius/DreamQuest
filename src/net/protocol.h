@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 13;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under). 13: a combo's, a parry's and a riposte's marks (Delta::Mark), and a parry owed its riposte (Delta::parried)
+static constexpr uint16_t PROTOCOL_VERSION = 14;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under). 13: a combo's, a parry's and a riposte's marks (Delta::Mark), and a parry owed its riposte (Delta::parried). 14: three new sounds in Delta::Sound (Sfx::Throw, KnifeHit, Whiff) -- a guest on an older build takes an id it does not know for its last, QuestComplete, and would hear the quest fanfare on every knife
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name

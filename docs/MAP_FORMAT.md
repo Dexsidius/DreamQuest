@@ -85,6 +85,7 @@ Everything a game needs beyond pictures lives under `"dreamquest"`.
 | `objects` of type `lamp` | A lamp standard: its `sprite`, and after dark a steady cool light. |
 | `objects` of type `totem_circle` | The ring a boss's totem is stood in. It needs no `sprite` -- lay the ring's art as a floor overlay at the same point -- because what stands in it is the character's and is drawn by the game. There is one, in `mossvale_cottage`, and the self-test says so. |
 | `npcs` | `dialogue` is a root node id in `data/dialogue.json`. |
+| `themed` | A room dressed for whatever stands in its ring (see `Map::Dress`): `floor` and `wall` map a tile group to its pale "undyed" picture, drawn instead and tinted with the totem's colours; `cloth` and `trim` list groups shown, tinted, only while something stands; `plain` lists groups shown only while nothing does; `light` is `[x, y]` where the totem's light stands. Written by genmaps' `Dress` and `DressLight`; used by `mossvale_cottage`. |
 
 ### Objects
 

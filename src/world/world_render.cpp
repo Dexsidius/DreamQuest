@@ -14,8 +14,58 @@
 #include "../systems/spell.h"
 #include "../systems/audio.h"
 #include "../systems/gathering.h"
+#include <cstring>
+#include <iterator>
+
+const TotemDef* World::DressTotem() const {
+    if (!map.Loaded() || !map.HasDress()) return nullptr;
+    const TotemDef* t = player.talents.PlacedTotemDef();
+    return (t && t->house) ? t : nullptr;
+}
+
+namespace {
+// A totem asleep in its ring still dresses the room, but as if the colour had
+// gone out of it: greyer, and a little darker.
+SDL_Color Asleep(SDL_Color c) {
+    const float grey = 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+    const auto one = [&](Uint8 v) {
+        return static_cast<Uint8>(std::clamp((v + (grey - v) * 0.45f) * 0.82f, 0.0f, 255.0f));
+    };
+    return {one(c.r), one(c.g), one(c.b), 255};
+}
+}   // namespace
+
+Map::Dress World::HouseDress() const {
+    Map::Dress d;
+    const TotemDef* t = DressTotem();
+    if (!t) return d;
+    const bool awake = player.talents.TotemAwake();
+    const auto shade = [&](SDL_Color c) { return awake ? c : Asleep(c); };
+    d.on = true;
+    d.floor = shade(t->floor);
+    d.wall  = shade(t->wall);
+    d.cloth = shade(t->cloth);
+    d.trim  = shade(t->trim);
+    return d;
+}
 
 SDL_Color World::AmbientLight() const {
+    SDL_Color a = PlainAmbient();
+    // A dressed house takes a breath of its totem's colour, and is a shade
+    // dimmer, so the light the totem gives off shows by day as well as by
+    // night (a white ambient skips the light pass altogether).
+    if (const TotemDef* t = DressTotem()) {
+        const bool awake = player.talents.TotemAwake();
+        const float k = awake ? 0.10f : 0.05f, dim = awake ? 0.95f : 0.90f;
+        const auto one = [&](Uint8 base, Uint8 tint) {
+            return static_cast<Uint8>(std::clamp((base + (tint - base) * k) * dim, 0.0f, 255.0f));
+        };
+        a = {one(a.r, t->light.r), one(a.g, t->light.g), one(a.b, t->light.b), 255};
+    }
+    return a;
+}
+
+SDL_Color World::PlainAmbient() const {
     const SDL_Color white{255, 255, 255, 255};
     if (!map.Loaded()) return white;
     // A dark map is black but for what is carried into it. Not quite black:
@@ -55,6 +105,14 @@ vector<Light> World::CollectLights() const {
     float dark = dreaming ? 1.0f : clock.Darkness();
     if (map.IsInterior()) dark *= 0.8f;
     if (map.IsDark()) dark = 1.0f;
+    // The totem in a dressed house gives off its own light, by day as well as
+    // by night: a wide pool round the ring, strong while it is awake.
+    if (const TotemDef* totem = DressTotem()) {
+        const SDL_FPoint at = map.DressLight();
+        const bool awake = player.talents.TotemAwake();
+        const Light l{at.x, at.y - 14.0f, 190.0f, awake ? totem->light : Asleep(totem->light), awake ? 0.8f : 0.3f};
+        lights.push_back(l);
+    }
     if (dark <= 0.01f) return lights;
 
     const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
@@ -78,6 +136,14 @@ vector<Light> World::CollectLights() const {
             lights.push_back({o.x, o.y - 44.0f, 150.0f, {196, 226, 255, 255}, dark * 0.95f});
         } else if (o.type == "dream_wake") {
             lights.push_back({o.x, o.y - 16.0f, 120.0f, {226, 214, 255, 255}, 0.85f});
+        } else if (o.type == "bug" && (o.yield == "firebug" || o.yield == "rime_beetle") && !Picked(o)) {
+            // A firebug's ember and a rime beetle's cold, carried about with
+            // them: a little light that wanders.
+            const BugPose b = BugFlight(o, GameHours());
+            const bool fire = o.yield == "firebug";
+            lights.push_back({b.x, b.y - LiftAt(b.x, b.y) - b.hover, fire ? 48.0f : 40.0f,
+                              fire ? SDL_Color{255, 150, 70, 255} : SDL_Color{160, 210, 255, 255},
+                              dark * (fire ? 0.8f : 0.6f)});
         } else if (dreaming && o.yield == "dream_shard" && !o.skill.empty()) {
             const float pulse = 0.75f + 0.25f * sinf(t * 2.2f + o.x * 0.05f);
             lights.push_back({o.x, o.y - 10.0f, 84.0f, {130, 220, 255, 255}, 0.8f * pulse});
@@ -521,6 +587,9 @@ void World::DrawMotes(SDL_Renderer* r) const {
 // -----------------------------------------------------------------------------
 
 void World::Render(SDL_Renderer* r, TextureCache& cache) const {
+    // Dressed for whoever this frame is for, before anything asks the map
+    // what to draw (the screen pass below collects its decor too).
+    if (map.HasDress()) map.SetDress(HouseDress());
     const SDL_Color bg = map.BackgroundColor();
     SDL_SetRenderDrawColor(r, bg.r, bg.g, bg.b, 255);
     SDL_RenderClear(r);
@@ -824,6 +893,15 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             if (!player.talents.PlacedTotem().empty()) queue.push_back({o.y, 5, &o});
             continue;
         }
+        // A bug has no picture, only its few pixels, and is gone while it is
+        // in somebody's jar. It sorts by the ground under it, not its spot.
+        if (o.type == "bug") {
+            if (!ObjectPresent(o) || Picked(o)) continue;
+            if (o.x < view.x || o.x > view.x + view.w ||
+                o.y < view.y || o.y > view.y + view.h) continue;
+            queue.push_back({BugFlight(o, GameHours()).y, 3, &o});
+            continue;
+        }
         if (o.sprite.empty() || !ObjectPresent(o)) continue;
         if (o.x < view.x || o.x > view.x + view.w ||
             o.y < view.y || o.y > view.y + view.h) continue;
@@ -1055,12 +1133,18 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                     }
                     break;
                 }
+                if (o->type == "bug") {
+                    DrawBug(r, cache, *o);
+                    break;
+                }
                 // A picked plant, a felled tree, a worked-out seam: drawn as
                 // their after-picture when they have one. A seam has none --
                 // it is still a rock -- so it is drawn dark and dull instead.
-                const bool spent = (o->type == "herb" || o->deplete > 0.0f) ? Picked(*o) : Flagged(o->id);
+                // A hive taken from is still a hive: what it has lost is the
+                // bees round it.
+                const bool spent = ObjectSpent(*o);
                 const bool used = !o->sprite_open.empty() && spent;
-                const bool dulled = spent && o->sprite_open.empty();
+                const bool dulled = spent && o->sprite_open.empty() && o->type != "hive";
                 SDL_Texture* tex = cache.Get(used ? o->sprite_open : o->sprite);
                 if (!tex) break;
                 float tw = 0, th = 0;
@@ -1085,6 +1169,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 if (dulled) SDL_SetTextureColorMod(tex, 255, 255, 255);
                 SDL_SetTextureAlphaMod(tex, 255);
                 if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
+                if (o->type == "hive" && !spent) DrawBees(r, *o, world.y, world.h);
                 break;
             }
         }
@@ -1852,5 +1937,423 @@ void World::DrawIce(SDL_Renderer* r) const {
         // A pale lip along it, and the dark of the water showing in the crack.
         line({c.a.x, c.a.y - 1.0f}, {c.b.x, c.b.y - 1.0f}, {236, 246, 255, static_cast<Uint8>(170 * fade)});
         line(c.a, c.b, {38, 70, 104, static_cast<Uint8>(220 * fade)});
+    }
+}
+
+// =============================================================================
+//  Bugs over their spots, and bees round a hive
+// =============================================================================
+//
+// A bug is a map object with no picture: what it looks like is here, a few
+// pixels at a time, the way tools/icons.txt draws, and where it is is
+// BugFlight's -- the world's clock and the object's id, nothing else, so every
+// window agrees without a word being sent. The catching is done at the spot,
+// which is never more than BUG_RANGE from where it is drawn.
+
+namespace {
+
+uint32_t BugHash(const string& id) {
+    uint32_t h = 2166136261u;
+    for (char c : id) h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+    return h;
+}
+
+uint32_t BugMix(uint32_t x) {
+    x ^= x >> 16; x *= 0x7feb352du;
+    x ^= x >> 15; x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+
+double BugUnit(uint32_t x) { return static_cast<double>(x & 0xFFFFFFu) / static_cast<double>(0xFFFFFFu); }
+
+enum class BugKind { Butterfly, Dragonfly, Firebug, Beetle };
+
+BugKind BugKindOf(const MapObject& o) {
+    if (o.yield == "marsh_dragonfly") return BugKind::Dragonfly;
+    if (o.yield == "firebug")         return BugKind::Firebug;
+    if (o.yield == "rime_beetle")     return BugKind::Beetle;
+    return BugKind::Butterfly;
+}
+
+// One picture of a bug: rows of characters, a world pixel each, head at the
+// top; '.' is nothing, anything else is looked up in the bug's inks.
+struct BugFrame { int rows; const char* row[10]; };
+struct BugInk { char c; SDL_Color col; };
+
+// A swallowtail from above: yellow barred with black, a blue and a red spot on
+// each hind wing and the tails below them. Open, half-closed, and the wings
+// up over its back.
+const BugFrame kSwallowtail[3] = {
+    {10, {"...K...K...",
+          "....K.K....",
+          ".KKK.b.KKK.",
+          "KYyYKbKYyYK",
+          "KYKYKbKYKYK",
+          "KYYYKbKYYYK",
+          ".KYBKbKBYK.",
+          "..KOKbKOK..",
+          "..K.K.K.K..",
+          "..K.....K.."}},
+    {10, {"...K...K...",
+          "....K.K....",
+          "...KK.KK...",
+          "..KYKbKYK..",
+          "..KYKbKYK..",
+          "..KYKbKYK..",
+          "...KBbBK...",
+          "...KObOK...",
+          "...K.K.K...",
+          "...K...K..."}},
+    {10, {"...K...K...",
+          "....K.K....",
+          ".....K.....",
+          "....KYK....",
+          "....KYK....",
+          "....KyK....",
+          "....KYK....",
+          ".....K.....",
+          "....K.K....",
+          "..........."}},
+};
+const BugInk kSwallowtailInk[] = {
+    {'K', {34, 26, 22, 255}},  {'Y', {250, 214, 64, 255}}, {'y', {255, 242, 150, 255}},
+    {'B', {70, 120, 230, 255}}, {'O', {236, 96, 40, 255}},  {'b', {52, 38, 30, 255}},
+};
+
+// A dragonfly from above, head to the right: a long blue body barred bright and
+// dark, great green eyes, and two pairs of glassy wings straight out from it,
+// beating too fast to see. (Wings swept back read as an arrow's fletching.)
+const BugFrame kDragonfly[2] = {
+    {7, {"......ww.ww.",
+         "......WW.WW.",
+         "......WW.WWE",
+         "KaAaAaATTTTE",
+         "......WW.WWE",
+         "......WW.WW.",
+         "......ww.ww."}},
+    {7, {"............",
+         "......ww.ww.",
+         "......WW.WWE",
+         "KaAaAaATTTTE",
+         "......WW.WWE",
+         "......ww.ww.",
+         "............"}},
+};
+const BugInk kDragonflyInk[] = {
+    {'W', {214, 246, 255, 190}}, {'w', {160, 226, 240, 150}}, {'a', {26, 84, 150, 255}},
+    {'A', {60, 190, 214, 255}},  {'T', {40, 150, 120, 255}},  {'E', {120, 240, 200, 255}},
+    {'e', {20, 60, 70, 255}},    {'K', {18, 36, 48, 255}},
+};
+
+// A firebug from above: black head, cherry wing-cases, and a tail that is an
+// ember -- orange going to yellow at its heart. Its wings a blur either side.
+const BugFrame kFirebug[2] = {
+    {10, {"..K...K..",
+          "...KHK...",
+          "..KRRRK..",
+          "wwKrRrKww",
+          "wwKrRrKww",
+          "..KrRrK..",
+          ".KFFFFFK.",
+          ".KFFfFFK.",
+          "..KFfFK..",
+          "...KFK..."}},
+    {10, {"..K...K..",
+          "...KHK...",
+          "..KRRRK..",
+          "..KrRrK..",
+          "wwKrRrKww",
+          "wwKrRrKww",
+          ".KFFFFFK.",
+          ".KFFfFFK.",
+          "..KFfFK..",
+          "...KFK..."}},
+};
+const BugInk kFirebugInk[] = {
+    {'K', {30, 16, 12, 255}},  {'H', {60, 30, 22, 255}},   {'R', {196, 56, 30, 255}},
+    {'r', {122, 30, 20, 255}}, {'F', {255, 150, 40, 255}}, {'f', {255, 236, 130, 255}},
+    {'w', {255, 200, 150, 120}},
+};
+
+// A rime beetle from above, walking: a navy outline round a shell of pale
+// blue frost, split down the back, with a white glint on it. Two frames of
+// its legs, the tripod a beetle walks on.
+const BugFrame kBeetle[2] = {
+    {9, {"..K...K..",
+         "...KHK...",
+         "L.KPPPK..",
+         ".KSWsSSKL",
+         "LKSSsSSK.",
+         ".KSSsSSKL",
+         "LKSSsSSK.",
+         "..KSsSK..",
+         "...KKK..."}},
+    {9, {"..K...K..",
+         "...KHK...",
+         "..KPPPK.L",
+         "LKSWsSSK.",
+         ".KSSsSSKL",
+         "LKSSsSSK.",
+         ".KSSsSSKL",
+         "..KSsSK..",
+         "...KKK..."}},
+};
+const BugInk kBeetleInk[] = {
+    {'K', {22, 30, 60, 255}},    {'H', {44, 62, 104, 255}}, {'P', {120, 170, 222, 255}},
+    {'S', {164, 208, 244, 255}}, {'s', {84, 124, 186, 255}}, {'W', {246, 252, 255, 255}},
+    {'L', {22, 30, 60, 255}},
+};
+
+template <size_t N>
+SDL_Color InkOf(const BugInk (&inks)[N], char c) {
+    for (const BugInk& k : inks) if (k.c == c) return k.col;
+    return {0, 0, 0, 0};
+}
+
+// Draws a frame centred on a world point, snapped to the art's pixel grid.
+// `turn` is quarter turns clockwise from head-up; `flip` mirrors it.
+template <size_t N>
+void DrawBugFrame(SDL_Renderer* r, const Camera& camera, float cx, float cy, const BugFrame& f,
+                  const BugInk (&inks)[N], int turn, bool flip) {
+    const float z = camera.zoom;
+    const int w = static_cast<int>(strlen(f.row[0])), h = f.rows;
+    const bool sideways = (turn & 1) != 0;
+    const int ow = sideways ? h : w, oh = sideways ? w : h;
+    const SDL_FPoint p = camera.ToScreen(cx - ow / 2.0f, cy - oh / 2.0f);
+    const float x0 = roundf(p.x / z) * z, y0 = roundf(p.y / z) * z;
+    for (int j = 0; j < h; ++j)
+        for (int i = 0; i < w; ++i) {
+            const char c = f.row[j][flip ? w - 1 - i : i];
+            if (c == '.' || c == '\0') continue;
+            int x = i, y = j;
+            switch (turn & 3) {
+                case 1: x = h - 1 - j; y = i;         break;
+                case 2: x = w - 1 - i; y = h - 1 - j; break;
+                case 3: x = j;         y = w - 1 - i; break;
+                default: break;
+            }
+            const SDL_Color col = InkOf(inks, c);
+            if (col.a == 0) continue;
+            SDL_SetRenderDrawColor(r, col.r, col.g, col.b, col.a);
+            const SDL_FRect px = {x0 + x * z, y0 + y * z, z, z};
+            SDL_RenderFillRect(r, &px);
+        }
+}
+
+}  // namespace
+
+World::BugPose World::BugFlight(const MapObject& o, double game_hours) {
+    const uint32_t h = BugHash(o.id);
+    const double t = game_hours * WorldClock::SECONDS_PER_HOUR;       // seconds on the world's clock
+    const double tau = 6.283185307179586;
+    const double p1 = BugUnit(h) * tau, p2 = BugUnit(BugMix(h + 1)) * tau, p3 = BugUnit(BugMix(h + 2)) * tau;
+    const double reach = BUG_RANGE * 0.85;
+    double dx = 0.0, dy = 0.0, vx = 0.0;
+    BugPose b;
+    switch (BugKindOf(o)) {
+        case BugKind::Dragonfly: {
+            // Hangs in the air, darts somewhere else in a blink, hangs again.
+            const double period = 1.3 + 0.6 * BugUnit(BugMix(h + 3));
+            const double s = t / period + BugUnit(BugMix(h + 4));
+            const double k = std::floor(s), f = s - k;
+            const auto spot = [&](double kk, double& sx, double& sy) {
+                const uint32_t m = BugMix(h ^ static_cast<uint32_t>(static_cast<int64_t>(kk) * 2654435761LL));
+                const double a = BugUnit(m) * tau, rr = (0.35 + 0.65 * BugUnit(BugMix(m + 7))) * reach;
+                sx = std::cos(a) * rr;
+                sy = std::sin(a) * rr * 0.6;
+            };
+            double fx, fy, tx, ty;
+            spot(k - 1.0, fx, fy);
+            spot(k, tx, ty);
+            double m = std::clamp(f / 0.2, 0.0, 1.0);
+            m = m * m * (3.0 - 2.0 * m);
+            // Never quite still, even hanging.
+            dx = fx + (tx - fx) * m + 0.5 * std::sin(t * 23.0 + p1);
+            dy = fy + (ty - fy) * m + 0.4 * std::sin(t * 19.0 + p2);
+            vx = tx - fx;
+            b.hover = static_cast<float>(15.0 + 1.5 * std::sin(t * 2.1 + p3));
+            break;
+        }
+        case BugKind::Firebug:
+            // Drifts, slow and heavy, like something let go of by a fire.
+            dx = reach * (0.7 * std::sin(t * 0.45 + p1) + 0.3 * std::sin(t * 1.15 + p2));
+            dy = reach * 0.6 * (0.7 * std::sin(t * 0.37 + p3) + 0.3 * std::sin(t * 0.95 + p1));
+            vx = 0.7 * 0.45 * std::cos(t * 0.45 + p1) + 0.3 * 1.15 * std::cos(t * 1.15 + p2);
+            b.hover = static_cast<float>(18.0 + 3.0 * std::sin(t * 0.8 + p3));
+            break;
+        case BugKind::Beetle: {
+            // Walks the ice in a slow loop, stopping now and then to think
+            // about it: the loop's own pace runs near nothing once a turn.
+            const double a = t * 0.32 + 0.27 * std::sin(t * 1.1 + p1) + p2;
+            dx = reach * 0.85 * std::cos(a) + 1.5 * std::sin(t * 0.21 + p3);
+            dy = reach * 0.5 * std::sin(a);
+            vx = -std::sin(a);
+            b.hover = 0.0f;
+            break;
+        }
+        case BugKind::Butterfly:
+        default:
+            // Lazy loops, and a bob to every beat of the wings.
+            dx = reach * (0.62 * std::sin(t * 0.9 + p1) + 0.3 * std::sin(t * 2.3 + p2));
+            dy = reach * 0.55 * (0.6 * std::sin(t * 0.7 + p3) + 0.35 * std::sin(t * 1.9 + p1));
+            vx = 0.62 * 0.9 * std::cos(t * 0.9 + p1) + 0.3 * 2.3 * std::cos(t * 2.3 + p2);
+            b.hover = static_cast<float>(14.0 + 3.0 * std::sin(t * 2.6 + p2) + 1.5 * std::sin(t * 7.1 + p3));
+            break;
+    }
+    b.x = o.x + static_cast<float>(std::clamp(dx, -static_cast<double>(BUG_RANGE), static_cast<double>(BUG_RANGE)));
+    b.y = o.y + static_cast<float>(std::clamp(dy, -static_cast<double>(BUG_RANGE), static_cast<double>(BUG_RANGE)));
+    b.facing_left = vx < 0.0;
+    return b;
+}
+
+void World::DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) const {
+    const BugKind kind = BugKindOf(o);
+    const double hours = GameHours();
+    const BugPose b = BugFlight(o, hours);
+    const float lift = LiftAt(b.x, b.y);
+    const float gx = b.x, gy = b.y - lift;              // the ground under it
+    const float ax = gx, ay = gy - b.hover;              // where it is
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    const float seed = static_cast<float>(BugHash(o.id) % 997u) * 0.37f;
+    const float dark = GlowDarkness();
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+
+    // Its shadow on the ground, smaller the higher it is.
+    {
+        const float wide = kind == BugKind::Dragonfly ? 8.0f : kind == BugKind::Beetle ? 6.0f : 5.0f;
+        const float k = std::clamp(1.0f - b.hover / 40.0f, 0.4f, 1.0f);
+        const float z = camera.zoom;
+        const SDL_FPoint s = camera.ToScreen(gx - wide * k / 2.0f, gy + (kind == BugKind::Beetle ? 3.0f : -1.0f));
+        const SDL_FRect shadow = {roundf(s.x / z) * z, roundf(s.y / z) * z, roundf(wide * k) * z, z};
+        SDL_SetRenderDrawColor(r, 0, 0, 0, static_cast<Uint8>(kind == BugKind::Beetle ? 70 : 75));
+        SDL_RenderFillRect(r, &shadow);
+    }
+
+    // A glow round the lit ones: the firebug's ember always, stronger in the
+    // dark; the rime beetle's cold only once the light goes.
+    const auto glow = [&](float x, float y, float across, SDL_Color c, Uint8 alpha) {
+        SDL_Texture* g = cache.Get("assets/effects/glow.png");
+        if (!g || alpha == 0) return;
+        const SDL_FRect lit = camera.ToScreenRect({x - across / 2.0f, y - across / 2.0f, across, across});
+        SDL_SetTextureBlendMode(g, SDL_BLENDMODE_ADD);
+        SDL_SetTextureColorMod(g, c.r, c.g, c.b);
+        SDL_SetTextureAlphaMod(g, alpha);
+        SDL_RenderTexture(r, g, nullptr, &lit);
+        SDL_SetTextureAlphaMod(g, 255);
+        SDL_SetTextureColorMod(g, 255, 255, 255);
+        SDL_SetTextureBlendMode(g, SDL_BLENDMODE_BLEND);
+    };
+
+    // Which way its head points while it crawls or drifts: a quarter turn at
+    // a time, from where it is going.
+    const auto heading = [&]() {
+        const BugPose next = BugFlight(o, hours + 0.25 / WorldClock::SECONDS_PER_HOUR);
+        const float vx = next.x - b.x, vy = next.y - b.y;
+        if (fabsf(vx) < 0.05f && fabsf(vy) < 0.05f) return 0;
+        if (fabsf(vx) > fabsf(vy) * 1.3f) return vx > 0.0f ? 1 : 3;
+        return vy > 0.0f ? 2 : 0;
+    };
+
+    switch (kind) {
+        case BugKind::Dragonfly: {
+            // Wings too fast to see: the two frames swap every other screen
+            // frame, and the glassy colour shimmers along them.
+            const int f = static_cast<int>(now * 30.0f + seed) & 1;
+            DrawBugFrame(r, camera, ax, ay, kDragonfly[f], kDragonflyInk, 0, b.facing_left);
+            break;
+        }
+        case BugKind::Firebug: {
+            // The glow is what finds it by day among the ash's drifting
+            // embers: a warm pool round a thing too big to be a spark.
+            const float pulse = 0.5f + 0.5f * sinf(now * 5.3f + seed);
+            glow(ax, ay + 2.0f, 24.0f + 6.0f * pulse, {255, 140, 50, 255},
+                 static_cast<Uint8>(std::clamp(110.0f + 90.0f * dark + 40.0f * pulse, 0.0f, 255.0f)));
+            // Sparks let go of behind it, falling and going out.
+            for (int k = 1; k <= 3; ++k) {
+                const BugPose was = BugFlight(o, hours - (k * 0.16) / WorldClock::SECONDS_PER_HOUR);
+                const float fall = k * 2.0f + fmodf(now * 7.0f + seed + k, 2.0f);
+                const float z = camera.zoom;
+                const SDL_FPoint s = camera.ToScreen(was.x, was.y - LiftAt(was.x, was.y) - was.hover + 3.0f + fall);
+                const Uint8 a = static_cast<Uint8>(220 - k * 55);
+                SDL_SetRenderDrawColor(r, 255, static_cast<Uint8>(200 - k * 40), static_cast<Uint8>(90 - k * 25), a);
+                const SDL_FRect spark = {roundf(s.x / z) * z, roundf(s.y / z) * z, z, z};
+                SDL_RenderFillRect(r, &spark);
+            }
+            BugInk inks[std::size(kFirebugInk)];
+            std::copy(std::begin(kFirebugInk), std::end(kFirebugInk), inks);
+            // The ember in its tail breathes between orange and gold.
+            for (BugInk& k : inks)
+                if (k.c == 'F') k.col = {255, static_cast<Uint8>(130 + 60 * pulse), static_cast<Uint8>(30 + 40 * pulse), 255};
+            const int f = static_cast<int>(now * 22.0f + seed) & 1;
+            DrawBugFrame(r, camera, ax, ay, kFirebug[f], inks, heading(), false);
+            break;
+        }
+        case BugKind::Beetle: {
+            if (dark > 0.05f) glow(ax, ay, 22.0f, {150, 200, 255, 255}, static_cast<Uint8>(110.0f * dark));
+            const BugPose next = BugFlight(o, hours + 0.1 / WorldClock::SECONDS_PER_HOUR);
+            const bool walking = fabsf(next.x - b.x) + fabsf(next.y - b.y) > 0.12f;
+            const int f = walking ? (static_cast<int>(now * 7.0f + seed) & 1) : 0;
+            DrawBugFrame(r, camera, ax, ay, kBeetle[f], kBeetleInk, heading(), false);
+            // Now and then the frost on its back catches the light.
+            const float cycle = fmodf(now + seed * 0.21f, 2.4f);
+            if (cycle < 0.4f) {
+                const float k = sinf(cycle / 0.4f * 3.14159265f);
+                const float arm = 1.0f + floorf(k * 2.4f);
+                const float z = camera.zoom;
+                const SDL_FPoint c = camera.ToScreen(ax - 1.0f, ay - 2.0f);
+                const float cx = roundf(c.x / z) * z, cy = roundf(c.y / z) * z;
+                SDL_SetRenderDrawColor(r, 240, 250, 255, static_cast<Uint8>(255.0f * std::min(1.0f, k * 1.4f)));
+                const SDL_FRect across = {cx - arm * z, cy, (2.0f * arm + 1.0f) * z, z};
+                const SDL_FRect down = {cx, cy - arm * z, z, (2.0f * arm + 1.0f) * z};
+                SDL_RenderFillRect(r, &across);
+                SDL_RenderFillRect(r, &down);
+            }
+            break;
+        }
+        case BugKind::Butterfly:
+        default: {
+            // Open, open, half, shut, half: a beat and a glide in it.
+            static const int kBeat[] = {0, 0, 1, 2, 1};
+            const int f = kBeat[static_cast<int>(now * 11.0f + seed) % 5];
+            DrawBugFrame(r, camera, ax, ay, kSwallowtail[f], kSwallowtailInk, 0, false);
+            break;
+        }
+    }
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+}
+
+void World::DrawBees(SDL_Renderer* r, const MapObject& o, float top, float height) const {
+    // By day only: at night they are in.
+    if (GlowDarkness() > 0.55f) return;
+    const double t = GameHours() * WorldClock::SECONDS_PER_HOUR;
+    const uint32_t h = BugHash(o.id);
+    const float z = camera.zoom;
+    const float cx = o.x, cy = top + height * 0.5f;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // Loops wide enough to take most of them out past the hive's own edge,
+    // where a bee reads against the grass rather than against the hive.
+    for (int i = 0; i < 6; ++i) {
+        const uint32_t m = BugMix(h + static_cast<uint32_t>(i) * 97u);
+        const double sp = 1.4 + 1.6 * BugUnit(m), ph = BugUnit(BugMix(m + 1)) * 6.2831853;
+        const double rx = 10.0 + 14.0 * BugUnit(BugMix(m + 2)), ry = rx * 0.6;
+        const double dir = (m & 1u) ? 1.0 : -1.0;
+        const float x = cx + static_cast<float>(std::cos(t * sp * dir + ph) * rx + std::sin(t * 5.3 + ph) * 1.5);
+        const float y = cy + static_cast<float>(std::sin(t * sp * dir + ph) * ry + std::sin(t * 7.7 + ph * 2.0) * 2.0);
+        const SDL_FPoint s = camera.ToScreen(x, y);
+        const float px = roundf(s.x / z) * z, py = roundf(s.y / z) * z;
+        // A dark head and tail with the gold between, so it shows on straw
+        // and on grass; a pale wing flickering over it.
+        const SDL_FRect head = {px - z, py, z, z}, gold = {px, py, z, z}, tail = {px + z, py, z, z};
+        SDL_SetRenderDrawColor(r, 30, 22, 16, 255);
+        SDL_RenderFillRect(r, &head);
+        SDL_RenderFillRect(r, &tail);
+        SDL_SetRenderDrawColor(r, 250, 200, 50, 255);
+        SDL_RenderFillRect(r, &gold);
+        if ((static_cast<int>(t * 24.0 + i) & 1) == 0) {
+            const SDL_FRect wing = {px, py - z, z, z};
+            SDL_SetRenderDrawColor(r, 236, 244, 255, 210);
+            SDL_RenderFillRect(r, &wing);
+        }
     }
 }

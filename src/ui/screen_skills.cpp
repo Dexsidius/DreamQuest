@@ -161,8 +161,11 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
         }
     }
     if (skill == SKILL_FORAGING)
-        for (const auto& kv : items.All())
+        for (const auto& kv : items.All()) {
             if (kv.second.forage_level > 0) add(kv.second.forage_level, "Pick " + kv.second.name);
+            // A bug is caught, not picked.
+            if (kv.second.catch_level > 0) add(kv.second.catch_level, "Catch " + kv.second.name);
+        }
 
     std::sort(out.begin(), out.end(), [](const SkillMilestone& a, const SkillMilestone& b) {
         if (a.level != b.level) return a.level < b.level;

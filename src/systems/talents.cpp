@@ -90,6 +90,18 @@ bool SkillTrees::Load(const string& path) {
             if (tj.contains("effects") && tj["effects"].is_object())
                 for (auto e = tj["effects"].begin(); e != tj["effects"].end(); ++e)
                     if (e.value().is_number()) t.effects[e.key()] = e.value().get<float>();
+            if (tj.contains("house") && tj["house"].is_object()) {
+                const json& h = tj["house"];
+                const auto colour = [&](const char* key, SDL_Color& out) {
+                    if (!h.contains(key) || !h[key].is_array() || h[key].size() < 3) return false;
+                    out = {static_cast<Uint8>(std::clamp(h[key][0].get<int>(), 0, 255)),
+                           static_cast<Uint8>(std::clamp(h[key][1].get<int>(), 0, 255)),
+                           static_cast<Uint8>(std::clamp(h[key][2].get<int>(), 0, 255)), 255};
+                    return true;
+                };
+                t.house = colour("floor", t.floor) & colour("wall", t.wall) & colour("cloth", t.cloth) &
+                          colour("trim", t.trim) & colour("light", t.light);
+            }
             if (!t.item.empty() && !t.boss.empty() && !t.effects.empty()) totems.push_back(t);
         }
     SDL_Log("SkillTrees: %d / %d / %d nodes, %d boons, %d totems", static_cast<int>(trees[0].nodes.size()),
@@ -181,6 +193,10 @@ string Talents::TakeTotem() {
 
 const TotemDef* Talents::ActiveTotem() const {
     return (db && TotemAwake()) ? db->Totem(placed) : nullptr;
+}
+
+const TotemDef* Talents::PlacedTotemDef() const {
+    return (db && !placed.empty()) ? db->Totem(placed) : nullptr;
 }
 
 float Talents::BoonEffect(const string& effect) const {

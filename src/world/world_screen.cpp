@@ -243,7 +243,7 @@ void World::DrawReflections(SDL_Renderer* r, TextureCache& cache, const vector<c
     for (const MapObject& o : map.Objects()) {
         if (o.sprite.empty() || !ObjectPresent(o)) continue;
         if (o.x < view.x || o.x > view.x + view.w || o.y < view.y || o.y > view.y + view.h) continue;
-        const bool spent = (o.type == "herb" || o.deplete > 0.0f) ? Picked(o) : Flagged(o.id);
+        const bool spent = ObjectSpent(o);
         const string& shown = (!o.sprite_open.empty() && spent) ? o.sprite_open : o.sprite;
         SDL_Texture* tex = cache.Get(shown);
         if (!tex) continue;
@@ -310,7 +310,7 @@ void World::DrawGlows(SDL_Renderer* r, TextureCache& cache, const vector<const T
         for (const MapObject& o : map.Objects()) {
             if (o.sprite.empty() || !ObjectPresent(o)) continue;
             if (o.x < view.x || o.x > view.x + view.w || o.y < view.y || o.y > view.y + view.h) continue;
-            const bool spent = (o.type == "herb" || o.deplete > 0.0f) ? Picked(o) : Flagged(o.id);
+            const bool spent = ObjectSpent(o);
             const bool used = !o.sprite_open.empty() && spent;
             if (spent && o.sprite_open.empty()) continue;           // a worked-out seam is dark
             const string& shown = used ? o.sprite_open : o.sprite;

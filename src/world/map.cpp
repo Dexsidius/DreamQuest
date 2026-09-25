@@ -108,6 +108,7 @@ bool Map::Load(const string& path) {
     }
 
     // ---- tiles (native LevelEdit-Plus section) ------------------------------
+    std::map<string, int> tex_of_group;      // for the dress, below
     if (root.contains("tiles")) {
         for (auto it = root["tiles"].begin(); it != root["tiles"].end(); ++it) {
             const string& tile_name = it.key();
@@ -118,6 +119,7 @@ bool Map::Load(const string& path) {
             surfaces.push_back(Shaders::SurfaceOfTile(textures.back()));
             arts.push_back(&Shaders::ArtOf(textures.back()));
             const int tex_index = static_cast<int>(textures.size()) - 1;
+            tex_of_group[tile_name] = tex_index;
 
             const int layer = layer_of.count(tile_name) ? layer_of[tile_name] : LAYER_GROUND;
             const bool is_solid = solid_tile.count(tile_name) > 0;
@@ -148,6 +150,37 @@ bool Map::Load(const string& path) {
                 }
             }
         }
+    }
+
+    // ---- the dress ------------------------------------------------------------
+    // Which tile groups dress for the ring, by the names the tiles section
+    // uses. A group named here that the map does not have is ignored.
+    if (dq.contains("themed") && dq["themed"].is_object()) {
+        const json& th = dq["themed"];
+        dress_role.assign(textures.size(), DRESS_NONE);
+        dress_undyed.assign(textures.size(), string());
+        const auto role_of = [&](const string& group, DressRole role, const string& undyed) {
+            const auto it = tex_of_group.find(group);
+            if (it == tex_of_group.end()) return;
+            dress_role[it->second] = role;
+            if (!undyed.empty()) dress_undyed[it->second] = ResolveAsset(undyed);
+            has_dress = true;
+        };
+        for (const auto& [key, role] : {std::pair<const char*, DressRole>{"floor", DRESS_FLOOR}, {"wall", DRESS_WALL}})
+            if (th.contains(key) && th[key].is_object())
+                for (auto g = th[key].begin(); g != th[key].end(); ++g)
+                    if (g.value().is_string()) role_of(g.key(), role, g.value().get<string>());
+        for (const auto& [key, role] : {std::pair<const char*, DressRole>{"cloth", DRESS_CLOTH}, {"trim", DRESS_TRIM},
+                                        {"plain", DRESS_PLAIN}})
+            if (th.contains(key) && th[key].is_array())
+                for (const auto& g : th[key])
+                    if (g.is_string()) role_of(g.get<string>(), role, "");
+        // A floor or wall with no undyed picture of its own dresses in its own.
+        for (size_t i = 0; i < textures.size(); ++i)
+            if ((dress_role[i] == DRESS_FLOOR || dress_role[i] == DRESS_WALL) && dress_undyed[i].empty())
+                dress_undyed[i] = textures[i];
+        if (th.contains("light") && th["light"].is_array() && th["light"].size() >= 2)
+            dress_light = {th["light"][0].get<float>(), th["light"][1].get<float>()};
     }
 
     // ---- elevation -----------------------------------------------------------
@@ -402,6 +435,13 @@ void Map::Unload() {
     elev_cols = elev_rows = 0;
     elev_cell = 32.0f;
     cliff_texture.clear();
+    // And the dress, for the same reason: a room that has one must not lend
+    // it to the next.
+    dress_role.clear();
+    dress_undyed.clear();
+    has_dress = false;
+    dress_light = {};
+    dress = Dress{};
 }
 
 void Map::AddCollider(const SDL_FRect& r, bool water) {
@@ -651,6 +691,31 @@ void Map::RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) 
     }
 }
 
+bool Map::DressHides(int tex) const {
+    switch (DressRoleOf(tex)) {
+        case DRESS_PLAIN: return dress.on;
+        case DRESS_CLOTH:
+        case DRESS_TRIM:  return !dress.on;
+        default:          return false;
+    }
+}
+
+SDL_Texture* Map::DressedTexture(TextureCache& cache, int tex, SDL_Color& tint) const {
+    tint = {255, 255, 255, 255};
+    if (tex < 0 || tex >= static_cast<int>(textures.size())) return nullptr;
+    if (DressHides(tex)) return nullptr;
+    if (dress.on) {
+        switch (DressRoleOf(tex)) {
+            case DRESS_FLOOR: tint = dress.floor; return cache.Get(dress_undyed[tex]);
+            case DRESS_WALL:  tint = dress.wall;  return cache.Get(dress_undyed[tex]);
+            case DRESS_CLOTH: tint = dress.cloth; break;
+            case DRESS_TRIM:  tint = dress.trim;  break;
+            default: break;
+        }
+    }
+    return cache.Get(textures[tex]);
+}
+
 void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
                       const Camera& cam, int layer, int passes) const {
     if (!loaded || layer < 0 || layer > 2) return;
@@ -684,7 +749,8 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             seen_stamp[idx] = stamp;
             if (!RectsOverlap(t.rect, view)) continue;
 
-            SDL_Texture* tex = cache.Get(textures[t.tex]);
+            SDL_Color dye;
+            SDL_Texture* tex = DressedTexture(cache, t.tex, dye);
             if (!tex) continue;
             SDL_FRect world = t.rect;
             const int level = LevelAt(world.x + world.w * 0.5f,
@@ -695,14 +761,14 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             // ground stirs in the wind (all no-ops off the GPU renderer).
             Shaders::UseTile(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)), ArtOf(t.tex).kind);
 
-            if (HasElevation()) {
-                const Uint8 lit = LevelShade(level);
-                SDL_SetTextureColorMod(tex, lit, lit, lit);
-                SDL_RenderTexture(r, tex, nullptr, &dst);
-                SDL_SetTextureColorMod(tex, 255, 255, 255);
-            } else {
-                SDL_RenderTexture(r, tex, nullptr, &dst);
-            }
+            // Shaded by its level, dyed by the dress. Put back after: the
+            // same texture is the next map's floor.
+            const Uint8 lit = HasElevation() ? LevelShade(level) : 255;
+            const bool tinted = lit != 255 || dye.r != 255 || dye.g != 255 || dye.b != 255;
+            if (tinted) SDL_SetTextureColorMod(tex, static_cast<Uint8>(dye.r * lit / 255),
+                                               static_cast<Uint8>(dye.g * lit / 255), static_cast<Uint8>(dye.b * lit / 255));
+            SDL_RenderTexture(r, tex, nullptr, &dst);
+            if (tinted) SDL_SetTextureColorMod(tex, 255, 255, 255);
         }
     });
     }
@@ -758,9 +824,10 @@ void Map::SurfaceSpots(const SDL_FRect& rect, Uint8 surface, float cell, vector<
 
 void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
                      const TileInstance& t, Uint8 alpha) const {
-    if (t.tex < 0 || t.tex >= static_cast<int>(textures.size())) return;
-    SDL_Texture* tex = cache.Get(textures[t.tex]);
+    SDL_Color dye;
+    SDL_Texture* tex = DressedTexture(cache, t.tex, dye);
     if (!tex) return;
+    const bool dyed = dye.r != 255 || dye.g != 255 || dye.b != 255;
     // Scenery is lifted by the terrain under its base, not its middle: a tree
     // standing at the lip of a bank belongs to the ground its trunk is on.
     SDL_FRect world = t.rect;
@@ -769,7 +836,9 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     const Shaders::PropKind kind = ArtOf(t.tex).kind;
     if (kind != Shaders::PROP_NONE) Shaders::UseTile(r, Shaders::PLAIN, kind);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, alpha);
+    if (dyed) SDL_SetTextureColorMod(tex, dye.r, dye.g, dye.b);
     SDL_RenderTexture(r, tex, nullptr, &dst);
+    if (dyed) SDL_SetTextureColorMod(tex, 255, 255, 255);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, 255);
     if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
 }
@@ -788,6 +857,8 @@ void Map::CollectDecor(const Camera& cam, vector<const TileInstance*>& out) cons
             if (seen_stamp[idx] == stamp) continue;
             seen_stamp[idx] = stamp;
             const TileInstance& t = tiles[idx];
+            // Put away under the present dress: not drawn, not reflected, no glow.
+            if (DressHides(t.tex)) continue;
             if (RectsOverlap(t.rect, view)) out.push_back(&t);
         }
     });

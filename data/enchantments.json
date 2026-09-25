@@ -161,6 +161,852 @@
     "starlily": 1
    },
    "from": "The Collector sells the scroll in the Reverie, once the lights on the pond are seen to."
+  },
+  "affliction": {
+   "name": "Affliction",
+   "suffix": "of Affliction",
+   "text": "Whatever its blows leave -- a wound, a burn, a concussion -- they leave more often.",
+   "effect": "proc",
+   "takes": "status",
+   "fits": "a weapon whose blows leave something",
+   "tiers": [
+    {
+     "amount": 0.05,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.08,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.11,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.14,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.17,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at the College Copying Room in Fernhollow."
+  },
+  "precision": {
+   "name": "Precision",
+   "suffix": "of Precision",
+   "text": "It finds the gaps: more of its blows strike critically.",
+   "effect": "crit",
+   "takes": "any",
+   "fits": "any weapon",
+   "tiers": [
+    {
+     "amount": 0.03,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.06,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.12,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.18,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.21,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.24,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Garrow's Smithy in Mossvale."
+  },
+  "sorcery": {
+   "name": "Sorcery",
+   "suffix": "of Sorcery",
+   "text": "What is cast through it lands harder.",
+   "effect": "cast",
+   "takes": "magic",
+   "fits": "a staff, a wand, a grimoire or an orb",
+   "tiers": [
+    {
+     "amount": 0.05,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.07,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.09,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.11,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.13,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.15,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at the College Copying Room in Fernhollow."
+  },
+  "quickdraw": {
+   "name": "Quickdraw",
+   "suffix": "of Quickdraw",
+   "text": "It spans itself half again as fast, and faster.",
+   "effect": "reload",
+   "takes": "crossbow",
+   "fits": "a crossbow",
+   "tiers": [
+    {
+     "amount": 0.1,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.3,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.4,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.5,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.6,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Ivo's Bows and Hides in Havenbrook."
+  },
+  "multishot": {
+   "name": "Multishot",
+   "suffix": "of Multishot",
+   "text": "Every shot lets off more beside it, fanned out, each three fifths of a plain one.",
+   "effect": "shots",
+   "takes": "bow",
+   "fits": "a bow or a crossbow",
+   "tiers": [
+    {
+     "amount": 1,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 2,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 3,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 4,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 5,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Ivo's Bows and Hides in Havenbrook."
+  },
+  "vampiric": {
+   "name": "Vampiric",
+   "suffix": "of Vampiric",
+   "text": "A share of what it deals comes back to you as health.",
+   "effect": "leech",
+   "takes": "any",
+   "fits": "any weapon",
+   "tiers": [
+    {
+     "amount": 0.01,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.02,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.03,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.04,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.05,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.06,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at the Curios of the Deep Dream."
+  },
+  "ferocity": {
+   "name": "Ferocity",
+   "suffix": "of Ferocity",
+   "text": "Its critical blows land harder.",
+   "effect": "crit_damage",
+   "takes": "any",
+   "fits": "any weapon",
+   "tiers": [
+    {
+     "amount": 0.1,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.3,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.4,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.5,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.6,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Halda's Forge in Havenbrook."
+  },
+  "brand_bleeding": {
+   "name": "Bleeding",
+   "suffix": "of Bleeding",
+   "text": "Its blows open wounds that bleed.",
+   "effect": "brand",
+   "takes": "no_status",
+   "fits": "a weapon whose blows leave nothing",
+   "brand": "bleed",
+   "tiers": [
+    {
+     "amount": 0.08,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.12,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.16,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.24,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.28,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Hale's Packs in the Brackenwood."
+  },
+  "brand_venom": {
+   "name": "Venom",
+   "suffix": "of Venom",
+   "text": "Its blows leave poison in the wound.",
+   "effect": "brand",
+   "takes": "no_status",
+   "fits": "a weapon whose blows leave nothing",
+   "brand": "poison",
+   "tiers": [
+    {
+     "amount": 0.08,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.12,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.16,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.24,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.28,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at the Night Market in the Reverie."
+  },
+  "brand_frost": {
+   "name": "Frost",
+   "suffix": "of Frost",
+   "text": "Its blows leave a chill that slows.",
+   "effect": "brand",
+   "takes": "no_status",
+   "fits": "a weapon whose blows leave nothing",
+   "brand": "chill",
+   "tiers": [
+    {
+     "amount": 0.08,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.12,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.16,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.24,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.28,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at the Night Market in the Reverie."
+  },
+  "brand_embers": {
+   "name": "Embers",
+   "suffix": "of Embers",
+   "text": "Its blows leave a burn.",
+   "effect": "brand",
+   "takes": "no_status",
+   "fits": "a weapon whose blows leave nothing",
+   "brand": "burn",
+   "tiers": [
+    {
+     "amount": 0.08,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.12,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.16,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.24,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.28,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Garrow's Smithy in Mossvale."
+  },
+  "thrift": {
+   "name": "Thrift",
+   "suffix": "of Thrift",
+   "text": "What is cast through it costs less mana.",
+   "effect": "mana",
+   "takes": "magic",
+   "fits": "a staff, a wand, a grimoire or an orb",
+   "tiers": [
+    {
+     "amount": 0.05,
+     "level": 10,
+     "xp": 200,
+     "value": 300,
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "amount": 0.1,
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "amount": 0.15,
+     "level": 40,
+     "xp": 560,
+     "value": 800,
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "amount": 0.2,
+     "level": 55,
+     "xp": 780,
+     "value": 1200,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "amount": 0.25,
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "amount": 0.3,
+     "level": 85,
+     "xp": 1400,
+     "value": 2600,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
+   "from": "Its scroll is sold at Oona's Remedies in Mossvale."
   }
  }
 }

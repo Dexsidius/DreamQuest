@@ -240,6 +240,28 @@ public:
     // A felled tree or a worked-out seam, until it is back. Kept in `picked`
     // beside the herbs, so it is saved the same way.
     bool  Spent(const MapObject& o) const;
+    // Used up, however that is kept: a plant picked, a bug caught, a hive
+    // robbed, a tree felled -- all in `picked`, and growing back -- or a chest
+    // opened, a note read, in the flags. What the drawing, the reflections and
+    // the glows all ask before choosing a picture.
+    bool  ObjectSpent(const MapObject& o) const {
+        const bool regrows = o.type == "herb" || o.type == "bug" || o.type == "hive" || o.deplete > 0.0f;
+        return regrows ? Picked(o) : Flagged(o.id);
+    }
+
+    // --- bugs ---------------------------------------------------------------------
+    // Where a bug is, in the air over its spot: a small flight about the
+    // object's own anchor, never more than BUG_RANGE from it, worked out from
+    // the world's clock and the object's id alone. So every window that shares
+    // a clock sees it in the same place, and nothing about it has to be sent:
+    // catching one is done at the anchor, by the host, like picking a herb.
+    // `hover` is how high over the ground it is; the point is on the ground
+    // under it. What kind of flight is the bug's own -- a butterfly's lazy
+    // loops, a dragonfly's darts and hangs, a firebug's drift, a beetle's crawl
+    // -- chosen by what it yields.
+    static constexpr float BUG_RANGE = 12.0f;
+    struct BugPose { float x = 0, y = 0, hover = 0; bool facing_left = false; };
+    static BugPose BugFlight(const MapObject& o, double game_hours);
 
     // Gathering (Woodcutting / Mining) in progress, 0..1 for the HUD bar.
     float GatherProgress() const;
@@ -547,9 +569,16 @@ public:
 
     // A line to show over the screen while it is dark for sleeping or waking.
     const string& FadeCaption() const { return fade_caption; }
+    // The house at Mossvale dressed for what stands in its ring (Map::Dress):
+    // the totem is whoever this frame is drawn for -- their own, as the ring
+    // shows each player their own -- awake or asleep. Null, and the room as
+    // it always was, on a map with no ring to dress for or with nothing in it.
+    const TotemDef* DressTotem() const;
+    Map::Dress HouseDress() const;
     // The colour of the light right now: white by day, blue at night, violet
-    // in a dream.
+    // in a dream -- and a breath of the totem's colour in a dressed house.
     SDL_Color AmbientLight() const;
+    SDL_Color PlainAmbient() const;
     // Every light that should cut through that, this frame.
     vector<Light> CollectLights() const;
     vector<std::unique_ptr<Enemy>> enemies;
@@ -802,6 +831,11 @@ private:
     void AgeIce(float dt);
     void BreakIce(const GameContext& ctx);
     void DrawIce(SDL_Renderer* r) const;
+    // A bug over its spot, in its own few pixels (see BugFlight), and the bees
+    // round a hive that has honey in it. Drawn in code: a thing eight pixels
+    // across put through the art pipeline comes out all outline.
+    void DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) const;
+    void DrawBees(SDL_Renderer* r, const MapObject& o, float top, float height) const;
     void DrawGlows(SDL_Renderer* r, TextureCache& cache, const vector<const TileInstance*>& decor) const;
     // Every shot in the air, by its number: where it was a frame ago, and how
     // far it has gone since it last shed anything. Kept here and not on the
@@ -917,6 +951,10 @@ private:
     // And the share of its Defence the next HitEnemy goes past: a bolt's. A
     // swing is asked its weapon, and its combo.
     float pierce_next = 0.0f;
+    // The next HitEnemy is a thrown knife's, set as crit_next is: heard going
+    // in (Sfx::KnifeHit, a killing throw too) rather than as a blow, and
+    // going by (Sfx::Whiff) when the dice say it missed.
+    bool  knife_next = false;
     void  ShedFromStatuses(float dt);
     uint32_t OpenCast(int skill, int xp);
     void  PayCast(uint32_t id);

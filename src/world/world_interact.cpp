@@ -110,6 +110,26 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
                 else
                     label = "Pick " + o.title;
             }
+        } else if (o.type == "bug") {
+            // Caught by hand, where it hangs over its spot: nothing to offer
+            // once it is in somebody's jar, until another comes.
+            if (!Picked(o)) {
+                const string noun = o.title.empty() ? string("bug") : o.title;
+                if (player.skills.Level(SKILL_FORAGING) < o.skill_level)
+                    label = "Needs Foraging " + std::to_string(o.skill_level) + " to catch the " + noun;
+                else
+                    label = "Catch the " + noun;
+            }
+        } else if (o.type == "hive") {
+            // A hive taken from gives nothing more until the bees have made
+            // more.
+            if (!Picked(o)) {
+                const string noun = o.title.empty() ? string("hive") : o.title;
+                if (player.skills.Level(SKILL_FORAGING) < o.skill_level)
+                    label = "Needs Foraging " + std::to_string(o.skill_level) + " for the " + noun;
+                else
+                    label = "Take honey from the " + noun;
+            }
         // A felled tree or a worked-out seam offers nothing either, until it
         // is back.
         } else if (!o.skill.empty() && !Spent(o)) {
@@ -385,7 +405,9 @@ void World::TryInteract(const GameContext& ctx) {
                 r.title = o.title.empty() ? "Mission Board" : o.title;
                 r.list  = o.quests;
                 requests.push_back(r);
-            } else if (o.type == "herb") {
+            } else if (o.type == "herb" || o.type == "bug" || o.type == "hive") {
+                // A plant picked, a bug caught, honey taken: all by hand, all
+                // Foraging, all the same short piece of work.
                 if (Picked(o)) break;
                 if (player.skills.Level(SKILL_FORAGING) < o.skill_level) {
                     AddText("Foraging " + std::to_string(o.skill_level) + " needed", o.x, o.y - 30.0f,
@@ -561,8 +583,10 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     }
 
     // A strike every so often while the work goes on, not just at the end.
-    // Fishing is quiet until something bites, and so is picking.
-    const bool fishing = o.skill == "Fishing" || o.type == "herb";
+    // Fishing is quiet until something bites, and so is picking -- a plant, a
+    // bug out of the air, honey out of a hive.
+    const bool by_hand = o.type == "herb" || o.type == "bug" || o.type == "hive";
+    const bool fishing = o.skill == "Fishing" || by_hand;
     constexpr float STRIKE = 0.62f;
     const float before = gather_timer;
     gather_timer += dt;
@@ -573,8 +597,10 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     const int skill = SkillFromName(o.skill);
 
     // A herb is picked once, then grows back. The further past its level the
-    // forager is, the more often a plant gives two.
-    if (o.type == "herb") {
+    // forager is, the more often a plant gives two. A bug is caught the same
+    // way and another comes to the spot after a while; a hive gives its honey
+    // and is left to make more.
+    if (by_hand) {
         const ItemDef* d = ctx.items ? ctx.items->Get(o.yield) : nullptr;
         int count = 1;
         if (ctx.rng) {
@@ -588,7 +614,13 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
             gather_index = -1;
             return;
         }
-        player.GrantXp(SKILL_FORAGING, (d && d->forage_xp > 0 ? d->forage_xp : o.yield_xp) * added);
+        // A herb pays its own XP. A bug or a hive pays what its spot says
+        // (genmaps copies a bug's from its catch block) -- or, for a bug
+        // whose spot says nothing, the bug's own.
+        int each = o.yield_xp;
+        if (o.type == "herb" && d && d->forage_xp > 0) each = d->forage_xp;
+        if (o.type == "bug" && each <= 0 && d) each = d->catch_xp;
+        player.GrantXp(SKILL_FORAGING, each * added);
         AddText("+ " + (added > 1 ? std::to_string(added) + " " : string("")) + (d ? d->name : o.yield),
                 player.x, player.y - 54.0f, added > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
         Audio::PlayAt(Sfx::Pickup, o.x, o.y);

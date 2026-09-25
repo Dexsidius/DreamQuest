@@ -460,10 +460,12 @@ down between two moments, `--say "a line"`, and `--shot file.png 5` (with
 `--frames 8 0.1`, eight pictures a tenth of a second apart). A scratch
 game can start anywhere and in anything: `--map brackenwood from_westwold`,
 `--wear steel_hide_head,steel_hide_body,steel_hide_legs`, `--level 40`,
-`--hour 22`, `--learn trail_legs,broadheads,arrow_rain`, `--quest q_marens_letter`,
+`--skills Foraging:50,Fishing:20` (any skill at a level, for catching a
+firebug without spending an evening getting there), `--hour 22`, `--learn trail_legs,broadheads,arrow_rain`, `--quest q_marens_letter`,
 `--charge 1.0` (how full [the lightning's battery](#the-lightning-and-the-battery)
 starts), `--learn zap:call_of_thunder` (which of the lightning is on the fifth
-key), `--screen controls` (or `skills:magic`, `shop:havenbrook_tannery`,
+key), `--learn enchant:multishot` (a charm known without its scroll),
+`--screen controls` (or `skills:magic`, `shop:havenbrook_tannery`,
 `craft:workbench`, `orders:npc_nessa`, `journal`, `map`, `tree`, and the rest).
 
 **`--audit`** opens every menu in the game at three window sizes, walks each
@@ -856,7 +858,7 @@ the same dozen fields off every weapon (`ItemDef`, "the armoury").
 | **Mace** | one | 1.12 | The hardest one-handed blow, and one in five **concusses**. Its own overhead `bash`. |
 | **Greatsword** | two | 1.45 | Half again a sword's reach and sixty per cent wider: the two-handed `sweep`, which is mostly wind-up and recovery, because that is what heavy looks like. 28% **bleed**. |
 | **Greataxe** | two | 1.6 | The slowest and the hardest. The same sweep -- and **held and let go it is a chop** (`hew`): longer down the line, half as wide, a third harder. 32% **bleed**. |
-| **Crossbow** | two | 0.55 | **It goes off the moment it is asked** -- no draw -- at 2.7 times the tier's power where a bow is 2.0, and the bolt goes through two bodies and past 40% of their Defence. Then it is **spanned again** for a second and a bit (`reload`), and nothing can be let off until it is. No combos: nothing chains off a weapon that has to be reloaded. |
+| **Crossbow** | two | 0.55 | **It goes off the moment it is asked** -- no draw -- at 2.7 times the tier's power where a bow is 2.0, and the bolt goes through two bodies and past 40% of their Defence. Then it is **spanned again** for a second and a bit (`reload`), and nothing can be let off until it is. No combos: nothing chains off a weapon that has to be reloaded -- a crossbow opens no combo window, and the both-buttons Cross Cut does nothing with one. It had been said and not kept: a combo bolt skipped its reload, because the reload guard sat below the combos in `FirePlayerProjectile`. It is above them now. |
 | **Throwing knives** | one | 0.6 | A shield on the other arm. Quick and close: a light throw is one knife, a **heavy one a fan of three**. |
 | **Wand** | one | 0.66 | Half again as many casts as a staff, each worth 0.72: about even over time, and much hungrier for mana. |
 | **Grimoire** | one | 0.8 | 0.8 of a staff's cast, and **every spell costs a sixth less**. |
@@ -867,6 +869,31 @@ the same dozen fields off every weapon (`ItemDef`, "the armoury").
 sound, which is a bowstring on a weapon that has no string: they carry
 `thrown` in `data/tiers.json` now and get a sound of their own -- air, and a
 thin edge turning in it.
+
+**And it is heard landing, or not.** A knife that lands used to be heard as a
+sword blow, and one that killed was heard only as the death, with nothing of
+the knife in it; one that missed made no sound at all. Now the knife's
+projectile (`throwing_knife`, shared by every tier) carries `thrown` in
+`data/projectiles.json` too, and what it does is heard:
+
+| What the knife does | What you hear |
+| --- | --- |
+| Goes in -- the throw that kills as much as any | `KnifeHit`: a short, dull thunk with a thin bright tick of the point, where it went in |
+| Is missed by the dice on something it reached | `Whiff`: a quick thin whiff of a blade going past, at what it missed |
+| Runs out of air having struck nothing | the same `Whiff`, once a knife -- a fan of three that finds nothing is three |
+| Meets a wall | `Impact`, as every shot does |
+| Does no harm (a hit of nothing) | `Block`, as every blow does |
+
+The whiff of a knife that flew into nothing is placed halfway along its
+flight, not where it ran out. At the end of a knife's range -- some 240
+pixels -- a placed sound has faded to two-fifths of itself, and the one it is
+for is the thrower; halfway along it is nearly whole and still heard off to the
+side the knife went. What pierced something on the way was heard going in, and
+does not whiff at the end. Arrows, bolts and spells are heard exactly as they
+were. In the engine it is one flag, `World::knife_next`, set by the shot just
+before `HitEnemy` as `crit_next` is and cleared straight after, so the fourteen
+other places that strike through `HitEnemy` -- swings, burning ground, nodes,
+flings -- sound as they did.
 
 **Combos.** The grammar is the sword's -- light-heavy, light-light-heavy,
 heavy-light, both at once -- and each melee weapon has its own four, with its
@@ -1793,7 +1820,7 @@ complete. A tier's seven pieces all ask the same level, so they are one line
 shield comes after a wooden bow -- so each noun is said once, at the lowest
 level it is true at, instead of four near-identical lines running. And the
 enchanted twin of every piece is skipped: it asks nothing the piece did not,
-and there are three hundred and thirty-six of them.
+and there are about eight thousand four hundred of them.
 
 **Strength and Hitpoints open nothing.** They are the two that pay at every
 level rather than at a few of them, and the column says so.
@@ -2153,9 +2180,9 @@ Every tier has **three sets**, and each helps only its own style:
 
 | Set | Pieces | Needs | Adds to | Keeps out | Made from |
 | --- | --- | --- | --- | --- | --- |
-| **Plate** (the metal tiers' own) | helm, cuirass, greaves, shield | Defence | Attack and Strength | the most | the tier's bars, at an anvil |
-| **Hides** | coif, jerkin, chaps | Ranged | Ranged | about seven tenths of plate | the tier's hide and thread, at a workbench |
-| **Robes** | hat, robe, skirt | Magic | Magic -- the most of the three | under half of plate | bolts of cloth, the tier's dye and thread, at a workbench |
+| **Plate** (the metal tiers' own) | helm, cuirass, greaves, gauntlets, boots, shield | Defence | Attack and Strength | the most | the tier's bars, at an anvil |
+| **Hides** | coif, jerkin, chaps, gloves, striders | Ranged | Ranged | about seven tenths of plate | the tier's hide and thread, on a tanning rack |
+| **Robes** | hat, robe, skirt, gloves, slippers | Magic | Magic -- the most of the three | under half of plate | bolts of cloth, the tier's dye and thread, at a loom |
 
 A set piece's defence is the tier's armour power times the piece's share, and
 what it adds to its style is the tier's *weapon* power times its share -- a full
@@ -2167,7 +2194,51 @@ of them adds anything to either of the other two styles, and a hide or a robe
 needs its tier's level in **Ranged** or **Magic** where plate asks for Defence:
 the warden's wardrobe is the warden's. They are in `data/tiers.json` beside the
 metal (`style_bonus` on the plate pieces, and a `sets` block), built by the
-same loader, so there are seventy-two new pieces and no list of them anywhere.
+same loader, so there are a hundred and twenty set pieces and no list of them
+anywhere.
+
+**Gloves and boots complete every set**, in all twelve tiers: plate's
+**gauntlets** and **boots**, the ranger's **gloves** and **striders**, the
+mage's **gloves** and **slippers** -- seventy-two pieces between the three --
+so the hands slot, which nothing filled, and the feet, which only Hide Boots
+and a drowned king's did, are worth filling at every level. Each keeps out and
+adds about half what the set's helm or hat does, and costs between the helm
+and the greaves, so a full set does not suddenly double: a whole set of plate
+keeps out about a fifth more than it did.
+
+| Piece | Plate | Hides | Robes |
+| --- | --- | --- | --- |
+| Hands | gauntlets: defence 0.30, Attack 0.08, Strength 0.10; two bars | gloves: 0.21, Ranged 0.15; one hide, one thread | gloves: 0.14, Magic 0.16; a bolt, a dye, a thread |
+| Feet | boots: defence 0.35, Attack 0.072, Strength 0.08; two bars | striders: 0.25, Ranged 0.15; two hides, one thread | slippers: 0.16, Magic 0.16; a bolt, a dye, a thread |
+
+(The numbers are shares of the tier's armour and weapon power, the way every
+other piece's are: enchanted gauntlets keep out 46 and add 13 and 16.) The
+boots' 0.072 is not a round number because a piece's stats are rounded to
+whole numbers, and a small share of a small power can round to the same number
+two tiers running: at 0.06, iron boots would add no more Attack than bronze,
+and platinum no more than diamond. The sets' gloves and footwear were nudged up
+for the same reason. At these shares every stat of every glove and boot rises
+with every tier from bronze up; wood and bronze plate tie on Attack and
+Strength the way the helm always has, because weapon powers of six and ten both
+come to one at that share. The wooden tier's are **Barkwood Gauntlets** and
+**Barkwood Boots**, bark over hide from logs at the workbench like the rest of
+its plate.
+
+**Gloves are drawn and boots are not.** A glove goes on the character's hands
+layer, the same as a gauntlet, and each set has a glove of its own: the
+ranger's is dark leather with a thick ring of fur at the wrist, and the mage's
+is dark cloth with a pale band round the knuckles and a pale turned-back cuff
+(see the cut table under "Worn equipment" for why both are the dark shade).
+Boots are worn on `"layer": "feet"`, which names
+no sheet: the feet are the bottom two or three rows of the legs layer, and every
+set's greaves, chaps and skirt already end in something on them, so a boot
+layer would be a full re-render for a few pixels nobody could tell from what is
+there. The layer still matters, because a worn piece with *no* layer is taken
+for art that is missing and washes the whole character in its colour -- which
+is how the Hide Boots from before the sets are still shown, and would have had
+a pair of slippers turning a mage purple from the hat down. The piece keys are `gauntlets` and `boots`, not `greaves`,
+`sabatons` or `bracers`, because those would make `steel_greaves` and its like,
+which the optional equipment pack already uses for its own.
 
 **Hides have to be killed for**, and each tier's is a different animal's:
 
@@ -2186,7 +2257,8 @@ same loader, so there are seventy-two new pieces and no list of them anywhere.
 | Dracon | Dragonhide | dragonhide | the frost dragon |
 | Enchanted | Dreamhide | dragonhide, and dream shards | -- |
 
-Two hides make a coif, four a jerkin, three a pair of chaps. The last tier has
+Two hides make a coif, four a jerkin, three a pair of chaps, one a pair of
+gloves and two a pair of striders. The last tier has
 no beast of its own, the way the last two metals have no ore: it is dragonhide
 steeped in the Reverie.
 
@@ -2199,16 +2271,19 @@ is a flower boiled in water. The herb decides the grade -- marigold, brookmint,
 nettle, bogbean, mountain sage, glowcap, emberbloom, moonpetal, starlily, and
 then the three that are not only a herb: moonpetal and dream shards, a dragon's
 fang and emberbloom, starlily and dream shards. A hat is a bolt and a dye, a
-robe three bolts and a dye, a skirt two and a dye, and thread for all of them.
+robe three bolts and a dye, a skirt two and a dye, gloves and slippers a bolt
+and a dye each, and thread for all of them.
 
 On the character they are two more **cuts** of the armour layers (see
 [Worn equipment](#worn-equipment)), painted in the set's own colour at that
 tier, and the icons are modelled and rendered by `make_tiers.ps1 -What sets` in
-the same colours.
+the same colours. Hides and robes are also sold where they are made: Orla
+and Isolde in the Westwold keep the first two tiers of each, gloves and
+footwear included, and Hale in the Brackenwood the Lizardscale.
 
-Every tier makes the same eight pieces -- a **sword, spear, bow, staff, shield,
-helm, cuirass and greaves** -- and every piece needs its tier's level in the
-skill it is used with: Attack for a sword or a spear, Ranged for a bow, Magic
+Every tier makes the same ten pieces -- a **sword, spear, bow, staff, shield,
+helm, cuirass, greaves, gauntlets and boots** -- and every piece needs its
+tier's level in the skill it is used with: Attack for a sword or a spear, Ranged for a bow, Magic
 for a staff, Defence for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
 which need the tier's level in Woodcutting or Mining; see
 [Gathering](#gathering). Each mined tier has an **ore** and a **bar**. Ore is smelted into
@@ -2282,9 +2357,21 @@ reduction and outline as the player hero, and rendered headlessly:
 
 ```powershell
 .\tools\make_tiers.ps1                          # icons and weapon layers
-.\tools\make_tiers.ps1 -What icons              # just the 112 icons
+.\tools\make_tiers.ps1 -What icons              # just the icons
+.\tools\make_tiers.ps1 -What hands,feet         # only the 72 gloves and boots
+.\tools\make_tiers.ps1 -What feet -Tiers iron -Names boots_iron
 .\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
 ```
+
+`-What icons` redraws every tier's icon, and a render is never byte for byte
+the one before, so running it to add a piece would change hundreds of committed
+pictures that nobody touched. `-What hands` and `-What feet` draw only the
+gloves and the boots -- plate's, the hides' and the robes' -- and `-Names`
+narrows them further, so adding a piece touches only its own files. They are
+laid out the way a pair lies on a table: one a little behind the other, gloves
+fingers up with the thumbs out, boots side on with the toes to the right. At
+32 pixels a finger is two pixels wide, so the four are drawn in two
+alternating shades; it is the change of shade that reads as fingers.
 
 Tiers are told apart three ways at once, because at game size colour alone is
 not enough: each has its own **palette**, its own **silhouette** -- a wooden
@@ -2346,9 +2433,15 @@ Worn on the feet they turn a little aside and **you walk a twentieth quicker**
 in them; the bag prints it as "Walk +5%" beside the bonuses. That is a field
 any worn item can carry, `move_speed`, a fraction added to walking speed and
 summed over everything worn, so an enchantment adds to it (see Enchanting).
-The Drowned King's boots keep their own Marshstride instead. An item carries
-one `craft`, and hide already made the jerkin, so its second recipe is listed
-under `crafts`; anything that makes several things can do the same.
+The Drowned King's boots keep their own Marshstride instead. Hide Boots are
+not part of the ranger's set: the set's feet are **striders**, which add Ranged
+and climb with every tier where Hide Boots stop at the first. At the start the
+boots are the better pair -- more defence and the quicker step for the same two
+hides and a thread -- and a ranger is meant to wear them until the Wolfskin
+Striders, which keep out as much and add two Ranged, and to have left them
+behind by the Lizardscale pair. An item carries one `craft`, and hide already
+made the jerkin, so its second recipe is listed under `crafts`; anything that
+makes several things can do the same.
 
 ---
 
@@ -2473,7 +2566,9 @@ cooking at fifty as well as at five, and the levels are held steady for as long
 as the meal lasts rather than draining a point at a time the way a potion's do.
 **One dish at a time**: a second replaces the first, so which one you cook before
 a fight is the whole of the decision. What you are on, and how long is left of
-it, is under the vitals.
+it, is under the vitals and the clock. Honeyed Oats have honey in them now, as
+the name always said they did: milk, an egg and a honey, from the hives in the
+Westwold (see "Honey" below).
 
 Burning is still possible, and still falls away as the cook's level climbs past
 the dish's. `ItemDef::dish_*` is the whole of the data; `Player::Meal`,
@@ -2508,6 +2603,113 @@ garden of the three beginner herbs beside her cottage in Mossvale. The plants'
 levels and XP come from their items in `data/items.json` (`"forage"`), so the maps
 and the items cannot disagree.
 
+### Bugs
+
+Four bugs are **caught** rather than picked -- bare-handed, for Foraging -- and
+go into brews. Stand at one and press `E`: the prompt says *Catch the marsh
+dragonfly*, or what Foraging it needs, and the hero kneels with the same
+`gather` clip and a short bar. It gives one, sometimes two on the same
+past-its-level chance a plant has, and the spot is empty air for a few game
+hours until another comes to it.
+
+| Bug | Foraging | Lives | Looks like |
+| --- | --- | --- | --- |
+| Swallowtail Butterfly | 9 | the Whisperwood, the Brackenwood and the greenwood | yellow barred with black; lazy loops, beating and gliding |
+| Marsh Dragonfly | 32 | round the Bayou's lakes | a long blue body and glassy wings; darts, and hangs |
+| Firebug | 50 | the banks of the Ashen Path's lava | a red beetle with an ember for a tail, a warm glow and sparks dropping off it; a little light at night |
+| Rime Beetle | 62 | the ice of the Spire and the Frostreach | a pale shell of frost that glints, walking the ice; a cold light at night |
+
+Their levels fall between the herbs' -- no bug shares a level with a herb, or
+with another bug -- and their XP and worth sit on the herbs' curve. A bug is
+**not a herb** to the data: it has a `catch` block (`level`, `xp`, `lives`)
+where a herb has `forage`, so it has no plant art to draw and no place in the
+herb counts. Oona buys them at what she pays for herbs.
+
+**Where a bug is.** It is a map object of type `bug` with no picture: what it
+looks like is drawn in code a world pixel at a time (`World::DrawBug`), because
+a thing eight pixels across put through the Blender pipeline comes out all
+outline. Where it is is `World::BugFlight` -- the object's spot, its id and the
+world's clock, and nothing else -- so every window that shares the clock sees it
+in the same place without a word being sent about it, and it never strays more
+than `BUG_RANGE` (12 pixels) from its spot. Catching is done *at* the spot, by
+the host, down the herb's own path: a friend's `E` goes to the host, the bug
+comes back into her real bag as a `Delta::Item`, and the spot is picked for
+everyone -- no protocol change. The fireflies and embers the ambience floats
+about are the camera's and nobody else's, which is why none of them can be
+caught, and why a bug that can be had to look nothing like them.
+
+**Where they are put.** The map generator puts them down, from each bug's own
+`catch` block: `PlaceBug` gives the spot the bug's level and XP, a title and an
+id of its own (`bug_0`, `bug_1` ... -- never `herb_`, which would have a caught
+bug marking a plant with the same number picked, since both are remembered as
+`map:id`), and grows another after as long as a herb of its level takes.
+
+| Bug | Map | How many | Where on it |
+| --- | --- | --- | --- |
+| Swallowtail | Whisperwood Trail | 10 | the trail's sunny verges and the woodcutter's clearing, never back under the trees |
+| | the Brackenwood | 10 | the glades and the trails' edges; not in the Old Growth, not round the den |
+| | the overworld | 7 | well inside the greenwood, off the road and the trail, and a long way from where a new character starts |
+| Marsh Dragonfly | the Bayou | 26 | three round every pond and four round each of the two great lakes the stilt villages stand in, on the bank a cell or two back from the water, over the reeds |
+| Firebug | the Ashen Path | 13 | two or three cells off molten rock: three by the first river, three by the second and the moat's front, two by the third, two by the pools along the road and three at the edge of the ember field |
+| Rime Beetle | Ice Spire Peak | 7 | out on the frozen pools, off the track |
+| | the Draugr Barrows | 6 | the frozen turf between the mounds |
+| | the Glass Mere | 7 | round the shore, a cell to three off the ice -- never out on it, where somebody stooping after one is somebody standing still on thin ice |
+| | the Rimefall Glacier | 7 | the bare glacier ice, clear of the crevasses and the ring of snowmen |
+| | the Warlord's Howe | 6 | the frost-bitten stone about the barrows, out of the Howe's yard |
+
+`PlaceBugs` ranks the cells a map allows by a hash of the cell (`Hash2`), never
+by a builder's `rng`: drawing from that would reshuffle every bush and tree
+drawn from it afterwards. It takes them in that order so long as each is a few
+cells from the last, on ground a player can stand on, off burning ground, 96
+pixels from anybody to talk to, 56 from anything else with a prompt and 64 from
+any way out -- so a catch never argues with a signpost over what `E` does --
+and not behind the scenery: the first swallowtail put on the Whisperwood's
+verge sat behind a bush, and all that showed of it was its feelers. Most
+scenery has no collision, so the generator asks what pictures stand there
+(`MapBuilder::Covered`). The dragonflies keep 150 pixels from anything that
+lurks under the water, so reaching for one is never how a gator is found; the
+firebugs are shared out by what the molten rock is, because the long first
+river had six of the thirteen when they were not.
+
+The self-test checks where each lives and nowhere else, that every body of
+water in the Bayou has two or more by it -- water within three cells of water
+is one body, so a deck or a ramp across a lake does not make it two, and there
+are eight -- each a cell or two back from the edge and clear of the lurkers,
+that every firebug is by the lava and none in it, that none hangs behind the
+scenery, and that no two things on any map share an id.
+
+### Honey
+
+**Honey** comes from **hives**, in an apiary in the Westwold beside Farmer
+Aldous's fields. A hive is a map object of type `hive`, drawn as its own prop
+with a few bees looping round it while it has honey in it (by day; at night
+they are in). `E` takes one or two honey and a little Foraging XP, at any
+level; then the hive is left a few hours to make more, and the bees are gone
+until it has.
+
+**Aldous's bees** are west of his north field: an open bee shed at the back
+with skeps on its two shelves, between two lengths of rail fence, crates and a
+barrel beside it; two rows of four hives, painted box hives in cream, blue and
+green among straw skeps on stumps; lavender between the rows and along the
+front; and a board at the corner by the road. His round turns in to them --
+from the field's gate west along the headland, where he stands a while looking
+them over, then back and on across the road to the other two fields -- and he
+will tell you about them if you ask. It stands three cells clear of the field's
+flax and of the road, so neither moved, and it was laid after the Westwold's
+night posts and further from every one of them than they keep from anybody, so
+none of those moved either. The wild marigolds that grew where it stands were
+dug out; the lavender is there instead, and since a herb draws nothing from the
+builder's `rng`, no other plant or tree on the map is where it was not. The
+self-test finds six to ten hives there, each within reach of Aldous's round and
+one of his stops among them, each with open ground beside it, and no night post
+within 340 pixels.
+
+Honey is a **farm's**, tagged `food` and `farm` like milk and eggs and not
+`brewing`. That matters twice over: a recipe with it in goes wherever its other
+inputs say (the cooking fire, for Honeyed Oats) rather than being dragged to
+the cauldron, and a brew with it in is brewed at the level of its herbs and
+bugs, not lifted by it.
+
 ### Brewing
 
 **Brewing** turns herbs and a glass vial into potions at a **cauldron**: in
@@ -2532,8 +2734,19 @@ world. Learned recipes are saved as world flags (`recipe:<id>`).
 | Moonlit Draught | 56 | 2 moonpetal, brookmint | 80 mana, Magic +5 and an eighth | the Night Pedlar |
 | Starlily Panacea | 68 | 2 starlily, moonpetal, marigold | 40 hitpoints, 100 mana, all stamina, every combat level a little | the Collector, after Lights on the Pond |
 
+And the five brewed from bugs and honey:
+
+| Potion | Brewing | Ingredients | Effect | Recipe from |
+| --- | --- | --- | --- | --- |
+| Swallowtail Draught | 9 | 2 swallowtails, marigold | Attack +3 and a twelfth | Hob the Pedlar |
+| Honeyed Draught | 12 | honey, marigold, nettle | 30 hitpoints, all stamina | Isolde, at Hidewater |
+| Skimmer Tonic | 32 | 2 marsh dragonflies, bogbean | 60 mana, Magic +3 and a tenth | Oona |
+| Cinderbug Ward | 50 | 2 firebugs, emberbloom, honey | nothing sets you burning for five minutes | Garrow's Smithy |
+| Rimeshell Ward | 62 | 2 rime beetles, mountain sage, honey | nothing chills or freezes you for five minutes | the College copying room |
+
 Every brew also takes one vial, and each is brewed at the Foraging level of its
-rarest herb, so the two skills climb together. A boost is the OSRS kind: a flat
+rarest herb or bug -- `ItemDef::GatherLevel`, the higher of a thing's `forage`
+and `catch` levels -- so the two skills climb together. A boost is the OSRS kind: a flat
 amount plus a share of the level, never stacking past its own ceiling, and a
 second potion of the same kind is refused -- not wasted -- while the first holds.
 Food and potions alike are refused when they would do nothing. Oona buys brews,
@@ -2541,16 +2754,44 @@ and every brew is worth at least 1.8 times its herbs, like anything crafted.
 
 The art is original. The plants (each growing and picked) and the cauldron are
 modelled in `tools/blender_props.py` and rendered with `make_props.ps1`; the
-herb, vial, potion and recipe-scroll icons are built in `tools/blender_tiers.py`
-beside the fish (`.\tools\make_tiers.ps1 -What brewing`); the kneel-and-pick
-`gather` clip is in `tools/blender_character.py`.
+herb, bug, vial, potion and recipe-scroll icons are built in
+`tools/blender_tiers.py` beside the fish (`.\tools\make_tiers.ps1 -What brewing`,
+with `-Names` for only some of them), and the honey jar with the food
+(`-What food -Names honey`); the kneel-and-pick `gather` clip is in
+`tools/blender_character.py`.
+
+### Wards
+
+Two of the brews **keep a status off** rather than lift a level. After a
+**Cinderbug Ward** nothing can set you burning for five minutes; after a
+**Rimeshell Ward** nothing can chill you or freeze you -- not a blow, not a fall
+through the Glass Mere's ice, not a frost thawing back into a chill, not a
+chill on someone soaked that would have been a freeze. A blow that would have
+left it says *warded* over your head instead, so a ward is seen to be working.
+
+Burning **ground** is not a status, but a fire ward takes half its bite as
+well: that ground is what the Ashen Path's fords and ember fields are, and the
+ward is brewed from what lives beside them. It does not add to the Drowned
+King's boots -- half is the most either gives, together or apart.
+
+A ward is a timer a status (`Player::WardLeft`), and it is refused where every
+status is taken, in `Player::Afflict` (and `World::AfflictPlayer`, which rolls
+first and says *warded*). A second draught starts the ward again from the top
+rather than adding to it, and is refused -- not wasted -- until the first has
+begun to run down. The HUD says each one under the meal, in its status's
+colour, with its time left; the bag and the cauldron say what one wards off and
+for how long. A death ends them, as it ends a boost. They are in the character
+sheet (`"wards"`, rounded up to the next five seconds so a friend's sheet is
+not sent anew every second a ward runs), so the host -- who decides what takes
+on a friend -- honours a friend's ward, and a save keeps it.
 
 ### Enchanting
 
-**Enchanting** works a charm into a worn piece -- a ring, an amulet, boots, or
-a piece of armour -- at an **enchanting table**, for Magic. There is one by
-Mira's stones in Fernhollow and one by the candles in the Reverie. Weapons take
-nothing.
+**Enchanting** works a charm into a piece at an **enchanting table**, for
+Magic. There is one by Mira's stones in Fernhollow and one by the candles in
+the Reverie. There are two kinds of charm: eight for what is **worn** -- a
+ring, an amulet, boots, a piece of armour -- each with one strength, and twelve
+for a **weapon**, each in tiers that climb with Magic.
 
 A charm has to be **learned** first, like a brew. The table lists every charm,
 but one not yet learned shows as "Unknown enchantment" and says where to learn
@@ -2559,6 +2800,8 @@ it. Mira teaches the first -- ask her "Could you teach me the shrine's craft?"
 around the world. Learned charms are saved as world flags
 (`recipe:enchant:<id>`); a charm scroll's `learn` reads `"enchant:<id>"`, and
 a dialogue line teaches one the same way.
+
+#### On a worn piece
 
 | Charm | Magic | Fits | Does | Costs | Scroll from |
 | --- | --- | --- | --- | --- | --- |
@@ -2576,19 +2819,101 @@ a herb, so Magic, Foraging and the nights spent asleep climb together. At the
 table, up and down pick the charm, left and right pick which piece in the bag
 it goes into (a bag can hold three rings), and use works it: the materials and
 the piece go, the enchanted piece comes back in the same slot, and Magic is
-paid. A piece takes one charm and no more, and a lantern, worn in the shield
-hand, takes none.
+paid. A worn piece takes one charm and no more -- one already enchanted is not
+enchanted again -- and a lantern, worn in the shield hand, takes none.
+
+#### On a weapon
+
+Each of the twelve weapon charms is learned **once**, from one scroll --
+"Charm: Precision", "Charm: Brand of Embers", worth 220 and one to a shop --
+and every tier comes with it: there is nothing more to learn for tier VI than
+for tier I. The tiers open at Magic 10, 25, 40, 55, 70 and 85 (Multishot has
+five, I to V), and the table works **the highest tier your Magic reaches**: at
+Magic 60 it offers Precision IV, not Precision I. Each tier is dearer than the
+last, and every charm asks the same at the same tier:
+
+| Tier | Magic | Costs | Pays | Adds to the weapon's worth |
+| --- | --- | --- | --- | --- |
+| I | 10 | 1 dream shard, 2 nettle | 200 Magic XP | 300 |
+| II | 25 | 2 dream shards, 2 bogbean | 380 | 500 |
+| III | 40 | 3 dream shards, 2 glowcap | 560 | 800 |
+| IV | 55 | 5 dream shards, 2 emberbloom | 780 | 1,200 |
+| V | 70 | 7 dream shards, 2 moonpetal | 1,050 | 1,800 |
+| VI | 85 | 10 dream shards, 2 starlily | 1,400 | 2,600 |
+
+A charm is taken by what a weapon **does**, not by what it is called
+(`ItemDatabase::Takes`), so a weapon added tomorrow is sorted without a line
+of code:
+
+| Charm | Does, tier I to VI | Takes it | Scroll from |
+| --- | --- | --- | --- |
+| Affliction | +5 / 8 / 11 / 14 / 17 / 20% to the chance of leaving whatever its blows leave | a weapon whose blows leave something: swords, greatswords, greataxes, maces, and every magic weapon (on its spells) | the College Copying Room, Fernhollow |
+| Precision | +3 / 6 / 12 / 18 / 21 / 24% chance to strike critically | any weapon | Garrow's Smithy, Mossvale |
+| Sorcery | spells 5 / 7 / 9 / 11 / 13 / 15% harder | staffs (the four elements' too), wands, grimoires, orbs | the College Copying Room |
+| Quickdraw | reloads 10 / 20 / 30 / 40 / 50 / 60% quicker | crossbows | Ivo's Bows and Hides, Havenbrook |
+| Multishot | +1 / 2 / 3 / 4 / 5 arrows with every shot (I to V) | bows and crossbows, not throwing knives | Ivo's Bows and Hides |
+| Vampiric | 1 / 2 / 3 / 4 / 5 / 6% of the damage dealt comes back as health | any weapon | the Curios of the Deep Dream |
+| Ferocity | critical blows 10 / 20 / 30 / 40 / 50 / 60% harder | any weapon | Halda's Forge, Havenbrook |
+| Brand of Bleeding | 8 / 12 / 16 / 20 / 24 / 28% chance to leave a bleeding wound | a weapon whose blows leave nothing today: spears, daggers, bows, crossbows, throwing knives | Hale's Packs, the Brackenwood |
+| Brand of Venom | the same chances, of poison | the same | the Night Market, the Reverie |
+| Brand of Frost | the same chances, of a chill | the same | the Night Market |
+| Brand of Embers | the same chances, of a burn | the same | Garrow's Smithy |
+| Thrift | spells cost 5 / 10 / 15 / 20 / 25 / 30% less mana | staffs, wands, grimoires, orbs | Oona's Remedies, Mossvale |
+
+**A weapon carries one charm.** Working a higher tier of the charm it has
+**raises it in place** -- for the new tier's shards and herbs, not the
+difference -- and working a different charm **replaces** the one it had, which
+is gone. The panel says which: "Raises Multishot II to IV", "Replaces
+Ferocity II". A tier it already carries, or a lower one, is refused. Only the
+charm on the weapon in the **main hand** counts: a second dagger in the other
+hand brings its speed and not its charm, as it brings its speed and not its
+bonuses.
+
+**The Brands and Affliction divide the armoury between them.** A sword, a
+mace or a staff already leaves something -- a wound, a concussion, a burn --
+and Affliction makes it leave it more often. A spear, a dagger or a bow leaves
+nothing, and a Brand gives it something to leave; an arrow, a bolt or a thrown
+knife carries the Brand of the weapon that let it go. Since a weapon carries one charm, a branded weapon
+cannot be afflicted as well, which is why Affliction is for the weapons that
+had something to begin with.
+
+**Multishot** lets off one to five more arrows beside every shot, each worth
+60% of a plain one, fanned out seven degrees apart on either side. It is on a
+plain shot and beside the fans of a Split Shot and a Twin Shot, and none of the
+extras is a sure crit, not even after Take Aim: the certainty is the arrow that
+was aimed.
 
 **An enchanted piece is an item like any other.** The game builds, at load, an
 enchanted twin of every piece each charm fits -- `copper_ring+keenness`, the
 Copper Ring of Keenness -- with the piece's bonuses plus the charm's, the
 piece's picture, tint and armour layer, and both their worths added, so it is
 carried, worn, sold, stored and saved by its id and nothing else in the game
-had to learn what an enchantment was. 168 twins come out of the eight
-charms; none is a recipe and no shop sells one ready made. The charms are
-`data/enchantments.json`; see `ItemDatabase::LoadEnchantments`. The table is
-`enchanting_table` in `tools/blender_props.py`, an object of type `altar` in
-the maps; the charm scroll and the hide boots are drawn beside the potions in
+had to learn what an enchantment was. A weapon's charm makes a twin for every
+tier of it on every weapon it fits -- `iron_bow+multishot_3`, the Iron Bow of
+Multishot III, named `"<weapon>+<charm>_<tier>"` -- and the worn pieces' eight
+and the weapons' twelve come to about 8,400 enchanted pieces between them (the
+log says how many as the game loads: the optional equipment pack adds its
+own); none is a recipe and no shop sells one ready made. Every id stays under
+the 48 characters the wire allows one, and **co-op needs nothing new**: an
+enchanted weapon goes between machines as an item id like any other.
+
+What a weapon's charm does is carried by the twin in one of two ways. Some of
+it is the weapon's **own numbers changed**, read where they always were: the
+leech (Vampiric), the damage a magic weapon's spells do (Sorcery), a crossbow's
+`reload` (Quickdraw), `mana_mult` (Thrift), and `on_hit` for a Brand. The rest
+are **new fields** on `ItemDef`, read where a blow or a shot is worked out:
+`proc_bonus` (Affliction), `crit_chance` (Precision) and `crit_damage`
+(Ferocity) in `World::HitEnemy`, and `extra_shots` (Multishot) in
+`FirePlayerProjectile`.
+
+The charms are `data/enchantments.json`: a worn piece's has its `slots` and one
+strength, a weapon's an `"effect"`, what `"takes"` it, what the table says it
+`"fits"`, and `"tiers"` -- `amount`, `level`, `xp`, `value` and `inputs` for
+each -- and a Brand names the status it leaves in `"brand"`. See
+`ItemDatabase::LoadEnchantments`, `EnchantDef::TierFor`, `NameAt` and
+`EffectAt`, and `Enchanting::Work(..., tier)`. The table is `enchanting_table`
+in `tools/blender_props.py`, an object of type `altar` in the maps; the charm
+scroll and the hide boots are drawn beside the potions in
 `tools/blender_tiers.py`.
 
 ---
@@ -2728,8 +3053,8 @@ indoors.)
 | Station | Trains | What is made there |
 | --- | --- | --- |
 | Workbench | Crafting | Wood: the wooden tier, bows, the fishing rod, the dreamcatcher |
-| **Tanning rack** | **Crafting** | **Everything of leather: all 36 pieces of the ranger's hides, the Leather Jerkin, Hide Boots, the four bags, the bedroll** |
-| Loom | Crafting | Cloth from any fibre, and all 36 pieces of the mage's sets |
+| **Tanning rack** | **Crafting** | **Everything of leather: all 60 pieces of the ranger's hides, the Leather Jerkin, Hide Boots, the four bags, the bedroll** |
+| Loom | Crafting | Cloth from any fibre, and all 60 pieces of the mage's sets |
 | Anvil | Smithing | Anything with metal in it |
 | Cauldron | Brewing | Potions, and the robes' dyes |
 | Cooking fire | Cooking | Plain food, and the dishes |
@@ -3114,8 +3439,16 @@ smaller.
 
 `--audit` sweeps every recipe at all six stations, every shop row, every bag
 square and every chest square at three window sizes, with a character wearing a
-full set and carrying a piece with a passive and two enchanted ones, so the
-longest line any of this can draw is checked rather than assumed.
+full set and carrying a piece with a passive and three enchanted ones, so the
+longest line any of this can draw is checked rather than assumed. The gloves
+brought the longest name in the game -- Orichalcum Gauntlets of the Hawk's Eye
+-- and the audit, wearing them, found "Instead of Orichalcum Gauntlets of the
+Hawk's Eye" running off the station panels at 1280 by 720; a header that does
+not fit on one line takes two now. Three of the ids the audit dressed and
+loaded the character with named nothing -- `dragonhide_hide_*` (the dragon's
+hides are `dracon_hide_*`), a sword "of Might" (Might is a worn piece's charm, not a weapon's) and a
+jerkin "of the Wind" (a charm for the feet) -- and each was skipped without a
+word, so an id that names no item is now printed as the audit starts.
 
 There is a `--bag a,b,c` switch beside `--wear a,b,c` now, because `--wear`
 equips anything with a slot and there was otherwise no way to ask for a helmet
@@ -3196,15 +3529,18 @@ colours.
 | --- | --- | --- |
 | `armour_legs` | legs | knee cops, greaves, sabatons over the boots |
 | `armour_body` | body | breastplate with a raised ridge, gorget, fauld, pauldrons, vambraces |
-| `armour_hands` | hands | cuffs and gauntlet shells |
+| `armour_hands` | hands | cuffs and gauntlet shells for plate, fur-cuffed leather gloves for hides, wrapped cloth gloves for robes |
 | `armour_head` | head | a skullcap with a brow band, nose guard and crest |
 | `armour_shield` | shield | a round shield on the off arm |
+| *(none)* | feet | boots, striders and slippers are worn on `"layer": "feet"` and not drawn: the legs layer already ends in a boot |
 
 The sheets are rendered in pale steel and multiplied by the item's own colour
 at draw time, so twelve tiers of the same plate cost one render. A piece drives
 its layer through `layer` on the tier piece in `data/tiers.json`, so adding a
 slot to the paperdoll is a one-line change there and a group in
-`tools/blender_character.py`.
+`tools/blender_character.py`. A `layer` that names no sheet, as `feet` does,
+draws nothing and still keeps the piece from being taken for missing art and
+tinting the character.
 
 ### Three cuts, so a tier is not just a colour
 
@@ -3217,13 +3553,28 @@ the tier:
 | `light` | wood, bronze, iron | a leather cap with no crest or nasal, a strap and a bracer instead of pauldrons, no knee cops, a small buckler, everything a shade darker |
 | `plate` | steel to platinum | the full harness: crested helm, pauldrons, poleyns, a round shield |
 | `ornate` | demonite, dracon, enchanted | horns off the brow band, a taller crest, a swept wing and a spike on each pauldron, a knee spike, a deeper fauld, a spiked shield |
-| `hide` | every tier's hides | a fur-lined hood with a drape and a peak, a jerkin with a fur collar and shoulders and a quiver slung behind, bracers, tassets, wrapped legs with a fur cuff, soft boots |
-| `robe` | every tier's robes | a pointed hat with a brim, a mantled robe with bell sleeves and a sash, and a skirt to the ankle that hangs from the hips, so a walk swings the feet out from under the hem instead of bending the cloth at the knee |
+| `hide` | every tier's hides | a fur-lined hood with a drape and a peak, a jerkin with a fur collar and shoulders and a quiver slung behind, bracers, tassets, wrapped legs with a fur cuff, soft boots; gloves of dark leather with a thick ring of fur at the wrist |
+| `robe` | every tier's robes | a pointed hat with a brim, a mantled robe with bell sleeves and a sash, and a skirt to the ankle that hangs from the hips, so a walk swings the feet out from under the hem instead of bending the cloth at the knee; gloves of dark cloth with a pale band round the knuckles and a pale cuff |
 
-The last two are chosen by the *piece*, not the tier, and are head, body and
-legs only -- there is no hide gauntlet -- so only those three groups are
-rendered for them (`make_character.ps1 -Style hide,robe`, about ten seconds a
-clip). The hat is the hard one: a helm is the one layer the head does not cut,
+The last two are chosen by the *piece*, not the tier, and are head, body, hands
+and legs -- a shield is a tier piece and wears its tier's cut -- so only those
+four groups are rendered for them (`make_character.ps1 -Style hide,robe`, about
+six seconds a clip and twenty minutes for all three characters). The gloves are
+bigger than the hand and both are the *dark* shade with a light ring at the
+wrist. A set is one colour from head to foot, and the light shade is only about
+a tenth brighter than the middle one once the tier's colour is multiplied in, so
+a glove in either of those vanished into the jerkin or the bell of the sleeve
+it hangs beside. Even the dark shade is only seven tenths of the sleeve's, and
+in a whole set of one colour that was still two pixels nobody could pick out,
+so a set's gloves are also *worn* a shade under their own colour: thirteen
+twentieths of it, in `Player::BuildLayerStyle`. They stay the tier's colour --
+Wolfskin gloves are grey and Lizardscale green -- and plate is left as it is,
+because a steel gauntlet already reads as metal at the end of a sleeve. The
+ring is there for the back view, where the flared skirt
+hides the hand and the forearm fills the cuff, and a ring is all that shows.
+Both are kept to the hand itself: the hands layer is drawn over the body
+layer, so a cuff reaching up the forearm would be painted on top of the robe's
+sleeve. The hat is the hard one: a helm is the one layer the head does not cut,
 and seen from the side the near half of anything round the head drops down the
 screen by most of its radius, so a wide-brimmed hat was a purple ball where the
 face should be. The dome and brim are kept close to the skull and set high,
@@ -3244,6 +3595,7 @@ two metals.
 ```powershell
 .\tools\make_character.ps1                          # three looks, three cuts
 .\tools\make_character.ps1 -Style light -Only idle   # just that cut's armour
+.\tools\make_character.ps1 -Style hide,robe          # the sets, gloves and all (~20 min)
 ```
 
 An alternate cut renders the armour groups only — the body, head and weapon
@@ -3906,6 +4258,10 @@ sprinting; it pulses red and reads "winded" when it has been run dry.
 
 Under those, a sun or a moon and the time: "Day 2  21:40  Night". It turns
 blue once it is late enough to sleep, and in a dream it counts down to dawn.
+Under the time, what you last ate while it lasts, and under that each ward you
+have drunk ("Ward: Burning  4:12"), in the colour of what it keeps off. The
+meal's line used to sit at a fixed height, which the clock's line had grown
+down over; both now follow the clock.
 
 With a technique chosen in a skill tree, the line under the prompts says what
 holding the heavy attack will do; with a staff it is on the spell line.
@@ -4025,14 +4381,18 @@ shadowed, because flat text over a moonlit sky is hard to read.
 ## Sound
 
 There are no audio files. `src/systems/audio.cpp` synthesises every effect at
-start-up -- 39 of them, from tones, filtered noise, struck-metal partials and
+start-up -- 43 of them, from tones, filtered noise, struck-metal partials and
 Karplus-Strong plucked strings -- and plays them through one SDL3 audio stream
 with a small mixer.
 
 - **Combat:** swings (pitched up through a light chain, heavier for strong and
   charged attacks), hits, critical hits, blocked hits, deaths, the bow's twang,
   a cast pitched by element, arrows striking walls, and a monster's swing as it
-  winds up. A killing blow is heard as the death rather than a hit on top of it.
+  winds up. A killing blow is heard as the death rather than a hit on top of it
+  -- except a thrown knife's, which is heard going in (see **Thrown things**,
+  below).
+- **Things thrown:** a knife leaving the hand, going in and going by; a rock,
+  a lump of ice or a snowball leaving a monster's.
 - **The world:** footsteps by distance walked -- earth outdoors, planks indoors,
   stone in the mines -- chopping and mining strikes while you work, cooking and
   burning, chests, doors, locked doors, portals, pickups and coins, eating and
@@ -4048,6 +4408,24 @@ with a small mixer.
 Sounds in the world are panned and fade with distance from the player, and
 anything but a menu sound varies its pitch a few percent so a run of hits does
 not sound mechanical.
+
+**Thrown things** have three sounds of their own, because each of the sounds
+they borrowed said something false: an orc slinger's rock twanged a bowstring,
+a knife going in was a sword's blow, and a knife that missed was silent.
+
+| Sound | What it is | How it is made | Unlike |
+| --- | --- | --- | --- |
+| `Throw` | a rock, a lump of ice or a snowball let go of by hand | a dark swell of noise brightening as the arm comes over (700 to 2,400 Hz), falling away as it leaves, and a muffled puff where it does: under a quarter of a second, no string and no steel. Played lower the bigger the thing thrown (`ProjectileDef::ThrowPitch`): a slinger's rock at about its own pitch, a troll's ice a tenth lower, the snowman's snowball at seven-tenths | `Swing`, which starts bright and only falls; `BowShot`, a plucked string; `KnifeThrow`, thin and sharp at the front |
+| `KnifeHit` | a blade going into something | a thunk gliding 240 to 105 Hz and gone in a seventh of a second, noise dulled to below 1,400 Hz, and a thin tick of the point at about 3 kHz | `Hit`, a lower, longer blow (150 to 55 Hz) with a bright hiss |
+| `Whiff` | a blade through empty air | noise with everything under 1,900 Hz taken out, swelling and falling from 6,500 to 2,600 Hz in a seventh of a second | `Swing`, fuller and a half again as long; `KnifeThrow`, which rises as it leaves where this falls as it goes by |
+
+They are appended to the end of `Sfx`, after `QuestComplete`, because the
+numbers are what co-op sends: inserted anywhere else they would renumber
+every sound after them, and anything from `UiMove` to `QuestComplete` is taken
+for a sound a friend's own window plays for itself and is never sent to her
+(`coop::OwnSound`, which the self-test asks about all three). A guest on an
+older build would take a number it does not know for its last sound -- the
+quest fanfare, on every knife -- so they came with protocol 14.
 
 **Ambience** is generated live, per map kind, and cross-fades on every map
 change: wind with slow swells and birdsong in the forest, groves and fields;
@@ -4722,8 +5100,9 @@ Tanner, who pays more for a hide than anyone and sells the first two hide sets,
 and Isolde the Weaver at her wheel, who sells flax, cloth and the first two
 robes; a workbench, a dye vat and a fire, so both new kinds of armour can be
 made where their makings are sold. Past it the road is a cart track between
-ploughed fields with **flax** along their headlands and Farmer Aldous walking
-between them, down to the river **Wend** and its plank bridge, where the
+ploughed fields with **flax** along their headlands, Farmer Aldous walking
+between them and **his bees** west of the north field, down to the river
+**Wend** and its plank bridge, where the
 highwaymen wait. East of the river it is a walk in the fields: hares, deer,
 foxes, boar. **West of it the wolves run in twos and threes.** Then a fork:
 north to the Brackenwood, and west up onto the **Howling Fells**, where the
@@ -4770,7 +5149,7 @@ walks the streets gate to gate; Tam carries logs from the sawpit to the forge;
 Dace fishes off the end of the jetty; Pip runs the guild's notices; Hollis the
 Carter comes in at the south gate and goes out at the west; and Sorrel, a
 ranger in off the downs, sells her pelts to Ivo and leaves again. Each has a
-line or two to say, and Aldous does the same between his fields.
+line or two to say, and Aldous does the same between his fields and his hives.
 
 **Where someone is on their round is worked out from the world's clock and
 nothing else** (`Npc::PlaceAt`): a round is a list of stops with a wait at
@@ -5799,6 +6178,19 @@ throw itself rides on the swing that was already there: at the same point in
 the wind-up where a claw would land, a projectile leaves instead, and is
 resolved where every other shot is.
 
+**A slinger is heard throwing, not twanging a bow.** Every shooter that is not
+a caster used to play the bowstring at the start of its wind-up, which was right
+for a bowman and wrong for a rock. Now a projectile that is let go of by hand
+says so -- `"thrown": true` on `orc_rock`, and on the frostback troll's
+`ice_chunk` and the abominable snowman's `yeti_snowball`, in
+`data/projectiles.json` -- and a monster throwing one is heard with a plain
+airy `Throw` at the moment it **leaves the hand**, a third of a second into the
+wind-up, from where the monster stands -- and lower the bigger the thing
+thrown, so the snowman's snowball is not heard as a slinger's pebble. A
+wind-up that is broken off throws nothing and is heard as nothing. Bowmen, archers, dragons, spitting croakers
+and every other shooter still twang at the start, as they did; casters still
+cast.
+
 ### What starts a fight, and what ends one
 
 **Two things start one.** Someone inside a monster's aggro range: it has seen
@@ -5939,12 +6331,15 @@ out altogether.
 
 | Totem of... | Blessing, until dawn | | Totem of... | Blessing, until dawn |
 | --- | --- | --- | --- | --- |
-| the Broodmother | walk 8% quicker | | the Sleepless | +20% maximum health |
-| the Lizardman Chief | breath returns 30% faster | | the Wyvern Matriarch | attack 6% faster |
-| the Hollowrest Wight | 5% of damage dealt returns as health | | the Pit Lord | +6% critical chance, criticals 25% harder |
-| the Warchief | +10% damage, with anything | | Hoarfang | +12 Defence and +12% maximum health |
-| the Thing in the Spring | on the move, 8% of blows miss you | | the Unwaking | +8% damage, charged attacks +15% more |
-| the Den Mother | +15 Defence, whatever you wear | | | |
+| the Broodmother | walk 8% quicker | | Hoarfang | +12 Defence and +12% maximum health |
+| the Lizardman Chief | breath returns 30% faster | | the Unwaking | +8% damage, charged attacks +15% more |
+| the Hollowrest Wight | 5% of damage dealt returns as health | | Lord Ashcroft | a twentieth of what you take comes back |
+| the Warchief | +10% damage, with anything | | the Fen | walk 10% quicker |
+| the Thing in the Spring | on the move, 8% of blows miss you | | the Cinder King | +10% damage and +10% health |
+| the Den Mother | +15 Defence, whatever you wear | | Cerberus | 8% quicker on your feet, 4% of damage dealt returns as health |
+| the Sleepless | +20% maximum health | | the High Priest | +5% critical chance; on the move 5% of blows miss you |
+| the Wyvern Matriarch | attack 6% faster | | the Abominable Snowman | +12% maximum health; on the move 6% of blows miss you |
+| the Pit Lord | +6% critical chance, criticals 25% harder | |  |  |
 
 A totem's blessing is two or three times what a first kill leaves for good,
 because it is one at a time, for a day, earned over a fortnight, and has to be
@@ -5966,6 +6361,46 @@ under everybody's feet -- and what stands in it is drawn from the item's own
 picture, for whoever is looking: a totem is the character's, not the room's.
 The totems are data: `"totems"` in `data/skill_trees.json`, and an item each.
 `--screen totems` opens the panel; `--bag totem_orc3` puts one in the pack.
+
+#### The house takes its colours
+
+**While a totem stands in the ring, the whole house is dressed in its
+colours.** It changes the floorboards, the plaster and beams, a rug laid round
+the ring, and two banners on the back wall. The totem also gives off a light
+of its own, by day as well as by night. The Warchief's is a war lodge of red
+boards and bone. Hoarfang's is frost-pale. Lord Ashcroft's is black wood and
+crimson. The High Priest's is hex green over black cypress. The three fire
+bosses are told apart: the Pit Lord's ember on soot, the Cinder King's molten
+gold on charcoal, and Cerberus's fire on iron. While the blessing is awake the
+colours are full. Once it sleeps they stay, greyer and darker, with only a low
+glow, until a hand wakes it again. Lift the totem out and the house is plain
+timber again, with the old rug back by the door. Standing a totem in the ring
+brings a breath of its light across the screen as the room turns.
+
+**How it is done.**
+
+- **Pale tiles, tinted.** A tint can only darken a picture, so warm planks
+  could never be dyed pale blue. The dressed room is drawn from pale "undyed"
+  boards and plaster (`plank_floor_pale*`, `plaster_wall_pale`, the last tiles
+  `tools/make_ground.ps1` makes, on their own seed). The rug and banners are
+  white cloth with their trim drawn as a second layer (`house_rug` and
+  `tapestry_house`, each with a `_trim`). Each is tinted with the totem's
+  palette as it is drawn, and the tint is taken off again at once, because the
+  same boards are the floor of every other house.
+- **The palette.** Floor, wall, cloth, trim and light are the `"house"` block
+  on each totem in `data/skill_trees.json`, taken from the totem's own carving
+  and its boss.
+- **What gets dressed.** The map says which of its tiles dress. Genmaps writes
+  a `themed` block into `mossvale_cottage`: the floor and wall groups with
+  their undyed pictures, the cloth and trim groups, the plain things put away
+  while something stands, and where the light is (`Map::Dress`,
+  `docs/MAP_FORMAT.md`). The game names no tile and no map.
+- **Whose totem.** It is the viewer's own, as the ring has always shown each
+  player their own. So a friend visiting your house in co-op sees it dressed
+  for *their* totem, and each half of a split screen is dressed for its own
+  player (`World::HouseDress`). Nothing about it crosses the wire.
+- **Testing it.** `--totem totem_orc3` (or `totem_orc3:asleep`) with
+  `--scratch` stands one in the ring, for looking at the house.
 
 One thing found on the way: a panel sent to a friend's machine is a number,
 and the number was held to `Sleep`, which was the last kind there was when that
@@ -6173,7 +6608,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **36826 checks** covering:
+and checks all of it — currently **61823 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -6289,8 +6724,8 @@ and checks all of it — currently **36826 checks** covering:
 - worn plate: all three playable characters have all five armour layers for
   every clip with the sheets on disk; the plate is drawn after the body and the
   head; a tier weapon sheet is recognised as an alternate rather than as a layer
-  of its own; every metal tier's helm, cuirass and greaves paints the layer for
-  its own slot and no weapon paints any; and a bronze helm over an iron cuirass
+  of its own; every metal tier's helm, cuirass, greaves and gauntlets paints the
+  layer for its own slot, its boots name the feet, and no weapon paints any; and a bronze helm over an iron cuirass
   over steel greaves turns on three layers in three different metals, with the
   character's own colouring left alone underneath
 - three cuts of armour: every tier is cut light, plate or ornate, plate carries
@@ -6347,8 +6782,8 @@ and checks all of it — currently **36826 checks** covering:
 - hide boots: made at a workbench from hide and thread, sold by Ivo, a
   twentieth quicker on the feet -- measured as ground covered in a second --
   and the Drowned King's boots keep their own stride
-- enchanting: eight charms listed cheapest first that between them cover rings,
-  amulets, boots and armour and never a weapon; every one but the first is a
+- enchanting: eight worn charms listed cheapest first that between them cover
+  rings, amulets, boots and armour, and never a weapon; every one but the first is a
   scroll someone sells and Mira teaches the first once; the Copper Ring of
   Keenness is the ring's bonuses plus the charm's and worth both, takes no
   second charm, and is drawn as the ring; a shield takes Fortitude and a lantern
@@ -6356,6 +6791,16 @@ and checks all of it — currently **36826 checks** covering:
   takes the materials and the piece and gives the enchanted piece back, and
   refuses without them; a worn charm counts and survives a save; and standing
   at the table by Mira's stones offers it and opens the panel
+- a weapon's charm: twelve, each with the tiers asked for (Affliction +5..20%,
+  Precision +3..24%, Sorcery +5..15%, Quickdraw -10..60%, Multishot +1..+5), each
+  tier opened at Magic 10, 25, 40, 55, 70 and 85 and dearer than the last; which
+  weapons take which (a sword Affliction but no Brand, a spear a Brand but no
+  Affliction, knives no Multishot); every twin's id fits the wire; a charm
+  worked, raised in place, never lowered, and replaced by another; and in play:
+  Multishot III looses four arrows with the three beside it at three fifths,
+  Quickdraw VI spans a crossbow in two fifths the time, a crossbow chains no
+  combos, the Brand of Frost chills from a bow, Precision strikes critically,
+  Vampiric gives back health, and Thrift's spells cost less
 - combos: the profiles order as they should and the hero has a clip and
   every tier's sword and spear for each; played through with a bronze sword
   against pinned orcs: the chain ends at three and a fourth light opens a new
@@ -6470,12 +6915,12 @@ and checks all of it — currently **36826 checks** covering:
   that needs nothing first, lends a tool a beginner may actually use, asks for
   a load gathered and carried back, and hands it over only when the whole load
   is in the bag -- and the quest completes with the tool kept
-- twelve tiers in order, each making all eight pieces with a recipe at the right
+- twelve tiers in order, each making all ten pieces with a recipe at the right
   station; every piece stronger and dearer than the same piece a tier down and
   needing its tier's level in the right skill; every metal tier with an ore and
   a bar and a smelting recipe; every ore mineable somewhere at its tier's Mining
   level; the old item ids still resolving as tier pieces
-- all 112 tier icons are different pictures, every tier weapon has a layer sheet
+- all the tier icons are different pictures, every tier weapon has a layer sheet
   for every hero clip it can play, and all 48 look different in the hero's hand;
   every tier has a spear that reaches over one and a half times as far as a sword
   down a narrower line, shoves harder, is slower, strikes with the thrust clip,
@@ -6551,7 +6996,7 @@ and checks all of it — currently **36826 checks** covering:
   no use at Mining 1, a bronze one mines copper with the mining animation, and
   walking away stops it; the pond wants a rod, a level 1 fisher with one lands a
   minnow and trains Fishing, and at Fishing 99 some casts land more than one fish
-- every one of the 39 sounds is audible, short, finite and under clipping;
+- every one of the 43 sounds is audible, short, finite and under clipping;
   each ambience, the dream's and a night outdoors included, is audible, stays
   in the background and fades out when cleared; forty hits at once are
   voice-capped and never exceed full scale
@@ -6722,14 +7167,19 @@ and checks all of it — currently **36826 checks** covering:
   until he is back on his round; at night the streets are the watch's, and
   nobody who has gone in can be spoken to
 - three kinds of armour: every tier has a ranger's hides and a mage's robes,
-  seventy-two pieces; plate adds to a blade, hides to a bow and robes to a
+  a hundred and twenty pieces, gloves and boots among them beside plate's
+  gauntlets and boots; plate adds to a blade, hides to a bow and robes to a
   staff, and none of them to anything else; plate keeps out the most and robes
-  the least; each has its icon and its own cut; hides are cut from the tier's
-  hide and robes from cloth and the tier's dye, at a workbench, at the tier's
-  level; eleven hides and something drops every one; a bolt of cloth from flax
-  or from spider silk; there is a dye for every tier of robe, brewed at the
-  level of its herb with no teaching and not for drinking; and both cuts are
-  drawn on all three characters
+  the least; each has its icon, its own cut and the layer of its own slot, worn
+  in that slot; hides are cut from the tier's hide on a rack and robes from
+  cloth and the tier's dye at a loom, at the tier's level; eleven hides and
+  something drops every one; a bolt of cloth from flax or from spider silk;
+  there is a dye for every tier of robe, brewed at the level of its herb with no
+  teaching and not for drinking; both cuts -- head, body, hands and legs -- are
+  drawn on all three characters in every clip they have, the armoury's
+  included; boots, striders and slippers are worn without drawing a layer or tinting the
+  character, and gauntlets and gloves are drawn on the hands in their own
+  cut, gauntlets in their own colour and a set's gloves a shade under theirs
 - the Westwold and the Brackenwood: they load, take every check every other map
   takes, and neither is small; wolves on the downs and greatwolves in the Fells;
   bears, one Den Mother, and dire bears in the Old Growth; Havenbrook has a west
@@ -6816,9 +7266,9 @@ and checks all of it — currently **36826 checks** covering:
   the mire, which sit there
 - the loom and the tanning rack: every recipe belongs to exactly one of the six
   stations; what is woven is what comes off the loom and not what goes in, so a
-  bolt of cloth is only ever woven, all thirty-six pieces of the mage's sets go
+  bolt of cloth is only ever woven, all sixty pieces of the mage's sets go
   with it, and a dye is boiled; what is leather is cut on a rack the same way
-  -- all thirty-six pieces of the ranger's hides whatever else is in them, the
+  -- all sixty pieces of the ranger's hides whatever else is in them, the
   jerkin, the boots, the bags and the bedroll, and no plate and no robe -- while
   a Barkwood Helm has a hide in it and is still made at a bench; both tanners
   have frames to work at, no carpenter's bench, and no frame that is only
@@ -6934,6 +7384,18 @@ and checks all of it — currently **36826 checks** covering:
   blessing goes out of the door, is still there at midnight, is over at dawn
   with the health it lent given back, the totem still standing at home and
   saying it is asleep; and all of it survives a save
+- the house at Mossvale dressed for what stands in its ring: every totem has a
+  palette and no two dress it alike; the house's floor, walls, rug, hangings
+  and plain rug are marked in its map; with nothing in the ring it is as it
+  was, with the Warchief's it wears his colours, puts the plain rug away and
+  lights the ring by day, asleep it is darker and greyer with a low light,
+  lifted out it is plain again; a friend's frame is dressed for their own
+  totem; and a room with no ring is never dressed
+- a monster's blow lands, and armour decides how hard: four thousand rolls all
+  land, none above the top hit or below the least; armour and Defence each
+  soften a blow and a sharper monster lands harder; shots the same; and over
+  the roster from level 21 up a fight at the right level costs about what it
+  did (the median blow within 0.85 to 1.2 of the old hit-or-miss average)
 - a new game starts with a new world: with forty bars in the chest, a chest
   looted, a boss dead and nine days gone, a new game finds the storage chest
   empty, no boss dead, nothing opened, no camp, and nine in the morning of the
@@ -6960,9 +7422,16 @@ and checks all of it — currently **36826 checks** covering:
   and a greataxe's charged heavy is a chop of its own; a greatsword takes the
   shield off and knives and a shield go together; a crossbow throws a bolt at
   once, is then being spanned, and nothing can be let off until it is; a light
-  throw is one knife and a heavy one three; the casters' weapons are quicker
-  than a staff for less, about even over time; each melee weapon has four
-  combos by name; every element has a spell on each of four slots; a fire
+  throw is one knife and a heavy one three; listened to through the co-op tap,
+  a knife that lands on a sturdy cow is heard going in where it went in and
+  never as a blow, every one of three the dice miss (on a cow of level 5,000)
+  is heard going by what it missed, at the cow and not short of it, the throw that kills is heard going in too, one thrown into
+  an empty field is heard going by once, halfway out along its flight and near
+  enough for the thrower, each knife of a fan of three is heard once -- going by,
+  or on the wall it met -- and an arrow is heard as it always was, neither going
+  in nor going by, not even one that runs out of air having met nothing; the casters' weapons
+  are quicker than a staff for less, about even over time; each melee weapon
+  has four combos by name; every element has a spell on each of four slots; a fire
   staff's four keys are four spells and it casts nothing else; the Flame Ring
   is a ring, the Wall of Fire a line across the way faced, the Flamethrower
   five wide or three far; the Hydro Cannon throws, the Tidal Wave is seven, the
@@ -7103,11 +7572,20 @@ and checks all of it — currently **36826 checks** covering:
   lightning had one gets the new arrangement unless it was moved by hand
 - orcs that stand back, and a knife that does not twang: every tier's throwing
   knives are thrown and every bow and crossbow is still loosed, and the two
-  sounds are not the same buffer; the slinger and the bowman each throw
+  sounds are not the same buffer; a throw is not a swing, a bowstring or a
+  knife's throw, a knife going in is not a blow or a shot on a wall, a knife
+  going by is not a swing or a throw, and all three are quick; a friend is told
+  all three (none is one her own window plays) and the line is protocol 14 or
+  later; the slinger's rock, the troll's ice, the yeti's snowball and the knife
+  are thrown and no arrow, bolt or dart is, and the bigger the thing the lower
+  its throw is heard; the slinger and the bowman each throw
   something the projectile table knows, shoot from further off than they can
   reach, notice a player from further off still, have no heavy and no machine
-  gun's cooldown. Played through: a slinger looses at a player it can see and
-  never closes to a swing's reach to do it. And the ranks are the ranks they
+  gun's cooldown. Played through and listened to through the co-op tap: a
+  slinger looses at a player it can see, never closes to a swing's reach to do
+  it, and is heard throwing once, from where it stands and at its rock's pitch,
+  with no bowstring in it,
+  while a bowman is still heard loosing an arrow. And the ranks are the ranks they
   were -- exactly eighty-five orc posts in the realm, thirty-five of them left
   for the day to settle, and about a third of the mines' and the barrow's
   standing back
@@ -7219,7 +7697,8 @@ tools/
   make_icons.ps1        paints the hand-drawn item icons in icons.txt
   blender_tiers.py      models and renders every tier's ore, bar, weapon and armour,
                         as icons and as weapon layers in the hero's hand
-  make_tiers.ps1        runs blender_tiers.py headless (`-What armoury,icons` for the nine new weapons' icons alone)
+  make_tiers.ps1        runs blender_tiers.py headless (`-What armoury,icons` for the nine new weapons' icons alone,
+                        `-What hands,feet` for the gloves and boots alone)
   make_titleart.ps1     the window icon and the .exe's .ico, off the cover painting
   appicon.rc            the resource that compiles the .ico into the executable
   make_sprites_json.ps1 / make_manifest.ps1

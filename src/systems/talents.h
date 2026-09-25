@@ -61,6 +61,13 @@ struct BoonDef {
 struct TotemDef {
     string item, boss, name, text;
     map<string, float> effects;
+    // What the house at Mossvale is dressed in while this totem stands in its
+    // ring: the boards, the walls, the rug and hangings, their trim, and the
+    // light the totem gives off (see World::HouseDress). `house` is false for
+    // a totem with no palette, which leaves the room as it is.
+    bool house = false;
+    SDL_Color floor{255, 255, 255, 255}, wall{255, 255, 255, 255}, cloth{255, 255, 255, 255},
+              trim{255, 255, 255, 255}, light{255, 255, 255, 255};
 };
 
 struct TalentTree {
@@ -185,6 +192,9 @@ public:
     void   SetToday(int quest_day) { today = quest_day; }
     bool   TotemAwake() const { return !placed.empty() && totem_day == today; }
     const TotemDef* ActiveTotem() const;
+    // What stands in the ring, awake or asleep: the house is dressed for it
+    // either way, brighter while it is awake.
+    const TotemDef* PlacedTotemDef() const;
 
     int  PointsEarned(AttackStyle style, const Skills& skills) const;
     int  PointsSpent(AttackStyle style) const;

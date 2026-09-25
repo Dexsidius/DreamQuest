@@ -347,6 +347,34 @@ public:
         dq["thin_ice"].push_back(t);
     }
 
+    // True when something small at (x, y) -- a bug a few pixels off the
+    // ground -- would be drawn behind a picture standing there: a bush, a
+    // tree, a hut whose frame takes in the point and whose foot is in front
+    // of it. Most scenery has no collision, so Clear() cannot say.
+    bool Covered(int x, int y) const {
+        x += ox;
+        for (const auto& [name, g] : groups) {
+            if (g.layer == 0) continue;
+            for (const auto& l : g.locations) {
+                const int left = l[0] - l[2] / 2, top = l[1] - l[3] / 2;
+                if (x >= left - 14 && x <= left + l[2] + 14 && y - 8 >= top - 14 && top + l[3] >= y - 14) return true;
+            }
+        }
+        return false;
+    }
+
+    // True when a player standing with their feet at (x, y) would be on
+    // burning ground placed so far: a ford, a pool, a vent in the embers.
+    bool OnHazard(int x, int y) const {
+        if (!dq.contains("hazards")) return false;
+        x += ox;
+        for (const auto& h : dq["hazards"]) {
+            const int hx = h["rect"][0], hy = h["rect"][1], hw = h["rect"][2], hh = h["rect"][3];
+            if (x - 8 < hx + hw && hx < x + 8 && y - 10 < hy + hh && hy < y) return true;
+        }
+        return false;
+    }
+
     // True when a player standing with their feet at (x, y) touches none of
     // the collision placed so far. The foot box matches the self-test's.
     bool Clear(int x, int y) const {
@@ -593,6 +621,20 @@ public:
         e["ramps"] = rr;
         dq["elevation"] = e;
     }
+
+    // A room dressed for whatever stands in its ring: see World::HouseDress and
+    // docs/MAP_FORMAT.md. A "floor" or "wall" tile group is drawn from its
+    // `undyed` picture instead and tinted with the totem's colour; "cloth" and
+    // "trim" groups are there only while something stands, tinted; "plain"
+    // ones only while nothing does. The game knows none of the names: this is
+    // where they are said.
+    void Dress(const string& role, const string& group, const string& undyed = "") {
+        json& t = dq["themed"];
+        if (role == "floor" || role == "wall") t[role][group] = undyed;
+        else t[role].push_back(group);
+    }
+    // And where the totem's own light is.
+    void DressLight(int x, int y) { dq["themed"]["light"] = json::array({x + ox, y}); }
 
     void Interior(bool v) { dq["interior"] = v; }
     // Ground fog, drawn by the fog shader over the floor and under everyone:
@@ -934,6 +976,129 @@ static void PlaceHerb(MapBuilder& m, const string& herb, int x, int y, int& inde
     string title = it->second.name;
     for (char& c : title) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     o["title"]       = title;
+}
+
+// --- bugs ----------------------------------------------------------------------------
+// What each bug is -- its name, the Foraging level it is caught at and the XP it
+// is worth -- comes from its "catch" block in data/items.json, as a herb's comes
+// from its "forage" block. A bug has no "forage" block, so none of the herb
+// rules touch it, and PlaceHerb would never place one.
+struct BugInfo { string name; int level = 1, xp = 10; };
+static std::map<string, BugInfo> g_bugs;
+static std::set<string> g_bugs_missing;
+
+static void LoadBugs() {
+    std::ifstream in("data/items.json");
+    json root;
+    try { in >> root; } catch (const std::exception&) { return; }
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        if (!it.value().is_object() || !it.value().contains("catch")) continue;
+        BugInfo b;
+        b.name  = it.value().value("name", it.key());
+        b.level = it.value()["catch"].value("level", 1);
+        b.xp    = it.value()["catch"].value("xp", 10);
+        g_bugs[it.key()] = b;
+    }
+}
+
+// A bug to catch: an object with no picture of its own, which the game draws
+// flying -- or, a beetle, walking -- about its spot (World::BugFlight), caught by
+// hand the way a herb is picked, with Foraging's level and XP from the bug's
+// own catch block, and another along to the spot a few hours later. Its id is
+// its own ("bug_"), so catching one never marks a herb with the same number
+// picked.
+static void PlaceBug(MapBuilder& m, const string& bug, int x, int y, int& index) {
+    auto it = g_bugs.find(bug);
+    if (it == g_bugs.end()) { g_bugs_missing.insert(bug); return; }
+    json& o = m.Object("bug_" + std::to_string(index++), "bug", x, y);
+    o["skill"]       = "Foraging";
+    o["skill_level"] = it->second.level;
+    o["yield"]       = bug;
+    o["yield_xp"]    = it->second.xp;
+    o["gather_time"] = 1.2f + it->second.level * 0.006f;
+    // As long to come back as a herb of its level takes to grow: a
+    // swallowtail in a little over two game hours, a rime beetle nearly five.
+    o["regrow"]      = 1.8f + it->second.level / 21.0f;
+    string title = it->second.name;
+    for (char& c : title) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    o["title"]       = title;
+}
+
+// Nobody's prompt is taken by a bug put here: no one to talk to within three
+// cells, nothing else to use within two, no way out under it. A catch next to
+// a signpost would argue with it over what E does.
+static bool QuietAround(const MapBuilder& m, int x, int y) {
+    const float fx = static_cast<float>(x + m.ox), fy = static_cast<float>(y);
+    if (m.dq.contains("npcs"))
+        for (const auto& n : m.dq["npcs"])
+            if (std::hypot(n["x"].get<float>() - fx, n["y"].get<float>() - fy) < 96.0f) return false;
+    if (m.dq.contains("objects"))
+        for (const auto& o : m.dq["objects"])
+            if (std::hypot(o["x"].get<float>() - fx, o["y"].get<float>() - fy) < 56.0f) return false;
+    if (m.dq.contains("portals"))
+        for (const auto& p : m.dq["portals"]) {
+            const float px = p["rect"][0].get<float>(), py = p["rect"][1].get<float>(),
+                        pw = p["rect"][2].get<float>(), ph = p["rect"][3].get<float>();
+            if (std::hypot(std::clamp(fx, px, px + pw) - fx, std::clamp(fy, py, py + ph) - fy) < 64.0f) return false;
+        }
+    return true;
+}
+
+// Where a map's bugs go: every cell in [cx0, cx1) x [cy0, cy1) that `fits`
+// allows, ranked by a hash of the cell -- never a builder's rng, which would
+// reshuffle every bush and tree drawn from it after -- and taken in that order
+// so long as each is `apart` cells from the others already `taken`, on ground
+// that can be stood on, off burning ground, quiet round it, and out from
+// behind the scenery (a swallowtail was put down behind a bush on the
+// Whisperwood's verge, and all that showed of it was its feelers). The spot is
+// a little off the cell's middle, by the same hash, so they do not line up.
+// Returns how many went down.
+static int PlaceBugs(MapBuilder& m, const string& bug, int want, int CELL, int cx0, int cy0, int cx1, int cy1,
+                     uint32_t salt, float apart, const std::function<bool(int, int)>& fits, int& index,
+                     vector<std::pair<int, int>>* taken = nullptr) {
+    struct Spot { float rank; int cx, cy; };
+    vector<Spot> spots;
+    for (int cy = cy0; cy < cy1; ++cy)
+        for (int cx = cx0; cx < cx1; ++cx)
+            if (fits(cx, cy)) spots.push_back({Hash2(cx, cy, static_cast<int>(salt)), cx, cy});
+    std::sort(spots.begin(), spots.end(), [](const Spot& a, const Spot& b) {
+        if (a.rank != b.rank) return a.rank < b.rank;
+        return a.cy != b.cy ? a.cy < b.cy : a.cx < b.cx;
+    });
+    vector<std::pair<int, int>> own;
+    vector<std::pair<int, int>>& mine = taken ? *taken : own;
+    int placed = 0;
+    for (const Spot& s : spots) {
+        if (placed >= want) break;
+        bool room = true;
+        for (const auto& p : mine)
+            if (std::hypot(static_cast<float>(p.first - s.cx), static_cast<float>(p.second - s.cy)) < apart) room = false;
+        if (!room) continue;
+        const int x = s.cx * CELL + 8 + static_cast<int>(Hash2(s.cx, s.cy, static_cast<int>(salt) + 1) * 16.0f);
+        const int y = s.cy * CELL + 12 + static_cast<int>(Hash2(s.cx, s.cy, static_cast<int>(salt) + 2) * 14.0f);
+        if (!m.Clear(x, y) || m.OnHazard(x, y) || !QuietAround(m, x, y) || m.Covered(x, y)) continue;
+        PlaceBug(m, bug, x, y, index);
+        mine.push_back({s.cx, s.cy});
+        ++placed;
+    }
+    return placed;
+}
+
+// A hive to take honey from: its picture, a band of collision at its foot, and
+// what it gives -- honey, a little Foraging XP to anybody, and more honey a few
+// hours after. The bees round it are the game's (World::DrawBees).
+static void PlaceHive(MapBuilder& m, const string& obj_id, const string& art, const string& title, int x, int y,
+                      int solid_w) {
+    json& o = m.Object(obj_id, "hive", x, y);
+    o["sprite"]      = "assets/props/" + art + ".png";
+    o["skill"]       = "Foraging";
+    o["skill_level"] = 1;
+    o["yield"]       = "honey";
+    o["yield_xp"]    = 12;
+    o["gather_time"] = 1.6f;
+    o["regrow"]      = 5.0f;
+    o["title"]       = title;
+    m.Collision(x - solid_w / 2, y - 10, solid_w, 10);
 }
 
 // A cauldron to brew at.
@@ -2421,6 +2586,28 @@ static void BuildOverworld() {
             }
         }
         std::printf("  the Hollowmarch by night: %d posts\n", m.night_posts);
+    }
+
+    // A few swallowtails in the greenwood, well inside it and off the road
+    // and the trail -- and a long way from where a new character starts, whose
+    // first E should be at a tree, not a butterfly.
+    {
+        int bug_i = 0;
+        float sx = 0.0f, sy = 0.0f;
+        if (m.dq.contains("spawns") && m.dq["spawns"].contains("start")) {
+            sx = m.dq["spawns"]["start"][0].get<float>();
+            sy = m.dq["spawns"]["start"][1].get<float>();
+        }
+        const int got = PlaceBugs(m, "swallowtail", 7, OW_CELL, OW_X0 + 4, 4, OW_W - 4, OW_H - 4, 7521u, 9.0f,
+                                  [&](int cx, int cy) {
+            for (int oy = -2; oy <= 2; ++oy)
+                for (int ox = -2; ox <= 2; ++ox)
+                    if (BiomeAt(cx + ox, cy + oy) != GREENWOOD) return false;
+            if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
+            if (Hash2(cx, cy, 4242) < 0.14f) return false;          // where the scenery stands
+            return std::hypot(cx * OW_CELL + 16 + m.ox - sx, cy * OW_CELL + 16 - sy) > 1200.0f;
+        }, bug_i);
+        std::printf("  the Hollowmarch: %d swallowtails in the greenwood\n", got);
     }
 
     PlaceCurios(m);
@@ -4100,6 +4287,19 @@ static void BuildIceSpire() {
         PlaceChest(m, "chest_dragon_hoard", dx - 40, dy + 34, "chest_peak");
     }
 
+    // Rime beetles out on the ice, off the track: on the frozen pools, which
+    // is what the ground is drawn as where its noise runs high, never in the
+    // camp at the foot or up by the dragon.
+    {
+        int bug_i = 0;
+        const int got = PlaceBugs(m, "rime_beetle", 7, CELL, 2, 8, W - 2, H - 12, 7301u, 7.0f, [&](int cx, int cy) {
+            if (!Open(cx, cy) || !Open(cx + 1, cy) || !Open(cx - 1, cy) || !Open(cx, cy + 1) || !Open(cx, cy - 1)) return false;
+            if (Gap(cx, cy) < 2.0f) return false;
+            return Fbm(cx * 0.2f, cy * 0.2f, 8585) > 0.64f;
+        }, bug_i);
+        std::printf("  Ice Spire Peak: %d rime beetles\n", got);
+    }
+
     // Something walking the track below the summit, up one side and down the
     // other, on some days: none of the camp at its foot, none of the dragon's
     // ground at its top.
@@ -4476,6 +4676,61 @@ static void BuildAshenPath() {
     m.Enemy("demon", 52 * CELL + 16, 20 * CELL + 16, 12, 60.0f, 220.0f);
     m.Enemy("imp", 88 * CELL + 16, 20 * CELL + 16, 16, 60.0f, 220.0f);
     m.Enemy("imp", 86 * CELL + 16, 36 * CELL + 16, 15, 60.0f, 220.0f);
+
+    // --- firebugs, where the lava runs --------------------------------------------------------
+    // On the banks two or three cells off molten rock -- never on it, never on
+    // the road, and not inside the palace's moat, where nobody goes to catch
+    // anything. Shared out by what the rock is, so the long first river does
+    // not have them all: some by each of the three rivers, some by the pools
+    // along the road, and some at the edge of the ember field.
+    {
+        enum Src : uint8_t { NONE = 0, RIVER0, RIVER1, RIVER2, POOL, EMBERS };
+        vector<uint8_t> hot(static_cast<size_t>(W) * H, NONE);
+        const auto cell = [&](int cx, int cy) -> uint8_t& { return hot[static_cast<size_t>(cy) * W + cx]; };
+        for (int cy = 0; cy < H; ++cy)
+            for (int cx = 0; cx < W; ++cx) {
+                const int river = RiverAt(cx, cy);
+                if (river >= 0) cell(cx, cy) = static_cast<uint8_t>(RIVER0 + river);
+                else if (MoatFront(cx, cy)) cell(cx, cy) = RIVER1;
+            }
+        for (const auto& h : m.dq["hazards"]) {
+            const int hx = h["rect"][0], hy = h["rect"][1], hw = h["rect"][2], hh = h["rect"][3];
+            for (int cy = hy / CELL; cy <= (hy + hh - 1) / CELL; ++cy)
+                for (int cx = hx / CELL; cx <= (hx + hw - 1) / CELL; ++cx)
+                    if (cx >= 0 && cy >= 0 && cx < W && cy < H && cell(cx, cy) == NONE)
+                        cell(cx, cy) = (cx >= MOAT_E + 3 && cy < TrailY(static_cast<float>(cx)) - 6.0f) ? EMBERS : POOL;
+            }
+        // How far the nearest molten rock is, in cells, and what it is.
+        const auto nearest = [&](int cx, int cy, uint8_t& what) {
+            int d = 99;
+            what = NONE;
+            for (int dy = -4; dy <= 4; ++dy)
+                for (int dx = -4; dx <= 4; ++dx) {
+                    const int x = cx + dx, y = cy + dy;
+                    if (x < 0 || y < 0 || x >= W || y >= H || cell(x, y) == NONE) continue;
+                    const int dd = std::max(abs(dx), abs(dy));
+                    if (dd < d) { d = dd; what = cell(x, y); }
+                }
+            return d;
+        };
+        const auto bank = [&](int cx, int cy, uint8_t by) {
+            if (cell(cx, cy) != NONE) return false;
+            uint8_t what = NONE;
+            const int d = nearest(cx, cy, what);
+            if (d < 2 || d > 3 || what != by) return false;
+            if (fabsf(cy - TrailY(static_cast<float>(cx))) < 2.0f) return false;
+            if (cx >= MOAT_W - 3 && cx <= MOAT_E + 3 && cy <= MOAT_FRONT + 2) return false;
+            if (OnPalaceRoad(cx, cy, 2.0f) || OnPlateauRoad(cx, cy, 2.0f) || OnPatrol(cx, cy)) return false;
+            return !(cx > W - 12 && fabsf(cy - TrailY(static_cast<float>(cx))) < 7.0f);   // the gate's forecourt
+        };
+        int bug_i = 0, got = 0;
+        vector<std::pair<int, int>> taken;
+        const std::pair<uint8_t, int> shares[] = {{RIVER0, 3}, {RIVER1, 3}, {RIVER2, 2}, {POOL, 2}, {EMBERS, 3}};
+        for (const auto& sh : shares)
+            got += PlaceBugs(m, "firebug", sh.second, CELL, 2, 2, W - 2, H - 2, 7201u + sh.first, 6.0f,
+                             [&](int cx, int cy) { return bank(cx, cy, sh.first); }, bug_i, &taken);
+        std::printf("  the Ashen Path: %d firebugs\n", got);
+    }
 
     PlaceCurios(m);
     // On some days, one of a pool of bosses walking the track worn round the
@@ -5271,6 +5526,18 @@ static void BuildWhisperwood() {
         }
     std::printf("  the Whisperwood by night: %d posts\n", m.night_posts);
 
+    // Swallowtails where the sun gets in: along the trail's verges and in the
+    // woodcutter's clearing, never back under the trees.
+    {
+        int bug_i = 0;
+        const int got = PlaceBugs(m, "swallowtail", 10, CELL, 3, 3, W - 3, H - 3, 7501u, 6.0f, [&](int cx, int cy) {
+            if (fabsf(cx - StreamX(static_cast<float>(cy))) < 2.6f || on_camp_path(cx, cy)) return false;
+            const float gap = TrailGap(cx, cy);
+            return in_camp(cx, cy) || (gap > 1.8f && gap < 4.2f);
+        }, bug_i);
+        std::printf("  the Whisperwood: %d swallowtails\n", got);
+    }
+
     m.Write("maps");
 }
 
@@ -5519,10 +5786,17 @@ static void BuildWestwold() {
         m.Collision(st_cx * CELL + 40 - 16, 47 * CELL - 10, 32, 10);
     }
 
-    // A farmer on his round between the fields, by the clock: see Npc.
+    // A farmer on his round between the fields, by the clock: see Npc. From
+    // the north field's gate he turns west along the headland to his hives
+    // and stands looking them over a while, then comes back and goes on
+    // across the road to the other two.
     {
         json& n = m.Npc("npc_aldous", "Farmer Aldous", "citizen2", 103 * CELL, 47 * CELL, "aldous_root", 0);
         n["path"] = json::array({json::array({103 * CELL, 47 * CELL, 12.0f, 3}),
+                                 json::array({93 * CELL + 16, 46 * CELL + 16, 0.0f, 0}),
+                                 json::array({93 * CELL, 39 * CELL + 8, 14.0f, 1}),
+                                 json::array({93 * CELL + 16, 46 * CELL + 16, 0.0f, 0}),
+                                 json::array({103 * CELL, 47 * CELL + 8, 0.0f, 0}),
                                  json::array({103 * CELL, 52 * CELL, 0.0f, 0}),
                                  json::array({108 * CELL, 56 * CELL + 16, 0.0f, 0}),
                                  json::array({108 * CELL, 58 * CELL, 14.0f, 0}),
@@ -5659,6 +5933,61 @@ static void BuildWestwold() {
             }
         }
     std::printf("  the Westwold by night: %d posts\n", m.night_posts);
+
+    // --- Farmer Aldous's bees ------------------------------------------------------------------
+    // West of his north field, where his round turns in to look them over: an
+    // open bee shed of skeps at the back between two lengths of fence, then
+    // two rows of hives -- painted boxes and straw skeps -- with lavender
+    // between the rows and along the front, and a board at the corner by the
+    // road. Three cells clear of the field's flax and of the road, so neither
+    // is touched; laid after the night's posts, and further from every one of
+    // them than they keep from anybody, so none of those moves either. The
+    // wild marigolds that grew where it stands are dug out: the lavender is
+    // there instead.
+    {
+        const int ax0 = 82 * CELL, ay0 = 35 * CELL, ax1 = 93 * CELL, ay1 = 47 * CELL - 4;
+        auto& objs = m.dq["objects"];
+        for (size_t i = objs.size(); i-- > 0;) {
+            const json& o = objs[i];
+            const int x = o["x"], y = o["y"];
+            if (o.value("type", string()) == "herb" && x >= ax0 && x < ax1 && y >= ay0 && y < ay1)
+                objs.erase(i);
+        }
+        Fence(m, CELL, 82, 86, 35);
+        Fence(m, CELL, 90, 92, 35);
+        m.Prop("props", "bee_shed", 2800, 1200);
+        m.Collision(2800 - 44, 1200 - 18, 88, 18);
+        m.Prop("props", "crates_sacks", 2730, 1206);
+        m.Collision(2730 - 18, 1206 - 10, 36, 10);
+        m.Prop("props", "barrel", 2868, 1204);
+        m.Collision(2868 - 14, 1204 - 10, 28, 10);
+        struct Hive { const char* art; int x, y; };
+        const Hive hives[] = {
+            {"beehive", 2680, 1280}, {"beehive_blue", 2752, 1280}, {"bee_skep", 2824, 1280}, {"beehive_green", 2896, 1280},
+            {"bee_skep", 2704, 1408}, {"beehive_green", 2776, 1408}, {"beehive", 2848, 1408}, {"beehive_blue", 2920, 1408},
+        };
+        int n = 0;
+        for (const Hive& h : hives) {
+            const bool skep = string(h.art) == "bee_skep";
+            PlaceHive(m, "hive_aldous_" + std::to_string(n++), h.art, skep ? "straw skep" : "beehive", h.x, h.y,
+                      skep ? 20 : 28);
+        }
+        for (const auto& b : {std::pair<int, int>{2716, 1344}, {2860, 1344}, {2728, 1468}, {2824, 1468}}) {
+            m.Prop("props", "lavender_bed", b.first, b.second);
+            m.Collision(b.first - 29, b.second - 12, 58, 12);
+        }
+        int f = 0;
+        for (const auto& p : {std::pair<int, int>{2646, 1330}, {2958, 1322}, {2648, 1446}, {2790, 1378},
+                              {2690, 1232}, {2946, 1206}}) {
+            m.Overlay("decor", "flowers_" + std::to_string(f++ % 5), p.first, p.second);
+        }
+        json& sign = m.Object("sign_apiary", "sign", 2944, 1480);
+        sign["sprite"] = "assets/props/signpost.png";
+        sign["title"]  = "Aldous's bees";
+        sign["text"]   = "ALDOUS'S BEES\n\nTake what honey there is and welcome, and shut the hive after you. Go slow and "
+                         "they will let you.\n\nDo not take it all. They have to eat too.";
+        m.Collision(2944 - 16, 1480 - 10, 32, 10);
+    }
 
     PlaceCurios(m);
     m.Write("maps");
@@ -5857,6 +6186,20 @@ static void BuildBrackenwood() {
             else         m.NightEnemy({"ankou", "banshee"}, group, x, y, 1, 1, 0.5f);
         }
     std::printf("  the Brackenwood by night: %d posts\n", m.night_posts);
+
+    // Swallowtails in the glades and along the sunny edges of the trails --
+    // not in the Old Growth, and not round the den.
+    {
+        int bug_i = 0;
+        const int got = PlaceBugs(m, "swallowtail", 10, CELL, 3, 3, W - 3, H - 3, 7511u, 7.0f, [&](int cx, int cy) {
+            if (old_growth(cx, cy - 3)) return false;
+            const int ddx = cx - den.cx, ddy = cy - den.cy;
+            if (ddx * ddx + ddy * ddy * 2 < 196) return false;
+            const float gap = Gap(trails, static_cast<float>(cx), static_cast<float>(cy));
+            return in_glade(cx, cy) || (gap > 1.8f && gap < 4.0f);
+        }, bug_i);
+        std::printf("  the Brackenwood: %d swallowtails\n", got);
+    }
 
     PlaceCurios(m);
     m.Write("maps");
@@ -6469,6 +6812,50 @@ static void BuildBayou() {
         }
         else if (p.pool[0]) m.EnemyPool({p.pool[0], p.pool[1], p.pool[2]}, "", p.x, p.y, p.level, 0);
         else m.Enemy(p.type, p.x, p.y, p.level, 32.0f, 240.0f);
+    }
+
+    // --- dragonflies, round every body of water -----------------------------------------------
+    // Three to a pond and four round the big water, on the bank a cell or two
+    // back from the edge -- over the reeds, where a dragonfly rests -- and well
+    // clear of whatever waits under it: somebody reaching for a dragonfly
+    // should not be how they find the gator (Enemy::LURK_WAKE is 104 px; the
+    // bug is kept 150 px off, and caught from within 58 of it). A pond whose
+    // banks are that crowded still gets two, a little closer together.
+    int bug_i = 0;
+    {
+        vector<std::pair<int, int>> lurkers, taken;
+        for (const BayouPost& p : kBayouPosts)
+            if (p.lurk) lurkers.push_back(at_the_edge(p.x, p.y));
+        for (size_t k = 0; k < kBayouLakes.size(); ++k) {
+            const auto& lake = *kBayouLakes[k];
+            const auto this_water = [&](int cx, int cy) { return wet(cx, cy) && InsidePoly(lake, mid(cx), mid(cy)); };
+            const auto bank = [&](int cx, int cy, float keep_off) {
+                if (cx < 1 || cy < 1 || cx >= W - 1 || cy >= H - 1) return false;
+                if (kind[at(cx, cy)] != LAND || keep[at(cx, cy)] || near_deck(cx, cy, 1)) return false;
+                if (in_camp(mid(cx), mid(cy))) return false;
+                int d = 99;
+                for (int dy = -2; dy <= 2; ++dy)
+                    for (int dx = -2; dx <= 2; ++dx)
+                        if (this_water(cx + dx, cy + dy)) d = std::min(d, std::max(abs(dx), abs(dy)));
+                if (d > 2) return false;
+                for (const auto& l : lurkers)
+                    if (hypotf(static_cast<float>(l.first) - mid(cx), static_cast<float>(l.second) - mid(cy)) < keep_off) return false;
+                return true;
+            };
+            int shore = 0;
+            for (int cy = 1; cy < H - 1; ++cy)
+                for (int cx = 1; cx < W - 1; ++cx)
+                    if (!wet(cx, cy) && (this_water(cx + 1, cy) || this_water(cx - 1, cy) || this_water(cx, cy + 1) || this_water(cx, cy - 1)))
+                        ++shore;
+            const int want = shore > 110 ? 4 : 3;
+            const uint32_t salt = 7101u + static_cast<uint32_t>(k) * 17u;
+            int got = PlaceBugs(m, "marsh_dragonfly", want, CELL, 1, 1, W - 1, H - 1, salt, 6.0f,
+                                [&](int cx, int cy) { return bank(cx, cy, 150.0f); }, bug_i, &taken);
+            if (got < 2)
+                got += PlaceBugs(m, "marsh_dragonfly", 2 - got, CELL, 1, 1, W - 1, H - 1, salt + 5u, 3.0f,
+                                 [&](int cx, int cy) { return bank(cx, cy, 124.0f); }, bug_i, &taken);
+            std::printf("  the Bayou: %d dragonflies round lake %zu (%d cells of bank)\n", got, k, shore);
+        }
     }
     std::printf("  the Bayou: %d trees, %zu ramps, %d herbs\n", trees, ramps.size(), herb_i);
     PlaceCurios(m);
@@ -7138,6 +7525,29 @@ static void BuildWoodlandInteriors() {
             m.Overlay("props", "totem_circle", rx, ry);
             json& o = m.Object("totem_ring_mossvale", "totem_circle", rx, ry);
             o["title"] = "The ring";
+
+            // And while a totem stands in it, the room is dressed in its
+            // colours: the boards and the walls from their undyed pictures,
+            // tinted; a rug round the ring with a circle worked on it (its
+            // picture sits forty pixels low in its frame, so it is laid that
+            // much higher to centre it on the ring); two banners on the bare
+            // back wall east of the bookshelf; and the old rug by the door
+            // taken up. Nothing about it blocks: the ring keeps its clear floor.
+            for (const char* v : {"", "_1", "_2"})
+                m.Dress("floor", string("plank_floor") + v, string("assets/tiles/plank_floor_pale") + v + ".png");
+            m.Dress("wall", "plaster_wall_warm", "assets/tiles/plaster_wall_pale.png");
+            m.Overlay("props", "house_rug", rx, ry - 40);
+            m.Overlay("props", "house_rug_trim", rx, ry - 40);
+            for (const int hx : {12 * CELL, 14 * CELL}) {
+                m.Prop("props", "tapestry_house", hx, 2 * CELL + 4);
+                m.Prop("props", "tapestry_house_trim", hx, 2 * CELL + 4);
+            }
+            m.Dress("cloth", "~house_rug");
+            m.Dress("trim", "~house_rug_trim");
+            m.Dress("cloth", "tapestry_house");
+            m.Dress("trim", "tapestry_house_trim");
+            m.Dress("plain", "~rug");
+            m.DressLight(rx, ry);
         }
         {
             json& o = m.Object("range_cottage", "range", 3 * CELL, 100);
@@ -9427,6 +9837,19 @@ static const vector<NightOption> kNights = {
     {{"rime_revenant"}, 1, 0},
     {{"revenant", "abyssal_demon"}, 1, 0},
 };
+
+// Rime beetles, picking their way over the open ground of a Frostreach map:
+// off its roads but within `far` cells of one, back from its rim, wherever
+// `fits` says.
+static void Beetles(MapBuilder& m, const vector<vector<plat::Pt>>& roads, uint32_t salt, int want,
+                    const std::function<bool(int, int)>& fits, float far = 12.0f) {
+    int bug_i = 0;
+    const int got = PlaceBugs(m, "rime_beetle", want, CELL, 4, 4, W - 4, H - 4, salt, 7.0f, [&](int cx, int cy) {
+        const float gap = wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+        return gap >= 2.5f && gap <= far && fits(cx, cy);
+    }, bug_i);
+    std::printf("  %s: %d rime beetles\n", m.Id().c_str(), got);
+}
 }   // namespace frost
 
 // --- the Draugr Barrows: the heath of the dead -------------------------------------------
@@ -9488,6 +9911,11 @@ static void BuildFrostBarrows() {
         if (r < 0.64f) return {"ice_troll", 60 + static_cast<int>(r * 100) % 3};
         if (r < 0.78f) return {"greatwolf", 60 + static_cast<int>(r * 100) % 3};
         return {};
+    });
+    // Rime beetles on the frozen turf between the mounds.
+    Beetles(m, roads, 7401u, 6, [&](int cx, int cy) {
+        for (const auto& b : mounds) if (abs(cx - b[0]) < 5 && abs(cy - b[1]) < 4) return false;
+        return !(abs(cx - 16) < 6 && abs(cy - 26) < 5) && !(abs(cx - 56) < 6 && abs(cy - 26) < 5);
     });
     PlaceRoamers(m);
     PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
@@ -9606,6 +10034,17 @@ static void BuildFrostMere() {
         if (r < 0.76f) return {"greatwolf", 62 + static_cast<int>(r * 100) % 3};
         return {};
     });
+    // Rime beetles along the frozen shore, a cell to three off the lake's ice --
+    // not out on it, where somebody stooping after one is somebody standing
+    // still on thin ice. All the way round: the shore is the way round here,
+    // roads or none.
+    Beetles(m, roads, 7411u, 7, [&](int cx, int cy) {
+        if (lake(cx, cy) || islet(cx, cy) || (cx < 16 && cy > 4 && cy < 22)) return false;
+        for (int dy = -3; dy <= 3; ++dy)
+            for (int dx = -3; dx <= 3; ++dx)
+                if (lake(cx + dx, cy + dy)) return true;
+        return false;
+    }, 40.0f);
     // The rare thing that walks round the lake, some days: on the shore, all the way round.
     {
         vector<std::array<int, 2>> loop;
@@ -9685,6 +10124,14 @@ static void BuildFrostGlacier() {
         if (r < 0.66f) return {"wyvern", 64 + static_cast<int>(r * 100) % 4};
         if (r < 0.78f) return {"greatwolf", 64 + static_cast<int>(r * 100) % 3};
         return {};
+    });
+    // Rime beetles on the bare glacier ice, clear of the crevasses and of the
+    // white thing's ring of snowmen.
+    Beetles(m, roads, 7421u, 7, [&](int cx, int cy) {
+        for (int oy = -1; oy <= 1; ++oy)
+            for (int ox = -1; ox <= 1; ++ox) if (crevasse(cx + ox, cy + oy)) return false;
+        if (abs(cx - dx) < 8 && abs(cy - dy) < 7) return false;
+        return Fbm(cx * 0.2f, cy * 0.2f, 10273) <= 0.64f;       // glacier ice, not the snow on it
     });
     // Some days, the white thing: along the trodden ways, since nothing else on
     // the glacier goes far in a line -- from the west road to the south and back.
@@ -9776,6 +10223,12 @@ static void BuildFrostHowe() {
         if (r < 0.62f) return {"draugr_archer", 68 + static_cast<int>(r * 100) % 3};
         if (r < 0.76f) return {"frostback_troll", 68 + static_cast<int>(r * 100) % 3};
         return {};
+    });
+    // Rime beetles on the frost-bitten stone about the barrows, out of the Howe's yard.
+    Beetles(m, roads, 7431u, 6, [&](int cx, int cy) {
+        if (abs(cx - 36) < 11 && cy < 30) return false;
+        for (const auto& b : mounds) if (abs(cx - b[0]) < 5 && abs(cy - b[1]) < 4) return false;
+        return true;
     });
     PlaceRoamers(m);
     PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
@@ -9892,6 +10345,7 @@ int main() {
     std::printf("genmaps: building the Hollowmarch\n");
     g_manifest.Load("data/asset_manifest.json");
     LoadHerbs();
+    LoadBugs();
 
     BuildOverworld();
     BuildTown();
@@ -10024,6 +10478,11 @@ int main() {
                  26);
 
     FlushWorldMap();
+    if (!g_bugs_missing.empty()) {
+        for (const string& bug : g_bugs_missing)
+            std::printf("genmaps: %s was placed as a bug, and has no catch block in data/items.json\n", bug.c_str());
+        return 1;
+    }
     if (!g_manifest.unsized.empty()) {
         for (const string& key : g_manifest.unsized)
             std::printf("genmaps: no size for assets/%s.png -- it was placed at 32x32\n", key.c_str());

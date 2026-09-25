@@ -79,6 +79,7 @@ static const char* kMaps[] = {
     "dream_havenbrook",
     "hex_drowns", "hex_strand", "hex_fens", "hex_temple", "hex_sanctum",
     "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
+    "mossvale_cottage",
 };
 
 int main(int argc, char** argv) {
@@ -493,7 +494,7 @@ int main(int argc, char** argv) {
                            "dreamworld_2", "dreamworld_3",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path",
                            "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers",
-                           "palace_dungeon", "palace_throne"}) {
+                           "palace_dungeon", "palace_throne", "mossvale_cottage"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -1336,7 +1337,7 @@ int main(int argc, char** argv) {
         Check(made_at("bolt_cloth", CraftStation::Loom) && !made_at("bolt_cloth", CraftStation::Workbench),
               "a bolt of cloth is only woven");
         for (const char* cut : {"leather_body", "hide_boots", "wood_hide_head", "wood_hide_body", "wood_hide_legs",
-                                "bag_satchel", "bag_pack", "bedroll"})
+                                "wood_hide_hands", "wood_hide_feet", "bag_satchel", "bag_pack", "bedroll"})
             Check(made_at(cut, CraftStation::Rack) && !made_at(cut, CraftStation::Workbench) &&
                   !made_at(cut, CraftStation::Loom) && !made_at(cut, CraftStation::Anvil),
                   string(cut) + " is leather, so it is made on a tanning rack and nowhere else");
@@ -1344,13 +1345,13 @@ int main(int argc, char** argv) {
             // Every piece of the ranger's set, in every tier, whatever else is in it.
             int pieces = 0, elsewhere = 0;
             for (const TierDef& t : items.Tiers())
-                for (const char* piece : {"hide_head", "hide_body", "hide_legs"}) {
+                for (const char* piece : {"hide_head", "hide_body", "hide_legs", "hide_hands", "hide_feet"}) {
                     const string id = items.TierPiece(t.id, piece);
                     if (id.empty()) continue;
                     ++pieces;
                     elsewhere += !made_at(id, CraftStation::Rack);
                 }
-            Check(pieces >= 30 && elsewhere == 0, "all " + std::to_string(pieces) + " pieces of the ranger's hides are cut on the rack");
+            Check(pieces >= 60 && elsewhere == 0, "all " + std::to_string(pieces) + " pieces of the ranger's hides are cut on the rack");
             // And none of the hero's plate or the mage's cloth has strayed onto it.
             bool strayed = false;
             for (const ItemDef* r : rack) {
@@ -1446,7 +1447,8 @@ int main(int argc, char** argv) {
               "the rack trains Crafting as well, and a map that says \"rack\" gets one");
         for (const TierDef& t : items.Tiers()) {
             if (t.wood) continue;
-            for (const char* piece : {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs", "axe", "pickaxe"}) {
+            for (const char* piece : {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs", "gauntlets", "boots",
+                                      "axe", "pickaxe"}) {
                 const string id = items.TierPiece(t.id, piece);
                 for (const ItemDef* r : anvil)
                     if (r->craft_result == id)
@@ -1748,12 +1750,14 @@ int main(int argc, char** argv) {
               "an alternate cut paints no layer of its own");
         Check(ArmourLayerOf(LayerSlot::Body) < 0, "the body layer is not plate");
 
-        // Every tier's helm, cuirass, greaves and shield paints the layer for
-        // its own slot; weapons and tools paint none.
+        // Every tier's helm, cuirass, greaves and gauntlets paints the layer
+        // for its own slot; weapons and tools paint none. Boots name "feet",
+        // which is no sheet: they are worn and not drawn.
         struct Piece { const char* suffix; const char* layer; EquipSlot slot; };
         const Piece pieces[] = {
             {"_helm", "head", SLOT_HEAD}, {"_body", "body", SLOT_BODY},
-            {"_legs", "legs", SLOT_LEGS},
+            {"_legs", "legs", SLOT_LEGS}, {"_gauntlets", "hands", SLOT_HANDS},
+            {"_boots", "feet", SLOT_FEET},
         };
         int checked = 0;
         for (const char* tier : {"bronze", "iron", "steel", "azuryte", "damascus",
@@ -1770,7 +1774,7 @@ int main(int argc, char** argv) {
             if (const ItemDef* w = items.Get(string(tier) + "_sword"))
                 Check(w->armour_layer.empty(), string(tier) + " sword paints no plate");
         }
-        Check(checked >= 20, "every metal tier has its three plate pieces");
+        Check(checked >= 55, "every metal tier has its five plate pieces (" + std::to_string(checked) + ")");
 
         // And the whole point: a mismatched set draws as the mismatch. Each
         // slot turns on its own layer in its own metal.
@@ -3147,7 +3151,8 @@ int main(int argc, char** argv) {
                                        "damascus", "orichalcum", "diamond", "platinum",
                                        "demonite", "dracon", "enchanted"};
         static const int kTierCount = 12;
-        static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs"};
+        static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs",
+                                        "gauntlets", "boots"};
         const auto& tiers = items.Tiers();
         Check(tiers.size() == kTierCount, "there are twelve tiers");
         bool order = tiers.size() == kTierCount;
@@ -3200,7 +3205,7 @@ int main(int argc, char** argv) {
         Check(stats_rise, "every piece is stronger than the same piece a tier down");
         Check(value_rises, "and worth more");
         Check(reqs_right, "every piece needs its tier's level in Attack, Ranged, Magic or Defence");
-        Check(recipes_ok, "every tier makes all eight pieces, each with a recipe");
+        Check(recipes_ok, "every tier makes all ten pieces, each with a recipe");
         Check(stations_ok, "wooden pieces are made at a workbench and metal ones at an anvil");
         Check(ores_ok, "every metal tier has a bar with a recipe, and an ore if it is mined");
         Check(models_ok, "every tier's sword, spear, bow and staff name their own model");
@@ -4483,10 +4488,13 @@ int main(int argc, char** argv) {
             { std::ifstream f("data/loot_tables.json"); f >> loot_tables; }
             const string loot_text = loot_tables.dump();
             for (const TierDef& t : items.Tiers()) {
-                const ItemDef* plate[3] = {items.Get(items.TierPiece(t.id, "helm")), items.Get(items.TierPiece(t.id, "body")),
-                                           items.Get(items.TierPiece(t.id, "legs"))};
-                const char* slots[3] = {"head", "body", "legs"};
-                for (int i = 0; i < 3; ++i) {
+                // Plate names its pieces for what they are and the two soft sets
+                // for where they go: gauntlets and boots are hands and feet.
+                const ItemDef* plate[5] = {items.Get(items.TierPiece(t.id, "helm")), items.Get(items.TierPiece(t.id, "body")),
+                                           items.Get(items.TierPiece(t.id, "legs")), items.Get(items.TierPiece(t.id, "gauntlets")),
+                                           items.Get(items.TierPiece(t.id, "boots"))};
+                const char* slots[5] = {"head", "body", "legs", "hands", "feet"};
+                for (int i = 0; i < 5; ++i) {
                     const ItemDef* hide = items.Get(items.TierPiece(t.id, string("hide_") + slots[i]));
                     const ItemDef* robe = items.Get(items.TierPiece(t.id, string("robe_") + slots[i]));
                     if (!hide || !robe || !plate[i]) { only_its_own = false; wrong = t.id + " is missing a piece"; continue; }
@@ -4506,7 +4514,13 @@ int main(int argc, char** argv) {
                         only_its_own = false; wrong = t.id + " requirement";
                     }
                     if (hide->armour_cut != "hide" || robe->armour_cut != "robe" || hide->armour_layer != slots[i] ||
-                        !fs::exists(hide->icon) || !fs::exists(robe->icon)) { drawn = false; wrong = hide->id; }
+                        robe->armour_layer != slots[i] || plate[i]->armour_layer != slots[i] ||
+                        !fs::exists(hide->icon) || !fs::exists(robe->icon) || !fs::exists(plate[i]->icon)) {
+                        drawn = false; wrong = hide->id;
+                    }
+                    // Worn where they are meant to be.
+                    if (string(EquipSlotName(hide->slot)) != slots[i] || string(EquipSlotName(robe->slot)) != slots[i] ||
+                        string(EquipSlotName(plate[i]->slot)) != slots[i]) { drawn = false; wrong = plate[i]->id + " slot"; }
                 }
             }
             // How they are made: a hide piece from its tier's hide on a tanner's
@@ -4531,7 +4545,8 @@ int main(int argc, char** argv) {
             }
             for (const string& h : hides)
                 if (loot_text.find("\"" + h + "\"") == string::npos) { got = false; wrong = h; }
-            Check(pieces == 72, "every tier has a ranger's hides and a mage's robes: head, body and legs (" + std::to_string(pieces) + ")");
+            Check(pieces == 120, "every tier has a ranger's hides and a mage's robes: head, body, legs, hands and feet (" +
+                  std::to_string(pieces) + ")");
             Check(only_its_own, "plate adds to a blade, hides to a bow and robes to a staff, and none of them to anything else" +
                   (only_its_own ? string() : ": " + wrong));
             Check(ordered, "plate keeps out the most and robes the least, and robes carry a spell furthest" + (ordered ? string() : ": " + wrong));
@@ -4552,18 +4567,84 @@ int main(int argc, char** argv) {
                 if (out && out->armour_cut == "robe") ++woven_pieces;
                 else if (!out || r->craft_result != "bolt_cloth") woven_pieces = -999;
             }
-            Check(woven_pieces == 36, "and all thirty-six pieces of the mage's sets, and nothing that is not cloth (" +
+            Check(woven_pieces == 60, "and all sixty pieces of the mage's sets, and nothing that is not cloth (" +
                   std::to_string(woven_pieces) + ")");
-            // The cuts are rendered for all three characters.
+            // Boots of every kind are worn and not drawn: "feet" names no sheet,
+            // and having a layer at all keeps them from washing the character in
+            // their colour the way a layerless piece does. Gauntlets and gloves
+            // are drawn on the hands.
+            {
+                GameContext ctx;
+                ctx.items = &items; ctx.sprites = &sprites; ctx.trees = &trees;
+                bool bare = true, tinted = false, hands = true;
+                for (const char* boots : {"steel_boots", "wood_boots", "iron_hide_feet", "iron_robe_feet", "enchanted_boots"}) {
+                    const ItemDef* d = items.Get(boots);
+                    if (!d || d->slot != SLOT_FEET) { bare = false; wrong = string(boots) + " is not boots"; continue; }
+                    Player p;
+                    p.Init(ctx, "player_hero");
+                    p.equipment.SetDatabase(&items);
+                    p.equipment.Equip(SLOT_FEET, boots);
+                    const LayerStyle s = p.BuildLayerStyle(&items);
+                    for (int l = 0; l < ARMOUR_LAYER_COUNT; ++l)
+                        if (s.armour[l].show) { bare = false; wrong = boots; }
+                    tinted |= !(s.body.r == 255 && s.body.g == 255 && s.body.b == 255);
+                }
+                for (const char* gloves : {"steel_gauntlets", "demonite_gauntlets", "iron_hide_hands", "iron_robe_hands"}) {
+                    const ItemDef* d = items.Get(gloves);
+                    Player p;
+                    p.Init(ctx, "player_hero");
+                    p.equipment.SetDatabase(&items);
+                    p.equipment.Equip(SLOT_HANDS, gloves);
+                    const LayerStyle s = p.BuildLayerStyle(&items);
+                    if (!d) { hands = false; continue; }
+                    const SDL_Color t = s.armour[ARMOUR_HANDS].tint;
+                    // Plate in its own colour; a set's gloves a shade under
+                    // it, so they show at the end of a sleeve of the same
+                    // colour -- and still the tier's colour, not black.
+                    const bool soft = d->armour_cut == "hide" || d->armour_cut == "robe";
+                    const bool colour = soft ? (t.r < d->tint.r && t.g < d->tint.g && t.b < d->tint.b &&
+                                                t.r * 2 > d->tint.r && t.g * 2 > d->tint.g && t.b * 2 > d->tint.b)
+                                             : (t.r == d->tint.r && t.g == d->tint.g && t.b == d->tint.b);
+                    hands &= d->slot == SLOT_HANDS && s.armour[ARMOUR_HANDS].show && colour &&
+                             s.armour[ARMOUR_HANDS].cut == d->armour_cut;
+                }
+                Check(bare, "boots, striders and slippers are worn without drawing a layer" + (bare ? string() : ": " + wrong));
+                Check(!tinted, "and without washing the character in their colour");
+                Check(hands, "gauntlets and gloves are drawn on the hands in their own cut, gauntlets in their own colour and a "
+                      "set's gloves a shade under theirs");
+            }
+            // The cuts are rendered for all three characters: head, body, hands
+            // and legs, in every clip there is -- a clip without them falls back
+            // to tinted plate, which is how the fourteen clips the armoury added
+            // went a whole release with a ranger throwing knives in a cuirass.
             bool sheets = true;
-            for (const char* look : {"player_hero", "player_warden", "player_wayfarer"})
+            int soft_sheets = 0;
+            for (const char* look : {"player_hero", "player_warden", "player_wayfarer"}) {
                 for (const char* cut : {"hide", "robe"})
                     for (const char* clip : {"idle", "walk", "attack", "block", "death"})
-                        for (const char* layer : {"6_armour_legs", "7_armour_body", "9_armour_head"}) {
+                        for (const char* layer : {"6_armour_legs", "7_armour_body", "8_armour_hands", "9_armour_head"}) {
                             const string file = string("assets/characters/") + look + "/layers/" + clip + "_" + layer + "_" + cut + ".png";
                             if (!fs::exists(file)) { sheets = false; wrong = file; }
                         }
-            Check(sheets, "hides and robes are drawn on all three characters" + (sheets ? string() : ": " + wrong));
+                const SpriteDef* def = sprites.Get(look);
+                if (!def) { sheets = false; wrong = string(look) + " has no sprite"; continue; }
+                for (const auto& [name, clip] : def->clips)
+                    for (const AnimLayer& l : clip.layers) {
+                        const int armour = ArmourLayerOf(l.slot);
+                        if (armour < 0 || armour == ARMOUR_SHIELD) continue;
+                        for (const char* cut : {"hide", "robe"}) {
+                            string path = l.sheet;
+                            const size_t dot = path.rfind(".png");
+                            if (dot == string::npos) continue;
+                            path.insert(dot, string("_") + cut);
+                            if (fs::exists(path)) ++soft_sheets;
+                            else { sheets = false; wrong = path; }
+                        }
+                    }
+            }
+            Check(sheets && soft_sheets >= 3 * 33 * 4 * 2,
+                  "hides and robes -- gloves too -- are drawn on all three characters in every clip (" +
+                  std::to_string(soft_sheets) + ")" + (sheets ? string() : ": " + wrong));
         }
 
         // --- the Westwold and the Brackenwood ---------------------------------------------------------------
@@ -5962,7 +6043,7 @@ int main(int argc, char** argv) {
             const ItemDef& d = kv.second;
             const bool gathered = d.piece == "ore" || d.fish_level > 0 || d.id == "logs" ||
                                   d.id == "oak_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones" ||
-                                  d.forage_level > 0;
+                                  d.forage_level > 0 || d.catch_level > 0 || d.id == "honey";
             if (!gathered) continue;
             Check(best_offer(d) > 0, "some trader buys " + d.id + " (" + std::to_string(best_offer(d)) + "c)");
             if (!d.cook_result.empty())
@@ -7326,7 +7407,7 @@ int main(int argc, char** argv) {
                 ++dyes;
                 int herb = 1;
                 for (const auto& in : r->craft_inputs)
-                    if (const ItemDef* mat = items.Get(in.first)) herb = std::max(herb, mat->forage_level);
+                    if (const ItemDef* mat = items.Get(in.first)) herb = std::max(herb, mat->GatherLevel());
                 Check(!potion->consumable && r->craft_level == herb && r->craft_inputs.count("vial") &&
                       fs::exists(potion->icon),
                       potion->id + " is a dye: brewed at Brewing " + std::to_string(r->craft_level) + " with no teaching, and not for drinking");
@@ -7334,14 +7415,16 @@ int main(int argc, char** argv) {
             }
             Check(potion && potion->consumable && !potion->icon.empty(), r->craft_result + " is a potion you can drink");
             if (!potion) continue;
-            Check(potion->heal > 0 || potion->mana > 0 || potion->stamina || !potion->boosts.empty(),
-                  potion->id + " does something");
+            Check(potion->heal > 0 || potion->mana > 0 || potion->stamina || !potion->boosts.empty() ||
+                  !potion->ward.empty(), potion->id + " does something");
             Check(r->craft_inputs.count("vial") && r->craft_inputs.at("vial") == 1, potion->id + " is brewed into one vial");
+            // Whatever was gathered for it, picked or caught: a brew is made at
+            // the Foraging level of its rarest herb or bug.
             int herb_level = 0;
             for (const auto& in : r->craft_inputs)
-                if (const ItemDef* mat = items.Get(in.first)) herb_level = std::max(herb_level, mat->forage_level);
+                if (const ItemDef* mat = items.Get(in.first)) herb_level = std::max(herb_level, mat->GatherLevel());
             Check(r->craft_level == herb_level, potion->id + " is brewed at Brewing " + std::to_string(r->craft_level) +
-                  ", the Foraging level of its rarest herb");
+                  ", the Foraging level of its rarest herb or bug");
             Check(!potion->recipe_from.empty(), potion->id + " says where its recipe is learned");
             if (potion->id != "healing_draught") {
                 Check(scrolls.count(potion->id), potion->id + " has a recipe scroll");
@@ -7411,6 +7494,640 @@ int main(int argc, char** argv) {
             p.SyncMana();
             p.SpendMana(p.Mana());
             Check(p.Consume(slot("mana_tonic"), why) && p.Mana() > 0, "a mana tonic restores mana");
+        }
+    }
+
+    // --- bugs, honey and wards -----------------------------------------------------------
+    Section("bugs caught, honey taken, and wards against burning and the frost");
+    {
+        const auto tagged = [](const ItemDef* d, const char* tag) {
+            return d && std::find(d->tags.begin(), d->tags.end(), tag) != d->tags.end();
+        };
+
+        // --- the bugs, as things in the bag ---------------------------------------------------
+        std::set<int> herb_levels, bug_levels;
+        vector<const ItemDef*> bugs, curve;
+        for (const auto& kv : items.All()) {
+            const ItemDef& d = kv.second;
+            if (d.forage_level > 0) herb_levels.insert(d.forage_level);
+            if (d.catch_level > 0) bugs.push_back(&d);
+            if (d.GatherLevel() > 0 && !tagged(&d, "fibre")) curve.push_back(&d);
+        }
+        Check(bugs.size() == 4, "there are four bugs to catch (" + std::to_string(bugs.size()) + ")");
+        for (const ItemDef* b : bugs) {
+            Check(tagged(b, "bug") && tagged(b, "brewing") && b->forage_level == 0 && b->grows.empty(),
+                  b->id + " is a bug, for brewing, and not a herb: none of a herb's rules");
+            Check(b->catch_xp > 0 && !b->lives.empty() && b->stackable && !b->icon.empty() && fs::exists(b->icon),
+                  b->id + " says where it lives and what it is worth, and has its picture");
+            Check(!herb_levels.count(b->catch_level) && bug_levels.insert(b->catch_level).second,
+                  b->id + " is caught at a Foraging level of its own (" + std::to_string(b->catch_level) + ")");
+        }
+        const auto level_of = [&](const char* id) { const ItemDef* d = items.Get(id); return d ? d->catch_level : -1; };
+        Check(level_of("swallowtail") == 9 && level_of("marsh_dragonfly") == 32 && level_of("firebug") == 50 &&
+              level_of("rime_beetle") == 62,
+              "the swallowtail at Foraging 9, the marsh dragonfly at 32, the firebug at 50, the rime beetle at 62");
+        {
+            // Herbs and bugs together, by level: the XP and the worth both rise.
+            std::sort(curve.begin(), curve.end(), [](const ItemDef* a, const ItemDef* b) { return a->GatherLevel() < b->GatherLevel(); });
+            bool rising = curve.size() >= 12;
+            for (size_t i = 1; i < curve.size(); ++i) {
+                const auto xp = [](const ItemDef* d) { return std::max(d->forage_xp, d->catch_xp); };
+                if (xp(curve[i]) <= xp(curve[i - 1]) || curve[i]->value <= curve[i - 1]->value) {
+                    rising = false;
+                    Check(false, curve[i]->id + " is worth less than " + curve[i - 1]->id + ", a lower level");
+                }
+            }
+            Check(rising, "a bug's XP and worth sit on the herbs' curve for its level");
+        }
+
+        // Honey: a farm's, like milk and eggs, so it never drags a recipe to
+        // the cauldron or lifts a brew's level.
+        const ItemDef* honey = items.Get("honey");
+        Check(honey && tagged(honey, "food") && tagged(honey, "farm") && !tagged(honey, "brewing") &&
+              honey->GatherLevel() == 0 && fs::exists(honey->icon),
+              "honey is food from a farm, and goes in a brew without changing its level");
+        const ItemDef* oats = items.Get("honeyed_oats");
+        Check(oats && oats->craft_inputs.count("honey") && oats->craft_inputs.count("milk") && oats->craft_inputs.count("egg") &&
+              oats->IsDish() && items.StationFor(*oats) == CraftStation::Range,
+              "honeyed oats have honey in them now, and are still a dish cooked at a fire");
+
+        // Oona pays for bugs as she pays for herbs.
+        {
+            ShopDatabase shopdb;
+            shopdb.Load("data/shops.json");
+            const ShopDef* oona = shopdb.Get("mossvale_herbalist");
+            const ItemDef* fly = items.Get("marsh_dragonfly");
+            Check(oona && fly && Trade::SellRate(*oona, items, *fly) >= 0.79f,
+                  "Oona buys bugs, at what she pays for herbs");
+        }
+
+        // --- what is brewed from them ---------------------------------------------------------------
+        const auto brew = [&](const char* id) -> const ItemDef* {
+            for (const ItemDef* r : items.Recipes(CraftStation::Cauldron)) if (r->craft_result == id) return r;
+            return nullptr;
+        };
+        const std::pair<const char*, int> made[] = {{"swallowtail_draught", 9}, {"honeyed_draught", 12},
+                                                    {"skimmer_tonic", 32}, {"cinderbug_ward", 50},
+                                                    {"rimeshell_ward", 62}};
+        for (const auto& m : made) {
+            const ItemDef* r = brew(m.first);
+            Check(r && r->craft_level == m.second && fs::exists(items.Get(m.first)->icon),
+                  string(m.first) + " is brewed at a cauldron, at Brewing " + std::to_string(m.second));
+        }
+        const ItemDef* cinder = items.Get("cinderbug_ward");
+        const ItemDef* rime = items.Get("rimeshell_ward");
+        Check(cinder && cinder->ward == vector<Status>{Status::Burn} && cinder->ward_minutes >= 2.0f,
+              "the Cinderbug Ward keeps off burning, for minutes");
+        Check(rime && rime->ward.size() == 2 && std::count(rime->ward.begin(), rime->ward.end(), Status::Chill) &&
+              std::count(rime->ward.begin(), rime->ward.end(), Status::Frozen),
+              "the Rimeshell Ward keeps off the frost's chill and its freeze");
+
+        // --- where one flies ------------------------------------------------------------------------
+        const auto spot = [](const char* id, const char* yield, float x, float y) {
+            MapObject o;
+            o.id = id; o.type = "bug"; o.x = x; o.y = y; o.yield = yield;
+            return o;
+        };
+        {
+            bool within = true, agrees = true;
+            float spread[4] = {};
+            int hanging = 0, samples = 0;
+            const char* kinds[4] = {"swallowtail", "marsh_dragonfly", "firebug", "rime_beetle"};
+            for (int k = 0; k < 4; ++k) {
+                const MapObject o = spot(("bug_" + std::to_string(k)).c_str(), kinds[k], 400.0f, 300.0f);
+                float lo = 1e9f, hi = -1e9f;
+                World::BugPose last = World::BugFlight(o, 50.0);
+                for (double h = 50.0; h < 52.0; h += 0.02 / WorldClock::SECONDS_PER_HOUR) {
+                    const World::BugPose b = World::BugFlight(o, h), again = World::BugFlight(o, h);
+                    within &= fabsf(b.x - o.x) <= World::BUG_RANGE + 0.01f && fabsf(b.y - o.y) <= World::BUG_RANGE + 0.01f;
+                    agrees &= b.x == again.x && b.y == again.y && b.hover == again.hover;
+                    if (k == 3) within &= b.hover == 0.0f;
+                    else within &= b.hover >= 6.0f;
+                    lo = std::min(lo, b.x);
+                    hi = std::max(hi, b.x);
+                    if (k == 1) { ++samples; hanging += Length(b.x - last.x, b.y - last.y) < 0.8f; }
+                    last = b;
+                }
+                spread[k] = hi - lo;
+            }
+            Check(within, "a bug never strays more than " + std::to_string(static_cast<int>(World::BUG_RANGE)) +
+                  " pixels from its spot, flies over the ground, and a beetle walks on it");
+            Check(agrees, "where it is is the clock's and the spot's alone: every window sees it in the same place");
+            Check(spread[0] > 6.0f && spread[1] > 6.0f && spread[2] > 6.0f && spread[3] > 6.0f,
+                  "and every kind moves about its spot");
+            Check(samples > 0 && hanging * 3 > samples, "a dragonfly hangs in the air between its darts (" +
+                  std::to_string(hanging) + " of " + std::to_string(samples) + ")");
+            const MapObject a = spot("bug_a", "swallowtail", 400.0f, 300.0f), b = spot("bug_b", "swallowtail", 400.0f, 300.0f);
+            Check(World::BugFlight(a, 50.3).x != World::BugFlight(b, 50.3).x,
+                  "and two bugs on one spot do not fly as one");
+        }
+
+        // --- catching one -----------------------------------------------------------------------------
+        Input input;
+        std::mt19937 rng(606);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+        const float dt = 1.0f / 60.0f;
+        const auto frames = [&](World& w, int n) {
+            for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+        };
+        // A world with one hand-made thing in it, somewhere open, and the
+        // player standing at it with nothing else in reach.
+        const auto stand_at = [&](World& w, MapObject o, int foraging) -> int {
+            w.player = Player();
+            w.player.Init(ctx, "player_hero");
+            w.SetPickedHerbs({});
+            w.clock.Set(2, 10.0f);
+            if (!w.LoadMap("mossvale", "", ctx)) return -1;
+            w.enemies.clear();
+            w.npcs.clear();
+            LevelUp lu;
+            if (foraging > 1) w.player.skills.AddXp(SKILL_FORAGING, XpForLevel(foraging), lu);
+            const float sx = w.player.x, sy = w.player.y;
+            for (float r = 0.0f; r < 700.0f; r += 16.0f)
+                for (float a = 0.0f; a < 6.28f; a += 0.35f) {
+                    const float x = sx + cosf(a) * r, y = sy + sinf(a) * r;
+                    const SDL_FRect feet = {x - 8.0f, y + 16.0f - 10.0f, 16.0f, 10.0f};
+                    if (x < 64.0f || y < 64.0f || x > w.map.Width() - 64.0f || y > w.map.Height() - 64.0f) continue;
+                    if (w.map.Blocked(feet) || w.map.PortalAt(feet)) continue;
+                    bool clear = true;
+                    for (const MapObject& other : w.map.Objects()) clear &= Length(other.x - x, other.y - y) > 96.0f;
+                    if (!clear) continue;
+                    o.x = x;
+                    o.y = y;
+                    w.map.AddObject(o);
+                    w.player.x = x;
+                    w.player.y = y + 16.0f;
+                    frames(w, 2);
+                    return static_cast<int>(w.map.Objects().size()) - 1;
+                }
+            return -1;
+        };
+        const auto prompting = [&](World& w, int index) {
+            return w.player.interact.kind == InteractTarget::Object && w.player.interact.index == index;
+        };
+        MapObject fly = spot("bug_test", "marsh_dragonfly", 0.0f, 0.0f);
+        fly.skill = "Foraging"; fly.skill_level = 32; fly.yield_xp = 142; fly.gather_time = 1.4f;
+        fly.regrow_hours = 3.0f; fly.title = "marsh dragonfly";
+        {
+            World w;
+            const int at = stand_at(w, fly, 1);
+            Check(at >= 0 && prompting(w, at) && w.player.interact.label == "Needs Foraging 32 to catch the marsh dragonfly",
+                  "a beginner at a marsh dragonfly is told it needs Foraging 32 (" + w.player.interact.label + ")");
+            if (at >= 0) {
+                w.TryInteract(ctx);
+                frames(w, 150);
+                Check(w.player.inventory.Count("marsh_dragonfly") == 0 && !w.Picked(w.map.Objects()[at]),
+                      "and catches nothing");
+            }
+        }
+        {
+            World w;
+            const int at = stand_at(w, fly, 32);
+            Check(at >= 0 && prompting(w, at) && w.player.interact.label == "Catch the marsh dragonfly",
+                  "at Foraging 32 the prompt says Catch the marsh dragonfly (" + w.player.interact.label + ")");
+            if (at >= 0) {
+                const MapObject& o = w.map.Objects()[at];
+                const int xp0 = w.player.skills.Xp(SKILL_FORAGING);
+                w.TryInteract(ctx);
+                frames(w, 1);
+                Check(w.player.GatherClip() == "gather" && w.Gathering(), "catching plays the gather animation, bare-handed, with a bar");
+                int f = 0;
+                while (w.player.inventory.Count("marsh_dragonfly") == 0 && f++ < 600) frames(w, 1);
+                const int got = w.player.inventory.Count("marsh_dragonfly");
+                Check(got >= 1 && got <= 2 && w.player.skills.Xp(SKILL_FORAGING) - xp0 == 142 * got,
+                      "and gives a dragonfly (" + std::to_string(got) + ") and the spot's Foraging XP, in " +
+                      std::to_string(f / 60.0f).substr(0, 4) + "s");
+                Check(!w.Gathering() && w.Picked(o) && w.ObjectSpent(o), "then it is caught, and the work stops");
+                frames(w, 2);
+                Check(!prompting(w, at), "a caught bug is gone: nothing to catch, nothing drawn");
+                w.clock.Set(2, 10.0f + o.regrow_hours * 0.5f);
+                Check(w.Picked(o), "half way to the next one it is still empty air");
+                w.clock.Set(2, 10.0f + o.regrow_hours + 0.1f);
+                frames(w, 2);
+                Check(!w.Picked(o) && prompting(w, at), "and another comes to the spot");
+            }
+        }
+        {
+            // The lit ones carry their light about at night, and take it with
+            // them into the jar.
+            World w;
+            MapObject ember = spot("bug_ember", "firebug", 0.0f, 0.0f);
+            ember.skill = "Foraging"; ember.skill_level = 50; ember.yield_xp = 223; ember.title = "firebug";
+            const int at = stand_at(w, ember, 50);
+            if (at >= 0) {
+                w.clock.Set(2, 23.5f);
+                const MapObject& o = w.map.Objects()[at];
+                const auto lit = [&] {
+                    for (const Light& l : w.CollectLights())
+                        if (Length(l.x - o.x, l.y - o.y) < 60.0f && l.radius < 60.0f) return true;
+                    return false;
+                };
+                Check(lit(), "a firebug gives a little light at night");
+                w.Pick(o);
+                Check(!lit(), "and none once it has been caught");
+            }
+        }
+
+        // --- a hive -------------------------------------------------------------------------------------
+        {
+            MapObject hive;
+            hive.id = "hive_test"; hive.type = "hive"; hive.sprite = "assets/props/barrel.png";
+            hive.skill = "Foraging"; hive.skill_level = 1; hive.yield = "honey"; hive.yield_xp = 12;
+            hive.gather_time = 1.6f; hive.regrow_hours = 5.0f; hive.title = "beehive";
+            World w;
+            const int at = stand_at(w, hive, 1);
+            Check(at >= 0 && prompting(w, at) && w.player.interact.label == "Take honey from the beehive",
+                  "a new character at a hive can take honey from it (" + w.player.interact.label + ")");
+            if (at >= 0) {
+                const MapObject& o = w.map.Objects()[at];
+                const int xp0 = w.player.skills.Xp(SKILL_FORAGING);
+                w.TryInteract(ctx);
+                frames(w, 1);
+                const bool gathering = w.player.GatherClip() == "gather";
+                int f = 0;
+                while (w.player.inventory.Count("honey") == 0 && f++ < 600) frames(w, 1);
+                const int got = w.player.inventory.Count("honey");
+                Check(gathering && got >= 1 && got <= 2 && w.player.skills.Xp(SKILL_FORAGING) - xp0 == 12 * got,
+                      "a hive gives a honey or two and a little Foraging XP (" + std::to_string(got) + ")");
+                frames(w, 2);
+                Check(w.Picked(o) && !prompting(w, at), "then it has nothing more to give");
+                w.clock.Set(2, 10.0f + o.regrow_hours + 0.1f);
+                frames(w, 2);
+                Check(prompting(w, at), "until the bees have made more");
+            }
+        }
+
+        // --- wards ----------------------------------------------------------------------------------------
+        {
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_warden");
+            Check(w.LoadMap("mossvale", "", ctx), "Mossvale, to be warded in");
+            w.enemies.clear();
+            w.player.hands_external = true;
+            w.player.hands = PlayerInput{};
+            frames(w, 1);
+            Player& p = w.player;
+            const auto slot = [&](const string& id) {
+                for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == id) return i;
+                return -1;
+            };
+            string why;
+            p.inventory.Add("cinderbug_ward", 2);
+            Check(p.Consume(slot("cinderbug_ward"), why) && fabsf(p.WardLeft(Status::Burn) - cinder->ward_minutes * 60.0f) < 0.01f &&
+                  !p.Warded(Status::Chill), "a Cinderbug Ward, drunk, wards against burning and nothing else");
+            const bool again = p.Consume(slot("cinderbug_ward"), why);
+            Check(!again && !why.empty() && p.inventory.Count("cinderbug_ward") == 1,
+                  "a second at once is not wasted (" + why + ")");
+            w.AfflictPlayer({Status::Burn, 1.0f}, 20, p.x, p.y);
+            Check(!p.Afflicted(Status::Burn), "a sure burn does not take on the warded");
+            Check(p.Afflict(Status::Burn, 20, statuses, p.x, p.y) == Status::COUNT && !p.Afflicted(Status::Burn),
+                  "nor does one from anywhere else");
+            w.AfflictPlayer({Status::Poison, 1.0f}, 4, p.x, p.y);
+            Check(p.Afflicted(Status::Poison), "what it does not ward against takes as ever");
+            p.statuses.End(Status::Poison);
+
+            // It rides in the character sheet, so the host's copy of a friend
+            // knows it; and a save keeps it.
+            const json sheet = p.ToJson();
+            Check(sheet.contains("wards") && sheet["wards"].value("burn", 0) == static_cast<int>(cinder->ward_minutes * 60.0f),
+                  "the sheet carries the ward and its time");
+            Player copy;
+            copy.Init(ctx, "player_warden");
+            copy.ApplySheet(sheet, ctx);
+            Check(copy.Warded(Status::Burn) && !copy.Warded(Status::Chill), "and the host's copy, handed the sheet, is warded too");
+            Check(copy.Afflict(Status::Burn, 20, statuses, 0.0f, 0.0f) == Status::COUNT, "so the host, who decides, refuses the burn");
+            json bare = sheet;
+            bare.erase("wards");
+            copy.ApplySheet(bare, ctx);
+            Check(!copy.Warded(Status::Burn), "a sheet with no ward in it ends the copy's");
+            Player loaded;
+            loaded.Init(ctx, "player_warden");
+            loaded.FromJson(sheet, ctx);
+            Check(loaded.Warded(Status::Burn), "and a saved character wakes up warded still");
+            Player plain;
+            plain.Init(ctx, "player_warden");
+            Check(!plain.ToJson().contains("wards"), "a sheet with no ward running says nothing of wards");
+
+            // It runs down, and a second draught starts it again from the top.
+            frames(w, 60 * 31);
+            const float after = p.WardLeft(Status::Burn);
+            Check(after < cinder->ward_minutes * 60.0f - 29.0f && after > 0.0f, "a ward runs down with the clock");
+            Check(p.Consume(slot("cinderbug_ward"), why) && fabsf(p.WardLeft(Status::Burn) - cinder->ward_minutes * 60.0f) < 0.01f,
+                  "and one drunk when the last has run down a while refreshes it, not adds to it");
+            p.SetWard(Status::Burn, 1.5f);
+            frames(w, 120);
+            w.AfflictPlayer({Status::Burn, 1.0f}, 20, p.x, p.y);
+            Check(!p.Warded(Status::Burn) && p.Afflicted(Status::Burn), "run out, it wards against nothing");
+            p.statuses.End(Status::Burn);
+
+            // The frost ward: a chill, a freeze, a chill on someone soaked.
+            p.inventory.Add("rimeshell_ward", 1);
+            Check(p.Consume(slot("rimeshell_ward"), why) && p.Warded(Status::Chill) && p.Warded(Status::Frozen),
+                  "a Rimeshell Ward wards against the chill and the freeze");
+            w.AfflictPlayer({Status::Chill, 1.0f}, 10, p.x, p.y);
+            w.AfflictPlayer({Status::Frozen, 1.0f}, 10, p.x, p.y);
+            Check(!p.Afflicted(Status::Chill) && !p.Afflicted(Status::Frozen), "neither takes");
+            p.Afflict(Status::Wet, 0, statuses, p.x, p.y);
+            w.AfflictPlayer({Status::Chill, 1.0f}, 10, p.x, p.y);
+            Check(p.Afflicted(Status::Wet) && !p.Afflicted(Status::Chill) && !p.Afflicted(Status::Frozen),
+                  "not even on someone soaked, where a chill would be a freeze");
+            p.statuses.End(Status::Wet);
+
+            // Dying ends a ward, as it ends a boost.
+            p.SetWard(Status::Burn, 100.0f);
+            p.Damage(99999);
+            frames(w, 2);
+            Check(!p.Warded(Status::Burn) && !p.Warded(Status::Chill), "a ward ends with a death");
+        }
+        {
+            // Burning ground under a fire ward: half the bite.
+            World w;
+            w.player = Player();
+            w.player.Init(ctx, "player_warden");
+            Check(w.LoadMap("ashen_path", "", ctx), "the Ashen Path, to stand in the fire");
+            w.enemies.clear();
+            w.player.hands_external = true;
+            w.player.hands = PlayerInput{};
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(70), lu);
+            w.player.SyncHitpoints();
+            const Hazard* hot = nullptr;
+            for (const Hazard& h : w.map.Hazards())
+                if (h.kind == "fire" && h.rect.w >= 24.0f && h.rect.h >= 20.0f &&
+                    !w.map.Blocked({h.rect.x + h.rect.w / 2.0f - 8.0f, h.rect.y + h.rect.h / 2.0f - 5.0f, 16.0f, 10.0f})) {
+                    hot = &h;
+                    break;
+                }
+            Check(hot != nullptr, "there is burning ground to stand in");
+            if (hot) {
+                const auto bitten = [&](bool warded) {
+                    w.player.hp = w.player.max_hp;
+                    w.player.statuses.Clear();
+                    w.player.ClearWards();
+                    if (warded) w.player.SetWard(Status::Burn, 60.0f);
+                    w.player.x = hot->rect.x + hot->rect.w / 2.0f;
+                    w.player.y = hot->rect.y + hot->rect.h / 2.0f + 5.0f;
+                    const int before = w.player.hp;
+                    frames(w, 121);
+                    return w.map.HazardAt(w.player.Bounds()) ? before - w.player.hp : -1;
+                };
+                const int bare = bitten(false), warded = bitten(true);
+                Check(bare > 0 && warded > 0 && warded * 2 <= bare + 4 && warded < bare,
+                      "burning ground bites half as hard through a fire ward (" + std::to_string(bare) + " bare, " +
+                      std::to_string(warded) + " warded)");
+            }
+        }
+    }
+
+    // --- where the bugs are, and Aldous's hives ---------------------------------------------
+    Section("where each bug lives, and the hives by Aldous's fields");
+    {
+        // Every object on every map has an id of its own: what is caught or
+        // picked is remembered by "map:id", so two alike would go together.
+        std::map<string, std::map<string, int>> bugs_on;      // map -> bug -> how many
+        bool ids_unique = true, bugs_right = true, bugs_stand = true, bugs_seen = true;
+        string why, hid;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            std::set<string> seen;
+            for (const MapObject& o : m.Objects()) {
+                if (!seen.insert(o.id).second) { ids_unique = false; why = string(id) + ":" + o.id; }
+                if (o.type != "bug") continue;
+                ++bugs_on[id][o.yield];
+                const ItemDef* d = items.Get(o.yield);
+                string title = d ? d->name : string();
+                for (char& c : title) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+                if (!d || d->catch_level <= 0 || o.skill != "Foraging" || o.skill_level != d->catch_level ||
+                    o.yield_xp != d->catch_xp || o.regrow_hours <= 0.0f || !o.sprite.empty() || o.title != title ||
+                    o.id.rfind("bug_", 0) != 0) {
+                    bugs_right = false;
+                    why = string(id) + ":" + o.id;
+                }
+                // Over ground somebody can stand on, and not burning ground.
+                const SDL_FRect feet = {o.x - 8.0f, o.y - 10.0f, 16.0f, 10.0f};
+                if (m.Blocked(feet) || m.HazardAt(feet) || m.InWater(o.x, o.y)) { bugs_stand = false; why = string(id) + ":" + o.id; }
+                // And where it can be seen: not behind a bush or a tree whose
+                // foot is in front of its spot and whose picture takes it in.
+                for (const TileInstance& t : m.Tiles()) {
+                    if (t.layer == LAYER_GROUND || t.overlay) continue;
+                    const float y = o.y - 8.0f;
+                    if (o.x >= t.rect.x && o.x <= t.rect.x + t.rect.w && y >= t.rect.y && y <= t.rect.y + t.rect.h &&
+                        t.sort_y > o.y + 4.0f) {
+                        bugs_seen = false;
+                        hid = string(id) + ":" + o.id + " behind " + m.TexturePath(t);
+                    }
+                }
+            }
+        }
+        Check(bugs_seen, "no bug hangs behind the scenery, where nobody would see it" + (bugs_seen ? string() : " (" + hid + ")"));
+        Check(ids_unique, "no two things on a map share an id" + (ids_unique ? string() : " (" + why + ")"));
+        Check(bugs_right, "every bug on a map is caught with Foraging at its own level, for its own XP, and comes back" +
+                              (bugs_right ? string() : " (" + why + ")"));
+        Check(bugs_stand, "and hangs over open ground, not a wall, the water or the fire" + (bugs_stand ? string() : " (" + why + ")"));
+
+        // Each where it lives, and nowhere else.
+        const auto only_on = [&](const char* bug, const std::set<string>& homes) {
+            for (const auto& [map_id, counts] : bugs_on)
+                if (counts.count(bug) && !homes.count(map_id)) return false;
+            return true;
+        };
+        const auto count = [&](const char* map_id, const char* bug) {
+            auto it = bugs_on.find(map_id);
+            if (it == bugs_on.end()) return 0;
+            auto jt = it->second.find(bug);
+            return jt == it->second.end() ? 0 : jt->second;
+        };
+        const std::set<string> ice = {"ice_spire_peak", "frost_barrows", "frost_mere", "frost_glacier", "frost_howe"};
+        Check(only_on("marsh_dragonfly", {"bayou"}), "marsh dragonflies are only in the Bayou");
+        Check(only_on("firebug", {"ashen_path"}), "firebugs are only on the Ashen Path");
+        Check(only_on("rime_beetle", ice), "rime beetles are only on the ice: the Spire and the Frostreach");
+        Check(only_on("swallowtail", {"whisperwood_trail", "brackenwood", "overworld"}),
+              "swallowtails are only in the woods");
+        for (const string& id : ice)
+            Check(count(id.c_str(), "rime_beetle") >= 5 && count(id.c_str(), "rime_beetle") <= 8,
+                  id + " has its rime beetles (" + std::to_string(count(id.c_str(), "rime_beetle")) + ")");
+        for (const char* id : {"whisperwood_trail", "brackenwood"})
+            Check(count(id, "swallowtail") >= 8 && count(id, "swallowtail") <= 12,
+                  string(id) + " has its swallowtails (" + std::to_string(count(id, "swallowtail")) + ")");
+        Check(count("ashen_path", "firebug") >= 10 && count("ashen_path", "firebug") <= 14,
+              "the Ashen Path has ten to fourteen firebugs (" + std::to_string(count("ashen_path", "firebug")) + ")");
+
+        // --- the Bayou: two or more at every body of water ---------------------------------------
+        {
+            Map m;
+            Check(m.Load("maps/bayou.mx"), "the Bayou loads, for its dragonflies");
+            const int cell = 32, cols = static_cast<int>(m.Width()) / cell, rows = static_cast<int>(m.Height()) / cell;
+            vector<int> lake(static_cast<size_t>(cols) * rows, -1);
+            const auto wet = [&](int cx, int cy) {
+                return cx >= 0 && cy >= 0 && cx < cols && cy < rows && m.InWater(cx * cell + 16.0f, cy * cell + 16.0f);
+            };
+            // Water within three cells of water is one body of it: a deck or
+            // a ramp across a lake does not make it two.
+            int lakes = 0;
+            vector<int> size;
+            for (int cy = 0; cy < rows; ++cy)
+                for (int cx = 0; cx < cols; ++cx) {
+                    if (!wet(cx, cy) || lake[static_cast<size_t>(cy) * cols + cx] >= 0) continue;
+                    vector<std::pair<int, int>> todo = {{cx, cy}};
+                    lake[static_cast<size_t>(cy) * cols + cx] = lakes;
+                    int n = 0;
+                    while (!todo.empty()) {
+                        const auto [x, y] = todo.back();
+                        todo.pop_back();
+                        ++n;
+                        for (int dy = -3; dy <= 3; ++dy)
+                            for (int dx = -3; dx <= 3; ++dx)
+                                if (wet(x + dx, y + dy) && lake[static_cast<size_t>(y + dy) * cols + x + dx] < 0) {
+                                    lake[static_cast<size_t>(y + dy) * cols + x + dx] = lakes;
+                                    todo.push_back({x + dx, y + dy});
+                                }
+                    }
+                    size.push_back(n);
+                    ++lakes;
+                }
+            int big = 0;
+            for (int n : size) big += n >= 50;
+            Check(big == 8, "the Bayou has its eight bodies of water (" + std::to_string(big) + ")");
+            vector<int> flies(static_cast<size_t>(lakes), 0);
+            bool back_from_edge = true, clear_of_lurkers = true;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "bug" || o.yield != "marsh_dragonfly") continue;
+                const int bx = static_cast<int>(o.x) / cell, by = static_cast<int>(o.y) / cell;
+                int nearest = 99, which = -1;
+                for (int dy = -3; dy <= 3; ++dy)
+                    for (int dx = -3; dx <= 3; ++dx)
+                        if (wet(bx + dx, by + dy) && std::max(abs(dx), abs(dy)) < nearest) {
+                            nearest = std::max(abs(dx), abs(dy));
+                            which = lake[static_cast<size_t>(by + dy) * cols + bx + dx];
+                        }
+                if (nearest < 1 || nearest > 2) back_from_edge = false;
+                if (which >= 0) ++flies[static_cast<size_t>(which)];
+                for (const EnemySpawnDef& e : m.Enemies())
+                    if (e.lurk && Length(e.x - o.x, e.y - o.y) < 120.0f) clear_of_lurkers = false;
+            }
+            int fewest = 99;
+            for (int k = 0; k < lakes; ++k)
+                if (size[static_cast<size_t>(k)] >= 50) fewest = std::min(fewest, flies[static_cast<size_t>(k)]);
+            Check(fewest >= 2, "every body of water in the Bayou has two or more dragonflies by it (fewest " +
+                                   std::to_string(fewest) + ")");
+            Check(back_from_edge, "each on the bank a cell or two back from the water");
+            Check(clear_of_lurkers, "and well away from anything that lurks under it");
+        }
+
+        // --- the Ashen Path: by the lava, not in it -----------------------------------------------
+        {
+            Map m;
+            Check(m.Load("maps/ashen_path.mx"), "the Ashen Path loads, for its firebugs");
+            vector<SDL_FRect> lava;
+            for (const TileInstance& t : m.Tiles())
+                if (m.TexturePath(t).find("tiles/lava") != string::npos) lava.push_back(t.rect);
+            bool by_lava = !lava.empty();
+            float farthest = 0.0f;
+            for (const MapObject& o : m.Objects()) {
+                if (o.type != "bug") continue;
+                float best = 1e9f;
+                for (const SDL_FRect& r : lava) {
+                    const float dx = std::max({r.x - o.x, 0.0f, o.x - (r.x + r.w)});
+                    const float dy = std::max({r.y - o.y, 0.0f, o.y - (r.y + r.h)});
+                    best = std::min(best, Length(dx, dy));
+                }
+                farthest = std::max(farthest, best);
+                if (best < 32.0f || best > 144.0f) by_lava = false;
+            }
+            Check(by_lava, "every firebug is a cell to four and a half from the lava, never on it (farthest " +
+                               std::to_string(static_cast<int>(farthest)) + " px)");
+        }
+
+        // --- the overworld's greenwood --------------------------------------------------------------
+        {
+            Map m;
+            Check(m.Load("maps/overworld.mx"), "the overworld loads, for its swallowtails");
+            SDL_FPoint start{};
+            m.Spawn("start", start);
+            int n = 0;
+            bool far_from_start = true;
+            for (const MapObject& o : m.Objects())
+                if (o.type == "bug") {
+                    ++n;
+                    far_from_start &= Length(o.x - start.x, o.y - start.y) > 1000.0f;
+                }
+            Check(n >= 3 && n <= 10, "a few swallowtails in the overworld's greenwood (" + std::to_string(n) + ")");
+            Check(far_from_start, "none of them near where a new character starts, whose first E is at a tree");
+        }
+
+        // --- the apiary --------------------------------------------------------------------------------
+        {
+            Map m;
+            Check(m.Load("maps/westwold.mx"), "the Westwold loads, for Aldous's hives");
+            const NpcDef* aldous = nullptr;
+            for (const NpcDef& n : m.Npcs()) if (n.id == "npc_aldous") aldous = &n;
+            Check(aldous && aldous->path.size() >= 2, "Farmer Aldous walks a round");
+            vector<const MapObject*> hives;
+            bool honey = true;
+            for (const MapObject& o : m.Objects())
+                if (o.type == "hive") {
+                    hives.push_back(&o);
+                    honey &= o.yield == "honey" && o.skill == "Foraging" && o.skill_level == 1 && o.yield_xp > 0 &&
+                             o.regrow_hours >= 2.0f && o.regrow_hours <= 8.0f && !o.sprite.empty() && fs::exists(o.sprite);
+                }
+            Check(hives.size() >= 6 && hives.size() <= 10, "the Westwold has an apiary of six to ten hives (" +
+                                                                std::to_string(hives.size()) + ")");
+            Check(honey, "each gives honey for a little Foraging, to anybody, and has more a few hours later");
+            if (aldous && !hives.empty()) {
+                // Within reach of his round: every hive near the way he walks,
+                // and one of the places he stops a while among them.
+                const auto to_round = [&](float x, float y) {
+                    float best = 1e9f;
+                    for (size_t i = 0; i + 1 < aldous->path.size(); ++i) {
+                        const NpcStop& a = aldous->path[i];
+                        const NpcStop& b = aldous->path[i + 1];
+                        const float vx = b.x - a.x, vy = b.y - a.y, len2 = vx * vx + vy * vy;
+                        const float t = len2 > 0.0f ? std::clamp(((x - a.x) * vx + (y - a.y) * vy) / len2, 0.0f, 1.0f) : 0.0f;
+                        best = std::min(best, Length(a.x + vx * t - x, a.y + vy * t - y));
+                    }
+                    return best;
+                };
+                float worst = 0.0f;
+                for (const MapObject* h : hives) worst = std::max(worst, to_round(h->x, h->y));
+                Check(worst < 320.0f, "every hive is within reach of Aldous's round (farthest " +
+                                          std::to_string(static_cast<int>(worst)) + " px)");
+                bool stops = false;
+                for (const NpcStop& s : aldous->path)
+                    for (const MapObject* h : hives) stops |= s.pause > 0.0f && Length(s.x - h->x, s.y - h->y) < 128.0f;
+                Check(stops, "and his round stops a while by the hives");
+            }
+            // Nothing that comes out at night is posted among them.
+            float nearest_night = 1e9f;
+            for (const EnemySpawnDef& e : m.Enemies())
+                if (e.night)
+                    for (const MapObject* h : hives) nearest_night = std::min(nearest_night, Length(e.x - h->x, e.y - h->y));
+            Check(nearest_night >= 340.0f, "and the night keeps its posts away from them (nearest " +
+                                                std::to_string(static_cast<int>(nearest_night)) + " px)");
+            // Every hive can be walked up to: open ground within reach of each.
+            bool reach = true;
+            for (const MapObject* h : hives) {
+                bool any = false;
+                for (float a = 0.0f; a < 6.28f && !any; a += 0.4f)
+                    for (float r = 18.0f; r <= 50.0f && !any; r += 8.0f) {
+                        const float x = h->x + cosf(a) * r, y = h->y + sinf(a) * r;
+                        any = !m.Blocked({x - 8.0f, y - 10.0f, 16.0f, 10.0f});
+                    }
+                reach &= any;
+            }
+            Check(reach, "each hive has open ground beside it to stand on");
+            // And he talks about them.
+            bool mentions = false;
+            if (const DialogueNode* root = dialogue.Get("aldous_root"))
+                for (const DialogueOption& opt : root->options)
+                    if (const DialogueNode* next = dialogue.Get(opt.next))
+                        mentions |= next->text.find("hive") != string::npos || next->text.find("bees") != string::npos;
+            Check(mentions, "and Farmer Aldous will tell you about his bees");
         }
     }
 
@@ -7740,14 +8457,18 @@ int main(int argc, char** argv) {
             levels_rise &= e->level >= last;
             last = e->level;
             fits &= !e->slots.empty();
-            for (EquipSlot s : e->slots) { covered.insert(s); fits &= s != SLOT_WEAPON; }
-            mats &= !e->inputs.empty() && e->inputs.count("dream_shard") > 0;
-            for (const auto& in : e->inputs) mats &= items.Has(in.first) && in.second > 0;
+            // A worn piece's charm never goes on a weapon; a weapon's goes on nothing else.
+            for (EquipSlot s : e->slots) { covered.insert(s); fits &= e->Tiered() ? s == SLOT_WEAPON : s != SLOT_WEAPON; }
+            for (int k = e->Tiered() ? 1 : 0; k <= (e->Tiered() ? e->TierCount() : 0); ++k) {
+                const auto& ins = e->InputsAt(k);
+                mats &= !ins.empty() && ins.count("dream_shard") > 0;
+                for (const auto& in : ins) mats &= items.Has(in.first) && in.second > 0;
+            }
             said &= !e->from.empty() && !e->text.empty();
             paid &= e->xp > 0 && e->value > 0;
         }
         Check(levels_rise, "listed cheapest first");
-        Check(fits, "each fits at least one slot, and never a weapon");
+        Check(fits, "each fits at least one slot: a worn piece's charm never a weapon, a weapon's only a weapon");
         Check(covered.count(SLOT_RING) && covered.count(SLOT_AMULET) && covered.count(SLOT_FEET) &&
               covered.count(SLOT_BODY) && covered.count(SLOT_HEAD) && covered.count(SLOT_SHIELD),
               "between them they cover rings, amulets, boots and armour");
@@ -7843,8 +8564,8 @@ int main(int argc, char** argv) {
                   "a shield takes Fortitude and a lantern, worn in the same hand, does not");
             const ItemDef* sword = items.Get(items.TierPiece("iron", "sword"));
             bool sword_takes = false;
-            for (const EnchantDef* e : all) sword_takes |= sword && items.Takes(*sword, *e);
-            Check(sword && !sword_takes, "a sword takes nothing: weapons are not enchanted");
+            for (const EnchantDef* e : all) if (!e->Tiered()) sword_takes |= sword && items.Takes(*sword, *e);
+            Check(sword && !sword_takes, "a sword takes no worn piece's charm (a weapon's charms: see below)");
         }
         {
             int twins = 0;
@@ -7852,8 +8573,11 @@ int main(int argc, char** argv) {
             for (const auto& kv : items.All())
                 if (!kv.second.enchant.empty()) {
                     ++twins;
-                    clean &= kv.second.craft_result.empty() && kv.second.learn.empty() &&
-                             kv.second.id == kv.second.base_item + "+" + kv.second.enchant;
+                    const string made = kv.second.enchant_tier > 0
+                        ? kv.second.base_item + "+" + kv.second.enchant + "_" + std::to_string(kv.second.enchant_tier)
+                        : kv.second.base_item + "+" + kv.second.enchant;
+                    clean &= kv.second.craft_result.empty() && kv.second.learn.empty() && kv.second.id == made &&
+                             kv.second.id.size() <= 48;
                 }
             for (const ItemDef* r : items.Recipes()) clean &= r->craft_result.find('+') == string::npos;
             Check(twins >= 150 && clean, std::to_string(twins) + " enchanted pieces exist, and none is a recipe or a scroll");
@@ -7942,6 +8666,313 @@ int main(int argc, char** argv) {
     }
 
     // --- combos ---------------------------------------------------------------------------------
+    Section("a weapon's charm: tiers learned once, raised in place, one to a weapon");
+    {
+        // --- the data, and the numbers asked for ------------------------------------------------------------
+        const std::map<string, vector<float>> asked = {
+            {"affliction", {0.05f, 0.08f, 0.11f, 0.14f, 0.17f, 0.20f}},
+            {"precision",  {0.03f, 0.06f, 0.12f, 0.18f, 0.21f, 0.24f}},
+            {"sorcery",    {0.05f, 0.07f, 0.09f, 0.11f, 0.13f, 0.15f}},
+            {"quickdraw",  {0.10f, 0.20f, 0.30f, 0.40f, 0.50f, 0.60f}},
+            {"multishot",  {1.0f, 2.0f, 3.0f, 4.0f, 5.0f}},
+        };
+        for (const auto& [id, amounts] : asked) {
+            const EnchantDef* e = items.Enchantment(id);
+            bool same = e && e->Tiered() && e->TierCount() == static_cast<int>(amounts.size());
+            for (size_t k = 0; same && k < amounts.size(); ++k) same &= fabsf(e->TierAt(static_cast<int>(k) + 1)->amount - amounts[k]) < 0.0001f;
+            Check(same, id + " has the tiers asked for");
+        }
+        int tiered = 0;
+        bool ladder = true;
+        const int kOpens[] = {10, 25, 40, 55, 70, 85};
+        for (const EnchantDef* e : items.Enchantments()) {
+            if (!e->Tiered()) continue;
+            ++tiered;
+            for (int k = 1; k <= e->TierCount(); ++k) {
+                const EnchantDef::Tier* t = e->TierAt(k);
+                ladder &= t->level == kOpens[k - 1] && t->amount > 0.0f && t->inputs.count("dream_shard") > 0;
+                if (k > 1) {
+                    const EnchantDef::Tier* was = e->TierAt(k - 1);
+                    ladder &= t->amount > was->amount && t->xp > was->xp && t->value > was->value &&
+                              t->inputs.at("dream_shard") > was->inputs.at("dream_shard");
+                }
+            }
+        }
+        Check(tiered == 12 && ladder,
+              "twelve weapon charms, each tier opened at Magic 10, 25, 40, 55, 70 and 85, stronger and dearer than the last");
+        const EnchantDef* multi = items.Enchantment("multishot");
+        const EnchantDef* precision = items.Enchantment("precision");
+        Check(multi && multi->TierFor(9) == 0 && multi->TierFor(10) == 1 && multi->TierFor(54) == 3 && multi->TierFor(99) == 5,
+              "a Magic level reaches every tier up to it");
+        Check(multi && multi->NameAt(3) == "Multishot III", "and a tier is named with its numeral");
+
+        // --- which weapons take which ---------------------------------------------------------------------------
+        const auto takes = [&](const string& weapon, const string& charm) {
+            const ItemDef* w = items.Get(weapon);
+            const EnchantDef* e = items.Enchantment(charm);
+            return w && e && items.Takes(*w, *e);
+        };
+        const string sword = items.TierPiece("iron", "sword"), spear = items.TierPiece("iron", "spear");
+        const string bow = items.TierPiece("iron", "bow"), xbow = items.TierPiece("iron", "crossbow");
+        const string knives = items.TierPiece("iron", "knives"), staff = items.TierPiece("iron", "staff");
+        Check(takes(sword, "precision") && takes(sword, "ferocity") && takes(sword, "vampiric") && takes(sword, "affliction") &&
+                  !takes(sword, "sorcery") && !takes(sword, "multishot") && !takes(sword, "brand_bleeding"),
+              "a sword takes a blade's charms and Affliction (it opens wounds), not a caster's, a bow's or a Brand");
+        Check(takes(spear, "brand_bleeding") && !takes(spear, "affliction"), "a spear, which leaves nothing, takes a Brand and not Affliction");
+        Check(takes(bow, "multishot") && takes(bow, "brand_frost") && !takes(bow, "quickdraw"), "a bow takes Multishot and a Brand, not Quickdraw");
+        Check(takes(xbow, "quickdraw") && takes(xbow, "multishot"), "a crossbow takes Quickdraw and Multishot");
+        Check(!takes(knives, "multishot") && takes(knives, "brand_venom"), "thrown knives take no Multishot, but a Brand");
+        Check(takes(staff, "sorcery") && takes(staff, "thrift") && takes(staff, "affliction") && !takes(staff, "multishot"),
+              "a staff takes Sorcery, Thrift and Affliction");
+        Check(!takes("copper_ring", "precision") && !takes(sword, "keenness"), "and nothing crosses between worn pieces and weapons");
+
+        // --- the twins, and what each changes ---------------------------------------------------------------------
+        {
+            const ItemDef* plain_bow = items.Get(bow);
+            const ItemDef* b3 = items.Get(bow + "+multishot_3");
+            Check(plain_bow && b3 && b3->extra_shots == 3 && b3->name == plain_bow->name + " of Multishot III" &&
+                      b3->enchant == "multishot" && b3->enchant_tier == 3 && b3->base_item == bow && b3->icon == plain_bow->icon,
+                  "the " + (b3 ? b3->name : string("?")) + ": three more arrows, the bow's picture, named for it");
+            const ItemDef* s4 = items.Get(sword + "+precision_4");
+            Check(s4 && fabsf(s4->crit_chance - 0.18f) < 0.001f, "Precision IV: +18% crit chance");
+            const ItemDef* f2 = items.Get(sword + "+ferocity_2");
+            Check(f2 && fabsf(f2->crit_damage - 0.20f) < 0.001f, "Ferocity II: criticals a fifth harder");
+            const ItemDef* a6 = items.Get(sword + "+affliction_6");
+            Check(a6 && fabsf(a6->proc_bonus - 0.20f) < 0.001f && a6->on_hit.kind == items.Get(sword)->on_hit.kind,
+                  "Affliction VI: a fifth more chance of the wound the sword already opens");
+            const ItemDef* v5 = items.Get(sword + "+vampiric_5");
+            Check(v5 && fabsf(v5->leech - items.Get(sword)->leech - 0.05f) < 0.001f, "Vampiric V: a twentieth back as health");
+            const ItemDef* q6 = items.Get(xbow + "+quickdraw_6");
+            Check(q6 && fabsf(q6->reload - items.Get(xbow)->reload * 0.4f) < 0.001f, "Quickdraw VI: the crossbow reloads in two fifths the time");
+            const ItemDef* so2 = items.Get(staff + "+sorcery_2");
+            Check(so2 && fabsf(so2->damage - items.Get(staff)->damage * 1.07f) < 0.001f, "Sorcery II: its spells 7% harder");
+            const ItemDef* t3 = items.Get(staff + "+thrift_3");
+            Check(t3 && fabsf(t3->mana_mult - items.Get(staff)->mana_mult * 0.85f) < 0.001f, "Thrift III: its spells 15% cheaper");
+            const ItemDef* fr1 = items.Get(spear + "+brand_frost_1");
+            Check(fr1 && fr1->on_hit.kind == Status::Chill && fabsf(fr1->on_hit.chance - 0.08f) < 0.001f, "the Brand of Frost I: an 8% chill");
+            size_t longest = 0;
+            for (const auto& kv : items.All()) if (kv.second.enchant_tier > 0) longest = std::max(longest, kv.first.size());
+            Check(longest > 0 && longest <= 48, "no charmed weapon's id is too long for the wire (" + std::to_string(longest) + ")");
+        }
+
+        // --- working one, raising it, and swapping it ------------------------------------------------------------
+        {
+            Inventory bag(&items);
+            bag.Add(bow, 1);
+            bag.Add("dream_shard", 40);
+            for (const char* herb : {"nettle", "bogbean", "glowcap", "emberbloom", "moonpetal", "starlily"}) bag.Add(herb, 12);
+            const auto slot_of = [&](const string& id) {
+                for (int i = 0; i < bag.SlotCount(); ++i) if (bag.Slot(i).id == id) return i;
+                return -1;
+            };
+            string why;
+            const int shards = bag.Count("dream_shard");
+            Check(multi && Enchanting::Work(items, *multi, bag, slot_of(bow), why, 2) && bag.Has(bow + "+multishot_2") && !bag.Has(bow),
+                  "Multishot II worked into the bow");
+            Check(multi && Enchanting::Work(items, *multi, bag, slot_of(bow + "+multishot_2"), why, 4) &&
+                      bag.Has(bow + "+multishot_4") && !bag.Has(bow + "+multishot_2"),
+                  "and raised in place to IV");
+            Check(multi && !Enchanting::Work(items, *multi, bag, slot_of(bow + "+multishot_4"), why, 3) &&
+                      why.find("already carries Multishot IV") != string::npos,
+                  "never lowered (" + why + ")");
+            Check(precision && Enchanting::Work(items, *precision, bag, slot_of(bow + "+multishot_4"), why, 1) &&
+                      bag.Has(bow + "+precision_1") && !bag.Has(bow + "+multishot_4"),
+                  "a different charm replaces it: one charm to a weapon");
+            Check(bag.Count("dream_shard") == shards - 2 - 5 - 1, "each paid its own tier's shards");
+            Inventory bare(&items);
+            bare.Add(bow, 1);
+            Check(multi && !Enchanting::Work(items, *multi, bare, 0, why, 1) && why.find("missing") != string::npos && bare.Has(bow),
+                  "and nothing is worked without the materials");
+        }
+
+        // --- in play ---------------------------------------------------------------------------------------------
+        GameContext ctx;
+        std::mt19937 rng(2025);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Input input;
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees; ctx.projectiles = &projectiles; ctx.spells = &spells;
+        ctx.statuses = &statuses; ctx.input = &input;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto key = [&](SDL_Keycode k, bool down) {
+            SDL_Event e{};
+            e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            e.key.key = k;
+            input.HandleEvent(e);
+        };
+        const auto frames = [&](World& w, int n) { for (int f = 0; f < n; ++f) { input.Update(kFrame); w.Update(kFrame, ctx); } };
+        const auto press = [&](World& w, SDL_Keycode k) {
+            input.Update(kFrame); key(k, true);  w.Update(kFrame, ctx);
+            input.Update(kFrame); key(k, false); w.Update(kFrame, ctx);
+        };
+        const auto field = [&](World& w, const char* who, const string& weapon, int skill, int level) {
+            w.player.Init(ctx, who);
+            if (!w.LoadMap("overworld", "start", ctx)) return false;
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            LevelUp lu;
+            w.player.skills.AddXp(skill, XpForLevel(level), lu);
+            w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+            w.player.SyncHitpoints();
+            w.player.hp = w.player.max_hp;
+            w.player.SyncMana();
+            w.player.RestoreMana();
+            w.player.equipment.Unequip(SLOT_SHIELD);
+            w.player.equipment.Equip(SLOT_WEAPON, weapon);
+            w.player.facing = FACE_RIGHT;
+            w.player.sprite.facing = FACE_RIGHT;
+            return true;
+        };
+        const auto sturdy = [&](World& w, const string& type, float dx) -> Enemy* {
+            const EnemyDef* stats = enemy_db.Get(type);
+            if (!stats) return nullptr;
+            EnemySpawnDef def;
+            def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = w.player.x + dx; def.y = w.player.y;
+            auto e = std::make_unique<Enemy>();
+            e->Init(stats, def, ctx);
+            e->max_hp = 60000;
+            e->hp = e->max_hp;
+            Enemy* raw = e.get();
+            w.enemies.push_back(std::move(e));
+            return raw;
+        };
+
+        // Multishot: a plain shot and three more, fanned, each three fifths of it.
+        {
+            const auto shoot = [&](const string& weapon, float& least, float& most) {
+                World w;
+                if (!field(w, "player_warden", weapon, SKILL_RANGED, 40)) return 0;
+                size_t seen = 0;
+                press(w, SDLK_J);
+                for (int f = 0; f < 50; ++f) {
+                    frames(w, 1);
+                    seen = std::max(seen, w.projectiles.size());
+                    if (w.projectiles.size() >= seen && !w.projectiles.empty()) {
+                        least = 1e9f; most = 0.0f;
+                        for (const Projectile& p : w.projectiles) { least = std::min(least, p.damage_mult); most = std::max(most, p.damage_mult); }
+                    }
+                }
+                return static_cast<int>(seen);
+            };
+            float lo = 0.0f, hi = 0.0f, plo = 0.0f, phi = 0.0f;
+            const int with = shoot(bow + "+multishot_3", lo, hi);
+            const int without = shoot(bow, plo, phi);
+            Check(without == 1 && with == 4, "Multishot III looses four arrows where a plain bow looses one (" + std::to_string(with) + ")");
+            Check(hi > 0.0f && fabsf(lo / hi - ItemDef::EXTRA_SHOT_SHARE) < 0.02f,
+                  "the three beside it each three fifths of it (" + std::to_string(lo / std::max(0.001f, hi)).substr(0, 4) + ")");
+        }
+
+        // A crossbow: no combos, and Quickdraw spans it quicker.
+        {
+            const auto reload_frames = [&](const string& weapon, bool& combo) {
+                World w;
+                if (!field(w, "player_warden", weapon, SKILL_RANGED, 40)) return -1;
+                press(w, SDLK_J);
+                // Frames spent spanning it, from the moment the bolt left.
+                int n = 0;
+                bool fired = false;
+                for (int f = 0; f < 400; ++f) {
+                    frames(w, 1);
+                    fired |= !w.projectiles.empty();
+                    if (!fired) continue;
+                    if (w.player.Reloading()) ++n;
+                    else if (n > 0) break;
+                }
+                // Straight after the reload, inside what would be a sword's window:
+                // a heavy press, and both at once, and neither is a combo.
+                press(w, SDLK_K);
+                combo = w.player.Attack().move != ComboMove::None;
+                frames(w, 60);
+                input.Update(kFrame); key(SDLK_J, true); key(SDLK_K, true); w.Update(kFrame, ctx);
+                input.Update(kFrame); key(SDLK_J, false); key(SDLK_K, false); w.Update(kFrame, ctx);
+                combo |= w.player.Attack().move != ComboMove::None;
+                return n;
+            };
+            bool combo_plain = true, combo_quick = true;
+            const int plain = reload_frames(xbow, combo_plain);
+            const int quick = reload_frames(xbow + "+quickdraw_6", combo_quick);
+            Check(plain > 20 && quick > 0 && fabsf(static_cast<float>(quick) / plain - 0.4f) < 0.08f,
+                  "Quickdraw VI spans a crossbow in two fifths the time (" + std::to_string(quick) + " frames to " + std::to_string(plain) + ")");
+            Check(!combo_plain && !combo_quick, "and a crossbow chains no combos, even reloaded that fast");
+        }
+
+        // A Brand on a bow: its arrows leave what it brands.
+        {
+            const auto chills = [&](const string& weapon) {
+                World w;
+                if (!field(w, "player_warden", weapon, SKILL_RANGED, 60)) return -1;
+                Enemy* cow = sturdy(w, "cow", 110.0f);
+                if (!cow) return -1;
+                int took = 0;
+                for (int shot = 0; shot < 40; ++shot) {
+                    cow->statuses.Clear();
+                    cow->x = w.player.x + 110.0f; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                    w.player.hp = w.player.max_hp;
+                    press(w, SDLK_J);
+                    bool chilled = false;
+                    for (int f = 0; f < 45; ++f) { frames(w, 1); chilled |= cow->Afflicted(Status::Chill) || cow->Afflicted(Status::Frozen); }
+                    took += chilled ? 1 : 0;
+                }
+                return took;
+            };
+            const int branded = chills(bow + "+brand_frost_6");
+            const int plain = chills(bow);
+            Check(branded >= 4 && plain == 0, "the Brand of Frost VI's arrows chill what they strike, a plain bow's never (" +
+                                                  std::to_string(branded) + " of 40)");
+        }
+
+        // Precision: blows strike critically; with nothing, a new hero's never do.
+        {
+            const auto crits = [&](const string& weapon, int& hp_left) {
+                World w;
+                if (!field(w, "player_hero", weapon, SKILL_ATTACK, 60)) return -1;
+                LevelUp lu;
+                w.player.skills.AddXp(SKILL_STRENGTH, XpForLevel(60), lu);
+                Enemy* cow = sturdy(w, "cow", 30.0f);
+                if (!cow) return -1;
+                w.player.hp = w.player.max_hp / 2;
+                int n = 0;
+                for (int swing = 0; swing < 50; ++swing) {
+                    cow->x = w.player.x + 30.0f; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                    w.player.facing = FACE_RIGHT; w.player.sprite.facing = FACE_RIGHT;
+                    press(w, SDLK_J);
+                    for (int f = 0; f < 40; ++f) {
+                        frames(w, 1);
+                        for (const FloatingText& t : w.texts)
+                            if (!t.text.empty() && t.text.back() == '*' && t.life >= t.max_life - 1.5f * kFrame) ++n;
+                    }
+                }
+                hp_left = w.player.hp;
+                return n;
+            };
+            int hp_plain = 0, hp_precise = 0, hp_vamp = 0;
+            const int plain = crits(sword, hp_plain);
+            const int precise = crits(sword + "+precision_6", hp_precise);
+            Check(plain == 0 && precise >= 4, "Precision VI strikes critically, where a new hero with a plain sword never does (" +
+                                                   std::to_string(precise) + " of 50)");
+            crits(sword + "+vampiric_6", hp_vamp);
+            Check(hp_vamp > hp_plain, "and Vampiric VI gives back health as it strikes (" + std::to_string(hp_vamp) + " against " +
+                                          std::to_string(hp_plain) + ")");
+        }
+
+        // Thrift: a staff's spell costs less.
+        {
+            const auto cost = [&](const string& weapon) {
+                World w;
+                if (!field(w, "player_wayfarer", weapon, SKILL_MAGIC, 40)) return -1;
+                const int before = w.player.Mana();
+                press(w, SDLK_J);
+                frames(w, 30);
+                return before - w.player.Mana();
+            };
+            const int plain = cost(staff), thrifty = cost(staff + "+thrift_6");
+            Check(plain > 0 && thrifty > 0 && thrifty < plain, "Thrift VI's spells cost less (" + std::to_string(thrifty) + " mana to " +
+                                                                  std::to_string(plain) + ")");
+        }
+    }
+
     Section("combos: a heavy in the chain, a light after a heavy, and both at once");
     {
         // The shapes.
@@ -13177,6 +14208,125 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("the house at Mossvale, dressed for what stands in its ring");
+    {
+        GameContext ctx;
+        std::mt19937 rng(1616);
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.sprites = &sprites; ctx.items = &items; ctx.loot = &loot; ctx.enemies = &enemy_db;
+        ctx.quests = &log; ctx.rng = &rng; ctx.trees = &trees;
+        const auto same = [](SDL_Color a, SDL_Color b) { return a.r == b.r && a.g == b.g && a.b == b.b; };
+        const auto lum = [](SDL_Color c) { return 0.299f * c.r + 0.587f * c.g + 0.114f * c.b; };
+        const auto chroma = [](SDL_Color c) { return std::max({c.r, c.g, c.b}) - std::min({c.r, c.g, c.b}); };
+
+        // --- a palette for every totem, and no two alike --------------------------------------------
+        std::set<string> looks;
+        int palettes = 0;
+        for (const TotemDef& t : trees.Totems()) {
+            palettes += t.house ? 1 : 0;
+            looks.insert(std::to_string(t.floor.r) + "," + std::to_string(t.floor.g) + "," + std::to_string(t.floor.b) + "/" +
+                         std::to_string(t.cloth.r) + "," + std::to_string(t.cloth.g) + "," + std::to_string(t.cloth.b));
+        }
+        Check(palettes == static_cast<int>(trees.Totems().size()) && palettes >= 17,
+              "every totem has a palette for the house (" + std::to_string(palettes) + ")");
+        Check(looks.size() == trees.Totems().size(), "and no two dress it alike");
+        for (const char* pale : {"assets/tiles/plank_floor_pale.png", "assets/tiles/plank_floor_pale_1.png",
+                                 "assets/tiles/plank_floor_pale_2.png", "assets/tiles/plaster_wall_pale.png"})
+            Check(fs::exists(pale), string(pale) + " is there to be dyed");
+
+        // --- the room, and what in it dresses ------------------------------------------------------------
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("mossvale_cottage", "", ctx), "the house loads");
+        const Map& room = w.CurrentMap();
+        Check(room.HasDress(), "and has a dress to wear");
+        int roles[6] = {};
+        int tex_of[6] = {-1, -1, -1, -1, -1, -1};
+        for (const TileInstance& t : room.Tiles()) {
+            const int role = room.DressRoleOf(t.tex);
+            ++roles[role];
+            if (tex_of[role] < 0) tex_of[role] = t.tex;
+        }
+        Check(roles[Map::DRESS_FLOOR] >= 100 && roles[Map::DRESS_WALL] >= 20,
+              "the whole floor and the walls dress (" + std::to_string(roles[Map::DRESS_FLOOR]) + " boards, " +
+                  std::to_string(roles[Map::DRESS_WALL]) + " walls)");
+        Check(roles[Map::DRESS_CLOTH] >= 3 && roles[Map::DRESS_TRIM] >= 3 && roles[Map::DRESS_PLAIN] >= 1,
+              "a rug and two hangings with their trim, and the plain rug by the door");
+        const MapObject* ring = nullptr;
+        for (const MapObject& o : room.Objects()) if (o.type == "totem_circle") ring = &o;
+        Check(ring && fabsf(room.DressLight().x - ring->x) < 1.0f && fabsf(room.DressLight().y - ring->y) < 1.0f,
+              "the totem's light stands on the ring");
+
+        // --- nothing in the ring: the room as it always was ------------------------------------------------
+        Map::Dress d = w.HouseDress();
+        Check(!d.on && w.DressTotem() == nullptr, "with nothing in the ring the room is as it was");
+        room.SetDress(d);
+        Check(!room.DressHides(tex_of[Map::DRESS_PLAIN]) && room.DressHides(tex_of[Map::DRESS_CLOTH]) &&
+                  room.DressHides(tex_of[Map::DRESS_TRIM]) && !room.DressHides(tex_of[Map::DRESS_FLOOR]),
+              "the old rug down by the door, the dressed rug and hangings put away");
+        const SDL_Color plain_air = w.AmbientLight();
+
+        // --- the Warchief's, awake ---------------------------------------------------------------------------
+        const TotemDef* orc = trees.Totem("totem_orc3");
+        w.player.talents.PlaceTotem("totem_orc3", w.clock.QuestDay());
+        d = w.HouseDress();
+        Check(orc && d.on && same(d.floor, orc->floor) && same(d.wall, orc->wall) && same(d.cloth, orc->cloth) &&
+                  same(d.trim, orc->trim),
+              "the Warchief's totem in the ring dresses the room in its colours");
+        room.SetDress(d);
+        Check(room.DressHides(tex_of[Map::DRESS_PLAIN]) && !room.DressHides(tex_of[Map::DRESS_CLOTH]) &&
+                  !room.DressHides(tex_of[Map::DRESS_TRIM]),
+              "the plain rug taken up, the rug and hangings out");
+        float awake_glow = 0.0f;
+        for (const Light& l : w.CollectLights())
+            if (orc && fabsf(l.x - room.DressLight().x) < 1.0f && same(l.color, orc->light)) awake_glow = l.intensity;
+        Check(awake_glow > 0.5f, "its own light stands on the ring, day or night");
+        Check(!same(w.AmbientLight(), plain_air), "and there is a breath of its colour in the air");
+
+        // --- asleep: the same colours with the life gone out of them -----------------------------------------------
+        w.player.talents.PlaceTotem("totem_orc3", w.clock.QuestDay() - 1);
+        w.player.talents.SetToday(w.clock.QuestDay());
+        const Map::Dress asleep = w.HouseDress();
+        Check(!w.player.talents.TotemAwake() && asleep.on && lum(asleep.floor) < lum(d.floor) &&
+                  lum(asleep.cloth) < lum(d.cloth) && chroma(asleep.cloth) < chroma(d.cloth),
+              "asleep, it still dresses the room -- darker and greyer");
+        float asleep_glow = 0.0f;
+        for (const Light& l : w.CollectLights())
+            if (fabsf(l.x - room.DressLight().x) < 1.0f && fabsf(l.y - (room.DressLight().y - 14.0f)) < 1.0f) asleep_glow = l.intensity;
+        Check(asleep_glow > 0.0f && asleep_glow < awake_glow, "and its light is low");
+
+        // --- lifted out: as it was ---------------------------------------------------------------------------------
+        w.player.talents.TakeTotem();
+        Check(!w.HouseDress().on && same(w.AmbientLight(), plain_air), "lifted out, the room is as it was");
+
+        // --- each player's frame is dressed for their own ------------------------------------------------------------
+        {
+            const TotemDef* frost = trees.Totem("totem_frost_dragon");
+            w.player.talents.PlaceTotem("totem_orc3", w.clock.QuestDay());
+            Player friend_;
+            friend_.Init(ctx, "player_warden");
+            friend_.seat = 1;
+            friend_.talents.PlaceTotem("totem_frost_dragon", w.clock.QuestDay());
+            w.BeginActing(friend_);
+            const Map::Dress theirs = w.HouseDress();
+            w.EndActing();
+            const Map::Dress mine = w.HouseDress();
+            Check(frost && orc && same(theirs.cloth, frost->cloth) && same(mine.cloth, orc->cloth),
+                  "a friend's frame is dressed for their totem and the host's for the host's, the way the ring shows each their own");
+        }
+
+        // --- a room with no ring is never dressed --------------------------------------------------------------------
+        {
+            World inn;
+            inn.player.Init(ctx, "player_hero");
+            Check(inn.LoadMap("house_inn", "", ctx), "the inn loads");
+            inn.player.talents.PlaceTotem("totem_orc3", inn.clock.QuestDay());
+            Check(!inn.CurrentMap().HasDress() && !inn.HouseDress().on && inn.DressTotem() == nullptr,
+                  "and a room with no ring is never dressed, whatever stands at home");
+        }
+    }
+
     Section("a new game starts with a new world");
     {
         // Someone played one save, then started another, and found the first
@@ -13947,7 +15097,11 @@ int main(int argc, char** argv) {
             bool all = true, none = true;
             for (const auto& kv : items.All()) {
                 const ItemDef& d = kv.second;
-                if (d.slot != SLOT_WEAPON || kv.first == "ember_blade") continue;      // that one is its own: below
+                // That one is its own (below), and so are its charmed twins.
+                if (d.slot != SLOT_WEAPON || kv.first == "ember_blade" || d.base_item == "ember_blade") continue;
+                // A Brand is a charm worked into the weapon, not the weapon
+                // itself: those are the enchanting table's, checked there.
+                if (d.charm == "brand") continue;
                 // By what is in the hand, not by what it is called: the steel
                 // one is a longsword, and an enchanted sword is still a sword.
                 const bool sword = d.model.rfind("sword_", 0) == 0;
@@ -14733,6 +15887,154 @@ int main(int argc, char** argv) {
                 Check(most == 3, "and a heavy one a fan of three (" + std::to_string(most) + ")");
             }
         }
+        // --- knives, heard: going in, or going by -----------------------------------------------------------
+        // A knife that lands is heard going in -- the throw that kills as much as
+        // any -- and never as a blow; one the dice say missed is heard going by
+        // the thing it missed; one that flies into nothing is heard going by,
+        // once a knife, near enough for whoever threw it. An arrow does none of
+        // it. Every sound is heard through the tap co-op uses, which is let go
+        // of before what it writes into is.
+        {
+            struct Heard { Sfx s; bool placed; float x, y; };
+            vector<Heard> heard;
+            Audio::SetTap([&heard](Sfx s, bool placed, float x, float y, float, float) {
+                heard.push_back({s, placed, x, y});
+            });
+            const auto count = [&](Sfx s, size_t from = 0) {
+                int n = 0;
+                for (size_t i = from; i < heard.size(); ++i) n += heard[i].s == s;
+                return n;
+            };
+            const auto first = [&](Sfx s) -> const Heard* {
+                for (const Heard& h : heard) if (h.s == s) return &h;
+                return nullptr;
+            };
+            const auto blows = [&]() { return count(Sfx::Hit) + count(Sfx::HitCrit); };
+            {
+                World w;
+                if (field(w, "player_warden", "iron_knives", SKILL_RANGED, 30)) {
+                    Enemy* cow = sturdy(w, "cow", 90.0f);
+                    // Where the cow stood the frame each sound was heard, one
+                    // entry a sound: the knife knocks it back after.
+                    vector<SDL_FPoint> at;
+                    const auto throw_at = [&](Sfx listen, float dx) {
+                        cow->x = w.player.x + dx; cow->y = w.player.y;
+                        press(w, SDLK_J);
+                        for (int f = 0; f < 60; ++f) {
+                            const int before = count(listen);
+                            frames(w, 1);
+                            for (int n = count(listen); n > before; --n) at.push_back({cow->x, cow->y});
+                        }
+                    };
+                    // How far the furthest of the `s` heard was from where the
+                    // cow stood when it was.
+                    const auto furthest = [&](Sfx s) {
+                        float most = 0.0f;
+                        size_t i = 0;
+                        for (const Heard& h : heard) {
+                            if (h.s != s) continue;
+                            if (i >= at.size() || !h.placed) return 9999.0f;
+                            most = std::max(most, Length(h.x - at[i].x, h.y - at[i].y));
+                            ++i;
+                        }
+                        return i > 0 ? most : 9999.0f;
+                    };
+                    heard.clear();
+                    at.clear();
+                    for (int t = 0; t < 6 && cow && count(Sfx::KnifeHit) == 0; ++t) throw_at(Sfx::KnifeHit, 90.0f);
+                    const float off = furthest(Sfx::KnifeHit);
+                    Check(count(Sfx::KnifeHit) == 1 && off < 8.0f,
+                          "a knife that lands is heard going in, where it went in (" + std::to_string(static_cast<int>(off)) + " px)");
+                    Check(blows() == 0, "and not as a blow (" + std::to_string(blows()) + " heard)");
+                    // Out of its reach: the dice miss, and every knife is heard
+                    // going past what it missed rather than into it -- at the
+                    // cow, and not halfway along the flight as one that flew
+                    // into nothing is, some thirty pixels short. A cow of
+                    // level 5,000 also kicks like one, so it is put back out
+                    // of its own reach before every throw.
+                    if (cow) {
+                        cow->level = 5000;
+                        heard.clear();
+                        at.clear();
+                        for (int t = 0; t < 3; ++t) throw_at(Sfx::Whiff, 150.0f);
+                        const float past = furthest(Sfx::Whiff);
+                        Check(count(Sfx::Whiff) == 3 && past < 8.0f && count(Sfx::KnifeHit) == 0 && blows() == 0,
+                              "a knife the dice say missed is heard going by what it missed (" +
+                                  std::to_string(count(Sfx::Whiff)) + " of 3, furthest " + std::to_string(static_cast<int>(past)) + " px)");
+                        cow->level = 1;
+                    }
+                    // The throw that kills: anything else's is heard only as the
+                    // death, and a knife's would have had no knife in it.
+                    bool killed = false, heard_it = false;
+                    if (cow) {
+                        cow->x = w.player.x + 90.0f; cow->y = w.player.y;
+                        cow->hp = 1;
+                        for (int t = 0; t < 6 && !killed; ++t) {
+                            const size_t from = heard.size();
+                            press(w, SDLK_J);
+                            for (int f = 0; f < 60 && !killed; ++f) { frames(w, 1); killed = cow->hp <= 0; }
+                            heard_it = killed && count(Sfx::KnifeHit, from) > 0;
+                        }
+                    }
+                    Check(killed && heard_it, string("and so is the throw that kills (") + (killed ? "killed" : "not killed") +
+                                                  ", " + (heard_it ? "heard" : "not heard") + ", player " +
+                                                  (w.player.IsDead() ? "dead" : "standing") + ")");
+                }
+            }
+            {
+                World w;
+                if (field(w, "player_warden", "iron_knives", SKILL_RANGED, 30)) {
+                    heard.clear();
+                    press(w, SDLK_J);
+                    frames(w, 80);
+                    const Heard* by = first(Sfx::Whiff);
+                    const float far = by ? Length(by->x - w.player.x, by->y - w.player.y) : 9999.0f;
+                    Check(count(Sfx::Whiff) == 1 && count(Sfx::KnifeHit) == 0 && count(Sfx::Impact) == 0,
+                          "a knife thrown into an empty field is heard going by, once (" + std::to_string(count(Sfx::Whiff)) + ")");
+                    // At the end of its range a sound is two-fifths of itself;
+                    // halfway along the flight it is nearly whole, and still
+                    // off to the side the knife went.
+                    Check(by && by->placed && far > 40.0f && far < 160.0f && by->x > w.player.x,
+                          "out along its flight, near enough for the thrower to hear (" +
+                              std::to_string(static_cast<int>(far)) + " px)");
+                    // A fan: each knife heard once. Where the player stands the
+                    // upper one meets something solid and is heard on it, as
+                    // every shot is on a wall, and does not whiff as well.
+                    frames(w, 60);
+                    heard.clear();
+                    press(w, SDLK_K);
+                    frames(w, 90);
+                    Check(count(Sfx::Whiff) + count(Sfx::Impact) == 3 && count(Sfx::Whiff) >= 1 && count(Sfx::KnifeHit) == 0,
+                          "and each knife of a fan of three is heard once, going by or on what it met (" +
+                              std::to_string(count(Sfx::Whiff)) + " going by, " + std::to_string(count(Sfx::Impact)) + " on a wall)");
+                }
+            }
+            {
+                World w;
+                if (field(w, "player_warden", "oak_shortbow", SKILL_RANGED, 30)) {
+                    Enemy* cow = sturdy(w, "cow", 90.0f);
+                    heard.clear();
+                    for (int t = 0; t < 3; ++t) { press(w, SDLK_J); frames(w, 60); }
+                    const int landed = blows() + count(Sfx::Block);
+                    // And one into nothing: the cow sent where no arrow reaches.
+                    // It must run out of air rather than meet a wall, or it
+                    // never comes where a knife would whiff.
+                    if (cow) { cow->x = w.player.x + 3000.0f; cow->y = w.player.y; }
+                    w.projectiles.clear();
+                    const size_t from = heard.size();
+                    press(w, SDLK_J);
+                    bool flew = false;
+                    for (int f = 0; f < 150; ++f) { frames(w, 1); flew = flew || !w.projectiles.empty(); }
+                    Check(landed > 0 && count(Sfx::KnifeHit) == 0 && count(Sfx::Whiff) == 0,
+                          "an arrow is heard as it always was, and neither going in nor going by (" +
+                              std::to_string(landed) + " landed)");
+                    Check(flew && w.projectiles.empty() && count(Sfx::Impact, from) == 0 && count(Sfx::Whiff, from) == 0,
+                          "not even one that runs out of air with nothing met (" + std::to_string(count(Sfx::Impact, from)) +
+                              " on a wall)");
+                }
+            }
+            Audio::SetTap(nullptr);
+        }
 
         // --- an element's own staff: four keys, four spells -----------------------------------------------
         {
@@ -15470,6 +16772,57 @@ int main(int argc, char** argv) {
         Check(Audio::Samples(Sfx::KnifeThrow) != Audio::Samples(Sfx::BowShot),
               "and the two do not sound alike");
 
+        // --- a rock thrown, a knife going in, a knife going by -----------------------------
+        // Three sounds of their own, each unlike its neighbours: what is thrown
+        // by hand is air, with nothing on a string and no steel in it; a knife
+        // going in is not a blow; a knife going by is not a swing.
+        const auto differs = [](Sfx a, Sfx b) { return Audio::Samples(a) != Audio::Samples(b); };
+        Check(differs(Sfx::Throw, Sfx::Swing) && differs(Sfx::Throw, Sfx::BowShot) && differs(Sfx::Throw, Sfx::KnifeThrow),
+              "a thing thrown by hand is neither a swing, a bowstring nor a knife");
+        Check(differs(Sfx::KnifeHit, Sfx::Hit) && differs(Sfx::KnifeHit, Sfx::HitCrit) && differs(Sfx::KnifeHit, Sfx::Impact),
+              "a knife going in is not a blow, nor a shot on a wall");
+        Check(differs(Sfx::Whiff, Sfx::Swing) && differs(Sfx::Whiff, Sfx::KnifeThrow) && differs(Sfx::Whiff, Sfx::Throw),
+              "and a knife going by is not a swing, nor a throw");
+        // Short, as what they are is short: a throw under a quarter of a
+        // second, the other two a seventh or so.
+        const auto seconds = [](Sfx s) { return static_cast<float>(Audio::Samples(s).size()) / 44100.0f; };
+        Check(seconds(Sfx::Throw) > 0.15f && seconds(Sfx::Throw) < 0.3f && seconds(Sfx::KnifeHit) > 0.1f &&
+              seconds(Sfx::KnifeHit) < 0.22f && seconds(Sfx::Whiff) > 0.1f && seconds(Sfx::Whiff) < 0.2f,
+              "and all three are quick (" + std::to_string(seconds(Sfx::Throw)) + ", " + std::to_string(seconds(Sfx::KnifeHit)) +
+                  ", " + std::to_string(seconds(Sfx::Whiff)) + " s)");
+        // A friend hears them: they are new numbers on the line, and none of
+        // them is one her own window plays for itself.
+        Check(!coop::OwnSound(Sfx::Throw) && !coop::OwnSound(Sfx::KnifeHit) && !coop::OwnSound(Sfx::Whiff) &&
+              coop::OwnSound(Sfx::Swing) && coop::OwnSound(Sfx::UiMove) && coop::OwnSound(Sfx::QuestComplete),
+              "a friend is told all three, as she is not told her own swing");
+        Check(static_cast<int>(Sfx::Count) <= 255 && net::PROTOCOL_VERSION >= 14,
+              "and the line knows their numbers (protocol " + std::to_string(net::PROTOCOL_VERSION) + ")");
+        // Which shots are thrown: what a monster lets go of by hand, and the
+        // knife. Nothing loosed off a string is.
+        {
+            int by_hand = 0, strung = 0;
+            for (const char* id : {"orc_rock", "ice_chunk", "yeti_snowball", "throwing_knife"}) {
+                const ProjectileDef* d = projectiles.Get(id);
+                by_hand += d && d->thrown;
+            }
+            for (const char* id : {"arrow", "barbed_arrow", "crossbow_bolt", "frost_arrow", "blowgun_dart"}) {
+                const ProjectileDef* d = projectiles.Get(id);
+                strung += d && !d->thrown;
+            }
+            Check(by_hand == 4, "a slinger's rock is thrown, and a troll's ice, a yeti's snowball and a knife (" +
+                  std::to_string(by_hand) + " of 4)");
+            Check(strung == 5, "and no arrow, bolt or dart is (" + std::to_string(strung) + " of 5)");
+            // And the bigger the thing, the lower it is heard leaving the hand.
+            const ProjectileDef* rock = projectiles.Get("orc_rock");
+            const ProjectileDef* ice = projectiles.Get("ice_chunk");
+            const ProjectileDef* ball = projectiles.Get("yeti_snowball");
+            if (rock && ice && ball)
+                Check(rock->ThrowPitch() > 0.95f && rock->ThrowPitch() <= 1.05f && ice->ThrowPitch() < rock->ThrowPitch() - 0.05f &&
+                          ball->ThrowPitch() < ice->ThrowPitch() - 0.05f && ball->ThrowPitch() >= 0.7f,
+                      "and heard the lower the bigger it is: a rock " + std::to_string(rock->ThrowPitch()) + ", ice " +
+                          std::to_string(ice->ThrowPitch()) + ", a snowball " + std::to_string(ball->ThrowPitch()));
+        }
+
         // --- an orc that fights from the back of the rank --------------------------------
         const EnemyDef* slinger = enemy_db.Get("orc_slinger");
         const EnemyDef* bowman  = enemy_db.Get("orc_bowman");
@@ -15489,7 +16842,9 @@ int main(int argc, char** argv) {
 
             // It looses from where it stands rather than closing. Put one at the
             // far end of what it can see and let it be: a shot should leave it
-            // without its ever coming inside a swing's reach.
+            // without its ever coming inside a swing's reach. And listen, through
+            // the tap co-op uses: a rock is heard leaving the hand, and a bowman
+            // is heard as he always was.
             std::mt19937 prng(97);
             QuestLog shot_log;
             shot_log.LoadDefinitions("data/quests.json");
@@ -15498,9 +16853,12 @@ int main(int argc, char** argv) {
             pctx.projectiles = &projectiles; pctx.spells = &spells; pctx.trees = &trees;
             pctx.statuses = &statuses; pctx.loot = &loot;
             pctx.quests = &shot_log; pctx.rng = &prng;
-            World world;
-            world.player.Init(pctx, "player_hero");
-            if (world.LoadMap("overworld", "start", pctx)) {
+            struct Loosed { bool shot = false; float nearest = 9999.0f; vector<Sfx> heard; bool placed_at_orc = false; float pitch = 0.0f; };
+            const auto stand_off = [&](const EnemyDef* who, const char* type) {
+                Loosed out;
+                World world;
+                world.player.Init(pctx, "player_hero");
+                if (!world.LoadMap("overworld", "start", pctx)) return out;
                 world.enemies.clear();
                 world.clock.Set(1, 12.0f);
                 {
@@ -15509,26 +16867,45 @@ int main(int argc, char** argv) {
                     world.player.Rest();
                 }
                 EnemySpawnDef def;
-                def.type = "orc_slinger"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
-                def.x = world.player.x + slinger->shoot_range - 12.0f;
+                def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                def.x = world.player.x + who->shoot_range - 12.0f;
                 def.y = world.player.y;
                 auto e = std::make_unique<Enemy>();
-                e->Init(slinger, def, pctx);
+                e->Init(who, def, pctx);
                 Enemy* orc = e.get();
                 world.enemies.push_back(std::move(e));
-                float nearest = 9999.0f;
-                bool shot = false;
-                for (int f = 0; f < 900 && !shot; ++f) {
+                Audio::SetTap([&out, orc](Sfx s, bool placed, float x, float y, float, float pitch) {
+                    out.heard.push_back(s);
+                    if (s == Sfx::Throw && placed && Length(x - orc->x, y - orc->y) < 4.0f) out.placed_at_orc = true;
+                    if (s == Sfx::Throw) out.pitch = pitch;
+                });
+                for (int f = 0; f < 900 && !out.shot; ++f) {
                     world.Update(1.0f / 60.0f, pctx);
-                    nearest = std::min(nearest, std::hypot(orc->x - world.player.x, orc->y - world.player.y));
+                    out.nearest = std::min(out.nearest, std::hypot(orc->x - world.player.x, orc->y - world.player.y));
                     for (const Projectile& p : world.projectiles)
-                        if (!p.from_player) shot = true;
+                        if (!p.from_player) out.shot = true;
                 }
-                Check(shot, "a slinger looses at a player it can see");
-                Check(nearest > slinger->attack_range,
-                      "and never closes to a swing's reach to do it (" +
-                          std::to_string(static_cast<int>(nearest)) + " px)");
-            }
+                // The tap writes into `out`: let go of it before `out` is handed back.
+                Audio::SetTap(nullptr);
+                return out;
+            };
+            const auto heard = [](const Loosed& l, Sfx s) {
+                return static_cast<int>(std::count(l.heard.begin(), l.heard.end(), s));
+            };
+            const Loosed sling = stand_off(slinger, "orc_slinger");
+            Check(sling.shot, "a slinger looses at a player it can see");
+            Check(sling.nearest > slinger->attack_range,
+                  "and never closes to a swing's reach to do it (" +
+                      std::to_string(static_cast<int>(sling.nearest)) + " px)");
+            const ProjectileDef* sling_shot = projectiles.Get(slinger->shoots);
+            Check(heard(sling, Sfx::Throw) == 1 && sling.placed_at_orc && sling_shot &&
+                      std::fabs(sling.pitch - sling_shot->ThrowPitch()) < 0.001f,
+                  "and is heard throwing it, from where it stands, as big as it is (" +
+                      std::to_string(heard(sling, Sfx::Throw)) + ", pitch " + std::to_string(sling.pitch) + ")");
+            Check(heard(sling, Sfx::BowShot) == 0, "with no bowstring in it");
+            const Loosed bow = stand_off(bowman, "orc_bowman");
+            Check(bow.shot && heard(bow, Sfx::BowShot) == 1 && heard(bow, Sfx::Throw) == 0,
+                  "while a bowman is still heard loosing an arrow (" + std::to_string(heard(bow, Sfx::BowShot)) + ")");
         }
 
         // --- mixed through the ranks, without another orc in the realm --------------------
@@ -19726,6 +21103,66 @@ int main(int argc, char** argv) {
                 frames(12);
                 Check(hw.Flagged(o.id) && gw.Flagged(o.id), "opened by her, it is open in the host's world and in her window: first come, first served");
             }
+        }
+
+        // --- a bug, caught for everyone ---------------------------------------------------------------------
+        Check(her() && host.WorldOf(1) == &hw, "she is still out on the host's map, where a bug can be put for her");
+        if (her() && host.WorldOf(1) == &hw) {
+            MapObject bug;
+            bug.id = "bug_coop"; bug.type = "bug"; bug.yield = "swallowtail"; bug.skill = "Foraging";
+            bug.skill_level = 9; bug.yield_xp = 55; bug.gather_time = 1.2f; bug.regrow_hours = 4.0f;
+            bug.title = "swallowtail butterfly";
+            // Somewhere open near her, put into both machines' copy of the map:
+            // the same file and the same list, so the same index on both.
+            bool placed = false;
+            const float sx = her()->x, sy = her()->y;
+            for (float r = 64.0f; r < 800.0f && !placed; r += 16.0f)
+                for (float a = 0.0f; a < 6.28f && !placed; a += 0.35f) {
+                    const float x = sx + cosf(a) * r, y = sy + sinf(a) * r;
+                    const SDL_FRect feet = {x - 8.0f, y + 6.0f, 16.0f, 10.0f};
+                    if (hw.map.Blocked(feet) || hw.map.PortalAt(feet)) continue;
+                    bool clear = true;
+                    for (const MapObject& other : hw.map.Objects()) clear &= Length(other.x - x, other.y - y) > 96.0f;
+                    for (const auto& n : hw.npcs) clear &= Length(n->x - x, n->y - y) > 120.0f;
+                    if (!clear) continue;
+                    bug.x = x;
+                    bug.y = y;
+                    placed = true;
+                }
+            hw.map.AddObject(bug);
+            gw.map.AddObject(bug);
+            const int bi_obj = static_cast<int>(hw.map.Objects().size()) - 1;
+            Check(placed && bi_obj == static_cast<int>(gw.map.Objects().size()) - 1, "a swallowtail over open ground, in both worlds");
+            gw.player.GrantXp(SKILL_FORAGING, XpForLevel(12));
+            gw.player.TakeLevelUps(); gw.player.TakeXpDrops();
+            her()->x = gw.player.x = bug.x;
+            her()->y = gw.player.y = bug.y + 16.0f;
+            frames(30);
+            Check(gw.player.interact.kind == InteractTarget::Object && gw.player.interact.index == bi_obj &&
+                  gw.player.interact.label == "Catch the swallowtail butterfly",
+                  "her window's prompt finds the butterfly (" + gw.player.interact.label + ")");
+            const World::BugPose seen = World::BugFlight(gw.map.Objects()[bi_obj], gw.GameHours());
+            const World::BugPose there = World::BugFlight(hw.map.Objects()[bi_obj], hw.GameHours());
+            Check(Length(seen.x - there.x, seen.y - there.y) < 2.5f,
+                  "and her window has it flying where the host's does, with nothing sent about it");
+            const int had = gw.player.inventory.Count("swallowtail");
+            const int fx = gw.player.skills.Xp(SKILL_FORAGING);
+            gw.TryInteract(gctx);
+            bool bar = false;
+            for (int f = 0; f < 60 * 8 && gw.player.inventory.Count("swallowtail") == had; ++f) {
+                frame();
+                bar |= gw.Gathering() && gw.GatherProgress() > 0.0f && gw.player.GatherClip() == "gather";
+            }
+            frames(6);
+            const int caught = gw.player.inventory.Count("swallowtail");
+            Check(bar, "she is seen to catch it on her own screen, bare-handed, with the bar filling");
+            Check(caught > had && her()->inventory.Count("swallowtail") == caught && gw.player.skills.Xp(SKILL_FORAGING) > fx,
+                  "and the butterfly is in her real bag, the copy's agrees, and the Foraging is hers");
+            Check(hw.Picked(hw.map.Objects()[bi_obj]) && gw.Picked(gw.map.Objects()[bi_obj]),
+                  "caught by her, it is gone from the host's world and from her window: first come, first served");
+            gw.TryInteract(gctx);
+            frames(90);
+            Check(gw.player.inventory.Count("swallowtail") == caught, "and there is nothing there to catch a second time");
         }
 
         // --- she falls, and gets up in Havenbrook ----------------------------------------------------------------

@@ -17,9 +17,11 @@ was a game with no pictures in it. Everything has since been replaced.
 | --- | --- |
 | The three playable characters, their armour layers in three cuts, and the town NPCs -- the `magister`, and the college's `apprentice` and `adept`, who also have the cast clip (`make_character.ps1 -Look apprentice,adept,magister -Only idle,walk,attack -Style plate`) | `tools/blender_character.py` (`make_character.ps1`) |
 | Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`); the twenty-five that fill the level ladder -- the Bayou's, Hollowrest Crypt's and the three past them -- are in `tools/blender_bestiary.py`, registered into the same table and rendered the same way |
-| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`); the Brimstone Palace's -- its front, towers, torches, drawbridge and all its furniture -- are in `tools/blender_palace.py`, registered into the same table |
+| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`); the Brimstone Palace's -- its front, towers, torches, drawbridge and all its furniture -- are in `tools/blender_palace.py`, and Farmer Aldous's apiary -- the hives, the skep, the bee shed and the lavender -- in `tools/blender_farm_props.py`, each registered into the same table |
 | The scenery and buildings -- trees, rocks, bushes, mushrooms, houses, the guild hall, chests, doors, the campfire | `tools/blender_props.py` (`make_props.ps1 -Objects`) |
-| Every ore, bar, weapon and armour icon, and the weapon in the hero's hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
+| Every ore, bar, weapon and armour icon -- gloves and boots included -- and the weapon in the hero's hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
+| The herb, bug, potion and recipe icons, and the larder's (honey among them) | `tools/blender_tiers.py` (`make_tiers.ps1 -What brewing` / `-What food`, `-Names` for only some) |
+| The bugs in the air and the bees round a hive | nothing: drawn in code, a world pixel at a time, in `World::DrawBug` and `World::DrawBees` (`src/world/world_render.cpp`) |
 | All 120 ground and interior tiles, the college's own set and then the Brimstone Palace's last | `tools/make_ground.ps1` |
 | Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
 | The hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
@@ -126,7 +128,7 @@ The woodland zones added a set of their own:
   and a crystal on the finial.
 - **`spell_circle`** (96) -- the circle cut into the college's floor, its
   runes lit, laid as an overlay like a rug.
-- **`totem_circle`** (24) and eleven **`totem_<boss>`** (32) -- the ring in
+- **`totem_circle`** (24) and seventeen **`totem_<boss>`** (32) -- the ring in
   the floor of the house at Mossvale, and what a boss leaves the fifteenth
   time. One builder, `_totem(post, band, cap)`: a squat carved post of three
   blocks with a band between and lit eyes in the top one, and what is on its
@@ -144,10 +146,75 @@ The woodland zones added a set of their own:
   void-eyed asleep, the eye and the runes lit cold blue once woken. The first
   try had a round head on a neck and read as a lamp post; the eye had to be
   *in* the stone, and the emission under 1.2, or it blew out white.
+- **`house_rug`** and **`house_rug_trim`** (160), **`tapestry_house`** and **`tapestry_house_trim`** (64) -- the dress the house at Mossvale wears for a totem in its ring: white cloth and its trim as two pictures, laid one on the other and tinted by the game with the totem's palette (`$LAYERED` in `make_props.ps1` keeps the trim sitting on its cloth). Built in `tools/blender_props.py`, "the house at Mossvale". The pale boards and plaster they lie on, `plank_floor_pale*` and `plaster_wall_pale`, are the last tiles `tools/make_ground.ps1` makes, on their own seed so nothing before them changes.
 
 Two icons are built the same way as the potions in `tools/blender_tiers.py`:
 `hide_boots`, and `enchant_scroll`, a recipe scroll with a rune and a blue
 seal so a charm's page is told from a brew's at a glance.
+
+## Bugs, honey and what is brewed from them
+
+The four bugs' icons are `build_bug` in `tools/blender_tiers.py` (`BUG_ICONS`),
+each seen from above and told apart first by colour and then by outline: the
+**swallowtail** yellow wings each on a larger black one, so every wing has its
+black edge, with black bars, blue spots and tails; the **marsh dragonfly** a
+barred blue body and four glassy wings, laid corner to corner across the
+square; the **firebug** and the **rime beetle** one beetle (`_beetle`) in a
+cherry back with an emissive ember tail, and in pale frost with a navy head.
+The **honey** jar is a `build_dish` branch: gold to the brim, a cloth tied over
+it and a drip down the side. The five brews are `POTIONS` entries; the two
+**wards** have their own bottle (`"ward"`: squat, banded in brass, the cork
+sealed with red wax) so they read as a pair and not as two more draughts.
+
+```powershell
+.\tools\make_tiers.ps1 -What brewing -Names swallowtail,marsh_dragonfly,firebug,rime_beetle,swallowtail_draught,honeyed_draught,skimmer_tonic,cinderbug_ward,rimeshell_ward
+.\tools\make_tiers.ps1 -What food -Names honey
+```
+
+The bugs **in the world** have no art file at all. Each is a few rows of
+characters in `src/world/world_render.cpp`, a world pixel each, the way
+`tools/icons.txt` draws, with its own inks: the swallowtail open, half-shut and
+shut; the dragonfly's wings in two beats (straight out from the body -- swept
+back, they read as an arrow's fletching); the firebug and the rime beetle in
+two frames each, turned a quarter at a time to where they are heading. A
+firebug has an added glow and sparks falling off behind it, so it reads among
+the Ashen Path's drifting embers as something too big to be a spark; the rime
+beetle glints. The bees round a hive are three pixels each -- a dark head and
+tail with the gold between, so they show on straw and on grass alike.
+
+**Aldous's apiary** in the Westwold is `tools/blender_farm_props.py`, merged
+into `blender_props.py`'s table the way the Frostreach's props are, about
+thirty-three pixels to a Blender unit like the barrel and the crates it stands
+among:
+
+- **`beehive`**, **`beehive_blue`**, **`beehive_green`** (56) -- one builder,
+  `_box_hive(body, body_dk)`, rendered in three paints: a W.B.C. hive on
+  stubby legs, a landing board out to the front and a slot of a door, two
+  lifts each flaring at its foot in the darker paint, and a gabled roof with a
+  stone on the ridge. The first roof was two slabs turned about a diamond of a
+  gable and came out a dark lid clipped at the top of the frame; the gable is a
+  real triangular prism now (`prism`), the roof a warm brown so its lit slope
+  and its shaded one differ, and the frame 1.75 across.
+- **`bee_skep`** (36) -- a coiled straw skep on a board on a sawn stump.
+  `skep()` is a stack of coils following the dome for a body, then hundreds of
+  short straws laid round it (`rod`), each its own length, lean and one of
+  three tones, overlapping rather than butted, with the bramble binding showing
+  here and there: coils suggested, never drawn, which is what keeps it from
+  being a striped dome.
+- **`bee_shed`** (96) -- an open-fronted bee shed of upright boards under a
+  thatched lean-to, two shelves across its front with three skeps on each (the
+  same `skep()`, smaller). Its thatch was first laid in broken courses across
+  the slope, the cottage's way, and read as a heap of planks from this lower
+  camera; it is straw combed down the slope now, streaks from ridge to eave
+  over a slab, with a rolled eave and a ragged fringe.
+- **`lavender_bed`** (64, seen from 40 degrees) -- a board-edged bed of five
+  clumps, each a low grey-green cushion with purple spikes fountaining out of
+  it. The first had big cushions and a few spikes and read as cabbages.
+
+```powershell
+.\tools\make_props.ps1 -Only beehive,beehive_blue,beehive_green,bee_skep,bee_shed,lavender_bed
+.\tools\make_manifest.ps1
+```
 
 ## How the import works
 
@@ -191,7 +258,12 @@ four rows in the order **down, left, right, up**, and one column per frame. So
 the frame size is the sheet height over four, and the frame count is the width
 over that. `tools/make_sprites_json.ps1` derives `data/sprites.json` from the
 files themselves rather than from a hand-written table, which is why the
-animation data can never drift out of step with the imported art.
+animation data can never drift out of step with the imported art. A clip's
+layers are listed by their number and then by file name: every tier's weapon
+sheet and every cut of a piece of armour share their layer's number, and
+PowerShell's `Sort-Object` is not stable, so sorting on the number alone dealt
+them out in a new order on each run and every re-render rewrote half the file.
+The run that added the hide and robe gloves is the one that settled the order.
 
 ## Original props
 
@@ -298,6 +370,84 @@ poses**: in the hands for the clips that swing it and over the shoulder for the
 rest (`GREAT_MODE`), or its point drags through the floor. And **the weapon
 sheets hold the armour out** as well as the body: they did not, for a long
 time, and every sheet had a suit of plate in it.
+
+## Gloves and boots (`assets/icons/tiers/`)
+
+Every set's hands and feet, for all twelve tiers: 72 icons, `gauntlets_<tier>`
+and `boots_<tier>` for plate, `hide_hands_<tier>`, `hide_feet_<tier>`,
+`robe_hands_<tier>` and `robe_feet_<tier>` for the sets -- the file names are
+fixed by `ItemDatabase::LoadTiers`, piece key then tier. Rendered by
+`.\tools\make_tiers.ps1 -What hands,feet`, which draws nothing else;
+`-Tiers` and `-Names` narrow it further. `-What icons` and `-What sets` include
+them too, but also redraw every other tier icon, and no render is byte for byte
+the one before.
+
+| Piece | Builder | What it is |
+| --- | --- | --- |
+| Plate gauntlets | `build_gauntlets` (`_gauntlet`) | a flared cuff, a shell over the hand, a ridge over the knuckles; tier extras as the helm has them -- steel and platinum's gold rim, azuryte's gem, orichalcum's bands, diamond's crystals, demonite's horns off the cuff, dracon's claws, enchanted's shards |
+| Plate boots | `build_sabatons` (`_sabaton`) | side on: a flared top, a shin plate, a round cop over the ankle, the foot as lames narrowing to the toe, pointed from steel up |
+| Hide gloves | `build_hide_gloves` (`_soft_glove`) | leather, a flared cuff with a ruff of fur at the wrist, laced across the back |
+| Hide striders | `build_striders` (`_strider`) | soft boots to the calf with a fur top, bound with thongs |
+| Robe gloves | `build_robe_gloves` (`_soft_glove`) | a long cuff trimmed at both ends, a gold stud on the back of the hand |
+| Robe slippers | `build_slippers` (`_slipper`) | low, tipped toward the camera so the mouth shows, with a toe that curls back and a tassel |
+
+All of them are **pairs**, one behind and above the other on its own holder
+(`_pair`), and every glove is the same hand (`_hand`) under a different cuff.
+The plate jobs are `PLATE_PAIR_JOBS` and the sets' `SET_JOBS`, which the full
+`icons`/`sets` runs read too. The sets take their three shades from the set's
+colour in `data/tiers.json`, as the coif and the hat do; plate its tier palette.
+
+What it took to make them read at 32 pixels:
+- **A single glove is a mitten.** Four fingers of the same colour came out as
+  one block with a thumb, and the first soft gloves looked like cacti. The
+  fingers are four capsules of different lengths in **two alternating shades**:
+  a finger is two pixels wide, and the change of shade is what separates them.
+- **Detail has to be in the silhouette.** Spikes on the knuckles pointed at the
+  camera and reduced to a dot; demonite's are horns off the cuff now, out to
+  the sides where the outline shows them.
+- **Anything wrapped round a leg must be deeper than the leg.** A strap box
+  half the leg's depth sits inside it and never renders: the striders' thongs
+  and the barkwood straps are twice the shaft's depth.
+- **Flat things want tipping.** A slipper side on is a sausage; tipped 24
+  degrees toward the camera, the dark mouth and its trim say "shoe".
+
+On the character, gloves are drawn on `armour_hands` like plate's gauntlets;
+boots are worn on the `feet` layer, which has no sheet and draws nothing (see
+the README's "Gloves and boots complete every set").
+
+The worn gloves are modelled in `build_soft_armour` in
+`tools/blender_character.py` and rendered as `<clip>_8_armour_hands_hide.png`
+and `_robe.png` for every clip of all three characters, by
+`.\tools\make_character.ps1 -Style hide,robe` (about twenty minutes, so start it
+in the background; it rewrites `data/sprites.json` at the end, which lists the
+new sheets like any other cut):
+
+| Glove | Parts on `hand_r`/`hand_l` | Shades |
+| --- | --- | --- |
+| Hide | a shell well outside the mitten, a thick torus of fur at the wrist | leather `plate_dk`, fur `plate_lt` |
+| Robe | a shell, a thin band round the knuckles, a turned-back cuff | cloth `plate_dk`, band and cuff `plate_lt` |
+
+What it took to make them read at 64 pixels:
+- **The dark shade, whatever the material.** A set is one colour from hat to
+  hem, multiplied in at draw time, and the light shade comes out only about a
+  tenth brighter than the middle one. Robe gloves in `plate` and then in
+  `plate_lt` both disappeared into the sleeve; in `plate_dk`, with their own
+  outline, they are a knob at the end of each arm -- over a different colour.
+  In a whole set of one colour even that was a pixel or two, so the game also
+  wears a set's gloves at thirteen twentieths of their colour
+  (`Player::BuildLayerStyle`); the sheets themselves are unchanged, and plate's
+  gauntlets are not darkened.
+- **A ring for the back view.** Seen from behind, the flared tunic skirt hides
+  the lower half of the hand and the forearm fills the middle of the cuff, so
+  the ring at the wrist is all that is left, and it has to be the light shade.
+- **Nothing up the forearm.** The hands layer is drawn over the body layer, so
+  any glove that reached up the arm was painted on top of the robe's bell
+  sleeve and the hide's bracer.
+
+The same run filled the fourteen armoury clips (`bash`, `sweep`, `hew`,
+`shoot`, `reload`, `throw`, `flick`, `invoke`, `offstab` and the five `_2h`
+combos) that had no hide or robe sheets at all and fell back to tinted plate:
+the self-test now checks every clip for all four soft layers.
 
 ## Spell effects (`assets/effects/`)
 

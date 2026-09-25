@@ -79,6 +79,16 @@ struct ProjectileDef {
     // Radians a second it may turn toward the monster it was loosed at, so a
     // shot at something moving still arrives. Zero flies straight.
     float homing    = 0.0f;
+    // Let go of by hand, not loosed off a string or cast: a rock, a snowball,
+    // a knife. A monster's is heard leaving the hand (Sfx::Throw) rather than
+    // twanging a bow at the start of the wind-up; a player's knife is heard
+    // going in (Sfx::KnifeHit) or going by (Sfx::Whiff). See Enemy::Update
+    // and World::UpdateProjectiles.
+    bool  thrown    = false;
+    // The pitch a monster's throw is heard at: the bigger what leaves the
+    // hand, the lower, so a boss's snowball is not heard as a slinger's
+    // pebble. A rock about 1, a troll's ice about 0.9, a snowball 0.7.
+    float ThrowPitch() const { return std::clamp(1.15f - radius * scale * 0.025f, 0.7f, 1.05f); }
 
     // --- what it does when it meets a wall -----------------------------------
     // Most things stop. A few ricochet: bounces is how many times, and each one

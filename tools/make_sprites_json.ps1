@@ -183,7 +183,11 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
                          if ($_.BaseName -match "^$([regex]::Escape($sheet.BaseName))_(\d+)_(.+)$") {
                              [pscustomobject]@{ order = [int]$Matches[1]; slot = $Matches[2]; name = $_.Name }
                          }
-                     } | Sort-Object order
+                     } | Sort-Object order, name
+            # By name as well: Sort-Object is not stable, and the twelve tiers'
+            # weapon sheets and the four other cuts of each piece all share their
+            # layer's number, so sorting on the number alone shuffled them into a
+            # new order on every run and every run rewrote half the file.
 
             if ($parts) {
                 $stack = @()

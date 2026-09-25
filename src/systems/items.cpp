@@ -214,6 +214,22 @@ bool ItemDatabase::Load(const string& path, bool required) {
             d.forage_xp    = o["forage"].value("xp", 10);
             d.grows        = o["forage"].value("grows", string(""));
         }
+        if (o.contains("catch")) {
+            d.catch_level = o["catch"].value("level", 1);
+            d.catch_xp    = o["catch"].value("xp", 10);
+            d.lives       = o["catch"].value("lives", string(""));
+        }
+        if (o.contains("ward") && o["ward"].is_object()) {
+            const json& w = o["ward"];
+            if (w.contains("statuses") && w["statuses"].is_array())
+                for (const json& s : w["statuses"]) {
+                    const Status st = s.is_string() ? StatusFromId(s.get<string>()) : Status::COUNT;
+                    if (st != Status::COUNT &&
+                        std::find(d.ward.begin(), d.ward.end(), st) == d.ward.end()) d.ward.push_back(st);
+                }
+            d.ward_minutes = w.value("minutes", 0.0f);
+            if (d.ward_minutes <= 0.0f) d.ward.clear();
+        }
         if (o.contains("fish")) {
             d.fish_level = o["fish"].value("level", 1);
             d.fish_xp    = o["fish"].value("xp", 10);
@@ -316,7 +332,10 @@ bool ItemDatabase::LoadTiers(const string& path) {
     tier_pieces.clear();
 
     // Pieces in a fixed order, so the recipe list reads the same every time.
+    // A key in tiers.json that is not named here is never built, and nothing
+    // says so: a new piece needs both.
     static const char* kPieces[] = {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs",
+                                    "gauntlets", "boots",
                                     "axe", "pickaxe",
                                     // The armoury: see README.
                                     "dagger", "mace", "greatsword", "greataxe", "crossbow", "knives",
@@ -389,7 +408,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
             add_recipe(bar.id, t.level, 10 + index * 12, smelt);
         }
 
-        // --- the seven pieces ----------------------------------------------------
+        // --- the pieces ------------------------------------------------------------
         for (const char* piece_name : kPieces) {
             if (!pieces.contains(piece_name)) continue;
             const json& pj = pieces[piece_name];
@@ -501,12 +520,14 @@ bool ItemDatabase::LoadTiers(const string& path) {
         }
 
         // --- the sets that are not metal -----------------------------------------
-        // The ranger's hides and the mage's robes: head, body and legs for every
-        // tier, drawn in their own cut, needing the tier's level in the set's
-        // skill and adding only to that style. Hides are cut from the tier's own
-        // hide; robes from bolts of cloth and the tier's dye, which is brewed.
+        // The ranger's hides and the mage's robes: head, body, legs, hands and
+        // feet for every tier, drawn in their own cut, needing the tier's level
+        // in the set's skill and adding only to that style. Hides are cut from
+        // the tier's own hide; robes from bolts of cloth and the tier's dye,
+        // which is brewed. Like plate's boots, the feet are worn on a layer no
+        // sheet is drawn for.
         if (root.contains("sets")) {
-            static const char* kSetPieces[] = {"head", "body", "legs"};
+            static const char* kSetPieces[] = {"head", "body", "legs", "hands", "feet"};
             for (auto set_it = root["sets"].begin(); set_it != root["sets"].end(); ++set_it) {
                 const string set_id = set_it.key();
                 const json& sj = set_it.value();
@@ -548,7 +569,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
                     // every potion is: whoever can pick it can boil it.
                     int herb_level = 1;
                     for (const auto& in : brew)
-                        if (const ItemDef* mat = Get(in.first)) herb_level = std::max(herb_level, mat->forage_level);
+                        if (const ItemDef* mat = Get(in.first)) herb_level = std::max(herb_level, mat->GatherLevel());
                     add_recipe(dye.id, herb_level, 16 + index * 10, brew);
                 }
 
@@ -1209,6 +1230,31 @@ bool ItemDatabase::LoadEnchantments(const string& path) {
         if (o.contains("inputs"))
             for (auto i = o["inputs"].begin(); i != o["inputs"].end(); ++i)
                 e.inputs[i.key()] = i.value().get<int>();
+        // A weapon's charm: tiers, what it does, and which weapons take it.
+        e.effect = o.value("effect", string(""));
+        e.takes  = o.value("takes", string(""));
+        e.fits   = o.value("fits", string(""));
+        if (o.contains("brand") && o["brand"].is_string()) e.brand = StatusFromId(o["brand"].get<string>());
+        if (o.contains("tiers") && o["tiers"].is_array())
+            for (const json& tj : o["tiers"]) {
+                EnchantDef::Tier t;
+                t.amount = tj.value("amount", 0.0f);
+                t.level  = std::clamp(tj.value("level", 1), 1, MAX_SKILL_LEVEL);
+                t.xp     = tj.value("xp", 0);
+                t.value  = tj.value("value", 0);
+                if (tj.contains("inputs"))
+                    for (auto i = tj["inputs"].begin(); i != tj["inputs"].end(); ++i)
+                        t.inputs[i.key()] = i.value().get<int>();
+                e.tiers.push_back(t);
+            }
+        if (e.Tiered()) {
+            // Its first tier stands for it wherever a charm has one of each.
+            e.level  = e.tiers[0].level;
+            e.xp     = e.tiers[0].xp;
+            e.value  = e.tiers[0].value;
+            e.inputs = e.tiers[0].inputs;
+            if (e.slots.empty()) e.slots.push_back(SLOT_WEAPON);
+        }
         enchants.push_back(e);
     }
     std::sort(enchants.begin(), enchants.end(), [](const EnchantDef& a, const EnchantDef& b) {
@@ -1225,6 +1271,43 @@ bool ItemDatabase::LoadEnchantments(const string& path) {
         for (const string& id : plain) {
             const ItemDef& base = defs.at(id);
             if (!Takes(base, e)) continue;
+            if (e.Tiered()) {
+                // A weapon's charm: a twin for every tier, "<weapon>+<charm>_<tier>".
+                for (int k = 1; k <= e.TierCount(); ++k) {
+                    const EnchantDef::Tier& t = *e.TierAt(k);
+                    ItemDef v = base;
+                    v.id           = id + "+" + e.id + "_" + std::to_string(k);
+                    v.name         = base.name + " " + e.suffix + " " + RomanNumeral(k);
+                    v.enchant      = e.id;
+                    v.enchant_tier = k;
+                    v.base_item    = id;
+                    v.value        = base.value + t.value;
+                    v.charm        = e.effect;
+                    v.charm_amount = t.amount;
+                    // What it does. Some of it is the piece's own numbers
+                    // changed -- they are read where they always were -- and
+                    // the rest is read where a blow or a shot is worked out.
+                    if (e.effect == "proc")             v.proc_bonus = t.amount;
+                    else if (e.effect == "crit")        v.crit_chance = t.amount;
+                    else if (e.effect == "crit_damage") v.crit_damage = t.amount;
+                    else if (e.effect == "shots")       v.extra_shots = static_cast<int>(std::lround(t.amount));
+                    else if (e.effect == "cast")        v.damage *= 1.0f + t.amount;
+                    else if (e.effect == "reload")      v.reload *= std::max(0.05f, 1.0f - t.amount);
+                    else if (e.effect == "leech")       v.leech += t.amount;
+                    else if (e.effect == "mana")        v.mana_mult *= std::max(0.05f, 1.0f - t.amount);
+                    else if (e.effect == "brand")       v.on_hit = {e.brand, t.amount};
+                    const string line = e.NameAt(k) + ": " + e.EffectAt(k);
+                    v.passive_text = base.passive_text.empty() ? line : base.passive_text + "\n" + line;
+                    v.craft_result.clear();
+                    v.craft_inputs.clear();
+                    v.needs_recipe = false;
+                    v.recipe_from.clear();
+                    v.tags.push_back("enchanted");
+                    defs[v.id] = v;
+                    ++twins;
+                }
+                continue;
+            }
             ItemDef v = base;
             v.id        = id + "+" + e.id;
             v.name      = base.name + " " + e.suffix;
@@ -1265,7 +1348,83 @@ const EnchantDef* ItemDatabase::Enchantment(const string& id) const {
     return nullptr;
 }
 
+const char* RomanNumeral(int n) {
+    static const char* kNumerals[] = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+    return (n >= 1 && n <= 10) ? kNumerals[n] : "";
+}
+
+int EnchantDef::TierFor(int magic) const {
+    if (!Tiered()) return magic >= level ? 1 : 0;
+    int best = 0;
+    for (int k = 1; k <= TierCount(); ++k)
+        if (tiers[k - 1].level <= magic) best = k;
+    return best;
+}
+
+const EnchantDef::Tier* EnchantDef::TierAt(int tier) const {
+    return (tier >= 1 && tier <= TierCount()) ? &tiers[tier - 1] : nullptr;
+}
+
+int EnchantDef::LevelAt(int tier) const {
+    const Tier* t = TierAt(tier);
+    return t ? t->level : level;
+}
+
+int EnchantDef::XpAt(int tier) const {
+    const Tier* t = TierAt(tier);
+    return t ? t->xp : xp;
+}
+
+const map<string, int>& EnchantDef::InputsAt(int tier) const {
+    const Tier* t = TierAt(tier);
+    return t ? t->inputs : inputs;
+}
+
+string EnchantDef::EffectAt(int tier) const {
+    const Tier* t = TierAt(tier);
+    if (!t) return text;
+    const int pct = static_cast<int>(std::lround(t->amount * 100.0f));
+    const string p = std::to_string(pct) + "%";
+    if (effect == "proc")        return "+" + p + " chance to leave whatever its blows leave";
+    if (effect == "crit")        return "+" + p + " chance to strike critically";
+    if (effect == "crit_damage") return "critical blows " + p + " harder";
+    if (effect == "cast")        return "its spells " + p + " harder";
+    if (effect == "reload")      return "reloads " + p + " quicker";
+    if (effect == "leech")       return p + " of the damage it deals comes back as health";
+    if (effect == "mana")        return "its spells cost " + p + " less mana";
+    if (effect == "shots") {
+        const int n = static_cast<int>(std::lround(t->amount));
+        return std::to_string(n) + (n == 1 ? " more arrow" : " more arrows") + " with every shot, at 60%";
+    }
+    if (effect == "brand") {
+        const char* what = brand == Status::Bleed ? "a bleeding wound" : brand == Status::Poison ? "poison"
+                         : brand == Status::Chill ? "a chill" : brand == Status::Burn ? "a burn" : "something";
+        return p + " chance to leave " + what;
+    }
+    return text;
+}
+
+string EnchantDef::NameAt(int tier) const {
+    if (!Tiered() || tier < 1) return name;
+    return name + " " + RomanNumeral(tier);
+}
+
 bool ItemDatabase::Takes(const ItemDef& piece, const EnchantDef& e) const {
+    if (e.Tiered()) {
+        // A weapon's charm. A weapon that carries one already can have it
+        // raised or swapped, so it is judged as the plain weapon it was.
+        const ItemDef* plain = piece.base_item.empty() ? &piece : Get(piece.base_item);
+        if (!plain || plain->slot != SLOT_WEAPON) return false;
+        const bool magic = plain->kind == WeaponKind::Staff;
+        const bool leaves = magic || plain->on_hit.Any();
+        if (e.takes == "any")       return true;
+        if (e.takes == "magic")     return magic;
+        if (e.takes == "crossbow")  return plain->weapon_class == "crossbow";
+        if (e.takes == "bow")       return plain->kind == WeaponKind::Bow && !plain->thrown;
+        if (e.takes == "status")    return leaves;
+        if (e.takes == "no_status") return !leaves;
+        return false;
+    }
     if (piece.slot == SLOT_NONE || !piece.enchant.empty()) return false;
     if (std::find(e.slots.begin(), e.slots.end(), piece.slot) == e.slots.end()) return false;
     // Only a shield takes a shield's charm: a lantern is worn in the same
@@ -1292,7 +1451,7 @@ vector<int> Targets(const ItemDatabase& db, const EnchantDef& e, const Inventory
     return out;
 }
 
-bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why) {
+bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why, int tier) {
     why.clear();
     if (slot < 0 || slot >= bag.SlotCount() || bag.Slot(slot).Empty()) {
         why = "Nothing in your pack takes this enchantment.";
@@ -1305,17 +1464,34 @@ bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot,
                                        : "This enchantment does not fit that.";
         return false;
     }
-    const string made = db.EnchantedId(piece, e.id);
+    string made;
+    if (e.Tiered()) {
+        // A weapon's charm, at a tier: raised in place, or put on in place of
+        // another -- never two, and never a tier it has already.
+        if (tier < 1 || tier > e.TierCount()) {
+            why = "This enchantment does not fit that.";
+            return false;
+        }
+        if (d->enchant == e.id && d->enchant_tier >= tier) {
+            why = "It already carries " + e.NameAt(d->enchant_tier) + ".";
+            return false;
+        }
+        const string plain = d->base_item.empty() ? piece : d->base_item;
+        made = db.EnchantedId(plain, e.id + "_" + std::to_string(tier));
+    } else {
+        made = db.EnchantedId(piece, e.id);
+    }
     if (made.empty()) {
         why = "This enchantment does not fit that.";
         return false;
     }
-    for (const auto& in : e.inputs)
+    const map<string, int>& inputs = e.InputsAt(tier);
+    for (const auto& in : inputs)
         if (!bag.Has(in.first, in.second)) {
             why = "You are missing materials.";
             return false;
         }
-    for (const auto& in : e.inputs) bag.Remove(in.first, in.second);
+    for (const auto& in : inputs) bag.Remove(in.first, in.second);
     // The piece leaves the bag before its twin arrives, so the twin lands in
     // the slot it left and the bag never needs a spare one.
     bag.RemoveSlot(slot, 1);
