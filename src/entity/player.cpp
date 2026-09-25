@@ -1073,10 +1073,16 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
     // and used the instant the next swing may start, so a chain does not hang
     // on a frame-perfect tap. The two buttons are kept apart, so two presses
     // inside one swing still read as "together".
+    //
+    // A press the open window has a combo for is kept for the whole of the gap
+    // before the swing, however long a slow weapon's is: the HUD is offering
+    // that combo, and a light pressed as a greatsword's heavy ended used to be
+    // dropped a quarter second later, with most of its gap still to go.
     if (raw_light  && !CanAttack()) buf_light  = BUFFER_WINDOW;
     if (raw_strong && !CanAttack()) buf_strong = BUFFER_WINDOW;
-    if (buf_light  > 0.0f) buf_light  = std::max(0.0f, buf_light  - dt);
-    if (buf_strong > 0.0f) buf_strong = std::max(0.0f, buf_strong - dt);
+    const bool gap = ComboOpen() && !attack.Active() && attack_cooldown > 0.0f;
+    if (buf_light  > 0.0f && !(gap && NextCombo(true)  != ComboMove::None)) buf_light  = std::max(0.0f, buf_light  - dt);
+    if (buf_strong > 0.0f && !(gap && NextCombo(false) != ComboMove::None)) buf_strong = std::max(0.0f, buf_strong - dt);
     bool light_press = raw_light, strong_press = raw_strong;
     if (CanAttack()) {
         if (buf_light  > 0.0f) light_press  = true;
@@ -1560,7 +1566,12 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     heard_hp = hp;
     if (sprint_lockout > 0.0f) sprint_lockout = std::max(0.0f, sprint_lockout - dt);
     if (rush_cooldown > 0.0f) rush_cooldown = std::max(0.0f, rush_cooldown - dt);
-    if (combo_window > 0.0f) {
+    // The window is for the next swing, so it only starts to run out once one
+    // may start. It used to run through the gap after the swing as well, and
+    // the gap a heavy leaves is 0.4s times the weapon's speed: a sword's left
+    // the window a frame or two, and a greatsword's (0.58s), a greataxe's, a
+    // mace's or a spear's outlasted it -- the Backhand could never be thrown.
+    if (combo_window > 0.0f && attack_cooldown <= 0.0f) {
         combo_window -= dt;
         if (combo_window <= 0.0f) { combo = 0; after_strong = false; }
     }

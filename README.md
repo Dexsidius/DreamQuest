@@ -1115,8 +1115,9 @@ drop from that, however many snapshots go on saying so. `PROTOCOL_VERSION` 7.
 ### Combos
 
 With a melee weapon, **what the last swing was decides what the next press
-means.** A light attack leaves a window of about four tenths of a second open;
-so does a plain strong attack. Inside it:
+means.** A light attack leaves a window of about four tenths of a second open,
+counted from the moment the next swing may start; so does a plain strong
+attack. Inside it:
 
 | Pressed | Comes out as | What it does |
 | --- | --- | --- |
@@ -1147,6 +1148,15 @@ Two things fell out of building it:
   moment the next swing may start, so a chain no longer hangs on a
   frame-perfect tap. The two buttons are kept apart, so two presses inside one
   swing still read as together.
+- **The window waits out the gap.** It used to start running out the moment
+  a swing ended, through the gap after it, and the gap a plain strong leaves
+  is 0.4s times the weapon's speed: a sword's left the window a frame, and a
+  greatsword's (0.58s), a greataxe's, a mace's or a spear's outlasted it, so
+  Heavy, Light never came out as the Backhand with any of them. Now it only
+  counts down once a swing may start, and a press the window has a combo for
+  -- the one the HUD is offering -- is kept for the whole of the gap rather
+  than a quarter second of it, so a light tapped as a greatsword's heavy ends
+  is its Pommel Strike the moment the gap is over.
 
 **The same grammar with every weapon.** A bow and a staff read the presses
 the same way and put their own move at the end of them:
@@ -6807,7 +6817,10 @@ and checks all of it — currently **61823 checks** covering:
   one; a heavy after one light is the Crushing Blow, out on the press, and the
   orc reels for about a second and does not swing back; the Cleave's sweep
   reaches a monster off to the side the finisher does not; a light after a
-  strong is the Backhand and the chain goes on from it; both buttons on one
+  strong is the Backhand and the chain goes on from it -- with a greatsword,
+  a greataxe, a mace and a spear too, whose heavies leave a longer gap than the
+  window, and a light pressed the moment a greatsword's heavy ends is kept
+  through its gap and comes out as the Backhand; both buttons on one
   frame, or two frames apart either way round, are the Cross Cut, which costs
   its stamina and strikes the monster behind as well as in front; winded there
   is none; a bow has no combos; a press inside a swing comes out the moment

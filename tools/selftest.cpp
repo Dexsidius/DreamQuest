@@ -9176,6 +9176,34 @@ int main(int argc, char** argv) {
                 tap(w2, SDLK_K);
                 Check(w2.player.Attack().move == ComboMove::Cleave, "or the next heavy the Cleave");
             }
+            // A slow weapon's heavy leaves a longer gap after it than the
+            // window lasts -- a greatsword's is 0.58s -- and the window used
+            // to run out inside it, so the Backhand could not be thrown with
+            // one, or with a greataxe, a mace or a spear.
+            for (const char* slow : {"bronze_greatsword", "bronze_greataxe", "bronze_mace", "bronze_spear"}) {
+                World w3;
+                if (!arena(w3, slow)) continue;
+                tap(w3, SDLK_K); settle(w3);
+                Check(w3.player.ComboOpen() && w3.player.NextCombo(true) == ComboMove::Backhand,
+                      string("with a ") + slow + " the window is still open when the next swing may start");
+                tap(w3, SDLK_J);
+                Check(w3.player.Attack().move == ComboMove::Backhand,
+                      string("and a light then is its Backhand (") + slow + ")");
+            }
+            // A light pressed the moment the heavy ends, while the HUD offers
+            // the Backhand, is kept through the whole of the gap -- not only
+            // the last quarter second of it -- and comes out as the Backhand.
+            World w4;
+            if (arena(w4, "bronze_greatsword")) {
+                tap(w4, SDLK_K);
+                for (int f = 0; f < 120 && w4.player.Attack().Active(); ++f) frames(w4, 1);
+                Check(!w4.player.CanAttack() && w4.player.NextCombo(true) == ComboMove::Backhand,
+                      "a greatsword's heavy ends in a gap, with the Backhand offered");
+                tap(w4, SDLK_J);
+                for (int f = 0; f < 120 && !w4.player.Attack().Active(); ++f) frames(w4, 1);
+                Check(w4.player.Attack().move == ComboMove::Backhand,
+                      "and a light pressed at the start of it comes out as the Backhand when the gap ends");
+            }
         }
 
         // --- both at once: the Cross Cut ---------------------------------------------------
