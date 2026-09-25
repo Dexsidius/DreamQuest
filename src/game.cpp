@@ -804,6 +804,14 @@ void Game::Update(float dt) {
     ServeSeat(0);
     UpdateSession(dt);
     UpdateCoop(dt);
+    // Online, a panel does not stop the world. It used to, while the line
+    // went on: the host's map stood still for everyone on it, friends' swings
+    // landed on monsters that did not move, and a guest's window froze while
+    // the host's clock ran on -- and closing the panel played the lot back in
+    // a rush, the villagers hurrying round their rounds to where the clock had
+    // them.
+    const bool world_runs = state != GameState::Play && WorldRunsUnderPanels();
+    if (world_runs) StepWorldUnderPanel(dt);
     ServeSeat(panel_seat);
     if (!launch_say.empty() && session.Me().Seated()) {
         session.Me().Say(launch_say);
@@ -900,10 +908,38 @@ void Game::Update(float dt) {
     }
 
     // Panels pause the world but still show it behind them, so keep the
-    // camera settled and let floating text finish.
-    if (has_session && state != GameState::Play && InGameplayState())
+    // camera settled and let floating text finish. Online the world is still
+    // going, and follows its own camera.
+    if (has_session && state != GameState::Play && InGameplayState() && !world_runs)
         world->camera.Follow(world->player.x + world->player.LookAhead().x,
                             world->player.y + world->player.LookAhead().y, dt);
+}
+
+bool Game::WorldRunsUnderPanels() const {
+    if (!has_session) return false;
+    // Mid-game: the panels over the world, and the pause menu's own pages
+    // (options, controls, effects, Play Together, saving). Not the title and
+    // what is reached from it, which have no world behind them.
+    const bool mid_game = InGameplayState() || state == GameState::Options || state == GameState::Controls ||
+                          state == GameState::VisualEffects || state == GameState::Multiplayer ||
+                          state == GameState::SlotSelect;
+    return mid_game && (guest_session || (session.Hosting() && session.Hosted()));
+}
+
+void Game::StepWorldUnderPanel(float dt) {
+    // Hands off: the panel has the keys. A guest still sends its empty hands,
+    // so the host keeps stepping its character in time and the two agree
+    // about where it stands when the panel closes. What the world asks for --
+    // a panel of its own, a toast -- waits for the game to be played again,
+    // and so does the death screen: a panel is not snatched away mid-trade.
+    if (guest_session) {
+        coop_guest.BeforeStep(*world, nullptr);
+    } else {
+        world->player.hands_external = true;
+        world->player.hands = PlayerInput{};
+    }
+    world->Update(dt, ctx);
+    if (guest_session) coop_guest.AfterStep(*world, session.Me(), dt);
 }
 
 void Game::NoticeFinds() {

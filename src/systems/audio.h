@@ -26,6 +26,8 @@ enum class Sfx {
     // and everything from UiMove to QuestComplete is taken for a guest's own
     // sound and never sent to her.
     Throw, KnifeHit, Whiff,
+    // A dragon's: its breath going out, its roar into a heavy blow, its bite.
+    Breath, Roar, Bite,
     Count
 };
 

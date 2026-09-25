@@ -52,6 +52,7 @@ bool EnemyDatabase::Load(const string& path) {
         d.aggro_range     = o.value("aggro", 150.0f);
         d.attack_range    = o.value("attack_range", 26.0f);
         d.shoots          = o.value("shoots", string(""));
+        d.voice           = o.value("voice", string(""));
         if (o.contains("spells") && o["spells"].is_array())
             for (const auto& v : o["spells"])
                 if (v.is_string() && !v.get<string>().empty()) d.spells.push_back(v.get<string>());
@@ -415,6 +416,25 @@ int Enemy::HeavyDamage(std::mt19937* rng) const {
     return std::max(1, static_cast<int>(std::lround(MaxHit(Profile(), 1.0f) * def->heavy.damage * r)));
 }
 
+void Enemy::Breathe(Element e) {
+    // The rush of it out of the throat, pitched for what is in it -- stone
+    // deepest, a gale highest -- and a little of the element with it: fire's
+    // crackle, the slap of a wave, sparks spitting.
+    float pitch = 1.0f;
+    switch (e) {
+        case Element::Fire:     pitch = 0.95f; break;
+        case Element::Water:    pitch = 1.05f; break;
+        case Element::Earth:    pitch = 0.8f;  break;
+        case Element::Air:      pitch = 1.2f;  break;
+        case Element::Electric: pitch = 1.1f;  break;
+        default: break;
+    }
+    Audio::PlayAt(Sfx::Breath, x, y, 1.0f, pitch);
+    if (e == Element::Fire)     Audio::PlayAt(Sfx::Burn, x, y, 0.5f, 1.0f);
+    if (e == Element::Water)    Audio::PlayAt(Sfx::Splash, x, y, 0.45f, 0.9f);
+    if (e == Element::Electric) Audio::PlayAt(Sfx::Burn, x, y, 0.4f, 1.9f);
+}
+
 void Enemy::SetState(State s) {
     if (state == s) return;
     // The first heavy of a fight waits for its opening, so a leader walks in
@@ -758,7 +778,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 dist <= std::max(40.0f, def->attack_range * def->heavy.reach) * 0.9f) {
                 SetState(State::Heavy);
                 chase_run = 0.0f;              // a blow begun is a fight
-                Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.8f, 0.55f);
+                // A dragon rears back and roars into it.
+                if (def->DragonVoice()) Audio::PlayAt(Sfx::Roar, x, y, 0.9f, def->is_boss ? 0.85f : 1.0f);
+                else                    Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.8f, 0.55f);
                 break;
             }
             // Something that throws looses from where it stands rather than
@@ -769,11 +791,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 chase_run = 0.0f;
                 // A caster is heard casting, and not loosing an arrow. What is
                 // thrown by hand -- a slinger's rock, a troll's lump of ice --
-                // has no string to twang: it is heard when it leaves the hand,
-                // below, and not at the start of the wind-up.
+                // has no string to twang, and nor has a dragon's breath: each
+                // is heard as it leaves the hand or the mouth, below, and not
+                // at the start of the wind-up.
                 const ProjectileDef* ammo = ctx.projectiles ? ctx.projectiles->Get(def->shoots) : nullptr;
-                if (!def->spells.empty())        Audio::PlayAt(Sfx::SpellCast, x, y, 0.55f, 0.8f);
-                else if (!ammo || !ammo->thrown) Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
+                if (!def->spells.empty()) Audio::PlayAt(Sfx::SpellCast, x, y, 0.55f, 0.8f);
+                else if (!ammo || (!ammo->thrown && !ammo->breath)) Audio::PlayAt(Sfx::BowShot, x, y, 0.5f, 0.95f);
                 shooting = true;
                 swinging = true;
                 swing_landed = false;
@@ -783,7 +806,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             if (dist <= def->attack_range && attack_timer <= 0.0f) {
                 SetState(State::Attack);
                 chase_run = 0.0f;
-                Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.8f);
+                // A dragon's is a bite: a growl, and its jaws snapping shut
+                // as the blow lands.
+                if (def->DragonVoice()) Audio::PlayAt(Sfx::Bite, x, y, 0.75f, def->is_boss ? 0.85f : 1.0f);
+                else                    Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.8f);
                 shooting = false;
                 swinging = true;
                 swing_landed = false;
@@ -827,8 +853,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 world.SpawnProjectile(shot, x, y - 18.0f, dx / len, dy / len,
                                       Profile(), AttackStyle::Ranged, pd ? pd->power : 1.0f, false, ctx);
                 // Thrown: heard now, as it leaves the hand, and lower the
-                // bigger the thing thrown.
+                // bigger the thing thrown. Breathed: heard now, as it leaves
+                // the mouth.
                 if (pd && pd->thrown) Audio::PlayAt(Sfx::Throw, x, y, 0.6f, pd->ThrowPitch());
+                if (pd && pd->breath) Breathe(pd->element);
             } else if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
                 swing_landed = true;
                 // On the ground, and not up or down a cliff: see StrikeArc.

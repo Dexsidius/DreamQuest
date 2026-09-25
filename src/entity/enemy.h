@@ -38,6 +38,12 @@ struct EnemyDef {
     // Hag's rot, beguiling and befuddling hexes come round in order and no
     // dice are thrown to choose. `shoots` is the first of them.
     vector<string> spells;
+    // What its throat sounds like, where it has one of its own: "dragon" bites
+    // with a growl and a snap of the jaws (Sfx::Bite) and roars as it winds up
+    // its heavy blow (Sfx::Roar), where everything else is heard swinging.
+    // Its breath is its projectile's to say (ProjectileDef::breath).
+    string voice;
+    bool   DragonVoice() const { return voice == "dragon"; }
     // What its blows can leave on the player: a spider's poison, a wolf's
     // bleeding bite, the frost's chill. Its shots carry their own, in
     // data/projectiles.json.
@@ -338,6 +344,8 @@ public:
 
 private:
     void SetState(State s);
+    // Heard as a breath leaves the mouth (ProjectileDef::breath).
+    void Breathe(Element e);
 
     const EnemyDef* def = nullptr;
     const StatusDatabase* status_db = nullptr;     // what the statuses on it do, from the context it was made in

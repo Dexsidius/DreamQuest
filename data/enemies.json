@@ -3536,6 +3536,7 @@
   "dragon_earth": {
     "name": "Basalt Dragon",
     "sprite": "dragon_earth",
+    "voice": "dragon",
     "hp": 149,
     "attack": 43,
     "strength": 43,
@@ -3585,6 +3586,7 @@
   "dragon_fire": {
     "name": "Pyre Dragon",
     "sprite": "dragon_fire",
+    "voice": "dragon",
     "hp": 149,
     "attack": 52,
     "strength": 52,
@@ -3636,6 +3638,7 @@
   "dragon_water": {
     "name": "Brine Dragon",
     "sprite": "dragon_water",
+    "voice": "dragon",
     "hp": 272,
     "attack": 50,
     "strength": 50,
@@ -3688,6 +3691,7 @@
   "dragon_air": {
     "name": "Gale Dragon",
     "sprite": "dragon_air",
+    "voice": "dragon",
     "hp": 143,
     "attack": 61,
     "strength": 61,
@@ -3737,6 +3741,7 @@
   "dragon_lightning": {
     "name": "Storm Dragon",
     "sprite": "dragon_lightning",
+    "voice": "dragon",
     "hp": 157,
     "attack": 62,
     "strength": 62,

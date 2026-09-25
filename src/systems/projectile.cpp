@@ -98,6 +98,7 @@ bool ProjectileDatabase::Load(const string& path) {
         d.power     = std::max(0.0f, o.value("power", 1.0f));
         d.homing    = o.value("homing", 0.0f);
         d.thrown    = o.value("thrown", false);
+        d.breath    = o.value("breath", false);
         d.element = ElementFromName(o.value("element", string("none")));
         d.tint = ColorFromJson(o.contains("tint") ? o["tint"] : json(),
                                ElementColor(d.element));

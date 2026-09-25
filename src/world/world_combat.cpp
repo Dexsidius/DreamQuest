@@ -857,11 +857,16 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
     } count{*this, ctx, struck};
 
     if (technique == "whirlwind") {
-        count.handled = true;
-        const float radius = 42.0f * atk.reach_scale;
-        hit_round(radius, mult * 0.9f, atk.profile.knockback);
-        Burst(player.x, player.y - 10.0f, radius, {236, 236, 255, 255}, 10);
-        Audio::Play(Sfx::SwingHeavy, 1.0f, 1.25f);
+        // One turn of the spin, struck as it begins (Player::UpdateAttack arms
+        // the swing again for each): everything round the player as far as the
+        // blade reaches. The last turn throws what it catches.
+        const bool last = atk.turns_begun >= atk.turns;
+        const float radius = atk.profile.reach;
+        hit_round(radius, mult, last ? atk.profile.knockback / WHIRL_TURN_PUSH : atk.profile.knockback);
+        // A turn that meets nothing after the first leaves the chain as it was:
+        // what the first turns threw back is not the spin missing.
+        count.handled = struck > 0 || atk.turns_begun <= 1;
+        WhirlFx(player.equipment.Weapon(), radius, last);
         return true;
     }
     if (technique == "ground_slam") {

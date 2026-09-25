@@ -139,7 +139,7 @@ vector<Light> World::CollectLights() const {
         } else if (o.type == "bug" && (o.yield == "firebug" || o.yield == "rime_beetle") && !Picked(o)) {
             // A firebug's ember and a rime beetle's cold, carried about with
             // them: a little light that wanders.
-            const BugPose b = BugFlight(o, GameHours());
+            const BugPose b = BugFlight(o, WorldSeconds());
             const bool fire = o.yield == "firebug";
             lights.push_back({b.x, b.y - LiftAt(b.x, b.y) - b.hover, fire ? 48.0f : 40.0f,
                               fire ? SDL_Color{255, 150, 70, 255} : SDL_Color{160, 210, 255, 255},
@@ -457,6 +457,23 @@ void World::DrawSwing(SDL_Renderer* r) const {
     const float reach = std::max(8.0f, p.reach * atk.reach_scale);
     float half = p.HalfAngle(reach);
     if (atk.move == ComboMove::CrossCut) half = 3.14159265f;
+    // The drawn arc, from its tail to its head, where the blade is.
+    float a0 = base - half, a1 = base - half + 2.0f * half * sweep;
+    float shade_base = base, shade_sweep = sweep;
+    if (atk.Whirling()) {
+        // A Whirlwind: the crescent goes round and round behind the blade. The
+        // spin clip turns anticlockwise on the screen -- down, right, up, left
+        // -- and the blade starts out about fifty-five degrees round from the
+        // facing on the sword arm's side; the shader shows the half of the
+        // trail nearest the head.
+        constexpr float BLADE = 0.95f, TRAIL = 3.6f;
+        const float head = base + BLADE - atk.Turned() * 6.2831853f;
+        a1 = head;
+        a0 = head + TRAIL;
+        half = TRAIL * 0.5f;
+        shade_base = head + half;
+        shade_sweep = 1.0f;
+    }
     const float cx = player.x, cy = player.y - 16.0f - player.draw_lift;
     const auto at = [&](float wx, float wy) {
         const SDL_FRect s = camera.ToScreenRect({wx, wy, 0.0f, 0.0f});
@@ -464,11 +481,11 @@ void World::DrawSwing(SDL_Renderer* r) const {
     };
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
 
-    const bool thrust = atk.move == ComboMove::None && player.AttackClip() == "thrust";
+    const bool thrust = atk.move == ComboMove::None && !atk.Whirling() && player.AttackClip() == "thrust";
     // With the effects on the shader draws it, and the combo's own marks
     // (the Crushing Blow's streak falling onto the ground among them): see
     // world_strikes.cpp.
-    if (DrawSwingShaded(r, cx, cy, base, half, reach, sweep, alpha, thrust)) return;
+    if (DrawSwingShaded(r, cx, cy, shade_base, half, reach, shade_sweep, alpha, thrust)) return;
     // Every stroke is laid over a dark one two pixels wider, so the pale
     // crescent reads on the forest floor and the mine's flags as well as on
     // grass: on dark ground a light line alone was as good as invisible.
@@ -499,7 +516,6 @@ void World::DrawSwing(SDL_Renderer* r) const {
     // swing reaches as far up the screen as across it. Squashed to six tenths
     // it stopped short of what it struck above and below.
     constexpr int N = 18;
-    const float a0 = base - half, a1 = base - half + 2.0f * half * sweep;
     // One bright crescent on its dark ground, rising toward the head of the
     // sweep, with a fainter ring just outside it.
     for (int ring = 0; ring <= 1; ++ring) {
@@ -899,7 +915,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             if (!ObjectPresent(o) || Picked(o)) continue;
             if (o.x < view.x || o.x > view.x + view.w ||
                 o.y < view.y || o.y > view.y + view.h) continue;
-            queue.push_back({BugFlight(o, GameHours()).y, 3, &o});
+            queue.push_back({BugFlight(o, WorldSeconds()).y, 3, &o});
             continue;
         }
         if (o.sprite.empty() || !ObjectPresent(o)) continue;
@@ -2143,9 +2159,9 @@ void DrawBugFrame(SDL_Renderer* r, const Camera& camera, float cx, float cy, con
 
 }  // namespace
 
-World::BugPose World::BugFlight(const MapObject& o, double game_hours) {
+World::BugPose World::BugFlight(const MapObject& o, double world_seconds) {
     const uint32_t h = BugHash(o.id);
-    const double t = game_hours * WorldClock::SECONDS_PER_HOUR;       // seconds on the world's clock
+    const double t = world_seconds;                                     // seconds on the world's clock
     const double tau = 6.283185307179586;
     const double p1 = BugUnit(h) * tau, p2 = BugUnit(BugMix(h + 1)) * tau, p3 = BugUnit(BugMix(h + 2)) * tau;
     const double reach = BUG_RANGE * 0.85;
@@ -2209,8 +2225,8 @@ World::BugPose World::BugFlight(const MapObject& o, double game_hours) {
 
 void World::DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) const {
     const BugKind kind = BugKindOf(o);
-    const double hours = GameHours();
-    const BugPose b = BugFlight(o, hours);
+    const double t = WorldSeconds();
+    const BugPose b = BugFlight(o, t);
     const float lift = LiftAt(b.x, b.y);
     const float gx = b.x, gy = b.y - lift;              // the ground under it
     const float ax = gx, ay = gy - b.hover;              // where it is
@@ -2248,7 +2264,7 @@ void World::DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) co
     // Which way its head points while it crawls or drifts: a quarter turn at
     // a time, from where it is going.
     const auto heading = [&]() {
-        const BugPose next = BugFlight(o, hours + 0.25 / WorldClock::SECONDS_PER_HOUR);
+        const BugPose next = BugFlight(o, t + 0.25);
         const float vx = next.x - b.x, vy = next.y - b.y;
         if (fabsf(vx) < 0.05f && fabsf(vy) < 0.05f) return 0;
         if (fabsf(vx) > fabsf(vy) * 1.3f) return vx > 0.0f ? 1 : 3;
@@ -2271,7 +2287,7 @@ void World::DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) co
                  static_cast<Uint8>(std::clamp(110.0f + 90.0f * dark + 40.0f * pulse, 0.0f, 255.0f)));
             // Sparks let go of behind it, falling and going out.
             for (int k = 1; k <= 3; ++k) {
-                const BugPose was = BugFlight(o, hours - (k * 0.16) / WorldClock::SECONDS_PER_HOUR);
+                const BugPose was = BugFlight(o, t - k * 0.16);
                 const float fall = k * 2.0f + fmodf(now * 7.0f + seed + k, 2.0f);
                 const float z = camera.zoom;
                 const SDL_FPoint s = camera.ToScreen(was.x, was.y - LiftAt(was.x, was.y) - was.hover + 3.0f + fall);
@@ -2291,7 +2307,7 @@ void World::DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) co
         }
         case BugKind::Beetle: {
             if (dark > 0.05f) glow(ax, ay, 22.0f, {150, 200, 255, 255}, static_cast<Uint8>(110.0f * dark));
-            const BugPose next = BugFlight(o, hours + 0.1 / WorldClock::SECONDS_PER_HOUR);
+            const BugPose next = BugFlight(o, t + 0.1);
             const bool walking = fabsf(next.x - b.x) + fabsf(next.y - b.y) > 0.12f;
             const int f = walking ? (static_cast<int>(now * 7.0f + seed) & 1) : 0;
             DrawBugFrame(r, camera, ax, ay, kBeetle[f], kBeetleInk, heading(), false);
@@ -2326,7 +2342,7 @@ void World::DrawBug(SDL_Renderer* r, TextureCache& cache, const MapObject& o) co
 void World::DrawBees(SDL_Renderer* r, const MapObject& o, float top, float height) const {
     // By day only: at night they are in.
     if (GlowDarkness() > 0.55f) return;
-    const double t = GameHours() * WorldClock::SECONDS_PER_HOUR;
+    const double t = WorldSeconds();
     const uint32_t h = BugHash(o.id);
     const float z = camera.zoom;
     const float cx = o.x, cy = top + height * 0.5f;

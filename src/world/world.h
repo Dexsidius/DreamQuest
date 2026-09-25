@@ -226,6 +226,9 @@ public:
     const std::map<string, double>& PickedHerbs() const { return picked; }
     void  SetPickedHerbs(const std::map<string, double>& p) { picked = p; }
     double GameHours() const { return clock.Day() * 24.0 + clock.Hours(); }
+    // The clock as real seconds of play (WorldClock::Seconds): what moves by
+    // the clock in real time is timed by this, so it keeps its pace at night.
+    double WorldSeconds() const { return clock.Seconds(); }
     // Recipes the player has learned to brew live in the flags as "recipe:<id>".
     bool  KnowsRecipe(const string& id) const { return Flagged("recipe:" + id); }
     // Enchantments the same way, as "recipe:enchant:<id>": a scroll's `learn`
@@ -261,7 +264,7 @@ public:
     // -- chosen by what it yields.
     static constexpr float BUG_RANGE = 12.0f;
     struct BugPose { float x = 0, y = 0, hover = 0; bool facing_left = false; };
-    static BugPose BugFlight(const MapObject& o, double game_hours);
+    static BugPose BugFlight(const MapObject& o, double world_seconds);
 
     // Gathering (Woodcutting / Mining) in progress, 0..1 for the HUD bar.
     float GatherProgress() const;
@@ -395,6 +398,9 @@ public:
     void ComboShotHitFx(ComboMove move, AttackStyle style, Element element, float x, float y, float angle);
     void ParryFx(float x, float y, float angle);
     void RiposteFx(float x, float y, float angle);
+    // A turn of the Whirlwind, as it strikes: the ring its blade cuts round
+    // the player's feet, and the sparks off its edge.
+    void WhirlFx(const ItemDef* weapon, float radius, bool last);
 
     // --- thin ice ------------------------------------------------------------------------
     // A frozen lake bears a walker. Sprint on it and it cracks behind you,
