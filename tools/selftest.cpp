@@ -20294,6 +20294,43 @@ int main(int argc, char** argv) {
             frames(60);
         }
 
+        // --- a greatsword parries too, and its riposte is the heavy ------------------------------
+        {
+            me.equipment.Equip(SLOT_WEAPON, "iron_greatsword");
+            Check(me.ParryStyle() && me.RiposteOnHeavy() && !me.Shield(), "a greatsword, in both hands, parries as well");
+            keep_still();
+            key(SDLK_H, true);
+            frames(3);
+            Check(me.Parrying() && me.ParryOpen() && !me.Blocking(), "B raised with it is a parry, and its first moment is open");
+            before = me.hp;
+            took = w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+            Check(took == 0 && me.hp == before && orc.Staggered() && me.RiposteOwed(),
+                  "a blow caught in the moment does nothing, and owes the riposte");
+            keep_still();
+            const int orc_hp = orc.hp;
+            tap(SDLK_J);
+            Check(!me.Attacking() && me.RiposteOwed(), "the light attack is not a greatsword's riposte");
+            keep_still();
+            tap(SDLK_K);
+            Check(me.Attack().riposte && me.Attacking() && me.Attack().type == AttackType::Strong,
+                  "the heavy attack, the guard still up, is: a heavy blow");
+            Check(me.Clip() == "crush_2h", "brought down from over the head, both hands on the hilt (" + me.Clip() + ")");
+            bool landed = false;
+            for (int f = 0; f < 40 && !landed; ++f) {
+                frames(1);
+                landed = orc.hp < orc_hp;
+            }
+            Check(landed, "that lands on whoever was parried");
+            away();
+            key(SDLK_H, false);
+            frames(60);
+            Check(!me.RiposteOwed() && !me.Attacking(), "and is spent");
+            me.equipment.Equip(SLOT_WEAPON, "iron_greataxe");
+            Check(!me.ParryStyle(), "a greataxe does not parry");
+            me.equipment.Equip(SLOT_WEAPON, "iron_dagger");
+            Check(me.ParryStyle() && !me.RiposteOnHeavy(), "and a dagger's riposte is still the light attack");
+        }
+
         // --- what every combo looks like ------------------------------------------------------------
         const vector<string> weapons = {"iron_sword", "iron_dagger", "iron_mace", "iron_greatsword", "iron_greataxe"};
         const ComboMove moves[] = {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut};

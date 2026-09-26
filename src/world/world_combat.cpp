@@ -1427,8 +1427,9 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
         knock_x = knock_y = 0.0f;
     }
-    // A dagger's parry: caught outright in its first moment, and after that a
-    // poor guard. With no dagger raised, the shield, as ever.
+    // A dagger's or a greatsword's parry: caught outright in its first
+    // moment, and after that a poor guard. With no blade raised, the shield,
+    // as ever.
     bool parried = false;
     const BlockOutcome parry = player.TryParry(damage, CombatLevelOf(attacker), from_x, from_y, parried);
     if (parried) {

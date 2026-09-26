@@ -705,7 +705,9 @@ armour cut and tier weapon.
 
 A **dagger with no shield behind it** does not block: the same button raises it
 to **parry**. A pair of daggers parries too, since a second dagger is not a
-shield. A dagger with a shield in the other hand blocks with the shield.
+shield. A dagger with a shield in the other hand blocks with the shield. A
+**greatsword** parries as well: it takes both hands, so there is never a shield
+behind it, and the long blade holds a blow off. A greataxe does not parry.
 
 The parry's first quarter of a second is **the moment**. Every blow from in
 front that lands in it is caught outright: nothing gets through, not even a
@@ -724,7 +726,8 @@ Everything else is the block's: you step slowly while it is up, and you cannot
 swing or sprint. It plays the `block` clip. The HUD reads *Parry!* during the
 moment and *Parrying* after it. The rules are `Player::TryParry` and
 `World::Parried`. A blow comes through `World::HitPlayer` (a leader's heavy
-through `HeavyHitPlayer`), which asks the dagger before it asks a shield.
+through `HeavyHitPlayer`), which asks the blade before it asks a shield. Which
+weapons parry is `Player::ParryStyle`.
 
 ### Sprinting
 
@@ -1220,8 +1223,8 @@ alike:
 
 The staff's marks take the colour of what it casts: fire orange, frost pale
 blue, and so on. A **parry** is a white flash with rays, a cross and sparks
-thrown back. A **riposte** is a gold thrust, then a gold cross and flash on what
-it strikes. The heavy ones shock the air, and they shake the screen only for
+thrown back. A **riposte** is a gold thrust (a greatsword's, a thick gold
+slash), then a gold cross and flash on what it strikes. The heavy ones shock the air, and they shake the screen only for
 whoever made them.
 
 The Cross Cut's X was in that table and never drawn: its hits are found by
@@ -2292,18 +2295,27 @@ and spear -- a bow or a staff never makes it.
 #### Counter
 
 Footwork's second node is **Counter**, at Attack 30, with two ranks. It needs
-Rushing Strike above it, and it is for daggers: it works on what a
-[parry](#parrying) catches.
+Rushing Strike above it, and it is for daggers and greatswords: it works on
+what a [parry](#parrying) catches.
 
 - **First rank: an opening.** A parried monster reels 0.8 seconds longer. For
   the next two and a half seconds, your next blow on *that* monster lands 30%
   harder, and "Opening!" rises off it.
-- **Second rank: the riposte.** For one second after a parry, a light attack
+- **Second rank: the riposte.** For one second after a parry, an attack
   becomes a **riposte**, even with the guard still up. You lunge up to 40 pixels
-  at whoever you parried (or your target, or straight ahead) and drive the dagger
-  in, fast. It hits for 1.4 times a light's damage and **always crits**. It is
-  drawn as a gold thrust and lands as a gold cross. The HUD shows
-  *Riposte: J* (or your key) while one is owed.
+  at whoever you parried (or your target, or straight ahead) and **always
+  crit**. Which attack it is depends on the blade:
+  - **A dagger's is the light attack** (J, or X on a pad). You drive the dagger
+    in, fast, for 1.4 times a light's damage. It is drawn as a gold thrust.
+  - **A greatsword's is the heavy attack** (K, or Y on a pad). The blade comes
+    down from over the head in both hands (the `crush_2h` clip) for 1.4 times a
+    heavy's damage and a harder knockback. It is a beat slower out than the
+    dagger's thrust and stops further short, since the blade reaches further.
+    It is drawn as a thick gold slash. The light attack does nothing while the
+    guard is up, as it always does.
+
+  Either lands as a gold cross. The HUD shows *Riposte: J* or *Riposte: K* (or
+  your key) while one is owed.
 
 Both ranks stack with the opening, so a riposte at the second rank lands 30%
 harder on top of the crit. The guard branch's older **Riposte** passive (the
@@ -7027,6 +7039,15 @@ and checks all of it — currently **61823 checks** covering:
   behind gets through, a dragon's blow breaks the guard and it comes back once
   the bar refills, an enchanted shield takes the same blow for a fraction, and a
   guarded step is slow
+- parrying: a dagger with no shield parries and with one blocks, a sword never
+  parries, and a greatsword does and a greataxe does not. Played through: a
+  blow caught in the parry's first moment does nothing and leaves its thrower
+  reeling; held past it, it is a poor guard; raised again at once there is no
+  fresh moment and after a rest there is; a leader's heavy is caught too, and a
+  blow from behind is not. Counter's first rank leaves the parried one open and
+  reeling longer; its second owes a riposte, which with a dagger is the light
+  attack and with a greatsword the heavy (the light does nothing), brought down
+  in `crush_2h`; either lands on whoever was parried and is then spent
 - Rushing Strike: the melee tree's Footwork branch has it at Attack 15, and the
   ranged and magic trees keep three branches. Played through: a running light
   attack is ordinary without it and standing still with it; with it, a running

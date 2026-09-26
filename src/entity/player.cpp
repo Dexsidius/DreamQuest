@@ -653,7 +653,15 @@ bool Player::CanBlock() const {
 
 bool Player::ParryStyle() const {
     const ItemDef* w = equipment.Weapon();
-    return w && w->weapon_class == "dagger" && !Shield();
+    if (!w || Shield()) return false;
+    // A dagger, which has no shield behind it; and a greatsword, which takes
+    // both hands and can hold a blow off with the blade.
+    return w->weapon_class == "dagger" || w->weapon_class == "greatsword";
+}
+
+bool Player::RiposteOnHeavy() const {
+    const ItemDef* w = equipment.Weapon();
+    return w && w->weapon_class == "greatsword";
 }
 
 bool Player::CanParry() const {
@@ -682,7 +690,7 @@ BlockOutcome Player::TryParry(int damage, int attacker_level, float from_x, floa
         BankXp(SKILL_DEFENCE, damage * BLOCK_XP_PER_DAMAGE);
         return out;
     }
-    // After the moment, a poor guard: a dagger is not a shield.
+    // After the moment, a poor guard: a blade is not a shield.
     BlockOutcome out = ResolveBlock(damage, attacker_level, PARRY_GUARD, 1.0f, stamina);
     stamina = std::max(0.0f, stamina - out.stamina);
     stamina_delay = STAMINA_DELAY;
@@ -730,28 +738,41 @@ bool Player::StartRiposte(const World& world) {
     if (len < 0.001f) return false;
     lunge_dx = dx / len;
     lunge_dy = dy / len;
-    // Close in, but stop short of walking into them.
-    lunge_left = std::clamp(len - 22.0f, 0.0f, RIPOSTE_LUNGE);
+    // Close in, but stop short of walking into them -- further short with a
+    // greatsword, whose blow reaches further than a dagger's.
+    const bool heavy = RiposteOnHeavy();
+    lunge_left = std::clamp(len - (heavy ? 40.0f : 22.0f), 0.0f, RIPOSTE_LUNGE);
     lunging = true;
     if (fabsf(lunge_dx) > fabsf(lunge_dy)) facing = lunge_dx > 0 ? FACE_RIGHT : FACE_LEFT;
     else                                   facing = lunge_dy > 0 ? FACE_DOWN  : FACE_UP;
     sprite.facing = facing;
 
-    // Quick out, and harder than a light blow: the thrust a dagger has.
-    const AttackProfile& light = ProfileFor(AttackType::Light, 0);
-    AttackProfile p = light;
-    p.windup      = 0.06f;
-    p.active      = 0.10f;
-    p.recover     = 0.18f;
-    p.cooldown    = 0.10f;
-    p.damage_mult = light.damage_mult * RIPOSTE_DAMAGE;
-    p.reach       = 36.0f;
-    p.knockback   = 90.0f;
+    // A dagger's: quick out, and harder than a light blow -- the thrust a
+    // dagger has. A greatsword's: its heavy blow, both hands on it, brought
+    // down while the one it was parried off is still reeling -- a beat slower
+    // out than the thrust, and harder again, as a heavy is.
+    const AttackProfile& base = ProfileFor(heavy ? AttackType::Strong : AttackType::Light, 0);
+    AttackProfile p = base;
+    if (heavy) {
+        p.windup      = 0.14f;
+        p.active      = 0.14f;
+        p.recover     = 0.30f;
+        p.cooldown    = 0.16f;
+        p.knockback   = 160.0f;
+    } else {
+        p.windup      = 0.06f;
+        p.active      = 0.10f;
+        p.recover     = 0.18f;
+        p.cooldown    = 0.10f;
+        p.reach       = 36.0f;
+        p.knockback   = 90.0f;
+    }
+    p.damage_mult = base.damage_mult * RIPOSTE_DAMAGE;
     p.move_scale  = 0.0f;
     ShapeForWeapon(p);
     combo = 0;
     combo_window = 0.0f;
-    attack.type        = AttackType::Light;
+    attack.type        = heavy ? AttackType::Strong : AttackType::Light;
     attack.move        = ComboMove::None;
     attack.profile     = p;
     attack.rate        = 1.0f;
@@ -764,9 +785,11 @@ bool Player::StartRiposte(const World& world) {
     riposte_owed = 0.0f;
     parrying = false;
     sprite.speed_scale = 1.0f;
-    sprite.Play(AttackClip(), true);
+    // The greatsword's comes down from over the head, the Crushing Blow's way.
+    const string clip = heavy ? BothHands("crush") : AttackClip();
+    sprite.Play(sprite.Def() && sprite.Def()->Find(clip) ? clip : AttackClip(), true);
     FitSwing();
-    Audio::Play(Sfx::SwingHeavy, 1.0f, 1.35f);
+    Audio::Play(Sfx::SwingHeavy, 1.0f, heavy ? 0.9f : 1.35f);
     return true;
 }
 
@@ -1787,7 +1810,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         move_axis = move;
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
-        // With a dagger and no shield, the same button parries instead.
+        // With a dagger and no shield, or a greatsword, the same button
+        // parries instead.
         const bool parry_style = ParryStyle();
         const bool was_parrying = parrying;
         blocking = !parry_style && !bound && hands.Down(PlayerInput::Block) && CanBlock();
@@ -1809,10 +1833,14 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
                 for_attacks.pressed &= static_cast<uint8_t>(~button);
             }
         }
-        // A parry that landed owes a riposte: the light attack, even with the
-        // stance still held, is the lunge.
-        if (!bound && riposte_owed > 0.0f && for_attacks.Pressed(PlayerInput::Light) && StartRiposte(world))
-            for_attacks.pressed &= static_cast<uint8_t>(~PlayerInput::Light);
+        // A parry that landed owes a riposte: the light attack with a dagger,
+        // the heavy with a greatsword, even with the stance still held, is the
+        // lunge. The other button is only what it always is.
+        {
+            const PlayerInput::Button riposte_button = RiposteOnHeavy() ? PlayerInput::Strong : PlayerInput::Light;
+            if (!bound && riposte_owed > 0.0f && for_attacks.Pressed(riposte_button) && StartRiposte(world))
+                for_attacks.pressed &= static_cast<uint8_t>(~riposte_button);
+        }
         if (blocking || parrying) {
             strong_armed = charging = false;
             charge_held = 0.0f;

@@ -673,7 +673,10 @@ bool World::DrawSwingShaded(SDL_Renderer* r, float cx, float cy, float base, flo
     Shaders::ShapeFx fx;
     fx.colour = c;
     fx.seed = static_cast<float>(static_cast<int>(atk.timer * 10.0f) % 7);
-    if (thrust || (f == DAGGER && atk.move == ComboMove::Crush) || atk.riposte) {
+    // A dagger's riposte is a thrust; a greatsword's is its heavy, brought
+    // down, and is drawn as the slash it is -- in gold, and thick.
+    const bool heavy_riposte = atk.riposte && atk.type == AttackType::Strong;
+    if (thrust || (f == DAGGER && atk.move == ComboMove::Crush) || (atk.riposte && !heavy_riposte)) {
         // A thrust: a line out along the facing, as far as the swing has got.
         fx.shape = Shaders::SHAPE_THRUST;
         fx.hit_x = base;
@@ -698,6 +701,7 @@ bool World::DrawSwingShaded(SDL_Renderer* r, float cx, float cy, float base, flo
             default: break;
         }
         if (atk.Whirling()) thick = 0.24f;
+        if (heavy_riposte) thick = 0.30f;
         if (f == GREAT || f == AXE) thick *= 1.2f;
         fx.extra = thick;
     }

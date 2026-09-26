@@ -542,12 +542,13 @@ public:
     void  ShatterGuard();
 
     // --- parrying ---------------------------------------------------------------
-    // A dagger has no shield behind it: B raises it to parry instead. The
-    // first moment of the stance catches a blow outright -- nothing gets
-    // through, and whoever threw it is left reeling -- and after that it is a
-    // poor guard, stopping a little of each blow for some breath. Letting go
-    // and raising it again opens a fresh moment, though not straight away. A
-    // dagger with a shield behind it blocks with the shield, as anything does.
+    // A dagger has no shield behind it, and a greatsword takes both hands: B
+    // raises either to parry instead. The first moment of the stance catches a
+    // blow outright -- nothing gets through, and whoever threw it is left
+    // reeling -- and after that it is a poor guard, stopping a little of each
+    // blow for some breath. Letting go and raising it again opens a fresh
+    // moment, though not straight away. A dagger with a shield behind it
+    // blocks with the shield, as anything does.
     static constexpr float PARRY_WINDOW        = 0.25f;  // the moment that catches a blow outright
     static constexpr float PARRY_REST          = 0.45f;  // after letting go, before a fresh moment
     static constexpr float PARRY_GUARD         = 0.35f;  // of a blow, what the stance stops after it
@@ -556,12 +557,15 @@ public:
     static constexpr float PARRY_HEAVY_STAGGER = 0.4f;   // and longer, if it was a leader's heavy blow
     // Counter (Footwork). Rank one leaves whoever was parried open: staggered
     // longer, and the next blow on them lands harder. Rank two owes a
-    // riposte: a light attack within a moment of the parry is a lunge at
-    // them that always lands critically.
+    // riposte: an attack within a moment of the parry is a lunge at them that
+    // always lands critically -- the light attack with a dagger, a quick
+    // thrust; the heavy with a greatsword, a two-handed blow brought down.
     static constexpr float OPENING_STAGGER = 0.8f, OPENING_BONUS = 0.3f, OPENING_TIME = 2.5f;
     static constexpr float RIPOSTE_TIME = 1.0f, RIPOSTE_DAMAGE = 1.4f, RIPOSTE_REACH = 90.0f,
                            RIPOSTE_LUNGE = 40.0f;
-    bool  ParryStyle() const;               // a dagger in hand and no shield: B parries
+    bool  ParryStyle() const;               // a dagger and no shield, or a greatsword: B parries
+    // Whether the riposte is the heavy attack (a greatsword's) or the light (a dagger's).
+    bool  RiposteOnHeavy() const;
     bool  CanParry() const;
     bool  Parrying() const { return parrying; }
     bool  ParryOpen() const { return parrying && parry_age <= PARRY_WINDOW; }
