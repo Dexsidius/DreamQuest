@@ -31,8 +31,9 @@ enum class WeaponKind { Melee, Bow, Staff };
 //
 // A cauldron brews: a recipe with a herb or a vial in it is a potion. What is
 // made at each station trains its own skill -- Crafting at a workbench,
-// Smithing at an anvil, Brewing at a cauldron -- and a potion has to be learned
-// before it can be brewed.
+// Smithing at an anvil, Brewing at a cauldron, Tanning at a rack, the Clothier
+// at a loom, Cooking at a fire -- and a potion has to be learned before it can
+// be brewed.
 // Rack: a tanner's frame, where hide is cut and sewn -- see StationFor.
 enum class CraftStation { Workbench, Anvil, Cauldron, Range, Loom, Rack };
 CraftStation CraftStationFromName(const string& name);
@@ -319,16 +320,17 @@ struct ItemDef {
     bool      worn_facings[4] = {true, true, true, true};
 };
 
-// An enchantment: a charm worked into a worn piece at an enchanting table,
-// with Magic, from data/enchantments.json. Every piece it fits gets an
-// enchanted twin built at load -- "copper_ring+keenness", the Copper Ring of
-// Keenness -- so an enchanted ring is an item like any other: carried, worn,
-// sold and saved by its id, and nothing else in the game needs to know.
+// An enchantment: a charm worked into a worn piece or a weapon at an
+// enchanting table, with Enchanting, from data/enchantments.json. Every piece
+// it fits gets an enchanted twin for every tier, built at load --
+// "copper_ring+keenness", the Copper Ring of Keenness I -- so an enchanted
+// ring is an item like any other: carried, worn, sold and saved by its id, and
+// nothing else in the game needs to know.
 struct EnchantDef {
     string id, name, suffix, text;      // "Keenness", "of Keenness", what it does
     vector<EquipSlot> slots;            // what it can be worked into
-    int   level = 1;                    // Magic level to work it
-    int   xp = 0;                       // Magic XP for working it
+    int   level = 1;                    // Enchanting level to work it
+    int   xp = 0;                       // Enchanting XP for working it
     int   value = 0;                    // added to the piece's worth
     int   attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
     int   ranged_bonus = 0, magic_bonus = 0;
@@ -336,21 +338,27 @@ struct EnchantDef {
     map<string, int> inputs;            // item id -> quantity
     string from;                        // where it is learned, for the table to say
 
-    // --- a weapon's charm ---------------------------------------------------------
-    // Where a worn piece's charm has one strength, a weapon's has tiers, I to
-    // VI, each opened by a Magic level and each dearer than the last. It is
-    // learned once, from one scroll, and every tier the Magic level reaches
-    // comes with it. A weapon carries one charm: a higher tier of the one it
-    // has upgrades it in place, and a different charm replaces it. The twins
-    // are "<weapon>+<charm>_<tier>", the Iron Bow of Multishot III. For a
-    // charm with tiers, `level`, `xp`, `value` and `inputs` above are its
-    // first tier's.
+    // --- its tiers -----------------------------------------------------------------
+    // Every charm comes in tiers -- a weapon's I to VI, a worn piece's I to V --
+    // each opened by an Enchanting level and each dearer than the last, spread
+    // so something new opens every level or two. It is learned once, from one
+    // scroll, and every tier the Enchanting level reaches comes with it. A
+    // piece carries one charm: a higher tier of the one it has upgrades it in
+    // place, and a different charm replaces it. The twins are
+    // "<piece>+<charm>_<tier>", the Iron Bow of Multishot III -- but a worn
+    // piece's first tier is "<piece>+<charm>", as it was when that was its only
+    // one, so a ring enchanted then is still the ring it was. For a charm with
+    // tiers, `level`, `xp`, `value` and `inputs` above are its first tier's.
     struct Tier {
-        float amount = 0.0f;            // what it does there: 0.12 is +12%, 3 is three arrows
+        float amount = 0.0f;            // a weapon's: 0.12 is +12%, 3 is three arrows
         int   level = 1, xp = 0, value = 0;
         map<string, int> inputs;
+        // A worn piece's: what it adds to the piece at this tier.
+        int   attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
+        int   ranged_bonus = 0, magic_bonus = 0;
+        float move_speed = 0.0f;
     };
-    vector<Tier> tiers;                 // empty for a worn piece's charm
+    vector<Tier> tiers;                 // empty only for a charm written without any
     // What it does: "proc", "crit", "cast", "reload", "shots", "leech",
     // "crit_damage", "brand" or "mana". A Brand says which status it leaves.
     string effect;
@@ -361,9 +369,12 @@ struct EnchantDef {
 
     bool Tiered() const { return !tiers.empty(); }
     int  TierCount() const { return static_cast<int>(tiers.size()); }
-    // The highest tier a Magic level reaches, 1..TierCount(); 0 below the first.
-    // A worn piece's charm is its one tier, at `level`.
-    int  TierFor(int magic) const;
+    // A weapon's charm says what it does ("crit", "shots"...); a worn piece's
+    // adds to the piece's own numbers and says nothing.
+    bool ForWeapon() const { return !effect.empty(); }
+    // The highest tier an Enchanting level reaches, 1..TierCount(); 0 below
+    // the first. A charm without tiers is its one, at `level`.
+    int  TierFor(int enchanting) const;
     // Tier `tier` (1-based), or null when there is no such tier.
     const Tier* TierAt(int tier) const;
     // What working tier `tier` asks and pays; a worn piece's charm ignores it.
@@ -436,6 +447,9 @@ public:
     bool Takes(const ItemDef& piece, const EnchantDef& e) const;
     // The enchanted twin's id, "<piece>+<enchantment>", or empty if there is none.
     string EnchantedId(const string& piece, const string& enchant) const;
+    // The twin of a plain piece with this charm at this tier (see
+    // EnchantDef::Tier), or empty if there is none.
+    string TwinId(const string& plain, const EnchantDef& e, int tier) const;
 
 private:
     map<string, ItemDef> defs;
@@ -589,9 +603,9 @@ namespace Enchanting {
 vector<int> Targets(const ItemDatabase& db, const EnchantDef& e, const Inventory& bag);
 // Works it into the piece in `slot`: takes the materials and the piece, and
 // puts the enchanted piece back. Says why it could not, otherwise. Whether
-// the enchantment is known and whether the Magic level is enough are the
+// the enchantment is known and whether the Enchanting level is enough are the
 // caller's to check: neither lives in a bag.
-// A weapon's charm is worked at a `tier` (1..its tier count): raised in place
-// on a weapon that has it lower, or put on in place of another charm.
+// A charm is worked at a `tier` (1..its tier count): raised in place on a
+// piece that has it lower, or put on in place of another charm.
 bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot, string& why, int tier = 0);
 }

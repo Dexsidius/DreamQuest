@@ -1437,14 +1437,14 @@ int main(int argc, char** argv) {
         // same level as its tier: the level its gear needs to be worn.
         Check(CraftSkill(CraftStation::Workbench) == SKILL_CRAFTING && CraftSkill(CraftStation::Anvil) == SKILL_SMITHING &&
               CraftSkill(CraftStation::Cauldron) == SKILL_BREWING, "workbench, anvil and cauldron train Crafting, Smithing and Brewing");
-        Check(CraftSkill(CraftStation::Loom) == SKILL_CRAFTING,
-              "and the loom trains Crafting too: two stations, one trade");
+        Check(CraftSkill(CraftStation::Loom) == SKILL_CLOTHIER,
+              "the loom trains the Clothier, a skill of its own");
         Check(CraftStationFromName("loom") == CraftStation::Loom &&
               string(CraftStationName(CraftStation::Loom)) == "loom",
               "a map that says \"loom\" gets one");
-        Check(CraftSkill(CraftStation::Rack) == SKILL_CRAFTING && CraftStationFromName("rack") == CraftStation::Rack &&
+        Check(CraftSkill(CraftStation::Rack) == SKILL_TANNING && CraftStationFromName("rack") == CraftStation::Rack &&
               string(CraftStationName(CraftStation::Rack)) == "rack",
-              "the rack trains Crafting as well, and a map that says \"rack\" gets one");
+              "the rack trains Tanning, and a map that says \"rack\" gets one");
         for (const TierDef& t : items.Tiers()) {
             if (t.wood) continue;
             for (const char* piece : {"sword", "spear", "bow", "staff", "shield", "helm", "body", "legs", "gauntlets", "boots",
@@ -7275,6 +7275,53 @@ int main(int argc, char** argv) {
             fresh.FromJson(json{{"xp", {{"Crafting", XpForLevel(34)}, {"Smithing", 0}}}});
             Check(fresh.Level(SKILL_SMITHING) == 1, "a new save's Smithing is its own");
         }
+        {
+            // Tanning, the Clothier and Enchanting: the rack and the loom were
+            // Crafting's, and the enchanting table asked Magic. A save from
+            // before starts each where the skill it came out of stands.
+            Check(string(SkillName(SKILL_TANNING)) == "Tanning" && string(SkillName(SKILL_CLOTHIER)) == "Clothier" &&
+                      string(SkillName(SKILL_ENCHANTING)) == "Enchanting" && SkillFromName("clothier") == SKILL_CLOTHIER &&
+                      SKILL_TANNING > SKILL_BREWING && SKILL_ENCHANTING == SKILL_COUNT - 1,
+                  "Tanning, the Clothier and Enchanting are skills, numbered after all the others");
+            Skills old;
+            old.FromJson(json{{"xp", {{"Crafting", XpForLevel(41)}, {"Magic", XpForLevel(57)}, {"Smithing", XpForLevel(3)}}}});
+            Check(old.Level(SKILL_TANNING) == 41 && old.Level(SKILL_CLOTHIER) == 41 && old.Level(SKILL_CRAFTING) == 41,
+                  "an old save's Tanning and Clothier start where its Crafting stood");
+            Check(old.Level(SKILL_ENCHANTING) == 57 && old.Level(SKILL_MAGIC) == 57,
+                  "and its Enchanting where its Magic stood");
+            Skills fresh;
+            fresh.FromJson(json{{"xp", {{"Crafting", XpForLevel(41)}, {"Magic", XpForLevel(57)},
+                                        {"Tanning", 0}, {"Clothier", XpForLevel(5)}, {"Enchanting", 0}}}});
+            Check(fresh.Level(SKILL_TANNING) == 1 && fresh.Level(SKILL_CLOTHIER) == 5 && fresh.Level(SKILL_ENCHANTING) == 1,
+                  "a new save's are its own");
+            Skills back;
+            back.FromJson(old.ToJson());
+            Check(back.Xp(SKILL_TANNING) == old.Xp(SKILL_TANNING) && back.Xp(SKILL_ENCHANTING) == old.Xp(SKILL_ENCHANTING),
+                  "and survive a save");
+        }
+        {
+            // The skills page's four categories, each skill in exactly one.
+            const vector<vector<int>> asked = {
+                {SKILL_SMITHING, SKILL_TANNING, SKILL_CLOTHIER, SKILL_CRAFTING},
+                {SKILL_HITPOINTS, SKILL_RANGED, SKILL_MAGIC, SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE},
+                {SKILL_WOODCUTTING, SKILL_FISHING, SKILL_FORAGING, SKILL_MINING, SKILL_COOKING},
+                {SKILL_BREWING, SKILL_ENCHANTING}};
+            bool as_asked = true, once = true;
+            for (int c = 0; c < CATEGORY_COUNT; ++c) as_asked &= CategorySkills(c) == asked[c];
+            for (int sk = 0; sk < SKILL_COUNT; ++sk) {
+                int in = 0;
+                for (int c = 0; c < CATEGORY_COUNT; ++c)
+                    for (int x : CategorySkills(c)) in += x == sk;
+                once &= in == 1 && SkillCategoryOf(sk) >= 0;
+            }
+            Check(as_asked && string(CategoryName(CATEGORY_FORGING)) == "Forging" &&
+                      string(CategoryName(CATEGORY_COMBAT)) == "Combat" && string(CategoryName(CATEGORY_GATHERING)) == "Gathering" &&
+                      string(CategoryName(CATEGORY_WITCHCRAFT)) == "Witchcraft",
+                  "Forging, Combat, Gathering and Witchcraft, holding what was asked");
+            Check(once, "and every skill is in exactly one of them");
+            Check(SkillCategoryOf(SKILL_COOKING) == CATEGORY_GATHERING && SkillCategoryOf(SKILL_ENCHANTING) == CATEGORY_WITCHCRAFT,
+                  "Cooking with the Gathering, Enchanting with the Witchcraft");
+        }
 
         // --- herbs ------------------------------------------------------------------------------
         vector<const ItemDef*> herbs;
@@ -8561,7 +8608,7 @@ int main(int argc, char** argv) {
             last = e->level;
             fits &= !e->slots.empty();
             // A worn piece's charm never goes on a weapon; a weapon's goes on nothing else.
-            for (EquipSlot s : e->slots) { covered.insert(s); fits &= e->Tiered() ? s == SLOT_WEAPON : s != SLOT_WEAPON; }
+            for (EquipSlot s : e->slots) { covered.insert(s); fits &= e->ForWeapon() ? s == SLOT_WEAPON : s != SLOT_WEAPON; }
             for (int k = e->Tiered() ? 1 : 0; k <= (e->Tiered() ? e->TierCount() : 0); ++k) {
                 const auto& ins = e->InputsAt(k);
                 mats &= !ins.empty() && ins.count("dream_shard") > 0;
@@ -8576,7 +8623,56 @@ int main(int argc, char** argv) {
               covered.count(SLOT_BODY) && covered.count(SLOT_HEAD) && covered.count(SLOT_SHIELD),
               "between them they cover rings, amulets, boots and armour");
         Check(mats, "every one costs real materials, a shard of dream among them");
-        Check(said && paid, "every one says what it does and where it is learned, pays Magic XP and adds to the piece's worth");
+        Check(said && paid, "every one says what it does and where it is learned, pays Enchanting XP and adds to the piece's worth");
+
+        // --- Enchanting, and an upgrade every level or two ------------------------------------------
+        // The table asks Enchanting now, a skill of its own. Every charm has
+        // tiers -- a worn piece's five, a weapon's six -- and between them
+        // something new opens at every level or the one after, from the first
+        // to 99. Nothing opens later than it did when the table asked Magic:
+        // an old save starts its Enchanting at its Magic, and keeps every charm
+        // it could work.
+        {
+            const std::map<string, int> worn_was = {{"swiftness", 5}, {"warding", 10}, {"keenness", 15}, {"might", 20},
+                                                    {"hawks_eye", 25}, {"insight", 30}, {"fortitude", 40}, {"the_wind", 50}};
+            std::set<int> opens;
+            bool no_later = true, rising = true, every_tiered = true;
+            int worn = 0, weapon = 0;
+            for (const EnchantDef* e : all) {
+                every_tiered &= e->Tiered() && e->TierCount() >= 5;
+                (e->ForWeapon() ? weapon : worn)++;
+                for (int k = 1; k <= e->TierCount(); ++k) {
+                    opens.insert(e->LevelAt(k));
+                    const int was = e->ForWeapon() ? 10 + 15 * (k - 1) : (k == 1 ? worn_was.at(e->id) : 99);
+                    no_later &= e->LevelAt(k) <= was;
+                    if (k > 1) {
+                        const EnchantDef::Tier* t = e->TierAt(k);
+                        const EnchantDef::Tier* p = e->TierAt(k - 1);
+                        rising &= t->level > p->level && t->xp >= p->xp && t->value > p->value;
+                        // Stronger at every tier, whatever it adds.
+                        rising &= e->ForWeapon() ? t->amount > p->amount
+                                                 : t->attack_bonus + t->strength_bonus + t->defence_bonus + t->ranged_bonus +
+                                                           t->magic_bonus + t->move_speed * 100.0f >
+                                                       p->attack_bonus + p->strength_bonus + p->defence_bonus + p->ranged_bonus +
+                                                           p->magic_bonus + p->move_speed * 100.0f;
+                    }
+                }
+            }
+            int widest = 0, prev = 0;
+            for (int l : opens) { widest = std::max(widest, l - prev); prev = l; }
+            Check(every_tiered && worn == 8 && weapon == 12,
+                  "every charm has tiers: the eight worn pieces' five each, the twelve weapons' six (or five)");
+            Check(opens.count(1) && opens.count(99) && widest <= 2,
+                  "from Enchanting 1 to 99 an upgrade opens every level or two (" + std::to_string(opens.size()) +
+                      " levels open something; the longest wait is " + std::to_string(widest) + ")");
+            Check(no_later, "and nothing opens later than it did when the table asked Magic");
+            Check(rising, "each tier later, stronger, dearer and better paid than the one before");
+            const EnchantDef* warding = items.Enchantment("warding");
+            Check(warding && warding->NameAt(3) == "Warding III" && warding->EffectAt(3) == "Defence +12" &&
+                      warding->TierFor(warding->LevelAt(2) - 1) == 1 && warding->TierFor(warding->LevelAt(2)) == 2,
+                  "a worn piece's charm is named and told by its tier, and reached by level (" +
+                      (warding ? warding->EffectAt(3) : string("?")) + ")");
+        }
 
         // Every charm but the first is a scroll someone sells; Mira teaches the first.
         ShopDatabase shopdb;
@@ -8640,19 +8736,23 @@ int main(int argc, char** argv) {
         const ItemDef* ring = items.Get("copper_ring");
         const ItemDef* keen = items.Get("copper_ring+keenness");
         const EnchantDef* keenness = items.Enchantment("keenness");
-        Check(ring && keen && keenness, "the Copper Ring has a twin of Keenness");
+        Check(ring && keen && keenness, "the Copper Ring has a twin of Keenness, under the id it always had");
         if (ring && keen && keenness) {
-            Check(keen->name == "Copper Ring of Keenness", "named for it (" + keen->name + ")");
+            Check(keen->name == "Copper Ring of Keenness I" && keen->enchant_tier == 1, "named for it, and its tier (" + keen->name + ")");
             Check(keen->slot == SLOT_RING && keen->icon == ring->icon && !keen->stackable &&
                   keen->attack_bonus == ring->attack_bonus + keenness->attack_bonus &&
                   keen->value == ring->value + keenness->value &&
                   keen->enchant == "keenness" && keen->base_item == "copper_ring",
                   "worn in the same slot with the same picture, the ring's bonuses plus the charm's, and worth both");
             Check(keen->passive_text.find("Keenness") != string::npos, "and the bag says what it does");
-            Check(!items.Takes(*keen, *keenness) && !items.Takes(*keen, *items.Enchantment("insight")),
-                  "and takes no second charm");
+            Check(items.Takes(*keen, *keenness) && items.Takes(*keen, *items.Enchantment("insight")),
+                  "and can have its charm raised, or another put in its place");
             Check(items.EnchantedId("copper_ring", "keenness") == "copper_ring+keenness" &&
                   items.EnchantedId("copper_ring", "swiftness").empty(), "a ring is not worked with Swiftness");
+            const ItemDef* keen5 = items.Get(items.TwinId("copper_ring", *keenness, 5));
+            Check(keen5 && keen5->id == "copper_ring+keenness_5" && keen5->name == "Copper Ring of Keenness V" &&
+                      keen5->attack_bonus == ring->attack_bonus + keenness->TierAt(5)->attack_bonus && keen5->enchant_tier == 5,
+                  "and its fifth tier is a ring of its own, stronger (" + (keen5 ? keen5->id : string("?")) + ")");
         }
         {
             const ItemDef* helm = items.Get(items.TierPiece("iron", "helm"));
@@ -8660,6 +8760,9 @@ int main(int argc, char** argv) {
             Check(helm && warded && warded->defence_bonus == helm->defence_bonus + 8 &&
                   warded->armour_layer == helm->armour_layer && warded->tint.r == helm->tint.r,
                   "an iron helm takes Warding, for eight more Defence, and is drawn as the same helm");
+            const ItemDef* warded3 = helm ? items.Get(helm->id + "+warding_3") : nullptr;
+            Check(warded3 && warded3->defence_bonus == helm->defence_bonus + 12 && warded3->passive_text.find("Warding III") != string::npos,
+                  "and Warding III, twelve more, says so in the bag");
             const ItemDef* shield = items.Get(items.TierPiece("wood", "shield"));
             const ItemDef* lantern = items.Get("lantern");
             const EnchantDef* fortitude = items.Enchantment("fortitude");
@@ -8667,7 +8770,7 @@ int main(int argc, char** argv) {
                   "a shield takes Fortitude and a lantern, worn in the same hand, does not");
             const ItemDef* sword = items.Get(items.TierPiece("iron", "sword"));
             bool sword_takes = false;
-            for (const EnchantDef* e : all) if (!e->Tiered()) sword_takes |= sword && items.Takes(*sword, *e);
+            for (const EnchantDef* e : all) if (!e->ForWeapon()) sword_takes |= sword && items.Takes(*sword, *e);
             Check(sword && !sword_takes, "a sword takes no worn piece's charm (a weapon's charms: see below)");
         }
         {
@@ -8676,9 +8779,8 @@ int main(int argc, char** argv) {
             for (const auto& kv : items.All())
                 if (!kv.second.enchant.empty()) {
                     ++twins;
-                    const string made = kv.second.enchant_tier > 0
-                        ? kv.second.base_item + "+" + kv.second.enchant + "_" + std::to_string(kv.second.enchant_tier)
-                        : kv.second.base_item + "+" + kv.second.enchant;
+                    const EnchantDef* e = items.Enchantment(kv.second.enchant);
+                    const string made = e ? items.TwinId(kv.second.base_item, *e, kv.second.enchant_tier) : string();
                     clean &= kv.second.craft_result.empty() && kv.second.learn.empty() && kv.second.id == made &&
                              kv.second.id.size() <= 48;
                 }
@@ -8699,12 +8801,25 @@ int main(int argc, char** argv) {
                   bag.Count("copper_ring+keenness") == 1 && bag.Count("copper_ring") == 0 &&
                   bag.Count("dream_shard") == 0 && bag.Count("glowcap") == 0,
                   "and works Keenness into it, for the shards and the cap");
-            Check(::Enchanting::Targets(items, *keenness, bag).empty(), "the enchanted ring is not offered again");
+            const auto mine = ::Enchanting::Targets(items, *keenness, bag);
+            Check(mine.size() == 1 && !::Enchanting::Work(items, *keenness, bag, mine[0], why, 1) &&
+                      why.find("already carries Keenness I") != string::npos,
+                  "the enchanted ring is offered to be raised, and not given the tier it has (" + why + ")");
             bag.Add("copper_ring", 1);
-            const auto again = ::Enchanting::Targets(items, *keenness, bag);
-            Check(!again.empty() && !::Enchanting::Work(items, *keenness, bag, again[0], why) &&
+            int plain_slot = -1;
+            for (int i : ::Enchanting::Targets(items, *keenness, bag)) if (bag.Slot(i).id == "copper_ring") plain_slot = i;
+            Check(plain_slot >= 0 && !::Enchanting::Work(items, *keenness, bag, plain_slot, why) &&
                   why == "You are missing materials." && bag.Count("copper_ring") == 1,
                   "without materials nothing is taken, and it says why");
+            // Raised in place, for the second tier's own price.
+            for (const auto& in : keenness->InputsAt(2)) bag.Add(in.first, in.second);
+            for (int i = 0; i < bag.SlotCount(); ++i)
+                if (bag.Slot(i).id == "copper_ring+keenness") {
+                    Check(::Enchanting::Work(items, *keenness, bag, i, why, 2) && bag.Count("copper_ring+keenness_2") == 1 &&
+                              bag.Count("copper_ring+keenness") == 0,
+                          "and Keenness I is raised to II in place, for II's price");
+                    break;
+                }
             Check(!::Enchanting::Work(items, *keenness, bag, -1, why) && !why.empty(), "nor with nothing to work into");
 
             Equipment eq(&items);
@@ -8787,13 +8902,16 @@ int main(int argc, char** argv) {
         }
         int tiered = 0;
         bool ladder = true;
+        // Where each tier opened when the table asked Magic; it opens there or
+        // before now, somewhere in the fifteen levels up to it.
         const int kOpens[] = {10, 25, 40, 55, 70, 85};
         for (const EnchantDef* e : items.Enchantments()) {
-            if (!e->Tiered()) continue;
+            if (!e->ForWeapon()) continue;
             ++tiered;
             for (int k = 1; k <= e->TierCount(); ++k) {
                 const EnchantDef::Tier* t = e->TierAt(k);
-                ladder &= t->level == kOpens[k - 1] && t->amount > 0.0f && t->inputs.count("dream_shard") > 0;
+                ladder &= t->level <= kOpens[k - 1] && t->level > kOpens[k - 1] - 15 &&
+                          t->amount > 0.0f && t->inputs.count("dream_shard") > 0;
                 if (k > 1) {
                     const EnchantDef::Tier* was = e->TierAt(k - 1);
                     ladder &= t->amount > was->amount && t->xp > was->xp && t->value > was->value &&
@@ -8802,11 +8920,14 @@ int main(int argc, char** argv) {
             }
         }
         Check(tiered == 12 && ladder,
-              "twelve weapon charms, each tier opened at Magic 10, 25, 40, 55, 70 and 85, stronger and dearer than the last");
+              "twelve weapon charms, each tier opened within the fifteen Enchanting levels up to 10, 25, 40, 55, 70 and 85, "
+              "stronger and dearer than the last");
         const EnchantDef* multi = items.Enchantment("multishot");
         const EnchantDef* precision = items.Enchantment("precision");
-        Check(multi && multi->TierFor(9) == 0 && multi->TierFor(10) == 1 && multi->TierFor(54) == 3 && multi->TierFor(99) == 5,
-              "a Magic level reaches every tier up to it");
+        bool reaches = multi != nullptr;
+        for (int k = 1; multi && k <= multi->TierCount(); ++k)
+            reaches &= multi->TierFor(multi->LevelAt(k) - 1) == k - 1 && multi->TierFor(multi->LevelAt(k)) == k;
+        Check(reaches && multi->TierFor(99) == 5, "an Enchanting level reaches every tier up to it");
         Check(multi && multi->NameAt(3) == "Multishot III", "and a tier is named with its numeral");
 
         // --- which weapons take which ---------------------------------------------------------------------------
@@ -11719,17 +11840,18 @@ int main(int argc, char** argv) {
             // cloth went to Wynn's loom with the rest of the weaving.
             Check(items.StationFor(*recipe) == CraftStation::Rack,
                   what + " is made on a tanning rack, like the ones in her yard");
-            const auto needs = d->requirements.find(SKILL_CRAFTING);
+            const auto needs = d->requirements.find(SKILL_TANNING);
             const int asked = needs == d->requirements.end() ? 1 : needs->second;
-            Check(asked == recipe->craft_level,
-                  d->name + " asks for Crafting " + std::to_string(asked) + ", which is what the recipe asks for");
-            Check(d->rewards.xp.count(SKILL_CRAFTING) && d->rewards.xp.at(SKILL_CRAFTING) >= 200,
-                  d->name + " pays in Crafting");
+            Check(asked == recipe->craft_level && !d->requirements.count(SKILL_CRAFTING),
+                  d->name + " asks for Tanning " + std::to_string(asked) + ", which is what the recipe asks for");
+            Check(d->rewards.xp.count(SKILL_TANNING) && d->rewards.xp.at(SKILL_TANNING) >= 200 &&
+                      !d->rewards.xp.count(SKILL_CRAFTING),
+                  d->name + " pays in Tanning, the rack's own skill");
             lowest = std::min(lowest, asked);
             highest = std::max(highest, asked);
         }
         Check(lowest == 1, "there is work in it for somebody who has never made anything");
-        Check(highest >= 40, "and work in it at Crafting " + std::to_string(highest));
+        Check(highest >= 40, "and work in it at Tanning " + std::to_string(highest));
 
         // A day's posting is three, and they are ones the crafter could do.
         Skills green;
@@ -11737,13 +11859,13 @@ int main(int argc, char** argv) {
         Check(today.size() == 3, "three are posted (" + std::to_string(today.size()) + ")");
         for (const string& id : today) {
             const QuestDef* d = quests.Definition(id);
-            const bool easy = d && (!d->requirements.count(SKILL_CRAFTING) || d->requirements.at(SKILL_CRAFTING) <= 1);
+            const bool easy = d && (!d->requirements.count(SKILL_TANNING) || d->requirements.at(SKILL_TANNING) <= 1);
             Check(easy,
                   "a crafter who has never made anything is posted work they can do: " + id);
         }
         LevelUp up;
         Skills master;
-        master.AddXp(SKILL_CRAFTING, XpForLevel(50), up);
+        master.AddXp(SKILL_TANNING, XpForLevel(50), up);
         const vector<string> later = quests.PoolToday("nessa_orders", &master);
         Check(later.size() == 3 && later != today, "and a master of the trade is posted different work");
 
@@ -13036,10 +13158,12 @@ int main(int argc, char** argv) {
                 if (r->craft_result == what && (!recipe || r->craft_level < recipe->craft_level)) recipe = r;
             Check(recipe != nullptr, d->name + " asks for " + what + ", which somebody can make");
             if (!recipe) continue;
-            const auto needs = d->requirements.find(SKILL_CRAFTING);
+            const auto needs = d->requirements.find(SKILL_CLOTHIER);
             const int asked = needs == d->requirements.end() ? 1 : needs->second;
-            Check(asked == recipe->craft_level, d->name + " asks the Crafting its recipe asks");
-            Check(d->rewards.xp.count(SKILL_CRAFTING), d->name + " pays in Crafting");
+            Check(asked == recipe->craft_level && !d->requirements.count(SKILL_CRAFTING),
+                  d->name + " asks the Clothier level its recipe asks");
+            Check(d->rewards.xp.count(SKILL_CLOTHIER) && !d->rewards.xp.count(SKILL_CRAFTING),
+                  d->name + " pays the Clothier, the loom's own skill");
             lowest = std::min(lowest, asked);
             highest = std::max(highest, asked);
             // What she orders is a robe, a hat, a skirt or the cloth they are

@@ -1122,7 +1122,7 @@ static void PlaceCauldron(MapBuilder& m, const string& obj_id, int x, int y) {
     m.Collision(x - 16, y - 12, 32, 12);
 }
 
-// An enchanting table: where charms are worked into worn pieces, for Magic.
+// An enchanting table: where charms are worked into worn pieces and weapons, for Enchanting.
 // Its own object type rather than a crafting station, because what it makes
 // is not on any list -- it is one of the player's own pieces.
 static void PlaceEnchantingTable(MapBuilder& m, const string& obj_id, int x, int y) {

@@ -1,27 +1,71 @@
 {
- "_comment": "Enchantments: charms worked into worn pieces at an enchanting table, for Magic. 'slots' is what each fits, 'level' the Magic level to work it, 'xp' what it pays, 'inputs' what it costs, and 'value' what it adds to the piece's worth. The game builds an enchanted twin of every piece each one fits -- copper_ring+keenness, the Copper Ring of Keenness -- so an enchanted piece is an item like any other (see ItemDatabase::LoadEnchantments). Every charm has to be learned first: Mira teaches the first, the rest are scrolls, read from the pack like a brew's. 'from' is what the table says about an unlearned one.",
+ "_comment": "Enchantments: charms worked into pieces at an enchanting table, for Enchanting. Every charm comes in tiers, each opened by an Enchanting level and each dearer than the last: 'level' is the Enchanting level to work it, 'xp' what it pays, 'inputs' what it costs, and 'value' what it adds to the piece's worth. The tiers of every charm are spread so that something new opens every level or two, and every tier opens at or below the Magic level it used to ask (a save from before starts its Enchanting at its Magic). A worn piece's charm adds 'bonus' or 'move_speed' at each tier; a weapon's does what 'effect' says, by 'amount'. 'slots' is what a worn piece's charm fits, 'takes' and 'fits' which weapons take a weapon's. The game builds an enchanted twin of every piece for every tier of every charm it takes -- copper_ring+keenness is the Copper Ring of Keenness I, copper_ring+keenness_2 its second tier, iron_bow+multishot_3 the Iron Bow of Multishot III -- so an enchanted piece is an item like any other (see ItemDatabase::LoadEnchantments). A higher tier of the charm a piece has raises it in place; another charm replaces it. Every charm has to be learned first: Mira teaches the first, the rest are scrolls, read from the pack like a brew's, and every tier the Enchanting level reaches comes with it. 'from' is what the table says about an unlearned one.",
  "enchantments": {
   "swiftness": {
    "name": "Swiftness",
    "suffix": "of Swiftness",
-   "text": "You walk an eighth quicker.",
+   "text": "You walk quicker.",
    "slots": [
     "feet"
    ],
-   "level": 5,
-   "xp": 120,
-   "value": 260,
-   "move_speed": 0.125,
-   "inputs": {
-    "dream_shard": 1,
-    "brookmint": 2
-   },
+   "tiers": [
+    {
+     "level": 1,
+     "xp": 100,
+     "value": 200,
+     "move_speed": 0.125,
+     "inputs": {
+      "dream_shard": 1,
+      "brookmint": 2
+     }
+    },
+    {
+     "level": 22,
+     "xp": 340,
+     "value": 460,
+     "move_speed": 0.14,
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "level": 43,
+     "xp": 600,
+     "value": 880,
+     "move_speed": 0.155,
+     "inputs": {
+      "dream_shard": 5,
+      "glowcap": 2
+     }
+    },
+    {
+     "level": 64,
+     "xp": 940,
+     "value": 1560,
+     "move_speed": 0.17,
+     "inputs": {
+      "dream_shard": 7,
+      "emberbloom": 2
+     }
+    },
+    {
+     "level": 86,
+     "xp": 1430,
+     "value": 2660,
+     "move_speed": 0.185,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "Mira of the Shrine, in Fernhollow, teaches it to anyone who asks."
   },
   "warding": {
    "name": "Warding",
    "suffix": "of Warding",
-   "text": "Defence +8.",
+   "text": "Adds to Defence.",
    "slots": [
     "head",
     "body",
@@ -29,137 +73,493 @@
     "legs",
     "feet"
    ],
-   "level": 10,
-   "xp": 180,
-   "value": 320,
-   "bonus": {
-    "defence": 8
-   },
-   "inputs": {
-    "dream_shard": 1,
-    "nettle": 2
-   },
+   "tiers": [
+    {
+     "level": 4,
+     "xp": 120,
+     "value": 240,
+     "bonus": {
+      "defence": 8
+     },
+     "inputs": {
+      "dream_shard": 1,
+      "nettle": 2
+     }
+    },
+    {
+     "level": 25,
+     "xp": 380,
+     "value": 500,
+     "bonus": {
+      "defence": 10
+     },
+     "inputs": {
+      "dream_shard": 2,
+      "bogbean": 2
+     }
+    },
+    {
+     "level": 46,
+     "xp": 650,
+     "value": 960,
+     "bonus": {
+      "defence": 12
+     },
+     "inputs": {
+      "dream_shard": 5,
+      "glowcap": 2
+     }
+    },
+    {
+     "level": 67,
+     "xp": 1000,
+     "value": 1680,
+     "bonus": {
+      "defence": 14
+     },
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "level": 88,
+     "xp": 1490,
+     "value": 2770,
+     "bonus": {
+      "defence": 16
+     },
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "Oona sells the scroll in Mossvale."
   },
   "keenness": {
    "name": "Keenness",
    "suffix": "of Keenness",
-   "text": "Attack +8.",
+   "text": "Adds to Attack.",
    "slots": [
     "ring",
     "amulet"
    ],
-   "level": 15,
-   "xp": 240,
-   "value": 380,
-   "bonus": {
-    "attack": 8
-   },
-   "inputs": {
-    "dream_shard": 2,
-    "glowcap": 1
-   },
+   "tiers": [
+    {
+     "level": 6,
+     "xp": 140,
+     "value": 270,
+     "bonus": {
+      "attack": 8
+     },
+     "inputs": {
+      "dream_shard": 2,
+      "glowcap": 1
+     }
+    },
+    {
+     "level": 27,
+     "xp": 400,
+     "value": 540,
+     "bonus": {
+      "attack": 10
+     },
+     "inputs": {
+      "dream_shard": 3,
+      "bogbean": 2
+     }
+    },
+    {
+     "level": 48,
+     "xp": 680,
+     "value": 1010,
+     "bonus": {
+      "attack": 12
+     },
+     "inputs": {
+      "dream_shard": 5,
+      "glowcap": 2
+     }
+    },
+    {
+     "level": 69,
+     "xp": 1030,
+     "value": 1760,
+     "bonus": {
+      "attack": 14
+     },
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "level": 90,
+     "xp": 1540,
+     "value": 2890,
+     "bonus": {
+      "attack": 16
+     },
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "Tobin's General Store in Havenbrook sells the scroll."
   },
   "might": {
    "name": "Might",
    "suffix": "of Might",
-   "text": "Strength +8.",
+   "text": "Adds to Strength.",
    "slots": [
     "ring",
     "amulet",
     "hands"
    ],
-   "level": 20,
-   "xp": 300,
-   "value": 420,
-   "bonus": {
-    "strength": 8
-   },
-   "inputs": {
-    "dream_shard": 2,
-    "nettle": 2
-   },
+   "tiers": [
+    {
+     "level": 8,
+     "xp": 170,
+     "value": 280,
+     "bonus": {
+      "strength": 8
+     },
+     "inputs": {
+      "dream_shard": 2,
+      "nettle": 2
+     }
+    },
+    {
+     "level": 29,
+     "xp": 430,
+     "value": 580,
+     "bonus": {
+      "strength": 10
+     },
+     "inputs": {
+      "dream_shard": 3,
+      "bogbean": 2
+     }
+    },
+    {
+     "level": 50,
+     "xp": 710,
+     "value": 1070,
+     "bonus": {
+      "strength": 12
+     },
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "level": 71,
+     "xp": 1070,
+     "value": 1850,
+     "bonus": {
+      "strength": 14
+     },
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "level": 92,
+     "xp": 1600,
+     "value": 3000,
+     "bonus": {
+      "strength": 16
+     },
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "Garrow the smith sells the scroll in Mossvale."
   },
   "hawks_eye": {
    "name": "Hawk's Eye",
    "suffix": "of the Hawk's Eye",
-   "text": "Ranged +10.",
+   "text": "Adds to Ranged.",
    "slots": [
     "amulet",
     "hands",
     "head"
    ],
-   "level": 25,
-   "xp": 360,
-   "value": 460,
-   "bonus": {
-    "ranged": 10
-   },
-   "inputs": {
-    "dream_shard": 2,
-    "glowcap": 2
-   },
+   "tiers": [
+    {
+     "level": 14,
+     "xp": 250,
+     "value": 350,
+     "bonus": {
+      "ranged": 10
+     },
+     "inputs": {
+      "dream_shard": 2,
+      "glowcap": 2
+     }
+    },
+    {
+     "level": 34,
+     "xp": 490,
+     "value": 680,
+     "bonus": {
+      "ranged": 13
+     },
+     "inputs": {
+      "dream_shard": 3,
+      "bogbean": 2
+     }
+    },
+    {
+     "level": 54,
+     "xp": 770,
+     "value": 1170,
+     "bonus": {
+      "ranged": 16
+     },
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "level": 74,
+     "xp": 1140,
+     "value": 2010,
+     "bonus": {
+      "ranged": 19
+     },
+     "inputs": {
+      "dream_shard": 10,
+      "moonpetal": 2
+     }
+    },
+    {
+     "level": 94,
+     "xp": 1660,
+     "value": 3110,
+     "bonus": {
+      "ranged": 22
+     },
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "Hunter Ivo sells the scroll in Havenbrook."
   },
   "insight": {
    "name": "Insight",
    "suffix": "of Insight",
-   "text": "Magic +10.",
+   "text": "Adds to Magic.",
    "slots": [
     "ring",
     "amulet",
     "head"
    ],
-   "level": 30,
-   "xp": 440,
-   "value": 520,
-   "bonus": {
-    "magic": 10
-   },
-   "inputs": {
-    "dream_shard": 3,
-    "moonpetal": 1
-   },
+   "tiers": [
+    {
+     "level": 18,
+     "xp": 300,
+     "value": 410,
+     "bonus": {
+      "magic": 10
+     },
+     "inputs": {
+      "dream_shard": 3,
+      "moonpetal": 1
+     }
+    },
+    {
+     "level": 37,
+     "xp": 520,
+     "value": 740,
+     "bonus": {
+      "magic": 13
+     },
+     "inputs": {
+      "dream_shard": 3,
+      "glowcap": 2
+     }
+    },
+    {
+     "level": 57,
+     "xp": 820,
+     "value": 1280,
+     "bonus": {
+      "magic": 16
+     },
+     "inputs": {
+      "dream_shard": 7,
+      "emberbloom": 2
+     }
+    },
+    {
+     "level": 76,
+     "xp": 1190,
+     "value": 2120,
+     "bonus": {
+      "magic": 19
+     },
+     "inputs": {
+      "dream_shard": 10,
+      "moonpetal": 2
+     }
+    },
+    {
+     "level": 96,
+     "xp": 1710,
+     "value": 3230,
+     "bonus": {
+      "magic": 22
+     },
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "The Night Pedlar sells the scroll in the Reverie."
   },
   "fortitude": {
    "name": "Fortitude",
    "suffix": "of Fortitude",
-   "text": "Defence +14.",
+   "text": "Adds a great deal to Defence.",
    "slots": [
     "body",
     "legs",
     "shield"
    ],
-   "level": 40,
-   "xp": 560,
-   "value": 700,
-   "bonus": {
-    "defence": 14
-   },
-   "inputs": {
-    "dream_shard": 3,
-    "mountain_sage": 2
-   },
+   "tiers": [
+    {
+     "level": 30,
+     "xp": 440,
+     "value": 600,
+     "bonus": {
+      "defence": 14
+     },
+     "inputs": {
+      "dream_shard": 3,
+      "mountain_sage": 2
+     }
+    },
+    {
+     "level": 47,
+     "xp": 660,
+     "value": 990,
+     "bonus": {
+      "defence": 17
+     },
+     "inputs": {
+      "dream_shard": 5,
+      "glowcap": 2
+     }
+    },
+    {
+     "level": 64,
+     "xp": 940,
+     "value": 1560,
+     "bonus": {
+      "defence": 20
+     },
+     "inputs": {
+      "dream_shard": 7,
+      "emberbloom": 2
+     }
+    },
+    {
+     "level": 81,
+     "xp": 1310,
+     "value": 2390,
+     "bonus": {
+      "defence": 23
+     },
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    },
+    {
+     "level": 98,
+     "xp": 1770,
+     "value": 3340,
+     "bonus": {
+      "defence": 26
+     },
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "The Collector sells the scroll in the Reverie."
   },
   "the_wind": {
    "name": "Wind",
    "suffix": "of the Wind",
-   "text": "You walk a fifth quicker.",
+   "text": "You walk far quicker.",
    "slots": [
     "feet"
    ],
-   "level": 50,
-   "xp": 720,
-   "value": 900,
-   "move_speed": 0.2,
-   "inputs": {
-    "dream_shard": 4,
-    "starlily": 1
-   },
+   "tiers": [
+    {
+     "level": 42,
+     "xp": 590,
+     "value": 850,
+     "move_speed": 0.2,
+     "inputs": {
+      "dream_shard": 4,
+      "starlily": 1
+     }
+    },
+    {
+     "level": 56,
+     "xp": 800,
+     "value": 1240,
+     "move_speed": 0.215,
+     "inputs": {
+      "dream_shard": 5,
+      "emberbloom": 2
+     }
+    },
+    {
+     "level": 70,
+     "xp": 1050,
+     "value": 1800,
+     "move_speed": 0.23,
+     "inputs": {
+      "dream_shard": 7,
+      "moonpetal": 2
+     }
+    },
+    {
+     "level": 84,
+     "xp": 1380,
+     "value": 2550,
+     "move_speed": 0.245,
+     "inputs": {
+      "dream_shard": 10,
+      "starlily": 2
+     }
+    },
+    {
+     "level": 99,
+     "xp": 1800,
+     "value": 3400,
+     "move_speed": 0.26,
+     "inputs": {
+      "dream_shard": 12,
+      "starlily": 2
+     }
+    }
+   ],
    "from": "The Collector sells the scroll in the Reverie, once the lights on the pond are seen to."
   },
   "affliction": {
@@ -172,9 +572,9 @@
    "tiers": [
     {
      "amount": 0.05,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 4,
+     "xp": 120,
+     "value": 240,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -182,9 +582,9 @@
     },
     {
      "amount": 0.08,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 15,
+     "xp": 260,
+     "value": 370,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -192,9 +592,9 @@
     },
     {
      "amount": 0.11,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 30,
+     "xp": 440,
+     "value": 600,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -202,9 +602,9 @@
     },
     {
      "amount": 0.14,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 45,
+     "xp": 630,
+     "value": 930,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -212,9 +612,9 @@
     },
     {
      "amount": 0.17,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 60,
+     "xp": 870,
+     "value": 1400,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -222,9 +622,9 @@
     },
     {
      "amount": 0.2,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 75,
+     "xp": 1170,
+     "value": 2070,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -243,9 +643,9 @@
    "tiers": [
     {
      "amount": 0.03,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 2,
+     "xp": 100,
+     "value": 220,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -253,9 +653,9 @@
     },
     {
      "amount": 0.06,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 11,
+     "xp": 210,
+     "value": 310,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -263,9 +663,9 @@
     },
     {
      "amount": 0.12,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 26,
+     "xp": 390,
+     "value": 520,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -273,9 +673,9 @@
     },
     {
      "amount": 0.18,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 41,
+     "xp": 570,
+     "value": 830,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -283,9 +683,9 @@
     },
     {
      "amount": 0.21,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 56,
+     "xp": 800,
+     "value": 1240,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -293,9 +693,9 @@
     },
     {
      "amount": 0.24,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 71,
+     "xp": 1070,
+     "value": 1850,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -314,9 +714,9 @@
    "tiers": [
     {
      "amount": 0.05,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 8,
+     "xp": 170,
+     "value": 280,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -324,9 +724,9 @@
     },
     {
      "amount": 0.07,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 21,
+     "xp": 330,
+     "value": 450,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -334,9 +734,9 @@
     },
     {
      "amount": 0.09,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 36,
+     "xp": 510,
+     "value": 720,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -344,9 +744,9 @@
     },
     {
      "amount": 0.11,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 51,
+     "xp": 720,
+     "value": 1090,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -354,9 +754,9 @@
     },
     {
      "amount": 0.13,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 66,
+     "xp": 980,
+     "value": 1640,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -364,9 +764,9 @@
     },
     {
      "amount": 0.15,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 81,
+     "xp": 1310,
+     "value": 2390,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -456,9 +856,9 @@
    "tiers": [
     {
      "amount": 1,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 9,
+     "xp": 180,
+     "value": 290,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -466,9 +866,9 @@
     },
     {
      "amount": 2,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 24,
+     "xp": 370,
+     "value": 490,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -476,9 +876,9 @@
     },
     {
      "amount": 3,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 39,
+     "xp": 550,
+     "value": 780,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -486,9 +886,9 @@
     },
     {
      "amount": 4,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 54,
+     "xp": 770,
+     "value": 1170,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -496,9 +896,9 @@
     },
     {
      "amount": 5,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 69,
+     "xp": 1030,
+     "value": 1760,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -517,9 +917,9 @@
    "tiers": [
     {
      "amount": 0.01,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 3,
+     "xp": 110,
+     "value": 230,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -527,9 +927,9 @@
     },
     {
      "amount": 0.02,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 14,
+     "xp": 250,
+     "value": 350,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -537,9 +937,9 @@
     },
     {
      "amount": 0.03,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 29,
+     "xp": 430,
+     "value": 580,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -547,9 +947,9 @@
     },
     {
      "amount": 0.04,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 44,
+     "xp": 620,
+     "value": 910,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -557,9 +957,9 @@
     },
     {
      "amount": 0.05,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 59,
+     "xp": 850,
+     "value": 1360,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -567,9 +967,9 @@
     },
     {
      "amount": 0.06,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 74,
+     "xp": 1140,
+     "value": 2010,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -588,9 +988,9 @@
    "tiers": [
     {
      "amount": 0.1,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 3,
+     "xp": 110,
+     "value": 230,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -598,9 +998,9 @@
     },
     {
      "amount": 0.2,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 12,
+     "xp": 220,
+     "value": 330,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -608,9 +1008,9 @@
     },
     {
      "amount": 0.3,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 27,
+     "xp": 400,
+     "value": 540,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -618,9 +1018,9 @@
     },
     {
      "amount": 0.4,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 42,
+     "xp": 590,
+     "value": 850,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -628,9 +1028,9 @@
     },
     {
      "amount": 0.5,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 57,
+     "xp": 820,
+     "value": 1280,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -638,9 +1038,9 @@
     },
     {
      "amount": 0.6,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 72,
+     "xp": 1100,
+     "value": 1910,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -660,9 +1060,9 @@
    "tiers": [
     {
      "amount": 0.08,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 5,
+     "xp": 120,
+     "value": 260,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -670,9 +1070,9 @@
     },
     {
      "amount": 0.12,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 16,
+     "xp": 270,
+     "value": 380,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -680,9 +1080,9 @@
     },
     {
      "amount": 0.16,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 31,
+     "xp": 450,
+     "value": 620,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -690,9 +1090,9 @@
     },
     {
      "amount": 0.2,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 46,
+     "xp": 650,
+     "value": 960,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -700,9 +1100,9 @@
     },
     {
      "amount": 0.24,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 61,
+     "xp": 890,
+     "value": 1440,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -710,9 +1110,9 @@
     },
     {
      "amount": 0.28,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 76,
+     "xp": 1190,
+     "value": 2120,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -732,9 +1132,9 @@
    "tiers": [
     {
      "amount": 0.08,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 6,
+     "xp": 140,
+     "value": 270,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -742,9 +1142,9 @@
     },
     {
      "amount": 0.12,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 17,
+     "xp": 280,
+     "value": 390,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -752,9 +1152,9 @@
     },
     {
      "amount": 0.16,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 32,
+     "xp": 460,
+     "value": 640,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -762,9 +1162,9 @@
     },
     {
      "amount": 0.2,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 47,
+     "xp": 660,
+     "value": 990,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -772,9 +1172,9 @@
     },
     {
      "amount": 0.24,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 62,
+     "xp": 910,
+     "value": 1480,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -782,9 +1182,9 @@
     },
     {
      "amount": 0.28,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 77,
+     "xp": 1210,
+     "value": 2170,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -804,9 +1204,9 @@
    "tiers": [
     {
      "amount": 0.08,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 6,
+     "xp": 140,
+     "value": 270,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -814,9 +1214,9 @@
     },
     {
      "amount": 0.12,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 19,
+     "xp": 310,
+     "value": 420,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -824,9 +1224,9 @@
     },
     {
      "amount": 0.16,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 34,
+     "xp": 490,
+     "value": 680,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -834,9 +1234,9 @@
     },
     {
      "amount": 0.2,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 49,
+     "xp": 690,
+     "value": 1040,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -844,9 +1244,9 @@
     },
     {
      "amount": 0.24,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 64,
+     "xp": 940,
+     "value": 1560,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -854,9 +1254,9 @@
     },
     {
      "amount": 0.28,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 79,
+     "xp": 1260,
+     "value": 2280,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -876,9 +1276,9 @@
    "tiers": [
     {
      "amount": 0.08,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 7,
+     "xp": 150,
+     "value": 280,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -886,9 +1286,9 @@
     },
     {
      "amount": 0.12,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 20,
+     "xp": 320,
+     "value": 430,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -896,9 +1296,9 @@
     },
     {
      "amount": 0.16,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 35,
+     "xp": 500,
+     "value": 700,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -906,9 +1306,9 @@
     },
     {
      "amount": 0.2,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 50,
+     "xp": 710,
+     "value": 1070,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -916,9 +1316,9 @@
     },
     {
      "amount": 0.24,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 65,
+     "xp": 960,
+     "value": 1600,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -926,9 +1326,9 @@
     },
     {
      "amount": 0.28,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 80,
+     "xp": 1280,
+     "value": 2330,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -947,9 +1347,9 @@
    "tiers": [
     {
      "amount": 0.05,
-     "level": 10,
-     "xp": 200,
-     "value": 300,
+     "level": 9,
+     "xp": 180,
+     "value": 290,
      "inputs": {
       "dream_shard": 1,
       "nettle": 2
@@ -957,9 +1357,9 @@
     },
     {
      "amount": 0.1,
-     "level": 25,
-     "xp": 380,
-     "value": 500,
+     "level": 22,
+     "xp": 340,
+     "value": 460,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -967,9 +1367,9 @@
     },
     {
      "amount": 0.15,
-     "level": 40,
-     "xp": 560,
-     "value": 800,
+     "level": 37,
+     "xp": 520,
+     "value": 740,
      "inputs": {
       "dream_shard": 3,
       "glowcap": 2
@@ -977,9 +1377,9 @@
     },
     {
      "amount": 0.2,
-     "level": 55,
-     "xp": 780,
-     "value": 1200,
+     "level": 52,
+     "xp": 740,
+     "value": 1120,
      "inputs": {
       "dream_shard": 5,
       "emberbloom": 2
@@ -987,9 +1387,9 @@
     },
     {
      "amount": 0.25,
-     "level": 70,
-     "xp": 1050,
-     "value": 1800,
+     "level": 67,
+     "xp": 1000,
+     "value": 1680,
      "inputs": {
       "dream_shard": 7,
       "moonpetal": 2
@@ -997,9 +1397,9 @@
     },
     {
      "amount": 0.3,
-     "level": 85,
-     "xp": 1400,
-     "value": 2600,
+     "level": 82,
+     "xp": 1330,
+     "value": 2440,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2

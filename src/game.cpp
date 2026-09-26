@@ -379,11 +379,16 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "skills")    {
                     skills_tab = 0;
                     OpenPanel(GameState::SkillsPanel);
-                    // "skills:magic" opens on that skill, for looking at what
-                    // it says the levels are for. After the open: SetState puts
-                    // every panel's cursor back to the top.
+                    // "skills:magic" opens that skill's category on it, for
+                    // looking at what it says the levels are for, and
+                    // "skills:gathering" a category on its first. After the
+                    // open: SetState puts every panel's cursor back to the top.
                     for (int k = 0; !arg.empty() && k < SKILL_COUNT; ++k)
-                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0) cursor = k;
+                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0) OpenSkillModal(SkillCategoryOf(k), k);
+                    for (int c = 0; !arg.empty() && c < CATEGORY_COUNT; ++c)
+                        if (SDL_strcasecmp(CategoryName(c), arg.c_str()) == 0) OpenSkillModal(c, -1);
+                    // Open already, not opening: a shot of it is of the modal.
+                    skill_modal_at = -10.0f;
                 }
                 else if (what == "menu")      { hub_cursor = 0; OpenPanel(GameState::Hub); }
                 else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_TREE; }
@@ -1551,17 +1556,24 @@ void Game::RunAudit() {
             {"pause",          GameState::Paused,          [&] { has_session = true; }},
             {"menu",           GameState::Hub,             [&] { hub_cursor = 0; }},
             {"inventory",      GameState::Inventory,       [&] { inventory_cursor = 0; }},
-            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; cursor = SKILL_ATTACK;
+            // The four cards, and then every skill in its category's modal.
+            {"skill categories", GameState::SkillsPanel,   [&] { skills_tab = TAB_SKILLS; skill_modal = false;
+                                                                 skills_page_at = -10.0f; }},
+            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_COMBAT, SKILL_ATTACK);
+                                                                 skill_modal_at = -10.0f; skills_page_at = -10.0f;
                                                                  milestones_for = -1; on_milestones = false; }},
             // The milestone column, on the two skills whose lists are longest
             // and whose lines are widest -- every spell and enchantment under
             // Magic, every recipe of every station under Crafting -- with the
             // cursor in it, which is when it draws its brightest and says what
             // a level is still owed.
-            {"skills milestones", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; cursor = SKILL_MAGIC;
-                                                                 milestones_for = -1; on_milestones = true; }},
-            {"skills recipes",  GameState::SkillsPanel,    [&] { skills_tab = TAB_SKILLS; cursor = SKILL_CRAFTING;
-                                                                 milestones_for = -1; on_milestones = true; }},
+            {"skills milestones", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_COMBAT, SKILL_MAGIC);
+                                                                 skill_modal_at = -10.0f; on_milestones = true; }},
+            {"skills recipes",  GameState::SkillsPanel,    [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_FORGING, SKILL_TANNING);
+                                                                 skill_modal_at = -10.0f; on_milestones = true; }},
+            // Every tier of every charm, a line each: the longest list of all.
+            {"skills enchanting", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_WITCHCRAFT, SKILL_ENCHANTING);
+                                                                 skill_modal_at = -10.0f; on_milestones = true; }},
             {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = TAB_TREE; tree_branch = 0; tree_row = 2; }},
             // With the whole tree learned and every ancient spell known: every
             // row has its longest choice somewhere along it.
@@ -1636,6 +1648,7 @@ void Game::RunAudit() {
             const string name = sc.name;
             if (name == "inventory")      { target = &inventory_cursor; steps = p.inventory.SlotCount(); }
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
+            else if (name == "skill categories") { target = &skill_card; steps = CATEGORY_COUNT; }
             else if (name == "menu")      { target = &hub_cursor; steps = 5; }
             else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
             // Nine rows, and as many choices as the longest of them has: the
@@ -1659,6 +1672,8 @@ void Game::RunAudit() {
 
             for (int step = 0; step < steps; ++step) {
                 if (target) *target = step;
+                // Each skill in its own category's modal.
+                if (name == "skills") skill_card = SkillCategoryOf(cursor);
                 // Every branch of a tree, too, and both of its tabs.
                 if (name == "skill tree") tree_branch = step % SkillTrees::BRANCHES;
                 // Every row of the book, with each thing that could be on it in turn.

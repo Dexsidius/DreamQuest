@@ -142,8 +142,8 @@ void Game::DrawCrafting() {
             // One line, and it has to fit the panel at 1280x720: --audit counts
             // anything wider as a runoff, and it is right to.
             : fire   ? "Cooking: plain food, and dishes that sit with you a while."
-            : loom   ? "Weaving: cloth from any fibre, and the robes. Dyes are boiled at a cauldron."
-            : rack   ? "Leatherwork: hide armour, boots, bags and bedrolls. Wood is worked at a bench."
+            : loom   ? "Clothier: cloth from any fibre, and the robes. Dyes are boiled at a cauldron."
+            : rack   ? "Tanning: hide armour, boots, bags and bedrolls. Wood is worked at a bench."
                      : "Wood and bows. Hide is cut on a tanner's rack, cloth woven at a loom, metal smithed.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
@@ -297,21 +297,20 @@ void Game::UpdateEnchanting() {
         if (!world->KnowsEnchantment(e->id)) {
             PushToast("You have not learned that enchantment yet.", bad);
             Audio::Play(Sfx::UiError);
-        } else if (p.skills.Level(SKILL_MAGIC) < e->level) {
-            PushToast("Needs Magic " + std::to_string(e->level) + ".", bad);
+        } else if (p.skills.Level(SKILL_ENCHANTING) < e->level) {
+            PushToast("Needs Enchanting " + std::to_string(e->level) + ".", bad);
             Audio::Play(Sfx::UiError);
         } else {
             string why;
             const int slot = n > 0 ? targets[enchant_target] : -1;
             const string piece = slot >= 0 ? p.inventory.Slot(slot).id : string();
-            // A weapon's charm is worked at the highest tier the Magic level reaches.
-            const int tier = e->Tiered() ? e->TierFor(p.skills.Level(SKILL_MAGIC)) : 0;
+            // A charm is worked at the highest tier the Enchanting level reaches.
+            const int tier = e->Tiered() ? e->TierFor(p.skills.Level(SKILL_ENCHANTING)) : 0;
             const ItemDef* was = items.Get(piece);
             const string plain = was && !was->base_item.empty() ? was->base_item : piece;
             if (::Enchanting::Work(items, *e, p.inventory, slot, why, tier)) {
-                p.GrantXp(SKILL_MAGIC, e->XpAt(tier));
-                const ItemDef* made = items.Get(e->Tiered() ? items.EnchantedId(plain, e->id + "_" + std::to_string(tier))
-                                                            : items.EnchantedId(piece, e->id));
+                p.GrantXp(SKILL_ENCHANTING, e->XpAt(tier));
+                const ItemDef* made = items.Get(items.TwinId(plain, *e, tier));
                 PushToast("Enchanted: " + (made ? made->name : piece) + ".", Palette::Xp);
                 Audio::Play(Sfx::SpellCast);
                 quests->RefreshCollectObjectives(p.inventory);
@@ -335,10 +334,10 @@ void Game::DrawEnchanting() {
             Palette::Highlight, Align::Center);
 
     const Player& p = world->player;
-    ui.Text("Magic " + std::to_string(p.skills.Level(SKILL_MAGIC)),
+    ui.Text("Enchanting " + std::to_string(p.skills.Level(SKILL_ENCHANTING)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
-    ui.Text("A charm worked into a worn piece or a weapon, for Magic. Each is learned first.",
+    ui.Text("A charm worked into a worn piece or a weapon. Each is learned first; its tiers come with levels.",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 
@@ -364,13 +363,13 @@ void Game::DrawEnchanting() {
                                list_w, row_h - 4.0f};
         const bool selected = (i == enchant_cursor);
         const bool known = world->KnowsEnchantment(e->id);
-        const bool unlocked = known && p.skills.Level(SKILL_MAGIC) >= e->level;
+        const bool unlocked = known && p.skills.Level(SKILL_ENCHANTING) >= e->level;
         if (selected) {
             ui.Fill(row, {58, 46, 28, 210});
             ui.Outline(row, Palette::Highlight, 1.0f);
         }
-        // A weapon's charm shows the tier the Magic level reaches.
-        const int reach = e->Tiered() ? e->TierFor(p.skills.Level(SKILL_MAGIC)) : 0;
+        // A charm shows the tier the Enchanting level reaches.
+        const int reach = e->Tiered() ? e->TierFor(p.skills.Level(SKILL_ENCHANTING)) : 0;
         ui.Text(known ? e->NameAt(reach) : string("Unknown enchantment"), row.x + 10.0f, row.y + 5.0f,
                 TextSize::Small,
                 !unlocked ? SDL_Color{120, 110, 100, 255}
@@ -386,10 +385,10 @@ void Game::DrawEnchanting() {
     const float dw = panel.w - list_w - 64.0f;
     float y = panel.y + 62.0f;
     const bool known = world->KnowsEnchantment(e->id);
-    // A weapon's charm is shown at the tier the Magic level reaches, or its
-    // first while it reaches none.
-    const int magic = p.skills.Level(SKILL_MAGIC);
-    const int reach = e->Tiered() ? e->TierFor(magic) : 0;
+    // A charm is shown at the tier the Enchanting level reaches, or its first
+    // while it reaches none.
+    const int level = p.skills.Level(SKILL_ENCHANTING);
+    const int reach = e->Tiered() ? e->TierFor(level) : 0;
     const int shown = e->Tiered() ? std::max(1, reach) : 0;
 
     ui.Text(known ? e->NameAt(shown) : string("Unknown enchantment"), dx, y, TextSize::Body, Palette::Highlight);
@@ -402,8 +401,8 @@ void Game::DrawEnchanting() {
         y += ui.TextWrapped(does, dx, y, dw, TextSize::Small, Palette::TextDim) + 8.0f;
     if (e->Tiered()) {
         string tiers = "Tier " + string(RomanNumeral(shown)) + " of " + string(RomanNumeral(e->TierCount()));
-        if (shown < e->TierCount()) tiers += "; the next at Magic " + std::to_string(e->LevelAt(reach < 1 ? 1 : shown + 1));
-        if (reach < 1) tiers = "Opens at Magic " + std::to_string(e->LevelAt(1));
+        if (shown < e->TierCount()) tiers += "; the next at Enchanting " + std::to_string(e->LevelAt(reach < 1 ? 1 : shown + 1));
+        if (reach < 1) tiers = "Opens at Enchanting " + std::to_string(e->LevelAt(1));
         ui.Text(tiers, dx, y, TextSize::Small, Palette::Text);
         y += 20.0f;
     }
@@ -430,7 +429,7 @@ void Game::DrawEnchanting() {
         y += 18.0f;
     }
     y += 10.0f;
-    ui.Text(std::to_string(e->XpAt(shown)) + " Magic XP", dx, y, TextSize::Small, Palette::TextDim);
+    ui.Text(std::to_string(e->XpAt(shown)) + " Enchanting XP", dx, y, TextSize::Small, Palette::TextDim);
     y += 26.0f;
 
     const vector<int> targets = ::Enchanting::Targets(items, *e, p.inventory);
@@ -454,7 +453,7 @@ void Game::DrawEnchanting() {
                 SDL_RenderTexture(renderer, tex, nullptr, &ic);
             }
         ui.Text(line, dx + 28.0f, y, TextSize::Small, Palette::Xp);
-        // A weapon that carries a charm already: raised, or swapped.
+        // A piece that carries a charm already: raised, or swapped.
         if (d && e->Tiered() && !d->enchant.empty()) {
             const EnchantDef* has = items.Enchantment(d->enchant);
             const string was = has ? has->NameAt(d->enchant_tier) : d->enchant;

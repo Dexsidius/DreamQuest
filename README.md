@@ -1729,26 +1729,41 @@ character is never told about a resource they do not spend.
 
 ## Skills
 
-Fourteen skills on the Old School RuneScape XP curve — the real one, so level 92 is
+Seventeen skills on the Old School RuneScape XP curve — the real one, so level 92 is
 half the experience of 99, and the self-test checks the table against known
-values.
+values. They are kept in four categories, which is how the Skills page shows
+them (see [The Skills page](#the-skills-page)):
 
-| Skill | Trained by |
-| --- | --- |
-| Attack | Landing light attacks |
-| Strength | Landing strong and charged attacks |
-| Defence | Taking hits |
-| Hitpoints | All damage dealt |
-| Woodcutting | Chopping trees, with an axe |
-| Mining | Working ore seams, with a pickaxe: the foothills and the Mire, the mines and barrow, and the dreamworld |
-| Fishing | Fishing the Fernhollow pond, the Whisperwood stream and the Hollowmarch lake, with a rod |
-| Cooking | Using a fire with something raw in your pack |
-| Crafting | Workbenches in Havenbrook and Mossvale: wood, leather and thread |
-| Smithing | Smelting and smithing at the anvils in Halda's forge and Mossvale |
-| Foraging | Picking herbs and plants, by hand; see [Foraging](#foraging) |
-| Brewing | Brewing potions at a cauldron; see [Brewing](#brewing) |
-| Ranged | Landing arrows with a bow equipped |
-| Magic | Landing spells with a staff equipped -- [a wall teaches nothing](#a-wall-teaches-nothing) |
+| Category | Skill | Trained by |
+| --- | --- | --- |
+| **Forging** | Smithing | Smelting and smithing at the anvils in Halda's forge and Mossvale |
+| | Tanning | Tanning racks: hide armour, boots, bags and bedrolls; Nessa's order book |
+| | Clothier | Looms: cloth from any fibre, and the robes; Wynn's order book |
+| | Crafting | Workbenches in Havenbrook and Mossvale: wood and bows |
+| **Combat** | Hitpoints | All damage dealt |
+| | Ranged | Landing arrows with a bow equipped |
+| | Magic | Landing spells with a staff equipped -- [a wall teaches nothing](#a-wall-teaches-nothing) |
+| | Attack | Landing light attacks |
+| | Strength | Landing strong and charged attacks |
+| | Defence | Taking hits |
+| **Gathering** | Woodcutting | Chopping trees, with an axe |
+| | Fishing | Fishing the Fernhollow pond, the Whisperwood stream and the Hollowmarch lake, with a rod |
+| | Foraging | Picking herbs and plants, by hand; see [Foraging](#foraging) |
+| | Mining | Working ore seams, with a pickaxe: the foothills and the Mire, the mines and barrow, and the dreamworld |
+| | Cooking | Using a fire with something raw in your pack |
+| **Witchcraft** | Brewing | Brewing potions at a cauldron; see [Brewing](#brewing) |
+| | Enchanting | Working charms into pieces at an enchanting table; see [Enchanting](#enchanting) |
+
+**Tanning, the Clothier and Enchanting are new.** The tanning rack and the loom
+used to train Crafting, with the workbench, and the enchanting table used to
+ask for Magic and pay into it. Each is a skill of its own now, and Nessa's and
+Wynn's order books ask for and pay into the rack's and the loom's. A save from
+before starts each where the skill it came out of stood -- Tanning and the
+Clothier at its Crafting level, Enchanting at its Magic -- so nothing it could
+already make is taken away (`Skills::FromJson`, as Smithing was split from
+Crafting before them). The new skills are numbered after all the others, so
+every skill keeps the number a guest's experience drop names it by; that, and
+an older guest not knowing the new numbers, is protocol 17.
 
 Combat level uses the OSRS formula across the melee/ranged/magic triangle.
 
@@ -1836,10 +1851,40 @@ a band of the old average.
 The code is `RollMonsterBlow`, `MonsterThrough` and `MonsterMinimum` in
 `src/systems/combat.h`.
 
+### The Skills page
+
+**Four cards, and a modal.** The page is the four categories, two by two:
+Forging, Combat, Gathering and Witchcraft, each a card with its colour across
+the top, a thing from the bag for an emblem (a bar, a sword, a pickaxe, a
+potion), the total of its levels, and every skill in it with its level and a
+thread of a bar under it. The cards rise into place one after another as the
+page comes up, and the chosen one stands a little proud with its border
+breathing gold. The arrow keys (or the stick) step between them; confirm opens
+one.
+
+**Opening a category grows a modal out of its card.** The card's frame swells
+to fill the middle of the panel, overshooting a touch and settling, while the
+rest of the page darkens behind it; once there is room, what is inside fades up
+-- the category's skills down the left, each with its level, the bar to the
+next level and the experience still owed, the bars running up one after
+another; and down the right, what the selected skill opens (below). Where a
+category is short enough to leave room -- Forging's four, Witchcraft's two --
+the selected skill is told at length under the rows: its level, its experience,
+how it is trained, and the next thing it opens. Each card says in a line along
+its foot what the category is for. The modal opens on the skill last looked at
+in that category. Back shrinks it into its card again,
+and a second Back closes the panel. `SkillCategoryOf`, `CategorySkills` and
+`CategoryName` in `src/systems/skills.h` say what is where;
+`Game::DrawSkillCards` and `Game::DrawSkillModal` draw it, and
+`Game::SkillModalOpenness` is how far through opening or shutting it is.
+
+`--screen skills:magic` opens the page with Magic's category open on it, and
+`--screen skills:gathering` a category on its first skill.
+
 ### What a level is for
 
-Beside the level list, a second column: **everything the selected skill opens,
-and the level it opens at.** Walk into it with right (left comes back), walk
+Beside the category's skills, a second column: **everything the selected skill
+opens, and the level it opens at.** Walk into it with right (left comes back), walk
 down it with up and down, and the line under it says what the thing the cursor
 is on still costs -- `Magic 47 -- 37903 xp to go`. It opens on the first
 milestone not yet reached, because what is already had is behind you.
@@ -1853,7 +1898,8 @@ day and cannot be forgotten:
 | the character's own tree | `30 Ground Slam`, `47 Riposte (2 ranks)` |
 | what a piece asks to be held or worn | `40 Damascus bows and hides` |
 | what a station asks to make it | `40 Smith Damascus gear`, `24 Cook Traveller's Pie` |
-| a spell, and an enchantment | `40 Mana Shield`, `50 Work Wind into a piece` |
+| a spell | `40 Mana Shield` |
+| every tier of every charm | `4 Work Warding into a piece`, `25 Warding II: Defence +10` |
 | an ore seam, a fish, a herb | `40 Mine Damascus Ore`, `45 Catch Raw Salmon` |
 | the chance of a second and a third fish | `40 Two fish in a cast, 20% of the time` |
 
@@ -1867,12 +1913,10 @@ complete. A tier's seven pieces all ask the same level, so they are one line
 shield comes after a wooden bow -- so each noun is said once, at the lowest
 level it is true at, instead of four near-identical lines running. And the
 enchanted twin of every piece is skipped: it asks nothing the piece did not,
-and there are about eight thousand four hundred of them.
+and there are about ten thousand of them.
 
 **Strength and Hitpoints open nothing.** They are the two that pay at every
 level rather than at a few of them, and the column says so.
-
-`--screen skills:magic` opens the page on a given skill, for looking at it.
 
 ### Skill trees
 
@@ -2907,59 +2951,82 @@ on a friend -- honours a friend's ward, and a save keeps it.
 
 ### Enchanting
 
-**Enchanting** works a charm into a piece at an **enchanting table**, for
-Magic. There is one by Mira's stones in Fernhollow and one by the candles in
-the Reverie. There are two kinds of charm: eight for what is **worn** -- a
-ring, an amulet, boots, a piece of armour -- each with one strength, and twelve
-for a **weapon**, each in tiers that climb with Magic.
+**Enchanting** works a charm into a piece at an **enchanting table**. It is a
+skill of its own, in the Witchcraft category beside Brewing: the table asks for
+an Enchanting level, and working a charm pays Enchanting. (It used to ask for
+Magic and pay into it; a save from before starts its Enchanting at its Magic
+level, and nothing opens later than it used to, so it keeps every charm it
+could work.) There is a table by Mira's stones in Fernhollow and one by the
+candles in the Reverie. There are two kinds of charm: eight for what is
+**worn** -- a ring, an amulet, boots, a piece of armour -- and twelve for a
+**weapon**. **Every charm comes in tiers** -- a worn piece's I to V, a weapon's
+I to VI -- each stronger and dearer than the last, and they are spread so that
+**an upgrade opens every level or two**, from Enchanting 1 to 99: 111 of them
+across 81 levels, never more than three at once and never more than two levels
+apart. The Enchanting page on the Skills panel lists every one.
 
 A charm has to be **learned** first, like a brew. The table lists every charm,
 but one not yet learned shows as "Unknown enchantment" and says where to learn
 it. Mira teaches the first -- ask her "Could you teach me the shrine's craft?"
 -- and the rest are **charm scrolls**, read from the pack, sold by traders
-around the world. Learned charms are saved as world flags
+around the world. A charm is learned **once**, and every tier comes with it:
+there is nothing more to learn for tier V than for tier I. The table works
+**the highest tier your Enchanting reaches** -- at Enchanting 50 it offers
+Warding III, not Warding I. Learned charms are saved as world flags
 (`recipe:enchant:<id>`); a charm scroll's `learn` reads `"enchant:<id>"`, and
 a dialogue line teaches one the same way.
 
 #### On a worn piece
 
-| Charm | Magic | Fits | Does | Costs | Scroll from |
+| Charm | Enchanting, tier I to V | Fits | Does, tier I to V | Tier I costs | Scroll from |
 | --- | --- | --- | --- | --- | --- |
-| Swiftness | 5 | boots | walk an eighth quicker | 1 dream shard, 2 brookmint | Mira teaches it |
-| Warding | 10 | helm, body, gloves, legs, boots | Defence +8 | 1 dream shard, 2 nettle | Oona |
-| Keenness | 15 | ring, amulet | Attack +8 | 2 dream shards, glowcap | Tobin's General Store |
-| Might | 20 | ring, amulet, gloves | Strength +8 | 2 dream shards, 2 nettle | Garrow's Smithy |
-| Hawk's Eye | 25 | amulet, gloves, helm | Ranged +10 | 2 dream shards, 2 glowcap | Ivo's Bows and Hides |
-| Insight | 30 | ring, amulet, helm | Magic +10 | 3 dream shards, moonpetal | the Night Pedlar |
-| Fortitude | 40 | body, legs, shield | Defence +14 | 3 dream shards, 2 mountain sage | the Collector |
-| Wind | 50 | boots | walk a fifth quicker | 4 dream shards, starlily | the Collector, after Lights on the Pond |
+| Swiftness | 1 / 22 / 43 / 64 / 86 | boots | walk 12½ / 14 / 15½ / 17 / 18½% quicker | 1 dream shard, 2 brookmint | Mira teaches it |
+| Warding | 4 / 25 / 46 / 67 / 88 | helm, body, gloves, legs, boots | Defence +8 / 10 / 12 / 14 / 16 | 1 dream shard, 2 nettle | Oona |
+| Keenness | 6 / 27 / 48 / 69 / 90 | ring, amulet | Attack +8 / 10 / 12 / 14 / 16 | 2 dream shards, glowcap | Tobin's General Store |
+| Might | 8 / 29 / 50 / 71 / 92 | ring, amulet, gloves | Strength +8 / 10 / 12 / 14 / 16 | 2 dream shards, 2 nettle | Garrow's Smithy |
+| Hawk's Eye | 14 / 34 / 54 / 74 / 94 | amulet, gloves, helm | Ranged +10 / 13 / 16 / 19 / 22 | 2 dream shards, 2 glowcap | Ivo's Bows and Hides |
+| Insight | 18 / 37 / 57 / 76 / 96 | ring, amulet, helm | Magic +10 / 13 / 16 / 19 / 22 | 3 dream shards, moonpetal | the Night Pedlar |
+| Fortitude | 30 / 47 / 64 / 81 / 98 | body, legs, shield | Defence +14 / 17 / 20 / 23 / 26 | 3 dream shards, 2 mountain sage | the Collector |
+| Wind | 42 / 56 / 70 / 84 / 99 | boots | walk 20 / 21½ / 23 / 24½ / 26% quicker | 4 dream shards, starlily | the Collector, after Lights on the Pond |
 
-Every charm costs shards of dream, mined from the crystals in the Reverie, and
-a herb, so Magic, Foraging and the nights spent asleep climb together. At the
-table, up and down pick the charm, left and right pick which piece in the bag
-it goes into (a bag can hold three rings), and use works it: the materials and
-the piece go, the enchanted piece comes back in the same slot, and Magic is
-paid. A worn piece takes one charm and no more -- one already enchanted is not
-enchanted again -- and a lantern, worn in the shield hand, takes none.
+Tier I is the charm as it was when it had only the one strength, at or below
+the level it used to ask, and costs what it did; the tiers above it cost more
+shards and a rarer herb the higher they open. Every charm costs shards of
+dream, mined from the crystals in the Reverie, and a herb, so Enchanting,
+Foraging and the nights spent asleep climb together. At the table, up and down
+pick the charm, left and right pick which piece in the bag it goes into (a bag
+can hold three rings), and use works it: the materials and the piece go, the
+enchanted piece comes back in the same slot, and Enchanting is paid. A lantern,
+worn in the shield hand, takes none.
 
 #### On a weapon
 
-Each of the twelve weapon charms is learned **once**, from one scroll --
-"Charm: Precision", "Charm: Brand of Embers", worth 220 and one to a shop --
-and every tier comes with it: there is nothing more to learn for tier VI than
-for tier I. The tiers open at Magic 10, 25, 40, 55, 70 and 85 (Multishot has
-five, I to V), and the table works **the highest tier your Magic reaches**: at
-Magic 60 it offers Precision IV, not Precision I. Each tier is dearer than the
-last, and every charm asks the same at the same tier:
+Each of the twelve weapon charms is a scroll of its own -- "Charm: Precision",
+"Charm: Brand of Embers", worth 220 and one to a shop. Their tiers open inside
+the fifteen levels up to where they used to open (Enchanting 10, 25, 40, 55,
+70 and 85), one charm after another, so a new one opens nearly every level
+through the eighties (Multishot has five, I to V):
 
-| Tier | Magic | Costs | Pays | Adds to the weapon's worth |
-| --- | --- | --- | --- | --- |
-| I | 10 | 1 dream shard, 2 nettle | 200 Magic XP | 300 |
-| II | 25 | 2 dream shards, 2 bogbean | 380 | 500 |
-| III | 40 | 3 dream shards, 2 glowcap | 560 | 800 |
-| IV | 55 | 5 dream shards, 2 emberbloom | 780 | 1,200 |
-| V | 70 | 7 dream shards, 2 moonpetal | 1,050 | 1,800 |
-| VI | 85 | 10 dream shards, 2 starlily | 1,400 | 2,600 |
+| Charm | Enchanting, tier I to VI |
+| --- | --- |
+| Precision | 2 / 11 / 26 / 41 / 56 / 71 |
+| Ferocity | 3 / 12 / 27 / 42 / 57 / 72 |
+| Vampiric | 3 / 14 / 29 / 44 / 59 / 74 |
+| Affliction | 4 / 15 / 30 / 45 / 60 / 75 |
+| Brand of Bleeding | 5 / 16 / 31 / 46 / 61 / 76 |
+| Brand of Venom | 6 / 17 / 32 / 47 / 62 / 77 |
+| Brand of Frost | 6 / 19 / 34 / 49 / 64 / 79 |
+| Brand of Embers | 7 / 20 / 35 / 50 / 65 / 80 |
+| Sorcery | 8 / 21 / 36 / 51 / 66 / 81 |
+| Thrift | 9 / 22 / 37 / 52 / 67 / 82 |
+| Multishot | 9 / 24 / 39 / 54 / 69 |
+| Quickdraw | 10 / 25 / 40 / 55 / 70 / 85 |
+
+Every weapon charm asks the same materials at the same tier -- 1 dream shard
+and 2 nettle for I, then 2 and bogbean, 3 and glowcap, 5 and emberbloom, 7 and
+moonpetal, 10 and starlily -- and pays Enchanting and adds to the weapon's worth
+by the level it opens at (200 experience and 300 worth about level 10, 1,400
+and 2,600 about level 85).
 
 A charm is taken by what a weapon **does**, not by what it is called
 (`ItemDatabase::Takes`), so a weapon added tomorrow is sorted without a line
@@ -2980,10 +3047,10 @@ of code:
 | Brand of Embers | the same chances, of a burn | the same | Garrow's Smithy |
 | Thrift | spells cost 5 / 10 / 15 / 20 / 25 / 30% less mana | staffs, wands, grimoires, orbs | Oona's Remedies, Mossvale |
 
-**A weapon carries one charm.** Working a higher tier of the charm it has
-**raises it in place** -- for the new tier's shards and herbs, not the
-difference -- and working a different charm **replaces** the one it had, which
-is gone. The panel says which: "Raises Multishot II to IV", "Replaces
+**A piece carries one charm**, worn or wielded. Working a higher tier of the
+charm it has **raises it in place** -- for the new tier's shards and herbs, not
+the difference -- and working a different charm **replaces** the one it had,
+which is gone. The panel says which: "Raises Multishot II to IV", "Replaces
 Ferocity II". A tier it already carries, or a lower one, is refused. Only the
 charm on the weapon in the **main hand** counts: a second dagger in the other
 hand brings its speed and not its charm, as it brings its speed and not its
@@ -3004,16 +3071,18 @@ extras is a sure crit, not even after Take Aim: the certainty is the arrow that
 was aimed.
 
 **An enchanted piece is an item like any other.** The game builds, at load, an
-enchanted twin of every piece each charm fits -- `copper_ring+keenness`, the
-Copper Ring of Keenness -- with the piece's bonuses plus the charm's, the
-piece's picture, tint and armour layer, and both their worths added, so it is
-carried, worn, sold, stored and saved by its id and nothing else in the game
-had to learn what an enchantment was. A weapon's charm makes a twin for every
-tier of it on every weapon it fits -- `iron_bow+multishot_3`, the Iron Bow of
-Multishot III, named `"<weapon>+<charm>_<tier>"` -- and the worn pieces' eight
-and the weapons' twelve come to about 8,400 enchanted pieces between them (the
-log says how many as the game loads: the optional equipment pack adds its
-own); none is a recipe and no shop sells one ready made. Every id stays under
+enchanted twin of every piece for every tier of every charm it fits -- the
+Copper Ring of Keenness I to V, the Iron Bow of Multishot I to V -- with the
+piece's bonuses plus the charm's at that tier, the piece's picture, tint and
+armour layer, and both their worths added, so it is carried, worn, sold,
+stored and saved by its id and nothing else in the game had to learn what an
+enchantment was. The ids are `"<piece>+<charm>_<tier>"` -- `iron_bow+multishot_3`,
+`copper_ring+keenness_4` -- except a worn piece's first tier, which keeps the id
+it had when it was that charm's only one (`copper_ring+keenness`), so a ring
+enchanted in a save from then is still the ring it was. The worn pieces' eight
+and the weapons' twelve come to about ten thousand enchanted pieces between
+them (the log says how many as the game loads: the optional equipment pack
+adds its own); none is a recipe and no shop sells one ready made. Every id stays under
 the 48 characters the wire allows one, and **co-op needs nothing new**: an
 enchanted weapon goes between machines as an item id like any other.
 
@@ -3026,12 +3095,16 @@ are **new fields** on `ItemDef`, read where a blow or a shot is worked out:
 (Ferocity) in `World::HitEnemy`, and `extra_shots` (Multishot) in
 `FirePlayerProjectile`.
 
-The charms are `data/enchantments.json`: a worn piece's has its `slots` and one
-strength, a weapon's an `"effect"`, what `"takes"` it, what the table says it
-`"fits"`, and `"tiers"` -- `amount`, `level`, `xp`, `value` and `inputs` for
-each -- and a Brand names the status it leaves in `"brand"`. See
-`ItemDatabase::LoadEnchantments`, `EnchantDef::TierFor`, `NameAt` and
-`EffectAt`, and `Enchanting::Work(..., tier)`. The table is `enchanting_table`
+The charms are `data/enchantments.json`: every charm has `"tiers"` -- `level`,
+`xp`, `value` and `inputs` for each -- and a worn piece's has its `slots` and,
+at each tier, the `bonus` or `move_speed` it adds; a weapon's has an
+`"effect"`, what `"takes"` it, what the table says it `"fits"`, and an `amount`
+at each tier, and a Brand names the status it leaves in `"brand"`. The levels
+were laid out by a script that kept every tier at or below where it used to
+open and filled the gaps; the self-test holds the result to it -- every level
+or two, nothing later than it was, every tier stronger and dearer than the
+last. See `ItemDatabase::LoadEnchantments`, `ItemDatabase::TwinId`,
+`EnchantDef::TierFor`, `NameAt` and `EffectAt`, and `Enchanting::Work(..., tier)`. The table is `enchanting_table`
 in `tools/blender_props.py`, an object of type `altar` in the maps; the charm
 scroll and the hide boots are drawn beside the potions in
 `tools/blender_tiers.py`.
@@ -3083,19 +3156,20 @@ is made, not something that is found.** Three are posted a day out of a pool of
 fourteen, and an order asking more of the crafter than they can do is passed
 over for one they can, so the book always has work in it:
 
-| Crafting | The order | What it is |
+| Tanning | The order | What it is |
 | --- | --- | --- |
 | 1 | Rawhide Coifs, Bedrolls for the Gate, Bedrolls | the first things anybody makes |
 | 3-4 | Bolts of Cloth, Rawhide Jerkins, Hide Boots, Wolfskin Jerkins | |
 | 8-12 | Leather Jerkins, Boiled Chaps, Hide Satchels | |
 | 20-46 | Scaled Coifs, Wolfskin Packs, Banded Jerkins, Bearskin Rucksacks | the bags, and the upper hide sets |
 
-What an order asks for in Crafting is the recipe's own level, worked out from
+What an order asks for in Tanning (it was Crafting, before the rack had a
+skill of its own) is the recipe's own level, worked out from
 the recipe rather than written down twice, and the self-test holds every one of
 them to it -- an order for something nobody can make is an order nobody can
 fill. It also holds each to the older rule that a repeatable order must pay
 **less in coin than buying the same goods would cost**, or an order book is a
-way to turn coins into coins; so the coin is modest and the Crafting XP is the
+way to turn coins into coins; so the coin is modest and the Tanning XP is the
 reward. Nothing she sells is anything she orders, for the same reason.
 
 ### Wynn's, at Mossvale
@@ -3117,14 +3191,14 @@ the front of the shop in a robe, a gown and a travelling cloak -- and **her
 loom and her wheel**, which are the point. A board where the stall was says
 where she has gone. She buys flax, fleece and silk. Her **order book**
 works the way Nessa's does, three a day out of nine, and asks for what a mage
-wears: bolts of cloth at Crafting 3, homespun hats and robes at 1 and 4, novice
+wears: bolts of cloth at Clothier 3, homespun hats and robes at 1 and 4, novice
 skirts and robes, apprentice's hats and robes at 10, a journeyman's robe at 20,
 an adept's at 30.
 
 Between the two of them every piece of soft armour in the game now has somebody
 who wants it: hides and bags at Havenbrook, hats, robes and skirts at Mossvale,
 and the cloth for both. Cloth itself has a third source now -- **a fleece off
-Havenbrook's farm spins into two bolts** (Crafting 6), beside flax at 3 and
+Havenbrook's farm spins into two bolts** (Clothier 6), beside flax at 3 and
 spider silk at 8 -- so a town can keep the loom going without walking to the
 riverbank.
 
@@ -3142,8 +3216,9 @@ has the only one in the Hollowmarch:
 | Cauldron | Brewing | Potions, and the robes' dyes |
 | Cooking fire | Cooking | Plain food, and the dishes |
 
-The loom and the bench both train Crafting, because both are the same trade:
-Nessa's order book and Wynn's pay into the same number. What separates them is
+The loom and the bench both trained Crafting then, as one trade, and Nessa's
+order book and Wynn's paid into the same number. (The loom trains the Clothier
+now, and the rack Tanning: see [Skills](#skills).) What separates them is
 what they make, and that is decided by **what comes off the recipe, not what
 goes into it** -- if the result is tagged `cloth` it is woven, and everything
 else falls through to the older rules. That one line is what carries the whole
@@ -3173,8 +3248,8 @@ indoors.)
 | Station | Trains | What is made there |
 | --- | --- | --- |
 | Workbench | Crafting | Wood: the wooden tier, bows, the fishing rod, the dreamcatcher |
-| **Tanning rack** | **Crafting** | **Everything of leather: all 60 pieces of the ranger's hides, the Leather Jerkin, Hide Boots, the four bags, the bedroll** |
-| Loom | Crafting | Cloth from any fibre, and all 60 pieces of the mage's sets |
+| **Tanning rack** | **Tanning** | **Everything of leather: all 60 pieces of the ranger's hides, the Leather Jerkin, Hide Boots, the four bags, the bedroll** |
+| Loom | Clothier | Cloth from any fibre, and all 60 pieces of the mage's sets |
 | Anvil | Smithing | Anything with metal in it |
 | Cauldron | Brewing | Potions, and the robes' dyes |
 | Cooking fire | Cooking | Plain food, and the dishes |
@@ -3200,9 +3275,11 @@ cannot be filled in its own yard is the thing the loom was built to stop. The
 self-test holds her book to it: every order in it is made on her frames. If the
 bags belong back at the bench it is one tag on five items.
 
-Three stations, one skill: the rack, the loom and the bench all train Crafting,
-because all three are the same trade. Orla, Nessa and Halda say where hide is
-cut now, where they used to say "any workbench".
+The rack, the loom and the bench were three stations and one skill, all
+training Crafting, until Tanning and the Clothier were made skills of their own
+(see [Skills](#skills)): the rack trains Tanning, the loom the Clothier, and the
+bench is Crafting's alone. Orla, Nessa and Halda say where hide is cut now,
+where they used to say "any workbench".
 
 ### Things that were quietly broken
 
@@ -6937,16 +7014,24 @@ and checks all of it — currently **61823 checks** covering:
   and the Drowned King's boots keep their own stride
 - enchanting: eight worn charms listed cheapest first that between them cover
   rings, amulets, boots and armour, and never a weapon; every one but the first is a
-  scroll someone sells and Mira teaches the first once; the Copper Ring of
-  Keenness is the ring's bonuses plus the charm's and worth both, takes no
-  second charm, and is drawn as the ring; a shield takes Fortitude and a lantern
-  does not; every enchanted twin is neither recipe nor scroll; working a charm
-  takes the materials and the piece and gives the enchanted piece back, and
-  refuses without them; a worn charm counts and survives a save; and standing
-  at the table by Mira's stones offers it and opens the panel
+  scroll someone sells and Mira teaches the first once; every charm has tiers --
+  the worn pieces' five, the weapons' six -- and from Enchanting 1 to 99 an
+  upgrade opens every level or two, nothing later than it did when the table
+  asked Magic, each tier later, stronger, dearer and better paid than the one
+  before; the Copper Ring of Keenness I keeps the id it had and is the ring's
+  bonuses plus the charm's and worth both, can be raised or given another charm,
+  and is drawn as the ring, and its fifth tier is a ring of its own; Warding III
+  on an iron helm is twelve more Defence and says so; a shield takes Fortitude
+  and a lantern does not; every enchanted twin is neither recipe nor scroll and
+  has the id its tier should; working a charm takes the materials and the piece
+  and gives the enchanted piece back, refuses a tier the piece has, refuses
+  without the materials, and raises Keenness I to II in place for II's price; a
+  worn charm counts and survives a save; and standing at the table by Mira's
+  stones offers it and opens the panel
 - a weapon's charm: twelve, each with the tiers asked for (Affliction +5..20%,
   Precision +3..24%, Sorcery +5..15%, Quickdraw -10..60%, Multishot +1..+5), each
-  tier opened at Magic 10, 25, 40, 55, 70 and 85 and dearer than the last; which
+  tier opened within the fifteen Enchanting levels up to 10, 25, 40, 55, 70 and
+  85 and dearer than the last, and an Enchanting level reaching each; which
   weapons take which (a sword Affliction but no Brand, a spear a Brand but no
   Affliction, knives no Multishot); every twin's id fits the wire; a charm
   worked, raised in place, never lowered, and replaced by another; and in play:
@@ -7139,7 +7224,12 @@ and checks all of it — currently **61823 checks** covering:
   back and the camp remembered
 - Smithing, Foraging and Brewing: workbench, anvil and cauldron train Crafting,
   Smithing and Brewing; every bar and metal piece is smithed at exactly its
-  tier's level; an old save's Smithing starts at its Crafting; every herb has its
+  tier's level; an old save's Smithing starts at its Crafting; Tanning, the
+  Clothier and Enchanting are skills numbered after the rest, an old save's
+  Tanning and Clothier start at its Crafting and its Enchanting at its Magic, a
+  new save's are its own, and they survive a save; the four categories hold what
+  was asked -- Forging, Combat, Gathering with Cooking in it, and Witchcraft --
+  and every skill is in exactly one; every herb has its
   own level, world art growing and picked, and grows in at least a dozen places;
   on the overworld every herb stands on its own ground and has a thick patch;
   moonpetal and starlily grow only in the Reverie and glowcaps mostly in the
@@ -7413,11 +7503,11 @@ and checks all of it — currently **61823 checks** covering:
   profile while saying Combat 73; every advised area is within a dozen levels of
   the middle of what lives there, and the Hollowmarch is mostly things a new
   character can fight
-- a tannery, and a way to train Crafting: Nessa keeps a yard in Havenbrook with
+- a tannery, and a way to train Tanning: Nessa keeps a yard in Havenbrook with
   a bench in it and a shop; her book holds a dozen orders, each a daily delivery
-  to her of something that can be made at a workbench, asking the Crafting its
-  own recipe asks and paying in Crafting; there is work in it at Crafting 1 and
-  work at 46; three are posted a day, the beginner is posted three they can do
+  to her of something that can be made on her frames, asking the Tanning its
+  own recipe asks and paying in Tanning, not Crafting; there is work in it at
+  Tanning 1 and work at 46; three are posted a day, the beginner is posted three they can do
   and the master three others; and she will show the book, the shelf, take an
   order in and say how the trade is learned
 - cooking, and what a dish is worth: the fire has a menu with every raw thing
@@ -7431,8 +7521,8 @@ and checks all of it — currently **61823 checks** covering:
   dish is worth eating at full health and plain food is not
 - a clothier, a farm, and frogs in the mire: Wynn keeps a shed in Mossvale with
   her loom and a shop that buys cloth and what cloth is made of; her book holds
-  nine orders for robes, hats, skirts and cloth, each asking the Crafting its
-  own recipe asks and paying in Crafting, from the first bolt to the upper sets,
+  nine orders for robes, hats, skirts and cloth, each asking the Clothier level
+  its own recipe asks and paying the Clothier, from the first bolt to the upper sets,
   and none of them is the ranger's; Havenbrook is wider than it was and its pens
   hold hens, ewes, pigs and cows, none of which comes for anybody, each worth a
   supper, a fleece or a hide, with a farmer in the yard; a fleece spins into
@@ -7447,8 +7537,8 @@ and checks all of it — currently **61823 checks** covering:
   a Barkwood Helm has a hide in it and is still made at a bench; both tanners
   have frames to work at, no carpenter's bench, and no frame that is only
   scenery; every order in Nessa's book is made on her own frames; the rack
-  trains Crafting, a map that says "rack" gets one, and it is drawn as one;
-  the loom trains Crafting the way the bench does; a map that says "loom" gets
+  trains Tanning, a map that says "rack" gets one, and it is drawn as one;
+  the loom trains the Clothier; a map that says "loom" gets
   one, it is drawn as one, and there is one standing in the world
 - what each blow trains, and other things that were quietly broken: Attack
   moves whether a blow lands and nothing else, Strength the top of the damage
