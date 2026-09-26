@@ -172,6 +172,9 @@ struct Projectile {
     // Loosed as a combo (a Split Shot, a Surge...): where it strikes is marked
     // for it (World::ComboShotHitFx). The host's alone: never on the wire.
     ComboMove combo = ComboMove::None;
+    // Loosed by a technique, the same way (World::TechniqueShotHitFx): 1 a
+    // Piercing Shot, 2 a Volley's, 3 a Nova's, 4 a Barrage's; 0 none.
+    uint8_t technique_fx = 0;
     // Thrown for practice, at a training dummy: it flies `show_left` pixels,
     // bursts there, and on the way touches nobody -- not a monster, not a
     // player who walks through the line of it -- and leaves nothing burning.

@@ -1665,6 +1665,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         }
     }
 
+    // What an ability leaves running, round whoever has it: see DrawAuras.
+    DrawAuras(r);
+
     // A dome of mana over anyone holding the shield up: see Player::ManaShield.
     // Translucent, so what it covers is still read through it -- the point of it
     // is to say the shield is up, not to hide the fight.

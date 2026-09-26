@@ -56,6 +56,7 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     // and it is the host that put the charge in it.
     s.battery = static_cast<uint8_t>(std::clamp(p.Battery(), 0.0f, 1.0f) * 255.0f + 0.5f);
     s.statuses = p.statuses.Bits();
+    s.buffs = p.Buffs();
     s.charm_x = static_cast<int16_t>(std::clamp(std::lround(p.charm_x), -32768L, 32767L));
     s.charm_y = static_cast<int16_t>(std::clamp(std::lround(p.charm_y), -32768L, 32767L));
     return s;
@@ -149,7 +150,7 @@ bool FromMark(const net::Delta::Mark& m, World::StrikeNote& n) {
     if (m.kind > World::StrikeNote::BURST) return false;
     n.kind = static_cast<World::StrikeNote::Kind>(m.kind);
     if (n.kind == World::StrikeNote::MARK) {
-        if (m.shape < Shaders::SHAPE_SLASH || m.shape > Shaders::SHAPE_CIRCLE) return false;
+        if (m.shape < Shaders::SHAPE_SLASH || m.shape > Shaders::SHAPE_LAST_STRIKE) return false;
         World::Strike& s = n.mark;
         s.shape = static_cast<Shaders::Shape>(m.shape);
         s.x = m.x; s.y = m.y;
@@ -1745,6 +1746,7 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
         g->hp = a.state.hp;
         g->max_hp = std::max<int>(1, a.state.max_hp);
         g->shield_shown = (a.state.flags & net::PlayerState::Shielded) != 0;
+        g->buffs_shown = a.state.buffs;
         g->under_ice = (a.state.flags & net::PlayerState::Under) != 0;
         g->ClearBattery();
         g->AddBattery(a.state.battery / 255.0f);

@@ -257,6 +257,8 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                                  p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
                         if (p.combo != ComboMove::None)
                             ComboShotHitFx(p.combo, p.style, p.element, e->x, e->y - 20.0f, atan2f(p.vy, p.vx));
+                        else if (p.technique_fx)
+                            TechniqueShotHitFx(p.technique_fx, p.element, e->x, e->y - 20.0f, atan2f(p.vy, p.vx));
                         crit_next = false;
                         cast_next = 0;
                         proc_next = {};
@@ -494,6 +496,9 @@ void World::UpdateFalling(float dt) {
             const SDL_Color c = ElementColor(f.element);
             Flash(c, 0.10f);
             for (float w : {-1.0f, 1.0f}) AddDust(f.x + w * f.size * 0.4f, f.y + 2.0f, w, 0.0f);
+            // The ground it broke, the wave and the stones: marks, so the
+            // host's alone -- a friend's window, which lands it too, is told.
+            if (!visiting) MeteorLandFx(f.x, f.y, f.size, f.element);
         }
     }
     falls.erase(std::remove_if(falls.begin(), falls.end(),
@@ -749,7 +754,7 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
                     if (g.once) {
                         g.finished = true;
                         AddText("Snared", e->x, e->y - 64.0f, {200, 190, 160, 255}, 1.4f);
-                        Burst(g.x, g.y, g.radius, {200, 190, 160, 255}, 10);
+                        SnareSprungFx(e->x, e->y, g.radius);
                     }
                 }
             });

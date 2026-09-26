@@ -399,8 +399,29 @@ public:
     void ParryFx(float x, float y, float angle);
     void RiposteFx(float x, float y, float angle);
     // A turn of the Whirlwind, as it strikes: the ring its blade cuts round
-    // the player's feet, and the sparks off its edge.
+    // the player's feet, the vortex it drags round, and the sparks off its edge.
     void WhirlFx(const ItemDef* weapon, float radius, bool last);
+    // The rest of what a fight looks like, the same way (world_strikes.cpp):
+    // a plain swing's own mark and what it leaves on what it strikes -- the
+    // finisher, a strong and a charged blow each more than the one before --
+    // the Rushing Strike's leap, the melee techniques, the shots and casts
+    // the bow's and the staff's techniques let off and where they strike, and
+    // every ability. All of it written down for friends, as the combos' are.
+    void SwingFx(const ItemDef* weapon);
+    void SwingHitFx(const ItemDef* weapon, const Enemy& e);
+    void RushFx(const ItemDef* weapon);
+    void SlamFx(float radius);
+    void LungeFx(const ItemDef* weapon, float reach);
+    void ShotTechniqueFx(const string& technique, AttackStyle style, Element element, float mx, float my,
+                         float angle, float tx, float ty, const Enemy* target);
+    void TechniqueShotHitFx(uint8_t kind, Element element, float x, float y, float angle);
+    void MeteorLandFx(float x, float y, float size, Element element);
+    void AbilityFx(const string& ability, Element element, const Enemy* target);
+    void SnareSprungFx(float x, float y, float radius);
+    // Stars round the head of something knocked reeling, and splinters off it.
+    void DazeFx(const Enemy& e);
+    // What an ability leaves running, round whoever has it: see Player::Buffs.
+    void DrawAuras(SDL_Renderer* r) const;
 
     // --- thin ice ------------------------------------------------------------------------
     // A frozen lake bears a walker. Sprint on it and it cracks behind you,
@@ -880,7 +901,8 @@ private:
     Vec2 PlayerAim() const;
     // Strikes everything whose body is within a radius of the player's chest:
     // a whirlwind, a ground slam, a Cross Cut. Returns how many it struck.
-    int  HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx);
+    int  HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx,
+                   const std::function<void(Enemy&)>& each = nullptr);
     // Whether the player's blade can reach it at all: alive, and not up or
     // down more than one level of cliff from where they stand.
     bool Strikeable(const Enemy& e) const;

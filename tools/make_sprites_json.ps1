@@ -120,6 +120,12 @@ $clipRules = @{
     hurt   = @{ fps = 12; loop = $false }
     death  = @{ fps =  9; loop = $false }
     jump   = @{ fps = 12; loop = $false }
+    # From the skill trees: War Cry's shout and Tumble's rolls, played to fit
+    # the moment by Player::StrikePose. The speed is only what they play at
+    # when nothing is fitting them.
+    shout    = @{ fps = 14; loop = $false }
+    roll     = @{ fps = 22; loop = $false }
+    backroll = @{ fps = 22; loop = $false }
 }
 
 # Filename slot -> the slot the engine knows about. The engine decides what to

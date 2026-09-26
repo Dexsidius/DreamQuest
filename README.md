@@ -1210,13 +1210,13 @@ alike:
 
 | | Light, Heavy | Light, Light, Heavy | Heavy, Light | Both together |
 | --- | --- | --- | --- | --- |
-| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, dust | **Cleave**: the crescent, then its wind a beat later, wider; sparks | **Backhand**: the sweep runs back the other way; a snap of light | **Cross Cut**: a ring cut on the ground round the feet; an X on every body |
-| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints thrown out all round |
-| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind | **Backswing**: a snap | **Ground Slam**: the floor goes out from under everything, dust, a big shock |
-| Greatsword | **Overhead Cleave**: a wider, harder ground break | **Reaping Sweep**: in red, and it bleeds | **Pommel Strike**: stars | **Whirlwind**: two rings, one after the other |
-| Greataxe | **Hew**: the widest break, blood | **Felling Sweep** | **Haft Check**: stars | **Maelstrom**: two rings; blood-red crosses |
-| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; blood where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands |
-| Staff | **Surge**: a casting circle under the caster; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round |
+| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, stones thrown up | **Cleave**: the crescent, then its wind a beat later, wider; sparks; a cut across what it hits | **Backhand**: the sweep runs back the other way; a snap of light; a cut back across what it hits, and sparks off it | **Cross Cut**: a ring cut on the ground round the feet and the air swirled round with it; an X on every body |
+| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: two more cuts cross the swing; three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints and splinters of steel thrown out all round |
+| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind, a wave of grit off the floor; grit thrown up where it knocks | **Backswing**: a snap and a shove of air; it rings the head too | **Ground Slam**: the floor cracks open and goes out from under everything, stones thrown up, a big shock |
+| Greatsword | **Overhead Cleave**: a wider, harder ground break, cracked open under the blow and under what it hits | **Reaping Sweep**: in red, a red wind after it, and it bleeds | **Pommel Strike**: a shove of air; stars | **Whirlwind**: two rings, one after the other, and a wide swirl |
+| Greataxe | **Hew**: the widest break, cracked open, blood | **Felling Sweep**: a wave along the ground after it; blood | **Haft Check**: a shove of air; stars | **Maelstrom**: two rings and a red swirl spitting blood; blood-red crosses |
+| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; red splinters where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands |
+| Staff | **Surge**: a casting circle under the caster and a push of air ahead; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round |
 
 The staff's marks take the colour of what it casts: fire orange, frost pale
 blue, and so on. A **parry** is a white flash with rays, a cross and sparks
@@ -1224,14 +1224,32 @@ thrown back. A **riposte** is a gold thrust, then a gold cross and flash on what
 it strikes. The heavy ones shock the air, and they shake the screen only for
 whoever made them.
 
-The five shapes are in `src/shaders/fx.frag`, kinds 4 to 8: a **slash** (a
-sweep with a bright leading edge), an **impact** (a flash, rays and a ring,
-which can be flattened onto the ground), a **thrust**, a **cross** and a
-**casting circle** (two rings and runes turning between them). Each is drawn per
-pixel and snapped to the world's pixels, so it stays pixel art. The table of
-what each combo gets is `src/world/world_strikes.cpp`, and it is all for show:
-it touches no hit, number or dice roll. With Visual Effects off, or on a
-machine without Vulkan, the old line crescent is drawn and the marks are not.
+The Cross Cut's X was in that table and never drawn: its hits are found by
+`World::HitAround`, which struck everything round and said nothing of what, so
+`ComboHitFx` was never called for it. `HitAround` now takes a callback for
+each monster it strikes, and the Cross Cut marks each with it. A plain swing
+leaves marks too: the first two lights of a chain, quick and many, only a spark
+on what they bite; the finisher, a strong and a charged blow the wind of their
+swing and a flash and splinters off what they strike; and a charged one a push
+of air along the swing and a crack in the ground under what it hit
+(`World::SwingFx`, `SwingHitFx`).
+
+The shapes are in `src/shaders/fx.frag`, kinds 4 to 16. The combos' five are a
+**slash** (a sweep with a bright leading edge), an **impact** (a flash, rays and
+a ring, which can be flattened onto the ground), a **thrust**, a **cross** and a
+**casting circle** (two rings and runes turning between them). The eight the
+techniques and abilities brought (below) are a **vortex** (arms wheeling round
+a middle, spreading out or drawn in), **cracks** (the ground breaking, white-hot
+at first and cooling), a **pillar** of light standing up off the ground, a
+**sigil** (a star of any number of points in a ring, turning), **speed lines**,
+a **reticle** (brackets closing on a point), **shards** (splinters thrown out and
+falling) and a **wave** (a front of force, a fan or a whole ring). Each is drawn
+per pixel and snapped to the world's pixels, so it stays pixel art. Light is
+added to what is under it, but shards, reticles and sigils are things and are
+laid over it: added to grass, blood came out yellow. The table of what each move
+gets is `src/world/world_strikes.cpp`, and it is all for show: it touches no
+hit, number or dice roll. With Visual Effects off, or on a machine without
+Vulkan, the old line crescent is drawn and the marks are not.
 
 **The chain counter.** Under the target frame, every melee swing that lands
 one after another is counted -- the number large, and beneath it what each
@@ -1936,6 +1954,24 @@ which a friend sees too (`World::WhirlFx`).
 | Magic | **Barrage** | Four seeking bolts at once, for twice the mana |
 | Magic | **Meteor** | Your element crashes down on your target, for three times the mana |
 
+**Every technique shows**, as every combo does, and a friend sees it too:
+
+| Technique | Its marks |
+| --- | --- |
+| **Whirlwind** | Every turn a swirl of air dragged round the way it spins and sparks off the edge; the last a wave going out |
+| **Ground Slam** | The ground breaking open round the feet, white-hot at first, a ring and a wave running out over it, stones thrown up; the Crushing Blow's clip |
+| **Lunge** | Speed lines out ahead down the line it carries you, the thrust at the end as far as it really reaches, the blow landing there; the leap's clip |
+| **Piercing Shot** | Speed lines down the whole line it will go, the arrow's thrust, a ring where it left the string; a hole punched through what it hits, splinters out the far side |
+| **Volley** | A fan of force as wide as the five arrows spread |
+| **Arrow Rain** | A circle turning on the ground where it will come down, for as long as it rains, and a mark closing on the middle of it |
+| **Nova** | A casting sigil, a swirl drawn round, and a ring going out |
+| **Barrage** | A four-pointed sigil under the caster and a mark closing on the target |
+| **Meteor** | A pentagram turning where the stone will fall and a mark closing on it, a pillar off the caster; where it lands the ground cracks open, a wave goes out and stones fly |
+
+The **Rushing Strike** has its own too: speed lines down the way it came, the
+blow at the end of it and a push of air off it. It drew nothing at all, not
+even a crescent.
+
 A strike from above -- Meteor, the ancient rain -- **lands once**, the moment
 it goes off. It used to land a second time a frame later, on the effect's first
 tick, so each was quietly two; the numbers above are now what they say.
@@ -2095,6 +2131,43 @@ An ability is a decision, not a cancel: it does not come out of the middle of a
 swing -- except the roll and the blink, which getting out is what they are
 for. Sunder and Hunter's Mark are on the monster, not on whoever made them, so
 in co-op a friend's blows gain from them too.
+
+**Every ability shows.** Each was a ring of blobs and a word over the head,
+with the character walking on as if nothing had happened. Now each has marks of
+its own in the fx shader, no two alike and none like a combo's; the body goes
+with it, for a moment; and what one leaves running is worn as an aura for as
+long as it lasts -- a friend's too, from a byte of flags in their snapshot
+(`PlayerState::buffs`, protocol 16):
+
+| Ability | The body | Its marks | Worn while it lasts |
+| --- | --- | --- | --- |
+| **Sunder** | The Crushing Blow's overhead | Armour flying off in pieces, the blow, the ground cracking under it | |
+| **War Cry** | **A shout**, arms flung wide (its own clip) | Three rings of it going out one after another, and a pillar of light | A ring still going out, a beat at a time |
+| **Bash** | The Backhand's snap across | A short push of air ahead, a flash where it lands; stars round every head it rang | |
+| **Frenzy** | The Cross Cut's turn | A red swirl and a pillar | A red swirl round the feet |
+| **Shockwave** | The Crushing Blow's overhead | A line of force the length of it, and the ground going up along it a step at a time | |
+| **Stand Fast** | Feet braced behind the guard | A square sigil and the ground taking the weight | The square sigil, turning slowly |
+| **Hunter's Mark** | The draw | A red mark closing on it and a thread of light straight up | |
+| **Tumble** | **A roll**: a somersault the way it goes, or heels over head back the way it came (its own clips) | Speed lines down the roll, the ground kicked back where it pushed off | |
+| **Caltrops** | Bending to the ground | Iron scattered at the feet | |
+| **Take Aim** | The draw | A mark over the head and a thin pillar | The mark over the head, for the one shot it is for |
+| **Rapid Fire** | The draw | A three-pointed sigil spinning fast and a ring | The sigil, spinning |
+| **Snare** | Bending to the ground | The trap's rune where it is set; when it is sprung, the jaws' cross and the earth thrown up | |
+| **Arcane Pulse** | The cast | A ten-pointed star, ten sparks thrown out and the ring they go on, in the element | |
+| **Blink** | | Drawn in to a point where they were, a line of light, and there | |
+| **Mana Shield** | The cast | A six-pointed sigil (and the dome) | |
+| **Overload** | The cast | Power drawn up into the hands: a pillar and a swirl drawn in | An orb swirling at the chest |
+| **Invoke** | The cast | Mana drawn in from all round, a sigil turning back | Mana drawn in to them |
+| **Repulse** | The cast | A ring of force in the element, a flash, a shock | |
+
+The body's part is `Player::StrikePose`: the clip for as long as the moment
+lasts, played to fit it, with the walk slowed under it. The shout and the two
+rolls are clips of their own (`tools/blender_character.py`: `pose_shout`,
+`pose_roll`, `pose_backroll`); the rest are clips the character had. The roll
+turns the whole body head over heels about its middle rather than its feet --
+`tip` pivots at the feet, so `lunge` and `bob` carry the pivot round under it --
+and the one back the way it came is the same roll played backwards. The marks
+are `World::AbilityFx`, the auras `World::DrawAuras`.
 
 #### Passives that ask when
 
@@ -3833,8 +3906,9 @@ prop:
 
 `tools/blender_character.py` builds the three playable characters, poses them
 and renders every clip -- idle, walk, run, sprint, attack, thrust, jump, hurt,
-death and the four gathering clips, in all four facings -- straight into the
-layered sheets the game reads:
+death, the combos, War Cry's shout and Tumble's two rolls, and the four
+gathering clips, in all four facings -- straight into the layered sheets the
+game reads:
 
 ```powershell
 .\tools\make_character.ps1                      # all three, every clip
@@ -6899,6 +6973,16 @@ and checks all of it — currently **61823 checks** covering:
   three with the trail saying so, a combo is named in it, a long run keeps the
   last six for the trail, and a blow taken, a swing that meets nothing, or a
   pause ends it; a Cross Cut that strikes two counts once
+- what every move looks like: the fx shader has all sixteen kinds; the twenty
+  melee combos, the bow's four and the staff's four each leave marks of their
+  own, and a parry and a riposte theirs; all eighteen abilities, the nine
+  techniques and the Rushing Strike leave marks, no two alike and none like a
+  combo's, and between them use all eight new shapes; in play a Cross Cut
+  leaves an X on what it strikes and a swirl round the feet, the first light of
+  a chain only a spark and the finisher a slash and splinters; a Sunder plays
+  the Crushing Blow's clip and a Frenzy the turn, and what an ability leaves
+  running goes to a friend in the snapshot and is worn by their puppet; and a
+  host's war cry is drawn in the guest's window
 - highwaymen: a monster with art of their own and every clip a monster plays,
   the size of a person, quicker than an orc grunt and well short of a raider;
   at least six loiter by the path on the Whisperwood Trail at levels two to
@@ -7210,10 +7294,12 @@ and checks all of it — currently **61823 checks** covering:
   and starts its cooldown, the press is the ability's and not a swing, pressed
   again too soon nothing is spent, and without the guard held the button still
   swings; Sunder leaves a monster's defence down by a third; a war cry staggers
-  what is near and adds a quarter to melee damage for eight seconds; Riposte is
+  what is near and adds a quarter to melee damage for eight seconds, and is
+  shouted in a clip of its own; Riposte is
   owed for three seconds after a block, and only to a hero who has learned it;
   a tumble is untouchable and a blow mid-roll lands on nothing, and standing
-  still it goes back; Hunter's Mark marks what is in reach; caltrops lie for
+  still it goes back, heels over head; pushed, it rolls forward the way it is
+  pushed, facing it; Hunter's Mark marks what is in reach; caltrops lie for
   six seconds stopping what crosses them; a blink lands somewhere that can be
   stood on, and with nowhere to land does not happen and costs nothing; an
   arcane pulse is ten bolts of the wayfarer's own; a mana shield pays half a

@@ -13,9 +13,17 @@
 //   6 a thrust          a line driven out, widest at its point
 //   7 a cross cut       two strokes crossing
 //   8 a casting circle  two rings on the ground, ticks turning between them
+//   9 a vortex          spiral arms wheeling on the ground, flowing in or out
+//  10 cracks            fissures running out from where the ground was struck
+//  11 a pillar          a column of light standing up off a ring on the ground
+//  12 a sigil           a rune circle turning: glyphs between two rings, a star
+//  13 a streak          speed lines left behind along a line of travel
+//  14 a reticle         brackets closing in on what has been marked
+//  15 shards            splinters flung out from a point, tumbling as they go
+//  16 a wave            a front of force running out across the ground
 //
-// Shapes 4 to 8 are the combo strikes' (World::DrawStrikes) and read their
-// four numbers from `hit`.
+// Shapes 4 to 16 are the strikes' (World::DrawStrikes) and read their four
+// numbers from `hit`; 9 to 16 are the techniques' and the abilities'.
 //
 // Worked in world pixels (`size` says how many screen pixels one is), so the
 // shapes are as square-edged as everything else.
@@ -219,6 +227,213 @@ void main() {
         }
         rgb = mix(c, vec3(1.0), a > 0.8 ? 0.5 : 0.1);
         a *= fade * (1.0 - smoothstep(0.7, 1.0, prog));
+    } else if (kind == 9) {
+        // A vortex on the ground: arms spiralling round the middle, wheeling
+        // the way hit.y's sign says (as many arms as its size), spreading out
+        // from the middle as hit.x runs 0..1 -- or, with hit.w below nought,
+        // drawn in toward it. hit.z flattens it onto the ground.
+        float prog = fx.hit.x, arms = max(abs(fx.hit.y), 1.0), turn = fx.hit.y < 0.0 ? -1.0 : 1.0;
+        float squash = max(fx.hit.z, 0.2), flow = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= squash;
+        float r = length(p);
+        float reach = flow >= 0.0 ? 0.25 + 0.75 * smoothstep(0.0, 0.5, prog) : 1.0 - 0.7 * prog;
+        if (r < reach) {
+            float ang = atan(p.y, p.x);
+            float s = fract((ang * arms - turn * r * 7.0 + turn * t * 9.0 + flow * r * 3.0) / 6.2831853);
+            float arm = 1.0 - smoothstep(0.0, 0.2, abs(s - 0.5));
+            float edge = 1.0 - smoothstep(reach - 0.25, reach, r);
+            float hub = smoothstep(0.02, 0.2, r);
+            a = (arm * (0.3 + 0.6 * r) + 0.1) * edge * hub;
+            rgb = mix(c, vec3(1.0), arm * r * 0.55);
+            if (arm > 0.6 && Hash(floor(p * 14.0) + fx.kind.w + floor(t * 16.0)) > 0.92) { a = 1.0; rgb = vec3(1.0); }
+        }
+        a *= fade;
+    } else if (kind == 10) {
+        // Cracks: hit.y fissures running out from the middle, jagged, each
+        // its own length, grown as hit.x runs, glowing white-hot at first
+        // (hit.w, 0..1) and cooling to the colour. hit.z flattens them.
+        float prog = fx.hit.x, n = max(fx.hit.y, 3.0), squash = max(fx.hit.z, 0.2), heat = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= squash;
+        float r = length(p);
+        float grow = smoothstep(0.0, 0.3, prog);
+        float ang = atan(p.y, p.x) + 3.14159265;
+        float k = floor(ang / 6.2831853 * n + 0.5);
+        float best = 1e3, len = 0.0;
+        for (int j = -1; j <= 1; ++j) {
+            float kk = mod(k + float(j), n);
+            float seg = floor(r / 0.13);
+            float f = fract(r / 0.13);
+            float o0 = Hash(vec2(kk, seg) + fx.kind.w) - 0.5, o1 = Hash(vec2(kk, seg + 1.0) + fx.kind.w) - 0.5;
+            float at = (kk + 0.35 * (Hash(vec2(kk, 91.0) + fx.kind.w) - 0.5)) / n * 6.2831853 + mix(o0, o1, f) * 0.5 / (1.0 + 3.0 * r);
+            float d = abs(mod(ang - at + 3.14159265, 6.2831853) - 3.14159265) * r;
+            if (d < best) { best = d; len = (0.5 + 0.5 * Hash(vec2(kk, 7.0) + fx.kind.w)) * grow; }
+        }
+        float w = 0.045 * (1.0 - 0.6 * r / max(len, 0.01));
+        if (r < len && best < w) {
+            float core = 1.0 - best / w;
+            a = (0.45 + 0.55 * core) * (1.0 - 0.5 * r / len);
+            rgb = mix(c, vec3(1.0, 0.94, 0.8), core * heat * (1.0 - prog));
+        }
+        // The heart of it: a bright pit where the blow went in.
+        float pit = exp(-r * r / 0.01) * (1.0 - prog);
+        if (pit > a) { a = pit; rgb = mix(c, vec3(1.0), 0.7); }
+        a *= fade;
+    } else if (kind == 11) {
+        // A pillar: a column of light hit.y wide (a share of the quad) shooting
+        // up from a ring on the ground at the foot of the quad, thinning away
+        // as hit.x runs out, with motes rising up it (hit.w, 0..1). The foot
+        // is at 0.7 of the way down; hit.z flattens its ring.
+        float prog = fx.hit.x, w = max(fx.hit.y, 0.03), squash = max(fx.hit.z, 0.1), motes = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        const float foot = 0.7;
+        float rise = smoothstep(0.0, 0.2, prog);
+        float top = foot - (foot + 1.0) * rise;
+        float cw = w * (0.45 + 0.55 * (1.0 - smoothstep(0.45, 1.0, prog)));
+        if (p.y < foot && p.y > top) {
+            float across = abs(p.x) / cw;
+            if (across < 1.0) {
+                float core = 1.0 - across;
+                float up = smoothstep(top, top + 0.35, p.y) * (0.6 + 0.4 * smoothstep(foot - 0.6, foot, p.y));
+                a = (0.25 + 0.75 * core * core) * up;
+                rgb = mix(c, vec3(1.0), core * core * 0.8);
+            }
+        }
+        vec2 e = vec2(p.x / (w * 2.6), (p.y - foot) / (w * 2.6 * squash));
+        float er = length(e);
+        float ring_r = 0.5 + 0.5 * prog;
+        if (abs(er - ring_r) < 0.14) { float v = (1.0 - abs(er - ring_r) / 0.14) * (1.0 - prog); if (v > a) { a = v; rgb = mix(c, vec3(1.0), 0.4); } }
+        if (motes > 0.0 && p.y < foot && p.y > top && abs(p.x) < cw * 2.2) {
+            vec2 cell = floor(vec2(p.x * 12.0, p.y * 12.0 + t * 30.0));
+            if (Hash(cell + fx.kind.w) > 1.0 - 0.12 * motes) { a = max(a, 0.9); rgb = mix(c, vec3(1.0), 0.6); }
+        }
+        a *= fade;
+    } else if (kind == 12) {
+        // A sigil: two rings on the ground with runes lettered round between
+        // them and a star of hit.y points inside (none under three), opening
+        // as hit.x starts and turning at hit.w. hit.z flattens it.
+        float prog = fx.hit.x, pts = fx.hit.y, squash = max(fx.hit.z, 0.2), spin = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= squash;
+        float open = smoothstep(0.0, 0.25, prog);
+        p /= max(open, 0.05);
+        float r = length(p);
+        float ang = atan(p.y, p.x) + t * spin;
+        if (abs(r - 0.94) < 0.045) a = 0.85;
+        else if (abs(r - 0.66) < 0.035) a = 0.7;
+        else if (r > 0.7 && r < 0.9) {
+            // A rune a cell: three by two little blocks, lit by the dice.
+            float cells = 22.0;
+            float u = fract((ang / 6.2831853 + 1.0) * cells);
+            float v = (r - 0.7) / 0.2;
+            vec2 bit = floor(vec2(u * 3.0, v * 2.0));
+            float glyph = Hash(vec2(floor((ang / 6.2831853 + 1.0) * cells), 3.0) + fx.kind.w);
+            if (u > 0.15 && u < 0.85 && v > 0.15 && v < 0.85 && Hash(bit + glyph * 17.0) > 0.45) a = 0.75;
+        } else if (pts >= 3.0 && r < 0.66) {
+            // The star: every other point joined, so five make a pentagram.
+            float step = pts >= 5.0 ? 2.0 : 1.0;
+            for (int i = 0; i < 8; ++i) {
+                if (float(i) >= pts) break;
+                float a0 = float(i) / pts * 6.2831853 - t * spin, a1 = (float(i) + step) / pts * 6.2831853 - t * spin;
+                vec2 A = vec2(cos(a0), sin(a0)) * 0.64, B = vec2(cos(a1), sin(a1)) * 0.64;
+                vec2 ab = B - A;
+                float h = clamp(dot(p - A, ab) / dot(ab, ab), 0.0, 1.0);
+                if (length(p - A - ab * h) < 0.035) a = max(a, 0.8);
+            }
+        }
+        rgb = mix(c, vec3(1.0), a > 0.8 ? 0.45 : 0.15);
+        a *= fade * (1.0 - smoothstep(0.75, 1.0, prog));
+    } else if (kind == 13) {
+        // A streak: speed lines left behind along angle hit.x, a bright one
+        // down the middle and shorter ones either side, sliding back and going
+        // out as hit.y runs. hit.z is their width, hit.w how long they are,
+        // as shares of the quad.
+        float ang = fx.hit.x, prog = fx.hit.y, width = max(fx.hit.z, 0.01), len = max(fx.hit.w, 0.1);
+        vec2 p = q * 2.0 - 1.0;
+        vec2 dir = vec2(cos(ang), sin(ang));
+        float along = dot(p, dir);
+        float across = dot(p, vec2(-dir.y, dir.x));
+        float lane = floor(across / (width * 2.2) + 0.5);
+        if (abs(lane) <= 3.0) {
+            float h = Hash(vec2(lane, 5.0) + fx.kind.w);
+            float l = len * (lane == 0.0 ? 1.0 : 0.45 + 0.4 * h) * (1.0 - abs(lane) * 0.15);
+            float head = len * 0.5 - (lane == 0.0 ? 0.0 : 0.25 * h) - prog * 0.5;
+            float tail = head - l;
+            float off = abs(across - lane * width * 2.2);
+            float lw = width * (lane == 0.0 ? 1.0 : 0.55);
+            if (along < head && along > tail && off < lw) {
+                float k = (along - tail) / max(l, 0.01);
+                a = k * (0.5 + 0.5 * (1.0 - off / lw)) * (1.0 - prog * 0.6);
+                rgb = mix(c, vec3(1.0), k * (lane == 0.0 ? 0.8 : 0.3));
+            }
+        }
+        a *= fade;
+    } else if (kind == 14) {
+        // A reticle: hit.y brackets closing in on the middle as hit.x runs,
+        // a ring of dashes turning round them at hit.w and a dot at the heart.
+        // hit.z flattens it (1 stands up, for over a head).
+        float prog = fx.hit.x, n = max(fx.hit.y, 2.0), squash = max(fx.hit.z, 0.2), spin = fx.hit.w;
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= squash;
+        float r = length(p);
+        float ang = atan(p.y, p.x);
+        float close = 1.0 - 0.45 * smoothstep(0.0, 0.4, prog);
+        float sector = fract((ang - t * spin * 0.5) / 6.2831853 * n + 0.5);
+        if (abs(r - close * 0.8) < 0.06 && abs(sector - 0.5) < 0.16) a = 0.95;
+        else if (abs(sector - 0.5) < 0.035 && r > close * 0.52 && r < close * 0.8) a = 0.9;
+        float dash = fract((ang + t * spin) / 6.2831853 * 24.0);
+        if (abs(r - 0.96) < 0.03 && dash < 0.5) a = max(a, 0.5);
+        if (r < 0.07 * (0.8 + 0.4 * sin(t * 12.0))) a = 1.0;
+        rgb = mix(c, vec3(1.0), a > 0.9 ? 0.5 : 0.1);
+        a *= fade;
+    } else if (kind == 15) {
+        // Shards: hit.y splinters flung out from the middle, each on its own
+        // line, turning over as they go and hopping up off the ground, out as
+        // hit.x runs. hit.z flattens their spread onto the ground, hit.w is
+        // how big they are.
+        float prog = fx.hit.x, n = max(fx.hit.y, 3.0), squash = max(fx.hit.z, 0.2), size = max(fx.hit.w, 0.2);
+        vec2 p = q * 2.0 - 1.0;
+        float go = 1.0 - (1.0 - prog) * (1.0 - prog);
+        for (int i = 0; i < 20; ++i) {
+            if (float(i) >= n) break;
+            float h = Hash(vec2(float(i), 3.0) + fx.kind.w), h2 = Hash(vec2(float(i), 11.0) + fx.kind.w);
+            float at = (float(i) + 0.6 * (h - 0.5)) / n * 6.2831853;
+            float dist = (0.12 + 0.8 * go) * (0.55 + 0.45 * h2);
+            vec2 centre = vec2(cos(at), sin(at) * squash) * dist;
+            centre.y -= sin(prog * 3.14159265) * 0.25 * h;
+            float spinA = at + prog * (6.0 + 8.0 * h) * (h2 > 0.5 ? 1.0 : -1.0);
+            vec2 d = p - centre;
+            vec2 local = vec2(dot(d, vec2(cos(spinA), sin(spinA))), dot(d, vec2(-sin(spinA), cos(spinA))));
+            float hl = 0.075 * size, hw = 0.03 * size;
+            if (abs(local.x) < hl && abs(local.y) < hw * (1.0 - abs(local.x) / hl * 0.7)) {
+                a = 0.95 * (1.0 - smoothstep(0.55, 1.0, prog));
+                rgb = mix(c, vec3(1.0), 0.35 * (1.0 - prog));
+            }
+        }
+        a *= fade;
+    } else if (kind == 16) {
+        // A wave: a front of force hit.w thick running out from the middle as
+        // hit.z runs, across hit.y radians either side of angle hit.x (pi or
+        // more is a whole ring), brightest at its leading edge, with two
+        // fainter ripples behind. Always lying on the ground.
+        float ang = fx.hit.x, half_w = fx.hit.y, prog = fx.hit.z, thick = max(fx.hit.w, 0.02);
+        vec2 p = q * 2.0 - 1.0;
+        p.y /= 0.55;
+        float r = length(p);
+        float off = abs(mod(atan(p.y, p.x) - ang + 3.14159265, 6.2831853) - 3.14159265);
+        float cone = half_w >= 3.1 ? 1.0 : 1.0 - smoothstep(half_w * 0.75, half_w, off);
+        float front = 0.12 + 0.88 * (1.0 - (1.0 - prog) * (1.0 - prog));
+        for (int i = 0; i < 3; ++i) {
+            float at = front - float(i) * thick * 1.6;
+            float d = r - at;
+            float th = thick * (i == 0 ? 1.0 : 0.5);
+            if (d > -th && d < th * 0.4) {
+                float v = (1.0 - abs(d) / th) * (i == 0 ? 1.0 : 0.45) * cone * (1.0 - prog * 0.7);
+                if (v > a) { a = v; rgb = mix(c, vec3(1.0), i == 0 ? 0.5 * (1.0 - abs(d) / th) : 0.0); }
+            }
+        }
+        a *= fade;
     } else {
         vec2 p = q * 2.0 - 1.0;
         float r = length(p);
