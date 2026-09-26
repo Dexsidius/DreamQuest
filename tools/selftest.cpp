@@ -12,6 +12,7 @@
 // -----------------------------------------------------------------------------
 
 #include "../src/systems/gathering.h"
+#include "../src/systems/waystones.h"
 #include "../src/headers.h"
 #include "../src/sprite.h"
 #include "../src/world/map.h"
@@ -494,7 +495,7 @@ int main(int argc, char** argv) {
                            "dreamworld_2", "dreamworld_3",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path",
                            "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers",
-                           "palace_dungeon", "palace_throne", "mossvale_cottage"}) {
+                           "palace_dungeon", "palace_throne", "mossvale_cottage", "bayou", "plateau_ascent"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -17993,46 +17994,90 @@ int main(int argc, char** argv) {
         Check(throne.HasElevation() && throne.LevelAt(14 * 32, 6 * 32) == 2, "his throne stands on a dais two levels up");
     }
 
-    Section("waystones: three towns, woken by hand");
+    Section("waystones: the towns, a house, and three in the wild, woken by hand");
     {
         // --- where they stand ------------------------------------------------------------
-        // One in each town and none anywhere else: not the wilds, not a dungeon,
-        // not the Reverie. The road to a town is walked once; everything that
-        // is not a town is always walked.
-        const std::map<string, string> towns = {
-            {"town_havenbrook", "waystone_havenbrook"},
-            {"mossvale",        "waystone_mossvale"},
-            {"fernhollow",      "waystone_fernhollow"},
-        };
+        // Exactly the stones src/systems/waystones.h lists, each where it says:
+        // the three towns', the one at the door of the house in Mossvale, and
+        // the wilds' three -- the Ashen Path, the top of the climb onto
+        // Purgatory's Plateau, and the Bayou. No map has a stone that is not
+        // in the list, and every stone in it is in its map.
+        std::map<string, std::set<string>> listed;
+        std::set<string> ids;
+        for (const WaystoneDef& w : Waystones()) { listed[w.map].insert(w.id); ids.insert(w.id); }
+        Check(ids.size() == Waystones().size(), "every waystone has an id of its own");
+        std::set<string> towns, wilds;
+        for (const WaystoneDef* w : WaystonesIn(true)) towns.insert(w->id);
+        for (const WaystoneDef* w : WaystonesIn(false)) wilds.insert(w->id);
+        Check(towns == std::set<string>{"waystone_havenbrook", "waystone_mossvale", "waystone_mossvale_cottage", "waystone_fernhollow"},
+              "under Towns: Havenbrook, Mossvale, the house in Mossvale and Fernhollow");
+        Check(wilds == std::set<string>{"waystone_ashen_path", "waystone_plateau", "waystone_bayou"},
+              "under the wilds: the Ashen Path, Purgatory's Plateau and the Bayou");
+        const auto map_of = [](const string& id) { const WaystoneDef* w = WaystoneById(id); return w ? string(w->map) : string(); };
+        Check(map_of("waystone_plateau") == "plateau_ascent" && map_of("waystone_bayou") == "bayou" &&
+                  map_of("waystone_ashen_path") == "ashen_path" && map_of("waystone_mossvale_cottage") == "mossvale",
+              "the Plateau's is at the top of the climb, and each of the others where it is named for");
+        std::set<string> found;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
-            vector<const MapObject*> stones;
-            for (const MapObject& o : m.Objects()) if (o.type == "waystone") stones.push_back(&o);
-            const auto town = towns.find(id);
-            if (town == towns.end()) {
-                Check(stones.empty(), string(id) + " is not a town and has no waystone");
-                continue;
+            std::set<string> here;
+            for (const MapObject& o : m.Objects()) if (o.type == "waystone") here.insert(o.id);
+            const auto want = listed.find(id);
+            Check(here == (want == listed.end() ? std::set<string>{} : want->second),
+                  string(id) + (here.empty() && want == listed.end() ? " has no waystone" : " has the waystones listed for it"));
+            for (const MapObject& stone : m.Objects()) {
+                if (stone.type != "waystone") continue;
+                found.insert(stone.id);
+                const string what = string(id) + ", " + stone.id;
+                Check(stone.sprite == "assets/props/waystone.png" && fs::exists(stone.sprite),
+                      what + ": asleep, it is drawn dark");
+                Check(stone.sprite_open == "assets/props/waystone_lit.png" && fs::exists(stone.sprite_open),
+                      what + ": awake, it is drawn lit");
+                SDL_FPoint arrive{};
+                const bool has = m.Spawn(stone.id, arrive);
+                Check(has, what + ": has somewhere to arrive by it, named for it");
+                if (!has) continue;
+                const SDL_FRect feet = {arrive.x - 8.0f, arrive.y - 10.0f, 16.0f, 10.0f};
+                Check(!m.Blocked(feet), what + ": and it is not inside the stone, or anything else");
+                Check(std::hypot(arrive.x - stone.x, arrive.y - stone.y) < 64.0f,
+                      what + ": you arrive at the stone, not across the map from it");
+                bool on_a_door = false, in_harm = false;
+                for (const Portal& p : m.Portals()) on_a_door |= !p.requires_interact && RectsOverlap(feet, p.rect);
+                for (const Hazard& h : m.Hazards()) in_harm |= RectsOverlap({arrive.x - 40.0f, arrive.y - 40.0f, 80.0f, 60.0f}, h.rect);
+                Check(!on_a_door, what + ": and not on a way out");
+                Check(!in_harm, what + ": and nowhere near anything that burns");
+                // A town's own stone is also "the waystone" of its town, as it always was.
+                const WaystoneDef* def = WaystoneById(stone.id);
+                if (def && def->town && stone.id != "waystone_mossvale_cottage") {
+                    SDL_FPoint plain{};
+                    Check(m.Spawn("waystone", plain) && plain.x == arrive.x && plain.y == arrive.y,
+                          what + ": and arriving at the town's waystone is arriving at it");
+                }
+                // Nobody waiting at it: a stone in the wild is a safe place to
+                // come out. (A town's has Fernhollow's ducks near it, which is fine.)
+                if (def && !def->town) {
+                    bool alone = true;
+                    for (const EnemySpawnDef& e : m.Enemies())
+                        alone &= std::hypot(e.x - arrive.x, e.y - arrive.y) > 200.0f;
+                    Check(alone, what + ": and nothing lives within a few steps of where you come out");
+                }
             }
-            Check(stones.size() == 1, string(id) + " has one waystone, and only one");
-            if (stones.empty()) continue;
-            const MapObject& stone = *stones.front();
-            Check(stone.id == town->second, string(id) + "'s stone is " + town->second);
-            Check(stone.sprite == "assets/props/waystone.png" && fs::exists(stone.sprite),
-                  string(id) + ": asleep, it is drawn dark");
-            Check(stone.sprite_open == "assets/props/waystone_lit.png" && fs::exists(stone.sprite_open),
-                  string(id) + ": awake, it is drawn lit");
-            SDL_FPoint arrive{};
-            const bool has = m.Spawn("waystone", arrive);
-            Check(has, string(id) + " has somewhere to arrive by it");
-            if (!has) continue;
-            const SDL_FRect feet = {arrive.x - 8.0f, arrive.y - 10.0f, 16.0f, 10.0f};
-            Check(!m.Blocked(feet), string(id) + ": and it is not inside the stone, or anything else");
-            Check(std::hypot(arrive.x - stone.x, arrive.y - stone.y) < 64.0f,
-                  string(id) + ": you arrive at the stone, not across the square from it");
-            bool on_a_door = false;
-            for (const Portal& p : m.Portals()) on_a_door |= !p.requires_interact && RectsOverlap(feet, p.rect);
-            Check(!on_a_door, string(id) + ": and not on a way out of town");
+        }
+        Check(found == ids, "every stone in the list stands in its map (" + std::to_string(found.size()) + " of " +
+                                std::to_string(ids.size()) + ")");
+        {
+            // The house's is at its door: a few steps from the way in.
+            Map moss;
+            if (moss.Load("maps/mossvale.mx")) {
+                float door = 1.0e9f;
+                SDL_FPoint arrive{};
+                moss.Spawn("waystone_mossvale_cottage", arrive);
+                for (const Portal& p : moss.Portals())
+                    if (p.target_map == "mossvale_cottage")
+                        door = std::hypot(p.rect.x + p.rect.w / 2.0f - arrive.x, p.rect.y + p.rect.h / 2.0f - arrive.y);
+                Check(door < 160.0f, "the house's stone is right outside its door (" + std::to_string(static_cast<int>(door)) + " px)");
+            }
         }
 
         // --- the first touch wakes it, and only the second goes anywhere ------------------
@@ -18120,6 +18165,29 @@ int main(int argc, char** argv) {
             for (int i = 0; i < 90; ++i) w.Update(kFrame, wctx);      // let the fade finish
             Check(w.player.interact.label == "Touch the waystone", "with the stone in reach to go on again");
         }
+
+        // --- a stone in the wild is gone to the same way ---------------------------------
+        // To the spawn named for it, in front of it: the Bayou's, by the Hexmire's gate.
+        w.SetFlag("waystone_bayou");
+        Check(w.RequestTransition("bayou", "waystone_bayou"), "choosing the Bayou asks for the way there");
+        for (int i = 0; i < 240 && w.MapId() != "bayou"; ++i) w.Update(kFrame, wctx);
+        Check(w.MapId() == "bayou", "and the fade takes you");
+        {
+            const MapObject* bayou = nullptr;
+            for (const MapObject& o : w.CurrentMap().Objects()) if (o.id == "waystone_bayou") bayou = &o;
+            Check(bayou && std::hypot(w.player.x - bayou->x, w.player.y - bayou->y) < 64.0f &&
+                      !w.CurrentMap().Blocked(w.player.Bounds()),
+                  "you come out standing at the Bayou's stone, on open ground");
+            for (int i = 0; i < 90; ++i) w.Update(kFrame, wctx);
+            Check(w.player.interact.label == "Touch the waystone", "with it in reach to go on again");
+        }
+        {
+            std::set<string> f = w.Flags();
+            f.erase("waystone_bayou");
+            w.SetFlags(f);
+        }
+        Check(w.RequestTransition("town_havenbrook", "waystone"), "and back to Havenbrook");
+        for (int i = 0; i < 240 && w.MapId() != "town_havenbrook"; ++i) w.Update(kFrame, wctx);
 
         // --- a woken stone is part of the save ---------------------------------------------
         {

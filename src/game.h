@@ -372,6 +372,12 @@ private:
     int  delete_slot = -1;       // slot the load screen is asking about deleting
     int  sleep_fee = 0;          // what the bed being asked about costs
     int    travel_cursor = 0;
+    // The waystone panel's tabs: 0 the towns' stones, 1 the wilds'. It opens
+    // on the one the stone being touched is under; `travel_tab_at` is when the
+    // tab was last changed, for its rows to come in.
+    int    travel_tab = 0;
+    float  travel_tab_at = -10.0f;
+    int    travel_tab_dir = 1;
     int    totem_cursor = 0;
     string travel_from;          // the waystone being touched
     // Writes the session to its slot if there is one to write and nothing says

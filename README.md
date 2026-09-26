@@ -5289,34 +5289,60 @@ is a ladder, so only the back wall wears the band.
 
 ### Waystones
 
-There are three **waystones**, one in each town -- Havenbrook's by the
-crossroads, Mossvale's in the square, Fernhollow's on the green -- and none
-anywhere else. Not in the wilds, not at a dungeon's door, not in the Reverie.
+There are seven **waystones**. One in each town -- Havenbrook's by the
+crossroads, Mossvale's in the square, Fernhollow's on the green -- and one at
+the door of **your own house in Mossvale**, off to the side of the step. And
+three **checkpoints out in the wild**, on the overworld's own ground:
+
+| Stone | Where |
+| --- | --- |
+| **The Ashen Path** | where the palace road leaves the burnt one, south of it and between the two streams out of the moat: the far end of the path -- the Infernal Pit, the Brimstone Palace, the ore on the streams' banks -- starts from here |
+| **Purgatory's Plateau** | on the Pale Ascent, at the top of the climb, off the road to the west |
+| **The Bayou** | on the dry ground by the spur, below the Hexmire's gate: the next trip into the Hexmire starts here instead of at the far end of the swamp |
+
+None at a dungeon's door, and none in the Reverie. The four new ones are placed
+with their ground cleared round them and nothing posted within a few steps of
+where you come out: a waystone counts as a haven to the map builder, the way a
+camp or a sign does, so nothing is stood on its doorstep.
 
 A stone is **asleep until somebody puts a hand on it**. The first touch wakes
 it, and that is all the first touch does: the eye in its face lights, the
 runes down its courses with it, and it says what it is for. A woken stone,
-touched again, opens a panel of all three; any other *woken* one can be chosen,
-and you come out standing beside it. One that is still asleep is listed, dark,
+touched again, opens the panel; any other *woken* one can be chosen, and you
+come out standing beside it. One that is still asleep is listed, dark,
 and refuses: it has to be walked to and woken by hand. There is no fare. The
 price of a waystone is having got there.
 
-So the road to a town is walked once, and everything that is not a town is
-always walked. The long errands in this game are town to town (an order for
-Wynn, a notice from Havenbrook's board, a bar Halda wants), and the walks that
-are *the game* -- out to the Mire, up to the Spire, down a mine -- are
-untouched.
+So the road to a place is walked once. The long errands in this game are town
+to town (an order for Wynn, a notice from Havenbrook's board, a bar Halda
+wants), and the three stones in the wild are at the far ends of the longest
+walks, once you have made them; the dungeons, the Reverie, and everything
+between a stone and where you are going are still walked.
+
+**The panel has two tabs: Towns and the wilds.** Towns holds the three towns'
+stones and the one at your house; the wilds holds the Ashen Path's, the
+Plateau's and the Bayou's. Left and right step between them (so do the panel
+keys, `I` and `O`, or the shoulders), each tab says how many of its stones are
+awake ("2 of 4 awake"), and the panel opens on the tab the stone you are
+touching is under -- a hand on the Bayou's stone opens on the wilds. Switching
+slides the new tab's rows in from the side you stepped toward. The list is
+`src/systems/waystones.h`: each stone's id, map, name, the line under it and
+its tab, which the self-test holds the maps to -- every stone listed stands in
+its map, and no map has one that is not listed.
 
 How: a `waystone` map object whose id is its flag. `World::TryInteract` sets
 the flag the first time and raises `WorldRequest::Type::Travel` after; an
 object whose id is flagged is drawn as its `sprite_open`, which is how a chest
 stays open, so the lit stone cost no new drawing code. The panel is
 `Game::UpdateTravel` / `DrawTravel`, and going is an ordinary
-`RequestTransition` to the far map's `waystone` spawn -- so a guest in co-op is
+`RequestTransition` to the spawn named for the far stone, in front of it (a
+town's own stone answers to `waystone` as well, as it always has; Mossvale has
+two now, so a spawn has to say which) -- so a guest in co-op is
 told the host leads the way, as at any other door. Woken stones are world flags
 and are saved with the rest. The stone is `_waystone(lit)` in
 `tools/blender_props.py`, rendered twice; `PlaceWaystone` in `tools/genmaps.cpp`
-stands one up. `--screen travel` opens the panel for a screenshot.
+stands one up. `--screen travel` opens the panel for a screenshot, and
+`--screen travel:waystone_bayou` opens it as if at that stone.
 
 ### The Westwold and the Brackenwood
 
@@ -6573,7 +6599,7 @@ out altogether.
 
 A totem's blessing is two or three times what a first kill leaves for good,
 because it is one at a time, for a day, earned over a fortnight, and has to be
-gone home for -- which is what the waystone at Mossvale is for. It is on top
+gone home for -- which is what the waystone at your own door is for. It is on top
 of the boons, not instead of them. The self-test holds every totem to being
 more than any boon of the same kind.
 
@@ -7756,13 +7782,17 @@ and checks all of it — currently **61823 checks** covering:
   Wynn and her loom are not on the square, her door is a long way from the
   anvil, and she is inside selling, with forms, hangings, shelves of bolts, a
   cutting table, her wheel and a counter
-- waystones: each of the three towns has exactly one, with its dark and its lit
-  sprite on disk and somewhere clear to arrive beside it, and no other map in
-  the game has one; the first touch wakes the stone and asks for nothing else,
+- waystones: the maps hold exactly the seven listed -- the towns' three, the one
+  at the door of the house in Mossvale, and the Ashen Path's, Purgatory's
+  Plateau's and the Bayou's -- under their two tabs, each with its dark and its
+  lit sprite on disk, somewhere clear to arrive beside it named for it, and out
+  of any fire, and the wilds' with nothing living within a few steps; a town's stone is still
+  its town's `waystone`; the house's is right outside its door; and no other
+  map in the game has one; the first touch wakes the stone and asks for nothing else,
   the second asks for the panel and says which stone you are at; waking one
   does not wake another; travelling is a transition that ends beside the far
-  stone, on open ground, with the stone in reach; and the woken stones are in
-  the save
+  stone, on open ground, with the stone in reach, and to the Bayou's the same
+  way; and the woken stones are in the save
 - ducks and geese, and the one pond they can get into: Fernhollow's pond is
   marked as water, a walker cannot stand in it and a swimmer can, and it is the
   only water in the world anything may enter; the birds are posted on dry land

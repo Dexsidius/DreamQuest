@@ -1,4 +1,5 @@
 #include "game.h"
+#include "systems/waystones.h"
 #include "systems/shaders.h"
 #include "systems/gathering.h"
 
@@ -88,7 +89,7 @@ int Game::Start(int argc, char** argv) {
             // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
             // A name that starts "spell:" is an ancient spell to know instead,
             // "enchant:" a charm for the enchanting table, and one that starts
-            // "zap:" is which of the lightning to hold.
+            // "zap:" is which of the lightning to hold, and "waystone_<where>" a stone woken.
             launch_learn = argv[++i];
         } else if (arg == "--charge" && more) {
             // With --scratch: start with this much in the lightning's battery,
@@ -272,6 +273,8 @@ int Game::Start(int argc, char** argv) {
                     // "spell:<id>" is an ancient spell, known as if its tome had been read.
                     // "enchant:<id>" the same, a charm as if its scroll had been read.
                     if (id.rfind("spell:", 0) == 0 || id.rfind("enchant:", 0) == 0) world->SetFlag("recipe:" + id);
+                    // "waystone_<where>" is a stone woken, as if a hand had been put on it.
+                    else if (id.rfind("waystone_", 0) == 0) world->SetFlag(id);
                     // "zap:<id>" chooses which of the lightning is on the fifth
                     // key, and selects the school, for looking at one of them.
                     else if (id.rfind("zap:", 0) == 0) {
@@ -396,7 +399,9 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "boons")     { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOONS; }
                 else if (what == "pause")     OpenPanel(GameState::Paused);
                 else if (what == "totems")    { totem_cursor = 0; OpenPanel(GameState::TotemRing); }
-                else if (what == "travel")    { travel_from = "waystone_havenbrook"; travel_cursor = 0;
+                else if (what == "travel")    { // "travel:waystone_bayou" opens it as if at that stone
+                                                travel_from = arg.empty() ? string("waystone_havenbrook") : arg;
+                                                travel_cursor = 0;
                                                 OpenPanel(GameState::Travel); }
                 else if (what == "shop")      OpenShop(arg);
                 else if (what == "craft")     {
@@ -630,6 +635,21 @@ void Game::SetState(GameState s) {
          state == GameState::LoadMenu ||
          state == GameState::CharacterSelect || state == GameState::Multiplayer);
 
+    // What a panel puts back as it opens. The panels' own "state_time <= 0"
+    // never sees its first frame -- Update adds the frame's time before it
+    // asks the panel -- so it is done here, where every change of state passes.
+    if (s != state) {
+        if (s == GameState::SkillsPanel) {
+            skills_page_at = 0.0f;                 // the cards come in
+            skill_modal = skill_modal_closing = false;
+        }
+        if (s == GameState::Travel) {
+            // On the tab the stone being touched is under.
+            const WaystoneDef* here = WaystoneById(travel_from);
+            travel_tab = here && !here->town ? 1 : 0;
+            travel_tab_at = -10.0f;
+        }
+    }
     state = s;
     state_time = 0.0f;
     cursor = back_to_menu ? main_menu_cursor : 0;
@@ -1663,7 +1683,7 @@ void Game::RunAudit() {
             else if (name == "enchanting") { target = &enchant_cursor; steps = 24; }
             else if (name == "shop" || name == "shop sell" || name == "shop gear") { target = &shop_cursor; steps = 30; }
             else if (name == "board")     { target = &board_cursor; steps = 30; }
-            else if (name == "travel")    { target = &travel_cursor; steps = 3; }
+            else if (name == "travel")    { target = &travel_cursor; steps = 8; }
             else if (name == "totem ring") { target = &totem_cursor; steps = 12; }
             else if (name == "controls")  { target = &controls_cursor; steps = 26; }
             else if (name == "options")   { target = &cursor_row; steps = 12; }
@@ -1674,6 +1694,8 @@ void Game::RunAudit() {
                 if (target) *target = step;
                 // Each skill in its own category's modal.
                 if (name == "skills") skill_card = SkillCategoryOf(cursor);
+                // Both of the waystones' tabs, and every row of each.
+                if (name == "travel") { travel_tab = step / 4; travel_cursor = step % 4; travel_tab_at = -10.0f; }
                 // Every branch of a tree, too, and both of its tabs.
                 if (name == "skill tree") tree_branch = step % SkillTrees::BRANCHES;
                 // Every row of the book, with each thing that could be on it in turn.
