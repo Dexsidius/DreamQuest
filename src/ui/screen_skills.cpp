@@ -68,8 +68,8 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
             if (skill == SKILL_MAGIC)  return "staves";
             return "weapons";
         }
-        if (skill == SKILL_RANGED)  return "hides";
-        if (skill == SKILL_MAGIC)   return "robes";
+        if (skill == SKILL_RANGED || skill == SKILL_TANNING)  return "hides";
+        if (skill == SKILL_MAGIC || skill == SKILL_CLOTHIER) return "robes";
         if (skill == SKILL_DEFENCE) return "plate";
         return "armour";
     };
@@ -129,10 +129,9 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
         }
     };
     emit(gear, "");
-    // Smiths smith, cooks cook: the same three stations under Crafting all
-    // make, which is why the loom and the rack and the bench share a word.
+    // Smiths smith, cooks cook, a clothier weaves; the bench and the rack make.
     emit(made, skill == SKILL_SMITHING ? "Smith" : skill == SKILL_COOKING ? "Cook"
-             : skill == SKILL_BREWING  ? "Brew"  : "Make");
+             : skill == SKILL_BREWING  ? "Brew"  : skill == SKILL_CLOTHIER ? "Weave" : "Make");
 
     // --- the things one skill has and no other -------------------------------------
     if (skill == SKILL_MAGIC) {
@@ -140,9 +139,14 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
             const SpellDef& s = kv.second;
             add(s.level, s.arcane ? s.name + " (ancient)" : s.name);
         }
-        for (const EnchantDef* e : items.Enchantments())
-            add(e->level, "Work " + e->name + " into a piece");
     }
+    // Every tier of every charm: the first worked into something, and each
+    // after it what it raises the charm to. Something opens every level or two.
+    if (skill == SKILL_ENCHANTING)
+        for (const EnchantDef* e : items.Enchantments()) {
+            add(e->level, "Work " + e->name + " into " + (e->ForWeapon() ? "a weapon" : "a piece"));
+            for (int k = 2; k <= e->TierCount(); ++k) add(e->LevelAt(k), e->NameAt(k) + ": " + e->EffectAt(k));
+        }
     if (skill == SKILL_MINING)
         for (const TierDef& t : items.Tiers()) {
             const ItemDef* ore = t.ore.empty() ? nullptr : items.Get(t.ore);
@@ -186,6 +190,24 @@ void Game::SyncMilestones() {
         if (milestones[i].level > have) { milestone_row = static_cast<int>(i); break; }
 }
 
+float Game::SkillModalOpenness() const {
+    if (!skill_modal) return 0.0f;
+    const float k = std::clamp((state_time - skill_modal_at) / SKILL_MODAL_TIME, 0.0f, 1.0f);
+    return skill_modal_closing ? 1.0f - k : k;
+}
+
+void Game::OpenSkillModal(int card, int skill) {
+    skill_card = std::clamp(card, 0, CATEGORY_COUNT - 1);
+    const vector<int>& in = CategorySkills(skill_card);
+    cursor = std::find(in.begin(), in.end(), skill) != in.end() ? skill : in.front();
+    skill_modal = true;
+    skill_modal_closing = false;
+    skill_modal_at = state_time;
+    on_milestones = false;
+    milestones_for = -1;
+    SyncMilestones();
+}
+
 void Game::UpdateSkillsPanel() {
     if (state_time <= 0.0f) {
         tree_reset_armed = false;
@@ -193,6 +215,7 @@ void Game::UpdateSkillsPanel() {
         // won since it was last open moves where the list should open.
         on_milestones = false;
         milestones_for = -1;
+        skills_page_at = 0.0f;
     }
 
     // I and O (the shoulder buttons on a pad) step between the level list and
@@ -201,6 +224,7 @@ void Game::UpdateSkillsPanel() {
     // ...and what the bosses have left them.
     const int tabs = TAB_COUNT;
     skills_tab = std::clamp(skills_tab, 0, tabs - 1);
+    const int tab_was = skills_tab;
     if (input.Pressed(Action::Inventory)) { skills_tab = (skills_tab + tabs - 1) % tabs; tree_reset_armed = false; on_milestones = false; Audio::Play(Sfx::UiMove); }
     if (input.Pressed(Action::Skills) || input.Pressed(Action::Ability)) {
         skills_tab = (skills_tab + 1) % tabs;
@@ -208,23 +232,62 @@ void Game::UpdateSkillsPanel() {
         on_milestones = false;
         Audio::Play(Sfx::UiMove);
     }
-    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+    if (skills_tab != tab_was) {
+        // Another page: the modal goes at once, and the cards come in again
+        // when their page is next shown.
+        skill_modal = skill_modal_closing = false;
+        if (skills_tab == TAB_SKILLS) skills_page_at = state_time;
+    }
+    const bool back = input.Pressed(Action::Back) || input.Pressed(Action::Pause);
+    // Back shuts an open category first, back into its card; only then the panel.
+    if (back && skills_tab == TAB_SKILLS && skill_modal && !skill_modal_closing) {
+        skill_modal_closing = true;
+        skill_modal_at = state_time;
+        on_milestones = false;
+        Audio::Play(Sfx::UiBack);
+        return;
+    }
+    if (back) {
+        skill_modal = skill_modal_closing = false;
         SetState(GameState::Play);
         return;
     }
 
     if (skills_tab == TAB_SKILLS) {
+        // Shut, once it has finished shrinking away.
+        if (skill_modal && skill_modal_closing && SkillModalOpenness() <= 0.0f)
+            skill_modal = skill_modal_closing = false;
+        if (!skill_modal || skill_modal_closing) {
+            // The cards, two by two: any direction steps to the one beside or
+            // below, and confirm opens it on the skill last looked at in it.
+            const int was = skill_card;
+            if (input.MenuLeft() || input.MenuRight()) skill_card ^= 1;
+            if (input.MenuUp() || input.MenuDown())    skill_card ^= 2;
+            skill_card = std::clamp(skill_card, 0, CATEGORY_COUNT - 1);
+            if (was != skill_card) Audio::Play(Sfx::UiMove);
+            if (!skill_modal_closing && (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact))) {
+                OpenSkillModal(skill_card, skill_in_card[skill_card]);
+                Audio::Play(Sfx::UiConfirm);
+            }
+            return;
+        }
+
+        // In a category. Left and right step between the two columns; up and
+        // down walk whichever has the cursor. There is nothing to step into
+        // for a skill that opens nothing, and Hitpoints is the one.
+        const vector<int>& in = CategorySkills(skill_card);
         SyncMilestones();
-        // Left and right step between the two columns; up and down walk
-        // whichever has the cursor. There is nothing to step into for a skill
-        // that opens nothing, and Hitpoints is the one.
         if (milestones.empty()) on_milestones = false;
         else if (!on_milestones && input.MenuRight()) { on_milestones = true; Audio::Play(Sfx::UiMove); }
         else if (on_milestones && input.MenuLeft()) { on_milestones = false; Audio::Play(Sfx::UiMove); }
         if (on_milestones) {
             MoveCursor(milestone_row, static_cast<int>(milestones.size()), false);
         } else {
-            MoveCursor(cursor, SKILL_COUNT);
+            int row = static_cast<int>(std::find(in.begin(), in.end(), cursor) - in.begin());
+            if (row >= static_cast<int>(in.size())) row = 0;
+            MoveCursor(row, static_cast<int>(in.size()));
+            cursor = in[row];
+            skill_in_card[skill_card] = cursor;
             SyncMilestones();
         }
         return;
@@ -405,64 +468,260 @@ void Game::DrawSkillsPanel() {
         return;
     }
 
-    // The page is two columns: the levels on the left, and beside them what the
-    // selected one is for. The milestone column takes about a third, and the
-    // level rows lay themselves out in whatever is left rather than at fixed
-    // offsets, so a small window narrows them instead of running them off.
-    const float gap = 16.0f;
-    const float mile_w = std::clamp(panel.w * 0.36f, 250.0f, 372.0f);
-    const float list_w = panel.w - 40.0f - mile_w - gap;
+    DrawSkillCards(panel);
+    if (skill_modal) DrawSkillModal(panel);
+}
+
+// --- the category cards, and the modal ----------------------------------------------
+
+namespace {
+// Each category's colour, for its card's band and its modal's.
+SDL_Color CategoryColour(int category) {
+    switch (category) {
+        case CATEGORY_FORGING:    return {222, 138, 64, 255};    // the forge's glow
+        case CATEGORY_COMBAT:     return {210, 84, 70, 255};
+        case CATEGORY_GATHERING:  return {118, 184, 96, 255};
+        default:                  return {162, 118, 222, 255};   // witchcraft's violet
+    }
+}
+// What stands for it: a thing from the bag, drawn at the card's corner.
+const char* CategoryEmblem(int category) {
+    switch (category) {
+        case CATEGORY_FORGING:    return "iron_bar";
+        case CATEGORY_COMBAT:     return "iron_sword";
+        case CATEGORY_GATHERING:  return "iron_pickaxe";
+        default:                  return "herbal_tonic";
+    }
+}
+SDL_Color Mix(SDL_Color a, SDL_Color b, float t) {
+    t = std::clamp(t, 0.0f, 1.0f);
+    const auto m = [&](Uint8 x, Uint8 y) { return static_cast<Uint8>(x + (y - x) * t); };
+    return {m(a.r, b.r), m(a.g, b.g), m(a.b, b.b), m(a.a, b.a)};
+}
+float EaseOut(float k) { k = std::clamp(k, 0.0f, 1.0f); return 1.0f - (1.0f - k) * (1.0f - k) * (1.0f - k); }
+// A little past, and back: the modal lands rather than stops.
+float EaseOutBack(float k) {
+    k = std::clamp(k, 0.0f, 1.0f);
+    const float c1 = 1.4f, c3 = c1 + 1.0f;
+    return 1.0f + c3 * powf(k - 1.0f, 3.0f) + c1 * powf(k - 1.0f, 2.0f);
+}
+SDL_FRect Lerp(const SDL_FRect& a, const SDL_FRect& b, float t) {
+    return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.w + (b.w - a.w) * t, a.h + (b.h - a.h) * t};
+}
+}
+
+SDL_FRect Game::SkillCardRect(const SDL_FRect& panel, int card) const {
+    // Two by two, between the tabs and the footer.
+    const float gap = 14.0f;
+    const float top = panel.y + 58.0f, bottom = panel.y + panel.h - 62.0f;
+    const float w = (panel.w - 40.0f - gap) / 2.0f, h = (bottom - top - gap) / 2.0f;
+    return {panel.x + 20.0f + (card % 2) * (w + gap), top + (card / 2) * (h + gap), w, h};
+}
+
+void Game::DrawSkillRow(int skill, const SDL_FRect& row, bool selected, float fill) {
+    const Skills& s = world->player.skills;
+    const int level = s.Level(skill);
+    ui.Text(SkillName(skill), row.x + 10.0f, row.y + 4.0f, TextSize::Body,
+            selected ? Palette::Highlight : Palette::Text);
+    // A boosted level shows what it is working at right now.
+    const int now = s.Current(skill);
+    const bool boosted = skill != SKILL_HITPOINTS && now != level;
+    const float lvl_x = std::max(118.0f, row.w * 0.30f);
+    const float tail = std::max(96.0f, row.w * 0.24f);
+    ui.Text(boosted ? std::to_string(now) + "/" + std::to_string(level) : std::to_string(level),
+            row.x + lvl_x, row.y + 4.0f, TextSize::Body,
+            boosted ? (now > level ? Palette::Xp : SDL_Color{235, 150, 120, 255}) : Palette::Text, Align::Right);
+
+    // Progress toward the next level, the way the OSRS skill guide reads.
+    const int xp = s.Xp(skill);
+    const int here = XpForLevel(level);
+    const int next = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
+    const float frac = (next > here) ? static_cast<float>(xp - here) / (next - here) : 1.0f;
+    const SDL_FRect bar = {row.x + lvl_x + 16.0f, row.y + 8.0f,
+                           std::max(24.0f, row.w - lvl_x - 16.0f - tail), 14.0f};
+    ui.Bar(bar, frac * std::clamp(fill, 0.0f, 1.0f), Palette::Xp, {26, 34, 26, 235});
+
+    char xp_text[48];
+    if (level >= MAX_SKILL_LEVEL) SDL_snprintf(xp_text, sizeof(xp_text), "max");
+    else SDL_snprintf(xp_text, sizeof(xp_text), "%d xp to %d", next - xp, level + 1);
+    ui.Text(xp_text, row.x + row.w - 10.0f, row.y + 7.0f, TextSize::Small, Palette::TextDim, Align::Right);
+}
+
+void Game::DrawSkillCards(const SDL_FRect& panel) {
+    const Skills& s = world->player.skills;
+    const float modal = SkillModalOpenness();
+    const float since = state_time - skills_page_at;
+    const float pulse = 0.5f + 0.5f * sinf(state_time * 4.0f);
+
+    for (int c = 0; c < CATEGORY_COUNT; ++c) {
+        // In one after another, rising into place as the page comes up.
+        const float in = EaseOut((since - 0.06f * c) / 0.28f);
+        SDL_FRect card = SkillCardRect(panel, c);
+        const bool here = c == skill_card;
+        card.y += (1.0f - in) * 26.0f;
+        // The chosen card stands a little proud of the others.
+        if (here && !skill_modal) card.y -= 2.0f;
+
+        const SDL_Color accent = CategoryColour(c);
+        // Each card is a panel of its own to the overflow audit, so a line
+        // running off a card is caught and not just one running off the page.
+        if (ui.Auditing()) ui.Panel(card, false);
+        ui.Fill({card.x + 3.0f, card.y + 4.0f, card.w, card.h}, Palette::Shadow);
+        ui.Fill(card, here ? SDL_Color{48, 38, 28, 242} : SDL_Color{32, 26, 21, 236});
+        // The band across the top in the category's colour, a stripe of it
+        // brighter along the band's foot.
+        const SDL_FRect band = {card.x, card.y, card.w, 40.0f};
+        ui.Fill(band, Mix({30, 24, 20, 255}, accent, here ? 0.42f : 0.26f));
+        ui.Fill({band.x, band.y + band.h - 2.0f, band.w, 2.0f}, Mix(accent, {255, 255, 255, 255}, here ? 0.25f : 0.0f));
+        ui.Outline(card, here ? Mix(Palette::Border, Palette::Highlight, pulse) : Palette::BorderDim, here ? 2.0f : 1.0f);
+
+        if (const ItemDef* d = items.Get(CategoryEmblem(c)))
+            if (!d->icon.empty())
+                if (SDL_Texture* tex = textures->Get(d->icon)) {
+                    const SDL_FRect ic = {card.x + 10.0f, card.y + 4.0f, 32.0f, 32.0f};
+                    SDL_RenderTexture(renderer, tex, nullptr, &ic);
+                }
+        ui.Text(CategoryName(c), card.x + 50.0f, card.y + 8.0f, TextSize::Large,
+                here ? Palette::Highlight : Palette::Text);
+        int total = 0;
+        for (int sk : CategorySkills(c)) total += s.Level(sk);
+        ui.Text("Total " + std::to_string(total), card.x + card.w - 12.0f, card.y + 13.0f, TextSize::Small,
+                Palette::TextDim, Align::Right);
+
+        // Its skills: the name, the level, and a thread of a bar under each.
+        const vector<int>& in_card = CategorySkills(c);
+        const float top = card.y + 48.0f;
+        const float row_h = std::clamp((card.h - 56.0f) / static_cast<float>(in_card.size()), 18.0f, 30.0f);
+        for (size_t i = 0; i < in_card.size(); ++i) {
+            const int sk = in_card[i];
+            const float y = top + i * row_h;
+            const int level = s.Level(sk);
+            const int xp = s.Xp(sk), lo = XpForLevel(level), hi = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
+            const float frac = hi > lo ? static_cast<float>(xp - lo) / (hi - lo) : 1.0f;
+            const bool last = here && sk == skill_in_card[c];
+            ui.Text(SkillName(sk), card.x + 16.0f, y, TextSize::Small, last ? Palette::Highlight : Palette::Text);
+            ui.Text(std::to_string(level), card.x + card.w - 16.0f, y, TextSize::Small, Palette::Text, Align::Right);
+            const float bar_y = y + std::min(row_h - 5.0f, 16.0f);
+            ui.Fill({card.x + 16.0f, bar_y, card.w - 32.0f, 3.0f}, {24, 30, 24, 220});
+            ui.Fill({card.x + 16.0f, bar_y, (card.w - 32.0f) * frac * in, 3.0f}, Mix(Palette::Xp, accent, 0.35f));
+        }
+        // What the category is, along the foot, where there is room for it.
+        const float used = top + in_card.size() * row_h;
+        const float blurb_h = ui.WrappedHeight(CategoryBlurb(c), card.w - 32.0f, TextSize::Small);
+        if (card.y + card.h - used >= blurb_h + 10.0f)
+            ui.TextWrapped(CategoryBlurb(c), card.x + 16.0f, card.y + card.h - blurb_h - 8.0f, card.w - 32.0f,
+                           TextSize::Small, Palette::TextDim);
+        // Coming in, the card fades up out of the panel behind it.
+        if (in < 1.0f)
+            ui.Fill({card.x - 1.0f, card.y - 1.0f, card.w + 6.0f, card.h + 7.0f},
+                    {26, 20, 17, static_cast<Uint8>((1.0f - in) * 242.0f)});
+    }
 
     char header[128];
     SDL_snprintf(header, sizeof(header), "Combat %d    Total level %d    Total XP %lld",
                  s.CombatLevel(), s.TotalLevel(), s.TotalXp());
-    ui.Text(header, panel.x + 20.0f + list_w, panel.y + panel.h - 52.0f, TextSize::Small,
+    ui.Text(header, panel.x + panel.w - 20.0f, panel.y + panel.h - 52.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
+    if (modal <= 0.0f)
+        ui.Text(input.PromptFor(Action::Confirm) + " open     arrows choose     " + input.PromptFor(Action::Back) + " close",
+                panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
 
-    // Fourteen rows in whatever is left between the tabs and the footer.
-    const float row_h = std::clamp(floorf((panel.h - 58.0f - 134.0f) / static_cast<float>(SKILL_COUNT)), 24.0f, 32.0f);
-    for (int i = 0; i < SKILL_COUNT; ++i) {
-        const SDL_FRect row = {panel.x + 20.0f, panel.y + 58.0f + i * row_h,
-                               list_w, row_h - 4.0f};
-        const bool selected = (i == cursor);
+void Game::DrawSkillModal(const SDL_FRect& panel) {
+    const float open = SkillModalOpenness();
+    if (open <= 0.0f) return;
+    // Out of its card and into the middle of the panel, a little past and
+    // back as it opens; shrunk straight back into the card as it shuts.
+    const SDL_FRect from = SkillCardRect(panel, skill_card);
+    const SDL_FRect to = {panel.x + 24.0f, panel.y + 52.0f, panel.w - 48.0f, panel.h - 88.0f};
+    const float grow = skill_modal_closing ? EaseOut(open) : EaseOutBack(open);
+    const SDL_FRect box = Lerp(from, to, grow);
+
+    // The rest of the page goes dark behind it; the tabs stay lit.
+    ui.Fill({panel.x + 2.0f, panel.y + 50.0f, panel.w - 4.0f, panel.h - 52.0f},
+            {0, 0, 0, static_cast<Uint8>(150.0f * std::clamp(open, 0.0f, 1.0f))});
+    ui.Panel(box);
+    const SDL_Color accent = CategoryColour(skill_card);
+    const SDL_FRect band = {box.x + 2.0f, box.y + 2.0f, box.w - 4.0f, 44.0f};
+    ui.Fill(band, Mix({30, 24, 20, 255}, accent, 0.4f));
+    ui.Fill({band.x, band.y + band.h - 2.0f, band.w, 2.0f}, Mix(accent, {255, 255, 255, 255}, 0.25f));
+    // What is inside comes up once there is room for it.
+    const float content = std::clamp((open - 0.55f) / 0.45f, 0.0f, 1.0f);
+    if (content <= 0.0f) return;
+
+    const Skills& s = world->player.skills;
+    SyncMilestones();
+    if (const ItemDef* d = items.Get(CategoryEmblem(skill_card)))
+        if (!d->icon.empty())
+            if (SDL_Texture* tex = textures->Get(d->icon)) {
+                const SDL_FRect ic = {box.x + 12.0f, box.y + 8.0f, 32.0f, 32.0f};
+                SDL_RenderTexture(renderer, tex, nullptr, &ic);
+            }
+    ui.Text(CategoryName(skill_card), box.x + 52.0f, box.y + 10.0f, TextSize::Large, Palette::Highlight);
+    int total = 0;
+    const vector<int>& in = CategorySkills(skill_card);
+    for (int sk : in) total += s.Level(sk);
+    ui.Text("Total level " + std::to_string(total), box.x + box.w - 16.0f, box.y + 16.0f, TextSize::Small,
+            Palette::Text, Align::Right);
+
+    // The skills down the left, what the selected one opens down the right.
+    const float gap = 16.0f;
+    const float mile_w = std::clamp(box.w * 0.40f, 250.0f, 380.0f);
+    const float list_w = box.w - 32.0f - mile_w - gap;
+    const float top = box.y + 58.0f, bottom = box.y + box.h - 46.0f;
+    const float row_h = std::clamp((bottom - top) / static_cast<float>(in.size()), 30.0f, 44.0f);
+    // The bars run up one after another as it opens.
+    const float since = std::max(0.0f, state_time - skill_modal_at - SKILL_MODAL_TIME * 0.5f);
+    for (size_t i = 0; i < in.size(); ++i) {
+        const SDL_FRect row = {box.x + 16.0f, top + i * row_h, list_w, std::min(row_h - 6.0f, 34.0f)};
+        const bool selected = in[i] == cursor;
         if (selected) {
-            ui.Fill(row, {58, 46, 28, 200});
+            ui.Fill(row, {58, 46, 28, 210});
             ui.Outline(row, on_milestones ? Palette::BorderDim : Palette::Highlight, 1.0f);
+            ui.Fill({row.x, row.y, 3.0f, row.h}, accent);
         }
-
-        const int level = s.Level(i);
-        ui.Text(SkillName(i), row.x + 10.0f, row.y + 4.0f, TextSize::Body,
-                selected ? Palette::Highlight : Palette::Text);
-        // A boosted level shows what it is working at right now.
-        const int now = s.Current(i);
-        const bool boosted = i != SKILL_HITPOINTS && now != level;
-        const float lvl_x = std::max(110.0f, row.w * 0.30f);
-        const float tail = std::max(92.0f, row.w * 0.22f);
-        ui.Text(boosted ? std::to_string(now) + "/" + std::to_string(level) : std::to_string(level),
-                row.x + lvl_x, row.y + 4.0f, TextSize::Body,
-                boosted ? (now > level ? Palette::Xp : SDL_Color{235, 150, 120, 255}) : Palette::Text, Align::Right);
-
-        // Progress toward the next level, the way the OSRS skill guide reads.
-        const int xp = s.Xp(i);
-        const int here = XpForLevel(level);
-        const int next = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
-        const float frac = (next > here) ? static_cast<float>(xp - here) / (next - here) : 1.0f;
-
-        const SDL_FRect bar = {row.x + lvl_x + 16.0f, row.y + 8.0f,
-                               std::max(24.0f, row.w - lvl_x - 16.0f - tail), 14.0f};
-        ui.Bar(bar, frac, Palette::Xp, {26, 34, 26, 235});
-
-        char xp_text[48];
-        if (level >= MAX_SKILL_LEVEL) SDL_snprintf(xp_text, sizeof(xp_text), "max");
-        else SDL_snprintf(xp_text, sizeof(xp_text), "%d xp to %d", next - xp, level + 1);
-        ui.Text(xp_text, row.x + row.w - 10.0f, row.y + 7.0f, TextSize::Small,
-                Palette::TextDim, Align::Right);
+        const float fill = skill_modal_closing ? 1.0f : EaseOut((since - 0.05f * i) / 0.35f);
+        DrawSkillRow(in[i], row, selected, fill);
     }
+    // Under the rows, where a short category leaves room: the selected skill
+    // at length -- its level and experience, how it is trained, and the next
+    // thing it opens.
+    {
+        const SDL_FRect info = {box.x + 16.0f, top + in.size() * row_h + 6.0f, list_w, 0.0f};
+        const float room = bottom - info.y;
+        if (room >= 120.0f) {
+            const SDL_FRect r = {info.x, info.y, info.w, std::min(room, 168.0f)};
+            ui.Fill(r, {22, 19, 16, 170});
+            ui.Outline(r, Palette::BorderDim, 1.0f);
+            ui.Fill({r.x, r.y, 3.0f, r.h}, accent);
+            float y = r.y + 10.0f;
+            const int level = s.Level(cursor);
+            ui.Text(SkillName(cursor), r.x + 14.0f, y, TextSize::Large, Palette::Highlight);
+            ui.Text("Level " + std::to_string(level), r.x + r.w - 12.0f, y + 6.0f, TextSize::Body, Palette::Text, Align::Right);
+            y += 34.0f;
+            ui.Text(std::to_string(s.Xp(cursor)) + " xp in all", r.x + 14.0f, y, TextSize::Small, Palette::TextDim);
+            y += 20.0f;
+            y += ui.TextWrapped(SkillBlurb(cursor), r.x + 14.0f, y, r.w - 28.0f, TextSize::Small, Palette::Text) + 6.0f;
+            const SkillMilestone* next = nullptr;
+            for (const SkillMilestone& m : milestones) if (m.level > level) { next = &m; break; }
+            if (next && y + 18.0f <= r.y + r.h) {
+                string line = "Next, at " + std::to_string(next->level) + ": " + next->text;
+                if (ui.Measure(line, TextSize::Small).x > r.w - 28.0f) {
+                    while (line.size() > 12 && ui.Measure(line + "...", TextSize::Small).x > r.w - 28.0f) line.pop_back();
+                    line += "...";
+                }
+                ui.Text(line, r.x + 14.0f, y, TextSize::Small, Palette::Xp);
+            }
+        }
+    }
+    DrawMilestones({box.x + 16.0f + list_w + gap, top, mile_w, bottom - top});
 
-    DrawMilestones({panel.x + 20.0f + list_w + gap, panel.y + 58.0f, mile_w, panel.h - 116.0f});
-
-    ui.Text(input.PromptFor(Action::Back) + " close", panel.x + panel.w / 2.0f,
-            panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);
+    ui.Text(input.PromptFor(Action::Back) + " back to the categories", box.x + box.w / 2.0f, box.y + box.h - 28.0f,
+            TextSize::Small, Palette::TextDim, Align::Center);
+    // Fading up: a veil of the panel's own colour over it, thinning away.
+    if (content < 1.0f)
+        ui.Fill({box.x + 3.0f, box.y + 48.0f, box.w - 6.0f, box.h - 51.0f},
+                {26, 20, 17, static_cast<Uint8>((1.0f - content) * 242.0f)});
 }
 
 // Everything the selected skill opens, in the order it opens it, with the

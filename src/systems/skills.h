@@ -22,8 +22,24 @@ enum SkillId {
     SKILL_SMITHING,      // smelting and smithing at an anvil
     SKILL_FORAGING,      // picking herbs and plants
     SKILL_BREWING,       // potions, at a cauldron
+    // Added at the end, so every skill before them keeps its number: a
+    // guest's experience drop names its skill by number (net::Delta::Xp).
+    SKILL_TANNING,       // hide cut and sewn on a tanner's rack: once Crafting's
+    SKILL_CLOTHIER,      // cloth woven and sewn at a loom: once Crafting's
+    SKILL_ENCHANTING,    // charms worked into worn pieces: once Magic's
     SKILL_COUNT
 };
+
+// The skills page groups them. A category's skills are listed in the order
+// they are shown; every skill is in exactly one.
+enum SkillCategory { CATEGORY_FORGING = 0, CATEGORY_COMBAT, CATEGORY_GATHERING, CATEGORY_WITCHCRAFT, CATEGORY_COUNT };
+const char* CategoryName(int category);
+// A line on what a category holds, and on how a skill is trained, for the
+// skills page to say.
+const char* CategoryBlurb(int category);
+const char* SkillBlurb(int skill);
+const vector<int>& CategorySkills(int category);
+int SkillCategoryOf(int skill);
 
 static constexpr int MAX_SKILL_LEVEL = 99;
 

@@ -305,6 +305,29 @@ private:
     int  milestone_row = 0;
     bool on_milestones = false;      // which of the two columns takes up and down
 
+    // --- the skills page: four categories, and a modal for the one chosen ---------
+    // Forging, Combat, Gathering and Witchcraft stand as four cards (see
+    // CategorySkills). Choosing one opens a modal out of it, grown from the card
+    // to the middle of the panel, with that category's skills down one side and
+    // what the selected one opens down the other; Back shrinks it into its card
+    // again. `cursor` is the skill the modal has selected.
+    int   skill_card = 0;                // the card the cursor is on
+    bool  skill_modal = false;           // open, opening or closing
+    bool  skill_modal_closing = false;
+    float skill_modal_at = -10.0f;       // state_time it began to open, or to close
+    float skills_page_at = -10.0f;       // state_time the cards were last shown: they come in
+    int   skill_in_card[4] = {SKILL_SMITHING, SKILL_HITPOINTS, SKILL_WOODCUTTING, SKILL_BREWING};
+    static constexpr float SKILL_MODAL_TIME = 0.24f;
+    // 0 shut, 1 open: how far the modal is through opening or closing.
+    float SkillModalOpenness() const;
+    void  OpenSkillModal(int card, int skill);
+    SDL_FRect SkillCardRect(const SDL_FRect& panel, int card) const;
+    void  DrawSkillCards(const SDL_FRect& panel);
+    void  DrawSkillModal(const SDL_FRect& panel);
+    // One skill's line: its name, its level, the bar to the next, and what is
+    // still owed; `fill` runs the bar up from nothing as the modal opens.
+    void  DrawSkillRow(int skill, const SDL_FRect& row, bool selected, float fill);
+
     // --- the spellbook ---------------------------------------------------------
     // One row for each thing a button does -- the five spell slots, the three
     // abilities carried, the charged attack -- and, for each, everything this
@@ -349,6 +372,12 @@ private:
     int  delete_slot = -1;       // slot the load screen is asking about deleting
     int  sleep_fee = 0;          // what the bed being asked about costs
     int    travel_cursor = 0;
+    // The waystone panel's tabs: 0 the towns' stones, 1 the wilds'. It opens
+    // on the one the stone being touched is under; `travel_tab_at` is when the
+    // tab was last changed, for its rows to come in.
+    int    travel_tab = 0;
+    float  travel_tab_at = -10.0f;
+    int    travel_tab_dir = 1;
     int    totem_cursor = 0;
     string travel_from;          // the waystone being touched
     // Writes the session to its slot if there is one to write and nothing says

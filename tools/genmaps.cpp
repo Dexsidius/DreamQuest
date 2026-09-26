@@ -494,7 +494,7 @@ public:
         for (const auto& o : dq["objects"]) {
             const string type = o.value("type", string(""));
             if (type == "bed" || type == "campsite" || type == "camp" || type == "chest" || type == "sign" ||
-                type == "storage" || type == "range" || type == "note")
+                type == "storage" || type == "range" || type == "note" || type == "waystone")
                 near(o["x"].get<float>(), o["y"].get<float>());
         }
         return best;
@@ -879,22 +879,30 @@ static void PlaceRelicChest(MapBuilder& m, const string& chest_id, int x, int y,
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
-// A waystone: the old stones that stand in the three towns and nowhere else.
-// Asleep until somebody puts a hand on it; after that, a door to every other
-// one that has been woken. The world remembers a woken stone as a flag with
-// the stone's own id, which is also what draws it lit -- an object whose id is
-// flagged is drawn as its `sprite_open`, the way an opened chest is.
+// A waystone: the old stones that stand in the three towns, at the door of the
+// player's house in Mossvale, and at three checkpoints out in the wild -- the
+// Ashen Path, the top of the climb onto Purgatory's Plateau, and the Bayou by
+// the Hexmire's gate. Asleep until somebody puts a hand on it; after that, a
+// door to every other one that has been woken. The world remembers a woken
+// stone as a flag with the stone's own id, which is also what draws it lit --
+// an object whose id is flagged is drawn as its `sprite_open`, the way an
+// opened chest is. The list the travel panel shows is src/systems/waystones.h.
 //
-// Towns only, and that is the whole of the design: the road to a place has to
-// be walked once, and the wilds and the dungeons are always walked.
-static void PlaceWaystone(MapBuilder& m, const string& town, int x, int y) {
-    json& o = m.Object("waystone_" + town, "waystone", x, y);
+// The road to a place is still walked once: a stone in the wild is woken by
+// walking to it, and the dungeons are always walked.
+//
+// Whoever arrives by a stone stands in front of it, at a spawn named for it;
+// a town's own stone answers to "waystone" as well, which is what arriving
+// "at the waystone" of a town has always meant.
+static void PlaceWaystone(MapBuilder& m, const string& where, int x, int y, bool towns_stone = true) {
+    const string id = "waystone_" + where;
+    json& o = m.Object(id, "waystone", x, y);
     o["sprite"]      = "assets/props/waystone.png";
     o["sprite_open"] = "assets/props/waystone_lit.png";
     o["title"]       = "Waystone";
     m.Collision(x - 28, y - 20, 56, 20);
-    // Where somebody arriving by it stands: in front of it, facing the town.
-    m.Spawn("waystone", x, y + 30);
+    m.Spawn(id, x, y + 30);
+    if (towns_stone) m.Spawn("waystone", x, y + 30);
 }
 
 // A bed anyone may sleep in after dusk. Drawn from the same prop art as the
@@ -1122,7 +1130,7 @@ static void PlaceCauldron(MapBuilder& m, const string& obj_id, int x, int y) {
     m.Collision(x - 16, y - 12, 32, 12);
 }
 
-// An enchanting table: where charms are worked into worn pieces, for Magic.
+// An enchanting table: where charms are worked into worn pieces and weapons, for Enchanting.
 // Its own object type rather than a crafting station, because what it makes
 // is not on any list -- it is one of the player's own pieces.
 static void PlaceEnchantingTable(MapBuilder& m, const string& obj_id, int x, int y) {
@@ -4413,6 +4421,12 @@ static bool OnPalaceRoad(int cx, int cy, float half) {
     return cy >= MOAT_FRONT + MOAT_ROWS && cy <= static_cast<int>(TrailY(PAL_CX)) + 1 &&
            fabsf(cx + 0.5f - PalaceRoadX(static_cast<float>(cy))) < half;
 }
+// The waystone, where the palace road leaves the burnt one: on the south side
+// of the path, a little west of the junction, between the two streams out of
+// the moat. Nothing grows or stands within a couple of cells of it.
+static const int STONE_CX = 64;
+static int StoneCy() { return static_cast<int>(TrailY(STONE_CX + 0.5f) + 4.0f); }
+static bool NearStone(int cx, int cy) { return std::abs(cx - STONE_CX) <= 2 && std::abs(cy - StoneCy()) <= 2; }
 }   // namespace ash
 
 static void BuildAshenPath() {
@@ -4478,7 +4492,7 @@ static void BuildAshenPath() {
             if (OnPalaceRoad(cx, cy, 3.5f)) continue;
             if (OnPlateauRoad(cx, cy, 3.5f) || (cy < 13 && fabsf(cx - PLAT_X) < 6.0f)) continue;
             if (OnPatrol(cx, cy) || OnPatrol(cx + 1, cy) || OnPatrol(cx - 1, cy)) continue;
-            if (NearBankOre(cx, cy)) continue;
+            if (NearBankOre(cx, cy) || NearStone(cx, cy)) continue;
             bool at_bridge = false;
             for (int rr : kCrossings)
                 for (int i = 1; i <= 2; ++i)
@@ -4658,6 +4672,11 @@ static void BuildAshenPath() {
                       "Seventy, and more, and do not go at night.";
         m.Collision(sx - 16, sy * CELL + 6, 32, 10);
     }
+    // --- the waystone, at the palace road's foot -------------------------------------------
+    // A checkpoint for the far end of the path: the pit's gate, the palace, and
+    // the ore on the streams' far banks all start from here once it is woken.
+    PlaceWaystone(m, "ashen_path", STONE_CX * CELL + 16, StoneCy() * CELL + 24, false);
+
     // Its guards, inside the moat: the palace's own.
     m.Enemy("abyssal_demon", (MOAT_W + 5) * CELL + 16, (PAL_BASE + 3) * CELL + 16, 1, 120.0f, 220.0f);
     m.Enemy("abyssal_demon", (MOAT_E - 5) * CELL + 16, (PAL_BASE + 3) * CELL + 16, 2, 120.0f, 220.0f);
@@ -4721,6 +4740,7 @@ static void BuildAshenPath() {
             if (fabsf(cy - TrailY(static_cast<float>(cx))) < 2.0f) return false;
             if (cx >= MOAT_W - 3 && cx <= MOAT_E + 3 && cy <= MOAT_FRONT + 2) return false;
             if (OnPalaceRoad(cx, cy, 2.0f) || OnPlateauRoad(cx, cy, 2.0f) || OnPatrol(cx, cy)) return false;
+            if (NearStone(cx, cy)) return false;
             return !(cx > W - 12 && fabsf(cy - TrailY(static_cast<float>(cx))) < 7.0f);   // the gate's forecourt
         };
         int bug_i = 0, got = 0;
@@ -6538,6 +6558,41 @@ static void BuildBayou() {
         reserve(hx + 112, gy + 56, 1);
     }
 
+    // --- a waystone on the spur, below the Hexmire's gate ------------------------------------
+    // The Bayou is long and wet and the Hexmire is at its far end: a stone
+    // where the spur climbs to the gate means the next trip starts there. On
+    // the driest ground near the spur, clear of the water, of the gate, and of
+    // everyone who lives here -- found rather than written down, since the
+    // water is drawn from the guide's rings.
+    {
+        const int want_x = kTrackSpur[4].first + 4 * CELL, want_y = kTrackSpur[4].second + 2 * CELL;
+        int best_x = -1, best_y = -1;
+        float best_d = 1.0e9f;
+        for (int cy = 6; cy < H - 6; ++cy)
+            for (int cx = 4; cx < W - 4; ++cx) {
+                const int x = cx * CELL + 16, y = cy * CELL + 16;
+                const float d = hypotf(static_cast<float>(x - want_x), static_cast<float>(y - want_y));
+                if (d >= best_d || d > 12.0f * CELL) continue;
+                bool dry = true;
+                for (int yy = cy - 2; yy <= cy + 3 && dry; ++yy)
+                    for (int xx = cx - 2; xx <= cx + 2 && dry; ++xx)
+                        dry = kind[at(xx, yy)] == LAND && !keep[at(xx, yy)];
+                if (!dry) continue;
+                bool alone = true;
+                for (const BayouPost& p : kBayouPosts)
+                    alone = alone && hypotf(static_cast<float>(p.x - x), static_cast<float>(p.y - y)) > 300.0f;
+                if (!alone) continue;
+                best_d = d; best_x = x; best_y = y;
+            }
+        if (best_x < 0) {
+            std::fprintf(stderr, "genmaps: no dry ground near the spur for the Bayou's waystone\n");
+            std::exit(1);
+        }
+        PlaceWaystone(m, "bayou", best_x, best_y, false);
+        reserve(best_x, best_y, 2);
+        reserve(best_x, best_y + 32, 1);
+    }
+
     // --- who lives here, first: everything else keeps clear of them -----------------------
     for (const BayouPost& p : kBayouPosts) reserve(p.x, p.y, 1);
 
@@ -6961,6 +7016,10 @@ static void BuildMossvale() {
         n["text"]   = "TANNER'S HOUSE\nGone to the coast. Do not wait.\n\n"
                       "Underneath, in a different hand: the key is where it always was.";
         m.Collision(tx + 74 - 16, ty - 10 - 10, 32, 10);
+
+        // A waystone of its own at the door, off to the side of the step, so
+        // coming home is one touch away from anywhere a stone has been woken.
+        PlaceWaystone(m, "mossvale_cottage", tx + 108, ty + 46, false);
     }
 
     // --- the square -------------------------------------------------------------
@@ -8953,10 +9012,18 @@ static void BuildPlateauAscent() {
     });
     m.Spawn("default", 36 * CELL + 16, (H - 4) * CELL + 16);
 
+    // A waystone at the top of the climb, off the road to the west: the first
+    // thing on the plateau, and the way back up to it from anywhere else a
+    // stone has been woken. Before anything else stands here, so it is clear.
+    const int stone_cx = 32, stone_cy = H - 7;
+    PlaceWaystone(m, "plateau", stone_cx * CELL + 16, stone_cy * CELL + 24, false);
+    const auto by_stone = [&](int cx, int cy) { return abs(cx - stone_cx) <= 2 && abs(cy - stone_cy) <= 2; };
+
     // The skull of something that did not make it up, off the road to the west.
     Stand(m, "dragon_skull", 17 * CELL, 17 * CELL, 150, 44);
     Scatter(roads, 5353u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
         if (abs(cx - 17) < 5 && abs(cy - 16) < 4) return;
+        if (by_stone(cx, cy)) return;
         if (r < 0.020f && gap > 5.0f) { Stand(m, "charred_tree", x, y, 16, 8); return; }
         Bones(m, x, y, r);
     });

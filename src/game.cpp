@@ -1,4 +1,5 @@
 #include "game.h"
+#include "systems/waystones.h"
 #include "systems/shaders.h"
 #include "systems/gathering.h"
 
@@ -88,7 +89,7 @@ int Game::Start(int argc, char** argv) {
             // With --scratch and --level: buy these nodes, in order, and switch on any that is a technique.
             // A name that starts "spell:" is an ancient spell to know instead,
             // "enchant:" a charm for the enchanting table, and one that starts
-            // "zap:" is which of the lightning to hold.
+            // "zap:" is which of the lightning to hold, and "waystone_<where>" a stone woken.
             launch_learn = argv[++i];
         } else if (arg == "--charge" && more) {
             // With --scratch: start with this much in the lightning's battery,
@@ -272,6 +273,8 @@ int Game::Start(int argc, char** argv) {
                     // "spell:<id>" is an ancient spell, known as if its tome had been read.
                     // "enchant:<id>" the same, a charm as if its scroll had been read.
                     if (id.rfind("spell:", 0) == 0 || id.rfind("enchant:", 0) == 0) world->SetFlag("recipe:" + id);
+                    // "waystone_<where>" is a stone woken, as if a hand had been put on it.
+                    else if (id.rfind("waystone_", 0) == 0) world->SetFlag(id);
                     // "zap:<id>" chooses which of the lightning is on the fifth
                     // key, and selects the school, for looking at one of them.
                     else if (id.rfind("zap:", 0) == 0) {
@@ -379,11 +382,16 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "skills")    {
                     skills_tab = 0;
                     OpenPanel(GameState::SkillsPanel);
-                    // "skills:magic" opens on that skill, for looking at what
-                    // it says the levels are for. After the open: SetState puts
-                    // every panel's cursor back to the top.
+                    // "skills:magic" opens that skill's category on it, for
+                    // looking at what it says the levels are for, and
+                    // "skills:gathering" a category on its first. After the
+                    // open: SetState puts every panel's cursor back to the top.
                     for (int k = 0; !arg.empty() && k < SKILL_COUNT; ++k)
-                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0) cursor = k;
+                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0) OpenSkillModal(SkillCategoryOf(k), k);
+                    for (int c = 0; !arg.empty() && c < CATEGORY_COUNT; ++c)
+                        if (SDL_strcasecmp(CategoryName(c), arg.c_str()) == 0) OpenSkillModal(c, -1);
+                    // Open already, not opening: a shot of it is of the modal.
+                    skill_modal_at = -10.0f;
                 }
                 else if (what == "menu")      { hub_cursor = 0; OpenPanel(GameState::Hub); }
                 else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_TREE; }
@@ -391,7 +399,9 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "boons")     { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOONS; }
                 else if (what == "pause")     OpenPanel(GameState::Paused);
                 else if (what == "totems")    { totem_cursor = 0; OpenPanel(GameState::TotemRing); }
-                else if (what == "travel")    { travel_from = "waystone_havenbrook"; travel_cursor = 0;
+                else if (what == "travel")    { // "travel:waystone_bayou" opens it as if at that stone
+                                                travel_from = arg.empty() ? string("waystone_havenbrook") : arg;
+                                                travel_cursor = 0;
                                                 OpenPanel(GameState::Travel); }
                 else if (what == "shop")      OpenShop(arg);
                 else if (what == "craft")     {
@@ -625,6 +635,21 @@ void Game::SetState(GameState s) {
          state == GameState::LoadMenu ||
          state == GameState::CharacterSelect || state == GameState::Multiplayer);
 
+    // What a panel puts back as it opens. The panels' own "state_time <= 0"
+    // never sees its first frame -- Update adds the frame's time before it
+    // asks the panel -- so it is done here, where every change of state passes.
+    if (s != state) {
+        if (s == GameState::SkillsPanel) {
+            skills_page_at = 0.0f;                 // the cards come in
+            skill_modal = skill_modal_closing = false;
+        }
+        if (s == GameState::Travel) {
+            // On the tab the stone being touched is under.
+            const WaystoneDef* here = WaystoneById(travel_from);
+            travel_tab = here && !here->town ? 1 : 0;
+            travel_tab_at = -10.0f;
+        }
+    }
     state = s;
     state_time = 0.0f;
     cursor = back_to_menu ? main_menu_cursor : 0;
@@ -1551,17 +1576,24 @@ void Game::RunAudit() {
             {"pause",          GameState::Paused,          [&] { has_session = true; }},
             {"menu",           GameState::Hub,             [&] { hub_cursor = 0; }},
             {"inventory",      GameState::Inventory,       [&] { inventory_cursor = 0; }},
-            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; cursor = SKILL_ATTACK;
+            // The four cards, and then every skill in its category's modal.
+            {"skill categories", GameState::SkillsPanel,   [&] { skills_tab = TAB_SKILLS; skill_modal = false;
+                                                                 skills_page_at = -10.0f; }},
+            {"skills",         GameState::SkillsPanel,     [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_COMBAT, SKILL_ATTACK);
+                                                                 skill_modal_at = -10.0f; skills_page_at = -10.0f;
                                                                  milestones_for = -1; on_milestones = false; }},
             // The milestone column, on the two skills whose lists are longest
             // and whose lines are widest -- every spell and enchantment under
             // Magic, every recipe of every station under Crafting -- with the
             // cursor in it, which is when it draws its brightest and says what
             // a level is still owed.
-            {"skills milestones", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; cursor = SKILL_MAGIC;
-                                                                 milestones_for = -1; on_milestones = true; }},
-            {"skills recipes",  GameState::SkillsPanel,    [&] { skills_tab = TAB_SKILLS; cursor = SKILL_CRAFTING;
-                                                                 milestones_for = -1; on_milestones = true; }},
+            {"skills milestones", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_COMBAT, SKILL_MAGIC);
+                                                                 skill_modal_at = -10.0f; on_milestones = true; }},
+            {"skills recipes",  GameState::SkillsPanel,    [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_FORGING, SKILL_TANNING);
+                                                                 skill_modal_at = -10.0f; on_milestones = true; }},
+            // Every tier of every charm, a line each: the longest list of all.
+            {"skills enchanting", GameState::SkillsPanel,  [&] { skills_tab = TAB_SKILLS; OpenSkillModal(CATEGORY_WITCHCRAFT, SKILL_ENCHANTING);
+                                                                 skill_modal_at = -10.0f; on_milestones = true; }},
             {"skill tree",     GameState::SkillsPanel,     [&] { skills_tab = TAB_TREE; tree_branch = 0; tree_row = 2; }},
             // With the whole tree learned and every ancient spell known: every
             // row has its longest choice somewhere along it.
@@ -1636,6 +1668,7 @@ void Game::RunAudit() {
             const string name = sc.name;
             if (name == "inventory")      { target = &inventory_cursor; steps = p.inventory.SlotCount(); }
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
+            else if (name == "skill categories") { target = &skill_card; steps = CATEGORY_COUNT; }
             else if (name == "menu")      { target = &hub_cursor; steps = 5; }
             else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
             // Nine rows, and as many choices as the longest of them has: the
@@ -1650,7 +1683,7 @@ void Game::RunAudit() {
             else if (name == "enchanting") { target = &enchant_cursor; steps = 24; }
             else if (name == "shop" || name == "shop sell" || name == "shop gear") { target = &shop_cursor; steps = 30; }
             else if (name == "board")     { target = &board_cursor; steps = 30; }
-            else if (name == "travel")    { target = &travel_cursor; steps = 3; }
+            else if (name == "travel")    { target = &travel_cursor; steps = 8; }
             else if (name == "totem ring") { target = &totem_cursor; steps = 12; }
             else if (name == "controls")  { target = &controls_cursor; steps = 26; }
             else if (name == "options")   { target = &cursor_row; steps = 12; }
@@ -1659,6 +1692,10 @@ void Game::RunAudit() {
 
             for (int step = 0; step < steps; ++step) {
                 if (target) *target = step;
+                // Each skill in its own category's modal.
+                if (name == "skills") skill_card = SkillCategoryOf(cursor);
+                // Both of the waystones' tabs, and every row of each.
+                if (name == "travel") { travel_tab = step / 4; travel_cursor = step % 4; travel_tab_at = -10.0f; }
                 // Every branch of a tree, too, and both of its tabs.
                 if (name == "skill tree") tree_branch = step % SkillTrees::BRANCHES;
                 // Every row of the book, with each thing that could be on it in turn.

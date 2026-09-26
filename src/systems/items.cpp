@@ -776,9 +776,11 @@ int CraftSkill(CraftStation s) {
         case CraftStation::Anvil:    return SKILL_SMITHING;
         case CraftStation::Cauldron: return SKILL_BREWING;
         case CraftStation::Range:    return SKILL_COOKING;
-        // The loom is the weaver's share of Crafting, the rack the tanner's
-        // and the bench the carpenter's: three stations, one skill, which is
-        // why Wynn's order book and Nessa's both pay into the same number.
+        // The loom and the rack were Crafting's, with the bench, and are
+        // skills of their own now: Wynn's order book pays the Clothier and
+        // Nessa's pays Tanning. The bench is still the carpenter's Crafting.
+        case CraftStation::Loom:     return SKILL_CLOTHIER;
+        case CraftStation::Rack:     return SKILL_TANNING;
         default:                     return SKILL_CRAFTING;
     }
 }
@@ -1245,6 +1247,16 @@ bool ItemDatabase::LoadEnchantments(const string& path) {
                 if (tj.contains("inputs"))
                     for (auto i = tj["inputs"].begin(); i != tj["inputs"].end(); ++i)
                         t.inputs[i.key()] = i.value().get<int>();
+                // A worn piece's charm: what this tier adds to the piece.
+                if (tj.contains("bonus")) {
+                    const json& b = tj["bonus"];
+                    t.attack_bonus   = b.value("attack", 0);
+                    t.strength_bonus = b.value("strength", 0);
+                    t.defence_bonus  = b.value("defence", 0);
+                    t.ranged_bonus   = b.value("ranged", 0);
+                    t.magic_bonus    = b.value("magic", 0);
+                }
+                t.move_speed = tj.value("move_speed", 0.0f);
                 e.tiers.push_back(t);
             }
         if (e.Tiered()) {
@@ -1253,6 +1265,12 @@ bool ItemDatabase::LoadEnchantments(const string& path) {
             e.xp     = e.tiers[0].xp;
             e.value  = e.tiers[0].value;
             e.inputs = e.tiers[0].inputs;
+            if (!e.ForWeapon()) {
+                const EnchantDef::Tier& t = e.tiers[0];
+                e.attack_bonus = t.attack_bonus; e.strength_bonus = t.strength_bonus;
+                e.defence_bonus = t.defence_bonus; e.ranged_bonus = t.ranged_bonus;
+                e.magic_bonus = t.magic_bonus; e.move_speed = t.move_speed;
+            }
             if (e.slots.empty()) e.slots.push_back(SLOT_WEAPON);
         }
         enchants.push_back(e);
@@ -1271,6 +1289,36 @@ bool ItemDatabase::LoadEnchantments(const string& path) {
         for (const string& id : plain) {
             const ItemDef& base = defs.at(id);
             if (!Takes(base, e)) continue;
+            if (e.Tiered() && !e.ForWeapon()) {
+                // A worn piece's charm: a twin for every tier, with what that
+                // tier adds. The first keeps the id the one tier had.
+                for (int k = 1; k <= e.TierCount(); ++k) {
+                    const EnchantDef::Tier& t = *e.TierAt(k);
+                    ItemDef v = base;
+                    v.id           = id + "+" + e.id + (k == 1 ? string() : "_" + std::to_string(k));
+                    v.name         = base.name + " " + e.suffix + " " + RomanNumeral(k);
+                    v.enchant      = e.id;
+                    v.enchant_tier = k;
+                    v.base_item    = id;
+                    v.value        = base.value + t.value;
+                    v.attack_bonus   += t.attack_bonus;
+                    v.strength_bonus += t.strength_bonus;
+                    v.defence_bonus  += t.defence_bonus;
+                    v.ranged_bonus   += t.ranged_bonus;
+                    v.magic_bonus    += t.magic_bonus;
+                    v.move_speed     += t.move_speed;
+                    const string line = e.NameAt(k) + ": " + e.EffectAt(k);
+                    v.passive_text = base.passive_text.empty() ? line : base.passive_text + "\n" + line;
+                    v.craft_result.clear();
+                    v.craft_inputs.clear();
+                    v.needs_recipe = false;
+                    v.recipe_from.clear();
+                    v.tags.push_back("enchanted");
+                    defs[v.id] = v;
+                    ++twins;
+                }
+                continue;
+            }
             if (e.Tiered()) {
                 // A weapon's charm: a twin for every tier, "<weapon>+<charm>_<tier>".
                 for (int k = 1; k <= e.TierCount(); ++k) {
@@ -1353,11 +1401,11 @@ const char* RomanNumeral(int n) {
     return (n >= 1 && n <= 10) ? kNumerals[n] : "";
 }
 
-int EnchantDef::TierFor(int magic) const {
-    if (!Tiered()) return magic >= level ? 1 : 0;
+int EnchantDef::TierFor(int enchanting) const {
+    if (!Tiered()) return enchanting >= level ? 1 : 0;
     int best = 0;
     for (int k = 1; k <= TierCount(); ++k)
-        if (tiers[k - 1].level <= magic) best = k;
+        if (tiers[k - 1].level <= enchanting) best = k;
     return best;
 }
 
@@ -1383,6 +1431,22 @@ const map<string, int>& EnchantDef::InputsAt(int tier) const {
 string EnchantDef::EffectAt(int tier) const {
     const Tier* t = TierAt(tier);
     if (!t) return text;
+    if (!ForWeapon()) {
+        // A worn piece's: what it adds, as the stat block would say it.
+        vector<string> parts;
+        const auto add = [&](const char* what, int n) { if (n) parts.push_back(string(what) + " +" + std::to_string(n)); };
+        add("Attack", t->attack_bonus);
+        add("Strength", t->strength_bonus);
+        add("Defence", t->defence_bonus);
+        add("Ranged", t->ranged_bonus);
+        add("Magic", t->magic_bonus);
+        if (t->move_speed > 0.0f)
+            parts.push_back("you walk " + std::to_string(static_cast<int>(std::lround(t->move_speed * 100.0f))) + "% quicker");
+        string out;
+        for (size_t i = 0; i < parts.size(); ++i) out += (i ? ", " : "") + parts[i];
+        if (!out.empty() && out[0] >= 'a' && out[0] <= 'z') out[0] = static_cast<char>(out[0] - 'a' + 'A');
+        return out.empty() ? text : out;
+    }
     const int pct = static_cast<int>(std::lround(t->amount * 100.0f));
     const string p = std::to_string(pct) + "%";
     if (effect == "proc")        return "+" + p + " chance to leave whatever its blows leave";
@@ -1410,6 +1474,17 @@ string EnchantDef::NameAt(int tier) const {
 }
 
 bool ItemDatabase::Takes(const ItemDef& piece, const EnchantDef& e) const {
+    if (e.Tiered() && !e.ForWeapon()) {
+        // A worn piece's charm. A piece that carries one already can have it
+        // raised or swapped, so it is judged as the plain piece it was.
+        const ItemDef* plain = piece.base_item.empty() ? &piece : Get(piece.base_item);
+        if (!plain || plain->slot == SLOT_NONE || plain->slot == SLOT_WEAPON) return false;
+        if (std::find(e.slots.begin(), e.slots.end(), plain->slot) == e.slots.end()) return false;
+        // Only a shield takes a shield's charm: a lantern is worn in the same
+        // hand and is not one.
+        if (plain->slot == SLOT_SHIELD && plain->block <= 0.0f) return false;
+        return true;
+    }
     if (e.Tiered()) {
         // A weapon's charm. A weapon that carries one already can have it
         // raised or swapped, so it is judged as the plain weapon it was.
@@ -1436,6 +1511,14 @@ bool ItemDatabase::Takes(const ItemDef& piece, const EnchantDef& e) const {
 string ItemDatabase::EnchantedId(const string& piece, const string& enchant) const {
     const string id = piece + "+" + enchant;
     return defs.count(id) ? id : string();
+}
+
+string ItemDatabase::TwinId(const string& plain, const EnchantDef& e, int tier) const {
+    if (!e.Tiered()) return EnchantedId(plain, e.id);
+    if (tier < 1 || tier > e.TierCount()) return string();
+    // A worn piece's first tier is the id its one tier had: see EnchantDef.
+    if (!e.ForWeapon() && tier == 1) return EnchantedId(plain, e.id);
+    return EnchantedId(plain, e.id + "_" + std::to_string(tier));
 }
 
 namespace Enchanting {
@@ -1465,9 +1548,11 @@ bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot,
         return false;
     }
     string made;
+    // Asked for no tier in particular, a charm with tiers is worked at its first.
+    if (e.Tiered() && tier == 0) tier = 1;
     if (e.Tiered()) {
-        // A weapon's charm, at a tier: raised in place, or put on in place of
-        // another -- never two, and never a tier it has already.
+        // A charm, at a tier: raised in place, or put on in place of another
+        // -- never two, and never a tier it has already.
         if (tier < 1 || tier > e.TierCount()) {
             why = "This enchantment does not fit that.";
             return false;
@@ -1477,7 +1562,7 @@ bool Work(const ItemDatabase& db, const EnchantDef& e, Inventory& bag, int slot,
             return false;
         }
         const string plain = d->base_item.empty() ? piece : d->base_item;
-        made = db.EnchantedId(plain, e.id + "_" + std::to_string(tier));
+        made = db.TwinId(plain, e, tier);
     } else {
         made = db.EnchantedId(piece, e.id);
     }

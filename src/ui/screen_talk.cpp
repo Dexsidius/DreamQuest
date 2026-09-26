@@ -7,6 +7,7 @@
 //  them share is in screens_shared.h.
 // =============================================================================
 #include "../systems/gathering.h"
+#include "../systems/waystones.h"
 #include "../game.h"
 #include "screens_shared.h"
 
@@ -316,38 +317,50 @@ constexpr SleepRow kSleepRows[2] = {
 // =============================================================================
 //  Waystones
 //
-//  Three old stones, one in each town and none anywhere else. Each is asleep
-//  until somebody puts a hand on it, and a woken one is a door to every other
-//  woken one -- so the road to a town is walked once, and the wilds and the
-//  dungeons are always walked. There is no fare: the price of a waystone is
-//  having got there.
+//  The old stones: one in each town, one at the door of the player's house in
+//  Mossvale, and three checkpoints out in the wild -- the Ashen Path, the top of
+//  the climb onto Purgatory's Plateau, and the Bayou by the Hexmire's gate (see
+//  src/systems/waystones.h). Each is asleep until somebody puts a hand on it,
+//  and a woken one is a door to every other woken one -- so the road to a place
+//  is walked once, and the dungeons are always walked. There is no fare: the
+//  price of a waystone is having got there.
+//
+//  The panel has two tabs, the towns' stones and the wilds', stepped between
+//  with left and right (or the panel keys, I and O, or the shoulders), and
+//  opens on the tab the stone being touched is under.
 // =============================================================================
 
-namespace {
-struct Waystone { const char* id; const char* map; const char* name; const char* note; };
-const Waystone kWaystones[] = {
-    {"waystone_havenbrook", "town_havenbrook", "Havenbrook", "the market town on the southern road"},
-    {"waystone_mossvale",   "mossvale",        "Mossvale",   "the logging village under the Whisperwood"},
-    {"waystone_fernhollow", "fernhollow",      "Fernhollow", "the hamlet on still water"},
-};
-constexpr int kWaystoneCount = 3;
-}
-
 void Game::UpdateTravel() {
-    MoveCursor(travel_cursor, kWaystoneCount);
+    // Which tab it opens on is SetState's to say: see there.
+    const int tab_was = travel_tab;
+    if (input.MenuLeft() || input.Pressed(Action::Inventory))  travel_tab = 0;
+    if (input.MenuRight() || input.Pressed(Action::Skills) || input.Pressed(Action::Ability)) travel_tab = 1;
+    if (travel_tab != tab_was) {
+        travel_tab_dir = travel_tab > tab_was ? 1 : -1;
+        travel_tab_at = state_time;
+        travel_cursor = 0;
+        Audio::Play(Sfx::UiMove);
+    }
+    const vector<const WaystoneDef*> list = WaystonesIn(travel_tab == 0);
+    const int count = static_cast<int>(list.size());
+    MoveCursor(travel_cursor, count);
+    travel_cursor = std::clamp(travel_cursor, 0, std::max(0, count - 1));
 
-    if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-        const Waystone& to = kWaystones[std::clamp(travel_cursor, 0, kWaystoneCount - 1)];
+    if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && count > 0) {
+        const WaystoneDef& to = *list[travel_cursor];
         if (travel_from == to.id) {
             PushToast("You are standing at it.", Palette::TextDim);
             Audio::Play(Sfx::UiError);
         } else if (!world->Flagged(to.id)) {
-            PushToast("The stone at " + string(to.name) + " is still asleep. It has to be woken by hand.",
+            PushToast(string(to.town ? "The stone at " : "The stone on ") + to.name +
+                          " is still asleep. It has to be woken by hand.",
                       {235, 190, 120, 255});
             Audio::Play(Sfx::UiError);
         } else {
             SetState(GameState::Play);
-            if (world->RequestTransition(to.map, "waystone")) Audio::Play(Sfx::QuestStart);
+            // To the spawn named for the stone: in front of it, whichever of a
+            // map's stones it is.
+            if (world->RequestTransition(to.map, to.id)) Audio::Play(Sfx::QuestStart);
         }
         return;
     }
@@ -358,17 +371,44 @@ void Game::UpdateTravel() {
 void Game::DrawTravel() {
     ui.Dim(0.55f);
     const float row_h = 58.0f;
-    const SDL_FRect panel = CenteredPanel(ui, 520.0f, 150.0f + kWaystoneCount * row_h);
+    // As tall as the longer tab needs, so switching does not resize the panel.
+    const int most = static_cast<int>(std::max(WaystonesIn(true).size(), WaystonesIn(false).size()));
+    const SDL_FRect panel = CenteredPanel(ui, 560.0f, 196.0f + most * row_h);
     ui.Panel(panel);
     ui.Text("Waystone", panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
     ui.Text("A woken stone opens on every other you have woken.", panel.x + panel.w / 2.0f,
             panel.y + 52.0f, TextSize::Small, Palette::TextDim, Align::Center);
 
+    // --- the tabs --------------------------------------------------------------------
     const SDL_Color cold{150, 220, 255, 255};
-    for (int i = 0; i < kWaystoneCount; ++i) {
-        const Waystone& w = kWaystones[i];
-        const SDL_FRect row = {panel.x + 20.0f, panel.y + 84.0f + i * row_h, panel.w - 40.0f, row_h - 8.0f};
+    {
+        const float tab_w = (panel.w - 40.0f - 8.0f) / 2.0f;
+        for (int t = 0; t < 2; ++t) {
+            const vector<const WaystoneDef*> in = WaystonesIn(t == 0);
+            int awake = 0;
+            for (const WaystoneDef* w : in) awake += world->Flagged(w->id) ? 1 : 0;
+            const SDL_FRect tab = {panel.x + 20.0f + t * (tab_w + 8.0f), panel.y + 78.0f, tab_w, 34.0f};
+            const bool on = t == travel_tab;
+            ui.Fill(tab, on ? SDL_Color{70, 54, 30, 235} : SDL_Color{30, 24, 20, 200});
+            ui.Outline(tab, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
+            ui.Text(t == 0 ? "Towns" : "The wilds", tab.x + 14.0f, tab.y + 7.0f, TextSize::Body,
+                    on ? Palette::Highlight : Palette::Text);
+            ui.Text(std::to_string(awake) + " of " + std::to_string(in.size()) + " awake", tab.x + tab.w - 12.0f,
+                    tab.y + 10.0f, TextSize::Small, awake > 0 ? cold : Palette::TextDim, Align::Right);
+        }
+    }
+
+    // --- the stones under it -----------------------------------------------------------
+    // Coming in from the side the tab was stepped toward, one after another.
+    const vector<const WaystoneDef*> list = WaystonesIn(travel_tab == 0);
+    const float since = state_time - travel_tab_at;
+    for (int i = 0; i < static_cast<int>(list.size()); ++i) {
+        const WaystoneDef& w = *list[i];
+        float k = std::clamp((since - 0.04f * i) / 0.2f, 0.0f, 1.0f);
+        k = 1.0f - (1.0f - k) * (1.0f - k) * (1.0f - k);
+        const float slide = (1.0f - k) * 36.0f * travel_tab_dir;
+        const SDL_FRect row = {panel.x + 20.0f + slide, panel.y + 124.0f + i * row_h, panel.w - 40.0f, row_h - 8.0f};
         const bool selected = (i == travel_cursor);
         const bool here = travel_from == w.id;
         const bool awake = world->Flagged(w.id);
@@ -383,9 +423,14 @@ void Game::DrawTravel() {
         ui.Text(here ? "you are here" : (awake ? "awake" : "asleep"), row.x + row.w - 12.0f, row.y + 8.0f,
                 TextSize::Small, here ? Palette::Highlight : (awake ? cold : SDL_Color{150, 110, 100, 255}),
                 Align::Right);
+        // Fading up with it: a veil of the panel over the row, thinning away.
+        if (k < 1.0f)
+            ui.Fill({row.x - 2.0f, row.y - 2.0f, row.w + 4.0f, row.h + 4.0f},
+                    {Palette::Panel.r, Palette::Panel.g, Palette::Panel.b, static_cast<Uint8>((1.0f - k) * 242.0f)});
     }
 
-    ui.Text(input.PromptFor(Action::Confirm) + " go     " + input.PromptFor(Action::Back) + " stay",
+    ui.Text(input.PromptFor(Action::Confirm) + " go     left / right towns or the wilds     " +
+                input.PromptFor(Action::Back) + " stay",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 }
