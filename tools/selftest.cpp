@@ -14063,7 +14063,8 @@ int main(int argc, char** argv) {
 
             // All of them: a different boon from each, and none a mage has no use for.
             for (const string& b : bosses) t.SlayBoss(b, rng);
-            std::set<string> got(t.Boons().begin(), t.Boons().end());
+            const vector<string> running = t.Boons();
+            std::set<string> got(running.begin(), running.end());
             Check(t.Boons().size() == bosses.size() && got.size() == bosses.size(),
                   "every boss leaves a boon, and no two the same (" + std::to_string(got.size()) + ")");
             bool fitting = true;
@@ -14077,6 +14078,43 @@ int main(int argc, char** argv) {
             back.SetPath(AttackStyle::Magic);
             back.FromJson(t.ToJson());
             Check(back.Boons() == t.Boons() && back.BossesSlain() == t.BossesSlain(), "bosses and boons survive a save");
+
+            // --- a boon lasts a day -----------------------------------------------------------------
+            // Twenty-four hours of the world's clock from when it was won, counted
+            // down as the clock runs, and then it wears off. The point stays.
+            {
+                Talents d;
+                d.SetDatabase(&trees);
+                d.SetPath(AttackStyle::Magic);
+                const Talents::Trophy won = d.SlayBoss("broodmother", rng);
+                const string id = won.boon ? won.boon->id : string();
+                Check(!id.empty() && d.BoonHoursLeft(id) == Talents::BOON_HOURS && Talents::BOON_HOURS == 24.0,
+                      "a boon is won with a day of the clock to run");
+                Check(d.SetNow(100.0).empty() && d.BoonHoursLeft(id) == 24.0, "the first hour told is only where the clock stands");
+                Check(d.SetNow(110.0).empty() && std::fabs(d.BoonHoursLeft(id) - 14.0) < 1e-9, "ten hours later it has fourteen left");
+                Talents kept;
+                kept.SetDatabase(&trees);
+                kept.SetPath(AttackStyle::Magic);
+                kept.FromJson(d.ToJson());
+                Check(std::fabs(kept.BoonHoursLeft(id) - 14.0) < 1e-9, "and a save keeps the hours it has left");
+                Check(d.SetNow(60.0).empty() && std::fabs(d.BoonHoursLeft(id) - 14.0) < 1e-9 &&
+                          d.SetNow(1000.0).empty() && std::fabs(d.BoonHoursLeft(id) - 14.0) < 1e-9,
+                      "a clock that goes back, or leaps a day and a half -- another world's, a load -- costs it nothing");
+                Check(d.SetNow(1013.5).empty() && std::fabs(d.BoonHoursLeft(id) - 0.5) < 1e-9 && d.Boons().size() == 1,
+                      "half an hour left, it is still running");
+                const vector<string> gone = d.SetNow(1014.0);
+                Check(gone.size() == 1 && gone[0] == id && d.Boons().empty() && !d.HasBoon(id) && d.BoonHoursLeft(id) == 0.0,
+                      "and at twenty-four hours it wears off, and says which it was");
+                Check(d.BonusPoints() == 1 && d.HasSlain("broodmother"), "the skill point is for good");
+                const Talents::Trophy second = d.SlayBoss("broodmother", rng);
+                Check(!second.first && !second.boon && d.Boons().empty(), "and killing her again does not bring the boon back");
+                Talents old;
+                old.SetDatabase(&trees);
+                old.SetPath(AttackStyle::Magic);
+                old.FromJson(json{{"bosses", json::array({"broodmother"})}, {"boons", json::array({id})}});
+                Check(old.BoonHoursLeft(id) == Talents::BOON_HOURS,
+                      "a save from when a boon was for good gives it a day from now");
+            }
             Check(!back.SlayBoss("pit_lord", rng).first, "and a boss killed before the save is not a first kill after it");
             // A save that has been meddled with cannot have more boons than bosses, or boons nobody made.
             json forged = t.ToJson();
@@ -14126,6 +14164,13 @@ int main(int argc, char** argv) {
                   std::fabs(with("boon_sure_feet")->talents.Global("evade") - 0.03f) < 1e-5f &&
                   std::fabs(with("boon_leech")->talents.Effect("lifesteal", AttackStyle::Melee) - 0.02f) < 1e-5f,
                   "and the rest are read where the tree's own are");
+            // Worn off, it does nothing at all.
+            const auto faded = with("boon_vigour");
+            faded->talents.SetNow(0.0);
+            faded->talents.SetNow(24.0);
+            faded->SyncHitpoints();
+            Check(faded->max_hp == plain->max_hp && faded->talents.BoonEffect("max_health") == 0.0f,
+                  "and a day later Vigour's health is gone again");
         }
 
         // --- in the world: down into the cellar ------------------------------------------------------------
@@ -14166,8 +14211,9 @@ int main(int argc, char** argv) {
                 Check(named && pointed && booned, "and the game says who, and that there is a point, and which boon and what it does");
                 Check(short_enough, "in lines short enough for a narrow window");
 
-                // The next day she is back, and is only a fight.
-                w.clock.Set(4, 12.0f);
+                // The next day she is back, and is only a fight. (The next
+                // morning: by noon her boon would have worn off.)
+                w.clock.Set(4, 6.0f);
                 Check((w.LoadMap("house_inn", "default", ctx) || w.LoadMap("house_inn", "entrance", ctx)) &&
                       (w.LoadMap("house_inn_cellar", "entrance", ctx) || w.LoadMap("house_inn_cellar", "default", ctx)), "up, and down again the day after");
                 Enemy* again = nullptr;
@@ -14182,6 +14228,17 @@ int main(int argc, char** argv) {
                     Check(w.player.talents.Boons().size() == 1 && w.player.talents.BonusPoints() == 1 && !told_again,
                           "and the second time leaves what she drops and nothing more");
                 }
+                // A day after she first fell, the boon wears off, and the game says so.
+                const string had = w.player.talents.Boons().empty() ? string() : w.player.talents.Boons().front();
+                w.TakeRequests();
+                w.clock.Set(4, 12.5f);
+                w.Update(kFrame, ctx);
+                bool worn = false;
+                for (const WorldRequest& r : w.TakeRequests())
+                    worn |= r.type == WorldRequest::Type::Toast && r.text.find("worn off") != string::npos &&
+                            trees.Boon(had) && r.text.find(trees.Boon(had)->name) != string::npos;
+                Check(!had.empty() && w.player.talents.Boons().empty() && w.player.talents.BonusPoints() == 1 && worn,
+                      "and a day after she fell her boon wears off, the point stays, and the game says which");
             }
         }
 

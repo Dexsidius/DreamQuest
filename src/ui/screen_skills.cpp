@@ -1161,15 +1161,22 @@ void Game::DrawBoons(const SDL_FRect& panel) {
     const Player& p = world->player;
     const float x = panel.x + 24.0f, w = panel.w - 48.0f;
     float y = panel.y + 58.0f;
-    y += ui.TextWrapped("The first time you bring down one of the great ones it leaves you two things, for good: "
-                        "a skill point for your tree, and a boon. The fifteenth time, its totem, for the ring in your house.",
+    y += ui.TextWrapped("The first time you bring down one of the great ones it leaves you two things: a skill point "
+                        "for your tree, for good, and a boon, for a day by the clock. The fifteenth time, its totem, "
+                        "for the ring in your house.",
                         x, y, w, TextSize::Small, Palette::TextDim) + 14.0f;
 
-    const vector<string>& mine = p.talents.Boons();
-    if (mine.empty()) {
+    const vector<string> mine = p.talents.Boons();
+    if (mine.empty() && p.talents.BossesSlain().empty()) {
         ui.Text("Nothing yet.", panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f - 30.0f, TextSize::Body,
                 Palette::TextDim, Align::Center);
         ui.TextWrapped("There is one under the Barley and Bell, if Bess has not mentioned it.",
+                       x + 60.0f, panel.y + panel.h / 2.0f, w - 120.0f, TextSize::Small, Palette::TextDim);
+    } else if (mine.empty()) {
+        // They have had boons, and the days have run out on them.
+        ui.Text("No boon running.", panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f - 30.0f, TextSize::Body,
+                Palette::TextDim, Align::Center);
+        ui.TextWrapped("A boon lasts a day, and a boss leaves one only the first time it falls. The points are yours for good.",
                        x + 60.0f, panel.y + panel.h / 2.0f, w - 120.0f, TextSize::Small, Palette::TextDim);
     }
     // As many rows as there are bosses in the game would need, in the room there is.
@@ -1183,6 +1190,14 @@ void Game::DrawBoons(const SDL_FRect& panel) {
         ui.Outline(row, {232, 190, 96, 255}, 1.0f);
         const float ty = row.y + (row.h - 20.0f) / 2.0f;
         ui.Text(b->name, row.x + 12.0f, ty, TextSize::Body, Palette::Highlight);
+        // How long it has left, by the clock, beside its name: amber once it
+        // is down to its last few hours.
+        const double left = p.talents.BoonHoursLeft(id);
+        const int hours = static_cast<int>(left), minutes = static_cast<int>((left - hours) * 60.0);
+        char when[32];
+        SDL_snprintf(when, sizeof(when), "%dh %02dm left", hours, minutes);
+        ui.Text(when, row.x + 24.0f + ui.Measure(b->name, TextSize::Body).x, ty + 3.0f, TextSize::Small,
+                left < 3.0 ? SDL_Color{235, 170, 100, 255} : SDL_Color{150, 220, 255, 255});
         ui.Text(b->text, row.x + row.w - 12.0f, ty + 3.0f, TextSize::Small, Palette::Text, Align::Right);
         y += row_h;
     }

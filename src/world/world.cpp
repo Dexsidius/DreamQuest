@@ -186,6 +186,26 @@ void World::TellTheDay() {
     }
 }
 
+void World::TellTheHour(const GameContext& ctx) {
+    const double now = clock.GameHours();
+    for (Player* p : Players()) {
+        const vector<string> gone = p->talents.SetNow(now);
+        if (gone.empty()) continue;
+        // Health or mana may have been the boon: the pools are what they now are.
+        p->SyncHitpoints();
+        p->SyncMana();
+        // A friend is told on their own machine, where their clock runs too.
+        if (p != &player) continue;
+        for (const string& id : gone) {
+            const BoonDef* b = ctx.trees ? ctx.trees->Boon(id) : nullptr;
+            WorldRequest r;
+            r.type = WorldRequest::Type::Toast;
+            r.text = "A day has passed: your boon of " + (b ? b->name : id) + " has worn off.";
+            requests.push_back(r);
+        }
+    }
+}
+
 void World::AwardBoss(const string& boss_id, const GameContext& ctx) {
     if (boss_id.empty()) return;
     std::mt19937 spare(0xb055u);
@@ -225,6 +245,8 @@ void World::AwardBoss(const string& boss_id, const GameContext& ctx) {
     requests.push_back(r);
     if (won.boon) {
         r.text = "And a boon -- " + won.boon->name + ": " + won.boon->text + ".";
+        requests.push_back(r);
+        r.text = "It lasts a day: " + std::to_string(static_cast<int>(Talents::BOON_HOURS)) + " hours by the clock.";
         requests.push_back(r);
     }
     AddText(won.boon ? "Boon: " + won.boon->name : string("A skill point"), player.x, player.y - 78.0f,
@@ -792,6 +814,7 @@ void World::Update(float dt, const GameContext& ctx) {
         told_players = guests.size() + 1;
         TellTheDay();
     }
+    TellTheHour(ctx);
     // The seat at this machine, and then the place. A friend's seat is done
     // by StepGuest, to their own clock, acting as them.
     if (!player.absent) UpdateSeat(dt, ctx);

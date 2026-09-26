@@ -570,6 +570,8 @@ public:
     // talents are told what day it is, and their pools are what they now are --
     // a totem's blessing is over at dawn, and some of them are health.
     void TellTheDay();
+    // Every frame: the hour, for a boss's boon to count its day down by (Talents::SetNow).
+    void TellTheHour(const GameContext& ctx);
     const DreamReturn& Dream() const { return dream; }
     void SetDream(const DreamReturn& d) { dream = d; }
     const Camp& PlayerCamp() const { return camp; }

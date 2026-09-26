@@ -6520,17 +6520,20 @@ and only ever with legs a monster can walk in a straight line.
 
 Killing a boss paid what it dropped and nothing else: the Pit Lord was a long
 fight for a loot roll. **The first time a character brings one down** it leaves
-them two things, for good:
+them two things -- the one for good, the other for a day:
 
 - **A skill point** for their tree, over and above the one every third level
   earns. There are eleven bosses, so eleven points against the nine a finished
   tree is short of (ten, for the hero): someone who has killed everything in the game can finish
   their tree, and nobody else can. The tree's header says how many of your
   points came that way.
-- **A boon**, by the dice: one of fifteen small permanent things, of those the
-  character's path can use and they do not already have -- so no first kill
-  repeats one, a hero is never handed mana, and two characters who kill the
-  same bosses do not end up the same.
+- **A boon**, by the dice, **for 24 hours of the world's clock**: one of
+  fifteen small things, of those the character's path can use and do not have
+  running already -- so no two running at once are the same, a hero is never
+  handed mana, and two characters who kill the same bosses do not end up the
+  same. When the day is up it wears off, and the game says so ("A day has
+  passed: your boon of Vigour has worn off."); health or mana it gave goes with
+  it. The point stays for good.
 
 | Boon | | Boon | |
 | --- | --- | --- | --- |
@@ -6545,9 +6548,23 @@ them two things, for good:
 
 Each is about one rank of a talent, of a kind any path can use -- and maximum
 health, which no tree teaches at all. **Once each:** a boss is back the next
-dawn and leaves its loot again, but this is kept count of by who it was. The
-game says so when it happens, in two short lines, and the Skills panel has a
-third tab, **Boons**, that lists them and names who has been brought down.
+dawn and leaves its loot again, but this is kept count of by who it was, and
+killing it again does not bring its boon back -- the lasting thing a boss
+leaves for going back to it is its totem, on the fifteenth kill. The game says
+so when it happens, in short lines, and the Skills panel has a tab, **Boons**,
+that lists the ones running with the time each has left ("17h 40m left",
+amber in its last three hours) and names who has been brought down.
+
+**The day is the world's clock.** It is 24 hours of the Hollowmarch's clock --
+about twenty-seven and a half real minutes of play, less if you sleep, since a
+night slept through is a night gone by. The clock does not run while the game
+is closed or paused. A boon is kept as the hours it has left, not the hour it
+ends at, and is counted down as the clock is told (`Talents::SetNow`, every
+frame, from `World::TellTheHour`): a character goes between their own world and
+a friend's, whose clocks do not agree, so a step backwards, or of more than a
+day and a half, is another world's clock or a load and costs it nothing. A
+save from when boons were for good gives each of them a day from when it is
+loaded.
 
 Everyone who was there gets theirs, each once: a fight shared is a kill
 shared. It is part of the character, kept with the tree's ranks
@@ -6597,7 +6614,7 @@ out altogether.
 | the Wyvern Matriarch | attack 6% faster | | the Abominable Snowman | +12% maximum health; on the move 6% of blows miss you |
 | the Pit Lord | +6% critical chance, criticals 25% harder | |  |  |
 
-A totem's blessing is two or three times what a first kill leaves for good,
+A totem's blessing is two or three times what a first kill leaves for a day,
 because it is one at a time, for a day, earned over a fortnight, and has to be
 gone home for -- which is what the waystone at your own door is for. It is on top
 of the boons, not instead of them. The self-test holds every totem to being
@@ -7643,7 +7660,12 @@ and checks all of it — currently **61823 checks** covering:
   a post that is only kept after dark
 - what a boss leaves, the first time: every boon names effects the game reads,
   and every path has one for every boss; the first kill is a point and a boon,
-  the second nothing; the point buys a rank and comes back when the tree is
+  the second nothing; a boon is won with 24 hours to run, counts down by the
+  clock it is told, keeps its hours through a save, is not touched by a clock
+  that goes back or leaps a day and a half, is still running with half an hour
+  left and wears off at the day, saying which, while the point stays; killing
+  the boss again does not bring it back; an old save's boons get a day from
+  now; and Vigour's health is gone again a day later; the point buys a rank and comes back when the tree is
   unlearned, the boon is kept; eleven bosses leave eleven different boons, none
   for another path, and thirty heroes are never once given mana or arrows; it
   survives a save, a boss killed before the save is not a first kill after it,
@@ -7651,7 +7673,8 @@ and checks all of it — currently **61823 checks** covering:
   Long Wind, Deep Reserves and Might each move the number they say by what
   they say; in the cellar a rat leaves nothing, the Broodmother a point and a
   boon and two short lines saying which, and the day after she is only a
-  fight; and in company the host who had killed her gets nothing, the friend
+  fight, and a day after she first fell her boon wears off with a line saying
+  which, and the point stays; and in company the host who had killed her gets nothing, the friend
   on the couch gets theirs and is the one told, the friend down the wire gets
   nothing on the host's copy, is sent the kill with which boss it was, is given
   it on their own machine, and the next sheet tells the host
