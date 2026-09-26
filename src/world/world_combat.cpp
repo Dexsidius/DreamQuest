@@ -315,6 +315,14 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
 
     const bool fan = in_hand && in_hand->weapon_class == "knives" && atk.type != AttackType::Light &&
                      atk.move == ComboMove::None;
+    // A technique's shot or cast has marks of its own where it leaves and,
+    // tagged, where it strikes (World::ShotTechniqueFx, TechniqueShotHitFx).
+    const size_t tech_first = projectiles.size();
+    const float aim_angle = atan2f(aim.y, aim.x);
+    const auto technique_marks = [&](uint8_t kind, float tx, float ty) {
+        for (size_t i = tech_first; i < projectiles.size(); ++i) projectiles[i].technique_fx = kind;
+        ShotTechniqueFx(technique, style, element, muzzle.x, muzzle.y, aim_angle, tx, ty, target);
+    };
     if (fan) {
         // A heavy throw is three at once, and a charged one throws them harder.
         for (float deg : {-12.0f, 0.0f, 12.0f}) {
@@ -326,6 +334,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             const Vec2 d = turned(deg);
             loose(d.x, d.y, damage_mult * 0.65f, deg == 0.0f);
         }
+        technique_marks(2, 0.0f, 0.0f);
     } else if (technique == "piercing_shot") {
         if (Projectile* p = loose(aim.x, aim.y, damage_mult * 1.35f, true)) {
             p->pierce_left += 8;
@@ -334,6 +343,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             p->knockback_mult *= 1.5f;
             p->life *= 1.3f;
         }
+        technique_marks(1, 0.0f, 0.0f);
     } else if (technique == "arrow_rain") {
         // Not one strike: a rain. It comes down on the circle for two seconds
         // and more, a volley every tick, each its own roll to hit on whatever
@@ -360,15 +370,18 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.stagger = 0.10f;
         g.sure_crit = aimed_shot;
         AddGroundEffect(g);
+        technique_marks(0, g.x, g.y);
     } else if (technique == "nova") {
         for (int i = 0; i < 8; ++i) {
             const float a = 6.2831853f * i / 8.0f;
             loose(cosf(a), sinf(a), damage_mult * 0.6f, false);
         }
+        technique_marks(3, 0.0f, 0.0f);
     } else if (technique == "barrage") {
         for (float deg : {-14.0f, -5.0f, 5.0f, 14.0f})
             if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 0.5f, true))
                 p->extra_homing += 4.0f;
+        technique_marks(4, 0.0f, 0.0f);
     } else if (technique == "meteor") {
         // An actual meteor, as wide as the ground it covers, falling for as
         // long as the strike takes to arm.
@@ -376,6 +389,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         const SDL_FPoint at = strike_point();
         strike(radius, wait, damage_mult * 1.5f, element);
         AddFalling(at.x, at.y + 8.0f, radius * 2.0f, element, wait, LiftAt(at.x, at.y));
+        technique_marks(0, at.x, at.y + 8.0f);
     // --- the ancient spells' shapes ----------------------------------------------
     } else if (shape == "darts") {
         // Three that seek: the old missile that does not miss.
@@ -808,7 +822,8 @@ bool World::Strikeable(const Enemy& e) const {
     return std::abs(map.LevelAt(e.x, e.y) - map.LevelAt(player.x, player.y)) <= 1;
 }
 
-int World::HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx) {
+int World::HitAround(float radius, float damage_mult, float knockback, const GameContext& ctx,
+                     const std::function<void(Enemy&)>& each) {
     // A circle on the ground round the player's feet. It used to be measured
     // to the middle of the monster's body, which is half its height north of
     // where it stands, so a turn reached further south than north.
@@ -822,6 +837,7 @@ int World::HitAround(float radius, float damage_mult, float knockback, const Gam
         // a charged technique, or the Cross Cut, which is a heavy one.
         HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::None, damage_mult,
                  knockback, player.x, player.y, ctx, player.Attack().type);
+        if (each) each(*e);
         ++struck;
     }
     return struck;
@@ -873,7 +889,12 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
         count.handled = true;
         const float radius = 58.0f * atk.reach_scale;
         hit_round(radius, mult * 0.8f, 170.0f);
-        Burst(player.x, player.y, radius, {214, 180, 120, 255}, 14);
+        SlamFx(radius);
+        if (!map.IsInterior())
+            for (int i = 0; i < 6; ++i) {
+                const float a = 6.2831853f * i / 6.0f;
+                AddDust(player.x + cosf(a) * radius * 0.6f, player.y + sinf(a) * radius * 0.35f, cosf(a), sinf(a));
+            }
         Audio::Play(Sfx::Impact, 1.0f, 0.6f);
         return true;
     }
@@ -898,7 +919,9 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
                      atk.profile.knockback * knock, player.x, player.y, ctx, atk.type);
             ++struck;
         }
-        for (int i = 0; i < 4; ++i) AddDust(player.x - fx * i * 8.0f, player.y - fy * i * 8.0f, fx, fy);
+        if (!map.IsInterior())
+            for (int i = 0; i < 4; ++i) AddDust(player.x - fx * i * 8.0f, player.y - fy * i * 8.0f, fx, fy);
+        LungeFx(player.equipment.Weapon(), long_reach.reach);
         Audio::Play(Sfx::SwingHeavy, 1.0f, 1.1f);
         return true;
     }
@@ -931,16 +954,15 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
                      1.5f * player.TalentDamage(AttackStyle::Melee, AttackType::Strong), 70.0f, px, py, ctx,
                      AttackType::Strong);
             AddText("Sundered", target->x, target->y - 64.0f, {255, 190, 110, 255}, 1.4f);
-            Burst(target->x, target->y - 16.0f, 26.0f, {255, 190, 110, 255}, 10);
         } else {
             target->Mark(12.0f);
             target->RevealHealthBar();
             AddText("Marked", target->x, target->y - 64.0f, {255, 120, 120, 255}, 1.4f);
-            Burst(target->x, target->y - 16.0f, 30.0f, {255, 120, 120, 255}, 12);
         }
+        AbilityFx(ability, Element::None, target);
     } else if (ability == "war_cry") {
         say("War Cry!", {255, 210, 120, 255});
-        Burst(px, py - 16.0f, 96.0f, {255, 210, 120, 255}, 22);
+        AbilityFx(ability, Element::None, nullptr);
         for (auto& e : enemies)
             if (Targeting::Targetable(*e) && Length(e->x - px, e->y - py) < 120.0f) e->Stagger(0.8f);
     } else if (ability == "bash") {
@@ -953,9 +975,10 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
                      0.6f * player.TalentDamage(AttackStyle::Melee, AttackType::Light), 110.0f, px, py, ctx,
                      AttackType::Light);
             e->Stagger(1.2f);
+            DazeFx(*e);
             ++struck;
         }
-        Burst(px, py - 16.0f, 34.0f, {230, 230, 240, 255}, struck > 0 ? 12 : 5);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "caltrops") {
         GroundEffect g;
         g.x = px; g.y = py;
@@ -972,6 +995,7 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         g.stagger = 0.45f;
         AddGroundEffect(g);
         say("Caltrops", {200, 190, 160, 255});
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "arcane_pulse") {
         // Ten bolts of the chosen element, in a ring.
         const SpellDef* spell = ctx.spells
@@ -986,16 +1010,18 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
                             AttackStyle::Magic, mult, true, ctx);
         }
         player.NoteCast(spell->element);
+        AbilityFx(ability, spell->element, nullptr);
     } else if (ability == "blink") {
-        Burst(px, py - 16.0f, 30.0f, {190, 170, 255, 255}, 14);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "tumble") {
         if (!map.IsInterior()) AddDust(px, py, -player.knock_x, -player.knock_y);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "mana_shield") {
         say("Mana Shield", {130, 170, 255, 255});
-        Burst(px, py - 16.0f, 36.0f, {130, 170, 255, 255}, 16);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "frenzy") {
         say("Frenzy!", {255, 150, 110, 255});
-        Burst(px, py - 16.0f, 34.0f, {255, 150, 110, 255}, 14);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "shockwave") {
         // A corridor straight ahead, as wide as a swing and three times as long.
         const float fx = player.facing == FACE_LEFT ? -1.0f : player.facing == FACE_RIGHT ? 1.0f : 0.0f;
@@ -1017,13 +1043,13 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         }
         for (int i = 1; i <= 5; ++i) {
             const float d = LENGTH * static_cast<float>(i) / 5.0f;
-            Burst(px + fx * d, py + fy * d, 22.0f, {225, 205, 170, 255}, 6);
             if (!map.IsInterior()) AddDust(px + fx * d, py + fy * d, fx, fy);
         }
+        AbilityFx(ability, Element::None, nullptr);
         Audio::PlayAt(Sfx::SwingHeavy, px, py, 1.0f, 0.7f);
     } else if (ability == "stand_fast") {
         say("Stand Fast", {170, 200, 240, 255});
-        Burst(px, py - 16.0f, 40.0f, {170, 200, 240, 255}, 16);
+        AbilityFx(ability, Element::None, nullptr);
         // Everything near turns on whoever set their feet, and leaves their
         // friends alone for as long as it lasts.
         for (auto& e : enemies)
@@ -1031,9 +1057,10 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
                 e->Taunt(static_cast<int>(player.seat), Player::STAND_FAST_TIME);
     } else if (ability == "take_aim") {
         say("Take Aim", {255, 232, 150, 255});
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "rapid_fire") {
         say("Rapid Fire", {190, 230, 190, 255});
-        Burst(px, py - 16.0f, 30.0f, {190, 230, 190, 255}, 12);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "snare") {
         GroundEffect g;
         g.x = px; g.y = py;
@@ -1051,12 +1078,13 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         g.once = true;
         AddGroundEffect(g);
         say("Snare set", {200, 190, 160, 255});
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "overload") {
         say("Overload", {190, 170, 255, 255});
-        Burst(px, py - 16.0f, 32.0f, {190, 170, 255, 255}, 14);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "invoke") {
         say("Invoke", {130, 170, 255, 255});
-        Burst(px, py - 16.0f, 44.0f, {130, 170, 255, 255}, 18);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "repulse") {
         const SpellDef* spell = ctx.spells
             ? ctx.spells->BestFor(player.SelectedElement() == Element::Arcane ? Element::Fire : player.SelectedElement(),
@@ -1074,7 +1102,7 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
             e->Stagger(0.7f);
         }
         if (spell) player.NoteCast(spell->element);
-        Burst(px, py - 16.0f, 116.0f, element == Element::None ? SDL_Color{190, 170, 255, 255} : ElementColor(element), 26);
+        AbilityFx(ability, element, nullptr);
     }
 }
 
@@ -1105,12 +1133,22 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
 
     // The Cross Cut is a turn on the spot: it strikes everything round the
     // player as far as the blade reaches, the way Whirlwind does.
+    // Its mark on each thing it goes round -- an X, a glint, stars -- used to
+    // be made only in the self-test: this returned before the loop below that
+    // makes them, and HitAround did not.
     if (atk.move == ComboMove::CrossCut) {
         const float radius = atk.profile.reach;
-        if (HitAround(radius, mult, knock, ctx) > 0) player.CountChainHit(SwingLabel(ctx));
+        if (HitAround(radius, mult, knock, ctx, [&](Enemy& e) { ComboHitFx(atk.move, in_hand, e); }) > 0)
+            player.CountChainHit(SwingLabel(ctx));
         else player.BreakChain();
-        Burst(player.x, player.y - 10.0f, radius, {255, 236, 190, 255}, 8);
         return;
+    }
+
+    // A plain swing leaves the wind of it (the finisher, a strong or a charged
+    // one), and the Rushing Strike the line it leapt down.
+    if (atk.move == ComboMove::None && !atk.riposte) {
+        if (player.Rushing()) RushFx(in_hand);
+        else SwingFx(in_hand);
     }
 
     // The sector DrawSwing draws, on the ground: see StrikeArc.
@@ -1130,6 +1168,7 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
         // The Crushing Blow leaves what it lands on reeling.
         if (atk.move == ComboMove::Crush && e->hp < before) e->Stagger(CRUSH_STAGGER);
         if (atk.move != ComboMove::None) ComboHitFx(atk.move, in_hand, *e);
+        else if (!atk.riposte) SwingHitFx(in_hand, *e);
         if (atk.riposte) RiposteFx(e->x, e->y - 18.0f, atan2f(e->y - player.y, e->x - player.x));
     }
 

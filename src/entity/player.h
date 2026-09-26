@@ -308,6 +308,21 @@ public:
     // spends them when the host does.
     bool  Aiming() const { return aim_timer > 0.0f; }
     bool  Overloaded() const { return overload_timer > 0.0f; }
+
+    // What an ability left running, as bits, for the auras drawn round the
+    // character while it lasts (World::DrawAuras). A friend's are what the host
+    // said (`buffs_shown`), since the timers are their machine's.
+    enum Buff : uint8_t { BUFF_FRENZY = 1, BUFF_STAND_FAST = 2, BUFF_WAR_CRY = 4, BUFF_TAKE_AIM = 8,
+                          BUFF_RAPID_FIRE = 16, BUFF_OVERLOAD = 32, BUFF_INVOKE = 64 };
+    uint8_t Buffs() const;
+    uint8_t buffs_shown = 0;
+    // Seconds left of the buff a bit stands for, 0 for a friend's (see above).
+    float BuffLeft(uint8_t bit) const;
+    // Where the character was before a blink, or a tumble took them: the
+    // world marks the way they went.
+    SDL_FPoint AbilityFrom() const { return ability_from; }
+    // The way a Rushing Strike leapt, a unit vector.
+    Vec2  RushDirection() const { return {rush_dx, rush_dy}; }
     // Weak Point: shots in a row on one target. `who` is only ever compared.
     int   NoteShotOn(const void* who);
     int   WeakPointStacks() const { return weak_stacks; }
@@ -761,6 +776,14 @@ private:
     void  SizeBag();              // makes the inventory as big as `bags` says
     float ability_cd[SkillTrees::ABILITY_SLOTS] = {};
     string pending_ability;
+    SDL_FPoint ability_from{0.0f, 0.0f};
+    // An ability's pose: a clip the character already has -- the Crushing
+    // Blow's overhead for a Sunder, the guard for Stand Fast, the cast of what
+    // is in the hand for a spell -- played for a moment as it is used, and
+    // how much of a walk is left meanwhile. See StrikePose.
+    string ability_clip;
+    float ability_pose = 0.0f, ability_hold = 1.0f;
+    void  StrikePose(const string& clip, float seconds, float hold);
     float frenzy_timer = 0.0f, stand_fast_timer = 0.0f, aim_timer = 0.0f, rapid_timer = 0.0f;
     float overload_timer = 0.0f, invoke_timer = 0.0f, invoke_bank = 0.0f;
     const void* weak_target = nullptr;

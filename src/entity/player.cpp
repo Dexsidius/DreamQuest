@@ -969,7 +969,17 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     attack.consumed = false;
     TurnToTarget(world);
     sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
-    sprite.Play(own_charge && sprite.Def() && sprite.Def()->Find(held->charge_clip) ? held->charge_clip : AttackClip(), true);
+    string clip = own_charge && sprite.Def() && sprite.Def()->Find(held->charge_clip) ? held->charge_clip : AttackClip();
+    // Two of the techniques are other moves than a bigger swing, and play the
+    // clip the character has for that move: the Ground Slam brought down from
+    // over the head, as the Crushing Blow is, and the Lunge a leap in, as the
+    // Rushing Strike is.
+    if (charged && Style() == AttackStyle::Melee) {
+        const string& tech = ActiveTechnique();
+        const string want = tech == "ground_slam" ? BothHands("crush") : tech == "lunge" ? BothHands("rush") : string();
+        if (!want.empty() && sprite.Def() && sprite.Def()->Find(want)) clip = want;
+    }
+    sprite.Play(clip, true);
     FitSwing();
     if (Style() == AttackStyle::Melee)
         Audio::Play(Sfx::SwingHeavy, charged ? 1.0f : 0.85f, charged ? 0.85f : 1.0f);
@@ -1445,6 +1455,7 @@ bool Player::TryAbility(int slot, World& world) {
     }
     const float len = std::max(0.001f, Length(dx, dy));
     dx /= len; dy /= len;
+    ability_from = {x, y};
 
     if (node->ability == "blink") {
         // As far as there is somewhere to stand, on the level being stood on:
@@ -1493,6 +1504,29 @@ bool Player::TryAbility(int slot, World& world) {
         invoke_bank = 0.0f;
     }
 
+    // The body goes with it, for a moment. A blow is the Crushing Blow's
+    // overhead (or its turn, for the Frenzy's flourish, or its snap across,
+    // for a shove), the guard is Stand Fast's braced feet, a trap is set by
+    // bending down to the ground, and a shot or a spell is the draw or the
+    // cast of whatever is in the hand. The shout and the roll are their own:
+    // War Cry's arms flung wide, and Tumble's somersault -- forward the way
+    // the stick is pushed, which is the way the character is about to face,
+    // and heels over head when it goes back the way it came.
+    {
+        const string& a = node->ability;
+        const string cast = AttackClip();
+        if (a == "war_cry")                             StrikePose("shout", 0.6f, 0.2f);
+        else if (a == "tumble")                         StrikePose(steering ? "roll" : "backroll", TUMBLE_TIME + 0.04f, 1.0f);
+        else if (a == "sunder" || a == "shockwave")     StrikePose(BothHands("crush"), 0.42f, 0.25f);
+        else if (a == "bash")                           StrikePose(BothHands("backhand"), 0.3f, 0.4f);
+        else if (a == "frenzy")                         StrikePose(BothHands("spin"), 0.45f, 0.6f);
+        else if (a == "stand_fast")                     StrikePose("block", 0.6f, 0.0f);
+        else if (a == "caltrops" || a == "snare")       StrikePose("gather", 0.45f, 0.2f);
+        else if (a == "hunters_mark" || a == "take_aim" || a == "rapid_fire" ||
+                 a == "arcane_pulse" || a == "overload" || a == "invoke" || a == "mana_shield" ||
+                 a == "repulse")                        StrikePose(cast, 0.4f, 0.5f);
+    }
+
     if (node->stamina_cost > 0) {
         stamina = std::max(0.0f, stamina - static_cast<float>(node->stamina_cost));
         stamina_delay = STAMINA_DELAY;
@@ -1538,9 +1572,49 @@ float Player::WeaponSpeed() const {
     return std::max(0.3f, time);
 }
 
+void Player::StrikePose(const string& clip, float seconds, float hold) {
+    if (!sprite.Def() || !sprite.Def()->Find(clip)) return;
+    ability_clip = clip;
+    ability_pose = seconds;
+    ability_hold = hold;
+    sprite.Play(clip, true);
+    // Played to last the moment it is given, as a swing is fitted to its attack.
+    if (const AnimClip* c = sprite.Def()->Find(clip))
+        if (c->fps > 0.0f) sprite.speed_scale = static_cast<float>(c->frames) / (c->fps * std::max(0.05f, seconds));
+}
+
+uint8_t Player::Buffs() const {
+    uint8_t b = buffs_shown;
+    if (frenzy_timer > 0.0f)     b |= BUFF_FRENZY;
+    if (stand_fast_timer > 0.0f) b |= BUFF_STAND_FAST;
+    if (war_cry_timer > 0.0f)    b |= BUFF_WAR_CRY;
+    if (aim_timer > 0.0f)        b |= BUFF_TAKE_AIM;
+    if (rapid_timer > 0.0f)      b |= BUFF_RAPID_FIRE;
+    if (overload_timer > 0.0f)   b |= BUFF_OVERLOAD;
+    if (invoke_timer > 0.0f)     b |= BUFF_INVOKE;
+    return b;
+}
+
+float Player::BuffLeft(uint8_t bit) const {
+    switch (bit) {
+        case BUFF_FRENZY:     return frenzy_timer;
+        case BUFF_STAND_FAST: return stand_fast_timer;
+        case BUFF_WAR_CRY:    return war_cry_timer;
+        case BUFF_TAKE_AIM:   return aim_timer;
+        case BUFF_RAPID_FIRE: return rapid_timer;
+        case BUFF_OVERLOAD:   return overload_timer;
+        case BUFF_INVOKE:     return invoke_timer;
+        default:              return 0.0f;
+    }
+}
+
 void Player::UpdateAnimation(const Vec2& move) {
     if (dead) { sprite.Play("death"); return; }
     if (attack.Active()) return;                     // attack clip owns the frames
+    if (ability_pose > 0.0f && !ability_clip.empty()) {
+        sprite.Play(ability_clip);                   // an ability's moment: see StrikePose
+        return;
+    }
     if (blocking || parrying) {
         // Guard up, stepping or not. A rig with no guard pose stands in its
         // idle rather than walking with its shield down.
@@ -1588,6 +1662,10 @@ void Player::UpdateAnimation(const Vec2& move) {
 void Player::Update(float dt, World& world, const GameContext& ctx) {
     // What abilities and their passives leave running.
     since_hurt += dt;
+    if (ability_pose > 0.0f && (ability_pose -= dt) <= 0.0f) {
+        ability_pose = 0.0f;
+        ability_clip.clear();
+    }
     if (reload_left > 0.0f) {
         reload_left = std::max(0.0f, reload_left - dt);
         // Put down for something else, it is not spanned by the time it is picked up again.
@@ -1854,6 +1932,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     speed *= 1.0f + equipment.MoveSpeed();
     if (sprinting)            speed *= SPRINT_MULT;
     if (attack.Active())      speed *= attack.profile.move_scale;
+    else if (ability_pose > 0.0f) speed *= ability_hold;
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk
     else if (blocking || parrying) speed *= BLOCK_MOVE_SCALE;
 

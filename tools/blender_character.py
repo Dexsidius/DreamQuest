@@ -1316,6 +1316,84 @@ def pose_spin(t):
     }
 
 
+def pose_shout(t):
+    """War Cry: a breath gathered in, hunched over it with the fists drawn up
+    to the chest, then let out -- the chest thrown back, the chin up and both
+    arms flung out wide and low, the knees sunk into a planted stance -- held
+    a beat while the hair and the scarf are blown back by it, and let go. The
+    arms go out to the sides rather than up: raised overhead, what is in the
+    hand passes behind the head and is cut out of the frame. Out by `flare`
+    from hanging, not raised by `arm` first: a flare only rolls an arm that
+    already points forward, and from above the hands stayed at the chest."""
+    return _keyed([
+        (0.00, dict(lean=4, arm_r=10, elbow_r=30, flare_r=14, sword=14,
+                    arm_l=6, elbow_l=30, flare_l=14, knee_l=10, knee_r=8, scarf=16, scarf2=12)),
+        (0.28, dict(lean=16, nod=12, arm_r=22, elbow_r=78, flare_r=-6, sword=4,
+                    arm_l=22, elbow_l=80, flare_l=-8, leg_l=8, leg_r=-6, knee_l=20, knee_r=18,
+                    bob=-0.03, scarf=12, scarf2=8, hair=-2)),
+        (0.46, dict(lean=-14, nod=-20, arm_r=16, elbow_r=14, flare_r=72, sword=60,
+                    arm_l=16, elbow_l=16, flare_l=74, leg_l=16, leg_r=-14, knee_l=26, knee_r=22,
+                    bob=-0.05, scarf=52, scarf2=36, hair=16, skirt=-8)),
+        (0.78, dict(lean=-12, nod=-18, arm_r=14, elbow_r=18, flare_r=66, sword=56,
+                    arm_l=14, elbow_l=20, flare_l=68, leg_l=16, leg_r=-14, knee_l=24, knee_r=20,
+                    bob=-0.045, scarf=46, scarf2=40, hair=14, skirt=-6)),
+        (1.00, dict(lean=4, nod=0, arm_r=12, elbow_r=30, flare_r=16, sword=16,
+                    arm_l=8, elbow_l=30, flare_l=16, leg_l=4, leg_r=-4, knee_l=12, knee_r=10,
+                    scarf=20, scarf2=14, hair=2)),
+    ], t)
+
+
+ROLL_PIVOT = 0.32      # the point on the body the roll turns about, above the feet
+
+
+def pose_roll(t):
+    """Tumble: a dive forward into a ball, over the shoulders and up again.
+
+    Crouched into it with the arms reaching forward, then tucked tight --
+    knees to the chest, the head down, the arms wrapped in -- and a whole turn
+    head over heels, and out of it into a crouch that straightens. The body
+    is turned by `tip`, which pivots at the feet, so the turn is moved back
+    under itself as it goes to come out about the middle of the ball instead:
+    `lunge` and `bob` carry the pivot so that ROLL_PIVOT above the feet stays
+    put. The distance covered is the world's, as the leap's is."""
+    body = _keyed([
+        (0.00, dict(lean=22, nod=14, arm_r=46, elbow_r=40, flare_r=10, sword=30,
+                    arm_l=46, elbow_l=40, flare_l=10, leg_l=24, leg_r=-10, knee_l=36, knee_r=30,
+                    scarf=24, scarf2=16, hair=4)),
+        (0.16, dict(lean=48, nod=34, arm_r=70, elbow_r=96, flare_r=-12, sword=60,
+                    arm_l=70, elbow_l=96, flare_l=-12, leg_l=80, leg_r=70, knee_l=120, knee_r=112,
+                    scarf=40, scarf2=30, hair=10, skirt=-14)),
+        (0.74, dict(lean=48, nod=34, arm_r=70, elbow_r=96, flare_r=-12, sword=60,
+                    arm_l=70, elbow_l=96, flare_l=-12, leg_l=80, leg_r=70, knee_l=120, knee_r=112,
+                    scarf=60, scarf2=44, hair=10, skirt=-14)),
+        (0.88, dict(lean=26, nod=10, arm_r=30, elbow_r=44, flare_r=18, sword=24,
+                    arm_l=30, elbow_l=44, flare_l=18, leg_l=30, leg_r=-6, knee_l=48, knee_r=40,
+                    scarf=30, scarf2=22, hair=4)),
+        (1.00, dict(lean=8, arm_r=12, elbow_r=30, flare_r=14, sword=16,
+                    arm_l=8, elbow_l=30, flare_l=14, leg_l=8, leg_r=-6, knee_l=14, knee_r=12,
+                    scarf=18, scarf2=12)),
+    ], t)
+    # The turn on its own curve, not the keys': eased per key it would stall
+    # at every one of them.
+    k = _ease((t - 0.06) / 0.78)
+    turn = 360.0 * k
+    a = math.radians(turn)
+    # A little higher through the middle, so the tucked head clears the ground.
+    centre = ROLL_PIVOT + 0.05 * math.sin(k * math.pi)
+    crouch = -0.06 * (1.0 - _ease(abs(t - 0.45) / 0.55))
+    body["tip"] = -turn
+    body["lunge"] = -ROLL_PIVOT * math.sin(a)
+    body["bob"] = centre - ROLL_PIVOT * math.cos(a) + crouch
+    body["blink"] = 1.0 if 0.2 < t < 0.7 else 0.0
+    return body
+
+
+def pose_backroll(t):
+    """The same roll the other way: a tumble made standing still goes back the
+    way it came, heels over head. A somersault run backwards is one."""
+    return pose_roll(1.0 - t)
+
+
 def pose_block(t):
     # Guard up: the shield arm raised across the front of the chest, the
     # weapon drawn back low and ready, feet staggered and knees bent, and a
@@ -1707,6 +1785,11 @@ CLIPS = {
     "spin_2h":     (two_handed(pose_spin),     8, False),
     "jump":   (pose_jump,   6,  False),
     "hurt":   (pose_hurt,   4,  False),
+    # From the skill trees: War Cry's shout, and Tumble's roll, forward when
+    # the stick is pushed and back the way it came when it is not.
+    "shout":     (pose_shout,     8, False),
+    "roll":      (pose_roll,      8, False),
+    "backroll":  (pose_backroll,  8, False),
     # Holding a shield up. Looped: a guard lasts as long as the button is held.
     "block":  (pose_block,  4,  True),
     "death":  (pose_death,  6,  False),

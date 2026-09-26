@@ -3961,6 +3961,7 @@ int main(int argc, char** argv) {
                 ability(w, SDLK_J);
                 Check(w.player.WarCry() && fabsf(w.player.TalentDamage(AttackStyle::Melee, AttackType::Light) - before - Player::WAR_CRY_DAMAGE) < 1e-4f &&
                       near && near->Staggered(), "a war cry staggers what is near and leaves the hero hitting a quarter harder");
+                Check(w.player.Clip() == "shout", "and is shouted, arms flung wide: its own clip (" + w.player.Clip() + ")");
                 frames(w, static_cast<int>(Player::WAR_CRY_TIME * 60.0f) + 10);
                 Check(!w.player.WarCry() && fabsf(w.player.TalentDamage(AttackStyle::Melee, AttackType::Light) - before) < 1e-4f, "for eight seconds");
                 Check(!w.player.RiposteReady(), "no riposte is owed until a blow is caught");
@@ -3984,6 +3985,7 @@ int main(int argc, char** argv) {
                 w.player.facing = FACE_RIGHT;
                 ability(w, SDLK_J);
                 Check(w.player.Untouchable(), "a tumble is untouchable while it lasts");
+                Check(w.player.Clip() == "backroll", "and back the way they came is heels over head (" + w.player.Clip() + ")");
                 Check(w.HitPlayer(9, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0, "a blow that lands mid-roll lands on nothing");
                 frames(w, 40);
                 Check(!w.player.Untouchable() && x0 - w.player.x > 45.0f, "standing still, the roll goes back the way the warden came (" +
@@ -3992,6 +3994,19 @@ int main(int argc, char** argv) {
                 frames(w, 2);
                 ability(w, SDLK_K);
                 Check(deer && deer->Marked() && !deer->Sundered(), "Hunter's Mark marks what is in reach");
+                World steered;
+                if (fighter(steered, "oak_shortbow", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley", "tumble"}, nullptr)) {
+                    carry(steered, "tumble", 0);
+                    const float from = steered.player.x;
+                    steered.player.facing = FACE_LEFT;
+                    input.Update(dt); key(SDLK_D, true); steered.Update(dt, ctx);
+                    ability(steered, SDLK_J);
+                    Check(steered.player.Clip() == "roll" && steered.player.facing == FACE_RIGHT,
+                          "pushed, the roll goes that way, forward, facing it (" + steered.player.Clip() + ")");
+                    frames(steered, 40);
+                    input.Update(dt); key(SDLK_D, false); steered.Update(dt, ctx);
+                    Check(steered.player.x - from > 45.0f, "and carries them along it");
+                }
                 World w2;
                 if (fighter(w2, "oak_shortbow", SKILL_RANGED, 60, {"trail_legs", "broadheads", "arrow_rain", "caltrops"}, nullptr)) {
                     carry(w2, "caltrops", 0);
@@ -9319,6 +9334,41 @@ int main(int argc, char** argv) {
                 tap(plain, SDLK_J); settle(plain);
                 Check(front && behind && front->HealthBarVisible() && !behind->HealthBarVisible(),
                       "where a plain light reaches only the one in front");
+            }
+            // What they leave, as a friend is told of it: the Cross Cut's X on
+            // what it goes round -- made, until now, only in this test, since
+            // the Cross Cut returned before the loop that makes it -- and the
+            // swirl of its turn; a plain light a spark on what it cut and no
+            // more; the finisher the wind of its swing and splinters off it.
+            World marked;
+            if (arena(marked, "bronze_sword")) {
+                marked.journal = true;
+                Enemy* front = spawn(marked, "orc1", 26.0f, 0.0f);
+                if (front) front->hp = front->max_hp = 100000;
+                frames(marked, 2);
+                const auto logged = [&](Shaders::Shape shape) {
+                    int n = 0;
+                    for (const World::StrikeNote& note : marked.strike_log)
+                        n += note.kind == World::StrikeNote::MARK && note.mark.shape == shape;
+                    return n;
+                };
+                for (auto& pin : pins) { pin.first->x = pin.second.x; pin.first->y = pin.second.y; }
+                input.Update(dt); key(SDLK_J, true); key(SDLK_K, true); marked.Update(dt, ctx);
+                input.Update(dt); key(SDLK_J, false); key(SDLK_K, false); marked.Update(dt, ctx);
+                settle(marked);
+                Check(logged(Shaders::SHAPE_CROSS) >= 1 && logged(Shaders::SHAPE_VORTEX) >= 1,
+                      "a Cross Cut leaves its X on what it went round, and the swirl of its turn");
+                marked.strike_log.clear();
+                tap(marked, SDLK_J); settle(marked);
+                Check(logged(Shaders::SHAPE_IMPACT) >= 1 && logged(Shaders::SHAPE_SHARDS) == 0 && logged(Shaders::SHAPE_SLASH) == 0,
+                      "a first light leaves a spark on what it cut, and no more");
+                tap(marked, SDLK_J); settle(marked);
+                marked.strike_log.clear();
+                tap(marked, SDLK_J);
+                const bool finisher = marked.player.Attack().combo == 2;
+                settle(marked);
+                Check(finisher && logged(Shaders::SHAPE_SHARDS) >= 1 && logged(Shaders::SHAPE_SLASH) >= 1,
+                      "and the finisher the wind of its swing, and splinters off what it hit");
             }
             // A few frames apart still counts, whichever came first.
             World jk;
@@ -16733,6 +16783,45 @@ int main(int argc, char** argv) {
         ctx.spells = &spells; ctx.statuses = &statuses; ctx.input = &input;
         constexpr float kFrame = 1.0f / 60.0f;
 
+        // --- an ability shows: the body goes with it, and what it leaves running is worn ------
+        // No ability played a clip: the character went on walking while a
+        // Sunder struck. Each now plays one the character has, for a moment;
+        // and what one leaves running is a bit the auras are drawn from, which
+        // a friend's machine is told.
+        {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (w.LoadMap("overworld", "start", ctx)) {
+                Player& p = w.player;
+                LevelUp lu;
+                p.skills.AddXp(SKILL_ATTACK, XpForLevel(70), lu);
+                bool learned = true;
+                for (const char* node : {"keen_edge", "flurry", "whirlwind", "sunder", "momentum", "frenzy"})
+                    learned &= p.talents.Learn(node, p.skills);
+                p.talents.SetAbility(0, "sunder");
+                p.talents.SetAbility(1, "frenzy");
+                Check(learned && p.Buffs() == 0, "the blade's branch learned, and nothing running yet");
+                Check(p.TryAbility(0, w) && p.Clip() == "crush",
+                      "a Sunder comes down from overhead: the Crushing Blow's clip (" + p.Clip() + ")");
+                for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
+                Check(p.Clip() == "idle", "and then they stand as they were");
+                Check(p.TryAbility(1, w) && p.Clip() == "spin" && (p.Buffs() & Player::BUFF_FRENZY),
+                      "a Frenzy is a flourish of the blade, and leaves the Frenzy running");
+                net::Snapshot snap, heard;
+                snap.players.push_back(coop::StateOf(p, 0));
+                Check(net::Decode(net::Encode(snap), heard) && heard.players.size() == 1 &&
+                          (heard.players[0].buffs & Player::BUFF_FRENZY),
+                      "which goes down the line, so a friend's window draws it round them too");
+                Player puppet;
+                puppet.Init(ctx, "player_hero");
+                puppet.buffs_shown = heard.players[0].buffs;
+                Check((puppet.Buffs() & Player::BUFF_FRENZY) && puppet.BuffLeft(Player::BUFF_FRENZY) == 0.0f,
+                      "and a puppet told of it wears it, with no clock of its own to run out");
+                for (int f = 0; f < 60 * 7; ++f) w.Update(kFrame, ctx);
+                Check(!(p.Buffs() & Player::BUFF_FRENZY), "until it runs out");
+            }
+        }
+
         // --- the shield is a dome, and it goes when the shield does ----------------------
         {
             World w;
@@ -20015,14 +20104,82 @@ int main(int argc, char** argv) {
             Check(mid > from && w.Strikes().size() > mid && look(w, from) != look(w, mid),
                   "and a parry and a riposte have their own");
         }
+
+        // --- and the rest of a fight: every technique and every ability ------------------------------
+        // Each of them used to be a ring of Burst's blobs and a word, or nothing
+        // at all. Now every one leaves marks, and no two look alike -- nor like
+        // any of the combos. A fresh world a look, so the strikes' cap never
+        // shifts what is counted.
+        {
+            std::map<string, string> looks;
+            const auto keep = [&](const string& what, const string& weapon, const std::function<void(World&)>& make) {
+                World wf;
+                wf.player.Init(ctx, "player_hero");
+                wf.player.equipment.Unequip(SLOT_SHIELD);
+                wf.player.equipment.Equip(SLOT_WEAPON, weapon);
+                make(wf);
+                looks[what] = look(wf, 0);
+            };
+            vector<string> abilities;
+            for (AttackStyle style : {AttackStyle::Melee, AttackStyle::Ranged, AttackStyle::Magic})
+                for (const TalentNode& n : trees.Tree(style).nodes)
+                    if (!n.ability.empty()) abilities.push_back(n.ability);
+            for (const string& a : abilities)
+                keep("ability " + a, "iron_sword", [&](World& wf) {
+                    wf.player.knock_x = 500.0f;                 // a tumble has a way it went
+                    wf.AbilityFx(a, Element::Fire, &orc);
+                });
+            keep("technique whirlwind", "iron_sword", [&](World& wf) { wf.WhirlFx(wf.player.equipment.Weapon(), 46.0f, false); });
+            keep("technique ground_slam", "iron_sword", [&](World& wf) { wf.SlamFx(58.0f); });
+            keep("technique lunge", "iron_sword", [&](World& wf) { wf.LungeFx(wf.player.equipment.Weapon(), 82.0f); });
+            keep("the rushing strike", "iron_sword", [&](World& wf) { wf.RushFx(wf.player.equipment.Weapon()); });
+            for (const char* t : {"piercing_shot", "volley", "arrow_rain", "nova", "barrage", "meteor"}) {
+                const bool magic = string(t) == "nova" || string(t) == "barrage" || string(t) == "meteor";
+                keep(string("technique ") + t, "iron_sword", [&](World& wf) {
+                    wf.ShotTechniqueFx(t, magic ? AttackStyle::Magic : AttackStyle::Ranged, magic ? Element::Fire : Element::None,
+                                       100.0f, 100.0f, 0.0f, 200.0f, 100.0f, &orc);
+                });
+            }
+            bool every = true;
+            string bare, twins;
+            std::map<string, string> seen;
+            for (const auto& kv : looks) {
+                if (kv.second.empty()) { every = false; bare += kv.first + " "; }
+                const auto was = seen.emplace(kv.second, kv.first);
+                if (!was.second) twins += " " + was.first->second + " = " + kv.first + ";";
+            }
+            Check(abilities.size() == 18 && every,
+                  "all eighteen abilities, the nine techniques and the Rushing Strike leave marks of their own" +
+                      (bare.empty() ? string("") : " (none from: " + bare + ")"));
+            Check(seen.size() == looks.size(),
+                  "and no two of them look alike (" + std::to_string(seen.size()) + " looks for " +
+                      std::to_string(looks.size()) + ")" + twins);
+            bool apart = true;
+            for (const auto& kv : looks) apart &= !melee_looks.count(kv.second) && !far_looks.count("0" + kv.second) &&
+                                                  !far_looks.count("1" + kv.second);
+            Check(apart, "nor like any of the combos");
+            // What they are drawn with: the techniques' and abilities' own shapes,
+            // every one of the eight used somewhere.
+            std::set<int> shapes;
+            for (const string& a : abilities) {
+                World wf;
+                wf.player.Init(ctx, "player_hero");
+                wf.player.knock_x = 500.0f;
+                wf.AbilityFx(a, Element::Fire, &orc);
+                for (const World::Strike& st : wf.Strikes()) shapes.insert(static_cast<int>(st.shape));
+            }
+            bool all_eight = true;
+            for (int k = Shaders::SHAPE_VORTEX; k <= Shaders::SHAPE_LAST_STRIKE; ++k) all_eight &= shapes.count(k) == 1;
+            Check(all_eight, "and the abilities between them use all eight of the new shapes");
+        }
         {
             std::ifstream spv("assets/shaders/fx.frag.spv", std::ios::binary);
             uint32_t magic = 0;
             spv.read(reinterpret_cast<char*>(&magic), 4);
             std::ifstream frag("src/shaders/fx.frag");
             const string text((std::istreambuf_iterator<char>(frag)), std::istreambuf_iterator<char>());
-            Check(magic == 0x07230203 && text.find("kind == 8") != string::npos,
-                  "drawn by the fx shader's strike shapes, compiled");
+            Check(magic == 0x07230203 && text.find("kind == 8") != string::npos && text.find("kind == 16") != string::npos,
+                  "drawn by the fx shader's strike shapes, compiled -- nine to sixteen the techniques' and abilities'");
         }
     }
 
@@ -21235,6 +21392,15 @@ int main(int argc, char** argv) {
             Check(owed, "and her window owes the riposte: the HUD says so, and a light attack lunges");
             press(gin, SDLK_H, false);
             frames(70);
+            // The techniques' and abilities' shapes go down the line the same
+            // way: the host's War Cry goes out in her window too.
+            hw.AbilityFx("war_cry", Element::None, nullptr);
+            bool waved = false;
+            for (int f = 0; f < 12; ++f) {
+                frame();
+                for (const World::Strike& st : gw.Strikes()) waved |= st.shape == Shaders::SHAPE_WAVE;
+            }
+            Check(waved, "and so do the abilities' own shapes: the host's War Cry goes out in her window too");
         }
 
         // --- a tree, felled for everyone ---------------------------------------------------------------------

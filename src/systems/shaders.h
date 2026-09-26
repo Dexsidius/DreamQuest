@@ -155,7 +155,11 @@ void EndSprite(SDL_Renderer* renderer);
 enum Shape { SHAPE_DOME = 0, SHAPE_NODE = 1, SHAPE_GLASS = 2, SHAPE_HALO = 3,
              // The combo strikes' marks (World::DrawStrikes). Each reads its
              // four numbers from hit_x, hit_y, hit_age and extra: see fx.frag.
-             SHAPE_SLASH = 4, SHAPE_IMPACT = 5, SHAPE_THRUST = 6, SHAPE_CROSS = 7, SHAPE_CIRCLE = 8 };
+             SHAPE_SLASH = 4, SHAPE_IMPACT = 5, SHAPE_THRUST = 6, SHAPE_CROSS = 7, SHAPE_CIRCLE = 8,
+             // The techniques' and the abilities' marks, the same way.
+             SHAPE_VORTEX = 9, SHAPE_CRACKS = 10, SHAPE_PILLAR = 11, SHAPE_SIGIL = 12,
+             SHAPE_STREAK = 13, SHAPE_RETICLE = 14, SHAPE_SHARDS = 15, SHAPE_WAVE = 16,
+             SHAPE_LAST_STRIKE = SHAPE_WAVE };
 struct ShapeFx {
     Shape shape = SHAPE_HALO;
     float fade = 1.0f, seed = 0.0f;
