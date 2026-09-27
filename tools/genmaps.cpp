@@ -2842,8 +2842,10 @@ static void BuildTown() {
             // The east street, past the inn.
             {"townhouse_b", 1570, 20 * CELL + 24}, {"townhouse_d", 1690, 20 * CELL + 24},
             // The south street, both sides, two deep.
-            {"townhouse_a", 790, 33 * CELL + 24}, {"townhouse_c", 790, 38 * CELL + 24},
-            {"townhouse_d", 1034, 33 * CELL + 24}, {"townhouse_b", 1034, 38 * CELL + 24},
+            // The tall gable-fronted one goes in the front row: behind, it
+            // hid the door-step of the house in front of it.
+            {"townhouse_a", 790, 33 * CELL + 24}, {"townhouse_d", 790, 38 * CELL + 24},
+            {"townhouse_c", 1034, 33 * CELL + 24}, {"townhouse_b", 1034, 38 * CELL + 24},
         };
         for (const House& h : houses) {
             m.Prop("props", h.art, h.x, h.y);
