@@ -936,6 +936,7 @@
    "mining": 20,
    "ore_desc": "Black, greasy and brittle. Iron needs it to become steel.",
    "bar": "steel_bar",
+   "timber": "oak_logs",
    "bar_name": "Steel Bar",
    "smelt": {
     "iron_ore": 2,
@@ -970,6 +971,7 @@
    "mining": 30,
    "ore_desc": "Blue veins in pale stone that stay faintly lit in the dark.",
    "bar": "azuryte_bar",
+   "timber": "oak_logs",
    "bar_name": "Azuryte Bar",
    "smelt": {
     "azuryte_ore": 2,
@@ -998,6 +1000,7 @@
    "mining": 40,
    "ore_desc": "Green-black and so hard a pick skids off it more often than not.",
    "bar": "damascus_bar",
+   "timber": "birch_logs",
    "bar_name": "Damascus Bar",
    "smelt": {
     "damascus_ore": 3,
@@ -1026,6 +1029,7 @@
    "mining": 50,
    "ore_desc": "Red-gold and warm to hold, hours after it comes out of the rock.",
    "bar": "orichalcum_bar",
+   "timber": "birch_logs",
    "bar_name": "Orichalcum Bar",
    "smelt": {
     "orichalcum_ore": 3,
@@ -1054,6 +1058,7 @@
    "mining": 60,
    "ore_desc": "A clouded crystal still half in its rock.",
    "bar": "diamond_ingot",
+   "timber": "swamp_logs",
    "bar_name": "Diamond Ingot",
    "smelt": {
     "diamond_ore": 3
@@ -1081,6 +1086,7 @@
    "mining": 70,
    "ore_desc": "Grains of pale metal that do not tarnish, whatever you do to them.",
    "bar": "platinum_bar",
+   "timber": "swamp_logs",
    "bar_name": "Platinum Bar",
    "smelt": {
     "platinum_ore": 3,
@@ -1109,6 +1115,7 @@
    "mining": 80,
    "ore_desc": "Black glass with a red heat inside. It came back from a nightmare.",
    "bar": "demonite_bar",
+   "timber": "ashen_logs",
    "bar_name": "Demonite Bar",
    "smelt": {
     "demonite_ore": 3,
@@ -1133,6 +1140,7 @@
    "block": 0.91,
    "block_stamina": 0.107,
    "bar": "dracon_bar",
+   "timber": "ashen_logs",
    "bar_name": "Dracon Bar",
    "smelt": {
     "demonite_bar": 2,
@@ -1158,6 +1166,7 @@
    "block": 0.95,
    "block_stamina": 0.086,
    "bar": "enchanted_bar",
+   "timber": "ashen_logs",
    "bar_name": "Enchanted Bar",
    "smelt": {
     "dracon_bar": 2,

@@ -2367,6 +2367,40 @@ The last two tiers have no ore of their own. They are smelted from the tier
 below and something the player already brings back, so the end of the game asks
 for a trophy rather than another vein of rock.
 
+### The four woods
+
+A sword has a grip, a bow a stave, an axe a haft -- and every one of them used
+to be cut from the same plain logs, from bronze to enchanted. **Past iron, a
+tier is worked with a better wood**, two tiers to each:
+
+| Wood | Tiers it hafts | Cut at | Grows | Worth |
+| --- | --- | --- | --- | --- |
+| **Logs** (pine) | wood, bronze, iron | Woodcutting 1 | everywhere | 5 |
+| **Oakwood** | steel, azuryte | 15 (old growth 30) | the Westwold and the Brackenwood | 18 |
+| **Birchwood** | damascus, orichalcum | 30 | groves through the Whisperwood | 32 |
+| **Swampwood** | diamond, platinum | 45 | the swamp trees on dry ground in the Bayou | 50 |
+| **Ashen wood** | demonite, dracon, enchanted | 60 | the burnt trees of the Ashen Path | 75 |
+
+A tier names its wood as `timber` in `data/tiers.json`, and
+`ItemDatabase::LoadTiers` puts it wherever a piece's recipe asked for `logs`:
+a steel sword is two steel bars and an oak log, a damascus bow a bar, two birch
+logs and a thread, an enchanted greataxe four enchanted bars and two of ashen
+wood. The recipes for the wooden tier itself, and the lantern and the rod, are
+still plain logs. Each wood is cut below the Smithing that first wants it, so
+a smith who has done their own mining can do their own felling. Every wood
+sells, wherever timber does.
+
+The birch is a new tree (`prop_birch_tree`, in `tools/blender_town_props.py`):
+three white stems scarred black under a light, loose yellow-green crown, with
+its own white stump. The swamp tree and the charred tree were scenery already;
+about half of each on the ground they grow on can be felled now, the charred
+one leaving a black stump with an ember still in its heart. The four icons are
+drawn in `tools/icons.txt` with the pine and oak ones: a white log with black
+scars, a black-green one with moss on it, and a charcoal one with embers in
+the end grain. The self-test holds the tiers to their woods, the woods to
+their trees and their levels, and fails on any piece past iron still asking
+for plain logs.
+
 ### Three kinds of armour, one for each way of fighting
 
 Every tier has **three sets**, and each helps only its own style:
@@ -3162,7 +3196,7 @@ kind of shop.
 | Place | General store | Other shops |
 | --- | --- | --- |
 | Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo); **Nessa's Tannery**, with the order book |
-| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book |
+| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book; **Stonebrow Stores**, the dwarves' under the hill (Foreman Durgan): picks, coal, iron and lanterns, and a good price for ore |
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
@@ -3988,6 +4022,13 @@ silhouette, and draws a contact shadow from the prop’s own base. The outline i
 the single biggest thing separating a render from the hand-drawn art it sits
 beside.
 
+The towns rebuilt are in `tools/blender_town_props.py`, registered into the
+same table: Havenbrook's townhouses, mayor's hall, well, lamps, benches and
+planters and the inn's new furniture; Mossvale's brick wall and piers and the
+dwarves' gate, pit props, lanterns and statue; Fernhollow's ferry house,
+fishers' cottages, boat shed, net racks, lantern posts and wattle; and the
+birch, with the birch and charred stumps.
+
 Three things were learned the hard way and are worth knowing before adding a
 prop:
 
@@ -4217,6 +4258,15 @@ three tiles wide through green grass the Sunken Road and Havenbrook's street
 read as a river. It is warm grey setts in running bond now, a full 32-pixel cell
 of sixteen stones in three variants, so it no longer shows as a two-by-two
 check.
+
+The towns rebuilt brought their own, from `tools/make_town_tiles.py` (Python
+and Pillow, the same masonry as `New-Masonry`, written where there was no
+PowerShell): `plaza`, Havenbrook square's big pale flags; `moss_stone`,
+Mossvale's grey-green flags with moss in the joints; `civic_floor`, the
+mayor's chequer, kept low in contrast because at full strength a chequer is
+all anyone sees of a room; and `mine_floor`, `mine_rock`, `rail_ew` and
+`rail_ns` for the dwarves' mine -- the rock lumpy noise and cracks rather than
+courses, which read as a cellar built of brick.
 
 The other half of the coloured-paper problem was the biome boundaries. The
 colour drift is smooth noise, and thresholding smooth noise draws a clean
@@ -5321,15 +5371,16 @@ with the Whisperwood trail leaving from the east.
 | Map | What it is |
 | --- | --- |
 | `overworld` | The Hollowmarch |
-| `town_havenbrook` | The village, with four enterable buildings |
-| `guild_hall`, `house_elder`, `house_inn`, `house_smith` | Interiors |
+| `town_havenbrook` | The town: two-storey houses along brick streets, a square with the well in the middle, and five enterable buildings |
+| `guild_hall`, `house_elder`, `house_inn`, `house_smith`, `mayor_hall` | Interiors |
 | `dungeon_emberfell_1` / `_2` | The mine, upper and lower workings; the lower level is locked until you find the rusted key, and the Warchief holds the last room |
 | `dungeon_barrow` | Beneath the Mire |
 | `whisperwood_trail` | The forest path east of the Hollowmarch: a woodcutter's camp, a stream with a plank bridge, and a fork |
-| `mossvale` | A logging village behind a palisade at the trail's east end |
+| `mossvale` | A logging village behind a brick wall at the trail's east end, with moss-stone lanes |
+| `mossvale_mine` | The Delving of Stonebrow: the dwarves' hall and galleries under the knoll by the smithy |
 | `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge, a hunters' hall, and Oona the herbalist's cottage |
 | `mossvale_cottage` | The tanner's empty house at the bottom of the village -- yours, once you find the key |
-| `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
+| `fernhollow` | A hamlet on a pond at the north fork: the ferry house, fishers' cottages, a boat shed and a shrine |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
 | `college_grounds` | The College at Fernhollow: through the gatehouse on the hamlet's north side, a great court with the hall across the north of it |
 | `fernhollow_college`, `college_training`, `college_classroom` | The college's three chambers: the great hall where the council sits (north), the practice hall (west), the lecture room (east) |
@@ -5545,6 +5596,16 @@ off every round, and the self-test walks each one a quarter of a second at a
 time and fails if any step of it is inside a wall -- which is how Old Perrin
 was found walking through Tobin's stall.
 
+The square added its own: **Crier Bram** walks its north side with the day's
+news and shouts it at either end, **Tib and Nan** chase each other round the
+well all day, and **Hester** sweeps in the morning and sits out the afternoon
+on a bench. Since the well stands in the middle of the square, every round
+there keeps to a lane round its apron and comes and goes by the three streets.
+Indoors, **Lark** carries between the inn's bar and its tables; under Mossvale,
+the miners **Brokk** and **Ottar** go down to the galleries and back; and at
+Fernhollow the ferryman's boy **Pim** runs between the ferry house, the jetty
+and the boat shed.
+
 A round is data on the NPC in the map: `"path": [[x, y, seconds, facing], ...]`,
 `"ping_pong"`, `"speed"`, `"phase"`, `"hours": [from, to]` and a `"tint"`, since
 there are only so many villagers' faces.
@@ -5617,6 +5678,118 @@ The heads, the bearskin and the arms are new (`HALL_PROPS` in
 hung with its base inside the wall band, where nothing walks and everything on
 the floor sorts in front of it.
 
+### Havenbrook built up
+
+**Havenbrook is a town of two-storey houses now, lining its brick streets.**
+It was a crossroads in a field: four cottages, the inn and the guild hall a
+long walk apart across the grass. Ten townhouses stand along the north side of
+the west street and the east street, facing onto them, and down both sides of
+the south street from the square to the gate, each with its step and a strip
+of paving to the street. There are four fronts (`prop_townhouse_a` to `_d` in
+`tools/blender_town_props.py`): brick below and a cream timber frame above
+under red tile, with a green door and geraniums in the window boxes; stone
+below and an ochre frame jettied out over it under slate, with a baker's sign;
+a gable end to the street, dark brick and a white frame with its king post and
+struts, under shingle; and brick all the way up with two dormers in the tile
+and green shutters. Narrow and tall where the cottages were low and wide --
+seen from above a deep house is nearly all roof, so they are shallow front to
+back and the two storeys of windows are what shows. Maren's is one of them,
+and still opens on her room; the rest are people's houses.
+
+**The crossroads is a square**, paved in big pale flags (a tile a size up from
+the road's setts, so the square reads as a place and the streets as the ways
+into it), from the guild hall's steps to the head of the south street. **The
+well is in the middle of it**: the town well (`prop_town_well`), dry these
+eleven years, on two round steps inside the basin the water used to spill
+into, with four stone posts carrying a shingled canopy, the winch and its
+bucket, and the planks still nailed over the mouth. It is the same way down
+it was. Street lamps stand at the corners of its apron and along the square's
+edges and light it at night; benches face it; planters of geraniums and
+marigolds flank the forecourt; Tobin's stall and a flower seller's are along
+the south side; the board is between the two halls; the waystone is where the
+west street comes in. And the square is busy: see [People with somewhere to
+be](#people-with-somewhere-to-be).
+
+**The mayor's hall** stands on the square's north side beside the guild's
+(`prop_mayor_hall`, 256 pixels): pale limestone where the guild is dark stone,
+a copper roof gone green where the guild's is slate, and a porch of four
+columns under a pediment carrying the town's arms -- a gold key on blue --
+where the guild has a tower. A clock in a cupola on the ridge, the town's
+flags flying out past its corners, and every window lit. Inside (`mayor_hall`)
+is a chequered floor the town paid for, a map of Havenbrook in a gilt frame
+over the mayor's desk and the town's hangings either side, a council table
+down the middle, the clerk's desk and the strongbox by the door, benches for
+petitioners and a watchman to keep them in order. **Mayor Oswin Hale** will
+talk about the houses, the well (the well is the guild's business, he has
+written to say so) and the job; **Clerk Ambrose** will not lend you the key to
+the well's padlock.
+
+**The inn** faces the east street now, a step from the square. Inside, the
+Barley and Bell was pale boards and white walls with the furniture standing
+about in it; it is dark boards and warm plaster, two leaded windows in the
+back wall with a stag's head between them and a boar's by the stairs, a
+bearskin before the fire with two red wing chairs, a bar twice as long with a
+stool at every place, casks to stand at, and a bard's corner by the door -- a
+low stage with its lute, drum and footlights, and **Wren**, who knows the song
+about Bess's eel pie. Two regulars are always in, and Lark carries.
+
+### Mossvale's wall, and the dwarves under it
+
+**Mossvale is walled in brick**, where it had a palisade like Havenbrook's:
+courses of red-brown brick with a stone coping and moss in its joints
+(`prop_brick_wall`, and `prop_brick_wall_side` for the east and west runs),
+and a brick pier either side of the west gate with a lantern hung from each.
+Its street, lanes and square are **moss-stone** now -- grey-green flags with
+moss in every joint and creeping over the edges -- where they were trodden
+dirt.
+
+**Where the workbench stood, north-east of the old tanner's house, is the way
+down to the dwarves**: a door cut into a knoll of rock, framed in dressed
+stone the way only they dress it (`prop_dwarf_mine_gate`) -- square jambs cut
+with runes that glow a little, a stepped lintel with a bearded face over it,
+an iron-bound door stood open on the dark, and rails coming out of it. The
+bench and the anvil are across the lane from it now, by Garrow.
+
+**Under it is the Delving of Stonebrow** (`mossvale_mine`), laid out by hand:
+the entry chamber where the stair comes down, with the foreman's board; a
+propped tunnel north to **the hall**, carved flags, two kings in stone
+(`prop_dwarf_statue`), a long table, and the forge with **Hulda Anvilhand's**
+anvil, which anyone may use; a railed tunnel east to **the galleries**, iron
+and coal near the rails and azuryte at the far end, among pillars of rock left
+standing; and up a second propped tunnel **the deep gallery**, damascus and
+orichalcum. Track runs through all of it (`rail_ew`, `rail_ns`, laid over the
+floor as overlays) with ore carts standing on it, pit props hold up the
+tunnels (`prop_mine_support`), and lanterns on stands light the way. **Foreman
+Durgan** keeps the stores; nothing down there fights. The floor, the rock and
+the track are `tools/make_town_tiles.py`'s.
+
+The dwarves are the character rig again with a dwarf's shape (`"dwarf"` in
+`LOOKS`, `tools/blender_character.py`): shorter in the leg, a fifth broader in
+the body and shoulders, a beard from under the nose to the belt with the
+moustache swept out either side, and an iron cap. Two looks: the miners'
+(ginger, in leather) and the smith's (black-bearded, in a scorched red jerkin).
+
+### Fernhollow on the water
+
+**Fernhollow is a hamlet of the pond's own** now. The ferry cottage was one
+of Havenbrook's red-tiled cottages; it is **the ferry house**
+(`prop_ferry_house`): two floors, stone below and weatherboard above in the
+blue-green of the boats, under a deep reed thatch with a dormer, a FERRY board
+with an oar across it over the door, and the ferry's bell on its post. Three
+**fishers' cottages** stand west of the gate path and along a new lane at the
+bottom of the hamlet (`prop_fisher_cottage_a`, `_b`): low, reed-thatched, on
+stone footings against the damp, a net on the wall, an oar by the door and the
+day's fish drying under the eave. A path runs from the gate path along the
+south shore and becomes a **boardwalk** at the water's edge, out to the **boat
+shed**, where a boat is drawn up out of the wet. Nets hang out to dry on racks
+by the jetty and the cottages, there is a garden in wattle by the lane
+(marigolds and brookmint, which the college buys), and lantern posts light the
+ways about. **Maud** fishes and keeps the garden; **Pim** answers the bell.
+
+Laid reed runs down a roof, so the thatch here is streaks down the slope:
+bars across it read as planks, and short blocks as stone tiles -- both were
+tried first.
+
 ### If it is the way into a town, it is a gate
 
 That gate was the only one. Inside Havenbrook the same road left through a gap
@@ -5680,7 +5853,7 @@ After rendering a new prop, run `tools/make_manifest.ps1` before `build.ps1
 ### The farm at Havenbrook
 
 Havenbrook is sixteen columns wider than it was. Everything in it is placed from
-the west wall or from the crossroads and the fence, the gates and the south road
+the west wall or from the square and the fence, the gates and the south road
 are drawn from the town's width and height, so the town simply has a field on
 the end of it: past the mill pond, a yard of beaten earth with a farmhouse, a
 barn, hay and **four fenced pens**.
@@ -5915,8 +6088,9 @@ is two new tiles from `tools/make_ground.ps1`.
 
 ### The well of Havenbrook
 
-There is a well on the corner of the square, paved round, with a board nailed
-over the mouth and the bucket left on the rim. It has been dry eleven years.
+There is a well in the middle of the square, in its dry basin under a
+shingled canopy, with planks nailed over the mouth and the bucket left on the
+rim. It has been dry eleven years.
 Ask **Innkeeper Bess** about it and she puts the cloth down: four hundred
 buckets a day it gave, and a queue from dawn, until the year everything else
 went wrong; the town has carted water from the brook ever since, and nobody has
@@ -7092,7 +7266,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **61823 checks** covering:
+and checks all of it — currently **64596 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -7123,6 +7297,13 @@ and checks all of it — currently **61823 checks** covering:
   when an order can be filled, hands in exactly what it asks and leaves the rest,
   pays once, cannot be repeated the same day, and never takes another NPC's
   delivery
+- the four woods: every tier past iron is worked with its own wood -- oak,
+  birch, swampwood, ashen wood, two tiers to each -- and none asks for plain
+  logs; every wood is a stack with an icon, worth more than the one below it,
+  and grows on at least twenty trees, cut at a Woodcutting level below the
+  tier that first wants it
+- the rebuilt towns: the mayor's hall and the dwarves' mine load, are flat,
+  belong to their towns, and every NPC and object in them can be walked to
 - traders: every shop is kept by an NPC standing in its own town, who can be
   walked up to and offers to trade from the first line; every town has a general
   store and another shop; every shelf item exists, has a price and a limited

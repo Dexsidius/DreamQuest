@@ -819,6 +819,27 @@ static void PlaceTree(MapBuilder& m, std::mt19937& rng, int index,
     m.Collision(x - 9, y - 9, 18, 9);
 }
 
+// A tree of one of the four better woods, drawn with its own art: birch in
+// the Whisperwood, swamp trees in the Bayou, the burnt trees of the Ashen
+// Path. The same rules as PlaceTree's oaks -- worth more and slower the
+// higher it asks, and a stump for a while when it comes down -- with the
+// title, art and stump its own.
+static void PlaceTimber(MapBuilder& m, const string& id, int x, int y, const string& art,
+                        const string& stump, int level, const string& yield, const string& title) {
+    json& o = m.Object(id, "tree", x, y);
+    o["sprite"]      = "assets/props/" + art + ".png";
+    o["skill"]       = "Woodcutting";
+    o["skill_level"] = level;
+    o["yield"]       = yield;
+    o["yield_xp"]    = static_cast<int>(65.0f * (1.0f + level / 13.0f) + 0.5f);
+    o["gather_time"] = 3.0f + level * 0.027f;
+    o["title"]       = title;
+    o["deplete"]     = 0.125f;
+    o["regrow"]      = 1.5f;
+    o["sprite_open"] = stump.rfind("stump_", 0) == 0 ? "assets/props/" + stump + ".png" : ObjPath(stump);
+    m.Collision(x - 9, y - 9, 18, 9);
+}
+
 // Which ore is in a rock, by what it yields: the name shown over it, and the
 // art it is drawn with. Every ore used to be the same grey boulder with a
 // different word over it, so a new miner walked up to iron they could not touch
@@ -2698,15 +2719,26 @@ static void BuildTown() {
         return cx >= 57 && cx <= 66 && cy >= 12 && cy <= 19;
     };
 
+    // The town square: where the two roads meet, paved in big flags from the
+    // guild hall's steps to the top of the south street, with the well in
+    // the middle of it. The roads are the brick setts they always were; the
+    // square is a size up, so it reads as a place and the roads as the ways
+    // into it. See "the square" below for what stands in it.
+    const auto in_square = [](int cx, int cy) { return cx >= 17 && cx <= 40 && cy >= 16 && cy <= 28; };
+    // The step down from each townhouse's door to the street it stands on.
+    const auto door_path = [](int cx, int cy) {
+        return (cy == 34 || cy == 39) && ((cx >= 24 && cx <= 26) || (cx >= 30 && cx <= 32));
+    };
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
             const float v = Fbm(cx * 0.25f, cy * 0.25f, 77);
-            // A crossroads through the middle of the village. The north street
-            // ends at the guild hall's steps, with a paved forecourt before
-            // them; it used to run on past the hall to the fence, behind it.
+            // The north street ends at the guild hall's steps, with a paved
+            // forecourt before them. The cross street runs from the west gate
+            // to the farm gate, the south street from the square to the gate.
             const bool forecourt = cy >= 14 && cy <= 15 && abs(cx - 28) <= 4;
-            const bool on_road = (abs(cy - 22) <= 1) || (abs(cx - 28) <= 1 && cy >= 13) || forecourt;
-            string tile = on_road ? VariantOf("road", cx, cy)
+            const bool on_road = (abs(cy - 22) <= 1 && cx <= 55) || (abs(cx - 28) <= 1 && cy >= 13) || door_path(cx, cy);
+            string tile = (in_square(cx, cy) || forecourt) ? VariantOf("plaza", cx, cy)
+                        : on_road ? VariantOf("road", cx, cy)
                         : (v > 0.6f ? "grass_light" : (v > 0.3f ? "grass" : "grass_olive"));
             if (in_pit(cx, cy))   tile = v > 0.6f ? "sand" : (v > 0.3f ? "dirt" : "dirt_dark");
             else if (farmyard(cx, cy)) tile = v > 0.5f ? "dirt" : "dirt_dark";
@@ -2773,15 +2805,53 @@ static void BuildTown() {
     // north street.
     PlaceBuilding(m, "guild_house",      28 * CELL + 16, 14 * CELL, 200, 196,
                   "guild_hall", "entrance", "Enter the guild hall", "from_guild_hall", "props");
-    PlaceBuilding(m, "building_house_a", 13 * CELL,      18 * CELL, 136, 149,
-                  "house_elder", "entrance", "Enter Maren's house", "from_house_elder");
+    // The mayor's hall, on the north side of the square beside the guild's:
+    // pale stone and a green copper roof where the guild is dark stone and
+    // slate, a porch of columns where the guild has a tower. See mayor_hall
+    // in BuildInteriors for inside, and prop_mayor_hall for the art.
+    PlaceBuilding(m, "mayor_hall",       1176,           16 * CELL + 8, 236, 186,
+                  "mayor_hall", "entrance", "Enter the mayor's hall", "from_mayor_hall", "props");
+    // Maren's house is one of the townhouses on the west street now: the
+    // brick one with the dormers. Her door still leads to her room.
+    PlaceBuilding(m, "townhouse_d",      330,            20 * CELL + 24, 100, 124,
+                  "house_elder", "entrance", "Enter Maren's house", "from_house_elder", "props");
     // The inn has its own building rather than another cottage: modelled in
     // tools/blender_props.py (prop_inn_building). The door is at the centre of
-    // the image, which is where PlaceBuilding cuts the doorway.
-    PlaceBuilding(m, "inn_building",     44 * CELL,      18 * CELL, 176, 160,
+    // the image, which is where PlaceBuilding cuts the doorway. It faces the
+    // east street now, a step from the square.
+    PlaceBuilding(m, "inn_building",     1410,           20 * CELL, 176, 160,
                   "house_inn", "entrance", "Enter the inn", "from_house_inn", "props");
     PlaceBuilding(m, "building_shop",    14 * CELL,      33 * CELL, 110, 72,
                   "house_smith", "entrance", "Enter the forge", "from_house_smith");
+
+    // --- the townhouses -------------------------------------------------------------
+    // Two storeys each, in four fronts (tools/blender_town_props.py), lining
+    // the brick streets: along the north side of the west street and the east
+    // street, facing onto them, and down both sides of the south street from
+    // the square to the gate, each with its step and a strip of paving out to
+    // the street. Only Maren's has a door that opens: the rest are people's
+    // houses, and a stranger does not walk into them.
+    {
+        struct House { const char* art; int x, y; };
+        const House houses[] = {
+            // The west street, north side, facing it.
+            {"townhouse_b", 200, 20 * CELL + 24}, {"townhouse_a", 456, 20 * CELL + 24},
+            // The square's north-west corner, either side of nothing: the
+            // guild hall's forecourt is to their east.
+            {"townhouse_c", 596, 16 * CELL}, {"townhouse_a", 716, 16 * CELL},
+            // The east street, past the inn.
+            {"townhouse_b", 1570, 20 * CELL + 24}, {"townhouse_d", 1690, 20 * CELL + 24},
+            // The south street, both sides, two deep.
+            {"townhouse_a", 790, 33 * CELL + 24}, {"townhouse_c", 790, 38 * CELL + 24},
+            {"townhouse_d", 1034, 33 * CELL + 24}, {"townhouse_b", 1034, 38 * CELL + 24},
+        };
+        for (const House& h : houses) {
+            m.Prop("props", h.art, h.x, h.y);
+            // Solid from the step up to the ridge, less the roof's overhang
+            // at the sides; the step itself is walked on.
+            m.Collision(h.x - 50, h.y - 118, 100, 108);
+        }
+    }
 
     // The guild hall's plaque, over its own door. This art is the only thing
     // in the project that says GUILD HALL on it, so it belongs on the guild
@@ -2798,42 +2868,68 @@ static void BuildTown() {
                       "Complaints, also within, and briefly.";
     }
 
-    // The mission board, right where you walk in.
+    // The mission board, on the square between the two halls.
     {
-        json& o = m.Object("board_havenbrook", "board", 33 * CELL, 24 * CELL);
+        json& o = m.Object("board_havenbrook", "board", 1090, 584);
         o["sprite"] = ObjPath("guild_noticeboard");
         o["title"]  = "Havenbrook Mission Board";
         o["quests"] = json::array({"q_thin_the_herd", "q_firewood",
                                    "q_ore_for_the_forge", "q_orc_trouble"});
-        m.Collision(33 * CELL - 36, 24 * CELL - 12, 72, 12);
+        m.Collision(1090 - 36, 584 - 12, 72, 12);
     }
 
     // --- the well ----------------------------------------------------------------------
-    // Dry these eleven years, and the way down to what stopped it.
+    // Dry these eleven years, and the way down to what stopped it -- and the
+    // middle of the square, as a town's well is. It was a cottage well on a
+    // patch of paving south-west of the crossroads; it is the town well now
+    // (prop_town_well): steps up inside the dry basin the water used to spill
+    // into, a canopy on four posts, the winch, and the planks over the mouth.
     {
-        const int wcx = 25, wcy = 25;
-        const int wx = wcx * CELL, wy = wcy * CELL;
-        // A paved apron, so the well reads as part of the square rather than as
-        // something standing in a field: four hundred buckets a day wore the
-        // grass off long before the water stopped.
-        for (int cy = wcy - 1; cy <= wcy + 1; ++cy)
-            for (int cx = wcx - 1; cx <= wcx + 1; ++cx)
-                m.Ground(VariantOf("road", cx, cy), cx * CELL, cy * CELL, CELL);
-        // The dry variant: a board over the mouth and the bucket left on the
-        // rim. A well with water in it would tell the player the opposite of
-        // what Bess is about to.
-        m.Prop("props", "well_dry", wx, wy);
-        m.Collision(wx - 20, wy - 14, 40, 14);
+        const int wx = 28 * CELL + 16, wy = 23 * CELL + 24;
+        m.Prop("props", "town_well", wx, wy);
+        // The basin's ring, as it lies on the ground: the front of it is the
+        // foot of the art, the back of it a little over fifty pixels up.
+        m.Collision(wx - 56, wy - 60, 112, 52);
         m.Spawn("from_well", wx, wy + 40);
-        m.Portal(wx - 24, wy - 6, 48, 30, "well_shallow", "entrance", "Climb down the well");
+        m.Portal(wx - 30, wy - 12, 60, 34, "well_shallow", "entrance", "Climb down the well");
         m.Danger(12);
-        json& sign = m.Object("sign_well", "sign", wx - 62, wy + 6);
+        json& sign = m.Object("sign_well", "sign", wx - 70, wy + 22);
         sign["sprite"] = "assets/props/signpost.png";
         sign["title"]  = "The town well";
         sign["text"]   = "HAVENBROOK WELL\n\nFour hundred buckets a day, and a queue from dawn.\n\n"
                          "Under that, on a board nailed over the winch: DRY SINCE THE BAD YEAR. "
                          "DO NOT LOWER THE BUCKET. DO NOT GO DOWN.";
-        m.Collision(wx - 78, wy - 4, 32, 10);
+        m.Collision(wx - 70 - 16, wy + 12, 32, 10);
+    }
+
+    // --- the square --------------------------------------------------------------------
+    // Lamps at the corners of the well's apron, benches facing it, planters
+    // either side of the guild hall's forecourt, and the stalls along the
+    // south edge. The walks round the apron are kept clear: that is where the
+    // town goes by (see the rounds below).
+    {
+        int lamp = 0;
+        for (const auto& l : {std::pair<int, int>{780, 624}, {1044, 624}, {780, 884}, {1044, 884},
+                              {560, 660}, {1296, 660}, {560, 800}, {1296, 800}}) {
+            json& o = m.Object("lamp_square_" + std::to_string(lamp++), "lamp", l.first, l.second);
+            o["sprite"] = "assets/props/street_lamp.png";
+            m.Collision(l.first - 7, l.second - 8, 14, 8);
+        }
+        for (const auto& b : {std::pair<int, int>{690, 620}, {1150, 620}, {1170, 804}}) {
+            m.Prop("props", "park_bench", b.first, b.second);
+            m.Collision(b.first - 20, b.second - 10, 40, 10);
+        }
+        for (const auto& p : {std::pair<int, int>{788, 506}, {1036, 506}, {1250, 604}, {600, 604}}) {
+            m.Prop("props", "planter", p.first, p.second);
+            m.Collision(p.first - 19, p.second - 12, 38, 12);
+        }
+        // The flower seller's stall, on the south-west of the square.
+        m.Prop("props", "market_stall", 640, 912);
+        m.Collision(640 - 32, 912 - 14, 64, 14);
+        m.Prop("props", "planter", 712, 916);
+        m.Collision(712 - 19, 916 - 12, 38, 12);
+        m.Npc("npc_posy", "Posy the Flower Seller", "citizen1", 590, 916, "posy_root", 0)["tint"] =
+            json::array({255, 226, 236});
     }
 
     // A cooking fire anyone may use.
@@ -2848,9 +2944,8 @@ static void BuildTown() {
     PlaceCauldron(m, "cauldron_town", 43 * CELL, 30 * CELL);
 
     // --- the waystone ----------------------------------------------------------------
-    // On the grass at the north-east corner of the crossroads, where every road
-    // in the town passes it.
-    PlaceWaystone(m, "havenbrook", 1010, 652);
+    // On the square, west of the well, where the west street comes in.
+    PlaceWaystone(m, "havenbrook", 660, 772);
 
     // --- the farm ------------------------------------------------------------------
     // Sixteen columns of new town, east of the pond: a barn on the yard, a
@@ -2972,10 +3067,10 @@ static void BuildTown() {
         json::array({236, 226, 255});
     m.Npc("npc_hunter", "Hunter Ivo",      "citizen2", 46 * CELL, 30 * CELL, "hunter_root", 0, true)["shop"] = "havenbrook_bowyer";
 
-    // The general store: a stall on the square east of the crossroads, with
+    // The general store: a stall on the south-east of the square, with
     // Tobin beside it and his stock stacked either side.
     {
-        const int sx = 35 * CELL, sy = 27 * CELL;
+        const int sx = 1190, sy = 912;
         m.Prop("props", "market_stall", sx, sy);
         m.Collision(sx - 32, sy - 14, 64, 14);
         m.Prop("props", "crates_sacks", sx + 56, sy - 4);
@@ -3066,12 +3161,12 @@ static void BuildTown() {
         m.Prop("props", "rowboat", 42 * CELL, 41 * CELL);
         m.Collision(42 * CELL - 30, 41 * CELL - 24, 60, 24);
 
-        json& sign = m.Object("sign_pond", "sign", 41 * CELL, 34 * CELL);
+        json& sign = m.Object("sign_pond", "sign", 1266, 34 * CELL);
         sign["sprite"] = "assets/props/signpost.png";
         sign["title"]  = "The Mill Pond";
         sign["text"]   = "THE MILL POND\n\nMinnow and pike. Keep the jetty clear.\n\n"
                          "A smaller hand has added: rods lent, fish shared.";
-        m.Collision(41 * CELL - 16, 34 * CELL - 10, 32, 10);
+        m.Collision(1266 - 16, 34 * CELL - 10, 32, 10);
 
         // Two places to cast from: the end of the jetty and the bank beside it.
         PlaceFishingSpot(m, "fish_pond_1", 47 * CELL + 16, 37 * CELL + 16, "pond",
@@ -3105,51 +3200,73 @@ static void BuildTown() {
         rounds.push_back(stops);
     };
     // Facings: 0 down, 1 left, 2 right, 3 up.
+    //
+    // The square is walked round, not across: the well stands in the middle
+    // of it, so the rounds keep to a lane round its apron -- the north side at
+    // y 640, the south at 860, the west at x 800 and the east at 1024 -- and
+    // come and go by the three streets.
     // Wenna fetches water from the mill pond, the well being what it is.
     walker("npc_wenna", "Wenna", "citizen1", "wenna_root",
-           {{13 * CELL, 19 * CELL + 6, 10.0f, 0}, {13 * CELL, 22 * CELL + 12, 0, 0}, {38 * CELL + 14, 22 * CELL + 12, 0, 0},
-            {38 * CELL + 14, 37 * CELL, 0, 0}, {41 * CELL, 38 * CELL + 20, 9.0f, 2}},
+           {{330, 20 * CELL + 50, 10.0f, 0}, {330, 720, 0, 0}, {800, 720, 0, 0}, {800, 860, 0, 0},
+            {1320, 860, 0, 0}, {1320, 38 * CELL + 20, 0, 0}, {41 * CELL, 38 * CELL + 20, 9.0f, 2}},
            true, 30.0f, 0.0f, 6.0f, 19.0f, {255, 236, 224});
-    // Old Perrin does the rounds of the square: the stall, the board, the fire.
+    // Old Perrin does the rounds of the square: the board, the stall, the well.
     walker("npc_perrin", "Old Perrin", "citizen2", "perrin_root",
-           // Round the stall rather than through it: down its east side to the
-           // front, west past the barrel to the board, and back under it to the fire.
-           {{44 * CELL, 19 * CELL + 6, 12.0f, 0}, {44 * CELL, 22 * CELL + 8, 0, 0}, {37 * CELL + 26, 22 * CELL + 8, 0, 0},
-            {37 * CELL + 26, 28 * CELL + 6, 0, 0}, {35 * CELL, 28 * CELL + 6, 10.0f, 3}, {31 * CELL + 8, 28 * CELL + 6, 0, 0},
-            {31 * CELL + 8, 25 * CELL + 4, 0, 0}, {33 * CELL, 25 * CELL + 4, 7.0f, 3}, {31 * CELL + 8, 25 * CELL + 4, 0, 0},
-            {31 * CELL + 8, 29 * CELL + 2, 0, 0}, {38 * CELL + 24, 31 * CELL + 10, 8.0f, 2},
-            {38 * CELL + 24, 23 * CELL, 0, 0}, {44 * CELL, 22 * CELL + 8, 0, 0}},
+           {{1410, 20 * CELL + 22, 12.0f, 0}, {1410, 720, 0, 0}, {1024, 720, 0, 0}, {1024, 640, 0, 0},
+            {1090, 640, 10.0f, 3}, {800, 640, 0, 0}, {800, 860, 0, 0}, {1140, 860, 10.0f, 0},
+            {1024, 860, 0, 0}, {1024, 720, 0, 0}, {1410, 720, 0, 0}},
            false, 24.0f, 40.0f, 8.0f, 18.0f, {232, 232, 255});
     // The watch walks the streets, gate to gate, day and night.
     walker("npc_brask", "Watchman Brask", "fighter2", "brask_root",
-           {{27 * CELL + 20, 40 * CELL, 8.0f, 0}, {27 * CELL + 20, 23 * CELL, 0, 0}, {3 * CELL + 16, 23 * CELL, 9.0f, 1},
-            {27 * CELL + 20, 23 * CELL, 0, 0}, {27 * CELL + 20, 17 * CELL, 6.0f, 3}, {27 * CELL + 20, 21 * CELL + 10, 0, 0},
-            {52 * CELL, 21 * CELL + 10, 9.0f, 2}, {29 * CELL + 12, 21 * CELL + 10, 0, 0}, {29 * CELL + 12, 40 * CELL, 0, 0}},
+           {{896, 40 * CELL, 8.0f, 0}, {896, 860, 0, 0}, {800, 860, 0, 0}, {800, 720, 0, 0},
+            {3 * CELL + 16, 720, 9.0f, 1}, {800, 720, 0, 0}, {800, 640, 0, 0}, {912, 640, 0, 0},
+            {912, 16 * CELL + 10, 6.0f, 3}, {912, 640, 0, 0}, {1024, 640, 0, 0}, {1024, 720, 0, 0},
+            {52 * CELL, 720, 9.0f, 2}, {1024, 720, 0, 0}, {1024, 860, 0, 0}, {928, 860, 0, 0},
+            {928, 40 * CELL, 0, 0}},
            false, 34.0f, 0.0f, 0.0f, 0.0f, {255, 255, 255});
     // Tam carries cut logs from the sawpit down to the forge.
     walker("npc_tam", "Tam", "citizen2", "tam_root",
-           {{12 * CELL + 8, 11 * CELL, 9.0f, 1}, {17 * CELL, 11 * CELL, 0, 0}, {17 * CELL, 23 * CELL, 0, 0},
-            {17 * CELL, 35 * CELL, 0, 0}, {15 * CELL, 35 * CELL, 8.0f, 3}},
+           {{12 * CELL + 8, 11 * CELL, 9.0f, 1}, {526, 11 * CELL, 0, 0}, {526, 720, 0, 0},
+            {526, 35 * CELL, 0, 0}, {15 * CELL, 35 * CELL, 8.0f, 3}},
            true, 32.0f, 25.0f, 7.0f, 17.0f, {255, 244, 214});
     // Dace fishes off the end of the jetty, and drinks at the inn after.
     walker("npc_dace", "Dace", "citizen1", "dace_root",
-           {{45 * CELL + 10, 19 * CELL + 6, 8.0f, 0}, {45 * CELL + 10, 23 * CELL + 4, 0, 0}, {38 * CELL + 14, 23 * CELL + 4, 0, 0},
-            {38 * CELL + 14, 37 * CELL + 18, 0, 0}, {46 * CELL + 8, 37 * CELL + 18, 24.0f, 2}},
+           {{1440, 20 * CELL + 22, 8.0f, 0}, {1440, 736, 0, 0}, {1320, 736, 0, 0},
+            {1320, 37 * CELL + 18, 0, 0}, {46 * CELL + 8, 37 * CELL + 18, 24.0f, 2}},
            true, 28.0f, 90.0f, 9.0f, 20.0f, {220, 240, 255});
     // Pip runs the guild's notices: the hall, the board, the south gate.
     walker("npc_pip", "Pip", "citizen2", "pip_root",
-           {{28 * CELL + 16, 15 * CELL, 6.0f, 0}, {28 * CELL + 16, 22 * CELL, 0, 0}, {32 * CELL, 24 * CELL + 24, 5.0f, 2},
-            {28 * CELL + 16, 24 * CELL + 24, 0, 0}, {28 * CELL + 16, 40 * CELL, 5.0f, 0}, {28 * CELL + 16, 22 * CELL, 0, 0}},
+           {{912, 15 * CELL, 6.0f, 0}, {912, 640, 0, 0}, {1090, 640, 5.0f, 3}, {1024, 640, 0, 0},
+            {1024, 860, 0, 0}, {912, 860, 0, 0}, {912, 40 * CELL, 5.0f, 0}, {912, 860, 0, 0},
+            {800, 860, 0, 0}, {800, 640, 0, 0}, {912, 640, 0, 0}},
            false, 50.0f, 10.0f, 7.0f, 19.0f, {236, 255, 230});
     // A carter on the new road: in at the south gate, out at the west, and back.
     walker("npc_carter", "Hollis the Carter", "citizen1", "carter_root",
-           {{28 * CELL + 16, 42 * CELL, 14.0f, 3}, {28 * CELL + 16, 22 * CELL + 16, 0, 0}, {2 * CELL, 22 * CELL + 16, 14.0f, 1}},
+           {{928, 42 * CELL, 14.0f, 3}, {928, 860, 0, 0}, {800, 860, 0, 0}, {800, 736, 0, 0},
+            {2 * CELL, 736, 14.0f, 1}},
            true, 30.0f, 140.0f, 8.0f, 17.0f, {255, 226, 200});
     // A ranger in off the Westwold, selling pelts to Ivo and gone again.
     walker("npc_ranger", "Sorrel", "player_warden", "sorrel_root",
-           {{2 * CELL, 21 * CELL + 16, 10.0f, 2}, {38 * CELL + 14, 21 * CELL + 16, 0, 0}, {38 * CELL + 14, 28 * CELL + 4, 0, 0},
-            {45 * CELL, 28 * CELL + 16, 16.0f, 2}},
+           {{2 * CELL, 704, 10.0f, 2}, {800, 704, 0, 0}, {800, 860, 0, 0}, {1320, 860, 0, 0},
+            {1320, 990, 0, 0}, {45 * CELL, 990, 16.0f, 2}},
            true, 36.0f, 60.0f, 10.0f, 16.0f, {255, 255, 255});
+    // --- and the square's own -------------------------------------------------------------
+    // The crier walks the north side of the square with the day's news, and
+    // stops at either end to shout it.
+    walker("npc_crier", "Crier Bram", "citizen2", "crier_root",
+           {{620, 640, 24.0f, 0}, {1240, 640, 24.0f, 0}},
+           true, 20.0f, 30.0f, 8.0f, 18.0f, {255, 214, 180});
+    // Two children chase each other round the well, all day, every day.
+    walker("npc_tib", "Tib", "citizen1", "tib_root",
+           {{800, 640, 0.5f, 2}, {1024, 640, 0, 0}, {1024, 860, 0, 0}, {800, 860, 0, 0}},
+           false, 58.0f, 0.0f, 8.0f, 18.0f, {255, 240, 200});
+    walker("npc_nan", "Nan", "citizen2", "nan_root",
+           {{800, 640, 0.5f, 2}, {1024, 640, 0, 0}, {1024, 860, 0, 0}, {800, 860, 0, 0}},
+           false, 58.0f, 4.0f, 8.0f, 18.0f, {230, 245, 255});
+    // Tobin's wife sweeps the square in the morning and sits out the afternoon.
+    walker("npc_hester", "Hester", "citizen1", "hester_root",
+           {{1150, 640, 30.0f, 0}, {1024, 640, 0, 0}, {1024, 830, 0, 0}, {1170, 830, 40.0f, 3}},
+           true, 18.0f, 70.0f, 7.0f, 17.0f, {240, 236, 255});
 
     // Whether a point is on somebody's round, so nothing is planted in the way.
     const auto on_a_round = [&](int x, int y) {
@@ -3172,7 +3289,11 @@ static void BuildTown() {
         const int y = 3 * CELL + static_cast<int>(rng() % ((H - 6) * CELL));
         if (on_a_round(x, y)) continue;
         if (abs(y - 22 * CELL) < 80 || abs(x - 28 * CELL) < 80) continue;
-        if (abs(x - 35 * CELL) < 120 && abs(y - 27 * CELL) < 90) continue;   // the stall
+        // Nothing on the square, in front of a house, or up against one.
+        if (x > 15 * CELL && x < 42 * CELL && y > 12 * CELL && y < 31 * CELL) continue;
+        if (y > 15 * CELL && y < 22 * CELL && (x < 18 * CELL || (x > 43 * CELL && x < 56 * CELL))) continue;
+        if (x > 22 * CELL && x < 35 * CELL && y > 28 * CELL) continue;
+        if (!m.Clear(x, y) || !m.Clear(x, y + 16)) continue;
         // And out of the sawpit's stand of timber, the gravel pit and the pond.
         if (x < 15 * CELL && y < 15 * CELL) continue;
         if (x > 39 * CELL && y < 13 * CELL) continue;
@@ -3426,7 +3547,9 @@ static void BuildInteriors() {
         MapBuilder m("house_inn", "The Barley and Bell", cols * CELL, rows * CELL);
         m.Interior(true);
         m.Background(26, 20, 16);
-        RoomShell(m, cols, rows, CELL, "plank_floor", "plaster_wall",
+        // Dark boards and warm plaster: it was pale boards and white walls, a
+        // room with the furniture standing about in it rather than a taproom.
+        RoomShell(m, cols, rows, CELL, "plank_floor_dark", "plaster_wall_warm",
                   cols / 2 - 1, cols / 2);
 
         const int dx = (cols / 2) * CELL;
@@ -3452,23 +3575,35 @@ static void BuildInteriors() {
         m.Collision(64, 118, 6, 70);
         m.Collision(32, 64, 34, 50);
 
-        // --- the hearth ----------------------------------------------------------
-        m.Overlay("props", "inn_rug", 224, 109);
+        // --- the back wall: windows, and a head over the fire ----------------------
+        m.Prop("props", "trophy_boar", 112, 60);
+        m.Prop("props", "inn_window", 306, 64);
+        m.Prop("props", "trophy_stag", 364, 58);
+        m.Prop("props", "inn_window", 414, 64);
+
+        // --- the hearth, and the corner by it ------------------------------------------
+        m.Overlay("props", "bear_rug", 224, 158);
         {
             json& o = m.Object("range_inn", "range", 7 * CELL, 100);
             o["sprite"] = "assets/props/inn_fireplace.png";
             o["title"]  = "Kitchen fire";
             m.Collision(7 * CELL - 46, 70, 92, 30);
         }
+        piece("armchair", 136, 170, 34, 10);
+        piece("armchair", 314, 170, 34, 10);
+        m.Prop("props", "candlestand", 96, 254);
+        m.Collision(96 - 6, 230, 12, 8);
 
         // --- the bar -------------------------------------------------------------
+        // Twice as long as it was, with a stool at every place along it.
         piece("bottle_shelf", 470, 100, 60, 14);
         piece("keg_rack",     580, 110, 62, 16);
         piece("crates_sacks", 650, 108, 35, 14);
         m.Npc("npc_cook", "Innkeeper Bess", "citizen1", 512, 168, "cook_root", 0)["shop"] = "havenbrook_inn";
+        piece("bar_counter",  404, 230, 108, 30);
         piece("bar_counter",  512, 230, 108, 30);
-        for (int i = 0; i < 3; ++i)
-            piece("bar_stool", 478 + i * 34, 264, 14, 8);
+        for (int i = 0; i < 6; ++i)
+            piece("bar_stool", 372 + i * 34, 264, 14, 8);
 
         // --- the taproom -----------------------------------------------------------
         auto table_for_two = [&](int x, int y) {
@@ -3476,22 +3611,107 @@ static void BuildInteriors() {
             piece("tavern_chair", x - 40, y + 2, 16, 8);
             piece("tavern_chair", x + 40, y + 2, 16, 8);
         };
-        table_for_two(160, 272);
-        table_for_two(270, 342);
-        table_for_two(448, 344);
-        piece("tavern_bench", 140, 404, 46, 12);
+        table_for_two(156, 300);
+        table_for_two(300, 336);
+        // Casks to stand at, for the ones who are not staying.
+        piece("barrel_table", 440, 330, 30, 10);
+        piece("barrel_table", 520, 366, 30, 10);
         piece("chalk_board",  404, 402, 22, 8);
         // A long table for a party, benches either side, in the far corner.
-        piece("tavern_bench", 600, 320, 46, 12);
-        piece("dining_table", 600, 352, 46, 14);
-        piece("tavern_bench", 600, 398, 46, 12);
-        piece("crates_sacks", 640, 250, 35, 14);
+        piece("tavern_bench", 612, 320, 46, 12);
+        piece("dining_table", 612, 352, 46, 14);
+        piece("tavern_bench", 612, 398, 46, 12);
+        piece("crates_sacks", 648, 250, 35, 14);
+        m.Prop("props", "candlestand", 668, 420);
+        m.Collision(668 - 6, 396, 12, 8);
+
+        // --- the bard's corner, by the door ------------------------------------------
+        piece("stage", 150, 414, 80, 34);
+        m.Npc("npc_bard", "Wren the Bard", "citizen2", 216, 404, "bard_root", 0)["tint"] = json::array({226, 214, 255});
+
+        // --- who is in ---------------------------------------------------------------
+        // Lark fetches and carries between the bar and the tables all evening;
+        // two regulars are always in.
+        {
+            json& n = m.Npc("npc_lark", "Lark", "citizen1", 360, 292, "lark_root", 0);
+            n["path"] = json::array({json::array({360, 292, 6.0f, 3}), json::array({560, 292, 0, 0}),
+                                     json::array({560, 420, 5.0f, 2})});
+            n["ping_pong"] = true;
+            n["speed"] = 36.0f;
+            n["tint"] = json::array({255, 232, 214});
+        }
+        m.Npc("npc_gammer", "Gammer Holt", "citizen1", 300, 372, "gammer_root", 3)["tint"] = json::array({214, 214, 230});
+        m.Npc("npc_drover", "Fen the Drover", "citizen2", 440, 360, "drover_root", 3)["tint"] = json::array({240, 222, 196});
 
         // --- the cellar hatch, behind the bar ------------------------------------------
         m.Overlay("props", "cellar_hatch", 628, 180);
         m.Portal(606, 160, 36, 30, "house_inn_cellar", "from_inn", "Go down to the cellar", true);
         m.Spawn("from_cellar", 628, 222);
 
+        m.Write("maps");
+    }
+
+    // The mayor's hall: where Havenbrook is governed, such as it is. A
+    // chequered floor the town paid for, a council table down the middle,
+    // the mayor's desk at the far end under a map of the town, the clerk's
+    // by the door, and benches for whoever has come to complain.
+    {
+        const int CELL = 32, cols = 20, rows = 13;
+        MapBuilder m("mayor_hall", "The Mayor's Hall", cols * CELL, rows * CELL);
+        m.Interior(true);
+        m.Background(30, 28, 32);
+        m.Subtitle("Havenbrook's hall, on the square");
+        RoomShell(m, cols, rows, CELL, "civic_floor", "plaster_wall_pale", cols / 2 - 1, cols / 2);
+        const int dx = (cols / 2) * CELL;
+        m.Spawn("entrance", dx, (rows - 2) * CELL);
+        m.Spawn("default",  dx, (rows - 2) * CELL);
+        m.Portal(dx - 32, (rows - 1) * CELL, 64, 32, "town_havenbrook", "from_mayor_hall", "Step outside", false);
+
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        // The far wall: the map of the town, the town's hangings, its books.
+        m.Prop("props", "town_map", dx, 62);
+        m.Prop("props", "tapestry_blue", dx - 150, 62);
+        m.Prop("props", "tapestry_blue", dx + 150, 62);
+        m.Prop("objects", "guild_bookshelf", 64, 100);
+        m.Collision(64 - 15, 88, 30, 12);
+        m.Prop("objects", "guild_bookshelf", cols * CELL - 64, 100);
+        m.Collision(cols * CELL - 64 - 15, 88, 30, 12);
+        // The town's ceremonial harness, worn once a year at the Wake.
+        piece("armour_stand", cols * CELL - 72, 226, 24, 10);
+        // The mayor's desk on a rug, with the town's banners either side.
+        m.Overlay("props", "inn_rug", dx, 150);
+        piece("writing_desk", dx, 170, 46, 16);
+        piece("college_banner", dx - 84, 138, 12, 8);
+        piece("college_banner", dx + 84, 138, 12, 8);
+        m.Npc("npc_mayor", "Mayor Oswin Hale", "citizen2", dx, 128, "mayor_root", 0)["tint"] =
+            json::array({236, 226, 255});
+        // The council table down the middle, its chairs along the sides.
+        piece("council_table", dx, 290, 110, 34);
+        for (int k = -1; k <= 1; ++k) {
+            piece("high_chair_back", dx + k * 40, 244, 14, 8);
+        }
+        // A candlestand's art stands sixteen pixels above the foot of its
+        // image, so it is placed that much lower and blocked where it stands.
+        for (int x : {150, cols * CELL - 150}) {
+            m.Prop("props", "candlestand", x, 226);
+            m.Collision(x - 6, 202, 12, 8);
+        }
+        // The clerk's desk by the door, with the town's strongbox beside it.
+        piece("writing_desk", 120, 318, 46, 16);
+        piece("strongbox", 60, 322, 22, 10);
+        m.Npc("npc_clerk", "Clerk Ambrose", "citizen1", 120, 280, "clerk_root", 0)["tint"] =
+            json::array({226, 236, 222});
+        // Benches for petitioners, and a watchman to keep them in order.
+        piece("tavern_bench", cols * CELL - 110, 318, 46, 12);
+        piece("tavern_bench", cols * CELL - 110, 370, 46, 12);
+        m.Prop("objects", "guild_plant", 52, 380);
+        m.Collision(52 - 14, 370, 28, 10);
+        m.Prop("objects", "guild_plant", cols * CELL - 52, 380);
+        m.Collision(cols * CELL - 52 - 14, 370, 28, 10);
+        m.Npc("npc_tully", "Watchman Tully", "fighter2", dx + 70, 350, "tully_root", 1);
         m.Write("maps");
     }
 
@@ -4588,8 +4808,14 @@ static void BuildAshenPath() {
                 continue;
             }
             if (r < 0.07f) {
-                m.Prop("props", "charred_tree", x, y);
-                m.Collision(x - 8, y - 8, 16, 8);
+                // Half of them still have wood in them worth the cutting.
+                if (Hash2(cx, cy, 6060) < 0.5f)
+                    PlaceTimber(m, "tree_ash_" + std::to_string(cx) + "_" + std::to_string(cy), x, y,
+                                "charred_tree", "stump_charred", 60, "ashen_logs", "ashen tree");
+                else {
+                    m.Prop("props", "charred_tree", x, y);
+                    m.Collision(x - 8, y - 8, 16, 8);
+                }
             } else if (r < 0.12f) {
                 m.Prop("props", "obsidian_rock", x, y);
                 m.Collision(x - 10, y - 8, 20, 8);
@@ -5467,7 +5693,12 @@ static void BuildWhisperwood() {
             }
             const bool edge = (cx < 3 || cy < 3 || cx > W - 4 || cy > H - 4);
             if (r < (edge ? 0.55f : 0.24f)) {
-                if (!edge && Hash2(cx, cy, 1212) < 0.18f)
+                // Birch stands in groves through the wood, where the noise is
+                // high: Woodcutting 30, and the only birch in the Hollowmarch.
+                if (!edge && Hash2(cx, cy, 1212) < 0.26f && Fbm(cx * 0.16f, cy * 0.16f, 3030) > 0.56f)
+                    PlaceTimber(m, "tree_" + std::to_string(tree_i++), x, y, "birch_tree", "stump_birch",
+                                30, "birch_logs", "birch");
+                else if (!edge && Hash2(cx, cy, 1212) < 0.18f)
                     PlaceTree(m, rng, tree_i++, x, y, true, 1, "logs");
                 else
                     PlaceForestTree(m, rng, x, y, true);
@@ -6864,8 +7095,14 @@ static void BuildBayou() {
             }
             const bool dark = dark_here(static_cast<float>(x), static_cast<float>(y));
             if (r < (dark ? 0.075f : 0.026f)) {
-                m.Prop("props", "swamp_tree", x, y);
-                m.Collision(x - 8, y - 8, 16, 8);
+                // The ones out of the water can be felled: swampwood, at 45.
+                if (Hash2(cx, cy, 7272) < 0.45f)
+                    PlaceTimber(m, "tree_swamp_" + std::to_string(cx) + "_" + std::to_string(cy), x, y,
+                                "swamp_tree", "stump", 45, "swamp_logs", "swamp tree");
+                else {
+                    m.Prop("props", "swamp_tree", x, y);
+                    m.Collision(x - 8, y - 8, 16, 8);
+                }
                 ++trees;
             } else if (r < (dark ? 0.13f : 0.045f)) {
                 m.Prop("objects", dark ? Pick(kBushes, rng) : Pick(kFungus, rng), x, y);
@@ -7016,6 +7253,7 @@ static void BuildMossvale() {
         if (abs(cy - 22) <= 1 && cx >= 20 && cx <= 23) return true;              // and into the square
         if (abs(cy - 38) <= 1 && cx >= 11 && cx <= 26) return true;             // to the herbalist
         if (abs(cx - 26) <= 1 && cy >= sq_cy && cy <= 38) return true;
+        if (abs(cy - 26) <= 1 && cx >= 36 && cx <= 45) return true;              // out to the mine
         return false;
     };
     // Where buildings stand, so the greenery keeps clear of them.
@@ -7032,21 +7270,26 @@ static void BuildMossvale() {
         for (int cx = 0; cx < W; ++cx) {
             const float v = Fbm(cx * 0.22f, cy * 0.22f, 58);
             string tile;
+            // The streets, the lanes and the square are laid in moss-grown
+            // flags now (see make_town_tiles.py): they were trodden dirt.
             if (on_street(cx, cy) || on_lane(cx, cy) || in_square(cx, cy))
-                tile = VariantOf(v > 0.58f ? "dirt_dark" : "dirt", cx, cy);
+                tile = VariantOf("moss_stone", cx, cy);
             else
                 tile = VariantOf(v > 0.62f ? "moss" : (v > 0.3f ? "grass" : "grass_dark"), cx, cy);
             m.Ground(tile, cx * CELL, cy * CELL, CELL);
         }
 
-    // --- the boundary: palisade north and south, forest east and west ---------
+    // --- the boundary: a brick wall all the way round ------------------------
+    // It was a palisade, the same as Havenbrook's; Mossvale is walled in
+    // brick now, mossed along its coping (prop_brick_wall), with a pier and a
+    // lantern either side of the west gate.
     for (int cx = 0; cx < W; ++cx) {
         m.Collision(cx * CELL, 0, CELL, 2 * CELL);
         m.Collision(cx * CELL, (H - 1) * CELL, CELL, CELL);
     }
     for (int x = 28; x < W * CELL; x += 54) {
-        m.Prop("props", "palisade", x, 2 * CELL + 8);
-        m.Prop("props", "palisade", x, H * CELL - 2);
+        m.Prop("props", "brick_wall", x, 2 * CELL + 8);
+        m.Prop("props", "brick_wall", x, H * CELL - 2);
     }
     for (int cy = 0; cy < H; ++cy) {
         if (abs(cy - gate_row) > 1) m.Collision(0, cy * CELL, CELL, CELL);
@@ -7123,19 +7366,40 @@ static void BuildMossvale() {
         o["title"]  = "Cooking fire";
         m.Collision((sq_cx + 10) * CELL - 16, 21 * CELL - 10, 32, 10);
     }
+    // --- the dwarves' mine ----------------------------------------------------------
+    // Where the workbench stood, north-east of the old tanner's house: a door
+    // cut into a knoll, framed in the dwarves' dressed stone, and the way down
+    // to their hall and galleries (see BuildMossvaleMine). The bench and the
+    // anvil are across the lane from it now, by Garrow.
     {
-        json& o = m.Object("bench_mossvale", "workbench", 44 * CELL, 26 * CELL);
+        const int gx = 44 * CELL, gy = 26 * CELL;
+        m.Prop("props", "dwarf_mine_gate", gx, gy);
+        // The knoll, less the doorway; the rails in front are walked on.
+        m.Collision(gx - 79, gy - 118, 174, 46);
+        m.Collision(gx - 79, gy - 72, 57, 46);
+        m.Collision(gx + 22, gy - 72, 73, 46);
+        m.Portal(gx - 20, gy - 44, 40, 30, "mossvale_mine", "entrance", "Go down into the dwarves' mine");
+        m.Spawn("from_mossvale_mine", gx, gy + 18);
+        json& o = m.Object("sign_mossvale_mine", "sign", gx - 104, gy + 8);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "A plate of beaten copper";
+        o["text"]   = "THE DELVING OF STONEBROW\n\nOre bought. Ore sold. Picks mended.\n\n"
+                      "Under it, scratched smaller: MIND THE CARTS. MIND YOUR HEAD. MIND THE FOREMAN.";
+        m.Collision(gx - 104 - 16, gy - 2, 32, 10);
+    }
+    {
+        json& o = m.Object("bench_mossvale", "workbench", 48 * CELL, 30 * CELL);
         o["sprite"]  = "assets/props/workbench.png";
         o["title"]   = "Workbench";
         o["station"] = "workbench";
-        m.Collision(44 * CELL - 34, 26 * CELL - 18, 67, 18);
+        m.Collision(48 * CELL - 34, 30 * CELL - 18, 67, 18);
         // An anvil beside it, so the trail's metal need not go back to
         // Havenbrook to be smithed.
-        json& a = m.Object("anvil_mossvale", "workbench", 47 * CELL, 26 * CELL);
+        json& a = m.Object("anvil_mossvale", "workbench", 49 * CELL, 27 * CELL);
         a["sprite"]  = "assets/props/anvil.png";
         a["title"]   = "Anvil";
         a["station"] = "anvil";
-        m.Collision(47 * CELL - 14, 26 * CELL - 12, 28, 12);
+        m.Collision(49 * CELL - 14, 27 * CELL - 12, 28, 12);
     }
     for (const auto& lp : {std::pair<int, int>{35 * CELL, 17 * CELL}, {24 * CELL, 17 * CELL}}) {
         m.Prop("props", "log_pile", lp.first, lp.second);
@@ -7163,9 +7427,19 @@ static void BuildMossvale() {
 
     // The west gate, where the trail comes in, and the palisade down both
     // sides to meet the one along the top and bottom.
-    PlaceSideGate(m, CELL + 8, (gate_row - 1) * CELL, (gate_row + 2) * CELL);
-    PalisadeSide(m, 14, 3 * CELL, (H - 1) * CELL, (gate_row - 1) * CELL, (gate_row + 2) * CELL);
-    PalisadeSide(m, W * CELL - 14, 3 * CELL, (H - 1) * CELL);
+    {
+        const int x = CELL + 8, top = (gate_row - 1) * CELL, bottom = (gate_row + 2) * CELL;
+        m.Prop("props", "brick_pier", x, top - 2);
+        m.Collision(x - 14, top - 26, 28, 24);
+        m.Prop("props", "brick_pier", x, bottom + 44);
+        m.Collision(x - 14, bottom + 20, 28, 24);
+        for (int y = 3 * CELL; y <= (H - 1) * CELL; y += 22) {
+            if (y > top - 34 && y < bottom + 58) continue;
+            m.Prop("props", "brick_wall_side", 14, y);
+        }
+        for (int y = 3 * CELL; y <= (H - 1) * CELL; y += 22)
+            m.Prop("props", "brick_wall_side", W * CELL - 14, y);
+    }
 
     // --- people -------------------------------------------------------------------
     // Sela keeps the gate, from the foot of its south tower.
@@ -7206,9 +7480,9 @@ static void BuildMossvale() {
     }
     // The smith works the village anvil by the workbench, with his bars in a
     // crate at his elbow.
-    m.Npc("npc_garrow", "Garrow the Smith", "fighter2", 49 * CELL + 8, 26 * CELL - 2, "garrow_root", 0)["shop"] = "mossvale_forge";
-    m.Prop("props", "ingot_crate", 51 * CELL, 26 * CELL + 4);
-    m.Collision(51 * CELL - 17, 26 * CELL - 8, 34, 12);
+    m.Npc("npc_garrow", "Garrow the Smith", "fighter2", 50 * CELL + 16, 27 * CELL - 2, "garrow_root", 0)["shop"] = "mossvale_forge";
+    m.Prop("props", "ingot_crate", 52 * CELL, 27 * CELL + 4);
+    m.Collision(52 * CELL - 17, 27 * CELL - 8, 34, 12);
     m.Npc("npc_tamsin", "Tamsin",         "player_warden", 45 * CELL, 19 * CELL, "tamsin_root", 0, true);
 
     // --- village life along the street ------------------------------------------
@@ -7248,7 +7522,7 @@ static void BuildMossvale() {
         if (cx >= 10 && cx <= 20 && cy >= 18 && cy <= 24) return true;   // woodcutters' cabin
         if (cx >= 37 && cx <= 43 && cy >= 34 && cy <= 39) return true;   // hide tent
         if (cy >= 28 && cy <= 32 && ((cx >= 17 && cx <= 23) || (cx >= 36 && cx <= 43))) return true;  // stalls
-        if (cx >= 42 && cx <= 53 && cy >= 23 && cy <= 28) return true;   // the smith's corner
+        if (cx >= 39 && cx <= 53 && cy >= 20 && cy <= 31) return true;   // the mine gate and the smith's corner
         return false;
     };
     for (int cy = 3; cy < H - 2; ++cy)
@@ -7281,6 +7555,214 @@ static void BuildMossvale() {
     m.Write("maps");
 }
 
+// --- the dwarves' mine under Mossvale ---------------------------------------------
+//
+// The Delving of Stonebrow: a door in a knoll by Mossvale's smithy, and under
+// it a hall the dwarves cut for themselves and the galleries they work.
+//
+//   the entry chamber   where the stair from the door comes down; the way out
+//                       is its south wall, the way a building's door is
+//   the hall            north up a propped tunnel: carved flags, two kings in
+//                       stone, the long table, and the forge -- Durgan the
+//                       foreman keeps the stores, Hulda the anvil
+//   the east galleries  along the rails: iron and coal, and azuryte deeper in
+//   the deep gallery    north of those, up a second tunnel: damascus and
+//                       orichalcum, for a miner who has earned them
+//
+// Nothing here fights. It is a place of work, with the dwarves going to it.
+static void BuildMossvaleMine() {
+    const int CELL = 32, W = 44, H = 30;
+    MapBuilder m("mossvale_mine", "The Delving of Stonebrow", W * CELL, H * CELL);
+    m.Interior(true);
+    m.Ambient("dungeon");
+    m.Subtitle("The dwarves' mine under Mossvale");
+    m.Background(18, 14, 12);
+    std::mt19937 rng(4404u);
+
+    struct Box { int x0, y0, x1, y1; };
+    const Box entry = {4, 20, 13, 27}, hall = {3, 3, 22, 14}, tunnel_n = {8, 15, 9, 19}, main_t = {14, 23, 26, 24},
+              galleries = {26, 16, 41, 27}, tunnel_ne = {34, 12, 35, 15}, deep = {28, 3, 41, 11};
+    const Box floors[] = {entry, hall, tunnel_n, main_t, galleries, tunnel_ne, deep};
+    const auto in = [](const Box& b, int cx, int cy) { return cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1; };
+    // Rock left standing in the galleries, so they are worked faces and not rooms.
+    const auto pillar = [](int cx, int cy) {
+        return (cx >= 30 && cx <= 31 && cy >= 19 && cy <= 20) || (cx >= 36 && cx <= 37 && cy >= 25 && cy <= 26) ||
+               (cx >= 32 && cx <= 33 && cy >= 6 && cy <= 7) || (cx >= 38 && cx <= 39 && cy >= 18 && cy <= 19);
+    };
+    vector<vector<bool>> floor(H, vector<bool>(W, false));
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            bool f = false;
+            for (const Box& b : floors) f |= in(b, cx, cy);
+            f &= !pillar(cx, cy);
+            floor[cy][cx] = f;
+        }
+    // The way out, through the entry chamber's south wall.
+    const int door_cx = 8;
+    for (int cy = 0; cy < H; ++cy)
+        for (int cx = 0; cx < W; ++cx) {
+            const bool door = cy == entry.y1 + 1 && (cx == door_cx || cx == door_cx + 1);
+            if (floor[cy][cx] || door) {
+                const bool carved = in(hall, cx, cy);
+                m.Ground(VariantOf(carved ? "dungeon_floor" : "mine_floor", cx, cy), cx * CELL, cy * CELL, CELL);
+            } else {
+                m.Ground(VariantOf("mine_rock", cx, cy), cx * CELL, cy * CELL, CELL);
+                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        }
+    const int ex = door_cx * CELL + CELL;
+    m.Portal(ex - 32, (entry.y1 + 1) * CELL + 4, 64, 28, "mossvale", "from_mossvale_mine", "Climb back up to Mossvale", false);
+    m.Spawn("entrance", ex, entry.y1 * CELL - 4);
+    m.Spawn("default", ex, entry.y1 * CELL - 4);
+
+    auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+        m.Prop("props", art, x, y);
+        if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+    };
+    int lamp = 0;
+    auto lantern = [&](int x, int y) {
+        json& o = m.Object("lamp_mine_" + std::to_string(lamp++), "lamp", x, y);
+        o["sprite"] = "assets/props/mine_lantern.png";
+        m.Collision(x - 6, y - 6, 12, 6);
+    };
+
+    // --- the rails: out of the entry chamber, along the main tunnel, round the
+    // galleries, and up to the deep one ---------------------------------------------
+    for (int cx = 11; cx <= 36; ++cx) m.Overlay("tiles", "rail_ew", cx * CELL + 16, 24 * CELL + 16);
+    for (int cy = 5; cy <= 23; ++cy)
+        if (floor[cy][34]) m.Overlay("tiles", "rail_ns", 34 * CELL + 16, cy * CELL + 16);
+    piece("ore_cart", 20 * CELL, 24 * CELL + 30, 60, 14);
+    piece("ore_cart", 34 * CELL + 16, 9 * CELL + 30, 60, 14);
+
+    // --- the entry chamber ------------------------------------------------------------------
+    piece("crates_sacks", 5 * CELL + 16, 21 * CELL + 12, 35, 12);
+    piece("barrel", 6 * CELL + 24, 21 * CELL + 8, 26, 10);
+    piece("mine_support", 8 * CELL + 16, 20 * CELL + 12, 0, 0);
+    m.Collision(8 * CELL + 16 - 26, 20 * CELL, 8, 12);
+    m.Collision(8 * CELL + 16 + 18, 20 * CELL, 8, 12);
+    lantern(12 * CELL, 21 * CELL);
+    lantern(5 * CELL, 26 * CELL + 8);
+    {
+        json& o = m.Object("sign_mine_rules", "sign", 11 * CELL + 16, 26 * CELL + 16);
+        o["sprite"] = "assets/props/signpost.png";
+        o["title"]  = "The foreman's board";
+        o["text"]   = "STONEBROW DELVING\n\nNORTH: the hall. The forge is Hulda's; ask before you use it, and "
+                      "then use it.\nEAST: the galleries. Iron and coal, and azuryte further in.\n"
+                      "NORTH OF EAST: the deep gallery. Damascus. Orichalcum. Not for learners.\n\n"
+                      "Carts have right of way. Carts ALWAYS have right of way.";
+        m.Collision(11 * CELL, 26 * CELL + 6, 32, 10);
+    }
+
+    // --- the tunnel up to the hall, propped ----------------------------------------------------
+    for (int cy : {16, 18}) {
+        m.Prop("props", "mine_support", 9 * CELL, cy * CELL + 24);
+        m.Collision(9 * CELL - 26, cy * CELL + 12, 8, 12);
+        m.Collision(9 * CELL + 18, cy * CELL + 12, 8, 12);
+    }
+
+    // --- the hall -------------------------------------------------------------------------------
+    // The forge at the west end, the long table in the middle, the kings at
+    // the east end facing the door they guard.
+    {
+        const int hx0 = hall.x0 * CELL, hy0 = hall.y0 * CELL;
+        piece("forge", hx0 + 70, hy0 + 76, 50, 22);
+        piece("bellows", hx0 + 146, hy0 + 66, 40, 14);
+        piece("quench_trough", hx0 + 70, hy0 + 150, 56, 14);
+        piece("coal_bin", hx0 + 150, hy0 + 150, 40, 12);
+        {
+            json& a = m.Object("anvil_mine", "workbench", hx0 + 150, hy0 + 110);
+            a["sprite"]  = "assets/props/anvil.png";
+            a["title"]   = "Hulda's anvil";
+            a["station"] = "anvil";
+            m.Collision(hx0 + 150 - 14, hy0 + 110 - 12, 28, 12);
+        }
+        m.Npc("npc_hulda", "Hulda Anvilhand", "dwarf_smith", hx0 + 196, hy0 + 110, "hulda_root", 1);
+        piece("ingot_crate", hx0 + 40, hy0 + 196, 34, 12);
+        piece("tool_rack", hx0 + 230, hy0 + 64, 40, 12);
+        // The long table, benches either side.
+        const int tx = 13 * CELL, ty = 9 * CELL;
+        piece("tavern_bench", tx - 40, ty - 34, 46, 12);
+        piece("tavern_bench", tx + 40, ty - 34, 46, 12);
+        // The table's art stands 28 pixels up its image: placed that much
+        // lower, and blocked where it is drawn.
+        m.Prop("props", "table_long", tx, ty + 28);
+        m.Collision(tx - 33, ty - 16, 66, 16);
+        piece("tavern_bench", tx - 40, ty + 38, 46, 12);
+        piece("tavern_bench", tx + 40, ty + 38, 46, 12);
+        piece("barrel_table", tx + 120, ty + 10, 30, 10);
+        m.Overlay("props", "bear_rug", tx, ty + 104);
+        piece("weapon_rack", 16 * CELL, 4 * CELL + 16, 40, 12);
+        piece("barrel", 7 * CELL, 13 * CELL + 16, 26, 10);
+        piece("barrel", 7 * CELL + 28, 13 * CELL + 20, 26, 10);
+        // The kings, and the foreman between them with his stores.
+        piece("dwarf_statue", 19 * CELL, 6 * CELL + 16, 34, 14);
+        piece("dwarf_statue", 21 * CELL + 16, 6 * CELL + 16, 34, 14);
+        piece("strongbox", 20 * CELL + 8, 5 * CELL + 20, 22, 10);
+        piece("crates_sacks", 21 * CELL, 12 * CELL + 16, 35, 12);
+        m.Npc("npc_durgan", "Foreman Durgan", "dwarf", 20 * CELL + 8, 7 * CELL + 24, "durgan_root", 0)["shop"] =
+            "mossvale_mine";
+        lantern(hall.x0 * CELL + 24, 12 * CELL);
+        lantern(11 * CELL, 4 * CELL + 16);
+        lantern(17 * CELL, 12 * CELL + 16);
+        lantern(22 * CELL + 16, 10 * CELL);
+    }
+
+    // --- the ore ------------------------------------------------------------------------------
+    // Seams in the galleries' walls and the rock left standing in them.
+    int rock = 0;
+    struct Seam { int cx, cy; bool big; int level; const char* ore; };
+    const Seam seams[] = {
+        // The east galleries: iron and coal near the rails, azuryte at the far end.
+        {27, 17, true, 10, "iron_ore"}, {29, 21, true, 10, "iron_ore"}, {28, 26, false, 10, "iron_ore"},
+        {32, 17, true, 20, "coal"}, {33, 27, true, 20, "coal"}, {35, 21, false, 20, "coal"},
+        {40, 17, true, 30, "azuryte_ore"}, {41, 22, true, 30, "azuryte_ore"}, {40, 26, false, 30, "azuryte_ore"},
+        // The deep gallery.
+        {29, 4, true, 40, "damascus_ore"}, {30, 9, true, 40, "damascus_ore"}, {37, 4, true, 40, "damascus_ore"},
+        {41, 5, true, 50, "orichalcum_ore"}, {40, 10, true, 50, "orichalcum_ore"},
+    };
+    for (const Seam& se : seams)
+        PlaceRock(m, rng, 700 + rock++, se.cx * CELL + 16, se.cy * CELL + 20, se.big, se.level, se.ore);
+    // Props and lamps along the galleries.
+    for (int cx : {28, 38}) {
+        m.Prop("props", "mine_support", cx * CELL + 16, 16 * CELL + 24);
+        m.Collision(cx * CELL + 16 - 26, 16 * CELL + 12, 8, 12);
+        m.Collision(cx * CELL + 16 + 18, 16 * CELL + 12, 8, 12);
+    }
+    m.Prop("props", "mine_support", 34 * CELL + 16, 13 * CELL + 24);
+    m.Collision(34 * CELL + 16 - 26, 13 * CELL + 12, 8, 12);
+    m.Collision(34 * CELL + 16 + 18, 13 * CELL + 12, 8, 12);
+    lantern(27 * CELL + 16, 23 * CELL);
+    lantern(38 * CELL, 22 * CELL + 16);
+    lantern(31 * CELL, 26 * CELL + 24);
+    lantern(29 * CELL, 7 * CELL);
+    lantern(39 * CELL, 7 * CELL + 16);
+    piece("crates_sacks", 41 * CELL, 27 * CELL + 16, 35, 12);
+    piece("barrel", 26 * CELL + 16, 27 * CELL + 12, 26, 10);
+
+    // --- the miners --------------------------------------------------------------------------
+    // Two go to the galleries and back all day, pushing nothing but talking
+    // a great deal.
+    const auto miner = [&](const string& id, const string& name, const string& sprite, const string& dialogue,
+                           const vector<std::array<float, 4>>& stops, float phase) {
+        json& n = m.Npc(id, name, sprite, static_cast<int>(stops.front()[0]), static_cast<int>(stops.front()[1]),
+                        dialogue, 0);
+        json path = json::array();
+        for (const auto& st : stops) path.push_back({st[0], st[1], st[2], static_cast<int>(st[3])});
+        n["path"] = path;
+        n["ping_pong"] = true;
+        n["speed"] = 26.0f;
+        n["phase"] = phase;
+    };
+    miner("npc_brokk", "Brokk", "dwarf", "brokk_root",
+          {{11 * CELL, 10 * CELL, 20.0f, 0}, {8 * CELL + 16, 12 * CELL, 0, 0}, {8 * CELL + 16, 22 * CELL + 8, 0, 0},
+           {26 * CELL, 22 * CELL + 8, 0, 0}, {28 * CELL, 18 * CELL, 18.0f, 1}}, 0.0f);
+    miner("npc_ottar", "Ottar", "dwarf", "ottar_root",
+          {{15 * CELL, 12 * CELL + 16, 16.0f, 3}, {8 * CELL + 16, 13 * CELL, 0, 0}, {8 * CELL + 16, 22 * CELL + 8, 0, 0},
+           {33 * CELL + 8, 22 * CELL + 8, 0, 0}, {33 * CELL + 8, 16 * CELL, 0, 0}, {34 * CELL + 16, 12 * CELL, 0, 0},
+           {35 * CELL, 8 * CELL, 20.0f, 3}}, 60.0f);
+    m.Write("maps");
+}
+
 // --- Fernhollow ------------------------------------------------------------------
 
 static void BuildFernhollow() {
@@ -7306,10 +7788,17 @@ static void BuildFernhollow() {
     auto on_jetty = [&](int cx, int cy) { return cy >= 15 && cy <= 16 && cx >= 22 && cx <= 29; };
     // The college's walk: paved, from the jetty road north to its gatehouse.
     auto on_college_walk = [&](int cx, int cy) { return cx >= 21 && cx <= 23 && cy >= 7 && cy <= 14; };
+    // The boardwalk along the south shore, from the gate path to the boat
+    // shed; and the lane along the bottom of the hamlet, past the fishers'
+    // doors.
+    auto on_boardwalk = [&](int cx, int cy) { return cy == 22 && cx >= 27 && cx <= 38; };
+    auto on_shore_path = [&](int cx, int cy) { return cy == 22 && cx >= gate_col + 1 && cx < 27; };
+    auto on_lane = [&](int cx, int cy) { return cy >= 31 && cy <= 32 && cx >= gate_col && cx <= 40; };
     auto on_path = [&](int cx, int cy) {
         if (cy >= 12 && fabsf(cx - path_x(static_cast<float>(cy))) < 1.2f) return true;   // from the gate
         if (cy >= 15 && cy <= 16 && cx >= gate_col && cx <= 23) return true;            // to the jetty
         if (on_college_walk(cx, cy)) return true;
+        if (on_boardwalk(cx, cy) || on_shore_path(cx, cy) || on_lane(cx, cy)) return true;
         return false;
     };
     auto reserved = [&](int cx, int cy) {
@@ -7319,6 +7808,9 @@ static void BuildFernhollow() {
         if (cx >= 15 && cx <= 21 && cy >= 17 && cy <= 21) return true;   // Nell's cart
         if (cx >= 18 && cx <= 27 && cy >= 0 && cy <= 9) return true;     // the college's gatehouse
         if (cx >= 17 && cx <= 20 && cy >= 12 && cy <= 15) return true;   // the waystone
+        if (cx >= 3 && cx <= 8 && cy >= 12 && cy <= 17) return true;     // the west fisher's cottage
+        if (cx >= 24 && cx <= 41 && cy >= 25 && cy <= 31) return true;   // the fishers' row, south
+        if (cx >= 34 && cx <= 39 && cy >= 19 && cy <= 23) return true;   // the boat shed
         return false;
     };
 
@@ -7329,6 +7821,7 @@ static void BuildFernhollow() {
             if (on_jetty(cx, cy))              tile = VariantOf("plank_floor", cx, cy);
             else if (in_pond(cx, cy))          tile = "water";
             else if (on_college_walk(cx, cy))  tile = VariantOf("college_paving", cx, cy);
+            else if (on_boardwalk(cx, cy))     tile = VariantOf("plank_floor", cx, cy);
             else if (on_path(cx, cy))          tile = VariantOf(v > 0.6f ? "dirt_dark" : "dirt", cx, cy);
             else tile = VariantOf(v > 0.6f ? "grass_olive" : (v > 0.28f ? "grass" : "moss"), cx, cy);
             m.Ground(tile, cx * CELL, cy * CELL, CELL);
@@ -7402,9 +7895,70 @@ static void BuildFernhollow() {
             if (bank(deg, bx, by)) m.Enemy("goose", bx, by, 2, 110.0f, 170.0f);
     }
 
-    PlaceBuilding(m, "building_house_a", gate_col * CELL + 16, 11 * CELL, 136, 147,
-                  "fernhollow_cottage", "entrance", "Enter the ferry cottage",
-                  "from_fernhollow_cottage");
+    // The ferry house: the hamlet's own, two floors under reed thatch with
+    // the ferry's bell by the door (prop_ferry_house). It was a Havenbrook
+    // cottage, red tiles and all, which is not what a hamlet on the water
+    // builds. The door still opens on the ferry cottage's room.
+    PlaceBuilding(m, "ferry_house", gate_col * CELL + 16, 11 * CELL, 120, 108,
+                  "fernhollow_cottage", "entrance", "Enter the ferry house",
+                  "from_fernhollow_cottage", "props");
+
+    // --- the fishers ---------------------------------------------------------------
+    // Three cottages of the people who fish the pond: one west of the gate
+    // path, two along the lane at the bottom of the hamlet, each with a net
+    // on the wall and fish drying under the eave (prop_fisher_cottage_a/b);
+    // the boat shed on the south shore at the end of the boardwalk; racks of
+    // nets; and a garden in wattle by the lane.
+    {
+        const auto house = [&](const string& art, int x, int y) {
+            m.Prop("props", art, x, y);
+            m.Collision(x - 48, y - 80, 96, 72);
+        };
+        house("fisher_cottage_a", 5 * CELL + 16, 16 * CELL);
+        house("fisher_cottage_b", 30 * CELL, 30 * CELL + 24);
+        house("fisher_cottage_a", 38 * CELL, 30 * CELL + 24);
+        m.Prop("props", "boat_shed", 36 * CELL + 16, 22 * CELL + 16);
+        m.Collision(36 * CELL + 16 - 50, 22 * CELL + 16 - 66, 100, 60);
+        for (const auto& r : {std::pair<int, int>{21 * CELL + 16, 18 * CELL}, {8 * CELL + 24, 17 * CELL + 20},
+                              {26 * CELL, 26 * CELL + 16}}) {
+            m.Prop("props", "net_rack", r.first, r.second);
+            m.Collision(r.first - 24, r.second - 6, 6, 6);
+            m.Collision(r.first + 18, r.second - 6, 6, 6);
+        }
+        // The garden, fenced on three sides, open to the lane.
+        for (int k = 0; k < 3; ++k) {
+            m.Prop("props", "wattle_fence", 33 * CELL + 16 + k * 54, 27 * CELL + 8);
+            m.Collision(33 * CELL + 16 + k * 54 - 27, 27 * CELL - 6, 54, 12);
+        }
+        int herb_g = 100;          // clear of the shore's herbs, numbered from 0 below
+        for (int gx = 0; gx < 4; ++gx)
+            for (int gy = 0; gy < 2; ++gy)
+                PlaceHerb(m, gy == 0 ? "marigold" : "brookmint", 33 * CELL + 8 + gx * 34, (28 + gy) * CELL + 12,
+                          herb_g);
+        // Lamps on posts along the ways about the hamlet.
+        int lamp = 0;
+        for (const auto& l : {std::pair<int, int>{gate_col * CELL + 76, 13 * CELL + 8},
+                              {gate_col * CELL + 72, 21 * CELL + 24}, {25 * CELL, 21 * CELL + 24},
+                              {20 * CELL, 30 * CELL + 24}, {34 * CELL + 16, 30 * CELL + 24}}) {
+            json& o = m.Object("lamp_fernhollow_" + std::to_string(lamp++), "lamp", l.first, l.second);
+            o["sprite"] = "assets/props/post_lantern.png";
+            m.Collision(l.first - 6, l.second - 6, 12, 6);
+        }
+        m.Npc("npc_maud", "Maud", "citizen1", 30 * CELL, 31 * CELL + 16, "maud_root", 0)["tint"] =
+            json::array({214, 236, 240});
+        // The ferryman's boy runs between the ferry house, the jetty and the shed.
+        json& n = m.Npc("npc_pim", "Pim", "citizen2", gate_col * CELL + 16, 12 * CELL + 8, "pim_root", 0);
+        n["path"] = json::array({json::array({gate_col * CELL + 16, 12 * CELL + 8, 8.0f, 0}),
+                                 json::array({gate_col * CELL + 16, 15 * CELL + 16, 0, 0}),
+                                 json::array({22 * CELL, 15 * CELL + 16, 10.0f, 2}),
+                                 json::array({gate_col * CELL + 48, 15 * CELL + 16, 0, 0}),
+                                 json::array({gate_col * CELL + 48, 22 * CELL + 24, 0, 0}),
+                                 json::array({34 * CELL, 22 * CELL + 24, 14.0f, 2})});
+        n["ping_pong"] = true;
+        n["speed"] = 40.0f;
+        n["hours"] = {7.0f, 19.0f};
+        n["tint"] = json::array({236, 244, 255});
+    }
 
     // The college. It was a tower in the south-east corner with one room in
     // it; it is on the north side now and the hamlet has only its gatehouse --
@@ -7518,10 +8072,11 @@ static void BuildFernhollow() {
             }
         }
 
-    // A few animals in the meadow south of the pond.
-    m.Enemy("hare", 30 * CELL, 28 * CELL, 2);
-    m.Enemy("deer", 36 * CELL, 27 * CELL, 3);
-    m.Enemy("fox",  40 * CELL, 30 * CELL, 4);
+    // A few animals in the meadow south of the pond, between the boardwalk
+    // and the fishers' row.
+    m.Enemy("hare", 27 * CELL, 25 * CELL, 2);
+    m.Enemy("deer", 41 * CELL, 24 * CELL, 3);
+    m.Enemy("fox",  42 * CELL, 27 * CELL, 4);
 
     // The way in from the trail is a gate, and Ilse keeps it: a stockade along
     // the open south side, with the forest doing the rest of the wall.
@@ -10517,6 +11072,7 @@ int main() {
     BuildWestwold();
     BuildBrackenwood();
     BuildMossvale();
+    BuildMossvaleMine();
     BuildFernhollow();
     BuildWoodlandInteriors();
     BuildCollege();

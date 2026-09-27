@@ -6031,6 +6031,13 @@ import blender_farm_props  # noqa: E402
 
 PROPS.update(blender_farm_props.PROPS)
 
+# And the towns rebuilt -- Havenbrook's townhouses, mayor's hall and well,
+# Mossvale's brick wall and the dwarves' mine, Fernhollow's houses -- and the
+# birch and the stumps for the four woods.
+import blender_town_props  # noqa: E402
+
+PROPS.update(blender_town_props.PROPS)
+
 
 def main():
     only = None

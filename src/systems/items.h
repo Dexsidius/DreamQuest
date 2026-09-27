@@ -400,6 +400,10 @@ struct TierDef {
     bool   wood = false;           // worked from logs, with no ore or bar
     string ore, bar;               // item ids; empty for wood
     int    mining = 1;             // Mining level to work the ore
+    // The wood its pieces are hafted, strung and stocked with: every "logs"
+    // in a piece's extras is this instead. Plain logs up to iron, then oak,
+    // birch, swampwood and ashen wood, a pair of tiers to each.
+    string timber = "logs";
 };
 
 class ItemDatabase {

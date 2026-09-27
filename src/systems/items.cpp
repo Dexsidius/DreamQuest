@@ -364,6 +364,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
         t.ore    = tj.value("ore", string(""));
         t.bar    = tj.value("bar", string(""));
         t.mining = tj.value("mining", 1);
+        t.timber = tj.value("timber", string("logs"));
         if (tj.contains("colour") && tj["colour"].size() >= 3)
             t.colour = {static_cast<Uint8>(tj["colour"][0].get<int>()),
                         static_cast<Uint8>(tj["colour"][1].get<int>()),
@@ -512,7 +513,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
                 inputs[t.bar] = amount;
                 if (pj.contains("extra"))
                     for (auto i = pj["extra"].begin(); i != pj["extra"].end(); ++i)
-                        inputs[i.key()] += i.value().get<int>();
+                        inputs[i.key() == "logs" ? t.timber : i.key()] += i.value().get<int>();
             }
             if (!inputs.empty())
                 add_recipe(d.id, t.wood ? t.level + pj.value("craft_offset", 0) : t.level,
@@ -610,7 +611,7 @@ bool ItemDatabase::LoadTiers(const string& path) {
                     if (!material.empty()) inputs[material] = amount;
                     if (st.contains("extra"))
                         for (auto i = st["extra"].begin(); i != st["extra"].end(); ++i)
-                            inputs[i.key()] += i.value().get<int>();
+                            inputs[i.key() == "logs" ? t.timber : i.key()] += i.value().get<int>();
                     const string thread = sj.value("thread", string(""));
                     if (!thread.empty() && pj.value("thread", 0) > 0) inputs[thread] += pj.value("thread", 0);
                     if (!dye_id.empty() && pj.value("dye", 0) > 0) inputs[dye_id] += pj.value("dye", 0);

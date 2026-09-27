@@ -1232,6 +1232,54 @@
      "stock": 4
     }
    ]
+  },
+  "mossvale_mine": {
+   "name": "Stonebrow Stores",
+   "type": "forge",
+   "keeper": "npc_durgan",
+   "town": "mossvale",
+   "markup": 1.1,
+   "buys": {
+    "ore": 0.8,
+    "bar": 0.7,
+    "metal": 0.7,
+    "weapon": 0.6,
+    "armour": 0.6,
+    "tool": 0.7
+   },
+   "sells": [
+    {
+     "item": "coal",
+     "stock": 10
+    },
+    {
+     "item": "iron_ore",
+     "stock": 8
+    },
+    {
+     "item": "iron_bar",
+     "stock": 6
+    },
+    {
+     "item": "iron_pickaxe",
+     "stock": 1
+    },
+    {
+     "item": "steel_pickaxe",
+     "stock": 1
+    },
+    {
+     "item": "azuryte_pickaxe",
+     "stock": 1,
+     "after": [
+      "q_trail_wardens"
+     ]
+    },
+    {
+     "item": "lantern_unlit",
+     "stock": 2
+    }
+   ]
   }
  }
 }

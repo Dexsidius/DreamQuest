@@ -80,7 +80,7 @@ static const char* kMaps[] = {
     "dream_havenbrook",
     "hex_drowns", "hex_strand", "hex_fens", "hex_temple", "hex_sanctum",
     "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
-    "mossvale_cottage",
+    "mossvale_cottage", "mayor_hall", "mossvale_mine",
 };
 
 int main(int argc, char** argv) {
@@ -495,7 +495,8 @@ int main(int argc, char** argv) {
                            "dreamworld_2", "dreamworld_3",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path",
                            "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers",
-                           "palace_dungeon", "palace_throne", "mossvale_cottage", "bayou", "plateau_ascent"}) {
+                           "palace_dungeon", "palace_throne", "mossvale_cottage", "bayou", "plateau_ascent",
+                           "mayor_hall", "mossvale_mine"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -699,7 +700,7 @@ int main(int argc, char** argv) {
         Check(shared.HasElevation(), "the overworld has a height grid");
 
         for (const char* inside : {"guild_hall", "house_smith", "house_elder", "house_inn",
-                                   "house_inn_upper", "town_havenbrook"}) {
+                                   "house_inn_upper", "town_havenbrook", "mayor_hall"}) {
             Check(shared.Load(string("maps/") + inside + ".mx"),
                   string(inside) + " loads after the overworld");
             Check(!shared.HasElevation(),
@@ -1367,7 +1368,7 @@ int main(int argc, char** argv) {
                   string(dyed) + " is boiled, not woven");
         for (const char* ore : {"copper_ore", "iron_ore"})
             Check(items.Get(ore) && items.Get(ore)->metal, string(ore) + " counts as metal");
-        for (const char* soft : {"logs", "oak_logs", "hide", "thread"})
+        for (const char* soft : {"logs", "oak_logs", "birch_logs", "swamp_logs", "ashen_logs", "hide", "thread"})
             Check(items.Get(soft) && !items.Get(soft)->metal, string(soft) + " is not metal");
 
         // What stands in the world agrees with what it is called and drawn as.
@@ -3146,6 +3147,77 @@ int main(int argc, char** argv) {
 
     // --- save round trip ------------------------------------------------------
     // --- material tiers --------------------------------------------------------------
+    Section("the four woods");
+    {
+        // Every tier past iron is hafted, strung and stocked with a better
+        // wood than the last pair: oak, birch, swampwood, ashen wood. Each is
+        // cut from its own trees somewhere in the world, at a Woodcutting
+        // level below the Smithing that first asks for it, and sells.
+        const char* timber_of[] = {"logs", "logs", "logs", "oak_logs", "oak_logs", "birch_logs", "birch_logs",
+                                   "swamp_logs", "swamp_logs", "ashen_logs", "ashen_logs", "ashen_logs"};
+        const auto& tiers = items.Tiers();
+        bool timbers = tiers.size() == 12;
+        for (size_t i = 0; i < tiers.size() && i < 12; ++i) timbers &= tiers[i].timber == timber_of[i];
+        Check(timbers, "logs to iron, then oak, birch, swampwood and ashen wood, two tiers to each");
+        int prev = 0;
+        for (const char* w : {"logs", "oak_logs", "birch_logs", "swamp_logs", "ashen_logs"}) {
+            const ItemDef* d = items.Get(w);
+            Check(d && d->stackable && std::find(d->tags.begin(), d->tags.end(), "wood") != d->tags.end() &&
+                  !d->icon.empty(), string(w) + " is a stack of wood with an icon");
+            if (!d) continue;
+            Check(d->value > prev, string(w) + " is worth more than the wood below it");
+            prev = d->value;
+        }
+        // The recipes use them: a steel sword wants oak where a bronze one
+        // wanted logs, and nothing past iron wants plain logs at all.
+        const auto recipe_for = [&](const string& id) -> const ItemDef* {
+            for (const ItemDef* r : items.Recipes()) if (r->craft_result == id) return r;
+            return nullptr;
+        };
+        const auto needs = [&](const string& piece, const string& wood) {
+            const ItemDef* r = recipe_for(piece);
+            return r && r->craft_inputs.count(wood) && r->craft_inputs.at(wood) > 0;
+        };
+        Check(needs("bronze_sword", "logs") && needs("iron_sword", "logs"), "bronze and iron swords are hafted in logs");
+        Check(needs("steel_sword", "oak_logs") || needs("steel_longsword", "oak_logs"), "a steel sword in oak");
+        Check(needs("damascus_bow", "birch_logs"), "a damascus bow is birch");
+        Check(needs("diamond_staff", "swamp_logs"), "a diamond staff is swampwood");
+        Check(needs("enchanted_bow", "ashen_logs") && needs("dracon_greataxe", "ashen_logs"),
+              "and the enchanted bow and the dracon greataxe are ashen wood");
+        bool plain = true;
+        for (size_t i = 3; i < tiers.size(); ++i)
+            for (const ItemDef* r : items.Recipes()) {
+                const ItemDef* made = items.Get(r->craft_result);
+                if (made && made->tier == tiers[i].id && r->craft_inputs.count("logs")) {
+                    plain = false;
+                    std::printf("    %s still wants logs\n", r->craft_result.c_str());
+                }
+            }
+        Check(plain, "nothing past iron is made with plain logs");
+        // And each is cut somewhere, below the tier that first wants it.
+        std::map<string, int> lowest;
+        std::map<string, int> trees;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects())
+                if (o.type == "tree" && o.skill == "Woodcutting") {
+                    ++trees[o.yield];
+                    if (!lowest.count(o.yield) || o.skill_level < lowest[o.yield]) lowest[o.yield] = o.skill_level;
+                }
+        }
+        for (size_t i = 0; i < tiers.size() && i < 12; ++i) {
+            const string w = timber_of[i];
+            if (i > 0 && timber_of[i - 1] == w) continue;
+            Check(trees[w] >= 20 && lowest.count(w) && lowest[w] <= tiers[i].level,
+                  w + " grows on " + std::to_string(trees[w]) + " trees, cut from Woodcutting " +
+                  std::to_string(lowest.count(w) ? lowest[w] : -1) + ", for " + tiers[i].name + " at " +
+                  std::to_string(tiers[i].level));
+        }
+        Check(lowest["birch_logs"] == 30 && lowest["swamp_logs"] == 45 && lowest["ashen_logs"] == 60,
+              "birch at 30, swampwood at 45, ashen wood at 60");
+    }
+
     Section("material tiers");
     {
         static const char* kOrder[] = {"wood", "bronze", "iron", "steel", "azuryte",
@@ -5971,6 +6043,7 @@ int main(int argc, char** argv) {
         const std::map<string, string> town_of = {
             {"town_havenbrook", "havenbrook"}, {"house_smith", "havenbrook"}, {"house_inn", "havenbrook"},
             {"house_inn_upper", "havenbrook"}, {"house_elder", "havenbrook"}, {"guild_hall", "havenbrook"},
+            {"mayor_hall", "havenbrook"}, {"mossvale_mine", "mossvale"},
             {"mossvale", "mossvale"}, {"mossvale_lodge_hall", "mossvale"}, {"mossvale_herbalist", "mossvale"},
             {"mossvale_weavers", "mossvale"},
             {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"}, {"fernhollow_college", "fernhollow"},
@@ -6148,7 +6221,8 @@ int main(int argc, char** argv) {
         for (const auto& kv : items.All()) {
             const ItemDef& d = kv.second;
             const bool gathered = d.piece == "ore" || d.fish_level > 0 || d.id == "logs" ||
-                                  d.id == "oak_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones" ||
+                                  d.id == "oak_logs" || d.id == "birch_logs" || d.id == "swamp_logs" ||
+                                  d.id == "ashen_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones" ||
                                   d.forage_level > 0 || d.catch_level > 0 || d.id == "honey";
             if (!gathered) continue;
             Check(best_offer(d) > 0, "some trader buys " + d.id + " (" + std::to_string(best_offer(d)) + "c)");
@@ -6710,9 +6784,10 @@ int main(int argc, char** argv) {
                 bool west = false;
                 for (const WorldMark& mk : marks)
                     west |= mk.kind == "path" && mk.label.find("Westwold") != string::npos && mk.label.find("Combat 5") != string::npos;
-                Check(count(marks, "door") == 4 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
+                Check(count(marks, "door") == 5 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
                       count(marks, "craft") >= 2 && count(marks, "trader") >= 2,
-                      "Havenbrook's: four doors, the well, both gates -- the west one with its warning -- the benches and the traders");
+                      "Havenbrook's: five doors -- the mayor's hall is the fifth -- the well, both gates -- the west one "
+                      "with its warning -- the benches and the traders (" + std::to_string(count(marks, "door")) + " doors)");
             }
             {
                 Map m;
@@ -8308,7 +8383,11 @@ int main(int argc, char** argv) {
         Check(tree_count >= 50 && seam_count >= 20 && never == 0,
               "every tree and seam can run out (" + std::to_string(tree_count) + " trees, " + std::to_string(seam_count) + " seams)");
         Check(greedy == 0, "and none of them on most strokes");
-        Check(stumps.size() == 2 && !stumps.count(""), "a felled tree is drawn as a stump, one for each size of tree");
+        // Two for the pine and the oak, a sapling's and a tree's; the birch
+        // and the charred tree have their own; the swamp tree leaves an oak's.
+        Check(stumps.size() == 4 && !stumps.count(""),
+              "a felled tree is drawn as a stump: one for each size of tree, and the birch's and the burnt tree's (" +
+                  std::to_string(stumps.size()) + ")");
         for (const string& s : stumps) if (!s.empty()) Check(fs::exists(s), "the stump art exists: " + s);
 
         Input input;
@@ -10958,7 +11037,9 @@ int main(int argc, char** argv) {
                 const float bx = t.rect.x + t.rect.w * 0.5f, by = t.rect.y + t.rect.h;
                 if (Length(bx - cx, by - cy) > 170.0f) continue;
                 if (tex.find("town_gate") != string::npos) ++houses;
-                if (tex.find("gate_tower") != string::npos) (by < cy ? north : south)++;
+                // Mossvale's are brick piers, where its palisade is a wall.
+                if (tex.find("gate_tower") != string::npos || tex.find("brick_pier") != string::npos)
+                    (by < cy ? north : south)++;
             }
             if (way.side) Check(north == 1 && south == 1 && houses == 0, what + ": a gate tower stands either side of the road");
             else          Check(houses == 1 && north + south == 0, what + ": a gatehouse stands across the road");

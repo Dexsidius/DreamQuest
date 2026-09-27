@@ -99,6 +99,9 @@ PALETTE = {
     "grip":     (0.38, 0.25, 0.17),
     "eye":      (0.13, 0.11, 0.18),
     "shadow":   (0.00, 0.00, 0.00),
+    # Only a dwarf wears these: see DWARF.
+    "beard":    (0.58, 0.31, 0.17),
+    "helm":     (0.60, 0.62, 0.66),
 }
 
 # The three characters offered at the start, as differences from the palette
@@ -219,6 +222,39 @@ LOOKS = {
         "scarf": False,
         "weapon": False,
     },
+    # The dwarves of the mine under Mossvale: the same rig, shorter in the
+    # leg and broader in the body, with a beard to the belt and an iron cap.
+    # A miner in leather and a smith in a scorched red jerkin.
+    "dwarf": {
+        "palette": {"hair":    (0.66, 0.32, 0.14),
+                    "beard":   (0.70, 0.35, 0.15),
+                    "tunic":   (0.50, 0.38, 0.26),
+                    "trim":    (0.42, 0.44, 0.48),
+                    "belt":    (0.24, 0.17, 0.12),
+                    "trouser": (0.34, 0.31, 0.30),
+                    "boot":    (0.22, 0.17, 0.13),
+                    "helm":    (0.58, 0.60, 0.64),
+                    "skin":    (0.92, 0.72, 0.58)},
+        "hair": 0.5,
+        "scarf": False,
+        "weapon": False,
+        "dwarf": True,
+    },
+    "dwarf_smith": {
+        "palette": {"hair":    (0.20, 0.17, 0.15),
+                    "beard":   (0.24, 0.20, 0.17),
+                    "tunic":   (0.56, 0.22, 0.18),
+                    "trim":    (0.36, 0.26, 0.20),
+                    "belt":    (0.28, 0.20, 0.14),
+                    "trouser": (0.28, 0.26, 0.26),
+                    "boot":    (0.20, 0.16, 0.13),
+                    "helm":    (0.46, 0.40, 0.34),
+                    "skin":    (0.86, 0.66, 0.52)},
+        "hair": 0.5,
+        "scarf": False,
+        "weapon": False,
+        "dwarf": True,
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),
@@ -240,15 +276,18 @@ WEAPON_ON = True
 # Whether to render the five plate layers. Only the playable characters need
 # them; a grocer is never going to put a cuirass on.
 ARMOUR_ON = True
+# A dwarf: shorter legs, a broader body, a beard and an iron cap.
+DWARF = False
 
 
 def apply_look(name):
     """Palette and shape for one of LOOKS, before anything is built."""
-    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON
+    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON, DWARF
     look = LOOKS.get(name)
     if look is None:
         raise SystemExit("unknown look '%s'; have %s" % (name, ", ".join(LOOKS)))
     PALETTE.update(look.get("palette", {}))
+    DWARF = look.get("dwarf", False)
     HAIR_SCALE = look.get("hair", 1.0)
     SCARF_ON = look.get("scarf", True)
     WEAPON_ON = look.get("weapon", True)
@@ -505,7 +544,10 @@ def build_character():
 
     root = empty("root", (0, 0, 0))
     move = empty("move", (0, 0, 0), root)          # bob, lean and lunge
-    hips = empty("hips", (0, 0, 0.41), move)
+    # A dwarf stands on legs eight hundredths shorter, and is a fifth broader
+    # across the body and shoulders; the head is the same head.
+    wide = 1.22 if DWARF else 1.0
+    hips = empty("hips", (0, 0, 0.33 if DWARF else 0.41), move)
     chest = empty("chest", (0, 0, 0.03), hips)
     neck = empty("neck", (0, 0, 0.37), chest)
     head_tilt = empty("head_tilt", (0, 0, 0), neck)
@@ -516,19 +558,21 @@ def build_character():
 
     # --- torso: a soft tapered barrel, a flared tunic skirt, a belt ---------
     g[BODY] += [
-        part("torso", mesh_capsule(0.155, 0.14, 0.13, squash_y=0.78), "tunic", chest,
+        part("torso", mesh_capsule(0.155 * wide, 0.14 * wide, 0.13, squash_y=0.78), "tunic", chest,
              loc=(0, 0, 0.20)),
-        part("tunic_skirt", mesh_frustum(0.15, 0.20, 0.15, squash_y=0.82), "tunic", skirt),
-        part("hem", mesh_torus(0.19, 0.018), "trim", skirt, loc=(0, 0, -0.14)),
-        part("belt", mesh_ellipsoid(0.165, 0.13, 0.032), "belt", chest, loc=(0, 0, 0.0)),
-        part("buckle", mesh_ellipsoid(0.034, 0.02, 0.028), "gold", chest,
-             loc=(0, -0.128, 0.0)),
+        part("tunic_skirt", mesh_frustum(0.15 * wide, 0.20 * wide, 0.15 if not DWARF else 0.11, squash_y=0.82),
+             "tunic", skirt),
+        part("hem", mesh_torus(0.19 * wide, 0.018), "trim", skirt, loc=(0, 0, -0.14 if not DWARF else -0.10)),
+        part("belt", mesh_ellipsoid(0.165 * wide, 0.13 * wide, 0.032 if not DWARF else 0.045), "belt", chest,
+             loc=(0, 0, 0.0)),
+        part("buckle", mesh_ellipsoid(0.034 if not DWARF else 0.05, 0.02, 0.028 if not DWARF else 0.04), "gold",
+             chest, loc=(0, -0.128 * wide, 0.0)),
         part("collar", mesh_torus(0.10, 0.028), "trim", chest, loc=(0, 0, 0.33)),
     ]
 
     # --- arms: hanging from the shoulders, sleeve, bare forearm, mitten -----
     joints = {}
-    for side, x in (("r", -0.19), ("l", 0.19)):
+    for side, x in (("r", -0.19 * wide), ("l", 0.19 * wide)):
         sh = empty("shoulder_" + side, (x, 0, 0.27), chest)
         el = empty("elbow_" + side, (0, 0, -0.125), sh)
         ha = empty("hand_" + side, (0, 0, -0.11), el)
@@ -543,15 +587,15 @@ def build_character():
         joints["hand_" + side] = ha
 
     # --- legs: trouser, boot shaft, a round-toed boot ------------------------
-    for side, x in (("r", -0.075), ("l", 0.075)):
+    for side, x in (("r", -0.075 * wide), ("l", 0.075 * wide)):
         hp = empty("hip_" + side, (x, 0, -0.05), hips)
-        kn = empty("knee_" + side, (0, 0, -0.145), hp)
+        kn = empty("knee_" + side, (0, 0, -0.105 if DWARF else -0.145), hp)
         g[BODY] += [
-            part("thigh_" + side, mesh_capsule(0.068, 0.06, 0.09), "trouser", hp),
-            part("shaft_" + side, mesh_capsule(0.064, 0.062, 0.07), "boot", kn,
-                 loc=(0, 0, -0.035)),
-            part("boot_" + side, mesh_ellipsoid(0.07, 0.105, 0.058), "boot", kn,
-                 loc=(0, -0.035, -0.15)),
+            part("thigh_" + side, mesh_capsule(0.068 * wide, 0.06 * wide, 0.05 if DWARF else 0.09), "trouser", hp),
+            part("shaft_" + side, mesh_capsule(0.064 * wide, 0.062 * wide, 0.04 if DWARF else 0.07), "boot", kn,
+                 loc=(0, 0, -0.025 if DWARF else -0.035)),
+            part("boot_" + side, mesh_ellipsoid(0.07 * wide, 0.105, 0.058), "boot", kn,
+                 loc=(0, -0.035, -0.11 if DWARF else -0.15)),
         ]
         joints["hip_" + side] = hp
         joints["knee_" + side] = kn
@@ -591,6 +635,33 @@ def build_character():
         spike("back_3", (0.13, 0.18, 0.08), (0.18, 0.29, -0.12), 0.085, "hair", hair),
         spike("cowlick", (0.02, 0.02, 0.26), (0.10, 0.12, 0.44), 0.065, "hair", hair),
     ]
+
+    # A dwarf's beard, from under the nose to the belt, with the moustache
+    # swept out either side; and an iron cap with a rim, set high so the
+    # eyes stay under it. On the head layer, so the beard is drawn over the
+    # chest it hangs on.
+    if DWARF:
+        g[HEAD] += [
+            # The beard starts under the eyes (head_c - 0.13 is their foot),
+            # or it is a mask; narrower than the body, so the breadth shows.
+            part("beard", mesh_ellipsoid(0.20, 0.13, 0.19), "beard", head_tilt,
+                 loc=(0, -0.18, head_c - 0.33)),
+            part("beard_low", mesh_ellipsoid(0.15, 0.11, 0.17), "beard", head_tilt,
+                 loc=(0, -0.13, head_c - 0.50)),
+            spike("beard_tip", (0, -0.11, head_c - 0.56), (0, -0.05, head_c - 0.74), 0.09, "beard", head_tilt),
+            part("moustache_r", mesh_ellipsoid(0.10, 0.045, 0.045), "beard", head_tilt,
+                 loc=(-0.085, -0.262, head_c - 0.17), rot=(0, rad(20), 0)),
+            part("moustache_l", mesh_ellipsoid(0.10, 0.045, 0.045), "beard", head_tilt,
+                 loc=(0.085, -0.262, head_c - 0.17), rot=(0, rad(-20), 0)),
+            part("nose", mesh_ellipsoid(0.055, 0.05, 0.05), "skin", head_tilt,
+                 loc=(0, -0.285, head_c - 0.11)),
+            part("cap", mesh_ellipsoid(0.32, 0.28, 0.17), "helm", head_tilt,
+                 loc=(0, 0.045, head_c + 0.25)),
+            part("cap_rim", mesh_torus(0.305, 0.030), "helm", head_tilt,
+                 loc=(0, 0.03, head_c + 0.15)),
+            part("cap_knob", mesh_ellipsoid(0.06, 0.06, 0.06), "gold", head_tilt,
+                 loc=(0, 0.045, head_c + 0.42)),
+        ]
 
     # The scarf: a wrap at the throat and a two-piece tail down the back,
     # which trails further the faster the character goes.

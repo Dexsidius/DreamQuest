@@ -5208,5 +5208,462 @@
     "next": "end"
    }
   ]
+ },
+ "posy_root": {
+  "speaker": "Posy the Flower Seller",
+  "text": "Marigolds, a penny a bunch. Brookmint for the kitchen. The pink ones are for apologising and I sell more of those than anything.",
+  "options": [
+   {
+    "text": "Who buys flowers in a town with a dry well?",
+    "next": "posy_well"
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "posy_well": {
+  "speaker": "Posy the Flower Seller",
+  "text": "Everyone. I water them from the mill pond, same as Wenna does her washing. When the well was running I sold half as many. People do not need cheering when they have water.",
+  "options": [
+   {
+    "text": "That is a strange sort of trade.",
+    "next": "end"
+   }
+  ]
+ },
+ "crier_root": {
+  "speaker": "Crier Bram",
+  "text": "HEAR YE! The south road is open! The mayor's hall sits on Wednesdays! Orders at the forge, orders at the tannery, and Bess wants eels! And -- no, that is all of it. HEAR YE anyway.",
+  "options": [
+   {
+    "text": "Any real news?",
+    "next": "crier_news"
+   },
+   {
+    "text": "I heard.",
+    "next": "end"
+   }
+  ]
+ },
+ "crier_news": {
+  "speaker": "Crier Bram",
+  "text": "Real news I am not paid to shout. Real news is that the carter saw lights in the well again and the mayor says he did not. You did not hear it from me. You did hear it from me. Everyone did.",
+  "options": [
+   {
+    "text": "Lights in the well.",
+    "next": "end"
+   }
+  ]
+ },
+ "tib_root": {
+  "speaker": "Tib",
+  "text": "You're it! No -- you can't be it, you're not playing. Nan's it. NAN'S IT!",
+  "options": [
+   {
+    "text": "Off you go, then.",
+    "next": "end"
+   }
+  ]
+ },
+ "nan_root": {
+  "speaker": "Nan",
+  "text": "I'm not it, Tib's lying. Did you know if you shout down the well something shouts back? Tib says it's the echo. It isn't the echo. The echo doesn't know your name.",
+  "options": [
+   {
+    "text": "Don't shout down the well.",
+    "next": "end"
+   }
+  ]
+ },
+ "hester_root": {
+  "speaker": "Hester",
+  "text": "Swept this square every morning for thirty years. Before the houses went up it was mud to the ankle. Now it's flags, and the council paid, and I still sweep it. That is progress.",
+  "options": [
+   {
+    "text": "It looks well kept.",
+    "next": "hester_kept"
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "hester_kept": {
+  "speaker": "Hester",
+  "text": "It is kept. Tell Tobin. Tobin thinks the square sweeps itself between his stall and the inn.",
+  "options": [
+   {
+    "text": "I'll tell him.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_root": {
+  "speaker": "Wren the Bard",
+  "text": "A song? I know the one about the Warchief under Emberfell, the one about the Wight, and the one about Bess's eel pie, which is the only one anybody asks for twice.",
+  "options": [
+   {
+    "text": "Sing the one about the pie.",
+    "next": "bard_pie"
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_pie": {
+  "speaker": "Wren the Bard",
+  "text": "\"Oh the eel went into the pastry, and the pastry went into the oven, and the drover went into the pie shop and did not come out for a dozen --\" It goes on. It goes on for a long time. Tip the bard.",
+  "options": [
+   {
+    "text": "Lovely.",
+    "next": "end"
+   }
+  ]
+ },
+ "lark_root": {
+  "speaker": "Lark",
+  "text": "Mind your back, full tray. If you're eating, tell Bess; if you're drinking, tell me; if you're singing, tell Wren and he'll stop.",
+  "options": [
+   {
+    "text": "Just looking.",
+    "next": "end"
+   }
+  ]
+ },
+ "gammer_root": {
+  "speaker": "Gammer Holt",
+  "text": "Sixty years in this chair -- well, this table. The chair's newer. The whole street's newer. I remember when the inn was the only building in Havenbrook with an upstairs, and we were proud of it.",
+  "options": [
+   {
+    "text": "And now?",
+    "next": "gammer_now"
+   },
+   {
+    "text": "Good evening.",
+    "next": "end"
+   }
+  ]
+ },
+ "gammer_now": {
+  "speaker": "Gammer Holt",
+  "text": "Now every baker's got a bedroom over his ovens and nobody knows their neighbour. Still. The ale is the same. The ale is always the same.",
+  "options": [
+   {
+    "text": "Here's to the ale.",
+    "next": "end"
+   }
+  ]
+ },
+ "drover_root": {
+  "speaker": "Fen the Drover",
+  "text": "Brought forty head up from the south road, lost two to wolves and one to a farmer who swears it was always his. I'm drinking to the forty. I'll drink to the three tomorrow.",
+  "options": [
+   {
+    "text": "Good luck with the three.",
+    "next": "end"
+   }
+  ]
+ },
+ "mayor_root": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "Ah -- one of the guild's. Welcome to the hall. You'll have seen the square: flagged, lamped, and not a cart stuck in it since the spring. The town has done well by itself.",
+  "options": [
+   {
+    "text": "The houses are new.",
+    "next": "mayor_houses"
+   },
+   {
+    "text": "What about the well?",
+    "next": "mayor_well"
+   },
+   {
+    "text": "What does a mayor do here?",
+    "next": "mayor_job"
+   },
+   {
+    "text": "Good day, Mayor.",
+    "next": "end"
+   }
+  ]
+ },
+ "mayor_houses": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "Two storeys, brick and timber, all down the streets. The guild brings trade, trade brings people, and people will not sleep in a barn for long. We built up. Maren says it spoils the look of the place. Maren's house is one of them.",
+  "options": [
+   {
+    "text": "And the well?",
+    "next": "mayor_well"
+   },
+   {
+    "text": "I see.",
+    "next": "end"
+   }
+  ]
+ },
+ "mayor_well": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "The well is boarded, the board is nailed, and the notice says what it says. It stands in the middle of the square because it has always stood there and it would cost more to move it than to leave it be. Whatever is down it is the guild's business, not the council's. I have written to say so.",
+  "options": [
+   {
+    "text": "Whatever is down it?",
+    "next": "mayor_down"
+   },
+   {
+    "text": "Understood.",
+    "next": "end"
+   }
+  ]
+ },
+ "mayor_down": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "A manner of speaking. Nothing is down it. Water was down it, and now it is not. Ask Bess if you want stories; ask the clerk if you want forms.",
+  "options": [
+   {
+    "text": "I'll ask Bess.",
+    "next": "end"
+   }
+  ]
+ },
+ "mayor_job": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "Sit on Wednesdays, sign things on Thursdays, and every other day be the man people complain to. The watch answers to me, the market pays to me, and the guild does as it likes and sends me the bill.",
+  "options": [
+   {
+    "text": "It sounds a thankless post.",
+    "next": "mayor_thanks"
+   },
+   {
+    "text": "Good day, Mayor.",
+    "next": "end"
+   }
+  ]
+ },
+ "mayor_thanks": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "It is exactly as thankless as it sounds, and I stood for it twice. Mind the step on your way out: it is the only thing in the square I have not had re-laid.",
+  "options": [
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "clerk_root": {
+  "speaker": "Clerk Ambrose",
+  "text": "Name? Business? Complaints go in the box on the left, petitions in the box on the right, and anything on fire goes straight to the watch.",
+  "options": [
+   {
+    "text": "What's in the strongbox?",
+    "next": "clerk_box"
+   },
+   {
+    "text": "Nothing, thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "clerk_box": {
+  "speaker": "Clerk Ambrose",
+  "text": "The market dues, the ledger, and the key to the well's padlock -- which is a padlock on a board, over a hole, and the mayor sleeps better for it. It is not for lending.",
+  "options": [
+   {
+    "text": "Of course not.",
+    "next": "end"
+   }
+  ]
+ },
+ "tully_root": {
+  "speaker": "Watchman Tully",
+  "text": "Wednesdays are petitions. Today's not a Wednesday, so if you've a petition, you've a long wait and a hard bench.",
+  "options": [
+   {
+    "text": "I'll come back.",
+    "next": "end"
+   }
+  ]
+ },
+ "durgan_root": {
+  "speaker": "Foreman Durgan",
+  "text": "A surface-walker, down the stair on their own feet. Mind the carts. If you've come to buy, I've picks and coal and iron; if you've come to dig, the galleries are east and the rock doesn't care who you are.",
+  "options": [
+   {
+    "text": "Show me your stores.",
+    "next": "end",
+    "action": {
+     "shop": "mossvale_mine"
+    }
+   },
+   {
+    "text": "How long have dwarves been under Mossvale?",
+    "next": "durgan_long"
+   },
+   {
+    "text": "Can anyone dig here?",
+    "next": "durgan_dig"
+   },
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "durgan_long": {
+  "speaker": "Foreman Durgan",
+  "text": "Longer than there's been a Mossvale. The loggers built their village on our roof and never asked; we let them, because they buy iron and they don't dig. The brick wall round it is ours, mind. Traded for a winter's timber. Best bargain either side ever made.",
+  "options": [
+   {
+    "text": "The wall is dwarf work?",
+    "next": "durgan_wall"
+   },
+   {
+    "text": "I see.",
+    "next": "end"
+   }
+  ]
+ },
+ "durgan_wall": {
+  "speaker": "Foreman Durgan",
+  "text": "Every brick. The moss on it is theirs -- we'd have scraped it. Sela says it looks old and friendly. It IS old. Friendly is the moss.",
+  "options": [
+   {
+    "text": "I'll tell her you said so.",
+    "next": "end"
+   }
+  ]
+ },
+ "durgan_dig": {
+  "speaker": "Foreman Durgan",
+  "text": "Anyone with a pick and the arms for it. Iron and coal in the near galleries; azuryte at the far end, if you know which end of a pick goes in. The deep gallery is damascus and orichalcum, and if you can't cut it you'll know by the sound your shoulder makes.",
+  "options": [
+   {
+    "text": "Fair warning.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_root": {
+  "speaker": "Hulda Anvilhand",
+  "text": "The forge is hot and the anvil's free. Use them. Don't use my hammer, don't touch my tongs, and don't tell me how your Havenbrook smith does it -- I've met Halda, and she does it wrong.",
+  "options": [
+   {
+    "text": "What's wrong with how Halda does it?",
+    "next": "hulda_halda"
+   },
+   {
+    "text": "I'll mind your tools.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_halda": {
+  "speaker": "Hulda Anvilhand",
+  "text": "Nothing. She's good. I just like saying it. Tell her I said she does it wrong and watch her face; it's worth the walk.",
+  "options": [
+   {
+    "text": "I might.",
+    "next": "end"
+   }
+  ]
+ },
+ "brokk_root": {
+  "speaker": "Brokk",
+  "text": "Iron, iron, coal, iron. Day in, day out. My da cut damascus. His da cut orichalcum. I cut iron. There's a lesson in that and I don't like it.",
+  "options": [
+   {
+    "text": "There's always the deep gallery.",
+    "next": "brokk_deep"
+   },
+   {
+    "text": "Good digging.",
+    "next": "end"
+   }
+  ]
+ },
+ "brokk_deep": {
+  "speaker": "Brokk",
+  "text": "There is. And there's my shoulder. One of them has to give, and Durgan says it won't be the rock.",
+  "options": [
+   {
+    "text": "Good luck.",
+    "next": "end"
+   }
+  ]
+ },
+ "ottar_root": {
+  "speaker": "Ottar",
+  "text": "Up top it's all trees and weather. Down here the rock's the same colour it was yesterday and it'll be the same tomorrow. That's what they don't understand about us. We like knowing.",
+  "options": [
+   {
+    "text": "Knowing what?",
+    "next": "ottar_know"
+   },
+   {
+    "text": "I'll leave you to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "ottar_know": {
+  "speaker": "Ottar",
+  "text": "Where things are. The iron's where it was. The carts go where the rails go. And the dark stays where you left it -- which is more than you can say for the Whisperwood.",
+  "options": [
+   {
+    "text": "Fair enough.",
+    "next": "end"
+   }
+  ]
+ },
+ "maud_root": {
+  "speaker": "Maud",
+  "text": "Pike in the morning, trout at noon, minnows for the children and the eels for Wendel, who pays in stories. The garden's mine too. The college buys the marigolds; the college buys everything, and never asks the price.",
+  "options": [
+   {
+    "text": "Does the pond ever run dry?",
+    "next": "maud_pond"
+   },
+   {
+    "text": "Good fishing.",
+    "next": "end"
+   }
+  ]
+ },
+ "maud_pond": {
+  "speaker": "Maud",
+  "text": "Never. Havenbrook's well went dry and theirs is a hole in the ground. Ours is the water, and the water remembers. Ask Mira what that means; I only know it's true.",
+  "options": [
+   {
+    "text": "I'll ask her.",
+    "next": "end"
+   }
+  ]
+ },
+ "pim_root": {
+  "speaker": "Pim",
+  "text": "Ferry's not running -- there's nowhere to ferry to, the pond's round. Father says it's a ferry house because his father said so. I just ring the bell and bring the boat in.",
+  "options": [
+   {
+    "text": "Who rings the bell for you?",
+    "next": "pim_bell"
+   },
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "pim_bell": {
+  "speaker": "Pim",
+  "text": "Nobody. But if anyone did, I'd come. That's the job.",
+  "options": [
+   {
+    "text": "A good job.",
+    "next": "end"
+   }
+  ]
  }
 }
