@@ -13632,7 +13632,11 @@ int main(int argc, char** argv) {
                 Check(w.player.skills.Xp(SKILL_MAGIC) == xp0, "bolts and novas into an empty field teach nothing either");
                 // A fire bolt leaves the ground burning for three seconds and
                 // more, and the cast is owed for as long as something could
-                // still walk into it.
+                // still walk into it. Once the last ring has come down: in an
+                // empty field it flies its whole way first. (Havenbrook's gate
+                // used to stand a few paces south of here, and the ring broke
+                // on its palisade at once.)
+                for (int f = 0; f < 120 && w.ground_effects.empty(); ++f) frames(w, 1);
                 Check(w.OwedCasts() > 0 && !w.ground_effects.empty(),
                       "while what they left is still burning, something could yet walk into it");
                 frames(w, 360);
