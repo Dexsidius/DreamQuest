@@ -5314,7 +5314,9 @@ int main(int argc, char** argv) {
             for (const auto& pool : pool_size) {
                 std::set<string> ever;
                 bool steady = true, sized = true;
-                for (int day = 1; day <= 21; ++day) {
+                // Long enough for the biggest book to go round several times.
+                const int days = std::max(21, 10 * pool.second);
+                for (int day = 1; day <= days; ++day) {
                     log.SetDay(day);
                     const auto today = log.PoolToday(pool.first);
                     if (today != log.PoolToday(pool.first)) steady = false;
@@ -5323,7 +5325,7 @@ int main(int argc, char** argv) {
                 }
                 Check(steady && sized, pool.first + " posts " + std::to_string(log.PostsPerDay(pool.first)) +
                                        " dailies a day, the same ones all day");
-                Check(static_cast<int>(ever.size()) == pool.second, "and over three weeks every one of them comes up");
+                Check(static_cast<int>(ever.size()) == pool.second, "and in time every one of them comes up");
             }
 
             Skills sk;
@@ -10299,6 +10301,7 @@ int main(int argc, char** argv) {
         const Book books[] = {
             {"npc_smith", "halda_orders", SKILL_MINING, {"ore", "bar", "weapon", "hide", "armour"}},
             {"npc_wendel", "wendel_orders", SKILL_FISHING, {"fish"}},
+            {"npc_cook", "bess_orders", SKILL_COOKING, {}},
         };
         for (const Book& b : books) {
             std::set<string> kinds;
@@ -10354,6 +10357,7 @@ int main(int argc, char** argv) {
             Check(beyond == 0, string(b.npc) + " never posts an order the player cannot take yet");
         }
         Check(log.PostsPerDay("halda_orders") == 3, "Halda takes three orders a day");
+        Check(log.PostsPerDay("bess_orders") == 3, "and Bess three");
 
         // Taking an order, filling it through Halda's conversation, and not again today.
         {
@@ -10431,7 +10435,9 @@ int main(int argc, char** argv) {
             Check(ql.ReadyToDeliver("npc_wendel", inv).empty(), "Oona's remedy is not one of Wendel's orders");
         }
 
-        // Levels open more of the book without closing what is already posted.
+        // The book climbs with the smith. Levels open more of it, and a smith is
+        // posted work at their own level: nothing more than ORDER_BAND below
+        // them in its trade while there is enough nearer to fill the day.
         {
             QuestLog ql;
             ql.LoadDefinitions("data/quests.json");
@@ -10448,10 +10454,102 @@ int main(int argc, char** argv) {
                 for (const string& id : ql.PoolToday("halda_orders", &weak)) weak_seen.insert(id);
                 for (const string& id : ql.PoolToday("halda_orders", &strong)) strong_seen.insert(id);
             }
-            Check(strong_seen.count("q_order_steel_greaves") && !weak_seen.count("q_order_steel_greaves"),
-                  "steel greaves are ordered only from someone who can make them");
-            Check(strong_seen.size() > weak_seen.size(), "a skilled smith sees more of the book (" +
-                  std::to_string(strong_seen.size()) + " orders against " + std::to_string(weak_seen.size()) + ")");
+            Check(strong_seen.count("q_order_orichalcum_spear") && !weak_seen.count("q_order_orichalcum_spear"),
+                  "an orichalcum spear is ordered only from someone who can make one");
+            bool beneath = false;
+            for (const string& id : strong_seen)
+                beneath |= strong.Level(QuestLog::TradeOf(*ql.Definition(id))) -
+                           QuestLog::OrderLevel(*ql.Definition(id)) > QuestLog::ORDER_BAND;
+            Check(!beneath && !strong_seen.count("q_order_bronze_swords") && !strong_seen.count("q_order_steel_greaves"),
+                  "and a Smithing " + std::to_string(strong.Level(SKILL_SMITHING)) +
+                      " smith is not posted bronze swords or steel greaves any more");
+            Check(weak_seen.count("q_order_bronze_swords") || weak_seen.count("q_order_bronze_bars"),
+                  "where a new one is");
+        }
+        {
+            // At every level from the first to the ninety-ninth, a smith (and
+            // the miner who feeds them) is posted three orders a day, none of
+            // them more than the band below, but where there is nothing nearer.
+            QuestLog ql;
+            ql.LoadDefinitions("data/quests.json");
+            int short_days = 0, beneath = 0, highest_seen = 0;
+            for (int level : {1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99}) {
+                Skills sk;
+                LevelUp up;
+                sk.AddXp(SKILL_SMITHING, XpForLevel(level), up);
+                sk.AddXp(SKILL_MINING, XpForLevel(level), up);
+                // How many there are within the band that they can take: with
+                // three or more, nothing beneath it should ever be posted.
+                int near = 0;
+                for (const auto& kv : ql.Definitions())
+                    if (kv.second.pool == "halda_orders" && ql.MeetsRequirements(kv.second, sk) &&
+                        sk.Level(QuestLog::TradeOf(kv.second)) - QuestLog::OrderLevel(kv.second) <= QuestLog::ORDER_BAND)
+                        ++near;
+                for (int day = 1; day <= 20; ++day) {
+                    ql.SetDay(day);
+                    const auto posted = ql.PoolToday("halda_orders", &sk);
+                    if (posted.size() < 3) ++short_days;
+                    for (const string& id : posted) {
+                        const QuestDef& d = *ql.Definition(id);
+                        const int lvl = QuestLog::OrderLevel(d);
+                        if (sk.Level(QuestLog::TradeOf(d)) - lvl > QuestLog::ORDER_BAND && near >= 3) ++beneath;
+                        if (level == 99) highest_seen = std::max(highest_seen, lvl);
+                    }
+                }
+            }
+            Check(short_days == 0, "at every level, Halda posts three orders a day");
+            Check(beneath == 0, "and none beneath the smith while there is work nearer their level");
+            Check(highest_seen >= 88, "a master smith is asked for dracon and enchanted work (level " +
+                                          std::to_string(highest_seen) + ")");
+            // Every metal has something in the book, bronze to enchanted.
+            std::set<string> metals;
+            for (const auto& kv : ql.Definitions())
+                if (kv.second.pool == "halda_orders" && !kv.second.stages.empty()) {
+                    const string& t = kv.second.stages[0].target;
+                    for (const char* m : {"bronze", "iron", "steel", "azuryte", "damascus", "orichalcum", "diamond",
+                                          "platinum", "demonite", "dracon", "enchanted"})
+                        if (t.rfind(m, 0) == 0) metals.insert(m);
+                }
+            Check(metals.size() == 11, "every metal from bronze to enchanted is in Halda's book (" +
+                                           std::to_string(metals.size()) + ")");
+            // And the rest of the trades' books reach the top of what they make.
+            const auto top = [&](const string& pool) {
+                int t = 0;
+                for (const auto& kv : ql.Definitions())
+                    if (kv.second.pool == pool) t = std::max(t, QuestLog::OrderLevel(kv.second));
+                return t;
+            };
+            Check(top("nessa_orders") >= 95 && top("wynn_orders") >= 95, "Nessa's book and Wynn's go up to the dreamhide and the dreamweave");
+            Check(top("oona_orders") >= 68 && top("wendel_orders") >= 70 && top("bess_orders") >= 60,
+                  "Oona's to starlily, Wendel's past the eels, and Bess's to cooked eel");
+            // A day's pay grows with the level asked: at the top of every book
+            // an order is worth more than one at the bottom of it.
+            for (const char* pool : {"halda_orders", "nessa_orders", "wynn_orders", "oona_orders", "wendel_orders", "bess_orders"}) {
+                int lo_level = 999, hi_level = 0, lo_xp = 0, hi_xp = 0;
+                for (const auto& kv : ql.Definitions()) {
+                    if (kv.second.pool != pool) continue;
+                    const int lvl = QuestLog::OrderLevel(kv.second);
+                    const int xp = kv.second.rewards.xp.count(QuestLog::TradeOf(kv.second))
+                                       ? kv.second.rewards.xp.at(QuestLog::TradeOf(kv.second)) : 0;
+                    if (lvl < lo_level) { lo_level = lvl; lo_xp = xp; }
+                    if (lvl > hi_level) { hi_level = lvl; hi_xp = xp; }
+                }
+                Check(hi_xp > lo_xp * 4, string(pool) + " pays more at the top of the book than the bottom (" +
+                                             std::to_string(lo_xp) + " at " + std::to_string(lo_level) + ", " +
+                                             std::to_string(hi_xp) + " at " + std::to_string(hi_level) + ")");
+            }
+        }
+        {
+            // Bess keeps a book of her own now, for the kitchen.
+            const DialogueNode* root = dialogue.Get("cook_root");
+            bool book = false, hands_in = false;
+            if (root)
+                for (const DialogueOption& o : root->options) {
+                    book |= o.action.open_orders == "npc_cook";
+                    hands_in |= o.action.hand_in;
+                }
+            Check(book && hands_in && dialogue.Get("cook_order_filled"),
+                  "Innkeeper Bess has an order book for the kitchen, and takes what is filled");
         }
     }
 

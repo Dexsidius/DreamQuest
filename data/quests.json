@@ -1249,10 +1249,10 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 600,
-    "Smithing": 360
+    "Mining": 110,
+    "Smithing": 530
    },
-   "coins": 216
+   "coins": 220
   },
   "completion": "\"Clean pours. You can smelt for me any day.\""
  },
@@ -1280,10 +1280,10 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 900,
-    "Smithing": 540
+    "Mining": 180,
+    "Smithing": 880
    },
-   "coins": 432
+   "coins": 440
   },
   "completion": "She stacks them by the anvil without a word, which from Halda is praise."
  },
@@ -1311,10 +1311,10 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 1400,
-    "Smithing": 840
+    "Mining": 310,
+    "Smithing": 1540
    },
-   "coins": 1304
+   "coins": 1325
   },
   "completion": "\"Proper steel. Rings when you knock it.\""
  },
@@ -1338,8 +1338,8 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 500,
-    "Smithing": 400
+    "Mining": 130,
+    "Smithing": 670
    },
    "coins": 275
   },
@@ -1368,10 +1368,10 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 700,
-    "Smithing": 560
+    "Mining": 220,
+    "Smithing": 1090
    },
-   "coins": 319
+   "coins": 315
   },
   "completion": "\"Balanced. He will not lose this one.\""
  },
@@ -1398,10 +1398,10 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 720,
-    "Smithing": 600
+    "Mining": 220,
+    "Smithing": 1090
    },
-   "coins": 345
+   "coins": 325
   },
   "completion": "\"Straight shaft, true point. He'll never have to let them close.\""
  },
@@ -1428,8 +1428,8 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 1600,
-    "Smithing": 1280
+    "Mining": 390,
+    "Smithing": 1930
    },
    "coins": 2273
   },
@@ -1481,8 +1481,8 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 450,
-    "Smithing": 360
+    "Mining": 120,
+    "Smithing": 600
    },
    "coins": 375
   },
@@ -1511,8 +1511,8 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 1100,
-    "Smithing": 880
+    "Mining": 270,
+    "Smithing": 1370
    },
    "coins": 1124
   },
@@ -1541,8 +1541,8 @@
   ],
   "rewards": {
    "xp": {
-    "Mining": 2200,
-    "Smithing": 1760
+    "Mining": 420,
+    "Smithing": 2120
    },
    "coins": 3392
   },
@@ -3456,5 +3456,2686 @@
    ]
   },
   "completion": "Hale bent the wire straight and gave the circlet back to the girl it was made for. She said it was ruined, and wore it anyway."
+ },
+ "q_order_bronze_daggers": {
+  "name": "Order: Bronze Daggers",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 1,
+  "summary": "Three bronze daggers for the tannery. Nessa goes through them faster than she goes through hides.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 3 bronze daggers",
+    "type": "deliver",
+    "target": "bronze_dagger",
+    "to": "npc_smith",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 600,
+    "Mining": 120
+   },
+   "coins": 190
+  },
+  "completion": "Halda tests each edge on her thumbnail and nods three times."
+ },
+ "q_order_iron_shields": {
+  "name": "Order: Iron Shields",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 10,
+  "summary": "Two iron shields for the watch on the west gate, who have been using the lids of barrels.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 2 iron shields",
+    "type": "deliver",
+    "target": "iron_shield",
+    "to": "npc_smith",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 1090,
+    "Mining": 220
+   },
+   "coins": 1145
+  },
+  "completion": "\"Corrin will say they are heavy. Corrin says everything is heavy.\"",
+  "req": {
+   "Smithing": 10
+  }
+ },
+ "q_order_steel_mace": {
+  "name": "Order: Steel Mace",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 20,
+  "summary": "A steel mace for the reeve of Mossvale, who says he does not need one and has asked for it twice.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 steel mace",
+    "type": "deliver",
+    "target": "steel_mace",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 1930,
+    "Mining": 390
+   },
+   "coins": 2740
+  },
+  "completion": "She weighs it in one hand. \"He will need it.\"",
+  "req": {
+   "Smithing": 20
+  }
+ },
+ "q_order_steel_helm": {
+  "name": "Order: Steel Helm",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 20,
+  "summary": "A steel helm for a guild member who has been hit on the head once too often to argue about the price.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 steel helm",
+    "type": "deliver",
+    "target": "steel_helm",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 1730,
+    "Mining": 350
+   },
+   "coins": 1565
+  },
+  "completion": "\"Tell him it will not help with the arguing.\"",
+  "req": {
+   "Smithing": 20
+  }
+ },
+ "q_order_azuryte_bars": {
+  "name": "Order: Azuryte Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 30,
+  "summary": "Azuryte bars. The forge can work them now it is hot enough; the Ice Spire's guides pay well for what comes of them.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 4 azuryte bars",
+    "type": "deliver",
+    "target": "azuryte_bar",
+    "to": "npc_smith",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 2780,
+    "Mining": 560
+   },
+   "coins": 3880
+  },
+  "completion": "The bars ring blue on the anvil. Halda looks pleased, which is rare.",
+  "req": {
+   "Smithing": 30,
+   "Mining": 30
+  }
+ },
+ "q_order_azuryte_mace": {
+  "name": "Order: Azuryte Mace",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 30,
+  "summary": "An azuryte mace for a troll-hunter going up the Spire. Trolls do not mind edges.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 azuryte mace",
+    "type": "deliver",
+    "target": "azuryte_mace",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 3480,
+    "Mining": 700
+   },
+   "coins": 5800
+  },
+  "completion": "\"The blue does not show the blood. He asked specially.\"",
+  "req": {
+   "Smithing": 30
+  }
+ },
+ "q_order_azuryte_helm": {
+  "name": "Order: Azuryte Helm",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 30,
+  "summary": "An azuryte helm for the Ice Spire's lead guide, whose last one a wyvern took home.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 azuryte helm",
+    "type": "deliver",
+    "target": "azuryte_helm",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 3130,
+    "Mining": 630
+   },
+   "coins": 3990
+  },
+  "completion": "She polishes a thumbprint off the crown before she pays.",
+  "req": {
+   "Smithing": 30
+  }
+ },
+ "q_order_damascus_bars": {
+  "name": "Order: Damascus Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 40,
+  "summary": "Damascus bars, the banded steel from the Ashen Path. The palace road's traders cannot get enough of it.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 3 damascus bars",
+    "type": "deliver",
+    "target": "damascus_bar",
+    "to": "npc_smith",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 5170,
+    "Mining": 1030
+   },
+   "coins": 9560
+  },
+  "completion": "She turns one to the light to watch the bands move. \"Good folding.\"",
+  "req": {
+   "Smithing": 40,
+   "Mining": 40
+  }
+ },
+ "q_order_damascus_sword": {
+  "name": "Order: Damascus Sword",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 40,
+  "summary": "A damascus sword for a knight of the Plateau, who has sent a drawing of how it should look and a note about the drawing.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 damascus sword",
+    "type": "deliver",
+    "target": "damascus_sword",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 6460,
+    "Mining": 1290
+   },
+   "coins": 10655
+  },
+  "completion": "\"It is better than the drawing. Do not tell him.\"",
+  "req": {
+   "Smithing": 40
+  }
+ },
+ "q_order_damascus_shield": {
+  "name": "Order: Damascus Shield",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 40,
+  "summary": "A damascus shield for the Stronghold's gate, where they have stopped counting what comes at it.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 damascus shield",
+    "type": "deliver",
+    "target": "damascus_shield",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 6460,
+    "Mining": 1290
+   },
+   "coins": 15725
+  },
+  "completion": "Halda raps it with a hammer and listens. It does not ring. She pays.",
+  "req": {
+   "Smithing": 40
+  }
+ },
+ "q_order_damascus_greaves": {
+  "name": "Order: Damascus Greaves",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 40,
+  "summary": "Damascus greaves for a guard on the Ashen Path, where the ground itself bites.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 damascus greaves",
+    "type": "deliver",
+    "target": "damascus_legs",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 7110,
+    "Mining": 1420
+   },
+   "coins": 15720
+  },
+  "completion": "\"His shins will thank you. He will not; he is not the sort.\"",
+  "req": {
+   "Smithing": 40
+  }
+ },
+ "q_order_orichalcum_bars": {
+  "name": "Order: Orichalcum Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 50,
+  "summary": "Orichalcum bars. Halda has three commissions waiting on them and a fourth she has not agreed to.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 3 orichalcum bars",
+    "type": "deliver",
+    "target": "orichalcum_bar",
+    "to": "npc_smith",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 9870,
+    "Mining": 1970
+   },
+   "coins": 15585
+  },
+  "completion": "The bars are warm in her hands long after they should be cold.",
+  "req": {
+   "Smithing": 50,
+   "Mining": 50
+  }
+ },
+ "q_order_orichalcum_spear": {
+  "name": "Order: Orichalcum Spear",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 50,
+  "summary": "An orichalcum spear for a Brimstone Palace scout, who needs to reach what should not be let close.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 orichalcum spear",
+    "type": "deliver",
+    "target": "orichalcum_spear",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 12340,
+    "Mining": 2470
+   },
+   "coins": 17400
+  },
+  "completion": "\"A spear of that is a year's work anywhere else. You did it this week.\"",
+  "req": {
+   "Smithing": 50
+  }
+ },
+ "q_order_orichalcum_cuirass": {
+  "name": "Order: Orichalcum Cuirass",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 50,
+  "summary": "An orichalcum cuirass for the Guild Master, who does not know it is being made and would say it was too much.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 orichalcum cuirass",
+    "type": "deliver",
+    "target": "orichalcum_body",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 15430,
+    "Mining": 3090
+   },
+   "coins": 42515
+  },
+  "completion": "Halda wraps it in sacking. \"If Orlend asks, it came from nowhere.\"",
+  "req": {
+   "Smithing": 50
+  }
+ },
+ "q_order_diamond_ingots": {
+  "name": "Order: Diamond Ingots",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 60,
+  "summary": "Diamond ingots, pressed from rough stones at a heat Halda had to build a new flue for.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 2 diamond ingots",
+    "type": "deliver",
+    "target": "diamond_ingot",
+    "to": "npc_smith",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 19340,
+    "Mining": 3870
+   },
+   "coins": 15180
+  },
+  "completion": "She holds one up to the fire and the whole forge goes white.",
+  "req": {
+   "Smithing": 60,
+   "Mining": 60
+  }
+ },
+ "q_order_diamond_greatsword": {
+  "name": "Order: Diamond Greatsword",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 60,
+  "summary": "A diamond greatsword for a champion of the College lists, who breaks swords the way other people break bread.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 diamond greatsword",
+    "type": "deliver",
+    "target": "diamond_greatsword",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 30210,
+    "Mining": 6040
+   },
+   "coins": 49255
+  },
+  "completion": "\"He will not break this one. He will try.\"",
+  "req": {
+   "Smithing": 60
+  }
+ },
+ "q_order_diamond_boots": {
+  "name": "Order: Diamond Boots",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 60,
+  "summary": "Diamond boots for a walker of the Glass Mere, who says the ice has started to listen for footsteps.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 diamond boots",
+    "type": "deliver",
+    "target": "diamond_boots",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 21750,
+    "Mining": 4350
+   },
+   "coins": 24995
+  },
+  "completion": "\"Harl never needed boots like these. Harl was lucky.\"",
+  "req": {
+   "Smithing": 60
+  }
+ },
+ "q_order_platinum_bars": {
+  "name": "Order: Platinum Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 70,
+  "summary": "Platinum bars for the College's orrery, which needs metal that does not tarnish in a thousand years.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 2 platinum bars",
+    "type": "deliver",
+    "target": "platinum_bar",
+    "to": "npc_smith",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 38680,
+    "Mining": 7740
+   },
+   "coins": 22915
+  },
+  "completion": "\"They will outlast the College. They will outlast me.\"",
+  "req": {
+   "Smithing": 70,
+   "Mining": 70
+  }
+ },
+ "q_order_platinum_greataxe": {
+  "name": "Order: Platinum Greataxe",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 70,
+  "summary": "A platinum greataxe for the Warlord's Howe expedition. Nobody has come back from the Howe with an axe.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 platinum greataxe",
+    "type": "deliver",
+    "target": "platinum_greataxe",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 60430,
+    "Mining": 12090
+   },
+   "coins": 74960
+  },
+  "completion": "She swings it once, slowly, and the air in the forge moves.",
+  "req": {
+   "Smithing": 70
+  }
+ },
+ "q_order_platinum_greaves": {
+  "name": "Order: Platinum Greaves",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 70,
+  "summary": "Platinum greaves for a knight who means to walk the Hexmire's temple, and to walk back out.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 platinum greaves",
+    "type": "deliver",
+    "target": "platinum_legs",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 53180,
+    "Mining": 10640
+   },
+   "coins": 56425
+  },
+  "completion": "\"Heavy enough to stand in, light enough to run in. Tell her which to do.\"",
+  "req": {
+   "Smithing": 70
+  }
+ },
+ "q_order_demonite_bars": {
+  "name": "Order: Demonite Bars",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 80,
+  "summary": "Demonite bars, smelted with shards of the dream. Halda will not say who they are for.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 2 demonite bars",
+    "type": "deliver",
+    "target": "demonite_bar",
+    "to": "npc_smith",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 78750,
+    "Mining": 15750
+   },
+   "coins": 34815
+  },
+  "completion": "She takes them with tongs, and puts the tongs away afterwards, somewhere else.",
+  "req": {
+   "Smithing": 80,
+   "Mining": 80
+  }
+ },
+ "q_order_demonite_sword": {
+  "name": "Order: Demonite Sword",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 80,
+  "summary": "A demonite sword for the one who hunts in the Reverie. It has to cut things that are not there.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 demonite sword",
+    "type": "deliver",
+    "target": "demonite_sword",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 98430,
+    "Mining": 19690
+   },
+   "coins": 61885
+  },
+  "completion": "\"It hums. Do not stand close to it while it hums.\"",
+  "req": {
+   "Smithing": 80
+  }
+ },
+ "q_order_demonite_cuirass": {
+  "name": "Order: Demonite Cuirass",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 80,
+  "summary": "A demonite cuirass for someone going down into the Infernal Pit on purpose.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 demonite cuirass",
+    "type": "deliver",
+    "target": "demonite_body",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 123040,
+    "Mining": 24610
+   },
+   "coins": 153205
+  },
+  "completion": "Halda pays more than she asked and does not explain.",
+  "req": {
+   "Smithing": 80
+  }
+ },
+ "q_order_dracon_bar": {
+  "name": "Order: A Dracon Bar",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 88,
+  "summary": "A dracon bar, demonite folded with a dragon's fang. Halda wants to see one made before she dies.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 dracon bar",
+    "type": "deliver",
+    "target": "dracon_bar",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 140510,
+    "Mining": 28100
+   },
+   "coins": 67865
+  },
+  "completion": "She is quiet for a long while. \"My master never saw one.\"",
+  "req": {
+   "Smithing": 88
+  }
+ },
+ "q_order_dracon_helm": {
+  "name": "Order: Dracon Helm",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 88,
+  "summary": "A dracon helm for whoever is next to climb the Ice Spire after the dragon. Somebody always is.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 dracon helm",
+    "type": "deliver",
+    "target": "dracon_helm",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 158080,
+    "Mining": 31620
+   },
+   "coins": 241495
+  },
+  "completion": "\"Whoever wears it, the dragons will know what it is made of.\"",
+  "req": {
+   "Smithing": 88
+  }
+ },
+ "q_order_dracon_dagger": {
+  "name": "Order: Dracon Dagger",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 88,
+  "summary": "A dracon dagger, as a gift from the Guild to the Palace. Nobody else is to know what is in the box.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 dracon dagger",
+    "type": "deliver",
+    "target": "dracon_dagger",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 158080,
+    "Mining": 31620
+   },
+   "coins": 121290
+  },
+  "completion": "She puts it in the box herself and nails the lid.",
+  "req": {
+   "Smithing": 88
+  }
+ },
+ "q_order_enchanted_bar": {
+  "name": "Order: An Enchanted Bar",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 95,
+  "summary": "An enchanted bar: dracon folded through the dream. There is no second smith in the world to ask.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 enchanted bar",
+    "type": "deliver",
+    "target": "enchanted_bar",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 234660,
+    "Mining": 46930
+   },
+   "coins": 241810
+  },
+  "completion": "Halda does not touch it. She looks at it, and then at you, for a long time.",
+  "req": {
+   "Smithing": 95
+  }
+ },
+ "q_order_enchanted_sword": {
+  "name": "Order: Enchanted Sword",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 95,
+  "summary": "An enchanted sword. The order came with no name, no place and a great deal of gold.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 enchanted sword",
+    "type": "deliver",
+    "target": "enchanted_sword",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 293330,
+    "Mining": 58670
+   },
+   "coins": 867500
+  },
+  "completion": "\"Whoever it is for, they will be the last to need a sword.\"",
+  "req": {
+   "Smithing": 95
+  }
+ },
+ "q_order_enchanted_shield": {
+  "name": "Order: Enchanted Shield",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 95,
+  "summary": "An enchanted shield for Havenbrook's own gate, to hang there where the town can see it.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 1 enchanted shield",
+    "type": "deliver",
+    "target": "enchanted_shield",
+    "to": "npc_smith",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 293330,
+    "Mining": 58670
+   },
+   "coins": 1300655
+  },
+  "completion": "She hangs it over the forge first, for one night, to look at.",
+  "req": {
+   "Smithing": 95
+  }
+ },
+ "q_order_damascus_ore": {
+  "name": "Order: Damascus Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 40,
+  "summary": "Damascus ore from the Ashen Path. It has to be dug before it cools, and it never quite does.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 5 damascus ore",
+    "type": "deliver",
+    "target": "damascus_ore",
+    "to": "npc_smith",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 5170
+   },
+   "coins": 2360
+  },
+  "completion": "She drops it in the quench and it hisses for a minute.",
+  "req": {
+   "Mining": 40
+  }
+ },
+ "q_order_orichalcum_ore": {
+  "name": "Order: Orichalcum Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 50,
+  "summary": "Orichalcum ore. Halda has a buyer, and a buyer behind the buyer.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 5 orichalcum ore",
+    "type": "deliver",
+    "target": "orichalcum_ore",
+    "to": "npc_smith",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 9870
+   },
+   "coins": 4130
+  },
+  "completion": "\"Clean ore. Whoever showed you that seam, do not show anyone else.\"",
+  "req": {
+   "Mining": 50
+  }
+ },
+ "q_order_diamond_ore": {
+  "name": "Order: Rough Diamonds",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 60,
+  "summary": "Rough diamonds from the deep seams, for pressing into ingots.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 4 rough diamonds",
+    "type": "deliver",
+    "target": "diamond_ore",
+    "to": "npc_smith",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 19340
+   },
+   "coins": 6095
+  },
+  "completion": "She counts them twice, and then once more when she thinks you are not looking.",
+  "req": {
+   "Mining": 60
+  }
+ },
+ "q_order_platinum_ore": {
+  "name": "Order: Platinum Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 70,
+  "summary": "Platinum ore. It does not look like much until it is melted, and then it looks like everything.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 4 platinum ore",
+    "type": "deliver",
+    "target": "platinum_ore",
+    "to": "npc_smith",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 38680
+   },
+   "coins": 7785
+  },
+  "completion": "\"Heavy for its size. So are you, to have carried it.\"",
+  "req": {
+   "Mining": 70
+  }
+ },
+ "q_order_demonite_ore": {
+  "name": "Order: Demonite Ore",
+  "source": "npc",
+  "giver": "npc_smith",
+  "level": 80,
+  "summary": "Demonite ore from the Infernal Pit. Halda keeps it in a lead box and does not say why.",
+  "repeat": "daily",
+  "pool": "halda_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Smith Halda 3 demonite ore",
+    "type": "deliver",
+    "target": "demonite_ore",
+    "to": "npc_smith",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 78750
+   },
+   "coins": 8640
+  },
+  "completion": "The lead box goes under the anvil, and the anvil does not go anywhere.",
+  "req": {
+   "Mining": 80
+  }
+ },
+ "q_order_bearskin_chaps": {
+  "name": "Order: Bearskin Chaps",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 20,
+  "summary": "Bearskin chaps for the Westwold drovers, who ride through thorn all winter.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 bearskin chaps",
+    "type": "deliver",
+    "target": "steel_hide_legs",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 3600
+   },
+   "coins": 1665
+  },
+  "completion": "\"They will outlast the drovers. They usually do.\"",
+  "req": {
+   "Tanning": 20
+  }
+ },
+ "q_order_trollhide_chaps": {
+  "name": "Order: Trollhide Chaps",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 30,
+  "summary": "Trollhide chaps for a pair of guides on the Ice Spire. Troll hide does not freeze.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 trollhide chaps",
+    "type": "deliver",
+    "target": "azuryte_hide_legs",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 5200
+   },
+   "coins": 3500
+  },
+  "completion": "Nessa bends one double and lets it spring back. \"Good. Good.\"",
+  "req": {
+   "Tanning": 30
+  }
+ },
+ "q_order_wyvernscale_jerkin": {
+  "name": "Order: Wyvernscale Jerkin",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 40,
+  "summary": "A wyvernscale jerkin for a ranger of the Plateau, who has been wearing wool and regretting it.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 wyvernscale jerkin",
+    "type": "deliver",
+    "target": "damascus_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 8080
+   },
+   "coins": 5175
+  },
+  "completion": "She runs a thumb against the scales and they catch. \"That will stop a claw.\"",
+  "req": {
+   "Tanning": 40
+  }
+ },
+ "q_order_wyvernscale_coif": {
+  "name": "Order: Wyvernscale Coifs",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 40,
+  "summary": "Wyvernscale coifs for the Ashen Path's scouts, who need their heads and would like to keep them.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 2 wyvernscale coives",
+    "type": "deliver",
+    "target": "damascus_hide_head",
+    "to": "npc_nessa",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 5810
+   },
+   "coins": 4785
+  },
+  "completion": "\"Two heads, kept. That is a good day's work.\"",
+  "req": {
+   "Tanning": 40
+  }
+ },
+ "q_order_demonhide_chaps": {
+  "name": "Order: Demonhide Chaps",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 50,
+  "summary": "Demonhide chaps for somebody walking the burning ground by the Infernal Pit.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 demonhide chaps",
+    "type": "deliver",
+    "target": "orichalcum_hide_legs",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 13580
+   },
+   "coins": 6070
+  },
+  "completion": "\"They smell of sulphur. Tell him they always will.\"",
+  "req": {
+   "Tanning": 50
+  }
+ },
+ "q_order_demonhide_jerkin": {
+  "name": "Order: Demonhide Jerkin",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 50,
+  "summary": "A demonhide jerkin. Nessa has never worked demonhide and wants to see it done properly once.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 demonhide jerkin",
+    "type": "deliver",
+    "target": "orichalcum_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 15430
+   },
+   "coins": 8790
+  },
+  "completion": "She looks at every seam. \"I will do the next one myself. Probably.\"",
+  "req": {
+   "Tanning": 50
+  }
+ },
+ "q_order_greatwolf_jerkin": {
+  "name": "Order: Greatwolf Jerkin",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 60,
+  "summary": "A greatwolf jerkin for the Glass Mere's trappers, who have taken over Old Harl's lines.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 greatwolf jerkin",
+    "type": "deliver",
+    "target": "diamond_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 30210
+   },
+   "coins": 13580
+  },
+  "completion": "\"Harl would have wanted one. Harl would never have paid for one.\"",
+  "req": {
+   "Tanning": 60
+  }
+ },
+ "q_order_haversack": {
+  "name": "Order: Greatwolf Haversack",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 68,
+  "summary": "A greatwolf haversack for an expedition to the Warlord's Howe, carrying enough to come back.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 greatwolf haversack",
+    "type": "deliver",
+    "target": "bag_haversack",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 54630
+   },
+   "coins": 73745
+  },
+  "completion": "\"If they come back, it will be because of what was in this.\"",
+  "req": {
+   "Tanning": 68
+  }
+ },
+ "q_order_direbear_chaps": {
+  "name": "Order: Direbear Chaps",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 70,
+  "summary": "Direbear chaps for a knight of the Stronghold, who wants something between him and the ground.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 direbear chaps",
+    "type": "deliver",
+    "target": "platinum_hide_legs",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 53180
+   },
+   "coins": 13700
+  },
+  "completion": "Nessa whistles. It is the first time anybody has heard her whistle.",
+  "req": {
+   "Tanning": 70
+  }
+ },
+ "q_order_dreadhide_jerkin": {
+  "name": "Order: Dreadhide Jerkin",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 80,
+  "summary": "A dreadhide jerkin for the Reverie's hunter. It has to be tanned in the dark.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 dreadhide jerkin",
+    "type": "deliver",
+    "target": "demonite_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 123040
+   },
+   "coins": 28980
+  },
+  "completion": "She does not look at it long. \"Put it in the dark again. Please.\"",
+  "req": {
+   "Tanning": 80
+  }
+ },
+ "q_order_dragonhide_jerkin": {
+  "name": "Order: Dragonhide Jerkin",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 88,
+  "summary": "A dragonhide jerkin. Nessa has kept the scraps of the last one on her wall for twenty years.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 dragonhide jerkin",
+    "type": "deliver",
+    "target": "dracon_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 219550
+   },
+   "coins": 41905
+  },
+  "completion": "She holds it up to the wall where the scraps are. \"That is how it should have been.\"",
+  "req": {
+   "Tanning": 88
+  }
+ },
+ "q_order_dreamhide_jerkin": {
+  "name": "Order: Dreamhide Jerkin",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 95,
+  "summary": "A dreamhide jerkin, cut from something that was never quite there to skin.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 dreamhide jerkin",
+    "type": "deliver",
+    "target": "enchanted_hide_body",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 366660
+   },
+   "coins": 59490
+  },
+  "completion": "\"I cannot see where you have stitched it. I do not think there is anywhere.\"",
+  "req": {
+   "Tanning": 95
+  }
+ },
+ "q_order_dreamhide_coif": {
+  "name": "Order: Dreamhide Coif",
+  "source": "npc",
+  "giver": "npc_nessa",
+  "level": 95,
+  "summary": "A dreamhide coif. Whoever wears it will not dream again, the buyer says, and is glad of it.",
+  "repeat": "daily",
+  "pool": "nessa_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Nessa 1 dreamhide coif",
+    "type": "deliver",
+    "target": "enchanted_hide_head",
+    "to": "npc_nessa",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Tanning": 263990
+   },
+   "coins": 27895
+  },
+  "completion": "Nessa puts it on for a moment, and takes it off quickly.",
+  "req": {
+   "Tanning": 95
+  }
+ },
+ "q_weave_journeyman_skirt": {
+  "name": "Order: Journeyman's Skirts",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 20,
+  "summary": "Journeyman's skirts for two students passing out of the College, a year late and very proud of it.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 journeyman's skirts",
+    "type": "deliver",
+    "target": "steel_robe_legs",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 4000
+   },
+   "coins": 1580
+  },
+  "completion": "\"The hems are straight. They will not be by the end of the year.\"",
+  "req": {
+   "Clothier": 20
+  }
+ },
+ "q_weave_adept_hat": {
+  "name": "Order: Adept's Hats",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 30,
+  "summary": "Adept's hats for the College's air lane, whose last hats went up and did not come down.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 adept's hats",
+    "type": "deliver",
+    "target": "azuryte_robe_head",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 5600
+   },
+   "coins": 2330
+  },
+  "completion": "Wynn ties the brims down with a thread, just in case.",
+  "req": {
+   "Clothier": 30
+  }
+ },
+ "q_weave_sage_robe": {
+  "name": "Order: Sage's Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 40,
+  "summary": "A sage's robe for a lector of the College, who will be reading in it for forty years.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 sage's robe",
+    "type": "deliver",
+    "target": "damascus_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 8080
+   },
+   "coins": 4980
+  },
+  "completion": "\"Forty years, and it will still fall right.\"",
+  "req": {
+   "Clothier": 40
+  }
+ },
+ "q_weave_sage_skirt": {
+  "name": "Order: Sage's Skirt",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 40,
+  "summary": "A sage's skirt to go with the lector's robe. She will not wear one without the other.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 sage's skirt",
+    "type": "deliver",
+    "target": "damascus_robe_legs",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 7110
+   },
+   "coins": 3425
+  },
+  "completion": "\"She is right. They are a pair.\"",
+  "req": {
+   "Clothier": 40
+  }
+ },
+ "q_weave_magister_robe": {
+  "name": "Order: Magister's Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 50,
+  "summary": "A magister's robe, gold-threaded, for the College's own magister. Nobody else has ever been asked.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 magister's robe",
+    "type": "deliver",
+    "target": "orichalcum_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 15430
+   },
+   "coins": 8450
+  },
+  "completion": "Wynn folds it in tissue as if it might break.",
+  "req": {
+   "Clothier": 50
+  }
+ },
+ "q_weave_magister_gloves": {
+  "name": "Order: Magister's Gloves",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 50,
+  "summary": "Magister's gloves, for casting without burning one's fingers, which the magister has done twice.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 2 magister's gloves",
+    "type": "deliver",
+    "target": "orichalcum_robe_hands",
+    "to": "npc_wynn",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 11110
+   },
+   "coins": 8110
+  },
+  "completion": "\"Three times, she told me. She is counting the first one now.\"",
+  "req": {
+   "Clothier": 50
+  }
+ },
+ "q_weave_luminous_robe": {
+  "name": "Order: Luminous Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 60,
+  "summary": "A luminous robe that gives its own light. The College's night readers will not have to squint.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 luminous robe",
+    "type": "deliver",
+    "target": "diamond_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 30210
+   },
+   "coins": 13045
+  },
+  "completion": "The shop is brighter while it is in it.",
+  "req": {
+   "Clothier": 60
+  }
+ },
+ "q_weave_astral_skirt": {
+  "name": "Order: Astral Skirt",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 70,
+  "summary": "An astral skirt, the colour of the sky an hour after sundown, for a watcher of the stars.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 astral skirt",
+    "type": "deliver",
+    "target": "platinum_robe_legs",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 53180
+   },
+   "coins": 12895
+  },
+  "completion": "\"It is the right blue. There is only one right blue.\"",
+  "req": {
+   "Clothier": 70
+  }
+ },
+ "q_weave_astral_robe": {
+  "name": "Order: Astral Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 70,
+  "summary": "An astral robe for the College orrery's keeper, who says the stars have started watching back.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 astral robe",
+    "type": "deliver",
+    "target": "platinum_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 60430
+   },
+   "coins": 19310
+  },
+  "completion": "Wynn does not say anything, which is how you know it is her best.",
+  "req": {
+   "Clothier": 70
+  }
+ },
+ "q_weave_nightweave_robe": {
+  "name": "Order: Nightweave Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 80,
+  "summary": "A nightweave robe, woven in the dark from thread that is darker. For somebody going into the Reverie awake.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 nightweave robe",
+    "type": "deliver",
+    "target": "demonite_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 123040
+   },
+   "coins": 27815
+  },
+  "completion": "\"I could not see to weave it. I am not sure you could either.\"",
+  "req": {
+   "Clothier": 80
+  }
+ },
+ "q_weave_dragonweave_robe": {
+  "name": "Order: Dragonweave Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 88,
+  "summary": "A dragonweave robe, with fire in the weft. It will not burn, and nor will whoever wears it.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 dragonweave robe",
+    "type": "deliver",
+    "target": "dracon_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 219550
+   },
+   "coins": 40205
+  },
+  "completion": "She holds a candle to the hem. Nothing happens. She is delighted.",
+  "req": {
+   "Clothier": 88
+  }
+ },
+ "q_weave_dreamweave_robe": {
+  "name": "Order: Dreamweave Robe",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 95,
+  "summary": "A dreamweave robe. Wynn has had the pattern since she was a girl, and never the hands.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 dreamweave robe",
+    "type": "deliver",
+    "target": "enchanted_robe_body",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 366660
+   },
+   "coins": 57060
+  },
+  "completion": "She cries, a little, and then charges the buyer double and gives you half.",
+  "req": {
+   "Clothier": 95
+  }
+ },
+ "q_weave_dreamweave_hat": {
+  "name": "Order: Dreamweave Hat",
+  "source": "npc",
+  "giver": "npc_wynn",
+  "level": 95,
+  "summary": "A dreamweave hat to finish the set. The buyer says a robe without a hat is a sentence without a stop.",
+  "repeat": "daily",
+  "pool": "wynn_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Wynn 1 dreamweave hat",
+    "type": "deliver",
+    "target": "enchanted_robe_head",
+    "to": "npc_wynn",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Clothier": 263990
+   },
+   "coins": 25465
+  },
+  "completion": "\"She is right, for once.\"",
+  "req": {
+   "Clothier": 95
+  }
+ },
+ "q_oona_emberbloom": {
+  "name": "Order: Emberbloom",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 46,
+  "summary": "Emberbloom from the Cursed Reach, for a fever draught. It has to be picked with gloves and carried with care.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 6 emberbloom",
+    "type": "deliver",
+    "target": "emberbloom",
+    "to": "npc_oona",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 9500
+   },
+   "coins": 885
+  },
+  "completion": "Oona takes them with tongs. \"And they say I am the dangerous one.\"",
+  "req": {
+   "Foraging": 46
+  }
+ },
+ "q_oona_moonpetal": {
+  "name": "Order: Moonpetal",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 56,
+  "summary": "Moonpetal from the Reverie. It only grows in dreams, which is where you will have to go.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 5 moonpetal",
+    "type": "deliver",
+    "target": "moonpetal",
+    "to": "npc_oona",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 18420
+   },
+   "coins": 1045
+  },
+  "completion": "\"Still cold. They are always cold. It is how you know.\"",
+  "req": {
+   "Foraging": 56
+  }
+ },
+ "q_oona_starlily": {
+  "name": "Order: Starlily",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 68,
+  "summary": "Starlily, the rarest thing Oona has ever asked for. She wants it for a panacea she has only read about.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 4 starlily",
+    "type": "deliver",
+    "target": "starlily",
+    "to": "npc_oona",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Foraging": 42020
+   },
+   "coins": 1230
+  },
+  "completion": "Oona is quiet for a moment. \"My mother saw one once. Just the once.\"",
+  "req": {
+   "Foraging": 68
+  }
+ },
+ "q_oona_skimmer": {
+  "name": "Order: Skimmer Tonic",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 32,
+  "summary": "Skimmer tonic for the College's apprentices, who have been casting on empty and falling asleep in lectures.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 skimmer tonics",
+    "type": "deliver",
+    "target": "skimmer_tonic",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 4600
+   },
+   "coins": 855
+  },
+  "completion": "\"They will stay awake now. Whether they listen is another matter.\"",
+  "req": {
+   "Brewing": 32
+  }
+ },
+ "q_oona_emberfire": {
+  "name": "Order: Emberfire Elixir",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 46,
+  "summary": "Emberfire elixir for the Stronghold's garrison, who have to hold the gate all night.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 emberfire elixirs",
+    "type": "deliver",
+    "target": "emberfire_elixir",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 9500
+   },
+   "coins": 1120
+  },
+  "completion": "\"Warm through the glass. Good.\"",
+  "req": {
+   "Brewing": 46
+  }
+ },
+ "q_oona_cinderbug": {
+  "name": "Order: Cinderbug Ward",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 50,
+  "summary": "Cinderbug wards for somebody walking the burning ground to the Brimstone Palace.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 2 cinderbug wards",
+    "type": "deliver",
+    "target": "cinderbug_ward",
+    "to": "npc_oona",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 12340
+   },
+   "coins": 1235
+  },
+  "completion": "She seals the stoppers with wax. \"Two. Tell him not to be brave and drink them both at once.\"",
+  "req": {
+   "Brewing": 50
+  }
+ },
+ "q_oona_moonlit": {
+  "name": "Order: Moonlit Draught",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 56,
+  "summary": "Moonlit draughts for the College's night classes, which have got very difficult lately.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 3 moonlit draughts",
+    "type": "deliver",
+    "target": "moonlit_draught",
+    "to": "npc_oona",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 18420
+   },
+   "coins": 1460
+  },
+  "completion": "The draughts move in the vials while she holds them. She holds them a long time.",
+  "req": {
+   "Brewing": 56
+  }
+ },
+ "q_oona_rimeshell": {
+  "name": "Order: Rimeshell Ward",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 62,
+  "summary": "Rimeshell wards for the trappers crossing the Glass Mere, who have been losing toes.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 2 rimeshell wards",
+    "type": "deliver",
+    "target": "rimeshell_ward",
+    "to": "npc_oona",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 27720
+   },
+   "coins": 1470
+  },
+  "completion": "\"No more toes. That is a promise I can keep.\"",
+  "req": {
+   "Brewing": 62
+  }
+ },
+ "q_oona_panacea": {
+  "name": "Order: Starlily Panacea",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 68,
+  "summary": "Starlily panacea. Oona has a patient nothing else will reach.",
+  "repeat": "daily",
+  "pool": "oona_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Oona 2 starlily panaceas",
+    "type": "deliver",
+    "target": "starlily_panacea",
+    "to": "npc_oona",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Brewing": 42020
+   },
+   "coins": 1760
+  },
+  "completion": "She takes one straight upstairs, and does not come down for an hour.",
+  "req": {
+   "Brewing": 68
+  }
+ },
+ "q_order_pike_lot": {
+  "name": "Order: A Lot of Pike",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 35,
+  "summary": "Five pike for the Mossvale lodge's winter barrels. Wendel says the barrels are bigger than they look.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 5 raw pike",
+    "type": "deliver",
+    "target": "raw_pike",
+    "to": "npc_wendel",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 4720
+   },
+   "coins": 690
+  },
+  "completion": "\"Into the salt with them. The barrels thank you.\"",
+  "req": {
+   "Fishing": 35
+  }
+ },
+ "q_order_cooked_pike": {
+  "name": "Order: Cooked Pike",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 30,
+  "summary": "Cooked pike for the jetty-hands' supper, who have been eating minnows and complaining.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 4 cooked pike",
+    "type": "deliver",
+    "target": "cooked_pike",
+    "to": "npc_wendel",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 3480,
+    "Cooking": 1390
+   },
+   "coins": 370
+  },
+  "completion": "Wendel eats one before he pays. \"For quality.\"",
+  "req": {
+   "Fishing": 30,
+   "Cooking": 30
+  }
+ },
+ "q_order_cooked_salmon": {
+  "name": "Order: Cooked Salmon",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 45,
+  "summary": "Cooked salmon for the College's feast day, where Wendel has been asked to bring the fish course.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 3 cooked salmon",
+    "type": "deliver",
+    "target": "cooked_salmon",
+    "to": "npc_wendel",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 8900,
+    "Cooking": 3560
+   },
+   "coins": 430
+  },
+  "completion": "\"They will think I cooked it. Let them.\"",
+  "req": {
+   "Fishing": 45,
+   "Cooking": 45
+  }
+ },
+ "q_order_cooked_eel": {
+  "name": "Order: Cooked Eel",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 60,
+  "summary": "Cooked eel, which Wendel swears is a delicacy and nobody else will eat.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 2 cooked eels",
+    "type": "deliver",
+    "target": "cooked_eel",
+    "to": "npc_wendel",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 24170,
+    "Cooking": 9670
+   },
+   "coins": 1180
+  },
+  "completion": "He eats one with his eyes closed and looks very happy.",
+  "req": {
+   "Fishing": 60,
+   "Cooking": 60
+  }
+ },
+ "q_order_salmon_smokehouse": {
+  "name": "Order: The Smokehouse",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 55,
+  "summary": "Six salmon for the smokehouse Wendel has built behind the jetty and will not let anyone see.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 6 raw salmon",
+    "type": "deliver",
+    "target": "raw_salmon",
+    "to": "npc_wendel",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 17220
+   },
+   "coins": 3000
+  },
+  "completion": "Smoke rises behind the jetty for three days afterwards.",
+  "req": {
+   "Fishing": 55
+  }
+ },
+ "q_order_eel_barrel": {
+  "name": "Order: A Barrel of Eels",
+  "source": "npc",
+  "giver": "npc_wendel",
+  "level": 75,
+  "summary": "A barrel of eels for the Barley and Bell's harvest supper. Bess did not ask for them. Wendel is sending them anyway.",
+  "repeat": "daily",
+  "pool": "wendel_orders",
+  "posts": 2,
+  "stages": [
+   {
+    "desc": "Bring Old Wendel 5 raw eels",
+    "type": "deliver",
+    "target": "raw_eel",
+    "to": "npc_wendel",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 68850
+   },
+   "coins": 6000
+  },
+  "completion": "\"She will thank me. Eventually. Possibly.\"",
+  "req": {
+   "Fishing": 75
+  }
+ },
+ "q_bess_meat": {
+  "name": "Order: Cooked Meat",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 1,
+  "summary": "Cooked meat for the taproom's supper. Anything, as long as it is hot and there is plenty.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 6 portions of cooked meat",
+    "type": "deliver",
+    "target": "cooked_meat",
+    "to": "npc_cook",
+    "count": 6
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 670
+   },
+   "coins": 70
+  },
+  "completion": "\"Plenty, and hot. You would be surprised how many cannot manage both.\""
+ },
+ "q_bess_chicken": {
+  "name": "Order: Roast Chicken",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 4,
+  "summary": "Roast chicken for the carters, who come in off the road hungry enough to eat the table.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 5 roast chickens",
+    "type": "deliver",
+    "target": "cooked_chicken",
+    "to": "npc_cook",
+    "count": 5
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 780
+   },
+   "coins": 135
+  },
+  "completion": "She puts them straight on the pass. \"Go on, before they start on the table.\"",
+  "req": {
+   "Cooking": 4
+  }
+ },
+ "q_bess_oats": {
+  "name": "Order: Honeyed Oats",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 6,
+  "summary": "Honeyed oats for the lodgers' breakfast. Bess has overslept and will not say so.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 4 honeyed oats",
+    "type": "deliver",
+    "target": "honeyed_oats",
+    "to": "npc_cook",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 880
+   },
+   "coins": 245
+  },
+  "completion": "\"If anyone asks, I made these.\"",
+  "req": {
+   "Cooking": 6
+  }
+ },
+ "q_bess_mutton": {
+  "name": "Order: Roast Mutton",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 9,
+  "summary": "Roast mutton for a wedding party in the upstairs room, who have already eaten the first lot.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 4 plates of roast mutton",
+    "type": "deliver",
+    "target": "cooked_mutton",
+    "to": "npc_cook",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 1040
+   },
+   "coins": 210
+  },
+  "completion": "Cheering comes down the stairs a minute after they go up.",
+  "req": {
+   "Cooking": 9
+  }
+ },
+ "q_bess_skewers": {
+  "name": "Order: Hunter's Skewers",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 12,
+  "summary": "Hunter's skewers for a party going out after boar at first light.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 hunter's skewers",
+    "type": "deliver",
+    "target": "hunters_skewers",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 1220
+   },
+   "coins": 385
+  },
+  "completion": "\"They will eat them standing up. That is the point.\"",
+  "req": {
+   "Cooking": 12
+  }
+ },
+ "q_bess_trout": {
+  "name": "Order: Cooked Trout",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 15,
+  "summary": "Cooked trout for a Friday. Bess keeps Fridays, and so does the inn.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 4 cooked trout",
+    "type": "deliver",
+    "target": "cooked_trout",
+    "to": "npc_cook",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 1450
+   },
+   "coins": 200
+  },
+  "completion": "The smell brings two people in off the street before she has paid you.",
+  "req": {
+   "Cooking": 15,
+   "Fishing": 15
+  }
+ },
+ "q_bess_stew": {
+  "name": "Order: Hearty Stew",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 22,
+  "summary": "Hearty stew for the watch, who are cold and say the inn's stew is the only warm thing on the wall.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 bowls of hearty stew",
+    "type": "deliver",
+    "target": "hearty_stew",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 2160
+   },
+   "coins": 535
+  },
+  "completion": "\"Corrin will have two bowls. Corrin always has two bowls.\"",
+  "req": {
+   "Cooking": 22,
+   "Foraging": 6
+  }
+ },
+ "q_bess_pies": {
+  "name": "Order: Traveller's Pies",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 24,
+  "summary": "Traveller's pies for a caravan leaving for the Westwold at dawn.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 traveller's pies",
+    "type": "deliver",
+    "target": "travellers_pie",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 2430
+   },
+   "coins": 630
+  },
+  "completion": "She wraps them in cloth. \"They will be better cold. They always are.\"",
+  "req": {
+   "Cooking": 24
+  }
+ },
+ "q_bess_broth": {
+  "name": "Order: Fisherman's Broth",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 28,
+  "summary": "Fisherman's broth. Old Wendel says hers is wrong and has asked to try somebody else's.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 bowls of fisherman's broth",
+    "type": "deliver",
+    "target": "fishermans_broth",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 3080
+   },
+   "coins": 730
+  },
+  "completion": "\"Do not tell Wendel it was not mine. Or do. I want to see his face.\"",
+  "req": {
+   "Cooking": 28,
+   "Fishing": 15,
+   "Foraging": 12
+  }
+ },
+ "q_bess_pike": {
+  "name": "Order: Cooked Pike",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 30,
+  "summary": "Cooked pike for the guild's table, who have got tired of mutton and said so, loudly.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 cooked pike",
+    "type": "deliver",
+    "target": "cooked_pike",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 3480
+   },
+   "coins": 280
+  },
+  "completion": "\"Pike. Let them complain about pike now.\"",
+  "req": {
+   "Cooking": 30,
+   "Fishing": 30
+  }
+ },
+ "q_bess_tea": {
+  "name": "Order: Moonpetal Tea",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 34,
+  "summary": "Moonpetal tea for the College students staying over before their examinations.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 pots of moonpetal tea",
+    "type": "deliver",
+    "target": "moonpetal_tea",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 4440
+   },
+   "coins": 1035
+  },
+  "completion": "\"They will pass, or they will sleep. Either way, they will stop pacing.\"",
+  "req": {
+   "Cooking": 34,
+   "Foraging": 56
+  }
+ },
+ "q_bess_supper": {
+  "name": "Order: Farmer's Supper",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 40,
+  "summary": "Farmer's supper for the last day of harvest, which Havenbrook eats at the inn every year.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 2 farmer's suppers",
+    "type": "deliver",
+    "target": "roast_supper",
+    "to": "npc_cook",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 6460
+   },
+   "coins": 1025
+  },
+  "completion": "The whole taproom bangs the tables when it goes out.",
+  "req": {
+   "Cooking": 40,
+   "Foraging": 28
+  }
+ },
+ "q_bess_salmon": {
+  "name": "Order: Cooked Salmon",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 45,
+  "summary": "Cooked salmon for a councillor from Fernhollow, who is here to be impressed.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 3 cooked salmon",
+    "type": "deliver",
+    "target": "cooked_salmon",
+    "to": "npc_cook",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 8900
+   },
+   "coins": 430
+  },
+  "completion": "\"He was impressed. He tried not to be. I saw.\"",
+  "req": {
+   "Cooking": 45,
+   "Fishing": 45
+  }
+ },
+ "q_bess_harvest": {
+  "name": "Order: The Harvest Feast",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 55,
+  "summary": "The harvest feast: four farmer's suppers for the long table, and the whole town is coming.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 4 farmer's suppers",
+    "type": "deliver",
+    "target": "roast_supper",
+    "to": "npc_cook",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 17220
+   },
+   "coins": 1725
+  },
+  "completion": "Bess sits down for the first time all day. \"That is the feast done. Now the washing.\"",
+  "req": {
+   "Cooking": 55,
+   "Foraging": 28
+  }
+ },
+ "q_bess_eel": {
+  "name": "Order: Cooked Eel",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 60,
+  "summary": "Cooked eel, because Wendel sent a barrel and Bess refuses to waste it.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 2 cooked eels",
+    "type": "deliver",
+    "target": "cooked_eel",
+    "to": "npc_cook",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 24170
+   },
+   "coins": 1180
+  },
+  "completion": "\"It is not bad. Do not tell Wendel it is not bad.\"",
+  "req": {
+   "Cooking": 60,
+   "Fishing": 60
+  }
+ },
+ "q_bess_minnows": {
+  "name": "Order: Fried Minnows",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 1,
+  "summary": "Fried minnows for the bar, where they go out by the bowlful to people waiting for their supper.",
+  "repeat": "daily",
+  "pool": "bess_orders",
+  "posts": 3,
+  "stages": [
+   {
+    "desc": "Bring Innkeeper Bess 8 cooked minnows",
+    "type": "deliver",
+    "target": "cooked_minnow",
+    "to": "npc_cook",
+    "count": 8
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Cooking": 670
+   },
+   "coins": 100
+  },
+  "completion": "\"They will be gone before you are out of the door. Listen.\""
  }
 }

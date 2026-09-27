@@ -648,6 +648,23 @@
     }
    },
    {
+    "text": "Anything wanted in the kitchen?",
+    "next": "end",
+    "action": {
+     "orders": "npc_cook"
+    }
+   },
+   {
+    "text": "I have an order for you.",
+    "next": "cook_order_filled",
+    "if": {
+     "order_ready": true
+    },
+    "action": {
+     "hand_in": true
+    }
+   },
+   {
     "text": "What is on the menu?",
     "next": "end",
     "action": {
@@ -656,6 +673,16 @@
    },
    {
     "text": "Maybe later.",
+    "next": "end"
+   }
+  ]
+ },
+ "cook_order_filled": {
+  "speaker": "Innkeeper Bess",
+  "text": "Oh, that smells right. Straight onto the pass with it -- and here, for your trouble. There will be more on the slate tomorrow; there always is.",
+  "options": [
+   {
+    "text": "Glad to help.",
     "next": "end"
    }
   ]

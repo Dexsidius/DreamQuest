@@ -5094,50 +5094,140 @@ ones go up.
 
 ### Order books
 
-**Smith Halda** and **Old Wendel** take orders, every day. Ask Halda "Any
-orders today?" (or Wendel "Any fish wanted?") and the day's orders open on the
-board panel, with what each asks for, how many you carry, what it needs and
-what it pays. Accept one, bring the goods, and pick "I have an order for you."
--- that line only appears when an order of theirs can be filled from the pack,
-and it hands in every order it can at once.
+Six traders take orders, every day: **Smith Halda** at the forge, **Nessa** at
+the tannery and **Innkeeper Bess** in Havenbrook; **Wynn** the draper, **Oona**
+the herbalist and **Old Wendel** in Mossvale and on the jetty. Ask for the
+day's orders ("Any orders today?", or Bess "Anything wanted in the kitchen?")
+and they open on the board panel, with what each asks for, how many you carry,
+what it needs and what it pays. Accept one, bring the goods, and pick "I have
+an order for you." -- that line only appears when an order of theirs can be
+filled from the pack, and it hands in every order it can at once.
 
-Orders are dailies in a pool of their own. **Halda posts three a day, Wendel
-two**, new at dawn, and each can be filled once a day. A posted order is never
-one the player cannot take yet: an order needing Smithing 20 is passed over for
-the next in the day's order, so a new character always has at least two to
-choose from, and the book fills out as the skills rise.
+Orders are dailies in a pool of their own. **Wendel posts two a day and the
+rest three**, new at dawn, and each can be filled once a day. A posted order is
+never one the player cannot take yet, so a new character always has at least
+two to choose from.
 
-Halda's orders pay **Mining XP and coins**, and the smelted and smithed ones
-**Smithing XP** as well:
+**And a book climbs with the trade it is for.** Every book now runs from the
+first level of its trade to the top of what that trade makes -- Halda's from
+bronze to enchanted, Nessa's and Wynn's to the dreamhide and the dreamweave,
+Oona's to starlily, Wendel's past the eels, Bess's to cooked eel -- and what is
+posted is work at the player's own level. An order more than **twenty levels
+below** them in its trade (`QuestLog::ORDER_BAND`) is beneath them: it is
+posted only when there is not enough nearer their level to fill the day, and
+then the highest of it first. A Smithing 60 smith used to be posted bronze
+swords as often as anyone, from a book that stopped at steel; now they are
+posted damascus, orichalcum and diamond work, and a Smithing 95 one is asked for
+dracon and enchanted pieces. The trade an order is judged by is the skill it
+pays most in (`QuestLog::TradeOf`): Bess's moonpetal tea asks for Foraging 56
+to find the petals, but it is a Cooking order.
 
-| Kind | Order | Needs | Mining XP | Smithing XP | Coins |
-| --- | --- | --- | --- | --- | --- |
-| Ore | 10 copper ore | -- | 450 | -- | 143 |
-| Ore | 8 iron ore | Mining 5 | 520 | -- | 187 |
-| Ore | 6 coal | Mining 20 | 900 | -- | 583 |
-| Ore | 4 azuryte ore | Mining 30 | 1200 | -- | 864 |
-| Ingots | 6 bronze bars | -- | 600 | 360 | 216 |
-| Ingots | 5 iron bars | Smithing 10, Mining 5 | 900 | 540 | 432 |
-| Ingots | 3 steel bars | Smithing 20, Mining 20 | 1400 | 840 | 1304 |
-| Weapons | 2 bronze swords | -- | 500 | 400 | 275 |
-| Weapons | 1 iron sword | Smithing 10 | 700 | 560 | 319 |
-| Weapons | 1 steel longsword | Smithing 20 | 1600 | 1280 | 2273 |
-| Hide | 8 hides | -- | 250 | -- | 94 |
-| Armour | 2 bronze helms | -- | 450 | 360 | 375 |
-| Armour | 1 iron cuirass | Smithing 10 | 1100 | 880 | 1124 |
-| Armour | 1 steel greaves | Smithing 20 | 2200 | 1760 | 3392 |
+What an order pays grows with the level it asks: about two levels' worth of its
+trade at level 20, one at 45, two thirds of one at 60 and a third of one at 95,
+a little more for a cuirass or a greatsword than for a helm or a bar, and in
+coin a third more than the goods would sell for (less, where a shop stocks
+them: see below). No new order pays less of its trade than an older one
+lower in the same book. Halda's smithing orders
+pay **Smithing** first now, and a fifth as much Mining for the ore they took;
+her ore orders pay Mining. They used to pay Mining first, even for a sword.
 
-Wendel's pay **Fishing XP and coins**:
+**Halda's book** (49 orders):
 
-| Order | Needs | Fishing XP | Coins |
+| Order | Needs | Smithing XP | Mining XP | Coins |
+| --- | --- | --- | --- | --- |
+| 10 copper ore | -- | -- | 450 | 143 |
+| 8 hides | -- | -- | 250 | 94 |
+| 2 bronze helms | -- | 600 | 120 | 375 |
+| 2 bronze swords | -- | 670 | 130 | 275 |
+| 3 bronze daggers | -- | 600 | 120 | 190 |
+| 6 bronze bars | -- | 530 | 110 | 220 |
+| 8 iron ore | Mining 5 | -- | 520 | 187 |
+| 1 iron cuirass | Smithing 10 | 1,370 | 270 | 1,124 |
+| 1 iron sword | Smithing 10 | 1,090 | 220 | 315 |
+| 2 iron shields | Smithing 10 | 1,090 | 220 | 1,145 |
+| 5 iron bars | Smithing 10, Mining 5 | 880 | 180 | 440 |
+| 1 iron spear | Smithing 11 | 1,090 | 220 | 325 |
+| 6 coal | Mining 20 | -- | 900 | 583 |
+| 1 steel greaves | Smithing 20 | 2,120 | 420 | 3,392 |
+| 1 steel helm | Smithing 20 | 1,730 | 350 | 1,565 |
+| 1 steel longsword | Smithing 20 | 1,930 | 390 | 2,273 |
+| 1 steel mace | Smithing 20 | 1,930 | 390 | 2,740 |
+| 3 steel bars | Smithing 20, Mining 20 | 1,540 | 310 | 1,325 |
+| 4 azuryte ore | Mining 30 | -- | 1,200 | 864 |
+| 1 azuryte helm | Smithing 30 | 3,130 | 630 | 3,990 |
+| 1 azuryte mace | Smithing 30 | 3,480 | 700 | 5,800 |
+| 4 azuryte bars | Smithing 30, Mining 30 | 2,780 | 560 | 3,880 |
+| 5 damascus ore | Mining 40 | -- | 5,170 | 2,360 |
+| 1 damascus greaves | Smithing 40 | 7,110 | 1,420 | 15,720 |
+| 1 damascus shield | Smithing 40 | 6,460 | 1,290 | 15,725 |
+| 1 damascus sword | Smithing 40 | 6,460 | 1,290 | 10,655 |
+| 3 damascus bars | Smithing 40, Mining 40 | 5,170 | 1,030 | 9,560 |
+| 5 orichalcum ore | Mining 50 | -- | 9,870 | 4,130 |
+| 1 orichalcum cuirass | Smithing 50 | 15,430 | 3,090 | 42,515 |
+| 1 orichalcum spear | Smithing 50 | 12,340 | 2,470 | 17,400 |
+| 3 orichalcum bars | Smithing 50, Mining 50 | 9,870 | 1,970 | 15,585 |
+| 4 rough diamonds | Mining 60 | -- | 19,340 | 6,095 |
+| 1 diamond boots | Smithing 60 | 21,750 | 4,350 | 24,995 |
+| 1 diamond greatsword | Smithing 60 | 30,210 | 6,040 | 49,255 |
+| 2 diamond ingots | Smithing 60, Mining 60 | 19,340 | 3,870 | 15,180 |
+| 4 platinum ore | Mining 70 | -- | 38,680 | 7,785 |
+| 1 platinum greataxe | Smithing 70 | 60,430 | 12,090 | 74,960 |
+| 1 platinum greaves | Smithing 70 | 53,180 | 10,640 | 56,425 |
+| 2 platinum bars | Smithing 70, Mining 70 | 38,680 | 7,740 | 22,915 |
+| 3 demonite ore | Mining 80 | -- | 78,750 | 8,640 |
+| 1 demonite cuirass | Smithing 80 | 123,040 | 24,610 | 153,205 |
+| 1 demonite sword | Smithing 80 | 98,430 | 19,690 | 61,885 |
+| 2 demonite bars | Smithing 80, Mining 80 | 78,750 | 15,750 | 34,815 |
+| 1 dracon bar | Smithing 88 | 140,510 | 28,100 | 67,865 |
+| 1 dracon dagger | Smithing 88 | 158,080 | 31,620 | 121,290 |
+| 1 dracon helm | Smithing 88 | 158,080 | 31,620 | 241,495 |
+| 1 enchanted bar | Smithing 95 | 234,660 | 46,930 | 241,810 |
+| 1 enchanted shield | Smithing 95 | 293,330 | 58,670 | 1,300,655 |
+| 1 enchanted sword | Smithing 95 | 293,330 | 58,670 | 867,500 |
+
+**Bess's book** (16 orders), for the kitchen -- new:
+
+| Order | Needs | Cooking XP | Coins |
 | --- | --- | --- | --- |
-| 10 raw minnows | -- | 300 | 78 |
-| 8 cooked minnows | -- | 200 | 108 |
-| 6 raw trout | Fishing 15 | 450 | 188 |
-| 5 cooked trout | Fishing 15, Cooking 15 | 400 | 252 |
-| 3 raw pike | Fishing 30 | 520 | 176 |
-| 3 raw salmon | Fishing 45 | 600 | 273 |
-| 2 raw eels | Fishing 60 | 650 | 260 |
+| 6 portions of cooked meat | -- | 670 | 70 |
+| 8 cooked minnows | -- | 670 | 100 |
+| 5 roast chickens | Cooking 4 | 780 | 135 |
+| 4 honeyed oats | Cooking 6 | 880 | 245 |
+| 4 plates of roast mutton | Cooking 9 | 1,040 | 210 |
+| 3 hunter's skewers | Cooking 12 | 1,220 | 385 |
+| 4 cooked trout | Cooking 15, Fishing 15 | 1,450 | 200 |
+| 3 bowls of hearty stew | Cooking 22, Foraging 6 | 2,160 | 535 |
+| 3 traveller's pies | Cooking 24 | 2,430 | 630 |
+| 3 bowls of fisherman's broth | Cooking 28, Fishing 15, Foraging 12 | 3,080 | 730 |
+| 3 cooked pike | Cooking 30, Fishing 30 | 3,480 | 280 |
+| 3 pots of moonpetal tea | Foraging 56, Cooking 34 | 4,440 | 1,035 |
+| 2 farmer's suppers | Cooking 40, Foraging 28 | 6,460 | 1,025 |
+| 3 cooked salmon | Cooking 45, Fishing 45 | 8,900 | 430 |
+| 4 farmer's suppers | Cooking 55, Foraging 28 | 17,220 | 1,725 |
+| 2 cooked eels | Cooking 60, Fishing 60 | 24,170 | 1,180 |
+
+**Wendel's book**:
+
+| Order | Needs | Fishing XP | Cooking XP | Coins |
+| --- | --- | --- | --- | --- |
+| 10 raw minnows | -- | 320 | -- | 78 |
+| 8 cooked minnows | -- | 260 | -- | 108 |
+| 5 cooked trout | Fishing 15, Cooking 15 | 1,300 | -- | 268 |
+| 6 raw trout | Fishing 15 | 1,500 | -- | 320 |
+| 3 raw pike | Fishing 30 | 3,200 | -- | 176 |
+| 4 cooked pike | Fishing 30, Cooking 30 | 3,480 | 1,390 | 370 |
+| 5 raw pike | Fishing 35 | 4,720 | -- | 690 |
+| 3 cooked salmon | Fishing 45, Cooking 45 | 8,900 | 3,560 | 430 |
+| 3 raw salmon | Fishing 45 | 6,500 | -- | 1,400 |
+| 6 raw salmon | Fishing 55 | 17,220 | -- | 3,000 |
+| 2 cooked eels | Fishing 60, Cooking 60 | 24,170 | 9,670 | 1,180 |
+| 2 raw eels | Fishing 60 | 12,000 | -- | 3,200 |
+| 5 raw eels | Fishing 75 | 68,850 | -- | 6,000 |
+
+Nessa's, Wynn's and Oona's books are described with their shops (above): each
+now goes on up the tiers in the same way, Nessa's to 26 orders (to a dreamhide
+jerkin at Tanning 95), Wynn's to 22 (a dreamweave robe at Clothier 95) and
+Oona's to 20 (panacea and starlily at 68).
 
 Filling an order always pays more than selling the same goods to any trader.
 Some orders ask for things a shop stocks -- Halda sells bronze bars, and the
@@ -7020,8 +7110,12 @@ and checks all of it — currently **61823 checks** covering:
 - the dream quests played through the world at night: sleeping into the
   Reverie, reading the voice, reporting to Mira, Hesper's hunt, and the reverie
   dailies posted on the Slate
-- order books: Halda's orders cover ore, bars, weapons, hides and armour, and
-  pay Mining XP and coins; Wendel's are fish and pay Fishing XP; every order
+- order books: Halda's orders cover ore, bars, weapons, hides and armour in all
+  eleven metals and pay Smithing XP and coins; Wendel's are fish and pay Fishing
+  XP; Bess's are cooked food and pay Cooking XP; every book posts only orders
+  within twenty levels of the trader's skill while there are enough of them, so
+  a level 99 smith is offered the top of the book and never bronze; the top of
+  every book pays more than four times the bottom; every order
   pays more than selling the goods, needs the Crafting or Fishing level its item
   takes, and costs more to fill from a shelf than it pays; on every one of forty
   days a new character is posted at least two orders they can take and none they

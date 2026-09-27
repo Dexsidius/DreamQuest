@@ -151,13 +151,56 @@ vector<string> QuestLog::PoolToday(const string& pool, const Skills* skills) con
 
     const int posts = PostsPerDay(pool);
     vector<string> out;
+    if (!skills) {
+        for (const string& id : members) {
+            if (static_cast<int>(out.size()) >= posts) break;
+            out.push_back(id);
+        }
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+    // Work at the player's own level first. An order more than ORDER_BAND
+    // levels below them, in the trade it is for, is beneath them: it is
+    // posted only when there is not enough at their level to fill the day,
+    // and then the highest of it first. A master smith used to be posted
+    // bronze swords as often as anyone, from a book that had nothing above
+    // steel in it.
+    vector<string> stale;
     for (const string& id : members) {
+        const QuestDef& d = defs.at(id);
+        if (!MeetsRequirements(d, *skills)) continue;
+        if (skills->Level(TradeOf(d)) - OrderLevel(d) > ORDER_BAND) { stale.push_back(id); continue; }
+        if (static_cast<int>(out.size()) < posts) out.push_back(id);
+    }
+    std::stable_sort(stale.begin(), stale.end(), [&](const string& a, const string& b) {
+        return OrderLevel(defs.at(a)) > OrderLevel(defs.at(b));
+    });
+    for (const string& id : stale) {
         if (static_cast<int>(out.size()) >= posts) break;
-        if (skills && !MeetsRequirements(defs.at(id), *skills)) continue;
         out.push_back(id);
     }
     std::sort(out.begin(), out.end());
     return out;
+}
+
+int QuestLog::TradeOf(const QuestDef& d) {
+    // The skill it pays most in: a cook's order for moonpetal tea asks for
+    // Foraging to find the petals, but it is Cooking it is for. Paying no
+    // skill at all, the one it asks most of.
+    int skill = -1, paid = -1;
+    for (const auto& x : d.rewards.xp)
+        if (x.second > paid) { skill = x.first; paid = x.second; }
+    if (skill >= 0) return skill;
+    int most = -1;
+    for (const auto& r : d.requirements)
+        if (r.second > most) { skill = r.first; most = r.second; }
+    return skill >= 0 ? skill : 0;
+}
+
+int QuestLog::OrderLevel(const QuestDef& d) {
+    const int skill = TradeOf(d);
+    const auto it = d.requirements.find(skill);
+    return it == d.requirements.end() ? 1 : it->second;
 }
 
 bool QuestLog::OfferedToday(const string& id, const Skills* skills) const {
