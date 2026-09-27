@@ -2701,8 +2701,11 @@ static void BuildTown() {
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
             const float v = Fbm(cx * 0.25f, cy * 0.25f, 77);
-            // A crossroads through the middle of the village.
-            const bool on_road = (abs(cy - 22) <= 1) || (abs(cx - 28) <= 1);
+            // A crossroads through the middle of the village. The north street
+            // ends at the guild hall's steps, with a paved forecourt before
+            // them; it used to run on past the hall to the fence, behind it.
+            const bool forecourt = cy >= 14 && cy <= 15 && abs(cx - 28) <= 4;
+            const bool on_road = (abs(cy - 22) <= 1) || (abs(cx - 28) <= 1 && cy >= 13) || forecourt;
             string tile = on_road ? VariantOf("road", cx, cy)
                         : (v > 0.6f ? "grass_light" : (v > 0.3f ? "grass" : "grass_olive"));
             if (in_pit(cx, cy))   tile = v > 0.6f ? "sand" : (v > 0.3f ? "dirt" : "dirt_dark");
@@ -2764,8 +2767,12 @@ static void BuildTown() {
     // Each one also gets its own doorstep to come back out onto. The interiors
     // all used to leave to the town's default spawn, which is the crossroads,
     // so stepping out of any building put you in the middle of the square.
-    PlaceBuilding(m, "building_guild",   28 * CELL + 16, 14 * CELL, 144, 111,
-                  "guild_hall", "entrance", "Enter the guild hall", "from_guild_hall");
+    // The guild hall: the biggest building in the town, and meant to look it
+    // (prop_guild_house): two storeys of stone under slate, a tower up the
+    // middle of the front with the door in it and a spire, at the head of the
+    // north street.
+    PlaceBuilding(m, "guild_house",      28 * CELL + 16, 14 * CELL, 200, 196,
+                  "guild_hall", "entrance", "Enter the guild hall", "from_guild_hall", "props");
     PlaceBuilding(m, "building_house_a", 13 * CELL,      18 * CELL, 136, 149,
                   "house_elder", "entrance", "Enter Maren's house", "from_house_elder");
     // The inn has its own building rather than another cottage: modelled in
@@ -2783,7 +2790,7 @@ static void BuildTown() {
         // Beside the door rather than over it: an object drawn above the
         // doorway would sort behind the building and be invisible, and one in
         // the doorway would block the way in.
-        json& o = m.Object("sign_guild_hall", "sign", 28 * CELL + 16 + 96, 14 * CELL);
+        json& o = m.Object("sign_guild_hall", "sign", 28 * CELL + 16 + 126, 14 * CELL + 6);
         o["sprite"] = ObjPath("sign_guild");
         o["title"]  = "Havenbrook Guild Hall";
         o["text"]   = "THE ADVENTURERS' GUILD OF HAVENBROOK\n\n"
@@ -3275,9 +3282,12 @@ static void BuildInteriors() {
         m.Interior(true);
         m.Background(22, 18, 16);
 
+        // A back wall three courses high rather than one: something to hang
+        // the guild's arms, its tapestries and its trophies on. With one row of
+        // brick the banners had to stand on the floor in front of it.
         for (int cy = 0; cy < rows; ++cy)
             for (int cx = 0; cx < cols; ++cx) {
-                const bool wall = (cx == 0 || cy == 0 || cx == cols - 1 || cy == rows - 1);
+                const bool wall = (cx == 0 || cy <= 2 || cx == cols - 1 || cy == rows - 1);
                 const bool doorway = (cy == rows - 1 && cx >= cols / 2 - 1 && cx <= cols / 2 + 1);
                 m.Ground(wall ? "guild_wall" : "guild_floor", cx * CELL, cy * CELL, CELL);
                 if (wall && !doorway) m.Collision(cx * CELL, cy * CELL, CELL, CELL);
@@ -3298,13 +3308,34 @@ static void BuildInteriors() {
             if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
             return id;
         };
+        auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+            m.Prop("props", art, x, y);
+            if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+        };
+        const int wall_foot = 3 * CELL;            // where the floor meets the back wall
 
-        // --- the north wall: the guild master, his desk and the banners -----
-        m.Prop("objects", "guild_banner", 8 * CELL, 2 * CELL);
-        m.Prop("objects", "guild_banner", 16 * CELL, 2 * CELL);
-        furnish("desk", "guild_desk", dx, 3 * CELL, 52, 14);
+        // --- the back wall: the guild's arms over its master, and all it keeps --
+        // Hung on the brick: nothing walks there, so they need no floor.
+        piece("crossed_arms",  dx,               wall_foot - 10, 0, 0);
+        piece("tapestry_red",  dx - 5 * CELL,    wall_foot - 4,  0, 0);
+        piece("tapestry_red",  dx + 5 * CELL,    wall_foot - 4,  0, 0);
+        piece("tapestry_blue", dx + 8 * CELL,    wall_foot - 4,  0, 0);
+        piece("trophy_stag",   dx - 2 * CELL - 16, wall_foot - 22, 0, 0);
+        piece("trophy_stag",   dx + 2 * CELL + 16, wall_foot - 22, 0, 0);
+
+        // --- the dais: the guild master, his desk and the banners -------------
+        m.Overlay("props", "inn_rug", dx, 5 * CELL + 8);
+        furnish("desk", "guild_desk", dx, 5 * CELL + 8, 52, 14);
         m.Npc("npc_guildmaster", "Guild Master Orlend", "fighter2",
-              dx, 2 * CELL - 8, "guildmaster_root", 0);
+              dx, 4 * CELL, "guildmaster_root", 0);
+        m.Prop("objects", "guild_banner", dx - 3 * CELL - 8, wall_foot + 10);
+        m.Prop("objects", "guild_banner", dx + 3 * CELL + 8, wall_foot + 10);
+        piece("candlestand", dx - 2 * CELL, 5 * CELL + 20, 14, 8);
+        piece("candlestand", dx + 2 * CELL, 5 * CELL + 20, 14, 8);
+
+        // --- the aisle: red rugs from the door to the dais ---------------------
+        for (int k = 0; k < 3; ++k)
+            m.Overlay("props", "inn_rug", dx, (8 + 3 * k) * CELL + 16);
 
         // The last of the Spirewatch, sat under the west wall with a stick
         // across his knees. He has nothing to say to anyone who could not
@@ -3312,42 +3343,45 @@ static void BuildInteriors() {
         // Art of his own (tools/blender_creatures.py, build_vask): the chair is
         // part of the sprite and rocks with him, so the floor under it is
         // blocked rather than the chair being a prop you can walk through.
-        m.Npc("npc_elder", "Elder Vask", "vask", 5 * CELL, 11 * CELL, "elder_root", 0);
-        m.Collision(5 * CELL - 22, 11 * CELL - 14, 44, 14);
+        m.Npc("npc_elder", "Elder Vask", "vask", 3 * CELL, 11 * CELL, "elder_root", 0);
+        m.Collision(3 * CELL - 22, 11 * CELL - 14, 44, 14);
 
-        // The rug sits under him rather than in the middle of the room: it
-        // marks where the hall expects you to stand and be spoken to.
-        m.Flat("objects", "guild_rug", dx, 5 * CELL);
+        // --- the west: the hearth, and the records ------------------------------
+        furnish("shelf_a", "guild_bookshelf",   1 * CELL + 20, wall_foot + 4, 40, 14);
+        furnish("cabinet", "guild_cabinet",     1 * CELL + 20, 6 * CELL + 16, 40, 14);
+        furnish("shelf_b", "guild_bookshelf_b", 1 * CELL + 20, 8 * CELL + 16, 40, 14);
+        m.Overlay("props", "bear_rug", 5 * CELL, 6 * CELL - 4);
+        piece("log_pile", 7 * CELL + 12, wall_foot + 16, 26, 8);
 
-        // --- the west wall: records ------------------------------------------
-        furnish("shelf_a", "guild_bookshelf",   2 * CELL + 16, 2 * CELL, 44, 14);
-        furnish("shelf_b", "guild_bookshelf_b", 4 * CELL + 16, 2 * CELL, 44, 14);
-        furnish("cabinet",  "guild_cabinet",    2 * CELL + 16, 6 * CELL, 44, 14);
-        furnish("plant_w",  "guild_plant",      2 * CELL,      9 * CELL, 14, 8);
+        // --- the east: arms, and the guild's trophies of them --------------------
+        furnish("rack_a", "guild_weapon_rack", (cols - 2) * CELL - 4, wall_foot + 4, 44, 14);
+        furnish("rack_b", "guild_armour_rack", (cols - 2) * CELL - 4, 6 * CELL + 16, 44, 14);
+        furnish("rack_c", "guild_rack",        (cols - 2) * CELL - 4, 8 * CELL + 16, 42, 14);
+        piece("weapon_barrel", (cols - 2) * CELL - 4, 10 * CELL + 16, 30, 10);
+        piece("training_dummy", (cols - 5) * CELL, 6 * CELL + 10, 22, 10);
 
-        // --- the east wall: arms ---------------------------------------------
-        furnish("rack_a", "guild_weapon_rack", 21 * CELL, 3 * CELL, 44, 14);
-        furnish("rack_b", "guild_armour_rack", 21 * CELL, 6 * CELL, 44, 14);
-        furnish("rack_c", "guild_rack",        21 * CELL, 9 * CELL, 42, 14);
-        furnish("plant_e", "guild_plant",      21 * CELL, 11 * CELL, 14, 8);
-
-        // --- the middle: two long tables with benches either side ------------
-        for (int i = 0; i < 2; ++i) {
-            const int tx = (i == 0 ? 9 : 15) * CELL;
-            furnish("table_" + std::to_string(i), "guild_table", tx, 9 * CELL, 52, 16);
-            furnish("bench_" + std::to_string(i * 2),     "guild_bench", tx, 8 * CELL - 6, 44, 10);
-            furnish("bench_" + std::to_string(i * 2 + 1), "guild_bench", tx, 11 * CELL, 44, 10);
+        // --- either side of the aisle: long tables with benches ------------------
+        for (int side : {-1, 1}) {
+            const int tx = dx + side * 6 * CELL;
+            piece("tavern_bench", tx, 8 * CELL + 4,  48, 8);
+            piece("table_long",   tx, 10 * CELL,     72, 14);
+            piece("tavern_bench", tx, 11 * CELL + 8, 48, 8);
+            piece("candlestand",  tx + side * 2 * CELL + side * 12, 9 * CELL + 30, 14, 8);
         }
 
-        // --- the south end: where people wait --------------------------------
-        furnish("settle", "guild_settle", 6 * CELL, 13 * CELL, 44, 12);
-        furnish("couch",  "guild_couch",  18 * CELL, 13 * CELL, 48, 14);
-        furnish("chair_a", "guild_chair", 8 * CELL, 13 * CELL, 12, 8);
-        furnish("chair_b", "guild_chair", 16 * CELL, 13 * CELL, 12, 8);
+        // --- the south end: where people wait ------------------------------------
+        furnish("settle", "guild_settle", 6 * CELL, 14 * CELL, 44, 12);
+        furnish("couch",  "guild_couch",  18 * CELL, 14 * CELL, 48, 14);
+        furnish("chair_a", "guild_chair", 8 * CELL, 14 * CELL, 12, 8);
+        furnish("chair_b", "guild_chair", 16 * CELL, 14 * CELL, 12, 8);
+        furnish("plant_w", "guild_plant", 2 * CELL, 15 * CELL, 14, 8);
+        furnish("plant_e", "guild_plant", (cols - 2) * CELL, 15 * CELL, 14, 8);
+        furnish("plant_d1", "guild_plant", dx - 2 * CELL, 15 * CELL + 8, 14, 8);
+        furnish("plant_d2", "guild_plant", dx + 2 * CELL, 15 * CELL + 8, 14, 8);
 
         // --- things you can actually use -------------------------------------
         {
-            json& o = m.Object("board_guild", "sign", 4 * CELL, 12 * CELL);
+            json& o = m.Object("board_guild", "sign", 4 * CELL, 13 * CELL);
             o["sprite"] = ObjPath("guild_noticeboard");
             o["title"]  = "Guild notices";
             o["text"]   = "DUES are payable at the turn of the season. The Guild "
@@ -3357,14 +3391,15 @@ static void BuildInteriors() {
                           "route with the desk, which is the point of the desk.\n\n"
                           "THE BARROW is closed. By order of the Guild Master. "
                           "Enquiries to the Guild Master.";
-            m.Collision(4 * CELL - 20, 12 * CELL - 10, 40, 10);
+            m.Collision(4 * CELL - 20, 13 * CELL - 10, 40, 10);
         }
-        PlaceChest(m, "chest_guild", 20 * CELL, 13 * CELL, "chest_common");
+        PlaceChest(m, "chest_guild", 20 * CELL, 14 * CELL, "chest_common");
         {
-            json& o = m.Object("range_guild", "range", 3 * CELL, 4 * CELL);
-            o["sprite"] = ObjPath("campfire");
+            // A proper hearth in the back wall, where the campfire on the floor was.
+            json& o = m.Object("range_guild", "range", 5 * CELL, wall_foot + 16);
+            o["sprite"] = "assets/props/inn_fireplace.png";
             o["title"]  = "Guild hearth";
-            m.Collision(3 * CELL - 16, 4 * CELL - 12, 32, 12);
+            m.Collision(5 * CELL - 46, wall_foot + 16 - 22, 92, 22);
         }
 
         m.Write("maps");
@@ -7524,28 +7559,48 @@ static void BuildWoodlandInteriors() {
             if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
         };
 
-        m.Overlay("props", "inn_rug", dx, 6 * CELL + 16);
+        // A hunters' hall: the heads of what they brought home over the fire,
+        // a bearskin in front of it, the pelts drying down one wall and the
+        // ale down the other.
+        m.Overlay("props", "inn_rug", dx, 7 * CELL + 16);
+        m.Overlay("props", "bear_rug", dx, 4 * CELL + 20);
         {
             json& o = m.Object("range_lodge", "range", dx, 3 * CELL + 10);
             o["sprite"] = "assets/props/inn_fireplace.png";
             o["title"]  = "Great hearth";
             m.Collision(dx - 50, 3 * CELL + 10 - 24, 100, 24);
         }
-        piece("weapon_rack",  3 * CELL,          3 * CELL + 6, 60, 12);
-        piece("banner",       6 * CELL + 16,     3 * CELL + 6, 0, 0);
-        piece("armour_stand", (cols - 3) * CELL, 3 * CELL + 6, 34, 12);
-        piece("banner",       (cols - 6) * CELL, 3 * CELL + 6, 0, 0);
+        // The back wall: a stag either side of the chimney and a boar beyond each.
+        const int wall_foot = 2 * CELL;
+        piece("trophy_stag", dx - 3 * CELL - 4, wall_foot - 10, 0, 0);
+        piece("trophy_stag", dx + 3 * CELL + 4, wall_foot - 10, 0, 0);
+        piece("trophy_boar", dx - 6 * CELL,     wall_foot - 12, 0, 0);
+        piece("trophy_boar", dx + 6 * CELL,     wall_foot - 12, 0, 0);
+        piece("weapon_rack",  2 * CELL + 8,      3 * CELL + 6, 60, 12);
+        piece("armour_stand", (cols - 2) * CELL - 8, 3 * CELL + 6, 34, 12);
+        piece("log_pile",     dx - 3 * CELL - 8, 3 * CELL + 20, 26, 8);
+        piece("candlestand",  dx + 4 * CELL + 16, 3 * CELL + 24, 14, 8);
 
-        // Two long tables with benches, either side of the middle of the room.
+        // Two long tables with benches, either side of the middle of the room,
+        // a light at the outer end of each.
         for (int side : {-1, 1}) {
             const int tx = dx + side * 190;
             piece("tavern_bench", tx, 6 * CELL + 4,  48, 8);
             piece("table_long",   tx, 8 * CELL + 4,  88, 14);
             piece("tavern_bench", tx, 9 * CELL + 20, 48, 8);
+            piece("candlestand",  tx + side * 88, 8 * CELL + 10, 14, 8);
         }
+        // The west wall: the pelts drying, the tanning frame. The east: the ale,
+        // the reeve's books and the tally of the season's hunting.
+        piece("pelt_rack",    2 * CELL + 16,        6 * CELL + 8, 56, 10);
+        piece("tanning_rack", 2 * CELL + 16,        9 * CELL + 16, 40, 10);
+        piece("keg_rack",     (cols - 2) * CELL - 12, 10 * CELL + 8, 56, 12);
+        piece("bookshelf",    (cols - 2) * CELL - 8, 7 * CELL, 56, 12);
+        piece("chalk_board",  (cols - 4) * CELL - 8, 5 * CELL + 8, 22, 8);
         piece("barrel",    2 * CELL + 8,        (rows - 2) * CELL, 28, 10);
+        piece("barrel",    3 * CELL + 16,       (rows - 2) * CELL + 6, 28, 10);
         piece("strongbox", (cols - 2) * CELL,   (rows - 2) * CELL, 32, 10);
-        piece("bookshelf", (cols - 2) * CELL - 8, 7 * CELL, 56, 12);
+        piece("herb_pots", (cols - 4) * CELL,   (rows - 2) * CELL + 4, 30, 8);
 
         m.Npc("npc_hadley", "Reeve Hadley", "fighter2", dx + 70, 5 * CELL, "hadley_root", 0);
         m.Write("maps");

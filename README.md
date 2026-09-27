@@ -5237,7 +5237,7 @@ with the Whisperwood trail leaving from the east.
 | `dungeon_barrow` | Beneath the Mire |
 | `whisperwood_trail` | The forest path east of the Hollowmarch: a woodcutter's camp, a stream with a plank bridge, and a fork |
 | `mossvale` | A logging village behind a palisade at the trail's east end |
-| `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge and Oona the herbalist's cottage |
+| `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge, a hunters' hall, and Oona the herbalist's cottage |
 | `mossvale_cottage` | The tanner's empty house at the bottom of the village -- yours, once you find the key |
 | `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
@@ -5484,6 +5484,48 @@ off the graveyard, and the last three rows straight in.
 A new journey still begins where the gate used to be, on the road, with the
 waymarker on the verge beside it: Havenbrook south along the road, at its gate
 below Hollowrest; the Emberfell mine north.
+
+### The guild hall, and the halls inside
+
+**Havenbrook's guild hall is the biggest building in the town, and looks it.**
+It used to be a one-storey stone house the size of a cottage, standing in a
+lawn at the head of the north street with the street running on past it to
+the fence. Now it is `prop_guild_house` (288 pixels, the inn is 192): two
+storeys of dressed stone with pale quoins and a string course, under a blue
+slate roof with two dormers and a chimney at each end -- stone and slate where
+every other house is timber and shingle. A tower stands out of the middle of
+the front and rises through the roof: the door is in its foot, two studded
+leaves under a round arch with lamps either side and three steps up to it;
+over that, the guild's round window and its red and gold shield; at the top, a
+belfry with the bell in it, a slate spire, and the pennant. The guild's red
+banners hang from the cornice either side of the tower, and the windows are
+lit all along, but one. The north street now ends at the steps, in a paved
+forecourt.
+
+**Inside, the guild hall** has a back wall three courses of brick high rather
+than one, so there is a wall to hang things on: the guild's arms over the
+master's chair (`crossed_arms`, a red shield with a gold chevron on two swords),
+a mounted stag's head either side of them, two red tapestries and a blue one,
+and a stone hearth let into it where there was a campfire on the floor, with a
+bearskin in front of it and a log pile beside. A run of red rugs goes from the
+door up the middle to the master's dais, which has candlestands either side of
+his desk and the guild's banners behind. The long tables stand either side of
+the aisle with benches and a candlestand at each; the records are down the
+west wall, the arms down the east with a training dummy and a barrel of
+weapons, and plants at the south end where people wait.
+
+**Mossvale's lodge** is a hunters' hall now: a stag's head either side of the
+great hearth and a boar's beyond each, a bearskin before the fire, a log pile
+and a candlestand beside it, pelts drying on a rack and a hide on a tanning
+frame down the west wall, the ale in a keg rack down the east with the reeve's
+books and a chalk board of the season's tally, candlestands at the tables'
+ends, and barrels by the door.
+
+The heads, the bearskin and the arms are new (`HALL_PROPS` in
+`tools/blender_props.py`: `trophy_stag`, `trophy_boar`, `bear_rug`,
+`crossed_arms`). A head is modelled on its board with its back to the wall and
+hung with its base inside the wall band, where nothing walks and everything on
+the floor sorts in front of it.
 
 ### If it is the way into a town, it is a gate
 

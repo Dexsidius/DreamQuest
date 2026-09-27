@@ -1774,8 +1774,336 @@ def prop_herbalist_cottage():
     return (4.8, BUILDING_ELEVATION)
 
 
+def _coursed(name, x0, x1, z0, z1, y, colours, rng, course=0.24, gap=None):
+    """A face of coursed stone between x0..x1 and z0..z1, standing at depth y.
+    `gap` is a function (cx, z) -> True where a stone is left out, for a
+    doorway or a window cut through it."""
+    rows = int(round((z1 - z0) / course))
+    for row in range(rows):
+        z = z0 + course / 2 + row * course
+        x = x0 + (0.18 if row % 2 else 0.0)
+        if row % 2:
+            blk("%s_end_%d" % (name, row), (0.18 - 0.03, 0.10, course - 0.03), (x0 + 0.09, y, z),
+                colours[0], bev=0.02)
+        while x < x1 - 0.04:
+            w = min(0.42 * (0.75 + rng.random() * 0.5), x1 - x)
+            cx = x + w / 2
+            if not (gap and gap(cx, z)):
+                blk("%s_%d_%.2f" % (name, row, x), (w - 0.03, 0.10, course - 0.03), (cx, y, z),
+                    colours[rng.randrange(len(colours))], bev=0.02)
+            x += w
+
+
+def _arch(name, cx, y, z_spring, span, colour, stones=9, depth=0.14, thick=0.16):
+    """A round arch of voussoirs springing at z_spring over an opening `span` wide."""
+    r = span / 2 + thick / 2
+    for k in range(stones):
+        a = math.pi * (k + 0.5) / stones
+        blk("%s_%d" % (name, k), (thick * 1.25, depth, 0.18),
+            (cx + math.cos(a) * r, y, z_spring + math.sin(a) * r), colour,
+            rot=(0, -(a - math.pi / 2), 0), bev=0.015)
+
+
+def prop_guild_house():
+    """Havenbrook's guild hall, from the street: the biggest thing in the town
+    and meant to look it. Two storeys of dressed stone under a blue slate roof,
+    a tower in the middle of the front carrying the door up to a slate spire and
+    the guild's pennant, red banners either side of it, and warm windows all
+    along. Stone and slate where every other house in the town is timber and
+    shingle, so it is told from the rest at a glance."""
+    import random
+    rng = random.Random(77)
+    W, D = 4.70, 2.60          # the main block
+    G, U = 1.40, 1.20          # its two storeys
+    EAVE = G + U + 0.10
+    T, TP = 1.50, 0.40         # the tower: how wide, and how far it stands out
+    TH = EAVE + 1.95           # and how high its walls go: clear of the ridge
+    fy = -D / 2                # the main block's front face
+    ty = fy - TP               # the tower's
+
+    # --- the main block ---------------------------------------------------------
+    blk("core", (W - 0.02, D - 0.10, EAVE), (0, 0.04, EAVE / 2), "guild_stone", bev=0)
+    blk("plinth", (W + 0.14, D + 0.14, 0.14), (0, 0, 0.07), "stone_pale")
+    win_x = (-2.00, -1.42, 1.42, 2.00)
+    def main_gap(cx, z):
+        for wx in win_x:
+            if abs(cx - wx) < 0.26 and (0.46 < z < 1.14 or G + 0.30 < z < G + 0.98):
+                return True
+        return abs(cx) < T / 2 + 0.02
+    _coursed("wall", -W / 2, W / 2, 0.14, EAVE - 0.06, fy, ("guild_stone", "guild_stone_dk", "guild_stone"), rng,
+             gap=main_gap)
+    # A string course between the storeys, and pale quoins up the corners.
+    blk("string", (W + 0.10, 0.16, 0.10), (0, fy - 0.03, G + 0.05), "stone_pale")
+    blk("cornice", (W + 0.16, 0.20, 0.12), (0, fy - 0.04, EAVE - 0.02), "stone_pale")
+    for sx in (-1, 1):
+        for k in range(int(EAVE / 0.24)):
+            wq = 0.30 if k % 2 else 0.20
+            blk("quoin_%d_%d" % (sx, k), (wq, 0.12, 0.21), (sx * (W / 2 - wq / 2 + 0.02), fy - 0.02, 0.26 + k * 0.24),
+                "stone_pale", bev=0.02)
+    for wx in win_x:
+        window("gwin_%.2f" % wx, wx, fy - 0.02, 0.80, w=0.42, h=0.62, shutters=False)
+        _arch("gwin_arch_%.2f" % wx, wx, fy - 0.03, 1.12, 0.42, "stone_pale", stones=5, thick=0.12)
+        window("uwin_%.2f" % wx, wx, fy - 0.02, G + 0.64, w=0.40, h=0.60, shutters=False,
+               lit=(wx != 1.42))
+        blk("uwin_hood_%.2f" % wx, (0.60, 0.14, 0.08), (wx, fy - 0.06, G + 1.00), "stone_pale")
+
+    # Banners of the guild hung from the cornice, either side of the tower.
+    for sx in (-1, 1):
+        x = sx * 0.98
+        blk("banner_rod_%d" % sx, (0.46, 0.06, 0.05), (x, fy - 0.10, EAVE - 0.16), "brass", metal=0.7)
+        blk("banner_%d" % sx, (0.38, 0.04, 1.30), (x, fy - 0.10, EAVE - 0.84), "cloth_red", bev=0.01)
+        blk("banner_band_%d" % sx, (0.38, 0.05, 0.07), (x, fy - 0.13, EAVE - 1.30), "brass", metal=0.6)
+        blk("banner_device_%d" % sx, (0.18, 0.05, 0.22), (x, fy - 0.13, EAVE - 0.66), "canopy_gold", metal=0.4)
+        for k in (-1, 0, 1):
+            blk("banner_tail_%d_%d" % (sx, k), (0.10, 0.04, 0.14), (x + k * 0.13, fy - 0.10, EAVE - 1.54),
+                "cloth_red", rot=(0, math.radians(45), 0), bev=0.0)
+
+    # --- the tower --------------------------------------------------------------
+    blk("tower_core", (T - 0.02, TP + 0.30, TH), (0, ty + (TP + 0.30) / 2, TH / 2), "guild_stone", bev=0)
+    def tower_gap(cx, z):
+        return ((abs(cx) < 0.52 and z < 1.46) or (abs(cx) < 0.30 and EAVE - 0.20 < z < EAVE + 0.48) or
+                (abs(cx) < 0.32 and TH - 0.78 < z < TH - 0.16))
+    _coursed("tower", -T / 2, T / 2, 0.14, TH - 0.06, ty, ("guild_stone", "guild_stone_dk"), rng, gap=tower_gap)
+    for sx in (-1, 1):
+        for k in range(int(TH / 0.24)):
+            wq = 0.26 if k % 2 else 0.18
+            blk("tquoin_%d_%d" % (sx, k), (wq, 0.12, 0.21), (sx * (T / 2 - wq / 2 + 0.02), ty - 0.02, 0.26 + k * 0.24),
+                "stone_pale", bev=0.02)
+    blk("tower_string", (T + 0.10, 0.16, 0.10), (0, ty - 0.03, G + 0.05), "stone_pale")
+    blk("tower_cornice", (T + 0.20, 0.22, 0.14), (0, ty - 0.04, TH - 0.02), "stone_pale")
+    # The door: two leaves under a round arch, studded, with the steps up to it.
+    blk("door_l", (0.46, 0.08, 1.10), (-0.24, ty - 0.01, 0.14 + 0.55), "oak_light")
+    blk("door_r", (0.46, 0.08, 1.10), (0.24, ty - 0.01, 0.14 + 0.55), "oak_light")
+    blk("door_top", (0.92, 0.08, 0.40), (0, ty - 0.01, 1.34), "oak_light")
+    blk("door_seam", (0.03, 0.10, 1.40), (0, ty - 0.05, 0.84), "oak")
+    for zz in (0.40, 0.86, 1.24):
+        blk("door_band_%.2f" % zz, (0.86, 0.02, 0.05), (0, ty - 0.06, zz), "iron", metal=0.7)
+    for sx in (-1, 1):
+        blk("door_ring_%d" % sx, (0.07, 0.04, 0.07), (sx * 0.12, ty - 0.08, 0.74), "brass", metal=0.8)
+    _arch("door_arch", 0, ty - 0.03, 1.10, 1.04, "stone_pale", stones=9, thick=0.18)
+    for sx in (-1, 1):
+        blk("door_jamb_%d" % sx, (0.16, 0.14, 1.00), (sx * 0.60, ty - 0.03, 0.60), "stone_pale")
+    for k, (w, d) in enumerate(((1.70, 0.60), (1.40, 0.42), (1.10, 0.24))):
+        blk("step_%d" % k, (w, d, 0.07), (0, ty - d / 2, 0.035 + k * 0.07), "stone_pale")
+    # Lamps either side of the door, lit.
+    for sx in (-1, 1):
+        blk("lamp_arm_%d" % sx, (0.05, 0.18, 0.05), (sx * 0.64, ty - 0.10, 1.34), "iron", metal=0.7)
+        blk("lamp_%d" % sx, (0.14, 0.14, 0.20), (sx * 0.64, ty - 0.20, 1.24), "candle_glow", emit=1.6)
+        blk("lamp_cap_%d" % sx, (0.18, 0.18, 0.05), (sx * 0.64, ty - 0.20, 1.36), "iron", metal=0.6)
+    # Over the door, the guild's round window, and over that its shield.
+    cyl("rose_frame", 0.30, 0.08, (0, ty - 0.03, EAVE + 0.14), "stone_pale", rot=(math.pi / 2, 0, 0), verts=20)
+    cyl("rose_glass", 0.23, 0.06, (0, ty - 0.06, EAVE + 0.14), "glass_lit", rot=(math.pi / 2, 0, 0), verts=20,
+        emit=0.5)
+    for a in (0, 45, 90, 135):
+        blk("rose_bar_%d" % a, (0.46, 0.04, 0.03), (0, ty - 0.08, EAVE + 0.14), "stone_pale",
+            rot=(0, math.radians(a), 0), bev=0)
+    blk("shield", (0.40, 0.05, 0.44), (0, ty - 0.05, EAVE + 0.80), "cloth_red", bev=0.03)
+    blk("shield_bar", (0.08, 0.06, 0.40), (0, ty - 0.08, EAVE + 0.80), "canopy_gold", metal=0.5)
+    blk("shield_bar2", (0.34, 0.06, 0.08), (0, ty - 0.08, EAVE + 0.86), "canopy_gold", metal=0.5)
+    # The belfry at the top of the tower, above the roof: a dark opening under
+    # an arch with the bell hanging in it.
+    blk("belfry", (0.54, 0.10, 0.56), (0, ty + 0.02, TH - 0.46), "void", bev=0)
+    _arch("belfry_arch", 0, ty - 0.03, TH - 0.18, 0.58, "stone_pale", stones=7, thick=0.12)
+    cone("bell", 0.14, 0.24, (0, ty + 0.06, TH - 0.40), "brass", verts=12)
+    blk("belfry_sill", (0.70, 0.18, 0.06), (0, ty - 0.06, TH - 0.76), "stone_pale")
+
+    # --- the roofs --------------------------------------------------------------
+    rise = gable_roof("roof", W + 0.20, D, EAVE, 45, "slate", thick=0.12, overhang=0.24)
+    pitch = math.radians(45)
+    half = D / 2 + 0.24
+    for k in range(1, 6):
+        t = k / 6.0
+        blk("slate_course_%d" % k, (W + 0.66, 0.05, 0.04), (0, -half * (1 - t) - 0.05, EAVE + rise * t + 0.07),
+            "slate_dk", rot=(pitch, 0, 0), bev=0)
+    # Two dormers on the front slope.
+    for sx in (-1, 1):
+        dz = EAVE + rise * 0.38
+        dy = -half * 0.62
+        x = sx * 1.58
+        blk("dormer_%d" % sx, (0.62, 0.30, 0.58), (x, dy - 0.02, dz + 0.20), "guild_stone")
+        window("dormer_win_%d" % sx, x, dy - 0.18, dz + 0.20, w=0.28, h=0.30, shutters=False)
+        for side in (-1, 1):
+            blk("dormer_roof_%d_%d" % (sx, side), (0.44, 0.52, 0.06), (x + side * 0.19, dy + 0.02, dz + 0.58),
+                "slate_dk", rot=(0, side * math.radians(42), 0), bev=0.01)
+    # Chimneys at the ends, on the front slope and rising from inside it.
+    for sx in (-1, 1):
+        cz0 = EAVE + rise * 0.30
+        ch = rise * 0.95 + 0.30
+        blk("chimney_%d" % sx, (0.40, 0.40, ch), (sx * (W / 2 - 0.42), -0.20, cz0 + ch / 2), "guild_stone_dk")
+        blk("chimney_cap_%d" % sx, (0.52, 0.52, 0.10), (sx * (W / 2 - 0.42), -0.20, cz0 + ch + 0.05), "stone_pale")
+    # The tower's spire: four slate faces to a point, a gold ball, and the pennant.
+    SP = 1.35
+    spire = cone("spire", T * 0.74, SP, (0, ty + (TP + 0.30) / 2, TH + SP / 2), "slate", verts=4)
+    spire.rotation_euler = (0, 0, math.radians(45))
+    cone("spire_skirt", T * 0.80, 0.24, (0, ty + (TP + 0.30) / 2, TH + 0.12), "slate_dk", verts=4).rotation_euler = \
+        (0, 0, math.radians(45))
+    top = TH + SP
+    sphere("finial", 0.07, (0, ty + (TP + 0.30) / 2, top + 0.02), "brass")
+    cyl("flagpole", 0.025, 0.56, (0, ty + (TP + 0.30) / 2, top + 0.28), "iron", verts=8, metal=0.6)
+    blk("pennant", (0.62, 0.03, 0.22), (0.32, ty + (TP + 0.30) / 2, top + 0.44), "cloth_red", bev=0.0)
+    blk("pennant_tip", (0.20, 0.03, 0.12), (0.70, ty + (TP + 0.30) / 2, top + 0.44), "cloth_red",
+        rot=(0, math.radians(45), 0), bev=0.0)
+    return (7.4, BUILDING_ELEVATION)
+
+
+# --- the halls: trophies for the lodge's walls and the guild's --------------------
+PALETTE.update({
+    "bear_fur":    (0.408, 0.275, 0.173),
+    "bear_fur_dk": (0.259, 0.173, 0.118),
+    "bear_fur_lt": (0.549, 0.392, 0.259),
+    "snout_black": (0.133, 0.110, 0.110),
+    "boar_bristle": (0.306, 0.243, 0.204),
+    "boar_bristle_dk": (0.204, 0.157, 0.133),
+    "tusk":        (0.925, 0.886, 0.769),
+    "stag_hide":   (0.588, 0.408, 0.251),
+    "stag_hide_dk": (0.408, 0.275, 0.165),
+})
+
+
+def _limb(name, a, b, radius, colour, verts=10):
+    """A cylinder from point a to point b."""
+    ax, ay, az = a
+    bx, by, bz = b
+    dx, dy, dz = bx - ax, by - ay, bz - az
+    length = math.sqrt(dx * dx + dy * dy + dz * dz)
+    ob = cyl(name, radius, length, ((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), colour, verts=verts)
+    # Point the cylinder's Z along a -> b.
+    direction = Vector((dx, dy, dz)).normalized()
+    ob.rotation_euler = Vector((0, 0, 1)).rotation_difference(direction).to_euler()
+    return ob
+
+
+def _plaque(shape="shield", w=0.40, h=0.48, z=0.34):
+    """The oak board a head is mounted on, its back to the wall (+Y)."""
+    if shape == "round":
+        cyl("plaque", w / 2, 0.06, (0, 0.02, z), "oak", rot=(math.pi / 2, 0, 0), verts=24)
+        cyl("plaque_rim", w / 2 + 0.03, 0.04, (0, 0.04, z), "oak_light", rot=(math.pi / 2, 0, 0), verts=24)
+        return
+    blk("plaque", (w, 0.06, h * 0.72), (0, 0.02, z + h * 0.10), "oak", bev=0.02)
+    blk("plaque_point", (w * 0.52, 0.06, w * 0.52), (0, 0.02, z - h * 0.24), "oak",
+        rot=(0, math.radians(45), 0), bev=0.02)
+    blk("plaque_rim", (w + 0.06, 0.04, h * 0.76), (0, 0.05, z + h * 0.10), "oak_light", bev=0.01)
+
+
+def prop_trophy_stag():
+    """A stag's head on a shield of oak, for a wall: the antlers are what make
+    it, so they are wide, pale and many-tined."""
+    _plaque("shield", 0.40, 0.50, 0.34)
+    z = 0.40
+    _limb("neck", (0, 0.0, z - 0.08), (0, -0.16, z - 0.02), 0.10, "stag_hide")
+    blk("head", (0.21, 0.30, 0.18), (0, -0.27, z + 0.02), "stag_hide", rot=(math.radians(-18), 0, 0), bev=0.06)
+    blk("muzzle", (0.14, 0.16, 0.12), (0, -0.43, z - 0.04), "stag_hide_dk", rot=(math.radians(-24), 0, 0), bev=0.05)
+    sphere("nose", 0.035, (0, -0.47, z - 0.03), "snout_black")
+    for sx in (-1, 1):
+        sphere("eye_%d" % sx, 0.022, (sx * 0.08, -0.30, z + 0.06), "snout_black")
+        blk("ear_%d" % sx, (0.12, 0.03, 0.06), (sx * 0.14, -0.18, z + 0.10), "stag_hide",
+            rot=(0, sx * math.radians(-30), 0), bev=0.02)
+        # The antler: a beam curving out and up, and tines off it.
+        base = (sx * 0.06, -0.20, z + 0.10)
+        mid = (sx * 0.20, -0.22, z + 0.30)
+        top = (sx * 0.26, -0.18, z + 0.56)
+        _limb("beam_a_%d" % sx, base, mid, 0.025, "antler")
+        _limb("beam_b_%d" % sx, mid, top, 0.022, "antler")
+        for k, (t, out, up) in enumerate(((0.3, 0.02, 0.16), (0.6, -0.05, 0.18), (0.9, 0.06, 0.12))):
+            if t < 0.5:
+                p0 = tuple(base[i] + (mid[i] - base[i]) * (t / 0.5) for i in range(3))
+            else:
+                p0 = tuple(mid[i] + (top[i] - mid[i]) * ((t - 0.5) / 0.5) for i in range(3))
+            p1 = (p0[0] + sx * out, p0[1] - 0.06, p0[2] + up)
+            _limb("tine_%d_%d" % (sx, k), p0, p1, 0.016, "antler")
+        _limb("brow_%d" % sx, (sx * 0.10, -0.21, z + 0.16), (sx * 0.14, -0.34, z + 0.22), 0.016, "antler")
+    return 0.95
+
+
+def prop_trophy_boar():
+    """A boar's head on a round board: a dark bristled wedge, a pale snout and
+    two tusks curling up out of it."""
+    _plaque("round", 0.42, 0.42, 0.30)
+    z = 0.30
+    blk("head", (0.24, 0.26, 0.22), (0, -0.14, z + 0.02), "boar_bristle", rot=(math.radians(-8), 0, 0), bev=0.07)
+    blk("crest", (0.08, 0.24, 0.06), (0, -0.12, z + 0.14), "boar_bristle_dk", bev=0.03)
+    blk("snout", (0.15, 0.16, 0.12), (0, -0.32, z - 0.03), "boar_bristle", rot=(math.radians(-10), 0, 0), bev=0.04)
+    cyl("snout_disc", 0.065, 0.03, (0, -0.41, z - 0.04), "clay", rot=(math.pi / 2, 0, 0), verts=16)
+    for sx in (-1, 1):
+        sphere("nostril_%d" % sx, 0.016, (sx * 0.025, -0.425, z - 0.04), "snout_black")
+        sphere("eye_%d" % sx, 0.02, (sx * 0.09, -0.24, z + 0.07), "snout_black")
+        blk("ear_%d" % sx, (0.07, 0.03, 0.10), (sx * 0.12, -0.08, z + 0.15), "boar_bristle_dk",
+            rot=(0, sx * math.radians(-25), 0), bev=0.02)
+        _limb("tusk_a_%d" % sx, (sx * 0.06, -0.36, z - 0.07), (sx * 0.10, -0.40, z + 0.00), 0.018, "tusk")
+        _limb("tusk_b_%d" % sx, (sx * 0.10, -0.40, z + 0.00), (sx * 0.09, -0.37, z + 0.07), 0.013, "tusk")
+    return 0.72
+
+
+def prop_bear_rug():
+    """A bearskin before the fire: the hide spread flat, four thick legs
+    splayed out of it with the claws on, a darker line down the spine, and the
+    head at the front with its mouth open."""
+    body = cyl("hide", 0.46, 0.03, (0, 0.10, 0.015), "bear_fur", verts=28)
+    body.scale = (1.0, 1.22, 1.0)
+    blk("spine", (0.14, 0.90, 0.036), (0, 0.14, 0.02), "bear_fur_dk", bev=0.03)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            # Each leg leaves the body as wide as a paw and spreads out along
+            # the diagonal, so the whole reads as one hide.
+            ox, oy = sx * 0.62, 0.10 + (0.52 if sy > 0 else -0.30)
+            ix, iy = sx * 0.26, 0.10 + (0.30 if sy > 0 else -0.12)
+            ang = math.atan2(oy - iy, ox - ix)
+            length = math.hypot(ox - ix, oy - iy)
+            blk("leg_%d_%d" % (sx, sy), (length + 0.10, 0.24, 0.034), ((ox + ix) / 2, (oy + iy) / 2, 0.017),
+                "bear_fur", rot=(0, 0, ang), bev=0.04)
+            px, py = ox + math.cos(ang) * 0.10, oy + math.sin(ang) * 0.10
+            blk("paw_%d_%d" % (sx, sy), (0.22, 0.20, 0.04), (px, py, 0.02), "bear_fur_dk", rot=(0, 0, ang), bev=0.04)
+            for k in (-1, 0, 1):
+                cx = px + math.cos(ang) * 0.12 - math.sin(ang) * k * 0.06
+                cy = py + math.sin(ang) * 0.12 + math.cos(ang) * k * 0.06
+                cone("claw_%d_%d_%d" % (sx, sy, k), 0.02, 0.08, (cx, cy, 0.03), "tusk",
+                     rot=(0, math.radians(90), ang), verts=6)
+    blk("tail", (0.12, 0.14, 0.03), (0, 0.72, 0.015), "bear_fur_dk", bev=0.04)
+    # The head, raised off the floor at the front, looking out of the rug.
+    sphere("head", 0.22, (0, -0.50, 0.15), "bear_fur")
+    blk("snout", (0.18, 0.20, 0.13), (0, -0.70, 0.11), "bear_fur_lt", bev=0.05)
+    sphere("nose", 0.045, (0, -0.80, 0.15), "snout_black")
+    blk("mouth", (0.14, 0.06, 0.04), (0, -0.76, 0.05), "void", bev=0.01)
+    for sx in (-1, 1):
+        sphere("ear_%d" % sx, 0.07, (sx * 0.16, -0.44, 0.32), "bear_fur_dk")
+        sphere("eye_%d" % sx, 0.026, (sx * 0.09, -0.66, 0.23), "snout_black")
+        cone("fang_%d" % sx, 0.016, 0.06, (sx * 0.045, -0.79, 0.05), "tusk", rot=(math.pi, 0, 0), verts=6)
+    return 2.1
+
+
+def prop_crossed_arms():
+    """A guild's arms for over its master's chair: a red heater shield with a
+    gold chevron, two swords crossed behind it."""
+    for sx in (-1, 1):
+        ang = math.radians(sx * 38)
+        blk("blade_%d" % sx, (0.10, 0.03, 0.98), (sx * 0.02, 0.05, 0.62), "iron_light", rot=(0, ang, 0),
+            metal=0.3, bev=0.01)
+        # Hilt at the top end of each blade.
+        hx, hz = sx * 0.02 - math.sin(ang) * 0.52, 0.62 + math.cos(ang) * 0.52
+        blk("guard_%d" % sx, (0.26, 0.04, 0.05), (hx, 0.04, hz), "brass", rot=(0, ang, 0), metal=0.7)
+        gx, gz = sx * 0.02 - math.sin(ang) * 0.64, 0.62 + math.cos(ang) * 0.64
+        blk("grip_%d" % sx, (0.05, 0.04, 0.20), (gx, 0.04, gz), "leather", rot=(0, ang, 0))
+        sphere("pommel_%d" % sx, 0.04, (sx * 0.02 - math.sin(ang) * 0.76, 0.04, 0.62 + math.cos(ang) * 0.76), "brass")
+    blk("shield", (0.46, 0.06, 0.42), (0, -0.02, 0.66), "cloth_red", bev=0.03)
+    blk("shield_point", (0.33, 0.06, 0.33), (0, -0.02, 0.44), "cloth_red", rot=(0, math.radians(45), 0), bev=0.03)
+    blk("shield_rim", (0.50, 0.04, 0.46), (0, 0.01, 0.66), "brass", metal=0.6, bev=0.02)
+    for sx in (-1, 1):
+        blk("chevron_%d" % sx, (0.30, 0.03, 0.07), (sx * 0.10, -0.06, 0.60), "canopy_gold",
+            rot=(0, sx * math.radians(-35), 0), metal=0.5, bev=0.0)
+    return 1.6
+
+
+HALL_PROPS = {
+    "trophy_stag":  (prop_trophy_stag,  56),
+    "trophy_boar":  (prop_trophy_boar,  44),
+    "bear_rug":     (prop_bear_rug,     96),
+    "crossed_arms": (prop_crossed_arms, 56),
+}
+
+
 BUILDING_PROPS = {
     "inn_building":   (prop_inn_building, 192),
+    "guild_house":    (prop_guild_house, 288),
     "mossvale_lodge": (prop_mossvale_lodge, 192),
     "herbalist_cottage": (prop_herbalist_cottage, 168),
 }
@@ -5669,6 +5997,7 @@ PROPS.update(TOTEM_PROPS)
 PROPS.update(COLLEGE_PROPS)
 PROPS.update(CLOTHIER_PROPS)
 PROPS.update(HOUSE_PROPS)
+PROPS.update(HALL_PROPS)
 
 # The Brimstone Palace's props are in tools/blender_palace.py, built with the
 # tools above. This module is handed to it rather than imported by it: run by

@@ -1804,6 +1804,10 @@
                                           "w":  144,
                                           "h":  144
                                       },
+                   "props/bear_rug":  {
+                                          "w":  96,
+                                          "h":  96
+                                      },
                    "props/bed_double":  {
                                             "w":  72,
                                             "h":  72
@@ -1972,6 +1976,10 @@
                                               "w":  48,
                                               "h":  48
                                           },
+                   "props/crossed_arms":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
                    "props/crypt":  {
                                        "w":  176,
                                        "h":  176
@@ -2100,6 +2108,10 @@
                                             "w":  48,
                                             "h":  48
                                         },
+                   "props/guild_house":  {
+                                             "w":  288,
+                                             "h":  288
+                                         },
                    "props/hay_rick":  {
                                           "w":  56,
                                           "h":  56
@@ -2728,6 +2740,14 @@
                                               "w":  40,
                                               "h":  40
                                           },
+                   "props/trophy_boar":  {
+                                             "w":  44,
+                                             "h":  44
+                                         },
+                   "props/trophy_stag":  {
+                                             "w":  56,
+                                             "h":  56
+                                         },
                    "props/wall_shackles":  {
                                                "w":  64,
                                                "h":  64

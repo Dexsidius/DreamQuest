@@ -64,6 +64,10 @@ $sizes = @{
     cottage_bookshelf = 64; dining_table = 56; herb_pots = 36
     # Buildings.
     inn_building = 192
+    # The guild hall as it stands now, and the halls' trophies and the
+    # lodge's bearskin (HALL_PROPS in blender_props.py).
+    guild_house = 288
+    trophy_stag = 56; trophy_boar = 44; bear_rug = 96; crossed_arms = 56
     # Mossvale and the Whisperwood.
     mossvale_lodge = 192
     herbalist_cottage = 168
