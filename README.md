@@ -4297,8 +4297,9 @@ The rules it was built to:
   things that live there. Not the same half two nights running.
 - **Keep to the road.** No post is within five or six cells of a road or a
   trail, within eleven of a way in, a camp, a bed, a chest, a sign or a person,
-  or within eighteen of Havenbrook's gate, where a new character is finding out
-  which end of the sword to hold. Towns, buildings, dungeons and the Reverie
+  or within eighteen of where a new character starts on the road (the gate's
+  old place), where they are finding out which end of the sword to hold --
+  the gate itself is at the foot of Hollowrest, which keeps its own dead. Towns, buildings, dungeons and the Reverie
   have none. The road is the way to travel after dark, and nightfall says so:
   *"Night falls, and things are abroad that are not by day. Keep to the road,
   or find a bed."*
@@ -5469,8 +5470,20 @@ few lengths the way a village's does. The road runs through it (`prop_town_gate`
 in `tools/blender_props.py`), and the portal sits in the opening, so you walk
 through a gate rather than onto a patch of grass.
 
-The waymarker that used to stand there now stands on the verge a little north
-of it, saying which way is which.
+**It stands at the very bottom of the Hollowmarch, south of Hollowrest.** It
+used to stand where the road first ended, at row 88 in the middle of the
+meadow, in a few lengths of palisade with open field on every side of it --
+walk round the palisade and you were behind it, and (see *Gates and the way
+back*) you could walk straight through it. Now the Sunken Road goes on south
+from there, bends round the east wall of Hollowrest and runs straight down
+into the gate at the south edge of the map, under the graveyard's south-east
+end; the town is past the edge, through it. The road's line is
+`RoadCx` in `tools/genmaps.cpp`: the old line down to row 90, a curve that keeps
+off the graveyard, and the last three rows straight in.
+
+A new journey still begins where the gate used to be, on the road, with the
+waymarker on the verge beside it: Havenbrook south along the road, at its gate
+below Hollowrest; the Emberfell mine north.
 
 ### If it is the way into a town, it is a gate
 
@@ -5708,13 +5721,15 @@ Two things were wrong with it, and both let you walk straight through gates:
   round without letting it centre -- walked over every gate they came to for as
   long as they kept moving.
 - **A way back that was waiting could be walked out through.** Havenbrook's
-  gate stands in open field, and the town's way out is its south road, so
-  leaving puts you on the road north of the gate, still walking south. With
+  gate stood in open field, and the town's way out is its south road, so
+  leaving put you on the road north of the gate, still walking south. With
   the key down you walked into the gate, which was waiting, and out of its far
   side into the field: through a town gate without going into the town. Now a
   way back that is waiting can be stood on, and stepped off the way you came,
   but not crossed (`World::PastWayBack`). Let go and step off it, and it is a
-  gate like any other.
+  gate like any other. (The gate has since moved to the south edge of the map,
+  where there is nothing behind it to walk into; the rule holds for any way
+  back that has.)
 
 The rules are in `World::UpdateSeat`, and `World::PortalHeld` says which
 portals are waiting. A probe run over every map found Havenbrook's the only
@@ -7734,7 +7749,7 @@ and checks all of it — currently **61823 checks** covering:
   stands within twenty cells of it by day; every visitor is stronger than the
   average of what lives round its post, and none by more than a couple of
   dozen levels; posts stand on open ground, eleven cells from every way in,
-  camp and person, and none within a screen of Havenbrook's gate; what is
+  camp and person, and none within a screen of where a new character starts; what is
   abroad is never more than a fifth of what lives there; half the posts are
   kept on a night, not the same half two nights running, and a pack comes or
   stays away together; played through -- by day every one is in the list and

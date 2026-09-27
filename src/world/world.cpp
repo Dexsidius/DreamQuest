@@ -903,8 +903,8 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     }
 
     // A way back that is waiting can be stood on, and stepped off again the
-    // way you came, but not walked out through. Havenbrook's gate stands in
-    // open field, and leaving the town by its south road puts you on the road
+    // way you came, but not walked out through. Havenbrook's gate stood in
+    // open field, and leaving the town by its south road put you on the road
     // north of it, walking south: with the key still down you walked into the
     // gate, which was waiting, and out of the far side of it into the field,
     // through a town gate without going into the town.

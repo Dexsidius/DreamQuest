@@ -1283,6 +1283,27 @@ static float RoadX(int cy) {
     return 62.0f + sinf(cy * 0.075f) * 7.0f;
 }
 
+// Havenbrook's gate: at the very bottom of the Hollowmarch, south of Hollowrest,
+// where the Sunken Road ends. It used to stand at row 88, in the middle of the
+// meadow, in a few lengths of palisade with open field on every side of it; the
+// road now goes on south past the graveyard's east wall and bends in to the
+// gate at the map's south edge, under the graveyard's south-east shoulder.
+static const int GATE_CX = 52;
+static const int ROAD_BEND_CY = 90;          // where the road leaves its old line
+static const int ROAD_STRAIGHT_CY = 121;     // and where it runs straight in under the gate
+// The road's middle at a row: the old line down to the bend, then a curve that
+// keeps off the graveyard until it is past it, and the last rows straight down
+// into the gate's opening.
+static float RoadCx(int cy) {
+    if (cy <= ROAD_BEND_CY) return RoadX(cy);
+    if (cy >= ROAD_STRAIGHT_CY) return static_cast<float>(GATE_CX);
+    const float from = RoadX(ROAD_BEND_CY);
+    const float t = static_cast<float>(cy - ROAD_BEND_CY) / static_cast<float>(ROAD_STRAIGHT_CY - ROAD_BEND_CY);
+    return from + (static_cast<float>(GATE_CX) - from) * t * t * t;
+}
+// How far a cell is across from the middle of the road, in cells.
+static float RoadGap(int cx, int cy) { return fabsf(static_cast<float>(cx) - RoadCx(cy)); }
+
 // The Whisperwood Trail leaves the Sunken Road at this row and winds east
 // through the greenwood to the edge of the map, where it becomes its own zone.
 static const int TRAIL_JUNCTION_CY = 60;
@@ -1331,7 +1352,7 @@ static Biome BiomeAt(int cx, int cy) {
     // The road runs all the way to Havenbrook's gate rather than stopping a
     // cell short of it: the cobbles used to give out in the grass and the gate
     // stood on a lawn behind them.
-    if (fabsf(cx - RoadX(cy)) < 1.6f && cy > 10 && cy < 90) return ROAD;
+    if (RoadGap(cx, cy) < 1.6f && cy > 10) return ROAD;
     if (OnTrail(cx, cy)) return TRAIL;
     // The causeway into the Bayou: three cells of packed earth from beside the
     // lizardmen's camp to the west edge. A trail as far as everything else is
@@ -1833,7 +1854,7 @@ static void BuildOverworld() {
         // climbs over, and so is a clearing around every place you can enter.
         vector<Rect4> ramps;
         for (int cy = 0; cy < OW_H; ++cy) {
-            const float rx = RoadX(cy);
+            const float rx = RoadCx(cy);
             const float x0 = (rx - 3.0f) * OW_CELL;
             ramps.push_back({x0, static_cast<float>(cy * OW_CELL),
                              6.0f * OW_CELL, static_cast<float>(OW_CELL)});
@@ -1851,7 +1872,7 @@ static void BuildOverworld() {
                              (TrailY(cx) - 3.0f) * OW_CELL,
                              static_cast<float>(OW_CELL), 6.0f * OW_CELL});
         clearing(OW_W - 3, static_cast<int>(TrailY(OW_W - 3)), 3);   // the trail's end
-        clearing(static_cast<int>(RoadX(88)), 88, 4);   // the town gate
+        clearing(GATE_CX, OW_H - 3, 4);                 // the town gate
         clearing(static_cast<int>(RoadX(10)), 9,  4);   // the mine
         clearing(12, 44, 4);                            // the barrow
         clearing(96, 78, 3);                            // meadow chest
@@ -1931,7 +1952,7 @@ static void BuildOverworld() {
             const Biome b = BiomeAt(cx, cy);
             if (b == WATER || b == ROAD || b == TRAIL) continue;
             // Keep a clear verge either side of the road.
-            if (fabsf(cx - RoadX(cy)) < 3.2f) continue;
+            if (RoadGap(cx, cy) < 3.2f) continue;
             // And the hillside the mine is cut into.
             if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) continue;
             // And either side of the Whisperwood Trail, so it reads as a path
@@ -2007,7 +2028,7 @@ static void BuildOverworld() {
             if (fabsf(cx - RoadX(10)) < 7.0f && cy < 14) return false;   // the mine
             if (abs(cx - 12) <= 4 && cy >= 40 && cy <= 47) return false;   // the barrow
             if (GraveField(cx, cy) < 2.2f) return false;                   // Hollowrest
-            if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
+            if (RoadGap(cx, cy) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
             return !scenery_here(cx, cy);
         };
         auto near_water = [&](int cx, int cy) {
@@ -2064,7 +2085,7 @@ static void BuildOverworld() {
                             for (int xx = -3; xx <= 3 && fits; ++xx) {
                                 const Biome b = BiomeAt(ccx + xx, ccy + yy);
                                 if (b == WATER) { ++water; continue; }
-                                if (b == ROAD || b == TRAIL || fabsf(ccx + xx - RoadX(ccy + yy)) < 3.2f) fits = false;
+                                if (b == ROAD || b == TRAIL || RoadGap(ccx + xx, ccy + yy) < 3.2f) fits = false;
                                 else if (!pt.water && b != pt.biome) fits = false;
                             }
                         if (pt.water ? (water < 6 || water > 20) : water > 0) fits = false;
@@ -2120,7 +2141,7 @@ static void BuildOverworld() {
             const float r = Hash2(cx, cy, 8888);
             const int x = cx * OW_CELL + 16;
             const int y = cy * OW_CELL + 16;
-            const float road_gap = fabsf(cx - RoadX(cy));
+            const float road_gap = RoadGap(cx, cy);
 
             if (b == MEADOW) {
                 // Small game first: the meadow is where a new character learns
@@ -2165,36 +2186,45 @@ static void BuildOverworld() {
     (void)spawned;
 
     // --- landmarks ------------------------------------------------------------
+    // A new journey begins on the Sunken Road where the gate used to be, and
+    // the road goes on south from here to it.
     const int gate_x = static_cast<int>(RoadX(86)) * OW_CELL + 16;
     const int gate_y = 88 * OW_CELL;
     m.Spawn("start", gate_x, gate_y - 40);
     // Named, so loading the map with no spawn lands at the town gate rather
     // than at whichever arrival sorts first alphabetically.
     m.Spawn("default", gate_x, gate_y - 40);
-    m.Spawn("from_town", gate_x, gate_y - 44);
 
-    // Havenbrook's gate, standing where the Sunken Road ends. Before this the
-    // road simply stopped in a field and the way in was a rectangle of grass:
-    // nothing told you that you had arrived anywhere. The palisade runs a few
-    // lengths either side and then gives out, the way a village's does -- it
-    // is a gate, not a wall around the world.
-    PlaceFrontGate(m, gate_x, gate_y + 46, 4);
-    m.Portal(gate_x - 36, gate_y + 6, 72, 44, "town_havenbrook", "from_field",
-             "Enter Havenbrook", false);
-    MarkWorld("town", "Havenbrook", gate_x, gate_y + 16, "havenbrook");
-    // The Westwold is out of the town's west gate, not off this map's edge, so
-    // it is marked where that gate would be.
-    MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 5)", gate_x - 210, gate_y + 96);
-    // The well is inside the town, so its mark sits just under the town's.
-    MarkWorld("dungeon", "The Dry Well, in Havenbrook", gate_x - 26, gate_y + 92);
-
+    // Havenbrook's gate, at the bottom of the Hollowmarch where the Sunken Road
+    // ends, south of Hollowrest. Before there was a gate the road simply stopped
+    // in a field and the way in was a rectangle of grass: nothing told you that
+    // you had arrived anywhere. Then the gate stood at the old end of the road,
+    // in the middle of the meadow, with open field behind it. The palisade runs
+    // a few lengths either side and then gives out, the way a village's does --
+    // it is a gate, not a wall around the world -- and the town is south of the
+    // map's edge, through it.
     {
-        // Clear of the gate's right-hand tower, on the verge where the road
-        // still is: it used to stand where the gatehouse now stands.
+        const int hx = GATE_CX * OW_CELL + 16;
+        const int base = OW_PX_H - 6;
+        PlaceFrontGate(m, hx, base, 4);
+        m.Portal(hx - 36, base - 38, 72, OW_PX_H - (base - 38), "town_havenbrook", "from_field",
+                 "Enter Havenbrook", false);
+        // Out of the town, on the road north of the gate.
+        m.Spawn("from_town", hx, base - 86);
+        MarkWorld("town", "Havenbrook", hx, base - 40, "havenbrook");
+        // The Westwold is out of the town's west gate, not off this map's edge, so
+        // it is marked where that gate would be.
+        MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 5)", hx - 210, base - 14);
+        // The well is inside the town, so its mark sits just beside the town's.
+        MarkWorld("dungeon", "The Dry Well, in Havenbrook", hx + 64, base - 14);
+    }
+    {
+        // On the verge by the start, where the gate used to be: which way the
+        // town is, and which way the mine.
         json& o = m.Object("sign_gate", "sign", gate_x + 78, gate_y - 74);
         o["sprite"] = "assets/props/signpost.png";
         o["title"]  = "Waymarker";
-        o["text"]   = "HAVENBROOK, south through the gate.\nEMBERFELL MINE, north along the Sunken Road.\n\nBelow, scratched later and deeper:\nthe road is not safe after the second milestone.";
+        o["text"]   = "HAVENBROOK, south along the road, at its gate below Hollowrest.\nEMBERFELL MINE, north along the Sunken Road.\n\nBelow, scratched later and deeper:\nthe road is not safe after the second milestone.";
         m.Collision(gate_x + 62, gate_y - 82, 32, 12);
     }
 
@@ -2561,6 +2591,8 @@ static void BuildOverworld() {
     // bottom of the well loose in the Mire, and the hellgate's imps on the
     // Cursed Reach. Half of the posts, on any one night.
     {
+        // Nothing abroad near where a new character stands on the road, the
+        // old gate's place.
         const int gate_cx = static_cast<int>(RoadX(86)), gate_cy = 88;
         for (int gy = 6; gy < OW_H - 7; gy += 8) {
             for (int gx = OW_X0 + 5; gx < OW_W - 7; gx += 8) {
@@ -2570,7 +2602,7 @@ static void BuildOverworld() {
                 const int cy = gy + static_cast<int>(Hash2(gx, gy, 2023) * 5.0f) - 2;
                 const Biome b = BiomeAt(cx, cy);
                 if (b == WATER || b == ROAD || b == TRAIL || b == GRAVEYARD || BogAt(cx, cy)) continue;
-                if (fabsf(cx - RoadX(cy)) < 6.5f && cy > 6 && cy < 94) continue;
+                if (RoadGap(cx, cy) < 6.5f && cy > 6) continue;
                 if (cx >= RoadX(TRAIL_JUNCTION_CY) && fabsf(cy - TrailY(cx)) < 5.5f) continue;
                 if (GraveField(cx, cy) < 3.2f) continue;                             // Hollowrest has its own dead
                 if (abs(cx - 12) <= 7 && cy >= 37 && cy <= 50) continue;             // and so has the barrow
@@ -2612,7 +2644,7 @@ static void BuildOverworld() {
             for (int oy = -2; oy <= 2; ++oy)
                 for (int ox = -2; ox <= 2; ++ox)
                     if (BiomeAt(cx + ox, cy + oy) != GREENWOOD) return false;
-            if (fabsf(cx - RoadX(cy)) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
+            if (RoadGap(cx, cy) < 3.2f || OnTrail(cx, cy, 3.4f)) return false;
             if (Hash2(cx, cy, 4242) < 0.14f) return false;          // where the scenery stands
             return std::hypot(cx * OW_CELL + 16 + m.ox - sx, cy * OW_CELL + 16 - sy) > 1200.0f;
         }, bug_i);

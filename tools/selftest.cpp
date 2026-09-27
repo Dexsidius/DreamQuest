@@ -18398,6 +18398,58 @@ int main(int argc, char** argv) {
         }
     }
 
+    Section("Havenbrook's gate, at the bottom of the Hollowmarch below Hollowrest");
+    {
+        // It used to stand in the middle of the meadow, where the road first
+        // ended, with open field on every side. It stands at the map's south
+        // edge now, south of the graveyard, and the road goes on to it.
+        Map ow;
+        Check(ow.Load("maps/overworld.mx"), "the Hollowmarch loads, for its gate");
+        const Portal* gate = nullptr;
+        const Portal* crypt = nullptr;
+        for (const Portal& p : ow.Portals()) {
+            if (p.target_map == "town_havenbrook") gate = &p;
+            if (p.target_map == "crypt_1") crypt = &p;
+        }
+        Check(gate && !gate->requires_interact && gate->rect.y + gate->rect.h >= ow.Height() - 1.0f,
+              "Havenbrook's gate is at the very bottom of the Hollowmarch, walked into");
+        Check(gate && crypt && gate->rect.y > crypt->rect.y + 100.0f &&
+                  fabsf((gate->rect.x + gate->rect.w / 2.0f) - (crypt->rect.x + crypt->rect.w / 2.0f)) < 600.0f,
+              "south of Hollowrest, whose crypt is in the middle of it");
+        SDL_FPoint start{}, out{};
+        Check(ow.Spawn("start", start) && ow.Spawn("from_town", out) && gate && out.y < gate->rect.y &&
+                  std::hypot(out.x - (gate->rect.x + gate->rect.w / 2.0f), out.y - gate->rect.y) < 128.0f,
+              "out of the town, you come out just north of it");
+        // Walked to from where a new journey starts, by the feet, the way the
+        // player walks: step by step, anything that stops a step stops it.
+        if (gate) {
+            constexpr int G = 8;
+            const int cols = static_cast<int>(ow.Width()) / G + 1, rows = static_cast<int>(ow.Height()) / G + 1;
+            vector<uint8_t> seen(static_cast<size_t>(cols) * rows, 0);
+            vector<std::pair<int, int>> todo;
+            size_t next = 0;
+            const auto feet = [](float x, float y) { return SDL_FRect{x - 8.0f, y - 10.0f, 16.0f, 10.0f}; };
+            todo.push_back({static_cast<int>(start.x) / G, static_cast<int>(start.y) / G});
+            seen[static_cast<size_t>(todo.front().second) * cols + todo.front().first] = 1;
+            bool reached = false;
+            while (next < todo.size() && !reached) {
+                const auto [cx, cy] = todo[next++];
+                const float x = cx * G + 0.0f, y = cy * G + 0.0f;
+                if (RectsOverlap(feet(x, y), gate->rect)) { reached = true; break; }
+                for (const auto& d : {std::pair<int, int>{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    const int nx = cx + d.first, ny = cy + d.second;
+                    if (nx < 0 || ny < 0 || nx >= cols || ny >= rows || seen[static_cast<size_t>(ny) * cols + nx]) continue;
+                    const SDL_FRect f = feet(x, y);
+                    const SDL_FPoint moved = ow.MoveWithCollision(f, d.first * static_cast<float>(G), d.second * static_cast<float>(G));
+                    if (fabsf(moved.x - (f.x + d.first * G)) > 0.01f || fabsf(moved.y - (f.y + d.second * G)) > 0.01f) continue;
+                    seen[static_cast<size_t>(ny) * cols + nx] = 1;
+                    todo.push_back({nx, ny});
+                }
+            }
+            Check(reached, "and it can be walked to from where a new journey starts, on the road");
+        }
+    }
+
     Section("gates: the way back waits for you to let go, and no other gate does");
     {
         // Arriving holds back the way back -- a pace or two behind you -- until
