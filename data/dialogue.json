@@ -2123,7 +2123,7 @@
     }
    },
    {
-    "text": "Why an anvil out in the open?",
+    "text": "Why work under the hill?",
     "next": "garrow_about"
    },
    {
@@ -2134,7 +2134,7 @@
  },
  "garrow_about": {
   "speaker": "Garrow the Smith",
-  "text": "The lodge will not have the noise indoors. Out here I can see the trail, and whoever comes up it with ore to sell. Once the wardens have the woods in hand, the azuryte carts will come through again, and I will have that too.",
+  "text": "The lodge would not have the noise indoors, and out in the weather the rain got into the coal. Durgan offered me a corner of the dwarves' forge -- hotter fire, better coal, and nobody minds the hammer when they are all hammering. I still buy whatever comes down the stair with ore on its back. Once the wardens have the woods in hand, the azuryte carts will come through again, and I will have that too.",
   "options": [
    {
     "text": "Show me your bars.",
@@ -5662,6 +5662,54 @@
   "options": [
    {
     "text": "A good job.",
+    "next": "end"
+   }
+  ]
+ },
+ "grimsa_root": {
+  "speaker": "Tallymaster Grimsa",
+  "text": "Iron, forty-one. Coal, thirty-eight. Azuryte, nine. Damascus, two, and Brokk says there'd be more if his shoulder were younger. Every cart that comes round the loop, I mark. Every mark goes on the slate. The slate goes to Durgan.",
+  "options": [
+   {
+    "text": "And the glimmer?",
+    "next": "grimsa_glimmer"
+   },
+   {
+    "text": "Keep counting.",
+    "next": "end"
+   }
+  ]
+ },
+ "grimsa_glimmer": {
+  "speaker": "Tallymaster Grimsa",
+  "text": "Diamond and platinum, up at the far end past the deep line. Not on the slate. Nobody works the glimmer on a shift; you work it when you're good enough, and then you don't need a tally.",
+  "options": [
+   {
+    "text": "Understood.",
+    "next": "end"
+   }
+  ]
+ },
+ "mine_carter_root": {
+  "speaker": "A carter",
+  "text": "Mind the rails! Mind the -- no, you're fine. Loaded at the spur, emptied at the depot, round again. Forty times a shift. Grimsa counts every one, and if I come up short she counts it twice.",
+  "options": [
+   {
+    "text": "What's in the cart?",
+    "next": "mine_carter_what"
+   },
+   {
+    "text": "Carry on.",
+    "next": "end"
+   }
+  ]
+ },
+ "mine_carter_what": {
+  "speaker": "A carter",
+  "text": "Whatever came off the face this round. Iron mostly, coal when the east seam's running, and once a week something out of the deep gallery that the foreman has me cover with a sack.",
+  "options": [
+   {
+    "text": "I'll let you go.",
     "next": "end"
    }
   ]

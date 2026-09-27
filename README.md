@@ -3196,7 +3196,7 @@ kind of shop.
 | Place | General store | Other shops |
 | --- | --- | --- |
 | Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo); **Nessa's Tannery**, with the order book |
-| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book; **Stonebrow Stores**, the dwarves' under the hill (Foreman Durgan): picks, coal, iron and lanterns, and a good price for ore |
+| Mossvale | Pell's Stall | **Garrow's Smithy**, at the dwarves' forge under the hill; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book; **Stonebrow Stores**, the dwarves' under the hill (Foreman Durgan): picks, coal, iron and lanterns, and a good price for ore |
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
@@ -5377,7 +5377,7 @@ with the Whisperwood trail leaving from the east.
 | `dungeon_barrow` | Beneath the Mire |
 | `whisperwood_trail` | The forest path east of the Hollowmarch: a woodcutter's camp, a stream with a plank bridge, and a fork |
 | `mossvale` | A logging village behind a brick wall at the trail's east end, with moss-stone lanes |
-| `mossvale_mine` | The Delving of Stonebrow: the dwarves' hall and galleries under the knoll by the smithy |
+| `mossvale_mine` | The Delving of Stonebrow: the dwarves' hall, galleries, deep gallery, glimmer and depot, joined by a loop of track with carters on it |
 | `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge, a hunters' hall, and Oona the herbalist's cottage |
 | `mossvale_cottage` | The tanner's empty house at the bottom of the village -- yours, once you find the key |
 | `fernhollow` | A hamlet on a pond at the north fork: the ferry house, fishers' cottages, a boat shed and a shrine |
@@ -5602,7 +5602,8 @@ well all day, and **Hester** sweeps in the morning and sits out the afternoon
 on a bench. Since the well stands in the middle of the square, every round
 there keeps to a lane round its apron and comes and goes by the three streets.
 Indoors, **Lark** carries between the inn's bar and its tables; under Mossvale,
-the miners **Brokk** and **Ottar** go down to the galleries and back; and at
+four carters push their carts round the track and the miners **Brokk** and
+**Ottar** go down to the faces and back; and at
 Fernhollow the ferryman's boy **Pim** runs between the ferry house, the jetty
 and the boat shed.
 
@@ -5743,31 +5744,50 @@ Its street, lanes and square are **moss-stone** now -- grey-green flags with
 moss in every joint and creeping over the edges -- where they were trodden
 dirt.
 
-**Where the workbench stood, north-east of the old tanner's house, is the way
-down to the dwarves**: a door cut into a knoll of rock, framed in dressed
-stone the way only they dress it (`prop_dwarf_mine_gate`) -- square jambs cut
-with runes that glow a little, a stepped lintel with a bearded face over it,
-an iron-bound door stood open on the dark, and rails coming out of it. The
-bench and the anvil are across the lane from it now, by Garrow.
+**At the east end of the village, where Garrow's anvil, his bench and his
+crate of bars stood out in the weather, is the way down to the dwarves**: a
+door cut into a knoll of rock, framed in dressed stone the way only they dress
+it (`prop_dwarf_mine_gate`) -- square jambs cut with runes that glow a little,
+a stepped lintel with a bearded face over it, an iron-bound door stood open on
+the dark, and rails coming out of it. The lane from the square turns down past
+the knoll to its door. **Garrow works under the hill now**, at the dwarves'
+forge, with his anvil and his bench beside Hulda's: the lodge would not have
+the noise indoors, and out in the weather the rain got into the coal. His shop
+and his horns are the same.
 
 **Under it is the Delving of Stonebrow** (`mossvale_mine`), laid out by hand:
 the entry chamber where the stair comes down, with the foreman's board; a
-propped tunnel north to **the hall**, carved flags, two kings in stone
-(`prop_dwarf_statue`), a long table, and the forge with **Hulda Anvilhand's**
-anvil, which anyone may use; a railed tunnel east to **the galleries**, iron
-and coal near the rails and azuryte at the far end, among pillars of rock left
-standing; and up a second propped tunnel **the deep gallery**, damascus and
-orichalcum. Track runs through all of it (`rail_ew`, `rail_ns`, laid over the
-floor as overlays) with ore carts standing on it, pit props hold up the
-tunnels (`prop_mine_support`), and lanterns on stands light the way. **Foreman
-Durgan** keeps the stores; nothing down there fights. The floor, the rock and
-the track are `tools/make_town_tiles.py`'s.
+propped tunnel north to **the hall** -- carved flags, two kings in stone
+(`prop_dwarf_statue`), a long table, **Hulda Anvilhand's** forge and Garrow's
+-- with a second tunnel out of its east end; **the galleries** east along the
+main line, iron and coal near the track and azuryte further in, among pillars
+of rock left standing; **the deep gallery**, north up the spur, damascus and
+orichalcum; **the glimmer**, a crystal cave off the deep gallery's far end,
+diamond and platinum for a miner at the top of the trade; and **the depot**,
+where the loop of track comes back down and **Tallymaster Grimsa** marks every
+cart on her slate. **Foreman Durgan** keeps the stores between the kings.
+Nothing down there fights.
+
+**The track is a loop**, with the main line running out of it west to the
+foot of the stair and a siding in the depot, and it is laid down the middle
+of each two-cell tunnel -- on the line between the cells -- so pit props
+(`prop_mine_support`) stand clear of it either side. **Four carters push their
+carts round it all day**: Bardi and Kelda half a round apart on the loop,
+loading at the foot of the spur and unloading at the depot; Rurik up and down
+the main line from the stair; and Yrsa on the siding. The cart is part of the
+carter's sprite (`"cart"` in `LOOKS`, `tools/blender_character.py`): an
+iron-strapped tub heaped with ore -- copper and iron for one look, coal for
+the other -- on four wheels, built on the rig's root rather than its body, so
+it runs level while the carter bobs behind it and turns with the way the
+carter faces; the arms go forward to its push bar. Brokk and Ottar go down to
+the faces with their picks. The self-test walks every carter's round and
+fails if any step of it leaves the rails.
 
 The dwarves are the character rig again with a dwarf's shape (`"dwarf"` in
-`LOOKS`, `tools/blender_character.py`): shorter in the leg, a fifth broader in
-the body and shoulders, a beard from under the nose to the belt with the
-moustache swept out either side, and an iron cap. Two looks: the miners'
-(ginger, in leather) and the smith's (black-bearded, in a scorched red jerkin).
+`LOOKS`): shorter in the leg, a fifth broader in the body and shoulders, a
+beard from under the nose to the belt with the moustache swept out either
+side, and an iron cap. The floor, the rock and the track are
+`tools/make_town_tiles.py`'s.
 
 ### Fernhollow on the water
 
@@ -7266,7 +7286,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **64596 checks** covering:
+and checks all of it — currently **64703 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -7302,6 +7322,10 @@ and checks all of it — currently **64596 checks** covering:
   logs; every wood is a stack with an icon, worth more than the one below it,
   and grows on at least twenty trees, cut at a Woodcutting level below the
   tier that first wants it
+- the dwarves' mine: its door stands where Garrow's anvil was, Garrow and his
+  anvil and bench are in the hall, four carters or more push their carts round
+  the track and never off the rails, nine dwarves or more are at work, and the
+  galleries hold seven kinds of ore
 - the rebuilt towns: the mayor's hall and the dwarves' mine load, are flat,
   belong to their towns, and every NPC and object in them can be walked to
 - traders: every shop is kept by an NPC standing in its own town, who can be

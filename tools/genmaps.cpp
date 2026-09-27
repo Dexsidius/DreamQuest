@@ -7255,7 +7255,9 @@ static void BuildMossvale() {
         if (abs(cy - 22) <= 1 && cx >= 20 && cx <= 23) return true;              // and into the square
         if (abs(cy - 38) <= 1 && cx >= 11 && cx <= 26) return true;             // to the herbalist
         if (abs(cx - 26) <= 1 && cy >= sq_cy && cy <= 38) return true;
-        if (abs(cy - 26) <= 1 && cx >= 36 && cx <= 45) return true;              // out to the mine
+        if (abs(cy - 26) <= 1 && cx >= 36 && cx <= 45) return true;              // east from the square,
+        if (cx >= 44 && cx <= 45 && cy >= 25 && cy <= 32) return true;           // down past the knoll
+        if (cy >= 31 && cy <= 32 && cx >= 44 && cx <= 52) return true;           // to the mine's door
         return false;
     };
     // Where buildings stand, so the greenery keeps clear of them.
@@ -7369,12 +7371,13 @@ static void BuildMossvale() {
         m.Collision((sq_cx + 10) * CELL - 16, 21 * CELL - 10, 32, 10);
     }
     // --- the dwarves' mine ----------------------------------------------------------
-    // Where the workbench stood, north-east of the old tanner's house: a door
-    // cut into a knoll, framed in the dwarves' dressed stone, and the way down
-    // to their hall and galleries (see BuildMossvaleMine). The bench and the
-    // anvil are across the lane from it now, by Garrow.
+    // East of the lane, where Garrow's anvil, his bench and his crate of bars
+    // stood out in the weather: a door cut into a knoll, framed in the
+    // dwarves' dressed stone, and the way down to their hall and galleries
+    // (see BuildMossvaleMine). Garrow works under the hill now, at the
+    // dwarves' forge, with his anvil and his bench beside theirs.
     {
-        const int gx = 44 * CELL, gy = 26 * CELL;
+        const int gx = 49 * CELL + 8, gy = 30 * CELL + 12;
         m.Prop("props", "dwarf_mine_gate", gx, gy);
         // The knoll, less the doorway; the rails in front are walked on.
         m.Collision(gx - 79, gy - 118, 174, 46);
@@ -7382,26 +7385,12 @@ static void BuildMossvale() {
         m.Collision(gx + 22, gy - 72, 73, 46);
         m.Portal(gx - 20, gy - 44, 40, 30, "mossvale_mine", "entrance", "Go down into the dwarves' mine");
         m.Spawn("from_mossvale_mine", gx, gy + 18);
-        json& o = m.Object("sign_mossvale_mine", "sign", gx - 104, gy + 8);
+        json& o = m.Object("sign_mossvale_mine", "sign", 43 * CELL + 12, gy + 8);
         o["sprite"] = "assets/props/signpost.png";
         o["title"]  = "A plate of beaten copper";
-        o["text"]   = "THE DELVING OF STONEBROW\n\nOre bought. Ore sold. Picks mended.\n\n"
+        o["text"]   = "THE DELVING OF STONEBROW\n\nOre bought. Ore sold. Picks mended. Garrow's forge below.\n\n"
                       "Under it, scratched smaller: MIND THE CARTS. MIND YOUR HEAD. MIND THE FOREMAN.";
-        m.Collision(gx - 104 - 16, gy - 2, 32, 10);
-    }
-    {
-        json& o = m.Object("bench_mossvale", "workbench", 48 * CELL, 30 * CELL);
-        o["sprite"]  = "assets/props/workbench.png";
-        o["title"]   = "Workbench";
-        o["station"] = "workbench";
-        m.Collision(48 * CELL - 34, 30 * CELL - 18, 67, 18);
-        // An anvil beside it, so the trail's metal need not go back to
-        // Havenbrook to be smithed.
-        json& a = m.Object("anvil_mossvale", "workbench", 49 * CELL, 27 * CELL);
-        a["sprite"]  = "assets/props/anvil.png";
-        a["title"]   = "Anvil";
-        a["station"] = "anvil";
-        m.Collision(49 * CELL - 14, 27 * CELL - 12, 28, 12);
+        m.Collision(43 * CELL + 12 - 16, gy - 2, 32, 10);
     }
     for (const auto& lp : {std::pair<int, int>{35 * CELL, 17 * CELL}, {24 * CELL, 17 * CELL}}) {
         m.Prop("props", "log_pile", lp.first, lp.second);
@@ -7480,11 +7469,6 @@ static void BuildMossvale() {
                         "and the gowns in the window. It is quieter, and the cloth does not smell of the forge.";
         m.Collision(33 * CELL - 16, 21 * CELL - 4, 32, 10);
     }
-    // The smith works the village anvil by the workbench, with his bars in a
-    // crate at his elbow.
-    m.Npc("npc_garrow", "Garrow the Smith", "fighter2", 50 * CELL + 16, 27 * CELL - 2, "garrow_root", 0)["shop"] = "mossvale_forge";
-    m.Prop("props", "ingot_crate", 52 * CELL, 27 * CELL + 4);
-    m.Collision(52 * CELL - 17, 27 * CELL - 8, 34, 12);
     m.Npc("npc_tamsin", "Tamsin",         "player_warden", 45 * CELL, 19 * CELL, "tamsin_root", 0, true);
 
     // --- village life along the street ------------------------------------------
@@ -7524,7 +7508,7 @@ static void BuildMossvale() {
         if (cx >= 10 && cx <= 20 && cy >= 18 && cy <= 24) return true;   // woodcutters' cabin
         if (cx >= 37 && cx <= 43 && cy >= 34 && cy <= 39) return true;   // hide tent
         if (cy >= 28 && cy <= 32 && ((cx >= 17 && cx <= 23) || (cx >= 36 && cx <= 43))) return true;  // stalls
-        if (cx >= 39 && cx <= 53 && cy >= 20 && cy <= 31) return true;   // the mine gate and the smith's corner
+        if (cx >= 41 && cx <= 54 && cy >= 24 && cy <= 33) return true;   // the mine gate and its lane
         return false;
     };
     for (int cy = 3; cy < H - 2; ++cy)
@@ -7559,21 +7543,29 @@ static void BuildMossvale() {
 
 // --- the dwarves' mine under Mossvale ---------------------------------------------
 //
-// The Delving of Stonebrow: a door in a knoll by Mossvale's smithy, and under
-// it a hall the dwarves cut for themselves and the galleries they work.
+// The Delving of Stonebrow: a door in a knoll at the east end of Mossvale,
+// and under it a hall the dwarves cut for themselves and the galleries they
+// work, joined by a loop of track their carts go round all day.
 //
 //   the entry chamber   where the stair from the door comes down; the way out
 //                       is its south wall, the way a building's door is
 //   the hall            north up a propped tunnel: carved flags, two kings in
-//                       stone, the long table, and the forge -- Durgan the
-//                       foreman keeps the stores, Hulda the anvil
-//   the east galleries  along the rails: iron and coal, and azuryte deeper in
-//   the deep gallery    north of those, up a second tunnel: damascus and
-//                       orichalcum, for a miner who has earned them
+//                       stone, the long table, and the forges -- Hulda's, and
+//                       Garrow's, who works under the hill now; Durgan the
+//                       foreman keeps the stores between the kings
+//   the east galleries  along the main line: iron and coal, azuryte further in
+//   the deep gallery    north up the spur, or east out of the hall: damascus
+//                       and orichalcum
+//   the glimmer         a crystal cave off the deep gallery's far end:
+//                       diamond and platinum, for a miner at the top of it
+//   the depot           where the loop comes back down: the ore sorted,
+//                       tallied and stacked to go up
 //
-// Nothing here fights. It is a place of work, with the dwarves going to it.
+// The track is laid down the middle of each two-cell tunnel -- on the line
+// between the cells, not along one of them -- so the carters pushing their
+// carts round it keep clear of the pit props either side. Nothing here fights.
 static void BuildMossvaleMine() {
-    const int CELL = 32, W = 44, H = 30;
+    const int CELL = 32, W = 60, H = 40;
     MapBuilder m("mossvale_mine", "The Delving of Stonebrow", W * CELL, H * CELL);
     m.Interior(true);
     m.Ambient("dungeon");
@@ -7582,37 +7574,38 @@ static void BuildMossvaleMine() {
     std::mt19937 rng(4404u);
 
     struct Box { int x0, y0, x1, y1; };
-    const Box entry = {4, 20, 13, 27}, hall = {3, 3, 22, 14}, tunnel_n = {8, 15, 9, 19}, main_t = {14, 23, 26, 24},
-              galleries = {26, 16, 41, 27}, tunnel_ne = {34, 12, 35, 15}, deep = {28, 3, 41, 11};
-    const Box floors[] = {entry, hall, tunnel_n, main_t, galleries, tunnel_ne, deep};
+    const Box entry = {4, 30, 13, 37}, hall = {3, 12, 24, 24}, tunnel_n = {8, 25, 9, 29},
+              hall_east = {25, 14, 31, 15}, main_t = {14, 33, 29, 34}, galleries = {30, 24, 46, 37},
+              spur = {37, 15, 38, 23}, deep = {32, 3, 50, 14}, reach = {51, 7, 55, 8},
+              east_t = {53, 9, 54, 23}, glimmer = {51, 2, 57, 6}, depot = {47, 24, 57, 37};
+    const Box floors[] = {entry, hall, tunnel_n, hall_east, main_t, galleries, spur, deep, reach, east_t,
+                          glimmer, depot};
     const auto in = [](const Box& b, int cx, int cy) { return cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1; };
     // Rock left standing in the galleries, so they are worked faces and not rooms.
     const auto pillar = [](int cx, int cy) {
-        return (cx >= 30 && cx <= 31 && cy >= 19 && cy <= 20) || (cx >= 36 && cx <= 37 && cy >= 25 && cy <= 26) ||
-               (cx >= 32 && cx <= 33 && cy >= 6 && cy <= 7) || (cx >= 38 && cx <= 39 && cy >= 18 && cy <= 19);
+        return (cx >= 33 && cx <= 34 && cy >= 27 && cy <= 28) || (cx >= 42 && cx <= 43 && cy >= 29 && cy <= 30) ||
+               (cx >= 34 && cx <= 35 && cy >= 4 && cy <= 5) || (cx >= 44 && cx <= 45 && cy >= 10 && cy <= 11) ||
+               (cx >= 41 && cx <= 42 && cy >= 36 && cy <= 37);
     };
     vector<vector<bool>> floor(H, vector<bool>(W, false));
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
             bool f = false;
             for (const Box& b : floors) f |= in(b, cx, cy);
-            f &= !pillar(cx, cy);
-            floor[cy][cx] = f;
+            floor[cy][cx] = f && !pillar(cx, cy);
         }
-    // The way out, through the entry chamber's south wall.
     const int door_cx = 8;
     for (int cy = 0; cy < H; ++cy)
         for (int cx = 0; cx < W; ++cx) {
             const bool door = cy == entry.y1 + 1 && (cx == door_cx || cx == door_cx + 1);
             if (floor[cy][cx] || door) {
-                const bool carved = in(hall, cx, cy);
-                m.Ground(VariantOf(carved ? "dungeon_floor" : "mine_floor", cx, cy), cx * CELL, cy * CELL, CELL);
+                m.Ground(VariantOf(in(hall, cx, cy) ? "dungeon_floor" : "mine_floor", cx, cy), cx * CELL, cy * CELL, CELL);
             } else {
                 m.Ground(VariantOf("mine_rock", cx, cy), cx * CELL, cy * CELL, CELL);
                 m.Collision(cx * CELL, cy * CELL, CELL, CELL);
             }
         }
-    const int ex = door_cx * CELL + CELL;
+    const int ex = (door_cx + 1) * CELL;
     m.Portal(ex - 32, (entry.y1 + 1) * CELL + 4, 64, 28, "mossvale", "from_mossvale_mine", "Climb back up to Mossvale", false);
     m.Spawn("entrance", ex, entry.y1 * CELL - 4);
     m.Spawn("default", ex, entry.y1 * CELL - 4);
@@ -7627,46 +7620,60 @@ static void BuildMossvaleMine() {
         o["sprite"] = "assets/props/mine_lantern.png";
         m.Collision(x - 6, y - 6, 12, 6);
     };
+    // A pit prop across a tunnel two cells wide, centred on x: its posts stand
+    // clear of the track down the middle.
+    auto prop_across = [&](int x, int y) {
+        m.Prop("props", "mine_support", x, y);
+        m.Collision(x - 26, y - 12, 8, 12);
+        m.Collision(x + 18, y - 12, 8, 12);
+    };
 
-    // --- the rails: out of the entry chamber, along the main tunnel, round the
-    // galleries, and up to the deep one ---------------------------------------------
-    for (int cx = 11; cx <= 36; ++cx) m.Overlay("tiles", "rail_ew", cx * CELL + 16, 24 * CELL + 16);
-    for (int cy = 5; cy <= 23; ++cy)
-        if (floor[cy][34]) m.Overlay("tiles", "rail_ns", 34 * CELL + 16, cy * CELL + 16);
-    piece("ore_cart", 20 * CELL, 24 * CELL + 30, 60, 14);
-    piece("ore_cart", 34 * CELL + 16, 9 * CELL + 30, 60, 14);
+    // --- the track -------------------------------------------------------------------------
+    // The main line from the entry chamber east to the depot; the spur up to
+    // the deep gallery; the deep line east along it; and the east line back
+    // down to the depot -- a loop, with the main line's west end running out
+    // of it to the foot of the stair, and a siding in the depot.
+    const int main_y = 34 * CELL, spur_x = 38 * CELL, deep_y = 8 * CELL, east_x = 54 * CELL, siding_y = 29 * CELL;
+    for (int cx = 11; cx <= 55; ++cx) m.Overlay("tiles", "rail_ew", cx * CELL + 16, main_y);
+    for (int cx = 33; cx <= 53; ++cx) m.Overlay("tiles", "rail_ew", cx * CELL + 16, deep_y);
+    for (int cy = 8; cy <= 33; ++cy) {
+        m.Overlay("tiles", "rail_ns", spur_x, cy * CELL + 16);
+        m.Overlay("tiles", "rail_ns", east_x, cy * CELL + 16);
+    }
+    for (int cx = 47; cx <= 52; ++cx) m.Overlay("tiles", "rail_ew", cx * CELL + 16, siding_y);
+    // A cart at rest by the stair, off the line.
+    piece("ore_cart", 5 * CELL + 24, main_y - 36, 60, 14);
 
     // --- the entry chamber ------------------------------------------------------------------
-    piece("crates_sacks", 5 * CELL + 16, 21 * CELL + 12, 35, 12);
-    piece("barrel", 6 * CELL + 24, 21 * CELL + 8, 26, 10);
-    piece("mine_support", 8 * CELL + 16, 20 * CELL + 12, 0, 0);
-    m.Collision(8 * CELL + 16 - 26, 20 * CELL, 8, 12);
-    m.Collision(8 * CELL + 16 + 18, 20 * CELL, 8, 12);
-    lantern(12 * CELL, 21 * CELL);
-    lantern(5 * CELL, 26 * CELL + 8);
+    piece("crates_sacks", 5 * CELL + 16, 31 * CELL + 12, 35, 12);
+    piece("barrel", 12 * CELL + 16, 31 * CELL + 8, 26, 10);
+    prop_across(9 * CELL, 30 * CELL + 16);
+    lantern(12 * CELL + 8, 36 * CELL + 8);
+    lantern(4 * CELL + 16, 36 * CELL + 8);
     {
-        json& o = m.Object("sign_mine_rules", "sign", 11 * CELL + 16, 26 * CELL + 16);
+        json& o = m.Object("sign_mine_rules", "sign", 11 * CELL + 16, 37 * CELL + 8);
         o["sprite"] = "assets/props/signpost.png";
         o["title"]  = "The foreman's board";
-        o["text"]   = "STONEBROW DELVING\n\nNORTH: the hall. The forge is Hulda's; ask before you use it, and "
-                      "then use it.\nEAST: the galleries. Iron and coal, and azuryte further in.\n"
-                      "NORTH OF EAST: the deep gallery. Damascus. Orichalcum. Not for learners.\n\n"
+        o["text"]   = "STONEBROW DELVING\n\nNORTH: the hall. The forges are Hulda's and Garrow's; ask before you "
+                      "use them, and then use them.\nEAST, ON THE LINE: the galleries. Iron and coal, and azuryte "
+                      "further in. The depot past them.\nNORTH OF EAST: the deep gallery. Damascus. Orichalcum. "
+                      "Not for learners.\nPAST THAT: the glimmer. If you have to ask, it is not for you.\n\n"
                       "Carts have right of way. Carts ALWAYS have right of way.";
-        m.Collision(11 * CELL, 26 * CELL + 6, 32, 10);
+        m.Collision(11 * CELL, 36 * CELL + 30, 32, 10);
     }
 
-    // --- the tunnel up to the hall, propped ----------------------------------------------------
-    for (int cy : {16, 18}) {
-        m.Prop("props", "mine_support", 9 * CELL, cy * CELL + 24);
-        m.Collision(9 * CELL - 26, cy * CELL + 12, 8, 12);
-        m.Collision(9 * CELL + 18, cy * CELL + 12, 8, 12);
-    }
+    // --- the tunnels, propped ---------------------------------------------------------------------
+    prop_across(9 * CELL, 26 * CELL + 16);
+    prop_across(9 * CELL, 28 * CELL + 24);
+    prop_across(spur_x, 17 * CELL + 16);
+    prop_across(spur_x, 21 * CELL + 16);
+    prop_across(east_x, 13 * CELL + 16);
+    prop_across(east_x, 19 * CELL + 16);
 
     // --- the hall -------------------------------------------------------------------------------
-    // The forge at the west end, the long table in the middle, the kings at
-    // the east end facing the door they guard.
     {
         const int hx0 = hall.x0 * CELL, hy0 = hall.y0 * CELL;
+        // Hulda's forge, in the north-west corner.
         piece("forge", hx0 + 70, hy0 + 76, 50, 22);
         piece("bellows", hx0 + 146, hy0 + 66, 40, 14);
         piece("quench_trough", hx0 + 70, hy0 + 150, 56, 14);
@@ -7679,10 +7686,26 @@ static void BuildMossvaleMine() {
             m.Collision(hx0 + 150 - 14, hy0 + 110 - 12, 28, 12);
         }
         m.Npc("npc_hulda", "Hulda Anvilhand", "dwarf_smith", hx0 + 196, hy0 + 110, "hulda_root", 1);
-        piece("ingot_crate", hx0 + 40, hy0 + 196, 34, 12);
         piece("tool_rack", hx0 + 230, hy0 + 64, 40, 12);
+        // Garrow's, south of it: the anvil and the bench that stood out in
+        // the weather at Mossvale, and his crate of bars.
+        {
+            json& a = m.Object("anvil_mossvale", "workbench", hx0 + 70, hy0 + 262);
+            a["sprite"]  = "assets/props/anvil.png";
+            a["title"]   = "Garrow's anvil";
+            a["station"] = "anvil";
+            m.Collision(hx0 + 70 - 14, hy0 + 262 - 12, 28, 12);
+            json& o = m.Object("bench_mossvale", "workbench", hx0 + 58, hy0 + 356);
+            o["sprite"]  = "assets/props/workbench.png";
+            o["title"]   = "Workbench";
+            o["station"] = "workbench";
+            m.Collision(hx0 + 58 - 34, hy0 + 356 - 18, 67, 18);
+        }
+        piece("ingot_crate", hx0 + 136, hy0 + 360, 34, 12);
+        m.Npc("npc_garrow", "Garrow the Smith", "fighter2", hx0 + 116, hy0 + 262, "garrow_root", 1)["shop"] =
+            "mossvale_forge";
         // The long table, benches either side.
-        const int tx = 13 * CELL, ty = 9 * CELL;
+        const int tx = 15 * CELL, ty = 18 * CELL;
         piece("tavern_bench", tx - 40, ty - 34, 46, 12);
         piece("tavern_bench", tx + 40, ty - 34, 46, 12);
         // The table's art stands 28 pixels up its image: placed that much
@@ -7691,77 +7714,105 @@ static void BuildMossvaleMine() {
         m.Collision(tx - 33, ty - 16, 66, 16);
         piece("tavern_bench", tx - 40, ty + 38, 46, 12);
         piece("tavern_bench", tx + 40, ty + 38, 46, 12);
-        piece("barrel_table", tx + 120, ty + 10, 30, 10);
-        m.Overlay("props", "bear_rug", tx, ty + 104);
-        piece("weapon_rack", 16 * CELL, 4 * CELL + 16, 40, 12);
-        piece("barrel", 7 * CELL, 13 * CELL + 16, 26, 10);
-        piece("barrel", 7 * CELL + 28, 13 * CELL + 20, 26, 10);
+        piece("barrel_table", tx + 124, ty + 10, 30, 10);
+        m.Overlay("props", "bear_rug", tx, ty + 110);
+        piece("weapon_rack", 13 * CELL, hy0 + 30, 40, 12);
         // The kings, and the foreman between them with his stores.
-        piece("dwarf_statue", 19 * CELL, 6 * CELL + 16, 34, 14);
-        piece("dwarf_statue", 21 * CELL + 16, 6 * CELL + 16, 34, 14);
-        piece("strongbox", 20 * CELL + 8, 5 * CELL + 20, 22, 10);
-        piece("crates_sacks", 21 * CELL, 12 * CELL + 16, 35, 12);
-        m.Npc("npc_durgan", "Foreman Durgan", "dwarf", 20 * CELL + 8, 7 * CELL + 24, "durgan_root", 0)["shop"] =
+        piece("dwarf_statue", 20 * CELL, hy0 + 58, 34, 14);
+        piece("dwarf_statue", 23 * CELL, hy0 + 58, 34, 14);
+        piece("strongbox", 21 * CELL + 16, hy0 + 44, 22, 10);
+        m.Npc("npc_durgan", "Foreman Durgan", "dwarf", 21 * CELL + 16, hy0 + 96, "durgan_root", 0)["shop"] =
             "mossvale_mine";
-        lantern(hall.x0 * CELL + 24, 12 * CELL);
-        lantern(11 * CELL, 4 * CELL + 16);
-        lantern(17 * CELL, 12 * CELL + 16);
-        lantern(22 * CELL + 16, 10 * CELL);
+        piece("crates_sacks", 23 * CELL, 23 * CELL + 20, 35, 12);
+        lantern(hall.x0 * CELL + 20, 20 * CELL);
+        lantern(11 * CELL, hy0 + 20);
+        lantern(18 * CELL, 24 * CELL + 20);
+        lantern(24 * CELL + 16, 19 * CELL);
     }
 
     // --- the ore ------------------------------------------------------------------------------
-    // Seams in the galleries' walls and the rock left standing in them.
     int rock = 0;
     struct Seam { int cx, cy; bool big; int level; const char* ore; };
     const Seam seams[] = {
-        // The east galleries: iron and coal near the rails, azuryte at the far end.
-        {27, 17, true, 10, "iron_ore"}, {29, 21, true, 10, "iron_ore"}, {28, 26, false, 10, "iron_ore"},
-        {32, 17, true, 20, "coal"}, {33, 27, true, 20, "coal"}, {35, 21, false, 20, "coal"},
-        {40, 17, true, 30, "azuryte_ore"}, {41, 22, true, 30, "azuryte_ore"}, {40, 26, false, 30, "azuryte_ore"},
+        // The east galleries: iron and coal near the line, azuryte further in.
+        {31, 25, true, 10, "iron_ore"}, {31, 30, true, 10, "iron_ore"}, {35, 36, false, 10, "iron_ore"},
+        {36, 25, true, 10, "iron_ore"},
+        {40, 25, true, 20, "coal"}, {44, 27, true, 20, "coal"}, {39, 36, true, 20, "coal"}, {33, 31, false, 20, "coal"},
+        {46, 25, true, 30, "azuryte_ore"}, {45, 36, true, 30, "azuryte_ore"}, {41, 31, false, 30, "azuryte_ore"},
         // The deep gallery.
-        {29, 4, true, 40, "damascus_ore"}, {30, 9, true, 40, "damascus_ore"}, {37, 4, true, 40, "damascus_ore"},
-        {41, 5, true, 50, "orichalcum_ore"}, {40, 10, true, 50, "orichalcum_ore"},
+        {33, 3, true, 40, "damascus_ore"}, {41, 4, true, 40, "damascus_ore"}, {47, 4, true, 40, "damascus_ore"},
+        {33, 13, true, 40, "damascus_ore"},
+        {49, 12, true, 50, "orichalcum_ore"}, {43, 13, true, 50, "orichalcum_ore"}, {48, 5, false, 50, "orichalcum_ore"},
+        // The glimmer.
+        {52, 3, true, 60, "diamond_ore"}, {57, 4, true, 60, "diamond_ore"},
+        {55, 2, true, 70, "platinum_ore"}, {57, 6, false, 70, "platinum_ore"},
     };
     for (const Seam& se : seams)
         PlaceRock(m, rng, 700 + rock++, se.cx * CELL + 16, se.cy * CELL + 20, se.big, se.level, se.ore);
-    // Props and lamps along the galleries.
-    for (int cx : {28, 38}) {
-        m.Prop("props", "mine_support", cx * CELL + 16, 16 * CELL + 24);
-        m.Collision(cx * CELL + 16 - 26, 16 * CELL + 12, 8, 12);
-        m.Collision(cx * CELL + 16 + 18, 16 * CELL + 12, 8, 12);
+    // Crystals in the glimmer's walls, to say what it is from the door.
+    for (const auto& c : {std::pair<int, int>{53, 5}, {56, 3}}) {
+        m.Prop("props", "ice_crystal", c.first * CELL + 16, c.second * CELL + 24);
+        m.Collision(c.first * CELL + 4, c.second * CELL + 14, 24, 10);
     }
-    m.Prop("props", "mine_support", 34 * CELL + 16, 13 * CELL + 24);
-    m.Collision(34 * CELL + 16 - 26, 13 * CELL + 12, 8, 12);
-    m.Collision(34 * CELL + 16 + 18, 13 * CELL + 12, 8, 12);
-    lantern(27 * CELL + 16, 23 * CELL);
-    lantern(38 * CELL, 22 * CELL + 16);
-    lantern(31 * CELL, 26 * CELL + 24);
-    lantern(29 * CELL, 7 * CELL);
-    lantern(39 * CELL, 7 * CELL + 16);
-    piece("crates_sacks", 41 * CELL, 27 * CELL + 16, 35, 12);
-    piece("barrel", 26 * CELL + 16, 27 * CELL + 12, 26, 10);
+    lantern(30 * CELL + 16, 24 * CELL + 24);
+    lantern(46 * CELL + 16, 31 * CELL);
+    lantern(32 * CELL + 16, 37 * CELL + 16);
+    lantern(33 * CELL, 10 * CELL);
+    lantern(49 * CELL, 9 * CELL);
+    lantern(52 * CELL + 8, 6 * CELL + 16);
+    piece("crates_sacks", 46 * CELL, 37 * CELL + 16, 35, 12);
+    piece("barrel", 30 * CELL + 16, 37 * CELL + 12, 26, 10);
 
-    // --- the miners --------------------------------------------------------------------------
-    // Two go to the galleries and back all day, pushing nothing but talking
-    // a great deal.
-    const auto miner = [&](const string& id, const string& name, const string& sprite, const string& dialogue,
-                           const vector<std::array<float, 4>>& stops, float phase) {
+    // --- the depot --------------------------------------------------------------------------------
+    // Where the loop comes back down: the ore off the carts in heaps by
+    // kind, tallied, and crated to go up the stair.
+    piece("ingot_crate", 49 * CELL, 25 * CELL + 16, 34, 12);
+    piece("crates_sacks", 51 * CELL, 25 * CELL + 16, 35, 12);
+    piece("crates_sacks", 57 * CELL, 26 * CELL + 16, 35, 12);
+    piece("barrel", 48 * CELL, 37 * CELL + 16, 26, 10);
+    piece("barrel", 49 * CELL, 37 * CELL + 20, 26, 10);
+    piece("ingot_crate", 57 * CELL, 36 * CELL + 16, 34, 12);
+    lantern(56 * CELL + 16, 31 * CELL + 16);
+    lantern(48 * CELL, 32 * CELL);
+    m.Npc("npc_grimsa", "Tallymaster Grimsa", "dwarf_smith", 51 * CELL, 31 * CELL + 16, "grimsa_root", 0)["tint"] =
+        json::array({236, 226, 214});
+
+    // --- the dwarves at work ---------------------------------------------------------------------
+    const auto dwarf = [&](const string& id, const string& name, const string& sprite, const string& dialogue,
+                           const vector<std::array<float, 4>>& stops, bool there_and_back, float speed, float phase) {
         json& n = m.Npc(id, name, sprite, static_cast<int>(stops.front()[0]), static_cast<int>(stops.front()[1]),
-                        dialogue, 0);
+                        dialogue, static_cast<int>(stops.front()[3]));
         json path = json::array();
         for (const auto& st : stops) path.push_back({st[0], st[1], st[2], static_cast<int>(st[3])});
         n["path"] = path;
-        n["ping_pong"] = true;
-        n["speed"] = 26.0f;
+        n["ping_pong"] = there_and_back;
+        n["speed"] = speed;
         n["phase"] = phase;
     };
-    miner("npc_brokk", "Brokk", "dwarf", "brokk_root",
-          {{11 * CELL, 10 * CELL, 20.0f, 0}, {8 * CELL + 16, 12 * CELL, 0, 0}, {8 * CELL + 16, 22 * CELL + 8, 0, 0},
-           {26 * CELL, 22 * CELL + 8, 0, 0}, {28 * CELL, 18 * CELL, 18.0f, 1}}, 0.0f);
-    miner("npc_ottar", "Ottar", "dwarf", "ottar_root",
-          {{15 * CELL, 12 * CELL + 16, 16.0f, 3}, {8 * CELL + 16, 13 * CELL, 0, 0}, {8 * CELL + 16, 22 * CELL + 8, 0, 0},
-           {33 * CELL + 8, 22 * CELL + 8, 0, 0}, {33 * CELL + 8, 16 * CELL, 0, 0}, {34 * CELL + 16, 12 * CELL, 0, 0},
-           {35 * CELL, 8 * CELL, 20.0f, 3}}, 60.0f);
+    // Facings: 0 down, 1 left, 2 right, 3 up. The carters push their carts
+    // along the track: two round the loop, half a round apart, loading at the
+    // foot of the spur and unloading at the depot; one up and down the main
+    // line from the stair to the galleries; and one on the depot's siding.
+    const vector<std::array<float, 4>> loop = {
+        {static_cast<float>(spur_x), static_cast<float>(main_y), 6.0f, 2},
+        {static_cast<float>(east_x), static_cast<float>(main_y), 8.0f, 3},
+        {static_cast<float>(east_x), static_cast<float>(deep_y), 2.0f, 1},
+        {static_cast<float>(spur_x), static_cast<float>(deep_y), 6.0f, 0}};
+    dwarf("npc_bardi", "Bardi", "dwarf_carter", "mine_carter_root", loop, false, 34.0f, 0.0f);
+    dwarf("npc_kelda", "Kelda", "dwarf_carter_coal", "mine_carter_root", loop, false, 34.0f, 64.0f);
+    dwarf("npc_rurik", "Rurik", "dwarf_carter_coal", "mine_carter_root",
+          {{12 * CELL, static_cast<float>(main_y), 10.0f, 2}, {spur_x - 40.0f, static_cast<float>(main_y), 6.0f, 1}},
+          true, 30.0f, 20.0f);
+    dwarf("npc_yrsa", "Yrsa", "dwarf_carter", "mine_carter_root",
+          {{48 * CELL, static_cast<float>(siding_y), 6.0f, 2}, {52 * CELL + 16, static_cast<float>(siding_y), 6.0f, 1}},
+          true, 26.0f, 10.0f);
+    // And two with picks, who go down to the faces and back, talking.
+    dwarf("npc_brokk", "Brokk", "dwarf", "brokk_root",
+          {{11 * CELL, 19 * CELL + 16, 20.0f, 0}, {9 * CELL, 23 * CELL, 0, 0}, {9 * CELL, 33 * CELL + 14, 0, 0},
+           {34 * CELL + 12, 33 * CELL + 14, 0, 0}, {34 * CELL + 12, 26 * CELL + 16, 18.0f, 1}}, true, 26.0f, 0.0f);
+    dwarf("npc_ottar", "Ottar", "dwarf", "ottar_root",
+          {{22 * CELL, 21 * CELL, 16.0f, 3}, {24 * CELL + 16, 15 * CELL, 0, 0}, {31 * CELL, 15 * CELL, 0, 0},
+           {40 * CELL, 12 * CELL, 0, 0}, {41 * CELL, 6 * CELL + 8, 20.0f, 3}}, true, 26.0f, 60.0f);
     m.Write("maps");
 }
 
