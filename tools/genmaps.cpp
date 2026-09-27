@@ -3374,10 +3374,12 @@ static void BuildInteriors() {
         furnish("couch",  "guild_couch",  18 * CELL, 14 * CELL, 48, 14);
         furnish("chair_a", "guild_chair", 8 * CELL, 14 * CELL, 12, 8);
         furnish("chair_b", "guild_chair", 16 * CELL, 14 * CELL, 12, 8);
-        furnish("plant_w", "guild_plant", 2 * CELL, 15 * CELL, 14, 8);
-        furnish("plant_e", "guild_plant", (cols - 2) * CELL, 15 * CELL, 14, 8);
-        furnish("plant_d1", "guild_plant", dx - 2 * CELL, 15 * CELL + 8, 14, 8);
-        furnish("plant_d2", "guild_plant", dx + 2 * CELL, 15 * CELL + 8, 14, 8);
+        // A step back from the row the door opens onto, which is kept clear
+        // wall to wall: the self-test walks it to find the east wall.
+        furnish("plant_w", "guild_plant", 2 * CELL, 14 * CELL + 6, 14, 8);
+        furnish("plant_e", "guild_plant", (cols - 2) * CELL, 14 * CELL + 6, 14, 8);
+        furnish("plant_d1", "guild_plant", dx - 2 * CELL, 14 * CELL + 6, 14, 8);
+        furnish("plant_d2", "guild_plant", dx + 2 * CELL, 14 * CELL + 6, 14, 8);
 
         // --- things you can actually use -------------------------------------
         {
