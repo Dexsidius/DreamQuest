@@ -40,10 +40,10 @@ struct TalentNode {
     bool Passive() const { return technique.empty() && ability.empty(); }
 };
 
-// What a boss leaves the first time it is brought down: something small and
-// for good, of a kind no tree teaches or that any path can use. `paths` is who
-// may be given it -- nobody is handed mana they have no spell to spend on --
-// and empty is anybody.
+// What a boss leaves the first time it is brought down: something small, for
+// an in-game day (Talents::BOON_HOURS), of a kind no tree teaches or that any
+// path can use. `paths` is who may be given it -- nobody is handed mana they
+// have no spell to spend on -- and empty is anybody.
 struct BoonDef {
     string id, name, text;
     vector<AttackStyle> paths;
@@ -150,6 +150,10 @@ public:
     // loot again, but this is kept count of by who it was. It lives here, with
     // the ranks, so it goes wherever they go -- the save, the character a
     // friend keeps on their own machine, the sheet their host rolls with.
+    //
+    // The point is for good. The boon is for a day: BOON_HOURS of the world's
+    // clock from when it was won, and then it wears off. Sleeping through a
+    // night counts, as it counts for everything else the clock does.
     struct Trophy {
         bool first = false;              // false: they had killed it before
         const BoonDef* boon = nullptr;   // what it left; null with no boons to give
@@ -168,8 +172,21 @@ public:
     const std::set<string>& BossesSlain() const { return slain; }
     // A point for each.
     int    BonusPoints() const { return static_cast<int>(slain.size()); }
-    const vector<string>& Boons() const { return boons; }
-    bool   HasBoon(const string& id) const { return std::find(boons.begin(), boons.end(), id) != boons.end(); }
+    // --- a boon lasts a day -------------------------------------------------------------
+    static constexpr double BOON_HOURS = 24.0;
+    // The boons still running, in the order they came.
+    vector<string> Boons() const;
+    bool   HasBoon(const string& id) const { return BoonHoursLeft(id) > 0.0; }
+    // In-game hours before it wears off; 0 for one not held.
+    double BoonHoursLeft(const string& id) const;
+    // The world's clock, in hours since its day zero (WorldClock::GameHours),
+    // told every frame. What has passed since it was last told comes off every
+    // boon, and one that has run out is gone: their ids are returned, for
+    // whoever told it to say so. A step back, or of more than a day and a half,
+    // is another world's clock or a load, and costs nothing -- which is why a
+    // boon is kept as hours left, not as an hour it ends at: a character goes
+    // between its own world and a friend's, and their clocks do not agree.
+    vector<string> SetNow(double game_hours);
     // What the boons come to for one effect: added to whatever the tree gives,
     // whatever is in hand.
     float  BoonEffect(const string& effect) const;
@@ -250,7 +267,11 @@ private:
     std::map<string, int> ranks;
     std::set<string> slain;          // bosses, by id
     std::map<string, int> kills;     // and how many times each
-    vector<string> boons;            // one for each, in the order they came
+    // One for each boss's first kill, in the order they came, with the hours
+    // each has left; gone when it runs out.
+    struct HeldBoon { string id; double left = BOON_HOURS; };
+    vector<HeldBoon> boons;
+    double clock_at = -1.0;          // the world's clock when last told; -1, not yet
     string placed;                   // the totem in the ring, by item id
     int    totem_day = -1;           // the day it was last touched
     int    today = 0;

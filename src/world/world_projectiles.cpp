@@ -257,6 +257,9 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                                  p.def->knockback * p.knockback_mult, p.x - p.vx, p.y - p.vy, ctx);
                         if (p.combo != ComboMove::None)
                             ComboShotHitFx(p.combo, p.style, p.element, e->x, e->y - 20.0f, atan2f(p.vy, p.vx));
+                        // A Pinning Shot holds what it strikes where it stands.
+                        if (p.combo == ComboMove::Drive && p.style == AttackStyle::Ranged && !e->Dead())
+                            e->Stagger(PIN_STAGGER);
                         else if (p.technique_fx)
                             TechniqueShotHitFx(p.technique_fx, p.element, e->x, e->y - 20.0f, atan2f(p.vy, p.vx));
                         crit_next = false;

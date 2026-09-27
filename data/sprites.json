@@ -1453,6 +1453,118 @@
                                         }
                            }
              },
+    "dwarf":  {
+                  "dir":  "assets/characters/dwarf/",
+                  "rows":  4,
+                  "anchor_y":  54,
+                  "scale":  1,
+                  "clips":  {
+                                "idle":  {
+                                             "sheet":  "idle.png",
+                                             "frames":  8,
+                                             "fps":  8,
+                                             "loop":  true,
+                                             "layers":  [
+                                                            {
+                                                                "slot":  "shadow",
+                                                                "sheet":  "layers/idle_1_shadow.png"
+                                                            },
+                                                            {
+                                                                "slot":  "body",
+                                                                "sheet":  "layers/idle_3_body.png"
+                                                            },
+                                                            {
+                                                                "slot":  "weapon_front",
+                                                                "sheet":  "layers/idle_4_weapon_front.png"
+                                                            },
+                                                            {
+                                                                "slot":  "head",
+                                                                "sheet":  "layers/idle_5_head.png"
+                                                            }
+                                                        ]
+                                         },
+                                "walk":  {
+                                             "sheet":  "walk.png",
+                                             "frames":  8,
+                                             "fps":  10,
+                                             "loop":  true,
+                                             "layers":  [
+                                                            {
+                                                                "slot":  "shadow",
+                                                                "sheet":  "layers/walk_1_shadow.png"
+                                                            },
+                                                            {
+                                                                "slot":  "body",
+                                                                "sheet":  "layers/walk_3_body.png"
+                                                            },
+                                                            {
+                                                                "slot":  "weapon_front",
+                                                                "sheet":  "layers/walk_4_weapon_front.png"
+                                                            },
+                                                            {
+                                                                "slot":  "head",
+                                                                "sheet":  "layers/walk_5_head.png"
+                                                            }
+                                                        ]
+                                         }
+                            }
+              },
+    "dwarf_smith":  {
+                        "dir":  "assets/characters/dwarf_smith/",
+                        "rows":  4,
+                        "anchor_y":  54,
+                        "scale":  1,
+                        "clips":  {
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  8,
+                                                   "fps":  8,
+                                                   "loop":  true,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/idle_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/idle_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/idle_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/idle_5_head.png"
+                                                                  }
+                                                              ]
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  8,
+                                                   "fps":  10,
+                                                   "loop":  true,
+                                                   "layers":  [
+                                                                  {
+                                                                      "slot":  "shadow",
+                                                                      "sheet":  "layers/walk_1_shadow.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "body",
+                                                                      "sheet":  "layers/walk_3_body.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "weapon_front",
+                                                                      "sheet":  "layers/walk_4_weapon_front.png"
+                                                                  },
+                                                                  {
+                                                                      "slot":  "head",
+                                                                      "sheet":  "layers/walk_5_head.png"
+                                                                  }
+                                                              ]
+                                               }
+                                  }
+                    },
     "fen_gator":  {
                       "dir":  "assets/characters/fen_gator/",
                       "rows":  4,

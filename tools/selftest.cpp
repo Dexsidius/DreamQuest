@@ -80,7 +80,7 @@ static const char* kMaps[] = {
     "dream_havenbrook",
     "hex_drowns", "hex_strand", "hex_fens", "hex_temple", "hex_sanctum",
     "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
-    "mossvale_cottage",
+    "mossvale_cottage", "mayor_hall", "mossvale_mine",
 };
 
 int main(int argc, char** argv) {
@@ -495,7 +495,8 @@ int main(int argc, char** argv) {
                            "dreamworld_2", "dreamworld_3",
                            "house_inn_cellar", "ice_spire_peak", "ashen_path",
                            "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers",
-                           "palace_dungeon", "palace_throne", "mossvale_cottage", "bayou", "plateau_ascent"}) {
+                           "palace_dungeon", "palace_throne", "mossvale_cottage", "bayou", "plateau_ascent",
+                           "mayor_hall", "mossvale_mine"}) {
         Map room;
         if (!room.Load(string("maps/") + id + ".mx")) continue;
 
@@ -699,7 +700,7 @@ int main(int argc, char** argv) {
         Check(shared.HasElevation(), "the overworld has a height grid");
 
         for (const char* inside : {"guild_hall", "house_smith", "house_elder", "house_inn",
-                                   "house_inn_upper", "town_havenbrook"}) {
+                                   "house_inn_upper", "town_havenbrook", "mayor_hall"}) {
             Check(shared.Load(string("maps/") + inside + ".mx"),
                   string(inside) + " loads after the overworld");
             Check(!shared.HasElevation(),
@@ -1367,7 +1368,7 @@ int main(int argc, char** argv) {
                   string(dyed) + " is boiled, not woven");
         for (const char* ore : {"copper_ore", "iron_ore"})
             Check(items.Get(ore) && items.Get(ore)->metal, string(ore) + " counts as metal");
-        for (const char* soft : {"logs", "oak_logs", "hide", "thread"})
+        for (const char* soft : {"logs", "oak_logs", "birch_logs", "swamp_logs", "ashen_logs", "hide", "thread"})
             Check(items.Get(soft) && !items.Get(soft)->metal, string(soft) + " is not metal");
 
         // What stands in the world agrees with what it is called and drawn as.
@@ -3146,6 +3147,77 @@ int main(int argc, char** argv) {
 
     // --- save round trip ------------------------------------------------------
     // --- material tiers --------------------------------------------------------------
+    Section("the four woods");
+    {
+        // Every tier past iron is hafted, strung and stocked with a better
+        // wood than the last pair: oak, birch, swampwood, ashen wood. Each is
+        // cut from its own trees somewhere in the world, at a Woodcutting
+        // level below the Smithing that first asks for it, and sells.
+        const char* timber_of[] = {"logs", "logs", "logs", "oak_logs", "oak_logs", "birch_logs", "birch_logs",
+                                   "swamp_logs", "swamp_logs", "ashen_logs", "ashen_logs", "ashen_logs"};
+        const auto& tiers = items.Tiers();
+        bool timbers = tiers.size() == 12;
+        for (size_t i = 0; i < tiers.size() && i < 12; ++i) timbers &= tiers[i].timber == timber_of[i];
+        Check(timbers, "logs to iron, then oak, birch, swampwood and ashen wood, two tiers to each");
+        int prev = 0;
+        for (const char* w : {"logs", "oak_logs", "birch_logs", "swamp_logs", "ashen_logs"}) {
+            const ItemDef* d = items.Get(w);
+            Check(d && d->stackable && std::find(d->tags.begin(), d->tags.end(), "wood") != d->tags.end() &&
+                  !d->icon.empty(), string(w) + " is a stack of wood with an icon");
+            if (!d) continue;
+            Check(d->value > prev, string(w) + " is worth more than the wood below it");
+            prev = d->value;
+        }
+        // The recipes use them: a steel sword wants oak where a bronze one
+        // wanted logs, and nothing past iron wants plain logs at all.
+        const auto recipe_for = [&](const string& id) -> const ItemDef* {
+            for (const ItemDef* r : items.Recipes()) if (r->craft_result == id) return r;
+            return nullptr;
+        };
+        const auto needs = [&](const string& piece, const string& wood) {
+            const ItemDef* r = recipe_for(piece);
+            return r && r->craft_inputs.count(wood) && r->craft_inputs.at(wood) > 0;
+        };
+        Check(needs("bronze_sword", "logs") && needs("iron_sword", "logs"), "bronze and iron swords are hafted in logs");
+        Check(needs("steel_sword", "oak_logs") || needs("steel_longsword", "oak_logs"), "a steel sword in oak");
+        Check(needs("damascus_bow", "birch_logs"), "a damascus bow is birch");
+        Check(needs("diamond_staff", "swamp_logs"), "a diamond staff is swampwood");
+        Check(needs("enchanted_bow", "ashen_logs") && needs("dracon_greataxe", "ashen_logs"),
+              "and the enchanted bow and the dracon greataxe are ashen wood");
+        bool plain = true;
+        for (size_t i = 3; i < tiers.size(); ++i)
+            for (const ItemDef* r : items.Recipes()) {
+                const ItemDef* made = items.Get(r->craft_result);
+                if (made && made->tier == tiers[i].id && r->craft_inputs.count("logs")) {
+                    plain = false;
+                    std::printf("    %s still wants logs\n", r->craft_result.c_str());
+                }
+            }
+        Check(plain, "nothing past iron is made with plain logs");
+        // And each is cut somewhere, below the tier that first wants it.
+        std::map<string, int> lowest;
+        std::map<string, int> trees;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects())
+                if (o.type == "tree" && o.skill == "Woodcutting") {
+                    ++trees[o.yield];
+                    if (!lowest.count(o.yield) || o.skill_level < lowest[o.yield]) lowest[o.yield] = o.skill_level;
+                }
+        }
+        for (size_t i = 0; i < tiers.size() && i < 12; ++i) {
+            const string w = timber_of[i];
+            if (i > 0 && timber_of[i - 1] == w) continue;
+            Check(trees[w] >= 20 && lowest.count(w) && lowest[w] <= tiers[i].level,
+                  w + " grows on " + std::to_string(trees[w]) + " trees, cut from Woodcutting " +
+                  std::to_string(lowest.count(w) ? lowest[w] : -1) + ", for " + tiers[i].name + " at " +
+                  std::to_string(tiers[i].level));
+        }
+        Check(lowest["birch_logs"] == 30 && lowest["swamp_logs"] == 45 && lowest["ashen_logs"] == 60,
+              "birch at 30, swampwood at 45, ashen wood at 60");
+    }
+
     Section("material tiers");
     {
         static const char* kOrder[] = {"wood", "bronze", "iron", "steel", "azuryte",
@@ -5314,7 +5386,9 @@ int main(int argc, char** argv) {
             for (const auto& pool : pool_size) {
                 std::set<string> ever;
                 bool steady = true, sized = true;
-                for (int day = 1; day <= 21; ++day) {
+                // Long enough for the biggest book to go round several times.
+                const int days = std::max(21, 10 * pool.second);
+                for (int day = 1; day <= days; ++day) {
                     log.SetDay(day);
                     const auto today = log.PoolToday(pool.first);
                     if (today != log.PoolToday(pool.first)) steady = false;
@@ -5323,7 +5397,7 @@ int main(int argc, char** argv) {
                 }
                 Check(steady && sized, pool.first + " posts " + std::to_string(log.PostsPerDay(pool.first)) +
                                        " dailies a day, the same ones all day");
-                Check(static_cast<int>(ever.size()) == pool.second, "and over three weeks every one of them comes up");
+                Check(static_cast<int>(ever.size()) == pool.second, "and in time every one of them comes up");
             }
 
             Skills sk;
@@ -5969,6 +6043,7 @@ int main(int argc, char** argv) {
         const std::map<string, string> town_of = {
             {"town_havenbrook", "havenbrook"}, {"house_smith", "havenbrook"}, {"house_inn", "havenbrook"},
             {"house_inn_upper", "havenbrook"}, {"house_elder", "havenbrook"}, {"guild_hall", "havenbrook"},
+            {"mayor_hall", "havenbrook"}, {"mossvale_mine", "mossvale"},
             {"mossvale", "mossvale"}, {"mossvale_lodge_hall", "mossvale"}, {"mossvale_herbalist", "mossvale"},
             {"mossvale_weavers", "mossvale"},
             {"fernhollow", "fernhollow"}, {"fernhollow_cottage", "fernhollow"}, {"fernhollow_college", "fernhollow"},
@@ -6146,7 +6221,8 @@ int main(int argc, char** argv) {
         for (const auto& kv : items.All()) {
             const ItemDef& d = kv.second;
             const bool gathered = d.piece == "ore" || d.fish_level > 0 || d.id == "logs" ||
-                                  d.id == "oak_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones" ||
+                                  d.id == "oak_logs" || d.id == "birch_logs" || d.id == "swamp_logs" ||
+                                  d.id == "ashen_logs" || d.id == "hide" || d.id == "dream_shard" || d.id == "bones" ||
                                   d.forage_level > 0 || d.catch_level > 0 || d.id == "honey";
             if (!gathered) continue;
             Check(best_offer(d) > 0, "some trader buys " + d.id + " (" + std::to_string(best_offer(d)) + "c)");
@@ -6708,9 +6784,10 @@ int main(int argc, char** argv) {
                 bool west = false;
                 for (const WorldMark& mk : marks)
                     west |= mk.kind == "path" && mk.label.find("Westwold") != string::npos && mk.label.find("Combat 5") != string::npos;
-                Check(count(marks, "door") == 4 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
+                Check(count(marks, "door") == 5 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
                       count(marks, "craft") >= 2 && count(marks, "trader") >= 2,
-                      "Havenbrook's: four doors, the well, both gates -- the west one with its warning -- the benches and the traders");
+                      "Havenbrook's: five doors -- the mayor's hall is the fifth -- the well, both gates -- the west one "
+                      "with its warning -- the benches and the traders (" + std::to_string(count(marks, "door")) + " doors)");
             }
             {
                 Map m;
@@ -8306,7 +8383,11 @@ int main(int argc, char** argv) {
         Check(tree_count >= 50 && seam_count >= 20 && never == 0,
               "every tree and seam can run out (" + std::to_string(tree_count) + " trees, " + std::to_string(seam_count) + " seams)");
         Check(greedy == 0, "and none of them on most strokes");
-        Check(stumps.size() == 2 && !stumps.count(""), "a felled tree is drawn as a stump, one for each size of tree");
+        // Two for the pine and the oak, a sapling's and a tree's; the birch
+        // and the charred tree have their own; the swamp tree leaves an oak's.
+        Check(stumps.size() == 4 && !stumps.count(""),
+              "a felled tree is drawn as a stump: one for each size of tree, and the birch's and the burnt tree's (" +
+                  std::to_string(stumps.size()) + ")");
         for (const string& s : stumps) if (!s.empty()) Check(fs::exists(s), "the stump art exists: " + s);
 
         Input input;
@@ -9385,8 +9466,8 @@ int main(int argc, char** argv) {
                       "a heavy on its own is a plain strong attack");
                 settle(w);
                 Check(w.player.ComboOpen() && w.player.NextCombo(true) == ComboMove::Backhand &&
-                      w.player.NextCombo(false) == ComboMove::None,
-                      "after it a light would be a Backhand, and another heavy nothing special");
+                      w.player.NextCombo(false) == ComboMove::Drive,
+                      "after it a light would be a Backhand, and another heavy a Driving Thrust");
                 tap(w, SDLK_J);
                 Check(w.player.Attack().move == ComboMove::Backhand && w.player.Attack().type == AttackType::Light,
                       "and a light on its heels is the Backhand");
@@ -9429,6 +9510,100 @@ int main(int argc, char** argv) {
                 Check(w4.player.Attack().move == ComboMove::Backhand,
                       "and a light pressed at the start of it comes out as the Backhand when the gap ends");
             }
+        }
+
+        // --- Heavy, Heavy: the Driving Thrust, carried in on a lunge --------------------------
+        {
+            // Out of a plain strong's reach, and inside the Driving Thrust's: it
+            // lunges in and drives the blow down the line.
+            const auto reached = [&](bool drive) {
+                World w;
+                if (!arena(w, "bronze_sword")) return std::make_pair(false, 0.0f);
+                Enemy* far = spawn(w, "orc1", 70.0f, 0.0f);
+                if (far) far->hp = far->max_hp = 100000;
+                frames(w, 2);
+                tap(w, SDLK_K); settle(w);
+                if (far) far->hp = far->max_hp;
+                const float x0 = w.player.x;
+                if (drive) {
+                    tap(w, SDLK_K);
+                    if (w.player.Attack().move != ComboMove::Drive) return std::make_pair(false, 0.0f);
+                }
+                settle(w);
+                return std::make_pair(far && far->hp < far->max_hp, w.player.x - x0);
+            };
+            const auto plain = reached(false);
+            const auto driven = reached(true);
+            Check(!plain.first, "a monster seventy pixels off is out of a strong's reach");
+            Check(driven.first && driven.second > 20.0f,
+                  "a heavy after a heavy lunges in (" + std::to_string(static_cast<int>(driven.second)) +
+                      " px) and the Driving Thrust reaches it");
+            World w;
+            if (arena(w, "bronze_sword")) {
+                tap(w, SDLK_K); settle(w);
+                Check(w.player.NextCombo(false) == ComboMove::Drive && w.player.ComboLabel(ComboMove::Drive) == "Driving Thrust",
+                      "after a heavy the HUD offers the Driving Thrust on the heavy");
+                tap(w, SDLK_K);
+                Check(w.player.Attack().move == ComboMove::Drive && w.player.Attack().type == AttackType::Strong &&
+                          !w.player.IsCharging(),
+                      "and a heavy then is the Driving Thrust, out on the press with no hold");
+                Check(w.player.Clip() == "rush", "played as the lunge the Rushing Strike makes (" + w.player.Clip() + ")");
+                Check(fabsf(w.player.Attack().damage_mult - ProfileForCombo(ComboMove::Drive).damage_mult) < 1e-4f &&
+                          ProfileForCombo(ComboMove::Drive).damage_mult > ProfileForCombo(ComboMove::Crush).damage_mult,
+                      "at its own damage, harder than a Crushing Blow");
+                settle(w);
+                Check(!w.player.ComboOpen(), "and it ends the chain");
+            }
+            // Down a line: two monsters one behind the other, both run through.
+            World line;
+            if (arena(line, "bronze_sword")) {
+                Enemy* near = spawn(line, "orc1", 26.0f, 0.0f);
+                Enemy* behind = spawn(line, "orc1", 52.0f, 0.0f);
+                for (Enemy* e : {near, behind}) if (e) e->hp = e->max_hp = 100000;
+                frames(line, 2);
+                tap(line, SDLK_K); settle(line);
+                for (Enemy* e : {near, behind}) if (e) e->hp = e->max_hp;
+                tap(line, SDLK_K);
+                settle(line);
+                Check(near && behind && near->hp < near->max_hp && behind->hp < behind->max_hp,
+                      "it goes through the first monster in the line and into the one behind");
+            }
+            // Every family's own.
+            const std::map<string, string> names = {{"steel_sword", "Driving Thrust"}, {"steel_spear", "Driving Thrust"},
+                                                    {"steel_dagger", "Heartseeker"},   {"steel_mace", "Hammerfall"},
+                                                    {"steel_greatsword", "Impale"},    {"steel_greataxe", "Headsman's Chop"}};
+            for (const auto& [weapon, name] : names) {
+                World wn;
+                if (!arena(wn, weapon)) continue;
+                Check(wn.player.ComboLabel(ComboMove::Drive) == name, weapon + "'s Heavy, Heavy is " + name + " (" +
+                                                                         wn.player.ComboLabel(ComboMove::Drive) + ")");
+            }
+            Check(string(ComboNameFor(ComboMove::Drive, AttackStyle::Ranged)) == "Pinning Shot" &&
+                      string(ComboNameFor(ComboMove::Drive, AttackStyle::Magic)) == "Lance",
+                  "a bow's is the Pinning Shot and a staff's the Lance");
+            const ItemDef* dagger = items.Get("steel_dagger");
+            const ItemDef* greataxe = items.Get("steel_greataxe");
+            Check(dagger && dagger->combos[ComboIndex(ComboMove::Drive)].pierce > 0.5f &&
+                      greataxe && greataxe->combos[ComboIndex(ComboMove::Drive)].status == Status::Bleed,
+                  "the Heartseeker goes past most of the armour, and the Headsman's Chop always bleeds");
+            // The bow's pins what it strikes where it stands; a plain arrow holds nothing.
+            const auto held = [&](bool pin) {
+                World bw;
+                if (!arena(bw, "oak_shortbow")) return false;
+                Enemy* mark = spawn(bw, "orc1", 110.0f, 0.0f);
+                if (mark) mark->hp = mark->max_hp = 100000;
+                frames(bw, 2);
+                tap(bw, SDLK_K);
+                if (pin) {
+                    settle(bw);
+                    tap(bw, SDLK_K);
+                    if (bw.player.Attack().move != ComboMove::Drive) return false;
+                }
+                bool staggered = false;
+                for (int f = 0; f < 90 && mark && !staggered; ++f) { frames(bw, 1); staggered = mark->Staggered(); }
+                return staggered;
+            };
+            Check(!held(false) && held(true), "a bow's heavy after a heavy is the Pinning Shot, and holds what it strikes where it stands");
         }
 
         // --- both at once: the Cross Cut ---------------------------------------------------
@@ -10205,6 +10380,7 @@ int main(int argc, char** argv) {
         const Book books[] = {
             {"npc_smith", "halda_orders", SKILL_MINING, {"ore", "bar", "weapon", "hide", "armour"}},
             {"npc_wendel", "wendel_orders", SKILL_FISHING, {"fish"}},
+            {"npc_cook", "bess_orders", SKILL_COOKING, {}},
         };
         for (const Book& b : books) {
             std::set<string> kinds;
@@ -10260,6 +10436,7 @@ int main(int argc, char** argv) {
             Check(beyond == 0, string(b.npc) + " never posts an order the player cannot take yet");
         }
         Check(log.PostsPerDay("halda_orders") == 3, "Halda takes three orders a day");
+        Check(log.PostsPerDay("bess_orders") == 3, "and Bess three");
 
         // Taking an order, filling it through Halda's conversation, and not again today.
         {
@@ -10337,7 +10514,9 @@ int main(int argc, char** argv) {
             Check(ql.ReadyToDeliver("npc_wendel", inv).empty(), "Oona's remedy is not one of Wendel's orders");
         }
 
-        // Levels open more of the book without closing what is already posted.
+        // The book climbs with the smith. Levels open more of it, and a smith is
+        // posted work at their own level: nothing more than ORDER_BAND below
+        // them in its trade while there is enough nearer to fill the day.
         {
             QuestLog ql;
             ql.LoadDefinitions("data/quests.json");
@@ -10354,10 +10533,102 @@ int main(int argc, char** argv) {
                 for (const string& id : ql.PoolToday("halda_orders", &weak)) weak_seen.insert(id);
                 for (const string& id : ql.PoolToday("halda_orders", &strong)) strong_seen.insert(id);
             }
-            Check(strong_seen.count("q_order_steel_greaves") && !weak_seen.count("q_order_steel_greaves"),
-                  "steel greaves are ordered only from someone who can make them");
-            Check(strong_seen.size() > weak_seen.size(), "a skilled smith sees more of the book (" +
-                  std::to_string(strong_seen.size()) + " orders against " + std::to_string(weak_seen.size()) + ")");
+            Check(strong_seen.count("q_order_orichalcum_spear") && !weak_seen.count("q_order_orichalcum_spear"),
+                  "an orichalcum spear is ordered only from someone who can make one");
+            bool beneath = false;
+            for (const string& id : strong_seen)
+                beneath |= strong.Level(QuestLog::TradeOf(*ql.Definition(id))) -
+                           QuestLog::OrderLevel(*ql.Definition(id)) > QuestLog::ORDER_BAND;
+            Check(!beneath && !strong_seen.count("q_order_bronze_swords") && !strong_seen.count("q_order_steel_greaves"),
+                  "and a Smithing " + std::to_string(strong.Level(SKILL_SMITHING)) +
+                      " smith is not posted bronze swords or steel greaves any more");
+            Check(weak_seen.count("q_order_bronze_swords") || weak_seen.count("q_order_bronze_bars"),
+                  "where a new one is");
+        }
+        {
+            // At every level from the first to the ninety-ninth, a smith (and
+            // the miner who feeds them) is posted three orders a day, none of
+            // them more than the band below, but where there is nothing nearer.
+            QuestLog ql;
+            ql.LoadDefinitions("data/quests.json");
+            int short_days = 0, beneath = 0, highest_seen = 0;
+            for (int level : {1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99}) {
+                Skills sk;
+                LevelUp up;
+                sk.AddXp(SKILL_SMITHING, XpForLevel(level), up);
+                sk.AddXp(SKILL_MINING, XpForLevel(level), up);
+                // How many there are within the band that they can take: with
+                // three or more, nothing beneath it should ever be posted.
+                int near = 0;
+                for (const auto& kv : ql.Definitions())
+                    if (kv.second.pool == "halda_orders" && ql.MeetsRequirements(kv.second, sk) &&
+                        sk.Level(QuestLog::TradeOf(kv.second)) - QuestLog::OrderLevel(kv.second) <= QuestLog::ORDER_BAND)
+                        ++near;
+                for (int day = 1; day <= 20; ++day) {
+                    ql.SetDay(day);
+                    const auto posted = ql.PoolToday("halda_orders", &sk);
+                    if (posted.size() < 3) ++short_days;
+                    for (const string& id : posted) {
+                        const QuestDef& d = *ql.Definition(id);
+                        const int lvl = QuestLog::OrderLevel(d);
+                        if (sk.Level(QuestLog::TradeOf(d)) - lvl > QuestLog::ORDER_BAND && near >= 3) ++beneath;
+                        if (level == 99) highest_seen = std::max(highest_seen, lvl);
+                    }
+                }
+            }
+            Check(short_days == 0, "at every level, Halda posts three orders a day");
+            Check(beneath == 0, "and none beneath the smith while there is work nearer their level");
+            Check(highest_seen >= 88, "a master smith is asked for dracon and enchanted work (level " +
+                                          std::to_string(highest_seen) + ")");
+            // Every metal has something in the book, bronze to enchanted.
+            std::set<string> metals;
+            for (const auto& kv : ql.Definitions())
+                if (kv.second.pool == "halda_orders" && !kv.second.stages.empty()) {
+                    const string& t = kv.second.stages[0].target;
+                    for (const char* m : {"bronze", "iron", "steel", "azuryte", "damascus", "orichalcum", "diamond",
+                                          "platinum", "demonite", "dracon", "enchanted"})
+                        if (t.rfind(m, 0) == 0) metals.insert(m);
+                }
+            Check(metals.size() == 11, "every metal from bronze to enchanted is in Halda's book (" +
+                                           std::to_string(metals.size()) + ")");
+            // And the rest of the trades' books reach the top of what they make.
+            const auto top = [&](const string& pool) {
+                int t = 0;
+                for (const auto& kv : ql.Definitions())
+                    if (kv.second.pool == pool) t = std::max(t, QuestLog::OrderLevel(kv.second));
+                return t;
+            };
+            Check(top("nessa_orders") >= 95 && top("wynn_orders") >= 95, "Nessa's book and Wynn's go up to the dreamhide and the dreamweave");
+            Check(top("oona_orders") >= 68 && top("wendel_orders") >= 70 && top("bess_orders") >= 60,
+                  "Oona's to starlily, Wendel's past the eels, and Bess's to cooked eel");
+            // A day's pay grows with the level asked: at the top of every book
+            // an order is worth more than one at the bottom of it.
+            for (const char* pool : {"halda_orders", "nessa_orders", "wynn_orders", "oona_orders", "wendel_orders", "bess_orders"}) {
+                int lo_level = 999, hi_level = 0, lo_xp = 0, hi_xp = 0;
+                for (const auto& kv : ql.Definitions()) {
+                    if (kv.second.pool != pool) continue;
+                    const int lvl = QuestLog::OrderLevel(kv.second);
+                    const int xp = kv.second.rewards.xp.count(QuestLog::TradeOf(kv.second))
+                                       ? kv.second.rewards.xp.at(QuestLog::TradeOf(kv.second)) : 0;
+                    if (lvl < lo_level) { lo_level = lvl; lo_xp = xp; }
+                    if (lvl > hi_level) { hi_level = lvl; hi_xp = xp; }
+                }
+                Check(hi_xp > lo_xp * 4, string(pool) + " pays more at the top of the book than the bottom (" +
+                                             std::to_string(lo_xp) + " at " + std::to_string(lo_level) + ", " +
+                                             std::to_string(hi_xp) + " at " + std::to_string(hi_level) + ")");
+            }
+        }
+        {
+            // Bess keeps a book of her own now, for the kitchen.
+            const DialogueNode* root = dialogue.Get("cook_root");
+            bool book = false, hands_in = false;
+            if (root)
+                for (const DialogueOption& o : root->options) {
+                    book |= o.action.open_orders == "npc_cook";
+                    hands_in |= o.action.hand_in;
+                }
+            Check(book && hands_in && dialogue.Get("cook_order_filled"),
+                  "Innkeeper Bess has an order book for the kitchen, and takes what is filled");
         }
     }
 
@@ -10766,7 +11037,9 @@ int main(int argc, char** argv) {
                 const float bx = t.rect.x + t.rect.w * 0.5f, by = t.rect.y + t.rect.h;
                 if (Length(bx - cx, by - cy) > 170.0f) continue;
                 if (tex.find("town_gate") != string::npos) ++houses;
-                if (tex.find("gate_tower") != string::npos) (by < cy ? north : south)++;
+                // Mossvale's are brick piers, where its palisade is a wall.
+                if (tex.find("gate_tower") != string::npos || tex.find("brick_pier") != string::npos)
+                    (by < cy ? north : south)++;
             }
             if (way.side) Check(north == 1 && south == 1 && houses == 0, what + ": a gate tower stands either side of the road");
             else          Check(houses == 1 && north + south == 0, what + ": a gatehouse stands across the road");
@@ -13538,7 +13811,11 @@ int main(int argc, char** argv) {
                 Check(w.player.skills.Xp(SKILL_MAGIC) == xp0, "bolts and novas into an empty field teach nothing either");
                 // A fire bolt leaves the ground burning for three seconds and
                 // more, and the cast is owed for as long as something could
-                // still walk into it.
+                // still walk into it. Once the last ring has come down: in an
+                // empty field it flies its whole way first. (Havenbrook's gate
+                // used to stand a few paces south of here, and the ring broke
+                // on its palisade at once.)
+                for (int f = 0; f < 120 && w.ground_effects.empty(); ++f) frames(w, 1);
                 Check(w.OwedCasts() > 0 && !w.ground_effects.empty(),
                       "while what they left is still burning, something could yet walk into it");
                 frames(w, 360);
@@ -14063,7 +14340,8 @@ int main(int argc, char** argv) {
 
             // All of them: a different boon from each, and none a mage has no use for.
             for (const string& b : bosses) t.SlayBoss(b, rng);
-            std::set<string> got(t.Boons().begin(), t.Boons().end());
+            const vector<string> running = t.Boons();
+            std::set<string> got(running.begin(), running.end());
             Check(t.Boons().size() == bosses.size() && got.size() == bosses.size(),
                   "every boss leaves a boon, and no two the same (" + std::to_string(got.size()) + ")");
             bool fitting = true;
@@ -14077,6 +14355,43 @@ int main(int argc, char** argv) {
             back.SetPath(AttackStyle::Magic);
             back.FromJson(t.ToJson());
             Check(back.Boons() == t.Boons() && back.BossesSlain() == t.BossesSlain(), "bosses and boons survive a save");
+
+            // --- a boon lasts a day -----------------------------------------------------------------
+            // Twenty-four hours of the world's clock from when it was won, counted
+            // down as the clock runs, and then it wears off. The point stays.
+            {
+                Talents d;
+                d.SetDatabase(&trees);
+                d.SetPath(AttackStyle::Magic);
+                const Talents::Trophy won = d.SlayBoss("broodmother", rng);
+                const string id = won.boon ? won.boon->id : string();
+                Check(!id.empty() && d.BoonHoursLeft(id) == Talents::BOON_HOURS && Talents::BOON_HOURS == 24.0,
+                      "a boon is won with a day of the clock to run");
+                Check(d.SetNow(100.0).empty() && d.BoonHoursLeft(id) == 24.0, "the first hour told is only where the clock stands");
+                Check(d.SetNow(110.0).empty() && std::fabs(d.BoonHoursLeft(id) - 14.0) < 1e-9, "ten hours later it has fourteen left");
+                Talents kept;
+                kept.SetDatabase(&trees);
+                kept.SetPath(AttackStyle::Magic);
+                kept.FromJson(d.ToJson());
+                Check(std::fabs(kept.BoonHoursLeft(id) - 14.0) < 1e-9, "and a save keeps the hours it has left");
+                Check(d.SetNow(60.0).empty() && std::fabs(d.BoonHoursLeft(id) - 14.0) < 1e-9 &&
+                          d.SetNow(1000.0).empty() && std::fabs(d.BoonHoursLeft(id) - 14.0) < 1e-9,
+                      "a clock that goes back, or leaps a day and a half -- another world's, a load -- costs it nothing");
+                Check(d.SetNow(1013.5).empty() && std::fabs(d.BoonHoursLeft(id) - 0.5) < 1e-9 && d.Boons().size() == 1,
+                      "half an hour left, it is still running");
+                const vector<string> gone = d.SetNow(1014.0);
+                Check(gone.size() == 1 && gone[0] == id && d.Boons().empty() && !d.HasBoon(id) && d.BoonHoursLeft(id) == 0.0,
+                      "and at twenty-four hours it wears off, and says which it was");
+                Check(d.BonusPoints() == 1 && d.HasSlain("broodmother"), "the skill point is for good");
+                const Talents::Trophy second = d.SlayBoss("broodmother", rng);
+                Check(!second.first && !second.boon && d.Boons().empty(), "and killing her again does not bring the boon back");
+                Talents old;
+                old.SetDatabase(&trees);
+                old.SetPath(AttackStyle::Magic);
+                old.FromJson(json{{"bosses", json::array({"broodmother"})}, {"boons", json::array({id})}});
+                Check(old.BoonHoursLeft(id) == Talents::BOON_HOURS,
+                      "a save from when a boon was for good gives it a day from now");
+            }
             Check(!back.SlayBoss("pit_lord", rng).first, "and a boss killed before the save is not a first kill after it");
             // A save that has been meddled with cannot have more boons than bosses, or boons nobody made.
             json forged = t.ToJson();
@@ -14126,6 +14441,13 @@ int main(int argc, char** argv) {
                   std::fabs(with("boon_sure_feet")->talents.Global("evade") - 0.03f) < 1e-5f &&
                   std::fabs(with("boon_leech")->talents.Effect("lifesteal", AttackStyle::Melee) - 0.02f) < 1e-5f,
                   "and the rest are read where the tree's own are");
+            // Worn off, it does nothing at all.
+            const auto faded = with("boon_vigour");
+            faded->talents.SetNow(0.0);
+            faded->talents.SetNow(24.0);
+            faded->SyncHitpoints();
+            Check(faded->max_hp == plain->max_hp && faded->talents.BoonEffect("max_health") == 0.0f,
+                  "and a day later Vigour's health is gone again");
         }
 
         // --- in the world: down into the cellar ------------------------------------------------------------
@@ -14166,8 +14488,9 @@ int main(int argc, char** argv) {
                 Check(named && pointed && booned, "and the game says who, and that there is a point, and which boon and what it does");
                 Check(short_enough, "in lines short enough for a narrow window");
 
-                // The next day she is back, and is only a fight.
-                w.clock.Set(4, 12.0f);
+                // The next day she is back, and is only a fight. (The next
+                // morning: by noon her boon would have worn off.)
+                w.clock.Set(4, 6.0f);
                 Check((w.LoadMap("house_inn", "default", ctx) || w.LoadMap("house_inn", "entrance", ctx)) &&
                       (w.LoadMap("house_inn_cellar", "entrance", ctx) || w.LoadMap("house_inn_cellar", "default", ctx)), "up, and down again the day after");
                 Enemy* again = nullptr;
@@ -14182,6 +14505,17 @@ int main(int argc, char** argv) {
                     Check(w.player.talents.Boons().size() == 1 && w.player.talents.BonusPoints() == 1 && !told_again,
                           "and the second time leaves what she drops and nothing more");
                 }
+                // A day after she first fell, the boon wears off, and the game says so.
+                const string had = w.player.talents.Boons().empty() ? string() : w.player.talents.Boons().front();
+                w.TakeRequests();
+                w.clock.Set(4, 12.5f);
+                w.Update(kFrame, ctx);
+                bool worn = false;
+                for (const WorldRequest& r : w.TakeRequests())
+                    worn |= r.type == WorldRequest::Type::Toast && r.text.find("worn off") != string::npos &&
+                            trees.Boon(had) && r.text.find(trees.Boon(had)->name) != string::npos;
+                Check(!had.empty() && w.player.talents.Boons().empty() && w.player.talents.BonusPoints() == 1 && worn,
+                      "and a day after she fell her boon wears off, the point stays, and the game says which");
             }
         }
 
@@ -15837,8 +16171,8 @@ int main(int argc, char** argv) {
                 const ItemDef* d = items.Get(string("steel_") + cls);
                 bool named = d != nullptr;
                 std::set<string> names;
-                for (int i = 0; i < 4 && d; ++i) { named &= !d->combos[i].name.empty(); names.insert(d->combos[i].name); }
-                Check(named && names.size() == 4, string("a ") + cls + " has four combos of its own, by name");
+                for (int i = 0; i < 5 && d; ++i) { named &= !d->combos[i].name.empty(); names.insert(d->combos[i].name); }
+                Check(named && names.size() == 5, string("a ") + cls + " has five combos of its own, by name, Heavy, Heavy's among them");
             }
             for (const char* el : {"fire", "water", "earth", "air"}) {
                 const ItemDef* d = items.Get(string("iron_") + el + "_staff");
@@ -17994,14 +18328,15 @@ int main(int argc, char** argv) {
         Check(throne.HasElevation() && throne.LevelAt(14 * 32, 6 * 32) == 2, "his throne stands on a dais two levels up");
     }
 
-    Section("waystones: the towns, a house, and three in the wild, woken by hand");
+    Section("waystones: the towns, a house, and five in the wild, woken by hand");
     {
         // --- where they stand ------------------------------------------------------------
         // Exactly the stones src/systems/waystones.h lists, each where it says:
         // the three towns', the one at the door of the house in Mossvale, and
-        // the wilds' three -- the Ashen Path, the top of the climb onto
-        // Purgatory's Plateau, and the Bayou. No map has a stone that is not
-        // in the list, and every stone in it is in its map.
+        // the wilds' five -- the Ashen Path, the top of the climb onto
+        // Purgatory's Plateau, the Bayou, the igloo at the Ice Spire's camp and
+        // Old Harl's cabin on the Glass Mere. No map has a stone that is not in
+        // the list, and every stone in it is in its map.
         std::map<string, std::set<string>> listed;
         std::set<string> ids;
         for (const WaystoneDef& w : Waystones()) { listed[w.map].insert(w.id); ids.insert(w.id); }
@@ -18011,11 +18346,13 @@ int main(int argc, char** argv) {
         for (const WaystoneDef* w : WaystonesIn(false)) wilds.insert(w->id);
         Check(towns == std::set<string>{"waystone_havenbrook", "waystone_mossvale", "waystone_mossvale_cottage", "waystone_fernhollow"},
               "under Towns: Havenbrook, Mossvale, the house in Mossvale and Fernhollow");
-        Check(wilds == std::set<string>{"waystone_ashen_path", "waystone_plateau", "waystone_bayou"},
-              "under the wilds: the Ashen Path, Purgatory's Plateau and the Bayou");
+        Check(wilds == std::set<string>{"waystone_ashen_path", "waystone_plateau", "waystone_bayou",
+                                        "waystone_ice_spire", "waystone_frost_cabin"},
+              "under the wilds: the Ashen Path, Purgatory's Plateau, the Bayou, the Ice Spire and Old Harl's cabin");
         const auto map_of = [](const string& id) { const WaystoneDef* w = WaystoneById(id); return w ? string(w->map) : string(); };
         Check(map_of("waystone_plateau") == "plateau_ascent" && map_of("waystone_bayou") == "bayou" &&
-                  map_of("waystone_ashen_path") == "ashen_path" && map_of("waystone_mossvale_cottage") == "mossvale",
+                  map_of("waystone_ashen_path") == "ashen_path" && map_of("waystone_mossvale_cottage") == "mossvale" &&
+                  map_of("waystone_ice_spire") == "ice_spire_peak" && map_of("waystone_frost_cabin") == "frost_cabin",
               "the Plateau's is at the top of the climb, and each of the others where it is named for");
         std::set<string> found;
         for (const char* id : kMaps) {
@@ -18077,6 +18414,39 @@ int main(int argc, char** argv) {
                     if (p.target_map == "mossvale_cottage")
                         door = std::hypot(p.rect.x + p.rect.w / 2.0f - arrive.x, p.rect.y + p.rect.h / 2.0f - arrive.y);
                 Check(door < 160.0f, "the house's stone is right outside its door (" + std::to_string(static_cast<int>(door)) + " px)");
+            }
+        }
+        {
+            // The Ice Spire's stands on the east side of the igloo at the camp:
+            // beside it, and to the right of it.
+            Map peak;
+            if (peak.Load("maps/ice_spire_peak.mx")) {
+                const MapObject* stone = nullptr;
+                for (const MapObject& o : peak.Objects()) if (o.id == "waystone_ice_spire") stone = &o;
+                // The igloo is a prop: where it stands is in the file, as the
+                // middle of its picture.
+                std::ifstream in("maps/ice_spire_peak.mx");
+                json j;
+                in >> j;
+                bool igloo = false, east = false;
+                if (stone && j.contains("tiles") && j["tiles"].contains("igloo"))
+                    for (const json& at : j["tiles"]["igloo"]["locations"]) {
+                        igloo = true;
+                        const float dx = stone->x - at[0].get<float>();
+                        const float dy = stone->y - (at[1].get<float>() + at[3].get<float>() / 2.0f);
+                        east |= dx > 60.0f && dx < 130.0f && fabsf(dy) < 40.0f;
+                    }
+                Check(stone && igloo && east, "the Ice Spire's stone stands just east of the igloo at the climbers' camp");
+            }
+            // Old Harl's is inside the cabin, which stands on the islet in the
+            // middle of the Glass Mere.
+            Map cabin, mere;
+            if (cabin.Load("maps/frost_cabin.mx") && mere.Load("maps/frost_mere.mx")) {
+                bool inside = false;
+                for (const MapObject& o : cabin.Objects()) inside |= o.id == "waystone_frost_cabin";
+                bool door = false;
+                for (const Portal& p : mere.Portals()) door |= p.target_map == "frost_cabin";
+                Check(cabin.IsInterior() && inside && door, "Old Harl's stone is inside his cabin, out on the Glass Mere");
             }
         }
 
@@ -18208,6 +18578,181 @@ int main(int argc, char** argv) {
                   !back.Flagged("waystone_fernhollow"), "with the same two awake and the third still asleep");
             SaveSystem::SetDirectory(was);
             fs::remove_all(dir, ec);
+        }
+    }
+
+    Section("Havenbrook's gate, at the bottom of the Hollowmarch below Hollowrest");
+    {
+        // It used to stand in the middle of the meadow, where the road first
+        // ended, with open field on every side. It stands at the map's south
+        // edge now, south of the graveyard, and the road goes on to it.
+        Map ow;
+        Check(ow.Load("maps/overworld.mx"), "the Hollowmarch loads, for its gate");
+        const Portal* gate = nullptr;
+        const Portal* crypt = nullptr;
+        for (const Portal& p : ow.Portals()) {
+            if (p.target_map == "town_havenbrook") gate = &p;
+            if (p.target_map == "crypt_1") crypt = &p;
+        }
+        Check(gate && !gate->requires_interact && gate->rect.y + gate->rect.h >= ow.Height() - 1.0f,
+              "Havenbrook's gate is at the very bottom of the Hollowmarch, walked into");
+        Check(gate && crypt && gate->rect.y > crypt->rect.y + 100.0f &&
+                  fabsf((gate->rect.x + gate->rect.w / 2.0f) - (crypt->rect.x + crypt->rect.w / 2.0f)) < 600.0f,
+              "south of Hollowrest, whose crypt is in the middle of it");
+        SDL_FPoint start{}, out{};
+        Check(ow.Spawn("start", start) && ow.Spawn("from_town", out) && gate && out.y < gate->rect.y &&
+                  std::hypot(out.x - (gate->rect.x + gate->rect.w / 2.0f), out.y - gate->rect.y) < 128.0f,
+              "out of the town, you come out just north of it");
+        // Walked to from where a new journey starts, by the feet, the way the
+        // player walks: step by step, anything that stops a step stops it.
+        if (gate) {
+            constexpr int G = 8;
+            const int cols = static_cast<int>(ow.Width()) / G + 1, rows = static_cast<int>(ow.Height()) / G + 1;
+            vector<uint8_t> seen(static_cast<size_t>(cols) * rows, 0);
+            vector<std::pair<int, int>> todo;
+            size_t next = 0;
+            const auto feet = [](float x, float y) { return SDL_FRect{x - 8.0f, y - 10.0f, 16.0f, 10.0f}; };
+            todo.push_back({static_cast<int>(start.x) / G, static_cast<int>(start.y) / G});
+            seen[static_cast<size_t>(todo.front().second) * cols + todo.front().first] = 1;
+            bool reached = false;
+            while (next < todo.size() && !reached) {
+                const auto [cx, cy] = todo[next++];
+                const float x = cx * G + 0.0f, y = cy * G + 0.0f;
+                if (RectsOverlap(feet(x, y), gate->rect)) { reached = true; break; }
+                for (const auto& d : {std::pair<int, int>{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    const int nx = cx + d.first, ny = cy + d.second;
+                    if (nx < 0 || ny < 0 || nx >= cols || ny >= rows || seen[static_cast<size_t>(ny) * cols + nx]) continue;
+                    const SDL_FRect f = feet(x, y);
+                    const SDL_FPoint moved = ow.MoveWithCollision(f, d.first * static_cast<float>(G), d.second * static_cast<float>(G));
+                    if (fabsf(moved.x - (f.x + d.first * G)) > 0.01f || fabsf(moved.y - (f.y + d.second * G)) > 0.01f) continue;
+                    seen[static_cast<size_t>(ny) * cols + nx] = 1;
+                    todo.push_back({nx, ny});
+                }
+            }
+            Check(reached, "and it can be walked to from where a new journey starts, on the road");
+        }
+    }
+
+    Section("gates: the way back waits for you to let go, and no other gate does");
+    {
+        // Arriving holds back the way back -- a pace or two behind you -- until
+        // the movement has been let go, so a key held through the fade does not
+        // bounce you straight back. It used to hold every gate on the map: a
+        // player who rolled from one key onto the next, or steered the stick
+        // round without letting it centre, never let go, and walked straight
+        // over every gate they came to for as long as they kept moving.
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        World w;
+        GameContext gctx;
+        std::mt19937 rng(23);
+        gctx.sprites = &sprites; gctx.items = &items; gctx.enemies = &enemy_db;
+        gctx.quests = &log; gctx.rng = &rng;
+        w.player.Init(gctx, "player_hero");
+        w.player.inventory.SetDatabase(&items);
+        w.player.hands_external = true;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto hold = [&](float mx, float my, int n) {
+            for (int i = 0; i < n; ++i) {
+                w.player.hands = PlayerInput{};
+                w.player.hands.move = {mx, my};
+                w.Update(kFrame, gctx);
+                w.enemies.clear();
+            }
+        };
+        const auto portal_to = [&](const string& target) -> const Portal* {
+            for (const Portal& p : w.CurrentMap().Portals()) if (p.target_map == target) return &p;
+            return nullptr;
+        };
+        const auto on = [&](const Portal* p) { return p && RectsOverlap(w.player.Bounds(), p->rect); };
+        const auto settle = [&](const string& id) {
+            for (int i = 0; i < 240 && (w.MapId() != id || w.TransitionPending()); ++i) hold(0.0f, 1.0f, 1);
+            return w.MapId() == id;
+        };
+
+        // Out of the Whisperwood onto the Hollowmarch's east edge: the way back
+        // is 72 pixels to the right of where you come out.
+        Check(w.LoadMap("overworld", "from_whisperwood", gctx), "out of the Whisperwood, onto the Hollowmarch");
+        w.enemies.clear();
+        const Portal* back = portal_to("whisperwood_trail");
+        const Portal* gate = portal_to("town_havenbrook");
+        Check(back && gate, "with the way back beside you and Havenbrook's gate across the field");
+        if (back && gate) {
+            hold(1.0f, 0.0f, 1);
+            Check(w.PortalHeld(*back) && !w.PortalHeld(*gate),
+                  "the key still held, the way back waits and Havenbrook's gate does not");
+            hold(1.0f, 0.0f, 90);
+            Check(on(back) && !w.TransitionPending() && w.MapId() == "overworld",
+                  "held on into the way back, it does not bounce you back through it");
+            // From one key onto the next, never letting go: off it, and on again.
+            hold(-1.0f, -0.4f, 30);
+            Check(!on(back) && w.PortalHeld(*back), "stepped off it without letting go, it still waits");
+            hold(1.0f, 0.0f, 40);
+            Check(on(back) && !w.TransitionPending(), "and walked back onto it, it still does not go");
+
+            // Across the field to Havenbrook, the key never let go: the gate
+            // there is not the way back, and it takes you through.
+            w.player.x = gate->rect.x + gate->rect.w / 2.0f;
+            w.player.y = gate->rect.y - 12.0f;
+            Check(!w.CurrentMap().Blocked(w.player.Bounds()) && !on(gate), "stood just short of Havenbrook's gate");
+            bool went = false;
+            for (int i = 0; i < 30 && !went; ++i) { hold(0.0f, 1.0f, 1); went = w.TransitionPending(); }
+            Check(went, "and a step into it, the key held since the Whisperwood, takes you through");
+            Check(settle("town_havenbrook"), "into Havenbrook");
+        }
+
+        // Walked well away without letting go: the way back is only a gate again.
+        {
+            const Portal* out = portal_to("overworld");
+            Check(out && w.PortalHeld(*out), "in Havenbrook, the gate you came in by waits");
+            const SDL_FPoint came = w.ArrivedAt();
+            bool placed = false;
+            for (float d = World::ARRIVAL_LEFT + 20.0f; d < World::ARRIVAL_LEFT + 200.0f && !placed; d += 8.0f)
+                for (const SDL_FPoint dir : {SDL_FPoint{0.0f, -1.0f}, SDL_FPoint{1.0f, 0.0f}, SDL_FPoint{-1.0f, 0.0f}}) {
+                    w.player.x = came.x + dir.x * d;
+                    w.player.y = came.y + dir.y * d;
+                    if (!w.CurrentMap().Blocked(w.player.Bounds())) { placed = true; break; }
+                }
+            Check(placed, "somewhere well away from where you came in");
+            hold(0.0f, 1.0f, 1);
+            Check(out && !w.PortalHeld(*out), "and there, the key never let go, the way back is a gate like any other");
+        }
+
+        // And letting go does it too, as it always did: let go a moment, clear
+        // of it, and the way back is live again.
+        Check(w.LoadMap("town_havenbrook", "from_field", gctx), "back into Havenbrook by the gate");
+        w.enemies.clear();
+        {
+            const Portal* out = portal_to("overworld");
+            hold(0.0f, 0.0f, 1);
+            Check(out && !w.PortalHeld(*out) && !on(out), "let go, and clear of it, the gate is live again");
+        }
+
+        // Out of Havenbrook by its south road, which puts you on the road north
+        // of its gate: the key still held, you walk into the gate -- and used
+        // to walk out of the far side of it, into the field, through a town
+        // gate without going into the town.
+        Check(w.LoadMap("overworld", "from_town", gctx), "out of Havenbrook, onto the road north of its gate");
+        w.enemies.clear();
+        {
+            const Portal* gate = portal_to("town_havenbrook");
+            Check(gate && w.PortalHeld(*gate) && w.player.y < gate->rect.y, "with the gate, waiting, just south of you");
+            if (gate) {
+                hold(0.0f, 1.0f, 150);
+                Check(on(gate) && !w.PastWayBack() && !w.TransitionPending() && w.MapId() == "overworld",
+                      "held on south, you stand in the gate and go no further: not back into town, and not out the far side");
+                Check(w.player.y - 10.0f < gate->rect.y + gate->rect.h, "still in the gate after two and a half seconds of walking into it");
+                hold(1.0f, 1.0f, 60);
+                hold(-1.0f, 1.0f, 60);
+                Check(!w.PastWayBack() && !w.TransitionPending(), "nor out of it sideways-and-on");
+                hold(0.0f, 0.0f, 1);
+                Check(w.PortalHeld(*gate), "let go while standing in it, it still waits");
+                hold(0.0f, -1.0f, 40);
+                Check(!on(gate) && !w.PortalHeld(*gate), "stepped back out of it, it is live");
+                bool went = false;
+                for (int i = 0; i < 60 && !went; ++i) { hold(0.0f, 1.0f, 1); went = w.TransitionPending(); }
+                Check(went && settle("town_havenbrook"), "and walked into again, it takes you into Havenbrook");
+            }
         }
     }
 
@@ -20237,9 +20782,47 @@ int main(int argc, char** argv) {
             frames(60);
         }
 
+        // --- a greatsword parries too, and its riposte is the heavy ------------------------------
+        {
+            me.equipment.Equip(SLOT_WEAPON, "iron_greatsword");
+            Check(me.ParryStyle() && me.RiposteOnHeavy() && !me.Shield(), "a greatsword, in both hands, parries as well");
+            keep_still();
+            key(SDLK_H, true);
+            frames(3);
+            Check(me.Parrying() && me.ParryOpen() && !me.Blocking(), "B raised with it is a parry, and its first moment is open");
+            before = me.hp;
+            took = w.HitPlayer(14, orc.Profile(), orc.x, orc.y, 0.0f, 0.0f, {}, -1.0f, -1.0f, &orc);
+            Check(took == 0 && me.hp == before && orc.Staggered() && me.RiposteOwed(),
+                  "a blow caught in the moment does nothing, and owes the riposte");
+            keep_still();
+            const int orc_hp = orc.hp;
+            tap(SDLK_J);
+            Check(!me.Attacking() && me.RiposteOwed(), "the light attack is not a greatsword's riposte");
+            keep_still();
+            tap(SDLK_K);
+            Check(me.Attack().riposte && me.Attacking() && me.Attack().type == AttackType::Strong,
+                  "the heavy attack, the guard still up, is: a heavy blow");
+            Check(me.Clip() == "crush_2h", "brought down from over the head, both hands on the hilt (" + me.Clip() + ")");
+            bool landed = false;
+            for (int f = 0; f < 40 && !landed; ++f) {
+                frames(1);
+                landed = orc.hp < orc_hp;
+            }
+            Check(landed, "that lands on whoever was parried");
+            away();
+            key(SDLK_H, false);
+            frames(60);
+            Check(!me.RiposteOwed() && !me.Attacking(), "and is spent");
+            me.equipment.Equip(SLOT_WEAPON, "iron_greataxe");
+            Check(!me.ParryStyle(), "a greataxe does not parry");
+            me.equipment.Equip(SLOT_WEAPON, "iron_dagger");
+            Check(me.ParryStyle() && !me.RiposteOnHeavy(), "and a dagger's riposte is still the light attack");
+        }
+
         // --- what every combo looks like ------------------------------------------------------------
         const vector<string> weapons = {"iron_sword", "iron_dagger", "iron_mace", "iron_greatsword", "iron_greataxe"};
-        const ComboMove moves[] = {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut};
+        const ComboMove moves[] = {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut,
+                                   ComboMove::Drive};
         const auto look = [&](const World& world, size_t from) {
             string sig;
             const auto& list = world.Strikes();
@@ -20268,9 +20851,9 @@ int main(int argc, char** argv) {
                 melee_looks.insert(sig);
             }
         }
-        Check(every_melee && melee_looks.size() == 20,
-              "the sword's, the dagger's, the mace's, the greatsword's and the greataxe's combos -- twenty, and each "
-              "leaves marks of its own (" + std::to_string(melee_looks.size()) + " looks)");
+        Check(every_melee && melee_looks.size() == 25,
+              "the sword's, the dagger's, the mace's, the greatsword's and the greataxe's combos -- twenty-five, Heavy, "
+              "Heavy's among them, and each leaves marks of its own (" + std::to_string(melee_looks.size()) + " looks)");
         std::set<string> far_looks;
         bool every_far = true;
         for (AttackStyle style : {AttackStyle::Ranged, AttackStyle::Magic}) {
@@ -20286,8 +20869,8 @@ int main(int argc, char** argv) {
                 far_looks.insert(std::to_string(static_cast<int>(style)) + sig);
             }
         }
-        Check(every_far && far_looks.size() == 8,
-              "the bow's four and the staff's four, each marked as it is loosed and where it strikes");
+        Check(every_far && far_looks.size() == 10,
+              "the bow's five and the staff's five, each marked as it is loosed and where it strikes");
         {
             const size_t from = w.Strikes().size();
             w.ParryFx(10.0f, 10.0f, 0.0f);

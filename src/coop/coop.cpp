@@ -961,6 +961,7 @@ bool Host::Transfer(uint8_t seat_no, Seat& s, const string& map, const string& s
     SDL_FPoint p;
     if (has_point) p = {px, py};
     else if (spawn.empty() || !to->CurrentMap().Spawn(spawn, p)) p = to->CurrentMap().DefaultSpawn();
+    state.arrival = p;
     g->x = p.x;
     g->y = p.y;
     g->knock_x = g->knock_y = 0.0f;

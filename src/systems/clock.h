@@ -51,6 +51,9 @@ public:
     // count (day * 24 + the hour). They are what a round walked or a bug
     // flying is timed by, so neither slows to a crawl at night.
     double Seconds() const { return SecondsAt(day * 24.0 + hours); }
+    // Hours since midnight of day zero: the count Seconds() is taken from, and
+    // what a boss's boon counts its day down by (Talents::SetNow).
+    double GameHours() const { return day * 24.0 + hours; }
     static double SecondsAt(double game_hours);
     static double HoursAt(double seconds);
 

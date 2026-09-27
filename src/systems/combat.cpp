@@ -30,6 +30,12 @@ static const AttackProfile kCrush    = { 0.10f, 0.12f, 0.26f, 1.60f, 34.0f, 36.0
 static const AttackProfile kCleave   = { 0.12f, 0.14f, 0.30f, 1.90f, 46.0f, 88.0f, 95.0f, 0.10f, 0.48f, 95.0f };
 static const AttackProfile kBackhand = { 0.03f, 0.10f, 0.12f, 1.00f, 32.0f, 36.0f, 30.0f, 0.40f, 0.05f };
 static const AttackProfile kCrossCut = { 0.10f, 0.16f, 0.30f, 1.25f, 40.0f, 40.0f, 80.0f, 0.05f, 0.55f };
+// The Driving Thrust: the second heavy, carried in on a lunge through the
+// wind-up (Player::StartCombo), and then a long narrow blow down the line of
+// it -- half as far again as a strong, and a third as wide -- through
+// everything on it. Slower than the strong it follows and harder than the
+// Crushing Blow, and it ends the chain with a real gap.
+static const AttackProfile kDrive    = { 0.14f, 0.14f, 0.30f, 1.75f, 52.0f, 26.0f, 90.0f, 0.0f,  0.45f };
 
 const AttackProfile& ProfileForCombo(ComboMove move) {
     switch (move) {
@@ -37,7 +43,19 @@ const AttackProfile& ProfileForCombo(ComboMove move) {
         case ComboMove::Cleave:   return kCleave;
         case ComboMove::Backhand: return kBackhand;
         case ComboMove::CrossCut: return kCrossCut;
+        case ComboMove::Drive:    return kDrive;
         default:                  return kNone;
+    }
+}
+
+int ComboIndex(ComboMove move) {
+    switch (move) {
+        case ComboMove::Crush:    return 0;
+        case ComboMove::Cleave:   return 1;
+        case ComboMove::Backhand: return 2;
+        case ComboMove::CrossCut: return 3;
+        case ComboMove::Drive:    return 4;
+        default:                  return -1;
     }
 }
 
@@ -47,6 +65,7 @@ const char* ComboName(ComboMove move) {
         case ComboMove::Cleave:   return "Cleave";
         case ComboMove::Backhand: return "Backhand";
         case ComboMove::CrossCut: return "Cross Cut";
+        case ComboMove::Drive:    return "Driving Thrust";
         default:                  return "";
     }
 }
@@ -58,6 +77,7 @@ const char* ComboNameFor(ComboMove move, AttackStyle style) {
             case ComboMove::Cleave:   return "Barbed Shot";
             case ComboMove::Backhand: return "Snap Shot";
             case ComboMove::CrossCut: return "Twin Shot";
+            case ComboMove::Drive:    return "Pinning Shot";
             default:                  return "";
         }
     }
@@ -67,6 +87,7 @@ const char* ComboNameFor(ComboMove move, AttackStyle style) {
             case ComboMove::Cleave:   return "Cascade";
             case ComboMove::Backhand: return "Flicker";
             case ComboMove::CrossCut: return "Pulse";
+            case ComboMove::Drive:    return "Lance";
             default:                  return "";
         }
     }

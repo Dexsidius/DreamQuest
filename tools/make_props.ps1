@@ -64,6 +64,10 @@ $sizes = @{
     cottage_bookshelf = 64; dining_table = 56; herb_pots = 36
     # Buildings.
     inn_building = 192
+    # The guild hall as it stands now, and the halls' trophies and the
+    # lodge's bearskin (HALL_PROPS in blender_props.py).
+    guild_house = 288
+    trophy_stag = 56; trophy_boar = 44; bear_rug = 96; crossed_arms = 56
     # Mossvale and the Whisperwood.
     mossvale_lodge = 192
     herbalist_cottage = 168
@@ -143,6 +147,15 @@ $sizes = @{
     beehive = 56; beehive_blue = 56; beehive_green = 56; bee_skep = 36; bee_shed = 96; lavender_bed = 64
     # The house at Mossvale, dressed for whatever stands in its ring.
     house_rug = 160; house_rug_trim = 160; tapestry_house = 64; tapestry_house_trim = 64
+    # The four woods, and the towns rebuilt (tools/blender_town_props.py).
+    birch_tree = 112; stump_birch = 40; stump_charred = 40
+    townhouse_a = 144; townhouse_b = 144; townhouse_c = 176; townhouse_d = 144; mayor_hall = 256
+    town_well = 136; street_lamp = 96; planter = 48; park_bench = 56
+    inn_window = 64; barrel_table = 48; armchair = 64; stage = 96; town_map = 56
+    brick_wall = 64; brick_wall_side = 64; brick_pier = 80; dwarf_mine_gate = 192; mine_support = 80
+    mine_lantern = 56; dwarf_statue = 80
+    fisher_cottage_a = 128; fisher_cottage_b = 128; ferry_house = 160; boat_shed = 128; net_rack = 64
+    post_lantern = 64; wattle_fence = 64
 }
 
 # Pieces the game colours itself, as two pictures laid one on the other: the

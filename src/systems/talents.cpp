@@ -171,8 +171,32 @@ Talents::Trophy Talents::SlayBoss(const string& boss_id, std::mt19937& rng) {
     const vector<const BoonDef*>& from = fresh.empty() ? any : fresh;
     if (from.empty()) return out;
     out.boon = from[std::uniform_int_distribution<size_t>(0, from.size() - 1)(rng)];
-    boons.push_back(out.boon->id);
+    boons.push_back({out.boon->id, BOON_HOURS});
     return out;
+}
+
+vector<string> Talents::Boons() const {
+    vector<string> out;
+    for (const HeldBoon& b : boons) if (b.left > 0.0) out.push_back(b.id);
+    return out;
+}
+
+double Talents::BoonHoursLeft(const string& id) const {
+    double most = 0.0;
+    for (const HeldBoon& b : boons) if (b.id == id) most = std::max(most, b.left);
+    return most;
+}
+
+vector<string> Talents::SetNow(double game_hours) {
+    vector<string> worn_off;
+    const double step = clock_at < 0.0 ? 0.0 : game_hours - clock_at;
+    clock_at = game_hours;
+    if (step <= 0.0 || step > 36.0) return worn_off;
+    for (HeldBoon& b : boons) b.left -= step;
+    for (const HeldBoon& b : boons) if (b.left <= 0.0) worn_off.push_back(b.id);
+    boons.erase(std::remove_if(boons.begin(), boons.end(), [](const HeldBoon& b) { return b.left <= 0.0; }),
+                boons.end());
+    return worn_off;
 }
 
 string Talents::PlaceTotem(const string& item, int quest_day) {
@@ -207,11 +231,12 @@ float Talents::BoonEffect(const string& effect) const {
         const auto it = t->effects.find(effect);
         if (it != t->effects.end()) total += it->second;
     }
-    for (const string& id : boons)
-        if (const BoonDef* b = db->Boon(id)) {
-            const auto it = b->effects.find(effect);
-            if (it != b->effects.end()) total += it->second;
-        }
+    for (const HeldBoon& held : boons)
+        if (held.left > 0.0)
+            if (const BoonDef* b = db->Boon(held.id)) {
+                const auto it = b->effects.find(effect);
+                if (it != b->effects.end()) total += it->second;
+            }
     return total;
 }
 
@@ -377,11 +402,12 @@ json Talents::ToJson() const {
     j["abilities"] = json::array();
     for (const string& slot : ability) j["abilities"].push_back(slot);
     // What the bosses left. Unlearning a tree does not touch either: the point
-    // comes back with the rest, and a boon was never bought.
+    // comes back with the rest, and a boon was never bought. A boon is written
+    // with the hours it has left.
     j["bosses"] = json::array();
     for (const string& id : slain) j["bosses"].push_back(id);
     j["boons"] = json::array();
-    for (const string& id : boons) j["boons"].push_back(id);
+    for (const HeldBoon& b : boons) j["boons"].push_back({{"id", b.id}, {"left", b.left}});
     j["boss_kills"] = json::object();
     for (const auto& [id, n] : kills) if (n > 0) j["boss_kills"][id] = n;
     if (!placed.empty()) {
@@ -396,6 +422,7 @@ void Talents::FromJson(const json& j) {
     slain.clear();
     kills.clear();
     boons.clear();
+    clock_at = -1.0;
     placed.clear();
     totem_day = -1;
     for (string& t : technique) t.clear();
@@ -413,11 +440,21 @@ void Talents::FromJson(const json& j) {
     // A save from before kills were counted: each boss in it was killed once.
     for (const string& id : slain) if (!kills.count(id)) kills[id] = 1;
     if (j.contains("boons") && j["boons"].is_array())
-        for (const auto& id : j["boons"])
-            // One that has gone from the file is simply gone; never more than
-            // there were bosses to leave them.
-            if (id.is_string() && (!db || db->Boon(id.get<string>())) && boons.size() < slain.size())
-                boons.push_back(id.get<string>());
+        for (const auto& bj : j["boons"]) {
+            // A boon, and the hours it has left. A save from when a boon was
+            // for good wrote only its id: it has a day from now, as if it had
+            // just been won.
+            HeldBoon held;
+            if (bj.is_string()) held.id = bj.get<string>();
+            else if (bj.is_object()) {
+                held.id = bj.value("id", string(""));
+                held.left = std::min(bj.value("left", BOON_HOURS), BOON_HOURS);
+            }
+            // One that has gone from the file is simply gone, and so is one
+            // with no time left; never more than there were bosses to leave them.
+            if (!held.id.empty() && held.left > 0.0 && (!db || db->Boon(held.id)) && boons.size() < slain.size())
+                boons.push_back(held);
+        }
     {
         const string standing = j.value("totem", string(""));
         if (!standing.empty() && (!db || db->Totem(standing))) {

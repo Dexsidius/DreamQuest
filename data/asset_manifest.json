@@ -100,6 +100,18 @@
                                           "w":  16,
                                           "h":  16
                                       },
+                   "tiles/civic_floor":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/civic_floor_1":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
+                   "tiles/civic_floor_2":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
                    "tiles/college_carpet":  {
                                                 "w":  32,
                                                 "h":  32
@@ -564,6 +576,30 @@
                                              "w":  16,
                                              "h":  16
                                          },
+                   "tiles/mine_floor":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
+                   "tiles/mine_floor_1":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/mine_floor_2":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/mine_rock":  {
+                                           "w":  32,
+                                           "h":  32
+                                       },
+                   "tiles/mine_rock_1":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
+                   "tiles/mine_rock_2":  {
+                                             "w":  32,
+                                             "h":  32
+                                         },
                    "tiles/moss":  {
                                       "w":  16,
                                       "h":  16
@@ -572,6 +608,18 @@
                                         "w":  16,
                                         "h":  16
                                     },
+                   "tiles/moss_stone":  {
+                                            "w":  32,
+                                            "h":  32
+                                        },
+                   "tiles/moss_stone_1":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
+                   "tiles/moss_stone_2":  {
+                                              "w":  32,
+                                              "h":  32
+                                          },
                    "tiles/palace_carpet":  {
                                                "w":  32,
                                                "h":  32
@@ -708,6 +756,26 @@
                                                 "w":  16,
                                                 "h":  16
                                             },
+                   "tiles/plaza":  {
+                                       "w":  32,
+                                       "h":  32
+                                   },
+                   "tiles/plaza_1":  {
+                                         "w":  32,
+                                         "h":  32
+                                     },
+                   "tiles/plaza_2":  {
+                                         "w":  32,
+                                         "h":  32
+                                     },
+                   "tiles/rail_ew":  {
+                                         "w":  32,
+                                         "h":  32
+                                     },
+                   "tiles/rail_ns":  {
+                                         "w":  32,
+                                         "h":  32
+                                     },
                    "tiles/rime_stone":  {
                                             "w":  16,
                                             "h":  16
@@ -1764,6 +1832,10 @@
                                        "w":  48,
                                        "h":  48
                                    },
+                   "props/armchair":  {
+                                          "w":  64,
+                                          "h":  64
+                                      },
                    "props/armour_stand":  {
                                               "w":  64,
                                               "h":  64
@@ -1784,6 +1856,10 @@
                                         "w":  40,
                                         "h":  40
                                     },
+                   "props/barrel_table":  {
+                                              "w":  48,
+                                              "h":  48
+                                          },
                    "props/barrow_mound":  {
                                               "w":  208,
                                               "h":  208
@@ -1803,6 +1879,10 @@
                    "props/bear_den":  {
                                           "w":  144,
                                           "h":  144
+                                      },
+                   "props/bear_rug":  {
+                                          "w":  96,
+                                          "h":  96
                                       },
                    "props/bed_double":  {
                                             "w":  72,
@@ -1840,6 +1920,14 @@
                                        "w":  72,
                                        "h":  72
                                    },
+                   "props/birch_tree":  {
+                                            "w":  112,
+                                            "h":  112
+                                        },
+                   "props/boat_shed":  {
+                                           "w":  128,
+                                           "h":  128
+                                       },
                    "props/bone_spire":  {
                                             "w":  102,
                                             "h":  102
@@ -1856,6 +1944,18 @@
                                              "w":  124,
                                              "h":  124
                                          },
+                   "props/brick_pier":  {
+                                            "w":  80,
+                                            "h":  80
+                                        },
+                   "props/brick_wall":  {
+                                            "w":  64,
+                                            "h":  64
+                                        },
+                   "props/brick_wall_side":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
                    "props/broken_sled":  {
                                              "w":  72,
                                              "h":  72
@@ -1972,6 +2072,10 @@
                                               "w":  48,
                                               "h":  48
                                           },
+                   "props/crossed_arms":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
                    "props/crypt":  {
                                        "w":  176,
                                        "h":  176
@@ -2044,6 +2148,14 @@
                                                    "w":  96,
                                                    "h":  96
                                                },
+                   "props/dwarf_mine_gate":  {
+                                                 "w":  192,
+                                                 "h":  192
+                                             },
+                   "props/dwarf_statue":  {
+                                              "w":  80,
+                                              "h":  80
+                                          },
                    "props/enchanting_table":  {
                                                   "w":  64,
                                                   "h":  64
@@ -2060,10 +2172,22 @@
                                             "w":  56,
                                             "h":  56
                                         },
+                   "props/ferry_house":  {
+                                             "w":  160,
+                                             "h":  160
+                                         },
                    "props/fetish_pole":  {
                                              "w":  128,
                                              "h":  128
                                          },
+                   "props/fisher_cottage_a":  {
+                                                  "w":  128,
+                                                  "h":  128
+                                              },
+                   "props/fisher_cottage_b":  {
+                                                  "w":  128,
+                                                  "h":  128
+                                              },
                    "props/forge":  {
                                        "w":  96,
                                        "h":  96
@@ -2100,6 +2224,10 @@
                                             "w":  48,
                                             "h":  48
                                         },
+                   "props/guild_house":  {
+                                             "w":  288,
+                                             "h":  288
+                                         },
                    "props/hay_rick":  {
                                           "w":  56,
                                           "h":  56
@@ -2276,6 +2404,10 @@
                                          "w":  88,
                                          "h":  88
                                      },
+                   "props/inn_window":  {
+                                            "w":  64,
+                                            "h":  64
+                                        },
                    "props/iron_cage":  {
                                            "w":  76,
                                            "h":  76
@@ -2340,14 +2472,30 @@
                                               "w":  80,
                                               "h":  80
                                           },
+                   "props/mayor_hall":  {
+                                            "w":  256,
+                                            "h":  256
+                                        },
                    "props/mine_adit":  {
                                            "w":  256,
                                            "h":  256
                                        },
+                   "props/mine_lantern":  {
+                                              "w":  56,
+                                              "h":  56
+                                          },
+                   "props/mine_support":  {
+                                              "w":  80,
+                                              "h":  80
+                                          },
                    "props/mossvale_lodge":  {
                                                 "w":  192,
                                                 "h":  192
                                             },
+                   "props/net_rack":  {
+                                          "w":  64,
+                                          "h":  64
+                                      },
                    "props/nightstand":  {
                                             "w":  32,
                                             "h":  32
@@ -2424,6 +2572,10 @@
                                                "w":  64,
                                                "h":  64
                                            },
+                   "props/park_bench":  {
+                                            "w":  56,
+                                            "h":  56
+                                        },
                    "props/pelt_rack":  {
                                            "w":  72,
                                            "h":  72
@@ -2432,6 +2584,14 @@
                                             "w":  208,
                                             "h":  208
                                         },
+                   "props/planter":  {
+                                         "w":  48,
+                                         "h":  48
+                                     },
+                   "props/post_lantern":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "props/poto_mitan":  {
                                             "w":  132,
                                             "h":  132
@@ -2516,6 +2676,10 @@
                                               "w":  112,
                                               "h":  112
                                           },
+                   "props/stage":  {
+                                       "w":  96,
+                                       "h":  96
+                                   },
                    "props/stairs_up":  {
                                            "w":  88,
                                            "h":  88
@@ -2548,6 +2712,10 @@
                                               "w":  96,
                                               "h":  96
                                           },
+                   "props/street_lamp":  {
+                                             "w":  96,
+                                             "h":  96
+                                         },
                    "props/strongbox":  {
                                            "w":  44,
                                            "h":  44
@@ -2572,6 +2740,14 @@
                                                    "w":  96,
                                                    "h":  96
                                                },
+                   "props/stump_birch":  {
+                                             "w":  40,
+                                             "h":  40
+                                         },
+                   "props/stump_charred":  {
+                                               "w":  40,
+                                               "h":  40
+                                           },
                    "props/swamp_tree":  {
                                             "w":  72,
                                             "h":  72
@@ -2716,6 +2892,30 @@
                                            "w":  160,
                                            "h":  160
                                        },
+                   "props/town_map":  {
+                                          "w":  56,
+                                          "h":  56
+                                      },
+                   "props/town_well":  {
+                                           "w":  136,
+                                           "h":  136
+                                       },
+                   "props/townhouse_a":  {
+                                             "w":  144,
+                                             "h":  144
+                                         },
+                   "props/townhouse_b":  {
+                                             "w":  144,
+                                             "h":  144
+                                         },
+                   "props/townhouse_c":  {
+                                             "w":  176,
+                                             "h":  176
+                                         },
+                   "props/townhouse_d":  {
+                                             "w":  144,
+                                             "h":  144
+                                         },
                    "props/training_dummy":  {
                                                 "w":  64,
                                                 "h":  64
@@ -2728,6 +2928,14 @@
                                               "w":  40,
                                               "h":  40
                                           },
+                   "props/trophy_boar":  {
+                                             "w":  44,
+                                             "h":  44
+                                         },
+                   "props/trophy_stag":  {
+                                             "w":  56,
+                                             "h":  56
+                                         },
                    "props/wall_shackles":  {
                                                "w":  64,
                                                "h":  64
@@ -2740,6 +2948,10 @@
                                            "w":  40,
                                            "h":  40
                                        },
+                   "props/wattle_fence":  {
+                                              "w":  64,
+                                              "h":  64
+                                          },
                    "props/waystone":  {
                                           "w":  72,
                                           "h":  72

@@ -227,8 +227,7 @@ string Player::ComboLabel(ComboMove move) const {
 
 const ItemDef::ComboTwist* Player::Twist(ComboMove move) const {
     const ItemDef* w = equipment.Weapon();
-    const int i = move == ComboMove::Crush ? 0 : move == ComboMove::Cleave ? 1 : move == ComboMove::Backhand ? 2
-                : move == ComboMove::CrossCut ? 3 : -1;
+    const int i = ComboIndex(move);
     return (w && i >= 0) ? &w->combos[i] : nullptr;
 }
 
@@ -653,7 +652,15 @@ bool Player::CanBlock() const {
 
 bool Player::ParryStyle() const {
     const ItemDef* w = equipment.Weapon();
-    return w && w->weapon_class == "dagger" && !Shield();
+    if (!w || Shield()) return false;
+    // A dagger, which has no shield behind it; and a greatsword, which takes
+    // both hands and can hold a blow off with the blade.
+    return w->weapon_class == "dagger" || w->weapon_class == "greatsword";
+}
+
+bool Player::RiposteOnHeavy() const {
+    const ItemDef* w = equipment.Weapon();
+    return w && w->weapon_class == "greatsword";
 }
 
 bool Player::CanParry() const {
@@ -682,7 +689,7 @@ BlockOutcome Player::TryParry(int damage, int attacker_level, float from_x, floa
         BankXp(SKILL_DEFENCE, damage * BLOCK_XP_PER_DAMAGE);
         return out;
     }
-    // After the moment, a poor guard: a dagger is not a shield.
+    // After the moment, a poor guard: a blade is not a shield.
     BlockOutcome out = ResolveBlock(damage, attacker_level, PARRY_GUARD, 1.0f, stamina);
     stamina = std::max(0.0f, stamina - out.stamina);
     stamina_delay = STAMINA_DELAY;
@@ -730,30 +737,45 @@ bool Player::StartRiposte(const World& world) {
     if (len < 0.001f) return false;
     lunge_dx = dx / len;
     lunge_dy = dy / len;
-    // Close in, but stop short of walking into them.
-    lunge_left = std::clamp(len - 22.0f, 0.0f, RIPOSTE_LUNGE);
+    // Close in, but stop short of walking into them -- further short with a
+    // greatsword, whose blow reaches further than a dagger's.
+    const bool heavy = RiposteOnHeavy();
+    lunge_left = std::clamp(len - (heavy ? 40.0f : 22.0f), 0.0f, RIPOSTE_LUNGE);
     lunging = true;
+    lunge_speed = 0.0f;                               // set once its wind-up is known, below
     if (fabsf(lunge_dx) > fabsf(lunge_dy)) facing = lunge_dx > 0 ? FACE_RIGHT : FACE_LEFT;
     else                                   facing = lunge_dy > 0 ? FACE_DOWN  : FACE_UP;
     sprite.facing = facing;
 
-    // Quick out, and harder than a light blow: the thrust a dagger has.
-    const AttackProfile& light = ProfileFor(AttackType::Light, 0);
-    AttackProfile p = light;
-    p.windup      = 0.06f;
-    p.active      = 0.10f;
-    p.recover     = 0.18f;
-    p.cooldown    = 0.10f;
-    p.damage_mult = light.damage_mult * RIPOSTE_DAMAGE;
-    p.reach       = 36.0f;
-    p.knockback   = 90.0f;
+    // A dagger's: quick out, and harder than a light blow -- the thrust a
+    // dagger has. A greatsword's: its heavy blow, both hands on it, brought
+    // down while the one it was parried off is still reeling -- a beat slower
+    // out than the thrust, and harder again, as a heavy is.
+    const AttackProfile& base = ProfileFor(heavy ? AttackType::Strong : AttackType::Light, 0);
+    AttackProfile p = base;
+    if (heavy) {
+        p.windup      = 0.14f;
+        p.active      = 0.14f;
+        p.recover     = 0.30f;
+        p.cooldown    = 0.16f;
+        p.knockback   = 160.0f;
+    } else {
+        p.windup      = 0.06f;
+        p.active      = 0.10f;
+        p.recover     = 0.18f;
+        p.cooldown    = 0.10f;
+        p.reach       = 36.0f;
+        p.knockback   = 90.0f;
+    }
+    p.damage_mult = base.damage_mult * RIPOSTE_DAMAGE;
     p.move_scale  = 0.0f;
     ShapeForWeapon(p);
     combo = 0;
     combo_window = 0.0f;
-    attack.type        = AttackType::Light;
+    attack.type        = heavy ? AttackType::Strong : AttackType::Light;
     attack.move        = ComboMove::None;
     attack.profile     = p;
+    lunge_speed        = RIPOSTE_LUNGE / std::max(0.01f, p.windup);
     attack.rate        = 1.0f;
     attack.damage_mult = p.damage_mult;
     attack.reach_scale = 1.0f;
@@ -764,9 +786,11 @@ bool Player::StartRiposte(const World& world) {
     riposte_owed = 0.0f;
     parrying = false;
     sprite.speed_scale = 1.0f;
-    sprite.Play(AttackClip(), true);
+    // The greatsword's comes down from over the head, the Crushing Blow's way.
+    const string clip = heavy ? BothHands("crush") : AttackClip();
+    sprite.Play(sprite.Def() && sprite.Def()->Find(clip) ? clip : AttackClip(), true);
     FitSwing();
-    Audio::Play(Sfx::SwingHeavy, 1.0f, 1.35f);
+    Audio::Play(Sfx::SwingHeavy, 1.0f, heavy ? 0.9f : 1.35f);
     return true;
 }
 
@@ -1044,10 +1068,13 @@ void Player::ShowWhirlFrame() {
 }
 
 string Player::ComboClip(ComboMove move) const {
+    // The Driving Thrust is carried in on a lunge: the leap the Rushing Strike
+    // makes, as the Lunge technique's is.
     const char* name = move == ComboMove::Crush    ? "crush"
                      : move == ComboMove::Cleave   ? "cleave"
                      : move == ComboMove::Backhand ? "backhand"
-                     : move == ComboMove::CrossCut ? "spin" : "";
+                     : move == ComboMove::CrossCut ? "spin"
+                     : move == ComboMove::Drive    ? "rush" : "";
     // A bow or a staff plays its own draw or cast: the sword's combo clips
     // would swing it like a blade.
     if (Style() == AttackStyle::Melee && *name && sprite.Def() && sprite.Def()->Find(name)) return BothHands(name);
@@ -1073,13 +1100,38 @@ void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
     sprite.Play(ComboClip(move), true);
     FitSwing();                                       // a wand's combo is a wand's flick
     if (Style() != AttackStyle::Melee) return;
+    if (move == ComboMove::Drive) StartDriveLunge(world);
     switch (move) {
         case ComboMove::Crush:    Audio::Play(Sfx::SwingHeavy, 0.95f, 0.9f);  break;
         case ComboMove::Cleave:   Audio::Play(Sfx::SwingHeavy, 1.0f,  0.8f);  break;
         case ComboMove::Backhand: Audio::Play(Sfx::Swing,      1.0f,  1.15f); break;
         case ComboMove::CrossCut: Audio::Play(Sfx::SwingHeavy, 1.0f,  1.2f);  break;
+        case ComboMove::Drive:    Audio::Play(Sfx::SwingHeavy, 1.0f,  0.7f);  break;
         default: break;
     }
+}
+
+void Player::StartDriveLunge(const World& world) {
+    // At whatever is being fought, if it is near enough to be lunged at --
+    // stopping short of it by most of the blow's reach, so the thrust lands in
+    // it rather than the lunge walking into it; otherwise straight ahead, the
+    // whole of the lunge.
+    float dx = facing == FACE_RIGHT ? 1.0f : facing == FACE_LEFT ? -1.0f : 0.0f;
+    float dy = facing == FACE_DOWN ? 1.0f : facing == FACE_UP ? -1.0f : 0.0f;
+    float room = DRIVE_LUNGE;
+    if (const Enemy* at = CurrentTarget(world)) {
+        const float tx = at->x - x, ty = at->y - y, len = Length(tx, ty);
+        if (len > 0.001f && len <= DRIVE_REACH) {
+            dx = tx / len;
+            dy = ty / len;
+            room = std::clamp(len - attack.profile.reach * 0.6f, 0.0f, DRIVE_LUNGE);
+        }
+    }
+    lunge_dx = dx;
+    lunge_dy = dy;
+    lunge_left = room;
+    lunge_speed = DRIVE_LUNGE / std::max(0.01f, attack.profile.windup);
+    lunging = room > 0.0f;
 }
 
 void Player::CountChainHit(const string& label) {
@@ -1103,8 +1155,11 @@ float Player::ChainFade() const {
 
 ComboMove Player::NextCombo(bool light) const {
     if (combo_window <= 0.0f) return ComboMove::None;
+    // A crossbow has none: every bolt is its own shot (see HandleAttackInput),
+    // so the HUD does not offer one.
+    if (const ItemDef* held = equipment.Weapon(); held && held->weapon_class == "crossbow") return ComboMove::None;
     if (light) return after_strong ? ComboMove::Backhand : ComboMove::None;
-    if (after_strong) return ComboMove::None;
+    if (after_strong) return ComboMove::Drive;
     return combo == 0 ? ComboMove::Crush : ComboMove::Cleave;
 }
 
@@ -1242,6 +1297,11 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
             // A heavy inside the chain comes out on the press, with no hold:
             // the Crushing Blow after one light, the Cleave after two.
             StartCombo(combo == 0 ? ComboMove::Crush : ComboMove::Cleave, AttackType::Strong, world);
+        } else if (combos && combo_window > 0.0f && after_strong) {
+            // And a heavy on the heels of a heavy: the Driving Thrust, on the
+            // press as well -- the first one's weight carried into a lunge.
+            combo = 0;
+            StartCombo(ComboMove::Drive, AttackType::Strong, world);
         } else if (!in.Down(PlayerInput::Strong)) {
             // Pressed and let go again inside the last swing: a plain strong,
             // now, rather than a hold that has already ended.
@@ -1787,7 +1847,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         move_axis = move;
         // The guard first: a raised shield is not something a swing starts
         // from, and a strong press that was being held is let go of.
-        // With a dagger and no shield, the same button parries instead.
+        // With a dagger and no shield, or a greatsword, the same button
+        // parries instead.
         const bool parry_style = ParryStyle();
         const bool was_parrying = parrying;
         blocking = !parry_style && !bound && hands.Down(PlayerInput::Block) && CanBlock();
@@ -1809,10 +1870,14 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
                 for_attacks.pressed &= static_cast<uint8_t>(~button);
             }
         }
-        // A parry that landed owes a riposte: the light attack, even with the
-        // stance still held, is the lunge.
-        if (!bound && riposte_owed > 0.0f && for_attacks.Pressed(PlayerInput::Light) && StartRiposte(world))
-            for_attacks.pressed &= static_cast<uint8_t>(~PlayerInput::Light);
+        // A parry that landed owes a riposte: the light attack with a dagger,
+        // the heavy with a greatsword, even with the stance still held, is the
+        // lunge. The other button is only what it always is.
+        {
+            const PlayerInput::Button riposte_button = RiposteOnHeavy() ? PlayerInput::Strong : PlayerInput::Light;
+            if (!bound && riposte_owed > 0.0f && for_attacks.Pressed(riposte_button) && StartRiposte(world))
+                for_attacks.pressed &= static_cast<uint8_t>(~riposte_button);
+        }
         if (blocking || parrying) {
             strong_armed = charging = false;
             charge_held = 0.0f;
@@ -1949,7 +2014,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     }
     // The riposte's lunge: its distance through the wind-up, and no further.
     if (lunging && lunge_left > 0.0f) {
-        const float step = std::min(lunge_left, RIPOSTE_LUNGE / std::max(0.01f, attack.profile.windup) * dt);
+        const float step = std::min(lunge_left, lunge_speed * dt);
         dx += lunge_dx * step;
         dy += lunge_dy * step;
         lunge_left -= step;

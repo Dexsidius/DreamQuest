@@ -296,11 +296,19 @@
       "kind": "land",
       "name": "Ice Spire Peak"
     },
+    "mayor_hall": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "The Mayor's Hall"
+    },
     "mossvale": {
       "exits": [
         "mossvale_lodge_hall",
         "mossvale_herbalist",
         "mossvale_cottage",
+        "mossvale_mine",
         "mossvale_weavers",
         "whisperwood_trail"
       ],
@@ -327,6 +335,13 @@
       ],
       "kind": "interior",
       "name": "Mossvale Lodge"
+    },
+    "mossvale_mine": {
+      "exits": [
+        "mossvale"
+      ],
+      "kind": "dungeon",
+      "name": "The Delving of Stonebrow"
     },
     "mossvale_weavers": {
       "exits": [
@@ -442,6 +457,7 @@
         "westwold",
         "overworld",
         "guild_hall",
+        "mayor_hall",
         "house_elder",
         "house_inn",
         "house_smith",
@@ -489,20 +505,20 @@
       "kind": "town",
       "label": "Havenbrook",
       "town": "havenbrook",
-      "x": 2672,
-      "y": 2832
+      "x": 2320,
+      "y": 3922
     },
     {
       "kind": "path",
       "label": "The Westwold, by Havenbrook's west gate  (Combat 5)",
-      "x": 2462,
-      "y": 2912
+      "x": 2110,
+      "y": 3948
     },
     {
       "kind": "dungeon",
       "label": "The Dry Well, in Havenbrook",
-      "x": 2646,
-      "y": 2908
+      "x": 2384,
+      "y": 3948
     },
     {
       "kind": "dungeon",

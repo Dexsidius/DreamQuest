@@ -311,7 +311,7 @@
         "row": 2,
         "level": 30,
         "ranks": 2,
-        "desc": "Daggers; after Rushing Strike. A parry leaves them open: staggered longer, and your next blow on them lands 30% harder. At the second rank, a light attack within a moment of a parry is a riposte -- a lunge at them that always lands critically.",
+        "desc": "Daggers and greatswords; after Rushing Strike. A parry leaves them open: staggered longer, and your next blow on them lands 30% harder. At the second rank, an attack within a moment of a parry is a riposte -- a lunge at them that always lands critically: the light attack with a dagger, the heavy with a greatsword.",
         "effects": {
           "counter": 1
         }

@@ -98,7 +98,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         // a share off.
         const float technique_cost = technique == "meteor" ? 3.0f : technique.empty() ? 1.0f : 2.0f;
         const float combo_cost = atk.move == ComboMove::Crush ? 1.5f : atk.move == ComboMove::Cleave ? 1.6f
-                               : atk.move == ComboMove::CrossCut ? 2.0f : 1.0f;
+                               : atk.move == ComboMove::CrossCut ? 2.0f : atk.move == ComboMove::Drive ? 1.5f : 1.0f;
         // Overloaded: this one is already paid for.
         const int cost = atk.empowered ? 0 : std::max(1, static_cast<int>(std::lround(
             spell->mana * technique_cost * combo_cost *
@@ -282,6 +282,12 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
                     }
                     multishot(9.0f, base);
                     break;
+                case ComboMove::Drive:      // Pinning Shot: one heavy arrow that holds what it strikes where it stands
+                    if (Projectile* p = loose(aim.x, aim.y, base * 1.3f, true)) {
+                        p->vx *= 1.15f;
+                        p->vy *= 1.15f;
+                    }
+                    break;
                 default: break;
             }
         } else {
@@ -305,6 +311,13 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
                     for (int i = 0; i < 6; ++i) {
                         const float a = 6.2831853f * i / 6.0f;
                         loose(cosf(a), sinf(a), base * 0.5f, false);
+                    }
+                    break;
+                case ComboMove::Drive:      // Lance: one quick bolt through everything in its line
+                    if (Projectile* p = loose(aim.x, aim.y, base * 1.4f, true)) {
+                        p->pierce_left += 4;
+                        p->vx *= 1.5f;
+                        p->vy *= 1.5f;
                     }
                     break;
                 default: break;
@@ -1427,8 +1440,9 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
         knock_x = knock_y = 0.0f;
     }
-    // A dagger's parry: caught outright in its first moment, and after that a
-    // poor guard. With no dagger raised, the shield, as ever.
+    // A dagger's or a greatsword's parry: caught outright in its first
+    // moment, and after that a poor guard. With no blade raised, the shield,
+    // as ever.
     bool parried = false;
     const BlockOutcome parry = player.TryParry(damage, CombatLevelOf(attacker), from_x, from_y, parried);
     if (parried) {

@@ -212,7 +212,7 @@
   "tags": [
    "wood"
   ],
-  "name": "Oak Logs",
+  "name": "Oakwood Logs",
   "desc": "Dense and slow to season. Bowyers pay well for it.",
   "stack": true,
   "value": 18,
@@ -227,6 +227,36 @@
     "thread": 1
    }
   }
+ },
+ "birch_logs": {
+  "tags": [
+   "wood"
+  ],
+  "name": "Birchwood Logs",
+  "desc": "White bark that peels like paper, pale wood under it. Light, straight and strong: what a good shaft is made of.",
+  "stack": true,
+  "value": 32,
+  "icon": "assets/icons/birch_logs.png"
+ },
+ "swamp_logs": {
+  "tags": [
+   "wood"
+  ],
+  "name": "Swampwood Logs",
+  "desc": "Cut from a drowned tree in the Bayou. Black with the water it grew in, and it will not rot: nothing in it is left to.",
+  "stack": true,
+  "value": 50,
+  "icon": "assets/icons/swamp_logs.png"
+ },
+ "ashen_logs": {
+  "tags": [
+   "wood"
+  ],
+  "name": "Ashen Wood Logs",
+  "desc": "Burnt to the heart on the Ashen Path and still warm in the middle. It takes a flame and does not catch.",
+  "stack": true,
+  "value": 75,
+  "icon": "assets/icons/ashen_logs.png"
  },
  "hide": {
   "tags": [

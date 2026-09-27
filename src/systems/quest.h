@@ -103,7 +103,18 @@ public:
     // other days, chosen from the pool by the day number. Given the player's
     // skills, a quest they could not take yet is passed over for the next one
     // in the day's order, so a board never posts nothing but work beyond them.
+    //
+    // And given the skills, it posts work at the player's level first: see
+    // ORDER_BAND.
     vector<string> PoolToday(const string& pool, const class Skills* skills = nullptr) const;
+    // An order more than this many levels below the player, in its own trade,
+    // is posted only when there is not enough nearer their level to fill a
+    // day -- so the book a smith is shown climbs with their Smithing.
+    static constexpr int ORDER_BAND = 20;
+    // The trade an order is for: the skill it pays most in, or paying none,
+    // the one it asks most of. And the level it asks of that trade.
+    static int TradeOf(const QuestDef& d);
+    static int OrderLevel(const QuestDef& d);
     int  PostsPerDay(const string& pool) const;
     // Whether a daily is posted today (or is already taken); always true for
     // a quest that is not daily.

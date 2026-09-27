@@ -1001,9 +1001,9 @@ void Game::UpdatePlay(float dt) {
         welcome_pending = false;
         const string J = input.PromptFor(Action::LightAttack), K = input.PromptFor(Action::StrongAttack);
         note_title = "Welcome to the Hollowmarch";
-        note_text  = "You stand on the road above Havenbrook. The town is south through the gate, "
-                     "and the guild hall there has work for anyone who asks; Elder Maren's letter is the "
-                     "first of it. North, the road runs to the Emberfell mine. East, the trail goes under "
+        note_text  = "You stand on the Sunken Road. Havenbrook is south, where the road ends at its gate below "
+                     "the graveyard, and the guild hall there has work for anyone who asks; Elder Maren's letter "
+                     "is the first of it. North, the road runs to the Emberfell mine. East, the trail goes under "
                      "the trees to Mossvale.\n\n" +
                      J + " swings. " + K + " strikes hard, and held, charges. Mix the two for combos. "
                      "Hold " + input.PromptFor(Action::Block) + " behind a shield. " +

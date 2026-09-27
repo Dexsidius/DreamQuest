@@ -705,7 +705,9 @@ armour cut and tier weapon.
 
 A **dagger with no shield behind it** does not block: the same button raises it
 to **parry**. A pair of daggers parries too, since a second dagger is not a
-shield. A dagger with a shield in the other hand blocks with the shield.
+shield. A dagger with a shield in the other hand blocks with the shield. A
+**greatsword** parries as well: it takes both hands, so there is never a shield
+behind it, and the long blade holds a blow off. A greataxe does not parry.
 
 The parry's first quarter of a second is **the moment**. Every blow from in
 front that lands in it is caught outright: nothing gets through, not even a
@@ -724,7 +726,8 @@ Everything else is the block's: you step slowly while it is up, and you cannot
 swing or sprint. It plays the `block` clip. The HUD reads *Parry!* during the
 moment and *Parrying* after it. The rules are `Player::TryParry` and
 `World::Parried`. A blow comes through `World::HitPlayer` (a leader's heavy
-through `HeavyHitPlayer`), which asks the dagger before it asks a shield.
+through `HeavyHitPlayer`), which asks the blade before it asks a shield. Which
+weapons parry is `Player::ParryStyle`.
 
 ### Sprinting
 
@@ -1144,15 +1147,17 @@ attack. Inside it:
 | Light, Light, **Heavy** | **Cleave** | a level sweep more than twice as wide as the finisher, 1.9x, that throws everything in it back and ends the chain |
 | Heavy, **Light** | **Backhand** | an instant cut off the heavy's follow-through, 1.0x, that stands in for the first two links: the next light is the finisher and the next heavy the Cleave |
 | **Light + Heavy together** | **Cross Cut** | a turn on the spot that strikes everything round you as far as the blade reaches, 1.25x, for 25 stamina |
+| Heavy, **Heavy** | **Driving Thrust** | the first heavy's weight carried into a **lunge** of up to 40 pixels -- at what you are fighting if it is within 110, stopping short by most of the blow's reach, otherwise straight ahead -- and a long narrow blow down the line, half as far again as a strong and a third as wide, that goes **through everything on it**, 1.75x, and ends the chain |
 
 Each is a swing of its own with its own shape, timing and gap, and its own
 sound, and says its name over the player's head as it comes out. Each has its
 own clip too -- `crush`, an overhead; `cleave`, a level sweep with the chest
 turning through it; `backhand`, a cut straight back out from across the body;
-and `spin`, a full turn on the spot, the one pose that yaws the whole rig --
-rendered for every character, armour cut, and tier sword and spear by
+and `spin`, a full turn on the spot, the one pose that yaws the whole rig; the
+Driving Thrust plays `rush`, the leap the Rushing Strike makes, since it is a
+lunge in (`rush_2h` with a greatsword or a greataxe) -- rendered for every character, armour cut, and tier sword and spear by
 `make_character.ps1` and `make_tiers.ps1`, like the leap's. The HUD prints what the buttons would do while a window is open
-("K: Crushing Blow", "J: Backhand"), on the line where a held heavy's
+("K: Crushing Blow", "J: Backhand     K: Driving Thrust"), on the line where a held heavy's
 technique is named. A heavy pressed inside the chain never charges: it is the
 combo, on the press. A heavy pressed from nothing is the plain strong, or the
 charge if held.
@@ -1185,6 +1190,22 @@ the same way and put their own move at the end of them:
 | Light, Light, Heavy | Cleave | **Barbed Shot**: one heavy arrow at 1.6x that passes through two bodies and throws hard | **Cascade**: three bolts in a fan, 0.8x each |
 | Heavy, Light | Backhand | **Snap Shot**: an arrow at once, as good as a drawn one | **Flicker**: a bolt at once |
 | Light + Heavy | Cross Cut | **Twin Shot**: two arrows at once, 0.9x each | **Pulse**: a ring of six bolts, 0.5x each, for twice the mana |
+| Heavy, Heavy | Driving Thrust | **Pinning Shot**: one heavy arrow at 1.3x, a little quicker, that **holds what it strikes where it stands** for 1.2 seconds | **Lance**: one bolt at 1.4x, half as fast again, that passes through everything in its line, for half again the mana |
+
+**Every melee weapon has its own Heavy, Heavy**, the way it has its own
+names for the other four (`combos.drive` in `data/tiers.json`):
+
+| Weapon | Heavy, Heavy | Beyond the Driving Thrust |
+| --- | --- | --- |
+| Sword, spear | **Driving Thrust** | -- |
+| Dagger | **Heartseeker** | goes past 80% of the armour, 1.1x |
+| Mace | **Hammerfall** | always concusses, 1.05x |
+| Greatsword | **Impale** | always bleeds, 1.1x |
+| Greataxe | **Headsman's Chop** | always bleeds, 1.2x |
+
+Before this, a heavy on the heels of a heavy was only another plain strong --
+or, held, a charge. Now it is the combo, on the press, and a charge is a heavy
+held from nothing, as the chain's heavies always were.
 
 A bow or a staff plays its own draw or cast rather than the sword's combo
 clips, and sounds when the shot leaves. The name still floats up, and the HUD
@@ -1203,25 +1224,25 @@ own tint, so what came out can be told from across the room
 **And every combo leaves marks.** With Visual Effects on, the swing is drawn by
 the fx shader rather than in lines: a soft, glowing sweep that brightens toward
 its leading edge and throws sparks off it, or a driven line for a thrust. Each
-of the twelve melee combos, the four shots and the staff's four casts also
+of the twenty-five melee combos, the five shots and the staff's five casts also
 leaves marks of its own, in the swing and on whatever it strikes. Each weapon
-family has its own four colours, so no two of the twenty melee combos look
+family has its own five colours, so no two of the twenty-five melee combos look
 alike:
 
-| | Light, Heavy | Light, Light, Heavy | Heavy, Light | Both together |
-| --- | --- | --- | --- | --- |
-| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, stones thrown up | **Cleave**: the crescent, then its wind a beat later, wider; sparks; a cut across what it hits | **Backhand**: the sweep runs back the other way; a snap of light; a cut back across what it hits, and sparks off it | **Cross Cut**: a ring cut on the ground round the feet and the air swirled round with it; an X on every body |
-| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: two more cuts cross the swing; three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints and splinters of steel thrown out all round |
-| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind, a wave of grit off the floor; grit thrown up where it knocks | **Backswing**: a snap and a shove of air; it rings the head too | **Ground Slam**: the floor cracks open and goes out from under everything, stones thrown up, a big shock |
-| Greatsword | **Overhead Cleave**: a wider, harder ground break, cracked open under the blow and under what it hits | **Reaping Sweep**: in red, a red wind after it, and it bleeds | **Pommel Strike**: a shove of air; stars | **Whirlwind**: two rings, one after the other, and a wide swirl |
-| Greataxe | **Hew**: the widest break, cracked open, blood | **Felling Sweep**: a wave along the ground after it; blood | **Haft Check**: a shove of air; stars | **Maelstrom**: two rings and a red swirl spitting blood; blood-red crosses |
-| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; red splinters where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands |
-| Staff | **Surge**: a casting circle under the caster and a push of air ahead; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round |
+| | Light, Heavy | Light, Light, Heavy | Heavy, Light | Both together | Heavy, Heavy |
+| --- | --- | --- | --- | --- | --- |
+| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, stones thrown up | **Cleave**: the crescent, then its wind a beat later, wider; sparks; a cut across what it hits | **Backhand**: the sweep runs back the other way; a snap of light; a cut back across what it hits, and sparks off it | **Cross Cut**: a ring cut on the ground round the feet and the air swirled round with it; an X on every body | **Driving Thrust**: speed lines back along the lunge and a pale gold line driven out; sparks off what it runs through |
+| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: two more cuts cross the swing; three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints and splinters of steel thrown out all round | **Heartseeker**: a crimson line, and brackets closing on the point; it bleeds |
+| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind, a wave of grit off the floor; grit thrown up where it knocks | **Backswing**: a snap and a shove of air; it rings the head too | **Ground Slam**: the floor cracks open and goes out from under everything, stones thrown up, a big shock | **Hammerfall**: the head brought down in amber at the end of the lunge, the ground knocked flat; it rings the head |
+| Greatsword | **Overhead Cleave**: a wider, harder ground break, cracked open under the blow and under what it hits | **Reaping Sweep**: in red, a red wind after it, and it bleeds | **Pommel Strike**: a shove of air; stars | **Whirlwind**: two rings, one after the other, and a wide swirl | **Impale**: a broad ice-pale line and a front of force on down it; it bleeds |
+| Greataxe | **Hew**: the widest break, cracked open, blood | **Felling Sweep**: a wave along the ground after it; blood | **Haft Check**: a shove of air; stars | **Maelstrom**: two rings and a red swirl spitting blood; blood-red crosses | **Headsman's Chop**: a wine-dark line and the ground split where it comes down; it bleeds |
+| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; red splinters where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands | **Pinning Shot**: a heavy teal line with speed lines; a flash, and the arrow stood in the ground under what it pinned |
+| Staff | **Surge**: a casting circle under the caster and a push of air ahead; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round | **Lance**: a long thin line and the rush of it; through what it strikes and out the far side |
 
 The staff's marks take the colour of what it casts: fire orange, frost pale
 blue, and so on. A **parry** is a white flash with rays, a cross and sparks
-thrown back. A **riposte** is a gold thrust, then a gold cross and flash on what
-it strikes. The heavy ones shock the air, and they shake the screen only for
+thrown back. A **riposte** is a gold thrust (a greatsword's, a thick gold
+slash), then a gold cross and flash on what it strikes. The heavy ones shock the air, and they shake the screen only for
 whoever made them.
 
 The Cross Cut's X was in that table and never drawn: its hits are found by
@@ -2292,18 +2313,27 @@ and spear -- a bow or a staff never makes it.
 #### Counter
 
 Footwork's second node is **Counter**, at Attack 30, with two ranks. It needs
-Rushing Strike above it, and it is for daggers: it works on what a
-[parry](#parrying) catches.
+Rushing Strike above it, and it is for daggers and greatswords: it works on
+what a [parry](#parrying) catches.
 
 - **First rank: an opening.** A parried monster reels 0.8 seconds longer. For
   the next two and a half seconds, your next blow on *that* monster lands 30%
   harder, and "Opening!" rises off it.
-- **Second rank: the riposte.** For one second after a parry, a light attack
+- **Second rank: the riposte.** For one second after a parry, an attack
   becomes a **riposte**, even with the guard still up. You lunge up to 40 pixels
-  at whoever you parried (or your target, or straight ahead) and drive the dagger
-  in, fast. It hits for 1.4 times a light's damage and **always crits**. It is
-  drawn as a gold thrust and lands as a gold cross. The HUD shows
-  *Riposte: J* (or your key) while one is owed.
+  at whoever you parried (or your target, or straight ahead) and **always
+  crit**. Which attack it is depends on the blade:
+  - **A dagger's is the light attack** (J, or X on a pad). You drive the dagger
+    in, fast, for 1.4 times a light's damage. It is drawn as a gold thrust.
+  - **A greatsword's is the heavy attack** (K, or Y on a pad). The blade comes
+    down from over the head in both hands (the `crush_2h` clip) for 1.4 times a
+    heavy's damage and a harder knockback. It is a beat slower out than the
+    dagger's thrust and stops further short, since the blade reaches further.
+    It is drawn as a thick gold slash. The light attack does nothing while the
+    guard is up, as it always does.
+
+  Either lands as a gold cross. The HUD shows *Riposte: J* or *Riposte: K* (or
+  your key) while one is owed.
 
 Both ranks stack with the opening, so a riposte at the second rank lands 30%
 harder on top of the crit. The guard branch's older **Riposte** passive (the
@@ -2336,6 +2366,40 @@ Weapons and armour come in twelve tiers, in this order:
 The last two tiers have no ore of their own. They are smelted from the tier
 below and something the player already brings back, so the end of the game asks
 for a trophy rather than another vein of rock.
+
+### The four woods
+
+A sword has a grip, a bow a stave, an axe a haft -- and every one of them used
+to be cut from the same plain logs, from bronze to enchanted. **Past iron, a
+tier is worked with a better wood**, two tiers to each:
+
+| Wood | Tiers it hafts | Cut at | Grows | Worth |
+| --- | --- | --- | --- | --- |
+| **Logs** (pine) | wood, bronze, iron | Woodcutting 1 | everywhere | 5 |
+| **Oakwood** | steel, azuryte | 15 (old growth 30) | the Westwold and the Brackenwood | 18 |
+| **Birchwood** | damascus, orichalcum | 30 | groves through the Whisperwood | 32 |
+| **Swampwood** | diamond, platinum | 45 | the swamp trees on dry ground in the Bayou | 50 |
+| **Ashen wood** | demonite, dracon, enchanted | 60 | the burnt trees of the Ashen Path | 75 |
+
+A tier names its wood as `timber` in `data/tiers.json`, and
+`ItemDatabase::LoadTiers` puts it wherever a piece's recipe asked for `logs`:
+a steel sword is two steel bars and an oak log, a damascus bow a bar, two birch
+logs and a thread, an enchanted greataxe four enchanted bars and two of ashen
+wood. The recipes for the wooden tier itself, and the lantern and the rod, are
+still plain logs. Each wood is cut below the Smithing that first wants it, so
+a smith who has done their own mining can do their own felling. Every wood
+sells, wherever timber does.
+
+The birch is a new tree (`prop_birch_tree`, in `tools/blender_town_props.py`):
+three white stems scarred black under a light, loose yellow-green crown, with
+its own white stump. The swamp tree and the charred tree were scenery already;
+about half of each on the ground they grow on can be felled now, the charred
+one leaving a black stump with an ember still in its heart. The four icons are
+drawn in `tools/icons.txt` with the pine and oak ones: a white log with black
+scars, a black-green one with moss on it, and a charcoal one with embers in
+the end grain. The self-test holds the tiers to their woods, the woods to
+their trees and their levels, and fails on any piece past iron still asking
+for plain logs.
 
 ### Three kinds of armour, one for each way of fighting
 
@@ -3132,7 +3196,7 @@ kind of shop.
 | Place | General store | Other shops |
 | --- | --- | --- |
 | Havenbrook | Tobin's General Store, a stall on the square | **Halda's Forge**; the Inn Kitchen (Bess); Ivo's Bows and Hides (Hunter Ivo); **Nessa's Tannery**, with the order book |
-| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book |
+| Mossvale | Pell's Stall | **Garrow's Smithy**, at the village anvil; Oona's Remedies; **Wynn's**, a draper's up the north-west lane, with the order book; **Stonebrow Stores**, the dwarves' under the hill (Foreman Durgan): picks, coal, iron and lanterns, and a good price for ore |
 | Fernhollow | Nell's Cart, by the path to the jetty | Wendel's Jetty, a fishmonger |
 | Whisperwood camp | Hob's Pack, a pedlar resting at the camp | Bram's Woodpile |
 | The Reverie | The Night Market (the Night Pedlar) | Curios of the Deep Dream (the Collector) |
@@ -3958,6 +4022,13 @@ silhouette, and draws a contact shadow from the prop’s own base. The outline i
 the single biggest thing separating a render from the hand-drawn art it sits
 beside.
 
+The towns rebuilt are in `tools/blender_town_props.py`, registered into the
+same table: Havenbrook's townhouses, mayor's hall, well, lamps, benches and
+planters and the inn's new furniture; Mossvale's brick wall and piers and the
+dwarves' gate, pit props, lanterns and statue; Fernhollow's ferry house,
+fishers' cottages, boat shed, net racks, lantern posts and wattle; and the
+birch, with the birch and charred stumps.
+
 Three things were learned the hard way and are worth knowing before adding a
 prop:
 
@@ -4188,6 +4259,15 @@ read as a river. It is warm grey setts in running bond now, a full 32-pixel cell
 of sixteen stones in three variants, so it no longer shows as a two-by-two
 check.
 
+The towns rebuilt brought their own, from `tools/make_town_tiles.py` (Python
+and Pillow, the same masonry as `New-Masonry`, written where there was no
+PowerShell): `plaza`, Havenbrook square's big pale flags; `moss_stone`,
+Mossvale's grey-green flags with moss in the joints; `civic_floor`, the
+mayor's chequer, kept low in contrast because at full strength a chequer is
+all anyone sees of a room; and `mine_floor`, `mine_rock`, `rail_ew` and
+`rail_ns` for the dwarves' mine -- the rock lumpy noise and cracks rather than
+courses, which read as a cellar built of brick.
+
 The other half of the coloured-paper problem was the biome boundaries. The
 colour drift is smooth noise, and thresholding smooth noise draws a clean
 contour — which on a 32px grid is a staircase of squares. The threshold is
@@ -4267,8 +4347,9 @@ The rules it was built to:
   things that live there. Not the same half two nights running.
 - **Keep to the road.** No post is within five or six cells of a road or a
   trail, within eleven of a way in, a camp, a bed, a chest, a sign or a person,
-  or within eighteen of Havenbrook's gate, where a new character is finding out
-  which end of the sword to hold. Towns, buildings, dungeons and the Reverie
+  or within eighteen of where a new character starts on the road (the gate's
+  old place), where they are finding out which end of the sword to hold --
+  the gate itself is at the foot of Hollowrest, which keeps its own dead. Towns, buildings, dungeons and the Reverie
   have none. The road is the way to travel after dark, and nightfall says so:
   *"Night falls, and things are abroad that are not by day. Keep to the road,
   or find a bed."*
@@ -5063,50 +5144,140 @@ ones go up.
 
 ### Order books
 
-**Smith Halda** and **Old Wendel** take orders, every day. Ask Halda "Any
-orders today?" (or Wendel "Any fish wanted?") and the day's orders open on the
-board panel, with what each asks for, how many you carry, what it needs and
-what it pays. Accept one, bring the goods, and pick "I have an order for you."
--- that line only appears when an order of theirs can be filled from the pack,
-and it hands in every order it can at once.
+Six traders take orders, every day: **Smith Halda** at the forge, **Nessa** at
+the tannery and **Innkeeper Bess** in Havenbrook; **Wynn** the draper, **Oona**
+the herbalist and **Old Wendel** in Mossvale and on the jetty. Ask for the
+day's orders ("Any orders today?", or Bess "Anything wanted in the kitchen?")
+and they open on the board panel, with what each asks for, how many you carry,
+what it needs and what it pays. Accept one, bring the goods, and pick "I have
+an order for you." -- that line only appears when an order of theirs can be
+filled from the pack, and it hands in every order it can at once.
 
-Orders are dailies in a pool of their own. **Halda posts three a day, Wendel
-two**, new at dawn, and each can be filled once a day. A posted order is never
-one the player cannot take yet: an order needing Smithing 20 is passed over for
-the next in the day's order, so a new character always has at least two to
-choose from, and the book fills out as the skills rise.
+Orders are dailies in a pool of their own. **Wendel posts two a day and the
+rest three**, new at dawn, and each can be filled once a day. A posted order is
+never one the player cannot take yet, so a new character always has at least
+two to choose from.
 
-Halda's orders pay **Mining XP and coins**, and the smelted and smithed ones
-**Smithing XP** as well:
+**And a book climbs with the trade it is for.** Every book now runs from the
+first level of its trade to the top of what that trade makes -- Halda's from
+bronze to enchanted, Nessa's and Wynn's to the dreamhide and the dreamweave,
+Oona's to starlily, Wendel's past the eels, Bess's to cooked eel -- and what is
+posted is work at the player's own level. An order more than **twenty levels
+below** them in its trade (`QuestLog::ORDER_BAND`) is beneath them: it is
+posted only when there is not enough nearer their level to fill the day, and
+then the highest of it first. A Smithing 60 smith used to be posted bronze
+swords as often as anyone, from a book that stopped at steel; now they are
+posted damascus, orichalcum and diamond work, and a Smithing 95 one is asked for
+dracon and enchanted pieces. The trade an order is judged by is the skill it
+pays most in (`QuestLog::TradeOf`): Bess's moonpetal tea asks for Foraging 56
+to find the petals, but it is a Cooking order.
 
-| Kind | Order | Needs | Mining XP | Smithing XP | Coins |
-| --- | --- | --- | --- | --- | --- |
-| Ore | 10 copper ore | -- | 450 | -- | 143 |
-| Ore | 8 iron ore | Mining 5 | 520 | -- | 187 |
-| Ore | 6 coal | Mining 20 | 900 | -- | 583 |
-| Ore | 4 azuryte ore | Mining 30 | 1200 | -- | 864 |
-| Ingots | 6 bronze bars | -- | 600 | 360 | 216 |
-| Ingots | 5 iron bars | Smithing 10, Mining 5 | 900 | 540 | 432 |
-| Ingots | 3 steel bars | Smithing 20, Mining 20 | 1400 | 840 | 1304 |
-| Weapons | 2 bronze swords | -- | 500 | 400 | 275 |
-| Weapons | 1 iron sword | Smithing 10 | 700 | 560 | 319 |
-| Weapons | 1 steel longsword | Smithing 20 | 1600 | 1280 | 2273 |
-| Hide | 8 hides | -- | 250 | -- | 94 |
-| Armour | 2 bronze helms | -- | 450 | 360 | 375 |
-| Armour | 1 iron cuirass | Smithing 10 | 1100 | 880 | 1124 |
-| Armour | 1 steel greaves | Smithing 20 | 2200 | 1760 | 3392 |
+What an order pays grows with the level it asks: about two levels' worth of its
+trade at level 20, one at 45, two thirds of one at 60 and a third of one at 95,
+a little more for a cuirass or a greatsword than for a helm or a bar, and in
+coin a third more than the goods would sell for (less, where a shop stocks
+them: see below). No new order pays less of its trade than an older one
+lower in the same book. Halda's smithing orders
+pay **Smithing** first now, and a fifth as much Mining for the ore they took;
+her ore orders pay Mining. They used to pay Mining first, even for a sword.
 
-Wendel's pay **Fishing XP and coins**:
+**Halda's book** (49 orders):
 
-| Order | Needs | Fishing XP | Coins |
+| Order | Needs | Smithing XP | Mining XP | Coins |
+| --- | --- | --- | --- | --- |
+| 10 copper ore | -- | -- | 450 | 143 |
+| 8 hides | -- | -- | 250 | 94 |
+| 2 bronze helms | -- | 600 | 120 | 375 |
+| 2 bronze swords | -- | 670 | 130 | 275 |
+| 3 bronze daggers | -- | 600 | 120 | 190 |
+| 6 bronze bars | -- | 530 | 110 | 220 |
+| 8 iron ore | Mining 5 | -- | 520 | 187 |
+| 1 iron cuirass | Smithing 10 | 1,370 | 270 | 1,124 |
+| 1 iron sword | Smithing 10 | 1,090 | 220 | 315 |
+| 2 iron shields | Smithing 10 | 1,090 | 220 | 1,145 |
+| 5 iron bars | Smithing 10, Mining 5 | 880 | 180 | 440 |
+| 1 iron spear | Smithing 11 | 1,090 | 220 | 325 |
+| 6 coal | Mining 20 | -- | 900 | 583 |
+| 1 steel greaves | Smithing 20 | 2,120 | 420 | 3,392 |
+| 1 steel helm | Smithing 20 | 1,730 | 350 | 1,565 |
+| 1 steel longsword | Smithing 20 | 1,930 | 390 | 2,273 |
+| 1 steel mace | Smithing 20 | 1,930 | 390 | 2,740 |
+| 3 steel bars | Smithing 20, Mining 20 | 1,540 | 310 | 1,325 |
+| 4 azuryte ore | Mining 30 | -- | 1,200 | 864 |
+| 1 azuryte helm | Smithing 30 | 3,130 | 630 | 3,990 |
+| 1 azuryte mace | Smithing 30 | 3,480 | 700 | 5,800 |
+| 4 azuryte bars | Smithing 30, Mining 30 | 2,780 | 560 | 3,880 |
+| 5 damascus ore | Mining 40 | -- | 5,170 | 2,360 |
+| 1 damascus greaves | Smithing 40 | 7,110 | 1,420 | 15,720 |
+| 1 damascus shield | Smithing 40 | 6,460 | 1,290 | 15,725 |
+| 1 damascus sword | Smithing 40 | 6,460 | 1,290 | 10,655 |
+| 3 damascus bars | Smithing 40, Mining 40 | 5,170 | 1,030 | 9,560 |
+| 5 orichalcum ore | Mining 50 | -- | 9,870 | 4,130 |
+| 1 orichalcum cuirass | Smithing 50 | 15,430 | 3,090 | 42,515 |
+| 1 orichalcum spear | Smithing 50 | 12,340 | 2,470 | 17,400 |
+| 3 orichalcum bars | Smithing 50, Mining 50 | 9,870 | 1,970 | 15,585 |
+| 4 rough diamonds | Mining 60 | -- | 19,340 | 6,095 |
+| 1 diamond boots | Smithing 60 | 21,750 | 4,350 | 24,995 |
+| 1 diamond greatsword | Smithing 60 | 30,210 | 6,040 | 49,255 |
+| 2 diamond ingots | Smithing 60, Mining 60 | 19,340 | 3,870 | 15,180 |
+| 4 platinum ore | Mining 70 | -- | 38,680 | 7,785 |
+| 1 platinum greataxe | Smithing 70 | 60,430 | 12,090 | 74,960 |
+| 1 platinum greaves | Smithing 70 | 53,180 | 10,640 | 56,425 |
+| 2 platinum bars | Smithing 70, Mining 70 | 38,680 | 7,740 | 22,915 |
+| 3 demonite ore | Mining 80 | -- | 78,750 | 8,640 |
+| 1 demonite cuirass | Smithing 80 | 123,040 | 24,610 | 153,205 |
+| 1 demonite sword | Smithing 80 | 98,430 | 19,690 | 61,885 |
+| 2 demonite bars | Smithing 80, Mining 80 | 78,750 | 15,750 | 34,815 |
+| 1 dracon bar | Smithing 88 | 140,510 | 28,100 | 67,865 |
+| 1 dracon dagger | Smithing 88 | 158,080 | 31,620 | 121,290 |
+| 1 dracon helm | Smithing 88 | 158,080 | 31,620 | 241,495 |
+| 1 enchanted bar | Smithing 95 | 234,660 | 46,930 | 241,810 |
+| 1 enchanted shield | Smithing 95 | 293,330 | 58,670 | 1,300,655 |
+| 1 enchanted sword | Smithing 95 | 293,330 | 58,670 | 867,500 |
+
+**Bess's book** (16 orders), for the kitchen -- new:
+
+| Order | Needs | Cooking XP | Coins |
 | --- | --- | --- | --- |
-| 10 raw minnows | -- | 300 | 78 |
-| 8 cooked minnows | -- | 200 | 108 |
-| 6 raw trout | Fishing 15 | 450 | 188 |
-| 5 cooked trout | Fishing 15, Cooking 15 | 400 | 252 |
-| 3 raw pike | Fishing 30 | 520 | 176 |
-| 3 raw salmon | Fishing 45 | 600 | 273 |
-| 2 raw eels | Fishing 60 | 650 | 260 |
+| 6 portions of cooked meat | -- | 670 | 70 |
+| 8 cooked minnows | -- | 670 | 100 |
+| 5 roast chickens | Cooking 4 | 780 | 135 |
+| 4 honeyed oats | Cooking 6 | 880 | 245 |
+| 4 plates of roast mutton | Cooking 9 | 1,040 | 210 |
+| 3 hunter's skewers | Cooking 12 | 1,220 | 385 |
+| 4 cooked trout | Cooking 15, Fishing 15 | 1,450 | 200 |
+| 3 bowls of hearty stew | Cooking 22, Foraging 6 | 2,160 | 535 |
+| 3 traveller's pies | Cooking 24 | 2,430 | 630 |
+| 3 bowls of fisherman's broth | Cooking 28, Fishing 15, Foraging 12 | 3,080 | 730 |
+| 3 cooked pike | Cooking 30, Fishing 30 | 3,480 | 280 |
+| 3 pots of moonpetal tea | Foraging 56, Cooking 34 | 4,440 | 1,035 |
+| 2 farmer's suppers | Cooking 40, Foraging 28 | 6,460 | 1,025 |
+| 3 cooked salmon | Cooking 45, Fishing 45 | 8,900 | 430 |
+| 4 farmer's suppers | Cooking 55, Foraging 28 | 17,220 | 1,725 |
+| 2 cooked eels | Cooking 60, Fishing 60 | 24,170 | 1,180 |
+
+**Wendel's book**:
+
+| Order | Needs | Fishing XP | Cooking XP | Coins |
+| --- | --- | --- | --- | --- |
+| 10 raw minnows | -- | 320 | -- | 78 |
+| 8 cooked minnows | -- | 260 | -- | 108 |
+| 5 cooked trout | Fishing 15, Cooking 15 | 1,300 | -- | 268 |
+| 6 raw trout | Fishing 15 | 1,500 | -- | 320 |
+| 3 raw pike | Fishing 30 | 3,200 | -- | 176 |
+| 4 cooked pike | Fishing 30, Cooking 30 | 3,480 | 1,390 | 370 |
+| 5 raw pike | Fishing 35 | 4,720 | -- | 690 |
+| 3 cooked salmon | Fishing 45, Cooking 45 | 8,900 | 3,560 | 430 |
+| 3 raw salmon | Fishing 45 | 6,500 | -- | 1,400 |
+| 6 raw salmon | Fishing 55 | 17,220 | -- | 3,000 |
+| 2 cooked eels | Fishing 60, Cooking 60 | 24,170 | 9,670 | 1,180 |
+| 2 raw eels | Fishing 60 | 12,000 | -- | 3,200 |
+| 5 raw eels | Fishing 75 | 68,850 | -- | 6,000 |
+
+Nessa's, Wynn's and Oona's books are described with their shops (above): each
+now goes on up the tiers in the same way, Nessa's to 26 orders (to a dreamhide
+jerkin at Tanning 95), Wynn's to 22 (a dreamweave robe at Clothier 95) and
+Oona's to 20 (panacea and starlily at 68).
 
 Filling an order always pays more than selling the same goods to any trader.
 Some orders ask for things a shop stocks -- Halda sells bronze bars, and the
@@ -5200,15 +5371,16 @@ with the Whisperwood trail leaving from the east.
 | Map | What it is |
 | --- | --- |
 | `overworld` | The Hollowmarch |
-| `town_havenbrook` | The village, with four enterable buildings |
-| `guild_hall`, `house_elder`, `house_inn`, `house_smith` | Interiors |
+| `town_havenbrook` | The town: two-storey houses along brick streets, a square with the well in the middle, and five enterable buildings |
+| `guild_hall`, `house_elder`, `house_inn`, `house_smith`, `mayor_hall` | Interiors |
 | `dungeon_emberfell_1` / `_2` | The mine, upper and lower workings; the lower level is locked until you find the rusted key, and the Warchief holds the last room |
 | `dungeon_barrow` | Beneath the Mire |
 | `whisperwood_trail` | The forest path east of the Hollowmarch: a woodcutter's camp, a stream with a plank bridge, and a fork |
-| `mossvale` | A logging village behind a palisade at the trail's east end |
-| `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge and Oona the herbalist's cottage |
+| `mossvale` | A logging village behind a brick wall at the trail's east end, with moss-stone lanes |
+| `mossvale_mine` | The Delving of Stonebrow: the dwarves' hall and galleries under the knoll by the smithy |
+| `mossvale_lodge_hall`, `mossvale_herbalist` | The reeve's lodge, a hunters' hall, and Oona the herbalist's cottage |
 | `mossvale_cottage` | The tanner's empty house at the bottom of the village -- yours, once you find the key |
-| `fernhollow` | A hamlet on a pond at the north fork, with a shrine and a ferry cottage |
+| `fernhollow` | A hamlet on a pond at the north fork: the ferry house, fishers' cottages, a boat shed and a shrine |
 | `fernhollow_cottage` | The ferryman's widow's cottage |
 | `college_grounds` | The College at Fernhollow: through the gatehouse on the hamlet's north side, a great court with the hall across the north of it |
 | `fernhollow_college`, `college_training`, `college_classroom` | The college's three chambers: the great hall where the council sits (north), the practice hall (west), the lecture room (east) |
@@ -5289,18 +5461,20 @@ is a ladder, so only the back wall wears the band.
 
 ### Waystones
 
-There are seven **waystones**. One in each town -- Havenbrook's by the
+There are nine **waystones**. One in each town -- Havenbrook's by the
 crossroads, Mossvale's in the square, Fernhollow's on the green -- and one at
 the door of **your own house in Mossvale**, off to the side of the step. And
-three **checkpoints out in the wild**, on the overworld's own ground:
+five **checkpoints out in the wild**:
 
 | Stone | Where |
 | --- | --- |
 | **The Ashen Path** | where the palace road leaves the burnt one, south of it and between the two streams out of the moat: the far end of the path -- the Infernal Pit, the Brimstone Palace, the ore on the streams' banks -- starts from here |
 | **Purgatory's Plateau** | on the Pale Ascent, at the top of the climb, off the road to the west |
 | **The Bayou** | on the dry ground by the spur, below the Hexmire's gate: the next trip into the Hexmire starts here instead of at the far end of the swamp |
+| **Ice Spire Peak** | on the east side of the igloo at the climbers' camp, by the last fire before the climb |
+| **Old Harl's Cabin** | inside the trapper's cabin on the islet in the middle of the Glass Mere, between his table and his bed: the ice is walked once |
 
-None at a dungeon's door, and none in the Reverie. The four new ones are placed
+None at a dungeon's door, and none in the Reverie. The ones out of town are placed
 with their ground cleared round them and nothing posted within a few steps of
 where you come out: a waystone counts as a haven to the map builder, the way a
 camp or a sign does, so nothing is stood on its doorstep.
@@ -5315,13 +5489,13 @@ price of a waystone is having got there.
 
 So the road to a place is walked once. The long errands in this game are town
 to town (an order for Wynn, a notice from Havenbrook's board, a bar Halda
-wants), and the three stones in the wild are at the far ends of the longest
+wants), and the five stones in the wild are at the far ends of the longest
 walks, once you have made them; the dungeons, the Reverie, and everything
 between a stone and where you are going are still walked.
 
 **The panel has two tabs: Towns and the wilds.** Towns holds the three towns'
 stones and the one at your house; the wilds holds the Ashen Path's, the
-Plateau's and the Bayou's. Left and right step between them (so do the panel
+Plateau's, the Bayou's, the Ice Spire's and Old Harl's. Left and right step between them (so do the panel
 keys, `I` and `O`, or the shoulders), each tab says how many of its stones are
 awake ("2 of 4 awake"), and the panel opens on the tab the stone you are
 touching is under -- a hand on the Bayou's stone opens on the wilds. Switching
@@ -5422,6 +5596,16 @@ off every round, and the self-test walks each one a quarter of a second at a
 time and fails if any step of it is inside a wall -- which is how Old Perrin
 was found walking through Tobin's stall.
 
+The square added its own: **Crier Bram** walks its north side with the day's
+news and shouts it at either end, **Tib and Nan** chase each other round the
+well all day, and **Hester** sweeps in the morning and sits out the afternoon
+on a bench. Since the well stands in the middle of the square, every round
+there keeps to a lane round its apron and comes and goes by the three streets.
+Indoors, **Lark** carries between the inn's bar and its tables; under Mossvale,
+the miners **Brokk** and **Ottar** go down to the galleries and back; and at
+Fernhollow the ferryman's boy **Pim** runs between the ferry house, the jetty
+and the boat shed.
+
 A round is data on the NPC in the map: `"path": [[x, y, seconds, facing], ...]`,
 `"ping_pong"`, `"speed"`, `"phase"`, `"hours": [from, to]` and a `"tint"`, since
 there are only so many villagers' faces.
@@ -5437,8 +5621,174 @@ few lengths the way a village's does. The road runs through it (`prop_town_gate`
 in `tools/blender_props.py`), and the portal sits in the opening, so you walk
 through a gate rather than onto a patch of grass.
 
-The waymarker that used to stand there now stands on the verge a little north
-of it, saying which way is which.
+**It stands at the very bottom of the Hollowmarch, south of Hollowrest.** It
+used to stand where the road first ended, at row 88 in the middle of the
+meadow, in a few lengths of palisade with open field on every side of it --
+walk round the palisade and you were behind it, and (see *Gates and the way
+back*) you could walk straight through it. Now the Sunken Road goes on south
+from there, bends round the east wall of Hollowrest and runs straight down
+into the gate at the south edge of the map, under the graveyard's south-east
+end; the town is past the edge, through it. The road's line is
+`RoadCx` in `tools/genmaps.cpp`: the old line down to row 90, a curve that keeps
+off the graveyard, and the last three rows straight in.
+
+A new journey still begins where the gate used to be, on the road, with the
+waymarker on the verge beside it: Havenbrook south along the road, at its gate
+below Hollowrest; the Emberfell mine north.
+
+### The guild hall, and the halls inside
+
+**Havenbrook's guild hall is the biggest building in the town, and looks it.**
+It used to be a one-storey stone house the size of a cottage, standing in a
+lawn at the head of the north street with the street running on past it to
+the fence. Now it is `prop_guild_house` (288 pixels, the inn is 192): two
+storeys of dressed stone with pale quoins and a string course, under a blue
+slate roof with two dormers and a chimney at each end -- stone and slate where
+every other house is timber and shingle. A tower stands out of the middle of
+the front and rises through the roof: the door is in its foot, two studded
+leaves under a round arch with lamps either side and three steps up to it;
+over that, the guild's round window and its red and gold shield; at the top, a
+belfry with the bell in it, a slate spire, and the pennant. The guild's red
+banners hang from the cornice either side of the tower, and the windows are
+lit all along, but one. The north street now ends at the steps, in a paved
+forecourt.
+
+**Inside, the guild hall** has a back wall three courses of brick high rather
+than one, so there is a wall to hang things on: the guild's arms over the
+master's chair (`crossed_arms`, a red shield with a gold chevron on two swords),
+a mounted stag's head either side of them, two red tapestries and a blue one,
+and a stone hearth let into it where there was a campfire on the floor, with a
+bearskin in front of it and a log pile beside. A run of red rugs goes from the
+door up the middle to the master's dais, which has candlestands either side of
+his desk and the guild's banners behind. The long tables stand either side of
+the aisle with benches and a candlestand at each; the records are down the
+west wall, the arms down the east with a training dummy and a barrel of
+weapons, and plants at the south end where people wait.
+
+**Mossvale's lodge** is a hunters' hall now: a stag's head either side of the
+great hearth and a boar's beyond each, a bearskin before the fire, a log pile
+and a candlestand beside it, pelts drying on a rack and a hide on a tanning
+frame down the west wall, the ale in a keg rack down the east with the reeve's
+books and a chalk board of the season's tally, candlestands at the tables'
+ends, and barrels by the door.
+
+The heads, the bearskin and the arms are new (`HALL_PROPS` in
+`tools/blender_props.py`: `trophy_stag`, `trophy_boar`, `bear_rug`,
+`crossed_arms`). A head is modelled on its board with its back to the wall and
+hung with its base inside the wall band, where nothing walks and everything on
+the floor sorts in front of it.
+
+### Havenbrook built up
+
+**Havenbrook is a town of two-storey houses now, lining its brick streets.**
+It was a crossroads in a field: four cottages, the inn and the guild hall a
+long walk apart across the grass. Ten townhouses stand along the north side of
+the west street and the east street, facing onto them, and down both sides of
+the south street from the square to the gate, each with its step and a strip
+of paving to the street. There are four fronts (`prop_townhouse_a` to `_d` in
+`tools/blender_town_props.py`): brick below and a cream timber frame above
+under red tile, with a green door and geraniums in the window boxes; stone
+below and an ochre frame jettied out over it under slate, with a baker's sign;
+a gable end to the street, dark brick and a white frame with its king post and
+struts, under shingle; and brick all the way up with two dormers in the tile
+and green shutters. Narrow and tall where the cottages were low and wide --
+seen from above a deep house is nearly all roof, so they are shallow front to
+back and the two storeys of windows are what shows. Maren's is one of them,
+and still opens on her room; the rest are people's houses.
+
+**The crossroads is a square**, paved in big pale flags (a tile a size up from
+the road's setts, so the square reads as a place and the streets as the ways
+into it), from the guild hall's steps to the head of the south street. **The
+well is in the middle of it**: the town well (`prop_town_well`), dry these
+eleven years, on two round steps inside the basin the water used to spill
+into, with four stone posts carrying a shingled canopy, the winch and its
+bucket, and the planks still nailed over the mouth. It is the same way down
+it was. Street lamps stand at the corners of its apron and along the square's
+edges and light it at night; benches face it; planters of geraniums and
+marigolds flank the forecourt; Tobin's stall and a flower seller's are along
+the south side; the board is between the two halls; the waystone is where the
+west street comes in. And the square is busy: see [People with somewhere to
+be](#people-with-somewhere-to-be).
+
+**The mayor's hall** stands on the square's north side beside the guild's
+(`prop_mayor_hall`, 256 pixels): pale limestone where the guild is dark stone,
+a copper roof gone green where the guild's is slate, and a porch of four
+columns under a pediment carrying the town's arms -- a gold key on blue --
+where the guild has a tower. A clock in a cupola on the ridge, the town's
+flags flying out past its corners, and every window lit. Inside (`mayor_hall`)
+is a chequered floor the town paid for, a map of Havenbrook in a gilt frame
+over the mayor's desk and the town's hangings either side, a council table
+down the middle, the clerk's desk and the strongbox by the door, benches for
+petitioners and a watchman to keep them in order. **Mayor Oswin Hale** will
+talk about the houses, the well (the well is the guild's business, he has
+written to say so) and the job; **Clerk Ambrose** will not lend you the key to
+the well's padlock.
+
+**The inn** faces the east street now, a step from the square. Inside, the
+Barley and Bell was pale boards and white walls with the furniture standing
+about in it; it is dark boards and warm plaster, two leaded windows in the
+back wall with a stag's head between them and a boar's by the stairs, a
+bearskin before the fire with two red wing chairs, a bar twice as long with a
+stool at every place, casks to stand at, and a bard's corner by the door -- a
+low stage with its lute, drum and footlights, and **Wren**, who knows the song
+about Bess's eel pie. Two regulars are always in, and Lark carries.
+
+### Mossvale's wall, and the dwarves under it
+
+**Mossvale is walled in brick**, where it had a palisade like Havenbrook's:
+courses of red-brown brick with a stone coping and moss in its joints
+(`prop_brick_wall`, and `prop_brick_wall_side` for the east and west runs),
+and a brick pier either side of the west gate with a lantern hung from each.
+Its street, lanes and square are **moss-stone** now -- grey-green flags with
+moss in every joint and creeping over the edges -- where they were trodden
+dirt.
+
+**Where the workbench stood, north-east of the old tanner's house, is the way
+down to the dwarves**: a door cut into a knoll of rock, framed in dressed
+stone the way only they dress it (`prop_dwarf_mine_gate`) -- square jambs cut
+with runes that glow a little, a stepped lintel with a bearded face over it,
+an iron-bound door stood open on the dark, and rails coming out of it. The
+bench and the anvil are across the lane from it now, by Garrow.
+
+**Under it is the Delving of Stonebrow** (`mossvale_mine`), laid out by hand:
+the entry chamber where the stair comes down, with the foreman's board; a
+propped tunnel north to **the hall**, carved flags, two kings in stone
+(`prop_dwarf_statue`), a long table, and the forge with **Hulda Anvilhand's**
+anvil, which anyone may use; a railed tunnel east to **the galleries**, iron
+and coal near the rails and azuryte at the far end, among pillars of rock left
+standing; and up a second propped tunnel **the deep gallery**, damascus and
+orichalcum. Track runs through all of it (`rail_ew`, `rail_ns`, laid over the
+floor as overlays) with ore carts standing on it, pit props hold up the
+tunnels (`prop_mine_support`), and lanterns on stands light the way. **Foreman
+Durgan** keeps the stores; nothing down there fights. The floor, the rock and
+the track are `tools/make_town_tiles.py`'s.
+
+The dwarves are the character rig again with a dwarf's shape (`"dwarf"` in
+`LOOKS`, `tools/blender_character.py`): shorter in the leg, a fifth broader in
+the body and shoulders, a beard from under the nose to the belt with the
+moustache swept out either side, and an iron cap. Two looks: the miners'
+(ginger, in leather) and the smith's (black-bearded, in a scorched red jerkin).
+
+### Fernhollow on the water
+
+**Fernhollow is a hamlet of the pond's own** now. The ferry cottage was one
+of Havenbrook's red-tiled cottages; it is **the ferry house**
+(`prop_ferry_house`): two floors, stone below and weatherboard above in the
+blue-green of the boats, under a deep reed thatch with a dormer, a FERRY board
+with an oar across it over the door, and the ferry's bell on its post. Three
+**fishers' cottages** stand west of the gate path and along a new lane at the
+bottom of the hamlet (`prop_fisher_cottage_a`, `_b`): low, reed-thatched, on
+stone footings against the damp, a net on the wall, an oar by the door and the
+day's fish drying under the eave. A path runs from the gate path along the
+south shore and becomes a **boardwalk** at the water's edge, out to the **boat
+shed**, where a boat is drawn up out of the wet. Nets hang out to dry on racks
+by the jetty and the cottages, there is a garden in wattle by the lane
+(marigolds and brookmint, which the college buys), and lantern posts light the
+ways about. **Maud** fishes and keeps the garden; **Pim** answers the bell.
+
+Laid reed runs down a roof, so the thatch here is streaks down the slope:
+bars across it read as planks, and short blocks as stone tiles -- both were
+tried first.
 
 ### If it is the way into a town, it is a gate
 
@@ -5503,7 +5853,7 @@ After rendering a new prop, run `tools/make_manifest.ps1` before `build.ps1
 ### The farm at Havenbrook
 
 Havenbrook is sixteen columns wider than it was. Everything in it is placed from
-the west wall or from the crossroads and the fence, the gates and the south road
+the west wall or from the square and the fence, the gates and the south road
 are drawn from the town's width and height, so the town simply has a field on
 the end of it: past the mill pond, a yard of beaten earth with a farmhouse, a
 barn, hay and **four fenced pens**.
@@ -5657,6 +6007,40 @@ move that will not fit moves what fits and says so.
 Maps are big enough to grow: the base layer is bucketed into chunks and culled
 against the camera, so adding another biome costs load time and nothing else.
 
+### Gates and the way back
+
+A step-through portal -- a gate, the edge of a zone, a flight of stairs --
+fires the moment your feet touch it. But not **the way back**, straight after
+you come through: arrival spawns sit a pace or two from it, so a key held
+through the fade used to carry you straight back where you came from, over and
+over. So on arriving, the step-through portals **within 128 pixels of where you
+came in** wait until you have let go of the movement and are standing clear of
+them, or until you have walked **224 pixels** from where you came in (at which
+point going back to it is what you mean). Every other portal on the map fires
+from your first step.
+
+Two things were wrong with it, and both let you walk straight through gates:
+
+- **It held every portal on the map, not just the way back.** A player who
+  never let go -- rolling from one key onto the next, or steering the stick
+  round without letting it centre -- walked over every gate they came to for as
+  long as they kept moving.
+- **A way back that was waiting could be walked out through.** Havenbrook's
+  gate stood in open field, and the town's way out is its south road, so
+  leaving put you on the road north of the gate, still walking south. With
+  the key down you walked into the gate, which was waiting, and out of its far
+  side into the field: through a town gate without going into the town. Now a
+  way back that is waiting can be stood on, and stepped off the way you came,
+  but not crossed (`World::PastWayBack`). Let go and step off it, and it is a
+  gate like any other. (The gate has since moved to the south edge of the map,
+  where there is nothing behind it to walk into; the rule holds for any way
+  back that has.)
+
+The rules are in `World::UpdateSeat`, and `World::PortalHeld` says which
+portals are waiting. A probe run over every map found Havenbrook's the only
+pair laid out that way round, and no gate anywhere with ground behind it that
+cannot be reached some other way.
+
 ### The Mire
 
 The swamp in the west of the Hollowmarch was laid from three tiles cut out of
@@ -5704,8 +6088,9 @@ is two new tiles from `tools/make_ground.ps1`.
 
 ### The well of Havenbrook
 
-There is a well on the corner of the square, paved round, with a board nailed
-over the mouth and the bucket left on the rim. It has been dry eleven years.
+There is a well in the middle of the square, in its dry basin under a
+shingled canopy, with planks nailed over the mouth and the bucket left on the
+rim. It has been dry eleven years.
 Ask **Innkeeper Bess** about it and she puts the cloth down: four hundred
 buckets a day it gave, and a queue from dawn, until the year everything else
 went wrong; the town has carted water from the brook ever since, and nobody has
@@ -6520,17 +6905,20 @@ and only ever with legs a monster can walk in a straight line.
 
 Killing a boss paid what it dropped and nothing else: the Pit Lord was a long
 fight for a loot roll. **The first time a character brings one down** it leaves
-them two things, for good:
+them two things -- the one for good, the other for a day:
 
 - **A skill point** for their tree, over and above the one every third level
   earns. There are eleven bosses, so eleven points against the nine a finished
   tree is short of (ten, for the hero): someone who has killed everything in the game can finish
   their tree, and nobody else can. The tree's header says how many of your
   points came that way.
-- **A boon**, by the dice: one of fifteen small permanent things, of those the
-  character's path can use and they do not already have -- so no first kill
-  repeats one, a hero is never handed mana, and two characters who kill the
-  same bosses do not end up the same.
+- **A boon**, by the dice, **for 24 hours of the world's clock**: one of
+  fifteen small things, of those the character's path can use and do not have
+  running already -- so no two running at once are the same, a hero is never
+  handed mana, and two characters who kill the same bosses do not end up the
+  same. When the day is up it wears off, and the game says so ("A day has
+  passed: your boon of Vigour has worn off."); health or mana it gave goes with
+  it. The point stays for good.
 
 | Boon | | Boon | |
 | --- | --- | --- | --- |
@@ -6545,9 +6933,23 @@ them two things, for good:
 
 Each is about one rank of a talent, of a kind any path can use -- and maximum
 health, which no tree teaches at all. **Once each:** a boss is back the next
-dawn and leaves its loot again, but this is kept count of by who it was. The
-game says so when it happens, in two short lines, and the Skills panel has a
-third tab, **Boons**, that lists them and names who has been brought down.
+dawn and leaves its loot again, but this is kept count of by who it was, and
+killing it again does not bring its boon back -- the lasting thing a boss
+leaves for going back to it is its totem, on the fifteenth kill. The game says
+so when it happens, in short lines, and the Skills panel has a tab, **Boons**,
+that lists the ones running with the time each has left ("17h 40m left",
+amber in its last three hours) and names who has been brought down.
+
+**The day is the world's clock.** It is 24 hours of the Hollowmarch's clock --
+about twenty-seven and a half real minutes of play, less if you sleep, since a
+night slept through is a night gone by. The clock does not run while the game
+is closed or paused. A boon is kept as the hours it has left, not the hour it
+ends at, and is counted down as the clock is told (`Talents::SetNow`, every
+frame, from `World::TellTheHour`): a character goes between their own world and
+a friend's, whose clocks do not agree, so a step backwards, or of more than a
+day and a half, is another world's clock or a load and costs it nothing. A
+save from when boons were for good gives each of them a day from when it is
+loaded.
 
 Everyone who was there gets theirs, each once: a fight shared is a kill
 shared. It is part of the character, kept with the tree's ranks
@@ -6597,7 +6999,7 @@ out altogether.
 | the Wyvern Matriarch | attack 6% faster | | the Abominable Snowman | +12% maximum health; on the move 6% of blows miss you |
 | the Pit Lord | +6% critical chance, criticals 25% harder | |  |  |
 
-A totem's blessing is two or three times what a first kill leaves for good,
+A totem's blessing is two or three times what a first kill leaves for a day,
 because it is one at a time, for a day, earned over a fortnight, and has to be
 gone home for -- which is what the waystone at your own door is for. It is on top
 of the boons, not instead of them. The self-test holds every totem to being
@@ -6864,7 +7266,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **61823 checks** covering:
+and checks all of it — currently **64596 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -6882,8 +7284,12 @@ and checks all of it — currently **61823 checks** covering:
 - the dream quests played through the world at night: sleeping into the
   Reverie, reading the voice, reporting to Mira, Hesper's hunt, and the reverie
   dailies posted on the Slate
-- order books: Halda's orders cover ore, bars, weapons, hides and armour, and
-  pay Mining XP and coins; Wendel's are fish and pay Fishing XP; every order
+- order books: Halda's orders cover ore, bars, weapons, hides and armour in all
+  eleven metals and pay Smithing XP and coins; Wendel's are fish and pay Fishing
+  XP; Bess's are cooked food and pay Cooking XP; every book posts only orders
+  within twenty levels of the trader's skill while there are enough of them, so
+  a level 99 smith is offered the top of the book and never bronze; the top of
+  every book pays more than four times the bottom; every order
   pays more than selling the goods, needs the Crafting or Fishing level its item
   takes, and costs more to fill from a shelf than it pays; on every one of forty
   days a new character is posted at least two orders they can take and none they
@@ -6891,6 +7297,13 @@ and checks all of it — currently **61823 checks** covering:
   when an order can be filled, hands in exactly what it asks and leaves the rest,
   pays once, cannot be repeated the same day, and never takes another NPC's
   delivery
+- the four woods: every tier past iron is worked with its own wood -- oak,
+  birch, swampwood, ashen wood, two tiers to each -- and none asks for plain
+  logs; every wood is a stack with an icon, worth more than the one below it,
+  and grows on at least twenty trees, cut at a Woodcutting level below the
+  tier that first wants it
+- the rebuilt towns: the mayor's hall and the dwarves' mine load, are flat,
+  belong to their towns, and every NPC and object in them can be walked to
 - traders: every shop is kept by an NPC standing in its own town, who can be
   walked up to and offers to trade from the first line; every town has a general
   store and another shop; every shelf item exists, has a price and a limited
@@ -6952,6 +7365,14 @@ and checks all of it — currently **61823 checks** covering:
   flight of stairs between two floors would otherwise do
 - every way back through a portal arrives beside the way in, so leaving a
   building puts you on its doorstep rather than in the middle of town
+- gates: out of the Whisperwood with the key held, the way back waits and
+  Havenbrook's gate across the field does not; walked into, the way back does
+  not bounce you, stepped off and on again without letting go it still waits,
+  and Havenbrook's gate, reached with the key never let go, takes you through;
+  walked well away from where you came in, the way back is a gate again; and out
+  of Havenbrook onto the road north of its gate, walking south into it for two
+  and a half seconds stands you in the gate -- not back in town and not out of
+  its far side -- until you let go, step back out, and walk in
 - real fights, run frame by frame through the world update with the buttons
   pressed through the game's own input: a new character fighting back beats a
   fox and a boar, and the monster never stands on top of the player
@@ -7010,6 +7431,15 @@ and checks all of it — currently **61823 checks** covering:
   behind gets through, a dragon's blow breaks the guard and it comes back once
   the bar refills, an enchanted shield takes the same blow for a fraction, and a
   guarded step is slow
+- parrying: a dagger with no shield parries and with one blocks, a sword never
+  parries, and a greatsword does and a greataxe does not. Played through: a
+  blow caught in the parry's first moment does nothing and leaves its thrower
+  reeling; held past it, it is a poor guard; raised again at once there is no
+  fresh moment and after a rest there is; a leader's heavy is caught too, and a
+  blow from behind is not. Counter's first rank leaves the parried one open and
+  reeling longer; its second owes a riposte, which with a dagger is the light
+  attack and with a greatsword the heavy (the light does nothing), brought down
+  in `crush_2h`; either lands on whoever was parried and is then spent
 - Rushing Strike: the melee tree's Footwork branch has it at Attack 15, and the
   ranged and magic trees keep three branches. Played through: a running light
   attack is ordinary without it and standing still with it; with it, a running
@@ -7077,16 +7507,21 @@ and checks all of it — currently **61823 checks** covering:
   through its gap and comes out as the Backhand; both buttons on one
   frame, or two frames apart either way round, are the Cross Cut, which costs
   its stamina and strikes the monster behind as well as in front; winded there
-  is none; a bow has no combos; a press inside a swing comes out the moment
+  is none; a heavy after a heavy is the Driving Thrust, out on the press as the
+  lunge, harder than a Crushing Blow and ending the chain, and it lunges in to
+  reach a monster seventy pixels off that a strong does not, and goes through
+  the first monster in a line into the one behind; every melee family has its
+  own name for it, the bow's is the Pinning Shot, which holds what it strikes
+  where a plain arrow does not, and the staff's the Lance; a bow has no combos; a press inside a swing comes out the moment
   the swing ends; a hold past its window is a charge that ignores a light; and
   a braced Warchief shrugs a stagger off where a plain orc reels on the spot
 - the chain counter: a fresh fight has none, three lights that land are
   three with the trail saying so, a combo is named in it, a long run keeps the
   last six for the trail, and a blow taken, a swing that meets nothing, or a
   pause ends it; a Cross Cut that strikes two counts once
-- what every move looks like: the fx shader has all sixteen kinds; the twenty
-  melee combos, the bow's four and the staff's four each leave marks of their
-  own, and a parry and a riposte theirs; all eighteen abilities, the nine
+- what every move looks like: the fx shader has all sixteen kinds; the
+  twenty-five melee combos, the bow's five and the staff's five each leave marks
+  of their own, and a parry and a riposte theirs; all eighteen abilities, the nine
   techniques and the Rushing Strike leave marks, no two alike and none like a
   combo's, and between them use all eight new shapes; in play a Cross Cut
   leaves an X on what it strikes and a swirl round the feet, the first light of
@@ -7631,7 +8066,7 @@ and checks all of it — currently **61823 checks** covering:
   stands within twenty cells of it by day; every visitor is stronger than the
   average of what lives round its post, and none by more than a couple of
   dozen levels; posts stand on open ground, eleven cells from every way in,
-  camp and person, and none within a screen of Havenbrook's gate; what is
+  camp and person, and none within a screen of where a new character starts; what is
   abroad is never more than a fifth of what lives there; half the posts are
   kept on a night, not the same half two nights running, and a pack comes or
   stays away together; played through -- by day every one is in the list and
@@ -7643,7 +8078,12 @@ and checks all of it — currently **61823 checks** covering:
   a post that is only kept after dark
 - what a boss leaves, the first time: every boon names effects the game reads,
   and every path has one for every boss; the first kill is a point and a boon,
-  the second nothing; the point buys a rank and comes back when the tree is
+  the second nothing; a boon is won with 24 hours to run, counts down by the
+  clock it is told, keeps its hours through a save, is not touched by a clock
+  that goes back or leaps a day and a half, is still running with half an hour
+  left and wears off at the day, saying which, while the point stays; killing
+  the boss again does not bring it back; an old save's boons get a day from
+  now; and Vigour's health is gone again a day later; the point buys a rank and comes back when the tree is
   unlearned, the boon is kept; eleven bosses leave eleven different boons, none
   for another path, and thirty heroes are never once given mana or arrows; it
   survives a save, a boss killed before the save is not a first kill after it,
@@ -7651,7 +8091,8 @@ and checks all of it — currently **61823 checks** covering:
   Long Wind, Deep Reserves and Might each move the number they say by what
   they say; in the cellar a rat leaves nothing, the Broodmother a point and a
   boon and two short lines saying which, and the day after she is only a
-  fight; and in company the host who had killed her gets nothing, the friend
+  fight, and a day after she first fell her boon wears off with a line saying
+  which, and the point stays; and in company the host who had killed her gets nothing, the friend
   on the couch gets theirs and is the one told, the friend down the wire gets
   nothing on the host's copy, is sent the kill with which boss it was, is given
   it on their own machine, and the next sheet tells the host
@@ -7721,7 +8162,7 @@ and checks all of it — currently **61823 checks** covering:
   or on the wall it met -- and an arrow is heard as it always was, neither going
   in nor going by, not even one that runs out of air having met nothing; the casters' weapons
   are quicker than a staff for less, about even over time; each melee weapon
-  has four combos by name; every element has a spell on each of four slots; a fire
+  has five combos by name, Heavy, Heavy's among them; every element has a spell on each of four slots; a fire
   staff's four keys are four spells and it casts nothing else; the Flame Ring
   is a ring, the Wall of Fire a line across the way faced, the Flamethrower
   five wide or three far; the Hydro Cannon throws, the Tidal Wave is seven, the
@@ -7782,12 +8223,14 @@ and checks all of it — currently **61823 checks** covering:
   Wynn and her loom are not on the square, her door is a long way from the
   anvil, and she is inside selling, with forms, hangings, shelves of bolts, a
   cutting table, her wheel and a counter
-- waystones: the maps hold exactly the seven listed -- the towns' three, the one
+- waystones: the maps hold exactly the nine listed -- the towns' three, the one
   at the door of the house in Mossvale, and the Ashen Path's, Purgatory's
-  Plateau's and the Bayou's -- under their two tabs, each with its dark and its
+  Plateau's, the Bayou's, the Ice Spire's and Old Harl's -- under their two tabs, each with its dark and its
   lit sprite on disk, somewhere clear to arrive beside it named for it, and out
   of any fire, and the wilds' with nothing living within a few steps; a town's stone is still
-  its town's `waystone`; the house's is right outside its door; and no other
+  its town's `waystone`; the house's is right outside its door; the Ice
+  Spire's stands just east of the igloo at the climbers' camp, and Old Harl's
+  inside his cabin on the Glass Mere; and no other
   map in the game has one; the first touch wakes the stone and asks for nothing else,
   the second asks for the panel and says which stone you are at; waking one
   does not wake another; travelling is a transition that ends beside the far

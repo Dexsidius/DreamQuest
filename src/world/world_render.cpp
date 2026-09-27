@@ -449,6 +449,7 @@ void World::DrawSwing(SDL_Renderer* r) const {
         case ComboMove::Cleave:   col = {255, 168,  90, 255}; break;
         case ComboMove::Backhand: col = {214, 255, 214, 255}; break;
         case ComboMove::CrossCut: col = {196, 216, 255, 255}; break;
+        case ComboMove::Drive:    col = {255, 236, 150, 255}; break;
         default: break;
     }
 
@@ -481,7 +482,10 @@ void World::DrawSwing(SDL_Renderer* r) const {
     };
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
 
-    const bool thrust = atk.move == ComboMove::None && !atk.Whirling() && player.AttackClip() == "thrust";
+    // A spear's or a dagger's plain blow is a thrust, and so is the Driving
+    // Thrust with anything: a line driven out along the facing.
+    const bool thrust = (atk.move == ComboMove::None && !atk.Whirling() && player.AttackClip() == "thrust") ||
+                        atk.move == ComboMove::Drive;
     // With the effects on the shader draws it, and the combo's own marks
     // (the Crushing Blow's streak falling onto the ground among them): see
     // world_strikes.cpp.
