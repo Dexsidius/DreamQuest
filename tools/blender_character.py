@@ -102,6 +102,11 @@ PALETTE = {
     # Only a dwarf wears these: see DWARF.
     "beard":    (0.58, 0.31, 0.17),
     "helm":     (0.60, 0.62, 0.66),
+    # And a carter's cart: see CART.
+    "cart_wood": (0.62, 0.44, 0.26),
+    "cart_iron": (0.36, 0.37, 0.41),
+    "ore":       (0.52, 0.46, 0.42),
+    "ore_glint": (0.84, 0.56, 0.32),
 }
 
 # The three characters offered at the start, as differences from the palette
@@ -255,6 +260,35 @@ LOOKS = {
         "weapon": False,
         "dwarf": True,
     },
+    # The carters: dwarves pushing a cart of ore along the rails, one with
+    # copper and iron, one with coal. The cart is part of the sprite, built
+    # on the root in front of them so it turns with the way they face.
+    "dwarf_carter": {
+        "palette": {"hair":    (0.70, 0.42, 0.18),
+                    "beard":   (0.76, 0.46, 0.20),
+                    "tunic":   (0.42, 0.44, 0.34),
+                    "trim":    (0.46, 0.40, 0.30),
+                    "belt":    (0.24, 0.17, 0.12),
+                    "trouser": (0.30, 0.28, 0.26),
+                    "boot":    (0.22, 0.17, 0.13),
+                    "helm":    (0.62, 0.52, 0.34),
+                    "skin":    (0.90, 0.70, 0.56)},
+        "hair": 0.5, "scarf": False, "weapon": False, "dwarf": True, "cart": "ore",
+    },
+    "dwarf_carter_coal": {
+        "palette": {"hair":    (0.46, 0.44, 0.42),
+                    "beard":   (0.58, 0.56, 0.54),
+                    "tunic":   (0.36, 0.40, 0.52),
+                    "trim":    (0.30, 0.30, 0.34),
+                    "belt":    (0.22, 0.16, 0.12),
+                    "trouser": (0.26, 0.26, 0.28),
+                    "boot":    (0.20, 0.16, 0.13),
+                    "helm":    (0.54, 0.56, 0.60),
+                    "skin":    (0.88, 0.68, 0.54),
+                    "ore":     (0.17, 0.16, 0.17),
+                    "ore_glint": (0.34, 0.33, 0.36)},
+        "hair": 0.5, "scarf": False, "weapon": False, "dwarf": True, "cart": "coal",
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),
@@ -278,16 +312,19 @@ WEAPON_ON = True
 ARMOUR_ON = True
 # A dwarf: shorter legs, a broader body, a beard and an iron cap.
 DWARF = False
+# A cart of ore pushed in front, and the arms out to its handle.
+CART = False
 
 
 def apply_look(name):
     """Palette and shape for one of LOOKS, before anything is built."""
-    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON, DWARF
+    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON, DWARF, CART
     look = LOOKS.get(name)
     if look is None:
         raise SystemExit("unknown look '%s'; have %s" % (name, ", ".join(LOOKS)))
     PALETTE.update(look.get("palette", {}))
     DWARF = look.get("dwarf", False)
+    CART = bool(look.get("cart", False))
     HAIR_SCALE = look.get("hair", 1.0)
     SCARF_ON = look.get("scarf", True)
     WEAPON_ON = look.get("weapon", True)
@@ -414,6 +451,22 @@ def mesh_ellipsoid(rx, ry, rz):
     bm.free()
     for p in me.polygons:
         p.use_smooth = True
+    _meshes[key] = me
+    return me
+
+
+def mesh_box(w, d, h):
+    """A box centred on its origin."""
+    key = ("box", w, d, h)
+    if key in _meshes:
+        return _meshes[key]
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * w, v.co.y * d, v.co.z * h))
+    me = bpy.data.meshes.new("box")
+    bm.to_mesh(me)
+    bm.free()
     _meshes[key] = me
     return me
 
@@ -662,6 +715,31 @@ def build_character():
             part("cap_knob", mesh_ellipsoid(0.06, 0.06, 0.06), "gold", head_tilt,
                  loc=(0, 0.045, head_c + 0.42)),
         ]
+
+    # A carter's cart, on the root and not on the body, so it runs level on
+    # its wheels while the carter bobs behind it: an iron-bound tub heaped
+    # with ore, four wheels, and a push bar where the hands are.
+    if CART:
+        cy = -0.70
+        g[BODY] += [
+            part("cart_tub", mesh_box(0.56, 0.62, 0.30), "cart_wood", root, loc=(0, cy, 0.34)),
+            part("cart_rim", mesh_box(0.62, 0.68, 0.05), "cart_iron", root, loc=(0, cy, 0.50)),
+            # Straps, not plates: a whole face of iron made the tub a grey box.
+            part("cart_strap_f", mesh_box(0.60, 0.04, 0.05), "cart_iron", root, loc=(0, cy - 0.32, 0.30)),
+            part("cart_strap_b", mesh_box(0.60, 0.04, 0.05), "cart_iron", root, loc=(0, cy + 0.32, 0.30)),
+            part("cart_bed", mesh_box(0.50, 0.66, 0.06), "cart_iron", root, loc=(0, cy, 0.18)),
+            part("cart_bar", mesh_box(0.50, 0.05, 0.05), "cart_iron", root, loc=(0, cy + 0.42, 0.56)),
+            part("cart_bar_l", mesh_box(0.04, 0.12, 0.04), "cart_iron", root, loc=(-0.22, cy + 0.37, 0.53)),
+            part("cart_bar_r", mesh_box(0.04, 0.12, 0.04), "cart_iron", root, loc=(0.22, cy + 0.37, 0.53)),
+        ]
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                g[BODY].append(part("cart_wheel_%d_%d" % (sx, sy), mesh_ellipsoid(0.03, 0.10, 0.10), "cart_iron",
+                                    root, loc=(sx * 0.30, cy + sy * 0.20, 0.10)))
+        for k, (x, y, r) in enumerate(((-0.12, -0.10, 0.13), (0.12, 0.06, 0.14), (0.02, 0.14, 0.11),
+                                       (-0.10, 0.16, 0.10), (0.14, -0.14, 0.10))):
+            g[BODY].append(part("cart_ore_%d" % k, mesh_ellipsoid(r, r * 0.9, r * 0.75),
+                                "ore_glint" if k == 2 else "ore", root, loc=(x, cy + y, 0.52)))
 
     # The scarf: a wrap at the throat and a two-piece tail down the back,
     # which trails further the faster the character goes.
@@ -2066,6 +2144,12 @@ def _both_hands_on(joints, v):
 
 
 def apply_pose(joints, extras, v):
+    if CART:
+        # Both hands forward on the cart's push bar, leaning into it; the
+        # legs keep whatever the clip gives them.
+        v = dict(v)
+        v.update(arm_l=64.0, arm_r=64.0, elbow_l=26.0, elbow_r=26.0, flare_l=0.0, flare_r=0.0,
+                 cross_l=0.0, cross_r=0.0, lean=v.get("lean", 0.0) + 10.0)
     for name, joint in joints.items():
         if name in ("grip", "grip_l"):
             continue

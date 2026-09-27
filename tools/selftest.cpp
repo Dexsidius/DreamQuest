@@ -3147,6 +3147,62 @@ int main(int argc, char** argv) {
 
     // --- save round trip ------------------------------------------------------
     // --- material tiers --------------------------------------------------------------
+    Section("the dwarves' mine");
+    {
+        // The Delving of Stonebrow is under Mossvale, its door where Garrow's
+        // anvil stood, and it is at work: carters push their carts round the
+        // track -- every leg of every round runs along rails -- and Garrow,
+        // his anvil and the bench are down in the hall.
+        Map moss, mine;
+        Check(moss.Load("maps/mossvale.mx") && mine.Load("maps/mossvale_mine.mx"), "Mossvale and the mine load");
+        const Portal* door = nullptr;
+        for (const Portal& p : moss.Portals()) if (p.target_map == "mossvale_mine") door = &p;
+        Check(door != nullptr && door->rect.x > 44 * 32 && door->rect.y > 27 * 32,
+              "the mine's door is east of the lane, where the smith's corner was");
+        bool garrow_up = false, garrow_down = false, bench_down = false;
+        for (const NpcDef& n : moss.Npcs()) garrow_up |= n.id == "npc_garrow";
+        for (const NpcDef& n : mine.Npcs()) garrow_down |= n.id == "npc_garrow" && n.shop == "mossvale_forge";
+        for (const MapObject& o : mine.Objects()) bench_down |= o.id == "bench_mossvale" && o.station == "workbench";
+        Check(!garrow_up && garrow_down && bench_down, "Garrow keeps his forge under the hill now, bench and all");
+        const auto on_rails = [&](float x, float y) {
+            for (const TileInstance& t : mine.Tiles()) {
+                if (mine.TexturePath(t).find("rail_") == string::npos) continue;
+                if (x >= t.rect.x && x <= t.rect.x + t.rect.w && y >= t.rect.y && y <= t.rect.y + t.rect.h) return true;
+            }
+            return false;
+        };
+        int carters = 0, dwarves = 0;
+        bool railed = true;
+        for (const NpcDef& n : mine.Npcs()) {
+            if (n.sprite.rfind("dwarf", 0) == 0) ++dwarves;
+            if (n.sprite.rfind("dwarf_carter", 0) != 0) continue;
+            ++carters;
+            Check(n.path.size() >= 2, n.id + " has a round to push their cart along");
+            for (size_t i = 0; i < n.path.size(); ++i) {
+                const NpcStop& a = n.path[i];
+                const NpcStop& b = n.path[(i + 1) % n.path.size()];
+                if (n.ping_pong && i + 1 == n.path.size()) break;
+                const float len = std::hypot(b.x - a.x, b.y - a.y);
+                for (float t = 0.0f; t <= len; t += 8.0f) {
+                    const float x = a.x + (b.x - a.x) * t / std::max(1.0f, len);
+                    const float y = a.y + (b.y - a.y) * t / std::max(1.0f, len);
+                    if (!on_rails(x, y)) {
+                        railed = false;
+                        std::printf("    %s leaves the rails at %.0f,%.0f\n", n.id.c_str(), x, y);
+                        break;
+                    }
+                }
+            }
+        }
+        Check(carters >= 4 && railed, "four carters or more push their carts round the track, and never off it (" +
+                                         std::to_string(carters) + ")");
+        Check(dwarves >= 9, "the mine is full of dwarves (" + std::to_string(dwarves) + ")");
+        std::set<string> ores;
+        for (const MapObject& o : mine.Objects()) if (o.type == "rock") ores.insert(o.yield);
+        Check(ores.size() >= 7, "the galleries have iron, coal, azuryte, damascus, orichalcum, diamond and platinum (" +
+                                    std::to_string(ores.size()) + " kinds)");
+    }
+
     Section("the four woods");
     {
         // Every tier past iron is hafted, strung and stocked with a better
@@ -15203,14 +15259,15 @@ int main(int argc, char** argv) {
             for (const NpcDef& n : moss.Npcs()) outside |= n.id == "npc_wynn";
             for (const MapObject& o : moss.Objects()) loom_outside |= o.station == "loom";
             Check(!outside && !loom_outside, "she and her loom are not out on the square any more");
-            // Away from the anvil: across the village from it.
+            // Away from the anvil. It was across the village from her; it is
+            // under the hill now, at the dwarves' forge, with Garrow.
             const MapObject* anvil = nullptr;
             for (const MapObject& o : moss.Objects()) if (o.station == "anvil") anvil = &o;
-            Check(anvil != nullptr, "the village anvil is where it was");
-            if (anvil && door) {
-                const float far = std::hypot(anvil->x - door->rect.x, anvil->y - door->rect.y);
-                Check(far > 800.0f, "and her door is a long way from it (" + std::to_string(static_cast<int>(far)) + " px; the stall was about 400)");
-            }
+            Map mine;
+            bool garrows = false;
+            if (mine.Load("maps/mossvale_mine.mx"))
+                for (const MapObject& o : mine.Objects()) garrows |= o.id == "anvil_mossvale" && o.station == "anvil";
+            Check(anvil == nullptr && garrows, "the village anvil is under the hill now, in the dwarves' mine");
             bool wynn = false, loom = false;
             for (const NpcDef& n : shop.Npcs()) wynn |= n.id == "npc_wynn" && n.shop == "mossvale_clothier";
             for (const MapObject& o : shop.Objects()) loom |= o.id == "loom_weaver" && o.station == "loom";
