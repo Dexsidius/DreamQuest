@@ -880,9 +880,10 @@ static void PlaceRelicChest(MapBuilder& m, const string& chest_id, int x, int y,
 }
 
 // A waystone: the old stones that stand in the three towns, at the door of the
-// player's house in Mossvale, and at three checkpoints out in the wild -- the
-// Ashen Path, the top of the climb onto Purgatory's Plateau, and the Bayou by
-// the Hexmire's gate. Asleep until somebody puts a hand on it; after that, a
+// player's house in Mossvale, and at five checkpoints out in the wild -- the
+// Ashen Path, the top of the climb onto Purgatory's Plateau, the Bayou by the
+// Hexmire's gate, the igloo at the Ice Spire's climbers' camp, and inside Old
+// Harl's cabin in the middle of the Glass Mere. Asleep until somebody puts a hand on it; after that, a
 // door to every other one that has been woken. The world remembers a woken
 // stone as a flag with the stone's own id, which is also what draws it lit --
 // an object whose id is flagged is drawn as its `sprite_open`, the way an
@@ -4218,6 +4219,9 @@ static void BuildIceSpire() {
             m.Collision(ix - 42, iy - 66, 84, 46);
             m.Collision(ix - 21, iy - 20, 42, 14);
         }
+        // A waystone on the east side of the igloo: the Ice Spire's checkpoint,
+        // at the last fire before the climb.
+        PlaceWaystone(m, "ice_spire", ix + 96, iy - 4, false);
         for (const auto& sm : {std::pair<int, int>{150, 10}, {-190, -20}, {-60, -150}})
             if (m.Clear(fx + sm.first, fy + sm.second) && m.Clear(fx + sm.first - 10, fy + sm.second)) {
                 m.Prop("props", "snowman", fx + sm.first, fy + sm.second);
@@ -10383,6 +10387,9 @@ static void BuildFrostCabin() {
     m.Prop("props", "tavern_chair", 4 * CELL + 16, 6 * CELL + 10);
     frost::Solid(m, "pelt_rack", 8 * CELL, 3 * CELL + 10, 61, 5, 4);
     PlaceChest(m, "chest_trapper", 11 * CELL + 8, 8 * CELL, "chest_trapper");
+    // A waystone in the middle of the floor, between the table and the bed:
+    // the Glass Mere's checkpoint, so the ice has to be walked only once.
+    PlaceWaystone(m, "frost_cabin", 9 * CELL + 12, 7 * CELL - 4, false);
     {
         json& o = m.Object("journal_harl", "sign", 3 * CELL + 16, 8 * CELL);
         o["sprite"] = "assets/props/lectern.png";

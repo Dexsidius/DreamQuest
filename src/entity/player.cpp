@@ -227,8 +227,7 @@ string Player::ComboLabel(ComboMove move) const {
 
 const ItemDef::ComboTwist* Player::Twist(ComboMove move) const {
     const ItemDef* w = equipment.Weapon();
-    const int i = move == ComboMove::Crush ? 0 : move == ComboMove::Cleave ? 1 : move == ComboMove::Backhand ? 2
-                : move == ComboMove::CrossCut ? 3 : -1;
+    const int i = ComboIndex(move);
     return (w && i >= 0) ? &w->combos[i] : nullptr;
 }
 
@@ -743,6 +742,7 @@ bool Player::StartRiposte(const World& world) {
     const bool heavy = RiposteOnHeavy();
     lunge_left = std::clamp(len - (heavy ? 40.0f : 22.0f), 0.0f, RIPOSTE_LUNGE);
     lunging = true;
+    lunge_speed = 0.0f;                               // set once its wind-up is known, below
     if (fabsf(lunge_dx) > fabsf(lunge_dy)) facing = lunge_dx > 0 ? FACE_RIGHT : FACE_LEFT;
     else                                   facing = lunge_dy > 0 ? FACE_DOWN  : FACE_UP;
     sprite.facing = facing;
@@ -775,6 +775,7 @@ bool Player::StartRiposte(const World& world) {
     attack.type        = heavy ? AttackType::Strong : AttackType::Light;
     attack.move        = ComboMove::None;
     attack.profile     = p;
+    lunge_speed        = RIPOSTE_LUNGE / std::max(0.01f, p.windup);
     attack.rate        = 1.0f;
     attack.damage_mult = p.damage_mult;
     attack.reach_scale = 1.0f;
@@ -1067,10 +1068,13 @@ void Player::ShowWhirlFrame() {
 }
 
 string Player::ComboClip(ComboMove move) const {
+    // The Driving Thrust is carried in on a lunge: the leap the Rushing Strike
+    // makes, as the Lunge technique's is.
     const char* name = move == ComboMove::Crush    ? "crush"
                      : move == ComboMove::Cleave   ? "cleave"
                      : move == ComboMove::Backhand ? "backhand"
-                     : move == ComboMove::CrossCut ? "spin" : "";
+                     : move == ComboMove::CrossCut ? "spin"
+                     : move == ComboMove::Drive    ? "rush" : "";
     // A bow or a staff plays its own draw or cast: the sword's combo clips
     // would swing it like a blade.
     if (Style() == AttackStyle::Melee && *name && sprite.Def() && sprite.Def()->Find(name)) return BothHands(name);
@@ -1096,13 +1100,38 @@ void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
     sprite.Play(ComboClip(move), true);
     FitSwing();                                       // a wand's combo is a wand's flick
     if (Style() != AttackStyle::Melee) return;
+    if (move == ComboMove::Drive) StartDriveLunge(world);
     switch (move) {
         case ComboMove::Crush:    Audio::Play(Sfx::SwingHeavy, 0.95f, 0.9f);  break;
         case ComboMove::Cleave:   Audio::Play(Sfx::SwingHeavy, 1.0f,  0.8f);  break;
         case ComboMove::Backhand: Audio::Play(Sfx::Swing,      1.0f,  1.15f); break;
         case ComboMove::CrossCut: Audio::Play(Sfx::SwingHeavy, 1.0f,  1.2f);  break;
+        case ComboMove::Drive:    Audio::Play(Sfx::SwingHeavy, 1.0f,  0.7f);  break;
         default: break;
     }
+}
+
+void Player::StartDriveLunge(const World& world) {
+    // At whatever is being fought, if it is near enough to be lunged at --
+    // stopping short of it by most of the blow's reach, so the thrust lands in
+    // it rather than the lunge walking into it; otherwise straight ahead, the
+    // whole of the lunge.
+    float dx = facing == FACE_RIGHT ? 1.0f : facing == FACE_LEFT ? -1.0f : 0.0f;
+    float dy = facing == FACE_DOWN ? 1.0f : facing == FACE_UP ? -1.0f : 0.0f;
+    float room = DRIVE_LUNGE;
+    if (const Enemy* at = CurrentTarget(world)) {
+        const float tx = at->x - x, ty = at->y - y, len = Length(tx, ty);
+        if (len > 0.001f && len <= DRIVE_REACH) {
+            dx = tx / len;
+            dy = ty / len;
+            room = std::clamp(len - attack.profile.reach * 0.6f, 0.0f, DRIVE_LUNGE);
+        }
+    }
+    lunge_dx = dx;
+    lunge_dy = dy;
+    lunge_left = room;
+    lunge_speed = DRIVE_LUNGE / std::max(0.01f, attack.profile.windup);
+    lunging = room > 0.0f;
 }
 
 void Player::CountChainHit(const string& label) {
@@ -1126,8 +1155,11 @@ float Player::ChainFade() const {
 
 ComboMove Player::NextCombo(bool light) const {
     if (combo_window <= 0.0f) return ComboMove::None;
+    // A crossbow has none: every bolt is its own shot (see HandleAttackInput),
+    // so the HUD does not offer one.
+    if (const ItemDef* held = equipment.Weapon(); held && held->weapon_class == "crossbow") return ComboMove::None;
     if (light) return after_strong ? ComboMove::Backhand : ComboMove::None;
-    if (after_strong) return ComboMove::None;
+    if (after_strong) return ComboMove::Drive;
     return combo == 0 ? ComboMove::Crush : ComboMove::Cleave;
 }
 
@@ -1265,6 +1297,11 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
             // A heavy inside the chain comes out on the press, with no hold:
             // the Crushing Blow after one light, the Cleave after two.
             StartCombo(combo == 0 ? ComboMove::Crush : ComboMove::Cleave, AttackType::Strong, world);
+        } else if (combos && combo_window > 0.0f && after_strong) {
+            // And a heavy on the heels of a heavy: the Driving Thrust, on the
+            // press as well -- the first one's weight carried into a lunge.
+            combo = 0;
+            StartCombo(ComboMove::Drive, AttackType::Strong, world);
         } else if (!in.Down(PlayerInput::Strong)) {
             // Pressed and let go again inside the last swing: a plain strong,
             // now, rather than a hold that has already ended.
@@ -1977,7 +2014,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     }
     // The riposte's lunge: its distance through the wind-up, and no further.
     if (lunging && lunge_left > 0.0f) {
-        const float step = std::min(lunge_left, RIPOSTE_LUNGE / std::max(0.01f, attack.profile.windup) * dt);
+        const float step = std::min(lunge_left, lunge_speed * dt);
         dx += lunge_dx * step;
         dy += lunge_dy * step;
         lunge_left -= step;

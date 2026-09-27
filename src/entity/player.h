@@ -563,6 +563,9 @@ public:
     static constexpr float OPENING_STAGGER = 0.8f, OPENING_BONUS = 0.3f, OPENING_TIME = 2.5f;
     static constexpr float RIPOSTE_TIME = 1.0f, RIPOSTE_DAMAGE = 1.4f, RIPOSTE_REACH = 90.0f,
                            RIPOSTE_LUNGE = 40.0f;
+    // The Driving Thrust's lunge (Heavy, Heavy): as far as a riposte's, and at
+    // whatever is being fought if it stands within DRIVE_REACH.
+    static constexpr float DRIVE_LUNGE = 40.0f, DRIVE_REACH = 110.0f;
     bool  ParryStyle() const;               // a dagger and no shield, or a greatsword: B parries
     // Whether the riposte is the heavy attack (a greatsword's) or the light (a dagger's).
     bool  RiposteOnHeavy() const;
@@ -735,6 +738,8 @@ private:
     float chain_show = 0.0f;
     // Starts one of the combos as the swing in flight.
     void  StartCombo(ComboMove move, AttackType type, const World& world);
+    // The Driving Thrust's lunge in, through its wind-up: see StartCombo.
+    void  StartDriveLunge(const World& world);
     // Fires the strong or charged attack the heavy button's hold decided on.
     void  FireStrong(bool charged, float ratio, const World& world);
     // The charged heavy with Whirlwind chosen: a spin of as many turns as the
@@ -765,6 +770,7 @@ private:
     const void* riposte_on = nullptr;
     bool  lunging = false;
     float lunge_dx = 0.0f, lunge_dy = 0.0f, lunge_left = 0.0f;
+    float lunge_speed = 0.0f;                // pixels a second, over the wind-up
     bool  rushing = false;
     float rush_cooldown = 0.0f;
     float rush_dx = 0.0f, rush_dy = 0.0f;   // unit direction of the leap

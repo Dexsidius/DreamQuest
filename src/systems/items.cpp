@@ -53,8 +53,8 @@ static void ReadArmoury(const json& o, ItemDef& d) {
         }
     }
     if (o.contains("combos") && o["combos"].is_object()) {
-        static const char* kMoves[4] = {"crush", "cleave", "backhand", "cross_cut"};
-        for (int i = 0; i < 4; ++i) {
+        static const char* kMoves[5] = {"crush", "cleave", "backhand", "cross_cut", "drive"};
+        for (int i = 0; i < 5; ++i) {
             if (!o["combos"].contains(kMoves[i])) continue;
             const json& c = o["combos"][kMoves[i]];
             d.combos[i].name   = c.value("name", string(""));

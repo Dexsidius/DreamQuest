@@ -9385,8 +9385,8 @@ int main(int argc, char** argv) {
                       "a heavy on its own is a plain strong attack");
                 settle(w);
                 Check(w.player.ComboOpen() && w.player.NextCombo(true) == ComboMove::Backhand &&
-                      w.player.NextCombo(false) == ComboMove::None,
-                      "after it a light would be a Backhand, and another heavy nothing special");
+                      w.player.NextCombo(false) == ComboMove::Drive,
+                      "after it a light would be a Backhand, and another heavy a Driving Thrust");
                 tap(w, SDLK_J);
                 Check(w.player.Attack().move == ComboMove::Backhand && w.player.Attack().type == AttackType::Light,
                       "and a light on its heels is the Backhand");
@@ -9429,6 +9429,100 @@ int main(int argc, char** argv) {
                 Check(w4.player.Attack().move == ComboMove::Backhand,
                       "and a light pressed at the start of it comes out as the Backhand when the gap ends");
             }
+        }
+
+        // --- Heavy, Heavy: the Driving Thrust, carried in on a lunge --------------------------
+        {
+            // Out of a plain strong's reach, and inside the Driving Thrust's: it
+            // lunges in and drives the blow down the line.
+            const auto reached = [&](bool drive) {
+                World w;
+                if (!arena(w, "bronze_sword")) return std::make_pair(false, 0.0f);
+                Enemy* far = spawn(w, "orc1", 70.0f, 0.0f);
+                if (far) far->hp = far->max_hp = 100000;
+                frames(w, 2);
+                tap(w, SDLK_K); settle(w);
+                if (far) far->hp = far->max_hp;
+                const float x0 = w.player.x;
+                if (drive) {
+                    tap(w, SDLK_K);
+                    if (w.player.Attack().move != ComboMove::Drive) return std::make_pair(false, 0.0f);
+                }
+                settle(w);
+                return std::make_pair(far && far->hp < far->max_hp, w.player.x - x0);
+            };
+            const auto plain = reached(false);
+            const auto driven = reached(true);
+            Check(!plain.first, "a monster seventy pixels off is out of a strong's reach");
+            Check(driven.first && driven.second > 20.0f,
+                  "a heavy after a heavy lunges in (" + std::to_string(static_cast<int>(driven.second)) +
+                      " px) and the Driving Thrust reaches it");
+            World w;
+            if (arena(w, "bronze_sword")) {
+                tap(w, SDLK_K); settle(w);
+                Check(w.player.NextCombo(false) == ComboMove::Drive && w.player.ComboLabel(ComboMove::Drive) == "Driving Thrust",
+                      "after a heavy the HUD offers the Driving Thrust on the heavy");
+                tap(w, SDLK_K);
+                Check(w.player.Attack().move == ComboMove::Drive && w.player.Attack().type == AttackType::Strong &&
+                          !w.player.IsCharging(),
+                      "and a heavy then is the Driving Thrust, out on the press with no hold");
+                Check(w.player.Clip() == "rush", "played as the lunge the Rushing Strike makes (" + w.player.Clip() + ")");
+                Check(fabsf(w.player.Attack().damage_mult - ProfileForCombo(ComboMove::Drive).damage_mult) < 1e-4f &&
+                          ProfileForCombo(ComboMove::Drive).damage_mult > ProfileForCombo(ComboMove::Crush).damage_mult,
+                      "at its own damage, harder than a Crushing Blow");
+                settle(w);
+                Check(!w.player.ComboOpen(), "and it ends the chain");
+            }
+            // Down a line: two monsters one behind the other, both run through.
+            World line;
+            if (arena(line, "bronze_sword")) {
+                Enemy* near = spawn(line, "orc1", 26.0f, 0.0f);
+                Enemy* behind = spawn(line, "orc1", 52.0f, 0.0f);
+                for (Enemy* e : {near, behind}) if (e) e->hp = e->max_hp = 100000;
+                frames(line, 2);
+                tap(line, SDLK_K); settle(line);
+                for (Enemy* e : {near, behind}) if (e) e->hp = e->max_hp;
+                tap(line, SDLK_K);
+                settle(line);
+                Check(near && behind && near->hp < near->max_hp && behind->hp < behind->max_hp,
+                      "it goes through the first monster in the line and into the one behind");
+            }
+            // Every family's own.
+            const std::map<string, string> names = {{"steel_sword", "Driving Thrust"}, {"steel_spear", "Driving Thrust"},
+                                                    {"steel_dagger", "Heartseeker"},   {"steel_mace", "Hammerfall"},
+                                                    {"steel_greatsword", "Impale"},    {"steel_greataxe", "Headsman's Chop"}};
+            for (const auto& [weapon, name] : names) {
+                World wn;
+                if (!arena(wn, weapon)) continue;
+                Check(wn.player.ComboLabel(ComboMove::Drive) == name, weapon + "'s Heavy, Heavy is " + name + " (" +
+                                                                         wn.player.ComboLabel(ComboMove::Drive) + ")");
+            }
+            Check(string(ComboNameFor(ComboMove::Drive, AttackStyle::Ranged)) == "Pinning Shot" &&
+                      string(ComboNameFor(ComboMove::Drive, AttackStyle::Magic)) == "Lance",
+                  "a bow's is the Pinning Shot and a staff's the Lance");
+            const ItemDef* dagger = items.Get("steel_dagger");
+            const ItemDef* greataxe = items.Get("steel_greataxe");
+            Check(dagger && dagger->combos[ComboIndex(ComboMove::Drive)].pierce > 0.5f &&
+                      greataxe && greataxe->combos[ComboIndex(ComboMove::Drive)].status == Status::Bleed,
+                  "the Heartseeker goes past most of the armour, and the Headsman's Chop always bleeds");
+            // The bow's pins what it strikes where it stands; a plain arrow holds nothing.
+            const auto held = [&](bool pin) {
+                World bw;
+                if (!arena(bw, "oak_shortbow")) return false;
+                Enemy* mark = spawn(bw, "orc1", 110.0f, 0.0f);
+                if (mark) mark->hp = mark->max_hp = 100000;
+                frames(bw, 2);
+                tap(bw, SDLK_K);
+                if (pin) {
+                    settle(bw);
+                    tap(bw, SDLK_K);
+                    if (bw.player.Attack().move != ComboMove::Drive) return false;
+                }
+                bool staggered = false;
+                for (int f = 0; f < 90 && mark && !staggered; ++f) { frames(bw, 1); staggered = mark->Staggered(); }
+                return staggered;
+            };
+            Check(!held(false) && held(true), "a bow's heavy after a heavy is the Pinning Shot, and holds what it strikes where it stands");
         }
 
         // --- both at once: the Cross Cut ---------------------------------------------------
@@ -15894,8 +15988,8 @@ int main(int argc, char** argv) {
                 const ItemDef* d = items.Get(string("steel_") + cls);
                 bool named = d != nullptr;
                 std::set<string> names;
-                for (int i = 0; i < 4 && d; ++i) { named &= !d->combos[i].name.empty(); names.insert(d->combos[i].name); }
-                Check(named && names.size() == 4, string("a ") + cls + " has four combos of its own, by name");
+                for (int i = 0; i < 5 && d; ++i) { named &= !d->combos[i].name.empty(); names.insert(d->combos[i].name); }
+                Check(named && names.size() == 5, string("a ") + cls + " has five combos of its own, by name, Heavy, Heavy's among them");
             }
             for (const char* el : {"fire", "water", "earth", "air"}) {
                 const ItemDef* d = items.Get(string("iron_") + el + "_staff");
@@ -18051,14 +18145,15 @@ int main(int argc, char** argv) {
         Check(throne.HasElevation() && throne.LevelAt(14 * 32, 6 * 32) == 2, "his throne stands on a dais two levels up");
     }
 
-    Section("waystones: the towns, a house, and three in the wild, woken by hand");
+    Section("waystones: the towns, a house, and five in the wild, woken by hand");
     {
         // --- where they stand ------------------------------------------------------------
         // Exactly the stones src/systems/waystones.h lists, each where it says:
         // the three towns', the one at the door of the house in Mossvale, and
-        // the wilds' three -- the Ashen Path, the top of the climb onto
-        // Purgatory's Plateau, and the Bayou. No map has a stone that is not
-        // in the list, and every stone in it is in its map.
+        // the wilds' five -- the Ashen Path, the top of the climb onto
+        // Purgatory's Plateau, the Bayou, the igloo at the Ice Spire's camp and
+        // Old Harl's cabin on the Glass Mere. No map has a stone that is not in
+        // the list, and every stone in it is in its map.
         std::map<string, std::set<string>> listed;
         std::set<string> ids;
         for (const WaystoneDef& w : Waystones()) { listed[w.map].insert(w.id); ids.insert(w.id); }
@@ -18068,11 +18163,13 @@ int main(int argc, char** argv) {
         for (const WaystoneDef* w : WaystonesIn(false)) wilds.insert(w->id);
         Check(towns == std::set<string>{"waystone_havenbrook", "waystone_mossvale", "waystone_mossvale_cottage", "waystone_fernhollow"},
               "under Towns: Havenbrook, Mossvale, the house in Mossvale and Fernhollow");
-        Check(wilds == std::set<string>{"waystone_ashen_path", "waystone_plateau", "waystone_bayou"},
-              "under the wilds: the Ashen Path, Purgatory's Plateau and the Bayou");
+        Check(wilds == std::set<string>{"waystone_ashen_path", "waystone_plateau", "waystone_bayou",
+                                        "waystone_ice_spire", "waystone_frost_cabin"},
+              "under the wilds: the Ashen Path, Purgatory's Plateau, the Bayou, the Ice Spire and Old Harl's cabin");
         const auto map_of = [](const string& id) { const WaystoneDef* w = WaystoneById(id); return w ? string(w->map) : string(); };
         Check(map_of("waystone_plateau") == "plateau_ascent" && map_of("waystone_bayou") == "bayou" &&
-                  map_of("waystone_ashen_path") == "ashen_path" && map_of("waystone_mossvale_cottage") == "mossvale",
+                  map_of("waystone_ashen_path") == "ashen_path" && map_of("waystone_mossvale_cottage") == "mossvale" &&
+                  map_of("waystone_ice_spire") == "ice_spire_peak" && map_of("waystone_frost_cabin") == "frost_cabin",
               "the Plateau's is at the top of the climb, and each of the others where it is named for");
         std::set<string> found;
         for (const char* id : kMaps) {
@@ -18134,6 +18231,39 @@ int main(int argc, char** argv) {
                     if (p.target_map == "mossvale_cottage")
                         door = std::hypot(p.rect.x + p.rect.w / 2.0f - arrive.x, p.rect.y + p.rect.h / 2.0f - arrive.y);
                 Check(door < 160.0f, "the house's stone is right outside its door (" + std::to_string(static_cast<int>(door)) + " px)");
+            }
+        }
+        {
+            // The Ice Spire's stands on the east side of the igloo at the camp:
+            // beside it, and to the right of it.
+            Map peak;
+            if (peak.Load("maps/ice_spire_peak.mx")) {
+                const MapObject* stone = nullptr;
+                for (const MapObject& o : peak.Objects()) if (o.id == "waystone_ice_spire") stone = &o;
+                // The igloo is a prop: where it stands is in the file, as the
+                // middle of its picture.
+                std::ifstream in("maps/ice_spire_peak.mx");
+                json j;
+                in >> j;
+                bool igloo = false, east = false;
+                if (stone && j.contains("tiles") && j["tiles"].contains("igloo"))
+                    for (const json& at : j["tiles"]["igloo"]["locations"]) {
+                        igloo = true;
+                        const float dx = stone->x - at[0].get<float>();
+                        const float dy = stone->y - (at[1].get<float>() + at[3].get<float>() / 2.0f);
+                        east |= dx > 60.0f && dx < 130.0f && fabsf(dy) < 40.0f;
+                    }
+                Check(stone && igloo && east, "the Ice Spire's stone stands just east of the igloo at the climbers' camp");
+            }
+            // Old Harl's is inside the cabin, which stands on the islet in the
+            // middle of the Glass Mere.
+            Map cabin, mere;
+            if (cabin.Load("maps/frost_cabin.mx") && mere.Load("maps/frost_mere.mx")) {
+                bool inside = false;
+                for (const MapObject& o : cabin.Objects()) inside |= o.id == "waystone_frost_cabin";
+                bool door = false;
+                for (const Portal& p : mere.Portals()) door |= p.target_map == "frost_cabin";
+                Check(cabin.IsInterior() && inside && door, "Old Harl's stone is inside his cabin, out on the Glass Mere");
             }
         }
 
@@ -18265,6 +18395,129 @@ int main(int argc, char** argv) {
                   !back.Flagged("waystone_fernhollow"), "with the same two awake and the third still asleep");
             SaveSystem::SetDirectory(was);
             fs::remove_all(dir, ec);
+        }
+    }
+
+    Section("gates: the way back waits for you to let go, and no other gate does");
+    {
+        // Arriving holds back the way back -- a pace or two behind you -- until
+        // the movement has been let go, so a key held through the fade does not
+        // bounce you straight back. It used to hold every gate on the map: a
+        // player who rolled from one key onto the next, or steered the stick
+        // round without letting it centre, never let go, and walked straight
+        // over every gate they came to for as long as they kept moving.
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        World w;
+        GameContext gctx;
+        std::mt19937 rng(23);
+        gctx.sprites = &sprites; gctx.items = &items; gctx.enemies = &enemy_db;
+        gctx.quests = &log; gctx.rng = &rng;
+        w.player.Init(gctx, "player_hero");
+        w.player.inventory.SetDatabase(&items);
+        w.player.hands_external = true;
+        constexpr float kFrame = 1.0f / 60.0f;
+        const auto hold = [&](float mx, float my, int n) {
+            for (int i = 0; i < n; ++i) {
+                w.player.hands = PlayerInput{};
+                w.player.hands.move = {mx, my};
+                w.Update(kFrame, gctx);
+                w.enemies.clear();
+            }
+        };
+        const auto portal_to = [&](const string& target) -> const Portal* {
+            for (const Portal& p : w.CurrentMap().Portals()) if (p.target_map == target) return &p;
+            return nullptr;
+        };
+        const auto on = [&](const Portal* p) { return p && RectsOverlap(w.player.Bounds(), p->rect); };
+        const auto settle = [&](const string& id) {
+            for (int i = 0; i < 240 && (w.MapId() != id || w.TransitionPending()); ++i) hold(0.0f, 1.0f, 1);
+            return w.MapId() == id;
+        };
+
+        // Out of the Whisperwood onto the Hollowmarch's east edge: the way back
+        // is 72 pixels to the right of where you come out.
+        Check(w.LoadMap("overworld", "from_whisperwood", gctx), "out of the Whisperwood, onto the Hollowmarch");
+        w.enemies.clear();
+        const Portal* back = portal_to("whisperwood_trail");
+        const Portal* gate = portal_to("town_havenbrook");
+        Check(back && gate, "with the way back beside you and Havenbrook's gate across the field");
+        if (back && gate) {
+            hold(1.0f, 0.0f, 1);
+            Check(w.PortalHeld(*back) && !w.PortalHeld(*gate),
+                  "the key still held, the way back waits and Havenbrook's gate does not");
+            hold(1.0f, 0.0f, 90);
+            Check(on(back) && !w.TransitionPending() && w.MapId() == "overworld",
+                  "held on into the way back, it does not bounce you back through it");
+            // From one key onto the next, never letting go: off it, and on again.
+            hold(-1.0f, -0.4f, 30);
+            Check(!on(back) && w.PortalHeld(*back), "stepped off it without letting go, it still waits");
+            hold(1.0f, 0.0f, 40);
+            Check(on(back) && !w.TransitionPending(), "and walked back onto it, it still does not go");
+
+            // Across the field to Havenbrook, the key never let go: the gate
+            // there is not the way back, and it takes you through.
+            w.player.x = gate->rect.x + gate->rect.w / 2.0f;
+            w.player.y = gate->rect.y - 12.0f;
+            Check(!w.CurrentMap().Blocked(w.player.Bounds()) && !on(gate), "stood just short of Havenbrook's gate");
+            bool went = false;
+            for (int i = 0; i < 30 && !went; ++i) { hold(0.0f, 1.0f, 1); went = w.TransitionPending(); }
+            Check(went, "and a step into it, the key held since the Whisperwood, takes you through");
+            Check(settle("town_havenbrook"), "into Havenbrook");
+        }
+
+        // Walked well away without letting go: the way back is only a gate again.
+        {
+            const Portal* out = portal_to("overworld");
+            Check(out && w.PortalHeld(*out), "in Havenbrook, the gate you came in by waits");
+            const SDL_FPoint came = w.ArrivedAt();
+            bool placed = false;
+            for (float d = World::ARRIVAL_LEFT + 20.0f; d < World::ARRIVAL_LEFT + 200.0f && !placed; d += 8.0f)
+                for (const SDL_FPoint dir : {SDL_FPoint{0.0f, -1.0f}, SDL_FPoint{1.0f, 0.0f}, SDL_FPoint{-1.0f, 0.0f}}) {
+                    w.player.x = came.x + dir.x * d;
+                    w.player.y = came.y + dir.y * d;
+                    if (!w.CurrentMap().Blocked(w.player.Bounds())) { placed = true; break; }
+                }
+            Check(placed, "somewhere well away from where you came in");
+            hold(0.0f, 1.0f, 1);
+            Check(out && !w.PortalHeld(*out), "and there, the key never let go, the way back is a gate like any other");
+        }
+
+        // And letting go does it too, as it always did: let go a moment, clear
+        // of it, and the way back is live again.
+        Check(w.LoadMap("town_havenbrook", "from_field", gctx), "back into Havenbrook by the gate");
+        w.enemies.clear();
+        {
+            const Portal* out = portal_to("overworld");
+            hold(0.0f, 0.0f, 1);
+            Check(out && !w.PortalHeld(*out) && !on(out), "let go, and clear of it, the gate is live again");
+        }
+
+        // Out of Havenbrook by its south road, which puts you on the road north
+        // of its gate: the key still held, you walk into the gate -- and used
+        // to walk out of the far side of it, into the field, through a town
+        // gate without going into the town.
+        Check(w.LoadMap("overworld", "from_town", gctx), "out of Havenbrook, onto the road north of its gate");
+        w.enemies.clear();
+        {
+            const Portal* gate = portal_to("town_havenbrook");
+            Check(gate && w.PortalHeld(*gate) && w.player.y < gate->rect.y, "with the gate, waiting, just south of you");
+            if (gate) {
+                hold(0.0f, 1.0f, 150);
+                Check(on(gate) && !w.PastWayBack() && !w.TransitionPending() && w.MapId() == "overworld",
+                      "held on south, you stand in the gate and go no further: not back into town, and not out the far side");
+                Check(w.player.y - 10.0f < gate->rect.y + gate->rect.h, "still in the gate after two and a half seconds of walking into it");
+                hold(1.0f, 1.0f, 60);
+                hold(-1.0f, 1.0f, 60);
+                Check(!w.PastWayBack() && !w.TransitionPending(), "nor out of it sideways-and-on");
+                hold(0.0f, 0.0f, 1);
+                Check(w.PortalHeld(*gate), "let go while standing in it, it still waits");
+                hold(0.0f, -1.0f, 40);
+                Check(!on(gate) && !w.PortalHeld(*gate), "stepped back out of it, it is live");
+                bool went = false;
+                for (int i = 0; i < 60 && !went; ++i) { hold(0.0f, 1.0f, 1); went = w.TransitionPending(); }
+                Check(went && settle("town_havenbrook"), "and walked into again, it takes you into Havenbrook");
+            }
         }
     }
 
@@ -20333,7 +20586,8 @@ int main(int argc, char** argv) {
 
         // --- what every combo looks like ------------------------------------------------------------
         const vector<string> weapons = {"iron_sword", "iron_dagger", "iron_mace", "iron_greatsword", "iron_greataxe"};
-        const ComboMove moves[] = {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut};
+        const ComboMove moves[] = {ComboMove::Crush, ComboMove::Cleave, ComboMove::Backhand, ComboMove::CrossCut,
+                                   ComboMove::Drive};
         const auto look = [&](const World& world, size_t from) {
             string sig;
             const auto& list = world.Strikes();
@@ -20362,9 +20616,9 @@ int main(int argc, char** argv) {
                 melee_looks.insert(sig);
             }
         }
-        Check(every_melee && melee_looks.size() == 20,
-              "the sword's, the dagger's, the mace's, the greatsword's and the greataxe's combos -- twenty, and each "
-              "leaves marks of its own (" + std::to_string(melee_looks.size()) + " looks)");
+        Check(every_melee && melee_looks.size() == 25,
+              "the sword's, the dagger's, the mace's, the greatsword's and the greataxe's combos -- twenty-five, Heavy, "
+              "Heavy's among them, and each leaves marks of its own (" + std::to_string(melee_looks.size()) + " looks)");
         std::set<string> far_looks;
         bool every_far = true;
         for (AttackStyle style : {AttackStyle::Ranged, AttackStyle::Magic}) {
@@ -20380,8 +20634,8 @@ int main(int argc, char** argv) {
                 far_looks.insert(std::to_string(static_cast<int>(style)) + sig);
             }
         }
-        Check(every_far && far_looks.size() == 8,
-              "the bow's four and the staff's four, each marked as it is loosed and where it strikes");
+        Check(every_far && far_looks.size() == 10,
+              "the bow's five and the staff's five, each marked as it is loosed and where it strikes");
         {
             const size_t from = w.Strikes().size();
             w.ParryFx(10.0f, 10.0f, 0.0f);

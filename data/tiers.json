@@ -297,6 +297,11 @@
     },
     "cross_cut": {
      "name": "Fan of Steel"
+    },
+    "drive": {
+     "name": "Heartseeker",
+     "pierce": 0.8,
+     "damage": 1.1
     }
    }
   },
@@ -345,6 +350,11 @@
      "name": "Ground Slam",
      "status": "concussed",
      "damage": 0.9
+    },
+    "drive": {
+     "name": "Hammerfall",
+     "status": "concussed",
+     "damage": 1.05
     }
    }
   },
@@ -395,6 +405,11 @@
     },
     "cross_cut": {
      "name": "Whirlwind"
+    },
+    "drive": {
+     "name": "Impale",
+     "status": "bleed",
+     "damage": 1.1
     }
    }
   },
@@ -452,6 +467,11 @@
     "cross_cut": {
      "name": "Maelstrom",
      "status": "bleed"
+    },
+    "drive": {
+     "name": "Headsman's Chop",
+     "status": "bleed",
+     "damage": 1.2
     }
    }
   },

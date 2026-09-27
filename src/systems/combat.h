@@ -31,14 +31,23 @@ enum class AttackType { None, Light, Strong, Charged };
 //                                        first two links of a chain
 //   Light + Heavy at once Cross Cut      a turn on the spot striking everything
 //                                        round the player, for stamina
+//   Heavy, Heavy          Driving Thrust the second heavy carries the player in:
+//                                        a lunge, and a long blow down a line
+//                                        through everything on it, that ends
+//                                        the chain
 //
 // Each is a swing of its own -- its own shape, timing and gap -- and rides the
 // same state machine as the rest, as a Light or a Strong with a move on it.
-enum class ComboMove { None, Crush, Cleave, Backhand, CrossCut };
+enum class ComboMove { None, Crush, Cleave, Backhand, CrossCut, Drive };
 const char* ComboName(ComboMove move);
+// Where each has its place in a weapon's list of five (ItemDef::combos), in
+// the order above less None; -1 for None.
+int ComboIndex(ComboMove move);
 
 // Seconds the Crushing Blow leaves a monster reeling.
 static constexpr float CRUSH_STAGGER     = 1.0f;
+// Seconds a bow's Pinning Shot holds what it strikes where it stands.
+static constexpr float PIN_STAGGER       = 1.2f;
 // What the Cross Cut costs, out of a hundred.
 static constexpr float CROSS_CUT_STAMINA = 25.0f;
 // The two buttons within this of each other are "together".

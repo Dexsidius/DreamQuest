@@ -104,16 +104,17 @@ struct ItemDef {
     // A caster's: the share of a spell's mana it asks, and how hard what it
     // throws turns after its target.
     float  mana_mult = 1.0f, homing = 0.0f;
-    // The four combos, as this weapon makes them: what each is called, and what
+    // The five combos, as this weapon makes them: what each is called, and what
     // is different about it -- a status it always leaves, armour it goes past,
     // what it is worth beside the sword's. In the order of ComboMove: crush,
-    // cleave, backhand, cross cut. A name left empty is the sword's.
+    // cleave, backhand, cross cut, drive (ComboIndex). A name left empty is the
+    // sword's.
     struct ComboTwist {
         string name;
         Status status = Status::COUNT;
         float  pierce = 0.0f, damage = 1.0f;
     };
-    ComboTwist combos[4];
+    ComboTwist combos[5];
 
     // A staff given over to one element: 1 to 4 choose that element's four
     // spells instead of the four elements. None for a staff that is not.

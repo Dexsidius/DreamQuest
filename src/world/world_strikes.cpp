@@ -33,27 +33,22 @@ Family FamilyOf(const ItemDef* w) {
     return BLADE;
 }
 
-int MoveIndex(ComboMove m) {
-    switch (m) {
-        case ComboMove::Crush:    return 0;
-        case ComboMove::Cleave:   return 1;
-        case ComboMove::Backhand: return 2;
-        case ComboMove::CrossCut: return 3;
-        default:                  return -1;
-    }
-}
+int MoveIndex(ComboMove m) { return ComboIndex(m); }
 
 SDL_FColor Rgb(int r, int g, int b) { return {r / 255.0f, g / 255.0f, b / 255.0f, 1.0f}; }
 
-// Each family's four colours, Crush to Cross Cut. The sword keeps the tints its
-// crescents always had.
-const SDL_FColor kColour[FAMILIES][4] = {
-    {Rgb(255, 200, 120), Rgb(255, 168, 90),  Rgb(214, 255, 214), Rgb(196, 216, 255)},   // sword
-    {Rgb(255, 86, 86),   Rgb(232, 238, 248), Rgb(176, 118, 255), Rgb(206, 228, 255)},   // dagger
-    {Rgb(255, 224, 120), Rgb(232, 172, 96),  Rgb(240, 214, 170), Rgb(214, 176, 118)},   // mace
-    {Rgb(255, 238, 190), Rgb(255, 92, 80),   Rgb(236, 236, 236), Rgb(190, 222, 255)},   // greatsword
-    {Rgb(255, 96, 70),   Rgb(255, 150, 72),  Rgb(236, 226, 206), Rgb(220, 60, 60)},     // greataxe
+// Each family's five colours, Crush to Cross Cut and then Heavy, Heavy's. The
+// sword keeps the tints its crescents always had.
+const SDL_FColor kColour[FAMILIES][5] = {
+    {Rgb(255, 200, 120), Rgb(255, 168, 90),  Rgb(214, 255, 214), Rgb(196, 216, 255), Rgb(255, 236, 150)},   // sword
+    {Rgb(255, 86, 86),   Rgb(232, 238, 248), Rgb(176, 118, 255), Rgb(206, 228, 255), Rgb(255, 60, 140)},    // dagger
+    {Rgb(255, 224, 120), Rgb(232, 172, 96),  Rgb(240, 214, 170), Rgb(214, 176, 118), Rgb(255, 196, 64)},    // mace
+    {Rgb(255, 238, 190), Rgb(255, 92, 80),   Rgb(236, 236, 236), Rgb(190, 222, 255), Rgb(200, 236, 255)},   // greatsword
+    {Rgb(255, 96, 70),   Rgb(255, 150, 72),  Rgb(236, 226, 206), Rgb(220, 60, 60),   Rgb(170, 40, 70)},     // greataxe
 };
+// The bow's five, the same way round.
+const SDL_FColor kBow[5] = {Rgb(255, 214, 120), Rgb(255, 90, 80), Rgb(240, 248, 255), Rgb(150, 200, 255),
+                            Rgb(120, 255, 200)};
 
 // Light is added to what is under it; a thing is laid over it. Splinters, a
 // mark and a rune are things: added to grass, blood came out yellow and the
@@ -393,6 +388,38 @@ void World::ComboSwingFx(ComboMove move, const ItemDef* weapon) {
                 if (f == AXE) AddStrike(MkShards(g.x, g.y - 12.0f, reach + 12.0f, 12.0f, 0.6f, 0.8f, kBlood, 0.45f));
             }
             break;
+        case ComboMove::Drive: {
+            // Carried in on a lunge: speed lines back along the way it came,
+            // and then the blow driven out down the line, long and narrow --
+            // broader for the big two.
+            const bool big = f == GREAT || f == AXE;
+            AddStrike(MkStreak(g.x - cosf(face) * 18.0f, g.y - 14.0f - sinf(face) * 18.0f, 34.0f, face, 0.45f, 0.8f, c, 0.3f));
+            Strike line = MkThrust(g.x, g.y - 14.0f, reach + 22.0f, face, big ? 0.2f : 0.13f, 0.05f, c, 0.3f);
+            line.seed = seed;
+            line.delay = 0.1f;
+            AddStrike(line);
+            if (f == DAGGER) {
+                // Heartseeker: the point finds the gap -- brackets closing on it.
+                AddStrike(Delayed(MkReticle(fx, fy - 14.0f, 18.0f, 4.0f, 1.0f, 0.5f, c, 0.3f), 0.08f));
+            } else if (f == MACE) {
+                // Hammerfall: the head brought down at the end of it, and the
+                // ground knocked flat round where it lands.
+                Strike s = MkImpact(fx, fy, 38.0f, 6.0f, 0.42f, 0.18f, c, 0.4f);
+                s.seed = seed;
+                s.delay = 0.14f;
+                AddStrike(s);
+                StrikeShock(fx, fy, 0.35f, 0.25f);
+            } else if (f == GREAT) {
+                // Impale: the line goes on past the point, a front of force down it.
+                AddStrike(Delayed(MkWave(g.x, g.y, reach * 1.8f, face, 0.18f, 0.12f, c, 0.35f), 0.12f));
+            } else if (f == AXE) {
+                // Headsman's Chop: brought down at the end of the lunge, and
+                // the ground split under it.
+                AddStrike(Delayed(MkCracks(fx, fy, 40.0f, 6.0f, kGround, 1.0f, c, 0.6f), 0.14f));
+                StrikeShock(fx, fy, 0.4f, 0.3f);
+            }
+            break;
+        }
         default: break;
     }
 }
@@ -502,6 +529,26 @@ void World::ComboHitFx(ComboMove move, const ItemDef* weapon, const Enemy& e) {
                 if (f == AXE) AddStrike(MkShards(ex, ey, 22.0f, 9.0f, 0.8f, 0.8f, F(blood), 0.4f));
             }
             break;
+        case ComboMove::Drive: {
+            // Run through: the point out of the far side of it, and a flash
+            // where it went in.
+            AddStrike(MkThrust(ex, ey, 26.0f, face, 0.12f, -0.4f, c, 0.22f));
+            Strike s = MkImpact(ex, ey, 18.0f, 5.0f, 1.0f, 0.0f, c, 0.2f);
+            s.seed = seed;
+            AddStrike(s);
+            if (f == MACE) {
+                // Hammerfall rings the head it comes down on.
+                AddStrike(MkImpact(ex, ey - 16.0f, 20.0f, 5.0f, 0.5f, 0.12f, c, 0.4f));
+            } else if (f != BLADE) {
+                // The dagger's, the greatsword's and the greataxe's leave it bleeding.
+                AddStrike(MkShards(ex + cosf(face) * 8.0f, ey + sinf(face) * 4.0f, 22.0f, f == AXE ? 12.0f : 9.0f, 0.8f,
+                                   0.8f, F(blood), 0.4f));
+            } else {
+                // The sword's: sparks off it, thrown on the way the point went.
+                AddStrike(MkShards(ex, ey, 18.0f, 7.0f, 1.0f, 0.6f, c, 0.3f));
+            }
+            break;
+        }
         default: break;
     }
 }
@@ -513,7 +560,6 @@ void World::ComboShotFx(ComboMove move, AttackStyle style, Element element, floa
     if (m < 0) return;
     const float seed = static_cast<float>(strike_seed++ % 97);
     if (style == AttackStyle::Ranged) {
-        static const SDL_FColor kBow[4] = {Rgb(255, 214, 120), Rgb(255, 90, 80), Rgb(240, 248, 255), Rgb(150, 200, 255)};
         const SDL_FColor c = kBow[m];
         switch (move) {
             case ComboMove::Crush:      // Split Shot: three lines out from the string
@@ -537,6 +583,10 @@ void World::ComboShotFx(ComboMove move, AttackStyle style, Element element, floa
                 AddStrike(MkThrust(x - nx, y - ny, 40.0f, angle, 0.08f, 0.1f, c, 0.2f));
                 break;
             }
+            case ComboMove::Drive:      // Pinning Shot: a heavy line and speed lines along it
+                AddStrike(MkThrust(x, y, 46.0f, angle, 0.12f, 0.05f, c, 0.22f));
+                AddStrike(MkStreak(x + cosf(angle) * 18.0f, y + sinf(angle) * 18.0f, 30.0f, angle, 0.3f, 0.7f, c, 0.25f));
+                break;
             default: break;
         }
         return;
@@ -570,6 +620,14 @@ void World::ComboShotFx(ComboMove move, AttackStyle style, Element element, floa
             StrikeShock(g.x, g.y, 0.35f, 0.2f);
             break;
         }
+        case ComboMove::Drive: {        // Lance: a long thin line thrown out, and the rush of it
+            AddStrike(MkThrust(x, y, 64.0f, angle, 0.06f, 0.0f, c, 0.25f));
+            AddStrike(MkStreak(x, y, 36.0f, angle, 0.25f, 0.9f, c, 0.3f));
+            Strike s = MkImpact(x, y, 12.0f, 4.0f, 1.0f, 0.1f, c, 0.14f);
+            s.seed = seed;
+            AddStrike(s);
+            break;
+        }
         default: break;
     }
 }
@@ -580,7 +638,6 @@ void World::ComboShotHitFx(ComboMove move, AttackStyle style, Element element, f
     const float seed = static_cast<float>(strike_seed++ % 97);
     SDL_FColor c;
     if (style == AttackStyle::Ranged) {
-        static const SDL_FColor kBow[4] = {Rgb(255, 214, 120), Rgb(255, 90, 80), Rgb(240, 248, 255), Rgb(150, 200, 255)};
         c = kBow[m];
     } else {
         const SDL_Color ec = element == Element::None ? SDL_Color{190, 170, 255, 255} : ElementColor(element);
@@ -612,6 +669,20 @@ void World::ComboShotHitFx(ComboMove move, AttackStyle style, Element element, f
         case ComboMove::CrossCut:
             if (style == AttackStyle::Ranged) AddStrike(MkCross(x, y, 16.0f, angle, 0.1f, c, 0.22f));
             else AddStrike(MkImpact(x, y, 16.0f, 6.0f, 1.0f, 0.1f, c, 0.22f));
+            break;
+        case ComboMove::Drive:
+            if (style == AttackStyle::Ranged) {
+                // Pinning Shot: a flash, and the arrow standing in the ground
+                // under what it pinned there.
+                Strike s = MkImpact(x, y, 18.0f, 4.0f, 1.0f, 0.14f, c, 0.22f);
+                s.seed = seed;
+                AddStrike(s);
+                AddStrike(MkThrust(x, y + 18.0f, 18.0f, kPi * 0.5f, 0.08f, -0.6f, c, 0.5f));
+            } else {
+                // Lance: through it, and on out the far side.
+                AddStrike(MkThrust(x, y, 30.0f, angle, 0.07f, -0.5f, c, 0.2f));
+                AddStrike(MkImpact(x, y, 14.0f, 5.0f, 1.0f, 0.0f, c, 0.16f));
+            }
             break;
         default: break;
     }

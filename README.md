@@ -1147,15 +1147,17 @@ attack. Inside it:
 | Light, Light, **Heavy** | **Cleave** | a level sweep more than twice as wide as the finisher, 1.9x, that throws everything in it back and ends the chain |
 | Heavy, **Light** | **Backhand** | an instant cut off the heavy's follow-through, 1.0x, that stands in for the first two links: the next light is the finisher and the next heavy the Cleave |
 | **Light + Heavy together** | **Cross Cut** | a turn on the spot that strikes everything round you as far as the blade reaches, 1.25x, for 25 stamina |
+| Heavy, **Heavy** | **Driving Thrust** | the first heavy's weight carried into a **lunge** of up to 40 pixels -- at what you are fighting if it is within 110, stopping short by most of the blow's reach, otherwise straight ahead -- and a long narrow blow down the line, half as far again as a strong and a third as wide, that goes **through everything on it**, 1.75x, and ends the chain |
 
 Each is a swing of its own with its own shape, timing and gap, and its own
 sound, and says its name over the player's head as it comes out. Each has its
 own clip too -- `crush`, an overhead; `cleave`, a level sweep with the chest
 turning through it; `backhand`, a cut straight back out from across the body;
-and `spin`, a full turn on the spot, the one pose that yaws the whole rig --
-rendered for every character, armour cut, and tier sword and spear by
+and `spin`, a full turn on the spot, the one pose that yaws the whole rig; the
+Driving Thrust plays `rush`, the leap the Rushing Strike makes, since it is a
+lunge in (`rush_2h` with a greatsword or a greataxe) -- rendered for every character, armour cut, and tier sword and spear by
 `make_character.ps1` and `make_tiers.ps1`, like the leap's. The HUD prints what the buttons would do while a window is open
-("K: Crushing Blow", "J: Backhand"), on the line where a held heavy's
+("K: Crushing Blow", "J: Backhand     K: Driving Thrust"), on the line where a held heavy's
 technique is named. A heavy pressed inside the chain never charges: it is the
 combo, on the press. A heavy pressed from nothing is the plain strong, or the
 charge if held.
@@ -1188,6 +1190,22 @@ the same way and put their own move at the end of them:
 | Light, Light, Heavy | Cleave | **Barbed Shot**: one heavy arrow at 1.6x that passes through two bodies and throws hard | **Cascade**: three bolts in a fan, 0.8x each |
 | Heavy, Light | Backhand | **Snap Shot**: an arrow at once, as good as a drawn one | **Flicker**: a bolt at once |
 | Light + Heavy | Cross Cut | **Twin Shot**: two arrows at once, 0.9x each | **Pulse**: a ring of six bolts, 0.5x each, for twice the mana |
+| Heavy, Heavy | Driving Thrust | **Pinning Shot**: one heavy arrow at 1.3x, a little quicker, that **holds what it strikes where it stands** for 1.2 seconds | **Lance**: one bolt at 1.4x, half as fast again, that passes through everything in its line, for half again the mana |
+
+**Every melee weapon has its own Heavy, Heavy**, the way it has its own
+names for the other four (`combos.drive` in `data/tiers.json`):
+
+| Weapon | Heavy, Heavy | Beyond the Driving Thrust |
+| --- | --- | --- |
+| Sword, spear | **Driving Thrust** | -- |
+| Dagger | **Heartseeker** | goes past 80% of the armour, 1.1x |
+| Mace | **Hammerfall** | always concusses, 1.05x |
+| Greatsword | **Impale** | always bleeds, 1.1x |
+| Greataxe | **Headsman's Chop** | always bleeds, 1.2x |
+
+Before this, a heavy on the heels of a heavy was only another plain strong --
+or, held, a charge. Now it is the combo, on the press, and a charge is a heavy
+held from nothing, as the chain's heavies always were.
 
 A bow or a staff plays its own draw or cast rather than the sword's combo
 clips, and sounds when the shot leaves. The name still floats up, and the HUD
@@ -1206,20 +1224,20 @@ own tint, so what came out can be told from across the room
 **And every combo leaves marks.** With Visual Effects on, the swing is drawn by
 the fx shader rather than in lines: a soft, glowing sweep that brightens toward
 its leading edge and throws sparks off it, or a driven line for a thrust. Each
-of the twelve melee combos, the four shots and the staff's four casts also
+of the twenty-five melee combos, the five shots and the staff's five casts also
 leaves marks of its own, in the swing and on whatever it strikes. Each weapon
-family has its own four colours, so no two of the twenty melee combos look
+family has its own five colours, so no two of the twenty-five melee combos look
 alike:
 
-| | Light, Heavy | Light, Light, Heavy | Heavy, Light | Both together |
-| --- | --- | --- | --- | --- |
-| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, stones thrown up | **Cleave**: the crescent, then its wind a beat later, wider; sparks; a cut across what it hits | **Backhand**: the sweep runs back the other way; a snap of light; a cut back across what it hits, and sparks off it | **Cross Cut**: a ring cut on the ground round the feet and the air swirled round with it; an X on every body |
-| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: two more cuts cross the swing; three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints and splinters of steel thrown out all round |
-| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind, a wave of grit off the floor; grit thrown up where it knocks | **Backswing**: a snap and a shove of air; it rings the head too | **Ground Slam**: the floor cracks open and goes out from under everything, stones thrown up, a big shock |
-| Greatsword | **Overhead Cleave**: a wider, harder ground break, cracked open under the blow and under what it hits | **Reaping Sweep**: in red, a red wind after it, and it bleeds | **Pommel Strike**: a shove of air; stars | **Whirlwind**: two rings, one after the other, and a wide swirl |
-| Greataxe | **Hew**: the widest break, cracked open, blood | **Felling Sweep**: a wave along the ground after it; blood | **Haft Check**: a shove of air; stars | **Maelstrom**: two rings and a red swirl spitting blood; blood-red crosses |
-| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; red splinters where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands |
-| Staff | **Surge**: a casting circle under the caster and a push of air ahead; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round |
+| | Light, Heavy | Light, Light, Heavy | Heavy, Light | Both together | Heavy, Heavy |
+| --- | --- | --- | --- | --- | --- |
+| Sword, spear | **Crushing Blow**: a streak falls, the ground breaks in a starburst, stones thrown up | **Cleave**: the crescent, then its wind a beat later, wider; sparks; a cut across what it hits | **Backhand**: the sweep runs back the other way; a snap of light; a cut back across what it hits, and sparks off it | **Cross Cut**: a ring cut on the ground round the feet and the air swirled round with it; an X on every body | **Driving Thrust**: speed lines back along the lunge and a pale gold line driven out; sparks off what it runs through |
+| Dagger | **Gut Stab**: a long red thrust; it comes out red | **Flurry**: two more cuts cross the swing; three quick cuts across what it hit | **Backstab**: a violet thrust in from behind, a star where it lands | **Fan of Steel**: a ring of glints and splinters of steel thrown out all round | **Heartseeker**: a crimson line, and brackets closing on the point; it bleeds |
+| Mace | **Skull Crack**: the ground breaks; stars round the head it rang | **Sweeping Blow**: bronze crescent and wind, a wave of grit off the floor; grit thrown up where it knocks | **Backswing**: a snap and a shove of air; it rings the head too | **Ground Slam**: the floor cracks open and goes out from under everything, stones thrown up, a big shock | **Hammerfall**: the head brought down in amber at the end of the lunge, the ground knocked flat; it rings the head |
+| Greatsword | **Overhead Cleave**: a wider, harder ground break, cracked open under the blow and under what it hits | **Reaping Sweep**: in red, a red wind after it, and it bleeds | **Pommel Strike**: a shove of air; stars | **Whirlwind**: two rings, one after the other, and a wide swirl | **Impale**: a broad ice-pale line and a front of force on down it; it bleeds |
+| Greataxe | **Hew**: the widest break, cracked open, blood | **Felling Sweep**: a wave along the ground after it; blood | **Haft Check**: a shove of air; stars | **Maelstrom**: two rings and a red swirl spitting blood; blood-red crosses | **Headsman's Chop**: a wine-dark line and the ground split where it comes down; it bleeds |
+| Bow | **Split Shot**: three gold lines off the string | **Barbed Shot**: a heavy red line and a kick; red splinters where it lands | **Snap Shot**: a white line, gone at once | **Twin Shot**: two blue lines side by side; a cross where each lands | **Pinning Shot**: a heavy teal line with speed lines; a flash, and the arrow stood in the ground under what it pinned |
+| Staff | **Surge**: a casting circle under the caster and a push of air ahead; a big flash where it lands | **Cascade**: three lines fanned from the head | **Flicker**: a flash at the head | **Pulse**: a circle and a ring going out all round | **Lance**: a long thin line and the rush of it; through what it strikes and out the far side |
 
 The staff's marks take the colour of what it casts: fire orange, frost pale
 blue, and so on. A **parry** is a white flash with rays, a cross and sparks
@@ -5301,18 +5319,20 @@ is a ladder, so only the back wall wears the band.
 
 ### Waystones
 
-There are seven **waystones**. One in each town -- Havenbrook's by the
+There are nine **waystones**. One in each town -- Havenbrook's by the
 crossroads, Mossvale's in the square, Fernhollow's on the green -- and one at
 the door of **your own house in Mossvale**, off to the side of the step. And
-three **checkpoints out in the wild**, on the overworld's own ground:
+five **checkpoints out in the wild**:
 
 | Stone | Where |
 | --- | --- |
 | **The Ashen Path** | where the palace road leaves the burnt one, south of it and between the two streams out of the moat: the far end of the path -- the Infernal Pit, the Brimstone Palace, the ore on the streams' banks -- starts from here |
 | **Purgatory's Plateau** | on the Pale Ascent, at the top of the climb, off the road to the west |
 | **The Bayou** | on the dry ground by the spur, below the Hexmire's gate: the next trip into the Hexmire starts here instead of at the far end of the swamp |
+| **Ice Spire Peak** | on the east side of the igloo at the climbers' camp, by the last fire before the climb |
+| **Old Harl's Cabin** | inside the trapper's cabin on the islet in the middle of the Glass Mere, between his table and his bed: the ice is walked once |
 
-None at a dungeon's door, and none in the Reverie. The four new ones are placed
+None at a dungeon's door, and none in the Reverie. The ones out of town are placed
 with their ground cleared round them and nothing posted within a few steps of
 where you come out: a waystone counts as a haven to the map builder, the way a
 camp or a sign does, so nothing is stood on its doorstep.
@@ -5327,13 +5347,13 @@ price of a waystone is having got there.
 
 So the road to a place is walked once. The long errands in this game are town
 to town (an order for Wynn, a notice from Havenbrook's board, a bar Halda
-wants), and the three stones in the wild are at the far ends of the longest
+wants), and the five stones in the wild are at the far ends of the longest
 walks, once you have made them; the dungeons, the Reverie, and everything
 between a stone and where you are going are still walked.
 
 **The panel has two tabs: Towns and the wilds.** Towns holds the three towns'
 stones and the one at your house; the wilds holds the Ashen Path's, the
-Plateau's and the Bayou's. Left and right step between them (so do the panel
+Plateau's, the Bayou's, the Ice Spire's and Old Harl's. Left and right step between them (so do the panel
 keys, `I` and `O`, or the shoulders), each tab says how many of its stones are
 awake ("2 of 4 awake"), and the panel opens on the tab the stone you are
 touching is under -- a hand on the Bayou's stone opens on the wilds. Switching
@@ -5668,6 +5688,38 @@ move that will not fit moves what fits and says so.
 
 Maps are big enough to grow: the base layer is bucketed into chunks and culled
 against the camera, so adding another biome costs load time and nothing else.
+
+### Gates and the way back
+
+A step-through portal -- a gate, the edge of a zone, a flight of stairs --
+fires the moment your feet touch it. But not **the way back**, straight after
+you come through: arrival spawns sit a pace or two from it, so a key held
+through the fade used to carry you straight back where you came from, over and
+over. So on arriving, the step-through portals **within 128 pixels of where you
+came in** wait until you have let go of the movement and are standing clear of
+them, or until you have walked **224 pixels** from where you came in (at which
+point going back to it is what you mean). Every other portal on the map fires
+from your first step.
+
+Two things were wrong with it, and both let you walk straight through gates:
+
+- **It held every portal on the map, not just the way back.** A player who
+  never let go -- rolling from one key onto the next, or steering the stick
+  round without letting it centre -- walked over every gate they came to for as
+  long as they kept moving.
+- **A way back that was waiting could be walked out through.** Havenbrook's
+  gate stands in open field, and the town's way out is its south road, so
+  leaving puts you on the road north of the gate, still walking south. With
+  the key down you walked into the gate, which was waiting, and out of its far
+  side into the field: through a town gate without going into the town. Now a
+  way back that is waiting can be stood on, and stepped off the way you came,
+  but not crossed (`World::PastWayBack`). Let go and step off it, and it is a
+  gate like any other.
+
+The rules are in `World::UpdateSeat`, and `World::PortalHeld` says which
+portals are waiting. A probe run over every map found Havenbrook's the only
+pair laid out that way round, and no gate anywhere with ground behind it that
+cannot be reached some other way.
 
 ### The Mire
 
@@ -6981,6 +7033,14 @@ and checks all of it — currently **61823 checks** covering:
   flight of stairs between two floors would otherwise do
 - every way back through a portal arrives beside the way in, so leaving a
   building puts you on its doorstep rather than in the middle of town
+- gates: out of the Whisperwood with the key held, the way back waits and
+  Havenbrook's gate across the field does not; walked into, the way back does
+  not bounce you, stepped off and on again without letting go it still waits,
+  and Havenbrook's gate, reached with the key never let go, takes you through;
+  walked well away from where you came in, the way back is a gate again; and out
+  of Havenbrook onto the road north of its gate, walking south into it for two
+  and a half seconds stands you in the gate -- not back in town and not out of
+  its far side -- until you let go, step back out, and walk in
 - real fights, run frame by frame through the world update with the buttons
   pressed through the game's own input: a new character fighting back beats a
   fox and a boar, and the monster never stands on top of the player
@@ -7115,16 +7175,21 @@ and checks all of it — currently **61823 checks** covering:
   through its gap and comes out as the Backhand; both buttons on one
   frame, or two frames apart either way round, are the Cross Cut, which costs
   its stamina and strikes the monster behind as well as in front; winded there
-  is none; a bow has no combos; a press inside a swing comes out the moment
+  is none; a heavy after a heavy is the Driving Thrust, out on the press as the
+  lunge, harder than a Crushing Blow and ending the chain, and it lunges in to
+  reach a monster seventy pixels off that a strong does not, and goes through
+  the first monster in a line into the one behind; every melee family has its
+  own name for it, the bow's is the Pinning Shot, which holds what it strikes
+  where a plain arrow does not, and the staff's the Lance; a bow has no combos; a press inside a swing comes out the moment
   the swing ends; a hold past its window is a charge that ignores a light; and
   a braced Warchief shrugs a stagger off where a plain orc reels on the spot
 - the chain counter: a fresh fight has none, three lights that land are
   three with the trail saying so, a combo is named in it, a long run keeps the
   last six for the trail, and a blow taken, a swing that meets nothing, or a
   pause ends it; a Cross Cut that strikes two counts once
-- what every move looks like: the fx shader has all sixteen kinds; the twenty
-  melee combos, the bow's four and the staff's four each leave marks of their
-  own, and a parry and a riposte theirs; all eighteen abilities, the nine
+- what every move looks like: the fx shader has all sixteen kinds; the
+  twenty-five melee combos, the bow's five and the staff's five each leave marks
+  of their own, and a parry and a riposte theirs; all eighteen abilities, the nine
   techniques and the Rushing Strike leave marks, no two alike and none like a
   combo's, and between them use all eight new shapes; in play a Cross Cut
   leaves an X on what it strikes and a swirl round the feet, the first light of
@@ -7765,7 +7830,7 @@ and checks all of it — currently **61823 checks** covering:
   or on the wall it met -- and an arrow is heard as it always was, neither going
   in nor going by, not even one that runs out of air having met nothing; the casters' weapons
   are quicker than a staff for less, about even over time; each melee weapon
-  has four combos by name; every element has a spell on each of four slots; a fire
+  has five combos by name, Heavy, Heavy's among them; every element has a spell on each of four slots; a fire
   staff's four keys are four spells and it casts nothing else; the Flame Ring
   is a ring, the Wall of Fire a line across the way faced, the Flamethrower
   five wide or three far; the Hydro Cannon throws, the Tidal Wave is seven, the
@@ -7826,12 +7891,14 @@ and checks all of it — currently **61823 checks** covering:
   Wynn and her loom are not on the square, her door is a long way from the
   anvil, and she is inside selling, with forms, hangings, shelves of bolts, a
   cutting table, her wheel and a counter
-- waystones: the maps hold exactly the seven listed -- the towns' three, the one
+- waystones: the maps hold exactly the nine listed -- the towns' three, the one
   at the door of the house in Mossvale, and the Ashen Path's, Purgatory's
-  Plateau's and the Bayou's -- under their two tabs, each with its dark and its
+  Plateau's, the Bayou's, the Ice Spire's and Old Harl's -- under their two tabs, each with its dark and its
   lit sprite on disk, somewhere clear to arrive beside it named for it, and out
   of any fire, and the wilds' with nothing living within a few steps; a town's stone is still
-  its town's `waystone`; the house's is right outside its door; and no other
+  its town's `waystone`; the house's is right outside its door; the Ice
+  Spire's stands just east of the igloo at the climbers' camp, and Old Harl's
+  inside his cabin on the Glass Mere; and no other
   map in the game has one; the first touch wakes the stone and asks for nothing else,
   the second asks for the panel and says which stone you are at; waking one
   does not wake another; travelling is a transition that ends beside the far

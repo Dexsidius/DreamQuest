@@ -43,6 +43,7 @@ struct SeatState {
     bool   ice_safe_known = false, ice_was_up = false;
     int    ice_warned = 0;
     bool   portals_armed = true, arrival_released = true;
+    SDL_FPoint arrival{};
     // A way through a door, asked for and not yet taken. For a friend the
     // host takes them through it: see coop::Host.
     bool   transition_pending = false;
@@ -82,6 +83,18 @@ public:
     // and the host leads the way.
     bool RequestTransition(const string& map_id, const string& spawn);
     bool TransitionPending() const { return transition_pending; }
+    // Arriving holds back the way back: every step-through portal within
+    // ARRIVAL_GUARD of where the player came in waits until they have let go
+    // of the movement and stepped clear of it, or walked ARRIVAL_LEFT from
+    // where they came in. Every other portal on the map fires from the first
+    // step. See World::UpdateSeat.
+    static constexpr float ARRIVAL_GUARD = 128.0f;
+    static constexpr float ARRIVAL_LEFT  = 224.0f;
+    bool PortalHeld(const Portal& p) const;
+    // Off the far side of a way back that is waiting: out through it, away
+    // from where the player came in. Never walked into -- see UpdateSeat.
+    bool PastWayBack() const;
+    SDL_FPoint ArrivedAt() const { return arrival; }
     // Screen-wipe progress, 0 = clear, 1 = fully black.
     float FadeAmount() const { return fade; }
 
@@ -948,11 +961,18 @@ private:
     mutable Lighting lighting;
     float  fade = 0.0f;
     int    fade_dir = 0;          // -1 fading in, +1 fading out, 0 idle
-    // Step-through portals on a freshly entered map stay inert until movement
-    // input has been let go and the player is standing clear of every portal.
-    // See World::Update.
+    // The way back from a freshly entered map -- the step-through portals by
+    // where the player arrived -- stays inert until movement input has been
+    // let go and the player is standing clear of it, or they have walked well
+    // away. Every other portal is live. See World::UpdateSeat.
     bool   portals_armed = true;
     bool   arrival_released = true;
+    SDL_FPoint arrival{};
+    void   HoldWayBack(float x, float y) {
+        portals_armed = false;
+        arrival_released = false;
+        arrival = {x, y};
+    }
 
     std::set<string> flags;
     std::map<string, int> slain;      // "map:post" -> the quest day it died on

@@ -84,8 +84,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
         g->y = p.y;
         g->knock_x = g->knock_y = 0.0f;
     }
-    portals_armed = false;
-    arrival_released = false;
+    HoldWayBack(p.x, p.y);
 
     camera.SetBounds(map.Width(), map.Height());
     camera.SnapTo(player.x, player.y);
@@ -310,6 +309,43 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
     }
 }
 
+bool World::PortalHeld(const Portal& p) const {
+    if (portals_armed) return false;
+    // How far the nearest edge of it is from where the player came in.
+    const float dx = std::max({p.rect.x - arrival.x, 0.0f, arrival.x - (p.rect.x + p.rect.w)});
+    const float dy = std::max({p.rect.y - arrival.y, 0.0f, arrival.y - (p.rect.y + p.rect.h)});
+    return Length(dx, dy) <= ARRIVAL_GUARD;
+}
+
+// Whether the straight line from a to b passes through r (Liang-Barsky).
+static bool LineCrosses(SDL_FPoint a, SDL_FPoint b, const SDL_FRect& r) {
+    float t0 = 0.0f, t1 = 1.0f;
+    const float dx = b.x - a.x, dy = b.y - a.y;
+    const float p[4] = {-dx, dx, -dy, dy};
+    const float q[4] = {a.x - r.x, r.x + r.w - a.x, a.y - r.y, r.y + r.h - a.y};
+    for (int i = 0; i < 4; ++i) {
+        if (p[i] == 0.0f) {
+            if (q[i] < 0.0f) return false;
+            continue;
+        }
+        const float t = q[i] / p[i];
+        if (p[i] < 0.0f) t0 = std::max(t0, t);
+        else             t1 = std::min(t1, t);
+        if (t0 > t1) return false;
+    }
+    return true;
+}
+
+bool World::PastWayBack() const {
+    if (portals_armed) return false;
+    const SDL_FRect feet = player.Bounds();
+    const SDL_FPoint at = player.GroundCentre();
+    for (const Portal& p : map.Portals())
+        if (!p.requires_interact && PortalHeld(p) && !RectsOverlap(feet, p.rect) && LineCrosses(arrival, at, p.rect))
+            return true;
+    return false;
+}
+
 bool World::RequestTransition(const string& id, const string& spawn) {
     if (transition_pending) return false;
     if (visiting) {
@@ -467,6 +503,7 @@ void World::SwapSeat(Player& who, SeatState& s) {
     std::swap(lifesteal_bank, s.lifesteal_bank);
     std::swap(portals_armed, s.portals_armed);
     std::swap(arrival_released, s.arrival_released);
+    std::swap(arrival, s.arrival);
     std::swap(transition_pending, s.transition_pending);
     std::swap(next_map, s.next_map);
     std::swap(next_spawn, s.next_spawn);
@@ -719,6 +756,7 @@ void World::ApplyTransition(const GameContext& ctx) {
             player.x = next_x;
             player.y = next_y;
             camera.SnapTo(player.x, player.y);
+            HoldWayBack(player.x, player.y);
         }
         if (why != WakeReason::None) {
             // Back where you lay down, rested -- or, from a nightmare, alive.
@@ -732,8 +770,7 @@ void World::ApplyTransition(const GameContext& ctx) {
             woke = why;
             Audio::Play(Sfx::Wake);
             // The bed is under you; do not step straight off it into a portal.
-            portals_armed = false;
-            arrival_released = false;
+            HoldWayBack(player.x, player.y);
         }
     }
     next_has_point = false;
@@ -744,8 +781,7 @@ void World::ApplyTransition(const GameContext& ctx) {
         r.text = "That path could not be opened. Your current area is unchanged.";
         requests.push_back(r);
         // Do not retry a broken exit every frame while standing on it.
-        portals_armed = false;
-        arrival_released = false;
+        HoldWayBack(player.x, player.y);
     }
     transition_pending = false;
     fade_dir = -1;
@@ -866,7 +902,19 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
         }
     }
 
+    // A way back that is waiting can be stood on, and stepped off again the
+    // way you came, but not walked out through. Havenbrook's gate stands in
+    // open field, and leaving the town by its south road puts you on the road
+    // north of it, walking south: with the key still down you walked into the
+    // gate, which was waiting, and out of the far side of it into the field,
+    // through a town gate without going into the town.
+    const bool was_past = PastWayBack();
+    const float was_x = player.x, was_y = player.y;
     player.Update(dt, *this, ctx);
+    if (!was_past && PastWayBack()) {
+        player.x = was_x;
+        player.y = was_y;
+    }
 
     player.input_locked = locked_by_game;
     // Thin ice is the player's own, whoever's window this is: see IceStrain.
@@ -930,36 +978,50 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
 
         // Step-through portals fire without a button press.
         //
-        // But not for a walk that began on the previous map. Arrival spawns
-        // sit a pace or two from the way back -- forty pixels on the field
-        // outside Havenbrook -- so holding a direction through the fade used
-        // to carry the player straight into the return portal and bounce them
-        // back where they came from, over and over for as long as the key was
-        // down. So the portals wait until the key has been let go -- and until
-        // the player is standing clear of them, because letting go a step
-        // too late leaves you on top of the way back, and arming it there
-        // bounced you just the same.
+        // But not the way back, for a walk that began on the previous map.
+        // Arrival spawns sit a pace or two from it -- forty pixels on the
+        // field outside Havenbrook -- so holding a direction through the fade
+        // used to carry the player straight into the return portal and bounce
+        // them back where they came from, over and over for as long as the key
+        // was down. So it waits until the key has been let go -- and until the
+        // player is standing clear of it, because letting go a step too late
+        // leaves you on top of the way back, and arming it there bounced you
+        // just the same.
+        //
+        // Only the way back, though. This used to hold every portal on the
+        // map, and a player who never let go -- rolling from one key onto the
+        // next, or steering the stick round without letting it centre --
+        // walked straight over every gate they came to, for as long as they
+        // kept moving. And not for ever even then: walked well away from where
+        // they came in, they have left the way back behind them, and a player
+        // who comes back to it means to go through.
         if (!portals_armed) {
             if (Length(player.hands.move.x, player.hands.move.y) < 0.01f)
                 arrival_released = true;
-            if (arrival_released && !map.PortalAt(player.Bounds()))
-                portals_armed = true;
+            const bool left = Length(player.x - arrival.x, player.y - arrival.y) > ARRIVAL_LEFT;
+            bool on_it = false;
+            for (const Portal& p : map.Portals())
+                if (!p.requires_interact && PortalHeld(p) && RectsOverlap(player.Bounds(), p.rect)) on_it = true;
+            if ((arrival_released || left) && !on_it) portals_armed = true;
         }
 
-        if (!transition_pending && portals_armed) {
-            if (const Portal* p = map.PortalAt(player.Bounds()))
-                if (!p->requires_interact && p->locked_by.empty()) {
-                    if (p->min_combat > player.skills.CombatLevel()) {
-                        if (gate_note_timer <= 0.0f) {
-                            AddText("Too dangerous for you yet: Combat " + std::to_string(p->min_combat) + " needed.",
-                                    player.x, player.y - 52.0f, {255, 150, 150, 255}, 2.2f);
-                            Audio::Play(Sfx::Locked);
-                            gate_note_timer = 2.5f;
-                        }
-                    } else if (RequestTransition(p->target_map, p->target_spawn)) {
-                        Audio::Play(Sfx::Portal);
+        if (!transition_pending) {
+            const Portal* p = nullptr;
+            for (const Portal& q : map.Portals())
+                if (!q.requires_interact && q.locked_by.empty() && RectsOverlap(player.Bounds(), q.rect) &&
+                    !PortalHeld(q)) { p = &q; break; }
+            if (p) {
+                if (p->min_combat > player.skills.CombatLevel()) {
+                    if (gate_note_timer <= 0.0f) {
+                        AddText("Too dangerous for you yet: Combat " + std::to_string(p->min_combat) + " needed.",
+                                player.x, player.y - 52.0f, {255, 150, 150, 255}, 2.2f);
+                        Audio::Play(Sfx::Locked);
+                        gate_note_timer = 2.5f;
                     }
+                } else if (RequestTransition(p->target_map, p->target_spawn)) {
+                    Audio::Play(Sfx::Portal);
                 }
+            }
         }
     } else {
         player.interact = {};
