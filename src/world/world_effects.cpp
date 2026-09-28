@@ -324,6 +324,40 @@ void World::ShedFromGround(float dt) {
     }
 }
 
+// A witch table's ring of fire (see world_ritual.cpp): tongues of flame
+// standing all the way round it, taller than burning ground's, and sparks
+// going up off them. From where the ring is, whichever machine this is, so a
+// friend's window burns the same fire the host's does.
+void World::ShedFromRing(float dt) {
+    float cx = 0.0f, cy = 0.0f, radius = 0.0f;
+    int wave = 0;
+    if (!RingBurning(cx, cy, radius, wave)) return;
+    if (!ritual.active) ring_heard.age += dt;
+    const float age = ritual.active ? ritual.age : ring_heard.age;
+    // It comes up out of the mud over the first second.
+    const float up = std::clamp(age / 1.0f, 0.15f, 1.0f);
+    const float lift = LiftAt(cx, cy);
+    const float rate = 6.2831853f * radius * 0.42f * up;
+    int n = static_cast<int>(rate * dt);
+    if (Chance(rate * dt - n)) ++n;
+    for (; n > 0; --n) {
+        const float a = Between(0.0f, 6.2831853f);
+        const float d = radius + Between(-6.0f, 6.0f);
+        const float x = cx + cosf(a) * d, y = cy + sinf(a) * d;
+        Mote m;
+        if (Chance(0.72f)) {
+            m = Speck(x, y, Between(-5, 5), -Between(10, 26), Between(0.35f, 0.7f), Chance(0.5f) ? 3.0f : 2.0f,
+                      EMBER_HOT, EMBER_COLD);
+            m.tall = Between(4.0f, 9.0f) * up;
+        } else {
+            m = Speck(x, y, Between(-8, 8), -Between(30, 70), Between(0.4f, 0.8f), 1.0f, EMBER_HOT, EMBER_COLD);
+            m.gravity = -24.0f;
+        }
+        m.lift = lift;
+        motes.push_back(m);
+    }
+}
+
 // What is on a monster shows on it: embers off what burns, drops off what is
 // soaked or bleeding, bubbles off what is poisoned, frost off the cold, and
 // stars going round a head that has been rung. From the bits alone, so a

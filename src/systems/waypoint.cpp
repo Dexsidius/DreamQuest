@@ -127,11 +127,16 @@ vector<WaypointIndex::Spot> WaypointIndex::SpotsFor(const QuestStage& stage, int
                     }
             }
             break;
-        case ObjectiveType::Interact:
+        case ObjectiveType::Interact: {
+            // The thing itself, by its id -- or any of a kind of thing ("lay the
+            // poppet on a witch's table": whichever is nearest). A stage whose
+            // target happens rather than stands somewhere says where it happens.
+            const string& at = stage.where.empty() ? stage.target : stage.where;
             for (const auto& kv : areas)
                 for (const Thing& t : kv.second.things)
-                    if (t.id == stage.target) out.push_back({kv.first, t.x, t.y, t.title});
+                    if (t.id == at || t.kind == at) out.push_back({kv.first, t.x, t.y, t.title});
             break;
+        }
         case ObjectiveType::Reach:
             break;      // a place is not a spot: Resolve takes the road to it
         case ObjectiveType::Craft: {

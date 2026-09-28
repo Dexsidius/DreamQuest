@@ -36,13 +36,36 @@ struct QuestStage {
     string        deliver_to;  // NPC for Deliver objectives
     string        map_id;      // optional location restriction for kill events
     int           count = 1;
+    // Where its counter starts, for a count that began before the stage did:
+    // "five rituals" begun by one already done reads (1/5), not (0/4).
+    int           start = 0;
+    // What the waypoint points at while this stage is current, for a stage
+    // whose target is something that happens rather than something that is
+    // there -- a ritual's waves are fought at a witch's table: an object's id,
+    // or a kind of object. Empty: the target itself.
+    string        where;
     bool          hidden = false;   // not listed until it becomes current
+};
+
+// One of the rewards a quest lets the player choose between: a sword for a
+// fighter, a bow for an archer, a staff for a caster -- or whatever else the
+// file puts there. The whole of an option is given: several things, coins
+// and experience together, if that is what it holds.
+struct QuestRewardChoice {
+    string label;             // what the option is called; empty: its way of fighting, or its first thing
+    string style;             // "melee", "ranged" or "magic": whose option it is; empty for anyone's
+    map<int, int> xp;         // SkillId -> amount
+    vector<pair<string,int>> items;
+    int    coins = 0;
 };
 
 struct QuestRewards {
     map<int, int>       xp;      // SkillId -> amount
     vector<pair<string,int>> items;
     int                 coins = 0;
+    // And one of these, the player's pick -- see QuestLog::ChoicesOwed. Empty
+    // for a quest that simply pays what it pays.
+    vector<QuestRewardChoice> choices;
 };
 
 struct QuestDef {
@@ -68,6 +91,9 @@ struct QuestDef {
     vector<QuestStage> stages;
     QuestRewards rewards;
     string completion_text;
+    // The quest that begins the moment this one ends, without anybody having
+    // to offer it: the trail goes on. Empty for most.
+    string then;
 };
 
 enum class QuestStatus { NotStarted, Active, Complete };
@@ -78,6 +104,11 @@ struct QuestProgress {
     int counter = 0;          // progress within the current stage
     int completed_day = -1;   // the quest day it was last finished on
     int completions = 0;
+    // A quest with reward choices owes one pick each time it is finished,
+    // kept in the save until it is made, so putting it off costs nothing.
+    // `chosen` is the last one taken, for the journal to say.
+    int owed = 0;
+    int chosen = -1;
 };
 
 // Events the world raises; the log decides whether any of them matter.
@@ -186,12 +217,30 @@ public:
     // Newly started quests, for the "Quest started" banner.
     vector<string> TakeJustStarted();
 
+    // --- rewards to choose ---------------------------------------------------------------
+    // A quest whose rewards have `choices` pays the rest as it completes and
+    // owes one of the choices until the player takes it: the reward panel asks
+    // at once, and the journal keeps asking until it is answered.
+    int  ChoicesOwed(const string& id) const;
+    vector<string> WithChoicesOwed() const;
+    // Takes choice `index` of a quest that owes one, and hands it back for the
+    // caller to give; nullptr if nothing is owed or there is no such choice.
+    const QuestRewardChoice* TakeChoice(const string& id, int index);
+    int  LastChosen(const string& id) const;
+    // The way of fighting an option is for: what the file says, or failing
+    // that what its first weapon -- or piece of armour -- is for. Empty if
+    // neither says.
+    static string StyleOf(const QuestRewardChoice& c, const class ItemDatabase& items);
+
     json ToJson() const;
     void FromJson(const json& j);
 
 private:
     void AdvanceStage(const string& id, const Inventory& inv);
     bool StageSatisfied(const QuestDef& def, const QuestProgress& p, const Inventory& inv) const;
+    // Quests finished this pass whose `then` is waiting to be begun.
+    vector<string> follow_ups;
+    void BeginFollowUps();
 
     map<string, QuestDef>      defs;
     map<string, QuestProgress> progress;

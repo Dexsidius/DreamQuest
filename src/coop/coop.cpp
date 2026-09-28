@@ -1205,6 +1205,20 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             if (p.finished || !p.def || !near(p.x, p.y) || snap.shots.size() >= net::MAX_SHOTS_TOLD) continue;
             snap.shots.push_back({p.net_id, Px(p.x), Px(p.y), Px(p.vx), Px(p.vy), p.from_player, p.def->id});
         }
+        // A ritual's ring of fire, first of the patches: it is a wall, and
+        // must not be the one left out when there are more than fit.
+        {
+            float rx = 0.0f, ry = 0.0f, rr = 0.0f;
+            int rw = 0;
+            if (w.RingBurning(rx, ry, rr, rw) && near(rx, ry)) {
+                net::PatchState ps;
+                ps.x = Px(rx); ps.y = Px(ry);
+                ps.radius = static_cast<uint16_t>(std::clamp(rr, 0.0f, 65535.0f));
+                ps.life = static_cast<uint8_t>(std::clamp(rw, 0, 255));
+                ps.kind = net::PatchState::RING;
+                snap.patches.push_back(ps);
+            }
+        }
         for (const GroundEffect& g : w.ground_effects) {
             if (g.finished || !near(g.x, g.y) || snap.patches.size() >= net::MAX_PATCHES_TOLD) continue;
             net::PatchState ps;
@@ -1651,7 +1665,13 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         world.projectiles.push_back(std::move(p));
     }
     world.ground_effects.clear();
+    bool ring = false;
     for (const net::PatchState& ps : snap.patches) {
+        if (ps.kind == net::PatchState::RING) {
+            world.HearOfRing(ps.x, ps.y, ps.radius, ps.life);
+            ring = true;
+            continue;
+        }
         if (ps.kind == net::PatchState::CLAW) {
             world.HearOfClaw(ps.x, ps.y, net::ByteAngle(ps.life), ps.radius, ps.max_life);
             continue;
@@ -1685,6 +1705,8 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         g.draw = static_cast<GroundEffect::Draw>(std::min<uint8_t>(ps.kind, static_cast<uint8_t>(GroundEffect::Draw::Blades)));
         world.ground_effects.push_back(g);
     }
+    // Not told of it this time: it has gone out.
+    if (!ring) world.RingNotHeard();
 }
 
 void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameContext& ctx) {

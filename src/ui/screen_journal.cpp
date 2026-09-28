@@ -70,6 +70,290 @@ namespace {
 constexpr SDL_Color kQuestNotStarted{216, 108, 100, 255};
 constexpr SDL_Color kQuestActive    {120, 172, 238, 255};
 constexpr SDL_Color kQuestDone      {120, 202, 118, 255};
+// A reward still to be chosen.
+constexpr SDL_Color kRewardOwed     {255, 214, 96, 255};
+
+// --- the three ways of fighting, as a quest's reward choices name them ------------------
+// The quest file's word for one, and how it is shown: in the colours the
+// character select gives the three affinities.
+const char* StyleWord(AttackStyle s) {
+    return s == AttackStyle::Ranged ? "ranged" : s == AttackStyle::Magic ? "magic" : "melee";
+}
+
+string StyleTitle(const string& style) {
+    return style == "ranged" ? "Ranged" : style == "magic" ? "Magic" : style == "melee" ? "Melee" : "";
+}
+
+SDL_Color StyleColour(const string& style) {
+    if (style == "ranged") return {150, 210, 130, 255};
+    if (style == "magic")  return {170, 150, 240, 255};
+    if (style == "melee")  return {236, 176, 96, 255};
+    return Palette::Xp;
+}
+
+// What an option is called: its own label, else its way of fighting, else
+// the first thing it holds.
+string ChoiceTitle(const QuestRewardChoice& c, const string& style, const ItemDatabase& items) {
+    if (!c.label.empty()) return c.label;
+    if (!style.empty()) return StyleTitle(style);
+    if (!c.items.empty()) {
+        const ItemDef* d = items.Get(c.items.front().first);
+        return d ? d->name : c.items.front().first;
+    }
+    return "A reward";
+}
+
+// What it holds, in a line: "Iron Bow", "Iron Bow and 3 Healing Draughts", "120 coins".
+string ChoiceContents(const QuestRewardChoice& c, const ItemDatabase& items) {
+    vector<string> parts;
+    for (const auto& t : c.items) {
+        const ItemDef* d = items.Get(t.first);
+        const string name = d ? d->name : t.first;
+        parts.push_back(t.second > 1 ? std::to_string(t.second) + " " + name : name);
+    }
+    if (c.coins > 0) parts.push_back(std::to_string(c.coins) + " coins");
+    for (const auto& x : c.xp) parts.push_back(std::to_string(x.second) + " " + SkillName(x.first) + " XP");
+    string out;
+    for (size_t i = 0; i < parts.size(); ++i)
+        out += (i == 0 ? "" : i + 1 == parts.size() ? " and " : ", ") + parts[i];
+    return out.empty() ? string("nothing") : out;
+}
+}
+
+// The reward lines of a quest's detail: what it pays, and the choice it
+// offers beside that. `quest_id` empty is a quest not taken -- the board's --
+// with no pick owed or made to speak of.
+float Game::DrawQuestRewards(const QuestDef& d, const string& quest_id, float x, float y, float w) {
+    const QuestRewards& r = d.rewards;
+    if (r.xp.empty() && r.coins <= 0 && r.items.empty() && r.choices.empty()) return 0.0f;
+    const float top = y;
+    ui.Text("Rewards", x, y, TextSize::Small, Palette::Highlight);
+    y += 20.0f;
+    for (const auto& xp : r.xp) {
+        ui.Text(std::to_string(xp.second) + " " + SkillName(xp.first) + " XP", x, y, TextSize::Small, Palette::Xp);
+        y += 18.0f;
+    }
+    if (r.coins > 0) {
+        ui.Text(std::to_string(r.coins) + " coins", x, y, TextSize::Small, Palette::Xp);
+        y += 18.0f;
+    }
+    for (const auto& it : r.items) {
+        const ItemDef* def = items.Get(it.first);
+        ui.Text(std::to_string(it.second) + "x " + (def ? def->name : it.first), x, y, TextSize::Small, Palette::Xp);
+        y += 18.0f;
+    }
+    if (!r.choices.empty()) {
+        const int owed = quest_id.empty() ? 0 : quests->ChoicesOwed(quest_id);
+        const int took = quest_id.empty() ? -1 : quests->LastChosen(quest_id);
+        ui.Text(owed > 0 ? "And one of these, still to choose:" : "And one of these, your choice:", x, y,
+                TextSize::Small, owed > 0 ? kRewardOwed : Palette::Highlight);
+        y += 20.0f;
+        for (size_t i = 0; i < r.choices.size(); ++i) {
+            const QuestRewardChoice& c = r.choices[i];
+            const string style = QuestLog::StyleOf(c, items);
+            const string title = ChoiceTitle(c, style, items);
+            const string holds = ChoiceContents(c, items);
+            string line = title == holds ? holds : title + ": " + holds;
+            if (owed == 0 && static_cast<int>(i) == took) line += "  (taken)";
+            y += ui.TextWrapped(line, x + 10.0f, y, w - 10.0f, TextSize::Small, StyleColour(style)) + 2.0f;
+        }
+    }
+    return y - top;
+}
+
+// =============================================================================
+//  A reward to choose
+//
+//  A quest whose rewards have "choices" in data/quests.json pays the rest as
+//  it completes, and then asks which of those the player will have -- a sword,
+//  a bow or a staff, say -- on a panel of cards, one an option, with the one
+//  for the character's own way of fighting lit first. Back puts it off, and
+//  the journal keeps it waiting ("reward!") until it is taken.
+// =============================================================================
+
+void Game::AskRewardChoice(const string& quest_id) {
+    // Two quests can finish in one moment: each is asked about in turn.
+    vector<string>& queue = reward_queue[serving == 1 ? 1 : 0];
+    if (std::find(queue.begin(), queue.end(), quest_id) == queue.end()) queue.push_back(quest_id);
+    if (state != GameState::RewardChoice) OpenRewardChoice(queue.front());
+}
+
+void Game::OpenRewardChoice(const string& quest_id) {
+    const QuestDef* d = quests->Definition(quest_id);
+    if (!d || d->rewards.choices.empty()) return;
+    reward_quest = quest_id;
+    reward_cursor = OwnRewardChoice(*d);
+    if (state != GameState::RewardChoice) OpenPanel(GameState::RewardChoice);
+    reward_opened_at = state_time;
+}
+
+void Game::NextRewardOrClose() {
+    vector<string>& queue = reward_queue[serving == 1 ? 1 : 0];
+    queue.erase(std::remove(queue.begin(), queue.end(), reward_quest), queue.end());
+    queue.erase(std::remove_if(queue.begin(), queue.end(),
+                               [&](const string& q) { return quests->ChoicesOwed(q) <= 0; }),
+                queue.end());
+    if (!queue.empty()) OpenRewardChoice(queue.front());
+    else                ClosePanel();
+}
+
+int Game::OwnRewardChoice(const QuestDef& d) const {
+    const string mine = StyleWord(world->player.Affinity());
+    for (size_t i = 0; i < d.rewards.choices.size(); ++i)
+        if (QuestLog::StyleOf(d.rewards.choices[i], items) == mine) return static_cast<int>(i);
+    return 0;
+}
+
+void Game::UpdateRewardChoice() {
+    const QuestDef* d = quests->Definition(reward_quest);
+    const int n = d ? static_cast<int>(d->rewards.choices.size()) : 0;
+    if (n == 0 || quests->ChoicesOwed(reward_quest) <= 0) {
+        NextRewardOrClose();
+        return;
+    }
+
+    const int was = reward_cursor;
+    if (input.MenuLeft())  reward_cursor = (reward_cursor + n - 1) % n;
+    if (input.MenuRight()) reward_cursor = (reward_cursor + 1) % n;
+    reward_cursor = std::clamp(reward_cursor, 0, n - 1);
+    if (reward_cursor != was) Audio::Play(Sfx::UiMove);
+
+    // A moment before a press counts. A quest finished mid-fight opens this
+    // under a hand still hammering the attack button -- which, on a keyboard,
+    // is the button that takes a reward.
+    if (state_time - reward_opened_at < 0.6f) return;
+
+    if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
+        if (const QuestRewardChoice* c = quests->TakeChoice(reward_quest, reward_cursor)) {
+            GiveRewards(c->xp, c->items, c->coins);
+            quests->RefreshCollectObjectives(world->player.inventory);
+            PushToast("Taken: " + ChoiceContents(*c, items) + ".", Palette::Xp);
+        }
+        NextRewardOrClose();
+        return;
+    }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+        PushToast("The reward waits in the journal: " + input.PromptFor(Action::QuestLog) + ".", Palette::TextDim);
+        NextRewardOrClose();
+    }
+}
+
+void Game::DrawRewardChoice() {
+    ui.Dim(0.55f);
+    const QuestDef* d = quests->Definition(reward_quest);
+    if (!d || d->rewards.choices.empty()) return;
+
+    const int n = static_cast<int>(d->rewards.choices.size());
+    const float gap = 14.0f;
+    const float card_w = std::min(230.0f, (ui.ViewWidth() - 120.0f - gap * (n - 1)) / static_cast<float>(n));
+    const float cards_w = card_w * n + gap * (n - 1);
+    const string mine = StyleWord(world->player.Affinity());
+    // As tall as the fullest card needs: its name, whose it is, what it holds,
+    // and the numbers of the first thing in it that can be worn -- the same
+    // lines, in the same order, as the cards below draw them.
+    float card_h = 150.0f;
+    for (const QuestRewardChoice& c : d->rewards.choices) {
+        const string style = QuestLog::StyleOf(c, items);
+        const size_t shown = std::min<size_t>(c.items.size(), 3);
+        float h = 16.0f + 26.0f + (!style.empty() && style == mine ? 20.0f : 0.0f) + 4.0f;
+        h += shown * 42.0f + (c.items.size() > shown ? 18.0f : 0.0f);
+        h += (c.coins > 0 ? 18.0f : 0.0f) + c.xp.size() * 18.0f;
+        for (const auto& t : c.items) {
+            const ItemDef* def = items.Get(t.first);
+            if (!def || def->slot == SLOT_NONE) continue;
+            // The line it is weighed against can take two, for the longest names.
+            h += 6.0f + 36.0f + ItemStatLines(*def, WornAgainst(*def), !GoesInOtherHand(*def)).size() * 16.0f;
+            if (!def->passive_text.empty())
+                h += ui.WrappedHeight(def->passive_text, card_w - 24.0f, TextSize::Small) + 6.0f;
+            break;
+        }
+        card_h = std::max(card_h, h + 12.0f);
+    }
+    card_h = std::min(card_h, ui.ViewHeight() - 200.0f);
+    const SDL_FRect panel = CenteredPanel(ui, std::max(540.0f, cards_w + 48.0f), card_h + 186.0f);
+    ui.Panel(panel);
+    const float cx = panel.x + panel.w / 2.0f;
+
+    ui.Text("Choose your reward", cx, panel.y + 16.0f, TextSize::Large, Palette::Highlight, Align::Center);
+    ui.Text(d->name, cx, panel.y + 54.0f, TextSize::Body, Palette::Text, Align::Center);
+    // What the quest's own last words are, where it has them: nothing else
+    // ever showed them.
+    if (!d->completion_text.empty()) {
+        const float wrap = panel.w - 64.0f;
+        if (ui.Measure(d->completion_text, TextSize::Small).x <= wrap)
+            ui.Text(d->completion_text, cx, panel.y + 82.0f, TextSize::Small, Palette::TextDim, Align::Center);
+        else
+            ui.TextWrapped(d->completion_text, panel.x + 32.0f, panel.y + 82.0f, wrap, TextSize::Small, Palette::TextDim);
+    }
+
+    const float top = panel.y + 124.0f;
+    const float left = cx - cards_w / 2.0f;
+    for (int i = 0; i < n; ++i) {
+        const QuestRewardChoice& c = d->rewards.choices[i];
+        const string style = QuestLog::StyleOf(c, items);
+        const SDL_Color tone = StyleColour(style);
+        const SDL_FRect card = {left + i * (card_w + gap), top, card_w, card_h};
+        const bool on = i == reward_cursor;
+
+        ui.Fill(card, on ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
+        ui.Outline(card, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
+        // A band of the way of fighting's colour across the top.
+        ui.Fill({card.x + 2.0f, card.y + 2.0f, card.w - 4.0f, 5.0f}, tone);
+
+        float y = card.y + 16.0f;
+        ui.Text(ChoiceTitle(c, style, items), card.x + 12.0f, y, TextSize::Body, on ? Palette::Highlight : tone);
+        y += 26.0f;
+        // The character's own: said, and lit first.
+        if (!style.empty() && style == mine) {
+            ui.Text("your affinity", card.x + 12.0f, y, TextSize::Small, tone);
+            y += 20.0f;
+        }
+        y += 4.0f;
+
+        // What it holds, a line and an icon each -- the first three, and a
+        // count of the rest.
+        const size_t shown = std::min<size_t>(c.items.size(), 3);
+        for (size_t k = 0; k < shown; ++k) {
+            const auto& t = c.items[k];
+            const ItemDef* def = items.Get(t.first);
+            const SDL_FRect icon = {card.x + 12.0f, y, 36.0f, 36.0f};
+            ui.Fill(icon, {22, 18, 14, 230});
+            ui.Outline(icon, Palette::BorderDim, 1.0f);
+            const SDL_FRect inner = {icon.x + 3.0f, icon.y + 3.0f, icon.w - 6.0f, icon.h - 6.0f};
+            SDL_Texture* tex = (def && !def->icon.empty()) ? textures->Get(def->icon) : nullptr;
+            if (tex) SDL_RenderTexture(renderer, tex, nullptr, &inner);
+            else     DrawItemPlaceholder(ui, def, t.first, inner);
+            const string name = (t.second > 1 ? std::to_string(t.second) + "  " : string()) + (def ? def->name : t.first);
+            ui.TextWrapped(name, icon.x + icon.w + 8.0f, y + 2.0f, card.w - icon.w - 38.0f, TextSize::Small, Palette::Text);
+            y += 42.0f;
+        }
+        if (c.items.size() > shown) {
+            ui.Text("and " + std::to_string(c.items.size() - shown) + " more", card.x + 12.0f, y, TextSize::Small,
+                    Palette::TextDim);
+            y += 18.0f;
+        }
+        if (c.coins > 0) {
+            ui.Text(std::to_string(c.coins) + " coins", card.x + 12.0f, y, TextSize::Small, Palette::Xp);
+            y += 18.0f;
+        }
+        for (const auto& x : c.xp) {
+            ui.Text(std::to_string(x.second) + " " + SkillName(x.first) + " XP", card.x + 12.0f, y, TextSize::Small,
+                    Palette::Xp);
+            y += 18.0f;
+        }
+        // And what the first thing in it that can be worn would do, against
+        // what is worn now: the numbers a choice between weapons is about.
+        for (const auto& t : c.items) {
+            const ItemDef* def = items.Get(t.first);
+            if (!def || def->slot == SLOT_NONE) continue;
+            DrawItemStats(*def, card.x + 12.0f, y + 6.0f, card.w - 24.0f);
+            break;
+        }
+    }
+
+    ui.Text(input.PromptFor(Action::Confirm) + " take it     left / right choose     " +
+                input.PromptFor(Action::Back) + " later: it waits in the journal",
+            cx, panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
 }
 
 void Game::UpdateQuestPanel() {
@@ -85,12 +369,16 @@ void Game::UpdateQuestPanel() {
     QuestList(quest_tab, list, active_count, ahead);
     MoveCursor(quest_cursor[quest_tab], static_cast<int>(list.size()));
     // Confirm on a quest in hand follows it: the waypoint is that one's until
-    // it is done, or until this is pressed on it again.
+    // it is done, or until this is pressed on it again. On a finished one with
+    // a reward still to choose, it asks which.
     if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && !list.empty()) {
         const size_t at = static_cast<size_t>(std::clamp(quest_cursor[quest_tab], 0, static_cast<int>(list.size()) - 1));
         if (at < active_count) {
             quests->Follow(list[at]);
             Audio::Play(Sfx::UiConfirm);
+        } else if (quests->ChoicesOwed(list[at]) > 0) {
+            OpenRewardChoice(list[at]);
+            return;
         } else {
             Audio::Play(Sfx::UiError);
         }
@@ -208,9 +496,11 @@ void Game::DrawQuestPanel() {
             const QuestDef* d = quests->Definition(list[i]);
             ui.Text(d ? d->name : list[i], row.x + 10.0f, row.y + 5.0f, TextSize::Small,
                     kStateColour[state]);
-            if (state == 2)
-                ui.Text("done", row.x + row.w - 8.0f, row.y + 5.0f, TextSize::Small,
-                        kQuestDone, Align::Right);
+            if (state == 2) {
+                const bool owed = quests->ChoicesOwed(list[i]) > 0;
+                ui.Text(owed ? "reward!" : "done", row.x + row.w - 8.0f, row.y + 5.0f, TextSize::Small,
+                        owed ? kRewardOwed : kQuestDone, Align::Right);
+            }
             else if (state == 1 && list[i] == quests->Followed()) {
                 // The tag gives way to the name. "Cooking: Meat and Fire" and
                 // "following (newest)" do not both fit on a row, and drawn
@@ -267,31 +557,14 @@ void Game::DrawQuestPanel() {
                 y += 20.0f;
             }
 
-            if (!d->rewards.xp.empty() || d->rewards.coins > 0 || !d->rewards.items.empty()) {
-                ui.Text("Rewards", dx, y, TextSize::Small, Palette::Highlight);
-                y += 20.0f;
-                for (const auto& xp : d->rewards.xp) {
-                    ui.Text(std::to_string(xp.second) + " " + SkillName(xp.first) + " XP",
-                            dx, y, TextSize::Small, Palette::Xp);
-                    y += 18.0f;
-                }
-                if (d->rewards.coins > 0) {
-                    ui.Text(std::to_string(d->rewards.coins) + " coins", dx, y,
-                            TextSize::Small, Palette::Xp);
-                    y += 18.0f;
-                }
-                for (const auto& it : d->rewards.items) {
-                    const ItemDef* def = items.Get(it.first);
-                    ui.Text(std::to_string(it.second) + "x " + (def ? def->name : it.first),
-                            dx, y, TextSize::Small, Palette::Xp);
-                    y += 18.0f;
-                }
-            }
+            y += DrawQuestRewards(*d, list[index], dx, y, dw);
         }
     }
 
-    ui.Text(input.PromptFor(Action::Confirm) + " follow: its waypoint is shown     Left / Right  switch tab     " +
-                input.PromptFor(Action::Back) + " close",
+    // On a reward still to be chosen, Confirm is the choosing.
+    const bool owes = !list.empty() && quests->ChoicesOwed(list[cursor_here]) > 0;
+    ui.Text(input.PromptFor(Action::Confirm) + (owes ? " choose your reward" : " follow: its waypoint is shown") +
+                "     Left / Right  switch tab     " + input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 }

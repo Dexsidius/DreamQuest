@@ -735,6 +735,62 @@ public:
     void AddFalling(float x, float y, float size, Element element, float seconds, float lift);
     void HearOfFalling(float x, float y, float size, Element element);
     void UpdateFalling(float dt);
+
+    // --- a ritual at a witch table (world_ritual.cpp) -----------------------------------
+    // Oona's poppet laid on a witch table in the Bayou: a ring of fire comes up
+    // round it that nothing crosses, and the fen comes for the doll in three
+    // waves of ten out of the map's ritual posts -- the third with the Mother
+    // of the Fen at its head. Hold the ring until the last of them is down and
+    // the poppet is given back a knot tighter; its owner falling, or leaving,
+    // breaks it. The host's to run: a friend's window is told the ring (a RING
+    // patch), and draws it, and is held to it, from that.
+    struct Ritual {
+        bool    active = false;
+        string  table;                // the witch table's object id
+        float   x = 0, y = 0, radius = 0;
+        uint8_t owner_seat = 0;
+        bool    owner_host = true;    // the world's own player, not a friend
+        string  idol;                 // the poppet laid on the table
+        int     wave = 0;             // 1 to RITUAL_WAVES while it burns
+        bool    between = true;       // before a wave: the fen gathering itself
+        float   timer = 0.0f;         // to the next monster, or the next wave
+        vector<int> called;           // this wave's monsters, by index into `enemies`
+        int     out = 0;              // how many of them have come
+        float   age = 0.0f;           // how long it has burned
+    };
+    Ritual ritual;
+    // The ring as a friend's window knows it, a snapshot at a time.
+    struct RingHeard { bool on = false; float x = 0, y = 0, radius = 0, age = 0; int wave = 0; } ring_heard;
+    // Across the view at the usual zoom, with room round it to see what is coming.
+    static constexpr float RITUAL_RADIUS = 160.0f;
+    static constexpr int   RITUAL_WAVES = 3;
+    // The seconds before the first wave, between one monster and the next
+    // coming through the ring, and between the waves.
+    static constexpr float RITUAL_LEAD = 2.0f, RITUAL_EVERY = 0.8f, RITUAL_BREATH = 3.5f;
+    // The poppet, by the knots it has: poppet_idol, then poppet_idol_1 to _5.
+    static constexpr int IDOL_KNOTS = 5;
+    static string IdolId(int knots);
+    // The knots on the poppet in `bag`, or -1 when there is none in it.
+    static int IdolKnots(const Inventory& bag);
+    // The world flag a day's ritual leaves: the tables answer once a day.
+    static string RitualDayFlag(int quest_day) { return "poppet_day:" + std::to_string(quest_day); }
+    // Whether `player` may lay a poppet on `table` now, and if not, why not.
+    bool CanStartRitual(const MapObject& table, string& why) const;
+    // Lays it, as `player`: the ring comes up and the fen is called.
+    bool StartRitual(const MapObject& table, const GameContext& ctx);
+    void UpdateRitual(float dt, const GameContext& ctx);
+    // Over: `fed` when the last wave is down, and not when it was broken.
+    void EndRitual(bool fed, const GameContext& ctx);
+    Player* RitualOwner();
+    // The ring, on whichever machine this is: the host's own, or what it was told.
+    bool RingBurning(float& x, float& y, float& radius, int& wave) const;
+    void HearOfRing(float x, float y, float radius, int wave);
+    void RingNotHeard();
+    void ShedFromRing(float dt);
+    void DrawRitual(SDL_Renderer* r, TextureCache& cache) const;
+    void DrawRingGround(SDL_Renderer* r) const;
+    // A journal's event for one player alone: the ritual's is its owner's.
+    void CreditTo(Player& who, const QuestEvent& e);
     // One swing or one drop. The caster's world makes it; a guest's makes the
     // same one from the numbers a snapshot gives it, once, however many
     // snapshots go on saying so -- `told` is how long ago one last did.

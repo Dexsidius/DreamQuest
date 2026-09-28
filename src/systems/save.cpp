@@ -25,13 +25,38 @@ static string& SaveDir() {
 void SaveSystem::SetDirectory(const string& dir) { SaveDir() = dir.empty() ? string("saves") : dir; }
 const string& SaveSystem::Directory() { return SaveDir(); }
 
-static string SlotStem(int slot) {
-    return SaveDir() + "/slot" + std::to_string(std::clamp(slot, 1, SAVE_SLOTS));
+// The single-player slots are where the slots always were, so every save made
+// before there were two shelves is still in the first; the multiplayer ones
+// have a folder of their own beside them.
+static string SlotStem(SlotRef slot) {
+    const string dir = slot.Multi() ? SaveDir() + "/multiplayer" : SaveDir();
+    return dir + "/slot" + std::to_string(std::clamp(slot.number, 1, SAVE_SLOTS));
 }
 
-string SaveSystem::SlotPath(int slot)    { return SlotStem(slot) + ".json"; }
-string SaveSystem::BackupPath(int slot)  { return SlotStem(slot) + ".bak"; }
-string SaveSystem::DeletedPath(int slot) { return SlotStem(slot) + ".deleted"; }
+string SaveSystem::SlotPath(SlotRef slot)    { return SlotStem(slot) + ".json"; }
+string SaveSystem::BackupPath(SlotRef slot)  { return SlotStem(slot) + ".bak"; }
+string SaveSystem::DeletedPath(SlotRef slot) { return SlotStem(slot) + ".deleted"; }
+
+string SaveSystem::FriendsPath(SlotRef slot) {
+    return slot.Multi() ? SlotStem(slot) + ".friends" : SaveDir() + "/characters/kept";
+}
+
+void SaveSystem::SetFriendsAside(SlotRef slot) {
+    // The single-player folder is the one every world shared before there
+    // were two shelves: it is nobody's in particular, and is left alone.
+    if (!slot.Multi()) return;
+    std::error_code ec;
+    const string dir = FriendsPath(slot);
+    if (!fs::exists(dir, ec)) return;
+    fs::remove_all(dir + ".deleted", ec);
+    fs::rename(dir, dir + ".deleted", ec);
+}
+
+string SaveSystem::Describe(SlotRef slot, bool capital) {
+    const string n = std::to_string(slot.number);
+    if (slot.Multi()) return (capital ? "Multiplayer slot " : "multiplayer slot ") + n;
+    return (capital ? "Slot " : "slot ") + n;
+}
 
 // A save that can be read: a JSON object, the whole way through.
 static bool ReadSave(const string& path, json& out) {
@@ -45,12 +70,12 @@ static bool ReadSave(const string& path, json& out) {
     return out.is_object();
 }
 
-bool SaveSystem::Exists(int slot) {
+bool SaveSystem::Exists(SlotRef slot) {
     std::error_code ec;
     return fs::exists(SlotPath(slot), ec);
 }
 
-bool SaveSystem::Occupied(int slot) {
+bool SaveSystem::Occupied(SlotRef slot) {
     std::error_code ec;
     return fs::exists(SlotPath(slot), ec) || fs::exists(BackupPath(slot), ec);
 }
@@ -78,9 +103,10 @@ string SaveSystem::FormatPlaytime(float seconds) {
     return buf;
 }
 
-SaveSlotInfo SaveSystem::Peek(int slot) {
+SaveSlotInfo SaveSystem::Peek(SlotRef slot) {
     SaveSlotInfo info;
-    info.slot = slot;
+    info.slot = slot.number;
+    info.kind = slot.kind;
 
     if (!Occupied(slot)) return info;
 
@@ -103,16 +129,19 @@ SaveSlotInfo SaveSystem::Peek(int slot) {
     info.playtime     = j.value("playtime", 0.0f);
     info.saved_at     = j.value("saved_at", string(""));
     info.character    = j.value("character", string(Player::kDefaultCharacter));
+    if (j.contains("played_with") && j["played_with"].is_array())
+        for (const json& who : j["played_with"])
+            if (who.is_string()) info.played_with.push_back(who.get<string>());
     return info;
 }
 
-vector<SaveSlotInfo> SaveSystem::PeekAll() {
+vector<SaveSlotInfo> SaveSystem::PeekAll(SaveKind kind) {
     vector<SaveSlotInfo> out;
-    for (int i = 1; i <= SAVE_SLOTS; ++i) out.push_back(Peek(i));
+    for (int i = 1; i <= SAVE_SLOTS; ++i) out.push_back(Peek({kind, i}));
     return out;
 }
 
-bool SaveSystem::Delete(int slot) {
+bool SaveSystem::Delete(SlotRef slot) {
     // Put aside rather than destroyed: slotN.deleted is the last thing deleted
     // from that slot, and renaming it back is all it takes to have it again.
     // The backup goes, or the slot would come straight back from it.
@@ -122,19 +151,25 @@ bool SaveSystem::Delete(int slot) {
         fs::remove(DeletedPath(slot), ec);
         fs::rename(SlotPath(slot), DeletedPath(slot), ec);
         if (ec) return false;
-    } else if (fs::exists(BackupPath(slot), ec)) {
+        fs::remove(BackupPath(slot), ec);
+    } else {
         fs::remove(DeletedPath(slot), ec);
         fs::rename(BackupPath(slot), DeletedPath(slot), ec);
-        return !ec;
+        if (ec) return false;
     }
-    fs::remove(BackupPath(slot), ec);
+    // And the friends that world kept, which the next world in the slot is
+    // not the one they stood in.
+    SetFriendsAside(slot);
     return true;
 }
 
-bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
-                      float playtime) {
+bool SaveSystem::Save(SlotRef slot, const World& world, const QuestLog& quests,
+                      float playtime, const vector<string>& played_with) {
     std::error_code ec;
-    fs::create_directories("saves", ec);
+    // The slot's own folder, wherever SetDirectory put it. This used to make
+    // "saves" whatever the directory was, and the multiplayer folder is new.
+    fs::create_directories(fs::path(SlotPath(slot)).parent_path(), ec);
+    ec.clear();
 
     json j;
     j["version"]      = SAVE_VERSION;
@@ -147,6 +182,7 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
     j["character"]    = world.player.sprite_id;
     j["combat_level"] = world.player.skills.CombatLevel();
     j["total_level"]  = world.player.skills.TotalLevel();
+    if (!played_with.empty()) j["played_with"] = played_with;
 
     // The time of day, the camp, and -- for a save made in a dream -- where
     // the sleeper is lying.
@@ -213,25 +249,26 @@ bool SaveSystem::Save(int slot, const World& world, const QuestLog& quests,
         return false;
     }
 
-    SDL_Log("SaveSystem: saved slot %d (%s)", slot, world.MapId().c_str());
+    SDL_Log("SaveSystem: saved %s (%s)", Describe(slot).c_str(), world.MapId().c_str());
     return true;
 }
 
-bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
+bool SaveSystem::Load(SlotRef slot, World& world, QuestLog& quests,
                       const GameContext& ctx, float& playtime, bool* from_backup) {
     if (from_backup) *from_backup = false;
+    const string name = Describe(slot);
     if (!Occupied(slot)) {
-        SDL_Log("SaveSystem: slot %d is empty", slot);
+        SDL_Log("SaveSystem: %s is empty", name.c_str());
         return false;
     }
 
     json j;
     if (!ReadSave(SlotPath(slot), j)) {
         if (!ReadSave(BackupPath(slot), j)) {
-            SDL_Log("SaveSystem: slot %d cannot be read, and neither can its backup", slot);
+            SDL_Log("SaveSystem: %s cannot be read, and neither can its backup", name.c_str());
             return false;
         }
-        SDL_Log("SaveSystem: slot %d could not be read; loading its backup", slot);
+        SDL_Log("SaveSystem: %s could not be read; loading its backup", name.c_str());
         if (from_backup) *from_backup = true;
     }
 
@@ -308,7 +345,7 @@ bool SaveSystem::Load(int slot, World& world, QuestLog& quests,
     }
     world.camera.SnapTo(world.player.x, world.player.y);
 
-    SDL_Log("SaveSystem: loaded slot %d (%s)", slot, map_id.c_str());
+    SDL_Log("SaveSystem: loaded %s (%s)", name.c_str(), map_id.c_str());
     return true;
 }
 

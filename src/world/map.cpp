@@ -295,6 +295,8 @@ bool Map::Load(const string& path) {
             d.lurk    = e.value("lurk", false);
             d.chance  = std::clamp(e.value("chance", 1.0f), 0.0f, 1.0f);
             d.shown   = std::max(0, e.value("shown", 0));
+            d.ritual  = e.value("ritual", string(""));
+            d.wave    = std::max(0, e.value("wave", 0));
             if (e.contains("route") && e["route"].is_array())
                 for (const auto& p : e["route"])
                     if (p.is_array() && p.size() >= 2)
@@ -415,6 +417,7 @@ bool Map::Load(const string& path) {
 
 void Map::Unload() {
     loaded = false;
+    ring_on = false;
     textures.clear(); surfaces.clear(); arts.clear(); tiles.clear(); colliders.clear();
     fog = Shaders::Fog{};
     collider_water.clear(); water_count = 0;
@@ -876,6 +879,18 @@ bool Map::LevelChangeBlocked(float from_x, float from_y,
     return !(RampAt(from_x, from_y) || RampAt(to_x, to_y));
 }
 
+bool Map::InsideRing(float x, float y) const {
+    return ring_on && (x - ring_x) * (x - ring_x) + (y - ring_y) * (y - ring_y) < ring_r * ring_r;
+}
+
+bool Map::RingCrossed(float from_x, float from_y, float to_x, float to_y) const {
+    if (!ring_on) return false;
+    const auto inside = [&](float x, float y) {
+        return (x - ring_x) * (x - ring_x) + (y - ring_y) * (y - ring_y) < ring_r * ring_r;
+    };
+    return inside(from_x, from_y) != inside(to_x, to_y);
+}
+
 bool Map::Blocked(const SDL_FRect& box, bool swims) const {
     if (!loaded) return false;
 
@@ -965,8 +980,10 @@ SDL_FPoint Map::MoveWithCollision(const SDL_FRect& box, float dx, float dy,
 
     auto step_ok = [&](const SDL_FRect& from, const SDL_FRect& to) {
         if (Blocked(to, swims)) return false;
-        return !LevelChangeBlocked(from.x + from.w * 0.5f, from.y + from.h * 0.5f,
-                                   to.x + to.w * 0.5f, to.y + to.h * 0.5f);
+        const float fx = from.x + from.w * 0.5f, fy = from.y + from.h * 0.5f;
+        const float tx = to.x + to.w * 0.5f, ty = to.y + to.h * 0.5f;
+        if (RingCrossed(fx, fy, tx, ty)) return false;
+        return !LevelChangeBlocked(fx, fy, tx, ty);
     };
 
     if (dx != 0.0f) {

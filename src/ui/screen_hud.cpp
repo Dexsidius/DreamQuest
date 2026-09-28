@@ -604,6 +604,22 @@ void Game::DrawHud() {
         ui.TextShadowed(line, ui.ViewWidth() / 2.0f, line_y, TextSize::Small, line_col, Align::Center);
     }
 
+    // --- a ritual burning round you --------------------------------------------------
+    // Which of its waves the fen is on, while you stand inside a witch table's
+    // ring of fire. The journal counts the waves of the first ritual only; after
+    // that it counts rituals, and this is how a fight in one knows where it is.
+    if (live) {
+        float rx = 0.0f, ry = 0.0f, rr = 0.0f;
+        int rw = 0;
+        const SDL_FPoint stood = p.GroundCentre();
+        if (world->RingBurning(rx, ry, rr, rw) && world->map.InsideRing(stood.x, stood.y)) {
+            const string ritual_line = rw <= 0 ? string("The ritual: the fen is gathering")
+                : "The ritual: wave " + std::to_string(rw) + " of " + std::to_string(World::RITUAL_WAVES);
+            const float y = stack("ritual line", ui.Measure(ritual_line, TextSize::Small).x, line_h, 5.0f);
+            ui.TextShadowed(ritual_line, ui.ViewWidth() / 2.0f, y, TextSize::Small, {255, 176, 96, 255}, Align::Center);
+        }
+    }
+
     // --- the chain -------------------------------------------------------------
     // Melee swings landed one after another, under the target frame: the
     // count large, and what each swing was on a line beneath it. It holds

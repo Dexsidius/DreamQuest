@@ -3336,6 +3336,70 @@ HERB_PROPS["enchanting_table"] = (prop_enchanting_table, 64)
 
 
 # -----------------------------------------------------------------------------
+#  A witch's table, out in the Bayou -- where Oona's poppet is fed
+# -----------------------------------------------------------------------------
+
+PALETTE.update({
+    "fen_plank":     (0.300, 0.230, 0.180),
+    "fen_plank_dk":  (0.190, 0.140, 0.110),
+    "hag_cloth":     (0.520, 0.110, 0.120),
+    "hag_cloth_dk":  (0.330, 0.060, 0.080),
+    "clay":          (0.520, 0.360, 0.260),
+    "brew_dark":     (0.100, 0.150, 0.080),
+    "pin_iron":      (0.300, 0.300, 0.320),
+})
+
+
+def prop_witch_table():
+    """A hag's worktable in the fen: a slab of black planks on four crooked
+    stick legs, a red cloth thrown half across it, a skull at one end with a
+    candle guttering on its crown, a clay bowl of something dark, bones, pins
+    standing up out of the wood -- and in the middle, an empty hollow the size
+    of a doll. The skull and the red cloth are its identity: without them, a
+    table with things on it."""
+    import random
+    rng = random.Random(1692)
+    top_z = 0.62
+    # The legs: sticks, not turned wood, each leaning a little its own way.
+    for i, (x, y) in enumerate(((-0.62, -0.26), (0.62, -0.26), (-0.58, 0.28), (0.60, 0.30))):
+        lean = (rng.uniform(-0.12, 0.12), rng.uniform(-0.10, 0.10), 0)
+        cyl("leg_%d" % i, 0.05, top_z, (x, y, top_z / 2), "fen_plank_dk", rot=lean, verts=6)
+    # The top: three planks, uneven, one shorter than the others.
+    for k, (y, w, dz) in enumerate(((-0.22, 1.56, 0.0), (0.0, 1.44, 0.012), (0.22, 1.60, -0.006))):
+        blk("plank_%d" % k, (w, 0.22, 0.07), (rng.uniform(-0.04, 0.04), y, top_z + dz),
+            ("fen_plank", "fen_plank_dk", "fen_plank")[k], bev=0.012)
+    # The cloth, thrown across the right half and hanging over the front.
+    blk("cloth", (0.70, 0.70, 0.02), (0.38, 0.02, top_z + 0.05), "hag_cloth", rot=(0, 0, 0.08), bev=0.005)
+    blk("cloth_hang", (0.62, 0.02, 0.26), (0.40, -0.35, top_z - 0.08), "hag_cloth_dk", rot=(0.10, 0, 0.08), bev=0.005)
+    # The hollow in the middle, a darker dish worn into the planks, empty.
+    cyl("hollow", 0.17, 0.02, (-0.06, -0.02, top_z + 0.045), "fen_plank_dk", verts=18)
+    # The skull at the left end, a candle on its crown and wax down its face.
+    sphere("skull", 0.13, (-0.58, 0.10, top_z + 0.16), "bone")
+    blk("jaw", (0.14, 0.10, 0.05), (-0.58, 0.02, top_z + 0.06), "bone", bev=0.02)
+    sphere("eye_l", 0.028, (-0.62, -0.02, top_z + 0.18), "fen_plank_dk")
+    sphere("eye_r", 0.028, (-0.54, -0.02, top_z + 0.18), "fen_plank_dk")
+    cyl("skull_candle", 0.04, 0.16, (-0.58, 0.10, top_z + 0.36), "candle", verts=8)
+    sphere("skull_flame", 0.05, (-0.58, 0.10, top_z + 0.48), "flame", emit=2.6)
+    # A candle stub at the far right, and its flame.
+    cyl("stub", 0.045, 0.10, (0.66, 0.24, top_z + 0.10), "candle", verts=8)
+    sphere("stub_flame", 0.045, (0.66, 0.24, top_z + 0.19), "flame", emit=2.4)
+    # The bowl, and what is in it.
+    cyl("bowl", 0.14, 0.09, (0.34, 0.16, top_z + 0.09), "clay", verts=14)
+    cyl("brew", 0.115, 0.02, (0.34, 0.16, top_z + 0.135), "brew_dark", verts=14, emit=0.4)
+    # Bones, and pins standing up out of the wood.
+    for i in range(3):
+        cyl("bone_%d" % i, 0.022, 0.24, (0.10 + i * 0.12, -0.22, top_z + 0.06), "bone",
+            rot=(math.radians(90), 0, math.radians(20 + i * 55)), verts=6)
+    for i in range(4):
+        cyl("pin_%d" % i, 0.012, 0.16, (-0.30 + i * 0.07, 0.22 - (i % 2) * 0.05, top_z + 0.11), "pin_iron", verts=5)
+        sphere("pin_head_%d" % i, 0.022, (-0.30 + i * 0.07, 0.22 - (i % 2) * 0.05, top_z + 0.19), "hag_cloth")
+    return 2.1
+
+
+HERB_PROPS["witch_table"] = (prop_witch_table, 64)
+
+
+# -----------------------------------------------------------------------------
 #  The mage college at Fernhollow, and the circle cut into its floor
 # -----------------------------------------------------------------------------
 

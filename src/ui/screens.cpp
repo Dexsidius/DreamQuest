@@ -21,10 +21,38 @@ vector<string> MainMenuOptions(bool any_save) {
     return options;
 }
 
-bool AnySaveExists(const vector<SaveSlotInfo>& slots) {
-    return std::any_of(slots.begin(), slots.end(),
-                       [](const SaveSlotInfo& s) { return s.exists; });
+// The save Continue goes on with: the newest written, on either shelf -- or on
+// the multiplayer one alone, when that is all there is to choose from.
+bool NewestSave(bool multi_only, SlotRef& out) {
+    bool found = false;
+    string newest;
+    for (SaveKind kind : {SaveKind::Single, SaveKind::Multi}) {
+        if (multi_only && kind == SaveKind::Single) continue;
+        for (const SaveSlotInfo& s : SaveSystem::PeekAll(kind))
+            if (s.exists && (!found || s.saved_at >= newest)) {
+                newest = s.saved_at;
+                out = {kind, s.slot};
+                found = true;
+            }
+    }
+    return found;
 }
+
+bool AnyOnShelf(SaveKind kind) {
+    for (int i = 1; i <= SAVE_SLOTS; ++i)
+        if (SaveSystem::Occupied({kind, i})) return true;
+    return false;
+}
+
+// "with Oona", "with Oona and Brannoc", "with Oona, Brannoc and 2 more".
+string WithWhom(const vector<string>& names) {
+    if (names.empty()) return "";
+    if (names.size() == 1) return "with " + names[0];
+    if (names.size() == 2) return "with " + names[0] + " and " + names[1];
+    return "with " + names[0] + ", " + names[1] + " and " + std::to_string(names.size() - 2) + " more";
+}
+
+const SDL_Color kSlotBad{235, 150, 120, 255};
 
 const char* InputModeLabel(int mode) {
     switch (mode) {
@@ -41,8 +69,11 @@ const char* InputModeLabel(int mode) {
 // =============================================================================
 
 void Game::UpdateMainMenu() {
-    const vector<SaveSlotInfo> slots = SaveSystem::PeekAll();
-    const vector<string> options = MainMenuOptions(AnySaveExists(slots));
+    // With the door open and no game behind it, only a world played together
+    // can be gone on with.
+    SlotRef newest;
+    const bool any = NewestSave(ShelfLocked(), newest);
+    const vector<string> options = MainMenuOptions(any);
 
     MoveCursor(cursor, static_cast<int>(options.size()));
     cursor = std::clamp(cursor, 0, static_cast<int>(options.size()) - 1);
@@ -50,12 +81,8 @@ void Game::UpdateMainMenu() {
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         const string& choice = options[cursor];
         if (choice == "Continue") {
-            // Resume the most recently written slot.
-            int best = -1;
-            string newest;
-            for (const SaveSlotInfo& s : slots)
-                if (s.exists && s.saved_at >= newest) { newest = s.saved_at; best = s.slot; }
-            if (best > 0) LoadGame(best);
+            // Resume the most recently written slot, on whichever shelf.
+            if (any) LoadGame(newest);
         } else if (choice == "New Game") {
             SetState(GameState::CharacterSelect);
         } else if (choice == "Load Game") {
@@ -80,8 +107,13 @@ void Game::DrawMainMenu() {
     ui.TextShadowed("An adventure in the Hollowmarch", cx, ui.ViewHeight() * 0.09f + 52.0f,
                     TextSize::Body, {214, 200, 176, 255}, Align::Center);
 
-    const vector<SaveSlotInfo> slots = SaveSystem::PeekAll();
-    const vector<string> options = MainMenuOptions(AnySaveExists(slots));
+    SlotRef newest;
+    const bool any = NewestSave(ShelfLocked(), newest);
+    const vector<string> options = MainMenuOptions(any);
+    // Which game Continue goes on with, once there are games on both shelves
+    // and it could be either.
+    const string continues = any && AnyOnShelf(SaveKind::Single) && AnyOnShelf(SaveKind::Multi)
+        ? (newest.Multi() ? "Multiplayer " : "Slot ") + std::to_string(newest.number) : string();
 
     const float row_h = 42.0f;
     const float panel_w = 300.0f;
@@ -92,7 +124,8 @@ void Game::DrawMainMenu() {
     for (size_t i = 0; i < options.size(); ++i) {
         const SDL_FRect row = {panel.x + 12.0f, panel.y + 14.0f + i * row_h,
                                panel.w - 24.0f, row_h - 4.0f};
-        ui.MenuItem(row, options[i], static_cast<int>(i) == cursor);
+        ui.MenuItem(row, options[i], static_cast<int>(i) == cursor, true,
+                    options[i] == "Continue" ? continues : string());
     }
 
     ui.TextShadowed(input.ActiveDevice() == InputMode::Controller
@@ -127,11 +160,21 @@ void Game::UpdateCharacterSelect() {
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         pending_character = kCharacterIds[std::clamp(cursor, 0, kCharacterCount - 1)];
-        slot_purpose = 0;
+        if (hosting_new) {
+            // A new world to host, in the empty slot already chosen for it:
+            // the door opens as it begins.
+            hosting_new = false;
+            NewGame(pending_character, pending_slot);
+            if (has_session && !StartHosting(mp_port)) PushToast(mp_error, kSlotBad);
+            return;
+        }
+        slot_purpose = SLOT_NEW;
         SetState(GameState::SlotSelect);
     }
-    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
-        SetState(GameState::MainMenu);
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+        if (hosting_new) ChooseWorldToHost();          // back to the worlds to host
+        else             SetState(GameState::MainMenu);
+    }
 }
 
 void Game::DrawCharacterSelect() {
@@ -196,50 +239,190 @@ void Game::DrawCharacterSelect() {
 }
 
 // =============================================================================
-//  Slot select (used for starting a new game and for saving)
+//  The slot lists: a new game, a save, a load
+//
+//  Two shelves of three: the games played alone, and the worlds played
+//  together -- hosted for friends, or with Player Two at this screen -- kept
+//  apart on disk and here (see SaveSystem). Left and right step between them,
+//  or the panel keys (I and O) or the shoulders, as the waystone panel's tabs
+//  do. A game being played together is never put with the ones played alone:
+//  a single-player game is carried to a multiplayer slot before the door opens
+//  on it or Player Two sits down, and its single-player save stays as it was.
 // =============================================================================
 
+SaveKind Game::OpeningShelf() const {
+    if (ShelfLocked()) return SaveKind::Multi;
+    // Saving: the shelf the game is on. Loading: the one the newest save is
+    // on, which is the one Continue would have gone on with.
+    if (state == GameState::SlotSelect && slot_purpose == SLOT_SAVE) return active_slot.kind;
+    SlotRef newest;
+    if (state == GameState::LoadMenu && NewestSave(false, newest)) return newest.kind;
+    return SaveKind::Single;
+}
+
+bool Game::ShelfLocked() const {
+    if (state == GameState::SlotSelect && (slot_purpose == SLOT_CARRY || slot_purpose == SLOT_HOST)) return true;
+    // A door open with no game behind it is waiting for a world to be played
+    // together in; a game with friends or Player Two in it is being played so.
+    if (!has_session) return session.Hosting();
+    return !guest_session && (session.Hosting() || split_active);
+}
+
+string Game::ShelfNote() const {
+    if (state == GameState::SlotSelect && slot_purpose == SLOT_CARRY)
+        return "Played together, this game is kept with the multiplayer ones. " +
+               SaveSystem::Describe(active_slot, true) + " stays as it is now.";
+    if (state == GameState::SlotSelect && slot_purpose == SLOT_HOST)
+        return "Friends walk into the world you choose. An empty slot starts a new one.";
+    if (ShelfLocked())
+        return has_session ? "This game is being played together, so it is saved with the multiplayer ones."
+                           : "The door is open: choose a world to play together.";
+    return slot_tab == SaveKind::Multi ? "Worlds played together: hosted for friends, or with Player Two."
+                                       : "Games played alone. One played together is carried to a multiplayer slot.";
+}
+
+void Game::StepShelf() {
+    const SaveKind was = slot_tab;
+    if (input.MenuLeft() || input.Pressed(Action::Inventory)) slot_tab = SaveKind::Single;
+    if (input.MenuRight() || input.Pressed(Action::Skills) || input.Pressed(Action::Ability)) slot_tab = SaveKind::Multi;
+    if (slot_tab == was) return;
+    if (ShelfLocked()) {
+        slot_tab = was;
+        Audio::Play(Sfx::UiError);
+        return;
+    }
+    slot_tab_dir = slot_tab == SaveKind::Multi ? 1 : -1;
+    slot_tab_at = state_time;
+    Audio::Play(Sfx::UiMove);
+}
+
+bool Game::PlayTogetherHere(Together what) {
+    // A game nobody keeps, a guest's, and one already on the multiplayer
+    // shelf are played together where they are.
+    if (!has_session || never_save || guest_session || active_slot.Multi()) return true;
+    carry_then = what;
+    carry_back = state;
+    slot_purpose = SLOT_CARRY;
+    SetState(GameState::SlotSelect);
+    return false;
+}
+
+void Game::CarryTo(SlotRef slot) {
+    const SlotRef from = active_slot;
+    if (!WriteSlot(slot)) {
+        // Still on the list: another slot, or Back.
+        PushToast("Could not write the save file.", {235, 120, 120, 255});
+        return;
+    }
+    // A different world has the slot now, and the friends its last one kept
+    // are not this one's.
+    SaveSystem::SetFriendsAside(slot);
+    active_slot = slot;
+    PushToast("This game saves to " + SaveSystem::Describe(slot) + " from now on.", Palette::Xp);
+    PushToast(SaveSystem::Describe(from, true) + " keeps it as it was.", Palette::TextDim);
+    const Together then = carry_then;
+    carry_then = Together::None;
+    switch (then) {
+        case Together::Host:
+            BackToMultiplayer();
+            OpenTheDoor();
+            break;
+        case Together::PlayerTwo:
+            JoinSplit();
+            ServeSeat(0);
+            SetState(GameState::Play);
+            break;
+        default:
+            SetState(carry_back);
+            break;
+    }
+}
+
 void Game::UpdateSlotSelect() {
+    // A new world in a multiplayer slot says how to have company in it --
+    // unless the door is already open and company is on its way.
+    const auto start_new = [&](SlotRef slot) {
+        NewGame(pending_character, slot);
+        if (has_session && slot.Multi() && !session.Hosting())
+            PushToast("A world to play together: open the door, or seat Player Two, from the pause menu.",
+                      Palette::TextDim, 6.0f);
+    };
+
     // Starting a new game on top of a save throws that save away, and the
     // slot list's cursor starts on slot 1 -- which is where the first game
     // always went. One Enter too many used to be enough to lose it.
     if (overwrite_slot >= 0) {
         if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-            const int slot = overwrite_slot;
+            const SlotRef slot{slot_tab, overwrite_slot};
             overwrite_slot = -1;
-            if (slot_purpose == 0) {
-                NewGame(pending_character, slot);
-            } else {
-                SaveGame(slot);
-                SetState(GameState::Play);
-            }
+            if (slot_purpose == SLOT_NEW)        start_new(slot);
+            else if (slot_purpose == SLOT_CARRY) CarryTo(slot);
+            else { SaveGame(slot); SetState(GameState::Play); }
         } else if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
             overwrite_slot = -1;
         }
         return;
     }
 
+    StepShelf();
     MoveCursor(cursor, SAVE_SLOTS);
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-        const int slot = cursor + 1;
-        // Anything in the slot at all is something to ask about -- a save that
-        // cannot be read included, which used to look like an empty slot.
-        if (slot_purpose == 0) {
-            if (SaveSystem::Occupied(slot)) overwrite_slot = slot;
-            else                            NewGame(pending_character, slot);
-        } else if (SaveSystem::Occupied(slot) && slot != active_slot) {
-            // Saving over your own slot is what saving is. Saving over
-            // somebody else's is a different character gone, and used to take
-            // one press where starting a new game there took two.
-            overwrite_slot = slot;
-        } else {
-            SaveGame(slot);
-            SetState(GameState::Play);
+        const SlotRef slot{slot_tab, cursor + 1};
+        switch (slot_purpose) {
+            case SLOT_NEW:
+                // Anything in the slot at all is something to ask about -- a
+                // save that cannot be read included, which used to look like
+                // an empty slot.
+                if (SaveSystem::Occupied(slot)) overwrite_slot = slot.number;
+                else                            start_new(slot);
+                break;
+            case SLOT_SAVE:
+                // Saving over your own slot is what saving is. Saving over
+                // somebody else's is a different character gone, and used to
+                // take one press where starting a new game there took two.
+                if (SaveSystem::Occupied(slot) && slot != active_slot) overwrite_slot = slot.number;
+                else { SaveGame(slot); SetState(GameState::Play); }
+                break;
+            case SLOT_CARRY:
+                if (SaveSystem::Occupied(slot)) overwrite_slot = slot.number;
+                else                            CarryTo(slot);
+                break;
+            case SLOT_HOST: {
+                // A world there is opened to friends as it loads; an empty
+                // slot is a new one, once the character select has said who.
+                const SaveSlotInfo info = SaveSystem::Peek(slot);
+                if (info.damaged) {
+                    PushToast("That save cannot be read. It has been left as it is.", kSlotBad);
+                } else if (info.exists) {
+                    if (LoadGame(slot) && !StartHosting(mp_port)) PushToast(mp_error, kSlotBad);
+                } else {
+                    pending_slot = slot;
+                    hosting_new = true;
+                    SetState(GameState::CharacterSelect);
+                }
+                break;
+            }
+        }
+        return;
+    }
+    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
+        switch (slot_purpose) {
+            case SLOT_NEW:  SetState(GameState::CharacterSelect); break;
+            case SLOT_SAVE: SetState(GameState::Paused); break;
+            case SLOT_HOST: BackToMultiplayer(); break;
+            case SLOT_CARRY:
+                // Not played together after all: back where it was asked.
+                carry_then = Together::None;
+                if (carry_back == GameState::Multiplayer) {
+                    BackToMultiplayer();
+                } else {
+                    SetState(carry_back);
+                    if (carry_back == GameState::Paused) cursor = 3;   // the Player Two row
+                }
+                break;
         }
     }
-    if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
-        SetState(slot_purpose == 0 ? GameState::CharacterSelect : GameState::Paused);
 }
 
 void Game::DrawSlotList(const SDL_FRect& area, const string& heading) {
@@ -247,14 +430,45 @@ void Game::DrawSlotList(const SDL_FRect& area, const string& heading) {
     ui.Text(heading, area.x + area.w / 2.0f, area.y + 18.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
-    const auto slots = SaveSystem::PeekAll();
+    // --- the shelves -------------------------------------------------------------
+    const bool locked = ShelfLocked();
+    {
+        const float tab_w = (area.w - 32.0f - 8.0f) / 2.0f;
+        for (int t = 0; t < 2; ++t) {
+            const SaveKind kind = t == 0 ? SaveKind::Single : SaveKind::Multi;
+            int used = 0;
+            for (int i = 1; i <= SAVE_SLOTS; ++i) used += SaveSystem::Occupied({kind, i}) ? 1 : 0;
+            const SDL_FRect tab = {area.x + 16.0f + t * (tab_w + 8.0f), area.y + 58.0f, tab_w, 34.0f};
+            const bool on = kind == slot_tab;
+            const bool shut = locked && !on;       // there, and not to be stepped to
+            ui.Fill(tab, on ? SDL_Color{70, 54, 30, 235} : SDL_Color{30, 24, 20, 200});
+            ui.Outline(tab, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
+            ui.Text(t == 0 ? "Single Player" : "Multiplayer", tab.x + 14.0f, tab.y + 7.0f, TextSize::Body,
+                    shut ? SDL_Color{110, 100, 90, 255} : (on ? Palette::Highlight : Palette::Text));
+            ui.Text(std::to_string(used) + " of " + std::to_string(SAVE_SLOTS), tab.x + tab.w - 12.0f,
+                    tab.y + 10.0f, TextSize::Small, shut ? SDL_Color{100, 92, 84, 255} : Palette::TextDim,
+                    Align::Right);
+        }
+    }
+
+    // --- the slots on it ---------------------------------------------------------
+    // Coming in from the side the shelf was stepped toward, one after another.
+    const auto slots = SaveSystem::PeekAll(slot_tab);
     const float row_h = 84.0f;
-    const float top = area.y + 66.0f;
+    const float top = area.y + 104.0f;
+    const float since = state_time - slot_tab_at;
+    const bool hosting_list = state == GameState::SlotSelect && slot_purpose == SLOT_HOST;
 
     for (int i = 0; i < SAVE_SLOTS; ++i) {
-        const SDL_FRect row = {area.x + 16.0f, top + i * (row_h + 10.0f),
-                               area.w - 32.0f, row_h};
+        float k = std::clamp((since - 0.04f * i) / 0.2f, 0.0f, 1.0f);
+        k = 1.0f - (1.0f - k) * (1.0f - k) * (1.0f - k);
+        const float slide = (1.0f - k) * 36.0f * slot_tab_dir;
+        const SDL_FRect row = {area.x + 16.0f + slide, top + i * (row_h + 10.0f), area.w - 32.0f, row_h};
         const bool selected = (i == cursor);
+        // The game being played, when it is on this shelf: saving over it is
+        // just saving.
+        const bool playing = has_session && !guest_session && !never_save &&
+                             active_slot == SlotRef{slot_tab, i + 1};
 
         ui.Fill(row, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
         ui.Outline(row, selected ? Palette::Highlight : Palette::BorderDim,
@@ -265,47 +479,66 @@ void Game::DrawSlotList(const SDL_FRect& area, const string& heading) {
                 TextSize::Body, selected ? Palette::Highlight : Palette::Text);
 
         if (s.damaged) {
-            ui.Text("Damaged", row.x + 120.0f, row.y + 12.0f, TextSize::Body, {235, 150, 120, 255});
+            ui.Text("Damaged", row.x + 120.0f, row.y + 12.0f, TextSize::Body, kSlotBad);
             ui.Text("There is a save here that cannot be read. It has not been touched.",
-                    row.x + 16.0f, row.y + 42.0f, TextSize::Small, {235, 150, 120, 255});
-            continue;
+                    row.x + 16.0f, row.y + 42.0f, TextSize::Small, kSlotBad);
+        } else if (!s.exists) {
+            ui.Text(hosting_list ? "Empty: a new world starts here" : "Empty",
+                    row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
+        } else {
+            ui.Text(s.map_name + (s.from_backup ? "  (backup)" : ""), row.x + 120.0f, row.y + 12.0f,
+                    TextSize::Body, s.from_backup ? SDL_Color{235, 200, 120, 255} : Palette::Text);
+            // Whose world it is, at a glance -- or that it is this one.
+            if (playing)
+                ui.Text("this game", row.x + row.w - 16.0f, row.y + 15.0f, TextSize::Small,
+                        Palette::Highlight, Align::Right);
+            else if (!s.played_with.empty())
+                ui.Text(WithWhom(s.played_with), row.x + row.w - 16.0f, row.y + 15.0f, TextSize::Small,
+                        {150, 190, 230, 255}, Align::Right);
+            char line[160];
+            SDL_snprintf(line, sizeof(line), "Combat %d    Total level %d    %s",
+                         s.combat_level, s.total_level,
+                         SaveSystem::FormatPlaytime(s.playtime).c_str());
+            ui.Text(line, row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
+            ui.Text(s.saved_at, row.x + row.w - 16.0f, row.y + 42.0f, TextSize::Small,
+                    Palette::TextDim, Align::Right);
         }
-        if (!s.exists) {
-            ui.Text("Empty", row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
-            continue;
-        }
-
-        ui.Text(s.map_name + (s.from_backup ? "  (backup)" : ""), row.x + 120.0f, row.y + 12.0f,
-                TextSize::Body, s.from_backup ? SDL_Color{235, 200, 120, 255} : Palette::Text);
-        char line[160];
-        SDL_snprintf(line, sizeof(line), "Combat %d    Total level %d    %s",
-                     s.combat_level, s.total_level,
-                     SaveSystem::FormatPlaytime(s.playtime).c_str());
-        ui.Text(line, row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
-        ui.Text(s.saved_at, row.x + row.w - 16.0f, row.y + 42.0f, TextSize::Small,
-                Palette::TextDim, Align::Right);
+        // Fading up with it: a veil of the panel over the row, thinning away.
+        if (k < 1.0f)
+            ui.Fill({row.x - 2.0f, row.y - 2.0f, row.w + 4.0f, row.h + 4.0f},
+                    {Palette::Panel.r, Palette::Panel.g, Palette::Panel.b, static_cast<Uint8>((1.0f - k) * 242.0f)});
     }
+
+    // --- what the shelf is for -----------------------------------------------------
+    ui.TextWrapped(ShelfNote(), area.x + 20.0f, top + SAVE_SLOTS * (row_h + 10.0f) + 2.0f, area.w - 40.0f,
+                   TextSize::Small, locked ? SDL_Color{235, 200, 120, 255} : Palette::TextDim);
 }
 
 void Game::DrawSlotSelect() {
-    const SDL_FRect area = CenteredPanel(ui, 560.0f, 400.0f);
-    DrawSlotList(area, slot_purpose == 0 ? "Start a new game in..." : "Save game to...");
-    ui.TextShadowed(input.PromptFor(Action::Confirm) + " confirm     " +
-                    input.PromptFor(Action::Back) + " back",
+    const SDL_FRect area = CenteredPanel(ui, 560.0f, 436.0f);
+    static const char* kHeadings[] = {"Start a new game in...", "Save game to...", "Play together in...",
+                                      "Host which world?"};
+    DrawSlotList(area, kHeadings[std::clamp(slot_purpose, 0, 3)]);
+    ui.TextShadowed(input.PromptFor(Action::Confirm) + (slot_purpose == SLOT_HOST ? " host" : " confirm") +
+                    (ShelfLocked() ? string() : string("     left / right single player or multiplayer")) +
+                    "     " + input.PromptFor(Action::Back) + " back",
                     ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
                     {186, 176, 158, 255}, Align::Center);
 
     if (overwrite_slot >= 0) {
         ui.Dim(0.6f);
-        const SDL_FRect box = CenteredPanel(ui, 440.0f, 150.0f);
+        const SDL_FRect box = CenteredPanel(ui, 500.0f, 150.0f);
         ui.Panel(box);
         const float cx = box.x + box.w / 2.0f;
-        ui.Text("Slot " + std::to_string(overwrite_slot) + " already holds a saved game.",
+        ui.Text(SaveSystem::Describe({slot_tab, overwrite_slot}, true) + " already holds a saved game.",
                 cx, box.y + 24.0f, TextSize::Body, Palette::Highlight, Align::Center);
-        ui.Text(slot_purpose == 0 ? "Starting over here will erase it."
-                                  : "It is not the one you are playing. Saving here will replace it.",
+        ui.Text(slot_purpose == SLOT_NEW   ? "Starting over here will erase it."
+                : slot_purpose == SLOT_CARRY ? "Carrying this game there will replace it."
+                                             : "It is not the one you are playing. Saving here will replace it.",
                 cx, box.y + 56.0f, TextSize::Small, Palette::Text, Align::Center);
-        ui.Text(input.PromptFor(Action::Confirm) + (slot_purpose == 0 ? " erase and start     " : " save over it     ") +
+        ui.Text(input.PromptFor(Action::Confirm) +
+                (slot_purpose == SLOT_NEW ? " erase and start     " : slot_purpose == SLOT_CARRY ? " replace it     "
+                                                                                                  : " save over it     ") +
                 input.PromptFor(Action::Back) + " keep it",
                 cx, box.y + box.h - 36.0f, TextSize::Small, Palette::TextDim, Align::Center);
     }
@@ -319,10 +552,10 @@ void Game::UpdateLoadMenu() {
     // Deleting asks first, on a panel of its own, the way starting over does.
     if (delete_slot >= 0) {
         if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-            const int slot = delete_slot;
+            const SlotRef slot{slot_tab, delete_slot};
             delete_slot = -1;
             if (SaveSystem::Delete(slot))
-                PushToast("Slot " + std::to_string(slot) + " deleted.", Palette::TextDim);
+                PushToast(SaveSystem::Describe(slot, true) + " deleted.", Palette::TextDim);
             else
                 PushToast("That slot could not be deleted.", {235, 120, 120, 255});
         } else if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
@@ -331,18 +564,21 @@ void Game::UpdateLoadMenu() {
         return;
     }
 
+    StepShelf();
     MoveCursor(cursor, SAVE_SLOTS);
+    const SlotRef slot{slot_tab, cursor + 1};
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
-        const SaveSlotInfo info = SaveSystem::Peek(cursor + 1);
-        if (info.damaged)      PushToast("That save cannot be read. It has been left as it is.", {235, 150, 120, 255});
-        else if (info.exists)  LoadGame(cursor + 1);
+        const SaveSlotInfo info = SaveSystem::Peek(slot);
+        if (info.damaged)      PushToast("That save cannot be read. It has been left as it is.", kSlotBad);
+        else if (info.exists)  LoadGame(slot);
         else                   PushToast("That slot is empty.", Palette::TextDim);
+        return;
     }
     // There was a function for deleting a slot and no way to reach it, so the
     // only way to make room for a fourth character was to write over a third.
     if (input.Pressed(Action::Drop)) {
-        if (SaveSystem::Occupied(cursor + 1)) delete_slot = cursor + 1;
+        if (SaveSystem::Occupied(slot)) delete_slot = slot.number;
         else PushToast("That slot is empty.", Palette::TextDim);
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause))
@@ -350,23 +586,25 @@ void Game::UpdateLoadMenu() {
 }
 
 void Game::DrawLoadMenu() {
-    const SDL_FRect area = CenteredPanel(ui, 560.0f, 400.0f);
+    const SDL_FRect area = CenteredPanel(ui, 560.0f, 436.0f);
     DrawSlotList(area, "Load game");
     ui.TextShadowed(input.PromptFor(Action::Confirm) + " load     " +
-                    input.PromptFor(Action::Drop) + " delete     " +
-                    input.PromptFor(Action::Back) + " back",
+                    input.PromptFor(Action::Drop) + " delete" +
+                    (ShelfLocked() ? string() : string("     left / right single player or multiplayer")) +
+                    "     " + input.PromptFor(Action::Back) + " back",
                     ui.ViewWidth() / 2.0f, area.y + area.h + 16.0f, TextSize::Small,
                     {186, 176, 158, 255}, Align::Center);
 
     if (delete_slot >= 0) {
         ui.Dim(0.6f);
-        const SDL_FRect box = CenteredPanel(ui, 440.0f, 150.0f);
+        const SDL_FRect box = CenteredPanel(ui, 500.0f, 150.0f);
         ui.Panel(box);
         const float cx = box.x + box.w / 2.0f;
-        ui.Text("Delete the save in slot " + std::to_string(delete_slot) + "?",
+        ui.Text("Delete the save in " + SaveSystem::Describe({slot_tab, delete_slot}) + "?",
                 cx, box.y + 24.0f, TextSize::Body, Palette::Highlight, Align::Center);
-        ui.Text("The character in it will be gone from this list.", cx, box.y + 56.0f, TextSize::Small,
-                Palette::Text, Align::Center);
+        ui.Text(slot_tab == SaveKind::Multi ? "The world in it will be gone from this list."
+                                            : "The character in it will be gone from this list.",
+                cx, box.y + 56.0f, TextSize::Small, Palette::Text, Align::Center);
         ui.Text(input.PromptFor(Action::Confirm) + " delete it     " +
                 input.PromptFor(Action::Back) + " keep it",
                 cx, box.y + box.h - 36.0f, TextSize::Small, Palette::TextDim, Align::Center);
@@ -894,9 +1132,14 @@ void Game::UpdatePaused() {
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         switch (cursor) {
             case 0: SetState(GameState::Play); break;
-            case 1: slot_purpose = 1; SetState(GameState::SlotSelect); break;
+            case 1: slot_purpose = SLOT_SAVE; SetState(GameState::SlotSelect); break;
             case 2: OpenMultiplayer(); break;
             case 3:
+                // A game on the single-player shelf is carried to a multiplayer
+                // slot before Player Two sits down in it -- if there is a
+                // controller for them to sit down with. Without one, JoinSplit
+                // says so.
+                if (!split_active && Input::ConnectedPads() > 0 && !PlayTogetherHere(Together::PlayerTwo)) break;
                 if (split_active) LeaveSplit(); else JoinSplit();
                 ServeSeat(0);
                 SetState(GameState::Play);

@@ -283,8 +283,12 @@ Co-op* plan, built milestone by milestone:
 
 **Play Together** is on the title screen and the pause menu.
 
-- **Host a world**: start or load your own game first, then host from the
-  pause menu -- whoever joins walks into that game. It listens on UDP 7777. The
+- **Host a world**: from the title screen it asks **which of your multiplayer
+  worlds** to open -- or an empty multiplayer slot, to start a new one -- and
+  the door opens as it loads. From the pause menu it opens the game you are
+  playing, and a single-player game is carried to a multiplayer slot first
+  (see [Multiplayer saves](#multiplayer-saves)). Whoever joins walks into that
+  game. It listens on UDP 7777. The
   screen says what your friends should type: this machine's name and its
   tailnet address (the `100.x.y.z` one). Windows Firewall asks once -- allow
   DreamQuest on **private networks**, which is what the Tailscale adapter is. A
@@ -302,7 +306,8 @@ Co-op* plan, built milestone by milestone:
   as a toast. **Name** is what friends see you as, remembered in
   `settings.json`.
 
-From a shortcut or a terminal: `DreamQuest.exe --host`,
+From a shortcut or a terminal: `DreamQuest.exe --host` (which asks which
+multiplayer world first, as Host a world does from the title),
 `DreamQuest.exe --join subzero:7777 --name Oona --password barley`.
 
 ### Split screen: two at one machine
@@ -310,7 +315,9 @@ From a shortcut or a terminal: `DreamQuest.exe --host`,
 **Esc, then *Player Two joins*.** The screen splits in two, side by side, and a
 second player plays on a controller: their own character, their own bag and
 journal, their own half of the screen. With two controllers plugged in,
-pressing **Start on the second one** does the same without the menu.
+pressing **Start on the second one** does the same without the menu. In a
+single-player game, either way first carries the game to a multiplayer slot
+(see [Multiplayer saves](#multiplayer-saves)).
 
 - **Who holds what.** With one controller, it is Player Two's and the keyboard
   is Player One's. With two, each has a controller and the keyboard stays with
@@ -348,6 +355,48 @@ the dream's stars and the HUD all ask how big the output is. It lives in
 controller and `--hold2 left 2 3.5` holds one of their buttons, for checking
 the halves without a second pair of hands.
 
+### Multiplayer saves
+
+**The worlds you play together are kept apart from the games you play
+alone.** Load Game, New Game's slot choice and Save Game each have two tabs,
+**Single Player** and **Multiplayer**, with three slots each. Left and right
+step between them -- or I and O, or the shoulders -- the way the waystone
+panel's tabs do. The multiplayer slots are files of their own, in
+`saves/multiplayer/`; the single-player ones are where the slots always were,
+so every save made before this is on the Single Player tab, as it was.
+
+- **A game saves back to the tab it came from**: the autosave, Save Game, and
+  quitting.
+- **A single-player game is never played together in its own slot.** The first
+  time the door opens on one (Host a world, from the pause menu) or Player Two
+  sits down in it, the slot list opens on the Multiplayer tab -- *Play together
+  in...* -- and the game is carried there: saved to that slot, and saving
+  there from then on. Its single-player save stays exactly as it was when you
+  asked. Back, and nobody is let in.
+- **While a game is being played together** -- the door open, or Player Two
+  seated -- Save Game is held to the Multiplayer tab. So are Load Game, New
+  Game and Continue while the door is open with no game behind it (quitting to
+  the title while hosting leaves friends waiting in the lobby): whatever they
+  walk into next has to be a world played together.
+- **Saving to the other tab moves the game there**, as saving to another slot
+  always did. That is how a single-player game is carried by hand, and how a
+  multiplayer world, with nobody else in it, becomes one you go on with alone.
+- **A multiplayer slot says who else has played in it** -- *with Oona and
+  Player Two* -- from whoever was in the world each time it was saved, newest
+  first (`played_with` in the save).
+- **Each multiplayer world keeps its own friends.** The copy the host keeps of
+  a friend's character, and the spot they were standing on, is in that world's
+  `saves/multiplayer/slotN.friends/`, so a friend coming back is put where they
+  left off in *this* world rather than the last one loaded. A new game started
+  over a multiplayer slot, a game carried or saved into one, and deleting one
+  put the old folder aside as `slotN.friends.deleted`. The single-player slots,
+  which nobody plays together in now, keep the folder everyone used to share,
+  `saves/characters/kept/`.
+- **Continue** goes on with the newest save on either tab and, once both tabs
+  have saves, says which.
+- Player Two's character and a guest's are still their own, and go from world
+  to world with them in `saves/characters/`.
+
 ### What is shared, and what is yours
 
 - **The world is the host's**, and only the host rolls dice over it: monsters
@@ -375,8 +424,8 @@ the halves without a second pair of hands.
   the spot where you left off -- not beside the host. If the line drops mid-fight
   your character stands where it was, out of the fight and unhurt, for thirty
   seconds in case you come straight back. The host also keeps a copy of every
-  friend's character as it last saw it, under `saves/characters/kept/`, in case
-  their own machine loses theirs. A world made with `bring_your_own: false` in
+  friend's character as it last saw it, in the world's own
+  `saves/multiplayer/slotN.friends/`, in case their own machine loses theirs. A world made with `bring_your_own: false` in
   `settings.json` (or `--start-here` on the server) keeps its own characters:
   one made there stays there, in `<name>@<world>.json`.
 - **Splitting up.** Every map someone is on keeps running, on the host; a door
@@ -5023,6 +5072,73 @@ dozens of them and they come back every morning, so they are listed only while
 one is actually taken. A list longer than nine rows scrolls with the cursor and
 says where you are in it.
 
+### Choosing a reward
+
+**A quest can offer a choice of rewards** -- a sword, a bow or a staff, so each
+way of fighting has its own -- as well as what it simply pays. When it
+completes, what it pays is paid as it always was, and a **Choose your reward**
+panel opens with a card for each option:
+- its way of fighting, in that way's colour (the character select's orange,
+  green and violet);
+- what it holds, with icons;
+- the numbers of the first thing in it that can be worn, against what is worn now.
+
+The card for the character's own affinity says *your affinity* and is lit
+first. Left and right pick, and confirm takes it. A moment passes before
+confirm counts, so a quest finished mid-fight is not answered by a hand still on
+the attack button.
+
+**Back puts it off.** The choice is kept in the save:
+- The journal marks the quest *reward!* in gold, and confirm on it there asks again.
+- A game loaded with one waiting says so.
+- Two quests finishing in one moment are asked about in turn.
+- A daily done again before its last pick was made owes both.
+
+The board and the journal show a quest's choices before it is taken, and the
+journal says which was taken afterwards. Player Two, and a friend in your world,
+each choose their own.
+
+Two quests offer one now, where each used to hand over a single weapon:
+- **Trouble on the Road**: an iron sword, an iron bow or an iron staff.
+- **Trail Wardens**: the wooden tier's sword, shortbow or staff.
+
+**Writing one** in `data/quests.json`: `"choices"` goes in `"rewards"`, beside
+`"xp"`, `"coins"` and `"items"`, which are still paid whatever is chosen:
+
+```json
+"rewards": {
+ "xp": {"Attack": 900},
+ "coins": 340,
+ "choices": [
+  {"style": "melee",  "id": "iron_sword"},
+  {"style": "ranged", "id": "iron_bow"},
+  {"style": "magic",  "label": "A caster's kit",
+   "items": [{"id": "iron_staff"}, {"id": "healing_draught", "qty": 3}],
+   "xp": {"Magic": 200}, "coins": 50}
+ ]
+}
+```
+
+| Key | What it is |
+| --- | --- |
+| `style` | `"melee"`, `"ranged"` or `"magic"`: whose option it is, which sets its colour and which card is lit first. Left out, it is read from the first weapon, or piece of armour, in the option. Any other word is logged and ignored |
+| `id`, `qty` | an option that is one thing |
+| `items` | an option that is several things, written like the quest's own `"items"` |
+| `coins`, `xp` | as in the quest's own rewards |
+| `label` | what the card is called; left out, it is the style (*Melee*), or else the first thing's name |
+
+`--finish q_orc_trouble` (with `--scratch`) takes a quest and does every stage
+of it at once, so what it pays, and its choice, arrive as play begins. It is
+meant for looking at the panel.
+
+The whole of the chosen option is given. The self-test holds every quest in the
+file to these rules:
+- more than one option;
+- each option gives something;
+- every item in it is real;
+- an option marked for a style hands over something for that style, wherever
+  what it hands over says.
+
 ### The Drowned King
 
 The barrow's second chamber, and the one **legendary** item in the game. Once
@@ -5358,6 +5474,92 @@ Two smaller changes came with them. A kill stage can name a boss by its own id
 Mother counts for Hale as herself and for Sela as one of the eight bears. And a
 found thing is kept in the bag only while its quest wants it -- once that is
 over it is a keepsake, and can be dropped or stowed like anything else.
+
+### Oona's poppet, and the witch's tables
+
+**The reed doll does not end with the Mother of the Fen.** Kill her, and *What
+the Doll Was For* begins at once:
+
+1. **Take the doll to Oona the Herbalist in Mossvale.** She tells what such
+   dolls were for in the Salem times, when accusers dug poppets out of cellar
+   walls and hanged women over a few rags and pins. She also tells what they
+   were really for: a poppet was never for hurting anyone. It was a purse. You
+   fed it at a witch's table, one hunger at a time, and when it was full it
+   paid back everything it had eaten. She binds the doll again in new red
+   thread, five turns and five knots. It is a **Poppet Idol (0/5)** now.
+2. **Lay the poppet on a witch's table in the Bayou.** There are three, left out
+   on open ground by the hags: one in the west, one in the middle, one in the
+   east, each beside a track.
+3. **Complete 3 waves of enemies to complete the ritual.** The candles light
+   themselves, and **a ring of fire comes up out of the mud** round the table.
+   Nothing crosses it, in or out, while it burns. Then the fen comes for the
+   poppet through the flames, one creature every 0.8 seconds from all round the
+   ring, **ten to a wave**:
+   - first its small things: the matriarch's own lizardfolk, rot shamblers
+     and mire croakers;
+   - then its hunters: fen stalkers and shamblers, with a hag and a shaman
+     throwing from the back;
+   - then **the Mother of the Fen herself**, called back through her doll, at
+     the head of nine more.
+
+   Most of each wave comes in to close quarters, and only two or three stand
+   off and throw: a ring is a place to be swarmed in, not shot at.
+
+   A line under the attack line says which wave it is. Hold the ring until the
+   last is down, and the fire sinks into the mud and the poppet comes back
+   with a knot tightened: **Poppet Idol (1/5)**.
+
+*Five Knots* follows. **One ritual a day** (a day's `poppet_day:<day>` flag), at
+any table, until all five knots are tight. Then bring the poppet to Oona. She
+cuts it open, and what it has eaten pays out a choice (see [Choosing a
+reward](#choosing-a-reward)) of one of three weapons, found nowhere else:
+
+| | What it is | Its gift |
+| --- | --- | --- |
+| **The Hexpin** (Attack 45) | a black blade no wider than a poppet's pin, red thread up the grip: 74 Attack, 112 Strength | one cut in three leaves a wound bleeding |
+| **Thornwife's Bow** (Ranged 45) | black fen thorn, strung with the Mother's red thread: 150 Ranged | one arrow in three goes in poisoned |
+| **The Poppet Staff** (Magic 45) | a staff crowned with a little poppet of its own: 150 Magic, every element's four spells | spells cost a fifth less, and turn after their mark |
+
+**When a ritual breaks.** If the poppet's owner falls or leaves the map, the
+fire gutters out and whatever the fen sent goes back into it. The waves the
+ritual had got through are taken back, so the quest reads (0/3) again. The
+poppet is only cold: it gains no knot, loses nothing, and the day is not spent.
+Lay it down again.
+
+**The poppet never leaves the bag.** What lies on the table is drawn there.
+A knot is added by changing which of the six poppets
+(`poppet_idol` to `poppet_idol_5`) is in the bag, so a save made in the middle
+of a ritual, a death or a dropped line can never lose it.
+
+**Together.** The host runs the ritual. A friend's window is told the ring as a
+patch of its own (`PatchState::RING`, protocol 19), draws it, and is held to it
+as the host is. The monsters it sees are the map's own posts, posed from the
+host like any others. The ritual is its owner's: its waves, its knot and its
+day's flag go to whoever laid the poppet. The tables answer one ritual at a
+time on a map.
+
+How it is built:
+- **The ritual** is `World::Ritual`, in `src/world/world_ritual.cpp`.
+- **The ring** is `Map::SetRing`: a property of the movement, like a change of
+  level. Every step through `MoveWithCollision` is held to it, and so are a
+  jump and a blink.
+- **The monsters** are thirty ordinary posts in `bayou.mx` marked with
+  `"ritual"` and a `"wave"`, written after every other post (so none of those
+  changes its number). They lie still at the first table until a ritual puts
+  them round the one that was lit.
+- **The quests** use three new fields:
+  - `"then"`: the quest that begins when this one ends. A save that finished
+    the first before the second existed is given the second as it loads.
+  - `"start"` on a stage: where its count begins, so *Five Knots* reads (1/5)
+    from the ritual that began it.
+  - `"where"` on a stage: what its waypoint points at when the target is
+    something that happens, not something that stands somewhere. The waves
+    point at the witch's tables.
+- **The icons** are made by `tools/make_poppet_icons.py`, and the table by
+  `prop_witch_table` in `tools/blender_props.py`.
+
+To look at one: `--scratch warden --level 45 --map bayou --at 496 1440 --bag
+poppet_idol`, then E at the table.
 
 ---
 
@@ -7264,8 +7466,9 @@ To rebuild the world from scratch: `.\build.ps1 -Maps`.
 
 ## Saving
 
-Three slots, plus an autosave every two minutes and one on quitting to the main
-menu. A save records the map, your exact position and facing, HP, every skill's
+Three slots for the games played alone and three for the worlds played
+together (see [Multiplayer saves](#multiplayer-saves)), plus an autosave every
+two minutes and one on quitting to the main menu. A save records the map, your exact position and facing, HP, every skill's
 XP, inventory, worn equipment, quest progress, and the one-shot world flags —
 which chests you have opened, which notes you have read, and what you have
 learned to brew and to enchant — plus the day and the hour, where your camp is
@@ -7286,12 +7489,34 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **64703 checks** covering:
+and checks all of it — currently **70372 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
 - every quest objective, prerequisite and reward resolves, and every quest has
-  a giver somewhere in the world
+  a giver somewhere in the world; a choice of rewards has more than one option,
+  each giving something real, and one marked for a way of fighting hands over
+  something for it
+- reward choices: an option can be one thing, a list, coins or experience;
+  whose it is is read from its weapon or armour when it does not say; a quest
+  with choices owes one pick each time it is done, kept in the save until it is
+  taken, and taking it hands that option over once; a daily done again owes
+  both; a quest without choices owes nothing; and Trouble on the Road and
+  Trail Wardens offer a weapon of one tier for each way of fighting
+- Oona's poppet: the doll's quest leads straight on to Oona's, whose stages
+  are the doll to her, the poppet on a witch's table and 'Complete 3 waves of
+  enemies to complete the ritual', and then to five rituals from the first;
+  six poppets, each kept and saying its count; three weapons for the three
+  ways of fighting, to be had nowhere else; Oona tells the Salem story and
+  binds the doll; three tables in the Bayou, each ring dry open ground; three
+  waves of ten written after every other post, the third led by the Mother of
+  the Fen, and never pointed at by a waypoint; a ritual played: the ring
+  holds either way, the first wave counts, the owner falling breaks it (waves
+  taken back, no knot, no day spent, the fen's monsters gone), then whole it
+  gives a knot, completes the quest and begins the next at (1/5), once a day,
+  five days to a full poppet, Oona's hand-in owes a choice of weapons, and
+  leaving the map puts a ritual out; a friend's window burns and is held to
+  the ring it is told of, and the ring crosses the wire
 - the dialogue graph is fully connected
 - no NPC offers a quest that is not yet available, and every Talk and Deliver
   stage has a hand-in option reachable from that NPC, shown only while the quest
@@ -7812,7 +8037,16 @@ and checks all of it — currently **64703 checks** covering:
   out of the fight, and the host keeps a copy of her character and her place;
   coming back she is put where she left off, not beside the host, and the
   stand-in goes; if she does not come back it is let go when the grace is up,
-  as is a map nobody is on after a minute
+  as is a map nobody is on after a minute; and when the host loads another
+  world, with its own friends' folder, she arrives beside him rather than
+  where she stood in the last one
+- the two shelves of saves: a multiplayer slot is a file of its own in
+  `multiplayer/`, and a single-player one is where slots always were; saving
+  to either leaves the other's slot of the same number alone; each list is its
+  own three; a world played together remembers who with; a multiplayer save
+  loads; each multiplayer world keeps its friends in a folder of its own, put
+  aside with the slot when it is deleted, and the single-player folder is never
+  put aside
 - co-op M2 to M5, out on the road: a world with a password turns away whoever
   does not have it; the host's copy of her has her levels; the host's boar is
   in her window where the host has it, goes for her who is nearest, and

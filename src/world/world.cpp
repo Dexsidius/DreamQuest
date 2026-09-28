@@ -25,9 +25,14 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
         SDL_Log("World: invalid destination '%s': %s", id.c_str(), e.what());
         return false;
     }
+    // A ritual the world's own player lit ends as they go; a friend's goes on
+    // with the map, in the world of its own it is left in (see HandOver).
+    if (ritual.active && ritual.owner_host && !visiting) EndRitual(false, ctx);
     // Friends on the map being left stay on it, in a world of their own.
     if (before_unload && map.Loaded()) before_unload(*this);
     map = std::move(arriving);
+    ritual = Ritual{};
+    ring_heard = RingHeard{};
 
     map_id = id;
     // Remembered, so dialogue can know where the player has been.
@@ -299,6 +304,9 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
         if (stats->is_boss && SlainToday(map_id, e->post)) e->LieDead();
         // A night visitor by day, or on a night that is not one of its own.
         if (e->night && !Abroad(*e)) e->LieDead();
+        // A ritual's: nobody's until a witch table calls it, and not back
+        // by itself once it is down. See World::Ritual.
+        if (!def.ritual.empty()) e->LieDead();
         enemies.push_back(std::move(e));
     }
 
@@ -439,6 +447,12 @@ void World::HandOver(World& to) {
         to.map_id = map_id;
         to.camera.SetBounds(to.map.Width(), to.map.Height());
     }
+    // A friend's ritual goes on with the map, ring and all.
+    if (ritual.active) {
+        to.ritual = ritual;
+        to.map.SetRing(ritual.x, ritual.y, ritual.radius);
+    }
+    ritual = Ritual{};
     to.enemies = std::move(enemies);
     to.npcs = std::move(npcs);
     to.pickups = std::move(pickups);
@@ -1044,6 +1058,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         UpdateNodes(dt, ctx);
         ShedFromShots();
         ShedFromGround(dt);
+        ShedFromRing(dt);
         ShedFromStatuses(dt);
         UpdateMotes(dt);
         UpdateScreenFx(dt);
@@ -1139,6 +1154,9 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
 
     for (auto& n : npcs) n->Update(dt, *this, ctx);
 
+    // A witch table's ritual, after the monsters it called have had their turn.
+    UpdateRitual(dt, ctx);
+
     UpdateProjectiles(dt, ctx);
     UpdateGroundEffects(dt, ctx);
     ForgetSpentCasts();
@@ -1146,6 +1164,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
     UpdateDust(dt);
     ShedFromShots();
     ShedFromGround(dt);
+    ShedFromRing(dt);
     ShedFromStatuses(dt);
     UpdateMotes(dt);
     UpdateScreenFx(dt);

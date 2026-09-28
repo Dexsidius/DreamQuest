@@ -83,6 +83,8 @@ int Game::Start(int argc, char** argv) {
             never_save = true;
         } else if (arg == "--quest" && more) {
             launch_quests = argv[++i];
+        } else if (arg == "--finish" && more) {
+            launch_finish = argv[++i];
         } else if (arg == "--screen" && more) {
             launch_screen = argv[++i];
         } else if (arg == "--learn" && more) {
@@ -367,6 +369,35 @@ int Game::Start(int argc, char** argv) {
                 }
                 quests->TakeJustStarted();
             }
+            // --finish a,b: taken and done, every stage of them, so what they
+            // pay -- and any choice of rewards they offer -- is handed over as
+            // play begins. For looking at the reward panel.
+            if (!launch_finish.empty()) {
+                Inventory& bag = world->player.inventory;
+                size_t from = 0;
+                while (from <= launch_finish.size()) {
+                    const size_t comma = launch_finish.find(',', from);
+                    const string id = launch_finish.substr(from, comma == string::npos ? string::npos : comma - from);
+                    if (const QuestDef* d = quests->Definition(id); d && quests->Start(id))
+                        for (const QuestStage& st : d->stages) {
+                            if (st.type == ObjectiveType::Collect) {
+                                bag.Add(st.target, st.count);
+                                quests->RefreshCollectObjectives(bag);
+                                continue;
+                            }
+                            QuestEvent e;
+                            e.type = st.type;
+                            e.target = st.target;
+                            e.secondary = st.deliver_to;
+                            e.amount = st.count;
+                            e.map_id = st.map_id;
+                            quests->Notify(e, bag);
+                        }
+                    if (comma == string::npos) break;
+                    from = comma + 1;
+                }
+                quests->TakeJustStarted();
+            }
             // Any panel, for looking at: "shop:<id>", "craft:<station>",
             // "orders:<npc>", "board:<object id>" and "tree" take what they open.
             {
@@ -417,7 +448,10 @@ int Game::Start(int argc, char** argv) {
                                                 storage_cursor = storage_bag_cursor = 0; storage_on_chest = false; OpenPanel(GameState::Storage); }
                 else if (what == "orders")    OpenOrders(arg, arg);
                 else if (what == "character") SetState(GameState::CharacterSelect);
-                else if (what == "load")      SetState(GameState::LoadMenu);
+                else if (what == "load")      { SetState(GameState::LoadMenu);
+                                                if (arg == "multi") slot_tab = SaveKind::Multi; }
+                else if (what == "save")      { slot_purpose = SLOT_SAVE; SetState(GameState::SlotSelect);
+                                                if (arg == "multi") slot_tab = SaveKind::Multi; }
                 else if (what == "together")  OpenMultiplayer();
             }
         }
@@ -425,12 +459,33 @@ int Game::Start(int argc, char** argv) {
     input_two.SetDevices(false, -1, true);
     LayoutViews();
     if (launch_p2 && has_session) JoinSplit(true);
-    if (launch_host || !launch_join.empty()) {
+    if (launch_host && !has_session) {
+        // The door opens on a world, and which one is asked first -- the
+        // multiplayer list, the way Host a world asks it from the title.
+        OpenMultiplayer();
+        ChooseWorldToHost();
+    } else if (launch_host || !launch_join.empty()) {
         if (launch_host) StartHosting(mp_port);
         else { mp_address = launch_join; StartJoining(launch_join); }
         // A host already in a world stays in it; everyone else lands on the
         // Play Together screen, where whatever goes wrong can be read.
         if (!has_session) OpenMultiplayer();
+    }
+    // The front end's screens, for looking at without a game running:
+    // "load" (":multi" on the multiplayer shelf), "host", "together".
+    if (!has_session && !launch_screen.empty()) {
+        const size_t colon = launch_screen.find(':');
+        const string what = launch_screen.substr(0, colon);
+        const string arg = colon == string::npos ? string() : launch_screen.substr(colon + 1);
+        if (what == "load") {
+            SetState(GameState::LoadMenu);
+            if (arg == "multi") slot_tab = SaveKind::Multi;
+        } else if (what == "host") {
+            OpenMultiplayer();
+            ChooseWorldToHost();
+        } else if (what == "together") {
+            OpenMultiplayer();
+        }
     }
     return 1;
 }
@@ -490,7 +545,7 @@ void Game::ApplySettings() {
 //  Session lifecycle
 // -----------------------------------------------------------------------------
 
-void Game::NewGame(const string& character, int slot) {
+void Game::NewGame(const string& character, SlotRef slot) {
     banner_active = false;
     banner_time = 0.0f;
     banner_zone.clear();
@@ -537,6 +592,11 @@ void Game::NewGame(const string& character, int slot) {
     active_slot = slot;
     playtime = 0.0f;
     autosave_timer = 0.0f;
+    // A new world, in a slot another may have been in: nobody has played in
+    // it yet, and friends the last one kept are no guide to where to stand.
+    played_with.clear();
+    coop_host.ForgetPlaces();
+    if (!never_save) SaveSystem::SetFriendsAside(slot);
 
     if (!world->LoadMap("overworld", "start", ctx)) {
         SDL_Log("DreamQuest: could not load the starting map");
@@ -553,7 +613,7 @@ void Game::NewGame(const string& character, int slot) {
     welcome_pending = true;
 }
 
-bool Game::LoadGame(int slot) {
+bool Game::LoadGame(SlotRef slot) {
     banner_active = false;
     banner_time = 0.0f;
     banner_zone.clear();
@@ -564,9 +624,12 @@ bool Game::LoadGame(int slot) {
         return false;
     }
     if (from_backup)
-        PushToast("Slot " + std::to_string(slot) + " could not be read. This is the save before it.",
+        PushToast(SaveSystem::Describe(slot, true) + " could not be read. This is the save before it.",
                   {235, 200, 120, 255});
     active_slot = slot;
+    played_with = SaveSystem::Peek(slot).played_with;
+    // Where friends stood is this world's to say, from its own folder.
+    coop_host.ForgetPlaces();
     autosave_timer = 0.0f;
     has_session = true;
     quests->SetDay(world->clock.QuestDay());
@@ -574,6 +637,10 @@ bool Game::LoadGame(int slot) {
     quest_day_seen = world->clock.QuestDay();
     SetState(GameState::Play);
     PushToast("Welcome back.", Palette::Highlight);
+    // A reward that was put off is still waiting to be chosen.
+    if (!quests->WithChoicesOwed().empty())
+        PushToast("A quest reward is waiting to be chosen: " + input.PromptFor(Action::QuestLog) + " for the journal.",
+                  Palette::Xp, 6.0f);
 
     // A character from before gathering needed tools has none, and could not
     // chop the logs to make an axe with. Hand them the basic set, once.
@@ -599,10 +666,11 @@ void Game::SaveOnTheWayOut() {
     // the last autosave stands for them.
     if (!has_session || never_save || guest_session) return;
     if (home_world.player.IsDead()) return;
-    if (WriteSlot(active_slot)) SDL_Log("DreamQuest: saved slot %d on the way out", active_slot);
+    if (WriteSlot(active_slot))
+        SDL_Log("DreamQuest: saved %s on the way out", SaveSystem::Describe(active_slot).c_str());
 }
 
-bool Game::SaveGame(int slot) {
+bool Game::SaveGame(SlotRef slot) {
     if (!has_session) return false;
     if (never_save) return false;
     if (guest_session) {
@@ -611,8 +679,11 @@ bool Game::SaveGame(int slot) {
         return true;
     }
     if (WriteSlot(slot)) {
+        // Saved somewhere new, this world has taken that slot from whatever
+        // was in it, friends and all.
+        if (slot != active_slot) SaveSystem::SetFriendsAside(slot);
         active_slot = slot;
-        PushToast("Game saved to slot " + std::to_string(slot) + ".", Palette::Xp);
+        PushToast("Game saved to " + SaveSystem::Describe(slot) + ".", Palette::Xp);
         return true;
     }
     PushToast("Could not write the save file.", {235, 120, 120, 255});
@@ -638,6 +709,7 @@ void Game::SetState(GameState s) {
     // What a panel puts back as it opens. The panels' own "state_time <= 0"
     // never sees its first frame -- Update adds the frame's time before it
     // asks the panel -- so it is done here, where every change of state passes.
+    const bool entering = s != state;
     if (s != state) {
         if (s == GameState::SkillsPanel) {
             skills_page_at = 0.0f;                 // the cards come in
@@ -653,6 +725,13 @@ void Game::SetState(GameState s) {
     state = s;
     state_time = 0.0f;
     cursor = back_to_menu ? main_menu_cursor : 0;
+    // The slot lists open on a shelf of their own choosing: see OpeningShelf.
+    // After the state has changed, since which it is depends on the list.
+    if (entering && (s == GameState::SlotSelect || s == GameState::LoadMenu)) {
+        slot_tab = OpeningShelf();
+        slot_tab_at = -10.0f;
+        overwrite_slot = delete_slot = -1;
+    }
     // The player only steers during actual gameplay.
     world->player.input_locked = (s != GameState::Play);
 }
@@ -685,6 +764,7 @@ bool Game::InGameplayState() const {
         case GameState::Enchanting:
         case GameState::Shop:
         case GameState::Storage:
+        case GameState::RewardChoice:
         case GameState::Death:
             return true;
         default:
@@ -797,11 +877,13 @@ void Game::Process(float dt) {
                 break;
 
             case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-                // Start, on a controller that is nobody's yet: Player Two sits down.
+                // Start, on a controller that is nobody's yet: Player Two sits
+                // down -- once a game on the single-player shelf has been
+                // carried to a multiplayer slot.
                 if (event.gbutton.button == SDL_GAMEPAD_BUTTON_START && !split_active && state == GameState::Play &&
                     has_session && !guest_session && Input::ConnectedPads() >= 2 &&
                     event.gbutton.which != input.PadId()) {
-                    JoinSplit();
+                    if (PlayTogetherHere(Together::PlayerTwo)) JoinSplit();
                     break;
                 }
                 input.HandleEvent(event);
@@ -891,6 +973,7 @@ void Game::Update(float dt) {
         case GameState::Enchanting:      UpdateEnchanting(); break;
         case GameState::Shop:            UpdateShop(); break;
         case GameState::Storage:         UpdateStorage(); break;
+        case GameState::RewardChoice:    UpdateRewardChoice(); break;
         case GameState::Death:           UpdateDeath(dt); break;
     }
 
@@ -1071,12 +1154,13 @@ void Game::UpdatePlay(float dt) {
     }
 }
 
-bool Game::WriteSlot(int slot) {
+bool Game::WriteSlot(SlotRef slot) {
     // The slot is Player One's and the home world's, whoever pressed save: a
     // panel of Player Two's has `world` and `quests` pointing at theirs.
     const int was = serving;
     ServeSeat(0);
-    const bool ok = SaveSystem::Save(slot, home_world, own_quests, playtime);
+    NoteCompany();
+    const bool ok = SaveSystem::Save(slot, home_world, own_quests, playtime, played_with);
     SavePlayerTwo();
     ServeSeat(was);
     return ok;
@@ -1392,26 +1476,31 @@ DialogueContext Game::MakeDialogueContext() const {
     return c;
 }
 
-void Game::GrantQuestRewards(const string& quest_id) {
-    const QuestDef* d = quests->Definition(quest_id);
-    if (!d) return;
-
+void Game::GiveRewards(const map<int, int>& xp, const vector<pair<string, int>>& things, int coins) {
     Player& p = world->player;
-
-    for (const auto& xp : d->rewards.xp) p.GrantXp(xp.first, xp.second);
-    if (d->rewards.coins > 0) p.inventory.AddCoins(d->rewards.coins);
-
-    for (const auto& item : d->rewards.items) {
+    for (const auto& x : xp) p.GrantXp(x.first, x.second);
+    if (coins > 0) p.inventory.AddCoins(coins);
+    for (const auto& item : things) {
         const int added = p.inventory.Add(item.first, item.second);
         if (added < item.second) {
             // No room: drop it at the player's feet rather than losing it.
             world->DropItem(item.first, item.second - added, p.x, p.y + 6.0f, ctx);
         }
     }
+}
+
+void Game::GrantQuestRewards(const string& quest_id) {
+    const QuestDef* d = quests->Definition(quest_id);
+    if (!d) return;
+
+    GiveRewards(d->rewards.xp, d->rewards.items, d->rewards.coins);
 
     PushToast("Quest complete: " + d->name, Palette::Highlight);
     Audio::Play(Sfx::QuestComplete);
-    quests->RefreshCollectObjectives(p.inventory);
+    quests->RefreshCollectObjectives(world->player.inventory);
+    // And one of its choices, which is the player's to pick: asked now, and
+    // kept waiting in the journal if it is put off.
+    if (quests->ChoicesOwed(quest_id) > 0) AskRewardChoice(quest_id);
 }
 
 // -----------------------------------------------------------------------------
@@ -1623,6 +1712,7 @@ void Game::RunAudit() {
             {"tanning",        GameState::Crafting,        [&] { craft_title = "Tanning Rack"; craft_station = CraftStation::Rack; craft_cursor = 0; }},
             {"enchanting",     GameState::Enchanting,      [&] { craft_title = "Enchanting table"; enchant_cursor = 0; }},
             {"storage",        GameState::Storage,         [&] { storage_id = "audit"; storage_title = "Storage chest"; storage_slots = 100; }},
+            {"reward",         GameState::RewardChoice,    [&] { reward_quest = "q_orc_trouble"; reward_cursor = 0; reward_opened_at = -10.0f; }},
             {"shop",           GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 0; shop_cursor = 0; }},
             {"shop sell",      GameState::Shop,            [&] { shop_id = "havenbrook_general"; shop_tab = 1; shop_cursor = 0; }},
             // A shelf with gear on it, so the stat block under a shop's
@@ -1689,6 +1779,7 @@ void Game::RunAudit() {
             else if (name == "options")   { target = &cursor_row; steps = 12; }
             else if (name == "character") { target = &cursor_row; steps = 3; }
             else if (name == "storage")   { target = &storage_bag_cursor; steps = p.inventory.SlotCount(); }
+            else if (name == "reward")    { target = &reward_cursor; steps = 3; }
 
             for (int step = 0; step < steps; ++step) {
                 if (target) *target = step;
@@ -1838,6 +1929,7 @@ void Game::Render() {
         case GameState::Enchanting:      DrawEnchanting(); break;
         case GameState::Shop:            DrawShop(); break;
         case GameState::Storage:         DrawStorage(); break;
+        case GameState::RewardChoice:    DrawRewardChoice(); break;
         case GameState::Death:           DrawDeath(); break;
         case GameState::Play:            break;
     }

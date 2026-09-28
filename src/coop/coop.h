@@ -91,6 +91,10 @@ public:
     // copy, in case their own machine loses the first. Tests point it away
     // from saves/.
     string kept_dir = "saves/characters/kept";
+    // Another world loaded or begun: where friends were standing in the last
+    // one is no guide to this one. Where they stood in this one is read again
+    // from its kept copies as they arrive.
+    void ForgetPlaces() { last_place.clear(); }
     // The map a friend arrives on when there is no host to arrive beside.
     string start_map = "town_havenbrook";
 

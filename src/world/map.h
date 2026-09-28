@@ -127,6 +127,12 @@ struct EnemySpawnDef {
     // pool of bosses of every natural strength all come out close to it. 0
     // means the written level stands. See Enemy::LevelToShow.
     int    shown = 0;
+    // A post that is nobody's until a ritual calls it: which pool of a map's
+    // ritual posts it belongs to, and in which of the ritual's waves it comes.
+    // It lies still until then, anywhere on the map -- the ritual puts it where
+    // it is wanted -- and does not come back by itself. See World::Ritual.
+    string ritual;
+    int    wave = 0;
 };
 
 // Somewhere a walking villager stops, and for how long.
@@ -333,6 +339,21 @@ public:
     // that no ramp covers -- which is what makes a cliff impassable.
     bool  LevelChangeBlocked(float from_x, float from_y,
                              float to_x, float to_y) const;
+
+    // --- a ring nothing crosses ------------------------------------------------------
+    // A ritual's ring of fire (see World::Ritual): while it burns, whatever
+    // is inside it stays in and whatever is outside stays out. Like a change
+    // of level it is a property of the movement rather than of the ground --
+    // standing in the flames is nothing; crossing them is what is refused --
+    // and every step taken through MoveWithCollision is held to it.
+    void  SetRing(float x, float y, float radius) { ring_on = true; ring_x = x; ring_y = y; ring_r = radius; }
+    void  ClearRing() { ring_on = false; }
+    bool  RingUp() const { return ring_on; }
+    SDL_FPoint RingCentre() const { return {ring_x, ring_y}; }
+    float RingRadius() const { return ring_r; }
+    bool  InsideRing(float x, float y) const;
+    // True when a step between the two points passes through the ring.
+    bool  RingCrossed(float from_x, float from_y, float to_x, float to_y) const;
     // Draws the exposed faces of every raised cell the camera can see. Called
     // between the ground and everything that stands on it.
     void  RenderCliffs(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const;
@@ -402,6 +423,9 @@ private:
     // colliders serves both questions.
     vector<uint8_t>      collider_water;
     int                  water_count = 0;
+    // The ring of fire, while one burns: see SetRing.
+    bool  ring_on = false;
+    float ring_x = 0.0f, ring_y = 0.0f, ring_r = 0.0f;
 
     vector<Portal>        portals;
     vector<Hazard>        hazards;

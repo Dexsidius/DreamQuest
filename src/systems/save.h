@@ -15,10 +15,28 @@ struct GameContext;
 
 static constexpr int SAVE_SLOTS = 3;
 
+// Two shelves of slots: the games played alone, and the worlds played
+// together -- hosted for friends, or with Player Two at this screen. Each has
+// SAVE_SLOTS of its own, in a folder of its own (saves/ and saves/multiplayer/),
+// so one never fills up, or writes over, the other.
+enum class SaveKind { Single, Multi };
+
+struct SlotRef {
+    SaveKind kind = SaveKind::Single;
+    int      number = 1;
+    SlotRef() = default;
+    // A bare number is a single-player slot, which is all a slot ever was.
+    SlotRef(int n) : number(n) {}
+    SlotRef(SaveKind k, int n) : kind(k), number(n) {}
+    bool Multi() const { return kind == SaveKind::Multi; }
+    bool operator==(const SlotRef&) const = default;
+};
+
 // Summary shown on the load-game screen without loading the whole save.
 struct SaveSlotInfo {
     bool   exists = false;
     int    slot = 0;
+    SaveKind kind = SaveKind::Single;
     string map_name;
     int    combat_level = 1;
     int    total_level = 1;
@@ -32,6 +50,9 @@ struct SaveSlotInfo {
     // The slot's own file could not be read, and this is its backup: the save
     // before the last one.
     bool   from_backup = false;
+    // Who else has played in this world, most recent first: what tells one
+    // multiplayer save from another at a glance.
+    vector<string> played_with;
 };
 
 class SaveSystem {
@@ -41,28 +62,40 @@ public:
     // goes near a real one.
     static void   SetDirectory(const string& dir);
     static const string& Directory();
-    static string SlotPath(int slot);
+    static string SlotPath(SlotRef slot);
     // The save before the last one, kept beside it. One generation: enough to
     // come back from a file that went bad, without keeping a history.
-    static string BackupPath(int slot);
+    static string BackupPath(SlotRef slot);
     // Where a deleted slot goes, so that one mis-press is not the end of a
     // character: it is overwritten by the next delete of the same slot.
-    static string DeletedPath(int slot);
+    static string DeletedPath(SlotRef slot);
+    // Where the host keeps its copy of every friend's character, and the spot
+    // they were standing on, for the world in this slot: a multiplayer slot
+    // has its own, so friends come back to where they left off in *this*
+    // world. A single-player slot has the one folder they all used to share.
+    static string FriendsPath(SlotRef slot);
+    // A different world is taking the slot -- a new game, a game carried or
+    // saved into it, a delete: the friends the last one kept are put aside as
+    // "<folder>.deleted", in place of whatever was put aside there before.
+    static void   SetFriendsAside(SlotRef slot);
     // True when there is anything in the slot at all, readable or not: the
     // question "would a new game here destroy something".
-    static bool   Occupied(int slot);
-    static bool   Exists(int slot);
-    static SaveSlotInfo Peek(int slot);
-    static vector<SaveSlotInfo> PeekAll();
-    static bool   Delete(int slot);
+    static bool   Occupied(SlotRef slot);
+    static bool   Exists(SlotRef slot);
+    static SaveSlotInfo Peek(SlotRef slot);
+    static vector<SaveSlotInfo> PeekAll(SaveKind kind = SaveKind::Single);
+    static bool   Delete(SlotRef slot);
+    // "slot 2", or "multiplayer slot 2": what the messages call it.
+    static string Describe(SlotRef slot, bool capital = false);
 
     // Writes through a temporary file and renames, so an interrupted save
-    // cannot leave a half-written slot behind.
-    static bool Save(int slot, const World& world, const QuestLog& quests,
-                     float playtime);
+    // cannot leave a half-written slot behind. `played_with` is who else has
+    // played in the world, for the slot list to say.
+    static bool Save(SlotRef slot, const World& world, const QuestLog& quests,
+                     float playtime, const vector<string>& played_with = {});
     // `from_backup`, when given, is set if the slot's own file could not be
     // read and its backup was loaded in its place.
-    static bool Load(int slot, World& world, QuestLog& quests,
+    static bool Load(SlotRef slot, World& world, QuestLog& quests,
                      const GameContext& ctx, float& playtime, bool* from_backup = nullptr);
 
     static string FormatPlaytime(float seconds);

@@ -83,6 +83,485 @@ static const char* kMaps[] = {
     "mossvale_cottage", "mayor_hall", "mossvale_mine",
 };
 
+// The databases, for the sections that live outside main(). GCC's memory for
+// a single function grows much faster than the function does, and main() is
+// most of this file: past a point, one more section in it and the compiler
+// runs out of memory rather than finishing. New sections go in functions of
+// their own, as these do, and are called from main() in their place.
+struct Databases {
+    SpriteLibrary& sprites; ItemDatabase& items; EnemyDatabase& enemy_db; LootSystem& loot;
+    QuestLog& quests; DialogueDatabase& dialogue; ProjectileDatabase& projectiles;
+    StatusDatabase& statuses; SpellBook& spells; SkillTrees& trees;
+};
+
+static void TestRewardChoices(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    (void)sprites; (void)items; (void)enemy_db; (void)loot; (void)quests; (void)dialogue;
+    (void)projectiles; (void)statuses; (void)spells; (void)trees;
+    Section("a quest's reward can be a choice: a sword, a bow or a staff");
+    {
+        // A quest file of the test's own, so the rules are checked whatever
+        // data/quests.json offers today.
+        const fs::path dir = fs::temp_directory_path() / "dreamquest_selftest_choices";
+        std::error_code ec;
+        fs::remove_all(dir, ec);
+        fs::create_directories(dir, ec);
+        const string path = (dir / "quests.json").string();
+        {
+            std::ofstream out(path, std::ios::trunc);
+            out << R"({
+ "q_pick": {"name": "Pick One", "stages": [{"desc": "Kill a rat", "type": "kill", "target": "rat"}],
+            "rewards": {"coins": 10, "items": [{"id": "cooked_meat", "qty": 2}],
+                        "choices": [{"style": "melee", "id": "iron_sword"},
+                                    {"style": "ranged", "label": "The archer's kit", "items": [{"id": "iron_bow"}], "coins": 25},
+                                    {"items": [{"id": "iron_staff"}], "xp": {"Magic": 300}},
+                                    {"style": "wizardry", "id": "herbal_tonic", "qty": 3}]}},
+ "q_daily_pick": {"name": "Every Day", "repeat": "daily", "pool": "test_pool",
+                  "stages": [{"desc": "Kill a rat", "type": "kill", "target": "rat"}],
+                  "rewards": {"choices": [{"id": "iron_sword"}, {"id": "iron_bow"}]}},
+ "q_plain": {"name": "No Choice", "stages": [{"desc": "Kill a rat", "type": "kill", "target": "rat"}],
+             "rewards": {"coins": 5}}
+})";
+        }
+        QuestLog log;
+        Check(log.LoadDefinitions(path), "a quest file with choices in it loads");
+        const QuestDef* d = log.Definition("q_pick");
+        Check(d && d->rewards.choices.size() == 4, "every option is read");
+        if (d && d->rewards.choices.size() == 4) {
+            const vector<QuestRewardChoice>& c = d->rewards.choices;
+            Check(c[0].style == "melee" && c[0].items.size() == 1 && c[0].items[0].first == "iron_sword" &&
+                  c[0].items[0].second == 1, "an option can be one thing, named on the option itself");
+            Check(c[1].label == "The archer's kit" && c[1].items.size() == 1 && c[1].coins == 25,
+                  "or a list, with coins beside it, under a name of its own");
+            Check(c[2].style.empty() && c[2].xp.count(SKILL_MAGIC) && c[2].xp.at(SKILL_MAGIC) == 300, "or experience");
+            Check(QuestLog::StyleOf(c[0], items) == "melee" && QuestLog::StyleOf(c[1], items) == "ranged",
+                  "an option that says whose it is, is");
+            Check(QuestLog::StyleOf(c[2], items) == "magic",
+                  "and one that does not is the staff's by the staff in it");
+            Check(c[3].style.empty() && c[3].items.size() == 1 && c[3].items[0].second == 3,
+                  "a way of fighting nobody has is not believed");
+            Check(d->rewards.coins == 10 && d->rewards.items.size() == 1,
+                  "and what the quest pays besides is paid besides, as it always was");
+        }
+        {
+            QuestRewardChoice robe, hide, plate, purse;
+            robe.items  = {{"iron_robe_body", 1}};
+            hide.items  = {{"iron_hide_body", 1}};
+            plate.items = {{"iron_body", 1}};
+            purse.coins = 50;
+            Check(QuestLog::StyleOf(robe, items) == "magic" && QuestLog::StyleOf(hide, items) == "ranged" &&
+                  QuestLog::StyleOf(plate, items) == "melee" && QuestLog::StyleOf(purse, items).empty(),
+                  "armour says whose it is too -- robes, hides, plate -- and coins are anybody's");
+        }
+
+        Inventory bag(&items, 28);
+        const QuestEvent rat{ObjectiveType::Kill, "rat"};
+        log.SetDay(1);
+        Check(log.Start("q_pick"), "the quest is taken");
+        log.Notify(rat, bag);
+        Check(log.IsComplete("q_pick") && log.TakeJustCompleted() == vector<string>{"q_pick"},
+              "and completes as any other");
+        Check(log.ChoicesOwed("q_pick") == 1 && log.WithChoicesOwed() == vector<string>{"q_pick"},
+              "and owes one pick");
+        Check(log.TakeChoice("q_pick", 7) == nullptr && log.ChoicesOwed("q_pick") == 1,
+              "an option it does not have is not taken");
+        {
+            QuestLog again;
+            again.LoadDefinitions(path);
+            again.FromJson(log.ToJson());
+            Check(again.ChoicesOwed("q_pick") == 1, "a pick put off is kept in the save");
+        }
+        const QuestRewardChoice* took = log.TakeChoice("q_pick", 1);
+        Check(took && took->label == "The archer's kit", "taking one hands that one over");
+        Check(log.ChoicesOwed("q_pick") == 0 && log.WithChoicesOwed().empty() && log.LastChosen("q_pick") == 1,
+              "once, and remembers which");
+        Check(log.TakeChoice("q_pick", 0) == nullptr, "a second is not there to take");
+        {
+            QuestLog again;
+            again.LoadDefinitions(path);
+            again.FromJson(log.ToJson());
+            Check(again.ChoicesOwed("q_pick") == 0 && again.LastChosen("q_pick") == 1,
+                  "and the save knows which was taken");
+        }
+
+        // A daily owes one each time it is done, and yesterday's pick, put
+        // off, is still owed when it is taken again today.
+        Check(log.Start("q_daily_pick"), "a daily with choices is taken");
+        log.Notify(rat, bag);
+        Check(log.ChoicesOwed("q_daily_pick") == 1, "and owes a pick when done");
+        log.SetDay(2);
+        Check(log.Start("q_daily_pick") && log.ChoicesOwed("q_daily_pick") == 1,
+              "taken again the next day, with that pick still owed");
+        log.Notify(rat, bag);
+        Check(log.ChoicesOwed("q_daily_pick") == 2, "and done again, it owes two");
+
+        Check(log.Start("q_plain"), "a quest without choices is taken");
+        log.Notify(rat, bag);
+        Check(log.IsComplete("q_plain") && log.ChoicesOwed("q_plain") == 0 &&
+              !log.ToJson()["q_plain"].contains("owed"), "and owes nothing, and the save says nothing of it");
+        {
+            // A save owing a pick of a quest the file no longer offers any of.
+            json j = log.ToJson();
+            j["q_plain"]["owed"] = 2;
+            QuestLog again;
+            again.LoadDefinitions(path);
+            again.FromJson(j);
+            Check(again.ChoicesOwed("q_plain") == 0 && again.WithChoicesOwed() == vector<string>{"q_daily_pick"},
+                  "a pick owed of a quest that has stopped offering one is not asked for");
+        }
+        fs::remove_all(dir, ec);
+
+        // The two in the game that offer one: a weapon of the same tier for
+        // each way of fighting, where each used to hand over one weapon.
+        for (const char* id : {"q_orc_trouble", "q_trail_wardens"}) {
+            const QuestDef* q = quests.Definition(id);
+            Check(q && q->rewards.choices.size() == 3 && q->rewards.items.empty(),
+                  string(id) + " offers a choice of three, and no weapon besides");
+            if (!q || q->rewards.choices.size() != 3) continue;
+            std::set<string> styles, tiers;
+            for (const QuestRewardChoice& c : q->rewards.choices) {
+                styles.insert(QuestLog::StyleOf(c, items));
+                const ItemDef* w = c.items.empty() ? nullptr : items.Get(c.items.front().first);
+                Check(w && w->slot == SLOT_WEAPON, string(id) + " offers a weapon in each");
+                if (w) tiers.insert(w->tier);
+            }
+            Check((styles == std::set<string>{"melee", "ranged", "magic"}),
+                  string(id) + " has a weapon for each way of fighting");
+            Check(tiers.size() == 1 && !tiers.begin()->empty(), string(id) + "'s three are of one tier");
+        }
+    }
+}
+
+static void TestOonasPoppet(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    (void)sprites; (void)items; (void)enemy_db; (void)loot; (void)quests; (void)dialogue;
+    (void)projectiles; (void)statuses; (void)spells; (void)trees;
+    Section("Oona's poppet: the reed doll, the witch's tables and the ritual");
+    {
+        std::mt19937 rrng(1692);
+        Input rin;
+        QuestLog journal;
+        journal.LoadDefinitions("data/quests.json");
+        GameContext rctx;
+        rctx.sprites = &sprites;   rctx.items = &items;       rctx.loot = &loot;
+        rctx.quests = &journal;    rctx.dialogue = &dialogue; rctx.enemies = &enemy_db;
+        rctx.projectiles = &projectiles; rctx.spells = &spells; rctx.trees = &trees;
+        rctx.statuses = &statuses; rctx.input = &rin;         rctx.rng = &rrng;
+        constexpr float kFrame = 1.0f / 60.0f;
+
+        // --- the trail, in the data ------------------------------------------------------------
+        const QuestDef* doll = journal.Definition("q_doll_in_the_reeds");
+        const QuestDef* poppet = journal.Definition("q_oonas_poppet");
+        const QuestDef* knots = journal.Definition("q_poppets_hunger");
+        Check(doll && doll->then == "q_oonas_poppet", "the doll in the reeds leads straight on to Oona");
+        Check(poppet && poppet->giver == "npc_oona" && poppet->stages.size() == 3 &&
+              poppet->stages[0].type == ObjectiveType::Talk && poppet->stages[0].target == "npc_oona" &&
+              poppet->stages[1].type == ObjectiveType::Interact && poppet->stages[1].target == "witch_table" &&
+              poppet->stages[2].target == "poppet_wave" && poppet->stages[2].count == World::RITUAL_WAVES &&
+              poppet->stages[2].description == "Complete 3 waves of enemies to complete the ritual",
+              "Oona's quest: the doll to her, the poppet on a witch's table, and 'Complete 3 waves of enemies to complete the ritual'");
+        Check(poppet && poppet->then == "q_poppets_hunger", "and it leads on to feeding the poppet");
+        Check(knots && knots->stages.size() == 2 && knots->stages[0].target == "poppet_ritual" &&
+              knots->stages[0].count == World::IDOL_KNOTS && knots->stages[0].start == 1 &&
+              knots->stages[1].type == ObjectiveType::Deliver && knots->stages[1].target == World::IdolId(World::IDOL_KNOTS) &&
+              knots->stages[1].deliver_to == "npc_oona",
+              "which counts five rituals from the first, and ends with the full poppet back in Oona's hands");
+        for (int k = 0; k <= World::IDOL_KNOTS; ++k) {
+            const ItemDef* d = items.Get(World::IdolId(k));
+            Check(d && d->keep && !d->stackable && d->name.find("(" + std::to_string(k) + "/5)") != string::npos,
+                  "the poppet with " + std::to_string(k) + " knots is its own thing, kept, and says its count");
+        }
+        if (knots) {
+            // What a full one pays: a weapon for each way of fighting, to be had
+            // nowhere else.
+            std::set<string> styles;
+            string shops_text, loot_text;
+            { std::ifstream in("data/shops.json"); shops_text.assign(std::istreambuf_iterator<char>(in), {}); }
+            { std::ifstream in("data/loot_tables.json"); loot_text.assign(std::istreambuf_iterator<char>(in), {}); }
+            for (const QuestRewardChoice& c : knots->rewards.choices) {
+                styles.insert(QuestLog::StyleOf(c, items));
+                const string id = c.items.empty() ? string() : c.items.front().first;
+                const ItemDef* w = items.Get(id);
+                Check(w && w->slot == SLOT_WEAPON && w->on_hit.Any() == (w->kind != WeaponKind::Staff),
+                      "a full poppet pays a weapon (" + id + "), the blade and the bow leaving something on what they hit");
+                int elsewhere = 0;
+                for (const auto& kv : journal.Definitions()) {
+                    if (kv.first == "q_poppets_hunger") continue;
+                    for (const auto& it : kv.second.rewards.items) elsewhere += it.first == id;
+                    for (const QuestRewardChoice& o : kv.second.rewards.choices)
+                        for (const auto& it : o.items) elsewhere += it.first == id;
+                }
+                const string quoted = "\"" + id + "\"";
+                Check(elsewhere == 0 && shops_text.find(quoted) == string::npos && loot_text.find(quoted) == string::npos,
+                      id + " is to be had nowhere else: no quest, no shop, no loot table");
+            }
+            Check((styles == std::set<string>{"melee", "ranged", "magic"}), "one for each way of fighting");
+            const ItemDef* staff = items.Get("poppet_staff");
+            Check(staff && staff->mana_mult < 1.0f && staff->homing > 0.0f,
+                  "and the staff's gift is in its casting: less mana, and spells that turn after their mark");
+        }
+        {
+            std::ifstream in("data/dialogue.json");
+            json dj;
+            in >> dj;
+            bool rethread = false, turn_in = false;
+            for (auto it = dj.begin(); it != dj.end(); ++it) {
+                if (it.key().rfind("oona_", 0) != 0 || !it.value().contains("options")) continue;
+                for (const json& o : it.value()["options"]) {
+                    const json a = o.value("action", json::object());
+                    if (a.value("advance", string()) == "npc_oona" && a.value("give", string()) == World::IdolId(0) &&
+                        a.value("take", string()) == "reed_doll")
+                        rethread = true;
+                    if (a.value("take", string()) == World::IdolId(World::IDOL_KNOTS)) turn_in = true;
+                }
+            }
+            Check(dj.contains("oona_poppet_2") && dj["oona_poppet_2"].value("text", string()).find("Salem") != string::npos,
+                  "Oona tells what such dolls were for in the Salem times");
+            Check(rethread, "and binds the doll again as a poppet, and says what to do with it");
+            Check(turn_in, "and takes the full poppet back when all five knots are tight");
+        }
+
+        // --- the tables, in the Bayou ------------------------------------------------------------
+        Map bay;
+        Check(bay.Load("maps/bayou.mx"), "the Bayou loads for its witch's tables");
+        vector<const MapObject*> tables;
+        for (const MapObject& o : bay.Objects()) if (o.type == "witch_table") tables.push_back(&o);
+        Check(tables.size() == 3, "three witch's tables stand out in the Bayou");
+        int called[World::RITUAL_WAVES + 1] = {};
+        string boss;
+        bool after_the_rest = true, seen = false;
+        for (const EnemySpawnDef& d : bay.Enemies()) {
+            if (d.ritual.empty()) { after_the_rest &= !seen; continue; }
+            seen = true;
+            if (d.wave >= 1 && d.wave <= World::RITUAL_WAVES) ++called[d.wave];
+            if (const EnemyDef* s = enemy_db.Get(d.type)) if (s->is_boss) boss += d.type + "@" + std::to_string(d.wave);
+        }
+        Check(called[1] == 10 && called[2] == 10 && called[3] == 10, "a pack of ten for each of the ritual's three waves");
+        Check(boss == "bayou_matriarch@3", "the third led by the Mother of the Fen, and no other boss (" + boss + ")");
+        Check(after_the_rest, "written after every other post, so none of those has changed its number");
+        for (const MapObject* t : tables) {
+            bool clear = true;
+            for (float a = 0.0f; a < 6.28f; a += 0.2f)
+                for (float d = 48.0f; d < World::RITUAL_RADIUS; d += 16.0f) {
+                    const float x = t->x + cosf(a) * d, y = t->y - 10.0f + sinf(a) * d;
+                    if (bay.InWater(x, y) || bay.Blocked({x - 8.0f, y - 8.0f, 16.0f, 16.0f})) clear = false;
+                }
+            Check(clear, t->id + "'s ring is dry, open ground to fight in");
+        }
+        {
+            std::ifstream in("data/waypoints.json");
+            json wj;
+            in >> wj;
+            int at_table = 0;
+            if (!tables.empty() && wj.contains("bayou"))
+                for (const json& p : wj["bayou"].value("posts", json::array()))
+                    at_table += std::fabs(p.value("x", 0.0f) - tables.front()->x) < 1.0f &&
+                                std::fabs(p.value("y", 0.0f) - tables.front()->y) < 1.0f;
+            Check(at_table == 0, "and a quest for the fen's monsters is never pointed at the ritual's, lying still at a table");
+        }
+
+        // --- a ritual, played --------------------------------------------------------------------
+        World w;
+        w.player.Init(rctx, "player_hero");
+        const MapObject* table = nullptr;
+        int table_index = -1;
+        if (w.LoadMap("bayou", "", rctx)) {
+            w.clock.Set(3, 13.0f);
+            {
+                LevelUp up;
+                w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(99), up);
+                w.player.SyncHitpoints();
+                w.player.Rest();
+            }
+            for (size_t i = 0; i < w.map.Objects().size() && !table; ++i)
+                if (w.map.Objects()[i].type == "witch_table") { table = &w.map.Objects()[i]; table_index = static_cast<int>(i); }
+        }
+        Check(table != nullptr, "a witch's table to lay the poppet on");
+        const auto ritual_standing = [&] {
+            int n = 0;
+            for (const auto& e : w.enemies)
+                if (e->post >= 0 && !w.map.Enemies()[e->post].ritual.empty() && !e->Dead() &&
+                    e->CurrentState() != Enemy::State::Dead)
+                    ++n;
+            return n;
+        };
+        // Everything the ritual calls comes through inside the ring and is put
+        // down at once; the owner is kept standing, for this part.
+        int kills = 0, waves_seen = 0;
+        bool boss_came = false, all_inside = true;
+        const auto fight = [&](float seconds, const std::function<bool()>& until) {
+            for (float t = 0.0f; t < seconds && w.ritual.active && !until(); t += kFrame) {
+                w.Update(kFrame, rctx);
+                for (auto& e : w.enemies) {
+                    if (e->post < 0 || w.map.Enemies()[e->post].ritual.empty()) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead) continue;
+                    const SDL_FPoint g = e->GroundCentre();
+                    all_inside &= w.map.InsideRing(g.x, g.y);
+                    boss_came |= e->Def() && e->Def()->is_boss;
+                    e->LieDead();
+                    ++kills;
+                }
+                if (!w.player.IsDead()) w.player.hp = w.player.max_hp;
+                waves_seen = std::max(waves_seen, w.ritual.wave);
+            }
+        };
+        if (table) {
+            w.player.x = table->x;
+            w.player.y = table->y + 40.0f;
+            journal.Start("q_oonas_poppet");
+            journal.TakeJustStarted();
+            QuestEvent told;
+            told.type = ObjectiveType::Talk;
+            told.target = "npc_oona";
+            journal.Notify(told, w.player.inventory);
+            Check(journal.Stage("q_oonas_poppet") == 1, "the story told, the quest wants the poppet laid on a witch's table");
+
+            string why;
+            Check(!w.CanStartRitual(*table, why) && why.empty(), "without a poppet a witch's table is only a table");
+            w.player.inventory.Add(World::IdolId(0), 1);
+            Check(w.CanStartRitual(*table, why), "with one, it can be laid on it");
+            w.InteractWith(InteractTarget::Object, table_index, rctx);
+            Check(w.ritual.active && w.map.RingUp(), "laid, and a ring of fire comes up round the table");
+            Check(journal.Stage("q_oonas_poppet") == 2 &&
+                  journal.CurrentObjectiveText("q_oonas_poppet") == "Complete 3 waves of enemies to complete the ritual (0/3)",
+                  "and the quest says: Complete 3 waves of enemies to complete the ritual (0/3)");
+            Check(w.player.inventory.Has(World::IdolId(0)),
+                  "the poppet stays in the bag while it lies on the table, so nothing can lose it");
+
+            // The ring: nothing crosses it either way, and inside it is only ground.
+            const SDL_FPoint c = w.map.RingCentre();
+            const float R = w.map.RingRadius();
+            Check(w.map.RingCrossed(c.x, c.y + R - 4.0f, c.x, c.y + R + 4.0f) &&
+                  w.map.RingCrossed(c.x + R + 4.0f, c.y, c.x + R - 4.0f, c.y) &&
+                  !w.map.RingCrossed(c.x, c.y + 20.0f, c.x + 30.0f, c.y + 40.0f),
+                  "whatever is inside the ring stays in, whatever is out stays out, and inside it is only ground");
+            {
+                const SDL_FRect box = {c.x - 8.0f, c.y + R - 40.0f, 16.0f, 16.0f};
+                const SDL_FPoint to = w.map.MoveWithCollision(box, 0.0f, 80.0f);
+                Check(to.y + 8.0f < c.y + R, "walking out into the flames stops at them");
+            }
+            {
+                // Pressed up against them, heels a step past the line and the
+                // middle of the feet inside it: that is inside, as the ring
+                // judges a step. It used to break the ritual under a fighter.
+                w.player.x = c.x;
+                w.player.y = c.y + R + 2.0f;
+                const SDL_FPoint g = w.player.GroundCentre();
+                for (int f = 0; f < 5; ++f) { w.Update(kFrame, rctx); w.player.x = c.x; w.player.y = c.y + R + 2.0f; }
+                Check(w.map.InsideRing(g.x, g.y) && !w.map.InsideRing(w.player.x, w.player.y) && w.ritual.active,
+                      "a fighter pressed against the flames, heels past them, is still inside, and the ritual burns on");
+                w.player.x = table->x;
+                w.player.y = table->y + 40.0f;
+            }
+
+            // Broken, halfway: the owner falls in the second wave.
+            fight(30.0f, [&] { return w.ritual.wave >= 2 && w.ritual.out >= 3; });
+            Check(journal.Counter("q_oonas_poppet") == 1, "the first wave broken, the quest counts it (1/3)");
+            Check(w.ritual.wave == 2 && ritual_standing() == 0, "and the second comes");
+            {
+                // Some of it still standing when the owner goes down.
+                for (int f = 0; f < 90 && ritual_standing() == 0; ++f) w.Update(kFrame, rctx);
+            }
+            Check(ritual_standing() > 0, "the second wave coming through the fire");
+            w.player.hp = 0;
+            w.Update(kFrame, rctx);
+            w.Update(kFrame, rctx);
+            Check(!w.ritual.active && !w.map.RingUp(), "its owner down, the ritual breaks and the ring goes out");
+            Check(ritual_standing() == 0, "and whatever it called goes back into the fen");
+            Check(journal.Stage("q_oonas_poppet") == 2 && journal.Counter("q_oonas_poppet") == 0,
+                  "the waves it got through are taken back: (0/3) again");
+            Check(w.player.inventory.Has(World::IdolId(0)) && !w.player.inventory.Has(World::IdolId(1)),
+                  "and the poppet is only cold: no knot, but not lost");
+            Check(!w.Flagged(World::RitualDayFlag(3)), "nor is the day spent");
+            w.player.Respawn(table->x, table->y + 40.0f);
+            w.player.hp = w.player.max_hp;
+
+            // Whole: three waves, and the Mother of the Fen in the last.
+            kills = 0;
+            w.InteractWith(InteractTarget::Object, table_index, rctx);
+            Check(w.ritual.active, "laid again, the same day");
+            fight(180.0f, [] { return false; });
+            Check(!w.ritual.active && !w.map.RingUp(), "the ritual ends, and its ring with it");
+            Check(kills == 30 && waves_seen == World::RITUAL_WAVES && boss_came && all_inside,
+                  "three waves of ten came through the fire, inside it, the Mother of the Fen among the last (" +
+                  std::to_string(kills) + ")");
+            Check(!w.player.inventory.Has(World::IdolId(0)) && w.player.inventory.Has(World::IdolId(1)),
+                  "the poppet is given back with its first knot pulled tight");
+            Check(journal.IsComplete("q_oonas_poppet"), "Oona's quest is done");
+            Check(journal.IsActive("q_poppets_hunger") && journal.Counter("q_poppets_hunger") == 1 &&
+                  journal.CurrentObjectiveText("q_poppets_hunger").find("(1/5)") != string::npos,
+                  "and the next begun, counting the ritual that began it as the first of five, and only once");
+            Check(w.Flagged(World::RitualDayFlag(3)), "the day's ritual is marked");
+            Check(!w.CanStartRitual(*table, why) && why.find("tomorrow") != string::npos,
+                  "the tables will not answer twice in a day");
+
+            // Four more days, four more knots.
+            for (int day = 4; day <= 7; ++day) {
+                w.clock.Set(day, 13.0f);
+                w.player.x = table->x;
+                w.player.y = table->y + 40.0f;
+                w.InteractWith(InteractTarget::Object, table_index, rctx);
+                fight(180.0f, [] { return false; });
+            }
+            Check(w.player.inventory.Has(World::IdolId(World::IDOL_KNOTS)) && World::IdolKnots(w.player.inventory) == 5,
+                  "five days, five knots: the poppet is full");
+            Check(journal.Stage("q_poppets_hunger") == 1, "and the quest wants it taken back to Oona");
+            w.clock.Set(8, 13.0f);
+            Check(!w.CanStartRitual(*table, why) && why.find("Oona") != string::npos,
+                  "a full poppet wants nothing more of the fen");
+
+            // Handed in: the Deliver stage is met, and a choice of weapons is owed.
+            DialogueAction hand;
+            hand.take_item = World::IdolId(World::IDOL_KNOTS);
+            ApplyDialogueAction(hand, journal, w.player.inventory, w.player.skills, "npc_oona");
+            Check(journal.IsComplete("q_poppets_hunger") && journal.ChoicesOwed("q_poppets_hunger") == 1 &&
+                  World::IdolKnots(w.player.inventory) < 0,
+                  "Oona takes it, and a choice of three weapons is owed");
+
+            // A ritual the world's own player lit ends as they leave the map.
+            w.player.inventory.Add(World::IdolId(2), 1);
+            w.clock.Set(9, 13.0f);
+            w.player.x = table->x;
+            w.player.y = table->y + 40.0f;
+            w.InteractWith(InteractTarget::Object, table_index, rctx);
+            Check(w.ritual.active, "lit once more");
+            w.LoadMap("bayou", "", rctx);
+            Check(!w.ritual.active && !w.map.RingUp(), "and put out by leaving the map");
+        }
+
+        // A friend's window is told the ring, and burns it, and is held to it.
+        {
+            World g;
+            g.visiting = true;
+            g.player.Init(rctx, "player_warden");
+            if (g.LoadMap("bayou", "", rctx)) {
+                g.HearOfRing(500.0f, 1380.0f, World::RITUAL_RADIUS, 2);
+                float x = 0.0f, y = 0.0f, r = 0.0f;
+                int wave = 0;
+                Check(g.RingBurning(x, y, r, wave) && wave == 2 && g.map.RingUp() &&
+                      g.map.RingCrossed(500.0f, 1380.0f, 500.0f, 1380.0f + World::RITUAL_RADIUS + 10.0f),
+                      "a friend's window, told of the ring, burns it and is held to it");
+                g.RingNotHeard();
+                Check(!g.RingBurning(x, y, r, wave) && !g.map.RingUp(), "and not told of it, knows it has gone out");
+            }
+            net::Snapshot told;
+            net::PatchState ring;
+            ring.x = 500; ring.y = 1380; ring.radius = 160; ring.life = 3; ring.kind = net::PatchState::RING;
+            told.patches.push_back(ring);
+            net::Snapshot heard;
+            Check(net::Decode(net::Encode(told), heard) && heard.patches.size() == 1 &&
+                  heard.patches[0].kind == net::PatchState::RING && heard.patches[0].radius == 160 && heard.patches[0].life == 3,
+                  "and the ring crosses the wire as a ring");
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -101,6 +580,8 @@ int main(int argc, char** argv) {
     StatusDatabase statuses;
     SpellBook        spells;
     SkillTrees       trees;
+    // For the sections that live in functions of their own: see Databases.
+    const Databases db{sprites, items, enemy_db, loot, quests, dialogue, projectiles, statuses, spells, trees};
 
     Check(sprites.Load("data/sprites.json"),        "data/sprites.json loads");
     Check(items.Load("data/items.json"),            "data/items.json loads");
@@ -301,7 +782,30 @@ int main(int argc, char** argv) {
         for (const auto& r : q.rewards.items)
             Check(items.Has(r.first),
                   q.id + " rewards unknown item '" + r.first + "'");
+
+        // A choice of rewards: more than one option, each of them something,
+        // everything in them real -- and an option said to be for a way of
+        // fighting hands over something for it, where what it hands over says.
+        if (!q.rewards.choices.empty())
+            Check(q.rewards.choices.size() >= 2, q.id + " offers a choice of more than one thing");
+        for (size_t ci = 0; ci < q.rewards.choices.size(); ++ci) {
+            const QuestRewardChoice& c = q.rewards.choices[ci];
+            const string which = q.id + " choice " + std::to_string(ci + 1);
+            Check(!c.items.empty() || c.coins > 0 || !c.xp.empty(), which + " gives something");
+            for (const auto& r : c.items)
+                Check(items.Has(r.first), which + " offers unknown item '" + r.first + "'");
+            if (!c.style.empty()) {
+                QuestRewardChoice unsaid = c;
+                unsaid.style.clear();
+                const string by_items = QuestLog::StyleOf(unsaid, items);
+                Check(by_items.empty() || by_items == c.style,
+                      which + " is for " + c.style + " and hands over something for " + by_items);
+            }
+        }
     }
+
+    // --- a choice of rewards ----------------------------------------------------
+    TestRewardChoices(db);
 
     // --- dialogue -------------------------------------------------------------
     Section("dialogue graph is connected");
@@ -6032,8 +6536,14 @@ int main(int argc, char** argv) {
         input.Update(dt);
 
         // --- saving a dream -------------------------------------------------------------------
-        // Only into a slot nobody is using, and cleaned up after.
-        if (!SaveSystem::Exists(3)) {
+        // In a folder of the self-test's own. These two used to borrow the
+        // real slot 3 when nobody was using it -- and so never ran at all for
+        // anyone who was.
+        const string saves_were = SaveSystem::Directory();
+        const fs::path dream_saves = fs::temp_directory_path() / "dreamquest_selftest_dream";
+        { std::error_code ec; fs::remove_all(dream_saves, ec); fs::create_directories(dream_saves, ec); }
+        SaveSystem::SetDirectory(dream_saves.string());
+        {
             World w;
             QuestLog log;
             log.LoadDefinitions("data/quests.json");
@@ -6061,7 +6571,7 @@ int main(int argc, char** argv) {
         // --- a save from before the Hollowmarch grew ---------------------------------------------
         // Written as the old layout would have had it -- version 1, twenty
         // cells further left -- and loaded back onto the same ground.
-        if (!SaveSystem::Exists(3)) {
+        {
             World w;
             QuestLog log;
             log.LoadDefinitions("data/quests.json");
@@ -6087,6 +6597,8 @@ int main(int argc, char** argv) {
                 SaveSystem::Delete(3);
             }
         }
+        SaveSystem::SetDirectory(saves_were);
+        { std::error_code ec; fs::remove_all(dream_saves, ec); }
     }
 
     Section("traders");
@@ -6972,10 +7484,14 @@ int main(int argc, char** argv) {
                 Check(shops.dump().find("drowned_king_boots") == string::npos, "no trader sells them");
             }
             int as_reward = 0;
-            for (const auto& kv : quests.Definitions())
+            for (const auto& kv : quests.Definitions()) {
                 for (const auto& it : kv.second.rewards.items)
                     if (it.first == "drowned_king_boots") ++as_reward;
-            Check(as_reward == 0, "and no quest hands them over as a reward");
+                for (const QuestRewardChoice& c : kv.second.rewards.choices)
+                    for (const auto& it : c.items)
+                        if (it.first == "drowned_king_boots") ++as_reward;
+            }
+            Check(as_reward == 0, "and no quest hands them over as a reward, or offers them as a choice");
 
             // The chest: in the barrow, holding them by name, gated on the quest.
             Map barrow;
@@ -12955,6 +13471,68 @@ int main(int argc, char** argv) {
             Check(fs::exists(SaveSystem::DeletedPath(3)), "with what was in it put aside, not destroyed");
             Check(!SaveSystem::Delete(3), "and there is nothing to delete twice");
 
+            // Two shelves: the games played alone, and the worlds played
+            // together, each with slots of its own.
+            {
+                const SlotRef mp1{SaveKind::Multi, 1}, mp2{SaveKind::Multi, 2};
+                Check(fs::path(SaveSystem::SlotPath(1)).parent_path() == dir,
+                      "a single-player slot is where the slots always were");
+                Check(SaveSystem::SlotPath(mp2) != SaveSystem::SlotPath(2) &&
+                      fs::path(SaveSystem::SlotPath(mp2)).parent_path() == dir / "multiplayer",
+                      "a multiplayer slot is a file of its own, in a folder of its own");
+                Check(SaveSystem::Describe(mp2, true) == "Multiplayer slot 2" && SaveSystem::Describe(2) == "slot 2",
+                      "and the messages say which shelf a slot is on");
+                Check(!SaveSystem::Occupied(mp1) && !SaveSystem::Occupied(mp2), "the multiplayer shelf starts empty");
+                Check(SaveSystem::Save(mp2, w, log, 90.0f, {"Oona", "Player Two"}),
+                      "a world played together is saved to its own shelf, its folder made as it is");
+                Check(SaveSystem::Save(mp1, w, log, 11.0f), "and another");
+                Check(!SaveSystem::Occupied(1), "which leaves the single-player slot of the same number empty");
+                Check(SaveSystem::Save(1, w, log, 22.0f), "a game played alone goes in that one");
+                Check(std::fabs(SaveSystem::Peek(mp1).playtime - 11.0f) < 0.5f &&
+                      std::fabs(SaveSystem::Peek(1).playtime - 22.0f) < 0.5f,
+                      "and slot 1 of each shelf keeps its own game");
+
+                const vector<SaveSlotInfo> multi = SaveSystem::PeekAll(SaveKind::Multi);
+                const vector<SaveSlotInfo> single = SaveSystem::PeekAll();
+                Check(multi.size() == static_cast<size_t>(SAVE_SLOTS) && multi[0].exists && multi[1].exists &&
+                      !multi[2].exists && multi[1].kind == SaveKind::Multi && multi[1].slot == 2,
+                      "the multiplayer list is its own three");
+                Check(single[0].exists && single[0].kind == SaveKind::Single && single[1].damaged && !single[2].exists,
+                      "and the single-player list the three it always was");
+                Check((SaveSystem::Peek(mp2).played_with == vector<string>{"Oona", "Player Two"}),
+                      "a world played together remembers who with, for the list to say");
+                Check(SaveSystem::Peek(1).played_with.empty(), "and a game played alone names nobody");
+                {
+                    World back; back.player.Init(ctx, "player_hero");
+                    QuestLog log2; log2.LoadDefinitions("data/quests.json");
+                    float played = 0.0f;
+                    Check(SaveSystem::Load(mp2, back, log2, ctx, played) && std::fabs(played - 90.0f) < 0.5f &&
+                          back.MapId() == "town_havenbrook", "a multiplayer save loads");
+                }
+
+                // The friends a world keeps are that world's.
+                Check(SaveSystem::FriendsPath(mp1) != SaveSystem::FriendsPath(mp2) &&
+                      fs::path(SaveSystem::FriendsPath(mp2)).parent_path() == dir / "multiplayer",
+                      "each multiplayer world keeps its friends in a folder of its own");
+                Check(SaveSystem::FriendsPath(1) == dir.string() + "/characters/kept" &&
+                      SaveSystem::FriendsPath(2) == SaveSystem::FriendsPath(1),
+                      "and the single-player slots share the one they all used to");
+                fs::create_directories(SaveSystem::FriendsPath(mp2), ec);
+                { std::ofstream kept(SaveSystem::FriendsPath(mp2) + "/Oona.json"); kept << "{}"; }
+                Check(SaveSystem::Delete(mp2), "a multiplayer slot can be deleted");
+                Check(!SaveSystem::Occupied(mp2) && fs::exists(SaveSystem::DeletedPath(mp2)),
+                      "and is put aside like any other");
+                Check(!fs::exists(SaveSystem::FriendsPath(mp2)) &&
+                      fs::exists(SaveSystem::FriendsPath(mp2) + ".deleted/Oona.json"),
+                      "with the friends it kept, so the next world there does not start with them");
+                Check(SaveSystem::Occupied(mp1) && SaveSystem::Occupied(1),
+                      "leaving every other slot, on either shelf, as it was");
+                fs::create_directories(SaveSystem::FriendsPath(1), ec);
+                SaveSystem::SetFriendsAside(1);
+                Check(fs::exists(SaveSystem::FriendsPath(1)),
+                      "the single-player friends folder, everyone's from before, is never put aside");
+            }
+
             SaveSystem::SetDirectory(was);
             fs::remove_all(dir, ec);
             Check(SaveSystem::Directory() == "saves", "and the real saves are where they were");
@@ -14102,7 +14680,10 @@ int main(int argc, char** argv) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
             vector<const EnemySpawnDef*> night, day;
-            for (const EnemySpawnDef& e : m.Enemies()) (e.night ? night : day).push_back(&e);
+            // A ritual's posts lie still until a witch's table calls them: they
+            // are neither the map's by day nor its visitors by night.
+            for (const EnemySpawnDef& e : m.Enemies())
+                if (e.ritual.empty()) (e.night ? night : day).push_back(&e);
             if (!wilds.count(id)) {
                 Check(night.empty(), string(id) + " is a town, a room, a hole in the ground or a dream: nothing new comes to it at night");
                 continue;
@@ -14115,9 +14696,13 @@ int main(int argc, char** argv) {
                   string(id) + ": and few of them -- " + std::to_string(night.size()) + " posts, half kept, to " +
                       std::to_string(day.size()) + " by day");
             // They are written last, so that every post there was before keeps
-            // its number: the day's hash and a slain boss both go by it.
+            // its number: the day's hash and a slain boss both go by it. Only a
+            // ritual's come after them, for the same reason.
             bool seen_night = false, night_last = true;
-            for (const EnemySpawnDef& e : m.Enemies()) { if (e.night) seen_night = true; else if (seen_night) night_last = false; }
+            for (const EnemySpawnDef& e : m.Enemies()) {
+                if (!e.ritual.empty()) continue;
+                if (e.night) seen_night = true; else if (seen_night) night_last = false;
+            }
             Check(night_last, string(id) + ": the night posts come after everything else in the list");
 
             bool sound = true, strangers = true, stronger = true, measured = true, clear = true;
@@ -15779,8 +16364,10 @@ int main(int argc, char** argv) {
             bool all = true, none = true;
             for (const auto& kv : items.All()) {
                 const ItemDef& d = kv.second;
-                // That one is its own (below), and so are its charmed twins.
+                // That one is its own (below), and so are its charmed twins --
+                // and so is the bow a full poppet pays out, which poisons.
                 if (d.slot != SLOT_WEAPON || kv.first == "ember_blade" || d.base_item == "ember_blade") continue;
+                if (kv.first == "thornwife_bow" || d.base_item == "thornwife_bow") continue;
                 // A Brand is a charm worked into the weapon, not the weapon
                 // itself: those are the enchanting table's, checked there.
                 if (d.charm == "brand") continue;
@@ -15799,6 +16386,8 @@ int main(int argc, char** argv) {
             Check(others >= 20 && none, "and no spear, dagger, bow, crossbow, knife or caster's weapon leaves anything (" + std::to_string(others) + ")");
             const ItemDef* ember = items.Get("ember_blade");
             Check(ember && ember->on_hit.kind == Status::Burn, "the Ember Blade leaves what it cuts burning");
+            const ItemDef* thorn = items.Get("thornwife_bow");
+            Check(thorn && thorn->on_hit.kind == Status::Poison, "and Thornwife's Bow what it strikes poisoned, by its arrows");
         }
         // Every monster has a Defence, and it is what a blow is rolled against.
         {
@@ -18146,7 +18735,8 @@ int main(int argc, char** argv) {
                 for (float x = 16.0f; x < 226 * 32; x += 32.0f) raised += bay.LevelAt(x, y) >= 4;
             Check(raised > 300, "four decks and a bridge, four levels up (" + std::to_string(raised) + " cells)");
             const EnemySpawnDef* mother = nullptr;
-            for (const EnemySpawnDef& e : bay.Enemies()) if (e.type == "bayou_matriarch") mother = &e;
+            // Her own post, not the ritual's that calls her back from the dead.
+            for (const EnemySpawnDef& e : bay.Enemies()) if (e.type == "bayou_matriarch" && e.ritual.empty()) mother = &e;
             Check(mother && bay.LevelAt(mother->x, mother->y) >= 4, "the Mother of the Fen waits up on her deck");
             // Off the edge of a deck is a drop, not a step: the only way on is a ramp.
             bool walled = false;
@@ -18272,6 +18862,8 @@ int main(int argc, char** argv) {
         for (const MapObject& o : bay.Objects()) herbs += o.type == "herb";
         Check(herbs >= 25, "and herbs where the guide drew flowers (" + std::to_string(herbs) + ")");
     }
+
+    TestOonasPoppet(db);
 
     Section("the Brimstone Palace, and its king");
     {
@@ -21990,6 +22582,31 @@ int main(int argc, char** argv) {
         Check(hw.guests.size() == 1 && hw.Guest(1) && hw.Guest(1)->name == "Sam" && hw.Guest(1)->sprite_id == "player_wayfarer" &&
               hw.Guest(1)->equipment.InSlot(SLOT_WEAPON) == "wood_staff",
               "and whoever takes the seat next is a new character, dressed as one");
+
+        // --- another world ---------------------------------------------------------------------------
+        // The host goes back to the title and loads a different multiplayer
+        // world. Where she stood in the last one is no guide to this one, which
+        // keeps its own friends (SaveSystem::FriendsPath): she arrives beside him.
+        sam.Leave();
+        in_world = false;
+        frames(40);
+        host.ForgetPlaces();
+        host.kept_dir = "bin/selftest_net/kept_another_world";
+        Check(hw.LoadMap("town_havenbrook", "", hctx), "the host loads another world");
+        in_world = true;
+        frames(4);
+        oona.Start(wire.Client(), "dada-pc", 7777, ho);
+        frames(12);
+        {
+            const uint8_t seat = oona.Seated() ? oona.Seat() : 0;
+            World* back = oona.Seated() ? host.WorldOf(seat) : nullptr;
+            const Player* her = back ? back->Guest(seat) : nullptr;
+            const bool where_she_was = back && her && back->MapId() == where_map &&
+                                       fabsf(her->x - where_x) < 0.5f && fabsf(her->y - where_y) < 0.5f;
+            Check(back == &hw && her && !where_she_was &&
+                  fabsf(her->x - hw.player.x) < 96.0f && fabsf(her->y - hw.player.y) < 96.0f,
+                  "and a friend who stood somewhere in the last world arrives beside the host in this one");
+        }
     }
 
 

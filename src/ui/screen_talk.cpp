@@ -234,18 +234,10 @@ void Game::DrawBoard() {
                 y += 22.0f;
             }
 
-            if (!d->rewards.xp.empty() || d->rewards.coins > 0) {
-                ui.Text("Reward", dx, y, TextSize::Small, Palette::Highlight);
-                y += 20.0f;
-                for (const auto& xp : d->rewards.xp) {
-                    ui.Text(std::to_string(xp.second) + " " + SkillName(xp.first) + " XP",
-                            dx, y, TextSize::Small, Palette::Xp);
-                    y += 18.0f;
-                }
-                if (d->rewards.coins > 0)
-                    ui.Text(std::to_string(d->rewards.coins) + " coins", dx, y,
-                            TextSize::Small, Palette::Xp);
-            }
+            // What it pays, the things and a choice among them included: the
+            // board used to say only the experience and the coins, and a sword
+            // was a surprise at the end.
+            DrawQuestRewards(*d, string(), dx, y, dw);
         }
     }
 

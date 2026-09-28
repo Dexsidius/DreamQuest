@@ -99,6 +99,8 @@ $sizes = @{
     cauldron = 48
     # Where charms are worked into worn pieces.
     enchanting_table = 64
+    # A witch's table in the Bayou, where Oona's poppet is fed.
+    witch_table = 64
     # The mage college at Fernhollow, and the circle on its floor.
     mage_college = 176; spell_circle = 96
     # The Emberfell mine's way in, on the overworld.

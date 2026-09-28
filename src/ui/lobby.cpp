@@ -174,9 +174,11 @@ bool Game::StartJoining(const string& address) {
 void Game::UpdateCoop(float dt) {
     // Nobody holds the pad while a panel is open.
     if (split_active && state != GameState::Play) coop_host.FeedLocal(p2_seat, PlayerInput{});
+    // Friends are kept with the world they played in, each multiplayer slot
+    // in a folder of its own (SaveSystem::FriendsPath). A game that is never
+    // saved keeps nothing of anyone's.
+    coop_host.kept_dir = never_save ? string() : SaveSystem::FriendsPath(active_slot);
     if (session.Hosting() && session.Hosted()) {
-        // A game that is never saved keeps nothing of anyone's.
-        if (never_save) coop_host.kept_dir.clear();
         coop_host.Update(dt, *session.Hosted(), home_world, ctx, has_session && !guest_session);
         return;
     }
@@ -200,6 +202,24 @@ void Game::UpdateCoop(float dt) {
         // The line is gone: the reason is on the Play Together screen.
         EndGuestSession(session.Me().Reason());
     }
+}
+
+void Game::NoteCompany() {
+    // Whoever is in the world now, first; everyone who has been before them
+    // after, once each -- the multiplayer list says the first few.
+    vector<string> now;
+    if (session.Hosting() && session.Me().Seated()) {
+        for (const net::SeatInfo& s : session.Me().Roster())
+            if (s.seat != session.Me().Seat() && !s.name.empty()) now.push_back(s.name);
+    } else if (split_active) {
+        const Player* two = coop_host.PlayerOf(p2_seat);
+        string name = two && !two->name.empty() ? two->name : net::CleanLine(settings.p2_name, net::MAX_NAME);
+        now.push_back(name.empty() ? string("Player Two") : name);
+    }
+    for (const string& n : played_with)
+        if (std::find(now.begin(), now.end(), n) == now.end()) now.push_back(n);
+    if (now.size() > 8) now.resize(8);
+    played_with = std::move(now);
 }
 
 string Game::GuestCharacterPath() const {
@@ -380,6 +400,33 @@ void Game::OpenMultiplayer() {
     cursor = session.Active() ? ROW_SAY : ROW_HOST;
 }
 
+// Back to the screen from one of its own lists, still going back where it
+// would have: not OpenMultiplayer, which would make the list its way back.
+void Game::BackToMultiplayer() {
+    SetState(GameState::Multiplayer);
+    cursor = session.Active() ? ROW_SAY : ROW_HOST;
+}
+
+// Hosting the game being played. The door changing is the realm changing:
+// Player Two sits out, and is added again from the pause menu.
+void Game::OpenTheDoor() {
+    if (split_active) {
+        LeaveSplit();
+        PushToast("Player Two sat out while the door opened. Add them again from the pause menu.", Palette::TextDim);
+    }
+    StartHosting(mp_port);
+}
+
+// Host a world, with no game running: which of the multiplayer worlds, or a
+// new one in an empty slot. The door opens once it is under way -- see
+// UpdateSlotSelect and UpdateCharacterSelect.
+void Game::ChooseWorldToHost() {
+    mp_error.clear();
+    hosting_new = false;
+    slot_purpose = SLOT_HOST;
+    SetState(GameState::SlotSelect);
+}
+
 void Game::UpdateMultiplayer() {
     const bool seated = session.Me().Seated();
     const auto leave_screen = [&] {
@@ -453,15 +500,13 @@ void Game::UpdateMultiplayer() {
                 else BeginTextEntry(&mp_name, net::MAX_NAME);
                 break;
             case ROW_HOST:
-                // The door changing is the realm changing: Player Two sits out
-                // and is added again from the pause menu.
-                if (split_active && !session.Active()) {
-                    LeaveSplit();
-                    PushToast("Player Two sat out while the door opened. Add them again from the pause menu.", Palette::TextDim);
-                }
+                // From the title, which world to open the door on is asked
+                // first; a game on the single-player shelf is carried to a
+                // multiplayer slot before it is.
                 if (session.Hosting())     { LeaveSplit(); session.Leave(); }
                 else if (session.Active()) mp_error = "Leave the world you have joined first.";
-                else                       StartHosting(mp_port);
+                else if (!has_session)     ChooseWorldToHost();
+                else if (PlayTogetherHere(Together::Host)) OpenTheDoor();
                 break;
             case ROW_JOIN:
                 if (session.As() == net::Session::Role::Guest) session.Leave();
@@ -560,6 +605,11 @@ void Game::DrawMultiplayer() {
                            break;
             case ROW_HOST: help = hosting ? "Lets everyone go and closes the door."
                                 : guest   ? "Leave the world you have joined first."
+                                : !has_session ? "Choose one of your multiplayer worlds, or start a new one, and "
+                                                 "open it to friends on your tailnet."
+                                : !active_slot.Multi() && !never_save
+                                          ? "Opens this game to friends on your tailnet. It is carried to a "
+                                            "multiplayer slot first; its single-player save stays as it is."
                                           : "Opens this machine to friends on your tailnet. Whoever joins walks "
                                             "into the game you are playing, on the map you are on."; break;
             case ROW_JOIN: help = guest   ? "Hangs up."

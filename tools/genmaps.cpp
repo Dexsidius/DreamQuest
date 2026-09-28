@@ -715,8 +715,9 @@ public:
             }
             for (const auto& e : dq["enemies"]) {
                 // Not what comes out at night: a contract for wolves is filled
-                // where wolves live, not where two might be after dark.
-                if (e.value("night", false) || e.contains("route")) continue;
+                // where wolves live, not where two might be after dark. Nor
+                // what only a ritual calls, lying still until it does.
+                if (e.value("night", false) || e.contains("route") || e.contains("ritual")) continue;
                 json types = e.contains("pool") ? e["pool"] : json::array({e["type"]});
                 posts.push_back({{"types", types}, {"x", e["x"]}, {"y", e["y"]}});
             }
@@ -7067,6 +7068,62 @@ static void BuildBayou() {
                 if (x >= 0 && y >= 0 && x < W && y < H && (kind[at(x, y)] == DECK || kind[at(x, y)] == RAMP)) return true;
         return false;
     };
+    // --- the witches' tables -----------------------------------------------------------------
+    // Three, left out on open ground by the hags: where Oona's poppet is laid
+    // and fed (World::Ritual). Each needs a clear ring round it to fight in --
+    // World::RITUAL_RADIUS, 176 px, and the flames' width: no water, no stilts,
+    // no camp and nothing solid, which is why this is chosen before a tree is
+    // planted -- and nobody's post near enough to be caught inside when it is
+    // lit. One in each third of the map, beside a track so it can be found but
+    // not on it, and in the most open ground that third has.
+    vector<std::pair<int, int>> witch_tables;
+    {
+        const int ring_cells = 7;
+        const auto clear_disc = [&](int cx, int cy) {
+            for (int y = cy - ring_cells; y <= cy + ring_cells; ++y)
+                for (int x = cx - ring_cells; x <= cx + ring_cells; ++x) {
+                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > ring_cells * ring_cells) continue;
+                    if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return false;
+                    if (kind[at(x, y)] != LAND || keep[at(x, y)]) return false;
+                    if (in_camp(mid(x), mid(y))) return false;
+                }
+            return true;
+        };
+        const auto clear_of = [&](int px, int py) {
+            for (const BayouPost& p : kBayouPosts)
+                if (hypotf(static_cast<float>(p.x - px), static_cast<float>(p.y - py)) < 420.0f) return false;
+            for (const auto* track : {&kTrackSpur, &kTrackWest})
+                if (hypotf(static_cast<float>(track->back().first - px), static_cast<float>(track->back().second - py)) < 320.0f)
+                    return false;
+            return true;
+        };
+        for (int third = 0; third < 3; ++third) {
+            int best_x = -1, best_y = -1;
+            float best = -1.0f;
+            const int x0 = std::max(ring_cells + 2, third * W / 3), x1 = std::min(W - ring_cells - 2, (third + 1) * W / 3);
+            for (int cy = ring_cells + 2; cy < H - ring_cells - 2; ++cy)
+                for (int cx = x0; cx < x1; ++cx) {
+                    const int px = cx * CELL + 16, py = cy * CELL + 16;
+                    float track_d = 1e9f;
+                    for (const auto* t : kBayouTracks) track_d = std::min(track_d, DistToLine(*t, static_cast<float>(px), static_cast<float>(py)));
+                    if (track_d < 110.0f || track_d > 460.0f) continue;
+                    if (!clear_disc(cx, cy) || !clear_of(px, py)) continue;
+                    // Open: as far from the water as this third allows.
+                    float wet_d = 14.0f;
+                    for (int y = cy - 14; y <= cy + 14; ++y)
+                        for (int x = cx - 14; x <= cx + 14; ++x)
+                            if (x >= 0 && y >= 0 && x < W && y < H && kind[at(x, y)] == WET)
+                                wet_d = std::min(wet_d, hypotf(static_cast<float>(x - cx), static_cast<float>(y - cy)));
+                    const float score = wet_d - track_d / 400.0f;
+                    if (score > best) { best = score; best_x = px; best_y = py; }
+                }
+            if (best_x < 0) continue;
+            witch_tables.push_back({best_x, best_y});
+            reserve(best_x, best_y, ring_cells);
+            std::printf("  the Bayou: a witch's table at %d, %d\n", best_x, best_y);
+        }
+    }
+
     std::map<string, vector<string>> pools;
     const auto pool = [&](const string& prefix) -> const vector<string>& {
         auto it = pools.find(prefix);
@@ -7230,6 +7287,53 @@ static void BuildBayou() {
     PlaceNightVisitors(m, {{{"blood_thrall", "grave_hound"}, 1, 0}, {{"nosferatu"}, 1, 0},
                            {{"tomb_shade", "grave_hound"}, 1, 0}, {{"dragon_water"}, 1, 0}}, 9,
                        [](int, int) { return true; });
+
+    // --- the tables themselves, and what their ritual calls ---------------------------------------
+    // After everything else, as the night posts are, so that every object and
+    // every post before them keeps its number. The ritual's posts are the
+    // map's, not a table's -- one ritual burns at a time -- and lie still, at
+    // the first table, until one is lit and they are put round it: ten of the
+    // fen's own for each of the first two waves, and for the third the Mother
+    // of the Fen at the head of nine more.
+    for (size_t k = 0; k < witch_tables.size(); ++k) {
+        const int x = witch_tables[k].first, y = witch_tables[k].second;
+        json& o = m.Object("witch_table_" + std::to_string(k + 1), "witch_table", x, y);
+        o["sprite"] = "assets/props/witch_table.png";
+        o["title"]  = "A witch's table";
+        o["text"]   = "Bones, candle ends and a bowl of something dark. A hollow is worn in the boards, the size of a doll.";
+        m.Collision(x - 26, y - 12, 52, 12);
+    }
+    if (!witch_tables.empty()) {
+        struct Call { const char* type; int level, count, wave; };
+        // A swarm, not a shooting gallery: most of each wave comes in to close
+        // quarters, and only two or three stand off and throw -- a ring of
+        // croakers spitting and hags hexing from the flames' edge wore a
+        // level-sixty hero in orichalcum down to nothing without once coming
+        // near enough to be hit. Climbing: the fen's small things first (the
+        // matriarch's own lizardfolk, the shamblers and croakers), then its
+        // hunters (the stalkers, at forty-three), then the Mother herself, at
+        // fifty-one. No witchlights: the quickest and hardest-hitting of the
+        // Bayou's own, ten of whom in a ring would be a wall, not a wave.
+        static const Call kCalls[] = {
+            {"lizardman", 1, 3, 1}, {"rot_shambler", 1, 4, 1}, {"mire_croaker", 1, 3, 1},
+            {"fen_stalker", 1, 4, 2}, {"rot_shambler", 2, 3, 2}, {"swamp_hag", 1, 2, 2}, {"lizard_shaman", 1, 1, 2},
+            {"bayou_matriarch", 1, 1, 3}, {"fen_stalker", 1, 3, 3}, {"lizardman", 2, 2, 3},
+            {"rot_shambler", 2, 2, 3}, {"lizard_shaman", 1, 1, 3}, {"swamp_hag", 1, 1, 3},
+        };
+        // Lying on the open ground in front of the first table, inside the
+        // ring's clear space: not in the table, which is solid.
+        const int tx = witch_tables.front().first, ty = witch_tables.front().second + 64;
+        int called = 0;
+        for (const Call& c : kCalls)
+            for (int i = 0; i < c.count; ++i) {
+                m.Enemy(c.type, tx, ty, c.level, 0.0f, 900.0f);
+                json& e = m.dq["enemies"].back();
+                e["ritual"] = "bayou";
+                e["wave"]   = c.wave;
+                ++called;
+            }
+        std::printf("  the Bayou: %zu witch's tables, %d monsters for their ritual\n", witch_tables.size(), called);
+    }
     m.Write("maps");
 }
 

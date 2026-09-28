@@ -1048,6 +1048,63 @@
     }
    },
    {
+    "text": "What can you tell me about this doll?",
+    "next": "oona_poppet_1",
+    "if": {
+     "quest": "q_oonas_poppet",
+     "state": "active",
+     "stage": 0
+    }
+   },
+   {
+    "text": "About the poppet.",
+    "next": "oona_poppet_again",
+    "if": {
+     "quest": "q_oonas_poppet",
+     "state": "active",
+     "stage": 1
+    }
+   },
+   {
+    "text": "The ritual broke.",
+    "next": "oona_poppet_again",
+    "if": {
+     "quest": "q_oonas_poppet",
+     "state": "active",
+     "stage": 2
+    }
+   },
+   {
+    "text": "About the poppet.",
+    "next": "oona_poppet_feed",
+    "if": {
+     "quest": "q_poppets_hunger",
+     "state": "active",
+     "stage": 0
+    }
+   },
+   {
+    "text": "All five of the poppet's knots are tight.",
+    "next": "oona_poppet_full",
+    "if": {
+     "quest": "q_poppets_hunger",
+     "state": "active",
+     "stage": 1,
+     "has_item": "poppet_idol_5"
+    },
+    "action": {
+     "take": "poppet_idol_5"
+    }
+   },
+   {
+    "text": "About the poppet.",
+    "next": "oona_poppet_after",
+    "if": {
+     "quest": "q_poppets_hunger",
+     "state": "complete"
+    }
+   },
+   {
     "text": "Could you tend my wounds?",
     "next": "oona_rest",
     "action": {
@@ -5710,6 +5767,115 @@
   "options": [
    {
     "text": "I'll let you go.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_poppet_1": {
+  "speaker": "Oona the Herbalist",
+  "text": "Put it down. No -- on the cloth, not the wood.\n\nI know where you got that. Only the fen threads them red and pushes thorns through their middles. Sit, then. This is an old story, and it is not a nice one.",
+  "options": [
+   {
+    "text": "Go on.",
+    "next": "oona_poppet_2",
+    "if": {
+     "no_flag": "poppet_bound"
+    },
+    "action": {
+     "advance": "npc_oona",
+     "give": "poppet_idol",
+     "take": "reed_doll",
+     "set_flag": "poppet_bound"
+    }
+   }
+  ]
+ },
+ "oona_poppet_2": {
+  "speaker": "Oona the Herbalist",
+  "text": "My grandmother's grandmother came over the sea from a village called Salem. In the Salem times a doll like this was a poppet. You sewed a scrap of somebody's shirt into it, or a hair of their head, and whatever was done to the poppet was done to them.\n\nThat is what the accusers said, anyway. They dug poppets out of cellar walls and hanged women on the strength of a few rags and pins.",
+  "options": [
+   {
+    "text": "Were they witches?",
+    "next": "oona_poppet_3"
+   }
+  ]
+ },
+ "oona_poppet_3": {
+  "speaker": "Oona the Herbalist",
+  "text": "Some were. Most were only old, or poor, or had said no to the wrong man. But the poppets were real, and the hangmen never understood them. A poppet was never for hurting anybody. It was a purse.\n\nYou fed it at a witch's table, one hunger at a time, and when it was full it paid you back everything it had eaten.",
+  "options": [
+   {
+    "text": "And this one?",
+    "next": "oona_poppet_4"
+   }
+  ]
+ },
+ "oona_poppet_4": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"Empty. The Mother of the Fen fed it for longer than I have been alive, and you killed her before she could spend it. It is not 'only reeds' now. It is hungry.\"\n\nShe winds new red thread round its neck, five turns and five knots, and pulls every knot loose again.\n\n\"There. Now it is yours.\"",
+  "options": [
+   {
+    "text": "What do I do with it?",
+    "next": "oona_poppet_5"
+   }
+  ]
+ },
+ "oona_poppet_5": {
+  "speaker": "Oona the Herbalist",
+  "text": "The hags still keep their tables out in the Bayou: old boards, bones and candle ends. Lay the poppet on one. The candles will light themselves and fire will come up out of the mud in a ring round you, and nothing gets in or out of it until it is done.\n\nThen the fen comes for the poppet: everything in it that ever wanted to eat. Three times. Keep it off the doll until the fen gives up.",
+  "options": [
+   {
+    "text": "And then?",
+    "next": "oona_poppet_6"
+   }
+  ]
+ },
+ "oona_poppet_6": {
+  "speaker": "Oona the Herbalist",
+  "text": "Then it is fed, and one knot pulls tight. Once a day, no more: a poppet fed twice in a day brings it all back up. Five knots and it is full. Bring it to me then and I will open it, and you will see what a full poppet pays.",
+  "options": [
+   {
+    "text": "Five knots. I will be back.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_poppet_again": {
+  "speaker": "Oona the Herbalist",
+  "text": "A witch's table in the Bayou: boards and bones and candle ends. Lay the poppet on it and stay inside the fire until the fen gives up. If you fall, or it breaks, the poppet only goes cold. Lay it down again. It will wait.",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_poppet_feed": {
+  "speaker": "Oona the Herbalist",
+  "text": "Once a day at a witch's table, until all five knots are tight. You will feel it grow heavier. And do not feed it twice in a day, however hungry it looks. The table will not have it, and neither will I.",
+  "options": [
+   {
+    "text": "Once a day.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_poppet_full": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"Give it here.\" She sets it on the cloth and cuts the knots -- one, two, three, four, five -- and the reeds fall open like a split pod.\n\n\"There: everything the Mother fed it, and everything you did. It paid out more than one thing, and only one of them is yours to keep. The rest goes back to the fen.\"",
+  "options": [
+   {
+    "text": "Thank you, Oona.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_poppet_after": {
+  "speaker": "Oona the Herbalist",
+  "text": "Burn the thread when you are done with it. And if you find another doll hung in the reeds, leave it hanging. One full poppet is luck. Two is a habit, and they hanged people for habits.",
+  "options": [
+   {
+    "text": "I will leave it.",
     "next": "end"
    }
   ]

@@ -2850,5 +2850,172 @@
   "value": 220,
   "learn": "enchant:thrift",
   "icon": "assets/icons/tiers/enchant_scroll.png"
+ },
+ "poppet_idol": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Poppet Idol (0/5)",
+  "desc": "The reed doll, bound again by Oona in new red thread: five turns, five knots, all of them loose. Laid on a witch's table in the Bayou it calls the fen to it. It can be fed once a day.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/poppet_idol.png",
+  "keep": true
+ },
+ "poppet_idol_1": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Poppet Idol (1/5)",
+  "desc": "Oona's poppet, fed at a witch's table. One of its five knots is pulled tight. It can be fed once a day, at a witch's table in the Bayou.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/poppet_idol.png",
+  "keep": true
+ },
+ "poppet_idol_2": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Poppet Idol (2/5)",
+  "desc": "Oona's poppet, fed at a witch's table. Two of its five knots are pulled tight. It can be fed once a day, at a witch's table in the Bayou.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/poppet_idol.png",
+  "keep": true
+ },
+ "poppet_idol_3": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Poppet Idol (3/5)",
+  "desc": "Oona's poppet, fed at a witch's table. Three of its five knots are pulled tight. It can be fed once a day, at a witch's table in the Bayou.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/poppet_idol.png",
+  "keep": true
+ },
+ "poppet_idol_4": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Poppet Idol (4/5)",
+  "desc": "Oona's poppet, fed at a witch's table. Four of its five knots are pulled tight. It is heavy now, heavier than reeds should be. It can be fed once a day, at a witch's table in the Bayou.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/poppet_idol.png",
+  "keep": true
+ },
+ "poppet_idol_5": {
+  "tags": [
+   "curio"
+  ],
+  "name": "Poppet Idol (5/5)",
+  "desc": "All five knots are pulled tight and the doll is as heavy as a stone. It wants nothing more of the fen. Oona, in Mossvale, will want to see it.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/poppet_idol.png",
+  "keep": true
+ },
+ "hexpin": {
+  "name": "The Hexpin",
+  "desc": "A long black blade no wider than a poppet's pin, red thread wound up the grip. One cut in three is left bleeding.",
+  "slot": "weapon",
+  "value": 4200,
+  "speed": 0.95,
+  "bonus": {
+   "attack": 74,
+   "strength": 112
+  },
+  "req": {
+   "Attack": 45
+  },
+  "icon": "assets/icons/hexpin.png",
+  "tint": [
+   150,
+   40,
+   52
+  ],
+  "model": "sword_damascus",
+  "class": "sword",
+  "on_hit": {
+   "id": "bleed",
+   "chance": 0.33
+  }
+ },
+ "thornwife_bow": {
+  "name": "Thornwife's Bow",
+  "desc": "Black thorn from the fen, strung with the Mother's own red thread. One arrow in three goes in with the thorn's venom.",
+  "slot": "weapon",
+  "kind": "bow",
+  "value": 4200,
+  "speed": 0.85,
+  "bonus": {
+   "ranged": 150
+  },
+  "req": {
+   "Ranged": 45
+  },
+  "icon": "assets/icons/thornwife_bow.png",
+  "tint": [
+   96,
+   60,
+   70
+  ],
+  "model": "bow_damascus",
+  "two_handed": true,
+  "on_hit": {
+   "id": "poison",
+   "chance": 0.33
+  }
+ },
+ "poppet_staff": {
+  "name": "The Poppet Staff",
+  "desc": "Crowned with a little poppet of its own, all five of its knots tight. Every spell costs a fifth less, and what it throws turns after its mark.",
+  "slot": "weapon",
+  "kind": "staff",
+  "value": 4200,
+  "speed": 1.0,
+  "bonus": {
+   "magic": 150
+  },
+  "req": {
+   "Magic": 45
+  },
+  "icon": "assets/icons/poppet_staff.png",
+  "tint": [
+   140,
+   60,
+   90
+  ],
+  "model": "staff_damascus",
+  "mana": 0.8,
+  "homing": 0.3,
+  "spells": {
+   "fire": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "water": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "earth": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "air": [
+    1,
+    2,
+    3,
+    4
+   ]
+  }
  }
 }

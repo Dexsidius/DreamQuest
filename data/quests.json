@@ -289,10 +289,18 @@
     "Hitpoints": 400
    },
    "coins": 340,
-   "items": [
+   "choices": [
     {
-     "id": "iron_sword",
-     "qty": 1
+     "style": "melee",
+     "id": "iron_sword"
+    },
+    {
+     "style": "ranged",
+     "id": "iron_bow"
+    },
+    {
+     "style": "magic",
+     "id": "iron_staff"
     }
    ]
   },
@@ -610,10 +618,18 @@
     "Defence": 200
    },
    "coins": 220,
-   "items": [
+   "choices": [
     {
-     "id": "oak_shortbow",
-     "qty": 1
+     "style": "melee",
+     "id": "wood_sword"
+    },
+    {
+     "style": "ranged",
+     "id": "oak_shortbow"
+    },
+    {
+     "style": "magic",
+     "id": "wood_staff"
     }
    ]
   },
@@ -3172,7 +3188,8 @@
     }
    ]
   },
-  "completion": "With the matriarch dead the thorns work loose from the doll on their own, and the red thread goes brown. It is only reeds now."
+  "completion": "With the matriarch dead the thorns work loose from the doll on their own, and the red thread goes brown. It is only reeds now.",
+  "then": "q_oonas_poppet"
  },
  "q_drowned_locket": {
   "name": "The Drowned Locket",
@@ -6137,5 +6154,93 @@
    "coins": 100
   },
   "completion": "\"They will be gone before you are out of the door. Listen.\""
+ },
+ "q_oonas_poppet": {
+  "name": "What the Doll Was For",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 45,
+  "summary": "The thorns have worked out of the reed doll and its thread has gone brown, but it is still warm in the hand. Oona the Herbalist in Mossvale knows old things. Take it to her.",
+  "prereq": [
+   "q_doll_in_the_reeds"
+  ],
+  "stages": [
+   {
+    "desc": "Take the reed doll to Oona in Mossvale",
+    "type": "talk",
+    "target": "npc_oona"
+   },
+   {
+    "desc": "Lay the poppet on a witch's table in the Bayou",
+    "type": "interact",
+    "target": "witch_table"
+   },
+   {
+    "desc": "Complete 3 waves of enemies to complete the ritual",
+    "type": "interact",
+    "target": "poppet_wave",
+    "count": 3,
+    "where": "witch_table"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1500,
+    "Defence": 1500,
+    "Magic": 1000
+   },
+   "coins": 1200
+  },
+  "completion": "The fire sinks into the mud and the fen goes quiet. The poppet lies on the table where you left it, one knot tighter in its red thread than it was.",
+  "then": "q_poppets_hunger"
+ },
+ "q_poppets_hunger": {
+  "name": "Five Knots",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 45,
+  "summary": "A poppet has to be fed before it gives anything back, Oona says: one ritual a day at a witch's table in the Bayou, until all five of its knots are pulled tight. Then bring it to her, and she will open it.",
+  "prereq": [
+   "q_oonas_poppet"
+  ],
+  "stages": [
+   {
+    "desc": "Complete the ritual at a witch's table, once a day, until all five knots are tight",
+    "type": "interact",
+    "target": "poppet_ritual",
+    "count": 5,
+    "start": 1,
+    "where": "witch_table"
+   },
+   {
+    "desc": "Bring the full poppet to Oona in Mossvale",
+    "type": "deliver",
+    "target": "poppet_idol_5",
+    "to": "npc_oona"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2500,
+    "Defence": 2000,
+    "Magic": 2000
+   },
+   "coins": 3000,
+   "choices": [
+    {
+     "style": "melee",
+     "id": "hexpin"
+    },
+    {
+     "style": "ranged",
+     "id": "thornwife_bow"
+    },
+    {
+     "style": "magic",
+     "id": "poppet_staff"
+    }
+   ]
+  },
+  "completion": "Oona cuts the five knots one after another, and the reeds fall open like a split pod. Inside, where there should be nothing at all, is everything it was fed."
  }
 }

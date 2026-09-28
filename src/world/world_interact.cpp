@@ -102,6 +102,13 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             string noun = o.title.empty() ? string("enchanting table") : o.title;
             noun[0] = static_cast<char>(tolower(static_cast<unsigned char>(noun[0])));
             label = "Use the " + noun;
+        } else if (o.type == "witch_table") {
+            // Burning, it asks nothing: the fen is coming whatever is pressed.
+            float rx = 0.0f, ry = 0.0f, rr = 0.0f;
+            int rw = 0;
+            if (RingBurning(rx, ry, rr, rw) && Length(rx - o.x, ry - o.y) < 40.0f) label.clear();
+            else if (IdolKnots(player.inventory) >= 0) label = "Lay the poppet on the table";
+            else label = "Look at the witch's table";
         } else if (o.type == "herb") {
             // A picked plant offers nothing until it has grown back.
             if (!Picked(o)) {
@@ -376,6 +383,16 @@ void World::TryInteract(const GameContext& ctx) {
                 r.id    = o.id;
                 r.title = o.title.empty() ? "Enchanting Table" : o.title;
                 requests.push_back(r);
+            } else if (o.type == "witch_table") {
+                // With Oona's poppet in the bag it is laid on the table and the
+                // ritual begins -- or the table says why not. Without one, the
+                // table is only what it looks like.
+                if (IdolKnots(player.inventory) >= 0) {
+                    StartRitual(o, ctx);
+                } else {
+                    AddText(o.text.empty() ? "Bones, candle ends and a bowl of something dark." : o.text,
+                            o.x, o.y - 40.0f, {214, 200, 176, 255}, 3.2f);
+                }
             } else if (o.type == "note" || o.type == "sign") {
                 // Reading something can be what a quest asks for.
                 if (ctx.quests) {

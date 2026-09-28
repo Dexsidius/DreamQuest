@@ -46,6 +46,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
         d.major = o.value("major", false);
         d.tutorial = o.value("tutorial", false);
         d.completion_text   = o.value("completion", string(""));
+        d.then              = o.value("then", string(""));
 
         if (o.contains("req"))
             for (auto r = o["req"].begin(); r != o["req"].end(); ++r) {
@@ -73,6 +74,8 @@ bool QuestLog::LoadDefinitions(const string& path) {
                 st.deliver_to  = s.value("to", string(""));
                 st.map_id      = s.value("map", string(""));
                 st.count       = std::max(1, s.value("count", 1));
+                st.start       = std::clamp(s.value("start", 0), 0, st.count - 1);
+                st.where       = s.value("where", string(""));
                 st.hidden      = s.value("hidden", false);
                 d.stages.push_back(st);
             }
@@ -88,6 +91,34 @@ bool QuestLog::LoadDefinitions(const string& path) {
             if (r.contains("items"))
                 for (const auto& i : r["items"])
                     d.rewards.items.emplace_back(i.value("id", string("")), i.value("qty", 1));
+            // "choices": one of these as well, the player's pick. Each is an
+            // object with any of "label", "style" ("melee", "ranged", "magic"),
+            // "items", "coins" and "xp" -- or, for an option that is one thing,
+            // "id" and "qty" on the option itself.
+            if (r.contains("choices") && r["choices"].is_array())
+                for (const auto& c : r["choices"]) {
+                    if (!c.is_object()) continue;
+                    QuestRewardChoice ch;
+                    ch.label = c.value("label", string(""));
+                    ch.style = c.value("style", string(""));
+                    if (!ch.style.empty() && ch.style != "melee" && ch.style != "ranged" && ch.style != "magic") {
+                        SDL_Log("QuestLog: %s offers a choice for \"%s\", which is no way of fighting "
+                                "(melee, ranged or magic)", d.id.c_str(), ch.style.c_str());
+                        ch.style.clear();
+                    }
+                    ch.coins = c.value("coins", 0);
+                    if (c.contains("xp") && c["xp"].is_object())
+                        for (auto x = c["xp"].begin(); x != c["xp"].end(); ++x) {
+                            const int s = SkillFromName(x.key());
+                            if (s >= 0) ch.xp[s] = x.value().get<int>();
+                        }
+                    if (c.contains("items") && c["items"].is_array())
+                        for (const auto& i : c["items"])
+                            ch.items.emplace_back(i.value("id", string("")), std::max(1, i.value("qty", 1)));
+                    if (c.contains("id"))
+                        ch.items.emplace_back(c.value("id", string("")), std::max(1, c.value("qty", 1)));
+                    d.rewards.choices.push_back(ch);
+                }
         }
 
         defs[d.id] = d;
@@ -270,10 +301,13 @@ bool QuestLog::Start(const string& id) {
     if (again) {
         p.completions = progress[id].completions;
         p.completed_day = progress[id].completed_day;
+        // A pick still owed from the last time is owed yet.
+        p.owed = progress[id].owed;
+        p.chosen = progress[id].chosen;
     }
     p.status  = QuestStatus::Active;
     p.stage   = 0;
-    p.counter = 0;
+    p.counter = d->stages.empty() ? 0 : d->stages.front().start;
     progress[id] = p;
     just_started.push_back(id);
     taken_order.erase(std::remove(taken_order.begin(), taken_order.end(), id), taken_order.end());
@@ -285,9 +319,23 @@ bool QuestLog::Start(const string& id) {
     // looking stuck.
     if (d->stages.empty()) {
         progress[id].status = QuestStatus::Complete;
+        if (!d->rewards.choices.empty()) ++progress[id].owed;
         just_completed.push_back(id);
+        if (!d->then.empty()) follow_ups.push_back(d->then);
+        BeginFollowUps();
     }
     return true;
+}
+
+void QuestLog::BeginFollowUps() {
+    // Taken out before any is begun: beginning one can finish it at once -- a
+    // quest with no stages -- and that can name another.
+    for (int depth = 0; depth < 8 && !follow_ups.empty(); ++depth) {
+        vector<string> now;
+        now.swap(follow_ups);
+        for (const string& id : now) Start(id);
+    }
+    follow_ups.clear();
 }
 
 bool QuestLog::StageSatisfied(const QuestDef& def, const QuestProgress& p,
@@ -315,9 +363,14 @@ void QuestLog::AdvanceStage(const string& id, const Inventory& inv) {
             p.status = QuestStatus::Complete;
             p.completed_day = today;
             ++p.completions;
+            if (!d->rewards.choices.empty()) ++p.owed;
             just_completed.push_back(id);
+            // What it leads to begins once whatever is walking the journal
+            // has finished with it: see BeginFollowUps.
+            if (!d->then.empty()) follow_ups.push_back(d->then);
             return;
         }
+        p.counter = d->stages[p.stage].start;
         // A Collect stage can already be satisfied by what the player carries,
         // so keep walking forward until one genuinely blocks.
         if (d->stages[p.stage].type != ObjectiveType::Collect) break;
@@ -342,9 +395,12 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
         if (!st.map_id.empty() && st.map_id != e.map_id) continue;
         if (st.type == ObjectiveType::Deliver && st.deliver_to != e.secondary) continue;
 
-        p.counter = std::min(p.counter + e.amount, st.count);
+        // A negative amount takes progress back -- a ritual broken takes back
+        // the waves it had got through -- but never below nothing.
+        p.counter = std::clamp(p.counter + e.amount, 0, st.count);
         AdvanceStage(kv.first, inv);
     }
+    BeginFollowUps();
 }
 
 void QuestLog::RefreshCollectObjectives(const Inventory& inv) {
@@ -376,6 +432,7 @@ void QuestLog::RefreshCollectObjectives(const Inventory& inv) {
         AdvanceStage(id, inv);
         sync(p, *d);    // the stage it moved on to may be a collect stage too
     }
+    BeginFollowUps();
 }
 
 vector<string> QuestLog::Active() const {
@@ -441,6 +498,53 @@ vector<string> QuestLog::TakeJustStarted() {
     return out;
 }
 
+int QuestLog::ChoicesOwed(const string& id) const {
+    const QuestDef* d = Definition(id);
+    auto it = progress.find(id);
+    // A save that owes a pick of a quest the file no longer offers one of owes
+    // nothing: there is nothing to pick from.
+    if (!d || d->rewards.choices.empty() || it == progress.end()) return 0;
+    return it->second.owed;
+}
+
+vector<string> QuestLog::WithChoicesOwed() const {
+    vector<string> out;
+    for (const auto& kv : progress)
+        if (ChoicesOwed(kv.first) > 0) out.push_back(kv.first);
+    return out;
+}
+
+const QuestRewardChoice* QuestLog::TakeChoice(const string& id, int index) {
+    if (ChoicesOwed(id) <= 0) return nullptr;
+    const QuestDef* d = Definition(id);
+    if (index < 0 || index >= static_cast<int>(d->rewards.choices.size())) return nullptr;
+    QuestProgress& p = progress[id];
+    --p.owed;
+    p.chosen = index;
+    return &d->rewards.choices[index];
+}
+
+int QuestLog::LastChosen(const string& id) const {
+    auto it = progress.find(id);
+    return it == progress.end() ? -1 : it->second.chosen;
+}
+
+string QuestLog::StyleOf(const QuestRewardChoice& c, const ItemDatabase& items) {
+    if (!c.style.empty()) return c.style;
+    // What it hands over says whose it is: a weapon by how it is used, a
+    // piece of armour by the style it adds to.
+    for (const auto& thing : c.items) {
+        const ItemDef* d = items.Get(thing.first);
+        if (!d || d->slot == SLOT_NONE) continue;
+        if (d->slot == SLOT_WEAPON)
+            return d->kind == WeaponKind::Bow ? "ranged" : d->kind == WeaponKind::Staff ? "magic" : "melee";
+        if (d->magic_bonus > 0 && d->magic_bonus >= d->ranged_bonus) return "magic";
+        if (d->ranged_bonus > 0) return "ranged";
+        if (d->attack_bonus > 0 || d->strength_bonus > 0) return "melee";
+    }
+    return "";
+}
+
 string QuestLog::Followed() const {
     if (!followed.empty() && IsActive(followed)) return followed;
     for (auto it = taken_order.rbegin(); it != taken_order.rend(); ++it)
@@ -461,12 +565,16 @@ json QuestLog::ToJson() const {
     // Beside the quests, under a name no quest has.
     j["_following"] = json{{"quest", followed}, {"chosen", chosen}, {"order", taken_order}};
     for (const auto& kv : progress) {
-        j[kv.first] = json{
+        json q = json{
             {"status",  static_cast<int>(kv.second.status)},
             {"stage",   kv.second.stage},
             {"counter", kv.second.counter},
             {"completed_day", kv.second.completed_day},
             {"completions", kv.second.completions}};
+        // Only where there is a choice to speak of.
+        if (kv.second.owed > 0)    q["owed"] = kv.second.owed;
+        if (kv.second.chosen >= 0) q["chosen"] = kv.second.chosen;
+        j[kv.first] = q;
     }
     return j;
 }
@@ -475,6 +583,7 @@ void QuestLog::FromJson(const json& j) {
     progress.clear();
     just_completed.clear();
     just_started.clear();
+    follow_ups.clear();
     if (!j.is_object()) return;
 
     followed.clear();
@@ -496,6 +605,16 @@ void QuestLog::FromJson(const json& j) {
         p.counter = it.value().value("counter", 0);
         p.completed_day = it.value().value("completed_day", -1);
         p.completions = it.value().value("completions", p.status == QuestStatus::Complete ? 1 : 0);
+        p.owed    = std::max(0, it.value().value("owed", 0));
+        p.chosen  = it.value().value("chosen", -1);
         progress[it.key()] = p;
     }
+    // A quest finished before it led anywhere -- in a save from a build that
+    // did not have what comes after it -- leads on now, as it would have: the
+    // "Quest started" for it is waiting when the game is loaded.
+    for (const auto& kv : defs)
+        if (!kv.second.then.empty() && Status(kv.first) == QuestStatus::Complete &&
+            Status(kv.second.then) == QuestStatus::NotStarted)
+            follow_ups.push_back(kv.second.then);
+    BeginFollowUps();
 }

@@ -47,6 +47,7 @@ enum class GameState {
     Enchanting,
     Shop,
     Storage,
+    RewardChoice,      // a quest done: which of the rewards it offers to take
     Death,
 };
 
@@ -69,9 +70,9 @@ private:
     // --- lifecycle -----------------------------------------------------------
     bool LoadContent();
     void ApplySettings();
-    void NewGame(const string& character, int slot);
-    bool LoadGame(int slot);
-    bool SaveGame(int slot);
+    void NewGame(const string& character, SlotRef slot);
+    bool LoadGame(SlotRef slot);
+    bool SaveGame(SlotRef slot);
 
     // --- frame ---------------------------------------------------------------
     void Process(float dt);
@@ -83,7 +84,29 @@ private:
     // What dialogue conditions are judged against, right now.
     DialogueContext MakeDialogueContext() const;
     void GrantQuestRewards(const string& quest_id);
+    // Experience, coins and things, into the bag -- or, with no room, at the
+    // player's feet rather than lost.
+    void GiveRewards(const map<int, int>& xp, const vector<pair<string, int>>& things, int coins);
     void PushToast(const string& text, SDL_Color color = Palette::Text, float life = 3.2f);
+
+    // --- rewards to choose -------------------------------------------------------------
+    // A quest done with a choice of rewards asks at once, on a panel of its own
+    // (see screen_journal.cpp); put off, the journal asks until it is answered.
+    // Two quests can finish in one moment, so each seat has a queue of them.
+    vector<string> reward_queue[2];
+    string reward_quest;          // the quest the panel is asking about
+    int    reward_cursor = 0;     // which of its choices is lit
+    float  reward_opened_at = 0.0f;
+    void   AskRewardChoice(const string& quest_id);
+    void   OpenRewardChoice(const string& quest_id);
+    void   NextRewardOrClose();
+    // The option for this character's way of fighting, or the first.
+    int    OwnRewardChoice(const QuestDef& d) const;
+    void   UpdateRewardChoice();
+    void   DrawRewardChoice();
+    // The reward lines a quest's detail shows, the choices among them: the
+    // journal's and the board's. Returns the height used.
+    float  DrawQuestRewards(const QuestDef& d, const string& quest_id, float x, float y, float w);
 
     // --- state helpers -------------------------------------------------------
     void SetState(GameState s);
@@ -367,9 +390,47 @@ private:
     int  book_row = 0;
     int  tree_branch = 0, tree_row = 0;
     bool tree_reset_armed = false;
-    int  slot_purpose = 0;       // 0 = start new game, 1 = save
+    // What the slot list is choosing a slot for: a new game, a save, a
+    // single-player game to carry to a multiplayer slot before it is played
+    // together, or -- from the title -- the world to host.
+    enum SlotPurpose { SLOT_NEW = 0, SLOT_SAVE, SLOT_CARRY, SLOT_HOST };
+    int  slot_purpose = SLOT_NEW;
     int  overwrite_slot = -1;    // occupied slot a new game is waiting to replace
     int  delete_slot = -1;       // slot the load screen is asking about deleting
+    // The slot lists' two shelves, single player and multiplayer: which one
+    // is showing, and when it was last stepped to, for its rows to come in.
+    // Which one a list opens on is SetState's to say.
+    SaveKind slot_tab = SaveKind::Single;
+    float    slot_tab_at = -10.0f;
+    int      slot_tab_dir = 1;
+    SaveKind OpeningShelf() const;
+    // Whether the list is held to the multiplayer shelf -- a game being played
+    // together is never put with the ones played alone -- and what it says
+    // under the rows about the shelf it is on.
+    bool     ShelfLocked() const;
+    string   ShelfNote() const;
+    void     StepShelf();
+    // Playing together, asked for in a game on the single-player shelf: it is
+    // carried to a multiplayer slot first, and then this is done. `carry_back`
+    // is where Back goes if it is not.
+    enum class Together { None, Host, PlayerTwo };
+    Together  carry_then = Together::None;
+    GameState carry_back = GameState::Play;
+    // True when the game can be played together where it is; otherwise the
+    // slot list has been opened to carry it, and `what` waits for that.
+    bool      PlayTogetherHere(Together what);
+    void      CarryTo(SlotRef slot);
+    // Hosting from the title: an empty multiplayer slot chosen to start a new
+    // world in, once the character select has said who.
+    bool      hosting_new = false;
+    SlotRef   pending_slot;
+    void      ChooseWorldToHost();
+    void      BackToMultiplayer();
+    void      OpenTheDoor();
+    // Who else has played in this world, most recent first, saved with it so
+    // the multiplayer list can say whose world is whose.
+    vector<string> played_with;
+    void      NoteCompany();
     int  sleep_fee = 0;          // what the bed being asked about costs
     int    travel_cursor = 0;
     // The waystone panel's tabs: 0 the towns' stones, 1 the wilds'. It opens
@@ -392,7 +453,7 @@ private:
     static constexpr int kCharacterCount = 3;
     static const char* kCharacterIds[kCharacterCount];
     static const char* kCharacterLabels[kCharacterCount];
-    int    active_slot = 1;
+    SlotRef active_slot;          // where the game in progress saves: its shelf and number
 
     // Board / note payloads handed over by the world.
     string   note_title, note_text, note_quest;
@@ -484,6 +545,7 @@ private:
     string   launch_skills;             // --skills Foraging:50,Fishing:20: and these skills at these levels
     float    launch_charge = 0.0f;     // --charge F: how full the lightning's battery starts
     float    launch_hour = -1.0f;       // --hour H: and at this time of day, for looking at the night or a dream
+    string   launch_finish;             // --finish a,b: these taken and done, rewards and all
     string   launch_quests;             // --quest a,b: with these quests taken
     string   launch_screen;             // --screen controls|options|map|journal: and this open
     // --audit: opens every menu in turn at a few window sizes, says which of
@@ -538,7 +600,7 @@ private:
     // served: the journal, levels gained, the buttons that open their panels.
     void SeatChores();
     // The slot is Player One's and the home world's, whoever asked.
-    bool WriteSlot(int slot);
+    bool WriteSlot(SlotRef slot);
     // --p2 and --hold2, for checking the halves without a second pair of hands.
     bool launch_p2 = false;
     struct HeldAction { Action action = Action::MoveRight; float from = 0.0f, to = 0.0f; int sent = 0; };

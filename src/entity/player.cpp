@@ -1416,7 +1416,8 @@ Player::JumpPlan Player::PlanJump(const Map& map, float dir_x, float dir_y) cons
     constexpr float STEP = 4.0f, REACH = 64.0f;
     for (float d = STEP; d <= REACH; d += STEP) {
         const float px = x + ux * d, py = y + uy * d;
-        if (map.Blocked(box_at(px, py))) break;
+        // Nor over a ritual's ring of fire: it is not a ledge to be hopped.
+        if (map.Blocked(box_at(px, py)) || map.RingCrossed(x, y, px, py)) break;
 
         const int level = map.LevelAt(px, py);
         const int diff = level - from_level;
@@ -1441,7 +1442,7 @@ Player::JumpPlan Player::PlanJump(const Map& map, float dir_x, float dir_y) cons
     constexpr float HOP = 22.0f;
     const float hx = x + ux * HOP, hy = y + uy * HOP;
     if (!map.Blocked(box_at(hx, hy)) && map.LevelAt(hx, hy) == from_level &&
-        !map.LevelChangeBlocked(x, y, hx, hy)) {
+        !map.LevelChangeBlocked(x, y, hx, hy) && !map.RingCrossed(x, y, hx, hy)) {
         plan.ok = true;
         plan.x = hx;
         plan.y = hy;
@@ -1527,6 +1528,8 @@ bool Player::TryAbility(int slot, World& world) {
             there.x += dx * d;
             there.y += dy * d;
             if (world.map.Blocked(there) || world.map.LevelAt(x + dx * d, y + dy * d) != level) continue;
+            // Not out through a ritual's ring of fire, nor in.
+            if (world.map.RingCrossed(x, y, x + dx * d, y + dy * d)) continue;
             best = d;
             break;
         }

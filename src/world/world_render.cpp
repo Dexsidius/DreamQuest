@@ -632,6 +632,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     DrawFloorLight(r);
     // Cracks in the ice, and the holes where it gave way.
     DrawIce(r);
+    // A ritual's ring of fire, where it burns into the ground.
+    DrawRingGround(r);
 
     // Burning ground and pending eruptions lie on the floor, under everyone.
     // Drawn as a squashed disc rather than a rectangle: a hard-edged box reads
@@ -1734,6 +1736,10 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             fill_disc(foot.x, foot.y, rx, rx * 0.34f, {196, 160, 255, static_cast<Uint8>(52 * fade)});
         }
     }
+
+    // The poppet on a witch table while its ritual burns, over the table and
+    // under the flames.
+    DrawRitual(r, cache);
 
     // Embers, drops and the rest, over everything that stands: see Mote.
     DrawMotes(r);
