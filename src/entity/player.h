@@ -51,7 +51,8 @@ public:
     // True when a new swing may begin: nothing in flight, no cooldown left,
     // and both feet on the ground.
     bool  CanAttack() const {
-        return reload_left <= 0.0f && !attack.Active() && attack_cooldown <= 0.0f && !jumping;
+        return reload_left <= 0.0f && !attack.Active() && attack_cooldown <= 0.0f && !jumping &&
+               roll_timer <= 0.0f && roll_recover <= 0.0f;
     }
 
     // --- jumping ---------------------------------------------------------------
@@ -242,17 +243,43 @@ public:
     // and the character's affinity when the style is theirs.
     float TalentDamage(AttackStyle style, AttackType type) const;
 
+    // --- the warden's roll ------------------------------------------------------
+    // The bow's way out of a blow. The guard button, when there is nothing in
+    // hand to guard with -- no shield, no blade that parries -- rolls the way
+    // the stick is pushed, facing it, or heels over head back the way they
+    // came when it is not. Nothing can touch them until they are up, and for
+    // a moment after that they are getting their feet under them: no shot,
+    // and no second roll. A pad's guard rolls on the press, since its shift
+    // is RB. On the keys the guard is the abilities' shift as well, so there
+    // it rolls on a tap -- let go inside ROLL_TAP with no ability pressed --
+    // and held with J, K or L it is the ability it always was.
+    static constexpr float ROLL_SPEED   = 820.0f;   // px/s, spent in a third of a second
+    static constexpr float ROLL_TIME    = 0.34f;    // untouchable this long
+    static constexpr float ROLL_RECOVER = 0.25f;    // then up, and not yet shooting
+    static constexpr float ROLL_STAMINA = 20.0f;
+    static constexpr float ROLL_TAP     = 0.25f;
+    // Whose guard button rolls: the warden's, with nothing to guard with.
+    bool  RollsOnGuard() const;
+    // A roll now, if one may start: returns whether it did.
+    bool  TryRoll();
+    bool  Rolling() const { return roll_timer > 0.0f; }
+    bool  GettingUp() const { return roll_timer <= 0.0f && roll_recover > 0.0f; }
+    // Follow Through (the Skirmisher's fourth row, where Tumble was): a light
+    // attack pressed while rolling or getting up is a quick shot, loosed the
+    // moment they are up -- no draw to speak of, and three quarters as hard as
+    // a plain shot, the node's own number. Only with something that shoots.
+    static constexpr float QUICK_WINDUP = 0.03f;
+    bool  FollowOwed() const { return follow_left > 0.0f || follow_queued; }
+
     // --- abilities --------------------------------------------------------------
-    // Moves of their own, learned in the character's tree -- six to a tree --
-    // and three carried at once: guard held and the light button, the heavy
-    // button, or lock on.
+    // Moves of their own, learned in the character's tree -- six to a tree,
+    // five in the bow's -- and three carried at once: guard held and the light
+    // button, the heavy button, or lock on.
     // Each has a cooldown and a cost. What an ability does to the player --
-    // the roll, the step through the air, the shout's strength -- happens here,
-    // so a friend's machine predicts it; what it does to the world is left in
+    // the step through the air, the shout's strength -- happens here, so a
+    // friend's machine predicts it; what it does to the world is left in
     // `pending_ability` for the world to do, which on a friend's machine is
-    // the host.
-    static constexpr float TUMBLE_SPEED    = 820.0f;   // px/s, spent in a third of a second
-    static constexpr float TUMBLE_TIME     = 0.34f;    // untouchable this long
+    // the host. The warden's roll leaves "roll" there the same way.
     static constexpr float BLINK_DISTANCE  = 116.0f;
     static constexpr float WAR_CRY_TIME    = 8.0f;
     static constexpr float WAR_CRY_DAMAGE  = 0.25f;
@@ -280,7 +307,7 @@ public:
     float AbilityCooldown(int slot) const { return ability_cd[std::clamp(slot, 0, SkillTrees::ABILITY_SLOTS - 1)]; }
     // The ability begun this step, once, for the world to finish.
     string TakeAbility() { string a; a.swap(pending_ability); return a; }
-    bool  Untouchable() const { return tumble_timer > 0.0f; }
+    bool  Untouchable() const { return roll_timer > 0.0f; }
     bool  WarCry() const { return war_cry_timer > 0.0f; }
     bool  ManaShield() const { return mana_shield_timer > 0.0f; }
     float ManaShieldLeft() const { return mana_shield_timer; }
@@ -318,8 +345,8 @@ public:
     uint8_t buffs_shown = 0;
     // Seconds left of the buff a bit stands for, 0 for a friend's (see above).
     float BuffLeft(uint8_t bit) const;
-    // Where the character was before a blink, or a tumble took them: the
-    // world marks the way they went.
+    // Where the character was before a blink, or a roll took them: the world
+    // marks the way they went.
     SDL_FPoint AbilityFrom() const { return ability_from; }
     // The way a Rushing Strike leapt, a unit vector.
     Vec2  RushDirection() const { return {rush_dx, rush_dy}; }
@@ -535,6 +562,11 @@ public:
     // the guard is down or the blow came from behind -- and has already spent
     // the stamina and banked the Defence XP.
     BlockOutcome TryBlock(int damage, int attacker_level, float from_x, float from_y);
+    // Defence for a blow stopped some other way than on a shield -- stepped
+    // out of, rolled through, paid for in mana, stood fast against -- at the
+    // rate a block pays for the same amount. `damage` is what it would have
+    // done, or the part of it that was kept off.
+    void  TrainDefence(float damage) { BankXp(SKILL_DEFENCE, damage * BLOCK_XP_PER_DAMAGE); }
     // Whether a blow from (from_x, from_y) would be met by the raised shield.
     bool  GuardFacing(float from_x, float from_y) const;
     // What a heavy attack does to a raised guard: the bar emptied, the guard
@@ -798,7 +830,12 @@ private:
     float overload_timer = 0.0f, invoke_timer = 0.0f, invoke_bank = 0.0f;
     const void* weak_target = nullptr;
     int   weak_stacks = 0;
-    float tumble_timer = 0.0f, war_cry_timer = 0.0f, mana_shield_timer = 0.0f;
+    float roll_timer = 0.0f, war_cry_timer = 0.0f, mana_shield_timer = 0.0f;
+    // The roll: getting up after it; a tap of the keys' guard being timed;
+    // and Follow Through's window, and a quick shot pressed for mid-roll.
+    float roll_recover = 0.0f, roll_tap = 0.0f, follow_left = 0.0f;
+    bool  roll_armed = false, follow_queued = false;
+    bool  StartQuickShot(const World& world);
     float shield_struck = 99.0f;
     float riposte_timer = 0.0f, hit_run_timer = 0.0f;
     int   attune_stacks = 0;

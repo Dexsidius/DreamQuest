@@ -403,6 +403,12 @@ private:
     bool  swing_landed = false;   // one hit per swing
     float swing_timer = 0.0f;
     bool  swinging = false;
+    // Who a swing, or a heavy, is coming for: the seat of whoever was in the
+    // arc of it as it began -- as a heavy was committed -- or -1 if nobody
+    // was. Out of it by the time it lands, they dodged it (World::Dodged).
+    // Asked once each.
+    int   swing_at = -1, heavy_at = -1;
+    bool  swing_asked = false, heavy_asked = false;
 
     bool  bar_revealed = false;
     float bar_trail = 1.0f;

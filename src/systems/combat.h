@@ -160,7 +160,7 @@ int MaxHit(const CombatProfile& p, float damage_mult);
 // A monster's ordinary swing or shot used to roll to hit against the player's
 // Defence, the way the player's own attacks roll against a monster's, and at a
 // fight of the player's own level it missed four blows in five. With a block,
-// a parry, a tumble and a step out of the arc all in the player's hands, a
+// a parry, a roll and a step out of the arc all in the player's hands, a
 // second chance of nothing happening -- rolled by the game, not earned -- made
 // the blows that did land feel arbitrary, and made armour a thing that turned
 // blows into misses rather than a thing that takes the weight off them.

@@ -778,6 +778,105 @@ moment and *Parrying* after it. The rules are `Player::TryParry` and
 through `HeavyHitPlayer`), which asks the blade before it asks a shield. Which
 weapons parry is `Player::ParryStyle`.
 
+### The warden's roll
+
+A bow takes both hands, so the warden has nothing to guard with. **Her guard
+button rolls instead** -- B on a pad, `H` on the keys:
+
+- **Which way.** The way the stick is pushed, facing it. Standing still, back
+  the way she came, heels over head.
+- **Untouchable.** Nothing can touch her until she is up, a third of a second
+  later.
+- **Getting up.** For a quarter of a second after that she is getting her feet
+  under her: no shot and no second roll.
+- **Cost.** 20 stamina a roll; short of that, there is no roll. Neither an
+  ability nor a jump comes out mid-roll.
+
+On a pad the roll goes on the press, since the abilities' shift is RB there. On
+the keys `H` is the shift as well, so a **tap** rolls: let go within a quarter
+of a second, with no ability pressed. Held with `J`, `K` or `L`, it is the
+ability, as it always was. Held a while and let go, it is nothing.
+
+Only the warden rolls, and only with nothing to guard with. With knives and a
+shield the button blocks, with a dagger it parries, and the hero and the
+wayfarer never roll. The key line at the bottom of the screen says `H roll` for
+her where it says `H block` behind a shield. The Controls screen calls the
+button "Block / roll".
+
+**Follow Through** is the roll's shot. It is the Skirmisher's fourth row at
+Ranged 40, where Tumble was, and a passive now. A light attack pressed while she
+rolls or gets up is a **quick shot**, loosed the moment she is on her feet:
+- next to no draw (0.03 s), and not held to the bow's pace;
+- three quarters as hard as a plain shot, the one a single press looses (the
+  node's `follow_through` number).
+
+Without it she waits until she is up. The quick shot is a shot, so with a sword
+in hand she still rolls but nothing is owed.
+
+A save that bought Tumble keeps that point, on Follow Through, so nothing below
+it in the branch comes loose; whichever slot carried Tumble is emptied
+(`Talents::FromJson`).
+
+Rolling through a blow is a blow dodged: see
+[Training Defence without a shield](#training-defence-without-a-shield). In
+co-op a friend's roll is predicted on her machine and made on the host's copy
+from the same buttons, like every other move; nothing new goes over the wire.
+The code is `Player::RollsOnGuard`, `TryRoll` and `StartQuickShot`, and the
+dust and the speed lines are `World::AbilityFx("roll")`.
+
+### Training Defence without a shield
+
+A shield and a parry are not the only ways to train Defence. A bow, a staff,
+two hands on a greatsword and bare fists all have a way to learn it. **Every
+blow that was coming for you and found nobody there is a blow dodged.** It
+trains Defence at the block's 4 XP a point, counted on what the blow would
+have done to you through what you wear:
+
+| Out of the way of it | Counted as |
+| --- | --- |
+| **A swing stepped out of**: in its arc as it began, out of it when it lands | the swing's average, `ExpectedMonsterBlow` |
+| **A heavy's line left**: in it when the leader commits to it, out of it when it lands | the heavy's middle, through your armour (`SoakHeavy`) |
+| **A shot let by**: past where you stood when it was loosed, and not about to find you further on | the shot's average |
+| **Rolled through** with the warden's roll, a swing, a heavy or a shot | what it rolled, or the heavy through your armour |
+| **Slipped** with Slippery | what it rolled |
+
+Two guards that are not a shield count as one:
+
+- **The Mana Shield**: the half paid in mana was stopped, and is paid for as
+  a block. The half taken in blood is a hit, at a point a point.
+- **Stand Fast**: the two fifths it keeps off a blow, or a heavy blow, is
+  stopped the same way.
+
+Taking a hit still trains Defence at a point a point, a quarter of the rate.
+So a blow of ten is 40 XP blocked, parried or dodged, and 10 taken.
+
+Each rule closes a way to get the XP without earning it:
+
+- **A swing asks once, as it begins,** who it is coming for: whoever it is
+  after, if they are in its arc then. A monster keeps turning to face you
+  through a swing, so dodging one means getting out of its reach before it
+  lands. One you were gone from before it began was never coming for you.
+- **A heavy asks at the moment it commits** (seven tenths of the wind-up; see
+  the bar over its head). Backing off while it still turns to follow is only
+  keeping out of reach, and it lands with the old grey "miss". Stepping out of
+  the line it has committed to is reading the tell, and it says **dodged**.
+- **A shot is watched from when it is loosed** (`World::AimShot`). It must be
+  able to reach you to count. One loosed from further than it flies, or stopped
+  by a wall or a friend before it gets to where you stood, teaches nothing. If
+  you back straight away down its line, it has not missed you yet. It is a
+  dodge only once it can no longer find you (`World::WatchDodge`, a
+  ray-against-box test along what is left of its flight).
+
+"Dodged" goes up over you in the pale green "slipped" has always used. A dodge
+is worth what the blow was worth, so a rat teaches as little dodged as it does
+blocked.
+
+In co-op the host decides every blow, as it always has, and a dodge is the
+Defence of whoever the blow was coming for: a swing remembers the seat it was
+aimed at, and a shot the seat it was loosed at. Nothing new goes over the
+wire. The code is `World::Dodged` and `Player::TrainDefence`, the `swing_at`
+and `heavy_at` in `Enemy`, and `Projectile::aim`.
+
 ### Sprinting
 
 Hold `Shift` (or the left trigger) while moving to sprint at 1.6 times running
@@ -1815,7 +1914,7 @@ them (see [The Skills page](#the-skills-page)):
 | | Magic | Landing spells with a staff equipped -- [a wall teaches nothing](#a-wall-teaches-nothing) |
 | | Attack | Landing light attacks |
 | | Strength | Landing strong and charged attacks |
-| | Defence | Taking hits |
+| | Defence | Blows blocked, parried or dodged -- see [Training Defence without a shield](#training-defence-without-a-shield) -- and, a quarter as fast, blows taken |
 | **Gathering** | Woodcutting | Chopping trees, with an axe |
 | | Fishing | Fishing the Fernhollow pond, the Whisperwood stream and the Hollowmarch lake, with a rod |
 | | Foraging | Picking herbs and plants, by hand; see [Foraging](#foraging) |
@@ -1873,7 +1972,7 @@ were got wrong first time:
 **A monster's blow that reaches you lands, every time.** It used to roll to hit
 against your Defence the way yours rolls against a monster's. At a fight of
 your own level it missed about four blows in five against plate and three in
-four against hides or robes. With a block, a parry, a tumble and a step out of
+four against hides or robes. With a block, a parry, a roll and a step out of
 the swing all in your hands, a second chance of nothing happening, rolled by
 the game rather than earned, made the blows that did land feel arbitrary. It
 also made armour a thing that turned blows into misses instead of a thing
@@ -1891,9 +1990,12 @@ Now:
   the monster's top hit, and never less than a point.
 
 Shots and hexes follow the same rule on the monster's ranged numbers. The ways
-out of a blow are yours: be somewhere else when it swings, tumble through it,
-block it, parry it, or take Slippery or Sure Feet. The "miss" that still shows
-over you means you stepped out of a heavy blow's reach.
+out of a blow are yours: be somewhere else when it swings, roll through it,
+block it, parry it, or take Slippery or Sure Feet. Every one of them trains
+Defence: see [Training Defence without a shield](#training-defence-without-a-shield).
+"Dodged" over you is a blow that was coming for you and found nobody there. The
+grey "miss" is a heavy blow that was never going to reach you, because you were
+out of its line before it was committed.
 
 The `0.65` was chosen so that a fight costs what it did (the call made on
 25 September 2026). Against a character of the monster's own level in that
@@ -2206,7 +2308,8 @@ machine's business, not something this one guesses at.
 #### Abilities
 
 **Hold the abilities' shift (RB on a pad; the guard, `H`, on the keys) and press light, heavy or lock on.** A tree
-teaches six abilities and **three are carried at once**: slot one on guard +
+teaches six abilities -- the bow's five, since
+[its roll is the guard button's](#the-wardens-roll) -- and **three are carried at once**: slot one on guard +
 light (`H`+`J`), slot two on guard + heavy (`H`+`K`), slot three on guard +
 lock on (`H`+`L`, or B + the right trigger). The guard button is the shift key
 whether or not there is a shield to raise, and the press is the ability's: not
@@ -2229,7 +2332,6 @@ build.
 | Hero | **Shockwave** (Brawn) | 16 s | 25 stamina | A line of force straight ahead, three swings long: a heavy blow on everything in it, thrown back and left reeling. The blow can miss; the throw cannot |
 | Hero | **Stand Fast** (Guard) | 35 s | 20 stamina | For six seconds you take 40% less and nothing moves you -- and in co-op everything near turns on you and leaves your friends alone |
 | Warden | **Hunter's Mark** (Marksman) | 20 s | 10 stamina | Marks what you are fighting for twelve seconds: it takes 25% more from every blow, yours or a friend's |
-| Warden | **Tumble** (Skirmisher) | 6 s | 20 stamina | A roll the way you are moving, or back if you are standing still. Nothing can touch you until you are up |
 | Warden | **Caltrops** (Hunter) | 18 s | 15 stamina | Iron on the ground for six seconds: what crosses it is cut and stopped short |
 | Warden | **Take Aim** (Marksman) | 18 s | 15 stamina | Your next shot within six seconds always strikes critically and hits half as hard again -- every arrow of it, if it is a Volley |
 | Warden | **Rapid Fire** (Skirmisher) | 25 s | 20 stamina | For five seconds the bow is 40% faster |
@@ -2242,9 +2344,9 @@ build.
 | Wayfarer | **Repulse** (Warden) | 16 s | 6 mana | A wall of force in your element: everything near is struck, thrown back hard and left reeling |
 
 An ability is a decision, not a cancel: it does not come out of the middle of a
-swing -- except the roll and the blink, which getting out is what they are
-for. Sunder and Hunter's Mark are on the monster, not on whoever made them, so
-in co-op a friend's blows gain from them too.
+swing -- except the blink, which getting out is what it is for -- nor out of
+the middle of a roll. Sunder and Hunter's Mark are on the monster, not on
+whoever made them, so in co-op a friend's blows gain from them too.
 
 **Every ability shows.** Each was a ring of blobs and a word over the head,
 with the character walking on as if nothing had happened. Now each has marks of
@@ -2262,7 +2364,7 @@ long as it lasts -- a friend's too, from a byte of flags in their snapshot
 | **Shockwave** | The Crushing Blow's overhead | A line of force the length of it, and the ground going up along it a step at a time | |
 | **Stand Fast** | Feet braced behind the guard | A square sigil and the ground taking the weight | The square sigil, turning slowly |
 | **Hunter's Mark** | The draw | A red mark closing on it and a thread of light straight up | |
-| **Tumble** | **A roll**: a somersault the way it goes, or heels over head back the way it came (its own clips) | Speed lines down the roll, the ground kicked back where it pushed off | |
+| **The warden's roll** (the guard button, not an ability) | **A roll**: a somersault the way it goes, or heels over head back the way it came (its own clips) | Speed lines down the roll, the ground kicked back where it pushed off | |
 | **Caltrops** | Bending to the ground | Iron scattered at the feet | |
 | **Take Aim** | The draw | A mark over the head and a thin pillar | The mark over the head, for the one shot it is for |
 | **Rapid Fire** | The draw | A three-pointed sigil spinning fast and a ring | The sigil, spinning |
@@ -2300,6 +2402,7 @@ capstones change how the style is played:
 | Hero | *Executioner* | +10% critical, and anything below a quarter of its health is always struck critically |
 | Hero | *Titan* | +15% damage; every kill gives back fifteen stamina |
 | Hero | *Last Stand* | Below a third of your health: +25% damage, and 5% of what you deal comes back as health |
+| Warden | **Follow Through** (the fourth row, where an ability would be) | A light attack pressed while you roll or get up is a quick shot, loosed the moment you are up, three quarters as hard as a plain one: see [the warden's roll](#the-wardens-roll) |
 | Warden | **Long Shot** (2) | +8% a rank against anything more than six paces off |
 | Warden | **Hit and Run** (2) | For three seconds after a shot lands you move 6% faster a rank |
 | Warden | **First Blood** (2) | +20% a rank against anything at full health |
@@ -4103,7 +4206,7 @@ prop:
 
 `tools/blender_character.py` builds the three playable characters, poses them
 and renders every clip -- idle, walk, run, sprint, attack, thrust, jump, hurt,
-death, the combos, War Cry's shout and Tumble's two rolls, and the four
+death, the combos, War Cry's shout and the warden's two rolls, and the four
 gathering clips, in all four facings -- straight into the layered sheets the
 game reads:
 
@@ -5100,7 +5203,10 @@ each choose their own.
 
 Two quests offer one now, where each used to hand over a single weapon:
 - **Trouble on the Road**: an iron sword, an iron bow or an iron staff.
-- **Trail Wardens**: the wooden tier's sword, shortbow or staff.
+- **Trail Wardens**: a bronze sword, a bronze bow or a bronze staff. It is a
+  tier above what every character sets out with -- the wooden tier's pieces
+  are the three starting weapons, so a choice among them was a choice of the
+  one already in hand -- and bronze asks no more of a level than wood does.
 
 **Writing one** in `data/quests.json`: `"choices"` goes in `"rewards"`, beside
 `"xp"`, `"coins"` and `"items"`, which are still paid whatever is chosen:
@@ -7489,7 +7595,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **70372 checks** covering:
+and checks all of it — currently **70430 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -7689,6 +7795,46 @@ and checks all of it — currently **70372 checks** covering:
   reeling longer; its second owes a riposte, which with a dagger is the light
   attack and with a greatsword the heavy (the light does nothing), brought down
   in `crush_2h`; either lands on whoever was parried and is then spent
+- Defence without a shield, played through:
+  - **Swings.** A raider's swing stepped out of after it began pays the block's
+    rate for the blow it would have been, and says "dodged" once. One the warden
+    was gone from as it began teaches nothing. One stood in lands, a point a
+    point.
+  - **Heavies.** A Warchief's heavy left after he committed is dodged, for its
+    middle through her armour, and says "dodged", not "miss". One backed away
+    from before he committed says "miss" and teaches nothing.
+  - **The roll and Slippery.** Mid-roll, a blow of nine is 36, and a heavy pays
+    what it would have done; a shot rolled through is dodged once. A slip is
+    sixteen for a blow of four.
+  - **Mana Shield and Stand Fast.** The mana shield's paid half trains as a
+    block and the bled half as a hit. Stand Fast's kept-off share trains as a
+    block, for a blow and for a heavy.
+  - **Shots.** An arrow stepped aside from is dodged; stood in, it is a hit.
+    Backed away from straight down its line, it still finds her and is no
+    dodge. One loosed from further than it flies is not watched. A bowman's
+    own arrow is dodged the same way.
+  - **In company.** A dodge, of a swing or of a shot, is the friend's it was
+    coming for, and not the host's.
+- the warden's roll, played through:
+  - **Whose.** The warden with a bow rolls on the guard button. With knives and
+    a shield it still raises the shield, with a dagger it parries, and the hero
+    never rolls.
+  - **The roll.** A tap of the guard key, standing still, rolls her back heels
+    over head, untouchable, for twenty breath. She comes up well back from
+    where she was and is then getting up, with no second roll and no shot until
+    she is. Up, the bow and the roll are hers again. Held a while and let go,
+    the guard is the shift and not a roll. Held with J it is still Hunter's
+    Mark. Short of breath there is no roll. Pushed, it rolls forward the way it
+    is pushed, facing it. On a pad, B rolls on the press.
+  - **Follow Through.** It is three quarters of a plain shot. Learned, a light
+    pressed mid-roll goes the moment she is up, with no draw, and its arrow is
+    three quarters as hard as a plain one. It is owed only while she rolls and
+    gets up. Not learned, she gets up before she shoots. With a sword she rolls,
+    and nothing is owed.
+  - **Saves.** A save that bought Tumble keeps the point on Follow Through, and
+    the slot it was in is emptied.
+  - **In company.** A friend's B, as the host hears it, rolls her on the host's
+    copy, with its marks, and not the host.
 - Rushing Strike: the melee tree's Footwork branch has it at Attack 15, and the
   ranged and magic trees keep three branches. Played through: a running light
   attack is ordinary without it and standing still with it; with it, a running
@@ -7770,8 +7916,8 @@ and checks all of it — currently **70372 checks** covering:
   pause ends it; a Cross Cut that strikes two counts once
 - what every move looks like: the fx shader has all sixteen kinds; the
   twenty-five melee combos, the bow's five and the staff's five each leave marks
-  of their own, and a parry and a riposte theirs; all eighteen abilities, the nine
-  techniques and the Rushing Strike leave marks, no two alike and none like a
+  of their own, and a parry and a riposte theirs; all seventeen abilities, the
+  warden's roll, the nine techniques and the Rushing Strike leave marks, no two alike and none like a
   combo's, and between them use all eight new shapes; in play a Cross Cut
   leaves an X on what it strikes and a swirl round the feet, the first light of
   a chain only a spark and the finisher a slash and splinters; a Sunder plays
@@ -8091,7 +8237,8 @@ and checks all of it — currently **70372 checks** covering:
 - skill trees, the path: each tree is three branches eight deep -- two passives
   of three ranks, a technique, an ability with a cooldown and a cost, a passive
   of two, a second ability, a second passive of two and a capstone, forty-two
-  ranks against thirty-three points by level 99; past the first ability no row
+  ranks against thirty-three points by level 99; the bow's Skirmisher has Follow
+  Through, a one-point passive, where its first ability was; past the first ability no row
   is more than eight levels after the one before; every effect a node names is
   one the game reads; a rank is a point, two ranks are twice one, a full node takes no more,
   ranks survive a save and a save from before ranks has one of each; a
@@ -8106,9 +8253,8 @@ and checks all of it — currently **70372 checks** covering:
   what is near and adds a quarter to melee damage for eight seconds, and is
   shouted in a clip of its own; Riposte is
   owed for three seconds after a block, and only to a hero who has learned it;
-  a tumble is untouchable and a blow mid-roll lands on nothing, and standing
-  still it goes back, heels over head; pushed, it rolls forward the way it is
-  pushed, facing it; Hunter's Mark marks what is in reach; caltrops lie for
+  Hunter's Mark marks what is in reach, the guard held for it rather than
+  tapped, so the warden does not roll; caltrops lie for
   six seconds stopping what crosses them; a blink lands somewhere that can be
   stood on, and with nowhere to land does not happen and costs nothing; an
   arcane pulse is ten bolts of the wayfarer's own; a mana shield pays half a

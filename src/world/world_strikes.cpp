@@ -1014,12 +1014,12 @@ void World::AbilityFx(const string& ability, Element element, const Enemy* targe
         AddStrike(MkImpact(from.x, from.y - 14.0f, 24.0f, 0.0f, 1.0f, 0.14f, kViolet, 0.3f));
         AddStrike(MkStreak((from.x + px) * 0.5f, (from.y + py) * 0.5f - 14.0f, dist * 0.55f + 10.0f, ang, 0.05f, 1.8f, kViolet, 0.3f));
         AddStrike(Delayed(MkImpact(px, py - 14.0f, 26.0f, 8.0f, 1.0f, 0.12f, kViolet, 0.3f), 0.04f));
-    } else if (ability == "tumble") {
-        // Speed lines down the roll.
+    } else if (ability == "roll") {
+        // Speed lines down the warden's roll.
         const float kx = player.knock_x, ky = player.knock_y;
         if (Length(kx, ky) > 1.0f) {
             const float ang = atan2f(ky, kx);
-            const float dist = Player::TUMBLE_SPEED / 9.0f;
+            const float dist = Player::ROLL_SPEED / 9.0f;
             AddStrike(MkStreak(px + cosf(ang) * dist * 0.5f, py - 10.0f + sinf(ang) * dist * 0.5f, dist * 0.62f, ang,
                                0.08f, 1.6f, Rgb(236, 226, 200), 0.4f));
             // The ground kicked back where it pushed off.

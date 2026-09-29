@@ -1496,13 +1496,93 @@ float Player::TalentDamage(AttackStyle style, AttackType type) const {
 //  Abilities
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+//  The warden's roll, and Follow Through
+// -----------------------------------------------------------------------------
+
+bool Player::RollsOnGuard() const {
+    // The warden's, and only with nothing in hand to guard with: a shield
+    // raised or a blade that parries is still what the button is for.
+    return Affinity() == AttackStyle::Ranged && !Shield() && !ParryStyle();
+}
+
+bool Player::TryRoll() {
+    if (dead || jumping || resting || roll_timer > 0.0f || roll_recover > 0.0f || !gather_clip.empty()) return false;
+    if (winded || stamina < ROLL_STAMINA) return false;
+    // The way the stick is pushed, facing it; standing still, back the way
+    // they came, heels over head.
+    float dx = move_axis.x, dy = move_axis.y;
+    const bool steering = Length(dx, dy) > 0.3f;
+    if (!steering) {
+        dx = (facing == FACE_LEFT) ? 1.0f : (facing == FACE_RIGHT ? -1.0f : 0.0f);
+        dy = (facing == FACE_UP)   ? 1.0f : (facing == FACE_DOWN  ? -1.0f : 0.0f);
+    }
+    const float len = std::max(0.001f, Length(dx, dy));
+    ability_from = {x, y};
+    knock_x = dx / len * ROLL_SPEED;
+    knock_y = dy / len * ROLL_SPEED;
+    roll_timer = ROLL_TIME;
+    roll_recover = ROLL_RECOVER;
+    attack.Clear();
+    strong_armed = charging = false;
+    charge_held = 0.0f;
+    buf_light = buf_strong = 0.0f;
+    sprinting = false;
+    stamina = std::max(0.0f, stamina - ROLL_STAMINA);
+    stamina_delay = STAMINA_DELAY;
+    StrikePose(steering ? "roll" : "backroll", ROLL_TIME + 0.04f, 1.0f);
+    // Follow Through, learned and with something that shoots: the light
+    // attack is owed as a quick shot until they are up.
+    follow_queued = false;
+    follow_left = (Style() == AttackStyle::Ranged && talents.Effect("follow_through", AttackStyle::Ranged) > 0.0f)
+                      ? ROLL_TIME + ROLL_RECOVER : 0.0f;
+    // The dust and the speed lines are the world's.
+    pending_ability = "roll";
+    Audio::Play(Sfx::SwingHeavy, 0.9f, 0.8f);
+    return true;
+}
+
+bool Player::StartQuickShot(const World& world) {
+    if (Style() != AttackStyle::Ranged || attack.Active() || reload_left > 0.0f || jumping || roll_timer > 0.0f)
+        return false;
+    const float share = talents.Effect("follow_through", AttackStyle::Ranged);
+    if (share <= 0.0f) return false;
+    // A plain shot, with next to no draw and not held to the bow's pace --
+    // what makes it quick is that it goes before a plain one could, while
+    // they are still getting up -- and as hard as the node says.
+    const AttackProfile& plain = ProfileFor(AttackType::Light, 0);
+    AttackProfile p = plain;
+    p.windup      = QUICK_WINDUP;
+    p.damage_mult = plain.damage_mult * share;
+    attack.Clear();
+    combo = 0;
+    combo_window = 0.0f;
+    after_strong = false;
+    attack.type        = AttackType::Light;
+    attack.move        = ComboMove::None;
+    attack.profile     = p;
+    attack.rate        = 1.0f;
+    attack.damage_mult = p.damage_mult;
+    attack.reach_scale = 1.0f;
+    attack.combo       = 0;
+    attack.timer       = 0.0f;
+    attack_cooldown    = 0.0f;       // what a shot before the roll had left does not hold this one
+    roll_recover       = 0.0f;       // up, and shooting
+    TurnToTarget(world);
+    sprite.speed_scale = 1.0f;
+    sprite.Play(AttackClip(), true);
+    FitSwing();
+    return true;
+}
+
 bool Player::TryAbility(int slot, World& world) {
     const TalentNode* node = talents.Ability(slot);
     if (!node || slot < 0 || slot >= SkillTrees::ABILITY_SLOTS) return false;
-    if (dead || jumping || resting || ability_cd[slot] > 0.0f) return false;
-    // Not out of a swing: an ability is a decision, not a cancel. The roll and
-    // the blink are the exceptions -- getting out is what they are for.
-    const bool escape = node->ability == "tumble" || node->ability == "blink";
+    // Nor mid-roll: the roll has the body until they are up.
+    if (dead || jumping || resting || roll_timer > 0.0f || ability_cd[slot] > 0.0f) return false;
+    // Not out of a swing: an ability is a decision, not a cancel. The blink is
+    // the exception -- getting out is what it is for.
+    const bool escape = node->ability == "blink";
     if (!escape && (attack.Active() || charging)) return false;
     if (node->stamina_cost > 0 && (winded || stamina < static_cast<float>(node->stamina_cost))) return false;
     if (node->mana_cost > 0 && mana < node->mana_cost) return false;
@@ -1537,15 +1617,6 @@ bool Player::TryAbility(int slot, World& world) {
         x += dx * best;
         y += dy * best;
         knock_x = knock_y = 0.0f;
-    } else if (node->ability == "tumble") {
-        // Standing still, a roll goes back the way you came.
-        const float sign = steering ? 1.0f : -1.0f;
-        knock_x = dx * sign * TUMBLE_SPEED;
-        knock_y = dy * sign * TUMBLE_SPEED;
-        tumble_timer = TUMBLE_TIME;
-        attack.Clear();
-        strong_armed = charging = false;
-        charge_held = 0.0f;
     } else if (node->ability == "war_cry") {
         war_cry_timer = WAR_CRY_TIME;
     } else if (node->ability == "mana_shield") {
@@ -1571,15 +1642,13 @@ bool Player::TryAbility(int slot, World& world) {
     // overhead (or its turn, for the Frenzy's flourish, or its snap across,
     // for a shove), the guard is Stand Fast's braced feet, a trap is set by
     // bending down to the ground, and a shot or a spell is the draw or the
-    // cast of whatever is in the hand. The shout and the roll are their own:
-    // War Cry's arms flung wide, and Tumble's somersault -- forward the way
-    // the stick is pushed, which is the way the character is about to face,
-    // and heels over head when it goes back the way it came.
+    // cast of whatever is in the hand. The shout is its own: War Cry's arms
+    // flung wide. (The warden's roll has its own too, and is not an ability
+    // any more: see TryRoll.)
     {
         const string& a = node->ability;
         const string cast = AttackClip();
         if (a == "war_cry")                             StrikePose("shout", 0.6f, 0.2f);
-        else if (a == "tumble")                         StrikePose(steering ? "roll" : "backroll", TUMBLE_TIME + 0.04f, 1.0f);
         else if (a == "sunder" || a == "shockwave")     StrikePose(BothHands("crush"), 0.42f, 0.25f);
         else if (a == "bash")                           StrikePose(BothHands("backhand"), 0.3f, 0.4f);
         else if (a == "frenzy")                         StrikePose(BothHands("spin"), 0.45f, 0.6f);
@@ -1736,7 +1805,13 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         if (!held || held->reload <= 0.0f) reload_left = 0.0f;
     }
     for (float& cd : ability_cd) cd = std::max(0.0f, cd - dt);
-    tumble_timer      = std::max(0.0f, tumble_timer - dt);
+    // The roll, and then getting up from it. Follow Through's window runs
+    // across both; a quick shot pressed for and never loosed -- the hands were
+    // taken by a panel, say -- goes with it.
+    if (roll_timer > 0.0f) roll_timer = std::max(0.0f, roll_timer - dt);
+    else                   roll_recover = std::max(0.0f, roll_recover - dt);
+    follow_left = std::max(0.0f, follow_left - dt);
+    if (follow_left <= 0.0f && roll_timer <= 0.0f) follow_queued = false;
     war_cry_timer     = std::max(0.0f, war_cry_timer - dt);
     mana_shield_timer = std::max(0.0f, mana_shield_timer - dt);
     shield_struck     = std::min(99.0f, shield_struck + dt);
@@ -1860,6 +1935,26 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         // tapped again at once, it is only the poor guard.
         if (parrying && !was_parrying) parry_age = parry_rest > 0.0f ? PARRY_WINDOW + 1.0f : 0.0f;
         if (!parrying && was_parrying) parry_rest = PARRY_REST;
+        // And for the warden with nothing to guard with, it rolls (see
+        // RollsOnGuard). A pad's on the press: its abilities' shift is RB. On
+        // the keys the guard is the shift too, so there a tap rolls -- let go
+        // inside ROLL_TAP with no ability pressed meanwhile -- and a hold with
+        // J, K or L is the ability it always was.
+        if (!bound && RollsOnGuard()) {
+            const bool ability_press = hands.Pressed(PlayerInput::Light) || hands.Pressed(PlayerInput::Strong) ||
+                                       hands.Pressed(PlayerInput::Target);
+            if (hands.Pressed(PlayerInput::Block)) {
+                roll_armed = false;
+                if (!hands.Down(PlayerInput::Ability)) TryRoll();
+                else if (!ability_press) { roll_armed = true; roll_tap = 0.0f; }
+            } else if (roll_armed) {
+                roll_tap += dt;
+                if (ability_press || roll_tap > ROLL_TAP) roll_armed = false;
+                else if (hands.Released(PlayerInput::Block)) { roll_armed = false; TryRoll(); }
+            }
+        } else {
+            roll_armed = false;
+        }
         // The abilities' shift held and an attack button: an ability, if one
         // is carried there, and the press is the ability's, not a swing. The
         // shift is RB on a pad and the guard on the keys: see Action::Ability.
@@ -1880,6 +1975,20 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
             const PlayerInput::Button riposte_button = RiposteOnHeavy() ? PlayerInput::Strong : PlayerInput::Light;
             if (!bound && riposte_owed > 0.0f && for_attacks.Pressed(riposte_button) && StartRiposte(world))
                 for_attacks.pressed &= static_cast<uint8_t>(~riposte_button);
+        }
+        // Follow Through: a light pressed while rolling or getting up is the
+        // quick shot, loosed the moment they are up. (One pressed with the
+        // shift held was an ability's, and is not in `for_attacks`.)
+        if (!bound && follow_left > 0.0f && for_attacks.Pressed(PlayerInput::Light)) {
+            follow_queued = true;
+            for_attacks.pressed &= static_cast<uint8_t>(~PlayerInput::Light);
+        }
+        if (follow_queued && roll_timer <= 0.0f) {
+            follow_queued = false;
+            follow_left = 0.0f;
+            // Nothing to loose it from after all -- a crossbow not yet
+            // spanned -- and it is a plain one, as soon as one may go.
+            if (bound || !StartQuickShot(world)) buf_light = BUFFER_WINDOW;
         }
         if (blocking || parrying) {
             strong_armed = charging = false;
@@ -1905,7 +2014,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         if (plan.ok && plan.levels != 0 && Length(move.x, move.y) > 0.3f)
             climb_hint = plan.levels > 0 ? "Climb up" : "Drop down";
 
-        if (!bound && hands.Pressed(PlayerInput::Jump) && !attack.Active() && !charging) {
+        if (!bound && hands.Pressed(PlayerInput::Jump) && !attack.Active() && !charging && roll_timer <= 0.0f) {
             jumping      = true;
             sprinting    = false;
             jump_timer   = 0.0f;
@@ -1928,6 +2037,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     } else {
         climb_hint.clear();
         blocking = false;
+        roll_armed = false;
         if (parrying) parry_rest = PARRY_REST;
         parrying = false;
         // Dropping input mid-charge should not leave a swing armed.
@@ -2217,6 +2327,8 @@ void Player::Respawn(float sx, float sy) {
     charging = strong_armed = false;
     jumping = false;
     sprinting = winded = false;
+    roll_timer = roll_recover = follow_left = 0.0f;
+    roll_armed = follow_queued = false;
     statuses.Clear();
     ClearWards();
     stamina = MaxStamina();

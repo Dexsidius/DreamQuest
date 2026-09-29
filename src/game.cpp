@@ -1088,8 +1088,11 @@ void Game::UpdatePlay(float dt) {
                      "the graveyard, and the guild hall there has work for anyone who asks; Elder Maren's letter "
                      "is the first of it. North, the road runs to the Emberfell mine. East, the trail goes under "
                      "the trees to Mossvale.\n\n" +
-                     J + " swings. " + K + " strikes hard, and held, charges. Mix the two for combos. "
-                     "Hold " + input.PromptFor(Action::Block) + " behind a shield. " +
+                     J + " swings. " + K + " strikes hard, and held, charges. Mix the two for combos. " +
+                     // A warden has a bow in both hands and nothing to hide behind.
+                     (world->player.RollsOnGuard()
+                          ? "Tap " + input.PromptFor(Action::Block) + " to roll out of the way, the way you are steering. "
+                          : "Hold " + input.PromptFor(Action::Block) + " behind a shield. ") +
                      input.PromptFor(Action::Interact) + " talks, opens and works. " +
                      input.PromptFor(Action::Inventory) + " is your pack, " +
                      input.PromptFor(Action::Skills) + " your skills, " +

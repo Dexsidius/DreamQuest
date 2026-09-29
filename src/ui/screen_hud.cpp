@@ -958,8 +958,10 @@ void Game::DrawHud() {
                         input.PromptFor(Action::LightAttack) + " attack    " +
                         input.PromptFor(Action::StrongAttack) + " heavy    " +
                         input.PromptFor(Action::Target) + " target    " +
-                        // Only worth a word when there is a shield to raise.
-                        (p.Shield() ? input.PromptFor(Action::Block) + " block    " : string()) +
+                        // Only worth a word when there is a shield to raise --
+                        // or, for the warden with nothing to raise, a roll.
+                        (p.Shield() ? input.PromptFor(Action::Block) + " block    "
+                         : p.RollsOnGuard() ? input.PromptFor(Action::Block) + " roll    " : string()) +
                         input.PromptFor(Action::Sprint) + " sprint    " +
                         input.PromptFor(Action::Inventory) + " bag    " +
                         // Every panel is in the menu of menus, which says each one's own

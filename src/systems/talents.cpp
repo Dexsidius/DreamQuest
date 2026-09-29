@@ -467,6 +467,15 @@ void Talents::FromJson(const json& j) {
     if (j.contains("ranks") && j["ranks"].is_object())
         for (auto it = j["ranks"].begin(); it != j["ranks"].end(); ++it)
             if (it.value().is_number_integer()) ranks[it.key()] = std::max(1, it.value().get<int>());
+    // Tumble was the warden's roll, which is the guard button's now (see
+    // Player::TryRoll), and its place in the tree is Follow Through's. A save
+    // that bought it keeps the point where it was -- nothing below it in the
+    // Skirmisher's branch is left hanging -- and the slot it was carried in
+    // is emptied with the rest, below.
+    if (const auto was = ranks.find("tumble"); was != ranks.end()) {
+        ranks.erase(was);
+        ranks["follow_through"] = 1;
+    }
     // A node that has gone from the tree, or has fewer ranks than were bought.
     if (db)
         for (auto it = ranks.begin(); it != ranks.end();) {

@@ -562,6 +562,617 @@ static void TestOonasPoppet(const Databases& db) {
     }
 }
 
+static void TestDodgeTraining(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    (void)statuses;
+    Section("Defence without a shield: blows dodged, rolled through, paid for in mana, stood fast against");
+    Input input;
+    std::mt19937 rng(4040);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const float rate = Player::BLOCK_XP_PER_DAMAGE;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    // A character with a weapon, a skill at a level, and the nodes named, at
+    // the overworld's start where the road is open.
+    const auto fighter = [&](World& w, const string& weapon, int skill, int level, std::initializer_list<const char*> nodes) {
+        w.player.Init(ctx, skill == SKILL_RANGED ? "player_warden" : skill == SKILL_MAGIC ? "player_wayfarer" : "player_hero");
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(level), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.SyncMana();
+        w.player.RestoreMana();
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        for (const char* n : nodes) w.player.talents.Learn(n, w.player.skills);
+        w.player.facing = FACE_RIGHT;
+        return true;
+    };
+    const auto spawn_at = [&](World& w, const EnemyDef* stats, float x, float y) -> Enemy* {
+        if (!stats) return nullptr;
+        EnemySpawnDef def;
+        def.type = stats->id; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = x; def.y = y;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        Enemy* raw = e.get();
+        w.enemies.push_back(std::move(e));
+        return raw;
+    };
+    const auto ability = [&](World& w, SDL_Keycode button) {
+        input.Update(dt); key(SDLK_H, true); w.Update(dt, ctx);
+        input.Update(dt); key(button, true); w.Update(dt, ctx);
+        input.Update(dt); key(button, false); key(SDLK_H, false); w.Update(dt, ctx);
+    };
+    const auto carry = [&](World& w, const char* node, int slot) {
+        while (w.player.talents.SlotOf(node) != slot && w.player.talents.Has(node)) w.player.talents.CycleAbility(node);
+        return w.player.talents.SlotOf(node) == slot;
+    };
+    const auto defence = [](const Player& p) { return p.skills.Xp(SKILL_DEFENCE); };
+    const auto said = [](const World& w, const string& what) {
+        int n = 0;
+        for (const FloatingText& t : w.texts) n += t.text == what;
+        return n;
+    };
+    // Runs the world until `e` begins a swing, and not a frame further: the
+    // swing has not yet asked who it is coming for.
+    const auto until_swing = [&](World& w, Enemy* e) {
+        for (int f = 0; f < 240 && e && e->CurrentState() != Enemy::State::Attack; ++f) frames(w, 1);
+        return e && e->CurrentState() == Enemy::State::Attack;
+    };
+    const EnemyDef* raider = enemy_db.Get("orc2");
+    CombatProfile archer;
+    archer.attack_level = archer.strength_level = archer.ranged_level = 20;
+
+    // --- a swing stepped out of ---------------------------------------------------------------
+    {
+        World w;
+        if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            Enemy* orc = spawn_at(w, raider, w.player.x + 24.0f, w.player.y);
+            Check(until_swing(w, orc), "an orc raider beside a warden with no shield swings at her");
+            frames(w, 2);                          // it has begun, and knows she is in the way of it
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            const float would = orc ? ExpectedMonsterBlow(orc->Profile(), w.player.Profile(), AttackStyle::Melee, 1.0f) : 0.0f;
+            w.texts.clear();
+            w.player.x -= 90.0f;                   // and she is not, when it lands
+            frames(w, 24);
+            const int got = defence(w.player) - xp0;
+            Check(w.player.hp == hp0 && would > 0.0f && std::abs(got - static_cast<int>(would * rate)) <= 1,
+                  "stepped out of before it lands, it trains Defence as a block of the same blow would (" +
+                  std::to_string(got) + " for a blow of " + std::to_string(would) + ")");
+            Check(said(w, "dodged") == 1, "and 'dodged' goes up over her, once");
+        }
+    }
+    // --- one that was never coming for her ----------------------------------------------------------
+    {
+        World w;
+        if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            Enemy* orc = spawn_at(w, raider, w.player.x + 24.0f, w.player.y);
+            Check(until_swing(w, orc), "another swing begins");
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            w.texts.clear();
+            w.player.x -= 90.0f;                   // gone before it ever asked who it was at
+            frames(w, 24);
+            Check(w.player.hp == hp0 && defence(w.player) == xp0 && said(w, "dodged") == 0,
+                  "a swing she was gone from as it began was never coming for her, and teaches nothing");
+        }
+    }
+    // --- one that lands -------------------------------------------------------------------------------
+    {
+        World w;
+        if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            Enemy* orc = spawn_at(w, raider, w.player.x + 24.0f, w.player.y);
+            Check(until_swing(w, orc), "and another");
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            w.texts.clear();
+            frames(w, 24);
+            const int taken = hp0 - w.player.hp, got = defence(w.player) - xp0;
+            Check(taken > 0 && got >= 1 && got <= taken + 1 && said(w, "dodged") == 0,
+                  "stood in, it lands, and trains Defence a point for a point, as a hit always has (" +
+                  std::to_string(got) + " for " + std::to_string(taken) + ")");
+        }
+    }
+    // --- a heavy blow's line, left -------------------------------------------------------------------
+    {
+        // A Warchief with no wait before his first heavy, as in the heavy's own section.
+        EnemyDef warchief = *enemy_db.Get("orc3");
+        warchief.heavy.opening = 0.0f;
+        const auto charge = [&](World& w, Enemy* e) {
+            for (int f = 0; f < 60 && e && !e->ChargingHeavy(); ++f) frames(w, 1);
+            return e && e->ChargingHeavy();
+        };
+        World w;
+        if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            Enemy* orc = spawn_at(w, &warchief, w.player.x + 40.0f, w.player.y);
+            Check(charge(w, orc), "a Warchief winds up his heavy at a warden");
+            // Past the point where he stops turning after her.
+            while (orc && orc->ChargingHeavy() && orc->HeavyCharge() < Enemy::HEAVY_LOCK + 0.05f) frames(w, 1);
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            const CombatProfile mine = w.player.Profile();
+            const int would = orc ? SoakHeavy(orc->HeavyDamage(nullptr), mine.defence_level, mine.defence_bonus) : 0;
+            w.texts.clear();
+            w.player.y += 80.0f;                   // out of the line he is committed to
+            for (int f = 0; f < 120 && orc && orc->ChargingHeavy(); ++f) frames(w, 1);
+            frames(w, 2);
+            Check(w.player.hp == hp0 && would > 0 && defence(w.player) - xp0 == static_cast<int>(would * rate),
+                  "out of a heavy's line after it is committed, it is dodged, for what it would have done through what she wears (" +
+                  std::to_string(defence(w.player) - xp0) + ")");
+            Check(said(w, "dodged") == 1 && said(w, "miss") == 0, "and it says 'dodged', not 'miss'");
+
+            // Backed off while he still turned after her: out of reach, not a tell read.
+            w.player.Rest();
+            orc = spawn_at(w, &warchief, w.player.x + 40.0f, w.player.y);
+            w.enemies.erase(w.enemies.begin(), w.enemies.end() - 1);
+            Check(charge(w, orc), "another wind-up");
+            const int xp1 = defence(w.player);
+            w.texts.clear();
+            w.player.x -= 160.0f;
+            for (int f = 0; f < 240 && orc && orc->ChargingHeavy(); ++f) frames(w, 1);
+            frames(w, 2);
+            Check(defence(w.player) == xp1 && said(w, "miss") == 1 && said(w, "dodged") == 0,
+                  "one backed away from before it was committed lands on nothing, says 'miss', and teaches nothing");
+        }
+    }
+    // --- rolled through, and slipped ------------------------------------------------------------------
+    {
+        World w;
+        if (fighter(w, "oak_shortbow", SKILL_RANGED, 60, {})) {
+            // The guard, tapped: the warden's roll.
+            input.Update(dt); key(SDLK_H, true); w.Update(dt, ctx);
+            input.Update(dt); key(SDLK_H, false); w.Update(dt, ctx);
+            Check(w.player.Untouchable(), "a warden mid-roll");
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            w.texts.clear();
+            Check(w.HitPlayer(9, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0 && defence(w.player) - xp0 == 36 &&
+                  said(w, "dodged") == 1, "a blow of nine rolled through lands on nothing, and trains Defence as blocking it would: 36");
+            const CombatProfile mine = w.player.Profile();
+            const int soaked = SoakHeavy(40, mine.defence_level, mine.defence_bonus);
+            const int xp1 = defence(w.player);
+            Check(w.HeavyHitPlayer(40, w.player.x + 20.0f, w.player.y, 0.0f, 0.0f) == 0 &&
+                  defence(w.player) - xp1 == static_cast<int>(soaked * rate),
+                  "and a heavy one, for what it would have done through what she wears");
+            // A shot that finds her mid-roll: the roll is the dodge, once -- the
+            // shot's own watch does not count it again.
+            Projectile* shot = w.SpawnProjectile("barbed_arrow", w.player.x - 8.0f, w.player.y - 18.0f, -1.0f, 0.0f,
+                                                 archer, AttackStyle::Ranged, 1.0f, false, ctx);
+            if (shot) w.AimShot(*shot, w.player);
+            const int xp2 = defence(w.player);
+            w.texts.clear();
+            frames(w, 2);
+            Check(w.player.hp == hp0 && defence(w.player) > xp2 && said(w, "dodged") == 1,
+                  "a shot rolled through is dodged, and once (" + std::to_string(said(w, "dodged")) + ")");
+        }
+        World s;
+        if (fighter(s, "oak_shortbow", SKILL_RANGED, 70,
+                    {"quick_draw", "fleet_foot", "volley", "follow_through", "hit_and_run", "rapid_fire", "slippery", "slippery"})) {
+            input.Update(dt); key(SDLK_D, true); s.Update(dt, ctx);
+            frames(s, 3);
+            const int xp0 = defence(s.player);
+            int slipped = 0;
+            s.texts.clear();
+            for (int i = 0; i < 300; ++i) {
+                s.player.hp = s.player.max_hp;
+                if (s.HitPlayer(4, CombatProfile{}, s.player.x + 20.0f, s.player.y) == 0) ++slipped;
+            }
+            input.Update(dt); key(SDLK_D, false); s.Update(dt, ctx);
+            const int got = defence(s.player) - xp0, want = slipped * 16 + (300 - slipped) * 4;
+            Check(slipped > 10 && got == want && said(s, "slipped") == slipped,
+                  "Slippery: a blow that slips by is dodged -- sixteen for a blow of four, where taking it is four (" +
+                  std::to_string(got) + " of " + std::to_string(want) + ")");
+        }
+    }
+    // --- the mana shield, and Stand Fast --------------------------------------------------------------
+    {
+        World w;
+        if (fighter(w, "novice_staff", SKILL_MAGIC, 60, {"ward", "seeker", "meteor", "mana_shield"})) {
+            carry(w, "mana_shield", 0);
+            ability(w, SDLK_J);
+            Check(w.player.ManaShield(), "a wayfarer's mana shield is up");
+            w.player.hp = w.player.max_hp;
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            w.HitPlayer(20, CombatProfile{}, w.player.x + 20.0f, w.player.y);
+            Check(hp0 - w.player.hp == 10 && defence(w.player) - xp0 == 10 + 40,
+                  "a blow of twenty, half paid in mana: the half taken trains Defence as a hit, the half paid as a block (" +
+                  std::to_string(defence(w.player) - xp0) + ")");
+            w.player.SetMana(0);
+            w.player.hp = w.player.max_hp;
+            const int xp1 = defence(w.player);
+            w.HitPlayer(20, CombatProfile{}, w.player.x + 20.0f, w.player.y);
+            Check(defence(w.player) - xp1 == 20, "and with nothing to pay with it is all blood, and twenty");
+        }
+        World h;
+        if (fighter(h, "bronze_sword", SKILL_ATTACK, 70,
+                    {"heavy_hand", "bruiser", "ground_slam", "war_cry", "brute_force", "shockwave",
+                     "thick_skin", "second_wind", "lunge", "bash", "riposte", "stand_fast"})) {
+            carry(h, "stand_fast", 0);
+            ability(h, SDLK_J);
+            Check(h.player.StandingFast(), "a hero standing fast");
+            h.player.hp = h.player.max_hp;
+            const int xp0 = defence(h.player);
+            const int taken = h.HitPlayer(20, CombatProfile{}, h.player.x - 20.0f, h.player.y);
+            Check(taken == 12 && defence(h.player) - xp0 == 8 * 4 + 12,
+                  "feet set, the eight of twenty kept off trains Defence as a block, and the twelve taken as a hit (" +
+                  std::to_string(defence(h.player) - xp0) + ")");
+            h.player.hp = h.player.max_hp;
+            const CombatProfile mine = h.player.Profile();
+            const int soaked = SoakHeavy(40, mine.defence_level, mine.defence_bonus);
+            const int held = std::max(1, static_cast<int>(std::lround(soaked * Player::STAND_FAST_SHARE)));
+            const int xp1 = defence(h.player);
+            h.HeavyHitPlayer(40, h.player.x - 20.0f, h.player.y, 0.0f, 0.0f);
+            Check(defence(h.player) - xp1 == (soaked - held) * 4 + held, "and a heavy blow's the same way");
+        }
+    }
+    // --- shots ------------------------------------------------------------------------------------------
+    {
+        const auto loose = [&](World& w, float dx) -> Projectile* {
+            Projectile* p = w.SpawnProjectile("barbed_arrow", w.player.x + dx, w.player.y - 18.0f, dx > 0 ? -1.0f : 1.0f, 0.0f,
+                                              archer, AttackStyle::Ranged, 1.0f, false, ctx);
+            if (p) w.AimShot(*p, w.player);
+            return p;
+        };
+        const auto spent = [&](World& w) {
+            for (int f = 0; f < 150; ++f) {
+                bool flying = false;
+                for (const Projectile& p : w.projectiles) flying |= !p.from_player && !p.finished;
+                if (!flying) return true;
+                frames(w, 1);
+            }
+            return false;
+        };
+        // Each is looked at three quarters of a second after it is loosed --
+        // it has reached her by then, 150 pixels off -- while anything said
+        // over her is still up (floating text lasts 0.9 s; an arrow flies 1.5).
+        const int kLook = 45;
+        World w;
+        if (fighter(w, "novice_staff", SKILL_MAGIC, 40, {})) {
+            // Stepped aside from.
+            Projectile* p = loose(w, 150.0f);
+            Check(p && p->aim, "an arrow loosed at a wayfarer is watched for a dodge");
+            const float would = ExpectedMonsterBlow(archer, w.player.Profile(), AttackStyle::Ranged, 1.0f);
+            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            w.texts.clear();
+            w.player.y += 60.0f;
+            frames(w, kLook);
+            Check(w.player.hp == hp0 && std::abs(defence(w.player) - xp0 - static_cast<int>(would * rate)) <= 1 &&
+                  said(w, "dodged") == 1,
+                  "stepped aside from, it goes by and is dodged, for what it would have done (" +
+                  std::to_string(defence(w.player) - xp0) + ")");
+            Check(spent(w), "(it flies on and is spent)");
+            // Stood in.
+            w.player.y -= 60.0f;
+            w.player.hp = w.player.max_hp;
+            const int xp1 = defence(w.player), hp1 = w.player.hp;
+            w.texts.clear();
+            loose(w, 150.0f);
+            frames(w, kLook);
+            Check(w.player.hp < hp1 && defence(w.player) - xp1 == hp1 - w.player.hp && said(w, "dodged") == 0,
+                  "stood in, it lands, and is a hit");
+            spent(w);
+            // Backed away from straight down the line of it: past where she
+            // stood, it is still coming for her, and finds her.
+            w.player.hp = w.player.max_hp;
+            const int xp2 = defence(w.player), hp2 = w.player.hp;
+            w.texts.clear();
+            loose(w, 150.0f);
+            w.player.x -= 30.0f;
+            frames(w, kLook);
+            Check(w.player.hp < hp2 && defence(w.player) - xp2 == hp2 - w.player.hp && said(w, "dodged") == 0,
+                  "backed straight away down its line, it is past where she stood and still finds her: no dodge");
+            spent(w);
+            // Out of its reach.
+            const int xp3 = defence(w.player);
+            Projectile* far = loose(w, 700.0f);
+            Check(far && !far->aim, "one loosed from further than it flies is not watched");
+            spent(w);
+            Check(defence(w.player) == xp3, "and falling short teaches nothing");
+        }
+        // A bowman's own, played through.
+        World b;
+        if (fighter(b, "novice_staff", SKILL_MAGIC, 40, {})) {
+            Enemy* bow = spawn_at(b, enemy_db.Get("orc_bowman"), b.player.x + 140.0f, b.player.y);
+            const Projectile* shot = nullptr;
+            for (int f = 0; f < 240 && bow && !shot; ++f) {
+                frames(b, 1);
+                for (const Projectile& p : b.projectiles) if (!p.from_player && !p.finished) shot = &p;
+            }
+            Check(shot && shot->aim, "an orc bowman looses at her, and his arrow is watched");
+            if (shot) {
+                const float would = ExpectedMonsterBlow(shot->owner, b.player.Profile(), shot->style, shot->damage_mult);
+                const int xp0 = defence(b.player), hp0 = b.player.hp;
+                b.texts.clear();
+                b.player.y += 60.0f;
+                frames(b, 40);
+                Check(b.player.hp == hp0 && std::abs(defence(b.player) - xp0 - static_cast<int>(would * rate)) <= 1 &&
+                      said(b, "dodged") == 1, "stepped aside from, it is dodged (" + std::to_string(defence(b.player) - xp0) + ")");
+            }
+        }
+    }
+    // --- in company: the dodge is whoever's it was --------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        if (w.LoadMap("overworld", "start", ctx)) {
+            w.enemies.clear();
+            w.clock.Set(1, 12.0f);
+            Player* friend_ = w.AddGuest(1, "Oona", "player_warden", ctx);
+            if (friend_) {
+                friend_->x = w.player.x;
+                friend_->y = w.player.y - 200.0f;       // up the open road, well away from the host
+                Enemy* orc = spawn_at(w, raider, friend_->x + 24.0f, friend_->y);
+                Check(until_swing(w, orc) && orc && orc->target_seat == 1, "in company, a raider beside a friend swings at her");
+                frames(w, 2);
+                const int host0 = defence(w.player), hers0 = defence(*friend_), hp0 = friend_->hp;
+                friend_->x -= 90.0f;
+                frames(w, 24);
+                Check(friend_->hp == hp0 && defence(*friend_) > hers0 && defence(w.player) == host0,
+                      "she steps out of it: the Defence is hers, and the host's is untouched");
+                // A shot loosed at her, acting as her, as a monster after her does.
+                const int host1 = defence(w.player), hers1 = defence(*friend_);
+                w.ActAs(*friend_, [&] {
+                    Projectile* p = w.SpawnProjectile("barbed_arrow", w.player.x + 150.0f, w.player.y - 18.0f, -1.0f, 0.0f,
+                                                      archer, AttackStyle::Ranged, 1.0f, false, ctx);
+                    if (p) w.AimShot(*p, w.player);
+                });
+                friend_->y += 60.0f;
+                frames(w, 40);
+                Check(defence(*friend_) > hers1 && defence(w.player) == host1, "and a shot at her she steps aside from is hers too");
+            }
+        }
+    }
+}
+
+static void TestWardenRoll(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    (void)statuses;
+    Section("the warden's roll, on the guard button, and Follow Through");
+    Input input;
+    std::mt19937 rng(5150);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    const auto press = [&](World& w, SDL_Keycode k) {
+        input.Update(dt); key(k, true); w.Update(dt, ctx);
+        input.Update(dt); key(k, false); w.Update(dt, ctx);
+    };
+    const auto fighter = [&](World& w, const char* look, const string& weapon, int skill, int level,
+                             std::initializer_list<const char*> nodes) {
+        w.player.Init(ctx, look);
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(level), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        for (const char* n : nodes) w.player.talents.Learn(n, w.player.skills);
+        w.player.facing = FACE_RIGHT;
+        return true;
+    };
+    // The first arrow of the warden's to leave, and what it is worth.
+    const auto arrow = [&](World& w, int within) {
+        for (int f = 0; f < within; ++f) {
+            for (const Projectile& p : w.projectiles)
+                if (p.from_player) { const float m = p.damage_mult; w.projectiles.clear(); return m; }
+            frames(w, 1);
+        }
+        return 0.0f;
+    };
+    const auto up = [&](World& w) {
+        for (int f = 0; f < 60 && w.player.Untouchable(); ++f) frames(w, 1);
+    };
+    const char* kWarden = "player_warden";
+
+    // --- whose guard button rolls ---------------------------------------------------------------
+    {
+        World w, k, d, h;
+        Check(fighter(w, kWarden, "oak_shortbow", SKILL_RANGED, 40, {}) && w.player.RollsOnGuard(),
+              "the warden, with a bow in both hands and nothing to guard with, rolls on the guard button");
+        if (fighter(k, kWarden, "wood_knives", SKILL_RANGED, 40, {})) {
+            k.player.equipment.Equip(SLOT_SHIELD, "wooden_shield");
+            Check(k.player.Shield() && !k.player.RollsOnGuard(), "with knives and a shield, it is still a guard");
+            input.Update(dt); key(SDLK_H, true); k.Update(dt, ctx);
+            frames(k, 3);
+            Check(k.player.Blocking() && !k.player.Untouchable(), "and raises the shield");
+            input.Update(dt); key(SDLK_H, false); k.Update(dt, ctx);
+        }
+        Check(fighter(d, kWarden, "iron_dagger", SKILL_RANGED, 40, {}) && d.player.ParryStyle() && !d.player.RollsOnGuard(),
+              "with a dagger it parries");
+        Check(fighter(h, "player_hero", "iron_sword", SKILL_ATTACK, 40, {}) && !h.player.RollsOnGuard(),
+              "and the hero, with nothing to guard with, has no roll: it is the warden's");
+    }
+    // --- the roll ------------------------------------------------------------------------------------
+    {
+        World w;
+        if (fighter(w, kWarden, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            const float x0 = w.player.x, st0 = w.player.Stamina();
+            press(w, SDLK_H);
+            Check(w.player.Untouchable() && w.player.Clip() == "backroll",
+                  "the guard key tapped, standing still: a roll back the way she came, heels over head (" + w.player.Clip() + ")");
+            Check(std::fabs(st0 - w.player.Stamina() - Player::ROLL_STAMINA) < 0.01f, "for twenty breath");
+            up(w);
+            Check(w.player.GettingUp() && x0 - w.player.x > 45.0f,
+                  "then up, and getting her feet under her, well back from where she was (" +
+                  std::to_string(static_cast<int>(x0 - w.player.x)) + " px)");
+            press(w, SDLK_H);
+            Check(!w.player.Untouchable(), "no second roll while she is getting up");
+            input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+            Check(!w.player.Attacking(), "and no shot");
+            input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+            frames(w, static_cast<int>(Player::ROLL_RECOVER * 60.0f) + 30);
+            press(w, SDLK_J);
+            Check(w.player.Attacking(), "up, the bow is hers again");
+            frames(w, 60);
+            press(w, SDLK_H);
+            Check(w.player.Untouchable(), "and so is the roll");
+            up(w);
+            frames(w, 60);
+            // Held, the guard is the abilities' shift: no roll however long it is held.
+            input.Update(dt); key(SDLK_H, true); w.Update(dt, ctx);
+            frames(w, 30);
+            input.Update(dt); key(SDLK_H, false); w.Update(dt, ctx);
+            Check(!w.player.Untouchable(), "held a while and let go is the shift, not a roll");
+            w.player.SetStamina(Player::ROLL_STAMINA - 5.0f);
+            press(w, SDLK_H);
+            Check(!w.player.Untouchable(), "and with not enough breath left there is no roll");
+        }
+        // Held with J it is the ability in the first slot, as it always was.
+        World a;
+        if (fighter(a, kWarden, "oak_shortbow", SKILL_RANGED, 60, {"steady_aim", "eagle_eye", "piercing_shot", "hunters_mark"})) {
+            while (a.player.talents.SlotOf("hunters_mark") != 0 && a.player.talents.Has("hunters_mark"))
+                a.player.talents.CycleAbility("hunters_mark");
+            EnemySpawnDef def;
+            def.type = "deer"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+            def.x = a.player.x + 120.0f; def.y = a.player.y;
+            a.enemies.push_back(std::make_unique<Enemy>());
+            Enemy& deer = *a.enemies.back();
+            deer.Init(enemy_db.Get("deer"), def, ctx);
+            frames(a, 2);
+            input.Update(dt); key(SDLK_H, true); a.Update(dt, ctx);
+            input.Update(dt); key(SDLK_J, true); a.Update(dt, ctx);
+            input.Update(dt); key(SDLK_J, false); key(SDLK_H, false); a.Update(dt, ctx);
+            Check(deer.Marked() && !a.player.Untouchable(), "the guard held with J is still Hunter's Mark, and no roll");
+        }
+        // Pushed, forward the way the stick goes, facing it.
+        World s;
+        if (fighter(s, kWarden, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            const float from = s.player.x;
+            s.player.facing = FACE_LEFT;
+            input.Update(dt); key(SDLK_D, true); s.Update(dt, ctx);
+            press(s, SDLK_H);
+            Check(s.player.Clip() == "roll" && s.player.facing == FACE_RIGHT,
+                  "pushed, the roll goes that way, forward, facing it (" + s.player.Clip() + ")");
+            frames(s, 40);
+            input.Update(dt); key(SDLK_D, false); s.Update(dt, ctx);
+            Check(s.player.x - from > 45.0f, "and carries her along it");
+        }
+        // A pad's guard rolls on the press: its shift is RB, not the guard.
+        World p;
+        if (fighter(p, kWarden, "oak_shortbow", SKILL_RANGED, 40, {})) {
+            p.player.hands_external = true;
+            p.player.hands = PlayerInput{};
+            p.player.hands.down = p.player.hands.pressed = PlayerInput::Block;
+            p.Update(dt, ctx);
+            Check(p.player.Untouchable(), "on a pad, B pressed is the roll, at once");
+            p.player.hands = PlayerInput{};
+            p.Update(dt, ctx);
+        }
+    }
+    // --- Follow Through --------------------------------------------------------------------------------
+    {
+        const TalentNode* node = trees.Find("follow_through");
+        const float share = node && node->effects.count("follow_through") ? node->effects.at("follow_through") : 0.0f;
+        Check(std::fabs(share - 0.75f) < 1e-4f, "Follow Through's quick shot is three quarters of a plain one");
+        World f;
+        if (fighter(f, kWarden, "oak_shortbow", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley", "follow_through"})) {
+            press(f, SDLK_J);
+            const float plain = arrow(f, 60);
+            frames(f, 60);
+            press(f, SDLK_H);
+            Check(f.player.FollowOwed(), "rolled, with it learned, a quick shot is owed");
+            press(f, SDLK_J);
+            Check(f.player.Untouchable() && !f.player.Attacking(), "the light pressed mid-roll: nothing yet, the roll has the body");
+            up(f);
+            Check(f.player.Attacking() && !f.player.GettingUp() &&
+                      std::fabs(f.player.Attack().damage_mult - ProfileFor(AttackType::Light, 0).damage_mult * share) < 1e-4f &&
+                      std::fabs(f.player.Attack().profile.windup - Player::QUICK_WINDUP) < 1e-5f,
+                  "the moment she is up it goes: no draw to speak of, while a plain shot would still be waiting");
+            const float quick = arrow(f, 30);
+            Check(plain > 0.0f && std::fabs(quick / plain - share) < 1e-3f,
+                  "and the arrow is three quarters as hard as a plain one (" + std::to_string(quick) + " of " +
+                  std::to_string(plain) + ")");
+            frames(f, 60);
+            // After she is up the light is a plain shot again.
+            press(f, SDLK_H);
+            up(f);
+            frames(f, static_cast<int>(Player::ROLL_RECOVER * 60.0f) + 30);
+            Check(!f.player.FollowOwed(), "the quick shot is owed only while she rolls and gets up");
+        }
+        // Not learned: the light pressed mid-roll comes to nothing, and she gets up first.
+        World n;
+        if (fighter(n, kWarden, "oak_shortbow", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley"})) {
+            press(n, SDLK_H);
+            Check(!n.player.FollowOwed(), "without Follow Through, nothing is owed");
+            press(n, SDLK_J);
+            up(n);
+            Check(!n.player.Attacking() && n.player.GettingUp(), "and she is up, and not yet shooting");
+        }
+        // A sword in hand: she rolls, but a quick shot is a shot.
+        World m;
+        if (fighter(m, kWarden, "iron_sword", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley", "follow_through"})) {
+            press(m, SDLK_H);
+            Check(m.player.Untouchable() && !m.player.FollowOwed(), "with a sword and no shield she rolls, and no quick shot is owed");
+        }
+    }
+    // --- a save from when it was Tumble ---------------------------------------------------------------
+    {
+        Talents t;
+        t.SetDatabase(&trees);
+        t.SetPath(AttackStyle::Ranged);
+        const json old = {{"learned", {"quick_draw", "fleet_foot", "volley", "tumble", "hit_and_run"}},
+                          {"abilities", {"tumble", "", ""}}};
+        t.FromJson(old);
+        Check(t.Has("follow_through") && !t.Has("tumble") && t.Has("hit_and_run") && t.AbilityNode(0).empty(),
+              "a save that bought Tumble keeps the point, on Follow Through, and the slot it was carried in is empty");
+    }
+    // --- a friend's roll ---------------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        if (w.LoadMap("overworld", "start", ctx)) {
+            w.enemies.clear();
+            Player* g = w.AddGuest(1, "Oona", kWarden, ctx);
+            if (g) {
+                g->equipment.Unequip(SLOT_SHIELD);
+                g->equipment.Equip(SLOT_WEAPON, "oak_shortbow");
+                g->Rest();
+                g->x = w.player.x + 200.0f;
+                PlayerInput hands;
+                hands.down = hands.pressed = PlayerInput::Block;
+                const size_t marks = w.Strikes().size();
+                w.StepGuest(*g, hands, dt, ctx);
+                Check(g->Untouchable() && !w.player.Untouchable() && w.Strikes().size() > marks,
+                      "a friend's B, as the host hears it, rolls her -- on the host's copy, with the dust and the lines -- and not the host");
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -4045,8 +4656,18 @@ int main(int argc, char** argv) {
                     if ((r == 4 || r == 6) && !n->Passive()) ranks_ok = false;
                     if (!n->Passive() && n->ranks != 1) ranks_ok = false;
                     if (r == SkillTrees::ROWS - 1 && (n->ranks != 1 || !n->Passive())) ranks_ok = false;
+                    // A passive where an ability would be is one point, like
+                    // the ability it stands in for.
+                    if ((r == 3 || r == 5) && n->Passive() && n->ranks != 1) ranks_ok = false;
                 }
-            if (tech != 3 || abilities != 6) techniques = false;
+            // Six abilities a tree -- but five in the bow's, whose Skirmisher
+            // row 3 is Follow Through: the roll it was is the guard button's.
+            const int want_abilities = static_cast<AttackStyle>(st) == AttackStyle::Ranged ? 5 : 6;
+            if (tech != 3 || abilities != want_abilities) techniques = false;
+            if (static_cast<AttackStyle>(st) == AttackStyle::Ranged) {
+                const TalentNode* ft = t.At(1, 3);
+                if (!ft || ft->id != "follow_through" || !ft->Passive() || !ft->effects.count("follow_through")) techniques = false;
+            }
             // The three full branches' ranks; Footwork's are its own.
             int total = 0;
             for (const TalentNode& n : t.nodes) total += n.branch < 3 ? n.ranks : 0;
@@ -4061,7 +4682,8 @@ int main(int argc, char** argv) {
                 "kill_stamina", "defence", "stamina_regen", "riposte", "low_hp_damage", "lifesteal", "rushing_strike",
                 "projectile_speed", "long_shot", "move_speed", "hit_run", "pierce", "stamina", "first_blood", "mana_cost",
                 "attunement", "mana_regen", "crit_mana", "homing", "elemental",
-                "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana", "counter"};
+                "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana", "counter",
+                "follow_through"};
             for (const TalentNode& n : t.nodes)
                 for (const auto& [effect, amount] : n.effects)
                     if (!known.count(effect)) { effects_known = false; SDL_Log("  unknown effect '%s' on %s", effect.c_str(), n.id.c_str()); }
@@ -4086,7 +4708,8 @@ int main(int argc, char** argv) {
                   "the ranged and magic trees keep their three");
         }
         Check(milestones, "every row is one milestone level, rising down the tree");
-        Check(techniques, "each tree teaches three techniques and six abilities, each ability with a cooldown and a cost, and every other node does something");
+        Check(techniques, "each tree teaches three techniques and six abilities -- five for the bow, whose roll is the guard button's and "
+                          "whose Follow Through stands where Tumble was -- each ability with a cooldown and a cost, and every other node does something");
         Check(trees.Tree(AttackStyle::Melee).skill == SKILL_ATTACK && trees.Tree(AttackStyle::Ranged).skill == SKILL_RANGED &&
               trees.Tree(AttackStyle::Magic).skill == SKILL_MAGIC, "melee, ranged and magic are earned by Attack, Ranged and Magic");
 
@@ -4609,37 +5232,17 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        // Tumble, Hunter's Mark and Caltrops: the warden.
+        // Hunter's Mark and Caltrops: the warden. (Her roll is the guard
+        // button's now, and has a section of its own: TestWardenRoll.)
         {
             World w;
-            if (fighter(w, "oak_shortbow", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley", "tumble", "steady_aim", "eagle_eye", "piercing_shot", "hunters_mark"}, nullptr)) {
-                carry(w, "tumble", 0); carry(w, "hunters_mark", 1);
-                const float x0 = w.player.x;
-                w.player.facing = FACE_RIGHT;
-                ability(w, SDLK_J);
-                Check(w.player.Untouchable(), "a tumble is untouchable while it lasts");
-                Check(w.player.Clip() == "backroll", "and back the way they came is heels over head (" + w.player.Clip() + ")");
-                Check(w.HitPlayer(9, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0, "a blow that lands mid-roll lands on nothing");
-                frames(w, 40);
-                Check(!w.player.Untouchable() && x0 - w.player.x > 45.0f, "standing still, the roll goes back the way the warden came (" +
-                      std::to_string(static_cast<int>(x0 - w.player.x)) + " px)");
+            if (fighter(w, "oak_shortbow", SKILL_RANGED, 60, {"steady_aim", "eagle_eye", "piercing_shot", "hunters_mark"}, nullptr)) {
+                carry(w, "hunters_mark", 1);
                 Enemy* deer = spawn(w, "deer", 120, 0);
                 frames(w, 2);
                 ability(w, SDLK_K);
-                Check(deer && deer->Marked() && !deer->Sundered(), "Hunter's Mark marks what is in reach");
-                World steered;
-                if (fighter(steered, "oak_shortbow", SKILL_RANGED, 60, {"quick_draw", "fleet_foot", "volley", "tumble"}, nullptr)) {
-                    carry(steered, "tumble", 0);
-                    const float from = steered.player.x;
-                    steered.player.facing = FACE_LEFT;
-                    input.Update(dt); key(SDLK_D, true); steered.Update(dt, ctx);
-                    ability(steered, SDLK_J);
-                    Check(steered.player.Clip() == "roll" && steered.player.facing == FACE_RIGHT,
-                          "pushed, the roll goes that way, forward, facing it (" + steered.player.Clip() + ")");
-                    frames(steered, 40);
-                    input.Update(dt); key(SDLK_D, false); steered.Update(dt, ctx);
-                    Check(steered.player.x - from > 45.0f, "and carries them along it");
-                }
+                Check(deer && deer->Marked() && !deer->Sundered() && !w.player.Untouchable(),
+                      "Hunter's Mark marks what is in reach -- the guard held for it, not tapped, so no roll");
                 World w2;
                 if (fighter(w2, "oak_shortbow", SKILL_RANGED, 60, {"trail_legs", "broadheads", "arrow_rain", "caltrops"}, nullptr)) {
                     carry(w2, "caltrops", 0);
@@ -4836,7 +5439,7 @@ int main(int argc, char** argv) {
         {
             World w;
             if (fighter(w, "oak_shortbow", SKILL_RANGED, 70,
-                        {"quick_draw", "fleet_foot", "volley", "tumble", "hit_and_run", "rapid_fire", "slippery", "slippery"}, nullptr)) {
+                        {"quick_draw", "fleet_foot", "volley", "follow_through", "hit_and_run", "rapid_fire", "slippery", "slippery"}, nullptr)) {
                 carry(w, "rapid_fire", 0);
                 const float plain = w.player.WeaponSpeed();
                 ability(w, SDLK_J);
@@ -18864,6 +19467,8 @@ int main(int argc, char** argv) {
     }
 
     TestOonasPoppet(db);
+    TestDodgeTraining(db);
+    TestWardenRoll(db);
 
     Section("the Brimstone Palace, and its king");
     {
@@ -21549,10 +22154,11 @@ int main(int argc, char** argv) {
                 for (const TalentNode& n : trees.Tree(style).nodes)
                     if (!n.ability.empty()) abilities.push_back(n.ability);
             for (const string& a : abilities)
-                keep("ability " + a, "iron_sword", [&](World& wf) {
-                    wf.player.knock_x = 500.0f;                 // a tumble has a way it went
-                    wf.AbilityFx(a, Element::Fire, &orc);
-                });
+                keep("ability " + a, "iron_sword", [&](World& wf) { wf.AbilityFx(a, Element::Fire, &orc); });
+            keep("the warden's roll", "oak_shortbow", [&](World& wf) {
+                wf.player.knock_x = 500.0f;                     // a roll has a way it went
+                wf.AbilityFx("roll", Element::None, nullptr);
+            });
             keep("technique whirlwind", "iron_sword", [&](World& wf) { wf.WhirlFx(wf.player.equipment.Weapon(), 46.0f, false); });
             keep("technique ground_slam", "iron_sword", [&](World& wf) { wf.SlamFx(58.0f); });
             keep("technique lunge", "iron_sword", [&](World& wf) { wf.LungeFx(wf.player.equipment.Weapon(), 82.0f); });
@@ -21572,8 +22178,8 @@ int main(int argc, char** argv) {
                 const auto was = seen.emplace(kv.second, kv.first);
                 if (!was.second) twins += " " + was.first->second + " = " + kv.first + ";";
             }
-            Check(abilities.size() == 18 && every,
-                  "all eighteen abilities, the nine techniques and the Rushing Strike leave marks of their own" +
+            Check(abilities.size() == 17 && every,
+                  "all seventeen abilities, the warden's roll, the nine techniques and the Rushing Strike leave marks of their own" +
                       (bare.empty() ? string("") : " (none from: " + bare + ")"));
             Check(seen.size() == looks.size(),
                   "and no two of them look alike (" + std::to_string(seen.size()) + " looks for " +

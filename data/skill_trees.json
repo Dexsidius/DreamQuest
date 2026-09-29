@@ -457,16 +457,15 @@
         "effects": {}
       },
       {
-        "id": "tumble",
-        "name": "Tumble",
+        "id": "follow_through",
+        "name": "Follow Through",
         "branch": 1,
         "row": 3,
         "level": 40,
-        "ability": "tumble",
-        "cooldown": 6,
-        "stamina": 20,
-        "desc": "Ability. A roll the way you are moving -- or back, if you are standing still. Nothing can touch you until you are on your feet.",
-        "effects": {}
+        "desc": "Out of a roll, a quick shot. A light attack pressed while you roll or get up looses the moment you are on your feet, with no draw -- three quarters as hard as a plain shot.",
+        "effects": {
+          "follow_through": 0.75
+        }
       },
       {
         "id": "hit_and_run",

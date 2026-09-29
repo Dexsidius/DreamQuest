@@ -185,6 +185,12 @@ struct Projectile {
     mutable float lift = -1.0f;
     // Entities already struck, so one shot cannot hit the same target twice.
     vector<const void*> already_hit;
+    // A monster's shot at someone -- owner_local and owner_seat say who, for a
+    // monster's shot -- and the body it was loosed at, where it stood then.
+    // Past that without touching them, and not about to further on, it was
+    // dodged: see World::AimShot. `aim` goes false once that is settled.
+    bool      aim = false, aim_past = false;
+    SDL_FRect aim_box{};
 
     SDL_FRect Bounds() const {
         return {x - def_radius(), y - def_radius(), def_radius() * 2, def_radius() * 2};

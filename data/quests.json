@@ -621,15 +621,15 @@
    "choices": [
     {
      "style": "melee",
-     "id": "wood_sword"
+     "id": "bronze_sword"
     },
     {
      "style": "ranged",
-     "id": "oak_shortbow"
+     "id": "bronze_bow"
     },
     {
      "style": "magic",
-     "id": "wood_staff"
+     "id": "bronze_staff"
     }
    ]
   },

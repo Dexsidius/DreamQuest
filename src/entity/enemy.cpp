@@ -18,6 +18,16 @@ static SDL_FRect BoxFromJson(const json& j, SDL_FRect fallback) {
     return {j[0].get<float>(), j[1].get<float>(), j[2].get<float>(), j[3].get<float>()};
 }
 
+// Whether a blow in `arc`, from something standing at (x, y), finds the
+// player: on their feet, on the ground level with it -- not up or down a
+// cliff: see StrikeArc -- and inside the arc.
+static bool ArcFinds(const World& world, float x, float y, const StrikeArc& arc, const Player& player) {
+    if (player.IsDead()) return false;
+    if (std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) > 1) return false;
+    const SDL_FPoint at = player.GroundCentre();
+    return ArcHits(arc, at.x, at.y, player.GroundRadius());
+}
+
 bool EnemyDatabase::Load(const string& path) {
     std::ifstream in(path);
     if (!in) {
@@ -446,7 +456,7 @@ void Enemy::SetState(State s) {
     switch (s) {
         case State::Idle:   sprite.Play("idle"); break;
         case State::Chase:  sprite.Play("walk"); break;
-        case State::Heavy:  heavy_landed = false; sprite.Play("idle", true); break;
+        case State::Heavy:  heavy_landed = false; heavy_asked = false; heavy_at = -1; sprite.Play("idle", true); break;
         case State::Attack: sprite.Play("attack", true); break;
         case State::Hurt:   sprite.Play("hurt", true); break;
         case State::Dead:   sprite.Play("death", true); break;
@@ -800,6 +810,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 shooting = true;
                 swinging = true;
                 swing_landed = false;
+                swing_asked = false;
                 swing_timer = 0.0f;
                 break;
             }
@@ -813,6 +824,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 shooting = false;
                 swinging = true;
                 swing_landed = false;
+                swing_asked = false;
                 swing_timer = 0.0f;
                 break;
             }
@@ -839,6 +851,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
 
         case State::Attack: {
             swing_timer += dt;
+            // Who a swing is coming for, asked once as it begins: whoever it is
+            // after, if they are in the arc of it now.
+            if (swinging && !shooting && !swing_asked) {
+                swing_asked = true;
+                swing_at = ArcFinds(world, x, y, SwingArc(), player) ? static_cast<int>(player.seat) : -1;
+            }
             // The hit lands partway through the swing, not on the first frame,
             // so there is a window to step out of it.
             if (swinging && !swing_landed && swing_timer >= SWING_WINDUP && shooting) {
@@ -850,8 +868,11 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 // bolt says so in its own `power`.
                 const string& shot = def->spells.empty() ? def->shoots : def->spells[casts++ % def->spells.size()];
                 const ProjectileDef* pd = ctx.projectiles ? ctx.projectiles->Get(shot) : nullptr;
-                world.SpawnProjectile(shot, x, y - 18.0f, dx / len, dy / len,
-                                      Profile(), AttackStyle::Ranged, pd ? pd->power : 1.0f, false, ctx);
+                Projectile* loosed = world.SpawnProjectile(shot, x, y - 18.0f, dx / len, dy / len,
+                                                           Profile(), AttackStyle::Ranged, pd ? pd->power : 1.0f, false, ctx);
+                // At them, where they stand: if it goes by without touching
+                // them, they got out of its way.
+                if (loosed) world.AimShot(*loosed, player);
                 // Thrown: heard now, as it leaves the hand, and lower the
                 // bigger the thing thrown. Breathed: heard now, as it leaves
                 // the mouth.
@@ -859,10 +880,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 if (pd && pd->breath) Breathe(pd->element);
             } else if (swinging && !swing_landed && swing_timer >= SWING_WINDUP) {
                 swing_landed = true;
-                // On the ground, and not up or down a cliff: see StrikeArc.
-                const SDL_FPoint at = player.GroundCentre();
-                const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
-                if (!player.IsDead() && level && ArcHits(SwingArc(), at.x, at.y, player.GroundRadius())) {
+                if (ArcFinds(world, x, y, SwingArc(), player)) {
                     // It lands: what the player wears and knows decides how
                     // hard (see RollMonsterBlow). Not being in the arc, a
                     // block and a parry are the ways out of it.
@@ -870,6 +888,11 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     const float len = std::max(1.0f, dist);
                     world.HitPlayer(r.damage, Profile(), x, y,
                                     (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this);
+                } else if (swing_at >= 0 && swing_at == static_cast<int>(player.seat)) {
+                    // It was coming for them as it began, and they are out of
+                    // the way of it now: a blow dodged, which trains Defence
+                    // as stopping it on a shield would have.
+                    world.Dodged(ExpectedMonsterBlow(Profile(), player.Profile(), AttackStyle::Melee, 1.0f));
                 }
             }
             if (swing_timer >= ProfileFor(AttackType::Strong).Total()) {
@@ -892,6 +915,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             if (!heavy_landed && state_timer < windup * HEAVY_LOCK) {
                 if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;
                 else                       facing = (dy > 0) ? FACE_DOWN  : FACE_UP;
+            } else if (!heavy_landed && !heavy_asked) {
+                // Committed: whoever is in the line of it now is who it is
+                // coming for. Backing off while it still turned to follow is
+                // keeping out of reach, not reading the tell.
+                heavy_asked = true;
+                heavy_at = ArcFinds(world, x, y, HeavyArc(), player) ? static_cast<int>(player.seat) : -1;
             }
             if (!heavy_landed && state_timer >= windup) {
                 heavy_landed = true;
@@ -899,9 +928,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.55f);
                 // The ground rings under it; a boss's shakes the screen.
                 world.Shock(x, y, def->is_boss ? 0.9f : 0.4f, def->is_boss ? 0.6f : 0.18f);
-                const SDL_FPoint at = player.GroundCentre();
-                const bool level = std::abs(world.map.LevelAt(x, y) - world.map.LevelAt(player.x, player.y)) <= 1;
-                if (level && ArcHits(HeavyArc(), at.x, at.y, player.GroundRadius())) {
+                if (ArcFinds(world, x, y, HeavyArc(), player)) {
                     const float len = std::max(1.0f, dist);
                     StatusProc leaves = def->heavy.status;
                     if (!leaves.Any() && def->on_hit.Any())
@@ -909,6 +936,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
                                          (dx / len) * def->heavy.knockback,
                                          (dy / len) * def->heavy.knockback, leaves, this);
+                } else if (heavy_at >= 0 && heavy_at == static_cast<int>(player.seat)) {
+                    // In the line of it when it was committed, and out of it
+                    // now: dodged, for what it would have done through what
+                    // they wear -- no roll: HeavyDamage's middle.
+                    const CombatProfile mine = player.Profile();
+                    world.Dodged(static_cast<float>(SoakHeavy(HeavyDamage(nullptr), mine.defence_level, mine.defence_bonus)));
                 } else {
                     world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                 }

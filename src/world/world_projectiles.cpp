@@ -15,19 +15,19 @@
 #include "../systems/audio.h"
 #include "../systems/gathering.h"
 
-void World::SpawnProjectile(const string& def_id, float x, float y,
-                            float dir_x, float dir_y,
-                            const CombatProfile& owner, AttackStyle style,
-                            float damage_mult, bool from_player,
-                            const GameContext& ctx) {
+Projectile* World::SpawnProjectile(const string& def_id, float x, float y,
+                                   float dir_x, float dir_y,
+                                   const CombatProfile& owner, AttackStyle style,
+                                   float damage_mult, bool from_player,
+                                   const GameContext& ctx) {
     const ProjectileDef* def = ctx.projectiles ? ctx.projectiles->Get(def_id) : nullptr;
     if (!def) {
         SDL_Log("World: unknown projectile '%s'", def_id.c_str());
-        return;
+        return nullptr;
     }
 
     const float len = Length(dir_x, dir_y);
-    if (len < 0.001f) return;
+    if (len < 0.001f) return nullptr;
 
     Projectile p;
     p.def = def;
@@ -51,6 +51,68 @@ void World::SpawnProjectile(const string& def_id, float x, float y,
     p.pierce_left  = def->pierce;
     p.bounces_left = def->bounces;
     projectiles.push_back(p);
+    return &projectiles.back();
+}
+
+// Whether a shot flying on the way it is going now, for the air it has left,
+// meets this box -- its own radius counted, as PlayerTouching counts it. The
+// slab test: where the line goes into and out of the box along each axis.
+static bool ShotReaches(const Projectile& p, SDL_FRect box) {
+    const float speed = Length(p.vx, p.vy);
+    const float far = speed * std::max(0.0f, p.life);
+    if (speed < 1.0f || far <= 0.0f) return false;
+    const float r = p.def_radius();
+    const float from[2] = {p.x, p.y}, way[2] = {p.vx / speed, p.vy / speed};
+    const float lo[2] = {box.x - r, box.y - r}, hi[2] = {box.x + box.w + r, box.y + box.h + r};
+    float in = 0.0f, out = far;
+    for (int a = 0; a < 2; ++a) {
+        if (fabsf(way[a]) < 1e-6f) {
+            if (from[a] < lo[a] || from[a] > hi[a]) return false;
+            continue;
+        }
+        float t0 = (lo[a] - from[a]) / way[a], t1 = (hi[a] - from[a]) / way[a];
+        if (t0 > t1) std::swap(t0, t1);
+        in = std::max(in, t0);
+        out = std::min(out, t1);
+        if (in > out) return false;
+    }
+    return true;
+}
+
+void World::AimShot(Projectile& shot, const Player& at) {
+    shot.aim_box = at.BodyBox();
+    shot.aim_past = false;
+    // One that falls short of them, or is theirs to begin with, is nothing
+    // to get out of the way of.
+    shot.aim = !shot.from_player && !at.IsDead() && ShotReaches(shot, shot.aim_box);
+}
+
+Player* World::ShotTarget(const Projectile& p) {
+    if (p.from_player) return nullptr;
+    // A monster's shot is made acting as whoever the monster is after, so
+    // the seat it was made in is theirs.
+    if (p.owner_local) return &player;
+    return Guest(p.owner_seat);
+}
+
+void World::WatchDodge(Projectile& p, bool over) {
+    if (!p.aim_past) {
+        // Stopped short of where they stood -- a wall, or somebody else in the
+        // way -- is nothing they did.
+        if (over) { p.aim = false; return; }
+        if (ShotReaches(p, p.aim_box)) return;     // still on its way there
+        p.aim_past = true;
+    }
+    Player* at = ShotTarget(p);
+    if (!at || at->IsDead() || at->resting) { p.aim = false; return; }
+    // Where it is going next is where they are now -- backing straight away
+    // down the line of it -- so it has not missed them yet.
+    if (!over && ShotReaches(p, at->BodyBox())) return;
+    p.aim = false;
+    const CombatProfile by = p.owner;
+    const AttackStyle style = p.style;
+    const float mult = p.damage_mult;
+    ActAs(*at, [&] { Dodged(ExpectedMonsterBlow(by, player.Profile(), style, mult)); });
 }
 
 void World::ThrowPracticeBolt(const string& bolt, float x, float y, float tx, float ty, const GameContext& ctx) {
@@ -182,6 +244,8 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                                         (c.nx != 0.0f || c.ny != 0.0f);
                 AddImpact(p, c.nx, c.ny);
                 Audio::PlayAt(Sfx::Impact, p.x, p.y, 0.7f);
+                // Whether or not it goes on, off a wall is no longer at them.
+                if (p.aim) WatchDodge(p, true);
 
                 if (!can_bounce) {
                     p.hit_wall = true;
@@ -282,6 +346,12 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                     else                    p.finished = true;
                 }
             } else if (Player* struck = PlayerTouching(box)) {
+                // It found whoever it was loosed at -- rolled through, HitPlayer
+                // says so -- or somebody else, who took it for them.
+                if (p.aim) {
+                    if (struck == ShotTarget(p)) p.aim = false;
+                    else                         WatchDodge(p, true);
+                }
                 ActAs(*struck, [&] {
                     // A shot that reaches them lands, as a swing does: see
                     // RollMonsterBlow. Where it came from is back along its
@@ -297,8 +367,13 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                             std::max(0.75f, p.def->radius / 6.0f), -p.vx / speed, -p.vy / speed);
                 }
                 p.finished = true;
+            } else if (p.aim) {
+                WatchDodge(p, false);
             }
         }
+        // Out of air -- or spent against something -- with the watch still
+        // kept: settled now.
+        if (p.finished && p.aim) WatchDodge(p, true);
 
         // What it leaves behind when it stops. Against a wall the contact
         // point is flush with the surface, so nudge the effect back along the

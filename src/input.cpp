@@ -112,7 +112,8 @@ const char* Bindings::Name(Action a) {
         case Action::LightAttack:  return "Light attack";
         case Action::StrongAttack: return "Heavy attack";
         case Action::Target:       return "Lock on";
-        case Action::Block:        return "Block";
+        // A shield blocks and a dagger parries; the warden with neither rolls.
+        case Action::Block:        return "Block / roll";
         case Action::Ability:      return "Abilities (hold)";
         case Action::Menu:         return "Menu";
         case Action::Interact:     return "Interact";

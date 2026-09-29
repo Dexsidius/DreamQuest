@@ -120,12 +120,18 @@ public:
     void TryInteract(const GameContext& ctx);
 
     // Fires a projectile from a point along a direction. The direction does not
-    // need normalising.
-    void SpawnProjectile(const string& def_id, float x, float y,
-                         float dir_x, float dir_y,
-                         const CombatProfile& owner, AttackStyle style,
-                         float damage_mult, bool from_player,
-                         const GameContext& ctx);
+    // need normalising. Returns it, for its maker to say more about it -- until
+    // the next one is fired -- or null if there was nothing to fire.
+    Projectile* SpawnProjectile(const string& def_id, float x, float y,
+                                float dir_x, float dir_y,
+                                const CombatProfile& owner, AttackStyle style,
+                                float damage_mult, bool from_player,
+                                const GameContext& ctx);
+    // A monster's shot, loosed at `at` where they stand now. If it gets past
+    // that without touching them, and is not about to further on, they got
+    // out of its way: a blow dodged. Nothing is watched for a shot that could
+    // not have reached them.
+    void AimShot(Projectile& shot, const Player& at);
     void AddGroundEffect(const GroundEffect& effect);
 
     // A blow that has already beaten the player's defence, from an attacker
@@ -146,6 +152,12 @@ public:
     static constexpr float HEAVY_BLOCK_PUNISH = 1.5f;
     int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
                        const StatusProc& leaves = {}, class Enemy* by = nullptr);
+    // A blow that was coming for the player and found nobody there: a swing
+    // stepped out of, a heavy's line left, a shot let by, any of them rolled
+    // through or slipped. It trains Defence as a block does, by what it would
+    // have done -- so a shield is not the only way to learn to take a fight.
+    // `say` goes up over them; null says nothing. Acting as them.
+    void Dodged(float would_have, const char* say = "dodged");
     // Rolls a status against the player a blow of `blow` just landed on, and
     // says so over their head if it takes. Its own dice, never the context's:
     // a fight that leaves nothing throws exactly the numbers it always did.
@@ -916,6 +928,13 @@ private:
     bool SeenHere();
     // A parry landing on the player: the stagger, the opening, the riposte owed.
     void Parried(class Enemy* by, float from_x, float from_y, bool heavy);
+    // A monster's shot being watched for a dodge (see AimShot): whoever it
+    // was loosed at, if they are still here, and the watch kept. `over` is its
+    // flight at them ending -- a wall, a bounce, somebody else in the way, or
+    // out of air -- when whatever it is going to be is settled. With nobody
+    // acting.
+    Player* ShotTarget(const Projectile& p);
+    void    WatchDodge(Projectile& p, bool over);
     // The ice: see IceStrain.
     float ice_strain = 0.0f, ice_grace = 0.0f, ice_sink = -1.0f;
     SDL_FPoint ice_safe{}, ice_mark{}, ice_fell{};
