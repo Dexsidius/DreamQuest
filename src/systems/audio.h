@@ -5,7 +5,7 @@
 //  Sound
 //
 //  There are no sound files. Every effect is synthesised once at start-up from
-//  tones, noise and plucked strings, and the ambience -- wind, birdsong, cave
+//  tones, noise, struck metal and a bowstring's thrum, and the ambience -- wind, birdsong, cave
 //  drips, a crackling hearth -- is generated live by the mixer, so no two
 //  minutes in the Whisperwood sound quite the same.
 //

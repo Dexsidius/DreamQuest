@@ -30,6 +30,8 @@
 #    frost_shard            the Ice Touch: the stone shard, cut in ice
 #    throwing_knife         a knife going end over end
 #    air_slash              the Air Slash: the greater gust's edge, with nothing behind it
+#    arrow, crossbow_bolt   what a bow and a crossbow loose: drawn a pixel at a time
+#                           from rows of letters, since a shape is not a field
 #
 #  Flame, the wake and the gust are fields and not drawings: a number is worked
 #  out for every pixel -- how hot, how wet -- and cut into four or five flat
@@ -542,24 +544,50 @@ public static class Fx
     }
 
     // A knife, end over end: a bright blade and a dark grip, a step of the turn a frame.
+    // Twelve pixels and a line of blade one wide was a glint nobody saw leave the
+    // hand; at sixteen the blade is two wide -- its edge bright and its flat in
+    // steel -- with a white point, and the grip a third of it.
     public static Bitmap[] Knife(int size, int frames)
     {
-        Color blade = Color.FromArgb(255, 232, 238, 248), spine = Color.FromArgb(255, 150, 160, 184);
-        Color grip = Color.FromArgb(255, 96, 66, 44), rim = Color.FromArgb(230, 34, 30, 40);
-        double c0 = size / 2.0;
+        Color blade = Color.FromArgb(255, 236, 242, 250), flat = Color.FromArgb(255, 160, 172, 194);
+        Color point = Color.FromArgb(255, 255, 255, 255), guard = Color.FromArgb(255, 120, 124, 136);
+        Color grip = Color.FromArgb(255, 110, 72, 44), rim = Color.FromArgb(235, 30, 26, 36);
+        double c0 = size / 2.0, r = size * 0.375;       // how far the point and the pommel are from the middle
         Bitmap[] outp = new Bitmap[frames];
         for (int f = 0; f < frames; ++f) {
             double a = f * 2 * Math.PI / frames, ca = Math.Cos(a), sa = Math.Sin(a);
             Bitmap b = Blank(size, size);
-            for (double d = -4.5; d <= 4.5; d += 0.25) {
+            for (double d = -r; d <= r; d += 0.25) {
                 int x = (int)Math.Floor(c0 + ca * d), y = (int)Math.Floor(c0 + sa * d);
                 if (x < 0 || y < 0 || x >= size || y >= size) continue;
-                b.SetPixel(x, y, d < -1.5 ? grip : d > 3.0 ? blade : (d > 0.5 ? blade : spine));
+                Color c = d < -r / 3 ? grip : d < 0.5 ? guard : d > r - 1.0 ? point : blade;
+                b.SetPixel(x, y, c);
+                // The blade's flat beside its edge, so it is a blade and not a wire.
+                if (d > 0.5 && d < r - 1.5) {
+                    int u = (int)Math.Floor(c0 + ca * d - sa * 0.9), v = (int)Math.Floor(c0 + sa * d + ca * 0.9);
+                    if (u >= 0 && v >= 0 && u < size && v < size && b.GetPixel(u, v).A == 0) b.SetPixel(u, v, flat);
+                }
             }
             Outline(b, rim);
             outp[f] = b;
         }
         return outp;
+    }
+
+    // Something drawn a pixel at a time from rows of letters, each letter a
+    // colour in `key` (and '.' nothing), and outlined. For what is a shape and
+    // not a field: an arrow, a bolt.
+    public static Bitmap Pixels(string[] rows, string letters, Color[] key, Color rim)
+    {
+        int h = rows.Length, w = rows[0].Length;
+        Bitmap b = Blank(w, h);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w && x < rows[y].Length; ++x) {
+                int k = letters.IndexOf(rows[y][x]);
+                if (k >= 0) b.SetPixel(x, y, key[k]);
+            }
+        Outline(b, rim);
+        return b;
     }
 
     // ------------------------------------------------------------------- glow
@@ -665,8 +693,38 @@ Save-Strip "wave_crest"        ([Fx]::Wave(24, 30, 19.0, 5.0, 17.0, $N, 71)) 17 
 Save-Strip "rock_shard_small"  ([Fx]::Rock(14, 4.6, $N, 45)) 7 7
 
 # --- what the armoury throws, and the air's third spell
-Save-Strip "throwing_knife" ([Fx]::Knife(12, $N)) 6 6
+Save-Strip "throwing_knife" ([Fx]::Knife(16, $N)) 8 8
 Save-Strip "air_slash" ([Fx]::Slash(24, 40, [double[]]@(4.0, 20.0, 18.0, 5.0), $N)) 16 20
+
+# --- what a string looses, pointing along +x and held by its head, which is what
+#     strikes. The arrow was a picture of a few brown pixels in a 24-pixel square,
+#     drawn at six tenths: a speck, in flight. Now a shaft of pale wood with a dark
+#     line round it, a steel head with barbs, and fletching -- one vane red and
+#     one cream -- at the size it is drawn, so it reads over grass and over stone.
+#     n nock   w shaft   r/c the vanes   s the head's socket and barbs   h/H steel   t the point
+$wood = [System.Drawing.Color[]]@((Argb 255 70 50 34), (Argb 255 200 156 98), (Argb 255 206 58 46), (Argb 255 240 234 216),
+                                  (Argb 255 122 130 146), (Argb 255 176 186 200), (Argb 255 222 230 240), (Argb 255 255 255 255))
+$arrow = [Fx]::Pixels([string[]]@(
+    "........................",
+    "..rrrr............s.....",
+    "...rrrrr..........shh...",
+    ".nnwwwwwwwwwwwwwwwHHHHt.",
+    "...ccccc..........shh...",
+    "..cccc............s.....",
+    "........................"), "nwrcshHt", $wood, (Argb 235 30 26 36))
+Save-Strip "arrow" ([System.Drawing.Bitmap[]]@($arrow)) 20 3
+# A crossbow's bolt: shorter, darker, stubbier at the head, with grey vanes.
+$bolt = [Fx]::Pixels([string[]]@(
+    "..................",
+    "..gg..............",
+    "..ggg.........s...",
+    ".nddddddddddssHHt.",
+    "..ggg.........s...",
+    "..gg..............",
+    ".................."), "ndgsHt",
+    [System.Drawing.Color[]]@((Argb 255 64 44 30), (Argb 255 150 108 66), (Argb 255 168 176 186), (Argb 255 116 124 140),
+                              (Argb 255 214 222 234), (Argb 255 255 255 255)), (Argb 235 30 26 36))
+Save-Strip "crossbow_bolt" ([System.Drawing.Bitmap[]]@($bolt)) 14 3
 
 $glow = [Fx]::Glow(32)
 $glow.Save((Join-Path $out "glow.png"), [System.Drawing.Imaging.ImageFormat]::Png)

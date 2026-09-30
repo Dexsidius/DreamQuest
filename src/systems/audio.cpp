@@ -86,22 +86,29 @@ void Bell(Buf& b, float start, float f, float amp, float decay) {
              amp * kAmp[k], 0.001f, decay / (1.0f + k * 0.8f));
 }
 
-// Karplus-Strong: a burst of noise in a delay line that averages itself into
-// a plucked string.
-void Pluck(Buf& b, float start, float f, float amp, float dur, float damp, uint32_t seed) {
+// A bowstring let go: its note, thick and buzzing, settling from `f0` to `f1`
+// as the limbs come to rest, and gone within a few dozen cycles. A string on a
+// bow is short, taut and damped by the limbs and the arrow rest: it thrums and
+// stops, where a harp's rings on -- which is what the bow used to be, a
+// Karplus-Strong pluck left to ring.
+void Thrum(Buf& b, float start, float f0, float f1, float amp, float decay, uint32_t seed) {
     Noise n(seed);
-    const int period = std::max(2, static_cast<int>(RATE / f));
-    vector<float> ring(period);
-    for (float& v : ring) v = n.Next();
     const size_t s0 = static_cast<size_t>(start * RATE);
+    const float dur = decay * 7.0f;
     const size_t len = static_cast<size_t>(dur * RATE);
-    int idx = 0;
+    const float soft = Coef(1500.0f);
+    float ph = 0.0f, lp = 0.0f;
     for (size_t i = 0; i < len && s0 + i < b.size(); ++i) {
-        const float v = ring[idx];
-        ring[idx] = (v + ring[(idx + 1) % period]) * 0.5f * damp;
-        idx = (idx + 1) % period;
-        const float tail = std::min(1.0f, static_cast<float>(len - i) / (RATE * 0.02f));
-        b[s0 + i] += v * amp * tail;
+        const float t = static_cast<float>(i) / RATE;
+        const float f = f1 + (f0 - f1) * std::exp(-t / (decay * 0.8f));
+        ph += f / RATE;
+        ph -= std::floor(ph);
+        // A saw for the buzz, a sine for the body, and a little noise: a string
+        // is not a clean oscillator.
+        const float raw = 0.8f * Osc(SAW, ph) + 0.6f * Osc(SINE, ph) + 0.15f * n.Next();
+        lp += (raw - lp) * soft;
+        const float tail = std::min(1.0f, (dur - t) * 200.0f);
+        b[s0 + i] += lp * amp * Env(t, 0.0006f, decay) * tail;
     }
 }
 
@@ -221,11 +228,24 @@ Buf Make(Sfx s) {
         Normalize(b, 0.45f);
         break;
     case Sfx::BowShot:
-        b = Blank(0.4f);
-        Pluck(b, 0.0f, 180.0f, 0.9f, 0.38f, 0.986f, 21);
-        Hiss(b, 0.015f, 0.2f, 0.45f, 0.01f, 0.06f, 5000.0f, 1500.0f, 900.0f, 22);
-        LowpassAll(b, 5000.0f);
-        Normalize(b, 0.45f);
+        // A bow let go: the string slapping home against the limbs -- a crack
+        // and a thump -- its note thrumming a moment and gone, and the arrow
+        // tearing the air as it leaves, bright and then dulling as it goes. It
+        // was a plucked string left to ring for four tenths of a second, which
+        // is a harp and not a bow.
+        // Nothing much below a hundred hertz, which a laptop's or a Deck's
+        // speakers would throw away.
+        b = Blank(0.3f);
+        Hiss(b, 0.0f, 0.02f, 1.0f, 0.0004f, 0.004f, 10000.0f, 5000.0f, 2000.0f, 22);   // the crack
+        Hiss(b, 0.0f, 0.04f, 0.8f, 0.0005f, 0.008f, 2600.0f, 1100.0f, 350.0f, 24);     // the slap of the string
+        Tone(b, 0.0f, 0.07f, 210.0f, 85.0f, 0.55f, 0.0006f, 0.016f);                    // the limbs' thump
+        Thrum(b, 0.001f, 150.0f, 112.0f, 0.5f, 0.03f, 21);                              // the string's note
+        Hiss(b, 0.01f, 0.24f, 0.95f, 0.012f, 0.065f, 7500.0f, 1600.0f, 1100.0f, 25);    // the arrow going
+        Tone(b, 0.012f, 0.12f, 2100.0f, 1300.0f, 0.05f, 0.012f, 0.04f);                 // its fletching's whistle
+        LowpassAll(b, 11000.0f);
+        // A touch louder at its peak than the old one: it is a punch now, not
+        // a note held, and would otherwise sit under everything else.
+        Normalize(b, 0.50f);
         break;
     case Sfx::KnifeThrow:
         // A blade leaving the hand: air, and a thin edge of steel turning in

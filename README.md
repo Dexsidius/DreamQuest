@@ -1672,6 +1672,28 @@ How it is done, and why:
   be kept on the shot), and a shot it stops hearing of has met something and
   breaks where it last was.
 
+### What a bow, a crossbow and a knife loose
+
+**The arrow could not be seen.** Its picture (`assets/objects/arrow.png`) was a
+24-pixel square with eight pixels in it -- a dab of brown and a grey dot -- and
+it was drawn at six tenths of that, so what left the warden's bow was a speck.
+Every arrow in the game shared it: the warden's, the heavy one, the orc
+bowmen's barbed ones, the frost archers' and the blowgun's dart.
+
+Each is drawn now by `tools/make_effects.ps1` with the spells, a pixel at a time
+from rows of letters (`Fx.Pixels`), since a shape is not a field:
+
+| Picture | What it is | Used by |
+| --- | --- | --- |
+| `arrow` (24 x 7) | a shaft of pale wood, a barbed steel head with a white point, and fletching -- one vane red and one cream -- outlined dark, so it reads over grass and over stone | `arrow`; `arrow_heavy`, a fifth larger; `barbed_arrow`, `frost_arrow` and `blowgun_dart` in their own tints (the dart at seven tenths) |
+| `crossbow_bolt` (18 x 7) | shorter and darker, with a stubby head and grey vanes | `crossbow_bolt` |
+| `throwing_knife` (16 x 16, eight frames) | redrawn larger: the blade two pixels wide, its edge bright and its flat in steel, a white point, and the grip a third of it, turning end over end | the knives, every tier |
+
+Each is at the size it is drawn (the old arrow was scaled down, the new ones
+are not), and an arrow and a bolt are held by the head, which is what strikes.
+The knife is as big as the rule for an upright strip allows -- no taller than
+four times the circle it hits with.
+
 ### What a magic weapon reaches of an element
 
 A plain staff, a wand, a grimoire and an orb all choose an element with `1` to
@@ -4925,11 +4947,11 @@ shadowed, because flat text over a moonlit sky is hard to read.
 
 There are no audio files. `src/systems/audio.cpp` synthesises every effect at
 start-up -- 46 of them, from tones, filtered noise, struck-metal partials,
-Karplus-Strong plucked strings and rattling throats -- and plays them through one SDL3 audio stream
+a bowstring's thrum and rattling throats -- and plays them through one SDL3 audio stream
 with a small mixer.
 
 - **Combat:** swings (pitched up through a light chain, heavier for strong and
-  charged attacks), hits, critical hits, blocked hits, deaths, the bow's twang,
+  charged attacks), hits, critical hits, blocked hits, deaths, a bow let go,
   a cast pitched by element, arrows striking walls, and a monster's swing as it
   winds up. A killing blow is heard as the death rather than a hit on top of it
   -- except a thrown knife's, which is heard going in (see **Thrown things**,
@@ -4960,7 +4982,7 @@ a knife going in was a sword's blow, and a knife that missed was silent.
 
 | Sound | What it is | How it is made | Unlike |
 | --- | --- | --- | --- |
-| `Throw` | a rock, a lump of ice or a snowball let go of by hand | a dark swell of noise brightening as the arm comes over (700 to 2,400 Hz), falling away as it leaves, and a muffled puff where it does: under a quarter of a second, no string and no steel. Played lower the bigger the thing thrown (`ProjectileDef::ThrowPitch`): a slinger's rock at about its own pitch, a troll's ice a tenth lower, the snowman's snowball at seven-tenths | `Swing`, which starts bright and only falls; `BowShot`, a plucked string; `KnifeThrow`, thin and sharp at the front |
+| `Throw` | a rock, a lump of ice or a snowball let go of by hand | a dark swell of noise brightening as the arm comes over (700 to 2,400 Hz), falling away as it leaves, and a muffled puff where it does: under a quarter of a second, no string and no steel. Played lower the bigger the thing thrown (`ProjectileDef::ThrowPitch`): a slinger's rock at about its own pitch, a troll's ice a tenth lower, the snowman's snowball at seven-tenths | `Swing`, which starts bright and only falls; `BowShot`, a string's slap and thrum; `KnifeThrow`, thin and sharp at the front |
 | `KnifeHit` | a blade going into something | a thunk gliding 240 to 105 Hz and gone in a seventh of a second, noise dulled to below 1,400 Hz, and a thin tick of the point at about 3 kHz | `Hit`, a lower, longer blow (150 to 55 Hz) with a bright hiss |
 | `Whiff` | a blade through empty air | noise with everything under 1,900 Hz taken out, swelling and falling from 6,500 to 2,600 Hz in a seventh of a second | `Swing`, fuller and a half again as long; `KnifeThrow`, which rises as it leaves where this falls as it goes by |
 
@@ -4971,6 +4993,20 @@ for a sound a friend's own window plays for itself and is never sent to her
 (`coop::OwnSound`, which the self-test asks about all three). A guest on an
 older build would take a number it does not know for its last sound -- the
 quest fanfare, on every knife -- so they came with protocol 14.
+
+**A bow let go.** `BowShot` was a plucked string left to ring for four tenths
+of a second -- a harp's note, not a bow's. A bow is three things at once, and
+it is made of them now, in a quarter of a second:
+
+| Part | What it is | How it is made |
+| --- | --- | --- |
+| The release | the string slapping home against the limbs | a crack of bright noise gone in 4 ms (2,000 to 10,000 Hz), the slap's body under it (350 to 2,600 Hz, 8 ms), and a thump of the limbs gliding 210 to 85 Hz |
+| The string | its note, thrumming a moment and stopping, as a short damped string does | `Thrum`: a buzzing saw on a sine, settling from 150 to 112 Hz as the limbs come to rest, softened above 1,500 Hz, gone in about fifty milliseconds |
+| The arrow | the fletching tearing the air as it leaves | noise from 1,100 Hz up, bright (7,500 Hz) as it leaves and dulling to 1,600 Hz as it goes, over about two tenths of a second, with a faint whistle falling from 2,100 to 1,300 Hz |
+
+Almost nothing is below a hundred hertz, which a laptop's or a Steam Deck's
+speakers would not play. The crossbow, and every monster that looses off a
+string, is heard with the same sound (a monster's quieter and a shade lower).
 
 **A dragon's voice.** The five elemental dragons breathed their element at
 you and were heard loosing an arrow: nothing marked a breath as anything but a
