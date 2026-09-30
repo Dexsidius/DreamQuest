@@ -31,7 +31,8 @@ enum SkillId {
 };
 
 // The skills page groups them. A category's skills are listed in the order
-// they are shown; every skill is in exactly one.
+// they are shown; every skill but Defence is in exactly one, and Defence --
+// which is not trained -- is in none, and SkillCategoryOf says -1 for it.
 enum SkillCategory { CATEGORY_FORGING = 0, CATEGORY_COMBAT, CATEGORY_GATHERING, CATEGORY_WITCHCRAFT, CATEGORY_COUNT };
 const char* CategoryName(int category);
 // A line on what a category holds, and on how a skill is trained, for the
@@ -76,9 +77,14 @@ public:
     bool AddXp(int skill, int amount, LevelUp& out);
     void SetXp(int skill, int xp);
 
-    // OSRS-style combat level from the melee/ranged/magic triangle.
+    // OSRS-style combat level from the melee/ranged/magic triangle -- with
+    // Hitpoints in Defence's place, since Defence follows the combat level
+    // (Player::SyncDefence) and cannot also be part of what makes it.
     int CombatLevel() const;
-    // Total level and total XP, for the skills panel header.
+    // The same before it is rounded down: how far to the next one.
+    double CombatLevelExact() const;
+    // Total level and total XP, for the skills panel header and the save list:
+    // what was trained, which leaves Defence out.
     int TotalLevel() const;
     long long TotalXp() const;
 

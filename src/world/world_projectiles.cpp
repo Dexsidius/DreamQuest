@@ -109,10 +109,7 @@ void World::WatchDodge(Projectile& p, bool over) {
     // down the line of it -- so it has not missed them yet.
     if (!over && ShotReaches(p, at->BodyBox())) return;
     p.aim = false;
-    const CombatProfile by = p.owner;
-    const AttackStyle style = p.style;
-    const float mult = p.damage_mult;
-    ActAs(*at, [&] { Dodged(ExpectedMonsterBlow(by, player.Profile(), style, mult)); });
+    ActAs(*at, [&] { Dodged(); });
 }
 
 void World::ThrowPracticeBolt(const string& bolt, float x, float y, float tx, float ty, const GameContext& ctx) {

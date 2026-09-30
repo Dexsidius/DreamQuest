@@ -333,12 +333,12 @@ foreach ($piece in $catalogue) {
     if ($piece.kind)  { $entry["kind"]  = $piece.kind }
     if ($piece.speed) { $entry["speed"] = $piece.speed }
 
-    # Armour gates on Defence, a blade on Attack, a stave on Magic, so the
-    # requirement matches the skill the piece is actually for.
+    # A robe and a stave gate on Magic; a blade on Attack, and so do the mail
+    # and plate, which are the hero's -- each class's armour asks its own
+    # style's level, and Defence is not trained any more (Player::SyncDefence).
     $req = [ordered]@{}
     if ($piece.magreq -and $piece.magreq -gt 1)                              { $req["Magic"]   = $piece.magreq }
-    elseif ($piece.slot -eq 'weapon' -and $piece.req -and $piece.req -gt 1)  { $req["Attack"]  = $piece.req }
-    elseif ($piece.req -and $piece.req -gt 1)                                { $req["Defence"] = $piece.req }
+    elseif ($piece.req -and $piece.req -gt 1)                                { $req["Attack"]  = $piece.req }
     if ($req.Count -gt 0) { $entry["req"] = $req }
 
     # Every piece is worn from every angle. These are single painted views, so

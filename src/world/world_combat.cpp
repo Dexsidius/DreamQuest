@@ -1427,10 +1427,9 @@ void World::Parried(Enemy* by, float from_x, float from_y, bool heavy) {
     Audio::PlayAt(Sfx::Block, player.x, player.y, 1.0f, 1.55f);
 }
 
-void World::Dodged(float would_have, const char* say) {
-    if (would_have <= 0.0f || player.IsDead() || player.resting) return;
-    player.TrainDefence(would_have);
-    if (say) AddText(say, player.x, player.y - 58.0f, {190, 230, 190, 255});
+void World::Dodged(const char* say) {
+    if (player.IsDead() || player.resting) return;
+    AddText(say, player.x, player.y - 58.0f, {190, 230, 190, 255});
 }
 
 int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, float from_y,
@@ -1438,22 +1437,19 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
     if (damage <= 0 || player.IsDead() || player.resting) return 0;
     // Mid-roll: it lands on nothing, and was dodged.
     if (player.Untouchable()) {
-        Dodged(static_cast<float>(damage));
+        Dodged();
         return 0;
     }
     // Slippery: on the move, some of them simply miss.
     const float evade = player.talents.Global("evade");
     if (evade > 0.0f && player.Moving() && !player.Blocking() &&
         std::uniform_real_distribution<float>(0.0f, 1.0f)(evade_dice) < evade) {
-        Dodged(static_cast<float>(damage), "slipped");
+        Dodged("slipped");
         return 0;
     }
     // Stand Fast: feet set, less of it gets through and none of it moves you.
-    // What it keeps off is stopped, and trains Defence as a shield would.
     if (player.StandingFast()) {
-        const int whole = damage;
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
-        player.TrainDefence(static_cast<float>(whole - damage));
         knock_x = knock_y = 0.0f;
     }
     // A dagger's or a greatsword's parry: caught outright in its first
@@ -1488,10 +1484,6 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
         AddText(std::to_string(in_blood), player.x, player.y - 44.0f, {235, 70, 70, 255});
         // Resolve: pain is a kind of fuel.
         if (in_blood > 0 && !player.IsDead()) player.GainMana(static_cast<int>(player.talents.Global("hurt_mana")));
-        // Taking a hit trains Defence, at a quarter of what stopping it would.
-        // What the mana shield paid for was stopped: a shield's rate for that.
-        player.GrantXp(SKILL_DEFENCE, std::max(1, in_blood));
-        player.TrainDefence(static_cast<float>(b.taken - in_blood));
     }
     // A blow on the shield still shoves, only less.
     const float push = b.taken > 0 ? 1.0f : 0.35f;
@@ -1510,13 +1502,9 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
 int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
                           const StatusProc& leaves, Enemy* by) {
     if (player.resting) return 0;
-    // Rolled through: dodged, for what it would have done once what is worn
-    // had taken its share (see HeavySoak).
+    // Rolled through: dodged.
     if (player.Untouchable()) {
-        if (damage > 0) {
-            const CombatProfile mine = player.Profile();
-            Dodged(static_cast<float>(SoakHeavy(damage, mine.defence_level, mine.defence_bonus)));
-        }
+        if (damage > 0) Dodged();
         return 0;
     }
     if (damage > 0 && !player.IsDead() && player.ParryOpen() && player.ParryFacing(from_x, from_y)) {
@@ -1536,9 +1524,7 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     }
     float push = 1.0f;
     if (player.StandingFast()) {
-        const int whole = damage;
         damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
-        player.TrainDefence(static_cast<float>(whole - damage));
         push = 0.0f;
     }
     if (player.GuardFacing(from_x, from_y) || player.ParryFacing(from_x, from_y)) {
@@ -1554,7 +1540,6 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     player.NoteHurt();
     player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
     AddText(std::to_string(damage), player.x, player.y - 44.0f, {255, 60, 40, 255}, 1.2f);
-    player.GrantXp(SKILL_DEFENCE, std::max(1, damage));
     player.knock_x += knock_x * push;
     player.knock_y += knock_y * push;
     if (damage > 0 && !player.IsDead()) {

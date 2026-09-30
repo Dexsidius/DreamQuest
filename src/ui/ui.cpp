@@ -205,9 +205,12 @@ float UI::WrappedHeight(const string& text, float wrap_width, TextSize size) {
 }
 
 float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
-                      TextSize size, SDL_Color color, bool draw) {
+                      TextSize size, SDL_Color color, bool draw, Align align) {
     const float line_h = LineHeight(size) + 2.0f;
     float cursor_y = y;
+    // Every line is set the one way: the caller's x is its left, its middle or
+    // its right.
+    const auto put = [&](const string& line, float ly) { Text(line, x, ly, size, color, align); };
 
     // Break on explicit newlines first, then greedily on spaces.
     std::istringstream paragraphs(text);
@@ -226,17 +229,17 @@ float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
                 size_t fits = 1;
                 while (fits < word.size() && Measure(word.substr(0, fits + 1), size).x <= wrap_width) ++fits;
                 if (!line.empty()) {
-                    if (draw) Text(line, x, cursor_y, size, color);
+                    if (draw) put(line, cursor_y);
                     cursor_y += line_h;
                     line.clear();
                 }
-                if (draw) Text(word.substr(0, fits), x, cursor_y, size, color);
+                if (draw) put(word.substr(0, fits), cursor_y);
                 cursor_y += line_h;
                 word = word.substr(fits);
             }
             const string candidate = line.empty() ? word : line + " " + word;
             if (Measure(candidate, size).x > wrap_width && !line.empty()) {
-                if (draw) Text(line, x, cursor_y, size, color);
+                if (draw) put(line, cursor_y);
                 cursor_y += line_h;
                 line = word;
             } else {
@@ -244,7 +247,7 @@ float UI::TextWrapped(const string& text, float x, float y, float wrap_width,
             }
         }
         if (!line.empty()) {
-            if (draw) Text(line, x, cursor_y, size, color);
+            if (draw) put(line, cursor_y);
             cursor_y += line_h;
         }
     }

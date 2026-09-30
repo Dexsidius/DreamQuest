@@ -327,7 +327,7 @@ void Game::UpdateEnchanting() {
 
 void Game::DrawEnchanting() {
     ui.Dim(0.5f);
-    const SDL_FRect panel = CenteredPanel(ui, 660.0f, 450.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 660.0f, 480.0f);
     ui.Panel(panel);
     ui.Text(craft_title.empty() ? "Enchanting Table" : craft_title,
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
@@ -337,9 +337,15 @@ void Game::DrawEnchanting() {
     ui.Text("Enchanting " + std::to_string(p.skills.Level(SKILL_ENCHANTING)),
             panel.x + panel.w - 24.0f, panel.y + 24.0f, TextSize::Small,
             Palette::TextDim, Align::Right);
-    ui.Text("A charm worked into a worn piece or a weapon. Each is learned first; its tiers come with levels.",
-            panel.x + panel.w / 2.0f, panel.y + panel.h - 50.0f, TextSize::Small,
-            Palette::TextDim, Align::Center);
+    // Wrapped to the panel and centred over the prompts: on one line it was
+    // wider than the table's panel and ran off both sides of it.
+    {
+        const string blurb = "A charm worked into a worn piece or a weapon. Each is learned first; its tiers come with levels.";
+        const float blurb_w = panel.w - 48.0f;
+        const float blurb_h = ui.WrappedHeight(blurb, blurb_w, TextSize::Small);
+        ui.TextWrapped(blurb, panel.x + panel.w / 2.0f, panel.y + panel.h - 34.0f - blurb_h, blurb_w,
+                       TextSize::Small, Palette::TextDim, true, Align::Center);
+    }
 
     const vector<const EnchantDef*> list = items.Enchantments();
     if (list.empty()) {

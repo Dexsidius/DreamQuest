@@ -1588,7 +1588,7 @@
    "strength": 4
   },
   "req": {
-   "Defence": 15
+   "Attack": 15
   },
   "passive": "marshstride",
   "passive_text": "Marshstride: you walk a seventh quicker, and ground that burns takes half as much out of you.",

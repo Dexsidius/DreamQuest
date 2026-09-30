@@ -285,7 +285,6 @@
    "xp": {
     "Attack": 900,
     "Strength": 700,
-    "Defence": 500,
     "Hitpoints": 400
    },
    "coins": 340,
@@ -306,7 +305,7 @@
   },
   "completion": "The carters will risk the road again.",
   "req": {
-   "Combat": 6
+   "Combat": 8
   }
  },
  "q_marens_letter": {
@@ -330,7 +329,6 @@
   ],
   "rewards": {
    "xp": {
-    "Defence": 180,
     "Hitpoints": 120
    },
    "coins": 60,
@@ -369,14 +367,13 @@
   "rewards": {
    "xp": {
     "Attack": 400,
-    "Defence": 400,
     "Hitpoints": 260
    },
    "coins": 210
   },
   "completion": "Maren folds the page twice and does not put it down.",
   "req": {
-   "Combat": 5
+   "Combat": 7
   }
  },
  "q_emberfell_depths": {
@@ -417,7 +414,6 @@
    "xp": {
     "Attack": 2600,
     "Strength": 2600,
-    "Defence": 1800,
     "Hitpoints": 1400
    },
    "coins": 1200,
@@ -614,8 +610,7 @@
   "rewards": {
    "xp": {
     "Ranged": 360,
-    "Attack": 240,
-    "Defence": 200
+    "Attack": 240
    },
    "coins": 220,
    "choices": [
@@ -730,7 +725,7 @@
   "level": 8,
   "summary": "The Sunken Road needs walking every day it is going to stay open.",
   "req": {
-   "Combat": 6
+   "Combat": 8
   },
   "repeat": "daily",
   "pool": "havenbrook",
@@ -745,8 +740,7 @@
   ],
   "rewards": {
    "xp": {
-    "Attack": 400,
-    "Defence": 250
+    "Attack": 400
    },
    "coins": 150
   },
@@ -880,8 +874,7 @@
   ],
   "rewards": {
    "xp": {
-    "Attack": 260,
-    "Defence": 200
+    "Attack": 260
    },
    "coins": 160
   },
@@ -1042,7 +1035,6 @@
   "rewards": {
    "xp": {
     "Attack": 900,
-    "Defence": 700,
     "Hitpoints": 450
    },
    "coins": 500,
@@ -1145,8 +1137,7 @@
   "rewards": {
    "xp": {
     "Attack": 700,
-    "Strength": 700,
-    "Defence": 400
+    "Strength": 700
    },
    "coins": 300,
    "items": [
@@ -1771,7 +1762,6 @@
    "xp": {
     "Attack": 250,
     "Strength": 250,
-    "Defence": 150,
     "Hitpoints": 120
    },
    "coins": 150,
@@ -1819,7 +1809,6 @@
    "xp": {
     "Attack": 9000,
     "Strength": 9000,
-    "Defence": 7000,
     "Hitpoints": 5000
    },
    "coins": 3200,
@@ -1864,7 +1853,6 @@
   ],
   "rewards": {
    "xp": {
-    "Defence": 1600,
     "Attack": 900,
     "Hitpoints": 700
    },
@@ -1915,7 +1903,6 @@
   "rewards": {
    "xp": {
     "Attack": 1400,
-    "Defence": 1200,
     "Hitpoints": 900,
     "Smithing": 600
    },
@@ -2925,7 +2912,6 @@
    "xp": {
     "Attack": 1400,
     "Strength": 1400,
-    "Defence": 1100,
     "Hitpoints": 800
    },
    "coins": 1100,
@@ -2962,7 +2948,6 @@
    "xp": {
     "Attack": 300,
     "Strength": 300,
-    "Defence": 150,
     "Hitpoints": 200
    },
    "coins": 240,
@@ -2994,7 +2979,6 @@
    "xp": {
     "Ranged": 900,
     "Attack": 700,
-    "Defence": 600,
     "Hitpoints": 500
    },
    "coins": 900,
@@ -3031,7 +3015,6 @@
    "xp": {
     "Attack": 1200,
     "Strength": 1200,
-    "Defence": 1000,
     "Magic": 600,
     "Hitpoints": 700
    },
@@ -3100,7 +3083,6 @@
    "xp": {
     "Attack": 900,
     "Strength": 900,
-    "Defence": 700,
     "Hitpoints": 600
    },
    "coins": 800,
@@ -3137,7 +3119,6 @@
    "xp": {
     "Attack": 1000,
     "Strength": 1000,
-    "Defence": 800,
     "Hitpoints": 600
    },
    "coins": 800,
@@ -3176,7 +3157,6 @@
    "xp": {
     "Attack": 2500,
     "Strength": 2500,
-    "Defence": 2000,
     "Hitpoints": 1500,
     "Magic": 800
    },
@@ -3217,7 +3197,6 @@
    "xp": {
     "Magic": 800,
     "Attack": 600,
-    "Defence": 1000,
     "Hitpoints": 800
    },
    "coins": 900,
@@ -3261,7 +3240,6 @@
    "xp": {
     "Attack": 1200,
     "Strength": 1200,
-    "Defence": 1000,
     "Hitpoints": 800
    },
    "coins": 1000,
@@ -3300,7 +3278,6 @@
    "xp": {
     "Attack": 4000,
     "Strength": 4000,
-    "Defence": 3000,
     "Hitpoints": 2500
    },
    "coins": 3500,
@@ -3342,7 +3319,6 @@
    "xp": {
     "Attack": 7000,
     "Strength": 7000,
-    "Defence": 5500,
     "Hitpoints": 4000,
     "Magic": 2000
    },
@@ -3382,7 +3358,6 @@
    "xp": {
     "Attack": 5000,
     "Strength": 5000,
-    "Defence": 4000,
     "Hitpoints": 3000
    },
    "coins": 4500,
@@ -3421,7 +3396,6 @@
    "xp": {
     "Attack": 350,
     "Strength": 350,
-    "Defence": 250,
     "Hitpoints": 250
    },
    "coins": 300,
@@ -3460,7 +3434,6 @@
    "xp": {
     "Attack": 800,
     "Strength": 800,
-    "Defence": 600,
     "Ranged": 500,
     "Hitpoints": 500
    },
@@ -6186,7 +6159,6 @@
   "rewards": {
    "xp": {
     "Hitpoints": 1500,
-    "Defence": 1500,
     "Magic": 1000
    },
    "coins": 1200
@@ -6222,7 +6194,6 @@
   "rewards": {
    "xp": {
     "Hitpoints": 2500,
-    "Defence": 2000,
     "Magic": 2000
    },
    "coins": 3000,

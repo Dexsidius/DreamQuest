@@ -541,15 +541,32 @@ public:
     // terrain's height a little each frame: see World::UpdateElevation.
     float ground_lift = 0.0f;
 
+    // --- Defence ----------------------------------------------------------------
+    // Not trained. A blow in this game can be stepped out of, rolled through,
+    // blocked or parried, so being hit is not a thing to practise, and nothing
+    // pays Defence experience. It follows the combat level instead, to 99:
+    //   the hero      two Defence levels for each combat level
+    //   the warden    one for each
+    //   the wayfarer  one for each
+    // (and so the combat level no longer counts Defence: see
+    // Skills::CombatLevel). It never goes down: a save from when it was
+    // trained keeps what it had earned until the combat level passes it. A
+    // Stoneskin Draught still boosts it for a while, as a draught boosts
+    // anything.
+    static int DefencePerLevel(AttackStyle style) { return style == AttackStyle::Melee ? 2 : 1; }
+    int  PassiveDefence() const;                        // what the combat level makes it
+    // Brings Defence up to that. `announce` puts the rise with the other
+    // level-ups, for the screen to say; a load or a new character is quiet.
+    void SyncDefence(bool announce);
+
     // --- blocking -------------------------------------------------------------
     // Held, with a shield in the off hand. The guard stops blows from in front
     // for as long as there is stamina to pay for them (see ResolveBlock in
-    // combat.h for the rule), trains Defence by what it stops, and slows the
-    // player to a guarded step: no swinging, no sprinting. Running the bar dry
-    // mid-block breaks the guard, and it will not come up again until the bar
-    // has refilled past the same share a winded sprint waits for.
+    // combat.h for the rule), and slows the player to a guarded step: no
+    // swinging, no sprinting. Running the bar dry mid-block breaks the guard,
+    // and it will not come up again until the bar has refilled past the same
+    // share a winded sprint waits for.
     static constexpr float BLOCK_MOVE_SCALE    = 0.45f;
-    static constexpr float BLOCK_XP_PER_DAMAGE = 4.0f;   // the rate a hit trains its skill
     // The shield in the off hand, or null when there is nothing there that
     // blocks -- including a lantern.
     const ItemDef* Shield() const;
@@ -560,13 +577,8 @@ public:
     // A blow about to land, from an attacker of this level standing at
     // (from_x, from_y). Returns what the shield did with it -- nothing, when
     // the guard is down or the blow came from behind -- and has already spent
-    // the stamina and banked the Defence XP.
+    // the stamina.
     BlockOutcome TryBlock(int damage, int attacker_level, float from_x, float from_y);
-    // Defence for a blow stopped some other way than on a shield -- stepped
-    // out of, rolled through, paid for in mana, stood fast against -- at the
-    // rate a block pays for the same amount. `damage` is what it would have
-    // done, or the part of it that was kept off.
-    void  TrainDefence(float damage) { BankXp(SKILL_DEFENCE, damage * BLOCK_XP_PER_DAMAGE); }
     // Whether a blow from (from_x, from_y) would be met by the raised shield.
     bool  GuardFacing(float from_x, float from_y) const;
     // What a heavy attack does to a raised guard: the bar emptied, the guard

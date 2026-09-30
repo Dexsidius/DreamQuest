@@ -43,10 +43,11 @@ public:
     // Drop-shadowed, for text sitting over the world rather than a panel.
     void TextShadowed(const string& text, float x, float y, TextSize size = TextSize::Body,
                       SDL_Color color = Palette::Text, Align align = Align::Left);
-    // Returns the height used, so callers can lay out flowing blocks.
+    // Returns the height used, so callers can lay out flowing blocks. With
+    // `align` Center, x is the middle of every line; with Right, its end.
     float TextWrapped(const string& text, float x, float y, float wrap_width,
                       TextSize size = TextSize::Body, SDL_Color color = Palette::Text,
-                      bool draw = true);
+                      bool draw = true, Align align = Align::Left);
     // The height TextWrapped would use, without drawing anything.
     float WrappedHeight(const string& text, float wrap_width, TextSize size = TextSize::Body);
     SDL_FPoint Measure(const string& text, TextSize size = TextSize::Body);

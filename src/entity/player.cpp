@@ -37,6 +37,7 @@ void Player::Init(const GameContext& ctx, const string& id) {
     bags.clear();
     SizeBag();
     sprite.Play("idle");
+    SyncDefence(false);
     SyncHitpoints();
     hp = max_hp;
     SyncMana();
@@ -337,6 +338,20 @@ AttackStyle Player::AffinityFor(const string& character_id) {
     return AttackStyle::Melee;
 }
 
+int Player::PassiveDefence() const {
+    return std::clamp(DefencePerLevel(Affinity()) * skills.CombatLevel(), 1, MAX_SKILL_LEVEL);
+}
+
+void Player::SyncDefence(bool announce) {
+    const int want = PassiveDefence();
+    if (skills.Level(SKILL_DEFENCE) >= want) return;       // never down: see player.h
+    // Through the skill's own experience, so everything that reads a level --
+    // a draught's boost on top of it, a save, the Skills page -- is as it was.
+    LevelUp up;
+    if (skills.AddXp(SKILL_DEFENCE, XpForLevel(want) - skills.Xp(SKILL_DEFENCE), up) && announce)
+        pending_levels.push_back(up);
+}
+
 vector<string> Player::StartingKit(const string& character_id) {
     // Each in the wooden tier's armour of their own kind. The warden and the
     // wayfarer both set out in the hero's Barkwood Cuirass, which is plate: it
@@ -551,10 +566,14 @@ void Player::TickStatuses(float dt, World& world) {
 
 void Player::GrantXp(int skill, int amount) {
     if (skill < 0 || skill >= SKILL_COUNT || amount <= 0) return;
+    // Defence is not earned: it follows the combat level (SyncDefence).
+    if (skill == SKILL_DEFENCE) return;
     LevelUp up;
     if (skills.AddXp(skill, amount, up)) {
         pending_levels.push_back(up);
         if (up.skill == SKILL_HITPOINTS) SyncHitpoints();
+        // Any level of a combat skill may be a combat level, and Defence follows that.
+        SyncDefence(true);
     }
     pending_xp.emplace_back(skill, amount);
 }
@@ -686,14 +705,12 @@ BlockOutcome Player::TryParry(int damage, int attacker_level, float from_x, floa
         out.stamina = std::min(PARRY_STAMINA, std::max(0.0f, stamina));
         stamina = std::max(0.0f, stamina - PARRY_STAMINA);
         stamina_delay = STAMINA_DELAY;
-        BankXp(SKILL_DEFENCE, damage * BLOCK_XP_PER_DAMAGE);
         return out;
     }
     // After the moment, a poor guard: a blade is not a shield.
     BlockOutcome out = ResolveBlock(damage, attacker_level, PARRY_GUARD, 1.0f, stamina);
     stamina = std::max(0.0f, stamina - out.stamina);
     stamina_delay = STAMINA_DELAY;
-    BankXp(SKILL_DEFENCE, out.blocked * BLOCK_XP_PER_DAMAGE);
     if (out.broke) {
         guard_broken = true;
         parrying = false;
@@ -821,9 +838,6 @@ BlockOutcome Player::TryBlock(int damage, int attacker_level, float from_x, floa
     BlockOutcome out = ResolveBlock(damage, attacker_level, shield->block, cost, stamina);
     stamina = std::max(0.0f, stamina - out.stamina);
     stamina_delay = STAMINA_DELAY;
-    // Stopping a blow trains Defence at the rate landing one trains the skill
-    // it was made with.
-    BankXp(SKILL_DEFENCE, out.blocked * BLOCK_XP_PER_DAMAGE);
     if (out.broke) {
         guard_broken = true;
         blocking = false;
@@ -2640,6 +2654,7 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     talents.SetPath(AffinityFor(sprite_id));
     talents.FromJson(j.value("talents", json::object()));
     if (j.contains("skills"))    skills.FromJson(j["skills"]);
+    SyncDefence(false);
     // The bags first: they say how big a bag there is to put things back into.
     bags.clear();
     if (j.contains("bags") && j["bags"].is_array())
@@ -2685,6 +2700,9 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     facing = static_cast<Facing>(j.value("facing", 0));
 
     if (j.contains("skills"))    skills.FromJson(j["skills"]);
+    // A save from when Defence was trained: up to what its combat level makes
+    // it now, and never down from what it earned.
+    SyncDefence(false);
     // The bags first: they say how big a bag there is to put things back into.
     bags.clear();
     if (j.contains("bags") && j["bags"].is_array())

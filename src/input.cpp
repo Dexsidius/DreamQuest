@@ -45,6 +45,8 @@ Bindings::Bindings() {
         {Action::LightAttack, SDLK_J}, {Action::StrongAttack, SDLK_K}, {Action::Target, SDLK_L}, {Action::Block, SDLK_H},
         {Action::Interact, SDLK_E}, {Action::Jump, SDLK_SPACE}, {Action::Sprint, SDLK_LSHIFT},
         {Action::Inventory, SDLK_I}, {Action::Skills, SDLK_O}, {Action::QuestLog, SDLK_P}, {Action::WorldMap, SDLK_M},
+        // C for the character, as it is in most games that have one.
+        {Action::Character, SDLK_C},
         // The menu of menus, and a key for the abilities' shift under the left
         // hand's first finger -- though H does it too.
         {Action::Menu, SDLK_TAB}, {Action::Ability, SDLK_F},
@@ -95,7 +97,7 @@ const vector<Action>& Bindings::Rebindable() {
         Action::MoveUp, Action::MoveDown, Action::MoveLeft, Action::MoveRight,
         Action::LightAttack, Action::StrongAttack, Action::Target, Action::Block, Action::Ability,
         Action::Interact, Action::Jump, Action::Sprint,
-        Action::Menu, Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
+        Action::Menu, Action::Character, Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
         Action::CycleSpell, Action::SpellPrev, Action::SpellNext,
         Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir,
         Action::SelectElectric, Action::SelectArcane,
@@ -119,6 +121,7 @@ const char* Bindings::Name(Action a) {
         case Action::Interact:     return "Interact";
         case Action::Jump:         return "Jump";
         case Action::Sprint:       return "Sprint";
+        case Action::Character:    return "Character";
         case Action::Inventory:    return "Inventory";
         case Action::Skills:       return "Skills";
         case Action::QuestLog:     return "Quest journal";
@@ -152,6 +155,7 @@ const char* Bindings::Id(Action a) {
         case Action::Interact:     return "interact";
         case Action::Jump:         return "jump";
         case Action::Sprint:       return "sprint";
+        case Action::Character:    return "character";
         case Action::Inventory:    return "inventory";
         case Action::Skills:       return "skills";
         case Action::QuestLog:     return "quest_journal";
@@ -690,8 +694,8 @@ string Input::PromptFor(Action a) const {
             case Action::SelectFire: case Action::SelectWater: case Action::SelectEarth:
             case Action::SelectAir:  case Action::SelectElectric: case Action::SelectArcane:
                 a = Action::CycleSpell; break;
-            // The skills and the journal are in the menu, on a pad.
-            case Action::Skills: case Action::QuestLog:
+            // The character, the skills and the journal are in the menu, on a pad.
+            case Action::Character: case Action::Skills: case Action::QuestLog:
                 if (!b.buttons.count(a)) a = Action::Menu;
                 break;
             default: break;

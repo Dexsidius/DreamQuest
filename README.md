@@ -539,7 +539,10 @@ key), `--learn enchant:multishot` (a charm known without its scroll),
 list's cursor down every row of it, and prints any line of text drawn outside
 the panel it belongs to or off the edge of the window. It is how the skill
 tree's cost line ("Attack 47, a point a rank, after War Cry"), the fishing
-milestones and the storage chest's description were found running off the side;
+milestones and the storage chest's description were found running off the side
+-- and, since, the enchanting table's line along its foot (now wrapped and
+centred), the Westwold's name off the bottom of the map, and an enchanted
+glove's name off the character panel's card. It finds none now;
 run it after touching a panel, because a long name somewhere down a list is not
 something anybody notices by looking. The play HUD goes through it as well, posed
 with a sword, with a staff and as each half of a split screen, for the other way
@@ -612,8 +615,9 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Sprint (hold) | `Shift` | Left trigger |
 | Jump / climb | `Space` | Left stick click |
 | Interact | `E` | A (south) |
-| **Menu**: inventory, skills, spellbook, quests, map | `Tab` | Select (Back) |
+| **Menu**: character, inventory, skills, spellbook, quests, map | `Tab` | Select (Back) |
 | **Abilities** (hold, with light, heavy or lock on) | `H`, or `F` | **RB** |
+| **Character**: the figure, what it wears, its attributes and boons | `C` | in the menu |
 | Inventory | `I` | LB |
 | Skills | `O` | in the menu |
 | Quest journal | `P` or `Q` | in the menu |
@@ -715,9 +719,8 @@ for, the bar empties, and the **guard breaks**: it will not come up again until
 the bar has refilled to the same point a winded sprint waits for. The stamina bar
 turns steel blue while the guard is up and pulses red while it is broken.
 
-Everything a shield stops trains **Defence**, at 4 XP a point -- the rate a hit
-trains the skill it was made with -- on top of the XP any blow that gets through
-already gives.
+A block trains nothing: Defence is not trained at all, and rises with your own
+way of fighting instead. See [Defence](#defence-follows-your-combat-level).
 
 Every tier of shield blocks more and costs less:
 
@@ -760,8 +763,8 @@ behind it, and the long blade holds a blow off. A greataxe does not parry.
 
 The parry's first quarter of a second is **the moment**. Every blow from in
 front that lands in it is caught outright: nothing gets through, not even a
-leader's heavy blow that shatters a shield's guard. Each catch costs 6 breath
-and trains Defence the way a block does. Whoever threw the blow **reels** for six
+leader's heavy blow that shatters a shield's guard. Each catch costs 6 breath.
+Whoever threw the blow **reels** for six
 tenths of a second, or a full second if it was a leader's heavy blow, which a
 leader braced in its wind-up cannot shrug off.
 
@@ -817,65 +820,88 @@ A save that bought Tumble keeps that point, on Follow Through, so nothing below
 it in the branch comes loose; whichever slot carried Tumble is emptied
 (`Talents::FromJson`).
 
-Rolling through a blow is a blow dodged: see
-[Training Defence without a shield](#training-defence-without-a-shield). In
+Rolling through a blow is a blow dodged, and says so: see
+[Defence](#defence-follows-your-combat-level). In
 co-op a friend's roll is predicted on her machine and made on the host's copy
 from the same buttons, like every other move; nothing new goes over the wire.
 The code is `Player::RollsOnGuard`, `TryRoll` and `StartQuickShot`, and the
 dust and the speed lines are `World::AbilityFx("roll")`.
 
-### Training Defence without a shield
+### Defence follows your combat level
 
-A shield and a parry are not the only ways to train Defence. A bow, a staff,
-two hands on a greatsword and bare fists all have a way to learn it. **Every
-blow that was coming for you and found nobody there is a blow dodged.** It
-trains Defence at the block's 4 XP a point, counted on what the blow would
-have done to you through what you wear:
+**Defence is not trained.** In OSRS a blow is a roll you cannot answer, so
+Defence is the one thing between you and it. Here a blow can be stepped out of,
+rolled through, blocked or parried. Being hit is not a thing to practise, and
+a Defence that grew by being hit, or by blocking, fitted the fight badly. So
+nothing pays Defence experience -- no block, parry, dodge, hit or quest -- and
+it follows the **combat level** instead, to 99:
 
-| Out of the way of it | Counted as |
-| --- | --- |
-| **A swing stepped out of**: in its arc as it began, out of it when it lands | the swing's average, `ExpectedMonsterBlow` |
-| **A heavy's line left**: in it when the leader commits to it, out of it when it lands | the heavy's middle, through your armour (`SoakHeavy`) |
-| **A shot let by**: past where you stood when it was loosed, and not about to find you further on | the shot's average |
-| **Rolled through** with the warden's roll, a swing, a heavy or a shot | what it rolled, or the heavy through your armour |
-| **Slipped** with Slippery | what it rolled |
+| Who | Defence | New (Combat 5) | Combat 20 | Combat 40 | Combat 50 |
+| --- | --- | --- | --- | --- | --- |
+| **The hero** | **twice** the combat level | 10 | 40 | 80 | 99 |
+| **The warden** | the combat level | 5 | 20 | 40 | 50 |
+| **The wayfarer** | the combat level | 5 | 20 | 40 | 50 |
 
-Two guards that are not a shield count as one:
+- **The combat level no longer counts Defence.** It would feed itself.
+  Hitpoints stands in its place as well as its own: a quarter of Hitpoints twice,
+  and then the best of melee, ranged or magic as before (`Skills::CombatLevel`).
+  - A fighter whose Defence kept pace with their Hitpoints, the way OSRS
+    expects it to be trained, is the level they always were: Attack, Strength,
+    Defence and Hitpoints 40 was Combat 46 and still is.
+  - A new character, Hitpoints 10 and everything else 1, is Combat 5 where it
+    was 3. The gates that sat just above a new character moved up two with it,
+    so the start still asks for a little fighting first: The Sunken Road asks
+    Combat 7 (it was 5), Orc Trouble and the Road Patrol notice ask 8 (they
+    were 6), and the road out to the Westwold is advised at 7 (it was 5, which
+    a new character would already have met, so its warning never showed). The
+    gates from Combat 10 up are where they were: a character's level there
+    moves by nothing to three, by how they had trained.
+- **The hero is the sturdy one.** At twice the combat level, a hero reaches 99
+  at Combat 50, and every blow that reaches them is softened accordingly.
+- **Every combat skill moves it.** Any level of Attack, Strength, Hitpoints,
+  Ranged or Magic that raises the combat level raises Defence with it, and the
+  rise is said with the other level-ups. A skill that is no part of the combat
+  level does not.
+- **It never goes down.** A save from when Defence was trained keeps what it
+  earned until the combat level passes it (`Player::SyncDefence`, run on
+  loading, on a new character, and on every level-up).
+- **A Stoneskin Draught still boosts it** for a while, as a draught boosts
+  anything. Armour's defence, the Warding and Fortitude charms, Ward and Thick
+  Skin, and the boons and totems that add "Defence, whatever you wear" all still
+  add to it, as they always have.
+- **No armour asks for it.** Each class's armour asks for its own style's
+  level: plate and shields (and the mail and plate of the knight's armour pack)
+  ask for Attack, hides for Ranged, and robes for Magic.
+- **It is not on the Skills page**, which is for what is trained: it is on the
+  [character panel](#the-character-panel), with the rest of what the
+  character comes to, and the bar under the combat level there is the way to
+  the next one, which is when Defence moves. The total level and total
+  experience leave it out.
 
-- **The Mana Shield**: the half paid in mana was stopped, and is paid for as
-  a block. The half taken in blood is a hit, at a point a point.
-- **Stand Fast**: the two fifths it keeps off a blow, or a heavy blow, is
-  stopped the same way.
+**A blow dodged still says so**, though it pays nothing now. Every blow that was
+coming for you and found nobody there puts **dodged** up over you, in the pale
+green "slipped" has always used:
 
-Taking a hit still trains Defence at a point a point, a quarter of the rate.
-So a blow of ten is 40 XP blocked, parried or dodged, and 10 taken.
+- **A swing stepped out of.** You were in its arc as it began and are out of it
+  when it lands. A swing asks once, as it begins, who it is coming for. A
+  monster keeps turning to face you through a swing, so this means getting out
+  of its reach, and one you were gone from before it began was never coming
+  for you.
+- **A heavy's line left.** You were in it when the leader committed to it,
+  seven tenths of the way through the wind-up (see the bar over its head).
+  Backing off while it still turns to follow is only keeping out of reach, and
+  it lands with the old grey "miss".
+- **A shot let by.** It got past where you stood when it was loosed, and is not
+  about to find you further on (`World::AimShot`, `World::WatchDodge`). One
+  loosed from further than it flies, or stopped by a wall or a friend first,
+  says nothing. Backing straight away down its line, you have not dodged it yet.
+- **A blow rolled through** with the warden's roll, or **slipped** with
+  Slippery.
 
-Each rule closes a way to get the XP without earning it:
-
-- **A swing asks once, as it begins,** who it is coming for: whoever it is
-  after, if they are in its arc then. A monster keeps turning to face you
-  through a swing, so dodging one means getting out of its reach before it
-  lands. One you were gone from before it began was never coming for you.
-- **A heavy asks at the moment it commits** (seven tenths of the wind-up; see
-  the bar over its head). Backing off while it still turns to follow is only
-  keeping out of reach, and it lands with the old grey "miss". Stepping out of
-  the line it has committed to is reading the tell, and it says **dodged**.
-- **A shot is watched from when it is loosed** (`World::AimShot`). It must be
-  able to reach you to count. One loosed from further than it flies, or stopped
-  by a wall or a friend before it gets to where you stood, teaches nothing. If
-  you back straight away down its line, it has not missed you yet. It is a
-  dodge only once it can no longer find you (`World::WatchDodge`, a
-  ray-against-box test along what is left of its flight).
-
-"Dodged" goes up over you in the pale green "slipped" has always used. A dodge
-is worth what the blow was worth, so a rat teaches as little dodged as it does
-blocked.
-
-In co-op the host decides every blow, as it always has, and a dodge is the
-Defence of whoever the blow was coming for: a swing remembers the seat it was
-aimed at, and a shot the seat it was loosed at. Nothing new goes over the
-wire. The code is `World::Dodged` and `Player::TrainDefence`, the `swing_at`
-and `heavy_at` in `Enemy`, and `Projectile::aim`.
+In co-op the host decides every blow, as it always has, and "dodged" goes up
+over whoever the blow was coming for: a swing remembers the seat it was aimed
+at, and a shot the seat it was loosed at. The code is `World::Dodged`, the
+`swing_at` and `heavy_at` in `Enemy`, and `Projectile::aim`.
 
 ### Sprinting
 
@@ -1004,10 +1030,10 @@ Y and the right trigger**, and RB + A eats what is to hand. The keys keep the
 guard for it (`H` and `J` are two fingers) and have `F` besides.
 
 RB was the skills panel, and a pad had no button left to move it to. So
-**Select opens one menu with every panel on it** -- inventory, skills,
-spellbook, quests, map -- and the skills and the journal, which gave their
-buttons up, are reached from there. `Tab` does the same on the keys, where
-`I`, `O`, `P` and `M` still work as well. A pad layout saved before this had
+**Select opens one menu with every panel on it** -- character, inventory,
+skills, spellbook, quests, map -- and the character, the skills and the
+journal, which have no button of their own, are reached from there. `Tab` does
+the same on the keys, where `C`, `I`, `O`, `P` and `M` still work as well. A pad layout saved before this had
 RB on the skills panel and would have taken it straight back, so a saved
 layout says which set of defaults it was made over (`"layout"`) and an old
 one's buttons are not applied; its keys are.
@@ -1901,7 +1927,8 @@ character is never told about a resource they do not spend.
 Seventeen skills on the Old School RuneScape XP curve — the real one, so level 92 is
 half the experience of 99, and the self-test checks the table against known
 values. They are kept in four categories, which is how the Skills page shows
-them (see [The Skills page](#the-skills-page)):
+them (see [The Skills page](#the-skills-page)) -- all but Defence, which is not
+trained and is on the [character panel](#the-character-panel) instead:
 
 | Category | Skill | Trained by |
 | --- | --- | --- |
@@ -1914,7 +1941,7 @@ them (see [The Skills page](#the-skills-page)):
 | | Magic | Landing spells with a staff equipped -- [a wall teaches nothing](#a-wall-teaches-nothing) |
 | | Attack | Landing light attacks |
 | | Strength | Landing strong and charged attacks |
-| | Defence | Blows blocked, parried or dodged -- see [Training Defence without a shield](#training-defence-without-a-shield) -- and, a quarter as fast, blows taken |
+| *(the character panel)* | Defence | Not trained: twice the combat level for the hero, the combat level for the warden and the wayfarer -- see [Defence](#defence-follows-your-combat-level) |
 | **Gathering** | Woodcutting | Chopping trees, with an axe |
 | | Fishing | Fishing the Fernhollow pond, the Whisperwood stream and the Hollowmarch lake, with a rod |
 | | Foraging | Picking herbs and plants, by hand; see [Foraging](#foraging) |
@@ -1934,7 +1961,9 @@ Crafting before them). The new skills are numbered after all the others, so
 every skill keeps the number a guest's experience drop names it by; that, and
 an older guest not knowing the new numbers, is protocol 17.
 
-Combat level uses the OSRS formula across the melee/ranged/magic triangle.
+Combat level uses the OSRS formula across the melee/ranged/magic triangle, with
+Hitpoints in Defence's place: Defence follows the combat level (see
+[Defence](#defence-follows-your-combat-level)), so it cannot be part of it.
 
 A potion can lift a combat level above its base. The Skills panel then shows the
 level it is working at over the real one in green ("47/40"), and a boost wears
@@ -1984,15 +2013,16 @@ Now:
 - **What gets through** is `0.65 x` the old chance to hit: the monster's Attack
   weighed against your Defence level and the defence of what you wear. The
   same numbers that used to decide *whether* a blow landed now decide *how
-  hard*. Levelling Defence and wearing better armour both soften every blow,
-  and a concussed or poisoned character guards worse and feels more of it.
+  hard*. A higher Defence -- which follows your combat level, see
+  [Defence](#defence-follows-your-combat-level) -- and better armour both soften
+  every blow, and a concussed or poisoned character guards worse and feels
+  more of it.
 - **The guaranteed least** a blow does, whatever you wear, is a twentieth of
   the monster's top hit, and never less than a point.
 
 Shots and hexes follow the same rule on the monster's ranged numbers. The ways
 out of a blow are yours: be somewhere else when it swings, roll through it,
-block it, parry it, or take Slippery or Sure Feet. Every one of them trains
-Defence: see [Training Defence without a shield](#training-defence-without-a-shield).
+block it, parry it, or take Slippery or Sure Feet.
 "Dodged" over you is a blow that was coming for you and found nobody there. The
 grey "miss" is a heavy blow that was never going to reach you, because you were
 out of its line before it was committed.
@@ -2029,7 +2059,9 @@ The code is `RollMonsterBlow`, `MonsterThrough` and `MonsterMinimum` in
 Forging, Combat, Gathering and Witchcraft, each a card with its colour across
 the top, a thing from the bag for an emblem (a bar, a sword, a pickaxe, a
 potion), the total of its levels, and every skill in it with its level and a
-thread of a bar under it. The cards rise into place one after another as the
+thread of a bar under it. Combat is five: Hitpoints, Ranged, Magic, Attack and
+Strength. Defence is not trained, so it has no bar to fill and no place here;
+it is on the [character panel](#the-character-panel). The cards rise into place one after another as the
 page comes up, and the chosen one stands a little proud with its border
 breathing gold. The arrow keys (or the stick) step between them; confirm opens
 one.
@@ -2089,6 +2121,71 @@ and there are about ten thousand of them.
 
 **Strength and Hitpoints open nothing.** They are the two that pay at every
 level rather than at a few of them, and the column says so.
+
+### The character panel
+
+`C` on the keys, or **Character** at the top of the menu of menus (`Tab`,
+Select on a pad), opens the character panel: the figure in what it wears and
+holds, the pieces round it the way a paper doll has them, and beside it what
+the character comes to.
+
+**The figure** stands on a dark stage in a pool of light, drawn the way the
+world draws it -- the same layers, each piece in its own metal, the weapon in
+hand -- at a whole multiple of its art, so no pixel is bigger than its
+neighbour, and about half the stage tall. `[` and `]` (the right stick on a
+pad) turn it a quarter at a time: front, its right side, its back, its left.
+It faces you again each time the panel opens.
+
+**The pieces** stand in two columns and under the figure: head, amulet, bags
+and body down the left; hands, legs, feet and ring down the right; the weapon
+and the off hand under the figure. A square is framed in its tier's metal, so a
+better piece is told from a worse one at a glance, and in violet if it carries
+a charm. An empty square shows faintly what goes there -- an iron piece of the
+kind, the plainest amulet and ring, a satchel -- and the off hand of someone
+holding a bow or a two-handed blade shows that weapon's shadow. The bags square
+is the last bag put on, with how many are worn. The arrows walk the pieces --
+up and down go round a column and its hand, left and right go across -- and a
+card beside the one lit says what it is: its name in its metal, where it goes,
+its tier and what it asks, every number it carries, and what it does beyond
+them (a charm, Marshstride). The panel shows; `I` opens the bag on the piece
+the cursor is on, which is where things are put on and taken off.
+
+**The combat level** is the headline, with a bar to the next one under it,
+which is when Defence moves, and a word on how: "twice this" for the hero,
+"the same" for the others.
+
+**The attributes** are two columns of seven, worked out from the profile the
+fight is resolved with, so a draught's boost, a poison's weakness, the
+affinity's accuracy and the tree's defence are all in them. A level lifted by a
+draught, a meal or a boon is green, one pulled down red.
+
+| What keeps them standing | | What they fight with | |
+| --- | --- | --- | --- |
+| Hitpoints | now / as full as it goes | Attack | level, and the accuracy worn beside it |
+| Mana | now / as full as it goes | Strength | level, and the strength worn |
+| Stamina | the most breath there is | Ranged | level, and the ranged worn |
+| Defence | the level the combat level makes it | Magic | level, and the magic worn |
+| Armour | everything worn's defence, the tree's and a boon's | Critical | the tree's and a boon's chance, and the weapon's charm |
+| Heavy soak | what of a leader's heavy blow is turned aside ([HeavySoak](#when-a-monster-strikes)) | Attack speed | swings a second against a bare hand |
+| Guard | the shield's block, a parry, the warden's roll, or none | Walk speed | the tree, boons, boots and Marshstride together |
+
+**The boons** are everything running on the character, with how long it has:
+the bosses' boons (by the world's clock, "18h 20m"), the totem's blessing
+(until dawn), a meal and what it holds up, a draught's boost ("Strength +8",
+wearing off a point every 45 seconds), a ward ("cannot be left Chilled or
+Frozen"), what an ability has left going (War Cry, Frenzy, Stand Fast, Take
+Aim, Rapid Fire, Overload, Invoke, Mana Shield), a charm and what a piece does,
+with where it is worn, and a share of every blow back as health -- and last,
+in red, whatever a monster has left on them and any level drained. Each is a
+square of its own colour, its name and time, and under it what it does, whole,
+on as many lines as it takes. When they do not all fit, the longest are cut to
+a line, one at a time, until they do; past that the names alone, and then
+"and N more".
+
+`--screen sheet` opens it, and `--screen sheet:9` with the cursor on the tenth
+piece (the off hand). The numbers are `CharacterAttributes` and
+`CharacterBoons` in `src/entity/attributes.h`, so the self-test holds them to
+what the fight does with them; the panel is `ui/screen_character.cpp`.
 
 ### Skill trees
 
@@ -2559,7 +2656,7 @@ Every tier has **three sets**, and each helps only its own style:
 
 | Set | Pieces | Needs | Adds to | Keeps out | Made from |
 | --- | --- | --- | --- | --- | --- |
-| **Plate** (the metal tiers' own) | helm, cuirass, greaves, gauntlets, boots, shield | Defence | Attack and Strength | the most | the tier's bars, at an anvil |
+| **Plate** (the metal tiers' own) | helm, cuirass, greaves, gauntlets, boots, shield | Attack | Attack and Strength | the most | the tier's bars, at an anvil |
 | **Hides** | coif, jerkin, chaps, gloves, striders | Ranged | Ranged | about seven tenths of plate | the tier's hide and thread, on a tanning rack |
 | **Robes** | hat, robe, skirt, gloves, slippers | Magic | Magic -- the most of the three | under half of plate | bolts of cloth, the tier's dye and thread, at a loom |
 
@@ -2570,8 +2667,9 @@ Strength, a full set of hides a little under half a bow, a full set of robes a
 little over half a staff -- so
 the sets line up with the twelve tiers of weapon and keep pace with them. None
 of them adds anything to either of the other two styles, and a hide or a robe
-needs its tier's level in **Ranged** or **Magic** where plate asks for Defence:
-the warden's wardrobe is the warden's. They are in `data/tiers.json` beside the
+needs its tier's level in **Ranged** or **Magic** where plate asks for Attack:
+each class's armour asks its own style's level (Defence is not trained, and no
+armour asks for it), and the warden's wardrobe is the warden's. They are in `data/tiers.json` beside the
 metal (`style_bonus` on the plate pieces, and a `sets` block), built by the
 same loader, so there are a hundred and twenty set pieces and no list of them
 anywhere.
@@ -2663,7 +2761,7 @@ footwear included, and Hale in the Brackenwood the Lizardscale.
 Every tier makes the same ten pieces -- a **sword, spear, bow, staff, shield,
 helm, cuirass, greaves, gauntlets and boots** -- and every piece needs its
 tier's level in the skill it is used with: Attack for a sword or a spear, Ranged for a bow, Magic
-for a staff, Defence for the rest. Every tier also makes two tools, an **axe** and a **pickaxe**,
+for a staff, and Attack for the plate and the shield, which are the hero's. Every tier also makes two tools, an **axe** and a **pickaxe**,
 which need the tier's level in Woodcutting or Mining; see
 [Gathering](#gathering). Each mined tier has an **ore** and a **bar**. Ore is smelted into
 bars at an anvil, and bars are smithed into the pieces there too; wooden pieces
@@ -4766,8 +4864,13 @@ wherever that is** -- the Whisperwood trailhead from Fernhollow, Havenbrook's
 gate from the Brackenwood -- unless no road does: the Reverie.
 
 Names are written where they do not lie on each other -- beside the mark, on its
-other side, or a line lower -- since a well, a town and a gate within a few
-pixels of each other were three names in one smear.
+other side, or a line or up to five lower or higher -- since a well, a town and
+a gate within a few pixels of each other were three names in one smear. A name
+stays on the map: it used to go only lower, so the Westwold's, at the bottom
+edge beside Havenbrook's, was pushed off the panel. Every mark's tile is known
+before any name is written, so a name is not run under a tile drawn after it
+(the Dry Well's was, under the Hollowrest Crypt's). Where nowhere is clear, a
+name goes where it covers least.
 
 What is marked on the Hollowmarch is written down, in `data/worldmap.json`,
 which `genmaps` emits as it places things: it knows which portal is a dungeon
@@ -5255,7 +5358,7 @@ the king's own boots. Go back down, open his chest, and tell Orlend what was in
 it.
 
 Inside are the **Boots of the Drowned King** (Defence 24, a little Strength,
-Defence 15 to wear), and they carry a **passive**: *Marshstride* -- you walk a
+Attack 15 to wear), and they carry a **passive**: *Marshstride* -- you walk a
 seventh quicker, and ground that burns takes half as much out of you. A passive
 is a named effect an item has while it is worn (`"passive"` and
 `"passive_text"` in `data/items.json`); anything that cares asks for it by name,
@@ -5312,8 +5415,8 @@ what let Maren ask about the Sunken Road before the letter had been carried.
 
 | Quest | Needs |
 | --- | --- |
-| The Sunken Road | Maren's letter, Combat 5 |
-| Orc Trouble | Thin the Herd, Combat 6 |
+| The Sunken Road | Maren's letter, Combat 7 |
+| Orc Trouble | Thin the Herd, Combat 8 |
 | The Barrow Seal | Combat 10 (started from its note) |
 | Trail Wardens | Clear the Trail |
 | Emberfell Depths | The Sunken Road, Combat 12 |
@@ -5349,7 +5452,7 @@ day; the journal counts how many times.
 | Pool | Notice | Task | Needs |
 | --- | --- | --- | --- |
 | Havenbrook | Barley Watch | 5 boar | -- |
-| Havenbrook | Road Patrol | 5 orcs | Combat 6 |
+| Havenbrook | Road Patrol | 5 orcs | Combat 8 |
 | Havenbrook | Fish for the Inn | 5 raw minnows to the cook | -- |
 | Havenbrook | Kindling | 10 logs to the cook | -- |
 | Mossvale | Fox Patrol | 6 foxes on the Whisperwood trail | Clear the Trail |
@@ -5515,7 +5618,7 @@ copper and Wendel's pike, are now in these books.
   listen to it, and tell Mira what it said. Magic and Hitpoints XP, coins and
   dream shards.
 - **Lights on the Pond** (Hesper): hunt the nightmare brute in the Reverie and
-  bring Hesper six dream shards. Attack and Defence XP, coins and a
+  bring Hesper six dream shards. Attack and Hitpoints XP, coins and a
   dreamcatcher.
 
 The **Dreamer's Slate** stands on the Reverie's central island and carries the
@@ -5701,7 +5804,7 @@ with the Whisperwood trail leaving from the east.
 | `palace_ballroom`, `palace_dining`, `palace_chambers`, `palace_dungeon` | The palace's rooms: three off the balconies, and the dungeon down a stair |
 | `palace_throne` | The Cinder King's throne room, at the head of the runner |
 | `dungeon_infernal` | The Infernal Pit, through the hellgate at the Ashen Path's end: imps, demons and the Pit Lord |
-| `westwold` | The Westwold, out of Havenbrook's west gate, Combat 5: open downs, Hidewater steading, the river Wend, wolves, and the Howling Fells in the west |
+| `westwold` | The Westwold, out of Havenbrook's west gate, Combat 7: open downs, Hidewater steading, the river Wend, wolves, and the Howling Fells in the west |
 | `brackenwood` | The Brackenwood, north off the Westwold's fork, Combat 20: old forest, bears, the Den Mother, and the Old Growth |
 
 ### The College at Fernhollow
@@ -6981,7 +7084,7 @@ Ice Spire wyvern read as level 1 to 4. It read as though the whole world were
 the same difficulty and the player were simply getting worse at it.
 
 `Enemy::ShownLevel` works it out from the stats the thing actually fights with,
-in the same shape as the player's own Combat level -- a quarter of defence and
+in the shape OSRS gives a combat level -- a quarter of defence and
 hit points, plus a third of the two attacking stats, with hit points read back
 through the player's curve so a 320-hitpoint bear counts for what it is. What
 comes out:
@@ -7595,7 +7698,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **70430 checks** covering:
+and checks all of it — currently **70471 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -7782,7 +7885,7 @@ and checks all of it — currently **70430 checks** covering:
   paid for, empties the bar and breaks the guard; every tier's shield stops more
   and costs less; a lantern is not a shield. Played through: no guard without a
   shield, a raised guard holds the shield up and cannot swing, a wooden shield
-  stops half of a blow from in front and trains Defence for it, a blow from
+  stops half of a blow from in front and trains nothing for it, a blow from
   behind gets through, a dragon's blow breaks the guard and it comes back once
   the bar refills, an enchanted shield takes the same blow for a fraction, and a
   guarded step is slow
@@ -7795,26 +7898,40 @@ and checks all of it — currently **70430 checks** covering:
   reeling longer; its second owes a riposte, which with a dagger is the light
   attack and with a greatsword the heavy (the light does nothing), brought down
   in `crush_2h`; either lands on whoever was parried and is then spent
-- Defence without a shield, played through:
-  - **Swings.** A raider's swing stepped out of after it began pays the block's
-    rate for the blow it would have been, and says "dodged" once. One the warden
-    was gone from as it began teaches nothing. One stood in lands, a point a
-    point.
-  - **Heavies.** A Warchief's heavy left after he committed is dodged, for its
-    middle through her armour, and says "dodged", not "miss". One backed away
-    from before he committed says "miss" and teaches nothing.
-  - **The roll and Slippery.** Mid-roll, a blow of nine is 36, and a heavy pays
-    what it would have done; a shot rolled through is dodged once. A slip is
-    sixteen for a blow of four.
-  - **Mana Shield and Stand Fast.** The mana shield's paid half trains as a
-    block and the bled half as a hit. Stand Fast's kept-off share trains as a
-    block, for a blow and for a heavy.
-  - **Shots.** An arrow stepped aside from is dodged; stood in, it is a hit.
-    Backed away from straight down its line, it still finds her and is no
-    dodge. One loosed from further than it flies is not watched. A bowman's
-    own arrow is dodged the same way.
-  - **In company.** A dodge, of a swing or of a shot, is the friend's it was
-    coming for, and not the host's.
+- Defence follows the combat level, and a blow dodged says so:
+  - **The numbers.** A new character is Combat 5: the hero sets out at Defence
+    10, the warden and the wayfarer at 5. Hitpoints 11 makes the hero Combat 6
+    and Defence 12, and the rise is said with the other level-ups. A hero at
+    Attack, Strength and Hitpoints 40 is Combat 46 with Defence 92, and at 50s
+    all round it is 99, and stays there. Ranged or Magic 40 and Hitpoints 40 is
+    Combat 39, and the warden's and the wayfarer's Defence is 39. A skill that
+    is no part of the combat level does not move it.
+  - **The combat level.** Defence 99 on its own adds nothing to it, and 40s all
+    round is Combat 46, as it always was.
+  - **The first gates.** The Sunken Road, Orc Trouble and the Road Patrol
+    notice ask two levels or more above a new character, and the road out to
+    the Westwold still warns one.
+  - **Nothing trains it.** Defence experience is given nothing.
+  - **Saves.** A save that trained Defence past what its combat level makes it
+    keeps it; one below is brought up on loading.
+  - **Data.** No quest pays Defence experience and nothing asks Defence to wear
+    it. Every tier's plate and shield asks Attack, every hide Ranged and every
+    robe Magic, and the armour pack's mail asks Attack too.
+  - **Swings and heavies.** A raider's swing stepped out of after it began says
+    "dodged" once and pays nothing. One the warden was gone from as it began
+    says nothing, and one stood in lands and trains nothing. A Warchief's heavy
+    left after he committed says "dodged", not "miss"; one backed away from
+    before he committed says "miss".
+  - **The roll, Slippery, Mana Shield and Stand Fast.** Rolled through, a blow
+    and a heavy are dodged, and a shot once. Every slip says so. The mana
+    shield still halves a blow and Stand Fast still takes two fifths off, and
+    none of it pays anything.
+  - **Shots.** An arrow stepped aside from is dodged; stood in, it lands.
+    Backed away from straight down its line, it still finds her. One loosed
+    from further than it flies is not watched. A bowman's own arrow is dodged
+    the same way.
+  - **In company.** "Dodged" goes up over the friend it was coming for, not the
+    host.
 - the warden's roll, played through:
   - **Whose.** The warden with a bow rolls on the guard button. With knives and
     a shield it still raises the shield, with a dagger it parries, and the hero
@@ -7835,6 +7952,26 @@ and checks all of it — currently **70430 checks** covering:
     the slot it was in is emptied.
   - **In company.** A friend's B, as the host hears it, rolls her on the host's
     copy, with its marks, and not the host.
+- the character panel:
+  - **Defence off the Skills page.** It is on none of the cards, every other
+    skill is on exactly one, and Defence 99 adds nothing to the total level or
+    the total experience. The panel is on C, can be moved on the Controls
+    screen, and is in the menu of menus on a pad.
+  - **The attributes.** Two columns of seven. A new hero has ten hitpoints and
+    Defence 10. Armour and the heavy soak are the fight's own numbers, the
+    hero's guard is the shield's block and the warden's is the roll, and Attack
+    says its level with the accuracy the fight adds beside it. A draught lights
+    a level and a drained one is red. The warden's hide boots are +5% walk
+    speed, the Drowned King's add Marshstride on top, and a Precision charm is
+    in Critical.
+  - **The boons.** A new character has nothing running. With everything at
+    once, the lines come bosses first, then the totem, the meal, draughts,
+    wards and worn pieces, and last what a monster left. A boss's boon has
+    24h 00m and the totem until dawn. The meal says what it holds up, and that
+    Ranged is not also a draught. A ward against two things is one line.
+    Marshstride is named on the feet, the signet's leech is said, a charmed
+    weapon's Precision IV is one line (a charm's, on the weapon), and the
+    poison comes last with its time.
 - Rushing Strike: the melee tree's Footwork branch has it at Attack 15, and the
   ranged and magic trees keep three branches. Played through: a running light
   attack is ordinary without it and standing still with it; with it, a running

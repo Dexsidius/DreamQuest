@@ -2235,8 +2235,9 @@ static void BuildOverworld() {
         m.Spawn("from_town", hx, base - 86);
         MarkWorld("town", "Havenbrook", hx, base - 40, "havenbrook");
         // The Westwold is out of the town's west gate, not off this map's edge, so
-        // it is marked where that gate would be.
-        MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 5)", hx - 210, base - 14);
+        // it is marked where that gate would be -- at the Combat the gate warns
+        // below (see the town's Danger).
+        MarkWorld("path", "The Westwold, by Havenbrook's west gate  (Combat 7)", hx - 210, base - 14);
         // The well is inside the town, so its mark sits just beside the town's.
         MarkWorld("dungeon", "The Dry Well, in Havenbrook", hx + 64, base - 14);
     }
@@ -2765,7 +2766,9 @@ static void BuildTown() {
         m.Collision((W - 1) * CELL, cy * CELL, CELL, CELL);
     }
     m.Portal(0, 21 * CELL - 8, 24, 3 * CELL + 16, "westwold", "from_havenbrook", "To the Westwold", false);
-    m.Danger(5);
+    // Two above a new character, who is Combat 5: the downs' wolves, boars and
+    // highwaymen are 5 to 7.
+    m.Danger(7);
     // Both ways in are gates: the gatehouse across the south road, the same one
     // that stands on the Hollowmarch side of it, and a pair of towers where the
     // cross street goes out to the west. And the fence the village always had is

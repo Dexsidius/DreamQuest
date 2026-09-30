@@ -239,6 +239,7 @@ int Game::Start(int argc, char** argv) {
                 Player& p = world->player;
                 p.skills.AddXp(skill_trees.Tree(p.Affinity()).skill, XpForLevel(launch_level), up);
                 p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(std::max(10, launch_level)), up);
+                p.SyncDefence(false);             // it follows the combat level: see Player::SyncDefence
                 p.SyncHitpoints();
                 p.SyncMana();
                 p.Rest();
@@ -261,6 +262,7 @@ int Game::Start(int argc, char** argv) {
                     if (comma == string::npos) break;
                     from = comma + 1;
                 }
+                p.SyncDefence(false);
                 p.TakeLevelUps(); p.TakeXpDrops();
             }
             // Dressed for the look of it: requirements are not asked, because
@@ -417,14 +419,19 @@ int Game::Start(int argc, char** argv) {
                     // looking at what it says the levels are for, and
                     // "skills:gathering" a category on its first. After the
                     // open: SetState puts every panel's cursor back to the top.
+                    // Defence is on no card: it is on the character panel.
                     for (int k = 0; !arg.empty() && k < SKILL_COUNT; ++k)
-                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0) OpenSkillModal(SkillCategoryOf(k), k);
+                        if (SDL_strcasecmp(SkillName(k), arg.c_str()) == 0 && SkillCategoryOf(k) >= 0)
+                            OpenSkillModal(SkillCategoryOf(k), k);
                     for (int c = 0; !arg.empty() && c < CATEGORY_COUNT; ++c)
                         if (SDL_strcasecmp(CategoryName(c), arg.c_str()) == 0) OpenSkillModal(c, -1);
                     // Open already, not opening: a shot of it is of the modal.
                     skill_modal_at = -10.0f;
                 }
                 else if (what == "menu")      { hub_cursor = 0; OpenPanel(GameState::Hub); }
+                // "sheet:3" has the cursor on the fourth piece round the figure.
+                else if (what == "sheet")     { sheet_piece = arg.empty() ? 0 : std::clamp(std::atoi(arg.c_str()), 0, 9);
+                                                OpenPanel(GameState::CharacterPanel); }
                 else if (what == "tree")      { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_TREE; }
                 else if (what == "spellbook") { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOOK; book_row = 0; }
                 else if (what == "boons")     { OpenPanel(GameState::SkillsPanel); skills_tab = TAB_BOONS; }
@@ -715,6 +722,9 @@ void Game::SetState(GameState s) {
             skills_page_at = 0.0f;                 // the cards come in
             skill_modal = skill_modal_closing = false;
         }
+        // The figure faces you as the panel opens, however it was left turned;
+        // the cursor stays on the piece it was last on.
+        if (s == GameState::CharacterPanel) sheet_facing = FACE_DOWN;
         if (s == GameState::Travel) {
             // On the tab the stone being touched is under.
             const WaystoneDef* here = WaystoneById(travel_from);
@@ -752,6 +762,7 @@ bool Game::InGameplayState() const {
         case GameState::Hub:
         case GameState::Inventory:
         case GameState::SkillsPanel:
+        case GameState::CharacterPanel:
         case GameState::QuestPanel:
         case GameState::WorldMapPage:
         case GameState::Dialogue:
@@ -960,6 +971,7 @@ void Game::Update(float dt) {
         case GameState::Paused:          UpdatePaused(); break;
         case GameState::Inventory:       UpdateInventory(); break;
         case GameState::SkillsPanel:     UpdateSkillsPanel(); break;
+        case GameState::CharacterPanel:  UpdateCharacterPanel(); break;
         case GameState::Hub:             UpdateHub(); break;
         case GameState::QuestPanel:      UpdateQuestPanel(); break;
         case GameState::WorldMapPage:    UpdateWorldMap(); break;
@@ -1095,6 +1107,7 @@ void Game::UpdatePlay(float dt) {
                           : "Hold " + input.PromptFor(Action::Block) + " behind a shield. ") +
                      input.PromptFor(Action::Interact) + " talks, opens and works. " +
                      input.PromptFor(Action::Inventory) + " is your pack, " +
+                     input.PromptFor(Action::Character) + " your character, " +
                      input.PromptFor(Action::Skills) + " your skills, " +
                      input.PromptFor(Action::QuestLog) + " your journal, " +
                      input.PromptFor(Action::WorldMap) + " the map.\n\n"
@@ -1296,6 +1309,7 @@ void Game::SeatChores() {
     // --- panel hotkeys -------------------------------------------------------
     if (!chorded && input.Pressed(Action::Interact)) world->TryInteract(ctx);
     if (input.Pressed(Action::Menu))       { hub_cursor = 0; OpenPanel(GameState::Hub); }
+    if (input.Pressed(Action::Character))  OpenPanel(GameState::CharacterPanel);
     if (input.Pressed(Action::Inventory))  OpenPanel(GameState::Inventory);
     if (input.Pressed(Action::Skills))     OpenPanel(GameState::SkillsPanel);
     if (input.Pressed(Action::QuestLog))   OpenPanel(GameState::QuestPanel);
@@ -1531,6 +1545,7 @@ void Game::RunAudit() {
     Player& p = world->player;
     LevelUp up;
     for (int s2 = 0; s2 < SKILL_COUNT; ++s2) p.skills.AddXp(s2, XpForLevel(70), up);
+    p.SyncDefence(false);
     p.SyncHitpoints(); p.hp = p.max_hp; p.SyncMana(); p.RestoreMana();
     // An id in either list that names nothing is said out loud. These lists
     // once carried "dragonhide_hide_*" (the dragon's hides are dracon's),
@@ -1703,6 +1718,9 @@ void Game::RunAudit() {
                                          "nightmare_troll", "wyvern_matriarch", "pit_lord", "frost_dragon", "nightmare_dragon"})
                     world->player.talents.SlayBoss(boss, rng);
             }},
+            // After the boons, so every boss's is running: the longest list the
+            // panel's column can be asked to hold. Every piece round the figure.
+            {"character panel", GameState::CharacterPanel, [&] { sheet_piece = 0; sheet_facing = FACE_DOWN; }},
             {"journal",        GameState::QuestPanel,      [&] { quest_tab = 0; quest_cursor[0] = 0; }},
             {"journal side",   GameState::QuestPanel,      [&] { quest_tab = 2; quest_cursor[2] = 0; }},
             {"map",            GameState::WorldMapPage,    [&] { map_overview = false; }},
@@ -1762,7 +1780,7 @@ void Game::RunAudit() {
             if (name == "inventory")      { target = &inventory_cursor; steps = p.inventory.SlotCount(); }
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
             else if (name == "skill categories") { target = &skill_card; steps = CATEGORY_COUNT; }
-            else if (name == "menu")      { target = &hub_cursor; steps = 5; }
+            else if (name == "menu")      { target = &hub_cursor; steps = 6; }
             else if (name == "skill tree") { target = &tree_row; steps = SkillTrees::ROWS; }
             // Nine rows, and as many choices as the longest of them has: the
             // ancient magic's, with every spell of it known.
@@ -1781,13 +1799,18 @@ void Game::RunAudit() {
             else if (name == "controls")  { target = &controls_cursor; steps = 26; }
             else if (name == "options")   { target = &cursor_row; steps = 12; }
             else if (name == "character") { target = &cursor_row; steps = 3; }
+            else if (name == "character panel") { target = &sheet_piece; steps = 10; }
             else if (name == "storage")   { target = &storage_bag_cursor; steps = p.inventory.SlotCount(); }
             else if (name == "reward")    { target = &reward_cursor; steps = 3; }
 
             for (int step = 0; step < steps; ++step) {
                 if (target) *target = step;
-                // Each skill in its own category's modal.
-                if (name == "skills") skill_card = SkillCategoryOf(cursor);
+                // Each skill in its own category's modal -- and Defence, in none,
+                // is on the character panel instead.
+                if (name == "skills") {
+                    skill_card = SkillCategoryOf(cursor);
+                    if (skill_card < 0) continue;
+                }
                 // Both of the waystones' tabs, and every row of each.
                 if (name == "travel") { travel_tab = step / 4; travel_cursor = step % 4; travel_tab_at = -10.0f; }
                 // Every branch of a tree, too, and both of its tabs.
@@ -1919,6 +1942,7 @@ void Game::Render() {
         case GameState::Paused:          DrawPaused(); break;
         case GameState::Inventory:       DrawInventory(); break;
         case GameState::SkillsPanel:     DrawSkillsPanel(); break;
+        case GameState::CharacterPanel:  DrawCharacterPanel(); break;
         case GameState::Hub:             DrawHub(); break;
         case GameState::QuestPanel:      DrawQuestPanel(); break;
         case GameState::WorldMapPage:    DrawWorldMap(); break;

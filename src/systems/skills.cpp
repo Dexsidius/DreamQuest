@@ -30,7 +30,7 @@ const char* SkillBlurb(int skill) {
     switch (skill) {
         case SKILL_ATTACK:      return "Trained by landing light attacks. It decides whether a blow lands.";
         case SKILL_STRENGTH:    return "Trained by landing strong and charged attacks. It decides how hard a blow lands.";
-        case SKILL_DEFENCE:     return "Trained by blows blocked, parried or dodged, and a little by blows taken. It softens every blow that reaches you.";
+        case SKILL_DEFENCE:     return "Not trained: it follows your combat level -- twice it for the hero, the same as it for the warden and the wayfarer. It softens every blow that reaches you.";
         case SKILL_HITPOINTS:   return "Trained by every blow you deal. It is how much you can take.";
         case SKILL_RANGED:      return "Trained by landing shots with a bow, a crossbow or knives.";
         case SKILL_MAGIC:       return "Trained by landing spells with a staff, a wand, a grimoire or an orb.";
@@ -51,10 +51,12 @@ const char* SkillBlurb(int skill) {
 
 const vector<int>& CategorySkills(int category) {
     // Making things at a station; fighting; taking things from the land, and
-    // cooking what was taken; and the two that are half magic.
+    // cooking what was taken; and the two that are half magic. Defence is in
+    // none of them: it is not trained, it follows the combat level, and it is
+    // on the character panel with the rest of what the character comes to.
     static const vector<int> kSkills[CATEGORY_COUNT] = {
         {SKILL_SMITHING, SKILL_TANNING, SKILL_CLOTHIER, SKILL_CRAFTING},
-        {SKILL_HITPOINTS, SKILL_RANGED, SKILL_MAGIC, SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE},
+        {SKILL_HITPOINTS, SKILL_RANGED, SKILL_MAGIC, SKILL_ATTACK, SKILL_STRENGTH},
         {SKILL_WOODCUTTING, SKILL_FISHING, SKILL_FORAGING, SKILL_MINING, SKILL_COOKING},
         {SKILL_BREWING, SKILL_ENCHANTING},
     };
@@ -174,27 +176,40 @@ void Skills::SetXp(int skill, int value) {
 }
 
 int Skills::CombatLevel() const {
+    return static_cast<int>(floor(CombatLevelExact()));
+}
+
+double Skills::CombatLevelExact() const {
     const double att = Level(SKILL_ATTACK), str = Level(SKILL_STRENGTH);
-    const double def = Level(SKILL_DEFENCE), hp  = Level(SKILL_HITPOINTS);
+    const double hp  = Level(SKILL_HITPOINTS);
     const double rng = Level(SKILL_RANGED),  mag = Level(SKILL_MAGIC);
 
-    const double base = 0.25 * (def + hp);
+    // OSRS's base is a quarter of Defence and Hitpoints. Defence follows the
+    // combat level now (Player::SyncDefence), so it cannot be part of what
+    // makes it: Hitpoints stands in its place as well as its own. A fighter
+    // whose Defence kept pace with their Hitpoints -- the way OSRS expects it
+    // to be trained -- is the level they always were.
+    const double base = 0.25 * (hp + hp);
     const double melee  = 0.325 * (att + str);
     const double ranged = 0.325 * (floor(rng / 2.0) + rng);
     const double magic  = 0.325 * (floor(mag / 2.0) + mag);
 
-    return static_cast<int>(floor(base + std::max({melee, ranged, magic})));
+    return base + std::max({melee, ranged, magic});
 }
 
+// What was trained: Defence is not, so its levels -- a hero's run to 99 by
+// Combat 50 -- and the experience that stands behind them are left out.
 int Skills::TotalLevel() const {
     int total = 0;
-    for (int i = 0; i < SKILL_COUNT; ++i) total += Level(i);
+    for (int i = 0; i < SKILL_COUNT; ++i)
+        if (i != SKILL_DEFENCE) total += Level(i);
     return total;
 }
 
 long long Skills::TotalXp() const {
     long long total = 0;
-    for (int i = 0; i < SKILL_COUNT; ++i) total += xp[i];
+    for (int i = 0; i < SKILL_COUNT; ++i)
+        if (i != SKILL_DEFENCE) total += xp[i];
     return total;
 }
 

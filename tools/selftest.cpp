@@ -33,6 +33,7 @@
 #include "../src/systems/shop.h"
 #include "../src/systems/shaders.h"
 #include "../src/entity/player.h"
+#include "../src/entity/attributes.h"
 #include "../src/ui/minimap.h"
 #include "../src/ui/worldmap.h"
 #include "../src/ui/titlescreen.h"
@@ -562,13 +563,13 @@ static void TestOonasPoppet(const Databases& db) {
     }
 }
 
-static void TestDodgeTraining(const Databases& db) {
+static void TestPassiveDefence(const Databases& db) {
     SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
     LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
     ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
     SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
     (void)statuses;
-    Section("Defence without a shield: blows dodged, rolled through, paid for in mana, stood fast against");
+    Section("Defence follows the combat level and is not trained; a blow dodged says so");
     Input input;
     std::mt19937 rng(4040);
     GameContext ctx;
@@ -577,7 +578,6 @@ static void TestDodgeTraining(const Databases& db) {
     ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
     ctx.input = &input;       ctx.rng = &rng;
     const float dt = 1.0f / 60.0f;
-    const float rate = Player::BLOCK_XP_PER_DAMAGE;
     const auto key = [&](SDL_Keycode k, bool down) {
         SDL_Event e{};
         e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
@@ -642,7 +642,123 @@ static void TestDodgeTraining(const Databases& db) {
     CombatProfile archer;
     archer.attack_level = archer.strength_level = archer.ranged_level = 20;
 
-    // --- a swing stepped out of ---------------------------------------------------------------
+    // --- Defence, from the combat level ----------------------------------------------------------------
+    {
+        // Up to a level of a skill, by the experience that gets there.
+        const auto to = [](Player& p, int skill, int level) {
+            p.GrantXp(skill, std::max(0, XpForLevel(level) - p.skills.Xp(skill)) + 1);
+        };
+        Player hero, warden, wayfarer;
+        hero.Init(ctx, "player_hero");
+        warden.Init(ctx, "player_warden");
+        wayfarer.Init(ctx, "player_wayfarer");
+        // A new character: Hitpoints 10 and everything else 1 is Combat 5.
+        Check(hero.skills.CombatLevel() == 5 && hero.skills.Level(SKILL_DEFENCE) == 10 &&
+                  warden.skills.Level(SKILL_DEFENCE) == 5 && wayfarer.skills.Level(SKILL_DEFENCE) == 5,
+              "a new character is Combat 5: the hero sets out with Defence 10, the warden and the wayfarer with 5");
+        Check(Player::DefencePerLevel(AttackStyle::Melee) == 2 && Player::DefencePerLevel(AttackStyle::Ranged) == 1 &&
+                  Player::DefencePerLevel(AttackStyle::Magic) == 1,
+              "the hero's Defence is twice the combat level, the warden's and the wayfarer's the same as it");
+        hero.TakeLevelUps();
+        to(hero, SKILL_HITPOINTS, 11);
+        bool told = false;
+        for (const LevelUp& u : hero.TakeLevelUps()) told |= u.skill == SKILL_DEFENCE && u.level == 12;
+        Check(hero.skills.CombatLevel() == 6 && hero.skills.Level(SKILL_DEFENCE) == 12 && told,
+              "Hitpoints 11 makes the hero Combat 6 and Defence 12, and the rise is said with the rest");
+        // Defence is no part of the combat level any more: Hitpoints stands in its place.
+        Skills bare;
+        LevelUp lu;
+        bare.AddXp(SKILL_DEFENCE, XpForLevel(99), lu);
+        Check(bare.CombatLevel() == 5, "Defence 99 on its own adds nothing to the combat level");
+        Skills even;
+        for (int sk : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE, SKILL_HITPOINTS}) even.AddXp(sk, XpForLevel(40), lu);
+        Check(even.CombatLevel() == 46,
+              "and a fighter whose Defence kept pace with their Hitpoints is the level they always were: 40s all round is 46");
+        Player strong;
+        strong.Init(ctx, "player_hero");
+        to(strong, SKILL_ATTACK, 40); to(strong, SKILL_STRENGTH, 40); to(strong, SKILL_HITPOINTS, 40);
+        Check(strong.skills.CombatLevel() == 46 && strong.skills.Level(SKILL_DEFENCE) == 92,
+              "a hero with Attack, Strength and Hitpoints 40 is Combat 46, and Defence 92 (" +
+                  std::to_string(strong.skills.Level(SKILL_DEFENCE)) + ")");
+        to(strong, SKILL_ATTACK, 50); to(strong, SKILL_STRENGTH, 50); to(strong, SKILL_HITPOINTS, 50);
+        Check(strong.skills.Level(SKILL_DEFENCE) == 99, "and at Combat 57 it is 99, the top, which it stays at");
+        to(warden, SKILL_RANGED, 40); to(warden, SKILL_HITPOINTS, 40);
+        to(wayfarer, SKILL_MAGIC, 40); to(wayfarer, SKILL_HITPOINTS, 40);
+        Check(warden.skills.CombatLevel() == 39 && warden.skills.Level(SKILL_DEFENCE) == 39 &&
+                  wayfarer.skills.Level(SKILL_DEFENCE) == 39,
+              "Ranged or Magic 40 and Hitpoints 40 is Combat 39, and the warden's and the wayfarer's Defence is 39");
+        to(warden, SKILL_WOODCUTTING, 60);
+        Check(warden.skills.Level(SKILL_DEFENCE) == 39, "and a skill that is no part of the combat level does not move it");
+        const int xp = warden.skills.Xp(SKILL_DEFENCE);
+        warden.GrantXp(SKILL_DEFENCE, 50000);
+        Check(warden.skills.Xp(SKILL_DEFENCE) == xp, "Defence experience is given nothing: nothing trains it");
+        // A save from when it was trained: never down, and up when the combat level passes it.
+        const auto loaded = [&](const char* look, int defence_level, int skill, int level) {
+            Player p;
+            p.Init(ctx, look);
+            json sheet;
+            sheet["sprite"] = look;
+            sheet["skills"]["xp"][SkillName(SKILL_DEFENCE)] = XpForLevel(defence_level);
+            sheet["skills"]["xp"][SkillName(skill)] = XpForLevel(level);
+            p.FromJson(sheet, ctx);
+            return p.skills.Level(SKILL_DEFENCE);
+        };
+        Check(loaded("player_hero", 40, SKILL_ATTACK, 10) == 40,
+              "a save that trained its Defence past what its combat level makes it keeps it");
+        Check(loaded("player_hero", 5, SKILL_ATTACK, 10) == 16,
+              "and one below is brought up to it on loading: Attack 10 is Combat 8, and the hero's Defence 16");
+        Check(loaded("player_wayfarer", 3, SKILL_MAGIC, 25) == 17, "Magic 25 is Combat 17, and the wayfarer's Defence 17");
+
+        // A new character is two levels higher than one was, and the gates that
+        // sat just above one moved up two with it: the start still asks for a
+        // little fighting first.
+        const int fresh = Skills().CombatLevel();
+        for (const char* id : {"q_the_sunken_road", "q_orc_trouble", "q_daily_orcs"}) {
+            const auto q = quests.Definitions().find(id);
+            Check(q != quests.Definitions().end() && q->second.combat_level >= fresh + 2,
+                  string(id) + " asks two levels or more above a new character");
+        }
+        Map haven;
+        const Portal* west = nullptr;
+        if (haven.Load("maps/town_havenbrook.mx"))
+            for (const Portal& p : haven.Portals()) if (p.target_map == "westwold") west = &p;
+        Check(west && west->danger_level >= fresh + 2, "and the road out to the Westwold still warns a new character");
+
+        // Nothing pays it, and nothing asks for it.
+        string paying, asking;
+        for (const auto& kv : quests.Definitions()) {
+            if (kv.second.rewards.xp.count(SKILL_DEFENCE)) paying += " " + kv.first;
+            for (const QuestRewardChoice& c : kv.second.rewards.choices)
+                if (c.xp.count(SKILL_DEFENCE)) paying += " " + kv.first;
+        }
+        for (const auto& kv : items.All())
+            if (kv.second.requirements.count(SKILL_DEFENCE)) asking += " " + kv.first;
+        Check(paying.empty(), "no quest pays Defence experience" + (paying.empty() ? string() : ":" + paying));
+        Check(asking.empty(), "and nothing asks Defence to wear or wield it -- each class's armour asks its own style" +
+                                  (asking.empty() ? string() : ":" + asking));
+        // Each class's own: the hero's plate asks Attack, the warden's hides
+        // Ranged, the wayfarer's robes Magic.
+        bool plate = true, hides = true, robes = true;
+        int looked = 0;
+        for (const auto& kv : items.All()) {
+            const ItemDef& d = kv.second;
+            if (d.tier.empty() || d.slot == SLOT_WEAPON || !d.tool.empty() || d.requirements.empty()) continue;
+            if (d.slot != SLOT_HEAD && d.slot != SLOT_BODY && d.slot != SLOT_LEGS && d.slot != SLOT_HANDS &&
+                d.slot != SLOT_FEET && d.slot != SLOT_SHIELD) continue;
+            ++looked;
+            const bool hide = d.piece.rfind("hide_", 0) == 0, robe = d.piece.rfind("robe_", 0) == 0;
+            const int want = hide ? SKILL_RANGED : robe ? SKILL_MAGIC : SKILL_ATTACK;
+            bool& ok = hide ? hides : robe ? robes : plate;
+            if (d.requirements.size() != 1 || !d.requirements.count(want)) ok = false;
+        }
+        Check(looked > 100 && plate && hides && robes,
+              "every tier's plate and shield asks Attack, every hide Ranged, every robe Magic (" + std::to_string(looked) + " pieces)");
+        const ItemDef* coif = items.Get("mail_coif");
+        Check(!coif || (coif->requirements.count(SKILL_ATTACK) && !coif->requirements.count(SKILL_DEFENCE)),
+              "and the armour pack's mail, where it is installed, asks Attack too");
+    }
+
+    // --- a swing stepped out of --------------------------------------------------------------------------
     {
         World w;
         if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
@@ -650,32 +766,28 @@ static void TestDodgeTraining(const Databases& db) {
             Check(until_swing(w, orc), "an orc raider beside a warden with no shield swings at her");
             frames(w, 2);                          // it has begun, and knows she is in the way of it
             const int xp0 = defence(w.player), hp0 = w.player.hp;
-            const float would = orc ? ExpectedMonsterBlow(orc->Profile(), w.player.Profile(), AttackStyle::Melee, 1.0f) : 0.0f;
             w.texts.clear();
             w.player.x -= 90.0f;                   // and she is not, when it lands
             frames(w, 24);
-            const int got = defence(w.player) - xp0;
-            Check(w.player.hp == hp0 && would > 0.0f && std::abs(got - static_cast<int>(would * rate)) <= 1,
-                  "stepped out of before it lands, it trains Defence as a block of the same blow would (" +
-                  std::to_string(got) + " for a blow of " + std::to_string(would) + ")");
-            Check(said(w, "dodged") == 1, "and 'dodged' goes up over her, once");
+            Check(w.player.hp == hp0 && said(w, "dodged") == 1 && defence(w.player) == xp0,
+                  "stepped out of before it lands: 'dodged' goes up over her, once, and it pays nothing");
         }
     }
-    // --- one that was never coming for her ----------------------------------------------------------
+    // --- one that was never coming for her ----------------------------------------------------------------
     {
         World w;
         if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
             Enemy* orc = spawn_at(w, raider, w.player.x + 24.0f, w.player.y);
             Check(until_swing(w, orc), "another swing begins");
-            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            const int hp0 = w.player.hp;
             w.texts.clear();
             w.player.x -= 90.0f;                   // gone before it ever asked who it was at
             frames(w, 24);
-            Check(w.player.hp == hp0 && defence(w.player) == xp0 && said(w, "dodged") == 0,
-                  "a swing she was gone from as it began was never coming for her, and teaches nothing");
+            Check(w.player.hp == hp0 && said(w, "dodged") == 0,
+                  "a swing she was gone from as it began was never coming for her, and says nothing");
         }
     }
-    // --- one that lands -------------------------------------------------------------------------------
+    // --- one that lands -------------------------------------------------------------------------------------
     {
         World w;
         if (fighter(w, "oak_shortbow", SKILL_RANGED, 40, {})) {
@@ -684,13 +796,11 @@ static void TestDodgeTraining(const Databases& db) {
             const int xp0 = defence(w.player), hp0 = w.player.hp;
             w.texts.clear();
             frames(w, 24);
-            const int taken = hp0 - w.player.hp, got = defence(w.player) - xp0;
-            Check(taken > 0 && got >= 1 && got <= taken + 1 && said(w, "dodged") == 0,
-                  "stood in, it lands, and trains Defence a point for a point, as a hit always has (" +
-                  std::to_string(got) + " for " + std::to_string(taken) + ")");
+            Check(hp0 - w.player.hp > 0 && defence(w.player) == xp0 && said(w, "dodged") == 0,
+                  "stood in, it lands -- and being hit trains nothing either");
         }
     }
-    // --- a heavy blow's line, left -------------------------------------------------------------------
+    // --- a heavy blow's line, left --------------------------------------------------------------------------
     {
         // A Warchief with no wait before his first heavy, as in the heavy's own section.
         EnemyDef warchief = *enemy_db.Get("orc3");
@@ -705,33 +815,28 @@ static void TestDodgeTraining(const Databases& db) {
             Check(charge(w, orc), "a Warchief winds up his heavy at a warden");
             // Past the point where he stops turning after her.
             while (orc && orc->ChargingHeavy() && orc->HeavyCharge() < Enemy::HEAVY_LOCK + 0.05f) frames(w, 1);
-            const int xp0 = defence(w.player), hp0 = w.player.hp;
-            const CombatProfile mine = w.player.Profile();
-            const int would = orc ? SoakHeavy(orc->HeavyDamage(nullptr), mine.defence_level, mine.defence_bonus) : 0;
+            const int hp0 = w.player.hp;
             w.texts.clear();
             w.player.y += 80.0f;                   // out of the line he is committed to
             for (int f = 0; f < 120 && orc && orc->ChargingHeavy(); ++f) frames(w, 1);
             frames(w, 2);
-            Check(w.player.hp == hp0 && would > 0 && defence(w.player) - xp0 == static_cast<int>(would * rate),
-                  "out of a heavy's line after it is committed, it is dodged, for what it would have done through what she wears (" +
-                  std::to_string(defence(w.player) - xp0) + ")");
-            Check(said(w, "dodged") == 1 && said(w, "miss") == 0, "and it says 'dodged', not 'miss'");
+            Check(w.player.hp == hp0 && said(w, "dodged") == 1 && said(w, "miss") == 0,
+                  "out of a heavy's line after it is committed: the tell read, and it says 'dodged', not 'miss'");
 
             // Backed off while he still turned after her: out of reach, not a tell read.
             w.player.Rest();
             orc = spawn_at(w, &warchief, w.player.x + 40.0f, w.player.y);
             w.enemies.erase(w.enemies.begin(), w.enemies.end() - 1);
             Check(charge(w, orc), "another wind-up");
-            const int xp1 = defence(w.player);
             w.texts.clear();
             w.player.x -= 160.0f;
             for (int f = 0; f < 240 && orc && orc->ChargingHeavy(); ++f) frames(w, 1);
             frames(w, 2);
-            Check(defence(w.player) == xp1 && said(w, "miss") == 1 && said(w, "dodged") == 0,
-                  "one backed away from before it was committed lands on nothing, says 'miss', and teaches nothing");
+            Check(said(w, "miss") == 1 && said(w, "dodged") == 0,
+                  "one backed away from before it was committed lands on nothing and says 'miss'");
         }
     }
-    // --- rolled through, and slipped ------------------------------------------------------------------
+    // --- rolled through, and slipped --------------------------------------------------------------------------
     {
         World w;
         if (fighter(w, "oak_shortbow", SKILL_RANGED, 60, {})) {
@@ -741,24 +846,19 @@ static void TestDodgeTraining(const Databases& db) {
             Check(w.player.Untouchable(), "a warden mid-roll");
             const int xp0 = defence(w.player), hp0 = w.player.hp;
             w.texts.clear();
-            Check(w.HitPlayer(9, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0 && defence(w.player) - xp0 == 36 &&
-                  said(w, "dodged") == 1, "a blow of nine rolled through lands on nothing, and trains Defence as blocking it would: 36");
-            const CombatProfile mine = w.player.Profile();
-            const int soaked = SoakHeavy(40, mine.defence_level, mine.defence_bonus);
-            const int xp1 = defence(w.player);
-            Check(w.HeavyHitPlayer(40, w.player.x + 20.0f, w.player.y, 0.0f, 0.0f) == 0 &&
-                  defence(w.player) - xp1 == static_cast<int>(soaked * rate),
-                  "and a heavy one, for what it would have done through what she wears");
+            Check(w.HitPlayer(9, CombatProfile{}, w.player.x + 20.0f, w.player.y) == 0 && said(w, "dodged") == 1,
+                  "a blow rolled through lands on nothing, and is dodged");
+            Check(w.HeavyHitPlayer(40, w.player.x + 20.0f, w.player.y, 0.0f, 0.0f) == 0 && said(w, "dodged") == 2,
+                  "and a heavy one");
             // A shot that finds her mid-roll: the roll is the dodge, once -- the
-            // shot's own watch does not count it again.
+            // shot's own watch does not say it again.
             Projectile* shot = w.SpawnProjectile("barbed_arrow", w.player.x - 8.0f, w.player.y - 18.0f, -1.0f, 0.0f,
                                                  archer, AttackStyle::Ranged, 1.0f, false, ctx);
             if (shot) w.AimShot(*shot, w.player);
-            const int xp2 = defence(w.player);
             w.texts.clear();
             frames(w, 2);
-            Check(w.player.hp == hp0 && defence(w.player) > xp2 && said(w, "dodged") == 1,
-                  "a shot rolled through is dodged, and once (" + std::to_string(said(w, "dodged")) + ")");
+            Check(w.player.hp == hp0 && said(w, "dodged") == 1 && defence(w.player) == xp0,
+                  "a shot rolled through is dodged, and once (" + std::to_string(said(w, "dodged")) + "); none of it pays");
         }
         World s;
         if (fighter(s, "oak_shortbow", SKILL_RANGED, 70,
@@ -773,13 +873,11 @@ static void TestDodgeTraining(const Databases& db) {
                 if (s.HitPlayer(4, CombatProfile{}, s.player.x + 20.0f, s.player.y) == 0) ++slipped;
             }
             input.Update(dt); key(SDLK_D, false); s.Update(dt, ctx);
-            const int got = defence(s.player) - xp0, want = slipped * 16 + (300 - slipped) * 4;
-            Check(slipped > 10 && got == want && said(s, "slipped") == slipped,
-                  "Slippery: a blow that slips by is dodged -- sixteen for a blow of four, where taking it is four (" +
-                  std::to_string(got) + " of " + std::to_string(want) + ")");
+            Check(slipped > 10 && said(s, "slipped") == slipped && defence(s.player) == xp0,
+                  "Slippery: every blow that slips by says so (" + std::to_string(slipped) + " of 300), and teaches nothing");
         }
     }
-    // --- the mana shield, and Stand Fast --------------------------------------------------------------
+    // --- the mana shield, and Stand Fast ----------------------------------------------------------------------
     {
         World w;
         if (fighter(w, "novice_staff", SKILL_MAGIC, 60, {"ward", "seeker", "meteor", "mana_shield"})) {
@@ -789,14 +887,8 @@ static void TestDodgeTraining(const Databases& db) {
             w.player.hp = w.player.max_hp;
             const int xp0 = defence(w.player), hp0 = w.player.hp;
             w.HitPlayer(20, CombatProfile{}, w.player.x + 20.0f, w.player.y);
-            Check(hp0 - w.player.hp == 10 && defence(w.player) - xp0 == 10 + 40,
-                  "a blow of twenty, half paid in mana: the half taken trains Defence as a hit, the half paid as a block (" +
-                  std::to_string(defence(w.player) - xp0) + ")");
-            w.player.SetMana(0);
-            w.player.hp = w.player.max_hp;
-            const int xp1 = defence(w.player);
-            w.HitPlayer(20, CombatProfile{}, w.player.x + 20.0f, w.player.y);
-            Check(defence(w.player) - xp1 == 20, "and with nothing to pay with it is all blood, and twenty");
+            Check(hp0 - w.player.hp == 10 && defence(w.player) == xp0,
+                  "a blow of twenty is half paid in mana, as ever, and pays nothing into Defence");
         }
         World h;
         if (fighter(h, "bronze_sword", SKILL_ATTACK, 70,
@@ -808,19 +900,10 @@ static void TestDodgeTraining(const Databases& db) {
             h.player.hp = h.player.max_hp;
             const int xp0 = defence(h.player);
             const int taken = h.HitPlayer(20, CombatProfile{}, h.player.x - 20.0f, h.player.y);
-            Check(taken == 12 && defence(h.player) - xp0 == 8 * 4 + 12,
-                  "feet set, the eight of twenty kept off trains Defence as a block, and the twelve taken as a hit (" +
-                  std::to_string(defence(h.player) - xp0) + ")");
-            h.player.hp = h.player.max_hp;
-            const CombatProfile mine = h.player.Profile();
-            const int soaked = SoakHeavy(40, mine.defence_level, mine.defence_bonus);
-            const int held = std::max(1, static_cast<int>(std::lround(soaked * Player::STAND_FAST_SHARE)));
-            const int xp1 = defence(h.player);
-            h.HeavyHitPlayer(40, h.player.x - 20.0f, h.player.y, 0.0f, 0.0f);
-            Check(defence(h.player) - xp1 == (soaked - held) * 4 + held, "and a heavy blow's the same way");
+            Check(taken == 12 && defence(h.player) == xp0, "feet set, a blow of twenty is twelve, and pays nothing either");
         }
     }
-    // --- shots ------------------------------------------------------------------------------------------
+    // --- shots ------------------------------------------------------------------------------------------------
     {
         const auto loose = [&](World& w, float dx) -> Projectile* {
             Projectile* p = w.SpawnProjectile("barbed_arrow", w.player.x + dx, w.player.y - 18.0f, dx > 0 ? -1.0f : 1.0f, 0.0f,
@@ -846,43 +929,36 @@ static void TestDodgeTraining(const Databases& db) {
             // Stepped aside from.
             Projectile* p = loose(w, 150.0f);
             Check(p && p->aim, "an arrow loosed at a wayfarer is watched for a dodge");
-            const float would = ExpectedMonsterBlow(archer, w.player.Profile(), AttackStyle::Ranged, 1.0f);
-            const int xp0 = defence(w.player), hp0 = w.player.hp;
+            const int hp0 = w.player.hp;
             w.texts.clear();
             w.player.y += 60.0f;
             frames(w, kLook);
-            Check(w.player.hp == hp0 && std::abs(defence(w.player) - xp0 - static_cast<int>(would * rate)) <= 1 &&
-                  said(w, "dodged") == 1,
-                  "stepped aside from, it goes by and is dodged, for what it would have done (" +
-                  std::to_string(defence(w.player) - xp0) + ")");
+            Check(w.player.hp == hp0 && said(w, "dodged") == 1, "stepped aside from, it goes by, and is dodged");
             Check(spent(w), "(it flies on and is spent)");
             // Stood in.
             w.player.y -= 60.0f;
             w.player.hp = w.player.max_hp;
-            const int xp1 = defence(w.player), hp1 = w.player.hp;
+            const int hp1 = w.player.hp;
             w.texts.clear();
             loose(w, 150.0f);
             frames(w, kLook);
-            Check(w.player.hp < hp1 && defence(w.player) - xp1 == hp1 - w.player.hp && said(w, "dodged") == 0,
-                  "stood in, it lands, and is a hit");
+            Check(w.player.hp < hp1 && said(w, "dodged") == 0, "stood in, it lands");
             spent(w);
             // Backed away from straight down the line of it: past where she
             // stood, it is still coming for her, and finds her.
             w.player.hp = w.player.max_hp;
-            const int xp2 = defence(w.player), hp2 = w.player.hp;
+            const int hp2 = w.player.hp;
             w.texts.clear();
             loose(w, 150.0f);
             w.player.x -= 30.0f;
             frames(w, kLook);
-            Check(w.player.hp < hp2 && defence(w.player) - xp2 == hp2 - w.player.hp && said(w, "dodged") == 0,
+            Check(w.player.hp < hp2 && said(w, "dodged") == 0,
                   "backed straight away down its line, it is past where she stood and still finds her: no dodge");
             spent(w);
             // Out of its reach.
-            const int xp3 = defence(w.player);
             Projectile* far = loose(w, 700.0f);
             Check(far && !far->aim, "one loosed from further than it flies is not watched");
             spent(w);
-            Check(defence(w.player) == xp3, "and falling short teaches nothing");
         }
         // A bowman's own, played through.
         World b;
@@ -895,17 +971,15 @@ static void TestDodgeTraining(const Databases& db) {
             }
             Check(shot && shot->aim, "an orc bowman looses at her, and his arrow is watched");
             if (shot) {
-                const float would = ExpectedMonsterBlow(shot->owner, b.player.Profile(), shot->style, shot->damage_mult);
-                const int xp0 = defence(b.player), hp0 = b.player.hp;
+                const int hp0 = b.player.hp;
                 b.texts.clear();
                 b.player.y += 60.0f;
                 frames(b, 40);
-                Check(b.player.hp == hp0 && std::abs(defence(b.player) - xp0 - static_cast<int>(would * rate)) <= 1 &&
-                      said(b, "dodged") == 1, "stepped aside from, it is dodged (" + std::to_string(defence(b.player) - xp0) + ")");
+                Check(b.player.hp == hp0 && said(b, "dodged") == 1, "stepped aside from, it is dodged");
             }
         }
     }
-    // --- in company: the dodge is whoever's it was --------------------------------------------------------
+    // --- in company: the dodge is said over whoever it was coming for ---------------------------------------------
     {
         World w;
         w.player.Init(ctx, "player_hero");
@@ -919,21 +993,18 @@ static void TestDodgeTraining(const Databases& db) {
                 Enemy* orc = spawn_at(w, raider, friend_->x + 24.0f, friend_->y);
                 Check(until_swing(w, orc) && orc && orc->target_seat == 1, "in company, a raider beside a friend swings at her");
                 frames(w, 2);
-                const int host0 = defence(w.player), hers0 = defence(*friend_), hp0 = friend_->hp;
+                const int hp0 = friend_->hp;
                 friend_->x -= 90.0f;
+                w.texts.clear();
                 frames(w, 24);
-                Check(friend_->hp == hp0 && defence(*friend_) > hers0 && defence(w.player) == host0,
-                      "she steps out of it: the Defence is hers, and the host's is untouched");
-                // A shot loosed at her, acting as her, as a monster after her does.
-                const int host1 = defence(w.player), hers1 = defence(*friend_);
-                w.ActAs(*friend_, [&] {
-                    Projectile* p = w.SpawnProjectile("barbed_arrow", w.player.x + 150.0f, w.player.y - 18.0f, -1.0f, 0.0f,
-                                                      archer, AttackStyle::Ranged, 1.0f, false, ctx);
-                    if (p) w.AimShot(*p, w.player);
-                });
-                friend_->y += 60.0f;
-                frames(w, 40);
-                Check(defence(*friend_) > hers1 && defence(w.player) == host1, "and a shot at her she steps aside from is hers too");
+                bool over_her = false, over_host = false;
+                for (const FloatingText& t : w.texts) {
+                    if (t.text != "dodged") continue;
+                    over_her |= std::fabs(t.x - friend_->x) < 1.0f;
+                    over_host |= std::fabs(t.x - w.player.x) < 1.0f;
+                }
+                Check(friend_->hp == hp0 && over_her && !over_host,
+                      "she steps out of it, and 'dodged' goes up over her, not over the host");
             }
         }
     }
@@ -1170,6 +1241,202 @@ static void TestWardenRoll(const Databases& db) {
                       "a friend's B, as the host hears it, rolls her -- on the host's copy, with the dust and the lines -- and not the host");
             }
         }
+    }
+}
+
+static void TestCharacterPanel(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the character panel: Defence off the Skills page, and the numbers beside the figure");
+    Input input;
+    std::mt19937 rng(6060);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+    // A character as they set out: the kit worn, whole.
+    const auto dress = [&](Player& p, const char* look) {
+        p.Init(ctx, look);
+        for (const string& id : Player::StartingKit(look))
+            if (const ItemDef* d = items.Get(id)) p.equipment.Equip(d->slot, id);
+        p.SyncHitpoints();
+        p.hp = p.max_hp;
+    };
+    const auto line = [](const vector<AttributeLine>& v, const char* label) -> const AttributeLine* {
+        for (const AttributeLine& a : v) if (a.label == label) return &a;
+        return nullptr;
+    };
+    const auto value = [&](const vector<AttributeLine>& v, const char* label) {
+        const AttributeLine* a = line(v, label);
+        return a ? a->value : string("(none)");
+    };
+    const auto pct = [](float share) { return std::to_string(static_cast<int>(std::lround(share * 100.0f))) + "%"; };
+    const auto first = [](const vector<BoonLine>& v, BoonLine::Kind k) -> const BoonLine* {
+        for (const BoonLine& b : v) if (b.kind == k) return &b;
+        return nullptr;
+    };
+
+    // --- Defence is on the panel, not the Skills page ----------------------------------------------------------
+    {
+        int homes = 0;
+        for (int c = 0; c < CATEGORY_COUNT; ++c)
+            for (int s : CategorySkills(c)) homes += s == SKILL_DEFENCE;
+        Check(homes == 0 && SkillCategoryOf(SKILL_DEFENCE) < 0, "Defence is on none of the Skills page's cards");
+        Skills fresh, stout;
+        LevelUp lu;
+        stout.AddXp(SKILL_DEFENCE, XpForLevel(99), lu);
+        int trained = 0;
+        for (int s = 0; s < SKILL_COUNT; ++s) if (s != SKILL_DEFENCE) trained += fresh.Level(s);
+        Check(fresh.TotalLevel() == trained && stout.TotalLevel() == trained && stout.TotalXp() == fresh.TotalXp(),
+              "and the total level and experience are what was trained: Defence 99 adds nothing to either");
+        const Bindings shipped;
+        const vector<Action>& list = Bindings::Rebindable();
+        Check(shipped.Key(Action::Character) == SDLK_C && !Bindings::OnPad(Action::Character) &&
+                  std::find(list.begin(), list.end(), Action::Character) != list.end() &&
+                  string(Bindings::Id(Action::Character)) == "character",
+              "the panel is on C, can be moved on the Controls screen, and is in the menu of menus on a pad");
+    }
+
+    // --- the attributes -------------------------------------------------------------------------------------
+    {
+        Player hero, warden;
+        dress(hero, "player_hero");
+        dress(warden, "player_warden");
+        const vector<AttributeLine> a = CharacterAttributes(hero);
+        const CombatProfile c = hero.Profile();
+        Check(a.size() == 2 * ATTRIBUTE_ROWS && a[0].label == "Hitpoints" && a[ATTRIBUTE_ROWS].label == "Attack",
+              "two columns of seven: what keeps them standing, then what they fight with");
+        Check(value(a, "Hitpoints") == "10 / 10" && value(a, "Defence") == "10",
+              "a new hero: ten hitpoints, and Defence 10, twice the combat level");
+        Check(c.defence_bonus > 0 && value(a, "Armour") == "+" + std::to_string(c.defence_bonus) &&
+                  value(a, "Heavy soak") == pct(HeavySoak(c.defence_level, c.defence_bonus)),
+              "Armour is what is worn, as a blow is weighed against it, and the heavy soak is what the two turn aside (" +
+                  value(a, "Armour") + ", " + value(a, "Heavy soak") + ")");
+        const ItemDef* shield = hero.Shield();
+        Check(shield && value(a, "Guard") == "Block " + pct(shield->block) &&
+                  value(CharacterAttributes(warden), "Guard") == "Roll",
+              "the hero's guard is the shield's block; the warden's, with a bow in both hands, the roll");
+        const AttributeLine* att = line(a, "Attack");
+        Check(att && att->value == std::to_string(c.attack_level) && att->extra == "+" + std::to_string(c.attack_bonus) &&
+                  c.attack_bonus >= Player::AFFINITY_BONUS,
+              "a style says its level, and beside it the accuracy the fight adds -- the hero's affinity among it");
+
+        // A draught lights a level; one drained is red.
+        LevelUp lu;
+        hero.skills.AddXp(SKILL_ATTACK, XpForLevel(20), lu);
+        hero.skills.SetCurrent(SKILL_ATTACK, hero.skills.Level(SKILL_ATTACK) - 3);
+        hero.skills.SetCurrent(SKILL_STRENGTH, hero.skills.Level(SKILL_STRENGTH) + 8);
+        const vector<AttributeLine> b = CharacterAttributes(hero);
+        Check(line(b, "Strength") && line(b, "Strength")->tone == 1 && line(b, "Attack") && line(b, "Attack")->tone == -1 &&
+                  line(b, "Ranged") && line(b, "Ranged")->tone == 0,
+              "a level lifted by a draught is lit, one drained is red, and the rest are plain");
+
+        // The walk, as Player::Update has it.
+        Check(value(CharacterAttributes(warden), "Walk speed") == "+5%", "the warden's hide boots: 5% quicker");
+        warden.equipment.Equip(SLOT_FEET, "drowned_king_boots");
+        const float walk = (1.0f + warden.equipment.MoveSpeed()) * Player::MARSHSTRIDE_SPEED;
+        Check(value(CharacterAttributes(warden), "Walk speed") ==
+                  "+" + std::to_string(static_cast<int>(std::lround((walk - 1.0f) * 100.0f))) + "%",
+              "and the Drowned King's, Marshstride and all (" + value(CharacterAttributes(warden), "Walk speed") + ")");
+
+        // A charm that strikes critically, in the hand.
+        const ItemDef* keen = nullptr;
+        for (const auto& kv : items.All())
+            if (kv.second.slot == SLOT_WEAPON && kv.second.crit_chance > 0.0f) { keen = &kv.second; break; }
+        if (keen) {
+            hero.equipment.Equip(SLOT_WEAPON, keen->id);
+            const float want = hero.talents.Effect("crit", hero.Style()) + keen->crit_chance;
+            Check(value(CharacterAttributes(hero), "Critical") == pct(want),
+                  "a charm's chance to strike critically is in Critical (" + keen->name + ", " + pct(want) + ")");
+        } else {
+            Check(false, "some weapon carries a charm that strikes critically");
+        }
+    }
+
+    // --- the boons ------------------------------------------------------------------------------------------
+    {
+        Player p;
+        dress(p, "player_hero");
+        Check(CharacterBoons(p, &statuses, 6.5).empty(), "a new character has nothing running");
+
+        p.talents.SlayBoss("broodmother", rng);
+        const string won = p.talents.Boons().empty() ? string() : p.talents.Boons().front();
+        const TotemDef* totem = trees.Totems().empty() ? nullptr : &trees.Totems().front();
+        if (totem) {
+            p.talents.SetToday(4);
+            p.talents.PlaceTotem(totem->item, 4);
+        }
+        p.SetMeal(items.Get("hunters_skewers"), 600.0f);
+        p.skills.SetCurrent(SKILL_RANGED, p.skills.Level(SKILL_RANGED) + 4);       // the meal's
+        p.skills.SetCurrent(SKILL_STRENGTH, p.skills.Level(SKILL_STRENGTH) + 5);   // a draught's
+        p.SetWard(Status::Chill, 300.0f);
+        p.SetWard(Status::Frozen, 300.0f);
+        p.SetWard(Status::Burn, 100.0f);
+        p.equipment.Equip(SLOT_FEET, "drowned_king_boots");
+        p.equipment.Equip(SLOT_RING, "ashcroft_signet");
+        const Status took = p.Afflict(Status::Poison, 10, statuses, p.x + 20.0f, p.y);
+        const vector<BoonLine> v = CharacterBoons(p, &statuses, 6.5);
+
+        bool ordered = true;
+        for (size_t i = 1; i < v.size(); ++i) ordered &= static_cast<int>(v[i - 1].kind) <= static_cast<int>(v[i].kind);
+        Check(ordered && !v.empty() && v.back().kind == BoonLine::Kind::Affliction,
+              "the bosses' first, then the totem, the meal, draughts, wards and what is worn -- and last what a monster left");
+        const BoonLine* boon = first(v, BoonLine::Kind::Boon);
+        const BoonDef* boon_def = trees.Boon(won);
+        Check(boon && boon_def && boon->name == boon_def->name && boon->detail == boon_def->text && boon->left == "24h 00m",
+              "a boss's boon, with the day it has left by the clock");
+        const BoonLine* blessing = first(v, BoonLine::Kind::Totem);
+        Check(totem && blessing && blessing->name == totem->name && blessing->left == "6h 30m",
+              "the totem's blessing, until dawn");
+        const BoonLine* meal = first(v, BoonLine::Kind::Meal);
+        Check(meal && meal->name == "Hunter's Skewers" && meal->detail == "+4 Ranged" && meal->left == "10 min",
+              "the meal, what it holds up, and its ten minutes");
+        int draughts = 0, wards = 0;
+        for (const BoonLine& b : v) {
+            draughts += b.kind == BoonLine::Kind::Draught;
+            wards += b.kind == BoonLine::Kind::Ward;
+        }
+        const BoonLine* draught = first(v, BoonLine::Kind::Draught);
+        Check(draughts == 1 && draught && draught->name == "Strength +5",
+              "a draught's Strength is a line, and the Ranged the meal holds up is the meal's, not a second one");
+        bool frost = false, fire = false;
+        for (const BoonLine& b : v) {
+            frost |= b.kind == BoonLine::Kind::Ward && b.detail == "cannot be left Chilled or Frozen" && b.left == "5 min";
+            fire  |= b.kind == BoonLine::Kind::Ward && b.detail == "cannot be left Burning" && b.left == "2 min";
+        }
+        Check(wards == 2 && frost && fire, "a ward against two things is one line, and a second ward another");
+        bool marsh = false, leech = false;
+        for (const BoonLine& b : v) {
+            marsh |= b.kind == BoonLine::Kind::Passive && b.name == "Marshstride" && b.left == "feet";
+            leech |= b.kind == BoonLine::Kind::Passive && b.name == "Leech" &&
+                     b.detail == "8% of what you deal comes back as health";
+        }
+        Check(marsh && leech, "what a piece does is named, with where it is worn -- Marshstride, on the feet -- and the signet's leech");
+
+        // A charm is in the twin's own lines: said once, as a charm, where it is worn.
+        const ItemDef* charmed = items.Get(items.TierPiece("iron", "sword") + "+precision_4");
+        if (charmed) {
+            p.equipment.Equip(SLOT_WEAPON, charmed->id);
+            int said = 0;
+            const BoonLine* c = nullptr;
+            const vector<BoonLine> now = CharacterBoons(p, &statuses, 6.5);
+            for (const BoonLine& b : now)
+                if (b.name == "Precision IV") { ++said; c = &b; }
+            Check(said == 1 && c && c->kind == BoonLine::Kind::Charm && c->left == "weapon" && c->detail.find("18%") != string::npos,
+                  "a charmed weapon's Precision IV is one line, a charm's, on the weapon");
+        } else {
+            Check(false, "the iron sword has a Precision IV twin");
+        }
+        const BoonLine* hurt = first(v, BoonLine::Kind::Affliction);
+        Check(took == Status::Poison && hurt && hurt->name == statuses.Get(Status::Poison)->name &&
+                  hurt->left == SecondsLeftText(p.statuses.left[static_cast<int>(Status::Poison)]),
+              "and the poison, in its own colour at the foot, with its time");
+        Check(HoursLeftText(18.34) == "18h 20m" && SecondsLeftText(40.0f) == "40 s" && SecondsLeftText(600.0f) == "10 min" &&
+                  SecondsLeftText(61.0f) == "2 min",
+              "times are the clock's hours for a boon, and play's minutes and seconds for the rest");
     }
 }
 
@@ -3594,8 +3861,8 @@ int main(int argc, char** argv) {
         Check(taken == 3 && w.player.hp == hp0 - 3, "a wooden shield turns aside half of a blow from the front");
         Check(std::fabs(st0 - w.player.Stamina() - BlockCost(6, 5, 1.0f)) < 0.01f,
               "for the breath BlockCost says: about 21");
-        Check(w.player.skills.Xp(SKILL_DEFENCE) - xp0 >= 12 + 3,
-              "stopping it trains Defence, on top of what the blow that got through does");
+        Check(w.player.skills.Xp(SKILL_DEFENCE) == xp0,
+              "and neither stopping it nor what got through trains Defence: it rises with Attack instead");
 
         const int hp1 = w.player.hp;
         taken = w.HitPlayer(4, grunt, w.player.x - 30.0f, w.player.y);
@@ -4423,8 +4690,9 @@ int main(int argc, char** argv) {
                     if (prev && main_stat(d) <= main_stat(prev)) stats_rise = false;
                     if (prev && d->value <= prev->value) value_rises = false;
                 }
-                const string skill = (string(piece) == "sword" || string(piece) == "spear") ? "Attack" : string(piece) == "bow" ? "Ranged"
-                                   : string(piece) == "staff" ? "Magic" : "Defence";
+                // The blades and the plate ask Attack -- the plate is the hero's,
+                // and Defence is not trained -- the bow Ranged, the staff Magic.
+                const string skill = string(piece) == "bow" ? "Ranged" : string(piece) == "staff" ? "Magic" : "Attack";
                 const int s_id = SkillFromName(skill);
                 if (t.level > 1 && (d->requirements.size() != 1 || d->requirements.count(s_id) == 0 ||
                                     d->requirements.at(s_id) != t.level)) reqs_right = false;
@@ -4448,7 +4716,7 @@ int main(int argc, char** argv) {
         Check(levels_rise, "each tier needs at least the level of the one before");
         Check(stats_rise, "every piece is stronger than the same piece a tier down");
         Check(value_rises, "and worth more");
-        Check(reqs_right, "every piece needs its tier's level in Attack, Ranged, Magic or Defence");
+        Check(reqs_right, "every piece needs its tier's level in Attack (blades and plate), Ranged or Magic -- never Defence");
         Check(recipes_ok, "every tier makes all ten pieces, each with a recipe");
         Check(stations_ok, "wooden pieces are made at a workbench and metal ones at an anvil");
         Check(ores_ok, "every metal tier has a bar with a recipe, and an ore if it is mined");
@@ -7954,7 +8222,7 @@ int main(int argc, char** argv) {
                 const vector<WorldMark> marks = pages.MarksOf(m);
                 bool west = false;
                 for (const WorldMark& mk : marks)
-                    west |= mk.kind == "path" && mk.label.find("Westwold") != string::npos && mk.label.find("Combat 5") != string::npos;
+                    west |= mk.kind == "path" && mk.label.find("Westwold") != string::npos && mk.label.find("Combat 7") != string::npos;
                 Check(count(marks, "door") == 5 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
                       count(marks, "craft") >= 2 && count(marks, "trader") >= 2,
                       "Havenbrook's: five doors -- the mayor's hall is the fifth -- the well, both gates -- the west one "
@@ -8066,8 +8334,9 @@ int main(int argc, char** argv) {
             Check(boots && boots->slot == SLOT_FEET && boots->passive == "marshstride" &&
                   !boots->passive_text.empty(),
                   "the Boots of the Drowned King are worn on the feet and carry a passive");
-            Check(boots && boots->defence_bonus > 20 && boots->requirements.count(SkillFromName("Defence")),
-                  "they are worth wearing, and ask for the Defence to wear them");
+            Check(boots && boots->defence_bonus > 20 && boots->requirements.count(SkillFromName("Attack")) &&
+                      !boots->requirements.count(SkillFromName("Defence")),
+                  "they are worth wearing, and ask for Attack to wear them -- the hero's, as plate is");
 
             // Nowhere in any table, on any shelf, or in any quest's rewards.
             int in_tables = 0;
@@ -8553,10 +8822,11 @@ int main(int argc, char** argv) {
                   "and survive a save");
         }
         {
-            // The skills page's four categories, each skill in exactly one.
+            // The skills page's four categories, each skill in exactly one --
+            // but Defence, which is not trained and is on the character panel.
             const vector<vector<int>> asked = {
                 {SKILL_SMITHING, SKILL_TANNING, SKILL_CLOTHIER, SKILL_CRAFTING},
-                {SKILL_HITPOINTS, SKILL_RANGED, SKILL_MAGIC, SKILL_ATTACK, SKILL_STRENGTH, SKILL_DEFENCE},
+                {SKILL_HITPOINTS, SKILL_RANGED, SKILL_MAGIC, SKILL_ATTACK, SKILL_STRENGTH},
                 {SKILL_WOODCUTTING, SKILL_FISHING, SKILL_FORAGING, SKILL_MINING, SKILL_COOKING},
                 {SKILL_BREWING, SKILL_ENCHANTING}};
             bool as_asked = true, once = true;
@@ -8565,13 +8835,13 @@ int main(int argc, char** argv) {
                 int in = 0;
                 for (int c = 0; c < CATEGORY_COUNT; ++c)
                     for (int x : CategorySkills(c)) in += x == sk;
-                once &= in == 1 && SkillCategoryOf(sk) >= 0;
+                once &= sk == SKILL_DEFENCE ? (in == 0 && SkillCategoryOf(sk) < 0) : (in == 1 && SkillCategoryOf(sk) >= 0);
             }
             Check(as_asked && string(CategoryName(CATEGORY_FORGING)) == "Forging" &&
                       string(CategoryName(CATEGORY_COMBAT)) == "Combat" && string(CategoryName(CATEGORY_GATHERING)) == "Gathering" &&
                       string(CategoryName(CATEGORY_WITCHCRAFT)) == "Witchcraft",
                   "Forging, Combat, Gathering and Witchcraft, holding what was asked");
-            Check(once, "and every skill is in exactly one of them");
+            Check(once, "and every skill is in exactly one of them, but Defence, in none");
             Check(SkillCategoryOf(SKILL_COOKING) == CATEGORY_GATHERING && SkillCategoryOf(SKILL_ENCHANTING) == CATEGORY_WITCHCRAFT,
                   "Cooking with the Gathering, Enchanting with the Witchcraft");
         }
@@ -19467,8 +19737,9 @@ int main(int argc, char** argv) {
     }
 
     TestOonasPoppet(db);
-    TestDodgeTraining(db);
+    TestPassiveDefence(db);
     TestWardenRoll(db);
+    TestCharacterPanel(db);
 
     Section("the Brimstone Palace, and its king");
     {

@@ -34,7 +34,8 @@ enum class GameState {
     Paused,
     Inventory,
     SkillsPanel,
-    Hub,               // the menu of menus: inventory, skills, spellbook, journal, map
+    CharacterPanel,    // the figure in what it wears, its attributes and its boons
+    Hub,               // the menu of menus: character, inventory, skills, spellbook, journal, map
     QuestPanel,
     WorldMapPage,
     Dialogue,
@@ -305,6 +306,19 @@ private:
     int  hub_cursor = 0;
     void UpdateHub();
     void DrawHub();
+
+    // --- the character panel -------------------------------------------------------
+    // The figure in what it wears, with the pieces round it the way a paper
+    // doll has them, and beside it the combat level, the attributes and every
+    // boon running: see ui/screen_character.cpp. The cursor is on one of the
+    // pieces -- ten, the bags worn among them -- and the figure can be turned.
+    int    sheet_piece = 0;
+    Facing sheet_facing = FACE_DOWN;
+    void   UpdateCharacterPanel();
+    void   DrawCharacterPanel();
+    // The card beside the piece the cursor is on: what it is and what it gives,
+    // or what goes there when nothing does.
+    void   DrawPieceCard(int piece, const SDL_FRect& tile, const SDL_FRect& stage);
     // The skills panel's pages, in the order their tabs stand.
     enum { TAB_SKILLS = 0, TAB_TREE, TAB_BOOK, TAB_BOONS, TAB_COUNT };
 

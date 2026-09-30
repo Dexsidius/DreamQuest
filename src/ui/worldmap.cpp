@@ -355,9 +355,18 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
     // Every mark: a lettered tile in its own colour, its name beside it, and
     // for a town or a trader the trades kept there. A name is written where it
     // does not lie on another: beside its mark, on the other side of it, or
-    // failing both a line or two lower -- a well, a town and a gate within a
-    // few pixels of each other were three names in one smear.
+    // failing both a line or two lower or higher -- a well, a town and a gate
+    // within a few pixels of each other were three names in one smear.
+    const auto box_of = [&](const WorldMark& m) {
+        const SDL_FPoint p = to_screen(m.x, m.y);
+        return SDL_FRect{roundf(std::clamp(p.x - 8.0f, dst.x, dst.x + dst.w - 16.0f)),
+                         roundf(std::clamp(p.y - 8.0f, dst.y, dst.y + dst.h - 16.0f)), 16.0f, 16.0f};
+    };
+    // Every mark's tile is known before any name is written, so a name kept
+    // clear of the tiles drawn before it does not run under one drawn after:
+    // the Dry Well's did, over the Hollowrest Crypt's.
     vector<SDL_FRect> written;
+    for (const WorldMark& m : page.marks) written.push_back(box_of(m));
     const auto clashes = [&](const SDL_FRect& box) {
         for (const SDL_FRect& w : written)
             if (box.x < w.x + w.w && w.x < box.x + box.w && box.y < w.y + w.h && w.y < box.y + box.h) return true;
@@ -366,8 +375,7 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
     for (const WorldMark& m : page.marks) {
         const SDL_FPoint p = to_screen(m.x, m.y);
         const SDL_Color c = KindColour(m.kind);
-        const SDL_FRect box = {roundf(std::clamp(p.x - 8.0f, dst.x, dst.x + dst.w - 16.0f)),
-                               roundf(std::clamp(p.y - 8.0f, dst.y, dst.y + dst.h - 16.0f)), 16.0f, 16.0f};
+        const SDL_FRect box = box_of(m);
         ui.Fill({box.x + 1.0f, box.y + 1.0f, box.w, box.h}, {0, 0, 0, 150});
         ui.Fill(box, {28, 24, 20, 235});
         ui.Outline(box, c, 1.0f);
@@ -383,15 +391,42 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
         const auto place = [&](bool left, float down) {
             return SDL_FRect{left ? box.x - 6.0f - label_w : box.x + box.w + 6.0f, box.y + 1.0f + down, label_w, label_h};
         };
-        for (int attempt = 0; attempt < 8; ++attempt) {
-            const bool left = (attempt % 2 == 0) ? flip : !flip;
-            const float down = static_cast<float>(attempt / 2) * 15.0f;
-            const SDL_FRect want = place(left, down);
-            const bool fits = want.x >= dst.x - 2.0f && want.x + want.w <= dst.x + dst.w + 120.0f;
-            if ((fits && !clashes(want)) || attempt == 7) { flip = left; drop = down; break; }
+        // Level with the mark first, either side; then a line lower or higher,
+        // two, up to five -- and only where the whole name stays on the map.
+        // It used to go only lower, so a mark on the bottom edge with a name
+        // beside it already -- the Westwold's, by Havenbrook's -- was pushed
+        // off the panel.
+        const bool preferred = flip;
+        bool placed = false;
+        // Where nothing is clear, wherever on the map covers least of what is
+        // there already; and failing even that, beside the mark.
+        float least = 1e9f;
+        bool least_left = preferred;
+        float least_down = 0.0f;
+        const auto covered = [&](const SDL_FRect& box) {
+            float area_over = 0.0f;
+            for (const SDL_FRect& w : written) {
+                const float ox = std::min(box.x + box.w, w.x + w.w) - std::max(box.x, w.x);
+                const float oy = std::min(box.y + box.h, w.y + w.h) - std::max(box.y, w.y);
+                if (ox > 0.0f && oy > 0.0f) area_over += ox * oy;
+            }
+            return area_over;
+        };
+        for (int step = 0; step < 11 && !placed; ++step) {
+            const float down = static_cast<float>((step + 1) / 2) * (step % 2 == 1 ? 15.0f : -15.0f);
+            for (int side = 0; side < 2 && !placed; ++side) {
+                const bool left = side == 0 ? preferred : !preferred;
+                const SDL_FRect want = place(left, down);
+                const bool fits = want.x >= dst.x - 2.0f && want.x + want.w <= dst.x + dst.w + 120.0f &&
+                                  want.y >= area.y && want.y + want.h <= area.y + area.h;
+                if (!fits) continue;
+                if (!clashes(want)) { flip = left; drop = down; placed = true; break; }
+                const float over = covered(want);
+                if (over < least) { least = over; least_left = left; least_down = down; }
+            }
         }
+        if (!placed) { flip = least_left; drop = least_down; }
         written.push_back(place(flip, drop));
-        written.push_back(box);
         const float lx = flip ? box.x - 6.0f : box.x + box.w + 6.0f;
         ui.TextShadowed(m.label, lx, box.y + 1.0f + drop, TextSize::Small, Palette::Text,
                         flip ? Align::Right : Align::Left);

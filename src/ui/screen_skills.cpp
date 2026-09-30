@@ -58,7 +58,7 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
     // A tier's pieces all ask the same level, so they go on one line: "Mithril
     // bows and hides", not seven rows of mithril. What to call them is decided
     // by the skill doing the asking, which is how the data is built -- plate
-    // asks Defence, hides Ranged, robes Magic.
+    // asks Attack (as the blades do), hides Ranged, robes Magic.
     const auto worn_noun = [&](const ItemDef& d) -> string {
         if (!d.tool.empty()) return d.tool == "pickaxe" ? "pickaxes" : d.tool + "s";
         if (d.piece == "bar") return "bars";
@@ -70,7 +70,7 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
         }
         if (skill == SKILL_RANGED || skill == SKILL_TANNING)  return "hides";
         if (skill == SKILL_MAGIC || skill == SKILL_CLOTHIER) return "robes";
-        if (skill == SKILL_DEFENCE) return "plate";
+        if (skill == SKILL_ATTACK) return "plate";
         return "armour";
     };
     // (level, tier id) -> the nouns at it, in the order they were met. The
@@ -508,6 +508,13 @@ float EaseOutBack(float k) {
 SDL_FRect Lerp(const SDL_FRect& a, const SDL_FRect& b, float t) {
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.w + (b.w - a.w) * t, a.h + (b.h - a.h) * t};
 }
+// How far a skill is to its next level, 0..1.
+float SkillProgress(const Player& p, int skill) {
+    const Skills& s = p.skills;
+    const int level = s.Level(skill);
+    const int xp = s.Xp(skill), lo = XpForLevel(level), hi = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
+    return hi > lo ? static_cast<float>(xp - lo) / (hi - lo) : 1.0f;
+}
 }
 
 SDL_FRect Game::SkillCardRect(const SDL_FRect& panel, int card) const {
@@ -534,9 +541,8 @@ void Game::DrawSkillRow(int skill, const SDL_FRect& row, bool selected, float fi
 
     // Progress toward the next level, the way the OSRS skill guide reads.
     const int xp = s.Xp(skill);
-    const int here = XpForLevel(level);
     const int next = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
-    const float frac = (next > here) ? static_cast<float>(xp - here) / (next - here) : 1.0f;
+    const float frac = SkillProgress(world->player, skill);
     const SDL_FRect bar = {row.x + lvl_x + 16.0f, row.y + 8.0f,
                            std::max(24.0f, row.w - lvl_x - 16.0f - tail), 14.0f};
     ui.Bar(bar, frac * std::clamp(fill, 0.0f, 1.0f), Palette::Xp, {26, 34, 26, 235});
@@ -596,8 +602,7 @@ void Game::DrawSkillCards(const SDL_FRect& panel) {
             const int sk = in_card[i];
             const float y = top + i * row_h;
             const int level = s.Level(sk);
-            const int xp = s.Xp(sk), lo = XpForLevel(level), hi = XpForLevel(std::min(level + 1, MAX_SKILL_LEVEL));
-            const float frac = hi > lo ? static_cast<float>(xp - lo) / (hi - lo) : 1.0f;
+            const float frac = SkillProgress(world->player, sk);
             const bool last = here && sk == skill_in_card[c];
             ui.Text(SkillName(sk), card.x + 16.0f, y, TextSize::Small, last ? Palette::Highlight : Palette::Text);
             ui.Text(std::to_string(level), card.x + card.w - 16.0f, y, TextSize::Small, Palette::Text, Align::Right);
@@ -752,8 +757,8 @@ void Game::DrawMilestones(const SDL_FRect& col) {
     const int shown = std::max(1, static_cast<int>((col.h - 32.0f - foot) / row_h));
 
     if (milestones.empty()) {
-        // Strength and Hitpoints: nothing is gated behind either. They are the
-        // two that pay at every level rather than at a few of them.
+        // Strength and Hitpoints: nothing is gated behind either. They pay at
+        // every level rather than at a few of them.
         ui.TextWrapped("Nothing in the realm opens at a level of it. What it gives, it gives all the way up.",
                        col.x + 10.0f, top + 4.0f, col.w - 20.0f, TextSize::Small, Palette::TextDim);
         return;

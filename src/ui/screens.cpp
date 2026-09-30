@@ -1043,15 +1043,17 @@ void Game::DrawControls() {
 //  Every panel had a button of its own, and a pad ran out: the abilities wanted
 //  RB, which was the skills panel's. So Select (Tab, on the keys) opens one
 //  list with all of them on it, and the panels that lost their button are
-//  here. The keys still have I, O, P and M as well.
+//  here. The keys still have C, I, O, P and M as well.
 // =============================================================================
 
 namespace {
 struct HubEntry { const char* name; const char* what; GameState opens; int tab; Action own; };
+constexpr int kHubRows = 6;
 }
 
 void Game::UpdateHub() {
-    static const HubEntry kEntries[5] = {
+    static const HubEntry kEntries[kHubRows] = {
+        {"Character", "", GameState::CharacterPanel, -1, Action::Character},
         {"Inventory", "", GameState::Inventory, -1, Action::Inventory},
         {"Skills", "", GameState::SkillsPanel, TAB_SKILLS, Action::Skills},
         {"Spellbook", "", GameState::SkillsPanel, TAB_BOOK, Action::COUNT},
@@ -1059,15 +1061,15 @@ void Game::UpdateHub() {
         {"Map", "", GameState::WorldMapPage, -1, Action::WorldMap},
     };
     const int was = hub_cursor;
-    if (input.MenuUp())   hub_cursor = (hub_cursor + 4) % 5;
-    if (input.MenuDown()) hub_cursor = (hub_cursor + 1) % 5;
+    if (input.MenuUp())   hub_cursor = (hub_cursor + kHubRows - 1) % kHubRows;
+    if (input.MenuDown()) hub_cursor = (hub_cursor + 1) % kHubRows;
     if (was != hub_cursor) Audio::Play(Sfx::UiMove);
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause) || (state_time > 0.0f && input.Pressed(Action::Menu))) {
         SetState(GameState::Play);
         return;
     }
     if (input.Pressed(Action::Confirm)) {
-        const HubEntry& e = kEntries[std::clamp(hub_cursor, 0, 4)];
+        const HubEntry& e = kEntries[std::clamp(hub_cursor, 0, kHubRows - 1)];
         Audio::Play(Sfx::UiMove);
         // Opened from the game, not from here: closing it goes back to the game.
         return_state = GameState::Play;
@@ -1082,36 +1084,41 @@ void Game::DrawHub() {
     const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
     const int free = p.talents.PointsFree(path, p.skills);
     const size_t quests_on = quests ? quests->Active().size() : 0;
-    const string names[5] = {"Inventory", "Skills", path == AttackStyle::Magic ? "Spellbook" : "Abilities", "Quests", "Map"};
-    const string notes[5] = {
+    const size_t boons = p.talents.Boons().size() + (p.talents.ActiveTotem() ? 1 : 0);
+    const string names[kHubRows] = {"Character", "Inventory", "Skills", path == AttackStyle::Magic ? "Spellbook" : "Abilities",
+                                    "Quests", "Map"};
+    const string notes[kHubRows] = {
+        "Combat " + std::to_string(p.skills.CombatLevel()) +
+            (boons ? ", " + std::to_string(boons) + (boons == 1 ? " boon" : " boons") : string()),
         std::to_string(p.inventory.Coins()) + " coins",
         free > 0 ? std::to_string(free) + (free == 1 ? " point to spend" : " points to spend") : "levels, and the " + skill_trees.Tree(path).name + " tree",
         "what every button does",
         quests_on ? std::to_string(quests_on) + " in hand" : string("nothing in hand"),
         world->CurrentMap().DisplayName(),
     };
-    const Action own[5] = {Action::Inventory, Action::Skills, Action::COUNT, Action::QuestLog, Action::WorldMap};
+    const Action own[kHubRows] = {Action::Character, Action::Inventory, Action::Skills, Action::COUNT, Action::QuestLog,
+                                  Action::WorldMap};
 
     const float row_h = 46.0f;
     const SDL_FRect panel = CenteredPanel(ui, std::min(420.0f, ui.ViewWidth() - 16.0f),
-                                          std::min(64.0f + row_h * 5 + 44.0f, ui.ViewHeight() - 16.0f));
+                                          std::min(64.0f + row_h * kHubRows + 44.0f, ui.ViewHeight() - 16.0f));
     ui.Panel(panel);
     ui.Text("Menu", panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Title, Palette::Highlight, Align::Center);
-    const float step = std::min(row_h, (panel.h - 64.0f - 44.0f) / 5.0f);
-    for (int i = 0; i < 5; ++i) {
+    const float step = std::min(row_h, (panel.h - 64.0f - 44.0f) / static_cast<float>(kHubRows));
+    for (int i = 0; i < kHubRows; ++i) {
         const SDL_FRect row = {panel.x + 20.0f, panel.y + 64.0f + i * step, panel.w - 40.0f, step - 6.0f};
         const bool on = i == hub_cursor;
         ui.Fill(row, on ? SDL_Color{58, 46, 28, 220} : SDL_Color{30, 24, 20, 190});
         ui.Outline(row, on ? Palette::Highlight : Palette::BorderDim, on ? 2.0f : 1.0f);
         const float ty = row.y + (row.h - 20.0f) / 2.0f;
         ui.Text(names[i], row.x + 14.0f, ty, TextSize::Body, on ? Palette::Highlight : Palette::Text);
-        // Its own key, where it still has one: nothing on a pad, for the two
-        // that gave their buttons up.
+        // Its own key, where it still has one: nothing on a pad, for the ones
+        // with no button of their own.
         const bool keyed = own[i] != Action::COUNT &&
                            (input.ActiveDevice() != InputMode::Controller || input.GetBindings().buttons.count(own[i]));
         const string right = notes[i] + (keyed ? "   [" + input.PromptFor(own[i]) + "]" : string());
         ui.Text(right, row.x + row.w - 12.0f, ty + 3.0f, TextSize::Small,
-                (i == 1 && free > 0) ? Palette::Xp : Palette::TextDim, Align::Right);
+                (i == 2 && free > 0) ? Palette::Xp : Palette::TextDim, Align::Right);
     }
     ui.Text(input.PromptFor(Action::Confirm) + " open     " + input.PromptFor(Action::Back) + " close",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small, Palette::TextDim, Align::Center);

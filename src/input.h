@@ -14,7 +14,11 @@ enum class Action {
     // and J are two fingers) and have a key of their own besides.
     Ability,
     Inventory, QuestLog, Skills, WorldMap, Pause,
-    // The way to everything else: inventory, skills, spellbook, journal, map.
+    // The character panel: the figure in what it wears, its attributes and its
+    // boons. A key of its own; on a pad it is in the menu of menus.
+    Character,
+    // The way to everything else: character, inventory, skills, spellbook,
+    // journal, map.
     Menu,
     SelectFire, SelectWater, SelectEarth, SelectAir, SelectElectric, SelectArcane, CycleSpell,
     // The spell in the slot that is chosen, one along either way: what the

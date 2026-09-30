@@ -890,9 +890,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                                     (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this);
                 } else if (swing_at >= 0 && swing_at == static_cast<int>(player.seat)) {
                     // It was coming for them as it began, and they are out of
-                    // the way of it now: a blow dodged, which trains Defence
-                    // as stopping it on a shield would have.
-                    world.Dodged(ExpectedMonsterBlow(Profile(), player.Profile(), AttackStyle::Melee, 1.0f));
+                    // the way of it now: a blow dodged.
+                    world.Dodged();
                 }
             }
             if (swing_timer >= ProfileFor(AttackType::Strong).Total()) {
@@ -938,10 +937,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                                          (dy / len) * def->heavy.knockback, leaves, this);
                 } else if (heavy_at >= 0 && heavy_at == static_cast<int>(player.seat)) {
                     // In the line of it when it was committed, and out of it
-                    // now: dodged, for what it would have done through what
-                    // they wear -- no roll: HeavyDamage's middle.
-                    const CombatProfile mine = player.Profile();
-                    world.Dodged(static_cast<float>(SoakHeavy(HeavyDamage(nullptr), mine.defence_level, mine.defence_bonus)));
+                    // now: the tell was read, and it is dodged.
+                    world.Dodged();
                 } else {
                     world.AddText("miss", player.x, player.y - 44.0f, {150, 150, 168, 235});
                 }

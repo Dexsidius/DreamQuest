@@ -154,10 +154,10 @@ public:
                        const StatusProc& leaves = {}, class Enemy* by = nullptr);
     // A blow that was coming for the player and found nobody there: a swing
     // stepped out of, a heavy's line left, a shot let by, any of them rolled
-    // through or slipped. It trains Defence as a block does, by what it would
-    // have done -- so a shield is not the only way to learn to take a fight.
-    // `say` goes up over them; null says nothing. Acting as them.
-    void Dodged(float would_have, const char* say = "dodged");
+    // through or slipped. `say` goes up over them -- a word, not experience:
+    // Defence is not trained (Player::SyncDefence), but a blow avoided is the
+    // skill this game asks of a fight, and it is seen. Acting as them.
+    void Dodged(const char* say = "dodged");
     // Rolls a status against the player a blow of `blow` just landed on, and
     // says so over their head if it takes. Its own dice, never the context's:
     // a fight that leaves nothing throws exactly the numbers it always did.
