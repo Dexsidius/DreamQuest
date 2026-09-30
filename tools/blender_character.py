@@ -49,7 +49,7 @@ import zlib
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Euler, Vector
+from mathutils import Euler, Matrix, Vector
 
 # --- output ------------------------------------------------------------------
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1879,6 +1879,111 @@ def pose_flick(t):
     ], t)
 
 
+# --- a bow, drawn and let go ------------------------------------------------------
+# The bow is in the right hand and the string in the left. This rig's arms are
+# short and its head is big, so the pose is worked out from where things have to
+# be rather than from angles. Seen side on, the bow has to stand in front of the
+# face with daylight between them: any nearer and the head's holdout cuts the top
+# limb away, as it did on the first try, where the bow was a stub under the chin.
+# That puts the bow hand a third of a unit out from between the shoulders
+# (BOW_GRIP), which an arm 0.235 long reaches only with the chest turned side on
+# to the mark, the bow shoulder forward. The drawing hand is at the jaw under the
+# ear at full draw (BOW_NOCK), the arrow runs from there through the bow hand, and
+# the face is turned back to look down it (`look`).
+#
+# Both points are in the character's own axes (forward is -Y, up +Z, their left
+# +X), from between the shoulders. `hold` and `left_x/y/z` are in the chest's, so
+# the chest's turn is undone to say where the hands go; what the right hand holds
+# is aimed down the arrow with its top kept up.
+#
+# Side on, an upright bow shows its whole curve. From in front or behind it is a
+# line -- a stick down the middle of the chest, or nothing at all behind the
+# head -- so facing down or up it is held flat (`top_*`), and seen from above it
+# is a bow again. That is why this clip takes the facing.
+#
+# blender_tiers.py builds the bow for this clip from the same numbers: its
+# string drawn `bow_nock` behind the grip, and an arrow on it while `bow_arrow`
+# says so.
+BOW_GRIP = Vector((0.0, -0.40, 0.08))
+BOW_NOCK = Vector((0.04, 0.05, 0.07))
+BOW_DRAW = (BOW_GRIP - BOW_NOCK).length        # nock to grip at full draw
+BOW_HIPS, BOW_TWIST = 15.0, 75.0               # side on: the hips turn a little and the chest the rest
+BOW_UP_SHIFT = Vector((-0.12, 0.04, 0.0))      # facing away: the shot moved over to the bow side
+
+
+def _chest_turn(v):
+    """How a pose's numbers turn the chest, in the character's axes."""
+    hips = Euler((rad(v.get("hips_lean", 0.0)), 0.0, rad(v.get("hips_twist", 0.0))), "XYZ").to_matrix()
+    chest = Euler((rad(v.get("lean", 0.0)), 0.0, rad(v.get("twist", 0.0))), "XYZ").to_matrix()
+    return hips @ chest
+
+
+def _bow_frame(facing, grip, aim, string=0.0, arrow=False, left=(0.0, 0.0, 0.0), **rest):
+    """One frame of the draw clip. `grip` is where the bow hand is and `aim`
+    where the arrow points, in the character's axes; `string` is how far behind
+    the grip the string is drawn (0 is at rest) and `arrow` whether one is on it.
+    The drawing hand is on the string while it is drawn and at `left` when it
+    is not."""
+    v = dict(hips_twist=BOW_HIPS, twist=BOW_TWIST, look=0.0, aim_top=1.0, cross_lo_r=-100.0,
+             # Where each arm's search starts, which decides which way its elbow
+             # points: the bow arm straight out at the mark, the drawing arm's
+             # elbow out behind.
+             arm_r=80, elbow_r=8, flare_r=0, cross_r=-10, arm_l=40, elbow_l=110, flare_l=40, cross_l=40,
+             leg_l=12, leg_r=-10, knee_l=12, knee_r=10, scarf=20, scarf2=14)
+    v.update(rest)
+    grip, aim, left = Vector(grip), Vector(aim).normalized(), Vector(left)
+    if facing == "up":
+        # From behind, the head hides everything at the height of the face,
+        # so the whole shot is moved over to the bow side and the bow tipped
+        # out that way: its top limb stands out past the head's shoulder.
+        grip, left = grip + BOW_UP_SHIFT, left + BOW_UP_SHIFT
+    undo = _chest_turn(v).inverted()
+    hold = undo @ grip
+    hand = undo @ (grip - aim * string if string > 0.0 else left)
+    v.update(hold_x=hold.x, hold_y=hold.y, hold_z=hold.z, aim_x=aim.x, aim_y=aim.y, aim_z=aim.z,
+             left_x=hand.x, left_y=hand.y, left_z=hand.z, bow_nock=string, bow_arrow=1.0 if arrow else 0.0)
+    # How far the bow is turned over about the arrow, its top limb toward the
+    # character's right: upright side on, where the whole curve shows; flat
+    # facing the camera, where upright it would be a line down the chest; and
+    # halfway facing away. Seen from above, the curve is foreshortened and is
+    # all there is to tell a bow from a plank, so a flat bow is bent further
+    # (`bow_flex`); side on, a deep bend brings the top limb back into the face.
+    cant, flex = {"down": (90.0, 1.6), "up": (45.0, 1.2)}.get(facing, (0.0, 0.8))
+    top = Matrix.Rotation(rad(cant), 3, aim) @ Vector((0.0, 0.0, 1.0))
+    v.update(top_x=top.x, top_y=top.y, top_z=top.z, bow_flex=flex)
+    return v
+
+
+def pose_draw(t, facing="down"):
+    """A bow drawn and let go. The throw's and the crossbow's rule holds: what
+    leaves the hand leaves at the second frame, so the first is already at full
+    draw -- the arrow nocked, the string back to the jaw -- and the second is
+    the loose: the string snapped straight, the arrow gone, and the drawing hand
+    flung back. It is held a frame; the bow comes down while the hand goes back
+    for another; and the last two frames nock it and start the draw, so shot
+    after shot runs on into the next first frame."""
+    level = BOW_GRIP - BOW_NOCK
+    frames = [
+        # Full draw: the string at the jaw and the arrow on it.
+        lambda: _bow_frame(facing, BOW_GRIP, level, string=BOW_DRAW, arrow=True, lean=-2, nod=2),
+        # The loose: the string straight, the arrow gone, the hand flung back.
+        lambda: _bow_frame(facing, BOW_GRIP, level, left=(0.21, 0.19, 0.03), lean=-5, scarf=34, scarf2=24, hair=-4),
+        # Held there a moment.
+        lambda: _bow_frame(facing, BOW_GRIP, level, left=(0.19, 0.17, -0.04), lean=-3, nod=1, scarf=26, scarf2=18,
+                           hair=-2),
+        # The bow let down while the hand goes back to the hip for another arrow.
+        lambda: _bow_frame(facing, (0.02, -0.30, -0.04), (0.0, -1.0, -0.40), left=(0.20, 0.10, -0.20), twist=55,
+                           lean=3, nod=5, leg_l=8, leg_r=-6, scarf=18, scarf2=12),
+        # Nocked: the bow brought in and up, and the arrow on the string.
+        lambda: _bow_frame(facing, (0.0, -0.24, 0.03), (-0.04, -1.0, -0.04), string=0.10, arrow=True, twist=25,
+                           nod=3, scarf=18, scarf2=12),
+        # Half drawn, and on into the first frame.
+        lambda: _bow_frame(facing, (0.0, -0.38, 0.07), level, string=0.28, arrow=True, twist=65, lean=-1, nod=2,
+                           scarf=19, scarf2=13),
+    ]
+    return frames[min(len(frames) - 1, max(0, int(round(t * (len(frames) - 1)))))]()
+
+
 def pose_invoke(t):
     """A book or an orb: held out in front of the chest on an open palm, level
     -- so the pages, and the orb over them, are up -- while the other hand does
@@ -1919,6 +2024,7 @@ CLIPS = {
     "sweep":  (pose_sweep,  8, False),     # a greatsword, a greataxe: two hands, slow and wide
     "hew":    (pose_hew,    8, False),     # a greataxe's charged chop
     "shoot":  (pose_shoot,  5, False),     # a crossbow
+    "draw":   (pose_draw,   6, False),     # a bow: drawn, let go, and another nocked
     "reload": (pose_reload, 8, True),      # and spanning it again
     "throw":  (pose_throw,  6, False),     # throwing knives
     "flick":  (pose_flick,  5, False),     # a wand
@@ -1952,6 +2058,36 @@ CLIPS = {
 # Rows in the order every sheet in this project uses, and how far the
 # character turns from its modelled facing toward the camera.
 FACINGS = [("down", 0.0), ("left", 270.0), ("right", 90.0), ("up", 180.0)]
+
+
+# Where a clip's weapon sheet goes in the draw order: 4, between the body and
+# the head, and so under anything worn. A bow drawn is held out in front of the
+# chest -- flat across it, facing the camera -- and the cuirass drawn over it hid
+# the middle of the bow and the whole of the arrow. Its weapon sheet is cut
+# wherever the body, the head or the plate stand in front of it, so drawn last
+# it is still right. A bow takes both hands: there is never a shield to be cut by.
+WEAPON_LAYER = {"draw": 11}
+
+
+def weapon_layer(clip_name):
+    return WEAPON_LAYER.get(clip_name, 4)
+
+
+def pose_for(clip_name, t, facing):
+    """One frame of one row of a clip, as both the character's sheets and the
+    weapon sheets (blender_tiers.py) are rendered from it. A clip is the same
+    pose in every row unless its pose function takes the facing as well: a bow
+    is held upright side on and flat facing the camera or away from it."""
+    pose_fn = CLIPS[clip_name][0]
+    values = pose_fn(t, facing) if pose_fn.__code__.co_argcount > 1 else pose_fn(t)
+    # Seen from above, leaning toward or away from the camera only slides the
+    # head down over the body until the character is a head with feet. Side
+    # on, the lean is the whole read. So the vertical rows keep a fraction of it.
+    if facing in ("down", "up") and clip_name in ("run", "sprint"):
+        for k in ("lean", "hips_lean", "lunge"):
+            if k in values:
+                values[k] *= 0.4
+    return values
 
 
 # --- both hands on it ---------------------------------------------------------------
@@ -2013,7 +2149,11 @@ def _place_right_hand(joints, v):
             return (joints["hand_r"].matrix_world.translation - joints["chest"].matrix_world @ want).length
 
         start = [v.get("arm_r", 50.0), v.get("elbow_r", 60.0), v.get("flare_r", 0.0), v.get("cross_r", 45.0)]
-        _RIGHT_HAND[key] = _descend(start, (-60.0, 0.0, -50.0, -30.0), (175.0, 135.0, 50.0, 100.0), miss)
+        # An arm is not swung out past its side, except by a pose that says so
+        # (`cross_lo_r`): a bow arm held straight out at the mark from a chest
+        # turned side on to it.
+        lo = (-60.0, 0.0, -50.0, v.get("cross_lo_r", -30.0))
+        _RIGHT_HAND[key] = _descend(start, lo, (175.0, 135.0, 50.0, 100.0), miss)
     (arm, elbow, flare, cross), err = _RIGHT_HAND[key]
     _set_arm(joints, "r", arm, elbow, flare, cross)
     return err
@@ -2034,6 +2174,9 @@ def _aim_grip(joints, v):
         return
     want.normalize()
     top = v.get("aim_top", 0.0) > 0.5
+    # Which way is "up" for that top: the sky, unless `top_x/y/z` tips it over
+    # -- a bow held flat.
+    sky = Vector((v.get("top_x", 0.0), v.get("top_y", 0.0), v.get("top_z", 1.0))).normalized()
     # `edge_x/y/z`: which way the thing's own +X faces, as nearly as it can while
     # pointing where it is told -- an axe's bit into the swing, not flat to it.
     edge = Vector((v.get("edge_x", 0.0), v.get("edge_y", 0.0), v.get("edge_z", 0.0)))
@@ -2048,7 +2191,7 @@ def _aim_grip(joints, v):
             nose = (local @ Vector((0, 0, -1))).normalized()
             err = 1.0 - nose.dot(want)
             if top:
-                err += 0.5 * (1.0 - (local @ Vector((0, -1, 0))).normalized().dot(Vector((0, 0, 1))))
+                err += 0.5 * (1.0 - (local @ Vector((0, -1, 0))).normalized().dot(sky))
             if edge is not None:
                 err += 0.5 * (1.0 - (local @ Vector((1, 0, 0))).normalized().dot(edge))
             return err
@@ -2077,6 +2220,10 @@ def _aim_grip(joints, v):
 
 
 def _left_mark(joints, v):
+    # `left_x/y/z` puts the left hand somewhere of its own, from between the
+    # shoulders in the chest's axes as `hold` is: a bowstring let go of.
+    if "left_y" in v:
+        return joints["chest"].matrix_world @ (SHOULDER_MID + Vector((v.get("left_x", 0.0), v["left_y"], v.get("left_z", 0.0))))
     g = joints["grip"].matrix_world
     return g.translation + (g.to_3x3() @ Vector((v.get("left_out", 0.0), v.get("left_under", 0.0), v["left_on"])))
 
@@ -2173,8 +2320,11 @@ def apply_pose(joints, extras, v):
 
     joints["hips"].rotation_euler = Euler((rad(get("hips_lean")), 0, rad(get("hips_twist"))), "XYZ")
     joints["chest"].rotation_euler = Euler((rad(get("lean")), 0, rad(get("twist"))), "XYZ")
-    joints["neck"].rotation_euler = Euler((rad(get("nod") - get("lean") * 0.35), 0,
-                                           rad(-get("twist") * 0.4)), "XYZ")
+    # The head turns back most of the way from a twist. A pose that gives `look`
+    # says instead which way the face points, in the character's own terms: an
+    # archer turned side on still looks down the arrow.
+    yaw = get("look") - get("twist") - get("hips_twist") if "look" in v else -get("twist") * 0.4
+    joints["neck"].rotation_euler = Euler((rad(get("nod") - get("lean") * 0.35), 0, rad(yaw)), "XYZ")
     joints["hair"].rotation_euler = Euler((rad(get("hair")), 0, 0), "XYZ")
     joints["skirt"].rotation_euler = Euler((rad(get("skirt")), 0, 0), "XYZ")
     joints["scarf1"].rotation_euler = Euler((rad(get("scarf")), 0, rad(8)), "XYZ")
@@ -2212,7 +2362,7 @@ def apply_pose(joints, extras, v):
         _place_right_hand(joints, v)
     if "aim_y" in v or "aim_x" in v or "aim_z" in v:
         _aim_grip(joints, v)
-    if "left_on" in v:
+    if "left_on" in v or "left_y" in v:
         _place_left_hand(joints, v)
 
 
@@ -2372,7 +2522,7 @@ def outline(img, strength=0.42):
 
 
 def build_sheet(clip_name, out_dir):
-    pose_fn, frames, loops = CLIPS[clip_name]
+    _, frames, loops = CLIPS[clip_name]
     cols, rows = frames, len(FACINGS)
 
     clear_scene()
@@ -2390,16 +2540,7 @@ def build_sheet(clip_name, out_dir):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(frames - 1)
             joints, groups, extras = build_character()
-            values = pose_fn(t)
-            # Seen from above, leaning toward or away from the camera only
-            # slides the head down over the body until the character is a head
-            # with feet. Side on, the lean is the whole read. So the vertical
-            # rows keep a fraction of it.
-            if facing in ("down", "up"):
-                for k in ("lean", "hips_lean", "lunge"):
-                    if k in values and clip_name in ("run", "sprint"):
-                        values[k] *= 0.4
-            apply_pose(joints, extras, values)
+            apply_pose(joints, extras, pose_for(clip_name, t, facing))
             shadow = build_shadow()
 
             offset = right * (FRAME_SPAN * col) - up * (FRAME_SPAN * row)
@@ -2422,7 +2563,10 @@ def build_sheet(clip_name, out_dir):
     # stand in front of it. Never an optional layer -- a weapon cut into the
     # body would leave a hole whenever the hands are empty.
     occluders = {"shadow": [], "body": [], "weapon_front": ["body", "head"], "head": ["body"]}
-    order = [("shadow", 1), ("body", 3), ("weapon_front", 4), ("head", 5)]
+    order = [("shadow", 1), ("body", 3), ("weapon_front", weapon_layer(clip_name)), ("head", 5)]
+    # Drawn over what is worn, it has to be cut by it, as the tier sheets are.
+    if weapon_layer(clip_name) > 4 and ARMOUR_ON:
+        occluders["weapon_front"] += [k for k in ARMOUR_GROUPS if k != ARM_SHIELD]
     # Plate is drawn after the character and cut by the body and the head, so a
     # forearm crossing the chest still passes in front of the cuirass and the
     # face still shows under the helm. Never cut by another piece of plate:

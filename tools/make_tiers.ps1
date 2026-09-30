@@ -13,6 +13,7 @@
 #    assets/icons/tiers/*.png                                   inventory icons
 #    assets/characters/player_hero/layers/<clip>_4_weapon_<model>.png
 #                                                    the weapon in the hero's hand
+#                                                    (_11_ for a bow drawn: over the armour)
 # =============================================================================
 
 param(

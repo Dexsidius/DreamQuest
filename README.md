@@ -1510,6 +1510,48 @@ short of a right angle however long it is, so a profile may say its sweep in
 degrees (`sweep_deg`). And a blade does not reach **up or down a cliff two
 levels high**, either way.
 
+### How near a monster has to be to strike
+
+A monster swings only once whoever it is after is inside its attack range, and
+**114 of the 116 had a range shorter than a sword's reach at them**. A rat
+swung from 22 at a player whose light swing met it from 44. The frost dragon's
+78 was less than the 86 of its own half-width, so it bit only whoever stood
+inside it. So a player could strike, step back, strike again, and never be
+struck.
+
+Every range covers the sword's quick blows at that monster now:
+- **The floor.** A range is at least the reach of a sword's lights and strong
+  (36), plus the monster's own half-width, plus 2.
+- **What they were made to have.** Anything built to reach further than an
+  orc grunt still does, by as much as before. The ranges went up by 22 or to
+  the floor, whichever is more.
+
+| | Was | Is |
+| --- | --- | --- |
+| Rat | 22 | 48 |
+| Orc grunt | 30 | 52 |
+| Bear | 42 | 66 |
+| Ankou (the scythe) | 52 | 74 |
+| Wyvern | 54 | 78 |
+| Frost dragon | 78 | 124 |
+
+- **It is measured as a blow is**, between the middles of their feet, so a
+  swing begun is one that can land.
+- **A heavy reaches its own share of the range, as before**, so heavies reach
+  further by as much. It is still wound up for over a second, which is time to
+  leave its line.
+- **Between swings a monster holds at three quarters of its range**, and never
+  nearer than the two of them touching. At three quarters of its range, a
+  dragon stood with the player inside it.
+- **Stepping out of a swing still makes it miss.** From where a monster holds,
+  walking back gets clear of a swing before it lands.
+- **Weapons made to out-reach things still do.** A spear, a greatsword and a
+  greataxe outreach any monster, and so do charged blows and Whirlwind. A
+  dagger does not reach as far as a monster does, and has to close in.
+
+The self-test checks every monster against the sword's reach, so a new one
+cannot be added short of it.
+
 ### Targeting
 
 Nothing is aimed by hand. Where a shot goes depends on whether you are in a
@@ -1693,6 +1735,52 @@ Each is at the size it is drawn (the old arrow was scaled down, the new ones
 are not), and an arrow and a bolt are held by the head, which is what strikes.
 The knife is as big as the rule for an upright strip allows -- no taller than
 four times the circle it hits with.
+
+### A bow drawn and let go
+
+A bow used to play the sword's swing: the warden waved a small bow about with
+nothing on the string. It has a clip of its own now, **`draw`**, six frames for
+all three characters, played to last as long as the shot (`fit`):
+
+| Frame | What it shows |
+| --- | --- |
+| 1 | **Full draw.** The string back to the jaw, an arrow on it, the bow out at arm's length. |
+| 2 | **The loose.** The string snapped straight, the arrow gone -- it leaves on this frame, as a knife or a bolt does on theirs -- and the drawing hand flung back. |
+| 3 | Held there a moment. |
+| 4 | The bow let down while the hand goes back to the hip for another arrow. |
+| 5 | **Nocked.** The bow brought in and the arrow on the string, standing out past the bow by most of its length. |
+| 6 | Half drawn -- and a second shot starts at full draw, so shot runs into shot. |
+
+**Held on the heavy button, the bow stays drawn**: standing still, the first
+frame is kept until the button is let go, and the shot plays on from it. Moving,
+the legs go on moving instead -- a drawn bow on legs standing still would slide.
+
+**How it is posed.** The rig's arms are short and its head is big, so a bow held
+where a real archer holds one is a stub under the chin with the top limb cut
+away by the head. The pose is worked out from positions instead of angles: the
+bow hand a third of a unit out from between the shoulders, far enough that the
+bow stands clear of the face side on; the chest turned side on to the mark,
+which is the only way an arm that short reaches that far; the drawing hand at
+the jaw; and the face turned back to look down the arrow.
+
+**It is the one clip posed differently for each facing.** Side on, an upright
+bow shows its whole curve. From in front it is a line down the chest and from
+behind nothing at all, so facing the camera it is held **flat** across the chest,
+bent further so it reads as a bow and not a plank, and facing away it is
+**tipped over** and moved to the bow side, so its top limb stands out past the
+head. The bow in the hand is built from the pose -- its string drawn back to the
+hand, an arrow nocked while there is one -- and is a size larger than the one
+carried, for every tier.
+
+**It is drawn over the armour.** Held flat across the chest, it was under the
+cuirass, which hid the middle of the bow and all of the arrow. A layer's number
+is where it is drawn, so the draw clip's weapon sheets are
+`layers/draw_11_weapon_<model>.png` -- after the armour's 6 to 10 -- where every
+other clip's are 4. That is still right where something stands in front of the
+bow, because the sheet is cut wherever the body, the head or the plate do; and
+a bow takes both hands, so there is never a shield. The sword swing's bow sheets
+are gone, since no bow plays it. The tiers' bows, the Training Bow and
+Thornwife's Bow all name the clip, and the self-test checks that every bow does.
 
 ### What a magic weapon reaches of an element
 
@@ -2889,7 +2977,9 @@ The same models are what the hero holds. For every tier's sword, spear, bow and 
 the script poses the weapon in the hero's hand for every frame of every clip and
 renders it as a layer, cut by the body and head the way the hero's own sword
 is -- `layers/<clip>_4_weapon_<model>.png`, 288 sheets -- and the game draws the
-one for whatever is equipped in place of the default sword. A bow and a staff
+one for whatever is equipped in place of the default sword. (A bow drawn is the
+exception, `layers/draw_11_weapon_<model>.png`, drawn over the armour: see "A
+bow drawn and let go".) A bow and a staff
 are carried out and forward of the arm, stood up straighter than the hand
 hangs; held where a sword is, their upper half vanished behind the sleeve and a
 bow read as a blue sword. Armour has no layer on the character and shows, as

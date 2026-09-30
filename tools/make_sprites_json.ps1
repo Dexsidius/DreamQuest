@@ -106,6 +106,8 @@ $clipRules = @{
     sweep  = @{ fps = 16; loop = $false; fit = $true }
     hew    = @{ fps = 14; loop = $false; fit = $true }
     shoot  = @{ fps = 14; loop = $false; fit = $true }
+    # A bow: already at full draw on the first frame, let go on the second.
+    draw   = @{ fps = 14; loop = $false; fit = $true }
     throw  = @{ fps = 16; loop = $false; fit = $true }
     flick  = @{ fps = 16; loop = $false; fit = $true }
     invoke = @{ fps = 14; loop = $false; fit = $true }

@@ -421,6 +421,7 @@
   ],
   "icon": "assets/icons/shortbow.png",
   "model": "bow_wood",
+  "clip": "draw",
   "two_handed": true
  },
  "novice_staff": {
@@ -2963,6 +2964,7 @@
    70
   ],
   "model": "bow_damascus",
+  "clip": "draw",
   "two_handed": true,
   "on_hit": {
    "id": "poison",

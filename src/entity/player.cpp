@@ -1754,6 +1754,12 @@ float Player::BuffLeft(uint8_t bit) const {
     }
 }
 
+bool Player::HoldingDraw(const Vec2& move) const {
+    // Standing only: walked with, the legs would stand still under a slide.
+    return strong_armed && !dead && !attack.Active() && Length(move.x, move.y) < 0.05f &&
+           AttackClip() == "draw";
+}
+
 void Player::UpdateAnimation(const Vec2& move) {
     if (dead) { sprite.Play("death"); return; }
     if (attack.Active()) return;                     // attack clip owns the frames
@@ -1767,6 +1773,13 @@ void Player::UpdateAnimation(const Vec2& move) {
         const bool has_clip = sprite.Def() && sprite.Def()->Find("block");
         sprite.Play(has_clip ? "block" : "idle");
         if (attack_cooldown <= 0.0f) sprite.speed_scale = 1.0f;
+        return;
+    }
+
+    if (HoldingDraw(move)) {
+        const string clip = AttackClip();
+        if (sprite.current != clip) sprite.Play(clip, true);
+        sprite.SetFrame(0);
         return;
     }
 
@@ -2229,6 +2242,8 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     sprite.style = BuildLayerStyle(item_db);
     sprite.Update(dt);
     ShowWhirlFrame();
+    // Held drawn through a long frame as well: Update would have let it go.
+    if (HoldingDraw(move)) sprite.SetFrame(0);
     skills.SetCurrent(SKILL_HITPOINTS, hp);
 }
 

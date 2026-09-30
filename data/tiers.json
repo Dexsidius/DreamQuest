@@ -60,6 +60,8 @@
     "ranged": 2.0
    },
    "speed": 0.9,
+   "_clip": "Drawn and let go: the 'draw' clip is the three characters', and at its first frame the arrow is already at the jaw.",
+   "clip": "draw",
    "value": 36,
    "bars": 1,
    "extra": {

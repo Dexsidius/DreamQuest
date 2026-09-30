@@ -1440,6 +1440,276 @@ static void TestCharacterPanel(const Databases& db) {
     }
 }
 
+// --- a bow drawn and let go ------------------------------------------------------------------------
+// A bow used to play the sword's swing, with no arrow on it. It has a clip of
+// its own now (tools/blender_character.py, pose_draw): full draw on the first
+// frame, let go on the second -- when the arrow leaves -- and nocked and half
+// drawn again by the end, so shot runs into shot. Held on the heavy button, it
+// stays drawn.
+static void TestBowDraw(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("a bow, drawn and let go with an arrow on the string");
+
+    // The art: a clip on all three, fitted to the shot, with the bow over what is worn.
+    {
+        bool all = true, fitted = true, over = true;
+        for (const char* look : {"player_hero", "player_warden", "player_wayfarer"}) {
+            const SpriteDef* def = sprites.Get(look);
+            const AnimClip* c = def ? def->Find("draw") : nullptr;
+            all &= c && c->frames == 6;
+            fitted &= c && c->fit && !c->loop;
+            int weapon = -1, armour = -1;
+            if (c)
+                for (int i = 0; i < static_cast<int>(c->layers.size()); ++i) {
+                    if (c->layers[i].slot == LayerSlot::WeaponFront) weapon = i;
+                    if (ArmourLayerOf(c->layers[i].slot) >= 0) armour = i;
+                }
+            over &= weapon > armour && armour >= 0;
+        }
+        Check(all, "all three characters have a six-frame draw clip");
+        Check(fitted, "played once, to last exactly as long as the shot it belongs to");
+        Check(over, "and the bow is drawn over the armour: held flat across the chest, a cuirass hid it and the arrow");
+    }
+    // Every bow draws it: the tiers' and the two that are not.
+    {
+        int bows = 0, drawn = 0;
+        for (const auto& kv : items.All()) {
+            if (kv.second.model.rfind("bow_", 0) != 0) continue;
+            ++bows;
+            if (kv.second.attack_clip == "draw") ++drawn;
+        }
+        Check(bows >= 14 && drawn == bows,
+              "every bow is drawn and let go, not swung (" + std::to_string(drawn) + " of " + std::to_string(bows) + ")");
+    }
+
+    Input input;
+    std::mt19937 rng(8080);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    const auto archer = [&](World& w, const string& bow) {
+        w.player.Init(ctx, "player_warden");
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(SKILL_RANGED, XpForLevel(60), lu);
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, bow);
+        w.player.facing = FACE_RIGHT;
+        return true;
+    };
+    // The frame showing when the warden's first arrow leaves; -1 if none does.
+    const auto loosed_on = [&](World& w, int within) {
+        for (int f = 0; f < within; ++f) {
+            frames(w, 1);
+            for (const Projectile& p : w.projectiles)
+                if (p.from_player) { w.projectiles.clear(); return w.player.ClipFrame(); }
+        }
+        return -1;
+    };
+
+    // A light shot.
+    for (const char* bow : {"oak_shortbow", "training_bow", "thornwife_bow"}) {
+        World w;
+        if (!archer(w, bow)) continue;
+        input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+        input.Update(dt); key(SDLK_J, false);
+        const bool drawing = w.player.Attacking() && w.player.Clip() == "draw";
+        const int at = loosed_on(w, 90);
+        Check(drawing && at == 1, string(bow) + ": the shot is the draw, and the arrow leaves as the string is let go (frame " +
+                                      std::to_string(at) + ")");
+    }
+    // Held on the heavy button, standing: the string stays at the jaw.
+    {
+        World w;
+        if (archer(w, "oak_shortbow")) {
+            input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+            frames(w, 45);
+            Check(w.player.IsCharging() && !w.player.Attacking() && w.player.Clip() == "draw" && w.player.ClipFrame() == 0,
+                  "held, the bow stays at full draw (" + w.player.Clip() + " " + std::to_string(w.player.ClipFrame()) + ")");
+            input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+            const bool shot = w.player.Attacking() && w.player.Clip() == "draw";
+            Check(shot && loosed_on(w, 90) == 1, "let go, it plays on from there and the arrow leaves at the loose");
+        }
+        World m;
+        if (archer(m, "oak_shortbow")) {
+            input.Update(dt); key(SDLK_K, true); m.Update(dt, ctx);
+            input.Update(dt); key(SDLK_D, true); m.Update(dt, ctx);
+            frames(m, 30);
+            Check(m.player.IsCharging() && (m.player.Clip() == "walk" || m.player.Clip() == "run"),
+                  "moving with it held, the legs go on moving: a drawn bow would slide on legs standing still (" +
+                      m.player.Clip() + ")");
+            input.Update(dt); key(SDLK_D, false); key(SDLK_K, false); m.Update(dt, ctx);
+        }
+    }
+}
+
+// --- how near a monster has to be to strike ----------------------------------------------------------
+// A monster swung only from inside its attack range, and nearly every range was
+// shorter than a sword's reach at the monster: a rat's twenty-two against a
+// light swing that met it from forty-four, a dragon's seventy-eight from inside
+// its own body. So a player could strike, step back, strike again, and never be
+// struck. Every range now covers the sword's quick blows at that monster, and
+// it is measured as the blows are, between the middles of their feet.
+static void TestMeleeReach(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("a monster strikes back at whatever can strike it");
+
+    Input input;
+    std::mt19937 rng(4242);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    const auto swordsman = [&](World& w) {
+        w.player.Init(ctx, "player_hero");
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(SKILL_ATTACK, XpForLevel(40), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(60), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, "iron_sword");
+        w.player.facing = FACE_RIGHT;
+        return true;
+    };
+    const auto radius = [](const EnemyDef& d) { return std::max(d.foot_box.w, d.body_box.w) * 0.5f; };
+    // The monster to the player's right, feet level with theirs, `gap` from them
+    // measured as a blow is: between the middles of their feet.
+    const auto spawn_gap = [&](World& w, const string& id, float gap) -> Enemy* {
+        const EnemyDef* stats = enemy_db.Get(id);
+        if (!stats) return nullptr;
+        const SDL_FPoint p = w.player.GroundCentre();
+        const float ox = stats->foot_box.x + stats->foot_box.w * 0.5f;
+        const float rise = p.y - (w.player.y + stats->foot_box.y + stats->foot_box.h * 0.5f);
+        EnemySpawnDef def;
+        def.type = id; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = p.x + std::sqrt(std::max(0.0f, gap * gap - rise * rise)) - ox;
+        def.y = w.player.y;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        Enemy* raw = e.get();
+        w.enemies.push_back(std::move(e));
+        return raw;
+    };
+    const auto apart = [](const Entity& a, const Entity& b) {
+        const SDL_FPoint p = a.GroundCentre(), q = b.GroundCentre();
+        return Length(p.x - q.x, p.y - q.y);
+    };
+
+    // The numbers, for every monster: the furthest of a sword's quick blows -- the
+    // three lights and the strong -- at it, against the range it swings from; and
+    // its swing, begun there, landing on whoever stands still, whichever way.
+    {
+        World w;
+        const float player_r = swordsman(w) ? w.player.GroundRadius() : 13.0f;
+        float sword = 0.0f;
+        for (int i = 0; i < 3; ++i) sword = std::max(sword, ProfileFor(AttackType::Light, i).reach);
+        sword = std::max(sword, ProfileFor(AttackType::Strong).reach);
+        if (const ItemDef* blade = items.Get("iron_sword")) sword *= std::max(0.5f, blade->reach);
+        int outreached = 0, shy = 0;
+        string first, first_shy;
+        for (const auto& kv : enemy_db.All()) {
+            const EnemyDef& d = kv.second;
+            EnemySpawnDef at;
+            at.type = d.id; at.level = 1; at.x = 0; at.y = 0;
+            Enemy e;
+            e.Init(&d, at, ctx);
+            if (sword + e.GroundRadius() > d.attack_range) {
+                ++outreached;
+                if (first.empty()) first = d.id + " " + std::to_string(static_cast<int>(d.attack_range)) + " < " +
+                                           std::to_string(static_cast<int>(sword + e.GroundRadius()));
+            }
+            for (Facing f : {FACE_RIGHT, FACE_LEFT, FACE_UP, FACE_DOWN}) {
+                e.facing = f;
+                const SDL_FPoint g = e.GroundCentre();
+                const float ux = f == FACE_RIGHT ? 1.0f : f == FACE_LEFT ? -1.0f : 0.0f;
+                const float uy = f == FACE_DOWN ? 1.0f : f == FACE_UP ? -1.0f : 0.0f;
+                if (!ArcHits(e.SwingArc(), g.x + ux * d.attack_range, g.y + uy * d.attack_range, player_r)) {
+                    ++shy;
+                    if (first_shy.empty()) first_shy = d.id;
+                }
+            }
+        }
+        Check(outreached == 0, "no monster can be struck with a sword from further off than it strikes back (" +
+                                   std::to_string(enemy_db.All().size()) + " monsters" +
+                                   (first.empty() ? string() : ", first " + first) + ")");
+        Check(shy == 0, "and each one's swing, begun at its range, lands on whoever stands still, whichever way it faces" +
+                            (first_shy.empty() ? string() : " (" + first_shy + ")"));
+    }
+
+    // Stood where a sword just reaches it, it swings from there -- it used to
+    // walk on in to its own range first, and a step back kept it walking.
+    for (const char* id : {"orc1", "rat", "bear", "wyvern"}) {
+        World w;
+        if (!swordsman(w)) continue;
+        const EnemyDef* d = enemy_db.Get(id);
+        Enemy* e = d ? spawn_gap(w, id, ProfileFor(AttackType::Strong).reach + radius(*d) - 1.0f) : nullptr;
+        if (!e) { Check(false, string(id) + " is a monster"); continue; }
+        e->Provoke(0);
+        const float x0 = e->x, y0 = e->y;
+        const int hp0 = w.player.hp;
+        int swung_at = -1;
+        for (int f = 0; f < 30 && swung_at < 0; ++f) {
+            frames(w, 1);
+            if (e->CurrentState() == Enemy::State::Attack) swung_at = f;
+        }
+        Check(swung_at >= 0 && Length(e->x - x0, e->y - y0) < 3.0f,
+              string(id) + ": at the edge of a sword's reach, it swings from where it stands (frame " +
+                  std::to_string(swung_at) + ", moved " + std::to_string(static_cast<int>(Length(e->x - x0, e->y - y0))) + " px)");
+        frames(w, 30);
+        Check(w.player.hp < hp0, string(id) + ": and it lands on a player who stands there");
+    }
+
+    // A monster the size of a dragon keeps its body off the player between bites:
+    // at three quarters of its range, it stood with the player inside it.
+    {
+        World w;
+        Enemy* dragon = swordsman(w) ? spawn_gap(w, "frost_dragon", 150.0f) : nullptr;
+        if (dragon) {
+            dragon->Provoke(0);
+            const float touching = dragon->GroundRadius() + w.player.GroundRadius();
+            float nearest = 1e9f;
+            bool bit = false;
+            for (int f = 0; f < 240; ++f) {
+                frames(w, 1);
+                bit |= dragon->CurrentState() == Enemy::State::Attack;
+                if (bit) nearest = std::min(nearest, apart(*dragon, w.player));
+            }
+            Check(bit && nearest >= touching - 1.0f,
+                  "a dragon bites from its range and then holds with its body clear of the player (nearest " +
+                      std::to_string(static_cast<int>(nearest)) + ", touching at " + std::to_string(static_cast<int>(touching)) + ")");
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -4778,7 +5048,8 @@ int main(int argc, char** argv) {
                     // The strike each makes, which nothing else makes: see
                     // models_for in tools/blender_tiers.py, which this mirrors.
                     const std::map<string, std::set<string>> own = {
-                        {"attack", {"sword", "bow", "staff"}}, {"thrust", {"spear", "dagger"}}, {"offstab", {"dagger"}}, {"bash", {"mace"}},
+                        {"attack", {"sword", "staff"}}, {"draw", {"bow"}}, {"thrust", {"spear", "dagger"}}, {"offstab", {"dagger"}},
+                        {"bash", {"mace"}},
                         {"sweep", {"greatsword", "greataxe"}}, {"hew", {"greataxe"}}, {"shoot", {"crossbow"}},
                         {"reload", {"crossbow"}}, {"throw", {"knives"}}, {"flick", {"wand"}}, {"invoke", {"grimoire", "orb"}},
                         {"rush_2h", {"greatsword", "greataxe"}}, {"crush_2h", {"greatsword", "greataxe"}},
@@ -4795,8 +5066,11 @@ int main(int argc, char** argv) {
                         const bool melee_only = clip.first == "rush" || clip.first == "crush" || clip.first == "cleave" ||
                                                 clip.first == "backhand" || clip.first == "spin";
                         if (melee_only && !melee) continue;
-                        const string path = "assets/characters/player_hero/layers/" + clip.first +
-                                            "_4_weapon_" + model + ".png";
+                        // Named after the clip's own weapon layer, whose number is where it
+                        // is drawn: 4 for most, 11 -- over the armour -- for a bow drawn.
+                        string path = "assets/characters/player_hero/layers/" + clip.first + "_4_weapon_" + model + ".png";
+                        for (const AnimLayer& layer : clip.second.layers)
+                            if (layer.slot == LayerSlot::WeaponFront) path = hero->WeaponSheet(layer.sheet, model);
                         if (!fs::exists(path)) { ++missing; continue; }
                         ++sheets;
                         if (whose != own.end() && clip.first != "reload" && clip.first != "hew" && clip.first != "offstab" &&
@@ -5174,10 +5448,13 @@ int main(int argc, char** argv) {
 
             // And it goes on turning. Held for `hold` frames and let go, with a
             // deer kept at the player's side: how many turns the spin was, how
-            // many of them reached the deer (the chain counts each -- a deer
-            // never strikes back to end it -- where the dice may miss one), the
-            // frames of the spin clip it showed in the order it showed them,
-            // and how far the player drifted, steering right the whole time.
+            // many of them reached the deer (the chain counts each, where the
+            // dice may miss one), the frames of the spin clip it showed in the
+            // order it showed them, and how far the player drifted, steering
+            // right the whole time. The deer is kept just out of the reach of
+            // its own bite, where the spin -- a charged blow, which reaches
+            // further than any a monster answers -- still finds it: nearer,
+            // it bites back, and a blow taken ends the chain.
             struct Spin { int turns = 0, reached = 0; string clip; vector<int> shown; float drift = 0; bool ended = false; };
             const auto spin = [&](int hold, bool steer) {
                 Spin out;
@@ -5185,10 +5462,12 @@ int main(int argc, char** argv) {
                 if (!fighter(w, "bronze_sword", SKILL_ATTACK, 30, {"keen_edge", "flurry", "whirlwind"}, "whirlwind"))
                     return out;
                 Enemy* deer = spawn(w, "deer", 0.0f, 30.0f);
-                if (!deer) return out;
+                if (!deer || !deer->Def()) return out;
                 deer->hp = deer->max_hp = 100000;
                 const auto keep = [&]() {
-                    deer->x = w.player.x; deer->y = w.player.y + 30.0f;
+                    const SDL_FPoint g = w.player.GroundCentre(), d = deer->GroundCentre();
+                    deer->x += g.x - d.x;
+                    deer->y += g.y + deer->Def()->attack_range + 4.0f - d.y;
                     deer->knock_x = deer->knock_y = 0.0f;
                 };
                 input.Update(dt); key(SDLK_K, true); keep(); w.Update(dt, ctx);
@@ -13696,7 +13975,7 @@ int main(int argc, char** argv) {
                 if (two->hp < hp_was) { taken += hp_was - two->hp; two->hp = two->max_hp; }
             }
             Check(after_them, "the boar is after Player Two, by seat");
-            Check(chased && closest <= 26.0f,
+            Check(chased && closest <= enemy_db.Get("boar")->attack_range,
                   "it comes for them and gets within reach (" + std::to_string(static_cast<int>(closest)) + "px)");
             Check(swings >= 6, "it swings at them, over and over (" + std::to_string(swings) + " swings in thirty seconds)");
             Check(taken > 0, "and it gets them: " + std::to_string(taken) + " hit points off Player Two");
@@ -19740,6 +20019,8 @@ int main(int argc, char** argv) {
     TestPassiveDefence(db);
     TestWardenRoll(db);
     TestCharacterPanel(db);
+    TestBowDraw(db);
+    TestMeleeReach(db);
 
     Section("the Brimstone Palace, and its king");
     {
@@ -20459,8 +20740,11 @@ int main(int argc, char** argv) {
             string first;
             for (const char* model : {"sword_wood", "bow_wood", "staff_wood", "sword_bronze", "spear_iron", "bow_enchanted", "staff_dracon"})
                 for (const char* played : {"idle", "walk", "run", "sprint", "jump", "attack", "block", "hurt", "death"}) {
-                    // A spear is thrust, not swung: it has no sheet for a clip it never plays.
-                    const string clip = (string(played) == "attack" && string(model).rfind("spear", 0) == 0) ? "thrust" : played;
+                    // A spear is thrust and a bow drawn, not swung: neither has a sheet
+                    // for a clip it never plays.
+                    const bool strike = string(played) == "attack";
+                    const string clip = strike && string(model).rfind("spear", 0) == 0 ? "thrust"
+                                      : strike && string(model).rfind("bow", 0) == 0   ? "draw" : played;
                     const AnimClip* c = def->Find(clip);
                     if (!c) continue;
                     for (const AnimLayer& layer : c->layers) {

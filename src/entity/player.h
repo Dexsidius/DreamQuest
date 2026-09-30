@@ -747,6 +747,10 @@ private:
     // leap is not possible right now.
     bool StartRush(const World& world);
     void UpdateAnimation(const Vec2& move);
+    // A bow held drawn: the heavy button down, a bow in hand and standing
+    // still. The draw clip's first frame -- the string at the jaw -- is shown
+    // and kept there until the button is let go, and the shot plays on from it.
+    bool HoldingDraw(const Vec2& move) const;
 
     AttackState attack;
     // Counts down after a swing finishes. Nothing can start while it is

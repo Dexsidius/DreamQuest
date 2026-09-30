@@ -22,10 +22,12 @@
 #             slippers. Neither redraws anything else, so new pieces can be
 #             added without re-rendering every committed icon.
 #    layers   For the sword, bow and staff of every tier, a weapon layer for
-#             each of the hero's clips -- layers/<clip>_4_weapon_<model>.png --
-#             posed in the hero's hand frame by frame and cut by the body and
-#             head exactly as the hero's own sword layer is. The game draws the
-#             one for whatever is equipped.
+#             each of the hero's clips -- layers/<clip>_4_weapon_<model>.png,
+#             or _11_ where the clip's weapon is drawn over the armour (see
+#             WEAPON_LAYER in blender_character.py) -- posed in the hero's hand
+#             frame by frame and cut by the body and head exactly as the
+#             hero's own sword layer is. The game draws the one for whatever
+#             is equipped.
 #
 #  Telling the tiers apart is done three ways at once, because at game size a
 #  colour on its own is not enough: each tier has its own palette, its own
@@ -258,7 +260,89 @@ BOWS = {
 }
 
 
+bc.PALETTE["arrow_shaft"] = (0.82, 0.64, 0.40)
+bc.PALETTE["arrow_head"] = (0.80, 0.84, 0.90)
+bc.PALETTE["arrow_fletch"] = (0.86, 0.24, 0.20)
+bc.PALETTE["arrow_fletch2"] = (0.96, 0.93, 0.85)
+
+
+# The draw clip's bow is bigger than the one carried: drawn, it is the whole
+# picture, and at the carried size it was twelve pixels of stick. The arrow is
+# nock to point, whatever the string is doing, so an arrow nocked on a string at
+# rest stands out past the bow by most of its length.
+DRAWN_SIZE = 1.15
+ARROW_LENGTH = bc.BOW_DRAW + 0.10
+
+
+def _drawn_bow(tier, parent):
+    """The draw clip's bow (see pose_draw in blender_character.py): built in the
+    grip's own axes as that clip aims them -- -Z down the arrow's line to the mark,
+    -Y up -- rather than hung from the hand the way the carried bow is. The grip
+    is the front of it; the limbs go up and down from the hand and bend back
+    toward the archer, further the further the string is drawn; the string runs
+    from tip to tip, or from each tip to the drawing hand (`bow_nock` behind the
+    grip, where the pose puts that hand); and while `bow_arrow` says so an arrow lies on it,
+    its nock on the string and its head out past the bow -- longer and thicker
+    than life, or at forty pixels tall it is a thread."""
+    half, bulge, thick, extras = BOWS[tier]
+    half, thick = half * DRAWN_SIZE, thick * DRAWN_SIZE
+    nock = float(parent.get("bow_nock", 0.0))
+    arrow = float(parent.get("bow_arrow", 0.0)) > 0.5
+    up, back = Vector((0.0, -1.0, 0.0)), Vector((0.0, 0.0, 1.0))
+    flex = float(parent.get("bow_flex", 1.0))              # the pose's say in how far it bends
+    brace = bulge * 0.75 * flex                            # how far back the tips are, and the string, braced
+    pull = max(0.0, min(1.0, (nock - brace) / max(1e-3, bc.BOW_DRAW - brace)))
+    bend = brace + bulge * 0.25 * flex * pull              # and drawn
+    parts, tips = [], []
+    limb = P(tier, "main")
+    for sign in (1, -1):
+        along = (0.0, 0.45, 0.85, 1.0)
+        behind = (0.0, 0.18, 0.55, 0.62 if "recurve" in extras else 1.0)
+        pts = [up * sign * half * along[i] + back * bend * behind[i] for i in range(4)]
+        for i in range(3):
+            parts.append(bc.spike("limb", pts[i], pts[i + 1], thick * (1.0 - 0.18 * i), limb, parent,
+                                  r_tip=thick * (0.82 - 0.18 * i)))
+        tips.append(pts[3])
+        if "tips" in extras:
+            parts.append(bc.part("tip", bc.mesh_ellipsoid(0.03, 0.03, 0.04), P(tier, "light"), parent, loc=pts[3]))
+        if "crystal" in extras:
+            parts.append(bc.part("tip", mesh_gem(0.035, 0.03, 0.07), P(tier, "light"), parent, loc=pts[3]))
+        if "wings" in extras:
+            parts.append(bc.spike("wing", pts[2], up * sign * half * 1.0 - back * bulge * 0.5, 0.026,
+                                  P(tier, "accent"), parent))
+        if "spikes" in extras:
+            parts.append(bc.spike("barb", pts[1], up * sign * half * 0.62 - back * bulge * 0.9, 0.026,
+                                  P(tier, "light"), parent))
+        if "bands" in extras:
+            parts.append(bc.part("band", bc.mesh_ellipsoid(0.04, 0.04, 0.018), P(tier, "dark"), parent, loc=pts[2]))
+    string = glow_or(tier, "light") if "glowstring" in extras else "string"
+    # Thicker than the carried bow's, which is only ever seen hanging: drawn,
+    # the string's V is half of what says the bow is drawn.
+    nocked = back * max(nock, bend)
+    if pull > 0.0:
+        for tip in tips:
+            parts.append(bc.spike("string", tip, nocked, 0.017, string, parent, r_tip=0.017))
+    else:
+        parts.append(bc.spike("string", tips[0], tips[1], 0.017, string, parent, r_tip=0.017))
+    parts.append(bc.part("grip", bc.mesh_ellipsoid(0.040, 0.042, 0.07), P(tier, "grip"), parent))
+    if "gem" in extras:
+        parts.append(bc.part("gem", mesh_gem(0.03, 0.025, 0.035), glow_or(tier, "accent"), parent,
+                             loc=-back * bulge * 0.3))
+    if arrow:
+        head = nocked - back * ARROW_LENGTH
+        parts.append(bc.spike("arrow", nocked, head, 0.022, "arrow_shaft", parent, r_tip=0.022))
+        parts.append(bc.spike("arrowhead", head + back * 0.01, head - back * 0.09, 0.042, "arrow_head", parent,
+                              r_tip=0.006))
+        # The fletching: a vane up and a vane down off the back of the shaft.
+        for sign, colour in ((1, "arrow_fletch"), (-1, "arrow_fletch2")):
+            parts.append(bc.spike("fletch", nocked - back * 0.09, nocked - back * 0.01 + up * sign * 0.055, 0.024,
+                                  colour, parent, r_tip=0.012))
+    return parts
+
+
 def build_bow(tier, parent):
+    if "bow_arrow" in parent:
+        return _drawn_bow(tier, parent)
     half, bulge, thick, extras = BOWS[tier]
     parts = []
     # Built bulging along -Y, then turned so the arc swings out to the
@@ -2493,7 +2577,7 @@ def set_icons(only_tiers, only=None):
 OFFHAND_KINDS = ("dagger",)
 
 def weapon_layers(clip_name, models, out_dir):
-    pose_fn, frames, loops = bc.CLIPS[clip_name]
+    _, frames, loops = bc.CLIPS[clip_name]
     cols, rows = frames, len(bc.FACINGS)
 
     bc.clear_scene()
@@ -2507,12 +2591,13 @@ def weapon_layers(clip_name, models, out_dir):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(frames - 1)
             joints, groups, extras = bc.build_character()
-            values = pose_fn(t)
-            if facing in ("down", "up"):
-                for k in ("lean", "hips_lean", "lunge"):
-                    if k in values and clip_name in ("run", "sprint"):
-                        values[k] *= 0.4
+            values = bc.pose_for(clip_name, t, facing)
             bc.apply_pose(joints, extras, values)
+            # The draw clip's bow is built from the pose: how far back the string
+            # is and whether there is an arrow on it (see _drawn_bow).
+            for key in ("bow_nock", "bow_arrow", "bow_flex"):
+                if key in values:
+                    joints["grip"][key] = float(values[key])
             offset = right * (bc.FRAME_SPAN * col) - up * (bc.FRAME_SPAN * row)
             joints["root"].rotation_euler.z = math.radians(turn)
             joints["root"].location = offset
@@ -2553,7 +2638,8 @@ def weapon_layers(clip_name, models, out_dir):
         raw = os.path.join(RENDER_DIR, "layer_%s_%s.png" % (clip_name, model))
         bc.render_to(raw)
         small = bc.outline(bc.reduce_majority(bc.read_png(raw)))
-        bc.write_png(os.path.join(out_dir, "layers", "%s_4_weapon_%s.png" % (clip_name, model)), small)
+        bc.write_png(os.path.join(out_dir, "layers", "%s_%d_weapon_%s.png" % (clip_name, bc.weapon_layer(clip_name),
+                                                                          model)), small)
         for ob in made:
             bpy.data.objects.remove(ob, do_unlink=True)
         # What can be held in the other hand gets a second sheet, built in that
@@ -2567,7 +2653,8 @@ def weapon_layers(clip_name, models, out_dir):
             raw = os.path.join(RENDER_DIR, "layer_%s_off_%s.png" % (clip_name, model))
             bc.render_to(raw)
             small = bc.outline(bc.reduce_majority(bc.read_png(raw)))
-            bc.write_png(os.path.join(out_dir, "layers", "%s_4_weapon_off_%s.png" % (clip_name, model)), small)
+            bc.write_png(os.path.join(out_dir, "layers", "%s_%d_weapon_off_%s.png" % (clip_name, bc.weapon_layer(clip_name),
+                                                                                  model)), small)
             for ob in made:
                 bpy.data.objects.remove(ob, do_unlink=True)
     print("layers %-7s %d models" % (clip_name, len(models)))
@@ -2598,7 +2685,8 @@ def main():
         melee = ("sword", "spear", "dagger", "mace", "greatsword", "greataxe")
         great = ("greatsword", "greataxe")
         kinds = {"chop": ("axe",), "mine": ("pickaxe",), "fish": ("rod",),
-                 "attack": ("sword", "bow", "staff"),
+                 # A bow is drawn and let go, and never swung.
+                 "attack": ("sword", "staff"),
                  # A spear strikes with a thrust, and so does a dagger.
                  "thrust": ("spear", "dagger"),
                  # And with a pair of them, every other stab is the left hand's.
@@ -2608,6 +2696,8 @@ def main():
                  # The armoury's own strikes: see blender_character.CLIPS.
                  "bash": ("mace",), "sweep": ("greatsword", "greataxe"), "hew": ("greataxe",),
                  "shoot": ("crossbow",), "reload": ("crossbow",), "throw": ("knives",),
+                 # A bow drawn and let go: only a bow.
+                 "draw": ("bow",),
                  "flick": ("wand",), "invoke": ("grimoire", "orb"),
                  # The leap is a melee move: a bow or a staff never makes it.
                  "rush": melee,

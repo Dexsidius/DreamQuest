@@ -638,6 +638,13 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     const float dy = player.y - y;
     const float dist = Length(dx, dy);
     const float home_dist = Length(x - home_x, y - home_y);
+    // How far apart they stand, measured the way every blow is (see StrikeArc):
+    // between the middles of their feet. It swings from this, so a swing begun
+    // is one that can land. It was measured from toe to toe, and a dragon, the
+    // middle of whose feet is well back from its toes, decided to bite from a
+    // different distance than its bite was measured over.
+    const SDL_FPoint player_at = player.GroundCentre(), here = GroundCentre();
+    const float gap = Length(player_at.x - here.x, player_at.y - here.y);
 
     // --- lurking --------------------------------------------------------------
     // See Enemy::Hidden. Handled before everything else, because under the
@@ -785,7 +792,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // A leader with its heavy rested winds it up instead of a swing,
             // from a little further out -- the blow reaches further too.
             if (def->heavy.enabled && heavy_timer <= 0.0f &&
-                dist <= std::max(40.0f, def->attack_range * def->heavy.reach) * 0.9f) {
+                gap <= std::max(40.0f, def->attack_range * def->heavy.reach) * 0.9f) {
                 SetState(State::Heavy);
                 chase_run = 0.0f;              // a blow begun is a fight
                 // A dragon rears back and roars into it.
@@ -796,7 +803,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // Something that throws looses from where it stands rather than
             // closing: inside its own range, and no nearer than a swing's.
             if (!def->shoots.empty() && shoot_timer <= 0.0f && attack_timer <= 0.0f &&
-                dist <= def->shoot_range && dist > def->attack_range) {
+                dist <= def->shoot_range && gap > def->attack_range) {
                 SetState(State::Attack);
                 chase_run = 0.0f;
                 // A caster is heard casting, and not loosing an arrow. What is
@@ -814,7 +821,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 swing_timer = 0.0f;
                 break;
             }
-            if (dist <= def->attack_range && attack_timer <= 0.0f) {
+            if (gap <= def->attack_range && attack_timer <= 0.0f) {
                 SetState(State::Attack);
                 chase_run = 0.0f;
                 // A dragon's is a bite: a growl, and its jaws snapping shut
@@ -834,13 +841,18 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // was and, drawn after them, hid the character completely.
             // A shooter wants to be out where it can shoot and the player
             // cannot reach; everything else wants to be at arm's length.
+            // Arm's length is measured as a swing is, and never nearer than the
+            // two of them touching: at three quarters of a dragon's range, the
+            // dragon stood with the player inside it.
             const bool afar = !def->shoots.empty() && def->shoot_range > def->attack_range;
-            const float standoff = afar ? def->shoot_range * 0.70f : def->attack_range * 0.75f;
-            const float too_close = afar ? def->shoot_range * 0.42f : def->attack_range * 0.4f;
-            if (dist > standoff) {
+            const float touching = GroundRadius() + player.GroundRadius();
+            const float apart = afar ? dist : gap;
+            const float standoff = afar ? def->shoot_range * 0.70f : std::max(def->attack_range * 0.75f, touching + 2.0f);
+            const float too_close = afar ? def->shoot_range * 0.42f : std::max(def->attack_range * 0.4f, touching - 6.0f);
+            if (apart > standoff) {
                 move_x = (dx / dist) * MoveSpeed();
                 move_y = (dy / dist) * MoveSpeed();
-            } else if (dist > 0.5f && dist < too_close) {
+            } else if (dist > 0.5f && apart < too_close) {
                 // And if the player walks into it, give ground rather than
                 // sharing a tile with them.
                 move_x = -(dx / dist) * MoveSpeed() * 0.5f;
@@ -967,7 +979,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     if (move_x != 0.0f || move_y != 0.0f) {
         // Something giving ground while it fights keeps its eyes on the player;
         // otherwise its next swing would go the way it was stepping.
-        const bool squaring_up = (state == State::Chase && dist <= def->attack_range);
+        const bool squaring_up = (state == State::Chase && gap <= def->attack_range);
         const float fx = squaring_up ? dx : move_x;
         const float fy = squaring_up ? dy : move_y;
         if (fabsf(fx) > fabsf(fy)) facing = (fx > 0) ? FACE_RIGHT : FACE_LEFT;
@@ -981,7 +993,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
         // not. The stride it meant to take, not the one the map let it: a
         // monster walking into the foot of a cliff after someone on top of it
         // is getting nowhere, and tires of that as fast as of a long run.
-        if (state == State::Chase && dist > def->attack_range) chase_run += Length(move_x, move_y) * dt;
+        if (state == State::Chase && gap > def->attack_range) chase_run += Length(move_x, move_y) * dt;
     } else if (state == State::Attack || state == State::Chase) {
         // Keep facing the player while swinging.
         if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;

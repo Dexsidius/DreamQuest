@@ -365,6 +365,28 @@ already exists for one hand gets its two-handed version for nothing:
 `"crush_2h": (two_handed(pose_crush), 6, False)` in `CLIPS`, the same rule as
 the original, and the great weapons' names against it in `models_for`.
 
+**A pose can depend on the facing.** A pose function that takes a second
+argument, `pose_draw(t, facing)`, is given the row's facing by `pose_for`, which
+both render scripts ask for every frame. The bow's draw uses it to hold the bow
+upright side on, flat facing the camera and tipped over facing away. Its frames
+are built by `_bow_frame` from positions in the character's own axes, with
+four keys the rest do not use:
+- `look` turns the face to a heading of its own rather than most of the way
+  back from the chest's twist.
+- `top_x/y/z` is which way `aim_top` keeps the thing's top: the sky unless it
+  says otherwise.
+- `left_x/y/z` sends the left hand to a point of its own, in the chest's axes
+  as `hold` is.
+- `cross_lo_r` lets the right arm swing out past its side, which a bow arm
+  held straight out from a chest turned side on needs.
+
+**A layer's number is where it is drawn**, and a weapon sheet's is 4 --
+under the head and the armour -- except where `WEAPON_LAYER` in
+`tools/blender_character.py` says otherwise: the draw clip's is 11, so a bow
+held across the chest is not hidden by the cuirass. A weapon drawn over the
+armour has to be cut by it, which the tier sheets always are and the rig's own
+`weapon_front` then is too.
+
 Two things to know before adding a fourteenth. **A great weapon has two
 poses**: in the hands for the clips that swing it and over the shoulder for the
 rest (`GREAT_MODE`), or its point drags through the floor. And **the weapon
