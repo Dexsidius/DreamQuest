@@ -409,7 +409,12 @@ CombatProfile Player::Profile() const {
     p.magic_level    = skills.Current(SKILL_MAGIC);
     p.attack_bonus   = equipment.AttackBonus();
     p.strength_bonus = equipment.StrengthBonus();
-    p.defence_bonus  = equipment.DefenceBonus() + static_cast<int>(talents.Global("defence"));
+    // Defence from what is worn, the points the trees, boons and totems give
+    // on top (`defence`, whole points), and a share of all of it (`defence_share`:
+    // Ironhide's six in a hundred). The share was written as `defence` once,
+    // and 0.06 of a point came to nothing.
+    const float defence = static_cast<float>(equipment.DefenceBonus()) + talents.Global("defence");
+    p.defence_bonus  = static_cast<int>(std::lround(defence * (1.0f + talents.Global("defence_share"))));
     p.ranged_bonus   = equipment.RangedBonus();
     p.magic_bonus    = equipment.MagicBonus();
     // The affinity: a little more accuracy with the character's own style.

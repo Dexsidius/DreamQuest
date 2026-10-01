@@ -60,6 +60,12 @@ net::PlayerState StateOf(const Player& p, uint8_t seat);
 net::Outfit OutfitOf(const Player& p, uint8_t seat);
 void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx);
 
+// What kind a patch of ground crosses the wire as (net::PatchState::kind), and
+// what a friend's window makes of it again: a disc, a whirlpool, the Hail of
+// Blades -- or a rain, of arrows or of knives (PatchState::RAIN_KNIVES).
+uint8_t PatchKindOf(const GroundEffect& g);
+void    ReadPatchKind(uint8_t kind, GroundEffect& g);
+
 // Which flags are a player's own -- recipes learned, places seen -- rather
 // than the world's: never told to anyone else, and sent to the host in the
 // Sheet so it can answer for them.

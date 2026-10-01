@@ -57,6 +57,9 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     // The lightning's charge: what this cast took out of the bar (a Discharge
     // is worth what it spent) and what every enemy it lands on puts back.
     float battery_spent = 0.0f, battery_gain = 0.0f;
+    // What a combo or a technique costs beside one plain cast. The lightning,
+    // which keeps its own shape through either, is worth that much more for it.
+    float dearer = 1.0f;
 
     if (style == AttackStyle::Ranged) {
         projectile_id = "arrow";
@@ -99,6 +102,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         const float technique_cost = technique == "meteor" ? 3.0f : technique.empty() ? 1.0f : 2.0f;
         const float combo_cost = atk.move == ComboMove::Crush ? 1.5f : atk.move == ComboMove::Cleave ? 1.6f
                                : atk.move == ComboMove::CrossCut ? 2.0f : atk.move == ComboMove::Drive ? 1.5f : 1.0f;
+        dearer = technique_cost * combo_cost;
         // Overloaded: this one is already paid for.
         const int cost = atk.empowered ? 0 : std::max(1, static_cast<int>(std::lround(
             spell->mana * technique_cost * combo_cost *
@@ -234,11 +238,33 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     // return early, so a combo bolt left the crossbow spanned.
     struct Respan { Player& who; ~Respan() { who.StartReload(); } } respan{player};
 
+    // The lightning is instant and has a shape of its own (below): the
+    // projectiles its spells name are stand-ins that fly nowhere. So nothing
+    // that throws bolts may throw them -- a combo's pattern, Nova's ring, a
+    // Barrage's four. It did: the cast took the mana and the charge, and left
+    // a bolt that sat at the hand for a tenth of a second and was gone, and a
+    // Discharge through a combo emptied the bar for nothing. Through any of
+    // them it is cast as itself, with the combo's or the technique's marks,
+    // and worth as much more as it cost more. The Meteor is a meteor of
+    // whatever element it is, and was never a dud: it is left as it is.
+    const bool lightning = shape == "zap" || shape == "electrocute" || shape == "discharge" ||
+                           shape == "node" || shape == "thunder";
+    if (lightning && atk.move != ComboMove::None) {
+        AddText(player.ComboLabel(atk.move), player.x, player.y - 58.0f, {255, 232, 150, 255}, 0.8f);
+        ComboShotFx(atk.move, style, element, muzzle.x, muzzle.y, atan2f(aim.y, aim.x));
+        // The profile's number is the sword's combo's, as below: taken out, and
+        // the price put in its place.
+        damage_mult = damage_mult / std::max(0.01f, atk.damage_mult) * dearer;
+    } else if (lightning && (technique == "nova" || technique == "barrage")) {
+        ShotTechniqueFx(technique, style, element, muzzle.x, muzzle.y, atan2f(aim.y, aim.x), 0.0f, 0.0f, target);
+        damage_mult *= dearer;
+    }
+
     // --- the combos, at range ---------------------------------------------------
     // The same grammar as the sword's, with the weapon's own move at the end
     // of it. The profile's damage number is the sword's; a shot's worth is
     // what a plain one would be, times the move's own.
-    if (atk.move != ComboMove::None) {
+    if (atk.move != ComboMove::None && !lightning) {
         AddText(player.ComboLabel(atk.move), player.x, player.y - 58.0f, {255, 232, 150, 255}, 0.8f);
         const float base = damage_mult / std::max(0.01f, atk.damage_mult);
         // What it looked like as it went, and -- for where they strike -- which
@@ -326,8 +352,12 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         return;
     }
 
+    // A heavy throw of knives is three at once -- and so is a charged one,
+    // unless a technique is chosen: then the technique is thrown, with knives.
+    // The fan was asked for first, so a warden with knives in hand had Volley,
+    // Piercing Shot and Arrow Rain on the tree and could never throw them.
     const bool fan = in_hand && in_hand->weapon_class == "knives" && atk.type != AttackType::Light &&
-                     atk.move == ComboMove::None;
+                     atk.move == ComboMove::None && technique.empty();
     // A technique's shot or cast has marks of its own where it leaves and,
     // tagged, where it strikes (World::ShotTechniqueFx, TechniqueShotHitFx).
     const size_t tech_first = projectiles.size();
@@ -372,6 +402,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.tick_interval = GroundEffect::RAIN_EVERY;
         g.tick_timer = 0.0f;                  // the first volley lands as the telegraph closes
         g.rain = true;
+        g.knives = in_hand && in_hand->thrown;   // thrown from knives, it rains knives
         g.from_player = true;
         g.owner = player.Profile();
         g.element = Element::None;
@@ -384,13 +415,13 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.sure_crit = aimed_shot;
         AddGroundEffect(g);
         technique_marks(0, g.x, g.y);
-    } else if (technique == "nova") {
+    } else if (technique == "nova" && !lightning) {
         for (int i = 0; i < 8; ++i) {
             const float a = 6.2831853f * i / 8.0f;
             loose(cosf(a), sinf(a), damage_mult * 0.6f, false);
         }
         technique_marks(3, 0.0f, 0.0f);
-    } else if (technique == "barrage") {
+    } else if (technique == "barrage" && !lightning) {
         for (float deg : {-14.0f, -5.0f, 5.0f, 14.0f})
             if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 0.5f, true))
                 p->extra_homing += 4.0f;
@@ -463,8 +494,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     // share is the arc -- a jagged line drawn for a fifth of a second between
     // two points -- and the chance of leaving the thing they hit arcing, which
     // is carried on the projectile entry each of them names.
-    } else if (shape == "zap" || shape == "electrocute" || shape == "discharge" ||
-               shape == "node" || shape == "thunder") {
+    } else if (lightning) {
         const ProjectileDef* def = ctx.projectiles ? ctx.projectiles->Get(projectile_id) : nullptr;
         const StatusProc leaves = def ? def->status : StatusProc{};
         const SDL_FPoint hand = Targeting::Muzzle(player);
@@ -1219,10 +1249,11 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     // The player's talents. Everything that reaches this function is the
     // player hitting something, so they apply to all of it.
     std::uniform_real_distribution<float> unit(0.0f, 1.0f);
-    // And the charm on the weapon in hand: Precision, Ferocity, Affliction.
-    const ItemDef* charmed = player.equipment.Weapon();
-    const float charm_crit = charmed ? charmed->crit_chance : 0.0f;
-    const float charm_crit_damage = charmed ? charmed->crit_damage : 0.0f;
+    // And the charm on the weapon in hand -- Precision, Ferocity, Affliction --
+    // added to the other blade's when a pair is carried: both count.
+    const float charm_crit = player.equipment.WeaponCharm(&ItemDef::crit_chance);
+    const float charm_crit_damage = player.equipment.WeaponCharm(&ItemDef::crit_damage);
+    const float charm_proc = player.equipment.WeaponCharm(&ItemDef::proc_bonus);
     bool crit = ctx.rng && unit(*ctx.rng) < player.talents.Effect("crit", style) + charm_crit;
     if (crit_next) crit = true;             // loosed with Take Aim
     // A riposte, the lunge a parry owes: it always lands critically.
@@ -1359,8 +1390,17 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         // A combo that always leaves its mark: the mace's Skull Crack.
         if (twist && twist->status != Status::COUNT) proc = {twist->status, 1.0f};
         // Affliction: whatever it leaves, it leaves more often.
-        if (proc.Any() && charmed) proc.chance += charmed->proc_bonus;
+        if (proc.Any()) proc.chance += charm_proc;
         TryAfflict(e, proc, damage, ctx);
+        // A pair carries both blades' marks: the other blade's Brand is rolled
+        // for on every blow of the pair as well.
+        if (style == AttackStyle::Melee)
+            if (const ItemDef* off = player.equipment.Offhand())
+                if (off->on_hit.Any()) {
+                    StatusProc second = off->on_hit;
+                    second.chance += charm_proc;
+                    TryAfflict(e, second, damage, ctx);
+                }
     }
 
     // The Vampiric Touch's share comes back with the talent's.

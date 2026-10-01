@@ -1042,7 +1042,7 @@
       "name": "Ironhide",
       "text": "+6% Defence",
       "effects": {
-        "defence": 0.06
+        "defence_share": 0.06
       }
     },
     {
@@ -1073,6 +1073,9 @@
       "id": "boon_hexward",
       "name": "Hexward",
       "text": "+8% maximum mana",
+      "paths": [
+        "magic"
+      ],
       "effects": {
         "max_mana": 0.08
       }

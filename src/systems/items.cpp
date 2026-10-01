@@ -1059,6 +1059,13 @@ float Equipment::DualDamage() const {
     return (main && DualWielding()) ? main->dual_damage : 1.0f;
 }
 
+float Equipment::WeaponCharm(float ItemDef::* field) const {
+    const ItemDef* main = Weapon();
+    if (!main) return 0.0f;
+    const ItemDef* off = Offhand();
+    return main->*field + (off ? off->*field : 0.0f);
+}
+
 float Equipment::MoveSpeed() const {
     if (!db) return 0.0f;
     float total = 0.0f;

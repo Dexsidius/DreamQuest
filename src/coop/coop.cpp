@@ -98,6 +98,20 @@ void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx) {
 
 bool PrivateFlag(const string& key) { return World::PrivateFlag(key); }
 
+// What kind of ground it is, for the drawing: see GroundEffect::Draw. A rain
+// is kind 1 whatever it is drawn as, and a rain of knives a kind of its own.
+uint8_t PatchKindOf(const GroundEffect& g) {
+    if (g.rain) return g.knives ? net::PatchState::RAIN_KNIVES : 1;
+    return static_cast<uint8_t>(g.draw);
+}
+
+void ReadPatchKind(uint8_t kind, GroundEffect& g) {
+    g.rain = kind == 1 || kind == net::PatchState::RAIN_KNIVES;
+    g.knives = kind == net::PatchState::RAIN_KNIVES;
+    g.draw = g.rain ? GroundEffect::Draw::Rain
+                    : static_cast<GroundEffect::Draw>(std::min<uint8_t>(kind, static_cast<uint8_t>(GroundEffect::Draw::Blades)));
+}
+
 // A range, not only a list: the menus and the fanfares are the window's own.
 // New sounds are appended past QuestComplete so they fall outside it.
 bool OwnSound(Sfx k) {
@@ -1229,8 +1243,7 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             ps.max_life = static_cast<uint8_t>(std::clamp(g.max_life * 10.0f, 0.0f, 255.0f));
             ps.active = g.Active();
             ps.from_player = g.from_player;
-            // What kind of ground it is, for the drawing: see GroundEffect::Draw.
-            ps.kind = g.rain ? 1 : static_cast<uint8_t>(g.draw);
+            ps.kind = PatchKindOf(g);
             snap.patches.push_back(ps);
         }
         // A Slabstrike is not ground, but it goes the same way: where it is
@@ -1701,8 +1714,7 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         g.max_life = std::max(0.1f, ps.max_life / 10.0f);
         g.delay = ps.active ? 0.0f : 0.1f;
         g.from_player = ps.from_player;
-        g.rain = ps.kind == 1;
-        g.draw = static_cast<GroundEffect::Draw>(std::min<uint8_t>(ps.kind, static_cast<uint8_t>(GroundEffect::Draw::Blades)));
+        ReadPatchKind(ps.kind, g);
         world.ground_effects.push_back(g);
     }
     // Not told of it this time: it has gone out.

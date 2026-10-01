@@ -1001,7 +1001,7 @@ private:
     // The swing itself, drawn: a crescent swept through the arc a melee blow
     // covers, brightest on its active frames. See the definition.
     void DrawSwing(SDL_Renderer* r) const;
-    void DrawArrowRain(SDL_Renderer* r) const;
+    void DrawArrowRain(SDL_Renderer* r, TextureCache& cache) const;
     // Applies a hit from a projectile or a ground effect to one enemy.
     // `swing` is what kind of blow it was, which for melee decides what it
     // trains: a light swing feeds Attack, a heavy one Strength, a charged one

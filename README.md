@@ -1054,7 +1054,7 @@ the same dozen fields off every weapon (`ItemDef`, "the armoury").
 | **Greatsword** | two | 1.45 | Half again a sword's reach and sixty per cent wider: the two-handed `sweep`, which is mostly wind-up and recovery, because that is what heavy looks like. 28% **bleed**. |
 | **Greataxe** | two | 1.6 | The slowest and the hardest. The same sweep -- and **held and let go it is a chop** (`hew`): longer down the line, half as wide, a third harder. 32% **bleed**. |
 | **Crossbow** | two | 0.55 | **It goes off the moment it is asked** -- no draw -- at 2.7 times the tier's power where a bow is 2.0, and the bolt goes through two bodies and past 40% of their Defence. Then it is **spanned again** for a second and a bit (`reload`), and nothing can be let off until it is. No combos: nothing chains off a weapon that has to be reloaded -- a crossbow opens no combo window, and the both-buttons Cross Cut does nothing with one. It had been said and not kept: a combo bolt skipped its reload, because the reload guard sat below the combos in `FirePlayerProjectile`. It is above them now. |
-| **Throwing knives** | one | 0.6 | A shield on the other arm. Quick and close: a light throw is one knife, a **heavy one a fan of three**. |
+| **Throwing knives** | one | 0.6 | A shield on the other arm. Quick and close: a light throw is one knife, a **heavy one a fan of three** -- and a charged one with a technique chosen [throws the technique, in knives](#skill-trees). |
 | **Wand** | one | 0.66 | Half again as many casts as a staff, each worth 0.72: about even over time, and much hungrier for mana. |
 | **Grimoire** | one | 0.8 | 0.8 of a staff's cast, and **every spell costs a sixth less**. |
 | **Orb** | one | 0.76 | 0.78 of a staff's cast, and **what it throws turns after its target**. |
@@ -1635,6 +1635,20 @@ the spell's damage and a full one two and a half times it, and the ring it goes
 out in grows with the charge too: ninety pixels empty, two hundred and twenty
 full. Zap six times and a Call of Thunder is paid for; zap twenty and a
 Discharge is worth having.
+
+**Through a combo or a technique it is still itself.** The combos and the
+techniques that throw bolts -- Surge, Cascade, Flicker, Pulse and Lance; Nova
+and Barrage -- used to throw the lightning's as well, and the lightning has
+none: what each of its spells names is a stand-in that does not move and is
+gone in a tenth of a second. So the cast took the mana and the charge and did
+nothing; a Discharge through a combo emptied the bar for nothing, and a Zap
+through one filled none of it. Now the combo's name and its mark at the hand,
+or the technique's sigil, go up as they always do, and then the spell is cast
+as itself, **worth as much more as the combo or the technique cost more**:
+Surge and Lance half again, Cascade 1.6 times, Pulse and Nova and Barrage twice,
+Flicker the same. A Zap through a combo fills the bar as any Zap does. The
+Meteor was never a dud -- it brings down a meteor of whatever element is chosen
+-- and is left as it is.
 
 **Five spells and five number keys is one key too many**, so lightning is
 chosen the way the ancient magic is: `5` picks the school, and `5` again steps
@@ -2423,6 +2437,22 @@ protocol goes to 4 for it), draws its own. When the last volley has landed the
 circle goes and the arrows already standing get their half second to fade.
 `--learn trail_legs,broadheads,arrow_rain` with `--scratch warden --level 40`
 is a character who can loose one.
+
+**Thrown from knives, it rains knives.** The three techniques were the warden's
+whatever was in hand, and with throwing knives none of them could be thrown: a
+charged throw was always the heavy throw's fan of three, because the fan was
+asked for before the technique was. Now the fan is the charged throw only when
+no technique is chosen. With one chosen, a brace of knives throws it -- five
+knives for a Volley, one through the whole line for a Piercing Shot, and an
+Arrow Rain of knives: the same numbers, and drawn with the thrown knife's own
+picture, so it is the knife the player has been throwing all along -- turning
+end over end on the way down with a faint streak behind each, then standing
+point first in the ground, leaning the way it came, guard and grip out of the
+earth -- and each volley heard going in with a blade's sound rather than an
+arrow's thump (`GroundEffect::knives`). Lines a pixel wide, the first try,
+read as twigs. A friend is told it is a rain of knives
+(`PatchState::RAIN_KNIVES`, protocol 20); a guest on an older build would have
+drawn a kind it did not know as the Hail of Blades' turning column.
 
 #### A claw, not a bolt
 
@@ -3477,10 +3507,13 @@ of code:
 charm it has **raises it in place** -- for the new tier's shards and herbs, not
 the difference -- and working a different charm **replaces** the one it had,
 which is gone. The panel says which: "Raises Multishot II to IV", "Replaces
-Ferocity II". A tier it already carries, or a lower one, is refused. Only the
-charm on the weapon in the **main hand** counts: a second dagger in the other
-hand brings its speed and not its charm, as it brings its speed and not its
-bonuses.
+Ferocity II". A tier it already carries, or a lower one, is refused. **A pair
+of daggers carries both charms**: the second blade's Precision, Ferocity and
+Vampiric add to the first's, and its Brand is rolled for on every blow of the
+pair beside the first's. A second dagger still brings its speed and not its
+bonuses -- counted, a pair would be twice as quick and twice as strong -- so
+its charm is what it adds beyond the speed. Two of the same charm add up: two
+blades of Precision VI are +48% to strike critically.
 
 **The Brands and Affliction divide the armoury between them.** A sword, a
 mace or a staff already leaves something -- a wound, a concussion, a burn --
@@ -7470,7 +7503,7 @@ them two things -- the one for good, the other for a day:
   their tree, and nobody else can. The tree's header says how many of your
   points came that way.
 - **A boon**, by the dice, **for 24 hours of the world's clock**: one of
-  fifteen small things, of those the character's path can use and do not have
+  twenty-one small things, of those the character's path can use and do not have
   running already -- so no two running at once are the same, a hero is never
   handed mana, and two characters who kill the same bosses do not end up the
   same. When the day is up it wears off, and the game says so ("A day has
@@ -7486,10 +7519,20 @@ them two things -- the one for good, the other for a day:
 | Fleetness | walk 3% quicker | True Flight *(warden)* | arrows fly 8% faster |
 | Keen Eye | +2% critical chance | Deep Reserves *(wayfarer)* | +10% maximum mana |
 | Might | +3% damage, with anything | Wellspring *(wayfarer)* | mana returns 12% faster |
-| The Leech's Gift | 2% of damage dealt returns as health | | |
+| The Leech's Gift | 2% of damage dealt returns as health | Hexward *(wayfarer)* | +8% maximum mana |
+| Ironhide | +6% of all your Defence | Quickstep | on the move, 4% of blows miss you |
+| Cinderheart | +4% damage | Threefold | attacks 2% faster |
+| Thick Fur | +6% maximum health | | |
 
 Each is about one rank of a talent, of a kind any path can use -- and maximum
-health, which no tree teaches at all. **Once each:** a boss is back the next
+health, which no tree teaches at all. **Ironhide is a share, not points**: six
+in a hundred of the Defence you have from what you wear, the trees, the totem
+and Stoneblood together (`defence_share`). It was written as `"defence": 0.06`
+-- six hundredths of one point, which came to nothing -- so a hero who earned
+it got a line on the Boons tab and not one point of Defence. **Hexward is the
+wayfarer's**, as Deep Reserves and Wellspring are: it is mana, and it was
+written for nobody in particular, so a hero or a warden could be handed it.
+**Once each:** a boss is back the next
 dawn and leaves its loot again, but this is kept count of by who it was, and
 killing it again does not bring its boon back -- the lasting thing a boss
 leaves for going back to it is its totem, on the fifteenth kill. The game says

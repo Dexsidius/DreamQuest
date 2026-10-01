@@ -274,9 +274,9 @@ void World::RenderStars(SDL_Renderer* r) const {
 // before it fades. Nothing is stored, so a guest's screen -- which is only told
 // that there is a rain here, and how long it has left -- draws its own, and it
 // does not matter that they are not the same arrows.
-void World::DrawArrowRain(SDL_Renderer* r) const {
-    bool any = false;
-    for (const GroundEffect& g : ground_effects) any |= g.rain;
+void World::DrawArrowRain(SDL_Renderer* r, TextureCache& cache) const {
+    bool any = false, any_knives = false;
+    for (const GroundEffect& g : ground_effects) { any |= g.rain; any_knives |= g.rain && g.knives; }
     if (!any) return;
 
     const float z = camera.zoom;
@@ -327,12 +327,29 @@ void World::DrawArrowRain(SDL_Renderer* r) const {
     constexpr float FROM_X = -46.0f, FROM_Y = -150.0f;   // where it comes from, off where it lands
     constexpr float SHAFT = 16.0f;
 
+    // A rain of knives is the thrown knife's own picture (data/projectiles.json,
+    // throwing_knife): a strip of a knife turning, eight frames to the turn, of
+    // which the third is point down. Hand-drawn lines a pixel wide read as
+    // twigs; this is the knife the player has been throwing all along.
+    constexpr int   KNIFE_FRAMES = 8, KNIFE_POINT_DOWN = 2;
+    constexpr float KNIFE_TURNS = 1.25f;   // on the way down
+    constexpr float KNIFE_BURIED = 4.0f;   // of the point, in the art's pixels, once it is in
+    SDL_Texture* knife = any_knives ? cache.Get("assets/effects/throwing_knife.png") : nullptr;
+    float kw = 0.0f, kh = 0.0f;
+    if (knife) {
+        SDL_GetTextureSize(knife, &kw, &kh);
+        kw /= KNIFE_FRAMES;
+    }
+    // Stood in, it leans the way it came down, as an arrow does.
+    const double lean = -atan2(-FROM_X, -FROM_Y) * 57.2957795;
+
     for (const GroundEffect& g : ground_effects) {
         if (!g.rain) continue;
         // In flight before the first volley lands, and stopping as the last does.
         if (g.delay > FALL) continue;
         const float lift = LiftAt(g.x, g.y);
         const bool stones = g.Look() == Element::Earth;          // the Sedimentary Rain: the same rain, of stones
+        const bool knives = g.knives && knife && kw > 0.0f;      // and from throwing knives, of knives
         const uint32_t seed = static_cast<uint32_t>(static_cast<int>(g.x) * 73856093) ^ static_cast<uint32_t>(static_cast<int>(g.y) * 19349663);
         for (int lane = 0; lane < LANES; ++lane) {
             const float phase = unit(seed + lane * 7919u);
@@ -370,6 +387,19 @@ void World::DrawArrowRain(SDL_Renderer* r) const {
                     pixels(streak.x, streak.y, head.x, head.y - side, {214, 196, 160, 130});
                     continue;
                 }
+                if (knives) {
+                    // A knife turning end over end on the way down, as a thrown
+                    // one does -- a turn and a quarter from up there to the
+                    // ground, each lane starting at its own angle -- with a faint
+                    // streak of its fall behind it.
+                    const SDL_FPoint streak = camera.ToScreen(hx - ux * 14.0f, hy - uy * 14.0f);
+                    pixels(streak.x, streak.y, head.x, head.y, {214, 220, 232, 70});
+                    const int frame = static_cast<int>((k * KNIFE_TURNS + phase) * KNIFE_FRAMES) % KNIFE_FRAMES;
+                    const SDL_FRect src = {frame * kw, 0.0f, kw, kh};
+                    const SDL_FRect dst = camera.ToScreenRect({hx - kw / 2.0f, hy - kh / 2.0f, kw, kh});
+                    SDL_RenderTexture(r, knife, &src, &dst);
+                    continue;
+                }
                 const SDL_FPoint tail = camera.ToScreen(hx - ux * SHAFT * 1.5f, hy - uy * SHAFT * 1.5f);
                 pixels(tail.x + z, tail.y, head.x + z, head.y, {52, 40, 34, 170});
                 pixels(tail.x, tail.y, head.x, head.y, {250, 240, 208, 255});
@@ -398,6 +428,25 @@ void World::DrawArrowRain(SDL_Renderer* r) const {
                                                     roundf((foot.y - (6.0f * out - 7.0f * out * out) * 3.0f * z) / z) * z, z, z};
                             SDL_RenderFillRect(r, &chip);
                         }
+                    }
+                    continue;
+                }
+                if (knives) {
+                    // In the ground point first, leaning the way it came down:
+                    // the picture's point-down frame with the point in the
+                    // earth, the guard and grip standing out of it, fading as an
+                    // arrow does -- and the puff it went in with.
+                    const float shown = kh - KNIFE_BURIED;
+                    const SDL_FRect src = {KNIFE_POINT_DOWN * kw, 0.0f, kw, shown};
+                    const SDL_FRect dst = camera.ToScreenRect({lx - kw / 2.0f, ly - shown, kw, shown});
+                    const SDL_FPoint about = {dst.w / 2.0f, dst.h};
+                    SDL_SetTextureAlphaMod(knife, alpha);
+                    SDL_RenderTextureRotated(r, knife, &src, &dst, lean, &about, SDL_FLIP_NONE);
+                    SDL_SetTextureAlphaMod(knife, 255);
+                    if (k < 0.18f) {
+                        SDL_SetRenderDrawColor(r, 232, 220, 190, static_cast<Uint8>(170.0f * (1.0f - k / 0.18f)));
+                        const SDL_FRect puff = {roundf((foot.x - 2.0f * z) / z) * z, roundf((foot.y - 0.5f * z) / z) * z, 4.0f * z, z};
+                        SDL_RenderFillRect(r, &puff);
                     }
                     continue;
                 }
@@ -1749,7 +1798,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     DrawSwing(r);
     // What the combos leave, over it.
     DrawStrikes(r);
-    DrawArrowRain(r);
+    DrawArrowRain(r, cache);
 
     // Impact marks last a fifth of a second and are drawn over everything at
     // ground level, because the point of them is to be noticed: without one, a

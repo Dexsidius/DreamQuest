@@ -41,7 +41,6 @@ vector<AttributeLine> CharacterAttributes(const Player& p) {
     // affinity's accuracy and the tree's defence are all in it.
     const CombatProfile c = p.Profile();
     const Skills& s = p.skills;
-    const ItemDef* weapon = p.equipment.Weapon();
     vector<AttributeLine> out;
 
     // --- what keeps them standing ------------------------------------------------------
@@ -76,8 +75,9 @@ vector<AttributeLine> CharacterAttributes(const Player& p) {
     level("Ranged",   c.ranged_level,   SKILL_RANGED,   c.ranged_bonus);
     level("Magic",    c.magic_level,    SKILL_MAGIC,    c.magic_bonus);
     // A blow's chance of striking critically with what is in hand: the tree's
-    // and a boon's, and the charm on the weapon (World::HitEnemy).
-    const float crit = p.talents.Effect("crit", p.Style()) + (weapon ? weapon->crit_chance : 0.0f);
+    // and a boon's, and the charm on the weapon -- both blades', with a pair
+    // (World::HitEnemy).
+    const float crit = p.talents.Effect("crit", p.Style()) + p.equipment.WeaponCharm(&ItemDef::crit_chance);
     out.push_back({"Critical", Percent(crit), "", 0});
     // As a rate: the underlying number is a multiplier on the time a swing
     // takes, where smaller is better. See the bag's own line for it.

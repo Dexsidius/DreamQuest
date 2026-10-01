@@ -136,7 +136,7 @@ const TalentNode* SkillTrees::Find(const string& id, AttackStyle* style) const {
 }
 
 bool TalentEffectIsGlobal(const string& effect) {
-    return effect == "defence" || effect == "stamina" || effect == "stamina_regen" ||
+    return effect == "defence" || effect == "defence_share" || effect == "stamina" || effect == "stamina_regen" ||
            effect == "move_speed" || effect == "mana_regen" || effect == "charge" ||
            effect == "max_mana" || effect == "evade" || effect == "hurt_mana" || effect == "block_cost" ||
            effect == "max_health";

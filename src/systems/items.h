@@ -89,7 +89,7 @@ struct ItemDef {
     // A dagger: light enough for the other hand to hold a second. A pair strikes
     // in `dual_speed` of the time, hand after hand, and each blow is worth
     // `dual_damage` of one hand's. What the second brings is its speed and
-    // nothing else: its bonuses are not counted twice.
+    // its charm (WeaponCharm): its bonuses are not counted twice.
     bool   offhand = false;
     float  dual_speed = 1.0f, dual_damage = 1.0f;
     // The clip the left hand strikes with, turn about with `attack_clip`.
@@ -575,6 +575,10 @@ public:
     bool  DualWielding() const { return Offhand() != nullptr; }
     // What each blow of a pair is worth beside one hand's; 1 for one hand.
     float DualDamage() const;
+    // A weapon charm's number -- crit_chance, crit_damage, proc_bonus -- from
+    // the weapon in hand, and from the second one too when a pair is carried:
+    // each blade of a pair brings its charm (not its bonuses: see SumBonus).
+    float WeaponCharm(float ItemDef::* field) const;
     // True when something worn carries this passive.
     bool HasPassive(const string& id) const;
     // The furthest a worn light throws; 0 when nothing worn is lit.

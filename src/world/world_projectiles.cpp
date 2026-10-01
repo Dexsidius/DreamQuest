@@ -778,7 +778,9 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         if (!apply) continue;
         if (g.rain) {
             ++g.volleys;
-            Audio::PlayAt(Sfx::Impact, g.x, g.y, 0.45f, 1.30f + 0.06f * (g.volleys % 3));
+            // Knives go in with a blade's sound; arrows and stones land with a thump.
+            if (g.knives) Audio::PlayAt(Sfx::KnifeHit, g.x, g.y, 0.5f, 0.95f + 0.07f * (g.volleys % 3));
+            else          Audio::PlayAt(Sfx::Impact, g.x, g.y, 0.45f, 1.30f + 0.06f * (g.volleys % 3));
             // Where this volley struck: somewhere else each time, near the middle
             // and out by the rim by turns. Always the same four points, a rain
             // looked like it was falling on four pegs.

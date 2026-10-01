@@ -286,6 +286,10 @@ struct GroundEffect {
     // the ground afterwards. It was one hit and a disc that faded in a third of
     // a second, which is a thump and not a rain.
     bool  rain = false;
+    // A rain thrown from a brace of knives comes down as knives: turning end
+    // over end on the way and standing blade first in the ground after, with
+    // a blade's sound as each volley goes in rather than an arrow's thump.
+    bool  knives = false;
     int   volleys = 0;           // how many have landed: the self-test counts them
     bool  finished = false;
 

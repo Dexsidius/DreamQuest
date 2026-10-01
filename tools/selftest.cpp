@@ -1710,6 +1710,565 @@ static void TestMeleeReach(const Databases& db) {
     }
 }
 
+// Four things the report on the game's mechanics turned up. Ironhide was
+// written as six hundredths of one point of Defence, which came to nothing;
+// Hexward, which is mana, could be handed to a hero or a warden; the second
+// blade of a pair brought its speed and not its charm; and a warden with knives
+// in hand could never throw a technique, because the heavy throw's fan of
+// three was asked for before the technique was.
+static void TestCharmsAndBoons(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("Ironhide's share, Hexward the wayfarer's, both blades' charms, and techniques thrown in knives");
+    Input input;
+    std::mt19937 rng(3141);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    const auto press = [&](World& w, SDL_Keycode k) {
+        input.Update(dt); key(k, true); w.Update(dt, ctx);
+        input.Update(dt); key(k, false); w.Update(dt, ctx);
+    };
+    // The heavy button held for a full charge, then let go.
+    const auto charged = [&](World& w) {
+        input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+        frames(w, 80);
+        input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+    };
+    const auto fighter = [&](World& w, const char* look, const string& weapon, int skill, int level,
+                             std::initializer_list<const char*> nodes, const char* technique) {
+        w.player.Init(ctx, look);
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(level), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        for (const char* n : nodes) w.player.talents.Learn(n, w.player.skills);
+        if (technique) w.player.talents.ToggleTechnique(technique);
+        w.player.facing = FACE_RIGHT;
+        w.player.sprite.facing = FACE_RIGHT;
+        return true;
+    };
+    const auto sturdy = [&](World& w, const string& type, float dx) -> Enemy* {
+        const EnemyDef* stats = enemy_db.Get(type);
+        if (!stats) return nullptr;
+        EnemySpawnDef def;
+        def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = w.player.x + dx; def.y = w.player.y;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        e->max_hp = 60000;
+        e->hp = e->max_hp;
+        Enemy* raw = e.get();
+        w.enemies.push_back(std::move(e));
+        return raw;
+    };
+
+    // --- Ironhide: six in a hundred of all the Defence there is -----------------------------------------
+    {
+        // The stoutest piece made for every place but the right hand.
+        vector<string> stoutest(SLOT_COUNT);
+        vector<int> most(SLOT_COUNT, 0);
+        for (const auto& [id, d] : items.All())
+            if (d.slot > SLOT_WEAPON && d.enchant.empty() && d.defence_bonus > most[d.slot]) {
+                most[d.slot] = d.defence_bonus;
+                stoutest[d.slot] = id;
+            }
+        const auto worn = [&](std::initializer_list<const char*> boons, bool dressed) {
+            auto p = std::make_unique<Player>();
+            p->Init(ctx, "player_hero");
+            json slain = json::array(), kept = json::array();
+            for (const char* b : boons) { slain.push_back(string("boss_for_") + b); kept.push_back(b); }
+            if (!kept.empty()) p->talents.FromJson(json{{"bosses", slain}, {"boons", kept}});
+            p->equipment.Clear();
+            if (dressed)
+                for (int s = SLOT_SHIELD; s < SLOT_COUNT; ++s)
+                    if (!stoutest[s].empty()) p->equipment.Equip(s, stoutest[s]);
+            return p;
+        };
+        const int base = worn({}, true)->Profile().defence_bonus;
+        const auto iron = worn({"boon_ironhide"}, true);
+        const int with_iron = iron->Profile().defence_bonus;
+        Check(base >= 50, "a hero in the stoutest of everything has Defence for a share to be a share of (" + std::to_string(base) + ")");
+        Check(iron->talents.HasBoon("boon_ironhide") && with_iron == static_cast<int>(std::lround(base * 1.06f)) && with_iron > base,
+              "Ironhide is six in a hundred more of it, not six hundredths of a point (" + std::to_string(base) + " -> " +
+                  std::to_string(with_iron) + ")");
+        const int stone = worn({"boon_stoneblood"}, true)->Profile().defence_bonus;
+        const int both = worn({"boon_stoneblood", "boon_ironhide"}, true)->Profile().defence_bonus;
+        Check(stone == base + 5 && both == static_cast<int>(std::lround((base + 5) * 1.06f)),
+              "and of Stoneblood's five as well, with both running (" + std::to_string(both) + ")");
+        Check(worn({"boon_ironhide"}, false)->Profile().defence_bonus == 0, "and six in a hundred of nothing is nothing");
+        Check(TalentEffectIsGlobal("defence_share"), "it is whoever has it's, whatever is in hand");
+    }
+
+    // --- Hexward is mana, and mana is the wayfarer's ----------------------------------------------------
+    {
+        const BoonDef* hex = nullptr;
+        for (const BoonDef& b : trees.Boons()) if (b.id == "boon_hexward") hex = &b;
+        Check(hex && hex->For(AttackStyle::Magic) && !hex->For(AttackStyle::Melee) && !hex->For(AttackStyle::Ranged),
+              "Hexward is the wayfarer's, as Deep Reserves and Wellspring are");
+        // And so is anything else that is mana, now or added later.
+        bool mana_kept = true;
+        for (const BoonDef& b : trees.Boons())
+            if (b.effects.count("max_mana") || b.effects.count("mana_regen") || b.effects.count("mana_cost"))
+                mana_kept &= b.For(AttackStyle::Magic) && !b.For(AttackStyle::Melee) && !b.For(AttackStyle::Ranged);
+        Check(mana_kept, "every boon that is mana is the wayfarer's alone");
+        vector<string> bosses;
+        {
+            std::ifstream in("data/enemies.json");
+            json ej;
+            in >> ej;
+            const json& rows = ej.contains("enemies") ? ej["enemies"] : ej;
+            for (auto it = rows.begin(); it != rows.end(); ++it) {
+                const string id = rows.is_object() ? it.key() : it.value().value("id", string(""));
+                const EnemyDef* d = enemy_db.Get(id);
+                if (d && d->is_boss) bosses.push_back(id);
+            }
+        }
+        // By the dice: thirty of each kill everything there is.
+        const AttackStyle paths[3] = {AttackStyle::Melee, AttackStyle::Ranged, AttackStyle::Magic};
+        int handed[3] = {0, 0, 0};
+        for (int seed = 0; seed < 30; ++seed)
+            for (int i = 0; i < 3; ++i) {
+                std::mt19937 dice(seed * 3 + i);
+                Talents t;
+                t.SetDatabase(&trees);
+                t.SetPath(paths[i]);
+                for (const string& b : bosses) t.SlayBoss(b, dice);
+                handed[i] += t.HasBoon("boon_hexward");
+            }
+        Check(!bosses.empty() && handed[0] == 0 && handed[1] == 0 && handed[2] > 0,
+              "thirty heroes and thirty wardens kill everything and not one is handed Hexward; wayfarers are (" +
+                  std::to_string(handed[2]) + " of 30)");
+    }
+
+    // --- a pair carries both blades' charms -------------------------------------------------------------
+    {
+        const string dagger = items.TierPiece("iron", "dagger");
+        const ItemDef* precise4 = items.Get(dagger + "+precision_4");
+        const ItemDef* precise6 = items.Get(dagger + "+precision_6");
+        const ItemDef* fierce2  = items.Get(dagger + "+ferocity_2");
+        const ItemDef* frost6   = items.Get(dagger + "+brand_frost_6");
+        Check(precise4 && precise6 && fierce2 && frost6 && precise4->offhand && frost6->offhand,
+              "a charmed dagger is still a dagger the other hand can hold");
+        if (precise4 && precise6 && fierce2 && frost6) {
+            auto p = std::make_unique<Player>();
+            p->Init(ctx, "player_hero");
+            p->equipment.Clear();
+            p->equipment.Equip(SLOT_WEAPON, precise4->id);
+            p->equipment.Equip(SLOT_SHIELD, fierce2->id);
+            Check(p->equipment.DualWielding() && fabsf(p->equipment.WeaponCharm(&ItemDef::crit_chance) - 0.18f) < 1e-4f &&
+                      fabsf(p->equipment.WeaponCharm(&ItemDef::crit_damage) - 0.2f) < 1e-4f,
+                  "Precision IV in the right hand and Ferocity II in the left: a pair that strikes critically 18 times in a "
+                  "hundred, and a fifth harder when it does");
+            p->equipment.Equip(SLOT_SHIELD, precise6->id);
+            string shown;
+            for (const AttributeLine& l : CharacterAttributes(*p)) if (l.label == "Critical") shown = l.value;
+            Check(fabsf(p->equipment.WeaponCharm(&ItemDef::crit_chance) - 0.42f) < 1e-4f && shown == "42%",
+                  "two Precisions add up, IV and VI to 42 in a hundred, and the character panel says so (" + shown + ")");
+            p->equipment.Equip(SLOT_WEAPON, items.TierPiece("iron", "sword"));
+            Check(!p->equipment.DualWielding() && p->equipment.WeaponCharm(&ItemDef::crit_chance) == 0.0f,
+                  "a dagger left where a shield goes, beside a sword, is not a pair and brings nothing");
+        }
+
+        // In the field: the left blade's charm alone, on a pair whose right is plain.
+        struct Tally { int blows = 0, crits = 0, chilled = 0; };
+        const auto spar = [&](const string& left) {
+            Tally t;
+            World w;
+            if (!fighter(w, "player_hero", dagger, SKILL_ATTACK, 60, {}, nullptr)) return t;
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_STRENGTH, XpForLevel(60), lu);
+            w.player.equipment.Equip(SLOT_SHIELD, left);
+            Enemy* cow = sturdy(w, "cow", 20.0f);
+            if (!cow || !w.player.equipment.DualWielding()) return t;
+            // A critical blow's number has a star. Looked for from the press on:
+            // a pair's stab lands within the two frames of the press itself.
+            const auto starred = [&] {
+                for (const FloatingText& ft : w.texts)
+                    if (ft.text.find('*') != string::npos && ft.life >= ft.max_life - 1.5f * dt) ++t.crits;
+            };
+            for (int swing = 0; swing < 50; ++swing) {
+                cow->statuses.Clear();
+                cow->x = w.player.x + 20.0f; cow->y = w.player.y; cow->knock_x = cow->knock_y = 0.0f;
+                w.player.facing = FACE_RIGHT; w.player.sprite.facing = FACE_RIGHT;
+                w.player.hp = w.player.max_hp;
+                const int hp = cow->hp;
+                input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx); starred();
+                input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx); starred();
+                bool cold = false;
+                for (int f = 0; f < 40; ++f) {
+                    frames(w, 1);
+                    starred();
+                    cold |= cow->Afflicted(Status::Chill) || cow->Afflicted(Status::Frozen);
+                }
+                t.blows += cow->hp < hp;
+                t.chilled += cold;
+            }
+            return t;
+        };
+        const Tally plain = spar(dagger), precise = spar(dagger + "+precision_6"), cold = spar(dagger + "+brand_frost_6");
+        Check(plain.blows >= 30 && plain.crits == 0 && plain.chilled == 0,
+              "a new hero's plain pair never strikes critically, nor chills (" + std::to_string(plain.blows) + " blows)");
+        Check(precise.crits >= 4, "Precision VI on the left blade alone, and the pair does (" + std::to_string(precise.crits) +
+                                      " of " + std::to_string(precise.blows) + ")");
+        Check(cold.chilled >= 4, "and the Brand of Frost VI on the left blade alone chills what the pair cuts (" +
+                                     std::to_string(cold.chilled) + " of " + std::to_string(cold.blows) + ")");
+    }
+
+    // --- the warden's techniques, thrown from knives ------------------------------------------------------
+    {
+        const char* kWarden = "player_warden";
+        const string knives = items.TierPiece("iron", "knives");
+        const ProjectileDef* knife = projectiles.Get("throwing_knife");
+        Check(knife != nullptr && items.Get(knives) && items.Get(knives)->thrown, "knives are thrown, and a knife is what flies");
+        // What is in the air from a throw: the most at once, and whether every one is a knife.
+        const auto throw_ = [&](World& w, bool held, size_t& most) {
+            w.projectiles.clear();
+            if (held) charged(w); else press(w, SDLK_K);
+            most = 0;
+            bool all = true;
+            for (int f = 0; f < 50; ++f) {
+                frames(w, 1);
+                most = std::max(most, w.projectiles.size());
+                for (const Projectile& p : w.projectiles) all &= p.def == knife;
+            }
+            frames(w, 40);
+            return all;
+        };
+        size_t most = 0;
+        {
+            World w;
+            if (fighter(w, kWarden, knives, SKILL_RANGED, 30, {"quick_draw", "fleet_foot", "volley"}, nullptr)) {
+                const bool all = throw_(w, true, most);
+                Check(most == 3 && all, "with no technique chosen, knives held and let go are the fan of three (" +
+                                            std::to_string(most) + ")");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, kWarden, knives, SKILL_RANGED, 30, {"quick_draw", "fleet_foot", "volley"}, "volley")) {
+                throw_(w, false, most);
+                Check(most == 3, "a heavy throw, not held, is the fan whatever is chosen (" + std::to_string(most) + ")");
+                const bool all = throw_(w, true, most);
+                Check(most == 5 && all, "and held and let go with Volley chosen, it is a volley: five knives (" +
+                                            std::to_string(most) + ")");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, kWarden, knives, SKILL_RANGED, 30, {"steady_aim", "eagle_eye", "piercing_shot"}, "piercing_shot")) {
+                charged(w);
+                int through = -1;
+                size_t seen = 0;
+                bool all = true;
+                for (int f = 0; f < 60; ++f) {
+                    frames(w, 1);
+                    seen = std::max(seen, w.projectiles.size());
+                    for (const Projectile& p : w.projectiles) all &= p.def == knife;
+                    if (through < 0 && !w.projectiles.empty()) through = w.projectiles.front().pierce_left;
+                }
+                Check(seen == 1 && all && through >= 8, "with Piercing Shot chosen, one knife that goes through a crowd");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, kWarden, knives, SKILL_RANGED, 30, {"trail_legs", "broadheads", "arrow_rain"}, "arrow_rain")) {
+                charged(w);
+                bool seen = false, knives_all_along = true;
+                int volleys = 0;
+                size_t flying = 0;
+                for (int f = 0; f < 60 * 5; ++f) {
+                    frames(w, 1);
+                    flying = std::max(flying, w.projectiles.size());
+                    const GroundEffect* rain = nullptr;
+                    for (const GroundEffect& g : w.ground_effects) if (g.rain) rain = &g;
+                    if (rain) {
+                        seen = true;
+                        knives_all_along &= rain->knives;
+                        volleys = std::max(volleys, rain->volleys);
+                    } else if (seen) break;
+                }
+                Check(seen && knives_all_along && flying == 0,
+                      "with Arrow Rain chosen it rains knives -- and no fan is thrown as well (" + std::to_string(flying) + " in the air)");
+                Check(volleys == 7, "seven volleys of them, as of arrows (" + std::to_string(volleys) + ")");
+            }
+        }
+        {
+            World w;
+            if (fighter(w, kWarden, "oak_shortbow", SKILL_RANGED, 30, {"trail_legs", "broadheads", "arrow_rain"}, "arrow_rain")) {
+                charged(w);
+                bool rained = false, of_knives = false;
+                for (int f = 0; f < 60; ++f) {
+                    frames(w, 1);
+                    for (const GroundEffect& g : w.ground_effects)
+                        if (g.rain) { rained = true; of_knives |= g.knives; }
+                }
+                Check(rained && !of_knives, "a bow's rain is still arrows");
+            }
+        }
+
+        // A friend's window is told it is a rain of knives, and draws knives.
+        GroundEffect sent;
+        sent.rain = true;
+        sent.knives = true;
+        net::Snapshot told;
+        net::PatchState patch;
+        patch.kind = coop::PatchKindOf(sent);
+        told.patches.push_back(patch);
+        net::Snapshot heard;
+        GroundEffect drawn;
+        const bool crossed = net::Decode(net::Encode(told), heard) && heard.patches.size() == 1;
+        if (crossed) coop::ReadPatchKind(heard.patches[0].kind, drawn);
+        Check(crossed && patch.kind == net::PatchState::RAIN_KNIVES && drawn.rain && drawn.knives &&
+                  drawn.draw == GroundEffect::Draw::Rain,
+              "a friend is told it is a rain of knives, and draws one");
+        // And a rain of arrows, and every other kind of ground, come back as they went.
+        bool same = true;
+        GroundEffect arrows, back;
+        arrows.rain = true;
+        coop::ReadPatchKind(coop::PatchKindOf(arrows), back);
+        same &= coop::PatchKindOf(arrows) == 1 && back.rain && !back.knives && back.draw == GroundEffect::Draw::Rain;
+        for (GroundEffect::Draw d : {GroundEffect::Draw::Disc, GroundEffect::Draw::Whirlpool, GroundEffect::Draw::Tornado,
+                                     GroundEffect::Draw::Turbulence, GroundEffect::Draw::Blades}) {
+            GroundEffect g, again;
+            g.draw = d;
+            coop::ReadPatchKind(coop::PatchKindOf(g), again);
+            same &= !again.rain && !again.knives && again.draw == d;
+        }
+        Check(same && net::PROTOCOL_VERSION >= 20,
+              "and a rain of arrows, and every other kind of ground, come back as they went (protocol " +
+                  std::to_string(net::PROTOCOL_VERSION) + ")");
+    }
+}
+
+// A lightning spell cast through a combo, or charged with Nova or Barrage, took
+// the mana and the charge and threw the spell's stand-in projectile -- speed 1,
+// a tenth of a second -- which did nothing: the combos and those techniques were
+// asked for before the lightning's shapes were. It is cast as itself now, worth
+// as much more as the combo or the technique cost more.
+static void TestLightningThroughCombos(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("lightning through a combo, Nova or Barrage: the spell itself, worth what was paid");
+    Input input;
+    std::mt19937 rng(5858);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    // An orc held where it was put, so it neither walks in nor is thrown out of reach.
+    struct Held { Enemy* who = nullptr; float x = 0.0f, y = 0.0f; };
+    const auto step = [&](World& w, const Held& o, int n) {
+        for (int f = 0; f < n; ++f) {
+            input.Update(dt);
+            w.Update(dt, ctx);
+            if (o.who) { o.who->x = o.x; o.who->y = o.y; o.who->knock_x = o.who->knock_y = 0.0f; }
+        }
+    };
+    const auto mage = [&](World& w, const char* spell, std::initializer_list<const char*> nodes, const char* technique) {
+        w.player.Init(ctx, "player_wayfarer");
+        if (!w.LoadMap("overworld", "start", ctx)) return Held{};
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(60), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(70), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.SyncMana();
+        w.player.RestoreMana();
+        w.player.equipment.Equip(SLOT_WEAPON, "orichalcum_staff");
+        for (const char* n : nodes) w.player.talents.Learn(n, w.player.skills);
+        if (technique) w.player.talents.ToggleTechnique(technique);
+        if (spell) {
+            w.player.SetElectricSpell(spell);
+            w.player.SelectElement(Element::Electric);
+        } else {
+            w.player.SelectElement(Element::Fire);
+        }
+        w.player.facing = FACE_RIGHT;
+        w.player.sprite.facing = FACE_RIGHT;
+        const EnemyDef* stats = enemy_db.Get("orc1");
+        if (!stats) return Held{};
+        EnemySpawnDef def;
+        def.type = "orc1"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = w.player.x + 130.0f; def.y = w.player.y;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        Enemy* raw = e.get();
+        raw->max_hp = 60000; raw->hp = raw->max_hp;     // it stands there and takes it
+        w.enemies.push_back(std::move(e));
+        w.targeting.Force(raw, true);
+        return Held{raw, raw->x, raw->y};
+    };
+    // The hands free -- and, with `open`, the chain's window open as well.
+    const auto free_hands = [&](World& w, const Held& o, bool open) {
+        for (int f = 0; f < 240; ++f) {
+            if (w.player.CanAttack() && w.player.ComboOpen() == open) return true;
+            step(w, o, 1);
+        }
+        return false;
+    };
+    const auto tap = [&](World& w, std::initializer_list<SDL_Keycode> keys) {
+        input.Update(dt); for (SDL_Keycode k : keys) key(k, true);  w.Update(dt, ctx);
+        input.Update(dt); for (SDL_Keycode k : keys) key(k, false); w.Update(dt, ctx);
+    };
+    // What one cast did, from the press on: the most arcs drawn at once, the
+    // most things in flight, what the orc lost, what the bar did, and the worth
+    // of any lightning that came down as ground (Call of Thunder's).
+    struct Cast { ComboMove move = ComboMove::None; bool named = false; size_t arcs = 0, flying = 0; int took = 0; float bar = 0.0f, ground = -1.0f; };
+    const auto watch = [&](World& w, const Held& o, Cast& c, float bar_before, int hp_before) {
+        c.move = w.player.Attack().move;
+        for (int f = 0; f < 60; ++f) {
+            step(w, o, 1);
+            c.arcs = std::max(c.arcs, w.arcs.size());
+            c.flying = std::max(c.flying, w.projectiles.size());
+            for (const GroundEffect& g : w.ground_effects)
+                if (c.ground < 0.0f && g.look == Element::Electric) c.ground = g.hit_mult;
+            // Its name goes up as it is cast, for less than a second.
+            for (const FloatingText& t : w.texts) c.named |= c.move != ComboMove::None && t.text == w.player.ComboLabel(c.move);
+        }
+        c.took = o.who ? hp_before - o.who->hp : 0;
+        c.bar = w.player.Battery() - bar_before;
+    };
+    // A light and then a heavy in its window: the Surge. Or both at once: the Pulse.
+    const auto combo = [&](World& w, const Held& o, bool pulse, float charge) {
+        Cast c;
+        if (!free_hands(w, o, false)) return c;
+        w.player.RestoreMana();
+        w.player.ClearBattery();
+        w.player.AddBattery(charge);
+        if (!pulse) {
+            tap(w, {SDLK_J});
+            if (!free_hands(w, o, true)) return c;
+            w.player.RestoreMana();
+            w.player.ClearBattery();
+            w.player.AddBattery(charge);
+        }
+        w.arcs.clear();
+        w.ground_effects.clear();
+        w.projectiles.clear();
+        const float bar = w.player.Battery();
+        const int hp = o.who ? o.who->hp : 0;
+        if (pulse) tap(w, {SDLK_J, SDLK_K}); else tap(w, {SDLK_K});
+        watch(w, o, c, bar, hp);
+        return c;
+    };
+    // Held for a full charge and let go.
+    const auto charged = [&](World& w, const Held& o) {
+        Cast c;
+        if (!free_hands(w, o, false)) return c;
+        w.player.RestoreMana();
+        w.player.ClearBattery();
+        w.player.AddBattery(1.0f);
+        w.arcs.clear();
+        w.ground_effects.clear();
+        w.projectiles.clear();
+        const float bar = w.player.Battery();
+        const int hp = o.who ? o.who->hp : 0;
+        input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+        step(w, o, 80);
+        input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+        watch(w, o, c, bar, hp);
+        return c;
+    };
+
+    // --- a Zap through the Surge: struck, and the bar filled, as any Zap ------------------------------
+    {
+        World w;
+        const Held o = mage(w, "zap", {}, nullptr);
+        Cast c;
+        bool named = false;
+        for (int tries = 0; tries < 6 && o.who && c.took <= 0; ++tries) {
+            c = combo(w, o, false, 0.0f);
+            named |= c.named;
+        }
+        Check(o.who && c.move == ComboMove::Crush && named, "a light and then a heavy in its window is the Surge, and says so");
+        Check(c.flying == 0 && c.arcs >= 1 && c.took > 0,
+              "and with Zap chosen the Surge is a zap: a bolt drawn to the orc, and something off it -- not a dud left at "
+              "the hand (" + std::to_string(c.flying) + " in flight, " + std::to_string(c.took) + " taken)");
+        Check(fabsf(c.bar - 0.05f) < 0.001f, "and it puts its five in a hundred in the bar, as any zap does (" +
+                                                 std::to_string(static_cast<int>(c.bar * 100.0f + 0.5f)) + "%)");
+    }
+    // --- a Discharge through the Pulse: the whole bar, and worth it -------------------------------------
+    {
+        World w;
+        const Held o = mage(w, "discharge", {}, nullptr);
+        Cast c;
+        for (int tries = 0; tries < 4 && o.who && c.took <= 0; ++tries) c = combo(w, o, true, 1.0f);
+        Check(c.move == ComboMove::CrossCut && c.flying == 0 && c.arcs >= 10 && c.took > 0 && w.player.Battery() < 0.01f,
+              "a Discharge through the Pulse goes out in its ring and takes the orc with it, for the whole bar (" +
+                  std::to_string(c.arcs) + " arcs, " + std::to_string(c.took) + " taken)");
+    }
+    // --- what it is worth: Call of Thunder, whose ground says ---------------------------------------
+    {
+        const SpellDef* thunder = spells.Get("call_of_thunder");
+        const ItemDef* staff = items.Get("orichalcum_staff");
+        World w;
+        const Held o = mage(w, "call_of_thunder", {}, nullptr);
+        const Cast c = (o.who && thunder && staff) ? combo(w, o, false, 1.0f) : Cast{};
+        const float plain = thunder && staff
+            ? w.player.TalentDamage(AttackStyle::Magic, AttackType::Strong) * thunder->damage_mult * staff->damage : 0.0f;
+        Check(c.move == ComboMove::Crush && c.flying == 0 && plain > 0.0f && fabsf(c.ground - plain * 1.5f) < plain * 0.001f,
+              "Call of Thunder through the Surge comes down as itself, worth half again what it is alone, as the Surge "
+              "costs half again (" + std::to_string(c.ground) + " against " + std::to_string(plain) + ")");
+
+        // Nova and Barrage cost twice a cast, and are worth twice one -- set
+        // beside a charged cast by somebody with the same nodes and no technique.
+        const auto worth = [&](std::initializer_list<const char*> nodes, const char* technique) {
+            World t;
+            const Held held = mage(t, "call_of_thunder", nodes, technique);
+            return held.who ? charged(t, held) : Cast{};
+        };
+        const Cast nova = worth({"potency", "focus", "nova"}, "nova"), alone = worth({"potency", "focus", "nova"}, nullptr);
+        const Cast barrage = worth({"flow", "swift_casting", "barrage"}, "barrage"),
+                   alone2 = worth({"flow", "swift_casting", "barrage"}, nullptr);
+        Check(nova.flying == 0 && alone.ground > 0.0f && fabsf(nova.ground - 2.0f * alone.ground) < alone.ground * 0.001f,
+              "charged with Nova it is the thunder, not a ring of bolts that go nowhere, and worth twice a charged one (" +
+                  std::to_string(nova.ground) + " against " + std::to_string(alone.ground) + ")");
+        Check(barrage.flying == 0 && alone2.ground > 0.0f && fabsf(barrage.ground - 2.0f * alone2.ground) < alone2.ground * 0.001f,
+              "and with Barrage the same (" + std::to_string(barrage.ground) + " against " + std::to_string(alone2.ground) + ")");
+    }
+    // --- and nothing that is not lightning changes ---------------------------------------------------
+    {
+        World w;
+        const Held o = mage(w, nullptr, {}, nullptr);
+        const Cast c = o.who ? combo(w, o, false, 0.0f) : Cast{};
+        Check(c.move == ComboMove::Crush && c.flying >= 1 && c.ground < 0.0f,
+              "the Surge with fire chosen is still a bolt thrown (" + std::to_string(c.flying) + ")");
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -16085,8 +16644,8 @@ int main(int argc, char** argv) {
         }
         Check(bosses.size() >= 10, "there are bosses to kill (" + std::to_string(bosses.size()) + ")");
         // Every effect a boon names has to be one the game reads, or the boon is a name and nothing else.
-        const std::set<string> read = {"max_health", "defence", "stamina", "stamina_regen", "move_speed", "crit", "damage",
-                                       "lifesteal", "evade", "speed", "charged_damage", "block_cost", "projectile_speed",
+        const std::set<string> read = {"max_health", "defence", "defence_share", "stamina", "stamina_regen", "move_speed", "crit",
+                                       "damage", "lifesteal", "evade", "speed", "charged_damage", "block_cost", "projectile_speed",
                                        "max_mana", "mana_regen"};
         Check(trees.Boons().size() >= 12, "and boons to leave (" + std::to_string(trees.Boons().size()) + ")");
         std::set<string> ids;
@@ -20021,6 +20580,8 @@ int main(int argc, char** argv) {
     TestCharacterPanel(db);
     TestBowDraw(db);
     TestMeleeReach(db);
+    TestCharmsAndBoons(db);
+    TestLightningThroughCombos(db);
 
     Section("the Brimstone Palace, and its king");
     {
