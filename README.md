@@ -191,8 +191,9 @@ With **Visual Effects** on (Options, then Visual Effects), a good deal more:
 
 The Visual Effects page turns all of that off at once, for the plain look,
 and has its own switches for the parts some people would rather not have:
-**screen shake**, **flashes**, **colour fringing** and **screen distortion**
-(the heat, the shockwaves and the dream's swim).
+**screen shake**, **flashes** (a struck sprite's, the screen's, and the
+Tempest's lightning), **colour fringing** and **screen distortion** (the heat,
+the shockwaves and the dream's swim).
 
 Everything moves in whole art pixels, never smeared: a tile's pixel is two of
 the world's, and it moves two at a time. The shaders are GLSL in
@@ -5602,7 +5603,25 @@ Maren, asked for more work between chapters, tells you to come back stronger.
 A Talk objective is only met by the option that advances it, and a Deliver
 objective by the option that takes the items. Opening a conversation used to
 tick every Talk stage for that NPC, so greeting Oona before fetching the herb
-finished the errand.
+finished the errand. And an option moves on only the quest it is said for --
+the one its condition names, or the one its action names with `"for"`, for a
+line further into a conversation (`QuestEvent::quest`). One line used to move
+on every quest waiting on that person: telling Oona that Wendel had his remedy
+also carried *What the Doll Was For* past the binding of the doll, and that
+quest, and the three weapons at the end of the next, could never be had. An
+order handed in is likewise that order's: two posted the same day for the same
+goods were both paid for one lot.
+
+A step to use something that has already been used is past
+(`World::CatchUpUsedObjects`): the choked spring pulled in the middle of the
+Well Warden's fight, or the Mossvale stone turned before Bess offered the house,
+was never offered again, and the quest waited at that step for ever. Old saves
+stuck there move on as they load. And what a chest, a search or a note holds by
+name -- the Emberfell key, the barrow seal, the torn page, a relic -- goes into
+the bag, or waits where it is until there is room (`World::OpenInto`): left at
+the feet of somebody with a full pack, it was gone with the next map, and with it
+the quest. The storage chest will not take the house key, one at a time any more
+than all at once: stored in the house's own chest, it locked the door on it.
 
 ### Daily notices
 
@@ -6945,8 +6964,9 @@ the crypt finally stand, and what closes 75-79.
 in the game: a demon lord in black plate trimmed with gold, ram's horns and a
 crown of burning gold between them, a mantle of black lined with crimson, and a
 greatsword with an edge that glows. He waits at the foot of his dais. Behind him,
-beside the throne, is the **Heart of Cinders**, an amulet: a coal on a chain that
-has not gone out. His first fall is a skill point and a boon -- drawn by the
+beside the throne, once he has fallen, is the **Heart of Cinders**, an amulet: a
+coal on a chain that has not gone out. (Its chest stood there from the start, and
+opened in the middle of the fight; it is his to give now -- `needs_slain`.) His first fall is a skill point and a boon -- drawn by the
 dice from the boons your path can use, as every boss's is: Cinderheart, 4% more
 damage, is in that pool and is no more his than anyone's -- and his fifteenth his
 totem (**Crown of Cinders**: 10% more damage and 10% more health until dawn),
@@ -7218,8 +7238,10 @@ blow concusses. Its first fall is a skill point and a boon -- there is a
 twenty-second, **Primal Spark** (2% damage and 2% critical blows), because an
 eighteenth boss needs one more boon that any path can have -- and its fifteenth
 its totem, **The Fifth Essence** (10% more damage and 6% more critical blows,
-until dawn). Its chest holds the **Heart of the Conflux**, an amulet for every way
-of fighting at once.
+until dawn). Its chest, by the dais, is there once it has fallen, and holds the
+**Heart of the Conflux**: a relic, legendary like the others, and the one amulet
+for every way of fighting at once -- so what it asks is Hitpoints 80, which every
+way of fighting trains.
 
 **What they are drawn as** (`tools/blender_primordium.py`, registered into the
 creatures' table like the bestiary, so `.\tools\make_creatures.ps1 -Only
@@ -7474,7 +7496,7 @@ draw every bar wrong, so the co-op protocol went up to 12.
 | Ice Troll | the Ice Spire's slopes | 31-35 | troll hide, damascus ore, azuryte gear |
 | Frost Wyvern | round the Ice Spire's summit | 37-41 | wyvern scales, platinum ore, damascus gear |
 | Wyvern Matriarch | the summit | 49 | scales, platinum gear, diamond ore |
-| **Hoarfang** | its own ground above the summit | 52 | dragon fangs, scales, diamond and platinum, diamond gear |
+| **Hoarfang** | its own ground above the summit | 52 | dragon fangs, scales and dragonhide, diamond and orichalcum, diamond gear |
 | Cellar Slime | the well's upper workings | 11-13 | empty vials, bones, coins |
 | Well Bat | the well's upper workings | 10-11 | bones, coins |
 | Pit Hound | the well's deep cut | 22-24 | bones, hides, raw meat, coins |
@@ -7487,7 +7509,7 @@ draw every bar wrong, so the co-op protocol went up to 12.
 | The Hollowrest Wight | in front of the crypt | 33 | lockets, rings, candles, coins, steel |
 | Imp | the Ashen Path and the pit | 29-34, and 43-55 on the way north to the palace | coins, emberbloom, platinum ore, the odd horn |
 | Demon | the hellgate and the pit | 45-50, and 60-70 on the way north | demon horns, demonite ore, platinum gear |
-| The Pit Lord | the pit's last room | 55 | horns, demonite bars and gear |
+| The Pit Lord | the pit's last room | 55 | horns, orichalcum and diamond bars, orichalcum gear, now and then demonite ore |
 
 (The level shown over each -- what `Enemy::ShownLevelOf` makes of its post's
 numbers -- as a survey on 30 September found them. They move whenever a monster
@@ -7757,8 +7779,9 @@ A boss is back every dawn, and after the first kill it was only its loot. **The
 fifteenth time a character brings one down it leaves its totem** -- a carved
 post a hand high, with the boss's head on it: a spider for the Broodmother,
 horns for the Warchief, a skull for the Wight. One for each boss, one each per
-character, straight into the bag (at your feet, if the bag is full). It cannot
-be sold, dropped or lost. The Boons page of the Skills panel keeps the count:
+character, straight into the bag. With the bag full it says so and stays where
+it is, and the next kill offers it again, until there is room -- it was put at
+your feet once, and gone with the next map. It cannot be sold, dropped or lost. The Boons page of the Skills panel keeps the count:
 *"Broodmother 7/15"*.
 
 There is a **ring set in the floor in the middle of your house at Mossvale**.
@@ -7773,13 +7796,13 @@ out altogether.
 | --- | --- | --- | --- | --- |
 | the Broodmother | walk 8% quicker | | Hoarfang | +12 Defence and +12% maximum health |
 | the Lizardman Chief | breath returns 30% faster | | the Unwaking | +8% damage, charged attacks +15% more |
-| the Hollowrest Wight | 5% of damage dealt returns as health | | Lord Ashcroft | a twentieth of what you take comes back |
+| the Hollowrest Wight | 5% of damage dealt returns as health | | Lord Ashcroft | 5% of damage dealt returns as health |
 | the Warchief | +10% damage, with anything | | the Fen | walk 10% quicker |
 | the Thing in the Spring | on the move, 8% of blows miss you | | the Cinder King | +10% damage and +10% health |
 | the Den Mother | +15 Defence, whatever you wear | | Cerberus | 8% quicker on your feet, 4% of damage dealt returns as health |
 | the Sleepless | +20% maximum health | | the High Priest | +5% critical chance; on the move 5% of blows miss you |
 | the Wyvern Matriarch | attack 6% faster | | the Abominable Snowman | +12% maximum health; on the move 6% of blows miss you |
-| the Pit Lord | +6% critical chance, criticals 25% harder | |  |  |
+| the Pit Lord | +6% critical chance, criticals 25% harder | | the Quintessence | +10% damage and +6% critical chance |
 
 A totem's blessing is two or three times what a first kill leaves for a day,
 because it is one at a time, for a day, earned over a fortnight, and has to be
@@ -7790,8 +7813,8 @@ more than any boon of the same kind.
 How: the count, the totem in the ring and the day it was last touched are in
 `Talents` with the boons (`boss_kills`, `totem`, `totem_day`), so they go where
 the character goes -- the save, a friend's own machine, the sheet their host
-rolls with. `Talents::SlayBoss` reports the fifteenth; `World::AwardBoss` hands
-the totem over; `Talents::PlaceTotem` is the ring, and returns what was
+rolls with. `Talents::SlayBoss` reports the fifteenth and every kill after it
+until the totem is given (`totems_given`); `World::AwardBoss` hands it over; `Talents::PlaceTotem` is the ring, and returns what was
 standing in it. The blessing is read through the same `BoonEffect` the boons
 are, and is awake only while the day it was touched is the world's quest day
 (`World::TellTheDay`, at dawn and whenever someone arrives, which also puts
@@ -8086,7 +8109,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **71598 checks** covering:
+and checks all of it — currently **71627 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -8127,6 +8150,19 @@ and checks all of it — currently **71598 checks** covering:
   is a greater one, and leaves something; the cores are worth having; and the
   Quintessence is a boss at 99 that throws all five, in the Conflux with its
   chest, with its relic and its totem
+- what the 1 October report found, put right: no post on a way in, in the
+  Primordium or on the Ashen Path; every shooter heard as what it shoots (a
+  spell cast, a spit thrown, only arrows and darts off a string); a fell wolf and
+  a mossback of their kin's element; the Pit Lord and Hoarfang without loot above
+  their level, Hoarfang still the dragonhide's and the fangs' one source; a place
+  inside the Stronghold's rift comes out beside it, on its level; Sorrel, Hale,
+  Wynn and the hides say what is true now; the Heart of the Conflux legendary and
+  asking Hitpoints, and the Cinder King's and the Quintessence's chests there only
+  once they are down; the Dry Well past a spring pulled early; every line that
+  moves a quest on names a quest waiting on that person, and Oona's errand does
+  not bind the doll; Vask takes the fang only at its step; one lot fills one
+  order; the Emberfell key and the torn page go into the bag or wait, never onto
+  the ground; a totem offered until it is in the bag, never twice; a meal saved
 - the dialogue graph is fully connected
 - no NPC offers a quest that is not yet available, and every Talk and Deliver
   stage has a hand-in option reachable from that NPC, shown only while the quest

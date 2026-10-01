@@ -51,7 +51,8 @@
     "if": {
      "quest": "q_emberfell_depths",
      "state": "active",
-     "stage": 3
+     "stage": 3,
+     "has_item": "warchief_totem"
     }
    },
    {
@@ -149,7 +150,8 @@
     "action": {
      "advance": "npc_maren",
      "take": "elder_letter",
-     "take_qty": 1
+     "take_qty": 1,
+     "for": "q_marens_letter"
     }
    }
   ]
@@ -181,7 +183,8 @@
     "action": {
      "advance": "npc_maren",
      "take": "torn_page",
-     "take_qty": 1
+     "take_qty": 1,
+     "for": "q_the_sunken_road"
     }
    }
   ]
@@ -224,7 +227,8 @@
      "advance": "npc_maren",
      "take": "warchief_totem",
      "take_qty": 1,
-     "heal": true
+     "heal": true,
+     "for": "q_emberfell_depths"
     }
    }
   ]
@@ -332,7 +336,8 @@
     "text": "Is something wrong?",
     "next": "guildmaster_letter_2",
     "action": {
-     "advance": "npc_guildmaster"
+     "advance": "npc_guildmaster",
+     "for": "q_marens_letter"
     }
    }
   ]
@@ -357,7 +362,8 @@
     "action": {
      "advance": "npc_guildmaster",
      "take": "barrow_seal",
-     "take_qty": 1
+     "take_qty": 1,
+     "for": "q_barrow_seal"
     }
    }
   ]
@@ -549,7 +555,9 @@
     "if": {
      "quest": "q_a_decent_meal",
      "state": "active",
-     "stage": 1
+     "stage": 1,
+     "has_item": "cooked_meat",
+     "qty": 5
     }
    },
    {
@@ -715,7 +723,8 @@
      "advance": "npc_cook",
      "take": "cooked_meat",
      "take_qty": 5,
-     "heal": true
+     "heal": true,
+     "for": "q_a_decent_meal"
     }
    }
   ]
@@ -3153,6 +3162,9 @@
     "text": "The dragon is dead. Here is its fang.",
     "next": "elder_done",
     "if": {
+     "quest": "q_ice_spire_dragon",
+     "state": "active",
+     "stage": 2,
      "has_item": "dragon_fang"
     },
     "action": {
@@ -3694,7 +3706,7 @@
  },
  "hale_den": {
   "speaker": "Hale the Trapper",
-  "text": "The den. The old sow has had it longer than I have had this camp, and she has two grown cubs that never left. Past her the trail climbs into the Old Growth, and I do not set traps there. The bears are twice the size and they are not shy. Dire bears, my father called them. He had the limp to show he had met one.",
+  "text": "The den. The old sow has had it longer than I have had this camp, and she has two grown cubs that never left. Past her the trail climbs into the Old Growth, and I do not set traps there. The bears are half again the size, moss all down their backs, and they are not shy. Mossbacks, my father called them. He had the limp to show he had met one.",
   "options": [
    {
     "text": "Tell me about the bears.",
@@ -3954,7 +3966,7 @@
  },
  "sorrel_west": {
   "speaker": "Sorrel",
-  "text": "Downs, and wolves on them. Then a fork. North is bear country. West the ground climbs and turns white, and the wolves up there stand as high as my shoulder. I have seen one. I did not stay to see two.",
+  "text": "Downs, and wolves on them. Then a fork. North is bear country. West the ground climbs and turns white, and the wolves up there are a head taller than the grey ones and pale as the grass. I have seen one. I did not stay to see two.",
   "options": [
    {
     "text": "Thank you.",
@@ -4164,7 +4176,7 @@
  },
  "wynn_teach": {
   "speaker": "Wynn the Clothier",
-  "text": "Cloth first. Flax off the riverbank, three stems to a bolt, or a fleece off the farm at Havenbrook, which gives two -- and spider silk if you are the sort who goes into cellars.\n\nThen the bolt, the thread and a pot of dye make the piece: a hat, a robe, a skirt, gloves, slippers. The dye is what sets the colour and the tier, and Oona will sell you the first of them.\n\nBring me what you make. I post three orders a day and I pay in coin and in the doing of it.",
+  "text": "Cloth first. Flax off the riverbank, three stems to a bolt, or a fleece off the farm at Havenbrook, which gives two -- and spider silk if you are the sort who goes into cellars.\n\nThen the bolt, the thread and a pot of dye make the piece: a hat, a robe, a skirt, gloves, slippers. The dye is what sets the colour and the tier, and I will sell you the first of them, or Isolde at Hidewater will.\n\nBring me what you make. I post three orders a day and I pay in coin and in the doing of it.",
   "options": [
    {
     "text": "Let me see the book.",
@@ -4930,7 +4942,7 @@
  },
  "sorrel_pelts_accept": {
   "speaker": "Sorrel",
-  "text": "\"Out of the west gate. The greatwolves keep to the open, north of the road -- they want to see you coming. Let them.\"",
+  "text": "\"Out of the west gate. The fell wolves keep to the open up on the Fells, past the fork -- they want to see you coming. Let them.\"",
   "options": [
    {
     "text": "Right.",
@@ -5785,7 +5797,8 @@
      "advance": "npc_oona",
      "give": "poppet_idol",
      "take": "reed_doll",
-     "set_flag": "poppet_bound"
+     "set_flag": "poppet_bound",
+     "for": "q_oonas_poppet"
     }
    }
   ]

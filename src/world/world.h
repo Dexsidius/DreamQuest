@@ -171,6 +171,11 @@ public:
     uint32_t DrawSeed() { return static_cast<uint32_t>(afflict_dice()); }
 
     void SpawnLoot(const string& table_id, float x, float y, const GameContext& ctx);
+    // A chest, a search spot or a note opened: what it holds by name (a key, a
+    // seal, a relic) and any keep item its table rolls go into the bag, the
+    // rest onto the ground beside it. False, and nothing given, when the bag
+    // has no room for the first: it stays shut until there is.
+    bool OpenInto(const MapObject& o, const GameContext& ctx);
     // Puts an item on the ground. `by_player` is one dropped from the bag,
     // which waits for them to step away before it can be picked up again and
     // is gone after DROP_LIFE seconds -- leaving the map loses it sooner.
@@ -220,6 +225,20 @@ public:
     // loads, and is back the day after. Ordinary monsters are as they were.
     void NoteSlain(int post);
     bool SlainToday(const string& map, int post) const;
+    // Open ground for a foot (relative to the feet) at or near a point on this
+    // map, on the same level of ground: the point itself when it is clear, or
+    // the nearest clear one within a few cells, or the map's own way in. A
+    // save -- or a friend's kept place -- can stand somebody where a wall now
+    // is, and nothing walks out of a wall.
+    SDL_FPoint OpenGroundNear(float x, float y, const SDL_FRect& foot) const;
+    // The player, out of any wall they were put down in (see OpenGroundNear).
+    void SettlePlayer();
+    // A quest at a step to use something -- pull the choked spring, turn the
+    // Mossvale stone, read a note -- that was already used is past that step:
+    // a used thing is not offered again, and the quest used to wait there for
+    // ever (the spring pulled during the warden's fight, the stone turned
+    // before Bess offered the house). Run from Update; unsticks old saves too.
+    void CatchUpUsedObjects(const GameContext& ctx);
     const std::map<string, int>& Slain() const { return slain; }
     void SetSlain(const std::map<string, int>& s) { slain = s; }
     void  SetFlags(const std::set<string>& f) { flags = f; }
@@ -1097,4 +1116,5 @@ private:
     float gather_needed = 0.0f;
     float hazard_timer = 0.0f;     // until the next burn from the ground underfoot
     float gate_note_timer = 0.0f;  // so a closed way says so once, not every frame
+    float catch_up_timer = 0.0f;   // see CatchUpUsedObjects: twice a second is plenty
 };

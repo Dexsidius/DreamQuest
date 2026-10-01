@@ -382,6 +382,7 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
     for (auto& kv : progress) {
         QuestProgress& p = kv.second;
         if (p.status != QuestStatus::Active) continue;
+        if (!e.quest.empty() && kv.first != e.quest) continue;
 
         const QuestDef* d = Definition(kv.first);
         if (!d || p.stage >= static_cast<int>(d->stages.size())) continue;

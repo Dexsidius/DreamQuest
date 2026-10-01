@@ -1699,7 +1699,7 @@
    "trophy"
   ],
   "name": "Fell Wolf Pelt",
-  "desc": "Pale as the high grass of the Fells it came off. Ivo the tanner pays for white ones.",
+  "desc": "Pale as the high grass of the Fells it came off. Hunter Ivo pays for white ones.",
   "stack": true,
   "value": 64,
   "icon": "assets/icons/tiers/fell_wolf_pelt.png"
@@ -1732,7 +1732,7 @@
    "trophy"
   ],
   "name": "Greatwolf Pelt",
-  "desc": "White as the Fells it came off, and the size of a blanket.",
+  "desc": "White as the Frostreach snow it came off, and the size of a blanket.",
   "stack": true,
   "value": 520,
   "icon": "assets/icons/tiers/greatwolf_pelt.png"
@@ -1743,7 +1743,7 @@
    "trophy"
   ],
   "name": "Dire Bear Hide",
-  "desc": "Grizzled nearly black, a finger thick. The Old Growth's own.",
+  "desc": "Grizzled nearly black, a finger thick. The Warlord's Howe keeps the bears that wear it.",
   "stack": true,
   "value": 760,
   "icon": "assets/icons/tiers/dire_bear_hide.png"
@@ -1883,7 +1883,7 @@
    "bag"
   ],
   "name": "Greatwolf Haversack",
-  "desc": "White pelt off the Fells, dire bear at the seams, wyvern scale on the flap, and something from a dream stitched into the lining, where there is more room than there is outside.",
+  "desc": "White pelt off the Frostreach, dire bear at the seams, wyvern scale on the flap, and something from a dream stitched into the lining, where there is more room than there is outside.",
   "value": 60000,
   "use": "bag",
   "bag_slots": 7,
@@ -3098,7 +3098,13 @@
    "ranged": 22,
    "magic": 22,
    "defence": 16
-  }
+  },
+  "req": {
+   "Hitpoints": 80
+  },
+  "tags": [
+   "legendary"
+  ]
  },
  "totem_quintessence": {
   "name": "Totem of the Quintessence",

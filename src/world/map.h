@@ -180,6 +180,9 @@ struct MapObject {
     // done: before it is taken and after it is finished, it is not there to
     // be seen or opened.
     string needs_quest;
+    // A boss's own chest is its to give: there only once that boss, posted on
+    // this map, has fallen today -- and, once opened, there for good (open).
+    string needs_slain;
     string text;             // notes and signs
     string starts_quest;     // notes that kick off a quest
     string sprite;           // optional image path drawn at the position

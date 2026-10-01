@@ -1,4 +1,5 @@
 #include "ambience.h"
+#include "../systems/shaders.h"
 
 namespace {
 float Rand01(std::mt19937& rng) { return (rng() % 10000u) / 10000.0f; }
@@ -401,8 +402,11 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
         SDL_RenderFillRect(r, &all);
     }
 
-    // Lightning: the whole view white for a moment, and gone.
-    if (kind == Kind::Storm && flash > 0.02f) {
+    // Lightning: the whole view white for a moment, and gone -- unless the
+    // player has asked for no flashes (Options, Visual Effects), whose help
+    // names the lightning; or for the plain look, which has none of it.
+    const Shaders::Options& look = Shaders::GetOptions();
+    if (kind == Kind::Storm && flash > 0.02f && look.effects && look.flashes) {
         int w = 0, h = 0;
         SDL_GetCurrentRenderOutputSize(r, &w, &h);
         SDL_SetRenderDrawColor(r, 236, 240, 255, static_cast<Uint8>(120.0f * flash * flash));

@@ -215,22 +215,29 @@ void World::AwardBoss(const string& boss_id, const GameContext& ctx) {
     std::mt19937 spare(0xb055u);
     const Talents::Trophy won = player.talents.SlayBoss(boss_id, ctx.rng ? *ctx.rng : spare);
     if (won.totem) {
-        // Into the bag if there is room, and at their feet if there is not:
-        // it cannot be sold or thrown away, and it is not going to be lost to
-        // a full pack either.
+        // Into the bag, or not yet. It was dropped at their feet when the
+        // pack was full, and lost with the next map; now the next kill offers
+        // it again, until it goes in (Talents::TotemGiven).
         const EnemyDef* whose = ctx.enemies ? ctx.enemies->Get(boss_id) : nullptr;
         const ItemDef* thing = ctx.items ? ctx.items->Get(won.totem->item) : nullptr;
-        if (player.inventory.Add(won.totem->item, 1) <= 0) DropItem(won.totem->item, 1, player.x, player.y, ctx);
+        const bool given = player.inventory.Add(won.totem->item, 1) > 0;
+        if (given) player.talents.TotemGiven(boss_id);
         WorldRequest t;
         t.type = WorldRequest::Type::Toast;
-        t.text = string(whose ? whose->name : boss_id) + ", " + std::to_string(Talents::TOTEM_KILLS) +
-                 " times: it leaves you its totem.";
-        requests.push_back(t);
-        t.text = (thing ? thing->name : won.totem->item) + ". Stand it in the ring in your house at Mossvale.";
-        requests.push_back(t);
-        AddText("A totem", player.x, player.y - 94.0f, {255, 214, 120, 255}, 3.2f);
-        Burst(player.x, player.y - 30.0f, 80.0f, {255, 190, 90, 255}, 26);
-        Audio::PlayAt(Sfx::QuestComplete, player.x, player.y);
+        if (!given) {
+            t.text = string(whose ? whose->name : boss_id) +
+                     " would leave you its totem, but your pack is full. Make room: the next time, it will.";
+            requests.push_back(t);
+        } else {
+            t.text = string(whose ? whose->name : boss_id) + ", " + std::to_string(won.kills) +
+                     " times: it leaves you its totem.";
+            requests.push_back(t);
+            t.text = (thing ? thing->name : won.totem->item) + ". Stand it in the ring in your house at Mossvale.";
+            requests.push_back(t);
+            AddText("A totem", player.x, player.y - 94.0f, {255, 214, 120, 255}, 3.2f);
+            Burst(player.x, player.y - 30.0f, 80.0f, {255, 190, 90, 255}, 26);
+            Audio::PlayAt(Sfx::QuestComplete, player.x, player.y);
+        }
     }
     if (!won.first) return;
     // Health or mana may be the boon: the pools are what they now are.
@@ -268,6 +275,47 @@ int World::DreamBonus(const string& item_id) const {
 void World::NoteSlain(int post) {
     if (post < 0) return;
     slain[map_id + ":" + std::to_string(post)] = clock.QuestDay();
+}
+
+SDL_FPoint World::OpenGroundNear(float x, float y, const SDL_FRect& foot) const {
+    const auto open = [&](float px, float py) {
+        return !map.Blocked(SDL_FRect{px + foot.x, py + foot.y, foot.w, foot.h});
+    };
+    if (open(x, y)) return {x, y};
+    const int level = map.LevelAt(x, y);
+    for (float r = 8.0f; r <= 320.0f; r += 8.0f) {
+        const int steps = std::max(8, static_cast<int>(r * 6.2831853f / 8.0f));
+        for (int i = 0; i < steps; ++i) {
+            const float a = 6.2831853f * static_cast<float>(i) / static_cast<float>(steps);
+            const float px = x + cosf(a) * r, py = y + sinf(a) * r;
+            if (open(px, py) && map.LevelAt(px, py) == level) return {px, py};
+        }
+    }
+    return map.DefaultSpawn();
+}
+
+void World::CatchUpUsedObjects(const GameContext& ctx) {
+    QuestLog* log = ctx.quests;
+    if (!log || log->relay || visiting) return;
+    for (const string& id : log->Active()) {
+        const QuestDef* d = log->Definition(id);
+        const int stage = log->Stage(id);
+        if (!d || stage < 0 || stage >= static_cast<int>(d->stages.size())) continue;
+        const QuestStage& st = d->stages[stage];
+        if (st.type != ObjectiveType::Interact || st.target.empty() || !Flagged(st.target)) continue;
+        QuestEvent e;
+        e.type   = ObjectiveType::Interact;
+        e.target = st.target;
+        e.map_id = st.map_id;
+        e.quest  = id;
+        log->Notify(e, player.inventory);
+    }
+}
+
+void World::SettlePlayer() {
+    const SDL_FPoint at = OpenGroundNear(player.x, player.y, player.foot_box);
+    player.x = at.x;
+    player.y = at.y;
 }
 
 bool World::SlainToday(const string& map, int post) const {
@@ -818,6 +866,18 @@ bool World::ObjectPresent(const MapObject& o) const {
             quest_log->relay_active.count(o.starts_quest)) return false;
         return true;
     }
+    // The Cinder King's and the Quintessence's chests stood beside them and
+    // opened in the middle of the fight; the Heart is "taken from where the
+    // Quintessence fell". Now each is there once its boss is down today.
+    if (!o.needs_slain.empty() && !Flagged(o.id)) {
+        bool down = false;
+        int post = 0;
+        for (const auto& e : map.Enemies()) {
+            if (e.type == o.needs_slain && SlainToday(map_id, post)) { down = true; break; }
+            ++post;
+        }
+        if (!down) return false;
+    }
     if (o.needs_quest.empty()) return true;
     return quest_log && quest_log->IsActive(o.needs_quest);
 }
@@ -826,6 +886,10 @@ void World::Update(float dt, const GameContext& ctx) {
     quest_log = ctx.quests;
     host_quests = ctx.quests;
     statuses_now = ctx.statuses;
+    if ((catch_up_timer -= dt) <= 0.0f) {
+        catch_up_timer = 0.5f;
+        CatchUpUsedObjects(ctx);
+    }
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
         fade += fade_dir * fade_speed * dt;

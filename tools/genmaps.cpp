@@ -892,12 +892,14 @@ static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
 // exactly one place: no loot table can roll what is not in one, and the chest
 // is not there to be opened before the quest is taken or after it is over.
 static void PlaceRelicChest(MapBuilder& m, const string& chest_id, int x, int y,
-                            const string& item, const string& quest) {
+                            const string& item, const string& quest, const string& slain = "") {
     json& o = m.Object(chest_id, "chest", x, y);
     o["sprite"]      = ObjPath("chest");
     o["sprite_open"] = ObjPath("chest_open");
     o["item"]        = item;
     o["needs_quest"] = quest;
+    // In a boss's own room: there once the boss is down (World::ObjectPresent).
+    if (!slain.empty()) o["needs_slain"] = slain;
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
@@ -1544,6 +1546,9 @@ static bool FillNear(MapBuilder& m, int x0, int y0, const string& type, int show
         const int x = x0 + d[0] * 32, y = y0 + d[1] * 32;
         if (x < 48 || y < 48 || x > m.Width() - 48 || y > m.Height() - 48) continue;
         if (!open(x, y) || taken(x, y)) continue;
+        // Nobody met on the doorstep, as the lattice's posts are not: the first
+        // fills stood a demon 7 px from the way out of the Infernal Pit.
+        if (m.NearestHaven(x, y) < 260.0f) continue;
         bool walk = true;
         for (int i = 1; i < 8 && walk; ++i) walk = m.Clear(x0 + (x - x0) * i / 8, y0 + (y - y0) * i / 8);
         if (!walk) continue;
@@ -5599,7 +5604,7 @@ static void BuildPalaceThrone() {
     Light(m, "palace_throne_brazier_w", "palace_brazier", 8 * CELL + 16, 8 * CELL + 20, 22);
     Light(m, "palace_throne_brazier_e", "palace_brazier", 19 * CELL + 16, 8 * CELL + 20, 22);
     for (int cx : {5, 9, 19, 23}) m.Prop("props", "palace_banner", cx * CELL, back * CELL + 2);
-    PlaceRelicChest(m, "chest_cinder_king", 18 * CELL, 6 * CELL + 16, "heart_of_cinders", "");
+    PlaceRelicChest(m, "chest_cinder_king", 18 * CELL, 6 * CELL + 16, "heart_of_cinders", "", "cinder_king");
     // Columns down both sides, and his demons in stone at the door.
     for (int cy : {12, 18, 24, 30})
         for (int cx : {3, 24}) Piece(m, "palace_pillar", cx * CELL + 16, cy * CELL + 24, 26, 12);
@@ -11914,7 +11919,7 @@ static void BuildPrimConflux() {
     m.Overlay("props", "conflux_dais", static_cast<int>(centre.x * CELL), static_cast<int>(centre.y * CELL) - 22);
     m.Enemy("quintessence", static_cast<int>(centre.x * CELL), static_cast<int>(centre.y * CELL), 1, 0.0f, 900.0f);
     PlaceRelicChest(m, "chest_quintessence", static_cast<int>(centre.x * CELL) + 3 * CELL,
-                    static_cast<int>(centre.y * CELL) - 4 * CELL, "conflux_heart", "");
+                    static_cast<int>(centre.y * CELL) - 4 * CELL, "conflux_heart", "", "quintessence");
     for (const Spoke& s : spokes) {
         const Pt w = well_at(s);
         Well(m, s.well, static_cast<int>(w.x * CELL), static_cast<int>(w.y * CELL) + 16);

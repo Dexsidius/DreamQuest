@@ -48,6 +48,10 @@ struct DialogueCondition {
 struct DialogueAction {
     string start_quest;
     string advance_quest;         // fires a Talk objective against this NPC
+    // The quest the line was said for -- the one its option is shown for --
+    // and so the only one it moves on (see QuestEvent::quest). Set when the
+    // dialogue is loaded; empty for a line that is not any one quest's.
+    string advance_for;
     // What is handed over. A list, because a lesson hands over everything it
     // needs at once: two logs and a hide are one gift, not two conversations.
     // In the file, "give"/"give_qty" for one thing and "gives": {id: n} for

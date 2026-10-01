@@ -2820,7 +2820,10 @@
     "on_hit": {
       "id": "wet",
       "chance": 0.2
-    }
+    },
+    "spells": [
+      "shaman_bolt"
+    ]
   },
   "bayou_matriarch": {
     "name": "The Mother of the Fen",
@@ -3100,7 +3103,10 @@
     "on_hit": {
       "id": "chill",
       "chance": 0.2
-    }
+    },
+    "spells": [
+      "shade_wail"
+    ]
   },
   "grave_hound": {
     "name": "Grave Hound",
@@ -4805,6 +4811,7 @@
     "attack_cooldown": 1.35,
     "loot": "fell_wolf",
     "kill_target": "wolf",
+    "element": "air",
     "foot_box": [
       -12,
       -9,
@@ -4844,6 +4851,7 @@
     "attack_cooldown": 2.0,
     "loot": "mossback_bear",
     "kill_target": "bear",
+    "element": "earth",
     "foot_box": [
       -21,
       -14,
@@ -4878,6 +4886,9 @@
     "shoots": "conjure_flame",
     "shoot_range": 230.0,
     "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_flame"
+    ],
     "loot": "ember_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -4918,6 +4929,9 @@
     "shoots": "conjure_flame",
     "shoot_range": 250.0,
     "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_flame"
+    ],
     "loot": "inferno_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -4969,6 +4983,9 @@
     "shoots": "conjure_stone",
     "shoot_range": 230.0,
     "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_stone"
+    ],
     "loot": "stone_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5009,6 +5026,9 @@
     "shoots": "conjure_stone",
     "shoot_range": 250.0,
     "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_stone"
+    ],
     "loot": "monolith_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5060,6 +5080,9 @@
     "shoots": "conjure_tide",
     "shoot_range": 230.0,
     "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_tide"
+    ],
     "loot": "tide_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5101,6 +5124,9 @@
     "shoots": "conjure_tide",
     "shoot_range": 250.0,
     "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_tide"
+    ],
     "loot": "maelstrom_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5153,6 +5179,9 @@
     "shoots": "conjure_gale",
     "shoot_range": 230.0,
     "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_gale"
+    ],
     "loot": "gale_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5193,6 +5222,9 @@
     "shoots": "conjure_gale",
     "shoot_range": 250.0,
     "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_gale"
+    ],
     "loot": "cyclone_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5244,6 +5276,9 @@
     "shoots": "conjure_spark",
     "shoot_range": 230.0,
     "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_spark"
+    ],
     "loot": "storm_conjure",
     "kill_target": "conjure",
     "foot_box": [
@@ -5284,6 +5319,9 @@
     "shoots": "conjure_spark",
     "shoot_range": 250.0,
     "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_spark"
+    ],
     "loot": "thunder_conjure",
     "kill_target": "conjure",
     "foot_box": [

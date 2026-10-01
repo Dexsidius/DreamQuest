@@ -118,6 +118,11 @@ struct QuestEvent {
     string secondary;         // NPC for Deliver
     int    amount = 1;
     string map_id;            // area in which the event happened
+    // When set, only this quest hears it: a line said for one quest, an order
+    // handed in. Without it every active quest at a matching stage moves on,
+    // which is what a kill or a picked herb wants -- and what moved Oona's
+    // poppet past its binding when another quest's line was said to her.
+    string quest;
 };
 
 class QuestLog {

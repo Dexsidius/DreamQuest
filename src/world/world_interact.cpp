@@ -251,11 +251,9 @@ void World::TryInteract(const GameContext& ctx) {
             }
             if (o.type == "search") {
                 if (Flagged(o.id) || !ObjectPresent(o)) break;
+                if (!OpenInto(o, ctx)) break;
                 SetFlag(o.id);
                 Audio::Play(Sfx::ChestOpen);
-                if (!o.loot_table.empty()) SpawnLoot(o.loot_table, o.x, o.y + 10.0f, ctx);
-                if (!o.loot_item.empty())
-                    DropItem(o.loot_item, std::max(1, o.loot_qty), o.x, o.y + 10.0f, ctx);
                 AddText(o.text.empty() ? "There is something under it." : o.text,
                         o.x, o.y - 30.0f, {255, 225, 120, 255}, 2.4f);
                 if (ctx.quests) {
@@ -269,12 +267,11 @@ void World::TryInteract(const GameContext& ctx) {
             }
             if (o.type == "chest") {
                 if (Flagged(o.id) || !ObjectPresent(o)) break;
+                // What a chest holds by name, which no loot table can roll, and
+                // a key or a seal its table does: into the bag (see OpenInto).
+                if (!OpenInto(o, ctx)) break;
                 SetFlag(o.id);
                 Audio::Play(Sfx::ChestOpen);
-                if (!o.loot_table.empty()) SpawnLoot(o.loot_table, o.x, o.y + 10.0f, ctx);
-                // What a chest holds by name, which no loot table can roll.
-                if (!o.loot_item.empty())
-                    DropItem(o.loot_item, std::max(1, o.loot_qty), o.x, o.y + 10.0f, ctx);
                 AddText("Opened!", o.x, o.y - 34.0f, {255, 225, 120, 255});
                 if (ctx.quests) {
                     QuestEvent e;
@@ -402,9 +399,10 @@ void World::TryInteract(const GameContext& ctx) {
                     e.map_id = map_id;
                     ctx.quests->Notify(e, player.inventory);
                 }
-                // A note can also leave something behind, but only once.
-                if (!o.loot_table.empty() && !Flagged(o.id))
-                    SpawnLoot(o.loot_table, o.x, o.y + 8.0f, ctx);
+                // A note can also leave something behind, but only once -- and
+                // the torn page under the surveyor's note goes into the bag,
+                // or waits under it until there is room (see OpenInto).
+                if (!o.loot_table.empty() && !Flagged(o.id) && !OpenInto(o, ctx)) break;
 
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Note;
@@ -751,6 +749,51 @@ void World::SpawnLoot(const string& table_id, float x, float y, const GameContex
         DropItem(d.item, d.qty, x + cosf(angle) * radius, y + sinf(angle) * radius * 0.6f, ctx);
         ++index;
     }
+}
+
+bool World::OpenInto(const MapObject& o, const GameContext& ctx) {
+    // One of a kind -- a key, a seal, the torn page, a relic -- left at the feet
+    // of somebody with a full pack was gone with the next map, its chest
+    // already open: a story could not be finished. Now they go into the bag,
+    // and the thing stays shut until there is room for them.
+    vector<LootDrop> drops = (ctx.loot && !o.loot_table.empty()) ? ctx.loot->Roll(o.loot_table) : vector<LootDrop>{};
+    for (auto& d : drops)
+        if (const int more = DreamBonus(d.item)) { d.qty += more; break; }
+    vector<LootDrop> bag, ground;
+    if (!o.loot_item.empty()) bag.push_back({o.loot_item, std::max(1, o.loot_qty)});
+    for (const auto& d : drops) {
+        const ItemDef* def = ctx.items ? ctx.items->Get(d.item) : nullptr;
+        (def && def->keep ? bag : ground).push_back(d);
+    }
+    int slots = 0;
+    for (const auto& d : bag) {
+        const ItemDef* def = ctx.items ? ctx.items->Get(d.item) : nullptr;
+        if (!(def && def->stackable && player.inventory.Has(d.item, 1))) ++slots;
+    }
+    if (slots > player.inventory.FreeSlots()) {
+        AddText("No room in the bag.", o.x, o.y - 30.0f, {255, 140, 140, 255});
+        Audio::Play(Sfx::UiError);
+        return false;
+    }
+    for (const auto& d : bag) {
+        const int got = player.inventory.Add(d.item, d.qty);
+        if (got < d.qty) ground.push_back({d.item, d.qty - got});
+        const ItemDef* def = ctx.items ? ctx.items->Get(d.item) : nullptr;
+        AddText("+" + std::to_string(d.qty) + " " + (def ? def->name : d.item), player.x, player.y - 58.0f,
+                {255, 232, 150, 255}, 2.4f);
+    }
+    if (!bag.empty()) {
+        Audio::Play(Sfx::Pickup);
+        if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+    }
+    int index = 0;
+    for (const auto& d : ground) {
+        const float angle = 1.9f * index;
+        const float radius = ground.size() > 1 ? 9.0f + 3.0f * index : 0.0f;
+        DropItem(d.item, d.qty, o.x + cosf(angle) * radius, o.y + 10.0f + sinf(angle) * radius * 0.6f, ctx);
+        ++index;
+    }
+    return true;
 }
 
 void World::DropItem(const string& item_id, int qty, float x, float y,

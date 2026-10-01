@@ -774,6 +774,14 @@ void Game::UpdateStorage() {
 
     const ItemStack stack = from.Slot(slot);
     if (stack.Empty()) { Audio::Play(Sfx::UiError); return; }
+    // A quest's things stay in the bag, one at a time as well as all at once:
+    // the house key stored in the house's own chest locked the door on it,
+    // and on everything else in there, for good.
+    if (!storage_on_chest && MustKeep(items.Get(stack.id), *quests)) {
+        PushToast("You had better hold on to that.", Palette::TextDim);
+        Audio::Play(Sfx::UiError);
+        return;
+    }
 
     const int want = all ? stack.qty : 1;
     const int moved = to.Add(stack.id, want);

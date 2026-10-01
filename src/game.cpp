@@ -1441,11 +1441,18 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
             Audio::Play(Sfx::QuestStart);
         }
 
-        // Every order the bag can fill for this NPC, at once.
+        // Every order the bag can fill for this NPC, at once -- each with its
+        // own goods. A delivery used to be counted against every order for
+        // the same thing, so two posted the same day were both paid for one
+        // lot, and the next turn of this loop read a finished order's stage
+        // past the end of its list.
         if (a.hand_in) {
             for (const string& id : quests->ReadyToDeliver(dialogue.NpcId(), p.inventory)) {
                 const QuestDef* d = quests->Definition(id);
-                const QuestStage& st = d->stages[quests->Stage(id)];
+                if (!d || !quests->IsActive(id)) continue;
+                const int stage = quests->Stage(id);
+                if (stage < 0 || stage >= static_cast<int>(d->stages.size())) continue;
+                const QuestStage& st = d->stages[stage];
                 const int need = st.count - quests->Counter(id);
                 if (need <= 0 || !p.inventory.Remove(st.target, need)) continue;
                 QuestEvent e;
@@ -1453,6 +1460,7 @@ void Game::HandleDialogueActions(const vector<DialogueAction>& actions) {
                 e.target    = st.target;
                 e.secondary = dialogue.NpcId();
                 e.amount    = need;
+                e.quest     = id;
                 quests->Notify(e, p.inventory);
             }
         }
@@ -1496,7 +1504,11 @@ DialogueContext Game::MakeDialogueContext() const {
 void Game::GiveRewards(const map<int, int>& xp, const vector<pair<string, int>>& things, int coins) {
     Player& p = world->player;
     for (const auto& x : xp) p.GrantXp(x.first, x.second);
-    if (coins > 0) p.inventory.AddCoins(coins);
+    // Coins as well as things: with a full bag and no purse in it, they went nowhere.
+    if (coins > 0) {
+        const int got = p.inventory.Add("coins", coins);
+        if (got < coins) world->DropItem("coins", coins - got, p.x, p.y + 6.0f, ctx);
+    }
     for (const auto& item : things) {
         const int added = p.inventory.Add(item.first, item.second);
         if (added < item.second) {

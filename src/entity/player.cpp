@@ -2663,7 +2663,27 @@ json Player::ToJson() const {
     // Only while one runs, so a sheet or a save without any is what it was.
     json wards = WardsToJson(*this);
     if (!wards.empty()) j["wards"] = std::move(wards);
+    // The dish being digested, and what is left of it: the id is what is
+    // saved, the numbers stay on the ItemDef. A sheet carries it too, so the
+    // host knows the health a friend's dish gives them.
+    if (meal && meal_left > 0.0f) {
+        j["meal"] = meal->id;
+        j["meal_left"] = meal_left;
+    }
     return j;
+}
+
+// The dish a save or a sheet says is being digested, put back before the
+// pools are sized: its health and mana are part of them.
+static void MealFromJson(const ItemDef*& meal, float& meal_left, const json& j, const ItemDatabase* items) {
+    meal = nullptr;
+    meal_left = 0.0f;
+    if (!items || !j.contains("meal") || !j["meal"].is_string()) return;
+    const ItemDef* d = items->Get(j["meal"].get<string>());
+    const float left = j.value("meal_left", 0.0f);
+    if (!d || !d->IsDish() || left <= 0.0f) return;
+    meal = d;
+    meal_left = std::min(left, d->dish_minutes * 60.0f);
 }
 
 void Player::ApplySheet(const json& j, const GameContext& ctx) {
@@ -2684,6 +2704,8 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
     SizeBag();
     if (j.contains("inventory")) inventory.FromJson(j["inventory"]);
     if (j.contains("equipment")) equipment.FromJson(j["equipment"]);
+    MealFromJson(meal, meal_left, j, ctx.items);
+    HoldMeal();
     const int was = hp;
     SyncHitpoints();
     hp = std::clamp(was, 0, max_hp);
@@ -2732,6 +2754,10 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     SizeBag();
     if (j.contains("inventory")) inventory.FromJson(j["inventory"]);
     if (j.contains("equipment")) equipment.FromJson(j["equipment"]);
+    // A meal survives a reload with what is left of it (it was dropped, and
+    // the health it gave clamped away, until 1 October 2026).
+    MealFromJson(meal, meal_left, j, ctx.items);
+    HoldMeal();
 
     SyncHitpoints();
     hp = std::clamp(j.value("hp", max_hp), 1, max_hp);

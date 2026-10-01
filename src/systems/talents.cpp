@@ -156,7 +156,9 @@ Talents::Trophy Talents::SlayBoss(const string& boss_id, std::mt19937& rng) {
     // Every time is counted; the fifteenth is the one that leaves the totem,
     // and it is the count passing fifteen that does it, so there is one.
     out.kills = ++kills[boss_id];
-    if (out.kills == TOTEM_KILLS && db) out.totem = db->TotemOf(boss_id);
+    // From the fifteenth on, until it is in the bag: a totem left at the feet
+    // of somebody with a full pack was gone with the next map.
+    if (out.kills >= TOTEM_KILLS && db && !totems_given.count(boss_id)) out.totem = db->TotemOf(boss_id);
     if (!slain.insert(boss_id).second) return out;
     out.first = true;
     if (!db) return out;
@@ -410,6 +412,8 @@ json Talents::ToJson() const {
     for (const HeldBoon& b : boons) j["boons"].push_back({{"id", b.id}, {"left", b.left}});
     j["boss_kills"] = json::object();
     for (const auto& [id, n] : kills) if (n > 0) j["boss_kills"][id] = n;
+    j["totems_given"] = json::array();
+    for (const string& id : totems_given) j["totems_given"].push_back(id);
     if (!placed.empty()) {
         j["totem"] = placed;
         j["totem_day"] = totem_day;
@@ -439,6 +443,15 @@ void Talents::FromJson(const json& j) {
             }
     // A save from before kills were counted: each boss in it was killed once.
     for (const string& id : slain) if (!kills.count(id)) kills[id] = 1;
+    // Whose totem has been handed over. A save from before that was written
+    // down: every boss killed fifteen times or more is taken to have given it,
+    // since it was given then -- or left at the feet, which cannot be known.
+    totems_given.clear();
+    if (j.contains("totems_given") && j["totems_given"].is_array()) {
+        for (const auto& id : j["totems_given"]) if (id.is_string()) totems_given.insert(id.get<string>());
+    } else {
+        for (const auto& [id, n] : kills) if (n >= TOTEM_KILLS) totems_given.insert(id);
+    }
     if (j.contains("boons") && j["boons"].is_array())
         for (const auto& bj : j["boons"]) {
             // A boon, and the hours it has left. A save from when a boon was

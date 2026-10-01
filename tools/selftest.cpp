@@ -2545,6 +2545,314 @@ static void TestPrimordium(const Databases& db) {
     Check(trees.TotemOf("quintessence") != nullptr, "and it leaves a totem on its fifteenth fall");
 }
 
+// --- what the 1 October report found, put right ------------------------------------------------------------
+// Each of these was a way to lose a quest, an item or a fight's worth to a
+// slip; the report that found them is "The Hollowmarch Almanac", version 2.
+static void TestReportFixes(const Databases& db) {
+    EnemyDatabase& enemy_db = db.enemy_db; ItemDatabase& items = db.items; LootSystem& loot = db.loot;
+    DialogueDatabase& dialogue = db.dialogue; ProjectileDatabase& projectiles = db.projectiles;
+    SpriteLibrary& sprites = db.sprites; SkillTrees& trees = db.trees; SpellBook& spells = db.spells;
+    QuestLog& quests = db.quests;
+    Section("what the 1 October report found, put right");
+
+    Input input;
+    std::mt19937 rng(1001);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+
+    // --- nobody met on the doorstep -------------------------------------------------------------------------
+    // The ladder's fills stood a demon 7 px from the way out of the Infernal
+    // Pit; they keep off every way in now, as the lattice's posts always did.
+    {
+        string near;
+        for (const char* id : kMaps) {
+            const string map = id;
+            const bool prim = map.rfind("prim_", 0) == 0;
+            if (!prim && map != "ashen_path") continue;
+            std::ifstream in("maps/" + map + ".mx");
+            json mx;
+            in >> mx;
+            const json& dq = mx["dreamquest"];
+            for (auto s = dq["spawns"].begin(); s != dq["spawns"].end(); ++s) {
+                const float sx = s.value()[0].get<float>(), sy = s.value()[1].get<float>();
+                for (const auto& e : dq["enemies"]) {
+                    if (e.value("night", false) || e.contains("route")) continue;
+                    const float d = std::hypot(e["x"].get<float>() - sx, e["y"].get<float>() - sy);
+                    // The Primordium's posts all keep the lattice's 260; the Ashen
+                    // Path's two guards at the pit's mouth stand 90 off, on purpose.
+                    if (d < (prim ? 250.0f : 80.0f)) near += " " + map + ":" + s.key();
+                }
+            }
+        }
+        Check(near.empty(), "no post stands on a way in, in the Primordium or on the Ashen Path:" + near);
+    }
+
+    // --- every shooter is heard as what it shoots ------------------------------------------------------------
+    {
+        string twang;
+        for (const auto& kv : enemy_db.All()) {
+            const EnemyDef& d = kv.second;
+            if (d.shoots.empty() || !d.spells.empty()) continue;
+            const ProjectileDef* pd = projectiles.Get(d.shoots);
+            if (!pd || pd->thrown || pd->breath) continue;
+            // Loosed off a string: an arrow, a bolt or a dart, and nothing else.
+            if (pd->sprite.find("arrow") == string::npos) twang += " " + kv.first;
+        }
+        Check(twang.empty(), "a spell is heard cast and a spit thrown -- only arrows and darts twang a string:" + twang);
+        const EnemyDef* ember = enemy_db.Get("ember_conjure");
+        Check(ember && !ember->spells.empty(), "the Conjures cast");
+    }
+
+    // --- the wolves and bears in the old pockets are of their kin's element ----------------------------------
+    {
+        const EnemyDef* wolf = enemy_db.Get("wolf");  const EnemyDef* fell = enemy_db.Get("fell_wolf");
+        const EnemyDef* bear = enemy_db.Get("bear");  const EnemyDef* moss = enemy_db.Get("mossback_bear");
+        Check(wolf && fell && bear && moss && fell->element == wolf->element && moss->element == bear->element &&
+                  wolf->element != Element::None && bear->element != Element::None,
+              "a fell wolf is a wolf's element and a mossback a bear's");
+    }
+
+    // --- the bosses brought down drop what their level should --------------------------------------------------
+    {
+        bool demonite = false;
+        for (const char* id : {"demonite_bar", "demonite_sword", "demonite_body", "demonite_staff"})
+            demonite |= loot.ChanceOf("pit_lord", id) > 0.0f;
+        Check(!demonite && loot.ChanceOf("pit_lord", "orichalcum_bar") > 0.0f && loot.ChanceOf("pit_lord", "demonite_ore") < 0.25f,
+              "the Pit Lord, at 55, drops orichalcum and diamond, and the pit's demonite only now and then");
+        Check(loot.ChanceOf("frost_dragon", "platinum_bar") == 0.0f && loot.ChanceOf("frost_dragon", "platinum_ore") == 0.0f &&
+                  loot.ChanceOf("frost_dragon", "dragonhide") >= 1.0f && loot.ChanceOf("frost_dragon", "dragon_fang") >= 1.0f,
+              "Hoarfang, at 52, no platinum -- and still the only dragonhide and fangs there are");
+    }
+
+    // --- nobody is put down inside a wall ------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("plateau_stronghold", "default", ctx), "the Stronghold loads");
+        // The rift went up on 1 October on open ground: a save from before
+        // can stand somebody in the foot of its tear.
+        const float rx = 61.0f * 32.0f + 16.0f, ry = 34.0f * 32.0f - 60.0f;
+        const SDL_FRect foot = w.player.foot_box;
+        const Map& m = w.CurrentMap();
+        const bool in_wall = m.Blocked(SDL_FRect{rx + foot.x, ry + foot.y, foot.w, foot.h});
+        const SDL_FPoint out = w.OpenGroundNear(rx, ry, foot);
+        Check(in_wall && !m.Blocked(SDL_FRect{out.x + foot.x, out.y + foot.y, foot.w, foot.h}) &&
+                  m.LevelAt(out.x, out.y) == m.LevelAt(rx, ry) && std::hypot(out.x - rx, out.y - ry) <= 320.0f,
+              "a place inside the rift's stones comes out on the open ground beside them, on the same level");
+        w.player.x = rx;
+        w.player.y = ry;
+        w.SettlePlayer();
+        Check(!m.Blocked(w.player.Bounds()), "and so does a player put down there");
+    }
+
+    // --- what was said of yesterday's Westwold and Brackenwood ------------------------------------------------------
+    {
+        const auto says = [&](const char* node, const char* what) {
+            const DialogueNode* n = dialogue.Get(node);
+            return n && n->text.find(what) != string::npos;
+        };
+        Check(!says("sorrel_pelts_accept", "greatwol") && !says("sorrel_west", "shoulder") && !says("hale_den", "ire bear") &&
+                  !says("wynn_teach", "Oona will sell"),
+              "Sorrel sends you after fell wolves, Hale warns of mossbacks, and Wynn sells her own dye");
+        const auto desc = [&](const char* id, const char* what) {
+            const ItemDef* d = items.Get(id);
+            return d && d->description.find(what) != string::npos;
+        };
+        Check(!desc("dire_bear_hide", "Old Growth") && !desc("greatwolf_pelt", "Fells") && !desc("bag_haversack", "Fells") &&
+                  !desc("fell_wolf_pelt", "tanner"),
+              "and the hides say where their beasts are now (and Ivo is the hunter, not the tanner)");
+    }
+
+    // --- the relics: legendary, and their bosses' to give ------------------------------------------------------------
+    {
+        const ItemDef* heart = items.Get("conflux_heart");
+        const bool legendary = heart && std::find(heart->tags.begin(), heart->tags.end(), "legendary") != heart->tags.end();
+        Check(legendary && heart->requirements.count(SKILL_HITPOINTS) && heart->requirements.at(SKILL_HITPOINTS) >= 80,
+              "the Heart of the Conflux is a relic like the others, and asks Hitpoints of every way of fighting");
+        struct Relic { const char* map; const char* chest; const char* boss; };
+        const Relic kRelics[] = {{"prim_conflux", "chest_quintessence", "quintessence"},
+                                 {"palace_throne", "chest_cinder_king", "cinder_king"}};
+        for (const Relic& r : kRelics) {
+            const char* chest = r.chest;
+            const char* boss = r.boss;
+            World w;
+            w.player.Init(ctx, "player_hero");
+            if (!w.LoadMap(r.map, "default", ctx)) { Check(false, string(r.map) + " loads"); continue; }
+            const MapObject* o = nullptr;
+            for (const MapObject& x : w.CurrentMap().Objects()) if (x.id == chest) o = &x;
+            int post = -1, i = 0;
+            for (const EnemySpawnDef& e : w.CurrentMap().Enemies()) { if (e.type == boss) post = i; ++i; }
+            const bool before = o && w.ObjectPresent(*o);
+            w.NoteSlain(post);
+            Check(o && post >= 0 && !before && w.ObjectPresent(*o),
+                  string(chest) + " is there once its boss is down, and not in the middle of the fight");
+        }
+    }
+
+    // --- a step to use something already used is past ------------------------------------------------------------------
+    {
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        const QuestDef* well = log.Definition("q_dry_well");
+        int at = -1;
+        if (well)
+            for (size_t s = 0; s < well->stages.size(); ++s)
+                if (well->stages[s].type == ObjectiveType::Interact && well->stages[s].target == "spring_well") at = static_cast<int>(s);
+        log.FromJson(json{{"q_dry_well", {{"status", 1}, {"stage", at}, {"counter", 0}}}});
+        World w;
+        w.player.Init(ctx, "player_hero");
+        w.SetFlag("spring_well");                 // pulled during the warden's fight, before its stage
+        GameContext own = ctx;
+        own.quests = &log;
+        w.CatchUpUsedObjects(own);
+        Check(at >= 0 && (log.IsComplete("q_dry_well") || log.Stage("q_dry_well") > at),
+              "the Dry Well, its spring pulled before the step to pull it, goes past that step and is not stuck there");
+    }
+
+    // --- a line said for one quest moves that quest only -----------------------------------------------------------------
+    {
+        // Every line that moves a quest on knows which.
+        std::ifstream in("data/dialogue.json");
+        json raw;
+        in >> raw;
+        string loose;
+        for (auto n = raw.begin(); n != raw.end(); ++n) {
+            const DialogueNode* node = dialogue.Get(n.key());
+            if (!node) continue;
+            for (const DialogueOption& o : node->options) {
+                if (o.action.advance_quest.empty()) continue;
+                const QuestDef* q = o.action.advance_for.empty() ? nullptr : quests.Definition(o.action.advance_for);
+                bool talks = false;
+                if (q) for (const QuestStage& st : q->stages) talks |= st.type == ObjectiveType::Talk && st.target == o.action.advance_quest;
+                if (!talks) loose += " " + n.key() + ":" + o.text;
+            }
+        }
+        Check(loose.empty(), "every line that moves a quest on names the quest, and that quest is waiting on that person:" + loose);
+
+        // Oona: telling her Wendel has his remedy does not bind the doll.
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        log.FromJson(json{{"q_word_to_fernhollow", {{"status", 1}, {"stage", 1}, {"counter", 0}}},
+                          {"q_oonas_poppet", {{"status", 1}, {"stage", 0}, {"counter", 0}}}});
+        const DialogueNode* oona = dialogue.Get("oona_root");
+        const DialogueOption* remedy = nullptr;
+        if (oona) for (const DialogueOption& o : oona->options) if (o.text == "Wendel has his remedy.") remedy = &o;
+        Inventory bag(&items);
+        Skills skills;
+        if (remedy) ApplyDialogueAction(remedy->action, log, bag, skills, "npc_oona");
+        Check(remedy && log.Stage("q_oonas_poppet") == 0 && log.Status("q_oonas_poppet") == QuestStatus::Active &&
+                  (log.IsComplete("q_word_to_fernhollow") || log.Stage("q_word_to_fernhollow") > 1),
+              "telling Oona Wendel has his remedy finishes that errand and leaves the doll's binding to come");
+
+        // Vask takes the fang only for his quest, at its step.
+        const DialogueNode* vask = dialogue.Get("elder_waiting");
+        bool fang_gated = vask != nullptr;
+        if (vask)
+            for (const DialogueOption& o : vask->options)
+                if (o.action.take_item == "dragon_fang")
+                    fang_gated &= o.condition.quest == "q_ice_spire_dragon" && o.condition.quest_stage == 2;
+        Check(fang_gated, "Elder Vask takes the dragon's fang only when his quest is at that step");
+    }
+
+    // --- an order handed in is that order's ----------------------------------------------------------------------------------
+    {
+        // Two orders posted the same day for the same thing to the same person:
+        // a delivery to one is not counted against the other.
+        string a, b;
+        for (const auto& [id, d] : quests.Definitions()) {
+            if (d.stages.size() != 1 || d.stages[0].type != ObjectiveType::Deliver) continue;
+            for (const auto& [id2, d2] : quests.Definitions())
+                if (id2 > id && d2.stages.size() == 1 && d2.stages[0].type == ObjectiveType::Deliver &&
+                    d2.stages[0].target == d.stages[0].target && d2.stages[0].deliver_to == d.stages[0].deliver_to && a.empty()) {
+                    a = id; b = id2;
+                }
+        }
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        log.FromJson(json{{a, {{"status", 1}, {"stage", 0}, {"counter", 0}}}, {b, {{"status", 1}, {"stage", 0}, {"counter", 0}}}});
+        const QuestDef* qa = log.Definition(a);
+        Inventory bag(&items);
+        if (qa) {
+            QuestEvent e;
+            e.type      = ObjectiveType::Deliver;
+            e.target    = qa->stages[0].target;
+            e.secondary = qa->stages[0].deliver_to;
+            e.amount    = qa->stages[0].count;
+            e.quest     = a;
+            log.Notify(e, bag);
+        }
+        Check(!a.empty() && log.IsComplete(a) && log.Status(b) == QuestStatus::Active && log.Counter(b) == 0,
+              "one lot handed in fills one order (" + a + "), not its twin for the same goods (" + b + ")");
+    }
+
+    // --- one of a kind goes into the bag, or waits -----------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        w.player.inventory.SetDatabase(&items);
+        Check(w.LoadMap("town_havenbrook", "default", ctx), "somewhere to stand");
+        for (int i = 0; i < w.player.inventory.SlotCount(); ++i) w.player.inventory.Add("bronze_sword", 1);
+        MapObject chest;
+        chest.id = "test_key_chest"; chest.type = "chest"; chest.loot_item = "rusted_key";
+        chest.x = w.player.x; chest.y = w.player.y;
+        MapObject note;
+        note.id = "test_page_note"; note.type = "note"; note.loot_table = "page_surveyor";
+        note.x = w.player.x; note.y = w.player.y;
+        const size_t lying = w.pickups.size();
+        const bool shut = !w.OpenInto(chest, ctx) && !w.OpenInto(note, ctx);
+        Check(shut && !w.player.inventory.Has("rusted_key") && !w.player.inventory.Has("torn_page") && w.pickups.size() == lying,
+              "with no room in the bag, the Emberfell key's chest and the surveyor's note keep what they hold -- none of it on the ground to be lost");
+        w.player.inventory.Remove("bronze_sword", 2);
+        Check(w.OpenInto(chest, ctx) && w.OpenInto(note, ctx) && w.player.inventory.Has("rusted_key") && w.player.inventory.Has("torn_page"),
+              "and with room, both go into the bag");
+    }
+
+    // --- a totem a full pack could not take comes again ----------------------------------------------------------------------------
+    {
+        Talents t;
+        t.SetDatabase(&trees);
+        std::mt19937 dice(15);
+        for (int n = 0; n < 14; ++n) t.SlayBoss("pit_lord", dice);
+        const bool fifteenth = t.SlayBoss("pit_lord", dice).totem != nullptr;
+        const bool again = t.SlayBoss("pit_lord", dice).totem != nullptr;     // the bag was full: not given
+        t.TotemGiven("pit_lord");
+        const bool once = t.SlayBoss("pit_lord", dice).totem == nullptr;
+        Talents u;
+        u.SetDatabase(&trees);
+        u.FromJson(t.ToJson());
+        Talents old;
+        old.SetDatabase(&trees);
+        old.FromJson(json{{"boss_kills", {{"pit_lord", 15}, {"broodmother", 3}}}});
+        Check(fifteenth && again && once && u.HasTotem("pit_lord") && old.HasTotem("pit_lord") && !old.HasTotem("broodmother"),
+              "the totem is offered from the fifteenth kill until it is in the bag, then never again; an old save's fifteen-kill bosses count as given");
+    }
+
+    // --- a meal survives a reload ---------------------------------------------------------------------------------------------------
+    {
+        const ItemDef* dish = nullptr;
+        for (const auto& kv : items.All())
+            if (kv.second.IsDish() && kv.second.dish_max_hp > 0.0f) { dish = &kv.second; break; }
+        Player p;
+        p.Init(ctx, "player_hero");
+        LevelUp lu;
+        p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+        p.SyncHitpoints();
+        const int plain = p.max_hp;
+        if (dish) p.SetMeal(dish, 300.0f);
+        p.SyncHitpoints();
+        const int fed = p.max_hp;
+        p.hp = fed;
+        Player q;
+        q.Init(ctx, "player_hero");
+        q.FromJson(p.ToJson(), ctx);
+        Check(dish && fed > plain && q.Meal() == dish && std::fabs(q.MealLeft() - 300.0f) < 1.0f && q.max_hp == fed && q.hp == fed,
+              "a dish being digested is saved, and its health with it");
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -17270,7 +17578,9 @@ int main(int argc, char** argv) {
             for (int n = 1; n <= 20; ++n) {
                 const Talents::Trophy won = t.SlayBoss("orc3", rng);
                 Check(won.kills == n, "kill " + std::to_string(n) + " is counted as " + std::to_string(n));
-                if (won.totem) { ++totems; which = n; }
+                // Into the bag, as World::AwardBoss puts it when there is room:
+                // from then on it is not offered again.
+                if (won.totem) { ++totems; which = n; t.TotemGiven("orc3"); }
                 boons += won.boon != nullptr;
             }
             Check(totems == 1 && which == 15, "twenty Warchiefs leave one totem, on the fifteenth");
@@ -17367,12 +17677,22 @@ int main(int argc, char** argv) {
             for (int n = 0; n < 10; ++n) w.AwardBoss("broodmother", ctx);
             Check(w.player.inventory.Count("totem_broodmother") == 1, "and ten more leave no second");
 
-            // A full pack does not lose it.
+            // A full pack does not lose it: it was put at the owner's feet, and
+            // gone with the next map; now it is offered again until it goes in.
             for (int i = 0; i < w.player.inventory.SlotCount(); ++i) w.player.inventory.Add("bronze_sword", 1);
             Check(w.player.inventory.Full(), "a pack with no room in it");
             const size_t lying = w.pickups.size();
+            w.TakeRequests();
             for (int n = 0; n < 15; ++n) w.AwardBoss("orc3", ctx);
-            Check(!w.player.inventory.Has("totem_orc3") && w.pickups.size() == lying + 1, "has the totem put at its owner's feet instead");
+            bool make_room = false;
+            for (const WorldRequest& r : w.TakeRequests()) make_room |= r.text.find("pack is full") != string::npos;
+            Check(!w.player.inventory.Has("totem_orc3") && w.pickups.size() == lying && make_room,
+                  "with no room for it the fifteenth Warchief leaves it nowhere to be lost, and says to make room");
+            w.player.inventory.Remove("bronze_sword", 1);
+            w.AwardBoss("orc3", ctx);
+            Check(w.player.inventory.Count("totem_orc3") == 1, "and the next, with room made, puts it in the bag");
+            w.AwardBoss("orc3", ctx);
+            Check(w.player.inventory.Count("totem_orc3") == 1, "and never a second");
         }
 
         // --- the ring itself -----------------------------------------------------------------------------------------
@@ -20863,6 +21183,7 @@ int main(int argc, char** argv) {
     TestLightningThroughCombos(db);
     TestOrderLevels(db);
     TestPrimordium(db);
+    TestReportFixes(db);
 
     Section("the Brimstone Palace, and its king");
     {

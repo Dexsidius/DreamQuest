@@ -160,7 +160,9 @@ public:
         bool first = false;              // false: they had killed it before
         const BoonDef* boon = nullptr;   // what it left; null with no boons to give
         int  kills = 0;                  // how many times, this one included
-        const TotemDef* totem = nullptr; // the fifteenth, and only the fifteenth: its totem
+        // The fifteenth: its totem -- and every one after, until it is in the
+        // bag (see TotemGiven), so a full pack on the day does not lose it.
+        const TotemDef* totem = nullptr;
     };
     // How many times a boss has to be brought down before it leaves its totem.
     // A boss is back once a day, so this is a fortnight of going back for it.
@@ -262,6 +264,11 @@ public:
     json ToJson() const;
     void FromJson(const json& j);
 
+    // A boss's totem made it into the bag. Until it does -- a full pack on the
+    // fifteenth kill -- the next kill offers it again.
+    void TotemGiven(const string& boss_id) { totems_given.insert(boss_id); }
+    bool HasTotem(const string& boss_id) const { return totems_given.count(boss_id) > 0; }
+
 private:
     void DropOtherPaths();
 
@@ -269,6 +276,7 @@ private:
     std::map<string, int> ranks;
     std::set<string> slain;          // bosses, by id
     std::map<string, int> kills;     // and how many times each
+    std::set<string> totems_given;   // whose totem has gone into the bag
     // One for each boss's first kill, in the order they came, with the hours
     // each has left; gone when it runs out.
     struct HeldBoon { string id; double left = BOON_HOURS; };

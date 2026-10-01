@@ -36,6 +36,9 @@ static DialogueAction ParseAction(const json& o) {
     if (!o.is_object()) return a;
     a.start_quest   = o.value("start_quest", string(""));
     a.advance_quest = o.value("advance", string(""));
+    // Which quest the line moves on, when the option it is on is not shown for
+    // one (a line further into a conversation): "for".
+    a.advance_for   = o.value("for", string(""));
     if (o.contains("give") && o["give"].is_string())
         a.gives.push_back({o["give"].get<string>(), std::max(1, o.value("give_qty", 1))});
     if (o.contains("gives") && o["gives"].is_object())
@@ -88,6 +91,10 @@ bool DialogueDatabase::Load(const string& path) {
                 d.next = opt.value("next", string("end"));
                 if (opt.contains("if"))     d.condition = ParseCondition(opt["if"]);
                 if (opt.contains("action")) d.action    = ParseAction(opt["action"]);
+                // A line shown for one quest moves that quest on, and no other
+                // waiting on the same person.
+                if (!d.action.advance_quest.empty() && d.action.advance_for.empty())
+                    d.action.advance_for = d.condition.quest;
                 n.options.push_back(d);
             }
 
@@ -162,6 +169,7 @@ DialogueOutcome ApplyDialogueAction(const DialogueAction& a, QuestLog& quests, I
         QuestEvent e;
         e.type   = ObjectiveType::Talk;
         e.target = a.advance_quest;
+        e.quest  = a.advance_for;
         quests.Notify(e, inv);
     }
 

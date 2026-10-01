@@ -587,7 +587,12 @@ void Host::Arrive(uint8_t seat_no, Seat& s, net::Server& server, World& home, co
     auto place = last_place.find(s.name);
     if (place != last_place.end()) {
         w = WorldFor(place->second.map, home, ctx, true);
-        if (w) { x = place->second.x; y = place->second.y; }
+        if (w) {
+            // Out of any wall put up there since they stood there.
+            const SDL_FPoint at = w->OpenGroundNear(place->second.x, place->second.y, SDL_FRect{-8.0f, -11.0f, 16.0f, 11.0f});
+            x = at.x;
+            y = at.y;
+        }
     }
     if (!w) {
         w = &home;

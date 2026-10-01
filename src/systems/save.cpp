@@ -342,6 +342,9 @@ bool SaveSystem::Load(SlotRef slot, World& world, QuestLog& quests,
     if (j.contains("player")) {
         world.player.x = j["player"].value("x", world.player.x) + LayoutShiftX(map_id, version);
         world.player.y = j["player"].value("y", world.player.y);
+        // Where they stood may be inside something placed since -- the
+        // Stronghold's rift, from 1 October 2026 -- and nothing walks out of a wall.
+        world.SettlePlayer();
     }
     world.camera.SnapTo(world.player.x, world.player.y);
 

@@ -364,6 +364,7 @@
     "status": {"id": "electrified", "chance": 0.45}
   },
   "croaker_spit": {
+    "thrown": true,
     "sprite": "assets/effects/acid_glob.png",
     "frames": 8,
     "fps": 12,

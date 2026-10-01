@@ -1160,7 +1160,7 @@
     "rolls": 3,
     "table": [
       {
-        "item": "demonite_bar",
+        "item": "orichalcum_bar",
         "weight": 30,
         "qty": [
           2,
@@ -1168,16 +1168,28 @@
         ]
       },
       {
-        "item": "demonite_sword",
+        "item": "diamond_ingot",
+        "weight": 14,
+        "qty": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "orichalcum_sword",
         "weight": 10
       },
       {
-        "item": "demonite_body",
+        "item": "orichalcum_body",
         "weight": 6
       },
       {
-        "item": "demonite_staff",
+        "item": "orichalcum_staff",
         "weight": 8
+      },
+      {
+        "item": "demonite_ore",
+        "weight": 4
       }
     ]
   },
@@ -1311,7 +1323,7 @@
         ]
       },
       {
-        "item": "platinum_ore",
+        "item": "orichalcum_ore",
         "weight": 22,
         "qty": [
           3,
@@ -1327,7 +1339,7 @@
         ]
       },
       {
-        "item": "platinum_bar",
+        "item": "orichalcum_bar",
         "weight": 16,
         "qty": [
           1,
