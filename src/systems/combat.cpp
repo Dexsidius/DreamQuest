@@ -155,8 +155,8 @@ static int Effective(int level) { return level + 8; }
 
 // Tuned so a fresh character with the starting sword tops out around 2. The
 // other end has moved a long way since this was first written: twelve tiers of
-// gear later, Strength 99 with the last sword and plate is a base of about
-// 148, before any swing's multiplier -- a fully charged blow can pass 450.
+// gear later, Strength 99 with the last sword and plate is a base of 159,
+// before any swing's multiplier -- a fully charged blow can reach 493.
 // Strength sets this ceiling; Attack decides how often anything lands at all.
 static constexpr float MAX_HIT_DIVISOR = 280.0f;
 

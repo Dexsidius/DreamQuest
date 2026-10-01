@@ -1048,7 +1048,7 @@
     {
       "id": "boon_quickstep",
       "name": "Quickstep",
-      "text": "You dodge 4% of what comes at you",
+      "text": "On the move, 4% of blows simply miss you",
       "effects": {
         "evade": 0.04
       }
@@ -1493,7 +1493,7 @@
       "item": "totem_vampire_lord",
       "boss": "vampire_lord",
       "name": "The Red Thirst",
-      "text": "A twentieth of what you take comes back to you",
+      "text": "A twentieth of the damage you deal comes back as health",
       "effects": {
         "lifesteal": 0.05
       },

@@ -969,15 +969,15 @@ about the time there are three kinds of hide to carry. It grows: there are four
 bags, each of which adds a row when it is used from the inventory, to eight rows
 and fifty-six slots with all of them.
 
-| Bag | Crafting | Made of |
+| Bag | Tanning | Made of |
 | --- | --- | --- |
 | Hide Satchel | 12 | 14 raw hide, 4 bolts of cloth, 8 waxed thread |
 | Wolfskin Pack | 28 | 12 wolf pelts, 6 lizard scales, 5 bolts of cloth, 10 thread |
 | Bearskin Rucksack | 46 | 12 bear hides, 4 troll hides, 10 spider silk, 12 thread |
 | Greatwolf Haversack | 68 | 8 greatwolf pelts, 6 dire bear hides, 4 wyvern scales, 12 dream shards |
 
-They are dear on purpose. Each is made at a workbench -- nothing in one is
-metal or brewed -- out of the same hides the ranged armour wants, a good deal
+They are dear on purpose. Each is made on a tanning rack, by Tanning -- a bag
+is mostly hide -- out of the same hides the ranged armour wants, a good deal
 more of them than a jerkin takes, so a bag is a decision about what not to make
 instead. The other way to come by one is luck: every chest table has a bag or
 two in it at a few chances in a hundred, the satchel in the barrels by the road
@@ -1019,8 +1019,9 @@ same attack state machine, so the charge mechanic works for every style.
 - **Strong** — tap the heavy button. Slower, hits considerably harder.
 - **Charged** — *hold* the heavy button. Past about a fifth of a second the
   swing starts charging and a meter appears under your feet; it turns bright
-  when it is full. Release to fire. A full charge is worth roughly three times
-  a normal strong hit and reaches further, but it roots you while it winds up.
+  when it is full. Release to fire. A full charge is worth a little over twice
+  a strong hit (3.1 against 1.45) and reaches further, but while it winds up
+  you walk at well under half your pace.
 
 ### RB, and the menu of menus
 
@@ -2348,8 +2349,8 @@ first ability no row is more than eight levels after the one before.
 
 **Every third level of the tree's skill is a point**, a rank costs one, and a
 node needs at least one rank of the node above it. That is **thirty-three
-points by level 99 against forty-two ranks a tree** (forty-three for the hero,
-with Rushing Strike): two branches to the bottom and a little of the third, or
+points by level 99 against forty-two ranks a tree** (forty-five for the hero,
+with Rushing Strike and Counter): two branches to the bottom and a little of the third, or
 all three most of the way. A build, not a checklist. `J` on a
 node buys its next rank; `L` twice unlearns the whole tree and gives every point
 back, for anyone who wants to fight another way -- at **sixty coins a point
@@ -4809,8 +4810,8 @@ There are three kinds of place to sleep:
   to lend, and a camp costs nothing.
 - **Campsites** -- the tents at Bram's camp on the Whisperwood trail and at the
   traveller's camp in Fernhollow.
-- **Your own camp.** A **Bedroll** is sold at the general stores and made at a
-  workbench from 2 waxed thread and 2 raw hide. Use it from the bag
+- **Your own camp.** A **Bedroll** is sold at the general stores and made on a
+  tanning rack (Tanning 1) from 2 waxed thread and 2 raw hide. Use it from the bag
   under open sky and it pitches a tent and a fire where you stand. After dusk it
   offers "Sleep at your camp" and asks the same question a bed does; by day,
   "Pack up your camp" puts the bedroll back
@@ -5517,8 +5518,8 @@ the king's own boots. Go back down, open his chest, and tell Orlend what was in
 it.
 
 Inside are the **Boots of the Drowned King** (Defence 24, a little Strength,
-Attack 15 to wear), and they carry a **passive**: *Marshstride* -- you walk a
-seventh quicker, and ground that burns takes half as much out of you. A passive
+Attack 15 to wear), and they carry a **passive**: *Marshstride* -- you walk
+15% quicker, and ground that burns takes half as much out of you. A passive
 is a named effect an item has while it is worn (`"passive"` and
 `"passive_text"` in `data/items.json`); anything that cares asks for it by name,
 so the boots' speed lives in the player's movement and their half-damage in the
@@ -5616,7 +5617,7 @@ day; the journal counts how many times.
 | Havenbrook | Kindling | 10 logs to the cook | -- |
 | Mossvale | Fox Patrol | 6 foxes on the Whisperwood trail | Clear the Trail |
 | Mossvale | Tannery Stock | 4 hides to Hadley | -- |
-| Mossvale | Oak for the Lodge | 5 oak logs to Pell | Woodcutting 12 |
+| Mossvale | Oak for the Lodge | 5 oak logs to Pell | Woodcutting 15 |
 | The Reverie | Nightmares Undone | 8 nightmares, asleep | The Water Remembers |
 | The Reverie | Shards for the Shrine | 8 dream shards to Mira | The Water Remembers |
 | The Reverie | The Brute Returns | the nightmare brute, asleep | Lights on the Pond, Combat 18 |
@@ -5680,7 +5681,7 @@ her ore orders pay Mining. They used to pay Mining first, even for a sword.
 | 1 iron sword | Smithing 10 | 1,090 | 220 | 315 |
 | 2 iron shields | Smithing 10 | 1,090 | 220 | 1,145 |
 | 5 iron bars | Smithing 10, Mining 5 | 880 | 180 | 440 |
-| 1 iron spear | Smithing 11 | 1,090 | 220 | 325 |
+| 1 iron spear | Smithing 10 | 1,090 | 220 | 325 |
 | 6 coal | Mining 20 | -- | 900 | 583 |
 | 1 steel greaves | Smithing 20 | 2,120 | 420 | 3,392 |
 | 1 steel helm | Smithing 20 | 1,730 | 350 | 1,565 |
@@ -5718,6 +5719,14 @@ her ore orders pay Mining. They used to pay Mining first, even for a sword.
 | 1 enchanted bar | Smithing 95 | 234,660 | 46,930 | 241,810 |
 | 1 enchanted shield | Smithing 95 | 293,330 | 58,670 | 1,300,655 |
 | 1 enchanted sword | Smithing 95 | 293,330 | 58,670 | 867,500 |
+
+Halda's and Nessa's orders ask **exactly the level their goods are made at**,
+and any order for something cut or mined asks at least the level the least of
+it is got at; the self-test holds both (`TestOrderLevels`). The iron spear asked
+Smithing 11 for a spear made at 10, and the Lodge's oak Woodcutting 12 when no
+oak in the world falls to an axe below 15. A bigger lot posted higher than what
+is in it -- a harvest feast, a barrel of eels -- is Bess's and Wendel's way, and
+theirs alone.
 
 **Bess's book** (16 orders), for the kitchen -- new:
 
@@ -6925,9 +6934,11 @@ in the game: a demon lord in black plate trimmed with gold, ram's horns and a
 crown of burning gold between them, a mantle of black lined with crimson, and a
 greatsword with an edge that glows. He waits at the foot of his dais. Behind him,
 beside the throne, is the **Heart of Cinders**, an amulet: a coal on a chain that
-has not gone out. His first fall is a skill point and a boon (**Cinderheart**, 4%
-more damage), his fifteenth his totem (**Crown of Cinders**: 10% more damage and
-10% more health until dawn). Chests in the ballroom, the dining hall, the king's
+has not gone out. His first fall is a skill point and a boon -- drawn by the
+dice from the boons your path can use, as every boss's is: Cinderheart, 4% more
+damage, is in that pool and is no more his than anyone's -- and his fifteenth his
+totem (**Crown of Cinders**: 10% more damage and 10% more health until dawn),
+which is his. Chests in the ballroom, the dining hall, the king's
 bedchamber and the broken cell hold platinum and demonite -- the last two the
 better -- and he himself drops demonite gear and, now and then, a Dracon bar.
 
@@ -7158,9 +7169,13 @@ exactly. Each is **its own creature**, modelled and animated for it -- see
 | [Hollowrest Crypt](#hollowrest-crypt) | Grave Ghoul, Bone Archer, Cryptbound, Bone Knight, Plague Corpse, Tomb Shade, Grave Hound, Blood Thrall, Bone Colossus, Nosferatu, Crypt Warden, **Lord Ashcroft** | 26-71 |
 | [the Brimstone Palace](#the-brimstone-palace) | Revenant, Abyssal Demon, Rime Revenant -- with demons and Bone Knights grown to match them -- and **the Cinder King** | 69-84 |
 
-Every hole is closed -- 36, 38, 42-44, 57, 68, 70-72 and, now that the last
-three stand in the Brimstone Palace, 75-79 -- and the Cinder King at 84 is the
-top of it.
+That was meant to close every hole -- 36, 38, 42-44, 57, 68, 70-72 and, with
+the last three in the Brimstone Palace, 75-79 -- and most of them it did. Not
+all: a survey on 30 September, against the levels as they are shown now, finds **no
+ordinary monster anywhere at 36, 77 or 79-84** -- 80 to 83 hold nothing at all,
+79 and 84 only bosses -- and nothing met awake at 23, 27 and 48 (only in the
+dream) or 36 (only at Oona's ritual). The Cinder King at 84 is still the top of
+it.
 
 **A monster cannot leave anything on you.** The first draft gave these a status
 their blows could leave and a leech; the player has no `StatusSet` -- statuses
@@ -7289,38 +7304,43 @@ every advised area -- still means what it did. A friend on an older build would
 draw every bar wrong, so the co-op protocol went up to 12.
 
 
-| Monster | Where | Effective level | Leaves |
+| Monster | Where | Shown level | Leaves |
 | --- | --- | --- | --- |
-| Grey Wolf | the Westwold west of the Wend, the Brackenwood's south | 8-12 | bones, a **wolf pelt** |
-| Brown Bear | the Brackenwood | 22-24 | bones, meat, **bear hide** |
-| The Den Mother | the den, in the middle of the Brackenwood | 34, a leader | four to six bear hides, and better |
-| Greatwolf | the Howling Fells, in the Westwold's west | 56-58 | bones, a **greatwolf pelt** |
-| Dire Bear | the Old Growth, in the Brackenwood's north | 72-73, a leader's heavy | bones, meat, **dire bear hide** |
+| Grey Wolf | the Westwold west of the Wend, the Brackenwood's south | 11-14 | bones, a **wolf pelt** |
+| Brown Bear | the Brackenwood | 24-26 | bones, meat, **bear hide** |
+| The Den Mother | the den, in the middle of the Brackenwood | 41, a leader | four to six bear hides, and better |
+| Greatwolf | the Howling Fells, in the Westwold's west | 58-61 | bones, a **greatwolf pelt** |
+| Dire Bear | the Old Growth, in the Brackenwood's north | 73-74, a leader's heavy | bones, meat, **dire bear hide** |
 | Cellar Rat | the inn's cellar | 1 | bones, raw meat, a few coins |
 | Cellar Spider | the inn's cellar | 3-4 | spider silk |
-| Broodmother | the back of the inn's cellar | 7 | silk, coins, a tonic or a copper ring |
-| Orc Grunt | the Sunken Road, the mine, the barrow | 5-9 | bones, coins, raw meat, the odd bronze piece |
-| Orc Raider | deeper in the mine and the barrow | 15-20 | bones, coins, iron ore and iron gear |
-| **Orc Warchief** | the mine's last room | 28 | his totem, a warchief's purse, ember shards, steel and iron gear |
-| Lizardman | the Mire | 10-13 | lizard scales, bogbean, iron ore, hides |
-| Lizardman Chief | the camp in the Mire | 16 | scales, iron bars, a steel sword, Fen Bitters |
-| Ice Troll | the Ice Spire's slopes | 26-29 | troll hide, damascus ore, azuryte gear |
-| Frost Wyvern | round the Ice Spire's summit | 33-36 | wyvern scales, platinum ore, damascus gear |
-| Wyvern Matriarch | the summit | 40 | scales, platinum gear, diamond ore |
-| **Hoarfang** | its own ground above the summit | 62 | dragon fangs, scales, diamond and platinum, diamond gear |
-| Cellar Slime | the well's upper workings | 8-9 | empty vials, bones, coins |
-| Well Bat | the well's upper workings | 11-12 | bones, coins |
-| Pit Hound | the well's deep cut | 20-21 | bones, hides, raw meat, coins |
-| Ankou | the well's deep cut | 27 | bones, grave candles, tarnished rings, iron bars |
-| Banshee | the well's deep cut | 30-31 | mourning lockets, grave candles, vials, coins |
-| **The Thing in the Spring** | the spring at the bottom of the well | 32 | a purse of coins, a locket, steel, azuryte, the odd diamond |
-| Shambler | Hollowrest, among the graves | 12-14 | rotten flesh, coins |
-| Skeleton | Hollowrest, along the fence | 15-17 | bones |
+| Broodmother | the back of the inn's cellar | 10 | silk, coins, a tonic or a copper ring |
+| Orc Grunt | the Sunken Road, the mine, the barrow | 7-11 | bones, coins, raw meat, the odd bronze piece |
+| Orc Raider | deeper in the mine and the barrow | 19-24 | bones, coins, iron ore and iron gear |
+| **Orc Warchief** | the mine's last room | 34 | his totem, a warchief's purse, ember shards, steel and iron gear |
+| Lizardman | the Mire | 12-16 | lizard scales, bogbean, iron ore, hides |
+| Lizardman Chief | the camp in the Mire | 21 | scales, iron bars, a steel sword, Fen Bitters |
+| Ice Troll | the Ice Spire's slopes | 31-35 | troll hide, damascus ore, azuryte gear |
+| Frost Wyvern | round the Ice Spire's summit | 37-41 | wyvern scales, platinum ore, damascus gear |
+| Wyvern Matriarch | the summit | 49 | scales, platinum gear, diamond ore |
+| **Hoarfang** | its own ground above the summit | 79 | dragon fangs, scales, diamond and platinum, diamond gear |
+| Cellar Slime | the well's upper workings | 11-13 | empty vials, bones, coins |
+| Well Bat | the well's upper workings | 10-11 | bones, coins |
+| Pit Hound | the well's deep cut | 22-24 | bones, hides, raw meat, coins |
+| Ankou | the well's deep cut | 30 | bones, grave candles, tarnished rings, iron bars |
+| Banshee | the well's deep cut | 28-29 | mourning lockets, grave candles, vials, coins |
+| **The Thing in the Spring** | the spring at the bottom of the well | 40 | a purse of coins, a locket, steel, azuryte, the odd diamond |
+| Shambler | Hollowrest, among the graves | 14-17 | rotten flesh, coins |
+| Skeleton | Hollowrest, along the fence | 15-18 | bones |
 | Wraith | Hollowrest, the old western half | 17-18 | grave candles, tarnished rings, mourning lockets |
-| The Hollowrest Wight | in front of the crypt | 26 | lockets, rings, candles, coins, steel |
-| Imp | the Ashen Path and the pit | 30-34 | coins, emberbloom, platinum ore, the odd horn |
-| Demon | the hellgate and the pit | 40-43 | demon horns, demonite ore, platinum gear |
-| The Pit Lord | the pit's last room | 54 | horns, demonite bars and gear |
+| The Hollowrest Wight | in front of the crypt | 33 | lockets, rings, candles, coins, steel |
+| Imp | the Ashen Path and the pit | 29-34, and 43-55 on the way north to the palace | coins, emberbloom, platinum ore, the odd horn |
+| Demon | the hellgate and the pit | 45-50, and 60-70 on the way north | demon horns, demonite ore, platinum gear |
+| The Pit Lord | the pit's last room | 66 | horns, demonite bars and gear |
+
+(The level shown over each -- what `Enemy::ShownLevelOf` makes of its post's
+numbers -- as a survey on 30 September found them. They move whenever a monster
+is retuned; this table had stood since the first of them were placed, and every
+row but three had moved.)
 
 Each place is a step up from the one before, and none is a wall: monsters in the
 new areas are spaced along the way, do not chase far, and the Ice Spire has a camp
@@ -7498,10 +7518,12 @@ fight for a loot roll. **The first time a character brings one down** it leaves
 them two things -- the one for good, the other for a day:
 
 - **A skill point** for their tree, over and above the one every third level
-  earns. There are eleven bosses, so eleven points against the nine a finished
-  tree is short of (ten, for the hero): someone who has killed everything in the game can finish
-  their tree, and nobody else can. The tree's header says how many of your
-  points came that way.
+  earns. There are seventeen bosses, so seventeen points against the nine a
+  finished tree is short of at 99 (twelve, for the hero's): any nine of them
+  finish a tree, twelve the hero's. It was written when there were eleven, and
+  only someone who had killed everything could finish a tree; six bosses have
+  come since, and their points with them. The tree's header says how many of
+  your points came that way.
 - **A boon**, by the dice, **for 24 hours of the world's clock**: one of
   twenty-one small things, of those the character's path can use and do not have
   running already -- so no two running at once are the same, a hero is never
@@ -7687,10 +7709,12 @@ them off the trail, once the trail has been cleared the first time.
 
 ### Heavy attacks
 
-Leaders -- the Orc Warchief, the Broodmother, the Lizardman Chief, the Wyvern
-Matriarch and every Frost Wyvern, the Hollowrest Wight, the Thing in the Spring,
-the Pit Lord, Hoarfang, and the Nightmare Brute -- have a second attack besides
-their swing: **a heavy, telegraphed blow that no shield stops.**
+Leaders -- every boss, and the strongest of the rest: the five dragons, the
+greater and abyssal demons of the Plateau and the palace, the Rime Revenants, the
+crypt's colossi and wardens, the Hexmire's zealots and shellbacks, the
+Frostreach's warlords and frostbacks, the dream's nightmares, the wyverns and the
+dire bears, thirty-eight in all -- have a second attack besides their swing:
+**a heavy, telegraphed blow that no shield stops.**
 
 A few seconds into a fight, when the player is within its reach, the leader
 plants its feet and winds up. **A bar over its head fills** from yellow to red
@@ -7710,16 +7734,44 @@ before stamina comes back is doubled.
 
 | Leader | Wind-up | Damage | Rests |
 | --- | --- | --- | --- |
-| Broodmother | 1.2s | x2.2 | 8s |
-| Lizardman Chief | 1.3s | x2.3 | 9s |
-| Orc Warchief | 1.4s | x2.4 | 9s |
+| **Cerberus** | 1.1s | x2.4 | 7s |
+| **Broodmother** | 1.2s | x2.2 | 8s |
+| Gale Dragon | 1.2s | x2.2 | 8.5s |
+| Abyssal Demon | 1.2s | x2.3 | 9s |
+| Shellback Snapper | 1.2s | x2.5 | 8s |
+| Dire Bear | 1.3s | x2.0 | 11s |
+| Bone Colossus | 1.3s | x2.2 | 10s |
+| Nightmare Raider | 1.3s | x2.2 | 10s |
+| **The Den Mother** | 1.3s | x2.2 | 9s |
+| Brine Dragon | 1.3s | x2.3 | 9s |
+| **Lizardman Chief** | 1.3s | x2.3 | 9s |
+| Pyre Dragon | 1.3s | x2.3 | 9s |
+| Cultist Zealot | 1.3s | x2.4 | 9s |
+| Storm Dragon | 1.3s | x2.4 | 9s |
+| **The Voodoo High Priest** | 1.3s | x2.5 | 8s |
+| Greater Demon | 1.3s | x2.6 | 8.5s |
+| **The Abominable Snowman** | 1.3s | x2.8 | 8s |
 | Nightmare Brute | 1.4s | x2.2 | 9s |
-| The Hollowrest Wight | 1.4s | x2.4 | 9s |
+| Nightmare Knight | 1.4s | x2.3 | 9.5s |
+| Basalt Dragon | 1.4s | x2.4 | 9s |
+| **Orc Warchief** | 1.4s | x2.4 | 9s |
+| **The Hollowrest Wight** | 1.4s | x2.4 | 9s |
+| Shellback Elder | 1.4s | x2.6 | 9s |
+| Undead Warlord | 1.4s | x2.6 | 9s |
+| **The Cinder King** | 1.4s | x2.8 | 8s |
 | Frost Wyvern | 1.5s | x2.2 | 12s |
-| Wyvern Matriarch | 1.5s | x2.5 | 9s |
-| The Thing in the Spring | 1.5s | x2.5 | 9s |
-| The Pit Lord | 1.6s | x2.6 | 9s |
-| Hoarfang | 1.8s | x2.8 | 10s |
+| Night Wyvern | 1.5s | x2.2 | 12s |
+| **The Sleepless** | 1.5s | x2.3 | 9s |
+| Crypt Warden | 1.5s | x2.4 | 9.5s |
+| Rime Revenant | 1.5s | x2.5 | 9.5s |
+| **The Mother of the Fen** | 1.5s | x2.5 | 9s |
+| **The Thing in the Spring** | 1.5s | x2.5 | 9s |
+| **Wyvern Matriarch** | 1.5s | x2.5 | 9s |
+| Frostback Troll | 1.5s | x2.6 | 10s |
+| **The Pit Lord** | 1.6s | x2.6 | 9s |
+| **Lord Ashcroft** | 1.6s | x2.7 | 8.5s |
+| **The Unwaking** | 1.8s | x2.6 | 10s |
+| **Hoarfang** | 1.8s | x2.8 | 10s |
 
 A heavy attack is a `heavy` block on a monster in `data/enemies.json` --
 `windup`, `damage`, `cooldown`, and optionally `reach`, `width`, `opening` and
@@ -8637,8 +8689,8 @@ and checks all of it — currently **70471 checks** covering:
   way back, Havenbrook's its four doors, the well, both gates, the benches and
   the traders, and the Ashen Path's the way back and the pit
 - bags: four of them, a row of seven each, twenty-eight slots to fifty-six;
-  each is a bag and not worn, eaten or stacked, has a picture, is made at a
-  workbench out of twenty-five things or more that all exist, and asks more
+  each is a bag and not worn, eaten or stacked, has a picture, is made on a
+  tanning rack out of twenty-five things or more that all exist, and asks more
   than the one before it; each is in a chest somewhere at under six in a
   hundred, the best not by the road and the least not at the end of the world;
   a sword is not a bag; a satchel goes on and the bag is a row bigger and a
@@ -8794,8 +8846,9 @@ and checks all of it — currently **70471 checks** covering:
   left and wears off at the day, saying which, while the point stays; killing
   the boss again does not bring it back; an old save's boons get a day from
   now; and Vigour's health is gone again a day later; the point buys a rank and comes back when the tree is
-  unlearned, the boon is kept; eleven bosses leave eleven different boons, none
-  for another path, and thirty heroes are never once given mana or arrows; it
+  unlearned, the boon is kept; all seventeen bosses leave seventeen different
+  boons, none for another path, thirty heroes are never once given mana or
+  arrows, and no hero or warden is ever handed Hexward; it
   survives a save, a boss killed before the save is not a first kill after it,
   and a forged save gets a boon for each boss and no more; Vigour, Stoneblood,
   Long Wind, Deep Reserves and Might each move the number they say by what

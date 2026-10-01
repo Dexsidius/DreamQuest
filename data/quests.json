@@ -909,10 +909,10 @@
   "name": "Oak for the Lodge",
   "source": "board",
   "giver": "board_mossvale",
-  "level": 12,
+  "level": 15,
   "summary": "Pell has a buyer in Havenbrook who pays well for seasoned oak and asks no questions about it.",
   "req": {
-   "Woodcutting": 12
+   "Woodcutting": 15
   },
   "repeat": "daily",
   "pool": "mossvale",
@@ -1389,7 +1389,7 @@
   "level": 10,
   "summary": "An iron spear for a road warden who wants the orcs kept at a distance.",
   "req": {
-   "Smithing": 11
+   "Smithing": 10
   },
   "repeat": "daily",
   "pool": "halda_orders",

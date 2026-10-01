@@ -1861,6 +1861,41 @@ static void TestCharmsAndBoons(const Databases& db) {
                   std::to_string(handed[2]) + " of 30)");
     }
 
+    // --- what they say is what they do ------------------------------------------------------------
+    // Three said otherwise: the Red Thirst gave back "what you take" and is a
+    // share of what you deal; Quickstep said nothing of moving, and a blow only
+    // ever slips past someone on the move; Marshstride said a seventh, and is
+    // fifteen in a hundred.
+    {
+        const auto has = [](const string& text, std::initializer_list<const char*> words) {
+            for (const char* w : words) if (text.find(w) != string::npos) return true;
+            return false;
+        };
+        bool moving = true, dealt = true;
+        const auto read = [&](const map<string, float>& effects, const string& text, const string& who) {
+            if (effects.count("evade") && !has(text, {"move", "moving"})) {
+                moving = false;
+                SDL_Log("  %s gives evade and does not say it is only on the move: %s", who.c_str(), text.c_str());
+            }
+            if (effects.count("lifesteal") && (!has(text, {"deal", "land"}) || has(text, {"take"}))) {
+                dealt = false;
+                SDL_Log("  %s gives lifesteal and does not say it is of what is dealt: %s", who.c_str(), text.c_str());
+            }
+        };
+        for (const AttackStyle style : {AttackStyle::Melee, AttackStyle::Ranged, AttackStyle::Magic})
+            for (const TalentNode& n : trees.Tree(style).nodes) read(n.effects, n.description, n.id);
+        for (const BoonDef& b : trees.Boons()) read(b.effects, b.text, b.id);
+        for (const TotemDef& t : trees.Totems()) read(t.effects, t.text, t.item);
+        Check(moving, "everything that makes blows miss says it is on the move, which is the only time they do");
+        Check(dealt, "and everything that gives back health says it is a share of what you deal, not what you take");
+        const string share = std::to_string(std::lround((Player::MARSHSTRIDE_SPEED - 1.0f) * 100.0f)) + "%";
+        int marsh = 0;
+        bool said = true;
+        for (const auto& [id, d] : items.All())
+            if (d.passive == Player::PASSIVE_MARSHSTRIDE) { ++marsh; said &= d.passive_text.find(share) != string::npos; }
+        Check(marsh > 0 && said, "Marshstride says the " + share + " it gives");
+    }
+
     // --- a pair carries both blades' charms -------------------------------------------------------------
     {
         const string dagger = items.TierPiece("iron", "dagger");
@@ -2267,6 +2302,71 @@ static void TestLightningThroughCombos(const Databases& db) {
         Check(c.move == ComboMove::Crush && c.flying >= 1 && c.ground < 0.0f,
               "the Surge with fire chosen is still a bolt thrown (" + std::to_string(c.flying) + ")");
     }
+}
+
+// An order asks the level its goods are got at. Oak for the Lodge asked
+// Woodcutting 12, and no oak anywhere falls to an axe below 15; Halda's iron
+// spear asked Smithing 11 for a spear made at 10, where every other iron order
+// asks 10. The order books' own check asked "at least" the level a thing is
+// made at, and nothing of what is cut or mined.
+static void TestOrderLevels(const Databases& db) {
+    ItemDatabase& items = db.items;
+    Section("an order asks the level its goods are made, cut or mined at");
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+
+    // The least level each thing is cut or mined at, anywhere: item -> (level, skill).
+    map<string, std::pair<int, int>> gathered;
+    for (const char* id : kMaps) {
+        Map m;
+        if (!m.Load(string("maps/") + id + ".mx")) continue;
+        for (const MapObject& o : m.Objects()) {
+            if (o.yield.empty() || o.skill.empty()) continue;
+            const auto it = gathered.find(o.yield);
+            if (it == gathered.end() || o.skill_level < it->second.first) gathered[o.yield] = {o.skill_level, SkillFromName(o.skill)};
+        }
+    }
+    int cut = 0;
+    bool reachable = true;
+    for (const auto& [id, q] : log.Definitions()) {
+        if (!q.daily || q.stages.size() != 1 || q.stages[0].type != ObjectiveType::Deliver) continue;
+        const auto g = gathered.find(q.stages[0].target);
+        if (g == gathered.end() || g->second.first <= 1) continue;
+        ++cut;
+        const auto r = q.requirements.find(g->second.second);
+        if (r == q.requirements.end() || r->second < g->second.first) {
+            reachable = false;
+            SDL_Log("  %s asks for %s, which nothing gives below %s %d", id.c_str(), q.stages[0].target.c_str(),
+                    SkillName(g->second.second), g->second.first);
+        }
+    }
+    Check(cut >= 5 && reachable, "every order for something cut or mined asks at least the level the least of it is got at (" +
+                                     std::to_string(cut) + " orders)");
+
+    // Halda's and Nessa's books ask exactly the level their goods are made at.
+    // A bigger lot posted higher than what is in it is Bess's and Wendel's way
+    // -- a harvest feast, a barrel of eels -- and not theirs.
+    int made = 0;
+    bool exact = true;
+    for (const auto& [id, q] : log.Definitions()) {
+        if ((q.pool != "halda_orders" && q.pool != "nessa_orders") || q.stages.size() != 1) continue;
+        int least = 0, skill = -1;
+        for (const ItemDef* r : items.Recipes())
+            if (r->craft_result == q.stages[0].target && (least == 0 || r->craft_level < least)) {
+                least = r->craft_level;
+                skill = CraftSkill(items.StationFor(*r));
+            }
+        if (least <= 1) continue;
+        ++made;
+        const auto r = q.requirements.find(skill);
+        if (r == q.requirements.end() || r->second != least) {
+            exact = false;
+            SDL_Log("  %s asks %s %d for %s, which is made at %d", id.c_str(), SkillName(skill),
+                    r == q.requirements.end() ? 0 : r->second, q.stages[0].target.c_str(), least);
+        }
+    }
+    Check(made >= 20 && exact, "Halda's and Nessa's orders ask exactly the level their goods are made at (" +
+                                   std::to_string(made) + " orders)");
 }
 
 int main(int argc, char** argv) {
@@ -20582,6 +20682,7 @@ int main(int argc, char** argv) {
     TestMeleeReach(db);
     TestCharmsAndBoons(db);
     TestLightningThroughCombos(db);
+    TestOrderLevels(db);
 
     Section("the Brimstone Palace, and its king");
     {
